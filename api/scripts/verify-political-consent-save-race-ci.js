@@ -61,6 +61,16 @@ async function main(){
       return {
         async query(sql,params){
           const normalized=sourceSql(sql);
+          // The second HTTP request must reach its competing DB statement
+          // BEFORE the first transaction is released. Otherwise a green
+          // result could merely prove sequential requests.
+          if(blocked && !blocked.contenderSeen && (
+            (blocked.phase==='save' && normalized.startsWith('UPDATE users SET political_opinions_consent = false')) ||
+            (blocked.phase==='revoke' && /^SELECT id FROM users WHERE id = \\$1 FOR UPDATE$/.test(normalized))
+          )){
+            blocked.contenderSeen=true;
+            blocked.contender.resolve();
+          }
           const answer=await c.query(sql,params);
           if(blocked && !blocked.consumed && (
             (blocked.phase==='save' && /^SELECT id FROM users WHERE id = \$1 FOR UPDATE$/.test(normalized)) ||
@@ -145,12 +155,13 @@ async function main(){
 
     // SAVE first: revocation must WAIT for save's row lock, then delete
     // the newly written answer atomically before returning HTTP 200.
-    blocked={phase:'save',locked:gate(),resume:gate(),consumed:false};
+    blocked={phase:'save',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
     const saveFirst=save();
     await timeout(blocked.locked.promise);
     const revokeSecond=revoke();
-    // Ensure revoke has started its request without trusting a timing sleep:
-    // the users row remains locked until we resume the first transaction.
+    await timeout(blocked.contender.promise);
+    // The revocation has reached the conflicting database UPDATE while
+    // the opinion-save transaction still owns the users row lock.
     blocked.resume.resolve();
     assert.equal((await timeout(saveFirst)).status,200);
     assert.equal((await timeout(revokeSecond)).status,200);
@@ -159,10 +170,11 @@ async function main(){
     // REVOKE first: hold the users row lock, then save must wait, notice
     // consent false, issue rollback and refuse to create a new answer.
     await reset();
-    blocked={phase:'revoke',locked:gate(),resume:gate(),consumed:false};
+    blocked={phase:'revoke',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
     const revokeFirst=revoke();
     await timeout(blocked.locked.promise);
     const saveSecond=save();
+    await timeout(blocked.contender.promise);
     blocked.resume.resolve();
     assert.equal((await timeout(revokeFirst)).status,200);
     const saveResponse=await timeout(saveSecond);
@@ -177,20 +189,22 @@ async function main(){
     assert.deepEqual(await inspect(),{consent:true,override:true,answer:'f'});
     // The admin route must observe the same serialization guarantees.
     await reset();
-    blocked={phase:'save',locked:gate(),resume:gate(),consumed:false};
+    blocked={phase:'save',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
     const adminFirst=admin();
     await timeout(blocked.locked.promise);
     const afterAdminRevoke=revoke();
+    await timeout(blocked.contender.promise);
     blocked.resume.resolve();
     assert.equal((await timeout(adminFirst)).status,200);
     assert.equal((await timeout(afterAdminRevoke)).status,200);
     assert.deepEqual(await inspect(),{consent:false,override:false,answer:null});
 
     await reset();
-    blocked={phase:'revoke',locked:gate(),resume:gate(),consumed:false};
+    blocked={phase:'revoke',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
     const revokeBeforeAdmin=revoke();
     await timeout(blocked.locked.promise);
     const adminAfterRevoke=admin();
+    await timeout(blocked.contender.promise);
     blocked.resume.resolve();
     assert.equal((await timeout(revokeBeforeAdmin)).status,200);
     const adminDenied=await timeout(adminAfterRevoke);
