@@ -72,7 +72,8 @@ jobs:
       - name: Install API dependencies without lifecycle scripts
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Exercise real HTTP opinion routes with synthetic mocked pool
-        run: node --test api/tests/opinionCodecHttpContract.test.js
+        # Direct node:test execution avoids intermittent worker IPC deserialization errors.
+        run: node api/tests/opinionCodecHttpContract.test.js
       - name: Regression-check the existing authenticated opinion POST HTTP endpoint
         run: node --test api/tests/ordinaryUserOpinionSave.test.js
       - name: Measure real PostgreSQL heap, index and TOAST allocations
