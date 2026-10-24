@@ -169,8 +169,16 @@ async function main(){
  try{
   await seed(pool);
   const questions=ids.map(id=>({id,text:id}));
-  const first=await runAll(pool,questions);
-  const concurrentRevocations=await verifyRevocationBetweenBatches(pool,questions);
+  const modes=[];
+  const envName='SONDAGGI_EXPERIMENTAL_DIRECT_FILTER';
+  if(process.env[envName])throw Error('Untrusted pre-set strategy flag in CI');
+  for(const mode of ['lateral_default','direct_filter_opt_in']){
+    if(mode==='direct_filter_opt_in')process.env[envName]='true';
+    else delete process.env[envName];
+    const first=await runAll(pool,questions);
+    const concurrentRevocations=await verifyRevocationBetweenBatches(pool,questions);
+    modes.push({mode,first,concurrentRevocations});
+  }
   // A real GDPR-consent change must suppress every 10-voter cell, not
   // just one local mock result, on every scope and both SQL batches.
   await pool.query("INSERT INTO user_consents(user_id,political_opinions_consent)"+
@@ -184,14 +192,16 @@ async function main(){
    assert.deepEqual(stats,{});
    assert.equal(wrapped.queries,5);
   }
+  delete process.env[envName];
   console.log('SONDAGGI_LARGE_REAL_PG17_PASS');
   console.log('SONDAGGI_LARGE_REAL_PG17_RESULT_JSON='+JSON.stringify({
     synthetic:true,postgres:17,accounts:24,columns:COLUMNS,
-    batchLimit:256,results:first,
+    batchLimit:256,results:modes[0].first,
+    strategies:modes,
     consentRevocationFrom10To9:true,
     allScopesHiddenAfterRevocation:true,
     snapshotIsolation:'REPEATABLE READ READ ONLY for >256 columns',
-    concurrentRevocations,
+    concurrentRevocations:modes[0].concurrentRevocations,
     noSupabase:true,noDeploy:true
   }));
  }finally{await pool.end();}
