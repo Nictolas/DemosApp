@@ -1,6 +1,6 @@
 -- OP-37: repeatable measured SQL benchmark on private synthetic Supabase staging only.
 -- No API grants, no external accounts, no changes to public schema.
-CREATE FUNCTION op37_sondaggi_ci.compare_sql_modes_ci(sample_runs integer DEFAULT 6)
+CREATE OR REPLACE FUNCTION op37_sondaggi_ci.compare_sql_modes_ci(sample_runs integer DEFAULT 6)
 RETURNS TABLE (
   scope_name text, synthetic_accounts integer, published_opinions integer,
   legacy_query_count integer, grouped_query_count integer,
@@ -85,9 +85,8 @@ BEGIN
         v_start:=clock_timestamp();
         IF v_mode='legacy' THEN
           v_old:='{}'::jsonb;
-          -- One catalog read + metadata and aggregate per published opinion.
-          PERFORM q.id FROM op37_sondaggi_ci.opinioni_domande q
-            WHERE NOT ('da approvare'=ANY(q.gradi_opinione)) ORDER BY q.text;
+          -- The FOR query is the single catalog read in the legacy path.
+          -- A separate PERFORM here would count one extra catalog scan.
           FOR question IN
             SELECT q.id FROM op37_sondaggi_ci.opinioni_domande q
             WHERE NOT ('da approvare'=ANY(q.gradi_opinione)) ORDER BY q.text
