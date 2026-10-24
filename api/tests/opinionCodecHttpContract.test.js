@@ -250,3 +250,33 @@ test('single-answer update preserves unrelated answers across legacy GET and all
     }
   });
 });
+
+
+test('CHARACTERIZATION: revoked consent blocks writes but legacy GET still reads own stored votes',async()=>{
+  await withActualRoutes(async({request,answers,consents,calls})=>{
+    const post=opinioni=>request('POST','/api/opinioni/salva','account-a',{opinioni});
+    const get=token=>request('GET','/api/opinioni-list?grado=N',token);
+    assert.equal((await post({caccia:'f'})).status,200);
+    consents.set('account-a',false);
+    const beforeRead=calls.length;
+    const ownRead=await get('account-a');
+    assert.equal(ownRead.status,200);
+    assert.equal(ownRead.body.data.find(q=>q.id==='caccia').userAnswer,'f');
+    // The current GET source does not consult user_consents. This test
+    // records existing behavior, NOT approval of its privacy semantics.
+    const readCalls=calls.slice(beforeRead);
+    assert.ok(readCalls.some(c=>c.sql.startsWith('SELECT * FROM opinioni_risposte')));
+    assert.equal(readCalls.some(c=>c.sql.includes('user_consents')),false);
+    const otherRead=await get('account-b');
+    assert.equal(otherRead.status,200);
+    assert.equal(otherRead.body.data.find(q=>q.id==='caccia').userAnswer,null);
+    const denied=await post({caccia:'c'});
+    assert.equal(denied.status,403);
+    assert.equal(answers.get('account-a').caccia,'f');
+    consents.set('account-a',true);
+    assert.equal((await post({caccia:'c'})).status,200);
+    assert.equal((await get('account-a')).body.data.find(q=>q.id==='caccia').userAnswer,'c');
+  });
+});
+
+test.todo('privacy policy: define no-store response headers and cache purge on consent revocation/logout');
