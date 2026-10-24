@@ -13,7 +13,7 @@ const hubAccent = (buttonColor: string) => {
   return "#6b7280";
 };
 
-export const SectionsGrid: React.FC = () => {
+export const SectionsGrid: React.FC<{ dpoReadOnly?: boolean }> = ({ dpoReadOnly = false }) => {
   const [selectedHubId, setSelectedHubId] = useState<GestisciHub["id"] | null>(null);
 
   const selectedHub = useMemo(
@@ -28,6 +28,10 @@ export const SectionsGrid: React.FC = () => {
   }, [selectedHub]);
 
   const openHub = (hub: GestisciHub) => {
+    if (dpoReadOnly) {
+      window.location.href = `/dpo?section=${encodeURIComponent(hub.id)}`;
+      return;
+    }
     if (hub.route) {
       window.location.href = hub.route;
       return;
@@ -77,10 +81,11 @@ export const SectionsGrid: React.FC = () => {
   return (
     <div className="w-full space-y-5">
       <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur-sm">
-        <h1 className="text-2xl font-bold text-slate-900">Gestione DEMOS</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{dpoReadOnly ? 'Consultazione DEMOS' : 'Gestione DEMOS'}</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-600">
-          Le funzioni amministrative sono raccolte in cinque aree. Gli strumenti tecnici di monitoraggio,
-          sicurezza, backup ed export sono concentrati nell&apos;Ops Center.
+          {dpoReadOnly
+            ? 'Le cinque aree mostrano un riepilogo aggregato in sola lettura. Nessun accesso ai comandi amministrativi o alle configurazioni tecniche.'
+            : 'Le funzioni amministrative sono raccolte in cinque aree. Gli strumenti tecnici di monitoraggio, sicurezza, backup ed export sono concentrati nell\u2019Ops Center.'}
         </p>
       </div>
 
@@ -106,7 +111,7 @@ export const SectionsGrid: React.FC = () => {
               </div>
               <div className="pr-5">
                 <div className="font-semibold leading-tight text-slate-900">{hub.title}</div>
-                <div className="mt-2 text-xs leading-snug text-slate-600">{hub.description}</div>
+                <div className="mt-2 text-xs leading-snug text-slate-600">{dpoReadOnly ? 'Riepilogo aggregato in sola lettura' : hub.description}</div>
               </div>
               <ChevronRight className="absolute bottom-4 right-4 h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-700" />
             </button>

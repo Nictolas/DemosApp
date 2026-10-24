@@ -9,6 +9,7 @@ on:
       - 'api/tests/dpoRoleMatrix.test.js'
       - 'api/tests/dpoMiddlewareContract.test.js'
       - 'api/tests/dpoHttpPostgres.integration.test.js'
+      - 'api/tests/dpoAreasReadonly.test.js'
       - 'api/migrations/20261023_dpo_readonly_capability.sql'
       - 'api/routes/auth/profile.js'
       - 'api/tests/dpoGestisciNavigation.smoke.test.js'
@@ -97,5 +98,5 @@ jobs:
               THEN RAISE EXCEPTION 'Synthetic requests fixture polluted'; END IF;
           END $$;
           SQL
-      - name: Test HTTP endpoint with real temporary PostgreSQL
-        run: node --test api/tests/dpoHttpPostgres.integration.test.js
+      - name: Test DPO HTTP endpoints against synthetic fixtures and temporary PostgreSQL
+        run: node --test api/tests/dpoHttpPostgres.integration.test.js api/tests/dpoAreasReadonly.test.js

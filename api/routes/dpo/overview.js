@@ -37,4 +37,51 @@ router.get('/overview', async (req, res) => {
     return res.status(503).json({ success:false, error:'Riepilogo privacy non disponibile' });
   }
 });
+
+/**
+ * Five DPO oversight areas. Counts only: no user identifiers, opinions cast,
+ * raw notifications, technical credentials or administrative mutations.
+ * Reuses the fresh DB authorization gate above (also available to Admin).
+ */
+router.get('/areas', async (_req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        (SELECT COUNT(*)::integer FROM public.users) AS users_total,
+        (SELECT COUNT(*)::integer FROM public.users WHERE status = 'a') AS users_active,
+        (SELECT COUNT(*)::integer FROM public.riconoscimenti) AS recognitions_total,
+        (SELECT COUNT(*)::integer FROM public.opinioni_domande) AS opinions_total,
+        (SELECT COUNT(*)::integer FROM public.opinioni_proposte) AS proposed_opinions_total,
+        (SELECT COUNT(*)::integer FROM public.notifiche_demos) AS notifications_total,
+        (SELECT COUNT(*)::integer FROM public.iniziative_ministero) AS ministry_initiatives_total,
+        (SELECT COUNT(*)::integer FROM public.votazioni_parlamento) AS parliamentary_votes_total
+    `);
+    const counts = result.rows?.[0];
+    if (!counts) return res.status(503).json({ success: false, error: 'Riepilogo non disponibile' });
+    return res.json({
+      success: true,
+      data: {
+        scope: 'aggregated_readonly',
+        'utenti-verifiche': {
+          users_total: counts.users_total,
+          users_active: counts.users_active,
+          recognitions_total: counts.recognitions_total
+        },
+        contenuti: {
+          opinions_total: counts.opinions_total,
+          proposed_opinions_total: counts.proposed_opinions_total
+        },
+        comunicazioni: { notifications_total: counts.notifications_total },
+        'dati-istituzionali': {
+          ministry_initiatives_total: counts.ministry_initiatives_total,
+          parliamentary_votes_total: counts.parliamentary_votes_total
+        },
+        'ops-center': { access: 'privacy_oversight_only' }
+      }
+    });
+  } catch (_) {
+    return res.status(503).json({ success: false, error: 'Riepilogo non disponibile' });
+  }
+});
+
 module.exports = router;
