@@ -247,24 +247,29 @@ router.post('/salva', verifyToken, async (req, res) => {
       // In READ COMMITTED, FOR UPDATE waits for an in-flight revocation,
       // then reads its new committed consent value. Hold this row lock
       // through the opinion write and COMMIT.
-      const consentState = await client.query(`
-        SELECT u.id,
-          COALESCE(
-            (SELECT uc.political_opinions_consent
-             FROM user_consents uc WHERE uc.user_id = u.id),
-            u.political_opinions_consent,
-            false
-          ) AS granted
-        FROM users u
-        WHERE u.id = $1
-        FOR UPDATE OF u
-      `, [userId]);
-      if (consentState.rows.length === 0) {
+      // Lock first; read the consent override in a SEPARATE statement.
+      // This matters in READ COMMITTED: a subquery in the locking
+      // statement could otherwise observe an older user_consents snapshot
+      // while waiting for the revoked users row to become available.
+      const lockedUser = await client.query(
+        'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+      );
+      if (lockedUser.rows.length === 0) {
         throw Object.assign(new Error('User absent at opinion save'), {
           code: 'OPINION_USER_NOT_FOUND'
         });
       }
-      if (consentState.rows[0].granted !== true) {
+      const consentState = await client.query(`
+        SELECT COALESCE(
+          uc.political_opinions_consent,
+          u.political_opinions_consent,
+          false
+        ) AS granted
+        FROM users u
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE u.id = $1
+      `, [userId]);
+      if (consentState.rows[0]?.granted !== true) {
         throw Object.assign(new Error('Political consent revoked at opinion save'), {
           code: 'OPINION_CONSENT_REQUIRED'
         });
