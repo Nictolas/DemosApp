@@ -116,7 +116,8 @@ jobs:
       - name: Verify existing consent revocation cleanup with synthetic mocks
         run: node --test api/tests/politicalConsentAtomic.smoke.test.js
       - name: Regression-check the existing authenticated opinion POST HTTP endpoint
-        run: node --test api/tests/ordinaryUserOpinionSave.test.js
+        # Direct execution avoids intermittent node:test worker IPC corruption.
+        run: node api/tests/ordinaryUserOpinionSave.test.js
       - name: Regression-check national TEXT survey SQL, fallback and privacy
         run: |
           node api/tests/sondaggiTextBulk.test.js
