@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { safeDiagnosticCode } = require('../utils/logPrivacy');
 const { pool } = require('../middleware/auth');
 const { getFirebaseAdmin } = require('./firebaseAdmin');
 
@@ -14,7 +15,10 @@ function cleanText(value, maxLength = 180) {
 }
 
 function isMalformedClientUriAlert(alert = {}) {
-  if (alert.type !== 'UNHANDLED_API_ERROR' || alert.code !== 'URIError') return false;
+  if (alert.type !== 'UNHANDLED_API_ERROR' || alert.code !== 'URIERROR') return false;
+
+  // Il logger controlla il percorso originale prima che venga minimizzato per privacy.
+  if (alert.malformedClientUri === true) return true;
 
   const endpoint = String(alert.endpoint || '');
   if (!endpoint) return false;
@@ -97,6 +101,13 @@ async function persistAdminAlert(adminIds, title, body) {
      SELECT gen_random_uuid(), u.id, $2, $3, CURRENT_DATE, NOW()
      FROM users u
      WHERE u.id::text = ANY($1::text[])
+       AND NOT EXISTS (
+         SELECT 1 FROM notifiche_demos recent
+         WHERE recent.id_utente = u.id
+           AND recent.titolo = $2
+           AND recent.testo = $3
+           AND recent.data_creazione >= NOW() - INTERVAL '6 hours'
+       )
      RETURNING id`,
     [adminIds, title, body]
   );
@@ -173,7 +184,8 @@ class OperationalAlertService {
       component: cleanText(alert.component || 'api', 80),
       severity: cleanText(alert.severity || 'CRITICAL', 20),
       endpoint: cleanText(alert.endpoint || '', 160),
-      code: cleanText(alert.code || '', 80)
+      code: safeDiagnosticCode(String(alert.code || '').toUpperCase()),
+      malformedClientUri: alert.malformedClientUri === true
     };
 
     // Scanner e bot inviano periodicamente URI con percent-encoding non valido
@@ -193,9 +205,18 @@ class OperationalAlertService {
       return { success: true, suppressed: true, fingerprint };
     }
 
-    const title = `DEMOS — ${normalized.severity}`;
-    const endpointText = normalized.endpoint ? ` · ${normalized.endpoint}` : '';
-    const body = cleanText(`${normalized.component}: ${normalized.type}${endpointText}`, 220);
+    const severityLabels = { CRITICAL: 'Critico', HIGH: 'Elevato', WARN: 'Attenzione' };
+    const severityLabel = severityLabels[normalized.severity] || normalized.severity;
+    const isUnhandled = normalized.type === 'UNHANDLED_API_ERROR';
+    const title = `DEMOS — ${severityLabel}: ${isUnhandled ? 'Errore server' : 'Avviso operativo'}`;
+    const explanation = isUnhandled
+      ? 'Il server ha incontrato un errore imprevisto durante una richiesta'
+      : `Segnalazione tecnica (${normalized.type})`;
+    // Le aree sono già minimizzate: nessun URL contenente identificativi nei messaggi.
+    const area = normalized.endpoint === '/api/other'
+      ? 'API non classificata'
+      : normalized.endpoint === '/web' ? 'richiesta web' : normalized.endpoint || 'non identificata';
+    const body = cleanText(`${explanation}. Area: ${area}. Codice: ${normalized.code}. Verificare i log tecnici se ricompare.`, 220);
 
     try {
       const adminIds = await getAdminIds();
