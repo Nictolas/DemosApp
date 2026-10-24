@@ -11,6 +11,7 @@ on:
       - 'api/utils/opinionCatalogManifest.js'
       - 'api/tests/opinionCatalogManifest.test.js'
       - 'api/scripts/verify-opinion-catalog-persistence.js'
+      - 'api/scripts/verify-opinion-rls-isolation.js'
       - 'api/tests/opinionBitset.test.js'
       - 'api/tests/opinionTextAggregateProbe.test.js'
       - 'api/utils/opinionTextAggregateProbe.js'
@@ -141,3 +142,12 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-opinion-catalog-persistence.js
+      - name: Verify account RLS isolation on synthetic catalog and BYTEA rows
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-rls-isolation.js

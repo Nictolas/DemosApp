@@ -249,3 +249,36 @@ beneficio prestazionale. Lo schema SQL della prova non prevede
 automaticamente tutti i vincoli di immutabilità richiesti in produzione:
 scrittori che non rispettano il protocollo consultivo potrebbero
 aggirarlo. Il codice di DEMOS non legge né salva questi cataloghi.
+
+
+## Isolamento PostgreSQL con ruoli e RLS sintetici (DOC-030)
+
+Il file CI-only `api/scripts/verify-opinion-rls-isolation.js` definisce uno
+schema **separato e interamente sintetico** nel PostgreSQL 17 effimero di GitHub
+Actions. Non ha funzioni importate dalle API, non importa utenti o opinioni
+reali e non esegue SQL su Supabase. Richiede `GITHUB_ACTIONS=true`, il
+database esatto `opinion_bitset_ci` e credenziali fittizie locali.
+
+Prova una policy *esemplificativa*, non quella installata in DEMOS:
+
+- Due ruoli PostgreSQL non privilegiati, con login e password separati,
+  non possono usare `BYPASSRLS` né assumere il ruolo l'uno dell'altro.
+- Il catalogo versione/ID è consultabile da entrambi, ma non modificabile.
+  **La divulgazione o meno del catalogo in un sistema reale è da decidere.**
+- Le righe BYTEA sono protette da `ENABLE ROW LEVEL SECURITY` e
+  `FORCE ROW LEVEL SECURITY` con `USING`/`WITH CHECK` basati su
+  `subject_role = current_user`.
+- Sono verificate lettura e modifica lecite delle proprie risposte,
+  invisibilità di risposte altrui, negazione dell'inserimento per altri,
+  del cambio di proprietario e dell'accesso con `row_security=off`.
+- I payload fixed e sparse sono decodificati tramite gli adattatori puri,
+  mantenendo i valori f/c/i/NULL.
+
+**Ambito di validità limitato:** questa policy dimostra che in uno schema
+nuovo PostgreSQL può isolare righe di prova con credenziali SQL distinte.
+**Non valida** i criteri effettivi di DEMOS, gli accessi tramite pooler,
+JWT/`auth.uid()`, le policy Supabase, i privilegi `service_role`, il controllo
+del consenso né l'endpoint HTTP esistente. L'accesso SQL con privilegi
+amministrativi può aggirare le policy. Le policy di produzione e la
+migrazione restano non autorizzate. Anche dopo un esito PASS, OP-41 rimane
+**In corso** e KPI-23 **Non verificato**.
