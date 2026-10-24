@@ -25,13 +25,14 @@ export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
     total: number;
   }>({
     queryKey: ['statsOpinionQuestions', grado, user?.id ?? 'guest'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       console.log('🔍 DEBUG - Caricamento opinioni per selettore...');
       // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`);
+      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`, undefined, undefined, signal);
       // Do not log the payload: the endpoint can contain private userAnswers.
       return data;
     },
+    enabled: !!user,
   });
 
   if (isLoading) {
