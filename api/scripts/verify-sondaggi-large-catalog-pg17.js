@@ -65,17 +65,34 @@ async function seed(db){
    'SELECT COUNT(*)::int n FROM users')).rows[0].n;
  assert.equal(count,24);
 }
-function spy(client){
+function spy(pool,{afterFirstAggregate}={}){
  let queries=0,aggregates=0;
- return {
+ const measured={
   get queries(){return queries;},
   get aggregates(){return aggregates;},
   async query(...args){
+   // The route's ordinary <=256 path still calls pool.query directly.
    queries++;
    if(String(args[0]).includes('CROSS JOIN LATERAL (VALUES'))aggregates++;
-   return client.query(...args);
+   return pool.query(...args);
+  },
+  async connect(){
+   const checkout=await pool.connect();
+   return {
+    async query(...args){
+     queries++;
+     const isAggregate=String(args[0]).includes('CROSS JOIN LATERAL (VALUES');
+     if(isAggregate)aggregates++;
+     const result=await checkout.query(...args);
+     if(isAggregate&&aggregates===1&&afterFirstAggregate)
+       await afterFirstAggregate();
+     return result;
+    },
+    release(){checkout.release();}
+   };
   }
  };
+ return measured;
 }
 async function runAll(db,questions){
  const results=[];
@@ -85,7 +102,7 @@ async function runAll(db,questions){
     await getTerritorialSurveyStats(wrapped,questions,
       {scope:s.scope,params:s.params}):
     await getNationalSurveyStats(wrapped,questions);
-  assert.equal(wrapped.queries,3,'One whitelist and two grouped SQL for '+s.name);
+  assert.equal(wrapped.queries,5,'BEGIN + whitelist + two grouped SQL + COMMIT for '+s.name);
   assert.equal(wrapped.aggregates,2);
   assert.equal(Object.keys(stats).length,COLUMNS-1);
   assert.ok(!Object.hasOwn(stats,'synthetic_q129'));
@@ -98,6 +115,54 @@ async function runAll(db,questions){
  }
  return results;
 }
+async function verifyRevocationBetweenBatches(pool,questions){
+ const outcomes=[];
+ for(const s of scopes){
+  let signalFirst,releaseSecond;
+  const firstReady=new Promise(resolve=>{signalFirst=resolve});
+  const secondReady=new Promise(resolve=>{releaseSecond=resolve});
+  const measured=spy(pool,{afterFirstAggregate:async()=>{
+   signalFirst();
+   await secondReady;
+  }});
+  const read= s.scope?
+    getTerritorialSurveyStats(measured,questions,{scope:s.scope,params:s.params}):
+    getNationalSurveyStats(measured,questions);
+  let revoked=false;
+  try{
+   await Promise.race([
+    firstReady,
+    new Promise((_,reject)=>setTimeout(()=>reject(Error('First batch was not reached')),8000))
+   ]);
+   await pool.query("INSERT INTO user_consents(user_id,political_opinions_consent)"+
+     " VALUES('00000000-0000-4000-8000-000000000001',false)");
+   revoked=true;
+   releaseSecond();
+   const inFlight=await read;
+   // The in-flight transaction has a SINGLE old snapshot, including
+   // its first and second opinion batch. A NEW transaction MUST see the
+   // committed revocation and publish nothing under the 10-user floor.
+   assert.equal(Object.keys(inFlight).length,COLUMNS-1);
+   assert.deepEqual(inFlight.synthetic_q299,
+     {favorevole:10,contrario:0,indeciso:0});
+   assert.equal(measured.queries,5);
+   const next=s.scope?
+      await getTerritorialSurveyStats(pool,questions,
+        {scope:s.scope,params:s.params}):
+      await getNationalSurveyStats(pool,questions);
+   assert.deepEqual(next,{});
+   outcomes.push({scope:s.name,firstAndSecondBatchConsistent:true,
+     nextRequestAfterRevocationHidesAll:true});
+  }finally{
+   releaseSecond();
+   await read.catch(()=>{});
+   if(revoked)await pool.query(
+     "DELETE FROM user_consents WHERE user_id='00000000-0000-4000-8000-000000000001'");
+  }
+ }
+ return outcomes;
+}
+
 async function main(){
  guard();await createDb();
  const pool=new Pool({...conn(DB),max:2});
@@ -105,6 +170,7 @@ async function main(){
   await seed(pool);
   const questions=ids.map(id=>({id,text:id}));
   const first=await runAll(pool,questions);
+  const concurrentRevocations=await verifyRevocationBetweenBatches(pool,questions);
   // A real GDPR-consent change must suppress every 10-voter cell, not
   // just one local mock result, on every scope and both SQL batches.
   await pool.query("INSERT INTO user_consents(user_id,political_opinions_consent)"+
@@ -116,7 +182,7 @@ async function main(){
        {scope:s.scope,params:s.params}):
      await getNationalSurveyStats(wrapped,questions);
    assert.deepEqual(stats,{});
-   assert.equal(wrapped.queries,3);
+   assert.equal(wrapped.queries,5);
   }
   console.log('SONDAGGI_LARGE_REAL_PG17_PASS');
   console.log('SONDAGGI_LARGE_REAL_PG17_RESULT_JSON='+JSON.stringify({
@@ -124,6 +190,8 @@ async function main(){
     batchLimit:256,results:first,
     consentRevocationFrom10To9:true,
     allScopesHiddenAfterRevocation:true,
+    snapshotIsolation:'REPEATABLE READ READ ONLY for >256 columns',
+    concurrentRevocations,
     noSupabase:true,noDeploy:true
   }));
  }finally{await pool.end();}
