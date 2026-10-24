@@ -1309,5 +1309,27 @@ journal esterno e possono rallentare o bloccare una revoca.
 Non dimostra che l'architettura sia adeguata alla produzione.
 PR #247 DRAFT, nessun deploy, migrazione BYTEA o cambiamento a
 Supabase. OP-41 **In corso**, KPI-23 **Non verificato**, OP-42
-**Da fare**. **Esito DOC-052 in verifica CI**, da aggiornare
-solo sui risultati effettivi.
+**Da fare**. **Risultato CI verificato:** il run
+[#40106584606](https://github.com/Nictolas/DemosApp/actions/runs/40106584606)
+ha completato `physical-storage` e `codec-tests` **SUCCESS**:
+`OPINION_REMOTE_FENCE_BENCH_PASS`, oltre alle prove
+precedenti DOC-050/051. Su due repliche da 128 richieste
+per modalità, dopo warmup, le medie rilevate sono:
+
+| Lettori simultanei | Locale media | Remoto media | Delta | Locale p95 | Remoto p95 | Throughput remoto/locale |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 1,077 ms | 2,131 ms | +1,054 ms | 1,326 ms | 2,361 ms | 0,506× |
+| 8 | 2,622 ms | 5,850 ms | +3,228 ms | 5,481 ms | 9,131 ms | 0,449× |
+
+Il test addizionale di lock dello scrittore osserva realmente
+`pg_blocking_pids`: il trattenimento deliberato per 125 ms
+ha causato una **attesa misurata di 139 ms** prima che
+l'UPDATE fittizio potesse procedere, poi annullato.
+Un endpoint remoto irraggiungibile viene rifiutato senza fallback
+a dati non riconciliati. Risultati su un solo runner
+Linux CI, non SLA, stima carichi Supabase, costi o
+dimensionamento; cinque eventi fittizi in catena.
+**DOC-052 PASS nel solo ambiente sintetico, ma indica un
+rischio prestazionale e di disponibilità concreto per
+il design di blocco remoto per lettura.** OP-41 rimane
+**In corso** e KPI-23 **Non verificato**.
