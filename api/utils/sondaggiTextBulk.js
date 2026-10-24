@@ -134,7 +134,15 @@ function asPublishedStats(rows) {
 // lateral-per-person SQL; do not enable on DEMOS production without a
 // staged comparison across both small and large account populations.
 function directFilterEnabled() {
-  return process.env.SONDAGGI_EXPERIMENTAL_DIRECT_FILTER === 'true';
+  const e = process.env;
+  // A lone flag must not silently enable experimental query plans on
+  // DEMOS production. Permit only the disposable CI or the specifically
+  // isolated OP-37 Render staging service (with its setup-only gate off).
+  return e.SONDAGGI_EXPERIMENTAL_DIRECT_FILTER === 'true' && (
+    (e.GITHUB_ACTIONS === 'true' && e.SONDAGGI_TEXT_CI === 'isolated') ||
+    (e.RENDER === 'true' && e.OP37_STAGING_HTTP_ONLY === 'yes' &&
+     e.OP37_STAGING_SETUP_ONLY === 'no')
+  );
 }
 
 // Pivot counts only AFTER computing each selected column's f/c/i totals.
