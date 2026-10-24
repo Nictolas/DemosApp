@@ -43,7 +43,7 @@ export default function OpinioniComunali() {
 
   // 1. Query per caricare le domande
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: ['opinioniQuestions', 'Comunale'],
+    queryKey: ['opinioniQuestions', 'Comunale', user?.id],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=CO");
       if (response.ok && response.data) {
