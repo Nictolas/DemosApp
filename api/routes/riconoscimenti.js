@@ -39,7 +39,7 @@ router.get('/mine', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT tipo_ruolo, status, created_at, updated_at, decision_at,
-              fonte_elezione_url, fonte_candidatura_url
+              cie_names_verified_at, fonte_elezione_url, fonte_candidatura_url
        FROM riconoscimenti WHERE user_id = $1 LIMIT 1`,
       [req.userId]
     );
