@@ -1016,3 +1016,51 @@ non ha creato nuovi record. Lo stato del sorgente è rimasto invariato.
 La prova non testa recovery dopo perdita del server, PITR,
 archiviazione esterna, né il piano di backup di Supabase.
 **DOC-047 PASS soltanto nell'ambiente CI isolato.**
+
+
+## Retry binari, revoca del consenso e cancellazione ledger (DOC-048)
+
+Lo script `api/scripts/verify-opinion-retry-revocation.js` aggiunge un
+controllo **esclusivamente sperimentale CI** su PostgreSQL 17 effimero:
+le tre tabelle `ci_privacy_retry_*` ospitano quattro identità inventate,
+voti `BYTEA` e una tabella di idempotency key, senza riferimenti agli
+account o alle route DEMOS. La guardia di ambiente non permette
+connessioni esterne o a Supabase.
+
+**Invariante privacy prima dell'idempotenza:** per ogni tentativo di
+scrittura *o replay*, la transazione blocca la riga dell'account
+(`SELECT ... FOR UPDATE`), verifica consenso esplicito e
+`consent_epoch` **prima** di cercare la vecchia `request_id`. Il
+`COMMIT` riesce anche se si simula la perdita dell'ACK; un retry finché
+il consenso è valido restituisce il risultato già committato, senza
+aggiungere una revisione. La revoca blocca la **stessa riga di account**,
+disattiva il consenso, incrementa l'epoch e cancella **nella medesima
+transazione** sia le risposte sia tutte le chiavi di idempotenza del
+soggetto. Le vecchie richieste risultano non autorizzate e non ricreano
+voti o registrazioni di deduplicazione. Una nuova concessione esplicita
+del consenso incrementa di nuovo l'epoch: richieste provenienti dalla
+precedente sessione/epoch sono respinte; una nuova richiesta valida
+riparte da zero senza recuperare le vecchie opinioni.
+
+Il test usa **due transazioni e due connessioni realmente concorrenti**
+per entrambi gli ordinamenti di lock e osserva tramite
+`pg_blocking_pids` che l'attesa PostgreSQL sia effettiva:
+(1) salvataggio prima della revoca, seguito da eliminazione definitiva
+di voto e ledger, e (2) revoca prima del salvataggio, seguita da
+rifiuto senza nuove righe. Verifica anche il rollback di una revoca
+fallita: consenso, BYTEA e ledger rimangono intatti e un retry è
+ancora idempotente. Stesso ID con nuovo payload viene rifiutato.
+
+**Avvertenze:** `consent_epoch` è soltanto un protocollo illustrativo:
+per usarlo davvero occorrerebbero legame server-side con consenso,
+autenticazione dell'identità, controllo di client e token, modifiche
+coordinate delle route, RLS e regole di retention delle chiavi.
+Una epoch scelta liberamente dal client non dimostra autorizzazione.
+Il test non valida il consenso reale né aggiunge alcuna funzionalità
+in produzione. Non è stato misurato il costo o il valore economico
+del formato BYTEA. PR #247 DRAFT, nessun deploy, migrazione né DDL
+persistente; OP-41 **In corso**, KPI-23 **Non verificato**, OP-42
+**Da fare**.
+
+**Stato:** CI in verifica; DOC-048 non va considerato superato finché
+la pipeline GitHub non conferma il nuovo passo.
