@@ -26,9 +26,13 @@ const pool = {
     assert.match(sql, /COUNT\(\*\)/i);
     assert.doesNotMatch(sql, /opinioni_risposte|voti_opinioni|SELECT\s+\*/i);
     return { rows: [{
-      users_total: 10, users_active: 9, recognitions_total: 2,
-      opinions_total: 4, proposed_opinions_total: 3,
-      notifications_total: 1, ministry_initiatives_total: 5,
+      users_total: 10, users_active: 9, users_recent: 3, recognitions_total: 2,
+      recognitions_recent: 1, opinions_total: 4, opinions_with_detail: 3,
+      proposed_opinions_total: 3, proposed_opinions_recent: 1,
+      notifications_total: 1, notifications_recent: 1,
+      notifications_latest_at: '2026-10-24T12:00:00Z',
+      ministry_initiatives_total: 5, ministry_initiatives_not_ended: 2,
+      ministry_last_updated_at: '2026-10-24T10:00:00Z',
       parliamentary_votes_total: 6
     }] };
   }
@@ -85,6 +89,10 @@ test('DPO and Admin see only aggregate figures; no writes or individual data', a
   assert.equal(dpo.body.data.scope, 'aggregated_readonly');
   assert.equal(dpo.body.data['utenti-verifiche'].users_total, 10);
   assert.equal(dpo.body.data.contenuti.opinions_total, 4);
+  assert.equal(dpo.body.data.contenuti.opinions_with_detail, 3);
+  assert.equal(dpo.body.data['utenti-verifiche'].users_recent, 3);
+  assert.equal(dpo.body.data.comunicazioni.notifications_recent, 1);
+  assert.equal(dpo.body.data.comunicazioni.notifications_latest_at, '2026-10-24T12:00:00Z');
   assert.equal(dpo.body.data['dati-istituzionali'].parliamentary_votes_total, 6);
   assert.deepEqual(Object.keys(dpo.body.data).sort(), [
     'comunicazioni', 'contenuti', 'dati-istituzionali', 'ops-center', 'scope', 'utenti-verifiche'
