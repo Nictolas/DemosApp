@@ -331,3 +331,93 @@ test('fallback eligibility is limited to recognized static SQL incompatibilities
   }
   assert.equal(eligibleForLegacyFallback(new Error('no SQLSTATE')),false);
 });
+
+
+test('a transient error mid-fallback stops immediately in every scope, without partial publication',async()=>{
+  const scenarios=[{name:'national',scope:null},...GEO_SCOPES.map(scope=>({name:scope.scope,scope}))];
+  for(const {name,scope} of scenarios){
+    for(const faultStep of ['metadata','aggregate']){
+      for(const code of ['53300','57014','08006','42501','ECONNRESET']){
+        const {pool,calls}=fakePool({failGrouped:true});
+        const oldQuery=pool.query.bind(pool);
+        let fallbackAggregates=0,fallbackMetadata=0;
+        pool.query=async(sql,params)=>{
+          const isLegacy=sql.includes('FROM opinioni_risposte orr') &&
+            !sql.includes('CROSS JOIN LATERAL');
+          const isMeta=sql.includes('information_schema.columns');
+          if(isLegacy){
+            fallbackAggregates++;
+            if(faultStep==='aggregate' && fallbackAggregates===2)
+              throw Object.assign(Error('Synthetic fault mid-fallback'),{code});
+          }else if(isMeta){
+            fallbackMetadata++;
+            if(faultStep==='metadata' && fallbackMetadata===3)
+              throw Object.assign(Error('Synthetic metadata fault mid-fallback'),{code});
+          }
+          return oldQuery(sql,params);
+        };
+        await assert.rejects(
+          name==='national'
+            ? getNationalSurveyStats(pool,QUESTIONS)
+            : getTerritorialSurveyStats(pool,QUESTIONS,scope),
+          e=>e.code===code,
+          name+'/'+faultStep+'/'+code+': no partial response on DB failure'
+        );
+        assert.equal(fallbackAggregates,
+          faultStep==='aggregate'?2:1,name+'/'+faultStep+'/'+code+' no further aggregate SQL');
+        assert.equal(fallbackMetadata,3,name+'/'+faultStep+'/'+code+' no further metadata SQL');
+        assert.equal(calls.filter(x=>x.sql.includes('CROSS JOIN LATERAL')).length,1);
+      }
+    }
+  }
+});
+
+test('a removed column during fallback can be skipped without exposing under-ten cells',async()=>{
+ for(const scope of [null,...GEO_SCOPES]){
+  const {pool}=fakePool({failGrouped:true});
+  const original=pool.query.bind(pool);
+  let legacyCount=0;
+  pool.query=async(sql,params)=>{
+    if(sql.includes('FROM opinioni_risposte orr') &&
+       !sql.includes('CROSS JOIN LATERAL')){
+      legacyCount++;
+      if(legacyCount===2)
+        throw Object.assign(Error('Synthetic column dropped'),{code:'42703'});
+    }
+    return original(sql,params);
+  };
+  const stats=scope
+    ?await getTerritorialSurveyStats(pool,QUESTIONS,scope)
+    :await getNationalSurveyStats(pool,QUESTIONS);
+  assert.deepEqual(stats,{caccia:EXPECTED.caccia});
+  assert.equal(legacyCount,3);
+  assert.ok(!Object.hasOwn(stats,'sotto_soglia'));
+ }
+});
+
+test('HTTP surveys return 500, never successful partial stats, when fallback fails mid-request',async()=>{
+ for(const url of ['/api/sondaggi','/api/sondaggi/toscana',
+   '/api/sondaggi/toscana/pisa','/api/sondaggi/toscana/pisa/pisa']){
+  const {pool,calls}=fakePool({failGrouped:true});
+  const orig=pool.query.bind(pool);
+  let fallback=0;
+  pool.query=async(sql,params)=>{
+    if(sql.includes('FROM opinioni_risposte orr') &&
+       !sql.includes('CROSS JOIN LATERAL')){
+      fallback++;
+      if(fallback===2)
+        throw Object.assign(Error('Synthetic transport lost'),{code:'08006'});
+    }
+    return orig(sql,params);
+  };
+  await withRealSurveyRoute(pool,async base=>{
+    const res=await fetch(base+url);
+    assert.equal(res.status,500,url);
+    const body=await res.json();
+    assert.equal(body.success,false,url);
+    assert.equal(Object.hasOwn(body,'data'),false,url);
+  });
+  assert.equal(fallback,2,'Must not run third opinion after a transport outage');
+  assert.equal(calls.filter(c=>c.sql.includes('CROSS JOIN LATERAL')).length,1);
+ }
+});
