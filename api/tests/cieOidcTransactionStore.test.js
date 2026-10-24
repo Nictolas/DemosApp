@@ -4,6 +4,7 @@ const crypto = require('crypto');
 
 const {
   saveCieOidcTransaction,
+  saveCieRecognitionTransaction,
   saveCieRegistrationTransaction,
   consumeCieOidcTransaction
 } = require('../services/cieOidcTransactionStore');
@@ -311,4 +312,36 @@ test('salva registrazione CIE pre-account senza userId e senza fiscal_number', a
   assert.deepEqual(result.registration, registration);
   assert.equal(Object.hasOwn(result, 'userId'), false);
   assert.equal(JSON.stringify(result).includes('fiscal_number'), false);
+});
+
+test('recognition CIE transaction is one-time and purpose-bound', async () => {
+  const redis = fakeRedis();
+  const tx = {
+    state: 'z'.repeat(64), nonce: 'y'.repeat(64),
+    codeVerifier: 'one-time', expiresAt: Date.now() + 60000
+  };
+  await saveCieRecognitionTransaction('user-public', tx, redis);
+  const consumed = await consumeCieOidcTransaction(tx.state, redis);
+  assert.equal(consumed.flow, 'recognition');
+  assert.equal(consumed.userId, 'user-public');
+  assert.equal(JSON.stringify(consumed).includes('givenName'), false);
+  await assert.rejects(consumeCieOidcTransaction(tx.state, redis), /non trovata/);
+});
+
+test('pre-account CIE transactions strip citizen personal names', async () => {
+  const redis = fakeRedis();
+  const tx = {
+    state: 'q'.repeat(64), nonce: 'w'.repeat(64),
+    codeVerifier: 'verifier', expiresAt: Date.now() + 60000
+  };
+  await saveCieRegistrationTransaction('oauth:sub', {
+    provider: 'google', providerSub: 'some-sub', privacyPolicyConsent: true,
+    termsOfServiceConsent: true, givenName: 'Giovanna',
+    familyName: 'Bianchi', name: 'Giovanna Bianchi'
+  }, tx, redis);
+  const loaded = await consumeCieOidcTransaction(tx.state, redis);
+  assert.equal(loaded.registration.givenName, undefined);
+  assert.equal(loaded.registration.familyName, undefined);
+  assert.equal(loaded.registration.name, undefined);
+  assert.equal(JSON.stringify(loaded).includes('Giovanna'), false);
 });

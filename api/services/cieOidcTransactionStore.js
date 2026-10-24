@@ -115,6 +115,20 @@ async function saveCieOidcTransaction(userId, transaction, client = redisCache.g
   await saveTransactionWithOwnerLock(userLockKey(userId), payload, transaction, client);
 }
 
+async function saveCieRecognitionTransaction(userId, transaction, client = redisCache.getClient()) {
+  if (!client) throw new Error('Redis richiesto per il riconoscimento CIE');
+  if (!userId) throw new Error('userId obbligatorio');
+  const payload = {
+    flow: 'recognition',
+    userId: String(userId),
+    state: transaction.state,
+    nonce: transaction.nonce,
+    codeVerifier: transaction.codeVerifier,
+    expiresAt: transaction.expiresAt
+  };
+  await saveTransactionWithOwnerLock(userLockKey(userId), payload, transaction, client);
+}
+
 async function saveCieRegistrationTransaction(
   registrationKey,
   registration,
@@ -127,9 +141,12 @@ async function saveCieRegistrationTransaction(
     throw new Error('Registrazione OAuth mancante');
   }
 
+  // A regular citizen's name is unnecessary even in the short-lived
+  // pre-account transaction. Keep only credentials, consent and territory.
+  const { givenName, familyName, name, ...minimalRegistration } = registration;
   const payload = {
     flow: 'registration',
-    registration,
+    registration: minimalRegistration,
     state: transaction.state,
     nonce: transaction.nonce,
     codeVerifier: transaction.codeVerifier,
@@ -177,6 +194,7 @@ async function consumeCieOidcTransaction(state, client = redisCache.getClient())
 module.exports = {
   TTL_SECONDS,
   saveCieOidcTransaction,
+  saveCieRecognitionTransaction,
   saveCieRegistrationTransaction,
   consumeCieOidcTransaction
 };

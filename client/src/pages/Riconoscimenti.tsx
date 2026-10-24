@@ -27,6 +27,7 @@ interface RiconoscimentoRow {
   fonte_elezione_url: string | null;
   fonte_candidatura_url: string | null;
   status: "pending" | "approved" | "rejected";
+  cie_names_verified_at: string | null;
   identity_status: string | null;
   identity_provider: string | null;
   created_at: string;
@@ -194,6 +195,10 @@ export default function Riconoscimenti() {
                         ? "Identità verificata tramite CIE"
                         : "CIE non verificata: non approvabile"}
                     </div>
+                    <div className={`text-xs font-medium ${r.cie_names_verified_at ? "text-emerald-700" : "text-red-700"}`}>
+                      {r.cie_names_verified_at ? "Nome e cognome certificati da CIE per questo ruolo" :
+                        "Nomi del profilo non certificati: richiedere nuova verifica CIE"}
+                    </div>
                     <div className="text-xs text-gray-600">
                       Ruolo attuale: {r.ruolo_corrente || "Nessuno / Elettore"}
                     </div>
@@ -248,6 +253,7 @@ export default function Riconoscimenti() {
                       className="bg-emerald-600 hover:bg-emerald-700"
                       disabled={approveMutation.isPending || rejectMutation.isPending ||
                         r.identity_status !== "verified" || r.identity_provider?.toUpperCase() !== "CIE" ||
+                        !r.cie_names_verified_at ||
                         ((r.tipo_ruolo === "P" || r.tipo_ruolo === "CP") && !r.fonte_elezione_url) ||
                         ((r.tipo_ruolo === "C" || r.tipo_ruolo === "CP") && !r.fonte_candidatura_url)}
                       onClick={() => approveMutation.mutate(r.id)}

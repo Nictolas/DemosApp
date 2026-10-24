@@ -131,3 +131,23 @@ test('una doppia finalizzazione Google concorrente recupera l account gia creato
   assert.equal(calls.some(call => call.sql.startsWith('UPDATE users SET paese_residenza')), true);
   assert.equal(calls.some(call => call.sql.startsWith('INSERT INTO user_auth_providers')), true);
 });
+
+test('ordinary OAuth account never persists provider full names', async () => {
+  const { calls, pool } = makePool();
+  const profile = registration();
+  profile.givenName = 'Sensitive';
+  profile.familyName = 'Identity';
+  await completeOAuthRegistrationAfterCie({
+    registration: profile,
+    fiscalNumber: 'TINIT-ABCDEF12G34H567I'
+  }, pool);
+
+  const userInsert = calls.find(call => call.sql.startsWith('INSERT INTO users'));
+  assert.ok(userInsert);
+  assert.equal(userInsert.params[2], null, 'nome must not be persisted');
+  assert.equal(userInsert.params[3], null, 'cognome must not be persisted');
+  const providerInsert = calls.find(call => call.sql.startsWith('INSERT INTO user_auth_providers'));
+  assert.ok(providerInsert);
+  assert.equal(JSON.stringify(providerInsert.params).includes('Sensitive'), false);
+  assert.equal(JSON.stringify(providerInsert.params).includes('Identity'), false);
+});

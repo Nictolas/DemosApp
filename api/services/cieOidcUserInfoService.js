@@ -180,7 +180,7 @@ function resolveUserInfoVerificationKey(jws, config, jwks = getTrustedJwks()) {
 }
 
 function validateCieUserInfoJws(
-  { jws, expectedSub },
+  { jws, expectedSub, requirePublicNames = false },
   config = getCieUserInfoConfig(),
   jwks
 ) {
@@ -213,13 +213,26 @@ function validateCieUserInfoJws(
     throw new Error('fiscal_number UserInfo CIE mancante');
   }
 
-  return {
-    fiscalNumber: fiscalNumber.trim()
-  };
+  // Do not expose or retain names in the ordinary identity flow, even
+  // if an OP returns unsolicited attributes.
+  if (!requirePublicNames) return { fiscalNumber: fiscalNumber.trim() };
+
+  const cleanName = value =>
+    typeof value === 'string' &&
+    value.trim().length > 0 && value.trim().length <= 150 &&
+    !Array.from(value).some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
+      ? value.trim()
+      : null;
+  const givenName = cleanName(claims.given_name);
+  const familyName = cleanName(claims.family_name);
+  if (!givenName || !familyName) {
+    throw new Error('Nome e cognome certificati mancanti nella risposta CIE');
+  }
+  return { fiscalNumber: fiscalNumber.trim(), givenName, familyName };
 }
 
 async function fetchAndValidateCieUserInfo(
-  { accessToken, expectedSub },
+  { accessToken, expectedSub, requirePublicNames = false },
   httpClient = axios
 ) {
   if (typeof accessToken !== 'string' || !accessToken) {
@@ -243,7 +256,7 @@ async function fetchAndValidateCieUserInfo(
   }
 
   const jws = decryptCieUserInfoJwe(response?.data, config);
-  return validateCieUserInfoJws({ jws, expectedSub }, config);
+  return validateCieUserInfoJws({ jws, expectedSub, requirePublicNames }, config);
 }
 
 module.exports = {

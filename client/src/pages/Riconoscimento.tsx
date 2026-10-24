@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 import { getApiUrl } from "@/lib/api-config";
 import { ITALY_DATA } from "@/data/italyData";
 
@@ -13,9 +12,6 @@ type RuoloRichiesto = "P" | "C" | "CP" | "";
 
 interface FormState {
   tipo_ruolo: RuoloRichiesto;
-  nome: string;
-  cognome: string;
-  email: string;
   fonte_elezione_url: string;
   fonte_candidatura_url: string;
   // Paesi salvati come codici (it, sm, ch, ...)
@@ -33,9 +29,6 @@ interface FormState {
 
 const initialState: FormState = {
   tipo_ruolo: "",
-  nome: "",
-  cognome: "",
-  email: "",
   fonte_elezione_url: "",
   fonte_candidatura_url: "",
   paese_elezione: "",       // scelto esplicitamente dall'utente
@@ -103,7 +96,6 @@ const getComuni = (paeseCode: string, regione: string, provincia: string): strin
 };
 
 export default function Riconoscimento() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [form, setForm] = useState<FormState>({
     ...initialState,
@@ -115,15 +107,11 @@ export default function Riconoscimento() {
 
   const [identity, setIdentity] = useState<"loading" | "verified" | "unverified" | "error">("loading");
   const [isStartingCie, setIsStartingCie] = useState(false);
+  const [publicNames, setPublicNames] = useState<{ nome: string; cognome: string } | null>(null);
   const [requestStatus, setRequestStatus] = useState<null | {
     tipo_ruolo: string; status: "pending" | "approved" | "rejected"; created_at: string;
+    cie_names_verified_at?: string | null;
   }>(null);
-
-  useEffect(() => {
-    setForm(prev => ({
-      ...prev, nome: user?.nome || "", cognome: user?.cognome || "", email: user?.email || ""
-    }));
-  }, [user?.nome, user?.cognome, user?.email]);
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
@@ -138,18 +126,26 @@ export default function Riconoscimento() {
       fetch(getApiUrl("/riconoscimenti/mine"), { headers }).then(async res => {
         if (!res.ok) throw new Error("Stato richiesta non disponibile");
         return res.json();
+      }),
+      fetch(getApiUrl("/riconoscimenti/cie-identity"), { headers }).then(async res => {
+        if (!res.ok) throw new Error("Stato riconoscimento CIE non disponibile");
+        return res.json();
       })
-    ]).then(([verification, recognition]) => {
+    ]).then(([verification, recognition, publicIdentity]) => {
       if (!active) return;
       setIdentity(verification?.identity?.verified === true &&
         String(verification.identity?.provider || "").toUpperCase() === "CIE"
         ? "verified" : "unverified");
       setRequestStatus(recognition?.data || null);
+      setPublicNames(publicIdentity?.ready === true &&
+        typeof publicIdentity?.nome === 'string' && typeof publicIdentity?.cognome === 'string'
+        ? { nome: publicIdentity.nome, cognome: publicIdentity.cognome }
+        : null);
     }).catch(() => { if (active) setIdentity("error"); });
     return () => { active = false; };
   }, []);
 
-  const handleStartCie = async () => {
+  const handleStartCie = async (recognition = false) => {
     const token = localStorage.getItem("auth_token");
     if (!token) {
       toast({ title: "Accesso richiesto", description: "Accedi a DEMOS prima di verificare la CIE.", variant: "destructive" });
@@ -157,7 +153,7 @@ export default function Riconoscimento() {
     }
     setIsStartingCie(true);
     try {
-      const res = await fetch(getApiUrl("/auth/identity/cie/start"), {
+      const res = await fetch(getApiUrl(recognition ? "/auth/identity/cie/recognition/start" : "/auth/identity/cie/start"), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const payload = await res.json();
@@ -270,10 +266,10 @@ export default function Riconoscimento() {
       return;
     }
 
-    if (!form.nome || !form.cognome) {
+    if (!publicNames) {
       toast({
-        title: "Campi obbligatori mancanti",
-        description: "Completa nome e cognome nel tuo profilo.",
+        title: "Nome e cognome da certificare",
+        description: "Completa la verifica CIE dedicata al ruolo pubblico.",
         variant: "destructive"
       });
       return;
@@ -337,7 +333,8 @@ export default function Riconoscimento() {
         throw new Error(errorBody?.message || errorBody?.error || "Impossibile inviare la richiesta di riconoscimento.");
       }
 
-      setRequestStatus({ tipo_ruolo: form.tipo_ruolo, status: "pending", created_at: new Date().toISOString() });
+      setPublicNames(null);
+      setRequestStatus({ tipo_ruolo: form.tipo_ruolo, status: "pending", created_at: new Date().toISOString(), cie_names_verified_at: new Date().toISOString() });
       toast({
         title: "Richiesta inviata",
         description: "La tua richiesta di riconoscimento è stata inviata agli amministratori.",
@@ -382,7 +379,9 @@ export default function Riconoscimento() {
                     ? "Il tuo ruolo è stato riconosciuto. Puoi presentare una nuova richiesta se è cambiato."
                     : requestStatus.status === "rejected"
                       ? "Puoi correggere le informazioni e inviare nuovamente la richiesta."
-                      : "La richiesta è stata ricevuta e attende la verifica amministrativa."}
+                      : requestStatus.cie_names_verified_at
+                         ? "La richiesta è stata ricevuta e attende la verifica amministrativa."
+                         : "Questa richiesta precedente non contiene nomi certificati con CIE. Per ottenere l’approvazione, certifica nome e cognome e invia nuovamente la domanda."}
                 </p>
               </div>
             )}
@@ -396,14 +395,33 @@ export default function Riconoscimento() {
                     : "Per inviare la richiesta devi prima verificare la tua identità con CIE."}
                 </p>
                 {identity === "unverified" && (
-                  <Button type="button" variant="outline" onClick={handleStartCie} disabled={isStartingCie}>
+                  <Button type="button" variant="outline" onClick={() => handleStartCie(false)} disabled={isStartingCie}>
                     {isStartingCie ? "Avvio verifica..." : "Verifica con CIE"}
                   </Button>
                 )}
+                {identity === "verified" && (
+                  <div className="space-y-2">
+                    {publicNames ? (
+                      <p className="text-sm font-medium text-emerald-700">
+                        Nome e cognome certificati dalla CIE: {publicNames.nome} {publicNames.cognome}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-slate-700">
+                          Verifica di nuovo la CIE per ottenere nome e cognome certificati
+                          esclusivamente per questa richiesta di ruolo pubblico.
+                        </p>
+                        <Button type="button" variant="outline" onClick={() => handleStartCie(true)} disabled={isStartingCie}>
+                          {isStartingCie ? "Avvio verifica..." : "Certifica nome e cognome con CIE"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
                 <p className="text-xs text-slate-500">
-                  Dopo la verifica potrai tornare a questa pagina dalle impostazioni.
-                  Nome e cognome del profilo non sono certificati dalla CIE:
-                  saranno confrontati con la fonte ufficiale.
+                  Gli utenti comuni non devono fornire nome e cognome al profilo DEMOS.
+                  La verifica per il ruolo pubblico scade dopo 10 minuti e deve
+                  essere completata prima di inviare la richiesta.
                 </p>
               </div>
               <div className="font-semibold text-slate-900">2. Ruolo e territorio</div>
@@ -424,37 +442,6 @@ export default function Riconoscimento() {
                   <SelectItem value="CP">Politico eletto e candidato</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Nome</label>
-                <Input
-                  value={form.nome}
-                  readOnly
-                  placeholder="Nome"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Cognome</label>
-                <Input
-                  value={form.cognome}
-                  readOnly
-                  placeholder="Cognome"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Email</label>
-              <Input
-                type="email"
-                value={form.email}
-                readOnly
-                placeholder="Email dal profilo"
-              />
             </div>
 
             {mostraElezione && (
@@ -731,7 +718,7 @@ export default function Riconoscimento() {
                 <Button
                   type="submit"
                   className="min-w-[180px]"
-                  disabled={isSubmitting || identity !== "verified" || !form.tipo_ruolo}
+                  disabled={isSubmitting || identity !== "verified" || !publicNames || !form.tipo_ruolo}
                 >
                   {isSubmitting ? "Invio in corso..." : "Invia richiesta di riconoscimento"}
                 </Button>

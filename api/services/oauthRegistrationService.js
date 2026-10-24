@@ -31,9 +31,6 @@ function normalizeRegistration(registration) {
     provider,
     providerSub,
     email: registration.email || null,
-    givenName: registration.givenName || null,
-    familyName: registration.familyName || null,
-    name: registration.name || null,
     location: registration.location || {},
     privacyPolicyConsent: true,
     termsOfServiceConsent: true,
@@ -152,9 +149,6 @@ async function upsertRegistrationData(client, userId, registration, compressedLo
       registration.providerSub,
       JSON.stringify({
         email: registration.email,
-        given_name: registration.givenName,
-        family_name: registration.familyName,
-        name: registration.name,
       }),
     ]
   );
@@ -227,8 +221,11 @@ async function completeOAuthRegistration(
     const userId = randomUUID();
     const role = 'E';
     const legacyColumn = normalized.provider === 'google' ? 'google_sub' : 'apple_user_id';
-    const displayName = normalized.givenName || normalized.name || 'Utente';
-    const familyName = normalized.familyName || 'OAuth';
+    // Ordinary citizens are non-public: do not persist OAuth-sourced full names.
+    // Public names are populated only after purpose-specific CIE proof and
+    // political-role approval, not during account creation.
+    const displayName = null;
+    const familyName = null;
     const emailPlain = normalized.email || `oauth-${normalized.provider}-${normalized.providerSub.replace(/[^a-zA-Z0-9._-]/g, '_')}@demos.oauth`;
     const email = encryptEmail(emailPlain) ?? emailPlain;
 

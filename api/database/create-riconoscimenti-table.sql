@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS riconoscimenti (
   grado_candidatura VARCHAR(100),
   fonte_elezione_url TEXT,
   fonte_candidatura_url TEXT,
+  -- Non nullo solo quando nome/cognome sono ottenuti da UserInfo CIE verificato.
+  cie_names_verified_at TIMESTAMPTZ,
   status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   decision_at TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

@@ -1,0 +1,50 @@
+name: CIE Public Identity Privacy
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/cieOidcAuthorizationService.js'
+      - 'api/services/cieOidcUserInfoService.js'
+      - 'api/services/cieOidcTransactionStore.js'
+      - 'api/services/ciePublicIdentityProofStore.js'
+      - 'api/services/oauthRegistrationService.js'
+      - 'api/routes/auth/identity.js'
+      - 'api/routes/riconoscimenti.js'
+      - 'api/services/cieCallbackRedirectService.js'
+      - 'api/tests/cie*.test.js'
+      - 'api/tests/oauthRegistrationService.test.js'
+      - 'client/src/pages/Riconoscimento.tsx'
+      - '.github/workflows/cie-public-identity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'api/services/ciePublicIdentityProofStore.js'
+      - 'api/routes/auth/identity.js'
+      - 'api/routes/riconoscimenti.js'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci --prefix api --ignore-scripts
+      - name: Check backend syntax
+        run: |
+          node --check api/routes/auth/identity.js
+          node --check api/routes/riconoscimenti.js
+          node --check api/services/cieOidcAuthorizationService.js
+          node --check api/services/cieOidcUserInfoService.js
+          node --check api/services/ciePublicIdentityProofStore.js
+      - name: CIE public identity tests
+        run: |
+          node --test api/tests/cieOidcAuthorizationService.test.js api/tests/cieOidcUserInfoService.test.js api/tests/cieOidcTransactionStore.test.js api/tests/cieCallbackRedirectService.test.js api/tests/ciePublicIdentityProofStore.test.js api/tests/oauthRegistrationService.test.js
+      - name: Install client
+        run: npm ci --prefix client --ignore-scripts
+      - name: Build client
+        run: npm run build --prefix client

@@ -2,6 +2,7 @@ const express = require('express');
 const { randomUUID } = require('crypto');
 const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
 const { decrypt: decryptEmail } = require('../utils/emailCrypto');
+const { peekPublicNameProof, consumePublicNameProof } = require('../services/ciePublicIdentityProofStore');
 const { getIdentityVerificationStatus } = require('../services/identityVerificationStore');
 const { pool, verifyToken, requireAdmin } = require('../middleware/auth');
 const { mirrorApprovedPoliticalRecognition } = require('../services/politicalLifecycleService');
@@ -13,12 +14,32 @@ const router = express.Router();
 const isVerifiedCie = (identity) =>
   identity?.verified === true && String(identity.provider || '').toUpperCase() === 'CIE';
 
+// Current citizen can view only their own short-lived, account-bound CIE
+// public-name proof. No fiscal number or internal person_key is returned.
+router.get('/cie-identity', verifyToken, async (req, res) => {
+  try {
+    const identity = await getIdentityVerificationStatus(req.userId);
+    if (!isVerifiedCie(identity)) {
+      return res.json({ success: true, ready: false });
+    }
+    const proof = await peekPublicNameProof(req.userId);
+    return res.json({
+      success: true,
+      ready: Boolean(proof),
+      ...(proof ? { nome: proof.givenName, cognome: proof.familyName } : {})
+    });
+  } catch (error) {
+    console.error('Errore verifica certificazione ruolo pubblico:', error?.message);
+    return res.status(503).json({ success: false, error: 'Certificazione CIE temporaneamente non disponibile' });
+  }
+});
+
 // Request status is persisted so that users can see the outcome after review.
 router.get('/mine', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT tipo_ruolo, status, created_at, updated_at, decision_at,
-              fonte_elezione_url, fonte_candidatura_url
+              cie_names_verified_at, fonte_elezione_url, fonte_candidatura_url
        FROM riconoscimenti WHERE user_id = $1 LIMIT 1`,
       [req.userId]
     );
@@ -70,16 +91,13 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Profile names are NOT certified CIE names. Their correspondence to
-    // the verified public evidence must still be checked by the reviewer.
-    const accountResult = await pool.query(
-      'SELECT nome, cognome, email FROM users WHERE id = $1 LIMIT 1', [userId]
-    );
-    const account = accountResult.rows[0];
-    if (!account || !String(account.nome || '').trim() || !String(account.cognome || '').trim()) {
-      return res.status(400).json({
-        success: false, code: 'PROFILE_NAME_REQUIRED',
-        message: 'Completa nome e cognome nel profilo prima di inviare la richiesta.'
+    // A new, purpose-specific CIE login is required, even if the account
+    // was previously verified with CIE. Never read editable profile names.
+    const publicIdentity = await consumePublicNameProof(userId);
+    if (!publicIdentity) {
+      return res.status(409).json({
+        success: false, code: 'CIE_PUBLIC_NAMES_REQUIRED',
+        message: 'Autenticati nuovamente con CIE per verificare nome e cognome prima di inviare la richiesta.'
       });
     }
 
@@ -88,9 +106,9 @@ router.post('/', verifyToken, async (req, res) => {
         id, user_id, tipo_ruolo, nome, cognome, email,
         paese_elezione, regione_elezione, provincia_elezione, comune_elezione, grado_elezione,
         paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura, grado_candidatura,
-        fonte_elezione_url, fonte_candidatura_url, status, created_at, updated_at
+        fonte_elezione_url, fonte_candidatura_url, cie_names_verified_at, status, created_at, updated_at
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'pending',NOW(),NOW()
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),'pending',NOW(),NOW()
       )
       ON CONFLICT (user_id) DO UPDATE SET
         tipo_ruolo = EXCLUDED.tipo_ruolo,
@@ -107,13 +125,14 @@ router.post('/', verifyToken, async (req, res) => {
         grado_candidatura = EXCLUDED.grado_candidatura,
         fonte_elezione_url = EXCLUDED.fonte_elezione_url,
         fonte_candidatura_url = EXCLUDED.fonte_candidatura_url,
+        cie_names_verified_at = NOW(),
         status = 'pending', decision_at = NULL,
         created_at = NOW(), updated_at = NOW()
       RETURNING id, tipo_ruolo, status, created_at
     `;
     const values = [
       randomUUID(), userId, tipo_ruolo,
-      String(account.nome).trim(), String(account.cognome).trim(), account.email || '',
+      publicIdentity.givenName, publicIdentity.familyName, '',
       paese_elezione || null, regione_elezione || null, provincia_elezione || null,
       comune_elezione || null, grado_elezione || null,
       paese_candidatura || null, regione_candidatura || null, provincia_candidatura || null,
@@ -183,7 +202,7 @@ router.post('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
 
     const r = riconoscimentoResult.rows[0];
     const identity = await getIdentityVerificationStatus(r.user_id, client);
-    if (r.status !== 'pending' || !isVerifiedCie(identity) ||
+    if (r.status !== 'pending' || !isVerifiedCie(identity) || !r.cie_names_verified_at ||
         ((r.tipo_ruolo === 'P' || r.tipo_ruolo === 'CP') && !validateEvidenceUrl(r.fonte_elezione_url)) ||
         ((r.tipo_ruolo === 'C' || r.tipo_ruolo === 'CP') && !validateEvidenceUrl(r.fonte_candidatura_url))) {
       await client.query('ROLLBACK');
@@ -257,6 +276,13 @@ router.post('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
       });
     }
 
+    // Public identity is taken from the fresh signed CIE response stored
+    // in this request, never from an editable legacy user profile.
+    await client.query(
+      'UPDATE users SET nome = $1, cognome = $2 WHERE id = $3',
+      [r.nome, r.cognome, r.user_id]
+    );
+
     // Se il nuovo modello capability è presente, alimenta anche candidature/mandati.
     // In assenza della migrazione il servizio fa rollback al savepoint e mantiene il flusso legacy.
     const capabilitySync = await mirrorApprovedPoliticalRecognition(client, r);
@@ -301,7 +327,7 @@ router.post('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
 router.post('/:id/reject', verifyToken, requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      "UPDATE riconoscimenti SET status = 'rejected', decision_at = NOW(), updated_at = NOW() WHERE id = $1 AND status = 'pending' RETURNING id",
+      "UPDATE riconoscimenti SET status = 'rejected', nome = '', cognome = '', email = '', cie_names_verified_at = NULL, decision_at = NOW(), updated_at = NOW() WHERE id = $1 AND status = 'pending' RETURNING id",
       [req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ success: false, error: 'Richiesta pendente non trovata' });
