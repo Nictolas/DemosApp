@@ -280,6 +280,99 @@ async function loadPoliticalSelections(db, {
   }
 }
 
+
+/**
+ * Clear expired selections from canonical storage and both legacy projections.
+ * Each write is guarded by the previously selected user ID, so a concurrent
+ * replacement is never overwritten.
+ */
+async function clearObsoleteSelection(pool, { selection, kind, source }) {
+  const office = resolvePoliticalOffice(selection.officeId);
+  if (!office || !pool || typeof pool.connect !== 'function') {
+    throw new Error('Transactional connection required to clear political selections');
+  }
+  const field = getLegacySelectionField(kind, office.id, { adapterId: office.adapterId });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    if (source === 'CANONICAL') {
+      const removed = await client.query(
+        'DELETE FROM political_selections WHERE user_id = $1 AND selection_kind = $2 ' +
+        'AND political_office_id = $3 AND selected_user_id = $4 RETURNING user_id',
+        [selection.userId, kind, office.id, selection.selectedUserId]
+      );
+      if (!removed.rows.length) {
+        await client.query('COMMIT');
+        return false;
+      }
+    }
+    if (field) {
+      await client.query(
+        'UPDATE users SET ' + field + ' = NULL, updated_at = NOW() ' +
+        'WHERE id = $1 AND ' + field + '::text = $2',
+        [selection.userId, selection.selectedUserId]
+      );
+      const relation = await client.query(
+        "SELECT to_regclass('public.user_representatives') IS NOT NULL AS available"
+      );
+      if (relation.rows[0]?.available) {
+        await client.query(
+          'UPDATE user_representatives SET ' + field + ' = NULL, updated_at = NOW() ' +
+          'WHERE user_id = $1 AND ' + field + '::text = $2',
+          [selection.userId, selection.selectedUserId]
+        );
+      }
+    }
+    await client.query('COMMIT');
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * On each read, verify that the selected person still holds the specific
+ * active mandate or candidacy and is eligible in the elector's jurisdiction.
+ * This also repairs obsolete selections persisted before IMP-046.
+ */
+async function loadCurrentPoliticalSelections(pool, options) {
+  const { userId, kind, adapterId } = options;
+  const state = await loadPoliticalSelections(pool, { userId, kind, adapterId });
+  if (!state.selections.length) return state;
+  const { isRepresentativeSelectionEligible, isCandidateSelectionEligible } =
+    require('./politicalEligibilityService');
+  const current = [];
+  for (const selection of state.selections) {
+    const office = resolvePoliticalOffice(selection.officeId);
+    if (!office || !selection.selectedUserId) continue;
+    const eligibility = selection.kind === 'representative'
+      ? await isRepresentativeSelectionEligible(pool, userId, selection.selectedUserId, office.id)
+      : await isCandidateSelectionEligible(pool, userId, selection.selectedUserId, office.id);
+    // Schema-compatibility fallback is not enough evidence to delete a choice.
+    if (!eligibility.strict) {
+      current.push(selection);
+      continue;
+    }
+    const matched = eligibility.subjects?.find(
+      row => String(row.id) === String(selection.selectedUserId)
+    );
+    const selectedCapabilityId = selection.kind === 'representative'
+      ? selection.selectedMandateId : selection.selectedCandidacyId;
+    const activeCapabilityId = selection.kind === 'representative'
+      ? matched?.mandate_id : matched?.candidacy_id;
+    if (matched && (!selectedCapabilityId ||
+      String(selectedCapabilityId) === String(activeCapabilityId))) {
+      current.push(selection);
+      continue;
+    }
+    await clearObsoleteSelection(pool, { selection, kind: selection.kind, source: state.source });
+  }
+  return { ...state, selections: current };
+}
+
 function selectionsByOffice(selectionState) {
   return new Map((selectionState?.selections || []).map((selection) => [selection.officeId, selection]));
 }
@@ -352,6 +445,8 @@ module.exports = {
   resolveSelectionContract,
   setPoliticalSelection,
   loadPoliticalSelections,
+  loadCurrentPoliticalSelections,
+  clearObsoleteSelection,
   selectionsByOffice,
   loadSupporterUserIds,
 };

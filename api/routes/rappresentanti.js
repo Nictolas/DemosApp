@@ -9,13 +9,13 @@ const {
   resolvePoliticalOffice,
   getLegacySelectionDescriptors,
 } = require('../services/politicalJurisdictionRegistryService');
-const { loadPoliticalSelections, selectionsByOffice } = require('../services/politicalSelectionService');
+const { loadCurrentPoliticalSelections, selectionsByOffice } = require('../services/politicalSelectionService');
 
 const router = express.Router();
 const REPRESENTATIVE_SELECTION_DESCRIPTORS = Object.freeze(getLegacySelectionDescriptors('representative'));
 
 async function loadRepresentativeSelectionProjection(userId) {
-  const state = await loadPoliticalSelections(pool, { userId, kind: 'representative', adapterId: 'it' });
+  const state = await loadCurrentPoliticalSelections(pool, { userId, kind: 'representative', adapterId: 'it' });
   const byOffice = selectionsByOffice(state);
   const projection = Object.fromEntries(REPRESENTATIVE_SELECTION_DESCRIPTORS.map((descriptor) => [
     descriptor.field,
