@@ -429,6 +429,7 @@ test('catalogs larger than 256 use bounded TEXT batches, not hundreds of fallbac
   const calls=[];
   const pool={async query(sql,params=[]){
    calls.push({sql,params});
+   if(sql.startsWith('BEGIN') || sql==='COMMIT' || sql==='ROLLBACK')return {rows:[]};
    if(sql.includes('information_schema.columns')){
     return {rows:params[0].map(column_name=>({column_name}))};
    }
@@ -442,6 +443,8 @@ test('catalogs larger than 256 use bounded TEXT batches, not hundreds of fallbac
    }
    throw Error('Unexpected fallback or SQL: '+sql.slice(0,140));
   }};
+   pool.connect=async()=>({query:pool.query.bind(pool),release(){}});
+
   const stats=scope
     ?await getTerritorialSurveyStats(pool,questions,scope)
     :await getNationalSurveyStats(pool,questions);
@@ -449,7 +452,9 @@ test('catalogs larger than 256 use bounded TEXT batches, not hundreds of fallbac
   assert.ok(!Object.hasOwn(stats,'op0257'));
   assert.deepEqual(stats.op0000,{favorevole:10,contrario:0,indeciso:0});
   assert.deepEqual(stats.op0599,{favorevole:10,contrario:0,indeciso:0});
-  assert.equal(calls.length,4,'One metadata query, three bounded grouped statements');
+  assert.equal(calls.length,6,'BEGIN + metadata + three grouped SELECTs + COMMIT');
+  assert.equal(calls[0].sql,'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+  assert.equal(calls.at(-1).sql,'COMMIT');
   assert.equal(calls.filter(c=>c.sql.includes('CROSS JOIN LATERAL')).length,3);
   const lengths=calls.filter(c=>c.sql.includes('CROSS JOIN LATERAL')).map(c=>
     [...c.sql.matchAll(/orr\."(op\d{4})"/g)].length);
@@ -467,6 +472,7 @@ test('mid-batch DB outages discard all earlier batch results and stop subsequent
    let aggregates=0,queries=0;
    const pool={async query(sql,params=[]){
     queries++;
+    if(sql.startsWith('BEGIN') || sql==='ROLLBACK')return {rows:[]};
     if(sql.includes('information_schema.columns')){
      return {rows:params[0].map(column_name=>({column_name}))};
     }
@@ -477,12 +483,14 @@ test('mid-batch DB outages discard all earlier batch results and stop subsequent
     }
     throw Error('Legacy fallback must not run after multi-batch outage');
    }};
+   pool.connect=async()=>({query:pool.query.bind(pool),release(){}});
+
    await assert.rejects(
      scope?getTerritorialSurveyStats(pool,questions,scope)
        :getNationalSurveyStats(pool,questions),
      e=>e.code===code
    );
-   assert.equal(queries,3,'one whitelist read, two aggregates and no further statements');
+   assert.equal(queries,5,'BEGIN + whitelist + two failed aggregates + ROLLBACK');
    assert.equal(aggregates,2);
   }
  }
@@ -495,6 +503,7 @@ test('large catalog refuses legacy query amplification if grouped SQL unsupporte
    let queries=0,aggregates=0;
    const pool={async query(sql,params=[]){
     queries++;
+    if(sql.startsWith('BEGIN') || sql==='ROLLBACK')return {rows:[]};
     if(sql.includes('information_schema.columns'))
       return {rows:params[0].map(column_name=>({column_name}))};
     if(sql.includes('CROSS JOIN LATERAL')){
@@ -503,13 +512,28 @@ test('large catalog refuses legacy query amplification if grouped SQL unsupporte
     }
     throw Error('Unexpected legacy fallback work for '+n+' opinions');
    }};
+   pool.connect=async()=>({query:pool.query.bind(pool),release(){}});
+
    await assert.rejects(
     scope?getTerritorialSurveyStats(pool,questions,scope,{warn:()=>{}})
       :getNationalSurveyStats(pool,questions,{warn:()=>{}}),
     e=>e.code==='SONDAGGI_FALLBACK_LIMIT'
    );
-   assert.equal(queries,2,'only metadata and one grouped attempt');
+   assert.equal(queries,n>256?4:2,
+    'one metadata and one grouped attempt, plus snapshot BEGIN/ROLLBACK when needed');
    assert.equal(aggregates,1);
   }
+ }
+});
+
+
+test('multi-batch snapshots reject pools without checkout, rather than silently mixing consent versions',async()=>{
+ const questions=Array.from({length:300},(_,i)=>({id:'op'+i}));
+ const fake={query:async()=>{throw Error('Must refuse before any query')}};
+ for(const scope of [null,...GEO_SCOPES]){
+  await assert.rejects(
+   scope?getTerritorialSurveyStats(fake,questions,scope):getNationalSurveyStats(fake,questions),
+   /transaction-capable pool/
+  );
  }
 });
