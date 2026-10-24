@@ -13,6 +13,7 @@
  */
 const assert=require('node:assert/strict');
 const {Client}=require('pg');
+const {catalogFingerprint}=require('../utils/opinionBitset');
 const DB='opinion_bitset_ci';
 const ROWS=824;
 const MIXES=[
@@ -72,10 +73,22 @@ async function main(){
     assert.equal(info.db,DB);assert.equal(info.actor,'postgres');
     assert.equal(Math.floor(info.version/10000),17);
 
-    // The separate catalog allocation is already present from the latency
-    // benchmark and must not be omitted in net versioned-encoding estimates.
+    // Measure a dedicated catalog table BEFORE the subsequent latency
+    // benchmark issues transactional updates to the mixed-source tables.
+    // Otherwise pg_total_relation_size includes pages from UPDATE/DELETE
+    // churn, invalidating comparison with insertion-only fixture results.
+    const ids=Array.from({length:94},(_,i)=>'opinion'+i);
+    const v2=[...ids,'opinion94'];
+    await db.query('CREATE TABLE ci_decision_catalog_bench ('+
+      'version integer PRIMARY KEY,ordered_ids jsonb NOT NULL,'+
+      'fingerprint text NOT NULL)');
+    await db.query('INSERT INTO ci_decision_catalog_bench VALUES'+
+      '($1,$2::jsonb,$3),($4,$5::jsonb,$6)',[
+        1,JSON.stringify(ids),catalogFingerprint(ids),
+        2,JSON.stringify(v2),catalogFingerprint(v2)
+      ]);
     const catalogRow=(await db.query(
-      "SELECT pg_total_relation_size('ci_mixed_catalog_bench'::regclass)::bigint AS bytes")).rows[0];
+      "SELECT pg_total_relation_size('ci_decision_catalog_bench'::regclass)::bigint AS bytes")).rows[0];
     const catalogBytes=Number(catalogRow.bytes);
     assert.ok(catalogBytes>0&&Number.isSafeInteger(catalogBytes));
 
