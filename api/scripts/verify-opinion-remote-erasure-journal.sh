@@ -112,5 +112,13 @@ OPINION_REMOTE_CUTOVER=synthetic-fence-only \
   OPINION_REMOTE_BENCH=synthetic-measure-only \
   node api/scripts/benchmark-opinion-remote-fence.js
 
+# DOC-053: a third, isolated *synthetic* database for local admission.
+# The journal container remains alive; no changes to opinion_bitset_ci.
+docker run --rm --network host -e PGPASSWORD="$PGPASSWORD" \
+  --entrypoint createdb "$image" \
+  -h 127.0.0.1 -p 5432 -U postgres opinion_local_fence_ci
+OPINION_LOCAL_FENCE=ci-local-only-053 \
+  node api/scripts/verify-opinion-local-admission-fence.js
+
 echo "OPINION_REMOTE_JOURNAL_PGDUMP_CLI_PASS"
 echo "OPINION_REMOTE_JOURNAL_PGDUMP_CLI_BYTES=$(wc -c < "$backup" | tr -d ' ')"
