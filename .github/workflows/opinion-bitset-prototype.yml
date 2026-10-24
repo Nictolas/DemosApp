@@ -72,6 +72,7 @@ on:
       - 'api/scripts/verify-opinion-privacy-equivalence.js'
       - 'api/docs/opinion-bitset-trimmed-probe-20261024.md'
       - 'api/docs/opinion-bitset-prototype.md'
+      - 'api/docs/opinion-two-bit-go-no-go-20261024.md'
       - '.github/workflows/opinion-bitset-prototype.yml'
 
 permissions:
