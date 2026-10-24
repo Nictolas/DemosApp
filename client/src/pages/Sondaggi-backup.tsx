@@ -69,17 +69,17 @@ export default function Sondaggi() {
   // Controllo più flessibile per l'accesso ai sondaggi
   const userRole = user.role || user.ruolo;
   const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
-  if (!hasAdvancedAccess) return <Redirect to="/menu" />;
+  if (!hasAdvancedAccess) return <Redirect to="/preferiti" />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar">
       <div className="container mx-auto max-w-7xl p-6">
         {/* Header con navigazione */}
         <div className="mb-8">
-          <Link href="/menu">
+          <Link href="/preferiti">
             <Button variant="ghost" className="mb-4 flex items-center text-gray-600 hover:text-gray-800 hover:bg-white/50">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Torna al Menu
+              Torna ai Preferiti
             </Button>
           </Link>
           
