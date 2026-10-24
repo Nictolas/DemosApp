@@ -7,11 +7,11 @@ export const Header: React.FC = () => {
     <div className="flex items-center justify-between">
       <Button
         variant="outline"
-        onClick={() => window.location.href = "/menu"}
+        onClick={() => window.location.href = "/preferiti"}
         className="flex items-center gap-2 hover:bg-purple-50 hover:border-purple-300 transition-all duration-300 shadow-sm"
       >
         <ArrowLeft className="h-4 w-4" />
-        Torna al Menu
+        Torna ai Preferiti
       </Button>
     </div>
   );
