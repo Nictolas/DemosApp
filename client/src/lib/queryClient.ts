@@ -56,15 +56,6 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     // Leggi il body come testo prima di parsarlo
     const text = await response.text();
     
-    // Log per debug
-    if (url.includes('referendum-abrogativi') || url.includes('voti-parlamento-europeo')) {
-      console.log('🔍 DEBUG apiRequest - URL:', url);
-      console.log('🔍 DEBUG apiRequest - Response status:', response.status);
-      console.log('🔍 DEBUG apiRequest - Response ok:', response.ok);
-      console.log('🔍 DEBUG apiRequest - Text length:', text?.length);
-      console.log('🔍 DEBUG apiRequest - Text preview (first 500 chars):', text?.substring(0, 500));
-    }
-    
     // Se il body è vuoto (può succedere con 304), gestiscilo
     if (!text || text.trim() === '') {
       if (!response.ok) {
@@ -73,33 +64,18 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       throw new Error('Risposta vuota dal server');
     }
     
-    // Prova a parsare il JSON
+    // Do not log response bodies or parsed payloads: they may contain
+    // personal data, including sensitive political opinions.
     let data;
     try {
       data = JSON.parse(text);
-      if (url.includes('referendum-abrogativi') || url.includes('voti-parlamento-europeo')) {
-        console.log('🔍 DEBUG apiRequest - Parsed data:', JSON.stringify(data, null, 2));
-        console.log('🔍 DEBUG apiRequest - data.success:', data?.success);
-        if (url.includes('referendum-abrogativi')) {
-          console.log('🔍 DEBUG apiRequest - data.referendum:', data?.referendum);
-          console.log('🔍 DEBUG apiRequest - data.richieste:', data?.richieste);
-        }
-        if (url.includes('voti-parlamento-europeo')) {
-          console.log('🔍 DEBUG apiRequest - data.data:', data?.data);
-          console.log('🔍 DEBUG apiRequest - data.count:', data?.count);
-        }
-      }
-    } catch (parseError) {
-      if (url.includes('referendum-abrogativi') || url.includes('voti-parlamento-europeo')) {
-        console.error('❌ DEBUG apiRequest - Parse error:', parseError);
-        console.error('❌ DEBUG apiRequest - Text that failed to parse:', text);
-      }
+    } catch {
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+        throw new Error(`HTTP ${response.status}: risposta non valida dal server`);
       }
       throw new Error('Errore nel parsing della risposta JSON');
     }
-    
+
     // Se la risposta non è ok, lancia un errore con il messaggio dall'API
     if (!response.ok) {
       const errorMessage = data.error || data.message || `HTTP ${response.status}`;
