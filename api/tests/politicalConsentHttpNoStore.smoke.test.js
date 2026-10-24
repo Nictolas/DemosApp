@@ -16,8 +16,8 @@ const servicePath = require.resolve(path.join(ROOT, 'services/politicalConsentSe
 
 function requirePrivateNoStore(response) {
   const value = response.headers.get('cache-control') || '';
-  assert.match(value, /(?:^|,\\s*)private(?:,|$)/);
-  assert.match(value, /(?:^|,\\s*)no-store(?:,|$)/);
+  assert.match(value, /(?:^|,\s*)private(?:,|$)/);
+  assert.match(value, /(?:^|,\s*)no-store(?:,|$)/);
 }
 
 test('real consent router prevents HTTP caching before authentication and on every error', async () => {
@@ -105,7 +105,7 @@ test('real consent router prevents HTTP caching before authentication and on eve
     requirePrivateNoStore(res);
 
     const appSource = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
-    assert.match(appSource, /app\\.use\\('\/api\/user\/political-opinions-consent', userLimiter, politicalOpinionsConsentRoutes\\)/);
+    assert.match(appSource, /app\.use\('\/api\/user\/political-opinions-consent', userLimiter, politicalOpinionsConsentRoutes\)/);
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));
     for (const [p, original] of cached) {
