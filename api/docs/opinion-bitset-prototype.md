@@ -216,3 +216,36 @@ manifesto vecchio **non** rende leggibili automaticamente bitset prodotti
 con nuove versioni: il rollback dovrà conservare lettori e manifesti di
 tutte le versioni già scritte, o eseguire una conversione approvata.
 Non è stato modificato il contratto HTTP f/c/i/NULL né alcun dato reale.
+
+## Catalogo PostgreSQL 17 effimero: prova di persistenza (DOC-029)
+
+Script CI `api/scripts/verify-opinion-catalog-persistence.js`, richiamato **solo**
+dal job `physical-storage` di GitHub Actions, con guardia che richiede
+`GITHUB_ACTIONS=true`, `OPINION_BENCH_EPHEMERAL=yes` e PostgreSQL locale
+127.0.0.1:5432 nel database esatto `opinion_bitset_ci` con credenziali
+sintetiche note. **Non è una migration, un modulo runtime o DDL Supabase**.
+
+Su tabelle `ci_opinion_catalog_versions` e `ci_opinion_catalog_votes`
+create nel container PostgreSQL 17 effimero, lo script:
+1. salva la versione v1 del catalogo e tre blob BYTEA fixed/trimmed/sparse
+   di soggetti di fantasia;
+2. chiude la connessione e ne apre una nuova, ricostruendo un manifesto
+   JSON dalle righe SQL e recuperando tutti i voti storici;
+3. aggiunge v2 senza muovere gli slot preesistenti, conservando la
+   decodifica delle tre codifiche e provando il rifiuto di un riordino;
+4. simula due scrittori concorrenti della versione v3, usando un lock
+   consultivo transazionale e il controllo optimistic
+   `expectedLatestVersion`: un solo append deve passare e l'altro
+   viene rifiutato come obsoleto;
+5. altera temporaneamente, con rollback, fingerprint di catalogo e blob:
+   la lettura deve fallire senza restituire opinioni scorrette;
+6. controlla la ricodifica di blob vecchi nel catalogo più recente.
+
+La validità è circoscritta a un **processo di prova e a due o più
+connessioni allo stesso servizio PostgreSQL effimero**; non dimostra un
+ripristino da backup, durabilità contro perdita del nodo, permessi o RLS,
+repliche, autenticità della mappa ID, compatibilità Android reale o
+beneficio prestazionale. Lo schema SQL della prova non prevede
+automaticamente tutti i vincoli di immutabilità richiesti in produzione:
+scrittori che non rispettano il protocollo consultivo potrebbero
+aggirarlo. Il codice di DEMOS non legge né salva questi cataloghi.

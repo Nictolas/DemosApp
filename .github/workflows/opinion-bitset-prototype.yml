@@ -10,6 +10,7 @@ on:
       - 'api/utils/opinionCodecEnvelope.js'
       - 'api/utils/opinionCatalogManifest.js'
       - 'api/tests/opinionCatalogManifest.test.js'
+      - 'api/scripts/verify-opinion-catalog-persistence.js'
       - 'api/tests/opinionBitset.test.js'
       - 'api/tests/opinionTextAggregateProbe.test.js'
       - 'api/utils/opinionTextAggregateProbe.js'
@@ -131,3 +132,12 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-opinion-privacy-equivalence.js
+      - name: Test catalog durability across PostgreSQL sessions and serialized appends
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-catalog-persistence.js
