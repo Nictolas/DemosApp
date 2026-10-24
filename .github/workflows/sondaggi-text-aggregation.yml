@@ -9,6 +9,7 @@ on:
       - 'api/tests/opinionStatsAccountPopulation.test.js'
       - 'api/scripts/verify-sondaggi-text-standalone.js'
       - 'api/scripts/benchmark-sondaggi-text-paired.js'
+      - 'api/scripts/verify-sondaggi-large-catalog-pg17.js'
       - 'api/docs/sondaggi-text-benchmark-20261024.md'
       - 'api/staging/op37_sondaggi_private_synthetic.sql'
       - 'api/staging/op37_compare_staging_sql.sql'
@@ -73,6 +74,16 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-sondaggi-text-standalone.js
+      - name: Verify 300 TEXT questions in two groups on real synthetic PG17
+        env:
+          GITHUB_ACTIONS: 'true'
+          SONDAGGI_TEXT_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: sondaggi_text_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-sondaggi-large-catalog-pg17.js
       - name: Compare old and new SQL p50/p95 on the identical fabricated PG17 dataset
         env:
           GITHUB_ACTIONS: 'true'
