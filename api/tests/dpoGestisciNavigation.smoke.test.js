@@ -35,13 +35,19 @@ test('Gestisci exposes DPO overview cards without granting underlying Admin rout
   assert.match(home, /const isAdmin = hasAdminCapability\(user\)/);
   assert.match(home, /const isDpo = hasDpoCapability\(user\)/);
   assert.match(home, /if \(!isAdmin && !isDpo\)/);
-  assert.match(home, /data-testid="gestisci-dpo"/);
+  assert.match(hubs, /"gestisci-dpo"/);
   assert.match(home, /<SectionsGrid dpoReadOnly=\{!isAdmin && isDpo\} \/>/);
   assert.match(hubs, /if \(dpoReadOnly\)/);
+  assert.match(hubs, /overviewHubs\.map/);
+  assert.match(hubs, /2xl:grid-cols-6/);
+  assert.match(hubs, /Pannello DPO/);
   assert.match(hubs, /\/dpo\?section=/);
   assert.match(hubs, /Riepilogo aggregato in sola lettura/);
   assert.match(panel, /\/dpo\/areas/);
   assert.match(panel, /aggregated_readonly/);
+  assert.match(panel, /Nessuna richiesta GDPR operativa registrata/);
+  assert.match(panel, /Opinioni con approfondimento/);
+  assert.match(panel, /Ultimo aggiornamento iniziative/);
   assert.doesNotMatch(panel, /\/admin\/data-export|\/backup-dashboard/);
 });
 
