@@ -4,7 +4,7 @@
 
 ## Accertato
 
-Il servizio Render gratuito [demos-sondaggi-op37-http-staging](https://dashboard.render.com/web/srv-dbeeca5g1s2s73fb7pd0) è **LIVE** sul commit `80db6a4`, dal ramo `feature/sondaggi-text-bulk-op37-20261024`, con auto-deploy **OFF**. I log Render contengono `OP37_RENDER_SETUP_ONLY_NO_DATABASE`. Nessuna password PG o token del benchmark è configurata e il servizio non è collegato al database.
+Il servizio Render gratuito [demos-sondaggi-op37-http-staging](https://dashboard.render.com/web/srv-dbeeca5g1s2s73fb7pd0) è **LIVE** sul commit `c785ea1` (deploy `dep-dbeev0q9lscs73auoo20`, verificato il 24/10/2026), dal ramo `feature/sondaggi-text-bulk-op37-20261024`, con auto-deploy **OFF**. I log Render contengono `OP37_RENDER_SETUP_ONLY_NO_DATABASE`. Nessuna password PG o token del benchmark è configurata e il servizio non è collegato al database.
 
 Il ruolo Supabase `op37_http_staging_reader` esiste **solo su Demos-Staging**, con `NOLOGIN`, non superuser, senza `BYPASSRLS`, `SELECT` consentito sulle quattro tabelle sintetiche `op37_sondaggi_ci` e senza privilegi `INSERT`/`UPDATE`. Le quattro tabelle hanno RLS, e `anon`, `authenticated`, `service_role` non hanno `USAGE` sullo schema privato. La produzione DEMOS non è stata toccata.
 
@@ -46,9 +46,20 @@ Questi sono **passaggi da eseguire sui pannelli dei provider**, non risultano es
 
 Secondo la documentazione di [Render](https://render.com/articles/how-to-connect-a-render-service-to-supabase-postgres) e [Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres), il backend Render usa uscita IPv4 e i collegamenti diretti Supabase Free sono IPv6. Il pooler condiviso, modalità **sessione** (5432), è disponibile via IPv4 gratuitamente; con ruoli custom il nome utente include **`.<project_ref>`**.
 
-È stato quindi corretto l'HTTP harness in PR #258: **rifiuta** connessione diretta, tenant produzione, porta 6543 non richiesta, altro host/region, password/token corti e variabili di ambiente di produzione. Non è stata attivata alcuna password né modificato il servizio Render esistente, che resta sul commit live `80db6a4` e in `setup-only`.
+È stato quindi corretto l'HTTP harness in PR #258: **rifiuta** connessione diretta, tenant produzione, porta 6543 non richiesta, altro host/region, password/token corti e variabili di ambiente di produzione. Non è stata attivata alcuna password. Il servizio Render dedicato è stato aggiornato al commit `c785ea1` con deploy manuale, rimanendo in `setup-only` senza collegamento al DB.
 
 **Nota:** il valore preciso di `PGHOST` dipende dall'indice del pooler assegnato a Demos-Staging: deve essere copiato dalla pagina Connect, non ricostruito per supposizione. Nessun costo a pagamento autorizzato. Il test pubblico senza credenziali, ove disponibile, controlla solo i dinieghi `503/404`, non la connessione al database.
 
 
-**CI sul protocollo IPv4 corretto:** GitHub Actions [#40117107029](https://github.com/Nictolas/DemosApp/actions/runs/40117107029) **SUCCESS** sul commit `64a10d5`: test unitari che negano endpoint diretto IPv6, tenant produzione, regione errata, porte non previste, configurazioni o URL di produzione e credenziali insufficienti. Render resta intenzionalmente sulla versione LIVE setup-only con deploy automatici disabilitati: il codice nuovo non è ancora distribuito lì, né sono state abilitate credenziali.
+**CI sul protocollo IPv4 corretto:** GitHub Actions [#40117107029](https://github.com/Nictolas/DemosApp/actions/runs/40117107029) **SUCCESS** sul commit `64a10d5`: test unitari che negano endpoint diretto IPv6, tenant produzione, regione errata, porte non previste, configurazioni o URL di produzione e credenziali insufficienti. Il codice corretto è ora LIVE sul servizio Render dedicato tramite deploy manuale, ma ancora in modalità `setup-only`, con deploy automatici disattivati e credenziali non abilitate.
+
+
+## DOC-062 · Distribuzione della versione protetta, senza DB
+
+Il 24 ottobre 2026 è stato eseguito un **deploy manuale soltanto sul servizio gratuito di staging** `demos-sondaggi-op37-http-staging` (non `demos-backend`): deploy [`dep-dbeev0q9lscs73auoo20`](https://dashboard.render.com/web/srv-dbeeca5g1s2s73fb7pd0), commit GitHub `c785ea1344735015c51859420cf974b12855ace8`, stato **LIVE**. I log del nuovo deploy hanno confermato checkout di quel commit, avvio `node staging/op37_render_http_probe.js` e `OP37_RENDER_SETUP_ONLY_NO_DATABASE`. Auto-deploy ancora **OFF**.
+
+È stata verificata direttamente nel progetto **Demos-Staging** la configurazione del ruolo PostgreSQL `op37_http_staging_reader`: `NOLOGIN`, `NOSUPERUSER`, `NOBYPASSRLS`; `SELECT` sulle fixture sintetiche, nessun `INSERT`/`UPDATE`/`DELETE`; impostazioni persistenti `statement_timeout=11000ms`, `idle_in_transaction_session_timeout=15000ms`, **`default_transaction_read_only=on`**. Quest'ultima è stata applicata al solo ruolo staging per impedire transazioni di scrittura accidentali anche in caso di cambi futuri ai privilegi di tabella.
+
+Non è stato attivato il login né configurato alcun segreto su Render; il codice HTTP collegato al DB non è stato eseguito. La pipeline GitHub Actions per la PR verifica gli endpoint pubblici `/`, `/health`, `/benchmark/summary`, le quattro route Sondaggi e `/api/users` con soli dinieghi, senza credenziali. Si attende il risultato del workflow sul commit documentale.
+
+**Restante dipendenza necessaria:** configurazione manuale e temporanea nei dashboard di Supabase **Demos-Staging** e Render del pooler di sessione IPv4 e di un ruolo con password esclusiva; non chiedere, copiare o trasferire segreti in chat né aggirare i controlli di sicurezza. La PR #258 resta DRAFT, nessun deploy produzione, nessuna migrazione BYTEA.
