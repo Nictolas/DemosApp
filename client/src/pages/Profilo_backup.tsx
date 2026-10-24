@@ -162,9 +162,9 @@ export default function Profilo() {
           <Button 
             variant="ghost" 
             className="mb-4 flex items-center"
-            onClick={() => window.location.href = "/menu"}
+            onClick={() => window.location.href = "/preferiti"}
           >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
+            <ArrowLeft className="mr-2 h-4 w-4" /> Torna ai Preferiti
           </Button>
           
           <Card>
@@ -195,7 +195,7 @@ export default function Profilo() {
                       });
                       
                       // Reindirizza al menu invece di aggiornare lo stato locale
-                      window.location.href = "/menu";
+                      window.location.href = "/preferiti";
                     }}
                     onCancel={() => setIsEditing(false)}
                   />
