@@ -53,7 +53,7 @@ function configure() {
   process.env.CIE_OP_JWKS_B64 = Buffer.from(JSON.stringify({ keys: [jwk] })).toString('base64');
 }
 
-function makeSignedUserInfo({ sub = 'pairwise-subject', fiscalNumber = 'RSSMRA80A01H501U' } = {}) {
+function makeSignedUserInfo({ sub = 'pairwise-subject', fiscalNumber = 'RSSMRA80A01H501U', additionalClaims = {} } = {}) {
   const now = Math.floor(Date.now() / 1000);
   return jwt.sign(
     {
@@ -64,6 +64,7 @@ function makeSignedUserInfo({ sub = 'pairwise-subject', fiscalNumber = 'RSSMRA80
       nbf: now,
       exp: now + 300,
       [FISCAL_NUMBER_CLAIM]: fiscalNumber,
+      ...additionalClaims,
       ignored_claim: 'non deve uscire'
     },
     opPrivateKey,
@@ -184,5 +185,31 @@ test('rifiuta UserInfo con Content-Type diverso da application/jwt', async () =>
       httpClient
     ),
     /Content-Type/
+  );
+});
+
+test('normal CIE verification strips unsolicited names rather than persisting them', () => {
+  const jws = makeSignedUserInfo({ additionalClaims: { given_name: 'Giovanna', family_name: 'Bianchi' } });
+  const result = validateCieUserInfoJws({ jws, expectedSub: 'pairwise-subject' });
+  assert.deepEqual(result, { fiscalNumber: 'RSSMRA80A01H501U' });
+});
+
+test('public-role CIE verification extracts only signed full names and identifier', () => {
+  const jws = makeSignedUserInfo({ additionalClaims: {
+    given_name: ' Giovanna ', family_name: ' Bianchi ', gender: 'female'
+  } });
+  const result = validateCieUserInfoJws({
+    jws, expectedSub: 'pairwise-subject', requirePublicNames: true
+  });
+  assert.deepEqual(result, {
+    fiscalNumber: 'RSSMRA80A01H501U', givenName: 'Giovanna', familyName: 'Bianchi'
+  });
+});
+
+test('public-role CIE verification fails closed when full names missing', () => {
+  const jws = makeSignedUserInfo();
+  assert.throws(
+    () => validateCieUserInfoJws({ jws, expectedSub: 'pairwise-subject', requirePublicNames: true }),
+    /Nome e cognome certificati mancanti/
   );
 });
