@@ -46,5 +46,6 @@ test('survey aggregates exclude NULL answers and require consent in grouped and 
   );
   assert.match(national, /v\.answer IS NOT NULL/);
   assert.match(national, /WHERE orr\.\$\{quoted\} IS NOT NULL/);
-  assert.equal(countMatches(national, /COALESCE\(uc\.political_opinions_consent,/g), 4);
+  // National, territorial and opt-in FILTER builders, plus both legacy paths.
+  assert.equal(countMatches(national, /COALESCE\(uc\.political_opinions_consent,/g), 5);
 });
