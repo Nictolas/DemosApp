@@ -12,8 +12,9 @@
 const express = require('express');
 const {
   createCatalogRegistry, encodeEnvelope, decodeLegacyQuestionRows,
-  decodeEnvelope, parseLegacyOpinionPost
+  decodeEnvelope
 } = require('../../utils/opinionCodecEnvelope');
+const { normalizeOpinionAnswer } = require('../../utils/politicalMatching');
 
 function mountSyntheticPackedOpinionApi(app, { encoding, questions, catalogIds, consents }) {
   if (!['fixed', 'trimmed', 'sparse'].includes(encoding)) {
@@ -72,14 +73,41 @@ function mountSyntheticPackedOpinionApi(app, { encoding, questions, catalogIds, 
         message: 'Per salvare opinioni politiche è necessario un consenso esplicito attivo.',
         consent_required: true });
     }
-    let changes;
-    try {
-      changes = parseLegacyOpinionPost(req.body, registry);
-    } catch {
-      // The real route has more nuanced per-field partial errors. The shadow
-      // intentionally exercises only valid writes and all-invalid rejection.
-      return res.status(400).json({ success: false,
-        error: 'Nessuna opinione valida da salvare' });
+    // Match the existing route's partial-success behavior: unsupported IDs
+    // and invalid values count as errors; valid opinions are still saved.
+    // In this fixture, catalog IDs stand in for the real TEXT columns and
+    // opinionMapping. The pure parseLegacyOpinionPost stays intentionally
+    // strict and is NOT imported into the deployed route.
+    const opinions = req.body?.opinioni || req.body;
+    if (!opinions || typeof opinions !== 'object' ||
+        Object.keys(opinions).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    const allowedIds = new Set(registry.get(registry.latestVersion).ids);
+    const changes = {};
+    let errorCount = 0;
+    for (const [id, rawAnswer] of Object.entries(opinions)) {
+      if (!allowedIds.has(id)) {
+        errorCount += 1;
+        continue;
+      }
+      const answer = normalizeOpinionAnswer(rawAnswer);
+      if (!answer) {
+        errorCount += 1;
+        continue;
+      }
+      changes[id] = answer;
+    }
+    if (Object.keys(changes).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
     }
 
     const previous = packedByUser.get(req.syntheticAccount);
@@ -93,7 +121,7 @@ function mountSyntheticPackedOpinionApi(app, { encoding, questions, catalogIds, 
       success: true,
       message: 'Opinioni salvate con successo',
       savedCount: Object.keys(changes).length,
-      errorCount: 0,
+      errorCount,
       notificationsCreated: 0,
       timestamp: new Date().toISOString()
     });

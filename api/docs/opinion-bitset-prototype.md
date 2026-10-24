@@ -319,3 +319,36 @@ compatibilità totale non è ancora dimostrata. Il test Android installato
 e la verifica di RLS/pooler/Supabase rimangono fuori ambito.
 La convenienza economica della codifica a 2 bit resta **non dimostrata**,
 OP-41 **In corso**, KPI-23 **Non verificato**.
+
+
+## Salvataggi parziali e errori HTTP: compatibilità shadow (DOC-032)
+
+Il router sperimentale `api/tests/fixtures/opinionPackedShadowHttpFixture.js`
+riproduce ora **nei soli test HTTP** la semantica di successo parziale
+dell'attuale `POST /api/opinioni/salva`: se arrivano insieme opinioni
+accettabili e opinioni con ID o valori non validi, vengono salvate solo
+le prime; il JSON pubblico restituisce `savedCount` ed `errorCount`.
+Non cambiano le API reali, il parser sperimentale puro
+`parseLegacyOpinionPost` (ancora rigoroso), il database o gli utenti.
+
+La suite `api/tests/opinionCodecHttpContract.test.js` mette a confronto
+la route Express reale con JWT/DB simulati e tutti e tre i router shadow
+(fixed, trimmed, sparse). I nuovi scenari confrontano il corpo HTTP:
+- primo salvataggio misto (due opinioni valide e due errori);
+- account separato con voto valido e ID non riconosciuto;
+- aggiornamento misto senza cancellare opinioni non toccate;
+- rifiuto HTTP 400 di batch senza opinioni valide o vuoto, senza
+  sostituire i Buffer precedenti;
+- rifiuto HTTP 403 su flag consenso spento, senza scritture.
+I timestamp delle chiamate separate vengono validati, non confrontati
+come stringhe identiche. Un Buffer interno non viene mai esposto in JSON.
+
+**Limiti**: il simulatore verifica gli ID presenti nel suo catalogo
+di prova, mentre l'endpoint attuale interroga
+`information_schema.columns` e può usare un mapping storico.
+Perciò non dimostra compatibilità per tutte le colonne/mappature
+esistenti, né atomicità SQL, salvataggi simultanei, notifiche dei
+politici, revoca reale con cancellazione, RLS Supabase, Android installato
+o vantaggio complessivo della compressione binaria. Il codec non è
+integrato nelle route effettive e la PR rimane in bozza.
+**OP-41 In corso; KPI-23 Non verificato.**

@@ -464,3 +464,136 @@ test('test-only packed shadow rejects invalid answer without corrupting a previo
     assert.equal((await write(endpoint,{caccia:'unsupported'})).status,400);
   },{packedShadow:true});
 });
+
+
+test('mixed-validity POST keeps only valid votes across real and packed HTTP routes',async()=>{
+  await withActualRoutes(async({request,shadowRouters})=>{
+    const formats=['fixed','trimmed','sparse'];
+    const endpoint='/api/opinioni/salva';
+    const get='/api/opinioni-list?grado=N';
+    const normalized=body=>{
+      const {timestamp,...remaining}=body;
+      if(timestamp!==undefined)assert.ok(Number.isFinite(Date.parse(timestamp)));
+      return remaining;
+    };
+    const comparePost=async(account,body,expectedSaved,expectedErrors)=>{
+      const legacy=await request('POST',endpoint,account,body);
+      assert.equal(legacy.status,200);
+      assert.equal(legacy.body.savedCount,expectedSaved);
+      assert.equal(legacy.body.errorCount,expectedErrors);
+      for(const format of formats){
+        const shadow=await request('POST','/_synthetic/'+format+endpoint,account,body);
+        assert.equal(shadow.status,legacy.status,format);
+        assert.deepEqual(normalized(shadow.body),normalized(legacy.body),
+          format+' must preserve successful partial-save JSON');
+      }
+    };
+    const compareGet=async(account)=>{
+      const legacy=await request('GET',get,account);
+      assert.equal(legacy.status,200);
+      for(const format of formats){
+        const shadow=await request('GET','/_synthetic/'+format+get,account);
+        assert.equal(shadow.status,200);
+        assert.deepEqual(shadow.body,legacy.body,format+' GET after partial POST');
+      }
+      return Object.fromEntries(legacy.body.data.map(r=>[r.id,r.userAnswer]));
+    };
+
+    // Two valid responses alongside an invalid value and an unknown ID:
+    // existing API returns HTTP 200 and commits only the two valid entries.
+    await comparePost('account-a',{opinioni:{
+      caccia:'favorevole',nato:'n/a',salario_minimo:'non lo so',
+      unknown_synthetic_question:'f'
+    }},2,2);
+    assert.deepEqual(await compareGet('account-a'),{
+      caccia:'f',nato:null,salario_minimo:'i',energia_nucleare:null
+    });
+
+    await comparePost('account-b',{opinioni:{
+      nato:'contrario',unknown_synthetic_question:'f'
+    }},1,1);
+    assert.deepEqual(await compareGet('account-b'),{
+      caccia:null,nato:'c',salario_minimo:null,energia_nucleare:null
+    });
+
+    // Updating an answered field must not erase previously stored answers;
+    // NULL and unknown IDs increment errorCount but do not create a vote.
+    await comparePost('account-a',{opinioni:{
+      caccia:'C',nato:null,energia_nucleare:'unsupported',
+      unknown_synthetic_question:'i'
+    }},1,3);
+    assert.deepEqual(await compareGet('account-a'),{
+      caccia:'c',nato:null,salario_minimo:'i',energia_nucleare:null
+    });
+    assert.deepEqual(await compareGet('account-b'),{
+      caccia:null,nato:'c',salario_minimo:null,energia_nucleare:null
+    });
+
+    for(const shadow of shadowRouters){
+      assert.ok(Buffer.isBuffer(shadow.snapshot('account-a').payload));
+      assert.equal(shadow.snapshot('account-a').encoding,shadow.encoding);
+    }
+  },{packedShadow:true});
+});
+
+test('all-invalid or empty POST matches legacy 400 and keeps all packed snapshots intact',async()=>{
+  await withActualRoutes(async({request,shadowRouters,consents})=>{
+    const endpoint='/api/opinioni/salva';
+    const get='/api/opinioni-list?grado=N';
+    const write=(route,account,body)=>request('POST',route,account,body);
+
+    // A successful baseline is required to prove that rejection does not
+    // truncate or replace a previously stored binary opinion payload.
+    const initial=await write(endpoint,'account-a',{opinioni:{caccia:'f'}});
+    assert.equal(initial.status,200);
+    for(const shadow of shadowRouters){
+      assert.equal((await write('/_synthetic/'+shadow.encoding+endpoint,
+        'account-a',{opinioni:{caccia:'f'}})).status,200);
+    }
+
+    const rejectedBodies=[
+      {opinioni:{unknown_synthetic_question:'f'}},
+      {opinioni:{nato:null,energia_nucleare:'unsupported'}},
+      {opinioni:{nato:false}},
+      {opinioni:{}},
+      {unknown_synthetic_question:'f'}
+    ];
+    for(const body of rejectedBodies){
+      const real=await write(endpoint,'account-a',body);
+      assert.equal(real.status,400,JSON.stringify(body));
+      for(const shadow of shadowRouters){
+        const previous=shadow.snapshot('account-a');
+        const fake=await write('/_synthetic/'+shadow.encoding+endpoint,
+          'account-a',body);
+        assert.equal(fake.status,real.status,shadow.encoding);
+        assert.deepEqual(fake.body,real.body,
+          shadow.encoding+' must preserve all-invalid error contract');
+        assert.deepEqual(shadow.snapshot('account-a'),previous,
+          'Rejected request must not mutate packed vote');
+      }
+    }
+
+    consents.set('account-a',false);
+    const forbidden=await write(endpoint,'account-a',{
+      opinioni:{caccia:'c',unknown_synthetic_question:'f'}
+    });
+    assert.equal(forbidden.status,403);
+    for(const shadow of shadowRouters){
+      const previous=shadow.snapshot('account-a');
+      const result=await write('/_synthetic/'+shadow.encoding+endpoint,
+        'account-a',{opinioni:{caccia:'c',unknown_synthetic_question:'f'}});
+      assert.equal(result.status,403);
+      assert.deepEqual(result.body,forbidden.body);
+      assert.deepEqual(shadow.snapshot('account-a'),previous);
+    }
+
+    // This only toggles the mock consent flag; no real DELETE-on-revoke
+    // and no policy for recovering previously persisted data is tested.
+    assert.equal((await request('GET',get,'account-a')).body.data[0].userAnswer,'f');
+    for(const shadow of shadowRouters){
+      const selected=await request('GET','/_synthetic/'+shadow.encoding+get,
+        'account-a');
+      assert.equal(selected.body.data[0].userAnswer,'f');
+    }
+  },{packedShadow:true});
+});
