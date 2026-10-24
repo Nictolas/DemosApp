@@ -72,3 +72,11 @@ test('every personal opinion read forwards the React Query AbortSignal to the HT
  assert.match(client,/externalSignal\?\.addEventListener\('abort', abortFromQuery/);
  assert.match(client,/externalSignal\?\.removeEventListener\('abort', abortFromQuery/);
 });
+
+test('ordinary consent UI contract cannot cache IP addresses or user-agent evidence',()=>{
+ const hook=source('hooks/usePoliticalOpinionsConsent.ts');
+ assert.match(hook,/interface ConsentData \{/);
+ assert.match(hook,/granted: boolean/);
+ assert.match(hook,/timestamp: string \| null/);
+ assert.doesNotMatch(hook,/ipAddress|userAgent/);
+});
