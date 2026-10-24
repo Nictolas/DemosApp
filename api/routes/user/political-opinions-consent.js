@@ -6,6 +6,13 @@ const AuditService = require('../../services/auditService');
 const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
 const { cleanupConsentScopedPoliticalData } = require('../../services/politicalConsentService');
 
+// Consent state and its metadata are personal information. Apply this before
+// verifyToken so 401/403/500 responses cannot be cached either.
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
+
 /**
  * GET /api/user/political-opinions-consent
  * Verifica lo stato del consenso alle opinioni politiche
