@@ -854,3 +854,33 @@ GDPR, backup, schemi reali, prestazioni economiche o Android.
 La PR resta DRAFT, nessun merge/deploy/DDL persistente,
 nessuna migrazione a BYTEA. OP-41 resta **In corso**;
 KPI-23 **Non verificato**; OP-42 **Da fare**.
+
+
+## Disconnessione PostgreSQL e recupero catalogo (DOC-045)
+
+Lo script `api/scripts/verify-opinion-crash-recovery.js` aggiunge
+una regressione **solo CI** su PostgreSQL 17 effimero `opinion_bitset_ci`.
+Crea tre nuove tabelle isolate con dati sintetici e 94 ID di opinione.
+Non accede a Supabase, API DEMOS o dati degli utenti.
+
+Il test simula la **terminazione del backend PostgreSQL** durante una
+transazione che aveva inserito una versione di catalogo, spostato la
+testa e modificato due righe BYTEA, **prima del COMMIT**. Dopo la perdita
+della connessione verifica atomicità del rollback: nessuna versione
+fantasma, nessun cambio al catalog head, nessuna risposta parziale.
+Riapre una connessione, effettua un append e un salvataggio confermati,
+termina anche quella connessione e verifica che la versione confermata
+sia ricostruibile dal DB. Le risposte scritte con catalogo v1 devono
+rimanere leggibili attraverso la v2 e i nuovi slot devono restare NULL
+nelle vecchie risposte. Una cache obsoleta è identificata controllando
+la versione corrente con il lock condiviso sul catalog head.
+
+**Limiti:** terminare un backend non equivale a un failover del server
+o alla perdita di un disco. Il test non copre conferme COMMIT ambigue,
+idempotenza dei retry HTTP, backup e restore, riavvio del server
+PostgreSQL, cache distribuite, dispositivi Android, RLS o JWT reali.
+È un test del pattern sperimentale, NON una modifica delle route.
+Finché la CI non termina non è dichiarato superato.
+PR #247 ancora DRAFT; nessun merge, deploy, DDL in produzione o
+migrazione BYTEA. OP-41 **In corso**, KPI-23 **Non verificato**,
+OP-42 **Da fare**.
