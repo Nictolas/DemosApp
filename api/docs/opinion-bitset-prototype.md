@@ -889,3 +889,55 @@ Opinioni #40100198612, Security #40100198610, Privacy erasure
 PR #247 ancora DRAFT; nessun merge, deploy, DDL in produzione o
 migrazione BYTEA. OP-41 **In corso**, KPI-23 **Non verificato**,
 OP-42 **Da fare**.
+
+
+## Retry idempotente e snapshot logico ripristinato (DOC-046)
+
+Il runner `api/scripts/verify-opinion-idempotent-backup.js`
+realizza una **prova autonoma esclusivamente su PostgreSQL 17 effimero**
+di GitHub Actions (`opinion_bitset_ci`). Tutti gli ID/account sono
+sintetici; DDL e dati restano in nuove tabelle isolate `ci_idem_*`.
+La guardia richiede credenziali CI fittizie e host loopback.
+
+**Conferma persa e deduplicazione:** un client salva una delta-opinione
+con `request_id` e fingerprint del payload, la transazione esegue COMMIT
+e il test simula la perdita della risposta al client **dopo** COMMIT.
+Una seconda connessione ripete lo stesso `request_id`: la richiesta
+deve risultare già applicata, senza riscrivere la riga né incrementare
+la revisione. Stesso ID ma contenuto diverso viene rifiutato.
+Due richieste concorrenti uguali producono un solo aggiornamento;
+due ID diversi con delta disgiunti devono preservare entrambi gli
+aggiornamenti. Il modello testato usa una tabella persistente
+di idempotency key con unicità `(subject,request_id)`, fingerprint
+e revisione, e serializza per account il protocollo tramite
+`SELECT subject FOR UPDATE` **prima** dell'inserimento della chiave.
+Una versione di catalogo successiva permette di continuare a leggere
+i payload storici.
+
+**Esportazione e ripristino logico:** una transazione
+`REPEATABLE READ READ ONLY` esporta catalogo, head, soggetti fittizi,
+voti BYTEA e registro delle richieste in un archivio JSON CI temporaneo
+con SHA-256. Un'altra transazione modifica l'origine *dopo l'apertura
+dello snapshot*: il backup ripristinato deve riflettere il punto
+precedente. Si crea uno schema di tabelle nuove con nomi separati:
+restaurati catalogo v1/v2, risposte storiche, revisioni e richiesta
+idempotente già elaborata. Un file con checksum alterato viene
+rifiutato; un file con riferimento FK impossibile, benché dotato
+di un checksum nuovamente calcolato, fallisce con rollback completo
+delle tabelle di destinazione. Il ripristino NON modifica le tabelle
+sorgenti e non tocca alcuna risorsa DEMOS reale.
+
+**Limiti importanti:** la prova contiene un protocollo di retry
+*solo in uno script sperimentale*: non sono aggiunti header/ID al
+frontend o al backend DEMOS né effettuati deploy. Le chiavi idempotenti
+avrebbero bisogno di autenticazione, scadenza/retention e una policy
+anti-riuso. Non è un vero backup `pg_dump`, un ripristino PITR, un
+test dopo rottura disco, failover o perdita completa del server; il
+checksum rileva alterazioni ma non dimostra autenticità crittografica.
+Restano da verificare RLS/consenso reali, Android, pooler Supabase,
+dimensionamento/costi e convenienza BYTEA. Nessuna migrazione, nessun
+merge della PR DRAFT #247. OP-41 **In corso**, KPI-23
+**Non verificato**, OP-42 **Da fare**.
+
+**Stato iniziale:** prova predisposta e avviata in CI; l'esito deve
+essere verificato prima di dichiarare DOC-046 PASS.
