@@ -15,6 +15,7 @@ on:
       - 'api/staging/op37_render_http_probe.js'
       - 'api/tests/sondaggiStagingSqlSafety.test.js'
       - 'api/tests/sondaggiRenderStagingIsolation.test.js'
+      - 'api/docs/sondaggi-render-http-staging-handoff-20261024.md'
       - 'api/docs/sondaggi-supabase-staging-db-20261024.md'
       - '.github/workflows/sondaggi-text-aggregation.yml'
 
