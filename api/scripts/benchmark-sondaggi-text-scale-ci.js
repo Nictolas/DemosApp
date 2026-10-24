@@ -123,6 +123,68 @@ async function read(db,scope){
  }
  return {elapsed,questions:wrapper.calls,publications:Object.keys(stats).length};
 }
+
+// Experimental SQL-only candidate: aggregate f/c/i across eligible people
+// directly before pivoting one result row per opinion. Compare with the
+// existing lateral-per-person implementation; do not publish the candidate
+// as app code until relative performance is measured.
+function directFilterAggregateSql(columns){
+ const names=columns.map((id,i)=>({
+   id,f:'f'+i,c:'c'+i,u:'i'+i
+ }));
+ const checks=names.flatMap(({id,f,c,u})=>[
+  "COUNT(*) FILTER (WHERE orr.\""+id+"\" = 'f')::integer AS "+f,
+  "COUNT(*) FILTER (WHERE orr.\""+id+"\" = 'c')::integer AS "+c,
+  "COUNT(*) FILTER (WHERE orr.\""+id+"\" = 'i')::integer AS "+u
+ ]);
+ const points=names.map(({id,f,c,u})=>
+  "('"+id+"', counts."+f+", counts."+c+", counts."+u+")");
+ return "SELECT v.opinion_id,v.favorevole,v.contrario,v.indeciso FROM ("+
+  "SELECT "+checks.join(',')+
+  " FROM opinioni_risposte orr JOIN users u ON u.id=orr.user_id "+
+  "LEFT JOIN user_consents uc ON uc.user_id=u.id "+
+  "WHERE u.account_type='PERSON' AND "+
+  "COALESCE(uc.political_opinions_consent,u.political_opinions_consent,false) IS TRUE"+
+  ") counts CROSS JOIN LATERAL (VALUES "+
+  points.join(',')+") AS v(opinion_id,favorevole,contrario,indeciso) "+
+  "WHERE (v.favorevole+v.contrario+v.indeciso)>0";
+}
+function normalizeStatRows(rows){
+ return Object.fromEntries(rows.map(r=>[r.opinion_id,
+  [Number(r.favorevole),Number(r.contrario),Number(r.indeciso)]])
+  .sort((a,b)=>a[0].localeCompare(b[0])));
+}
+async function compareAlternativeSql(db){
+ const ids=IDS.filter(id=>id!=='synthetic_opinion_092');
+ const currentSql=buildNationalTextAggregateQuery(ids);
+ const candidateSql=directFilterAggregateSql(ids);
+ const original=normalizeStatRows((await db.query(currentSql)).rows);
+ const proposed=normalizeStatRows((await db.query(candidateSql)).rows);
+ assert.deepEqual(proposed,original,
+  'Direct-filter candidate must exactly match consent-aware grouped query');
+ const timings={current:[],candidate:[]};
+ for(let i=0;i<7;i++){
+  const order=i%2===0?['current','candidate']:['candidate','current'];
+  for(const mode of order){
+   const sql=mode==='current'?currentSql:candidateSql;
+   const start=performance.now();
+   const data=await db.query(sql);
+   const elapsed=performance.now()-start;
+   assert.deepEqual(normalizeStatRows(data.rows),original,
+    'Direct-filter candidate response drift in '+mode);
+   timings[mode].push(elapsed);
+  }
+ }
+ return {
+  current:summary(timings.current),
+  candidate:summary(timings.candidate),
+  candidateP50RelativeToCurrent:round(
+   percentile(timings.candidate,.5)/percentile(timings.current,.5)),
+  matchingConsentAndCounts:true,
+  experimentalOnly:true
+ };
+}
+
 async function main(){
  inputGuard();
  await makeDb();
@@ -168,12 +230,13 @@ async function main(){
    sharedReadBlocks:explain.Plan['Shared Read Blocks'],
    rows:explain.Plan['Actual Rows']
   };
+  const candidateComparison=await compareAlternativeSql(db);
   console.log('SONDAGGI_TEXT_SCALE_CI_PASS');
   console.log('SONDAGGI_TEXT_SCALE_CI_RESULT_JSON='+JSON.stringify({
    postgres:17,synthetic:true,
    answerDensityApprox:'1/12; synthetic sparse TEXT',
    scenarios:SIZES,durationsMeasuredPerScope:REPETITIONS,
-   datasets,planner,
+   datasets,planner,candidateComparison,
    limitations:[
     'CI-only PostgreSQL17 and Node on the same host; not Supabase staging.',
     'Synthetic sparsity/consent/geography does not reproduce production distribution.',
