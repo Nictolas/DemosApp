@@ -11,7 +11,7 @@ export const Header: React.FC = () => {
       <div className="absolute -top-2 -right-4 w-16 h-16 bg-gradient-to-br from-pink-400 to-orange-500 rounded-full opacity-10 blur-xl"></div>
       
       <div className="relative flex items-center gap-4">
-        <Link href="/menu">
+        <Link href="/preferiti">
           <Button 
             variant="ghost" 
             size="icon"
