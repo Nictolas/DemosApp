@@ -138,7 +138,7 @@ export default function TestMinistero() {
   }
 
   if (!hasAdminCapability(user)) {
-    return <Redirect to="/menu" />;
+    return <Redirect to="/preferiti" />;
   }
 
   return (
