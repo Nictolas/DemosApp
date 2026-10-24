@@ -306,7 +306,7 @@ export default function Sostenitori() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-6xl">
-        <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
+        <Link href="/preferiti"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna ai Preferiti</Button></Link>
         <Card className="bg-white">
           <CardHeader>
             <CardTitle className="text-2xl flex items-center"><Users className="mr-2 h-6 w-6" />I Miei Sostenitori</CardTitle>

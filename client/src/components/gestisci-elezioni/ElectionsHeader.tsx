@@ -8,10 +8,10 @@ export function ElectionsHeader({ onAddNew }: ElectionsHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-8">
       <div className="flex items-center space-x-4">
-        <Link href="/menu">
+        <Link href="/preferiti">
           <Button variant="ghost" className="flex items-center text-gray-600 hover:text-gray-800">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Torna al Menu
+            Torna ai Preferiti
           </Button>
         </Link>
         <h1 className="text-3xl font-bold text-gray-900">Gestisci Elezioni</h1>

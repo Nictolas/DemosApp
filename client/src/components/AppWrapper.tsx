@@ -85,7 +85,7 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
     }
 
     if (!hasAdminCapability(user) && !(isGestisciHomePath(location) && hasDpoCapability(user))) {
-      return <Redirect to="/menu" />;
+      return <Redirect to="/preferiti" />;
     }
   }
 

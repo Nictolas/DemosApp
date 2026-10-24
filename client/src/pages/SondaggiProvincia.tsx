@@ -14,7 +14,7 @@ export default function SondaggiProvincia() {
   // Controllo più flessibile per l'accesso ai sondaggi
   const userRole = user.ruolo;
   const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
-  if (!hasAdvancedAccess) return <Redirect to="/menu" />;
+  if (!hasAdvancedAccess) return <Redirect to="/preferiti" />;
 
   // Costruisci filterPath solo se i parametri sono validi
   const filterPath = regione && provincia ? `${regione}/${provincia}` : regione || undefined;

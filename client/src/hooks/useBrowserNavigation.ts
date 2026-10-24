@@ -91,7 +91,7 @@ export function useBrowserNavigation() {
             setLocation(previousPath);
           } else {
             // Fallback: vai al menu o alla home
-            setLocation('/menu');
+            setLocation('/preferiti');
           }
           
           // Reset del flag dopo un delay
@@ -121,22 +121,22 @@ export function useBrowserNavigation() {
   // Funzione helper per determinare il percorso precedente
   const getPreviousPath = (currentPath: string): string | null => {
     const pathMap: { [key: string]: string } = {
-      '/menu': '/',
-      '/profilo': '/menu',
-      '/opinioni': '/menu',
-      '/rappresentanti': '/menu',
-      '/governo': '/menu',
-      '/elezioni': '/menu',
-      '/ice': '/menu',
-      '/iniziative-popolari': '/menu',
-      '/referendum-abrogativi': '/menu',
-      '/grazia': '/menu',
-      '/amnistia': '/menu',
-      '/capo-stato': '/menu',
-      '/sondaggi': '/menu',
-      '/comunicazioni': '/menu',
-      '/eventi': '/menu',
-      '/notifiche': '/menu',
+      '/menu': '/preferiti',
+      '/profilo': '/preferiti',
+      '/opinioni': '/preferiti',
+      '/rappresentanti': '/preferiti',
+      '/governo': '/preferiti',
+      '/elezioni': '/preferiti',
+      '/ice': '/preferiti',
+      '/iniziative-popolari': '/preferiti',
+      '/referendum-abrogativi': '/preferiti',
+      '/grazia': '/preferiti',
+      '/amnistia': '/preferiti',
+      '/capo-stato': '/preferiti',
+      '/sondaggi': '/preferiti',
+      '/comunicazioni': '/preferiti',
+      '/eventi': '/preferiti',
+      '/notifiche': '/preferiti',
       '/auth': '/',
       '/registrazione-nome': '/auth',
       '/registrazione-genere': '/registrazione-nome',

@@ -24,7 +24,7 @@ export default function Sondaggi() {
   }
 
   if (!user) return <Redirect to="/auth" />;
-  if (!hasAdvancedAccess) return <Redirect to="/menu" />;
+  if (!hasAdvancedAccess) return <Redirect to="/preferiti" />;
 
   const generePieData = prepareGenerePieData(genereData);
   const totalVotes = calculateTotalVotes(sondaggiData?.stats);

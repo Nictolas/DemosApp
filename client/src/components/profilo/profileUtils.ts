@@ -84,5 +84,5 @@ export const canEditImage = (userRole: string): boolean => {
 export const getBackButtonText = (fromGestisciUtenti: boolean, userId?: string): string => {
   if (fromGestisciUtenti) return "Torna a Utenti";
   if (userId) return "Torna a Gestisci Grazia";
-  return "Torna al Menu";
+  return "Torna ai Preferiti";
 };

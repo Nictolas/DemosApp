@@ -151,7 +151,7 @@ export default function Impostazioni() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-8">
-          <Link href="/menu">
+          <Link href="/preferiti">
             <Button variant="ghost" size="icon">
               <Home className="h-5 w-5" />
             </Button>

@@ -154,7 +154,7 @@ export default function Strumenti() {
       setExistingComunicazione(null);
       // Naviga al menu con un breve delay per mostrare il toast
       setTimeout(() => {
-        setLocation("/menu");
+        setLocation("/preferiti");
       }, 1000);
     },
     onError: (error: any) => {
@@ -293,7 +293,7 @@ export default function Strumenti() {
           <button
             type="button"
             className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-lg"
-            onClick={() => setLocation("/menu")}
+            onClick={() => setLocation("/preferiti")}
             onContextMenu={e => e.preventDefault()}
           >
             <div className="relative z-10 flex items-center justify-between h-full px-4">

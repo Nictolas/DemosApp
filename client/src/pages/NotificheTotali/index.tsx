@@ -153,7 +153,7 @@ export default function NotificheTotali() {
 
   if (isAuthLoading) return <PageContainer className="flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></PageContainer>;
   if (!user) return <Redirect to="/auth" />;
-  if (!isAdmin) return <Redirect to="/menu" />;
+  if (!isAdmin) return <Redirect to="/preferiti" />;
 
   return (
     <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">

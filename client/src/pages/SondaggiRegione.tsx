@@ -14,7 +14,7 @@ export default function SondaggiRegione() {
   // Controllo più flessibile per l'accesso ai sondaggi
   const userRole = user.ruolo;
   const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
-  if (!hasAdvancedAccess) return <Redirect to="/menu" />;
+  if (!hasAdvancedAccess) return <Redirect to="/preferiti" />;
 
   return <SondaggiContent filterPath={regione} />;
 }
