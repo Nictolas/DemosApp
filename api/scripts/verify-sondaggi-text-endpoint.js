@@ -36,7 +36,11 @@ async function makeViews(client){
     const r=await client.query('SELECT to_regclass($1) AS relation',['public.'+table]);
     assert.ok(r.rows[0].relation,'Missing earlier synthetic benchmark: '+table);
   }
-  await client.query('CREATE VIEW public.opinioni_risposte AS SELECT * FROM public.ci_query_text');
+  // Work on a separate snapshot: subsequent privacy-equivalence tests
+  // read ci_query_text and MUST observe its original fixed/sparse-equivalent
+  // data. Mutating that shared fixture produced a false negative downstream.
+  await client.query('CREATE TABLE public.ci_sondaggi_text AS TABLE public.ci_query_text');
+  await client.query('CREATE VIEW public.opinioni_risposte AS SELECT * FROM public.ci_sondaggi_text');
   await client.query('CREATE VIEW public.users AS SELECT id,account_type,political_opinions_consent FROM public.ci_opt_users');
   await client.query('CREATE VIEW public.user_consents AS SELECT user_id,political_opinions_consent FROM public.ci_opt_consents');
   await client.query('CREATE TABLE public.opinioni_domande (id text PRIMARY KEY,text text,gradi_opinione text[])');
@@ -47,8 +51,8 @@ async function makeViews(client){
     ]);
   }
   // A separate synthetic slot has exactly ten consenting human voters.
-  await client.query('UPDATE public.ci_query_text SET synthetic_opinion_093=NULL');
-  await client.query("UPDATE public.ci_query_text SET synthetic_opinion_093='f' WHERE user_id=ANY($1::uuid[])",[
+  await client.query('UPDATE public.ci_sondaggi_text SET synthetic_opinion_093=NULL');
+  await client.query("UPDATE public.ci_sondaggi_text SET synthetic_opinion_093='f' WHERE user_id=ANY($1::uuid[])",[
     Array.from({length:10},(_,i)=>userId(i+1))
   ]);
 }

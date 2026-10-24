@@ -587,7 +587,10 @@ query, filtro account, consenso, soglia 9/10, fallback e mantenimento
 dei filtri delle altre tre rotte. Il runner **CI-only**
 `api/scripts/verify-sondaggi-text-endpoint.js` monta invece la
 **vera route GET** con PostgreSQL 17 effimero, usando viste di prova
-sopra `ci_query_text` e `ci_opt_users` già creati nel job.
+sopra una **copia autonoma** `ci_sondaggi_text` di `ci_query_text`
+e su `ci_opt_users` già creati nel job. Le alterazioni della colonna
+di prova per la soglia 9/10 agiscono esclusivamente su questa copia:
+`ci_query_text` resta invariata per i successivi test privacy e codec.
 Verifica contratti JSON, domanda non approvata, cella esattamente
 10 voti poi 9 dopo una revoca di prova, ripristino consenso e
 fallback SQL, controllando anche che il percorso normale esegua
