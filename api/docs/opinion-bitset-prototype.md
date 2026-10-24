@@ -188,3 +188,31 @@ personalizzate, test Android installato e definizione policy sul
 consenso. La revoca continua a bloccare POST ma non la GET dei
 propri voti memorizzati: decisione da valutare separatamente.
 Nessun BYTEA collegato alle route; nessuna migrazione o deploy.
+
+
+## Ripristino sperimentale del catalogo tramite manifesto (DOC-028)
+
+Il prototipo `api/utils/opinionCatalogManifest.js` prova **esportazione e
+ricostruzione** del registro delle versioni a partire da una rappresentazione
+JSON deterministica, con `schemaVersion: 1` e, per ogni versione,
+`version`, elenco ordinato `ids` e relativo `fingerprint` SHA-256.
+Non salva fisicamente il manifesto su disco o database: il catalogo reale
+di DEMOS resta **non persistito**. Non è autorizzata alcuna DDL.
+
+- `serializeCatalogRegistry` esporta uno snapshot verificato;
+- `restoreCatalogRegistry` ricrea una nuova istanza immutabile, rifiutando
+  schema o campi sconosciuti, hash diversi, riordini, eliminazioni, input
+  malformati e manifesti oltre 1 MiB;
+- `appendCatalogManifest` produce un nuovo snapshot senza modificare
+  quello precedente e richiede l'aggiunta di almeno un ID;
+- i test ricreano il catalogo dopo un *riavvio simulato* e decodificano
+  dati storici fixed/trimmed/sparse prima e dopo l'aggiunta di versioni.
+
+**Limiti importanti:** un fingerprint SHA-256 non è una firma digitale:
+chi può riscrivere gli ID può ricalcolare anche l'hash. Il test dimostra
+ricostruibilità *logica*, non durabilità dei dati, replica, locking,
+autorizzazioni, protezione RLS o affidabilità di un backup. Tornare a un
+manifesto vecchio **non** rende leggibili automaticamente bitset prodotti
+con nuove versioni: il rollback dovrà conservare lettori e manifesti di
+tutte le versioni già scritte, o eseguire una conversione approvata.
+Non è stato modificato il contratto HTTP f/c/i/NULL né alcun dato reale.
