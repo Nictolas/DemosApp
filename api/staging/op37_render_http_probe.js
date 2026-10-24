@@ -81,7 +81,33 @@ function stat(samples){
   maxMs:pct(samples,1)};
 }
 
+function startSetupOnly(){
+ const e=process.env;
+ if(e.OP37_STAGING_HTTP_ONLY!=='yes' || e.RENDER!=='true' ||
+    e.OP37_STAGING_SETUP_ONLY!=='yes' ||
+    e.PGPASSWORD || e.DATABASE_URL || e.SUPABASE_SERVICE_ROLE_KEY ||
+    e.SUPABASE_DB_URL || e.SUPABASE_URL){
+   throw Error('OP37_SETUP_ONLY_GUARD_FAILED');
+ }
+ // Deliberately refuses every database request until a dedicated
+ // staging credential is installed out of band.
+ const app=express();
+ app.disable('x-powered-by');
+ app.use((req,res,next)=>{res.setHeader('Cache-Control','no-store');next()});
+ app.get('/',(req,res)=>res.json({
+   scope:'op37-synthetic-staging',mode:'setup_required',
+   databaseConnected:false,productionConnected:false
+ }));
+ app.get('/health',(req,res)=>res.status(503).json({
+   scope:'op37-synthetic-staging',ready:false,reason:'staging_credential_not_configured'
+ }));
+ app.get('/benchmark/summary',(req,res)=>res.status(503).json({ready:false}));
+ app.use((req,res)=>res.status(404).json({error:'not_found'}));
+ const port=Number(process.env.PORT)||10000;
+ app.listen(port,'0.0.0.0',()=>console.log('OP37_RENDER_SETUP_ONLY_NO_DATABASE'));
+}
 async function main(){
+ if(process.env.OP37_STAGING_SETUP_ONLY==='yes')return startSetupOnly();
  guard();
  const pool=new Pool({
   host:process.env.PGHOST,port:5432,database:'postgres',
