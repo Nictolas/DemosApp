@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ interface FormState {
   nome: string;
   cognome: string;
   email: string;
+  fonte_elezione_url: string;
+  fonte_candidatura_url: string;
   // Paesi salvati come codici (it, sm, ch, ...)
   paese_elezione: string;
   regione_elezione: string;
@@ -34,6 +36,8 @@ const initialState: FormState = {
   nome: "",
   cognome: "",
   email: "",
+  fonte_elezione_url: "",
+  fonte_candidatura_url: "",
   paese_elezione: "",       // scelto esplicitamente dall'utente
   regione_elezione: "",
   provincia_elezione: "",
@@ -108,6 +112,66 @@ export default function Riconoscimento() {
     email: user?.email || ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [identity, setIdentity] = useState<"loading" | "verified" | "unverified" | "error">("loading");
+  const [isStartingCie, setIsStartingCie] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<null | {
+    tipo_ruolo: string; status: "pending" | "approved" | "rejected"; created_at: string;
+  }>(null);
+
+  useEffect(() => {
+    setForm(prev => ({
+      ...prev, nome: user?.nome || "", cognome: user?.cognome || "", email: user?.email || ""
+    }));
+  }, [user?.nome, user?.cognome, user?.email]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) { setIdentity("unverified"); return; }
+    let active = true;
+    const headers = { Authorization: `Bearer ${token}` };
+    Promise.all([
+      fetch(getApiUrl("/auth/identity/status"), { headers }).then(async res => {
+        if (!res.ok) throw new Error("Stato CIE non disponibile");
+        return res.json();
+      }),
+      fetch(getApiUrl("/riconoscimenti/mine"), { headers }).then(async res => {
+        if (!res.ok) throw new Error("Stato richiesta non disponibile");
+        return res.json();
+      })
+    ]).then(([verification, recognition]) => {
+      if (!active) return;
+      setIdentity(verification?.identity?.verified === true &&
+        String(verification.identity?.provider || "").toUpperCase() === "CIE"
+        ? "verified" : "unverified");
+      setRequestStatus(recognition?.data || null);
+    }).catch(() => { if (active) setIdentity("error"); });
+    return () => { active = false; };
+  }, []);
+
+  const handleStartCie = async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      toast({ title: "Accesso richiesto", description: "Accedi a DEMOS prima di verificare la CIE.", variant: "destructive" });
+      return;
+    }
+    setIsStartingCie(true);
+    try {
+      const res = await fetch(getApiUrl("/auth/identity/cie/start"), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = await res.json();
+      if (!res.ok || typeof payload?.authorizationUrl !== "string") {
+        throw new Error(payload?.error || "Verifica CIE non disponibile");
+      }
+      const authorizationUrl = new URL(payload.authorizationUrl);
+      if (authorizationUrl.protocol !== "https:") throw new Error("Indirizzo CIE non sicuro");
+      window.location.assign(authorizationUrl.toString());
+    } catch (error: any) {
+      toast({ title: "Impossibile avviare CIE", description: error?.message || "Riprova più tardi.", variant: "destructive" });
+      setIsStartingCie(false);
+    }
+  };
 
   const regioniElezione = getRegioniByPaese(form.paese_elezione);
   const provinceElezione = getProvince(form.paese_elezione, form.regione_elezione);
