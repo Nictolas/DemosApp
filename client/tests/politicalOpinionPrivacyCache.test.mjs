@@ -44,3 +44,9 @@ test('opinion entry screens never print personal political answers to the browse
   assert.doesNotMatch(source(file),/console\.log\s*\(/,file);
  }
 });
+
+test('central API client must not log raw response payloads',()=>{
+ const s=source('lib/queryClient.ts');
+ assert.doesNotMatch(s,/console\.(?:log|error)\([^\n]*(?:text|JSON\.stringify\(data|data\.data)/);
+ assert.doesNotMatch(s,/Text preview|Parsed data|Text that failed to parse/);
+});
