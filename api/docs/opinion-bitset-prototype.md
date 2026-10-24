@@ -1062,5 +1062,20 @@ del formato BYTEA. PR #247 DRAFT, nessun deploy, migrazione né DDL
 persistente; OP-41 **In corso**, KPI-23 **Non verificato**, OP-42
 **Da fare**.
 
-**Stato:** CI in verifica; DOC-048 non va considerato superato finché
-la pipeline GitHub non conferma il nuovo passo.
+**Evidenza verificata:** GitHub Actions PostgreSQL 17
+[#40102775933](https://github.com/Nictolas/DemosApp/actions/runs/40102775933)
+**SUCCESS** in entrambi i job `codec-tests` e `physical-storage`.
+Lo step `Validate idempotent retries never bypass synthetic consent
+revocation` ha emesso il marcatore `OPINION_RETRY_REVOKE_PASS`.
+Il JSON di prova conferma 2/2 ordini di blocco realmente osservati,
+purge congiunto di voto e registro, ACK perso idempotente, rifiuto
+dell'epoch revocato anche dopo nuova concessione, e rollback integro.
+DOC-048 **PASS solo in CI sintetica**, non validato sulle route reali.
+
+**Nota CI:** sullo stesso commit le suite Opinioni, Logging, Privacy e
+DPO erano SUCCESS; la prima esecuzione di Security Agent Validation
+#40102776121 era FAIL per errore intermittente del worker `node:test`
+(`Unable to deserialize cloned data due to invalid or unsupported
+version`) durante il test di rappresentanti, estraneo al nuovo test
+BYTEA. Il job è stato rilanciato senza modificare codice di prodotto;
+l'esito del retry va verificato separatamente. Nessun merge o deploy.
