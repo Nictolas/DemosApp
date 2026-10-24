@@ -153,7 +153,7 @@ export default function Comunica() {
       setExistingComunicazione(null);
       // Naviga al menu con un breve delay per mostrare il toast
       setTimeout(() => {
-        setLocation("/menu");
+        setLocation("/preferiti");
       }, 1000);
     },
     onError: (error: any) => {
@@ -237,10 +237,10 @@ export default function Comunica() {
           <div className="flex items-center justify-between">
             <Button
               variant="outline"
-              onClick={() => setLocation("/menu")}
+              onClick={() => setLocation("/preferiti")}
               className="flex items-center gap-2"
             >
-              Torna al Menu
+              Torna ai Preferiti
             </Button>
           </div>
 
@@ -282,10 +282,10 @@ export default function Comunica() {
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
-            onClick={() => setLocation("/menu")}
+            onClick={() => setLocation("/preferiti")}
             className="flex items-center gap-2"
           >
-            Torna al Menu
+            Torna ai Preferiti
           </Button>
         </div>
 
