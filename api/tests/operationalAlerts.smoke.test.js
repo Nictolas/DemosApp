@@ -50,7 +50,9 @@ test('unhandled global API errors generate operational critical alerts', () => {
 test('malformed client URI errors are suppressed before critical delivery', () => {
   assert.match(service, /function isMalformedClientUriAlert/);
   assert.match(service, /alert\.type !== 'UNHANDLED_API_ERROR'/);
-  assert.match(service, /alert\.code !== 'URIError'/);
+  assert.match(service, /alert\.code !== 'URIERROR'/);
+  assert.match(service, /alert\.malformedClientUri === true/);
+  assert.match(logger, /decodeURI\(String\(req\.originalUrl/);
   assert.match(service, /decodeURI\(endpoint\)/);
   assert.match(service, /if \(isMalformedClientUriAlert\(normalized\)\)/);
   assert.match(service, /reason: 'MALFORMED_CLIENT_URI'/);
@@ -60,4 +62,23 @@ test('legacy email-disabled notification facade routes critical/system alerts to
   assert.match(notifications, /OperationalAlertService = require\('\.\/operationalAlertService'\)/);
   assert.match(notifications, /sendCriticalViolationNotification[\s\S]*OperationalAlertService\.sendCriticalAlert/);
   assert.match(notifications, /sendSystemAlertNotification[\s\S]*OperationalAlertService\.sendCriticalAlert/);
+});
+
+
+test('technical alerts describe the incident without unsafe raw paths or stacks', () => {
+  assert.match(service, /Il server ha incontrato un errore imprevisto/);
+  assert.match(service, /API non classificata/);
+  assert.match(service, /Codice: \$\{normalized\.code\}/);
+  assert.match(service, /safeDiagnosticCode/);
+  assert.match(service, /INTERVAL '6 hours'/);
+});
+
+test('operational alert feed is limited to recipient in both feed and latest endpoints', () => {
+  const feed = read('api/routes/notifiche.js');
+  const restricted = feed.match(/WHERE \(titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = \$1::uuid\)/g) || [];
+  assert.equal(restricted.length, 2);
+  assert.match(feed, /LIMIT 50\s+`\s*,\s*\[user_id\]/);
+  assert.match(feed, /LIMIT 1\s+`\s*,\s*\[userId\]/);
+  const broadcast = read('api/routes/comunicazioni.js');
+  assert.match(broadcast, /SELECT id FROM notifiche_demos WHERE titolo LIKE 'Notifica Demos:%'/);
 });
