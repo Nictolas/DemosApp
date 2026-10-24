@@ -19,7 +19,7 @@ export default function ScegliRappresentante() {
   const { user, isLoading } = useAuth();
   const authReady = useAuthReady();
   const { token: fcmToken } = useFCM();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const { 
     rappresentanti, 
@@ -90,7 +90,7 @@ export default function ScegliRappresentante() {
           )}
           
           {rappresentanti.length === 0 ? (
-            <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
+            <EmptyState isCandidate={location === "/candidati" || location.startsWith("/candidati/")} />
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
