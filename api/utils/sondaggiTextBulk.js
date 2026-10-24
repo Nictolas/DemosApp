@@ -112,6 +112,51 @@ function asPublishedStats(rows) {
   return stats;
 }
 
+
+// Opt-in staging experiment only. Default behaviour stays the measured
+// lateral-per-person SQL; do not enable on DEMOS production without a
+// staged comparison across both small and large account populations.
+function directFilterEnabled() {
+  return process.env.SONDAGGI_EXPERIMENTAL_DIRECT_FILTER === 'true';
+}
+
+// Pivot counts only AFTER computing each selected column's f/c/i totals.
+// Unlike the existing query, this does not generate person × opinion rows.
+// Opinion identifiers are validated and checked against DB metadata before
+// this builder is called in an actual route.
+function buildDirectFilterTextAggregateQuery(columns, options = {}) {
+  if (!Array.isArray(columns) || columns.length === 0 ||
+      columns.length > MAX_GROUPED_COLUMNS ||
+      new Set(columns).size !== columns.length ||
+      columns.some(id => typeof id !== 'string' || !SAFE_COLUMN.test(id))) {
+    throw new TypeError('Expected distinct validated opinion column names');
+  }
+  const geo = options.scope ? territorialFilter(options.scope, options.params) : '';
+  const names = columns.map((id,i) => ({id,f:'f'+i,c:'c'+i,u:'i'+i}));
+  const counts = names.flatMap(({id,f,c,u}) => [
+    'COUNT(*) FILTER (WHERE orr."'+id+'" = \'f\')::int AS '+f,
+    'COUNT(*) FILTER (WHERE orr."'+id+'" = \'c\')::int AS '+c,
+    'COUNT(*) FILTER (WHERE orr."'+id+'" = \'i\')::int AS '+u
+  ]);
+  const values = names.map(({id,f,c,u}) =>
+    "('"+id+"', totals."+f+", totals."+c+", totals."+u+")");
+  return [
+    'SELECT v.opinion_id, v.favorevole, v.contrario, v.indeciso',
+    'FROM (SELECT '+counts.join(',\n      '),
+    'FROM opinioni_risposte orr',
+    'JOIN users u ON u.id = orr.user_id',
+    'LEFT JOIN user_consents uc ON uc.user_id = u.id',
+    "WHERE u.account_type = 'PERSON'",
+    'AND COALESCE(uc.political_opinions_consent,',
+    '             u.political_opinions_consent, false) IS TRUE',
+    geo,
+    ') totals CROSS JOIN LATERAL (VALUES',
+    values.join(',\n      '),
+    ') AS v(opinion_id, favorevole, contrario, indeciso)',
+    'WHERE (v.favorevole + v.contrario + v.indeciso) > 0'
+  ].filter(Boolean).join('\n');
+}
+
 function buildNationalTextAggregateQuery(columns) {
   if (!Array.isArray(columns) || columns.length === 0 ||
       columns.length > MAX_GROUPED_COLUMNS ||
@@ -181,7 +226,9 @@ async function getNationalSurveyStats(pool, questions, logger = console) {
       const existing = new Set(metadata.rows.map(row => row.column_name));
       const columns = ids.filter(id => existing.has(id));
       if (columns.length === 0) return {};
-      const rows = await queryGroupedChunks(client, columns, buildNationalTextAggregateQuery);
+      const builder = directFilterEnabled() ?
+        buildDirectFilterTextAggregateQuery : buildNationalTextAggregateQuery;
+      const rows = await queryGroupedChunks(client, columns, builder);
       return asPublishedStats(rows.filter(row => existing.has(row.opinion_id)));
     });
   } catch (error) {
@@ -292,8 +339,10 @@ async function getTerritorialSurveyStats(pool, questions, { scope, params } = {}
       const existing = new Set(metadata.rows.map(row => row.column_name));
       const columns = ids.filter(id => existing.has(id));
       if (columns.length === 0) return {};
-      const rows = await queryGroupedChunks(client, columns,
-        batch => buildTerritorialTextAggregateQuery(batch, { scope, params }), params);
+      const builder = directFilterEnabled() ?
+        batch => buildDirectFilterTextAggregateQuery(batch, {scope,params}) :
+        batch => buildTerritorialTextAggregateQuery(batch, {scope,params});
+      const rows = await queryGroupedChunks(client, columns, builder, params);
       return asPublishedStats(rows.filter(row => existing.has(row.opinion_id)));
     });
   } catch (error) {
@@ -305,6 +354,7 @@ async function getTerritorialSurveyStats(pool, questions, { scope, params } = {}
 module.exports = {
   safeOpinionIds,
   eligibleForLegacyFallback,
+  buildDirectFilterTextAggregateQuery,
   buildNationalTextAggregateQuery,
   getNationalSurveyStats,
   buildTerritorialTextAggregateQuery,
