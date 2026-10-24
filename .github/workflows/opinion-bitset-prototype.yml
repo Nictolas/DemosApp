@@ -13,6 +13,7 @@ on:
       - 'api/scripts/benchmark-opinion-bitset.js'
       - 'api/scripts/benchmark-opinion-physical.js'
       - 'api/scripts/benchmark-opinion-queries.js'
+      - 'api/scripts/verify-opinion-privacy-equivalence.js'
       - 'api/docs/opinion-bitset-trimmed-probe-20261024.md'
       - 'api/docs/opinion-bitset-prototype.md'
       - '.github/workflows/opinion-bitset-prototype.yml'
@@ -78,3 +79,12 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/benchmark-opinion-queries.js
+      - name: Verify PERSON consent joins and anti-inference threshold for all codecs
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-privacy-equivalence.js
