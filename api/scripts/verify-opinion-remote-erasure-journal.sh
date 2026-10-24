@@ -99,5 +99,11 @@ docker run --rm -i --network host -e PGPASSWORD="$PGPASSWORD" \
 # remote revocations have been authenticated and reconciled.
 OPINION_REMOTE_PHASE=verify node api/scripts/verify-opinion-remote-erasure-journal.js
 
+# DOC-051 extends the same two live PG17 processes with real remote
+# row-lock coordination and per-read watermark validation. The journal
+# container is torn down only after both experiments have finished.
+OPINION_REMOTE_CUTOVER=synthetic-fence-only \
+  node api/scripts/verify-opinion-remote-cutover-fence.js
+
 echo "OPINION_REMOTE_JOURNAL_PGDUMP_CLI_PASS"
 echo "OPINION_REMOTE_JOURNAL_PGDUMP_CLI_BYTES=$(wc -c < "$backup" | tr -d ' ')"
