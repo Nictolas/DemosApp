@@ -598,3 +598,61 @@ test('opt-in direct-filter SQL keeps the four real route contracts and remains d
   else process.env.GITHUB_ACTIONS=beforeActions;
  }
 });
+
+
+test('legacy fallback holds a single read-only connection and commits in each scope',async()=>{
+ for(const scope of [null,...GEO_SCOPES]){
+  const {pool}=fakePool({failGrouped:true});
+  const baseQuery=pool.query.bind(pool);
+  const queries=[],releases=[];
+  let checkouts=0;
+  pool.connect=async()=>{
+   checkouts++;
+   return {
+    async query(sql,params){
+     const text=String(sql).trim();
+     queries.push(text);
+     if(text.startsWith('BEGIN TRANSACTION'))return {rows:[]};
+     if(text==='COMMIT'||text==='ROLLBACK')return {rows:[]};
+     return baseQuery(sql,params);
+    },
+    release(damaged){releases.push(damaged);}
+   };
+  };
+  const stats=scope?
+   await getTerritorialSurveyStats(pool,QUESTIONS,scope,{warn:()=>{}}):
+   await getNationalSurveyStats(pool,QUESTIONS,{warn:()=>{}});
+  assert.deepEqual(stats,EXPECTED);
+  assert.equal(checkouts,1);
+  assert.match(queries[0],/^BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY$/);
+  assert.equal(queries.at(-1),'COMMIT');
+  assert.equal(queries.filter(q=>q==='COMMIT').length,1);
+  assert.equal(queries.filter(q=>q==='ROLLBACK').length,0);
+  assert.deepEqual(releases,[false]);
+  assert.equal(queries.filter(q=>q.includes('FROM opinioni_risposte orr')).length,3);
+ }
+});
+
+test('legacy fallback rolls back failures and discards a broken connection',async()=>{
+ const {pool}=fakePool({failGrouped:true});
+ const orig=pool.query.bind(pool);
+ const sql=[],released=[];
+ pool.connect=async()=>({
+  async query(q,params){
+   const text=String(q).trim();
+   sql.push(text);
+   if(text.startsWith('BEGIN TRANSACTION'))return {rows:[]};
+   if(text==='ROLLBACK')throw Error('synthetic wire lost; rollback impossible');
+   if(text.includes('FROM opinioni_risposte orr')){
+    throw Object.assign(Error('broken connection'),{code:'08006'});
+   }
+   return orig(q,params);
+  },
+  release(damaged){released.push(damaged);}
+ });
+ await assert.rejects(getNationalSurveyStats(pool,QUESTIONS,{warn:()=>{}}),
+  err=>err.code==='08006');
+ assert.equal(sql.filter(q=>q==='ROLLBACK').length,1);
+ assert.ok(!sql.includes('COMMIT'));
+ assert.deepEqual(released,[true],'A broken rollback connection must not re-enter the pool');
+});
