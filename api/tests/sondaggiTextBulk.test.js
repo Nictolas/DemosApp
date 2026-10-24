@@ -6,7 +6,8 @@ const http = require('node:http');
 const path = require('node:path');
 
 const {
-  safeOpinionIds, buildNationalTextAggregateQuery, getNationalSurveyStats
+  safeOpinionIds, buildNationalTextAggregateQuery, getNationalSurveyStats,
+  buildTerritorialTextAggregateQuery, getTerritorialSurveyStats
 } = require('../utils/sondaggiTextBulk');
 
 const QUESTIONS = [
@@ -174,4 +175,119 @@ test('actual GET /api/sondaggi keeps legacy payload with one stats query',async(
   assert.equal(calls.length,3,'published questions + column whitelist + single stats query');
   assert.equal(calls.filter(c=>c.sql.includes('FROM opinioni_domande')).length,1);
   assert.equal(calls.filter(c=>c.sql.includes('CROSS JOIN LATERAL')).length,1);
+});
+
+
+const GEO_SCOPES = [
+  {scope:'regione',params:['TO'],url:'/toscana',
+    filter:{type:'regione',value:'Toscana'}},
+  {scope:'provincia',params:['TO','PI'],url:'/toscana/pisa',
+    filter:{type:'provincia',value:'Pisa',regione:'Toscana',provincia:'Pisa'}},
+  {scope:'comune',params:['TO','PI','Pisa'],url:'/toscana/pisa/pisa',
+    filter:{type:'comune',value:'Pisa',regione:'Toscana',provincia:'Pisa',comune:'Pisa'}}
+];
+
+test('territorial SQL allows only known scopes and parameterized geography',()=>{
+  const expected=[
+    'AND u.regione_residenza = $1',
+    'AND u.provincia_residenza = $2',
+    'AND u.comune_residenza = $3'
+  ];
+  for (const [index,scope] of GEO_SCOPES.entries()) {
+    const sql=buildTerritorialTextAggregateQuery(['caccia','nato'],scope);
+    assert.match(sql,/CROSS JOIN LATERAL \(VALUES/);
+    assert.match(sql,/v.answer IS NOT NULL/);
+    assert.match(sql,/u.account_type = 'PERSON'/);
+    assert.match(sql,/COALESCE\(uc.political_opinions_consent/);
+    assert.match(sql,/orr."caccia"/);
+    assert.match(sql,/orr."nato"/);
+    for(let k=0;k<expected.length;k++) {
+      assert.equal(sql.includes(expected[k]),k<=index,
+        'Incorrect geographic depth '+scope.scope+' '+expected[k]);
+    }
+    assert.doesNotMatch(sql,/Pisa|Toscana|DROP TABLE/);
+  }
+  for(const invalid of [
+    {scope:'unknown',params:['TO']},
+    {scope:'regione',params:[]},
+    {scope:'regione',params:['TO','PI']},
+    {scope:'provincia',params:['TO']},
+    {scope:'comune',params:['TO','PI',null]},
+    {scope:'comune',params:['TO','PI','']},
+    {scope:'regione',params:'TO'}
+  ]) {
+    assert.throws(()=>buildTerritorialTextAggregateQuery(['caccia'],invalid));
+  }
+  for(const invalid of [['caccia','caccia'],['unsafe"; DROP TABLE users;--'],
+    ['A'],[],Array.from({length:257},(_,i)=>'q'+i)]) {
+    assert.throws(()=>buildTerritorialTextAggregateQuery(invalid,GEO_SCOPES[0]));
+  }
+});
+
+test('territorial grouped SQL uses one consent-filtered query at every geographic depth',async()=>{
+  for (const scope of GEO_SCOPES) {
+    const {pool,calls}=fakePool();
+    assert.deepEqual(await getTerritorialSurveyStats(pool,QUESTIONS,scope),EXPECTED);
+    assert.equal(calls.length,2);
+    assert.deepEqual(calls[0].params[0],[
+      'caccia','nato','sotto_soglia','nessuna_colonna'
+    ]);
+    assert.deepEqual(calls[1].params,scope.params);
+    assert.match(calls[1].sql,/GROUP BY v.opinion_id/);
+    assert.doesNotMatch(calls[1].sql,/nessuna_colonna/);
+  }
+});
+
+test('territorial SQL failures preserve legacy threshold and parameter binding in fallback',async()=>{
+  for (const scope of GEO_SCOPES) {
+    const {pool,calls}=fakePool({failGrouped:true});
+    const warnings=[];
+    assert.deepEqual(await getTerritorialSurveyStats(pool,QUESTIONS,scope,{
+      warn:(...args)=>warnings.push(args)
+    }),EXPECTED);
+    assert.equal(warnings.length,1);
+    const fallback=calls.filter(x=>x.sql.includes('FROM opinioni_risposte orr') &&
+      !x.sql.includes('CROSS JOIN LATERAL'));
+    assert.equal(fallback.length,3);
+    for(const {sql,params} of fallback){
+      assert.deepEqual(params,scope.params);
+      assert.match(sql,/u.account_type = 'PERSON'/);
+      assert.match(sql,/COALESCE\(uc.political_opinions_consent/);
+      assert.doesNotMatch(sql,/DROP TABLE/);
+    }
+  }
+});
+
+test('actual regional, provincial and municipal GET keep exactly the legacy JSON filter contracts',async()=>{
+  for(const scope of GEO_SCOPES){
+    const {pool,calls}=fakePool();
+    await withRealSurveyRoute(pool,async base=>{
+      const response=await fetch(base+'/api/sondaggi'+scope.url);
+      assert.equal(response.status,200);
+      assert.deepEqual(await response.json(),{
+        success:true,data:{
+          stats:EXPECTED,
+          questions:QUESTIONS.map(({id,text})=>({id,text})),
+          filter:scope.filter
+        }
+      });
+    });
+    assert.equal(calls.length,3);
+    assert.deepEqual(calls.at(-1).params,scope.params);
+    assert.match(calls.at(-1).sql,/CROSS JOIN LATERAL \(VALUES/);
+  }
+});
+
+test('territorial invalid region/province stay HTTP 400 without querying the DB',async()=>{
+  const {pool,calls}=fakePool();
+  await withRealSurveyRoute(pool,async base=>{
+    for(const url of ['/not-an-italian-region',
+      '/toscana/not-a-province',
+      '/not-an-italian-region/pisa/pisa']){
+      const response=await fetch(base+'/api/sondaggi'+url);
+      assert.equal(response.status,400,url);
+      assert.equal((await response.json()).success,false);
+    }
+  });
+  assert.equal(calls.length,0);
 });

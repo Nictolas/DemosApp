@@ -611,3 +611,69 @@ Un piano SQL differente in produzione può offrire vantaggi diversi,
 e un errore persistente del DB può comunque ridurre la disponibilità
 di statistiche anche con il fallback. Niente merge/deploy: OP-41
 **In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
+
+
+## Sondaggi TEXT raggruppati anche per regione, provincia e comune (DOC-040)
+
+Nel branch sperimentale della PR #247 le **vere route**
+GET /api/sondaggi/:regione,
+GET /api/sondaggi/:regione/:provincia e
+GET /api/sondaggi/:regione/:provincia/:comune
+utilizzano il medesimo helper TEXT del caso nazionale, mantenendo
+intatti i contratti JSON: { success, data: { stats, questions, filter } }.
+Non cambiano il nome/compressione delle regioni e province,
+i codici del database, le denominazioni comunali,
+i parametri di ingresso, il formato dei voti o il database.
+
+Il nuovo getTerritorialSurveyStats in api/utils/sondaggiTextBulk.js
+accetta solo le profondità 'regione', 'provincia' o 'comune'.
+I relativi filtri SQL sono letterali e statici:
+- regione_residenza = $1;
+- regione_residenza = $1 AND provincia_residenza = $2;
+- regione_residenza = $1 AND provincia_residenza = $2
+  AND comune_residenza = $3.
+
+I **valori** sono sempre parametri e non sono incorporati nel SQL.
+Gli ID delle opinioni pubblicate devono superare la regex per
+identificatori sicuri ed essere presenti in
+information_schema.columns su public.opinioni_risposte.
+Il percorso standard fa tre query (domande, whitelist e aggregato
+CROSS JOIN LATERAL VALUES) anziché una verifica e un aggregato per
+ogni opinione pubblicata. Il filtro account_type='PERSON', la
+preferenza esplicita del consenso user_consents rispetto al campo
+users, l'esclusione delle risposte NULL e la soppressione delle celle
+di meno di 10 risposte sono conservati.
+
+Se il raggruppamento o la metadata query falliscono, un fallback
+per ogni opinione validata conserva scope territoriale, valori
+parametrizzati, controlli del consenso e soglia anti-inferenza.
+Un catalogo superiore a 256 colonne usa direttamente il fallback
+senza generare SQL unbounded. In caso di errori ripetuti di database
+non si garantisce la disponibilità di tutte le statistiche: rimane
+la semantica best-effort legacy.
+
+La suite mock api/tests/sondaggiTextBulk.test.js include:
+builder SQL non iniettabile e arità corretta dei parametri per tutte
+le profondità; query di aggregato e fallback; contratto HTTP delle
+tre route con i campi filter territoriali invariati; HTTP 400 per
+regioni/province sconosciute. Il test di compatibilità
+api/tests/opinionStatsAccountPopulation.test.js verifica la
+persistenza dei filtri privacy ora centralizzati nel helper.
+
+Il runner CI-only api/scripts/verify-sondaggi-text-endpoint.js
+usa PostgreSQL 17 effimero e una COPIA della fixture opinioni,
+con regioni e province sintetiche in viste dedicate. Con dieci
+utenti fittizi della stessa regione/provincia/comune verifica la
+pubblicazione; dopo il consenso negativo del decimo l'aggregato
+deve sparire in tutti e tre gli scope, e ricomparire solo al
+ripristino del consenso. Per ognuno confronta realmente il risultato
+della query aggregata con il fallback provocando un errore sintetico
+del grouped SQL. Conferma inoltre che una provincia diversa
+non eredita la cella del territorio osservato.
+
+**Limiti:** risultati misurati solo su dati sintetici, non sulle
+app mobili o sul pooler e sulle policy di Supabase. Non si assume
+né un dato risparmio in euro né una riduzione certa di latenza
+su produzione. Nessun merge/deploy/DDL o BYTEA nelle route;
+DOC-037 rimane un test admin/replay non applicato; OP-41 In corso,
+KPI-23 Non verificato, OP-42 Da fare.

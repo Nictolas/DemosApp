@@ -125,8 +125,118 @@ async function getNationalSurveyStats(pool, questions, logger = console) {
   }
 }
 
+
+// Every territorial scope is an exact, static SQL clause. Never interpolate
+// geography or client-supplied column names directly into SQL.
+const TERRITORIAL_FILTERS = Object.freeze({
+  regione: ['u.regione_residenza = $1'],
+  provincia: ['u.regione_residenza = $1', 'u.provincia_residenza = $2'],
+  comune: [
+    'u.regione_residenza = $1',
+    'u.provincia_residenza = $2',
+    'u.comune_residenza = $3'
+  ]
+});
+
+function territorialFilter(scope, params) {
+  if (!Object.hasOwn(TERRITORIAL_FILTERS, scope) ||
+      !Array.isArray(params) ||
+      params.length !== TERRITORIAL_FILTERS[scope].length ||
+      params.some(value => typeof value !== 'string' || value.length === 0)) {
+    throw new TypeError('Expected supported territorial scope and parameter values');
+  }
+  return TERRITORIAL_FILTERS[scope].map(fragment => 'AND '+fragment).join('\n      ');
+}
+
+function buildTerritorialTextAggregateQuery(columns, { scope, params } = {}) {
+  const filter = territorialFilter(scope, params);
+  if (!Array.isArray(columns) || columns.length === 0 ||
+      columns.length > MAX_GROUPED_COLUMNS ||
+      new Set(columns).size !== columns.length ||
+      columns.some(id => typeof id !== 'string' || !SAFE_COLUMN.test(id))) {
+    throw new TypeError('Expected distinct validated opinion column names');
+  }
+  const values = columns.map(id => "('" + id + "', orr.\"" + id + "\")")
+    .join(',\n      ');
+  return [
+    'SELECT v.opinion_id,',
+    "COUNT(*) FILTER (WHERE v.answer = 'f')::int AS favorevole,",
+    "COUNT(*) FILTER (WHERE v.answer = 'c')::int AS contrario,",
+    "COUNT(*) FILTER (WHERE v.answer = 'i')::int AS indeciso",
+    'FROM opinioni_risposte orr',
+    'JOIN users u ON u.id = orr.user_id',
+    'LEFT JOIN user_consents uc ON uc.user_id = u.id',
+    'CROSS JOIN LATERAL (VALUES',
+    values,
+    ') AS v(opinion_id, answer)',
+    'WHERE v.answer IS NOT NULL',
+    "AND u.account_type = 'PERSON'",
+    'AND COALESCE(uc.political_opinions_consent,',
+    '             u.political_opinions_consent, false) IS TRUE',
+    filter,
+    'GROUP BY v.opinion_id'
+  ].join('\n');
+}
+
+async function legacyTerritorialStatsFallback(pool, ids, scope, params) {
+  const filter = territorialFilter(scope, params);
+  const stats = {};
+  for (const id of ids) {
+    try {
+      const allowed = await pool.query(COLUMN_SQL, [[id]]);
+      if (!allowed.rows.some(row => row.column_name === id)) continue;
+      const quoted = '"' + id + '"';
+      const query = [
+        'SELECT',
+        "COUNT(*) FILTER (WHERE orr." + quoted + " = 'f') AS favorevole,",
+        "COUNT(*) FILTER (WHERE orr." + quoted + " = 'c') AS contrario,",
+        "COUNT(*) FILTER (WHERE orr." + quoted + " = 'i') AS indeciso",
+        'FROM opinioni_risposte orr',
+        'JOIN users u ON u.id = orr.user_id',
+        'LEFT JOIN user_consents uc ON uc.user_id = u.id',
+        'WHERE orr.' + quoted + ' IS NOT NULL',
+        "AND u.account_type = 'PERSON'",
+        'AND COALESCE(uc.political_opinions_consent,',
+        '             u.political_opinions_consent, false) IS TRUE',
+        filter
+      ].join('\n');
+      const result = await pool.query(query, params);
+      const aggregate = aggregateRow(result.rows[0] || {});
+      if (cellThresholdMet(aggregate)) stats[id] = aggregate;
+    } catch (error) {
+      // A failing opinion does not expose a small cell or hide other stats.
+      continue;
+    }
+  }
+  return stats;
+}
+
+async function getTerritorialSurveyStats(pool, questions, { scope, params } = {}, logger = console) {
+  territorialFilter(scope, params);
+  const ids = safeOpinionIds(questions);
+  if (ids.length === 0) return {};
+  if (ids.length > MAX_GROUPED_COLUMNS) {
+    return legacyTerritorialStatsFallback(pool, ids, scope, params);
+  }
+  try {
+    const metadata = await pool.query(COLUMN_SQL, [ids]);
+    const existing = new Set(metadata.rows.map(row => row.column_name));
+    const columns = ids.filter(id => existing.has(id));
+    if (columns.length === 0) return {};
+    const result = await pool.query(
+      buildTerritorialTextAggregateQuery(columns, { scope, params }),
+      params
+    );
+    return asPublishedStats(result.rows.filter(row => existing.has(row.opinion_id)));
+  } catch (error) {
+    logger.warn?.('Territorial TEXT survey unavailable; using per-opinion fallback', error.message);
+    return legacyTerritorialStatsFallback(pool, ids, scope, params);
+  }
+}
 module.exports = {
   safeOpinionIds,
   buildNationalTextAggregateQuery,
-  getNationalSurveyStats
+  getNationalSurveyStats,
+  buildTerritorialTextAggregateQuery,
+  getTerritorialSurveyStats
 };

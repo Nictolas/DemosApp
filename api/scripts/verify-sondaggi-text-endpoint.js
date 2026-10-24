@@ -41,7 +41,11 @@ async function makeViews(client){
   // data. Mutating that shared fixture produced a false negative downstream.
   await client.query('CREATE TABLE public.ci_sondaggi_text AS TABLE public.ci_query_text');
   await client.query('CREATE VIEW public.opinioni_risposte AS SELECT * FROM public.ci_sondaggi_text');
-  await client.query('CREATE VIEW public.users AS SELECT id,account_type,political_opinions_consent FROM public.ci_opt_users');
+  await client.query("CREATE VIEW public.users AS SELECT id,account_type,political_opinions_consent,"+
+    "CASE WHEN region='rare' THEN 'TO' ELSE 'LO' END AS regione_residenza,"+
+    "CASE WHEN region='rare' THEN 'PI' ELSE 'MI' END AS provincia_residenza,"+
+    "CASE WHEN region='rare' THEN 'Pisa' ELSE 'Milano' END AS comune_residenza "+
+    'FROM public.ci_opt_users');
   await client.query('CREATE VIEW public.user_consents AS SELECT user_id,political_opinions_consent FROM public.ci_opt_consents');
   await client.query('CREATE TABLE public.opinioni_domande (id text PRIMARY KEY,text text,gradi_opinione text[])');
   for(const [i,id] of COLUMNS.entries()){
@@ -85,8 +89,8 @@ async function withActualRoute(db,callback){
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const base='http://127.0.0.1:'+server.address().port;
     await callback({
-      get:async()=>{
-        const response=await fetch(base+'/api/sondaggi');
+      get:async(suffix='')=>{
+        const response=await fetch(base+'/api/sondaggi'+suffix);
         assert.equal(response.status,200);
         return response.json();
       },
@@ -130,6 +134,41 @@ async function main(){
       groupedQueries=queries.length-before;
       assert.equal(groupedQueries,3,'questions + whitelisted schema columns + one grouped query');
 
+      // Territory-specific projections share the ten-person boundary,
+      // but must not leak the answers through an adjacent geography.
+      const territoryCases=[
+        {url:'/toscana',filter:{type:'regione',value:'Toscana'}},
+        {url:'/toscana/pisa',filter:{
+          type:'provincia',value:'Pisa',regione:'Toscana',provincia:'Pisa'
+        }},
+        {url:'/toscana/pisa/pisa',filter:{
+          type:'comune',value:'Pisa',regione:'Toscana',
+          provincia:'Pisa',comune:'Pisa'
+        }}
+      ];
+      const territoryResults={};
+      for(const scoped of territoryCases){
+        const previous=queries.length;
+        const response=await get(scoped.url);
+        assert.equal(queries.length-previous,3);
+        assert.deepEqual(response.data.filter,scoped.filter);
+        assert.deepEqual(response.data.questions,first.data.questions);
+        assert.deepEqual(response.data.stats[COLUMNS[93]],{
+          favorevole:10,contrario:0,indeciso:0
+        });
+        assertThreshold(response.data);
+        territoryResults[scoped.url]=response;
+        const failStart=queries.length;
+        failNextGrouped();
+        assert.deepEqual(await get(scoped.url),response,
+          'Territorial fallback must match grouped response: '+scoped.url);
+        assert.ok(queries.length-failStart>3,
+          'Per-column fallback must run only after a grouped SQL failure');
+      }
+      const nonmatching=await get('/toscana/firenze');
+      assert.equal(Object.hasOwn(nonmatching.data.stats,COLUMNS[93]),false);
+      assertThreshold(nonmatching.data);
+
       // The failed grouped query must not change response JSON or privacy.
       const beforeFallback=queries.length;
       failNextGrouped();
@@ -146,6 +185,11 @@ async function main(){
         userId(1)
       ]);
       const after=await get();
+      for(const scoped of territoryCases){
+        const result=await get(scoped.url);
+        assert.equal(Object.hasOwn(result.data.stats,COLUMNS[93]),false);
+        assertThreshold(result.data);
+      }
       assert.equal(Object.hasOwn(after.data.stats,COLUMNS[93]),false);
       assert.equal(after.data.questions.length,93);
       assertThreshold(after.data);
@@ -154,13 +198,19 @@ async function main(){
       await pool.query('DELETE FROM public.ci_opt_consents WHERE user_id=$1',[userId(1)]);
       const restored=await get();
       assert.deepEqual(restored,first);
+      for(const scoped of territoryCases){
+        assert.deepEqual(await get(scoped.url),territoryResults[scoped.url]);
+      }
     });
     console.log('OPINION_REAL_SONDAGGI_TEXT_BULK_PASS');
     console.log('OPINION_REAL_SONDAGGI_TEXT_BULK_RESULT_JSON='+JSON.stringify({
       postgres:17,rows:1200,opinionSlots:94,publishedQuestions:93,
       groupedSqlQueriesPerRequest:groupedQueries,
       fallbackSqlQueries:legacyFallbackQueries,
-      hiddenAfterRevocation,source:'api/routes/sondaggi.js',
+      hiddenAfterRevocation,territorialScopes:['regione','provincia','comune'],
+      scopedNormalSqlQueriesPerRequest:3,scopedFallbackVerified:true,
+      territorialNinePersonSuppressionVerified:true,
+      source:'api/routes/sondaggi.js',
       responseContractPreserved:true,noBinaryStorage:true,
       noSupabaseAccess:true,syntheticDataOnly:true
     }));
