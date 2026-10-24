@@ -39,7 +39,7 @@ test('AppWrapper blocks direct Admin routes before rendering the route tree', ()
   const src = read('client/src/components/AppWrapper.tsx');
   assert.match(src, /isAdminOnlyPath\(location\)/);
   assert.match(src, /hasAdminCapability\(user\)/);
-  assert.match(src, /<Redirect to="\/menu" \/>/);
+  assert.match(src, /<Redirect to="\/preferiti" \/>/);
   assert.match(src, /<Redirect to="\/auth" \/>/);
   assert.doesNotMatch(src, /ruolo\s*===\s*['"]AD['"]/);
 });
@@ -67,7 +67,7 @@ test('auth state refreshes on mount and window focus so capability changes are p
 test('/gestisci redirects authenticated non-Admin users away', () => {
   const src = read('client/src/pages/Gestisci/index.tsx');
   assert.match(src, /hasAdminCapability\(user\)/);
-  assert.match(src, /<Redirect to="\/menu" \/>/);
+  assert.match(src, /<Redirect to="\/preferiti" \/>/);
 });
 
 test('menu logo Admin access uses canonical capability helper', () => {
