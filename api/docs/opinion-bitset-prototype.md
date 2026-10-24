@@ -1148,3 +1148,36 @@ Privacy erasure #40103665607, DPO #40103665626, Logging
 #40103665693. **DOC-049 PASS esclusivamente come prova sintetica**.
 Non è un meccanismo di ripristino approvato per i dati reali.
 OP-41 **In corso**, KPI-23 **Non verificato**.
+
+
+## Secondo database per il registro delle revoche (DOC-050)
+
+Gli script `api/scripts/verify-opinion-remote-erasure-journal.sh` e
+`api/scripts/verify-opinion-remote-erasure-journal.js` aggiungono
+una prova esclusivamente CI su **due processi PostgreSQL 17 distinti**.
+Il database sorgente dedicato viene esportato prima della revoca,
+quindi cancellato dopo la registrazione delle revoche su un secondo
+container PostgreSQL. Il backup precedente viene ripristinato in un
+nuovo database isolato.
+
+Il test verifica un registro sequenziale con MAC concatenati,
+il rifiuto di eventi alterati o incompleti, e il blocco in caso
+di indisponibilità del registro. Un ruolo SQL limitato può leggere
+solo una vista filtrata, inizialmente chiusa; non ha accesso diretto
+alle tabelle BYTEA. Dopo aver riconciliato le revoche, soltanto
+le opinioni del soggetto non revocato diventano visibili.
+Si controllano anche rollback e aggiornamento del registro
+durante il ripristino.
+
+**Limiti:** i due processi sono sulla stessa macchina temporanea
+GitHub Actions; non simulano disponibilità in sedi indipendenti,
+backup remoti permanenti o ripristino di Supabase. La chiave MAC
+è fittizia e pubblica, e il doppio controllo dell'ultimo evento
+non equivale a un coordinamento transazionale distribuito. La vista
+protegge soltanto il ruolo di prova, non tutte le API DEMOS.
+Per un uso reale servirebbero conservazione indipendente,
+gestione delle chiavi, cutover coordinato, controllo completo
+degli accessi e verifica del consenso effettivo. Questa prova non
+dimostra conformità GDPR né introduce modifiche in produzione.
+PR #247 DRAFT, OP-41 **In corso**, KPI-23 **Non verificato**,
+OP-42 **Da fare**. Stato della CI ancora da confermare.
