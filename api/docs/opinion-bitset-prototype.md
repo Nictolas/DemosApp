@@ -677,3 +677,58 @@ né un dato risparmio in euro né una riduzione certa di latenza
 su produzione. Nessun merge/deploy/DDL o BYTEA nelle route;
 DOC-037 rimane un test admin/replay non applicato; OP-41 In corso,
 KPI-23 Non verificato, OP-42 Da fare.
+
+
+## Sensibilità dello spazio alle fonti e ai metadati del catalogo (DOC-042)
+
+Questo **benchmark aggiuntivo non è una migrazione**: lo script CI-only
+`api/scripts/benchmark-opinion-mixed-sources.js` crea esclusivamente tabelle
+di prova `ci_mixed_*` sul PostgreSQL 17 **effimero** di GitHub Actions.
+Rifiuta qualsiasi ambiente diverso da `GITHUB_ACTIONS=true`,
+`OPINION_BENCH_EPHEMERAL=yes`, `PGHOST=127.0.0.1`, `PGPORT=5432`,
+`PGDATABASE=opinion_bitset_ci`, `PGUSER=postgres` e password fittizia.
+Nessuna connessione a Supabase, migrazione DDL reale o lettura di risposte
+politiche reali.
+
+Il campione contiene **824 account fittizi**, **94 opinioni** e **6.856
+risposte non-NULL**: media 8,320 e mediana 6, con 508/824 account sotto
+8 risposte. Riproduce solo le *statistiche aggregate* annotate in OP-40:
+la distribuzione sintetica interna è una scelta artificiale a cinque
+scaglioni e **NON è una copia né una ricostruzione delle distribuzioni
+individuali reali**. Le risposte f/c/i e le posizioni sono generate
+da un PRNG deterministico.
+
+Si testano **cinque scenari ipotetici** di presenza delle fonti JSONB
+(0%, 10%, 35%, 75%, 100%), con testi sintetici a bassa comprimibilità
+di 140/700/1400 caratteri. La frequenza e la lunghezza delle fonti
+**non sono state inferite dai dati reali**. Per ogni scenario tutte le
+rappresentazioni ricevono **gli stessi utenti, risposte e fonti**:
+TEXT 94 colonne, fixed a 2 bit, trimmed a 2 bit, sparse e due varianti
+sparse che considerano i costi per record dei metadati:
+- `sparse_versioned`: BYTEA + `catalog_version integer`;
+- `sparse_envelope`: BYTEA + `catalog_version integer` +
+  `catalog_fingerprint text` SHA-256 esadecimale di 64 caratteri +
+  `encoding text`.
+
+Sono misurate con vere funzioni PostgreSQL
+`pg_relation_size`, `pg_indexes_size`,
+`pg_total_relation_size` le dimensioni fisiche comprensive di heap,
+indici, TOAST e allocazione delle relazioni; vengono verificati
+numero di righe e quantità/dimensioni delle fonti per ogni variante.
+Il log CI `OPINION_MIXED_SOURCES_RESULT_JSON` fornisce per scenario
+byte/account, risparmio assoluto e percentuale rispetto a TEXT,
+non proiezioni di costo o di capacità di Supabase.
+
+**Limiti importanti:** la variante `sparse_versioned` potrebbe
+richiedere ulteriori campi, lookup del catalogo, politiche RLS,
+aggiornamenti atomici, indici o tabelle ausiliarie in produzione.
+`sparse_envelope` è soltanto un possibile limite superiore del
+metadata overhead, non un formato prescritto. Il benchmark non misura
+CPU, latenza HTTP, query aggregate, consumi RAM, backup reali,
+contenzioso dei lock, Android, prezzi, distribuzione autentica delle
+fonti o numero massimo di utenti del piano Free. I risultati di
+`pg_total_relation_size` su 824 record risentono anche
+dell'allocazione in pagine. Si confrontano soltanto alternative
+sperimentali: **nessuna decisione di migrare BYTEA** è autorizzata
+dal benchmark. OP-40 e OP-41 restano **In corso**, KPI-23
+**Non verificato**; OP-42 **Da fare**.
