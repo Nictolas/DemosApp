@@ -282,31 +282,53 @@ test('CHARACTERIZATION: revoked consent blocks writes but legacy GET still reads
 });
 
 
-test('CHARACTERIZATION: conditional GET after consent revocation can return HTTP 304',async()=>{
+test('personal opinion GET is no-store and never 304 after consent revocation',async()=>{
   await withActualRoutes(async({request,consents,calls})=>{
     const url='/api/opinioni-list?grado=N';
-    const saved=await request('POST','/api/opinioni/salva','account-a',
-      {opinioni:{caccia:'f'}});
-    assert.equal(saved.status,200);
+    assert.equal((await request('POST','/api/opinioni/salva','account-a',
+      {opinioni:{caccia:'f'}})).status,200);
     const first=await request('GET',url,'account-a');
     assert.equal(first.status,200);
-    const etag=first.headers.get('etag');
-    assert.ok(etag,'Express currently emits an ETag for personalized JSON');
+    assert.match(first.headers.get('cache-control')||'',/\bno-store\b/i);
+    assert.match(first.headers.get('cache-control')||'',/\bprivate\b/i);
+    assert.match(first.headers.get('vary')||'',/authorization/i);
+    assert.equal(first.headers.get('pragma'),'no-cache');
     assert.equal(first.body.data.find(x=>x.id==='caccia').userAnswer,'f');
-    // This documents a missing protective header; it is not a security fix.
-    assert.equal(/\bno-store\b/i.test(first.headers.get('cache-control')||''),false);
+    const etag=first.headers.get('etag');
+    assert.ok(etag,'The legacy Express JSON route still emits an ETag');
     consents.set('account-a',false);
     const before=calls.length;
     const conditional=await request('GET',url,'account-a',undefined,
       {'if-none-match':etag},'force-cache');
-    assert.equal(conditional.status,304);
-    assert.equal(conditional.body,null);
+    assert.equal(conditional.status,200,'Conditional GET must not return 304');
+    assert.equal(conditional.body.data.find(x=>x.id==='caccia').userAnswer,'f');
+    assert.match(conditional.headers.get('cache-control')||'',/\bno-store\b/i);
     assert.equal(calls.slice(before).some(c=>c.sql.includes('user_consents')),false);
-    // A different authenticated account must never receive account A's vote.
-    const other=await request('GET',url,'account-b');
+    // Policy remains unchanged: revocation blocks writes, not own-data reads.
+    assert.equal((await request('POST','/api/opinioni/salva','account-a',
+      {opinioni:{caccia:'c'}})).status,403);
+    const other=await request('GET',url,'account-b',undefined,
+      {'if-none-match':etag},'force-cache');
     assert.equal(other.status,200);
     assert.equal(other.body.data.find(x=>x.id==='caccia').userAnswer,null);
+    assert.match(other.headers.get('cache-control')||'',/\bno-store\b/i);
   });
 });
 
-test.todo('privacy policy: define no-store response headers and cache purge on consent revocation/logout');
+test('personal opinion GET forbids caching on unauthenticated and empty responses',async()=>{
+  await withActualRoutes(async({request})=>{
+    const url='/api/opinioni-list?grado=N';
+    const unauth=await request('GET',url,undefined);
+    assert.equal(unauth.status,401);
+    assert.match(unauth.headers.get('cache-control')||'',/\bno-store\b/i);
+    const empty=await request('GET',url,'account-b');
+    assert.equal(empty.status,200);
+    assert.ok(empty.body.data.every(x=>x.userAnswer===null));
+    assert.match(empty.headers.get('cache-control')||'',/\bno-store\b/i);
+    const missingGrade=await request('GET','/api/opinioni-list','account-b');
+    assert.equal(missingGrade.status,400);
+    assert.match(missingGrade.headers.get('cache-control')||'',/\bno-store\b/i);
+  });
+});
+
+test.todo('client-side cache purge on logout/account deletion/consent change and real Android verification');

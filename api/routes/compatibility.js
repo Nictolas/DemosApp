@@ -6,6 +6,17 @@ const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
 
 router.get('/opinioni-list', async (req, res) => {
+  // This endpoint returns account-specific political answers. Never let HTTP
+  // caches retain them, including error/empty responses and legacy clients.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.vary('Authorization');
+  // Older versions could have stored an ETag. Force a fresh 200 response
+  // instead of revalidating that old personalized body with HTTP 304.
+  // This cannot erase a response already stored by a client or intermediary.
+  delete req.headers['if-none-match'];
+  delete req.headers['if-modified-since'];
   try {
     if (isDev) {
       console.log('🔍 GET /api/opinioni-list - Richiesta diretta');

@@ -168,3 +168,23 @@ endpoint Express con backend isolato/mock, senza dati reali.
 
 Non c'è nessuna modifica alle risposte politiche in Supabase,
 nessuna migrazione del DB, nessun deploy e nessun merge.
+
+## HTTP cache delle risposte personali — protezione proposta in PR #247
+
+Il codice della route legacy `GET /api/opinioni-list` nella **sola PR in
+bozza** imposta `Cache-Control: private, no-store, max-age=0`,
+`Pragma: no-cache`, `Expires: 0` e `Vary: Authorization` per
+risposte personali, vuote e di errore. Le richieste condizionali
+`If-None-Match`/`If-Modified-Since` sono ignorate in questa route,
+per evitare il precedente HTTP 304 che poteva riutilizzare un corpo
+personalizzato memorizzato prima della revoca. Il JSON e i codici
+di risposta dei vecchi client Android/web restano invariati.
+
+**Limiti:** gli header HTTP non cancellano risposte già presenti in
+cache browser/app, IndexedDB, localStorage o proxy che ignorano le
+direttive. Sono ancora necessari invalidazione lato client a logout,
+cambio account, revoca e cancellazione, verifica delle altre route
+personalizzate, test Android installato e definizione policy sul
+consenso. La revoca continua a bloccare POST ma non la GET dei
+propri voti memorizzati: decisione da valutare separatamente.
+Nessun BYTEA collegato alle route; nessuna migrazione o deploy.
