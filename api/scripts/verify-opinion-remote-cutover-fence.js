@@ -234,8 +234,15 @@ async function main(){
         // Remote head still version 4; subsequent writer cannot commit
         // until after this callback and release of FOR SHARE.
         assert.equal((await current(remoteObserver)).seq,4);
-        const available=await secureRead(remoteReader,targetReader);
-        assert.deepEqual(available,[],'Erased subject B visible at cutover');
+        // Do not acquire another SHARE lock behind the queued UPDATE:
+        // PostgreSQL's lock fairness could otherwise deadlock this test.
+        // The existing remoteGate SHARE lock already fences the view.
+        await targetReader.query('SET ROLE '+READER);
+        try{
+          const available=(await targetReader.query('SELECT subject,payload FROM '+
+            VIEW+' ORDER BY subject')).rows;
+          assert.deepEqual(available,[],'Erased subject B visible at cutover');
+        }finally{await targetReader.query('RESET ROLE');}
       }
     });
     assert.equal(applied,4);
