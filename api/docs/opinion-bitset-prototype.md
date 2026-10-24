@@ -1079,3 +1079,56 @@ DPO erano SUCCESS; la prima esecuzione di Security Agent Validation
 version`) durante il test di rappresentanti, estraneo al nuovo test
 BYTEA. Il job è stato rilanciato senza modificare codice di prodotto;
 l'esito del retry va verificato separatamente. Nessun merge o deploy.
+
+
+## Revoche che sopravvivono a un ripristino da backup precedente (DOC-049)
+
+Questo controllo affronta un rischio distinto da DOC-047/048: **un backup
+valido creato prima della revoca del consenso può reintrodurre dati
+successivamente cancellati**, anche se il backup supera perfettamente
+i controlli di integrità. Nella prova negativa, `pg_dump -Fc` salva
+cinque tabelle fittizie contenenti una risposta BYTEA del soggetto A
+(versione catalogo v1) e una del soggetto B (v2), le chiavi di retry e
+un flag di blocco al ripristino; successivamente una transazione nel
+database sorgente revoca A, elimina la sua risposta e le sue chiavi di
+retry, incrementa l'epoch e registra la revoca. Un `pg_restore` **reale**
+su un secondo database PostgreSQL 17 effimero carica il vecchio
+backup: il test deve rilevare che, **prima della riconciliazione**,
+la risposta e la chiave idempotente di A sono tornate presenti
+fisicamente (negative control).
+
+Il modello sperimentale usa un registro append-only di revoche
+`ci_erasure_journal`, **escluso dall'archivio vecchio**, e un
+`ci_erasure_gate` incluso nel backup con stato `sealed=true`.
+Una funzione di lettura di esempio nega tutti gli accessi finché
+non è stato verificato e applicato il registro di cancellazioni;
+se il registro non è disponibile si rifiuta il ripristino operativo.
+Il test forza anche l'interruzione della riconciliazione: la transazione
+si annulla e il gate rimane bloccato, senza mostrare dati agli utenti.
+Solo un replay riuscito e transazionale può eliminare nuovamente BYTEA
+e chiavi di retry, disabilitare il consenso, aggiornare l'epoch e
+sbloccare il gate. Il soggetto B, non revocato, mantiene invariato il
+payload v2 e le richieste. Si verifica anche che ripetere il replay
+sia idempotente e che il soggetto revocato resti non leggibile.
+Script: `api/scripts/verify-opinion-erasure-after-restore.sh` e
+`api/scripts/verify-opinion-erasure-after-restore.js`.
+
+**Distinzione di sicurezza essenziale:** questo è **solo un esempio
+di fail-closed applicativo**. La lettura protetta è una funzione del
+test, non un vincolo di accesso DB/RLS, quindi un lettore che aggiri
+il gate potrebbe vedere il dato prima della cancellazione. Il registro
+è fuori *da questo dump*, ma risiede sullo **stesso server PostgreSQL
+CI**: perderlo insieme al database principale rende impossibile
+riconciliare. In produzione servirebbe un registro affidabile
+**indipendente dai backup ripristinati**, con conservazione adatta,
+autenticità, disponibilità, governance GDPR, fence transazionale
+e watermark verificati per coprire revoche concorrenti mentre si
+ripristina, ruoli/privilegi o RLS effettivi e blocco **di tutte**
+le letture/scritture prima della riapertura. Nessuna di queste
+proprietà è convalidata su Supabase o sulle route DEMOS. Il test
+non prova conformità GDPR né backup reali. PR #247 rimane DRAFT:
+nessun merge, deploy, migrazione BYTEA o DDL in produzione.
+OP-41 **In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
+
+**Stato:** il nuovo passo CI deve completarsi prima di assegnare
+a DOC-049 un esito PASS.
