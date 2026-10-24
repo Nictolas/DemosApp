@@ -6,6 +6,9 @@ const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
 
 router.get('/opinioni-list', async (req, res) => {
+  // This response includes userAnswer: never store it in browsers or shared caches.
+  // Set the policy before authentication so error responses are covered too.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     if (isDev) {
       console.log('🔍 GET /api/opinioni-list - Richiesta diretta');

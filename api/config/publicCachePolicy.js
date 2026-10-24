@@ -32,6 +32,8 @@ module.exports = {
     '/api/user/',
     '/api/admin/',
     '/api/opinioni/',
+    // Legacy personalized endpoint is /api/opinioni-list (hyphen, not slash).
+    '/api/opinioni-list',
     '/api/notifiche',
     '/api/governo/',
     '/api/eventi',

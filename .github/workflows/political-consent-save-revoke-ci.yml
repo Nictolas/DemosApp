@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'api/routes/opinioni/user-answers.js'
+      - 'api/routes/compatibility.js'
+      - 'api/config/publicCachePolicy.js'
+      - 'api/tests/politicalOpinionReadCachePolicy.test.js'
       - 'api/routes/users/profile.js'
       - 'api/tests/politicalOpinionWriteRules.smoke.test.js'
       - 'api/routes/user/political-opinions-consent.js'
@@ -60,7 +63,7 @@ jobs:
       - name: Verify HTTP abort propagates through actual API client and TanStack Query
         run: node --test client/tests/politicalOpinionHttpCancellation.test.mjs
       - name: Unit consent, ordinary opinion save and revoke privacy guards
-        run: node --test --test-concurrency=1 api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/politicalAggregatePrivacy.test.js
+        run: node --test --test-concurrency=1 api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/politicalAggregatePrivacy.test.js api/tests/politicalOpinionReadCachePolicy.test.js
       - name: Confirm real HTTP save-vs-revoke serialization on synthetic PostgreSQL 17
         env:
           GITHUB_ACTIONS: 'true'
