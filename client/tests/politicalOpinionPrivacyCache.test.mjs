@@ -19,9 +19,13 @@ test('personal opinion cache keys always include authenticated user identity',()
 test('GDPR consent revocation purges cached sensitive opinion answers before refreshing state',()=>{
  const s=source('pages/GDPR/index.tsx');
  const revoke=s.slice(s.indexOf('const revokeConsentMutation'));
+ const cancelEntry=revoke.indexOf("queryClient.cancelQueries({ queryKey: ['opinioniQuestions'] })");
+ const cancelStats=revoke.indexOf("queryClient.cancelQueries({ queryKey: ['statsOpinionQuestions'] })");
  const cleared=revoke.indexOf("queryClient.removeQueries({ queryKey: ['opinioniQuestions'] })");
+ const clearedStats=revoke.indexOf("queryClient.removeQueries({ queryKey: ['statsOpinionQuestions'] })");
  const consent=revoke.indexOf("queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] })");
- assert.ok(cleared>=0 && consent>cleared);
+ assert.ok(cancelEntry>=0 && cancelStats>=0);
+ assert.ok(cleared>cancelEntry && clearedStats>cancelStats && consent>clearedStats);
 });
 
 test('statistics selector never shares a userAnswer cache key with opinion entry pages',()=>{
