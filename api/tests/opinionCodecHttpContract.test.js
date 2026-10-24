@@ -223,3 +223,30 @@ test('real HTTP POST blocks revoked consent and invalid answers without changing
     assert.deepEqual(answers.get('account-a'),before);
   });
 });
+
+
+test('single-answer update preserves unrelated answers across legacy GET and all packed codecs',async()=>{
+  await withActualRoutes(async({request,answers})=>{
+    const post=opinioni=>request('POST','/api/opinioni/salva','account-a',{opinioni});
+    assert.equal((await post({caccia:'f',nato:'c',salario_minimo:'i'})).status,200);
+    const changed=await post({nato:'f'});
+    assert.equal(changed.status,200);
+    assert.equal(changed.body.savedCount,1);
+    const after=await request('GET','/api/opinioni-list?grado=N','account-a');
+    const expected=[
+      {id:'caccia',userAnswer:'f'},
+      {id:'nato',userAnswer:'f'},
+      {id:'salario_minimo',userAnswer:'i'},
+      {id:'energia_nucleare',userAnswer:null}
+    ];
+    assert.deepEqual(after.body.data.map(x=>({id:x.id,userAnswer:x.userAnswer})),expected);
+    for(const encoding of ['fixed','trimmed','sparse']){
+      const row=answers.get('account-a');
+      const envelope=encodeEnvelope(registry,{
+        version:1,encoding,
+        answers:Object.fromEntries(IDS.map(id=>[id,row[id]??null]))
+      });
+      assert.deepEqual(decodeLegacyQuestionRows(registry,envelope,IDS),expected);
+    }
+  });
+});
