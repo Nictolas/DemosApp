@@ -131,6 +131,12 @@ async function saveDelta(db, prefix, subject, requestId, patch, opts = {}) {
     assert.equal(reg.latestVersion, head);
     validatePatch(reg, patch);
     const fingerprint = patchFingerprint(patch);
+    // Lock account BEFORE inserting the request row. The request FK would
+    // otherwise acquire a KEY SHARE lock and deadlock with concurrent
+    // FOR UPDATE of the same account.
+    const locked = await db.query('SELECT subject FROM ' + t.subjects +
+      ' WHERE subject=$1 FOR UPDATE', [subject]);
+    assert.equal(locked.rowCount, 1);
     const claim = await db.query('INSERT INTO ' + t.requests +
       ' (subject,request_id,fingerprint) VALUES ($1,$2,$3)' +
       ' ON CONFLICT DO NOTHING RETURNING request_id',
@@ -149,9 +155,6 @@ async function saveDelta(db, prefix, subject, requestId, patch, opts = {}) {
     } else {
       // Serialize all distinct request IDs of a given account, including
       // initial INSERT, without serializing unrelated accounts.
-      const locked = await db.query('SELECT subject FROM ' + t.subjects +
-        ' WHERE subject=$1 FOR UPDATE', [subject]);
-      assert.equal(locked.rowCount, 1);
       const prior = await vote(db, prefix, subject, reg);
       const merged = { ...(prior ? prior.decoded : {}), ...patch };
       const env = encodeEnvelope(reg, {
