@@ -50,7 +50,7 @@ export default function OpinioniRegionali() {
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
-    queryKey: ['opinioniQuestions', 'Regionale'],
+    queryKey: ['opinioniQuestions', 'Regionale', user?.id],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=R");
       if (response.ok && response.data) {
