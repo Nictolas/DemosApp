@@ -6,10 +6,10 @@ import { ArrowLeft, Users } from "lucide-react";
 export const Header: React.FC = () => {
   return (
     <div className="flex items-center justify-between mb-8">
-      <Link href="/menu">
+      <Link href="/preferiti">
         <Button variant="ghost" className="flex items-center text-gray-600 hover:text-gray-800 hover:bg-white">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Torna al Menu
+          Torna ai Preferiti
         </Button>
       </Link>
       
