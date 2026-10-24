@@ -29,6 +29,27 @@ const TRIALS=12;
 const QUESTION='synthetic_opinion_093';
 const SCOPE=['national','region','province','municipality'];
 
+// Supavisor's pooler certificates chain to the Supabase project CA, which
+// Node's standard public CA bundle does not trust by default. The operator
+// must supply the public CA downloaded from Demos-Staging -> Database ->
+// SSL Configuration. Never suppress chain or hostname validation.
+function verifiedSupabaseCa(e) {
+ const raw=e?.OP37_SUPABASE_CA_CERT;
+ if(typeof raw!=='string')return null;
+ // Render environment fields support both multiline PEM and literal \n.
+ const pem=raw.replace(/\\n/g,'\n').trim();
+ if(pem.length<400 || pem.length>10000 ||
+    !/^-----BEGIN CERTIFICATE-----\n/.test(pem) ||
+    !/\n-----END CERTIFICATE-----$/.test(pem))return null;
+ try{
+  const cert=new crypto.X509Certificate(pem);
+  const now=Date.now();
+  if(!cert.ca || Date.parse(cert.validFrom)>now ||
+     Date.parse(cert.validTo)<now)return null;
+  return pem;
+ }catch(_){return null;}
+}
+
 function validStagingConfig(e) {
  return e.OP37_STAGING_HTTP_ONLY==='yes' &&
    e.RENDER==='true' &&
@@ -37,7 +58,8 @@ function validStagingConfig(e) {
    e.PGPORT==='5432' && e.PGDATABASE==='postgres' &&
    e.PGUSER===READ_ROLE+'.'+STAGING_REF &&
    typeof e.PGPASSWORD==='string' &&
-   e.PGPASSWORD.length>=48 && typeof e.OP37_HTTP_TOKEN==='string' &&
+   e.PGPASSWORD.length>=48 && verifiedSupabaseCa(e)!==null &&
+   typeof e.OP37_HTTP_TOKEN==='string' &&
    e.OP37_HTTP_TOKEN.length>=48 &&
    !e.DATABASE_URL && !e.SUPABASE_SERVICE_ROLE_KEY &&
    !e.SUPABASE_DB_URL && !e.SUPABASE_URL;
@@ -123,7 +145,10 @@ async function main(){
   // Supavisor routes custom roles via <role>.<project_ref>, while SQL
   // current_user is still the bare READ_ROLE, asserted below.
   user:process.env.PGUSER,password:process.env.PGPASSWORD,
-  ssl:{rejectUnauthorized:true},
+  // Verify the Supabase CA chain AND the pooler hostname; never use
+  // sslmode=require or rejectUnauthorized:false as an outage workaround.
+  ssl:{ca:verifiedSupabaseCa(process.env),
+       servername:process.env.PGHOST,rejectUnauthorized:true},
   max:3,statement_timeout:11000,connectionTimeoutMillis:6500,
   idleTimeoutMillis:10000,application_name:'op37-render-staging-http'
  });
@@ -267,7 +292,7 @@ async function main(){
 // Export pure guards for isolated CI tests. Requiring this module may
 // never open a listener or an external connection.
 module.exports = Object.freeze({
-  guard, validStagingConfig, eqToken, assertSafeRead, rewriteOnlySyntheticTables
+  guard, validStagingConfig, verifiedSupabaseCa, eqToken, assertSafeRead, rewriteOnlySyntheticTables
 });
 
 if (require.main === module) {
