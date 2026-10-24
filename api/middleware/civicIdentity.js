@@ -2,10 +2,34 @@
 
 const { getIdentityVerificationStatus } = require('../services/identityVerificationStore');
 const { IDENTITY_PROVIDERS } = require('../constants/identityVerification');
+const { isCieRequiredForCivicActions } = require('../services/civicIdentityPolicy');
 
 async function requireVerifiedCivicIdentity(req, res, next) {
   if (!req.userId) {
     return res.status(401).json({ success: false, error: 'Autenticazione richiesta', code: 'AUTH_REQUIRED' });
+  }
+
+  // Fase iniziale: un account autenticato può compiere le azioni civiche senza
+  // verifica CIE. Questa eccezione NON dichiara verificata l'identità.
+  // La configurazione viene letta dal server ad ogni richiesta e valori
+  // sconosciuti causano il rifiuto (mai una disattivazione accidentale).
+  let cieRequired;
+  try {
+    cieRequired = isCieRequiredForCivicActions();
+  } catch (_) {
+    return res.status(503).json({
+      success: false,
+      error: 'Configurazione della verifica identita non disponibile',
+      code: 'CIVIC_IDENTITY_POLICY_INVALID',
+    });
+  }
+  if (!cieRequired) {
+    req.civicIdentity = Object.freeze({
+      verified: false,
+      provider: null,
+      requirementDeferred: true,
+    });
+    return next();
   }
 
   // Eccezione amministratore temporanea: serve finché il rollout CIE non è
