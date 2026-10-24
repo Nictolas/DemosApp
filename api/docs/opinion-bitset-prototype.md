@@ -97,3 +97,17 @@ In parallelo studiare fonti_opinioni senza cancellare informazioni
 probatorie, mantenere soglia di pubblicazione statistiche e consenso,
 e coordinarsi con la PR #216 sul salvataggio delta delle opinioni.
 La decisione finale può essere **lasciare lo schema attuale**.
+
+## Prima misura PostgreSQL su staging (sola lettura, 24/10/2026)
+
+È stata eseguita una query `SELECT` sintetica sul progetto Supabase di staging, **senza creare tabelle e senza leggere opinioni individuali**. `pg_column_size(ROW(...))` misura il valore di un record composito costruito in memoria; **non** è la dimensione di una riga heap PostgreSQL e non include indici, TOAST, WAL o costi di aggiornamento. Campioni deterministici, 94 slot, `id INTEGER` e `fonti_opinioni = '{}'::jsonb` in tutte le varianti.
+
+| Risposte compilate | 94 TEXT, record composito (B) | BYTEA 24 B, record composito (B) | JSONB sparse, record composito (B) |
+|---:|---:|---:|---:|
+| 0% | 49,00 | 58,00 | 38,00 |
+| 5% | 58,40 | 58,00 | 93,90 |
+| 9% | 65,92 | 58,00 | 138,62 |
+| 33% | 111,04 | 58,00 | 409,94 |
+| 100% | 221,00 | 58,00 | 1159,00 |
+
+TEXT/BYTEA: 1.000 record per densità; JSONB: 300 record per densità con chiavi corte artificiali `q0..q93`. I numeri sono confrontabili solo **come record compositi sintetici** e non sostituiscono un benchmark con tabelle reali, catalogo versionato e risposte sparse distribuite come in DEMOS. La bitmap NULL può rendere il confronto diverso da `8,32 × 2` byte di soli valori. Il JSONB sparse con chiavi reali potrebbe occupare ancora più spazio. **Non è stata dimostrata alcuna convenienza netta della migrazione.**
