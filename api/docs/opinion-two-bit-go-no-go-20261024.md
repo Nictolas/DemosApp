@@ -81,5 +81,29 @@ vantaggio concordata prima di qualsiasi rilascio.
 KPI-23 *Non verificato*. Non dichiarare un GO per la migrazione
 sulla sola base di misure sintetiche.
 
-**CI DOC-054:** evidenza del nuovo script e risultati
-da aggiornare solo dopo il superamento effettivo della pipeline.
+**CI DOC-054:** PostgreSQL 17 sintetico
+[#40108197881](https://github.com/Nictolas/DemosApp/actions/runs/40108197881),
+job `physical-storage` SUCCESS, marcatore
+`OPINION_2BIT_ECONOMIC_GATE_PASS`.
+Lo script ha verificato cinque frequenze ipotetiche di fonti
+su 30 tabelle, dimensioni allocazione e catalogo condiviso.
+La raccomandazione JSON generata è
+`DO_NOT_MIGRATE_FROM_CURRENT_EVIDENCE` (*provvisoria*).
+
+Per `sparse_versioned`, lo scenario con fonti al 35%
+riporta risparmio lordo **19,88 B/account**, e con
+catalogo condiviso da 32 KiB un saldo a 824 account
+di **16.384 B in più** rispetto al solo TEXT.
+Una proiezione **lineare puramente illustrativa**
+darebbe circa **1,865 MiB** di risparmio netto a
+100.000 account o **18,931 MiB** a 1 milione,
+limitatamente alla tabella delle risposte + catalogo.
+Non copre crescita indici, WAL, compressione TOAST,
+RLS, altri record, prezzi né disponibilità Free.
+
+**Decisione proposta:** mantenere TEXT per il momento,
+non effettuare una migrazione dello schema e concentrare
+i miglioramenti immediati sulle query Sondaggi e
+sulle misure read-only dell'infrastruttura reale.
+Restano OP-41 *In corso*, OP-42 *Da fare* e
+KPI-23 *Non verificato*.
