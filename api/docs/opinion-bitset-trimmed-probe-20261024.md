@@ -233,3 +233,45 @@ Limiti: non sono verificati ancora i veri endpoint HTTP, RLS,
 tutti i filtri per età/genere/provincia/comune, client Android,
 cache e revoca dinamica del consenso. Non è stata effettuata
 alcuna migrazione e nessun dato di Supabase è stato modificato.
+
+
+## Matching politico e revoca del consenso — nuovi controlli
+
+Aggiunta la suite api/tests/opinionMatchingBitset.test.js, che richiama
+le funzioni ESISTENTI di DEMOS getOpinionCompletion e
+calculatePoliticalMatch. Sono verificati tutti e quattro gli stati,
+accordi/disaccordi, target senza risposta, incertezza,
+percentuali e punteggi, catalogo append-only, gruppi di opinioni
+parziali e 350 coppie sintetiche a diverse densità. La ricostruzione
+delle mappe utente/target da ciascuna codifica fixed/trimmed/sparse
+deve produrre gli STESSI risultati del matching originale.
+La suite del codec è cresciuta da 30 a **34 test PASS**.
+
+Ampliate le query sintetiche del test
+api/scripts/verify-opinion-privacy-equivalence.js per includere
+sei posizioni di opinione × sei aggregazioni: globali, regione,
+provincia, comune, genere e fascia di età. Tutti i risultati
+sono confrontati per parità fra TEXT, fixed, trimmed e sparse.
+I filtri di genere e data di nascita omettono i valori NULL,
+come le relative route reali di DEMOS.
+
+Oltre alla soglia 9/10, viene provato lo scenario di revoca:
+uno dei dieci soggetti consenzienti viene segnato come
+non consenziente nella tabella di prova; l'aggregato scende
+sotto soglia e sparisce in tutte le codifiche. Rimuovendo
+l'override di prova, il fallback sul consenso precedente ripristina
+il conteggio. Questo testa la CORRETTEZZA del calcolo SQL a ogni
+lettura, non la cache della produzione o l'effettiva propagazione
+di una revoca nel frontend.
+
+CI PostgreSQL temporanea: 
+https://github.com/Nictolas/DemosApp/actions/runs/40046650058
+(36 combinazioni risultate equivalenti nella prima esecuzione verde).
+Una prima versione dei nuovi test non compilava a causa di un errore
+nella stringa di inserimento sintetico; corretto sul branch,
+nessun bug riscontrato nell'app o sui dati reali.
+
+**Restano indispensabili** test end-to-end delle route e delle
+API, cache e consenso revocato, RLS, client Android legacy,
+catalogo persistito/versionato, test a carico e verifica
+dei reali costi SQL prima di qualunque proposta di migrazione.
