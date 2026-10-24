@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { AxiomArchiveService } = require('../services/axiomArchiveService');
+const { buildAxiomArchiveSummary } = require('../utils/axiomArchiveSummary');
 
 let task = null;
 let running = false;
@@ -14,15 +15,7 @@ async function runAxiomArchiveOnce() {
   try {
     const service = new AxiomArchiveService();
     const results = await service.runOnce();
-    const summary = results.map(result => ({
-      dataset: result.dataset,
-      skipped: result.skipped,
-      caughtUp: result.caughtUp,
-      chunks: result.chunks,
-      count: result.count,
-      categories: result.categories || {},
-      remainingMs: result.remainingMs || 0
-    }));
+    const summary = buildAxiomArchiveSummary(results);
     console.log('Axiom archive completed:', JSON.stringify(summary));
     return { skipped: false, results };
   } catch (error) {
