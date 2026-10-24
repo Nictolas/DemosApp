@@ -106,6 +106,14 @@ function countQuery(type,index) {
     'COUNT(*) FILTER(WHERE '+(type==='text'?exp+' IS NULL':exp+'=0')+
     ')::int AS missing FROM ci_query_'+type;
 }
+function materializedSparseQuery(index) {
+  return 'WITH answers AS MATERIALIZED (' +
+    'SELECT ci_sparse_code(opinions,'+index+') AS response_code FROM ci_query_sparse' +
+    ') SELECT COUNT(*) FILTER (WHERE response_code=1)::int AS f, ' +
+    'COUNT(*) FILTER (WHERE response_code=2)::int AS c, ' +
+    'COUNT(*) FILTER (WHERE response_code=3)::int AS i, ' +
+    'COUNT(*) FILTER (WHERE response_code=0)::int AS missing FROM answers';
+}
 async function validateQueries(client) {
   const checks=[];
   const times=[];
@@ -116,6 +124,11 @@ async function validateQueries(client) {
       const query=countQuery(type,index);
       assert.deepEqual((await client.query(query)).rows[0], expected,
         'Stats mismatch type='+type+' slot='+index);
+      if(type==='sparse') {
+        const materialized=materializedSparseQuery(index);
+        assert.deepEqual((await client.query(materialized)).rows[0],expected,
+          'Sparse materialized aggregate mismatch slot='+index);
+      }
       if (![0,45,93].includes(index)) continue;
       for(let n=0;n<3;n++) await client.query(query);
       const ms=[];
@@ -125,6 +138,17 @@ async function validateQueries(client) {
       }
       ms.sort((a,b)=>a-b);
       times.push({slot:index,type,medianServerMs:Number(ms[4].toFixed(3))});
+      if(type==='sparse') {
+        const fastQuery=materializedSparseQuery(index);
+        for(let n=0;n<3;n++) await client.query(fastQuery);
+        const improved=[];
+        for(let n=0;n<9;n++) {
+          const plan=(await client.query('EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) '+fastQuery)).rows[0]['QUERY PLAN'][0];
+          improved.push(Number(plan['Execution Time']));
+        }
+        improved.sort((a,b)=>a-b);
+        times.push({slot:index,type:'sparse_materialized',medianServerMs:Number(improved[4].toFixed(3))});
+      }
     }
     checks.push({slot:index,stats:expected});
   }
