@@ -29,3 +29,14 @@ test('statistics selector never shares a userAnswer cache key with opinion entry
  assert.match(s,/queryKey: \['statsOpinionQuestions', grado, user\?\.id \?\? 'guest'\]/);
  assert.doesNotMatch(s,/console\.log\([^)]*data\)/);
 });
+
+test('opinion entry screens never print personal political answers to the browser console',()=>{
+ for(const file of [
+  'pages/OpinioniNazionali.tsx',
+  'pages/OpinioniRegionali.tsx',
+  'pages/OpinioniComunali.tsx',
+  'pages/OpinioniEuropee.tsx'
+ ]){
+  assert.doesNotMatch(source(file),/console\.log\s*\(/,file);
+ }
+});
