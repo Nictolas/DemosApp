@@ -7,10 +7,12 @@ on:
       - 'api/utils/opinionBitset.js'
       - 'api/utils/opinionTrimmedBitset.js'
       - 'api/utils/opinionSparseBitset.js'
+      - 'api/utils/opinionCodecEnvelope.js'
       - 'api/tests/opinionBitset.test.js'
       - 'api/tests/opinionTrimmedBitset.test.js'
       - 'api/tests/opinionSparseBitset.test.js'
       - 'api/tests/opinionMatchingBitset.test.js'
+      - 'api/tests/opinionCodecEnvelope.test.js'
       - 'api/scripts/benchmark-opinion-bitset.js'
       - 'api/scripts/benchmark-opinion-physical.js'
       - 'api/scripts/benchmark-opinion-queries.js'
@@ -32,7 +34,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test 2-bit codec and catalog invariants
-        run: node --test api/tests/opinionBitset.test.js api/tests/opinionTrimmedBitset.test.js api/tests/opinionSparseBitset.test.js api/tests/opinionMatchingBitset.test.js
+        run: node --test api/tests/opinionBitset.test.js api/tests/opinionTrimmedBitset.test.js api/tests/opinionSparseBitset.test.js api/tests/opinionMatchingBitset.test.js api/tests/opinionCodecEnvelope.test.js
       - name: Run deterministic standalone benchmark
         run: node api/scripts/benchmark-opinion-bitset.js
 
