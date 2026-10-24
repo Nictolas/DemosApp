@@ -62,7 +62,7 @@ async function main(){
           const normalized=sourceSql(sql);
           const answer=await c.query(sql,params);
           if(blocked && !blocked.consumed && (
-            (blocked.phase==='save' && /FOR UPDATE OF u$/.test(normalized)) ||
+            (blocked.phase==='save' && /^SELECT id FROM users WHERE id = \$1 FOR UPDATE$/.test(normalized)) ||
             (blocked.phase==='revoke' && normalized.startsWith('UPDATE users SET political_opinions_consent = false'))
           )){
             blocked.consumed=true;
