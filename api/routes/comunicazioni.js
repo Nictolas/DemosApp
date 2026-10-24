@@ -925,7 +925,7 @@ async function notifyAllUsers(titolo, commento) {
     
     // Controlla se esiste già una notifica Demos e la sovrascrivi
     const existingDemosNotification = await pool.query(`
-      SELECT id FROM notifiche_demos ORDER BY data DESC NULLS LAST LIMIT 1
+      SELECT id FROM notifiche_demos WHERE titolo LIKE 'Notifica Demos:%' ORDER BY data DESC NULLS LAST LIMIT 1
     `);
     
     let comunicazioneId;
