@@ -7,12 +7,25 @@ const path = require('node:path');
 const {
   eqToken,
   validStagingConfig,
+  verifiedSupabaseCa,
   assertSafeRead,
   rewriteOnlySyntheticTables
 } = require('../staging/op37_render_http_probe');
 
 const entry=path.resolve(__dirname,'../staging/op37_render_http_probe.js');
 const PORT=29137;
+const SYNTHETIC_TEST_CA = `-----BEGIN CERTIFICATE-----
+MIIBbzCCARWgAwIBAgIUGVTZNYEwdH1MFHBkensV3uplb78wCgYIKoZIzj0EAwIw
+LTErMCkGA1UEAwwiU3ludGhldGljIFRlc3QgQ0EgLSBObyBSZWFsIEFjY2VzczAe
+Fw0yNjEwMjIyMDUxNTNaFw0yNzEwMjQyMDUxNTNaMC0xKzApBgNVBAMMIlN5bnRo
+ZXRpYyBUZXN0IENBIC0gTm8gUmVhbCBBY2Nlc3MwWTATBgcqhkjOPQIBBggqhkjO
+PQMBBwNCAAT27Jo0SC/wso8TksSD3EWN7+nsnuRtDXmxE/J0eMBmcpYkyXKw63gU
+l/uqggvTXSLNsum/yG7RPVTlyLS6D92voxMwETAPBgNVHRMBAf8EBTADAQH/MAoG
+CCqGSM49BAMCA0gAMEUCIDy2HRpHw2uCZvVse0m2Vnv5n/q1AnBgrIV5zFCDsahh
+AiEApwsYbeERLaiTeVuW95CzPvS12GxkVjKtdYeN9M6XOEg=
+-----END CERTIFICATE-----`;
+// A public, disposable CA with no corresponding private key in this repo.
+// It exists only to exercise the strict parsing and trust-anchor guard.
 const baseEnv=()=>({
   PATH:process.env.PATH||'/usr/bin:/bin',
   HOME:process.env.HOME||'/tmp',
@@ -30,7 +43,8 @@ test('Render staging admits only Supabase EU IPv4 session-pooler and tenant-scop
   PGHOST:'aws-0-eu-central-1.pooler.supabase.com',
   PGPORT:'5432',PGDATABASE:'postgres',
   PGUSER:'op37_http_staging_reader.fkeayjzvtuvzesljhjbc',
-  PGPASSWORD:'s'.repeat(64),OP37_HTTP_TOKEN:'t'.repeat(64)
+  PGPASSWORD:'s'.repeat(64),OP37_HTTP_TOKEN:'t'.repeat(64),
+  OP37_SUPABASE_CA_CERT:SYNTHETIC_TEST_CA
  };
  assert.equal(validStagingConfig(good),true);
  assert.equal(validStagingConfig({...good,
@@ -48,6 +62,9 @@ test('Render staging admits only Supabase EU IPv4 session-pooler and tenant-scop
   {PGPASSWORD:''},
   {PGPASSWORD:'too-short'},
   {OP37_HTTP_TOKEN:'too-short'},
+  {OP37_SUPABASE_CA_CERT:''},
+  {OP37_SUPABASE_CA_CERT:'not a certificate'},
+  {OP37_SUPABASE_CA_CERT:SYNTHETIC_TEST_CA.replace('AQH/','AQH!')},
   {OP37_STAGING_HTTP_ONLY:'no'},
   {DATABASE_URL:'postgres://example.invalid'},
   {SUPABASE_SERVICE_ROLE_KEY:'forbidden'},
@@ -55,6 +72,16 @@ test('Render staging admits only Supabase EU IPv4 session-pooler and tenant-scop
  ]){
   assert.equal(validStagingConfig({...good,...change}),false,
     'Must fail closed: '+Object.keys(change)[0]);
+ }
+});
+
+test('Supabase CA must be a valid non-expired CA PEM; literal newline encoding is allowed',()=>{
+ assert.equal(verifiedSupabaseCa({OP37_SUPABASE_CA_CERT:SYNTHETIC_TEST_CA}),
+  SYNTHETIC_TEST_CA);
+ assert.equal(verifiedSupabaseCa({OP37_SUPABASE_CA_CERT:
+  SYNTHETIC_TEST_CA.replace(/\n/g,'\\n')}),SYNTHETIC_TEST_CA);
+ for(const ca of [undefined,null,'',"-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----"]){
+  assert.equal(verifiedSupabaseCa({OP37_SUPABASE_CA_CERT:ca}),null);
  }
 });
 
