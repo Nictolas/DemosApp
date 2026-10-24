@@ -460,7 +460,8 @@ test('catalogs larger than 256 use bounded TEXT batches, not hundreds of fallbac
     [...c.sql.matchAll(/orr\."(op\d{4})"/g)].length);
   assert.deepEqual(lengths,[256,256,88]);
   if(scope){
-   assert.deepEqual(calls.slice(1).map(c=>c.params),[scope.params,scope.params,scope.params]);
+   assert.deepEqual(calls.filter(c=>c.sql.includes('CROSS JOIN LATERAL')).map(c=>c.params),
+    [scope.params,scope.params,scope.params]);
   }
  }
 });
