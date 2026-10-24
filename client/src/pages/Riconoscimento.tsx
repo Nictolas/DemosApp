@@ -110,6 +110,7 @@ export default function Riconoscimento() {
   const [publicNames, setPublicNames] = useState<{ nome: string; cognome: string } | null>(null);
   const [requestStatus, setRequestStatus] = useState<null | {
     tipo_ruolo: string; status: "pending" | "approved" | "rejected"; created_at: string;
+    cie_names_verified_at?: string | null;
   }>(null);
 
   useEffect(() => {
@@ -333,7 +334,7 @@ export default function Riconoscimento() {
       }
 
       setPublicNames(null);
-      setRequestStatus({ tipo_ruolo: form.tipo_ruolo, status: "pending", created_at: new Date().toISOString() });
+      setRequestStatus({ tipo_ruolo: form.tipo_ruolo, status: "pending", created_at: new Date().toISOString(), cie_names_verified_at: new Date().toISOString() });
       toast({
         title: "Richiesta inviata",
         description: "La tua richiesta di riconoscimento è stata inviata agli amministratori.",
@@ -378,7 +379,9 @@ export default function Riconoscimento() {
                     ? "Il tuo ruolo è stato riconosciuto. Puoi presentare una nuova richiesta se è cambiato."
                     : requestStatus.status === "rejected"
                       ? "Puoi correggere le informazioni e inviare nuovamente la richiesta."
-                      : "La richiesta è stata ricevuta e attende la verifica amministrativa."}
+                      : requestStatus.cie_names_verified_at
+                         ? "La richiesta è stata ricevuta e attende la verifica amministrativa."
+                         : "Questa richiesta precedente non contiene nomi certificati con CIE. Per ottenere l’approvazione, certifica nome e cognome e invia nuovamente la domanda."}
                 </p>
               </div>
             )}
