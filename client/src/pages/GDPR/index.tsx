@@ -42,6 +42,10 @@ export default function GDPR() {
       return response.data;
     },
     onSuccess: () => {
+      // Opinion questions payloads include the account's individual answers.
+      // A successful GDPR revocation must remove them immediately, even when
+      // the original opinion page is currently unmounted.
+      queryClient.removeQueries({ queryKey: ['opinioniQuestions'] });
       queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       toast({
