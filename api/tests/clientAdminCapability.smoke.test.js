@@ -76,7 +76,7 @@ test('menu logo Admin access uses canonical capability helper', () => {
   assert.doesNotMatch(src, /const isAdmin = user\?\.ruolo === ['"]AD['"]/);
 });
 
-test('/gestisci home exposes five canonical hubs instead of low-level tools', () => {
+test('/gestisci home exposes five admin hubs plus the DPO overview, without low-level tools', () => {
   const hubs = read('client/src/pages/Gestisci/constants/hubs.ts');
   const grid = read('client/src/pages/Gestisci/components/SectionsGrid.tsx');
 
@@ -95,7 +95,10 @@ test('/gestisci home exposes five canonical hubs instead of low-level tools', ()
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']backup-recovery["']/s);
   assert.doesNotMatch(hubs, /sectionIds:\s*\[[^\]]*["']data-export["']/s);
   assert.match(hubs, /route:\s*["']\/admin\/ops-center["']/);
-  assert.match(grid, /gestisciHubs\.map/);
+  assert.match(grid, /overviewHubs\.map/);
+  assert.match(grid, /\.\.\.gestisciHubs/);
+  assert.match(grid, /id: "dpo"/);
+  assert.match(grid, /gestisci-dpo/);
   assert.match(grid, /selectedHubId/);
 });
 
