@@ -40,6 +40,12 @@ Prima di salvare un bitset reale occorre:
 4. convertire le versioni precedenti senza riordinare le opinioni;
 5. testare anche i client Android che usano ancora f/c/i/NULL.
 
+Il prototipo espone anche `catalogFingerprint(ids)` (SHA-256 dell'ordine esatto)
+e `isAppendOnlyCatalog(idsVecchi, idsNuovi)` per rilevare riordini o
+rimozioni accidentali. Il fingerprint NON sostituisce la persistenza di
+versione e catalogo accanto al BYTEA. I test dimostrano anche che due
+snapshot concorrenti possono perdere un aggiornamento senza lock/CAS.
+
 patchAnswers modifica un Buffer *in memoria*, in modo puro. **Non è**
 un aggiornamento atomico di PostgreSQL: leggere il blob, cambiarlo e
 riscriverlo senza lock/versione può perdere risposte da richieste concorrenti.
