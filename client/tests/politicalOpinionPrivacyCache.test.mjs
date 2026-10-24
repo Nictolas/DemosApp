@@ -66,6 +66,7 @@ test('every personal opinion read forwards the React Query AbortSignal to the HT
  assert.match(selector,/queryFn: async \(\{ signal \}\) => \{/);
  assert.ok(selector.includes('undefined, undefined, signal'));
  assert.ok(selector.includes('enabled: !!user'));
+ assert.ok(selector.includes('return response.data;'), 'statistics selector must unwrap the actual JSON payload');
  const client=source('lib/queryClient.ts');
  assert.match(client,/externalSignal\?: AbortSignal/);
  assert.match(client,/externalSignal\?\.addEventListener\('abort', abortFromQuery/);
