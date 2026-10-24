@@ -160,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await fetch(getApiUrl(API_CONFIG.AUTH.LOGOUT), {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
             ...(tokenToRevoke ? { Authorization: `Bearer ${tokenToRevoke}` } : {}),
