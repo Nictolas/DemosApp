@@ -113,7 +113,7 @@ export const SectionsGrid: React.FC<{ dpoReadOnly?: boolean }> = ({ dpoReadOnly 
         <p className="mt-1 max-w-3xl text-sm text-slate-600">
           {dpoReadOnly
             ? 'Le cinque aree e il pannello privacy mostrano un riepilogo aggregato in sola lettura. Nessun accesso ai comandi amministrativi o alle configurazioni tecniche.'
-            : 'Le funzioni amministrative sono raccolte in cinque aree, con il Pannello DPO per la supervisione della privacy. Gli strumenti tecnici sono nell'Ops Center.'}
+            : 'Le funzioni amministrative sono raccolte in cinque aree, con il Pannello DPO per la supervisione della privacy. Gli strumenti tecnici sono nell’Ops Center.'}
         </p>
       </div>
 
