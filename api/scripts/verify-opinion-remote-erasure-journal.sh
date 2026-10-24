@@ -105,5 +105,12 @@ OPINION_REMOTE_PHASE=verify node api/scripts/verify-opinion-remote-erasure-journ
 OPINION_REMOTE_CUTOVER=synthetic-fence-only \
   node api/scripts/verify-opinion-remote-cutover-fence.js
 
+# DOC-052 measures the additional remote lock/head-HMAC overhead against
+# the same SQL protected view with synthetic warm and concurrent reads.
+# This runs after DOC-051, before the journal container is removed.
+OPINION_REMOTE_CUTOVER=synthetic-fence-only \
+  OPINION_REMOTE_BENCH=synthetic-measure-only \
+  node api/scripts/benchmark-opinion-remote-fence.js
+
 echo "OPINION_REMOTE_JOURNAL_PGDUMP_CLI_PASS"
 echo "OPINION_REMOTE_JOURNAL_PGDUMP_CLI_BYTES=$(wc -c < "$backup" | tr -d ' ')"
