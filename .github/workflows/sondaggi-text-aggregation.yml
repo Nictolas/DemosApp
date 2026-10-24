@@ -8,6 +8,7 @@ on:
       - 'api/tests/sondaggiTextBulk.test.js'
       - 'api/tests/opinionStatsAccountPopulation.test.js'
       - 'api/scripts/verify-sondaggi-text-standalone.js'
+      - 'api/scripts/benchmark-sondaggi-text-paired.js'
       - '.github/workflows/sondaggi-text-aggregation.yml'
 
 permissions:
@@ -55,3 +56,14 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-sondaggi-text-standalone.js
+      - name: Compare old and new SQL p50/p95 on the identical fabricated PG17 dataset
+        env:
+          GITHUB_ACTIONS: 'true'
+          SONDAGGI_TEXT_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: sondaggi_text_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-sondaggi-text-paired.js
+
