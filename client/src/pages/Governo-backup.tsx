@@ -118,7 +118,7 @@ export default function Governo() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-7xl">
-        <Button variant="ghost" className="mb-4 flex items-center" onClick={() => window.location.href = "/menu"}><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button>
+        <Button variant="ghost" className="mb-4 flex items-center" onClick={() => window.location.href = "/preferiti"}><ArrowLeft className="mr-2 h-4 w-4" />Torna ai Preferiti</Button>
         <Card className="mb-6">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full"><Building2 className="h-12 w-12 text-white" /></div></div>
