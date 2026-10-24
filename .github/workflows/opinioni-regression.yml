@@ -45,4 +45,16 @@ jobs:
       - name: Install API dependencies
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Verify opinion regressions
-        run: node --test --test-concurrency=1 api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js
+        # Execute node:test in-process. Separate Node workers intermittently
+        # fail to deserialize the runner's IPC messages (ERR_TEST_FAILURE).
+        # This avoids false failures without suppressing test assertions.
+        run: |
+          set -euo pipefail
+          for testfile in \
+            api/tests/opinionStatsColumns.test.js \
+            api/tests/ordinaryUserOpinionSave.test.js \
+            api/tests/politicalOpinionWriteRules.smoke.test.js \
+            api/tests/opinionPrivacy.test.js
+          do
+            node "$testfile"
+          done
