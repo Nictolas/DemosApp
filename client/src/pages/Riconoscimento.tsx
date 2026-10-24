@@ -370,7 +370,43 @@ export default function Riconoscimento() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {requestStatus && (
+              <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4" role="status">
+                <div className="font-semibold text-slate-900">
+                  {requestStatus.status === "approved" ? "Riconoscimento approvato"
+                    : requestStatus.status === "rejected" ? "Richiesta respinta"
+                    : "Richiesta in verifica"}
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  {requestStatus.status === "approved"
+                    ? "Il tuo ruolo è stato riconosciuto. Puoi presentare una nuova richiesta se è cambiato."
+                    : requestStatus.status === "rejected"
+                      ? "Puoi correggere le informazioni e inviare nuovamente la richiesta."
+                      : "La richiesta è stata ricevuta e attende la verifica amministrativa."}
+                </p>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                <div className="font-semibold text-slate-900">1. Verifica dell'identità</div>
+                <p className="text-sm text-slate-700" role="status">
+                  {identity === "loading" ? "Controllo della verifica CIE..."
+                    : identity === "verified" ? "Identità verificata con CIE"
+                    : identity === "error" ? "Impossibile controllare lo stato della verifica. Ricarica la pagina."
+                    : "Per inviare la richiesta devi prima verificare la tua identità con CIE."}
+                </p>
+                {identity === "unverified" && (
+                  <Button type="button" variant="outline" onClick={handleStartCie} disabled={isStartingCie}>
+                    {isStartingCie ? "Avvio verifica..." : "Verifica con CIE"}
+                  </Button>
+                )}
+                <p className="text-xs text-slate-500">
+                  Dopo la verifica potrai tornare a questa pagina dalle impostazioni.
+                  Nome e cognome del profilo non sono certificati dalla CIE:
+                  saranno confrontati con la fonte ufficiale.
+                </p>
+              </div>
+              <div className="font-semibold text-slate-900">2. Ruolo e territorio</div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
                 Ruolo richiesto
