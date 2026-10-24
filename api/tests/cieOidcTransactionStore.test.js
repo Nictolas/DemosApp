@@ -327,3 +327,21 @@ test('recognition CIE transaction is one-time and purpose-bound', async () => {
   assert.equal(JSON.stringify(consumed).includes('givenName'), false);
   await assert.rejects(consumeCieOidcTransaction(tx.state, redis), /non trovata/);
 });
+
+test('pre-account CIE transactions strip citizen personal names', async () => {
+  const redis = fakeRedis();
+  const tx = {
+    state: 'q'.repeat(64), nonce: 'w'.repeat(64),
+    codeVerifier: 'verifier', expiresAt: Date.now() + 60000
+  };
+  await saveCieRegistrationTransaction('oauth:sub', {
+    provider: 'google', providerSub: 'some-sub', privacyPolicyConsent: true,
+    termsOfServiceConsent: true, givenName: 'Giovanna',
+    familyName: 'Bianchi', name: 'Giovanna Bianchi'
+  }, tx, redis);
+  const loaded = await consumeCieOidcTransaction(tx.state, redis);
+  assert.equal(loaded.registration.givenName, undefined);
+  assert.equal(loaded.registration.familyName, undefined);
+  assert.equal(loaded.registration.name, undefined);
+  assert.equal(JSON.stringify(loaded).includes('Giovanna'), false);
+});
