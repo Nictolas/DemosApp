@@ -21,6 +21,11 @@ on:
       - 'api/tests/opinionTextAggregateProbe.test.js'
       - 'api/utils/opinionTextAggregateProbe.js'
       - 'api/scripts/benchmark-opinion-text-aggregate.js'
+      - 'api/routes/sondaggi.js'
+      - 'api/utils/sondaggiTextBulk.js'
+      - 'api/tests/sondaggiTextBulk.test.js'
+      - 'api/tests/opinionStatsAccountPopulation.test.js'
+      - 'api/scripts/verify-sondaggi-text-endpoint.js'
       - 'api/tests/opinionTrimmedBitset.test.js'
       - 'api/tests/opinionSparseBitset.test.js'
       - 'api/tests/opinionMatchingBitset.test.js'
@@ -107,6 +112,10 @@ jobs:
         run: node --test api/tests/politicalConsentAtomic.smoke.test.js
       - name: Regression-check the existing authenticated opinion POST HTTP endpoint
         run: node --test api/tests/ordinaryUserOpinionSave.test.js
+      - name: Regression-check national TEXT survey SQL, fallback and privacy
+        run: |
+          node api/tests/sondaggiTextBulk.test.js
+          node api/tests/opinionStatsAccountPopulation.test.js
       - name: Verify admin opinion consent lock and replay ordering (mock DB)
         run: |
           node api/tests/politicalOpinionWriteRules.smoke.test.js
@@ -138,6 +147,15 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/benchmark-opinion-text-aggregate.js
+      - name: Verify actual GET sondaggio with PostgreSQL 17 synthetic fixtures
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-sondaggi-text-endpoint.js
       - name: Verify PERSON consent joins and anti-inference threshold for all codecs
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'

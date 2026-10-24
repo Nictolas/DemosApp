@@ -551,3 +551,60 @@ transazionale; altri endpoint di preferenze politiche, gli
 import manuali e gli script di migrazione non sono stati
 tutti verificati. Nessuna migrazione né deploy; PR in bozza;
 OP-41 In corso, KPI-23 Non verificato e OP-42 Da fare.
+
+
+## Query TEXT raggruppate per GET /api/sondaggi nazionale (DOC-039)
+
+La route **effettiva nel branch in bozza**, `api/routes/sondaggi.js`,
+ora delega gli aggregati nazionali al helper
+`api/utils/sondaggiTextBulk.js`, senza modificare la risposta legacy
+`{ success: true, data: { stats, questions } }`, senza BYTEA o schema
+nuovo. Le rotte regionali/provinciali/comunali restano invariate.
+
+Il helper usa il catalogo delle domande pubblicate già filtrato dalla
+route e richiede **due whitelist** prima di inserire identificatori nel
+SQL: ID con forma stretta `^[a-z][a-z0-9_]{0,62}$` e
+`information_schema.columns` nel `public.opinioni_risposte`.
+La verifica di colonna è una query parametrica `ANY($1::text[])`,
+anziché un'interrogazione per opinione. Un'unica SELECT con
+`CROSS JOIN LATERAL (VALUES ...)` e `GROUP BY v.opinion_id`
+calcola i tre conteggi f/c/i, con gli stessi filtri
+`account_type='PERSON'`, consenso `COALESCE` e risposta non NULL.
+La soglia privacy minima di **10 risposte** viene applicata in Node
+tramite `cellThresholdMet`, come prima. Domande prive di colonna o
+di cella pubblicabile restano elencate in `questions`, senza chiave
+in `stats`.
+
+Se la SELECT raggruppata o la lettura metadata falliscono, un fallback
+interroga separatamente soltanto le colonne con ID validati e trovate
+nello schema, mantenendo la soppressione delle celle sotto soglia.
+Cataloghi oltre 256 colonne usano direttamente il fallback.
+
+I nuovi `api/tests/sondaggiTextBulk.test.js` e
+`api/tests/opinionStatsAccountPopulation.test.js` verificano
+SQL sicuro, contract HTTP nazionale con pool sintetico, numero di
+query, filtro account, consenso, soglia 9/10, fallback e mantenimento
+dei filtri delle altre tre rotte. Il runner **CI-only**
+`api/scripts/verify-sondaggi-text-endpoint.js` monta invece la
+**vera route GET** con PostgreSQL 17 effimero, usando viste di prova
+sopra `ci_query_text` e `ci_opt_users` già creati nel job.
+Verifica contratti JSON, domanda non approvata, cella esattamente
+10 voti poi 9 dopo una revoca di prova, ripristino consenso e
+fallback SQL, controllando anche che il percorso normale esegua
+**3 query SQL per richiesta** (domande + schema + aggregato), invece
+di 1+2N. Il runner rifiuta qualunque database diverso dal
+`opinion_bitset_ci` di GitHub Actions con credenziali fittizie.
+
+L'output EXPLAIN ANALYZE precedente, su 1.200 righe sintetiche,
+mostrava **27,526 ms** per il raggruppamento TEXT contro circa
+**49,953 ms** di somma delle 94 query TEXT separate. I valori non
+comprendono roundtrip rete, pool, cold cache, produzione o Android.
+Non costituiscono un SLA o una prova di risparmio effettivo su
+Supabase.
+
+**Limiti:** questa è un'ottimizzazione del solo endpoint nazionale;
+non implica alcuna integrazione BYTEA o cambiamento di database.
+Un piano SQL differente in produzione può offrire vantaggi diversi,
+e un errore persistente del DB può comunque ridurre la disponibilità
+di statistiche anche con il fallback. Niente merge/deploy: OP-41
+**In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.

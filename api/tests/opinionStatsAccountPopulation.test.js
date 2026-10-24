@@ -18,10 +18,13 @@ test('opinion statistics use canonical PERSON account population in every aggreg
   assert.doesNotMatch(stats, /u\.ruolo NOT IN \('I', 'O', 'Istituzione', 'Organizzazione'\)/);
 });
 
-test('survey opinion aggregates use the same canonical PERSON population', () => {
+test('survey opinion aggregates use the canonical PERSON population across national and territorial queries', () => {
   const surveys = read('api/routes/sondaggi.js');
-  assert.equal(countMatches(surveys, /AND u\.account_type = 'PERSON'/g), 4);
-  assert.doesNotMatch(surveys, /u\.ruolo NOT IN \('I', 'O', 'Istituzione', 'Organizzazione'\)/);
+  const national = read('api/utils/sondaggiTextBulk.js');
+  assert.equal(countMatches(surveys, /AND u\.account_type = 'PERSON'/g), 3);
+  assert.equal(countMatches(national, /AND u\.account_type = 'PERSON'/g), 2);
+  assert.doesNotMatch(surveys + national,
+    /u\.ruolo NOT IN \('I', 'O', 'Istituzione', 'Organizzazione'\)/);
 });
 
 test('opinion statistics continue to require an explicit answer and political-opinion consent', () => {
@@ -33,11 +36,15 @@ test('opinion statistics continue to require an explicit answer and political-op
   );
 });
 
-test('survey aggregates continue to exclude NULL answers and require consent', () => {
+test('survey aggregates exclude NULL answers and require consent in grouped and fallback TEXT', () => {
   const surveys = read('api/routes/sondaggi.js');
-  assert.equal(countMatches(surveys, /orr\."\$\{columnName\}" IS NOT NULL/g), 4);
+  const national = read('api/utils/sondaggiTextBulk.js');
+  assert.equal(countMatches(surveys, /orr\."\$\{columnName\}" IS NOT NULL/g), 3);
   assert.equal(
     countMatches(surveys, /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/g),
-    4
+    3
   );
+  assert.match(national, /v\.answer IS NOT NULL/);
+  assert.match(national, /WHERE orr\.\$\{quoted\} IS NOT NULL/);
+  assert.equal(countMatches(national, /COALESCE\(uc\.political_opinions_consent,/g), 2);
 });
