@@ -68,7 +68,8 @@ function userRow(i) {
     (i%4===0?'north1':i%4===1?'south1':i%4===2?'north2':'south2');
   const comune=region==='rare9'?'village9':region==='rare10'?'village10':
     ('city_'+(i%9));
-  const dob=['2008-03-20','2002-05-10','1994-08-01',
+  const dob=i%11===0 ? null :
+    ['2008-03-20','2002-05-10','1994-08-01',
     '1984-06-13','1972-01-04','1962-12-12','1944-01-01'][i%7];
   return {id:uuid(i),region,gender,province,comune,dob,accountType,consent,
     consentOverride,createConsentRow};
@@ -170,6 +171,10 @@ function queryFor(type,index,scope,publishedOnly){
   const selectGroup=groupExpr?groupExpr+' AS segment, ':'';
   const having=publishedOnly?' HAVING COUNT(*) >= '+
     MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE:'';
+  // Match the real /stats/:id/eta and /stats/:id/genere routes, which
+  // explicitly exclude users with missing demographic attributes.
+  const demographicsFilter=scope==='genders'?' AND u.genere IS NOT NULL':
+    scope==='ages'?' AND u.data_nascita IS NOT NULL':'';
   return 'WITH eligible AS MATERIALIZED ('+
     'SELECT '+exp+' AS opinion_val'+extra+
     ' FROM ci_privacy_'+type+' r'+
@@ -177,7 +182,7 @@ function queryFor(type,index,scope,publishedOnly){
     ' LEFT JOIN ci_privacy_consents uc ON uc.user_id=u.id'+
     " WHERE u.account_type='PERSON'"+
     ' AND COALESCE(uc.political_opinions_consent,'+
-    'u.political_opinions_consent,false) IS TRUE'+
+    'u.political_opinions_consent,false) IS TRUE'+demographicsFilter+
     ') SELECT '+selectGroup+
     'COUNT(*)::int AS totale, '+
     'COUNT(*) FILTER (WHERE opinion_val='+codes[0]+')::int AS favorevole, '+
