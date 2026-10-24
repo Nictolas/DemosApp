@@ -48,7 +48,8 @@ async function main(){
     require.resolve('../services/privacyErasureLedgerService'),
     require.resolve('../services/politicalConsentService'),
     require.resolve('../routes/opinioni/user-answers'),
-    require.resolve('../routes/user/political-opinions-consent')
+    require.resolve('../routes/user/political-opinions-consent'),
+    require.resolve('../routes/users/profile')
   ];
   const previous=new Map(paths.map(p=>[p,require.cache[p]]));
   let server;
@@ -82,10 +83,12 @@ async function main(){
     await real.query('CREATE TABLE users(id uuid PRIMARY KEY, political_opinions_consent boolean NOT NULL, political_opinions_consent_timestamp timestamptz, political_opinions_consent_ip_address text, political_opinions_consent_user_agent text, updated_at timestamptz DEFAULT now())');
     await real.query('CREATE TABLE user_consents(user_id uuid PRIMARY KEY,political_opinions_consent boolean,political_opinions_consent_timestamp timestamptz,political_opinions_consent_ip_address text,political_opinions_consent_user_agent text,updated_at timestamptz DEFAULT now())');
     await real.query('CREATE TABLE opinioni_risposte(user_id uuid PRIMARY KEY,energia_nucleare text)');
+    await real.query('CREATE TABLE opinioni_domande(id text PRIMARY KEY,text text)');
+    await real.query("INSERT INTO opinioni_domande VALUES('energia_nucleare','Synthetic energy opinion')");
     await real.query('INSERT INTO users(id,political_opinions_consent) VALUES($1,true)',[ID]);
     await real.query('INSERT INTO user_consents(user_id,political_opinions_consent) VALUES($1,true)',[ID]);
 
-    const [auth,audit,ledger,service,saveRoute,revokeRoute]=paths;
+    const [auth,audit,ledger,service,saveRoute,revokeRoute,adminRoute]=paths;
     require.cache[auth]={id:auth,filename:auth,loaded:true,exports:{
       pool,
       verifyToken:(req,res,next)=>{
@@ -95,7 +98,7 @@ async function main(){
         req.userId=ID;req.user={id:ID,isPolitician:false,isCandidate:false};
         next();
       },
-      requireAdmin:(_r,res)=>res.status(403).end()
+      requireAdmin:(_r,_res,next)=>next() // CI-only fake administrator
     }};
     require.cache[audit]={id:audit,filename:audit,loaded:true,exports:{
       logAction:async()=>{}
@@ -114,11 +117,12 @@ async function main(){
       tableHasColumn:async()=>false,
       quoteIdentifier:id=>'"'+String(id).replace(/"/g,'""')+'"'
     }};
-    for(const p of [service,saveRoute,revokeRoute])delete require.cache[p];
+    for(const p of [service,saveRoute,revokeRoute,adminRoute])delete require.cache[p];
 
     const app=express();app.disable('x-powered-by');app.use(express.json());
     app.use('/api/opinioni',require(saveRoute));
     app.use('/api/user/political-opinions-consent',require(revokeRoute));
+    app.use('/api/users',require(adminRoute));
     server=http.createServer(app);
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const base='http://127.0.0.1:'+server.address().port;
@@ -128,6 +132,7 @@ async function main(){
     });
     const save=()=>request('/api/opinioni/salva','POST',{opinioni:{energia_nucleare:'f'}});
     const revoke=()=>request('/api/user/political-opinions-consent/revoke','PUT');
+    const admin=()=>request('/api/users/'+ID+'/opinioni','PUT',{opinioni:{energia_nucleare:'f'}});
     const reset=async()=>{
       await real.query('UPDATE users SET political_opinions_consent=true WHERE id=$1',[ID]);
       await real.query('UPDATE user_consents SET political_opinions_consent=true WHERE user_id=$1',[ID]);
@@ -170,9 +175,32 @@ async function main(){
     blocked=null;
     assert.equal((await save()).status,200);
     assert.deepEqual(await inspect(),{consent:true,override:true,answer:'f'});
+    // The admin route must observe the same serialization guarantees.
+    await reset();
+    blocked={phase:'save',locked:gate(),resume:gate(),consumed:false};
+    const adminFirst=admin();
+    await timeout(blocked.locked.promise);
+    const afterAdminRevoke=revoke();
+    blocked.resume.resolve();
+    assert.equal((await timeout(adminFirst)).status,200);
+    assert.equal((await timeout(afterAdminRevoke)).status,200);
+    assert.deepEqual(await inspect(),{consent:false,override:false,answer:null});
+
+    await reset();
+    blocked={phase:'revoke',locked:gate(),resume:gate(),consumed:false};
+    const revokeBeforeAdmin=revoke();
+    await timeout(blocked.locked.promise);
+    const adminAfterRevoke=admin();
+    blocked.resume.resolve();
+    assert.equal((await timeout(revokeBeforeAdmin)).status,200);
+    const adminDenied=await timeout(adminAfterRevoke);
+    assert.equal(adminDenied.status,403);
+    assert.equal((await adminDenied.json()).consent_required,true);
+    assert.deepEqual(await inspect(),{consent:false,override:false,answer:null});
+
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_REAL_PG17_PASS');
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_RESULT_JSON='+JSON.stringify({
-      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save'],
+      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','admin-before-revoke','revoke-before-admin'],
       postRevocationPersistedAnswers:0, unauthorizedWrites:0,
       isolated:true,productionUntouched:true
     }));
