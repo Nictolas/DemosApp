@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/queryClient';
+import {
+  Activity, ArrowLeft, Bell, BookOpen, Building2, CheckCircle2,
+  ChevronRight, Clock3, Eye, ShieldCheck, Users
+} from 'lucide-react';
 
 interface DpoOverview {
   role: 'DPO' | 'Admin';
@@ -9,26 +13,40 @@ interface DpoOverview {
   gdpr_requests_completed: number;
   gdpr_requests_migration_excluded: number;
   rights_counter_scope: 'user_rights_requests_excluding_migration_seed';
+  retention_policy?: string;
+  log_policy?: string;
 }
 
 interface DpoAreas {
   scope: 'aggregated_readonly';
-  'utenti-verifiche': { users_total: number; users_active: number; recognitions_total: number };
-  contenuti: { opinions_total: number; proposed_opinions_total: number };
-  comunicazioni: { notifications_total: number };
-  'dati-istituzionali': { ministry_initiatives_total: number; parliamentary_votes_total: number };
+  'utenti-verifiche': {
+    users_total: number; users_active: number; users_recent: number;
+    recognitions_total: number; recognitions_recent: number
+  };
+  contenuti: {
+    opinions_total: number; opinions_with_detail: number;
+    proposed_opinions_total: number; proposed_opinions_recent: number
+  };
+  comunicazioni: {
+    notifications_total: number; notifications_recent: number;
+    notifications_latest_at: string | null
+  };
+  'dati-istituzionali': {
+    ministry_initiatives_total: number; ministry_initiatives_not_ended: number;
+    ministry_last_updated_at: string | null; parliamentary_votes_total: number
+  };
   'ops-center': { access: 'privacy_oversight_only' };
 }
 
 type AreaId = 'utenti-verifiche' | 'contenuti' | 'comunicazioni' | 'dati-istituzionali' | 'ops-center';
 
-const sections: { id: AreaId; title: string; description: string }[] = [
-  { id: 'utenti-verifiche', title: 'Utenti e verifiche', description: 'Utenti registrati e richieste di riconoscimento' },
-  { id: 'contenuti', title: 'Contenuti', description: 'Opinioni disponibili e proposte' },
-  { id: 'comunicazioni', title: 'Comunicazioni', description: 'Volume delle notifiche DEMOS' },
-  { id: 'dati-istituzionali', title: 'Dati istituzionali', description: 'Iniziative ministeriali e votazioni parlamentari' },
-  { id: 'ops-center', title: 'Ops Center', description: 'Riepilogo privacy, senza strumenti di amministrazione tecnica' }
-];
+const sections = [
+  { id: 'utenti-verifiche', title: 'Utenti e verifiche', description: 'Account e riconoscimenti', icon: Users, accent: 'text-violet-700 bg-violet-100' },
+  { id: 'contenuti', title: 'Contenuti', description: 'Opinioni e proposte', icon: BookOpen, accent: 'text-cyan-700 bg-cyan-100' },
+  { id: 'comunicazioni', title: 'Comunicazioni', description: 'Notifiche e invii', icon: Bell, accent: 'text-pink-700 bg-pink-100' },
+  { id: 'dati-istituzionali', title: 'Dati istituzionali', description: 'Iniziative e votazioni', icon: Building2, accent: 'text-slate-700 bg-slate-100' },
+  { id: 'ops-center', title: 'Ops Center', description: 'Supervisione privacy', icon: Activity, accent: 'text-indigo-700 bg-indigo-100' }
+] as const;
 
 const getInitialArea = (): AreaId | null => {
   const requested = new URLSearchParams(window.location.search).get('section');
@@ -38,11 +56,29 @@ const getInitialArea = (): AreaId | null => {
 const displayCount = (value: number | undefined) =>
   Number.isFinite(value) ? Number(value).toLocaleString('it-IT') : '—';
 
-function Metric({ label, count }: { label: string; count: number | undefined }) {
+const displayDate = (value: string | null | undefined) => {
+  if (!value) return 'Non disponibile';
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? 'Non disponibile' :
+    new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+};
+
+function Metric({ label, count, note }: { label: string; count: number | undefined; note?: string }) {
   return (
-    <div className="rounded-xl border bg-white p-4">
-      <p className="text-sm text-slate-600">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-slate-900">{displayCount(count)}</p>
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-sm font-medium text-slate-600">{label}</p>
+      <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{displayCount(count)}</p>
+      {note && <p className="mt-2 text-xs leading-relaxed text-slate-500">{note}</p>}
+    </div>
+  );
+}
+
+function DateMetric({ label, date }: { label: string; date: string | null | undefined }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-sm font-medium text-slate-600">{label}</p>
+      <p className="mt-3 text-lg font-semibold text-slate-900">{displayDate(date)}</p>
+      <p className="mt-2 text-xs text-slate-500">Data dell'ultimo evento registrato</p>
     </div>
   );
 }
@@ -80,105 +116,182 @@ export default function DpoPanel() {
   }, []);
 
   const selected = sections.find((section) => section.id === selectedArea);
+  const SelectedIcon = selected?.icon ?? ShieldCheck;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8" aria-labelledby="dpo-heading">
-      <a href="/gestisci" className="text-sm font-medium text-indigo-700 hover:underline">← Torna a Gestisci</a>
-      <h1 id="dpo-heading" className="mt-4 text-2xl font-semibold">Pannello privacy DPO</h1>
-      <p className="mb-5 mt-2 text-sm text-slate-600">
-        Consultazione in sola lettura. Nessuna modifica di utenti, contenuti, notifiche,
-        configurazioni, credenziali o backup; nessun accesso a opinioni o voti individuali.
-      </p>
-      {loading && <p role="status">Caricamento…</p>}
-      {!loading && error && <p role="alert" className="mb-4 text-rose-700">{error}</p>}
-      {!loading && data && (
-        <>
-          <p className="mb-4 text-sm text-slate-600">
-            Accesso autorizzato come <strong>{data.role}</strong>.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5" aria-label="Aree di consultazione">
-            {sections.map((section) => (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => setSelectedArea(section.id)}
-                aria-pressed={selectedArea === section.id}
-                className={`rounded-xl border p-3 text-left text-sm font-semibold transition-colors ${selectedArea === section.id
-                  ? 'border-indigo-400 bg-indigo-50 text-indigo-900'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
-              >
-                {section.title}
-                <span className="mt-1 block text-xs font-normal text-slate-500">Sola lettura</span>
-              </button>
-            ))}
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f8fbff_42%,_#ffffff_78%)]" aria-labelledby="dpo-heading">
+      <div className="mx-auto w-full max-w-6xl px-4 pb-14 pt-6 sm:px-6 lg:px-8">
+        <a href="/gestisci" className="mb-5 inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Torna a Gestisci
+        </a>
+
+        <header className="rounded-3xl border border-slate-200/90 bg-white/90 p-5 shadow-sm sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700">
+                <ShieldCheck className="h-7 w-7" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-violet-700">Supervisione · DEMOS</p>
+                <h1 id="dpo-heading" className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Pannello privacy DPO</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+                  Richieste GDPR e informazioni aggregate, organizzate per area. Nessun dato relativo a voti o opinioni individuali.
+                </p>
+              </div>
+            </div>
+            {!loading && data && (
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                <span className="rounded-full bg-slate-100 px-3 py-2 text-slate-700">
+                  {data.role === 'Admin' ? 'Consultazione come Admin' : 'Ruolo DPO'}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-2 text-violet-800">
+                  <Eye className="h-3.5 w-3.5" aria-hidden="true" /> Sola lettura
+                </span>
+              </div>
+            )}
           </div>
-          {!selected && (
-            <section className="mt-6 rounded-xl border bg-white p-5">
-              <h2 className="text-lg font-semibold">Riepilogo privacy</h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Seleziona un'area per vedere i suoi indicatori aggregati. Nessun accesso alle schermate amministrative.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <Metric label="Richieste GDPR operative" count={data.gdpr_requests_total} />
-                <Metric label="In attesa" count={data.gdpr_requests_pending} />
-                <Metric label="In lavorazione" count={data.gdpr_requests_processing} />
+        </header>
+
+        {loading && <p role="status" className="mt-6 text-sm text-slate-600">Caricamento dei riepiloghi…</p>}
+        {!loading && error && <p role="alert" className="mt-6 rounded-xl border border-rose-200 bg-white p-4 text-sm text-rose-700">{error}</p>}
+
+        {!loading && data && (
+          <>
+            <section className="mt-7" aria-label="Aree di consultazione">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-slate-900">Esplora le aree</h2>
+                <span className="text-xs text-slate-500">Cinque sezioni · solo consultazione</span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                {sections.map((section) => {
+                  const Icon = section.icon;
+                  const active = selectedArea === section.id;
+                  return (
+                    <button
+                      key={section.id}
+                      type="button"
+                      onClick={() => setSelectedArea(section.id)}
+                      aria-pressed={active}
+                      className={'group relative min-h-[140px] rounded-2xl border p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ' +
+                        (active ? 'border-violet-400 bg-violet-50 ring-1 ring-violet-300' : 'border-slate-200 bg-white hover:border-slate-300')}
+                    >
+                      <span className={'mb-3 flex h-10 w-10 items-center justify-center rounded-xl ' + section.accent}>
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <span className="block pr-4 text-sm font-semibold text-slate-900">{section.title}</span>
+                      <span className="mt-1 block text-xs text-slate-600">{section.description}</span>
+                      <ChevronRight className="absolute bottom-4 right-3.5 h-4 w-4 text-slate-400" aria-hidden="true" />
+                    </button>
+                  );
+                })}
               </div>
             </section>
-          )}
-          {selected && (
-            <section className="mt-6 rounded-xl border bg-white p-5" aria-live="polite">
-              <h2 className="text-lg font-semibold">{selected.title}</h2>
-              <p className="mt-1 text-sm text-slate-600">{selected.description}. Solo dati aggregati.</p>
-              {areasError && selected.id !== 'ops-center' && (
-                <p role="alert" className="mt-4 text-sm text-rose-700">{areasError}</p>
+
+            <section className="mt-7 rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm sm:p-7" aria-live="polite">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+                    <SelectedIcon className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-900">{selected?.title ?? 'Riepilogo privacy'}</h2>
+                    <p className="mt-1 text-sm text-slate-600">{selected?.description ?? 'Stato delle richieste GDPR registrate nel sistema'}</p>
+                  </div>
+                </div>
+                {selected && (
+                  <button type="button" onClick={() => setSelectedArea(null)}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                    Riepilogo generale
+                  </button>
+                )}
+              </div>
+
+              {areasError && selectedArea !== 'ops-center' && selectedArea !== null && (
+                <p role="alert" className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{areasError}</p>
               )}
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {selected.id === 'utenti-verifiche' && areas && (
-                  <>
-                    <Metric label="Account registrati" count={areas['utenti-verifiche'].users_total} />
-                    <Metric label="Account attivi" count={areas['utenti-verifiche'].users_active} />
-                    <Metric label="Richieste di riconoscimento registrate" count={areas['utenti-verifiche'].recognitions_total} />
-                  </>
-                )}
-                {selected.id === 'contenuti' && areas && (
-                  <>
-                    <Metric label="Opinioni disponibili" count={areas.contenuti.opinions_total} />
-                    <Metric label="Opinioni proposte" count={areas.contenuti.proposed_opinions_total} />
-                  </>
-                )}
-                {selected.id === 'comunicazioni' && areas && (
-                  <Metric label="Notifiche DEMOS registrate" count={areas.comunicazioni.notifications_total} />
-                )}
-                {selected.id === 'dati-istituzionali' && areas && (
-                  <>
-                    <Metric label="Iniziative ministeriali" count={areas['dati-istituzionali'].ministry_initiatives_total} />
-                    <Metric label="Votazioni parlamentari registrate" count={areas['dati-istituzionali'].parliamentary_votes_total} />
-                  </>
-                )}
-                {selected.id === 'ops-center' && (
-                  <>
+
+              {(selectedArea === null || selectedArea === 'ops-center') && (
+                <>
+                  {data.gdpr_requests_total === 0 && (
+                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-slate-600" aria-hidden="true" />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">Nessuna richiesta GDPR operativa registrata</p>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-600">Le righe di migrazione sono escluse dal conteggio: questo dato non copre necessariamente richieste ricevute tramite altri canali.</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <Metric label="Richieste GDPR operative" count={data.gdpr_requests_total} />
                     <Metric label="In attesa" count={data.gdpr_requests_pending} />
                     <Metric label="In lavorazione" count={data.gdpr_requests_processing} />
                     <Metric label="Completate" count={data.gdpr_requests_completed} />
-                  </>
-                )}
-              </div>
-              {selected.id === 'ops-center' && (
-                <p className="mt-4 text-sm text-slate-600">
-                  Per la supervisione privacy non sono disponibili gestione server, esportazione integrale dei dati,
-                  ripristino backup, modifiche ai permessi o comandi tecnici.
-                </p>
+                  </div>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-slate-600" aria-hidden="true" />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">Conservazione dei dati</p>
+                        <p className="mt-1 text-sm text-slate-600">Politiche di retention in revisione. Il riepilogo non certifica la conformità.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-slate-600" aria-hidden="true" />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">Ambito degli accessi</p>
+                        <p className="mt-1 text-sm text-slate-600">Non sono disponibili gestione tecnica, modifica dei permessi, backup o esportazione integrale dei dati.</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {selectedArea === 'utenti-verifiche' && areas && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <Metric label="Account registrati" count={areas['utenti-verifiche'].users_total} />
+                  <Metric label="Account attivi" count={areas['utenti-verifiche'].users_active} />
+                  <Metric label="Nuovi account · 30 giorni" count={areas['utenti-verifiche'].users_recent} />
+                  <Metric label="Richieste di riconoscimento" count={areas['utenti-verifiche'].recognitions_total} />
+                  <Metric label="Riconoscimenti recenti · 30 giorni" count={areas['utenti-verifiche'].recognitions_recent} />
+                </div>
+              )}
+
+              {selectedArea === 'contenuti' && areas && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <Metric label="Opinioni disponibili" count={areas.contenuti.opinions_total} />
+                  <Metric label="Opinioni con approfondimento" count={areas.contenuti.opinions_with_detail} />
+                  <Metric label="Opinioni proposte registrate" count={areas.contenuti.proposed_opinions_total} />
+                  <Metric label="Proposte recenti · 30 giorni" count={areas.contenuti.proposed_opinions_recent} />
+                </div>
+              )}
+
+              {selectedArea === 'comunicazioni' && areas && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <Metric label="Notifiche DEMOS registrate" count={areas.comunicazioni.notifications_total}
+                    note="Eventi presenti nella tabella notifiche, non attestazione di consegna push." />
+                  <Metric label="Registrate · ultimi 30 giorni" count={areas.comunicazioni.notifications_recent} />
+                  <DateMetric label="Ultima notifica registrata" date={areas.comunicazioni.notifications_latest_at} />
+                </div>
+              )}
+
+              {selectedArea === 'dati-istituzionali' && areas && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <Metric label="Iniziative ministeriali" count={areas['dati-istituzionali'].ministry_initiatives_total} />
+                  <Metric label="Iniziative non ancora scadute" count={areas['dati-istituzionali'].ministry_initiatives_not_ended}
+                    note="Calcolate dalla data di fine, senza verificare lo stato ufficiale." />
+                  <Metric label="Votazioni parlamentari" count={areas['dati-istituzionali'].parliamentary_votes_total} />
+                  <DateMetric label="Ultimo aggiornamento iniziative" date={areas['dati-istituzionali'].ministry_last_updated_at} />
+                </div>
               )}
             </section>
-          )}
-          <p className="mt-5 text-xs text-slate-600">
-            I conteggi delle richieste GDPR escludono i record iniziali di migrazione
-            ({displayCount(data.gdpr_requests_migration_excluded)}). Non attestano tutti i canali
-            di esercizio dei diritti, né la conformità delle politiche di conservazione.
-          </p>
-        </>
-      )}
+
+            <p className="mt-5 text-xs leading-relaxed text-slate-600">
+              I dati mostrati sono aggregati. I conteggi GDPR escludono {displayCount(data.gdpr_requests_migration_excluded)} record iniziali di migrazione
+              e non rappresentano necessariamente richieste ricevute da altri canali. Il pannello non contiene voti o opinioni individuali.
+            </p>
+          </>
+        )}
+      </div>
     </main>
   );
 }
