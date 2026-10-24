@@ -32,13 +32,22 @@ async function queryGroupedChunks(pool, columns, builder, params = []) {
 // transaction for catalogs that require multiple aggregate batches.
 // A request that starts before a revocation may still finish on its earlier
 // snapshot; a NEW request sees the committed revocation.
-async function withMultiBatchSnapshot(pool, ids, read) {
-  if (ids.length <= MAX_GROUPED_COLUMNS) return read(pool);
+// Use one consistent snapshot for operations consisting of multiple SQL
+// statements. In production the pg.Pool always implements connect().
+async function withReadOnlySnapshot(pool, read, { requireConnection = false } = {}) {
   if (typeof pool.connect !== 'function') {
-    throw new TypeError('Multi-batch survey reads require a transaction-capable pool');
+    // Strictly require it for multi-batch queries, where consistency is
+    // essential even if a non-transactional adapter is supplied.
+    if (requireConnection) {
+      throw new TypeError('Survey read requires a transaction-capable pool');
+    }
+    // Legacy unit-test adapters expose only query(); actual pg pools always
+    // have connect(). Never use this fallback for an actual connection pool.
+    return read(pool);
   }
   const client = await pool.connect();
   let begun = false;
+  let damaged = false;
   try {
     await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
     begun = true;
@@ -48,14 +57,22 @@ async function withMultiBatchSnapshot(pool, ids, read) {
     return value;
   } catch (error) {
     if (begun) {
-      try { await client.query('ROLLBACK'); } catch (_) {
-        // Keep the first error. Releasing the failed connection is handled below.
-      }
+      try { await client.query('ROLLBACK'); }
+      catch (_) { damaged = true; }
+    } else {
+      // A failed BEGIN or COMMIT may leave the connection unusable. Avoid
+      // returning it to the pool for future requests.
+      damaged = true;
     }
     throw error;
   } finally {
-    client.release();
+    client.release(damaged);
   }
+}
+
+async function withMultiBatchSnapshot(pool, ids, read) {
+  if (ids.length <= MAX_GROUPED_COLUMNS) return read(pool);
+  return withReadOnlySnapshot(pool, read, {requireConnection:true});
 }
 
 function enforceLegacyFallbackBudget(ids) {
@@ -236,7 +253,7 @@ async function getNationalSurveyStats(pool, questions, logger = console) {
     // permissions, pool exhaustion and unknown failures fail fast as 500.
     if (!eligibleForLegacyFallback(error)) throw error;
     logger.warn?.('National TEXT grouped SQL incompatible; using legacy per-opinion queries', error.code);
-    return legacyNationalStatsFallback(pool, ids);
+    return withReadOnlySnapshot(pool, client => legacyNationalStatsFallback(client, ids));
   }
 }
 
@@ -348,7 +365,7 @@ async function getTerritorialSurveyStats(pool, questions, { scope, params } = {}
   } catch (error) {
     if (!eligibleForLegacyFallback(error)) throw error;
     logger.warn?.('Territorial TEXT grouped SQL incompatible; using legacy per-opinion queries', error.code);
-    return legacyTerritorialStatsFallback(pool, ids, scope, params);
+    return withReadOnlySnapshot(pool, client => legacyTerritorialStatsFallback(client, ids, scope, params));
   }
 }
 module.exports = {
