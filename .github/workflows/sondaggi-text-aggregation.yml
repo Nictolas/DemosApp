@@ -12,6 +12,7 @@ on:
       - 'api/scripts/verify-sondaggi-large-catalog-pg17.js'
       - 'api/scripts/benchmark-sondaggi-text-scale-ci.js'
       - 'api/scripts/benchmark-sondaggi-concurrency-ci.js'
+      - 'api/docs/sondaggi-concurrency-pg17-20261024.md'
       - 'api/docs/sondaggi-scale-sql-candidates-20261024.md'
       - 'api/docs/sondaggi-direct-filter-opt-in-20261024.md'
       - 'api/docs/sondaggi-staging-candidate-parity-20261024.md'
