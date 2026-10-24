@@ -163,6 +163,84 @@ async function verifyRevocationBetweenBatches(pool,questions){
  return outcomes;
 }
 
+// Induce an unsupported GROUPED SQL error and a real consent revocation
+// exactly after the first legacy opinion query, while the second one is
+// pending. A single REPEATABLE READ snapshot must preserve consistency.
+async function verifyLegacyRevocationBetweenQuestions(pool){
+ const questions=[ids[0],ids[299]].map(id=>({id,text:id}));
+ const records=[];
+ for(const scope of scopes){
+  let announceFirst,continueSecond;
+  const firstDone=new Promise(resolve=>{announceFirst=resolve});
+  const continuePromise=new Promise(resolve=>{continueSecond=resolve});
+  let firstOpinionRead=false,beginCount=0,commitCount=0,rollbackCount=0;
+  let released=false;
+  const mock={
+   async query(sql,params){
+    if(String(sql).includes('CROSS JOIN LATERAL (VALUES')){
+     throw Object.assign(Error('Intentionally incompatible grouped SQL'),{code:'0A000'});
+    }
+    return pool.query(sql,params);
+   },
+   async connect(){
+    const client=await pool.connect();
+    return {
+     async query(sql,params){
+      const statement=String(sql);
+      if(statement.startsWith('BEGIN TRANSACTION'))beginCount++;
+      if(statement==='COMMIT')commitCount++;
+      if(statement==='ROLLBACK')rollbackCount++;
+      const result=await client.query(sql,params);
+      if(statement.includes('FROM opinioni_risposte orr') && !firstOpinionRead){
+       firstOpinionRead=true;
+       announceFirst();
+       await continuePromise;
+      }
+      return result;
+     },
+     release(destroy){
+      released=true;
+      client.release(destroy);
+     }
+    };
+   }
+  };
+  let revoked=false;
+  const read=scope.scope?
+   getTerritorialSurveyStats(mock,questions,{scope:scope.scope,params:scope.params}, {warn:()=>{}}):
+   getNationalSurveyStats(mock,questions,{warn:()=>{}});
+  try{
+   await Promise.race([firstDone,
+    new Promise((_,reject)=>setTimeout(()=>reject(Error('No first legacy opinion read')),8000))]);
+   await pool.query("INSERT INTO user_consents(user_id,political_opinions_consent) "+
+    "VALUES('00000000-0000-4000-8000-000000000001',false)");
+   revoked=true;
+   continueSecond();
+   const old=await read;
+   assert.deepEqual(old, {
+    [ids[0]]:{favorevole:10,contrario:0,indeciso:0},
+    [ids[299]]:{favorevole:10,contrario:0,indeciso:0}
+   });
+   assert.equal(beginCount,1);
+   assert.equal(commitCount,1);
+   assert.equal(rollbackCount,0);
+   assert.equal(released,true);
+   const current=scope.scope?
+    await getTerritorialSurveyStats(pool,questions,{scope:scope.scope,params:scope.params}):
+    await getNationalSurveyStats(pool,questions);
+   assert.deepEqual(current,{});
+   records.push({scope:scope.name,snapshotConsistent:true,
+    postRevocationPrivacy:true,transactionReadOnly:true});
+  }finally{
+   continueSecond();
+   await read.catch(()=>{});
+   if(revoked)await pool.query(
+    "DELETE FROM user_consents WHERE user_id='00000000-0000-4000-8000-000000000001'");
+  }
+ }
+ return records;
+}
+
 async function main(){
  guard();await createDb();
  const pool=new Pool({...conn(DB),max:2});
@@ -179,6 +257,8 @@ async function main(){
     const concurrentRevocations=await verifyRevocationBetweenBatches(pool,questions);
     modes.push({mode,first,concurrentRevocations});
   }
+  delete process.env[envName];
+  const legacySnapshots=await verifyLegacyRevocationBetweenQuestions(pool);
   // A real GDPR-consent change must suppress every 10-voter cell, not
   // just one local mock result, on every scope and both SQL batches.
   await pool.query("INSERT INTO user_consents(user_id,political_opinions_consent)"+
@@ -202,6 +282,7 @@ async function main(){
     allScopesHiddenAfterRevocation:true,
     snapshotIsolation:'REPEATABLE READ READ ONLY for >256 columns',
     concurrentRevocations:modes[0].concurrentRevocations,
+    legacyFallbackConcurrentRevocations:legacySnapshots,
     noSupabase:true,noDeploy:true
   }));
  }finally{await pool.end();}
