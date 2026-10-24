@@ -996,5 +996,23 @@ autenticazione, consenso, cancellazione GDPR, costi, Android o
 compatibilità globale con l'intero schema applicativo. Non introduce
 `BYTEA` nelle route vere e non autorizza alcuna migrazione.
 PR #247 **DRAFT**, OP-41 **In corso**, KPI-23 **Non verificato**,
-OP-42 **Da fare**. **CI in verifica: non dichiarare PASS prima
-del completamento del nuovo step.**
+OP-42 **Da fare**.
+
+**Verifica completata:** run GitHub Actions PostgreSQL 17
+[#40102097579](https://github.com/Nictolas/DemosApp/actions/runs/40102097579)
+**SUCCESS**, job `physical-storage` SUCCESS. Lo step
+`Dump and restore synthetic BYTEA, catalog and retry ledger with PG17 CLI`
+ha emesso sia `OPINION_PGDUMP_RESTORE_PASS` sia
+`OPINION_PGDUMP_RESTORE_CLI_PASS`. Il file custom prodotto da
+`pg_dump` occupava **8.564 byte** per questo piccolo dataset
+sintetico (non estrapolare a DEMOS). `pg_restore` ha ripristinato
+le cinque tabelle in `opinion_bitset_restore_ci`, indipendente dal
+database sorgente: **2 account sintetici, 2 payload BYTEA,
+2 versioni catalogo, 7 chiavi idempotenti**, controllo esatto
+dei Buffer e decodifica dei voti v1/v2. Un archive troncato
+è stato respinto dalla verifica; il test di duplicato dopo restore
+non ha creato nuovi record. Lo stato del sorgente è rimasto invariato.
+
+La prova non testa recovery dopo perdita del server, PITR,
+archiviazione esterna, né il piano di backup di Supabase.
+**DOC-047 PASS soltanto nell'ambiente CI isolato.**
