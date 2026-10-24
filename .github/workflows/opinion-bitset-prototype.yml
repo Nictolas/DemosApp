@@ -12,6 +12,7 @@ on:
       - 'api/tests/opinionSparseBitset.test.js'
       - 'api/scripts/benchmark-opinion-bitset.js'
       - 'api/scripts/benchmark-opinion-physical.js'
+      - 'api/scripts/benchmark-opinion-queries.js'
       - 'api/docs/opinion-bitset-trimmed-probe-20261024.md'
       - 'api/docs/opinion-bitset-prototype.md'
       - '.github/workflows/opinion-bitset-prototype.yml'
@@ -68,3 +69,12 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/benchmark-opinion-physical.js
+      - name: Verify SQL statistics, row locks and CAS; sample server query times
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-queries.js
