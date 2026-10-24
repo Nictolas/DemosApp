@@ -23,6 +23,21 @@ sulla base giuridica della conservazione delle opinioni dopo la revoca.
   dopo una revoca. Questo non dimostra che tutte le cache statistiche
   vengano invalidate in tempo reale.
 
+## Verifica aggiuntiva: ETag e richieste condizionali (DOC-023)
+
+La route usa `res.json` di Express, che può emettere un `ETag`.
+Una richiesta autenticata con `If-None-Match` può ricevere `304 Not Modified`
+anche dopo la revoca del consenso, perché il JSON della GET non cambia.
+Questo comportamento **non dimostra da solo una fuga di dati**: il 304
+non contiene le opinioni, ma consente il riuso di una risposta già presente
+in una cache. L'assenza di `Cache-Control: no-store` è un rischio da
+valutare e mitigare prima di introdurre cache personali persistenti.
+
+Il test aggiuntivo caratterizza la route reale in un server Express locale
+con JWT e database fittizi, e verifica l'isolamento di account B.
+Non simula un proxy, la cache del browser o Android. Non introduce alcuna
+modifica alla route reale, ai client o alla policy del consenso.
+
 ## Decisioni e verifiche ancora necessarie prima di un rilascio
 
 1. Distinguere **revoca del consenso per uso statistico/salvataggio**,

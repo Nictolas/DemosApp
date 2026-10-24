@@ -123,16 +123,17 @@ async function withActualRoutes(fn){
   const server=http.createServer(app);
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port;
-  const request=async(method,url,token,body)=>{
+  const request=async(method,url,token,body,extraHeaders={})=>{
     const response=await fetch(base+url,{
       method,
       headers:{
         ...(token?{authorization:'Bearer '+token}:{}),
-        ...(body?{'content-type':'application/json'}:{})
+        ...(body?{'content-type':'application/json'}:{}),
+        ...extraHeaders
       },
       ...(body?{body:JSON.stringify(body)}:{})
     });
-    return {status:response.status,body:await response.json(),headers:response.headers};
+    return {status:response.status,body:response.status===304?null:await response.json(),headers:response.headers};
   };
   try{
     await fn({request,answers,consents,calls});
@@ -276,6 +277,34 @@ test('CHARACTERIZATION: revoked consent blocks writes but legacy GET still reads
     consents.set('account-a',true);
     assert.equal((await post({caccia:'c'})).status,200);
     assert.equal((await get('account-a')).body.data.find(q=>q.id==='caccia').userAnswer,'c');
+  });
+});
+
+
+test('CHARACTERIZATION: conditional GET after consent revocation can return HTTP 304',async()=>{
+  await withActualRoutes(async({request,consents,calls})=>{
+    const url='/api/opinioni-list?grado=N';
+    const saved=await request('POST','/api/opinioni/salva','account-a',
+      {opinioni:{caccia:'f'}});
+    assert.equal(saved.status,200);
+    const first=await request('GET',url,'account-a');
+    assert.equal(first.status,200);
+    const etag=first.headers.get('etag');
+    assert.ok(etag,'Express currently emits an ETag for personalized JSON');
+    assert.equal(first.body.data.find(x=>x.id==='caccia').userAnswer,'f');
+    // This documents a missing protective header; it is not a security fix.
+    assert.equal(/\bno-store\b/i.test(first.headers.get('cache-control')||''),false);
+    consents.set('account-a',false);
+    const before=calls.length;
+    const conditional=await request('GET',url,'account-a',undefined,
+      {'if-none-match':etag});
+    assert.equal(conditional.status,304);
+    assert.equal(conditional.body,null);
+    assert.equal(calls.slice(before).some(c=>c.sql.includes('user_consents')),false);
+    // A different authenticated account must never receive account A's vote.
+    const other=await request('GET',url,'account-b');
+    assert.equal(other.status,200);
+    assert.equal(other.body.data.find(x=>x.id==='caccia').userAnswer,null);
   });
 });
 
