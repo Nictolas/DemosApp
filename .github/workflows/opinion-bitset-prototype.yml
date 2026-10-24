@@ -65,6 +65,7 @@ on:
       - 'api/scripts/verify-opinion-remote-erasure-journal.js'
       - 'api/scripts/verify-opinion-remote-cutover-fence.js'
       - 'api/scripts/benchmark-opinion-remote-fence.js'
+      - 'api/scripts/verify-opinion-local-admission-fence.js'
       - 'api/scripts/verify-opinion-remote-erasure-journal.sh'
       - 'api/scripts/benchmark-opinion-queries.js'
       - 'api/scripts/verify-opinion-privacy-equivalence.js'
@@ -216,7 +217,7 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: bash api/scripts/verify-opinion-erasure-after-restore.sh
-      - name: Verify remote journal cutover and benchmark protected-read overhead
+      - name: Check remote journal, benchmark reads and local-only admission protocol
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'
           PGHOST: 127.0.0.1
