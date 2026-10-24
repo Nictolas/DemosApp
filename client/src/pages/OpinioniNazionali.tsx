@@ -76,12 +76,6 @@ export default function OpinioniNazionali() {
   const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
   const userAnswers = questionsData?.userAnswers || {};
   
-  // Debug
-  useEffect(() => {
-    console.log('🔍 DEBUG - questionsData:', questionsData);
-    console.log('🔍 DEBUG - questions:', questions);
-    console.log('🔍 DEBUG - questions.length:', questions.length);
-  }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
     const opinioniEspresse = questions
@@ -98,13 +92,6 @@ export default function OpinioniNazionali() {
     })
     .sort((a, b) => a.text.localeCompare(b.text));
 
-  // Debug per vedere le sezioni
-  useEffect(() => {
-    console.log('🔍 DEBUG - opinioniEspresse:', opinioniEspresse);
-    console.log('🔍 DEBUG - opinioniDaInserire:', opinioniDaInserire);
-    console.log('🔍 DEBUG - opinioniEspresse.length:', opinioniEspresse.length);
-    console.log('🔍 DEBUG - opinioniDaInserire.length:', opinioniDaInserire.length);
-  }, [opinioniEspresse, opinioniDaInserire]);
 
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
@@ -153,9 +140,6 @@ export default function OpinioniNazionali() {
   };
 
   const handleSave = () => {
-    console.log('🔍 DEBUG handleSave:');
-    console.log('  questions:', questions);
-    console.log('  opinions:', opinions);
     
     // Mappa le opinioni usando l'ID corretto per l'API
     const opinionsToSave: Record<string, string> = {};
@@ -166,11 +150,8 @@ export default function OpinioniNazionali() {
       }
     });
     
-    console.log('  opinionsToSave:', opinionsToSave);
-    console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
     
     if (Object.keys(opinionsToSave).length === 0) {
-      console.log('❌ DEBUG: Nessuna opinione da salvare');
       toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
       return;
     }
@@ -184,7 +165,6 @@ export default function OpinioniNazionali() {
       return;
     }
     
-    console.log('✅ DEBUG: Procedo con il salvataggio');
     saveMutation.mutate(opinionsToSave);
   };
 
@@ -194,9 +174,6 @@ export default function OpinioniNazionali() {
   const handleConsentGranted = async () => {
     // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
     if (pendingOpinionsToSave) {
-      console.log('✅ DEBUG: Consenso concesso, aggiorno la cache e procedo con il salvataggio delle opinioni');
-      console.log('✅ DEBUG: Opinion in attesa da salvare:', pendingOpinionsToSave);
-      console.log('✅ DEBUG: Numero opinioni in attesa:', Object.keys(pendingOpinionsToSave).length);
       
       // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
       await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
@@ -212,14 +189,11 @@ export default function OpinioniNazionali() {
         }
       });
       
-      console.log('✅ DEBUG: Opinion finali da salvare (dopo ricostruzione):', allOpinionsToSave);
-      console.log('✅ DEBUG: Numero opinioni finali:', Object.keys(allOpinionsToSave).length);
       
       // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
       setTimeout(() => {
         // Verifica che le opinioni siano ancora valide
         if (allOpinionsToSave && Object.keys(allOpinionsToSave).length > 0) {
-          console.log('✅ DEBUG: Invio opinioni al backend:', allOpinionsToSave);
           saveMutation.mutate(allOpinionsToSave);
         } else {
           console.error('❌ DEBUG: Nessuna opinione valida da salvare dopo il consenso');
