@@ -939,5 +939,20 @@ dimensionamento/costi e convenienza BYTEA. Nessuna migrazione, nessun
 merge della PR DRAFT #247. OP-41 **In corso**, KPI-23
 **Non verificato**, OP-42 **Da fare**.
 
-**Stato iniziale:** prova predisposta e avviata in CI; l'esito deve
-essere verificato prima di dichiarare DOC-046 PASS.
+**Evidenza CI verificata:** dopo due correzioni esclusivamente del
+runner sperimentale (snapshot con `singleton`, commit `1e181df`;
+esecuzione diretta del test POST per aggirare il problema intermittente
+IPC di Node, commit `61963dd`), il run **#40101347542 SUCCESS**
+conferma `OPINION_RETRY_BACKUP_PASS` nello step
+`Exercise lost-ACK retry deduplication and consistent logical backup
+restore`, oltre a `physical-storage` e `codec-tests` SUCCESS.
+Sul medesimo commit `61963dd` sono SUCCESS anche:
+Opinioni #40101347617, Security #40101347539,
+Privacy erasure #40101347561, DPO #40101347543,
+Logging #40101347601. La prima prova #40101131810 falliva
+per omissione del campo `singleton` nel backup; la seconda
+#40101232423 non raggiungeva il nuovo script per errore
+intermittente di comunicazione del worker `node:test`
+nella regressione POST esistente, non per un'asserzione del codec.
+DOC-046 **PASS solo per il modello sintetico**; OP-41 resta
+**In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
