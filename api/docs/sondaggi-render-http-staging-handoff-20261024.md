@@ -17,7 +17,7 @@ Il ruolo Supabase `op37_http_staging_reader` esiste **solo su Demos-Staging**, c
 - il processo termina senza aprire alcuna connessione se la configurazione include una password inattesa in modalità `setup-only` o se manca un parametro di sicurezza;
 - la riscrittura SQL ammette soltanto lo schema privato di staging e rifiuta SQL mutante, tabelle non riconosciute e `public/auth/storage`.
 
-I test reali di query aggregate sul PostgreSQL sintetico CI continuano ad essere eseguiti dallo stesso workflow. **La prova di sicurezza HTTP è locale nella CI; un test HTTP pubblico esterno non è stato verificato tramite questa connessione.**
+I test reali di query aggregate sul PostgreSQL sintetico CI continuano ad essere eseguiti dallo stesso workflow. **La prova delle route SQL senza credenziali è locale nella CI, ma è stata eseguita anche una verifica indipendente via HTTP pubblico sul servizio Render reale**: workflow GitHub Actions [#40116951974](https://github.com/Nictolas/DemosApp/actions/runs/40116951974) SUCCESS, marcatore `OP37_RENDER_PUBLIC_SETUP_DENIALS_PASS`: `/` restituisce 200, `/health` e `/benchmark/summary` 503, le quattro route Sondaggi e `/api/users` 404. Non sono state impiegate password e non è stata aperta alcuna connessione al database.
 
 ## Handoff manuale, senza inviare segreti in chat
 
@@ -49,3 +49,6 @@ Secondo la documentazione di [Render](https://render.com/articles/how-to-connect
 È stato quindi corretto l'HTTP harness in PR #258: **rifiuta** connessione diretta, tenant produzione, porta 6543 non richiesta, altro host/region, password/token corti e variabili di ambiente di produzione. Non è stata attivata alcuna password né modificato il servizio Render esistente, che resta sul commit live `80db6a4` e in `setup-only`.
 
 **Nota:** il valore preciso di `PGHOST` dipende dall'indice del pooler assegnato a Demos-Staging: deve essere copiato dalla pagina Connect, non ricostruito per supposizione. Nessun costo a pagamento autorizzato. Il test pubblico senza credenziali, ove disponibile, controlla solo i dinieghi `503/404`, non la connessione al database.
+
+
+**CI sul protocollo IPv4 corretto:** GitHub Actions [#40117107029](https://github.com/Nictolas/DemosApp/actions/runs/40117107029) **SUCCESS** sul commit `64a10d5`: test unitari che negano endpoint diretto IPv6, tenant produzione, regione errata, porte non previste, configurazioni o URL di produzione e credenziali insufficienti. Render resta intenzionalmente sulla versione LIVE setup-only con deploy automatici disabilitati: il codice nuovo non è ancora distribuito lì, né sono state abilitate credenziali.
