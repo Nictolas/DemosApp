@@ -10,6 +10,7 @@ on:
       - 'api/scripts/verify-sondaggi-text-standalone.js'
       - 'api/scripts/benchmark-sondaggi-text-paired.js'
       - 'api/scripts/verify-sondaggi-large-catalog-pg17.js'
+      - 'api/scripts/benchmark-sondaggi-text-scale-ci.js'
       - 'api/docs/sondaggi-bounded-large-catalog-20261024.md'
       - 'api/docs/sondaggi-consistent-snapshot-20261024.md'
       - 'api/docs/sondaggi-text-benchmark-20261024.md'
@@ -86,6 +87,16 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-sondaggi-large-catalog-pg17.js
+      - name: Profile 1k, 10k, and 50k synthetic TEXT survey accounts on isolated PG17
+        env:
+          GITHUB_ACTIONS: 'true'
+          SONDAGGI_TEXT_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: sondaggi_text_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-sondaggi-text-scale-ci.js
       - name: Compare old and new SQL p50/p95 on the identical fabricated PG17 dataset
         env:
           GITHUB_ACTIONS: 'true'
