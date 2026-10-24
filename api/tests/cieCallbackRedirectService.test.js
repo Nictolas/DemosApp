@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   getTrustedFrontendBaseUrl,
   buildCieCallbackRedirect,
+  buildRecognitionCieCallbackRedirect,
   buildRegistrationCieCallbackRedirect
 } = require('../services/cieCallbackRedirectService');
 
@@ -69,5 +70,20 @@ test('redirect registrazione success rifiuta ticket mancante', () => {
   assert.throws(
     () => buildRegistrationCieCallbackRedirect('success'),
     /Ticket registrazione mancante/
+  );
+});
+
+test('step-up CIE returns to recognition with no names in URL', () => {
+  assert.equal(
+    buildRecognitionCieCallbackRedirect('success'),
+    'https://www.demos.community/riconoscimento?cie=success'
+  );
+  assert.equal(
+    buildRecognitionCieCallbackRedirect('error'),
+    'https://www.demos.community/riconoscimento?cie=error'
+  );
+  assert.throws(
+    () => buildRecognitionCieCallbackRedirect('given-name'),
+    /Esito riconoscimento CIE non valido/
   );
 });
