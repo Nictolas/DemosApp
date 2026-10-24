@@ -26,7 +26,7 @@ interface DpoAreas {
   contenuti: {
     opinions_total: number; proposed_opinions_total: number; proposals_last_30d: number;
   };
-  comunicazioni: { notifications_total: number; notifications_last_30d: number };
+  comunicazioni: { notifications_total: number; notifications_last_30d: number; notifications_latest_date: string | null };
   "dati-istituzionali": {
     ministry_initiatives_total: number; initiatives_last_30d: number;
     parliamentary_votes_total: number; parliamentary_votes_last_30d: number;
@@ -45,13 +45,16 @@ const sections = [
 ] as const;
 
 const getInitialArea = (): AreaId | null => {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") return "ops-center";
   const requested = new URLSearchParams(window.location.search).get("section");
-  return sections.find(section => section.id === requested)?.id ?? null;
+  return sections.find(section => section.id === requested)?.id ?? "ops-center";
 };
 
 const displayCount = (value: number | undefined) =>
   typeof value === "number" && Number.isFinite(value) ? value.toLocaleString("it-IT") : "—";
+
+const displayDate = (value: string | null | undefined) =>
+  value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}` : "Nessuna data disponibile";
 
 function Metric({ label, count, note }: { label: string; count: number | undefined; note?: string }) {
   return (
@@ -140,7 +143,7 @@ export default function DpoPanel() {
                 </p>
               </div>
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2 sm:max-w-[250px] sm:justify-end">
+            <div className="flex flex-wrap gap-2 sm:justify-end lg:max-w-[360px]">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-800">
                 <Eye className="h-3.5 w-3.5" aria-hidden="true" /> Sola lettura
               </span>
@@ -150,6 +153,12 @@ export default function DpoPanel() {
                   {data.role === "Admin" ? "Consultazione come Admin" : "Accesso DPO"}
                 </span>
               )}
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+                Nessun voto individuale
+              </span>
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+                Nessun comando tecnico
+              </span>
             </div>
           </div>
         </header>
@@ -257,6 +266,10 @@ export default function DpoPanel() {
                 <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3">
                   <Metric label="Notifiche DEMOS registrate" count={areas.comunicazioni.notifications_total} />
                   <Metric label="Notifiche datate negli ultimi 30 giorni" count={areas.comunicazioni.notifications_last_30d} />
+                  <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
+                    <p className="text-sm font-medium text-slate-600">Ultima notifica registrata</p>
+                    <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900">{displayDate(areas.comunicazioni.notifications_latest_date)}</p>
+                  </div>
                 </div>
               )}
 
@@ -271,12 +284,14 @@ export default function DpoPanel() {
 
               {selected?.id === "ops-center" && (
                 <>
-                  <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                     <Metric label="Richieste GDPR operative" count={data.gdpr_requests_total} />
                     <Metric label="In attesa" count={data.gdpr_requests_pending} />
                     <Metric label="In lavorazione" count={data.gdpr_requests_processing} />
                     <Metric label="Completate" count={data.gdpr_requests_completed} />
+                    <Metric label="Record iniziali esclusi" count={data.gdpr_requests_migration_excluded} note="Dati tecnici di migrazione, non richieste operative." />
                   </div>
+                  <NoRequests total={data.gdpr_requests_total} />
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-sm font-semibold text-slate-800">Politica di conservazione</p>
@@ -297,9 +312,9 @@ export default function DpoPanel() {
             <aside className="mt-5 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-relaxed text-slate-600 sm:p-5">
               <Info className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
               <p>
-                Vengono mostrati solo dati aggregati. I conteggi GDPR escludono {displayCount(data.gdpr_requests_migration_excluded)} record iniziali di migrazione;
-                non dimostrano che tutte le richieste pervenute tramite altri canali siano state registrate né attestano la conformità delle politiche di conservazione.
-                Non sono disponibili opinioni o voti individuali.
+                Sono mostrati solo dati aggregati, senza opinioni o voti individuali.
+                I conteggi GDPR escludono {displayCount(data.gdpr_requests_migration_excluded)} record iniziali di migrazione.
+                Il registro potrebbe non includere richieste ricevute attraverso altri canali e non certifica da solo la conformità delle politiche di conservazione.
               </p>
             </aside>
           </>

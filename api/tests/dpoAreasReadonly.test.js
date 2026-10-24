@@ -30,6 +30,7 @@ const pool = {
       recognitions_last_30d: 1,
       opinions_total: 4, proposed_opinions_total: 3, proposals_last_30d: 2,
       notifications_total: 1, notifications_last_30d: 1,
+      notifications_latest_date: '2026-10-24',
       ministry_initiatives_total: 5, initiatives_last_30d: 3,
       parliamentary_votes_total: 6, parliamentary_votes_last_30d: 2
     }] };
@@ -89,6 +90,7 @@ test('DPO and Admin see only aggregate figures; no writes or individual data', a
   assert.equal(dpo.body.data.contenuti.opinions_total, 4);
   assert.equal(dpo.body.data.contenuti.proposals_last_30d, 2);
   assert.equal(dpo.body.data.comunicazioni.notifications_last_30d, 1);
+  assert.equal(dpo.body.data.comunicazioni.notifications_latest_date, '2026-10-24');
   assert.equal(dpo.body.data['utenti-verifiche'].recognitions_last_30d, 1);
   assert.equal(dpo.body.data['dati-istituzionali'].initiatives_last_30d, 3);
   assert.equal(dpo.body.data['dati-istituzionali'].parliamentary_votes_total, 6);

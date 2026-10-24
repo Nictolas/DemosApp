@@ -56,6 +56,7 @@ router.get('/areas', async (_req, res) => {
         (SELECT COUNT(*)::integer FROM public.opinioni_proposte WHERE created_at >= NOW() - INTERVAL '30 days') AS proposals_last_30d,
         (SELECT COUNT(*)::integer FROM public.notifiche_demos) AS notifications_total,
         (SELECT COUNT(*)::integer FROM public.notifiche_demos WHERE data >= CURRENT_DATE - 30) AS notifications_last_30d,
+        (SELECT MAX(data)::text FROM public.notifiche_demos) AS notifications_latest_date,
         (SELECT COUNT(*)::integer FROM public.iniziative_ministero) AS ministry_initiatives_total,
         (SELECT COUNT(*)::integer FROM public.iniziative_ministero WHERE created_at >= NOW() - INTERVAL '30 days') AS initiatives_last_30d,
         (SELECT COUNT(*)::integer FROM public.votazioni_parlamento) AS parliamentary_votes_total,
@@ -80,7 +81,8 @@ router.get('/areas', async (_req, res) => {
         },
         comunicazioni: {
           notifications_total: counts.notifications_total,
-          notifications_last_30d: counts.notifications_last_30d
+          notifications_last_30d: counts.notifications_last_30d,
+          notifications_latest_date: counts.notifications_latest_date
         },
         'dati-istituzionali': {
           ministry_initiatives_total: counts.ministry_initiatives_total,

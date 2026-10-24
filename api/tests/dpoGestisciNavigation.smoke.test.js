@@ -49,6 +49,11 @@ test('Gestisci exposes DPO overview cards without granting underlying Admin rout
   assert.match(panel, /Torna alla panoramica/);
   assert.match(panel, /Nessuna richiesta operativa presente/);
   assert.match(panel, /notifications_last_30d/);
+  assert.match(panel, /notifications_latest_date/);
+  assert.match(panel, /\?\.id \?\? "ops-center"/);
+  assert.match(panel, /Nessun voto individuale/);
+  assert.match(panel, /Nessun comando tecnico/);
+  assert.match(panel, /Record iniziali esclusi/);
   assert.match(panel, /proposals_last_30d/);
   assert.doesNotMatch(panel, /\/admin\/data-export|\/backup-dashboard/);
 });
