@@ -41,7 +41,10 @@ jobs:
       - name: Install API packages without lifecycle scripts
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Unit tests for safe identifiers, fallback, response contract and geography
-        run: node --test --test-concurrency=1 api/tests/sondaggiTextBulk.test.js api/tests/opinionStatsAccountPopulation.test.js api/tests/opinionPrivacy.test.js
+        run: |
+          node api/tests/sondaggiTextBulk.test.js
+          node api/tests/opinionStatsAccountPopulation.test.js
+          node api/tests/opinionPrivacy.test.js
       - name: Verify real GET Sondaggi on synthetic PostgreSQL 17 and 10-to-9 consent
         env:
           GITHUB_ACTIONS: 'true'
