@@ -280,8 +280,10 @@ class PrivacyErasureLedgerService {
   }
 
   static async enforcePoliticalRevocation(client, userId) {
-    let opinionsDeleted = await this.deleteByUserId(client, 'opinioni_risposte', userId);
-
+    // For a transaction-scoped replay, update users first to acquire the
+    // same row lock used by POST /api/opinioni/salva and PUT /revoke.
+    // The deletion must follow the consent flags, not precede them.
+    // Callers must provide a transaction spanning this entire operation.
     const userConsentColumns = [
       'political_opinions_consent',
       'political_opinions_consent_timestamp',
@@ -319,6 +321,7 @@ class PrivacyErasureLedgerService {
       );
     }
 
+    const opinionsDeleted = await this.deleteByUserId(client, 'opinioni_risposte', userId);
     return { opinionsDeleted };
   }
 

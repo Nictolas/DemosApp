@@ -859,11 +859,55 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       // Non registrare nei log il valore dell'opinione politica.
     }
     
+    // Keep the admin opinion write, including its optional sources,
+    // in the same users-row lock protocol as POST /api/opinioni/salva.
+    // The optimistic consent check above preserves legacy HTTP ordering;
+    // only the second read under the lock authorizes a write.
+    const client = await pool.connect();
+    let inTransaction = false;
+    try {
+      await client.query('BEGIN');
+      inTransaction = true;
+      const lockedUser = await client.query(
+        'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+      );
+      if (!lockedUser.rows.length) {
+        await client.query('ROLLBACK');
+        inTransaction = false;
+        return res.status(404).json({
+          success: false,
+          error: 'Utente non trovato',
+          message: 'Impossibile aggiornare le opinioni'
+        });
+      }
+      // A fresh statement after the lock reads the latest consent row:
+      // do not rely on an earlier LEFT JOIN snapshot.
+      const lockedConsent = await client.query(`
+        SELECT COALESCE(
+          uc.political_opinions_consent,
+          u.political_opinions_consent,
+          false
+        ) AS granted
+        FROM users u
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE u.id = $1
+      `, [userId]);
+      if (lockedConsent.rows[0]?.granted !== true) {
+        await client.query('ROLLBACK');
+        inTransaction = false;
+        return res.status(403).json({
+          success: false,
+          error: 'Consenso richiesto',
+          message: 'Le opinioni politiche del soggetto non possono essere create o modificate senza consenso esplicito attivo.',
+          consent_required: true
+        });
+      }
+
     // Processa le fonti se fornite
     let fontiFinali = {};
     if (fonti && typeof fonti === 'object') {
       // Carica le fonti esistenti
-      const existingResult = await pool.query(
+      const existingResult = await client.query(
         'SELECT fonti_opinioni FROM opinioni_risposte WHERE user_id = $1',
         [userId]
       );
@@ -890,6 +934,8 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     }
     
     if (updateFields.length === 0) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
       return res.status(400).json({
         success: false,
         error: 'Nessuna opinione valida da salvare',
@@ -898,8 +944,8 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     }
     
     // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
-    const checkResult = await pool.query(
-      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
+    const checkResult = await client.query(
+      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1 FOR UPDATE',
       [userId]
     );
     
@@ -917,7 +963,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       console.log('📝 Query SQL INSERT:', insertQuery);
       console.log('📝 INSERT opinioni: valori sensibili omessi dai log');
       
-      result = await pool.query(insertQuery, allValues);
+      result = await client.query(insertQuery, allValues);
     } else {
       // Utente esistente: aggiorna solo le opinioni specifiche
       updateValues.push(userId);
@@ -930,10 +976,12 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       console.log('📝 Query SQL UPDATE:', updateQuery);
       console.log('📝 UPDATE opinioni: valori sensibili omessi dai log');
       
-      result = await pool.query(updateQuery, updateValues);
+      result = await client.query(updateQuery, updateValues);
     }
     
     if (result.rowCount === 0 && checkResult.rows.length > 0) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
       return res.status(404).json({
         success: false,
         error: 'Record non trovato',
@@ -941,6 +989,15 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
+    await client.query('COMMIT');
+    inTransaction = false;
+    } catch (error) {
+      if (inTransaction) await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
     console.log('✅ Opinioni politiche salvate con successo');
     
     res.json({

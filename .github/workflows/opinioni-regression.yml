@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'api/routes/opinioni/**'
+      - 'api/routes/users/profile.js'
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/tests/politicalOpinionWriteRules.smoke.test.js'
+      - 'api/tests/privacyLedgerLockOrder.test.js'
       - 'api/utils/opinionStatsColumns.js'
       - 'api/tests/opinionStatsColumns.test.js'
       - 'api/tests/ordinaryUserOpinionSave.test.js'
@@ -54,6 +58,7 @@ jobs:
             api/tests/opinionStatsColumns.test.js \
             api/tests/ordinaryUserOpinionSave.test.js \
             api/tests/politicalOpinionWriteRules.smoke.test.js \
+            api/tests/privacyLedgerLockOrder.test.js \
             api/tests/opinionPrivacy.test.js
           do
             node "$testfile"

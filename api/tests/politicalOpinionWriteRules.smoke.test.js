@@ -131,25 +131,58 @@ test('salvataggio utente accetta Non lo so e lo salva come i', async () => {
   });
 });
 
-function makeAdminPool({ granted = true } = {}) {
+function makeAdminPool({
+  granted = true, grantedAfterLock = granted,
+  userExistsAfterLock = true, failOnInsert = false
+} = {}) {
   const writes = [];
-  return {
-    writes,
-    async query(sql, params = []) {
-      const s = String(sql).replace(/\s+/g, ' ').trim();
-      if (s.includes('FROM users u') && s.includes('political_opinions_consent')) {
-        return { rows: [{ id: params[0], political_opinions_consent: granted }] };
-      }
-      if (s === 'SELECT id FROM opinioni_domande') return { rows: [{ id: 'q1' }] };
-      if (s.includes('information_schema.columns') && s.includes("table_name = 'opinioni_risposte'")) {
-        return { rows: [{ column_name: 'q1' }] };
-      }
-      if (s.includes('UPDATE opinioni_risposte') || s.includes('INSERT INTO opinioni_risposte')) {
-        writes.push({ sql: s, params });
-        return { rowCount: 1, rows: [] };
-      }
-      throw new Error(`Unexpected query: ${s}`);
+  const sequence = [];
+  let checkedUnderLock = false;
+  const query = async (sql, params = []) => {
+    const s = String(sql).replace(/\s+/g, ' ').trim();
+    if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(s)) {
+      sequence.push(s);
+      return { rows: [], rowCount: 0 };
     }
+    if (s.startsWith('SELECT id FROM users WHERE id = $1 FOR UPDATE')) {
+      sequence.push('LOCK_USERS_ROW');
+      checkedUnderLock = true;
+      return userExistsAfterLock
+        ? { rows: [{ id: params[0] }], rowCount: 1 }
+        : { rows: [], rowCount: 0 };
+    }
+    if (s.includes('FROM users u') && s.includes('political_opinions_consent')) {
+      sequence.push(checkedUnderLock ? 'CONSENT_RECHECK' : 'CONSENT_PREFLIGHT');
+      return { rows: [{ id: params[0],
+        political_opinions_consent: checkedUnderLock ? grantedAfterLock : granted,
+        granted: checkedUnderLock ? grantedAfterLock : granted }] };
+    }
+    if (s === 'SELECT id FROM opinioni_domande')
+      return { rows: [{ id: 'q1' }] };
+    if (s.includes('information_schema.columns') &&
+        s.includes("table_name = 'opinioni_risposte'")) {
+      return { rows: [{ column_name: 'q1' }] };
+    }
+    if (s.startsWith('SELECT fonti_opinioni FROM opinioni_risposte')) {
+      sequence.push('SOURCE_READ');
+      return { rows: [] };
+    }
+    if (s.startsWith('SELECT user_id FROM opinioni_risposte WHERE user_id = $1 FOR UPDATE')) {
+      sequence.push('READ_EXISTING');
+      return { rows: [] };
+    }
+    if (s.startsWith('INSERT INTO opinioni_risposte') ||
+        s.startsWith('UPDATE opinioni_risposte')) {
+      sequence.push('WRITE_OPINIONS');
+      if(failOnInsert)throw new Error('synthetic DB write failure');
+      writes.push({ sql: s, params });
+      return { rowCount: 1, rows: [] };
+    }
+    throw new Error(`Unexpected query: ${s}`);
+  };
+  return {
+    writes,sequence,query,
+    async connect(){return {query,release(){sequence.push('RELEASE');}};}
   };
 }
 
@@ -181,4 +214,72 @@ test('modifica admin rifiuta la cancellazione di una risposta verso NULL', async
     assert.equal(body.error, 'Risposta non valida');
     assert.equal(pool.writes.length, 0);
   });
+});
+
+test('modifica admin con consenso scrive solo dopo lock e seconda lettura', async () => {
+  const pool=makeAdminPool();
+  await serveRouter(['routes','users','profile.js'],pool,async(base)=>{
+    const response=await fetch(base+'/api/target/opinioni',{
+      method:'PUT',headers:{'content-type':'application/json'},
+      body:JSON.stringify({opinioni:{q1:'Non lo so'},fonti:{q1:'Synthetic public source'}})
+    });
+    assert.equal(response.status,200);
+    assert.equal((await response.json()).updatedFields,1);
+  });
+  const pos=(item)=>pool.sequence.indexOf(item);
+  assert.ok(pos('CONSENT_PREFLIGHT')<pos('BEGIN'));
+  assert.ok(pos('BEGIN')<pos('LOCK_USERS_ROW'));
+  assert.ok(pos('LOCK_USERS_ROW')<pos('CONSENT_RECHECK'));
+  assert.ok(pos('CONSENT_RECHECK')<pos('SOURCE_READ'));
+  assert.ok(pos('SOURCE_READ')<pos('READ_EXISTING'));
+  assert.ok(pos('READ_EXISTING')<pos('WRITE_OPINIONS'));
+  assert.ok(pos('WRITE_OPINIONS')<pos('COMMIT'));
+  assert.ok(pos('COMMIT')<pos('RELEASE'));
+  assert.equal(pool.writes.length,1);
+});
+
+test('modifica admin rifiuta la scrittura se il consenso è revocato fra preflight e lock', async()=>{
+  const pool=makeAdminPool({granted:true,grantedAfterLock:false});
+  await serveRouter(['routes','users','profile.js'],pool,async(base)=>{
+    const response=await fetch(base+'/api/target/opinioni',{
+      method:'PUT',headers:{'content-type':'application/json'},
+      body:JSON.stringify({opinioni:{q1:'f'}})
+    });
+    assert.equal(response.status,403);
+    assert.equal((await response.json()).consent_required,true);
+  });
+  assert.equal(pool.writes.length,0);
+  assert.deepEqual(pool.sequence,[
+    'CONSENT_PREFLIGHT','BEGIN','LOCK_USERS_ROW','CONSENT_RECHECK','ROLLBACK','RELEASE'
+  ]);
+});
+
+test('modifica admin non ricrea risposte quando il soggetto sparisce prima del lock',async()=>{
+  const pool=makeAdminPool({granted:true,userExistsAfterLock:false});
+  await serveRouter(['routes','users','profile.js'],pool,async(base)=>{
+    const response=await fetch(base+'/api/target/opinioni',{
+      method:'PUT',headers:{'content-type':'application/json'},
+      body:JSON.stringify({opinioni:{q1:'f'}})
+    });
+    assert.equal(response.status,404);
+    assert.equal((await response.json()).error,'Utente non trovato');
+  });
+  assert.equal(pool.writes.length,0);
+  assert.deepEqual(pool.sequence,[
+    'CONSENT_PREFLIGHT','BEGIN','LOCK_USERS_ROW','ROLLBACK','RELEASE'
+  ]);
+});
+
+test('modifica admin esegue rollback e release se una scrittura DB fallisce',async()=>{
+  const pool=makeAdminPool({failOnInsert:true});
+  await serveRouter(['routes','users','profile.js'],pool,async(base)=>{
+    const response=await fetch(base+'/api/target/opinioni',{
+      method:'PUT',headers:{'content-type':'application/json'},
+      body:JSON.stringify({opinioni:{q1:'c'}})
+    });
+    assert.equal(response.status,500);
+  });
+  assert.equal(pool.writes.length,0);
+  assert.ok(pool.sequence.indexOf('WRITE_OPINIONS')<pool.sequence.indexOf('ROLLBACK'));
+  assert.equal(pool.sequence.at(-1),'RELEASE');
 });

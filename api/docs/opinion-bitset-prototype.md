@@ -504,3 +504,50 @@ rispettano questo protocollo e richiedono audit. La PR è in DRAFT
 e la modifica RESTA NON DISTRIBUITA. OP-41 **In corso**,
 KPI-23 **Non verificato**: i vantaggi economici e prestazionali
 del BYTEA non sono provati e la codifica binaria non è attiva.
+
+
+## Audit scritture amministrative e ripristino privacy (DOC-036)
+
+Rispetto al checkpoint DOC-035, la ricognizione dei percorsi di scrittura
+ha individuato due superfici non coordinate con la revoca:
+
+1. `PUT /api/users/:userId/opinioni` (admin):
+   il codice originario leggeva il consenso con `pool.query`,
+   poi leggeva le fonti esistenti ed eseguiva INSERT/UPDATE con altre
+   `pool.query` indipendenti, **senza transazione né lock**. Nel branch
+   sperimentale, la route conserva l'ordine delle verifiche HTTP iniziali
+   ma prima della lettura delle fonti e dell'effettiva scrittura apre
+   una transazione SQL, acquisisce `SELECT id FROM users WHERE id=$1
+   FOR UPDATE`, rilegge `user_consents/users` nel medesimo client
+   e fallisce con 403 o 404 e rollback se il consenso o l'utente
+   non sono più presenti. Anche il controllo esistenza della risposta,
+   la lettura e modifica delle fonti, la scrittura, il COMMIT e gli
+   errori transitano tramite lo stesso client. Non cambia il formato
+   legacy dei voti TEXT o le risposte HTTP.
+2. `PrivacyErasureLedgerService.enforcePoliticalRevocation`:
+   il cleanup chiamava la cancellazione di `opinioni_risposte` prima
+   dell'UPDATE del consenso su `users`, creando un ordine incompatibile
+   con la protezione appena aggiunta. L'ordine è stato invertito:
+   UPDATE `users` → UPDATE `user_consents` → DELETE
+   `opinioni_risposte`. Questa sequenza dà il corretto protocollo
+   **se chiamata in un'unica transazione**. Il servizio non apre
+   transazioni autonomamente: chiamanti di replay che non lo fanno
+   NON sono garantiti da questa sola modifica.
+
+Test mock della vera route amministrativa, in
+`api/tests/politicalOpinionWriteRules.smoke.test.js`:
+salvataggio lecito con fonti dopo lock e consenso, revoca simulata
+tra preflight e lock (403 senza scrittura), soggetto eliminato
+(404 senza INSERT), failure SQL con rollback e release.
+Nuovo `api/tests/privacyLedgerLockOrder.test.js`:
+ordina i comandi della replay e blocca il DELETE se l'UPDATE
+sul consenso fallisce. Inclusi nel workflow delle Opinioni
+e nella CI del prototipo.
+
+**Limiti critici**: non è ancora un test concorrente end-to-end
+della route admin con il vero PUT/revoke su PostgreSQL;
+la semantica del service replay dipende dall'uso di un client
+transazionale; altri endpoint di preferenze politiche, gli
+import manuali e gli script di migrazione non sono stati
+tutti verificati. Nessuna migrazione né deploy; PR in bozza;
+OP-41 In corso, KPI-23 Non verificato e OP-42 Da fare.
