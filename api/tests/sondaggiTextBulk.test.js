@@ -538,3 +538,47 @@ test('multi-batch snapshots reject pools without checkout, rather than silently 
   );
  }
 });
+
+
+test('opt-in direct-filter SQL keeps the four real route contracts and remains default-off',async()=>{
+ const name='SONDAGGI_EXPERIMENTAL_DIRECT_FILTER';
+ const before=process.env[name];
+ const {buildDirectFilterTextAggregateQuery}=require('../utils/sondaggiTextBulk');
+ try{
+  for(const mode of ['unset','false','true']){
+   if(mode==='unset')delete process.env[name];
+   else process.env[name]=mode;
+   for(const scope of [null,...GEO_SCOPES]){
+    const {pool,calls}=fakePool();
+    const stats=scope?
+      await getTerritorialSurveyStats(pool,QUESTIONS,scope):
+      await getNationalSurveyStats(pool,QUESTIONS);
+    assert.deepEqual(stats,EXPECTED);
+    assert.equal(calls.length,2);
+    const query=calls[1].sql;
+    assert.match(query,/CROSS JOIN LATERAL \(VALUES/);
+    assert.equal(query.includes('FROM (SELECT COUNT(*) FILTER'),
+      mode==='true','Enabled only with exact opt-in: '+mode);
+    assert.match(query,/u.account_type = 'PERSON'/);
+    assert.match(query,/COALESCE\(uc.political_opinions_consent/);
+    if(scope)assert.deepEqual(calls[1].params,scope.params);
+   }
+  }
+  for(const invalid of [
+   [],['caccia','caccia'],['A'],['x";DROP TABLE users;--'],
+   Array.from({length:257},(_,i)=>'op'+i)
+  ]){
+   assert.throws(()=>buildDirectFilterTextAggregateQuery(invalid));
+  }
+  const query=buildDirectFilterTextAggregateQuery(['caccia','nato'],
+    {scope:'comune',params:['TO','PI','Pisa']});
+  assert.match(query,/orr."caccia" = 'f'/);
+  assert.match(query,/u.comune_residenza = \$3/);
+  assert.doesNotMatch(query,/Pisa|DROP TABLE|UPDATE users/);
+  assert.throws(()=>buildDirectFilterTextAggregateQuery(['caccia'],
+    {scope:'unknown',params:['TO']}));
+ }finally{
+  if(before===undefined)delete process.env[name];
+  else process.env[name]=before;
+ }
+});
