@@ -123,9 +123,10 @@ async function withActualRoutes(fn){
   const server=http.createServer(app);
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port;
-  const request=async(method,url,token,body,extraHeaders={})=>{
+  const request=async(method,url,token,body,extraHeaders={},cacheMode='default')=>{
     const response=await fetch(base+url,{
       method,
+      cache:cacheMode,
       headers:{
         ...(token?{authorization:'Bearer '+token}:{}),
         ...(body?{'content-type':'application/json'}:{}),
@@ -297,7 +298,7 @@ test('CHARACTERIZATION: conditional GET after consent revocation can return HTTP
     consents.set('account-a',false);
     const before=calls.length;
     const conditional=await request('GET',url,'account-a',undefined,
-      {'if-none-match':etag});
+      {'if-none-match':etag},'force-cache');
     assert.equal(conditional.status,304);
     assert.equal(conditional.body,null);
     assert.equal(calls.slice(before).some(c=>c.sql.includes('user_consents')),false);

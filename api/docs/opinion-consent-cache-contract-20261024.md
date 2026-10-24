@@ -28,6 +28,10 @@ sulla base giuridica della conservazione delle opinioni dopo la revoca.
 La route usa `res.json` di Express, che può emettere un `ETag`.
 Una richiesta autenticata con `If-None-Match` può ricevere `304 Not Modified`
 anche dopo la revoca del consenso, perché il JSON della GET non cambia.
+Nel test sintetico il client Node `fetch` imposta automaticamente `Cache-Control: no-cache`
+per richieste condizionali: si utilizza esplicitamente `cache: 'force-cache'`
+per evitare tale intestazione e caratterizzare il comportamento di Express.
+Questo non riproduce necessariamente la cache dei browser o di Android.
 Questo comportamento **non dimostra da solo una fuga di dati**: il 304
 non contiene le opinioni, ma consente il riuso di una risposta già presente
 in una cache. L'assenza di `Cache-Control: no-store` è un rischio da
