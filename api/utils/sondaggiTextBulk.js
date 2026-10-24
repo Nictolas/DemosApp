@@ -252,6 +252,7 @@ async function getNationalSurveyStats(pool, questions, logger = console) {
     // Never amplify outages: connection failures, statement timeouts,
     // permissions, pool exhaustion and unknown failures fail fast as 500.
     if (!eligibleForLegacyFallback(error)) throw error;
+    enforceLegacyFallbackBudget(ids);
     logger.warn?.('National TEXT grouped SQL incompatible; using legacy per-opinion queries', error.code);
     return withReadOnlySnapshot(pool, client => legacyNationalStatsFallback(client, ids));
   }
@@ -364,6 +365,7 @@ async function getTerritorialSurveyStats(pool, questions, { scope, params } = {}
     });
   } catch (error) {
     if (!eligibleForLegacyFallback(error)) throw error;
+    enforceLegacyFallbackBudget(ids);
     logger.warn?.('Territorial TEXT grouped SQL incompatible; using legacy per-opinion queries', error.code);
     return withReadOnlySnapshot(pool, client => legacyTerritorialStatsFallback(client, ids, scope, params));
   }
