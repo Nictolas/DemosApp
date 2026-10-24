@@ -951,3 +951,45 @@ Data: ________________
 ---
 
 *Documento generato in conformità alle linee guida WP248 rev.01 dell'EDPB sulla Valutazione d'Impatto sulla Protezione dei Dati*
+
+---
+
+## Allegato H — Revisione tecnica Sondaggi e consenso (25/10/2026)
+
+**Stato: BOZZA TECNICA, NON APPROVATA.** Questo allegato descrive le verifiche eseguite sul codice e i rischi residui emersi. Non sostituisce il parere del DPO, non certifica la conformità GDPR e non modifica retroattivamente la valutazione originale. La firma e le valutazioni nella sezione 9 restano da aggiornare con il titolare e il DPO.
+
+### H.1 Perimetro esaminato
+
+- Le API pubbliche di aggregazione opinioni `/api/sondaggi` per nazione, regione, provincia e comune, oltre alle statistiche demografiche `/api/opinioni/stats`.
+- La scelta di pubblicare soltanto celle con almeno **10 risposte valide** e il filtro sugli account `PERSON` con consenso politico effettivo. La soglia è una **misura di mitigazione**, non dimostra anonimizzazione irreversibile: la combinazione di risposte aggregate territoriali, temporali o per caratteristiche demografiche può far emergere rischi di inferenza.
+- La revoca via `PUT /api/user/political-opinions-consent/revoke`, che aggiorna il consenso e cancella i dati politici generati dall'utente nella stessa transazione PostgreSQL. Le tabelle istituzionali importate sono escluse da quel perimetro.
+- Il salvataggio individuale via `POST /api/opinioni/salva`, che richiede autenticazione e consenso esplicito e non richiede CIE per le opinioni personali.
+
+### H.2 Rischio di concorrenza e misura predisposta
+
+La lettura del consenso per `POST /api/opinioni/salva`, prima della transazione, lasciava una finestra di concorrenza: una revoca del consenso poteva intervenire tra controllo e scrittura. La correzione in revisione (ramo `fix/political-consent-save-race-20261025`) acquisisce nella stessa transazione di scrittura un blocco `FOR UPDATE OF u` sulla riga `users`, **prima** di leggere il consenso effettivo. Il percorso di revoca aggiorna la stessa riga prima di cancellare le opinioni; la serializzazione impedisce nuovi salvataggi che sopravvivano alla revoca. Per richieste avviate prima della revoca, il completamento è seguito dalla cancellazione della transazione di revoca. L'implementazione richiede test concorrenti veri su PostgreSQL 17, senza dati reali, **prima di un eventuale merge**.
+
+**Impatto stimato del rischio se non mitigato:** alto sulla riservatezza e sulla corretta attuazione della revoca. L'errore riguarda l'ordine delle transazioni e non è stato verificato come abuso reale su persone. Dopo la prova e il deploy il rischio residuo va valutato dal DPO.
+
+### H.3 Rischi residui che richiedono parere o ulteriori verifiche
+
+| Aspetto | Valutazione tecnica attuale | Azione da concludere |
+|---|---|---|
+| Aggregate geografici/demografici con soglia 10 | Il filtro protegge le celle piccole; non è dimostrata l'anonimizzazione né la resistenza ad attacchi per differenza fra aggregati correlati | Test specifici di inferenza, limitazione/raggruppamento delle dimensioni e decisione DPO sui requisiti per una diffusione sicura |
+| Consenso durante la registrazione | Il flusso web `registrazione-consensi-opinioni.tsx` contiene solo `Accetto`, senza una scelta equivalente di rifiuto su quella pagina | Esaminare se registrarsi senza aderire alle funzioni politiche sia possibile e proporzionato, e se il consenso Art. 9 sia sufficientemente libero e separato |
+| Registrazione e stato nel browser | Presente `registrazione_political_opinions_consent` in localStorage durante il flusso | Verificare scadenza/rimozione, dispositivi condivisi e pulizia dopo annullamento/completamento; non inserire risposte politiche nel browser storage senza analisi |
+| Diritti GDPR e revoca | Sono presenti endpoint di revoca, esportazione e pulizia; non è stata eseguita una prova Android completa con account di test | Test attraversando UI, API, DB, cancellazione ed esportazione; verificare risposte e messaggi effettivamente mostrati |
+| Evidenza del consenso e audit | La DPIA precedente elenca IP, user-agent e conservazioni pluriennali; il codice può cancellare metadati all'atto della revoca | Conciliare criteri di minimizzazione, necessità probatoria, durata effettiva, documentazione e informativa; confermare con DPO |
+| Destinatari/fornitori e trasferimenti | Il documento contiene informazioni storiche su responsabili e fornitori, non tutte ricontrollate in questa revisione | Verifica attualizzata di contratti, servizi, regioni, sub-responsabili e tempi di conservazione |
+
+### H.4 Evidenze e confini delle prove
+
+- La precedente PR [#258](https://github.com/Nictolas/DemosApp/pull/258), distribuita il 24 ottobre, ha superato test di aggregazione PostgreSQL sintetico, 4 route pubbliche e una soglia minima 10; ciò **non** equivale a una certificazione privacy completa.
+- L'esecuzione di test reali concorrenti per salvataggio e revoca sarà registrata nel nuovo PR di mitigazione. Nessuna operazione di revoca o scrittura di opinioni reali deve essere eseguita a scopo di test.
+- Le verifiche tecniche non implicano che il DPO abbia approvato il trattamento o la DPIA.
+
+### H.5 Passaggi di approvazione
+
+1. Condividere l'appendice e gli esiti CI con il DPO nominato, acquisendone parere documentato sui rischi residui.
+2. Aggiornare l'informativa e la DPIA laddove i flussi reali divergano da quanto dichiarato (consenso libero, conservazione, minimizzazione e pubblicazione aggregati).
+3. Registrare la decisione del titolare, l'eventuale piano di mitigazione supplementare e le date di verifica.
