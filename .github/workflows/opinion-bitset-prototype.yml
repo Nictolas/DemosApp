@@ -9,6 +9,9 @@ on:
       - 'api/utils/opinionSparseBitset.js'
       - 'api/utils/opinionCodecEnvelope.js'
       - 'api/tests/opinionBitset.test.js'
+      - 'api/tests/opinionTextAggregateProbe.test.js'
+      - 'api/utils/opinionTextAggregateProbe.js'
+      - 'api/scripts/benchmark-opinion-text-aggregate.js'
       - 'api/tests/opinionTrimmedBitset.test.js'
       - 'api/tests/opinionSparseBitset.test.js'
       - 'api/tests/opinionMatchingBitset.test.js'
@@ -37,6 +40,8 @@ jobs:
           node-version: '22'
       - name: Test 2-bit codec and catalog invariants
         run: node --test api/tests/opinionBitset.test.js api/tests/opinionTrimmedBitset.test.js api/tests/opinionSparseBitset.test.js api/tests/opinionMatchingBitset.test.js api/tests/opinionCodecEnvelope.test.js
+      - name: Test isolated TEXT aggregate SQL builder
+        run: node --test api/tests/opinionTextAggregateProbe.test.js
       - name: Run deterministic standalone benchmark
         run: node api/scripts/benchmark-opinion-bitset.js
 
@@ -88,6 +93,15 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/benchmark-opinion-queries.js
+      - name: Compare legacy TEXT N+1 queries with grouped TEXT on synthetic data
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-text-aggregate.js
       - name: Verify PERSON consent joins and anti-inference threshold for all codecs
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'
