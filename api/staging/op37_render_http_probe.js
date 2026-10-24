@@ -253,7 +253,15 @@ async function main(){
   if(!result)server.close();
  }
 }
-main().catch(e=>{
- console.error('OP37_STARTUP_FAIL_CLOSED',String(e.message).slice(0,160));
- process.exitCode=1;
+// Export pure guards for isolated CI tests. Requiring this module may
+// never open a listener or an external connection.
+module.exports = Object.freeze({
+  guard, eqToken, assertSafeRead, rewriteOnlySyntheticTables
 });
+
+if (require.main === module) {
+  main().catch(e => {
+    console.error('OP37_STARTUP_FAIL_CLOSED',String(e.message).slice(0,160));
+    process.exitCode=1;
+  });
+}
