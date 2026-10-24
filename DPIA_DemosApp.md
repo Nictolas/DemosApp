@@ -971,6 +971,12 @@ La lettura del consenso per `POST /api/opinioni/salva`, prima della transazione,
 
 **Impatto stimato del rischio se non mitigato:** alto sulla riservatezza e sulla corretta attuazione della revoca. L'errore riguarda l'ordine delle transazioni e non è stato verificato come abuso reale su persone. Dopo la prova e il deploy il rischio residuo va valutato dal DPO.
 
+### H.2-bis Ulteriori percorsi di scrittura e cache frontend
+
+- L'endpoint amministrativo `PUT /api/users/:userId/opinioni` poteva scrivere dopo un pre-controllo del consenso eseguito fuori dalla transazione, e quindi subire la stessa race condition. La proposta implementa **identico lock della riga users**, lettura del consenso in una successiva istruzione SQL e scrittura dell'opinione nella medesima transazione. Richiede CI verde e ulteriore controllo prima del deploy.
+- I quattro componenti di inserimento Opinioni Nazionali/Regionali/Europee/Comunali usavano `queryKey: ['opinioniQuestions', grado]` per payload che possono contenere le **risposte personali**. Su un dispositivo condiviso, cache della sessione React Query e cambio account potevano condividere informazioni fra utenti diversi. La proposta include `user.id` nella chiave; separa la chiave del selettore statistico; rimuove immediatamente la cache delle risposte dopo `PUT .../revoke`.
+- La mitigazione delle cache non prova che altri percorsi di logout/riaccesso, service worker o storage locale non conservino dati sensibili: serve un test su dispositivo reale di logout, cambio account e revoca, con DevTools e strumenti di test che non registrino voti reali.
+
 ### H.3 Rischi residui che richiedono parere o ulteriori verifiche
 
 | Aspetto | Valutazione tecnica attuale | Azione da concludere |
