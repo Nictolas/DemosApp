@@ -9,6 +9,8 @@ on:
       - 'api/tests/opinionBitset.test.js'
       - 'api/tests/opinionTrimmedBitset.test.js'
       - 'api/scripts/benchmark-opinion-bitset.js'
+      - 'api/scripts/benchmark-opinion-physical.js'
+      - 'api/docs/opinion-bitset-trimmed-probe-20261024.md'
       - 'api/docs/opinion-bitset-prototype.md'
       - '.github/workflows/opinion-bitset-prototype.yml'
 
@@ -28,3 +30,39 @@ jobs:
         run: node --test api/tests/opinionBitset.test.js api/tests/opinionTrimmedBitset.test.js
       - name: Run deterministic standalone benchmark
         run: node api/scripts/benchmark-opinion-bitset.js
+
+  physical-storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: opinion_bitset_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d opinion_bitset_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies without lifecycle scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Measure real PostgreSQL heap, index and TOAST allocations
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-physical.js
