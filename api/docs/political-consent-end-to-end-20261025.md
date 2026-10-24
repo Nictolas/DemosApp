@@ -12,7 +12,7 @@ Al contempo, le quattro schermate Opinioni usavano chiavi React Query del tipo `
 
 1. **Salvataggio personale** `POST /api/opinioni/salva`: validazione del payload, poi transazione con `SELECT id FROM users WHERE id=$1 FOR UPDATE`, **seconda istruzione** `SELECT COALESCE(uc.political_opinions_consent,u.political_opinions_consent,false)` per ottenere un nuovo snapshot READ COMMITTED, poi `SELECT ... opinioni_risposte FOR UPDATE` e INSERT/UPDATE, COMMIT. La revoca aggiorna la stessa riga users e poi cancella gli inserimenti politici nella stessa transazione. Senza consenso, `403` e ROLLBACK; utente mancante `404`.
 2. **Salvataggio Admin** `PUT /api/users/:userId/opinioni`: il controllo definitivo è identico, all'interno della stessa transazione del salvataggio, anche se rimane il pre-controllo per una risposta veloce agli utenti non consenzienti.
-3. **Cache per account e revoca**: le quattro schermate distinguono l'ID utente nelle chiavi. Il selettore statistico usa `statsOpinionQuestions` e può anch'esso conservare risposte personali. Dopo revoca GDPR, le richieste in corso sono annullate e vengono eliminate entrambe le famiglie di cache (`opinioniQuestions` e `statsOpinionQuestions`), prima di aggiornare il consenso visibile.
+3. **Cache per account e revoca**: le quattro schermate distinguono l'ID utente nelle chiavi. Il selettore statistico usa `statsOpinionQuestions` e può anch'esso conservare risposte personali. Dopo revoca GDPR, si annullano le richieste in corso e vengono eliminate entrambe le famiglie di cache (`opinioniQuestions` e `statsOpinionQuestions`). Le cinque letture ora passano il `signal` React Query all'API client, che lo collega al vero `fetch` HTTP con `AbortController` e mantiene un timeout indipendente compatibile con le WebView Android. Corretto inoltre il selettore statistiche affinché estragga `response.data` anziché l'involucro della risposta.
 4. **Minimizzazione dei log web**: rimossi 68 debug log dalle pagine Nazionali/Regionali/Europee, compresi payload e valori personali; eliminato il logging del corpo JSON e dei risultati della decodifica dal client API condiviso. Test di regressione dedicati.
 5. **DPIA** `DPIA_DemosApp.md`: nuovo Allegato H, etichettato **BOZZA TECNICA DA VALIDARE COL DPO**, che documenta rischi di inferenza fra aggregati (anche sopra soglia 10), scelta del consenso nella registrazione, cache e conservazione dati. Le sezioni originali e firme non sono presentate come approvate.
 
@@ -23,7 +23,7 @@ Workflow CI `.github/workflows/political-consent-save-revoke-ci.yml` con Postgre
 - **Revoca → salva:** il salvataggio attende il lock e poi nega la scrittura con 403. Nessuna risposta.
 - **Admin → revoca / revoca → Admin:** stessi due ordini anche per l'endpoint amministrativo.
 - **Concessione valida → salva:** preservata l'operatività normale, nessun obbligo CIE aggiuntivo.
-- Test unitari del contratto API; test statici cache GDPR e build frontend.
+- Test unitari del contratto API; test statici cache GDPR, test eseguibili sul vero client HTTP TypeScript transpilato e su TanStack Query con richieste `fetch` sintetiche, build frontend. Il test dell'annullamento verifica anche l'assenza di timer residui e che una cancellazione non venga presentata come un timeout.
 
 **Non equiparare CI verde a certificazione GDPR**: non sono ancora stati testati account reali Android, push notifiche, logout multi-account su dispositivo fisico, differencing degli aggregati geografici, completezza DPO e DPIA ufficiale.
 
