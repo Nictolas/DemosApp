@@ -1,97 +1,116 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
+const { isIP } = require('node:net');
+const { decrypt: decryptEmail } = require('../utils/emailCrypto');
+const { getIdentityVerificationStatus } = require('../services/identityVerificationStore');
 const { pool, verifyToken, requireAdmin } = require('../middleware/auth');
 const { mirrorApprovedPoliticalRecognition } = require('../services/politicalLifecycleService');
 const { invalidateAuthUserCache } = require('../services/redisCache');
 
 const router = express.Router();
 
+
+const isVerifiedCie = (identity) =>
+  identity?.verified === true && String(identity.provider || '').toUpperCase() === 'CIE';
+
+// Validation only: never fetch URLs from the backend, to avoid SSRF. The
+// institutional nature of the page/document must be reviewed by an admin.
+function validateEvidenceUrl(input) {
+  if (typeof input !== 'string' || input.length > 2048 || !input.trim()) return null;
+  try {
+    const url = new URL(input.trim());
+    const host = url.hostname.toLowerCase().replace(/\.$/, '');
+    if (url.protocol !== 'https:' || url.username || url.password ||
+        !host.includes('.') || host === 'localhost' || host.endsWith('.localhost') ||
+        host.endsWith('.local') || isIP(host)) return null;
+    return url.toString();
+  } catch (_error) {
+    return null;
+  }
+}
+
+// Request status is persisted so that users can see the outcome after review.
+router.get('/mine', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT tipo_ruolo, status, created_at, updated_at, decision_at,
+              fonte_elezione_url, fonte_candidatura_url
+       FROM riconoscimenti WHERE user_id = $1 LIMIT 1`,
+      [req.userId]
+    );
+    return res.json({ success: true, data: result.rows[0] || null });
+  } catch (error) {
+    console.error('Errore lettura stato riconoscimento:', error?.message);
+    return res.status(500).json({ success: false, error: 'Stato richiesta non disponibile' });
+  }
+});
+
 // POST /api/riconoscimenti - Crea o aggiorna una richiesta di riconoscimento per l'utente autenticato
 router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
+    const identity = await getIdentityVerificationStatus(userId);
+    if (!isVerifiedCie(identity)) {
+      return res.status(403).json({
+        success: false, code: 'CIE_REQUIRED',
+        message: 'Devi verificare la tua identita con CIE prima di richiedere il riconoscimento.'
+      });
+    }
+
     const {
       tipo_ruolo,
-      nome,
-      cognome,
-      email,
-      paese_elezione,
-      regione_elezione,
-      provincia_elezione,
-      comune_elezione,
-      grado_elezione,
-      paese_candidatura,
-      regione_candidatura,
-      provincia_candidatura,
-      comune_candidatura,
-      grado_candidatura
+      paese_elezione, regione_elezione, provincia_elezione, comune_elezione, grado_elezione,
+      paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura, grado_candidatura
     } = req.body || {};
 
-    if (!tipo_ruolo || !['P', 'C', 'CP'].includes(tipo_ruolo)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Tipo ruolo non valido',
-        message: 'Il tipo ruolo deve essere uno tra P, C o CP'
-      });
+    if (!['P', 'C', 'CP'].includes(tipo_ruolo)) {
+      return res.status(400).json({ success: false, message: 'Ruolo richiesto non valido.' });
     }
 
-    if (!nome || !cognome || !email) {
-      return res.status(400).json({
-        success: false,
-        error: 'Dati obbligatori mancanti',
-        message: 'Nome, cognome ed email sono obbligatori'
-      });
-    }
-
-    // Se il ruolo include "P", richiede almeno il grado_elezione
     if ((tipo_ruolo === 'P' || tipo_ruolo === 'CP') && !grado_elezione) {
-      return res.status(400).json({
-        success: false,
-        error: 'Dati elezione mancanti',
-        message: 'Per Politico o Candidato Politico è richiesto almeno il grado di elezione'
-      });
+      return res.status(400).json({ success: false, message: 'Indica il tipo di elezione in cui sei stato eletto.' });
     }
-
-    // Se il ruolo include "C", richiede almeno il grado_candidatura
     if ((tipo_ruolo === 'C' || tipo_ruolo === 'CP') && !grado_candidatura) {
+      return res.status(400).json({ success: false, message: 'Indica il tipo di elezione a cui sei candidato.' });
+    }
+
+    const fonteElezioneUrl = (tipo_ruolo === 'P' || tipo_ruolo === 'CP')
+      ? validateEvidenceUrl(req.body?.fonte_elezione_url) : null;
+    const fonteCandidaturaUrl = (tipo_ruolo === 'C' || tipo_ruolo === 'CP')
+      ? validateEvidenceUrl(req.body?.fonte_candidatura_url) : null;
+    if (((tipo_ruolo === 'P' || tipo_ruolo === 'CP') && !fonteElezioneUrl) ||
+        ((tipo_ruolo === 'C' || tipo_ruolo === 'CP') && !fonteCandidaturaUrl)) {
       return res.status(400).json({
-        success: false,
-        error: 'Dati candidatura mancanti',
-        message: 'Per Candidato o Candidato Politico è richiesto almeno il grado di candidatura'
+        success: false, code: 'OFFICIAL_SOURCE_REQUIRED',
+        message: 'Inserisci un URL HTTPS valido per ogni ruolo richiesto.'
       });
     }
 
-    const id = randomUUID();
+    // Profile names are NOT certified CIE names. Their correspondence to
+    // the verified public evidence must still be checked by the reviewer.
+    const accountResult = await pool.query(
+      'SELECT nome, cognome, email FROM users WHERE id = $1 LIMIT 1', [userId]
+    );
+    const account = accountResult.rows[0];
+    if (!account || !String(account.nome || '').trim() || !String(account.cognome || '').trim()) {
+      return res.status(400).json({
+        success: false, code: 'PROFILE_NAME_REQUIRED',
+        message: 'Completa nome e cognome nel profilo prima di inviare la richiesta.'
+      });
+    }
 
     const query = `
       INSERT INTO riconoscimenti (
-        id,
-        user_id,
-        tipo_ruolo,
-        nome,
-        cognome,
-        email,
-        paese_elezione,
-        regione_elezione,
-        provincia_elezione,
-        comune_elezione,
-        grado_elezione,
-        paese_candidatura,
-        regione_candidatura,
-        provincia_candidatura,
-        comune_candidatura,
-        grado_candidatura
-      )
-      VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10, $11,
-        $12, $13, $14, $15, $16
+        id, user_id, tipo_ruolo, nome, cognome, email,
+        paese_elezione, regione_elezione, provincia_elezione, comune_elezione, grado_elezione,
+        paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura, grado_candidatura,
+        fonte_elezione_url, fonte_candidatura_url, status, created_at, updated_at
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'pending',NOW(),NOW()
       )
       ON CONFLICT (user_id) DO UPDATE SET
         tipo_ruolo = EXCLUDED.tipo_ruolo,
-        nome = EXCLUDED.nome,
-        cognome = EXCLUDED.cognome,
-        email = EXCLUDED.email,
+        nome = EXCLUDED.nome, cognome = EXCLUDED.cognome, email = EXCLUDED.email,
         paese_elezione = EXCLUDED.paese_elezione,
         regione_elezione = EXCLUDED.regione_elezione,
         provincia_elezione = EXCLUDED.provincia_elezione,
@@ -102,41 +121,26 @@ router.post('/', verifyToken, async (req, res) => {
         provincia_candidatura = EXCLUDED.provincia_candidatura,
         comune_candidatura = EXCLUDED.comune_candidatura,
         grado_candidatura = EXCLUDED.grado_candidatura,
-        created_at = CURRENT_TIMESTAMP
-      RETURNING *;
+        fonte_elezione_url = EXCLUDED.fonte_elezione_url,
+        fonte_candidatura_url = EXCLUDED.fonte_candidatura_url,
+        status = 'pending', decision_at = NULL,
+        created_at = NOW(), updated_at = NOW()
+      RETURNING id, tipo_ruolo, status, created_at
     `;
-
     const values = [
-      id,
-      userId,
-      tipo_ruolo,
-      nome,
-      cognome,
-      email,
-      paese_elezione || null,
-      regione_elezione || null,
-      provincia_elezione || null,
-      comune_elezione || null,
-      grado_elezione || null,
-      paese_candidatura || null,
-      regione_candidatura || null,
-      provincia_candidatura || null,
-      comune_candidatura || null,
-      grado_candidatura || null
+      randomUUID(), userId, tipo_ruolo,
+      String(account.nome).trim(), String(account.cognome).trim(), account.email || '',
+      paese_elezione || null, regione_elezione || null, provincia_elezione || null,
+      comune_elezione || null, grado_elezione || null,
+      paese_candidatura || null, regione_candidatura || null, provincia_candidatura || null,
+      comune_candidatura || null, grado_candidatura || null,
+      fonteElezioneUrl, fonteCandidaturaUrl
     ];
-
     const result = await pool.query(query, values);
-
-    return res.json({
-      success: true,
-      data: result.rows[0]
-    });
+    return res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('❌ Errore nel creare richiesta riconoscimento:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    console.error('Errore creazione richiesta riconoscimento:', error?.message);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
@@ -147,17 +151,20 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       `
       SELECT 
         r.*,
-        u.email AS user_email,
-        u.ruolo AS ruolo_corrente
+        u.ruolo AS ruolo_corrente,
+        iv.status AS identity_status,
+        iv.provider AS identity_provider
       FROM riconoscimenti r
       JOIN users u ON u.id = r.user_id
+      LEFT JOIN identity_verifications iv ON iv.user_id = r.user_id
+      WHERE r.status = 'pending'
       ORDER BY r.created_at DESC
       `
     );
 
     return res.json({
       success: true,
-      data: result.rows
+      data: result.rows.map(row => ({ ...row, email: decryptEmail(row.email) }))
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare le richieste di riconoscimento:', error);
@@ -178,7 +185,7 @@ router.post('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
     await client.query('BEGIN');
 
     const riconoscimentoResult = await client.query(
-      'SELECT * FROM riconoscimenti WHERE id = $1',
+      'SELECT * FROM riconoscimenti WHERE id = $1 FOR UPDATE',
       [id]
     );
 
@@ -191,6 +198,16 @@ router.post('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
     }
 
     const r = riconoscimentoResult.rows[0];
+    const identity = await getIdentityVerificationStatus(r.user_id, client);
+    if (r.status !== 'pending' || !isVerifiedCie(identity) ||
+        ((r.tipo_ruolo === 'P' || r.tipo_ruolo === 'CP') && !validateEvidenceUrl(r.fonte_elezione_url)) ||
+        ((r.tipo_ruolo === 'C' || r.tipo_ruolo === 'CP') && !validateEvidenceUrl(r.fonte_candidatura_url))) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        success: false,
+        message: 'La richiesta non e approvabile: stato, CIE o fonte ufficiale mancante.'
+      });
+    }
     const nuovoRuolo = r.tipo_ruolo;
 
     // Prepara i campi da aggiornare sull'utente
@@ -266,8 +283,11 @@ router.post('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
     );
     const finalLegacyRole = finalRoleResult.rows[0]?.ruolo || updateResult.rows[0].ruolo;
 
-    // Cancella la richiesta dalla tabella riconoscimenti
-    await client.query('DELETE FROM riconoscimenti WHERE id = $1', [id]);
+    // Keep a minimal outcome record so the user can see the decision.
+    await client.query(
+      "UPDATE riconoscimenti SET status = 'approved', decision_at = NOW(), updated_at = NOW() WHERE id = $1",
+      [id]
+    );
 
     await client.query('COMMIT');
     await invalidateAuthUserCache(r.user_id);
@@ -296,30 +316,15 @@ router.post('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
 // POST /api/riconoscimenti/:id/reject - Rifiuta una richiesta (solo admin)
 router.post('/:id/reject', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
-
     const result = await pool.query(
-      'DELETE FROM riconoscimenti WHERE id = $1 RETURNING id',
-      [id]
+      "UPDATE riconoscimenti SET status = 'rejected', decision_at = NOW(), updated_at = NOW() WHERE id = $1 AND status = 'pending' RETURNING id",
+      [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Richiesta non trovata'
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: 'Richiesta rifiutata e rimossa'
-    });
+    if (!result.rows.length) return res.status(404).json({ success: false, error: 'Richiesta pendente non trovata' });
+    return res.json({ success: true, message: 'Richiesta respinta' });
   } catch (error) {
-    console.error('❌ Errore nel rifiutare richiesta di riconoscimento:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    console.error('Errore rifiuto riconoscimento:', error?.message);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
