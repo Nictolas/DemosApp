@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  CODE_TO_VALUE, requiredBytes, encodeAnswers,
+  CODE_TO_VALUE, requiredBytes, catalogFingerprint, isAppendOnlyCatalog, encodeAnswers,
   decodeAnswers, readAnswer, patchAnswers
 } = require('../utils/opinionBitset');
 
@@ -138,5 +138,41 @@ test('deterministic randomized round trip for sparse and dense answers', () => {
     const packed = encodeAnswers(ids, answers);
     const expected = Object.fromEntries(ids.map(id => [id, answers[id] ?? null]));
     assert.deepEqual(decodeAnswers(ids, packed), expected);
+  }
+});
+
+
+test('catalog fingerprint rejects reordered and removed IDs; append-only extension is allowed', () => {
+  const old = ['energia_nucleare', 'caccia', 'ius_soli'];
+  const next = [...old, 'carne_coltivata'];
+  assert.equal(isAppendOnlyCatalog(old, next), true);
+  assert.equal(isAppendOnlyCatalog(next, old), false);
+  assert.equal(isAppendOnlyCatalog(old, ['caccia', 'energia_nucleare', 'ius_soli']), false);
+  assert.notEqual(catalogFingerprint(old), catalogFingerprint([...old].reverse()));
+  assert.equal(catalogFingerprint(old), catalogFingerprint([...old]));
+});
+
+test('stale concurrent snapshots can lose updates; database integration needs row locks or CAS', () => {
+  const ids = ['caccia', 'nato', 'energia_nucleare', 'ius_soli'];
+  const initial = encodeAnswers(ids, {});
+  const firstWriter = patchAnswers(ids, initial, { caccia: 'f' });
+  const secondWriterFromStaleSnapshot = patchAnswers(ids, initial, { ius_soli: 'c' });
+  assert.equal(readAnswer(ids, secondWriterFromStaleSnapshot, 'caccia'), null);
+  const secondWriterAfterLock = patchAnswers(ids, firstWriter, { ius_soli: 'c' });
+  assert.equal(readAnswer(ids, secondWriterAfterLock, 'caccia'), 'f');
+  assert.equal(readAnswer(ids, secondWriterAfterLock, 'ius_soli'), 'c');
+});
+
+test('round trip remains exact for varying catalog lengths and sparse values', () => {
+  for (let count = 1; count <= 128; count++) {
+    const ids = Array.from({ length: count }, (_, i) => 'q' + i);
+    const answers = {};
+    if (count > 0) answers[ids[0]] = 'f';
+    if (count > 4) answers[ids[4]] = 'c';
+    if (count > 40) answers[ids[40]] = 'i';
+    const packed = encodeAnswers(ids, answers);
+    assert.equal(packed.length, Math.ceil(count / 4));
+    const decoded = decodeAnswers(ids, packed);
+    for (const id of ids) assert.equal(decoded[id], answers[id] ?? null);
   }
 });
