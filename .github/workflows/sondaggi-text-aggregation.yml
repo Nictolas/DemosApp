@@ -13,6 +13,7 @@ on:
       - 'api/scripts/benchmark-sondaggi-text-scale-ci.js'
       - 'api/docs/sondaggi-scale-sql-candidates-20261024.md'
       - 'api/docs/sondaggi-direct-filter-opt-in-20261024.md'
+      - 'api/docs/sondaggi-staging-candidate-parity-20261024.md'
       - 'api/docs/sondaggi-bounded-large-catalog-20261024.md'
       - 'api/docs/sondaggi-consistent-snapshot-20261024.md'
       - 'api/docs/sondaggi-text-benchmark-20261024.md'
