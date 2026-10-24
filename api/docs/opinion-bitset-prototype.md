@@ -352,3 +352,43 @@ politici, revoca reale con cancellazione, RLS Supabase, Android installato
 o vantaggio complessivo della compressione binaria. Il codec non è
 integrato nelle route effettive e la PR rimane in bozza.
 **OP-41 In corso; KPI-23 Non verificato.**
+
+
+## Concorrenza HTTP con salvataggi BYTEA su PostgreSQL effimero (DOC-033)
+
+Script `api/scripts/verify-opinion-packed-http-concurrency.js`, richiamato
+esclusivamente dalla CI su GitHub Actions con PostgreSQL 17 **effimero**,
+credenziali fittizie e guardia obbligatoria `GITHUB_ACTIONS=true`,
+`OPINION_BENCH_EPHEMERAL=yes`, `PGDATABASE=opinion_bitset_ci` e
+`PGHOST=127.0.0.1`. È un router **di sola prova** sotto `/_ci/api`,
+non importato dal server o dalle route DEMOS: nessun accesso a
+Supabase, dati reali, DDL persistente o costi aggiuntivi.
+
+Per ciascuna codifica fixed, trimmed e sparse, il test usa due account
+sintetici. Lancia in parallelo **due POST HTTP di primo salvataggio sulla
+stessa riga utente inesistente**, con opinioni diverse. Ogni transazione
+acquisisce un `pg_advisory_xact_lock` per account prima di cercare la
+riga con `FOR UPDATE`; il secondo POST deve preservare la prima risposta,
+la riga finale deve avere revisione 2 e il JSON della GET non deve
+esporre Buffer o metadati. Gli UPDATE successivi verificano anche
+`WHERE revision = $expected` come controllo CAS.
+Sono testati account separati, batch tutti invalidi e POST con consenso
+sintetico disattivato: niente nuove scritture.
+
+Si aggiunge la versione 2 del catalogo in una tabella locale separata:
+le risposte v1 devono rimanere leggibili con i nuovi slot NULL.
+Due ulteriori POST HTTP concorrenti per ciascun formato (uno su un nuovo
+slot e uno su uno vecchio) devono portare alla revisione 4, con entrambi
+i voti conservati e payload aggiornato al catalogo v2. Viene verificata
+la somma delle revisioni su tutti i soggetti sintetici.
+
+**Limiti essenziali:** la prova esercita un nuovo router Express e un
+nuovo schema SQL inventati *per la CI*, non il vero
+`POST /api/opinioni/salva`. Le route pubblicate NON memorizzano BYTEA.
+Questo test non misura il throughput in produzione, non valida RLS/JWT/
+pooler Supabase, non riproduce revoca e cancellazione atomiche, non
+copre notifiche politiche, Android installato o rollback delle versioni
+già scritte. Il lock è una convenzione fra scrittori cooperanti: non
+sostituisce i vincoli e permessi necessari in un disegno produttivo.
+La convenienza della compressione rispetto a TEXT resta da dimostrare.
+**OP-41 In corso; KPI-23 Non verificato; OP-42 Da fare.**
