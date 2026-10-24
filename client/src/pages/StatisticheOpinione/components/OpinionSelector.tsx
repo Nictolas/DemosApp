@@ -27,10 +27,10 @@ export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
     queryKey: ['statsOpinionQuestions', grado, user?.id ?? 'guest'],
     queryFn: async ({ signal }) => {
       console.log('🔍 DEBUG - Caricamento opinioni per selettore...');
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`, undefined, undefined, signal);
-      // Do not log the payload: the endpoint can contain private userAnswers.
-      return data;
+      const response = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`, undefined, undefined, signal);
+      // The shared client wraps the parsed JSON in response.data.
+      // Never log this payload: it can include private userAnswer values.
+      return response.data;
     },
     enabled: !!user,
   });
