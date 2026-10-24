@@ -12,6 +12,18 @@ const { cellThresholdMet } = require('./politicalAggregatePrivacy');
 
 const SAFE_COLUMN = /^[a-z][a-z0-9_]{0,62}$/;
 const MAX_GROUPED_COLUMNS = 256;
+
+// An unavailable/overloaded database must never trigger up to two extra
+// queries per question. Only stable SQL feature / syntax incompatibilities
+// can justify switching from grouped VALUES to the legacy implementation.
+// PostgreSQL SQLSTATE: 0A000=feature_not_supported, 42601=syntax_error,
+// 42883=undefined_function, 42703=undefined_column (metadata race).
+const FALLBACK_SQLSTATES = new Set(['0A000', '42601', '42883', '42703']);
+function eligibleForLegacyFallback(error) {
+  return error != null && typeof error.code === 'string' &&
+    FALLBACK_SQLSTATES.has(error.code);
+}
+
 const COLUMN_SQL = `
   SELECT column_name
   FROM information_schema.columns
@@ -120,7 +132,10 @@ async function getNationalSurveyStats(pool, questions, logger = console) {
     const result = await pool.query(buildNationalTextAggregateQuery(columns));
     return asPublishedStats(result.rows.filter(row => existing.has(row.opinion_id)));
   } catch (error) {
-    logger.warn?.('National TEXT survey aggregation unavailable; using legacy per-opinion queries', error.message);
+    // Never amplify outages: connection failures, statement timeouts,
+    // permissions, pool exhaustion and unknown failures fail fast as 500.
+    if (!eligibleForLegacyFallback(error)) throw error;
+    logger.warn?.('National TEXT grouped SQL incompatible; using legacy per-opinion queries', error.code);
     return legacyNationalStatsFallback(pool, ids);
   }
 }
@@ -229,12 +244,14 @@ async function getTerritorialSurveyStats(pool, questions, { scope, params } = {}
     );
     return asPublishedStats(result.rows.filter(row => existing.has(row.opinion_id)));
   } catch (error) {
-    logger.warn?.('Territorial TEXT survey unavailable; using per-opinion fallback', error.message);
+    if (!eligibleForLegacyFallback(error)) throw error;
+    logger.warn?.('Territorial TEXT grouped SQL incompatible; using legacy per-opinion queries', error.code);
     return legacyTerritorialStatsFallback(pool, ids, scope, params);
   }
 }
 module.exports = {
   safeOpinionIds,
+  eligibleForLegacyFallback,
   buildNationalTextAggregateQuery,
   getNationalSurveyStats,
   buildTerritorialTextAggregateQuery,
