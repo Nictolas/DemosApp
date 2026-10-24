@@ -1,0 +1,126 @@
+name: Sondaggi TEXT aggregation regression
+
+on:
+  pull_request:
+    paths:
+      - 'api/routes/sondaggi.js'
+      - 'api/utils/sondaggiTextBulk.js'
+      - 'api/tests/sondaggiTextBulk.test.js'
+      - 'api/tests/opinionStatsAccountPopulation.test.js'
+      - 'api/scripts/verify-sondaggi-text-standalone.js'
+      - 'api/scripts/benchmark-sondaggi-text-paired.js'
+      - 'api/scripts/verify-sondaggi-large-catalog-pg17.js'
+      - 'api/scripts/benchmark-sondaggi-text-scale-ci.js'
+      - 'api/scripts/benchmark-sondaggi-concurrency-ci.js'
+      - 'api/docs/sondaggi-concurrency-pg17-20261024.md'
+      - 'api/docs/sondaggi-pre-release-security-review-20261024.md'
+      - 'api/docs/sondaggi-scale-sql-candidates-20261024.md'
+      - 'api/docs/sondaggi-direct-filter-opt-in-20261024.md'
+      - 'api/docs/sondaggi-staging-candidate-parity-20261024.md'
+      - 'api/docs/sondaggi-bounded-large-catalog-20261024.md'
+      - 'api/docs/sondaggi-consistent-snapshot-20261024.md'
+      - 'api/docs/sondaggi-text-benchmark-20261024.md'
+      - 'api/staging/op37_sondaggi_private_synthetic.sql'
+      - 'api/staging/op37_compare_staging_sql.sql'
+      - 'api/staging/op37_render_http_probe.js'
+      - 'api/tests/sondaggiStagingSqlSafety.test.js'
+      - 'api/tests/sondaggiRenderStagingIsolation.test.js'
+      - 'api/scripts/verify-sondaggi-render-setup-public.js'
+      - 'api/docs/sondaggi-render-http-staging-handoff-20261024.md'
+      - 'api/docs/sondaggi-supabase-staging-db-20261024.md'
+      - '.github/workflows/sondaggi-text-aggregation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sondaggio-text:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: sondaggi_text_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sondaggi_text_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API packages without lifecycle scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Unit tests for safe identifiers, fallback, response contract and geography
+        run: |
+          node api/tests/sondaggiTextBulk.test.js
+          node api/tests/opinionStatsAccountPopulation.test.js
+          node api/tests/opinionPrivacy.test.js
+          node api/tests/sondaggiStagingSqlSafety.test.js
+          node api/tests/sondaggiRenderStagingIsolation.test.js
+          node --check api/staging/op37_render_http_probe.js
+      - name: Verify live Render public setup-only routes deny data without credentials
+        env:
+          OP37_PUBLIC_SETUP_PROBE: no-credentials
+          OP37_STAGING_HTTP_ONLY: 'yes'
+        run: node api/scripts/verify-sondaggi-render-setup-public.js
+      - name: Verify real GET Sondaggi on synthetic PostgreSQL 17 and 10-to-9 consent
+        env:
+          GITHUB_ACTIONS: 'true'
+          SONDAGGI_TEXT_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: sondaggi_text_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-sondaggi-text-standalone.js
+      - name: Verify 300 TEXT questions in two groups on real synthetic PG17
+        env:
+          GITHUB_ACTIONS: 'true'
+          SONDAGGI_TEXT_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: sondaggi_text_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-sondaggi-large-catalog-pg17.js
+      - name: Profile 1k, 10k, and 50k synthetic TEXT survey accounts on isolated PG17
+        env:
+          GITHUB_ACTIONS: 'true'
+          SONDAGGI_TEXT_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: sondaggi_text_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-sondaggi-text-scale-ci.js
+      - name: Exercise concurrent HTTP survey GET against disposable PG17 without external services
+        env:
+          GITHUB_ACTIONS: 'true'
+          SONDAGGI_TEXT_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: sondaggi_text_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-sondaggi-concurrency-ci.js
+      - name: Compare old and new SQL p50/p95 on the identical fabricated PG17 dataset
+        env:
+          GITHUB_ACTIONS: 'true'
+          SONDAGGI_TEXT_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: sondaggi_text_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-sondaggi-text-paired.js
+
