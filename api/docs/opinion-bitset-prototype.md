@@ -111,3 +111,60 @@ La decisione finale può essere **lasciare lo schema attuale**.
 | 100% | 221,00 | 58,00 | 1159,00 |
 
 TEXT/BYTEA: 1.000 record per densità; JSONB: 300 record per densità con chiavi corte artificiali `q0..q93`. I numeri sono confrontabili solo **come record compositi sintetici** e non sostituiscono un benchmark con tabelle reali, catalogo versionato e risposte sparse distribuite come in DEMOS. La bitmap NULL può rendere il confronto diverso da `8,32 × 2` byte di soli valori. Il JSONB sparse con chiavi reali potrebbe occupare ancora più spazio. **Non è stata dimostrata alcuna convenienza netta della migrazione.**
+
+
+## Compatibilità API e contenitore versionato (DOC-016)
+
+La PR #247 aggiunge, **solo come esperimento interno**,
+api/utils/opinionCodecEnvelope.js e
+api/tests/opinionCodecEnvelope.test.js.
+Il modulo non viene importato dalle route reali e non crea tabelle.
+
+Un oggetto interno binario conserva:
+- schemaVersion (attualmente 1);
+- catalogVersion, intero crescente e presente nel registro;
+- catalogFingerprint SHA-256 sull'elenco ordinato degli ID;
+- encoding, tra fixed/trimmed/sparse;
+- payload come Buffer BYTEA, mai JSON/stringa con 0/1.
+
+Il registro di cataloghi usa copie immutabili degli ID e impone
+**append-only** fra versioni consecutive. Un payload v1 può essere
+letto alla versione v2 senza spostare gli slot; i nuovi ID sono
+NULL. La ricodifica esplicita verso l'ultima versione può anche
+cambiare il formato binario preservando le risposte. Un fingerprint
+incoerente, una versione sconosciuta, byte non validi o un ordine
+modificato fanno fallire la decodifica.
+
+**Limiti fondamentali:** il registro è per ora soltanto IN MEMORIA.
+Il fingerprint individua divergenze rispetto al registro, ma non
+garantisce autenticità crittografica del payload. Prima di una
+eventuale migrazione serve una tabella dei cataloghi persistita,
+migrazione/rollback verificati, autorizzazione e verifica della
+concorrenza SQL, oltre ai test Android reali.
+
+### Contratto HTTP da preservare
+
+Il client attuale chiama POST /api/opinioni/salva con un body
+del tipo {"opinioni":{"caccia":"f","nato":"i"}} e attende success,
+savedCount ed errorCount. La successiva GET /api/opinioni-list
+espone question.id e question.userAnswer nel vocabolario
+f/c/i/NULL. Il nuovo modulo di prova può ricostruire quel formato
+con decodeLegacyQuestionRows e interpretare il POST con
+parseLegacyOpinionPost usando la normalizzazione reale di DEMOS.
+
+Il parser di prova è più severo del salvataggio attuale per
+valori sconosciuti: non va inserito nell'API senza una revisione
+separata della gestione degli errori parziali.
+
+Il caricamento delle risposte non deve mai comunicare BYTEA,
+catalogVersion o fingerprint agli utenti/Android: restano dettagli
+interni. L'app pubblicata non utilizza ancora questo codice.
+
+Test: 8 nuovi casi di versionamento/compatibilità, inclusi il
+catalogo esteso, i vecchi client, valori non ammessi e payload
+corrotti. È inoltre prevista l'esecuzione in CI del test
+esistente api/tests/ordinaryUserOpinionSave.test.js per il vero
+endpoint Express con backend isolato/mock, senza dati reali.
+
+Non c'è nessuna modifica alle risposte politiche in Supabase,
+nessuna migrazione del DB, nessun deploy e nessun merge.
