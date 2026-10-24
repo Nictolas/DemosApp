@@ -70,3 +70,67 @@ sparse, includendo 0, 8, 24 e 94 risposte per persona, per gli
 scenari 10mila/100mila/1 milione.
 
 PR: https://github.com/Nictolas/DemosApp/pull/247
+
+## Benchmark fisico su PostgreSQL 17 — GitHub Actions
+
+Workflow: https://github.com/Nictolas/DemosApp/actions/runs/40044654101
+Script: `api/scripts/benchmark-opinion-physical.js`.
+
+Il job usa il servizio **PostgreSQL 17 temporaneo di GitHub Actions**, database
+`opinion_bitset_ci`, senza credenziali Supabase e senza dati reali. Ogni
+rappresentazione e densità contiene 1.200 UUID sintetici e lo stesso numero
+di risposte. Vengono misurati `pg_relation_size` (heap),
+`pg_indexes_size` (indice PK) e `pg_total_relation_size` (totale,
+incluse altre allocazioni/TOAST).
+
+Aggiunta la rappresentazione **binaria sparse/delta**:
+`api/utils/opinionSparseBitset.js`. Ogni risposta esplicita salva l'offset
+della sua posizione e 2 bit di valore. Se l'offset è nell'intervallo
+1..63, basta **un byte** per risposta; un byte escape `0xFC` permette
+salti più lunghi e cataloghi append-only più estesi. Non si registrano
+le opinioni mai compilate (equivalenti al codice implicito `00`).
+
+### Risparmio netto su testo, byte per account sintetico
+
+**Scenario senza fonti JSONB**, confronto dimensione fisica della tabella
+inclusi indice UUID PK e allocazioni accessorie. Un valore **positivo**
+indica che la codifica binaria usa meno spazio rispetto al testo.
+
+| Percentuale risposte compilate | 2 bit fisso | 2 bit trimmed | Binario sparse |
+|---|---:|---:|---:|
+| 0% | -20,48 | +6,83 | +6,83 |
+| 5% | -6,83 | +6,83 | +20,48 |
+| 9% | 0 | +6,83 | **+20,48** |
+| 33% | +47,79 | **+54,61** | +47,79 |
+| 100% | **+177,49** | **+177,49** | +116,05 |
+
+**Scenario con fonti JSONB sintetiche**, circa 600 caratteri pseudo-casuali
+per riga: al 9% tutte le tre codifiche binarie occupano, nel campione,
+lo stesso spazio complessivo del testo, a causa dei salti di allocazione
+su pagine PostgreSQL. A densità 33% risparmiano tutte +68,27 byte/riga.
+Questi valori NON descrivono le fonti reali né un database di 1 milione
+di utenti.
+
+Per il 9% senza fonti, proiezione puramente lineare della differenza di
+dimensione **+20,48 MB per un milione di righe** con sparse vs TEXT.
+Non è una previsione della quota Free (altre tabelle, indici, WAL,
+metadati, workload, RLS e traffico restano fuori).
+
+### Esito e limiti
+
+- **30/30 test del codec PASS** (GitHub Actions, stesso run).
+- **Benchmark PostgreSQL fisico PASS** su servizio effimero, non su Supabase.
+- Campione sintetico uniforme di 1.200 righe per variante: esistono effetti
+  di quantizzazione delle pagine da 8 kB e non sono simulati gli accessi
+  reali, i backup, gli UPDATE o i carichi concorrenti.
+- Le chiavi JSONB sparse sono intenzionalmente lunghe per evitare un
+  confronto ingannevole con nomi `q0` troppo corti.
+- Restano da misurare aggiornamenti atomici, query Sondaggi/matching,
+  tempi di lettura/scrittura, compressione di fonti, compatibilità Android
+  e comportamento su campioni realisticamente distribuiti.
+- **Nessuna migrazione, nessun merge e nessuna modifica a Supabase.**
+
+La soluzione finale potrebbe essere un formato adattivo (sparse per
+pochi voti, trimmed/fisso per molti), ma aggiungere un selettore di formato
+e complessità di querying richiede un benchmark ulteriore. Non introdurlo
+in produzione senza prova del beneficio complessivo.
