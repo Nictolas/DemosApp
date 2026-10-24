@@ -54,6 +54,7 @@ on:
       - 'api/scripts/benchmark-opinion-physical.js'
       - 'api/scripts/benchmark-opinion-mixed-sources.js'
       - 'api/scripts/benchmark-opinion-mixed-performance.js'
+      - 'api/scripts/evaluate-opinion-two-bit-decision.js'
       - 'api/scripts/benchmark-opinion-concurrent-load-catalog.js'
       - 'api/scripts/verify-opinion-crash-recovery.js'
       - 'api/scripts/verify-opinion-idempotent-backup.js'
@@ -163,6 +164,15 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/benchmark-opinion-mixed-performance.js
+      - name: Evaluate provisional 2-bit migration economics and shared catalog overhead
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/evaluate-opinion-two-bit-decision.js
       - name: Stress synthetic concurrent TEXT/BYTEA saves and versioned catalog caches
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'
