@@ -291,3 +291,43 @@ test('territorial invalid region/province stay HTTP 400 without querying the DB'
   });
   assert.equal(calls.length,0);
 });
+
+
+test('temporary connection errors and overload do not trigger per-opinion fallback fanout',async()=>{
+  for(const code of ['53300','57014','08006','57P01','42501','ECONNRESET','XX000']){
+    for(const territorial of [false,true]){
+      const {pool}=fakePool();
+      const originalQuery=pool.query.bind(pool);
+      let attempts=0;
+      pool.query=async(sql,params)=>{
+        attempts++;
+        if(sql.includes('CROSS JOIN LATERAL (VALUES')){
+          const e=Error('synthetic outage '+code);
+          e.code=code;
+          throw e;
+        }
+        return originalQuery(sql,params);
+      };
+      const scope=GEO_SCOPES[2];
+      await assert.rejects(
+        territorial
+          ? getTerritorialSurveyStats(pool,QUESTIONS,scope)
+          : getNationalSurveyStats(pool,QUESTIONS),
+        err=>err.code===code,
+        'Must propagate '+code+' without repeated SQL'
+      );
+      assert.equal(attempts,2,'Expected metadata and grouped read only for '+code);
+    }
+  }
+});
+
+test('fallback eligibility is limited to recognized static SQL incompatibilities',()=>{
+  const {eligibleForLegacyFallback}=require('../utils/sondaggiTextBulk');
+  for(const code of ['0A000','42601','42883','42703']){
+    assert.equal(eligibleForLegacyFallback({code}),true);
+  }
+  for(const code of ['57014','53300','08006','42501','XX000','ECONNRESET',null]){
+    assert.equal(eligibleForLegacyFallback({code}),false);
+  }
+  assert.equal(eligibleForLegacyFallback(new Error('no SQLSTATE')),false);
+});
