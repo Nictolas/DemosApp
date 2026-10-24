@@ -66,7 +66,7 @@ function rewriteOnlySyntheticTables(sql) {
  let result=sql;
  for(const [regex,replacement] of substitutions)result=result.replace(regex,replacement);
  // Fail closed if new production-only dependencies get introduced.
- if(/\b(FROM|JOIN)\s+(?!op37_sondaggi_ci\.|information_schema\.|pg_catalog\.)[a-z][a-z0-9_]*\b/i.test(result)){
+ if(/\b(FROM|JOIN)\s+(?!op37_sondaggi_ci\.|information_schema\.|pg_catalog\.|LATERAL\s*\()[a-z][a-z0-9_]*\b/i.test(result)){
   throw Error('OP37_NON_STAGING_TABLE_QUERY');
  }
  return result;
@@ -132,6 +132,7 @@ async function main(){
  // Production-like aggregate GET routes are strictly protected, with an
  // exact path allowlist and no access to other opinion/user endpoints.
  app.use('/api/sondaggi',(req,res,next)=>{
+  if(result)return res.status(503).json({error:'benchmark_finished'});
   if(req.method!=='GET'||!PATHS.includes(req.path==='/'
     ?'/api/sondaggi':'/api/sondaggi'+req.path)){
    return res.status(404).json({error:'not_found'});
