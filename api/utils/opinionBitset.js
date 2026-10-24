@@ -14,6 +14,7 @@
  * patch() function is NOT a concurrency-safe database update; a production
  * implementation must atomically update individual slots (or use a lock/CAS).
  */
+const { createHash } = require('node:crypto');
 const CODE_TO_VALUE = Object.freeze([null, 'f', 'c', 'i']);
 const VALUE_TO_CODE = Object.freeze({ f: 1, c: 2, i: 3 });
 const ID_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -125,10 +126,30 @@ function patchAnswers(orderedIds, packed, changedAnswers) {
   return copy;
 }
 
+
+/**
+ * Stable fingerprint of the exact ordered catalog; never use this in place
+ * of storing an explicit catalog version beside each persisted bitset.
+ */
+function catalogFingerprint(orderedIds) {
+  validateCatalog(orderedIds);
+  return createHash('sha256').update(JSON.stringify(orderedIds)).digest('hex');
+}
+
+/** New catalogs may append IDs but must never reorder, remove or reuse slots. */
+function isAppendOnlyCatalog(previousIds, nextIds) {
+  validateCatalog(previousIds);
+  validateCatalog(nextIds);
+  return previousIds.length <= nextIds.length &&
+    previousIds.every((id, index) => id === nextIds[index]);
+}
+
 module.exports = {
   CODE_TO_VALUE,
   MAX_OPINIONS,
   requiredBytes,
+  catalogFingerprint,
+  isAppendOnlyCatalog,
   encodeAnswers,
   decodeAnswers,
   readAnswer,
