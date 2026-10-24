@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, BarChart3 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 interface OpinionQuestion {
   id: string;
@@ -16,18 +17,19 @@ interface OpinionSelectorProps {
 }
 
 export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
+  const { user } = useAuth();
   const { data: questionsData, isLoading, isError } = useQuery<{
     success: boolean;
     data: OpinionQuestion[];
     grado: string;
     total: number;
   }>({
-    queryKey: ['opinioniQuestions', grado],
+    queryKey: ['statsOpinionQuestions', grado, user?.id ?? 'guest'],
     queryFn: async () => {
       console.log('🔍 DEBUG - Caricamento opinioni per selettore...');
       // apiRequest restituisce già il JSON parsato, non un Response
       const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`);
-      console.log('🔍 DEBUG - Risposta API selettore:', data);
+      // Do not log the payload: the endpoint can contain private userAnswers.
       return data;
     },
   });
