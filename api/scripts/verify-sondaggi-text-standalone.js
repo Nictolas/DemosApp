@@ -79,7 +79,7 @@ async function withApp(db,task){
       queries.push(String(sql));
       if(failNext&&String(sql).includes('CROSS JOIN LATERAL (VALUES')){
         failNext=false;
-        throw Error('Simulated grouped query failure');
+        throw Object.assign(Error('Simulated grouped feature unsupported'),{code:'0A000'});
       }
       return db.query(sql,params);
     }
