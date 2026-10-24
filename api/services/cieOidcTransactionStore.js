@@ -141,9 +141,12 @@ async function saveCieRegistrationTransaction(
     throw new Error('Registrazione OAuth mancante');
   }
 
+  // A regular citizen's name is unnecessary even in the short-lived
+  // pre-account transaction. Keep only credentials, consent and territory.
+  const { givenName, familyName, name, ...minimalRegistration } = registration;
   const payload = {
     flow: 'registration',
-    registration,
+    registration: minimalRegistration,
     state: transaction.state,
     nonce: transaction.nonce,
     codeVerifier: transaction.codeVerifier,
