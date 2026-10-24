@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - 'api/utils/opinionBitset.js'
+      - 'api/utils/opinionTrimmedBitset.js'
       - 'api/tests/opinionBitset.test.js'
+      - 'api/tests/opinionTrimmedBitset.test.js'
       - 'api/scripts/benchmark-opinion-bitset.js'
       - 'api/docs/opinion-bitset-prototype.md'
       - '.github/workflows/opinion-bitset-prototype.yml'
@@ -23,6 +25,6 @@ jobs:
         with:
           node-version: '22'
       - name: Test 2-bit codec and catalog invariants
-        run: node --test api/tests/opinionBitset.test.js
+        run: node --test api/tests/opinionBitset.test.js api/tests/opinionTrimmedBitset.test.js
       - name: Run deterministic standalone benchmark
         run: node api/scripts/benchmark-opinion-bitset.js
