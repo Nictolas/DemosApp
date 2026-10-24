@@ -57,6 +57,7 @@ on:
       - 'api/scripts/benchmark-opinion-concurrent-load-catalog.js'
       - 'api/scripts/verify-opinion-crash-recovery.js'
       - 'api/scripts/verify-opinion-idempotent-backup.js'
+      - 'api/scripts/verify-opinion-retry-revocation.js'
       - 'api/scripts/verify-opinion-pgdump-restore.sh'
       - 'api/scripts/verify-opinion-pgdump-restore.js'
       - 'api/scripts/benchmark-opinion-queries.js'
@@ -182,6 +183,15 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-opinion-idempotent-backup.js
+      - name: Validate idempotent retries never bypass synthetic consent revocation
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-retry-revocation.js
       - name: Dump and restore synthetic BYTEA, catalog and retry ledger with PG17 CLI
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'
