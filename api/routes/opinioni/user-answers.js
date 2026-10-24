@@ -268,6 +268,42 @@ router.post('/salva', verifyToken, async (req, res) => {
     try {
       await client.query('BEGIN');
 
+      // IMPORTANT: the earlier pool.query consent check preserves the existing
+      // HTTP validation order, but cannot authorize a write by itself: a revoke
+      // may commit while this request is validating the submitted opinions.
+      //
+      // Lock the same users row updated by PUT /user/political-opinions-consent/revoke.
+      // In READ COMMITTED, check the joined user_consents value in a *new*
+      // statement after acquiring the row lock: a joined SELECT FOR UPDATE OF u
+      // alone could retain an earlier snapshot of the nullable consent row.
+      const lockedUser = await client.query(
+        'SELECT id FROM users WHERE id = $1 FOR UPDATE',
+        [userId]
+      );
+      if (lockedUser.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, error: 'Utente non trovato' });
+      }
+      const lockedConsent = await client.query(`
+        SELECT COALESCE(
+          uc.political_opinions_consent,
+          u.political_opinions_consent,
+          false
+        ) AS granted
+        FROM users u
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE u.id = $1
+      `, [userId]);
+      if (lockedConsent.rows[0]?.granted !== true) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          success: false,
+          error: 'Consenso richiesto',
+          message: 'Per salvare opinioni politiche è necessario un consenso esplicito attivo.',
+          consent_required: true
+        });
+      }
+
       const quotedFields = insertFields.map((field) => `"${String(field).replace(/"/g, '""')}"`);
       const checkQuery = `
         SELECT user_id${quotedFields.length ? `, ${quotedFields.join(', ')}` : ''}

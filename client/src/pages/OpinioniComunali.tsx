@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
+import { opinionQuestionsKey } from '@/lib/opinionQueryKeys';
 import { useToast } from '@/hooks/use-toast';
 import { ApprofondimentoButton } from '@/components/ApprofondimentoButton';
 import { usePoliticalOpinionsConsent } from '@/hooks/usePoliticalOpinionsConsent';
@@ -43,9 +44,9 @@ export default function OpinioniComunali() {
 
   // 1. Query per caricare le domande
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: ['opinioniQuestions', 'Comunale'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=CO");
+    queryKey: opinionQuestionsKey('Comunale', user?.id),
+    queryFn: async ({ signal }) => {
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=CO", undefined, undefined, signal);
       if (response.ok && response.data) {
         return response.data;
       }

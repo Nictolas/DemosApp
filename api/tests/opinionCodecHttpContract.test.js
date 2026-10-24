@@ -1,0 +1,635 @@
+'use strict';
+
+/**
+ * Isolated HTTP contract test for the ACTUAL deployed-route source files.
+ * No Supabase, no external calls, no SQL DDL. The PostgreSQL pool and JWT
+ * verification are injected through Node's require cache; all data is fake.
+ * The 2-bit adapter is compared against unchanged legacy HTTP JSON.
+ * This is NOT proof of Android-device compatibility or production RLS.
+ */
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const http=require('node:http');
+const path=require('node:path');
+const express=require('express');
+const {mountSyntheticPackedOpinionApi}=
+  require('./fixtures/opinionPackedShadowHttpFixture');
+const {createCatalogRegistry,encodeEnvelope,decodeLegacyQuestionRows}=
+  require('../utils/opinionCodecEnvelope');
+
+const ROOT=path.resolve(__dirname,'..');
+const paths={
+  auth:require.resolve(path.join(ROOT,'middleware/auth.js')),
+  jwt:require.resolve(path.join(ROOT,'utils/jwt.js')),
+  civic:require.resolve(path.join(ROOT,'middleware/civicIdentity.js')),
+  compat:require.resolve(path.join(ROOT,'routes/compatibility.js')),
+  answers:require.resolve(path.join(ROOT,'routes/opinioni/user-answers.js')),
+  notifications:require.resolve(path.join(ROOT,'services/politicalOpinionNotificationService.js')),
+  push:require.resolve(path.join(ROOT,'services/currentSupporterPushService.js'))
+};
+const IDS=['caccia','nato','salario_minimo','energia_nucleare'];
+const QUESTIONS=IDS.map((id,index)=>({
+  id,text:'Synthetic question '+index,gradi_opinione:['N']
+}));
+const registry=createCatalogRegistry([{version:1,ids:IDS}]);
+
+async function withActualRoutes(fn,{packedShadow=false,onConsentLock=null}={}){
+  const old=new Map(Object.values(paths).map(p=>[p,require.cache[p]]));
+  const answers=new Map();
+  const consents=new Map([['account-a',true],['account-b',true]]);
+  const calls=[];
+  const pool={
+    async query(statement,params=[]){
+      const sql=String(statement).replace(/\s+/g,' ').trim();
+      calls.push({sql,params});
+      if(['BEGIN','COMMIT','ROLLBACK'].includes(sql))return {rows:[],rowCount:0};
+      if(sql.startsWith('SELECT id, status, ruolo FROM users')){
+        const id=params[0];
+        if(id==='inactive')return {rows:[{id,status:'p',ruolo:'user'}],rowCount:1};
+        return ['account-a','account-b'].includes(id)?
+          {rows:[{id,status:'a',ruolo:'user'}],rowCount:1}:
+          {rows:[],rowCount:0};
+      }
+      if(sql.startsWith('SELECT id FROM users WHERE id = $1 FOR UPDATE')){
+        // Simulates a revoke committed after an optimistic preflight but
+        // before the authoritative consent read under the row lock.
+        if(onConsentLock)await onConsentLock({account:params[0],consents,calls});
+        return ['account-a','account-b'].includes(params[0])
+          ? {rows:[{id:params[0]}],rowCount:1}
+          : {rows:[],rowCount:0};
+      }
+      if(sql.includes('AS granted')&&sql.includes('user_consents')){
+        return {rows:[{granted:consents.get(params[0])===true}],rowCount:1};
+      }
+      if(sql.includes('FROM opinioni_domande o')&&sql.includes('ORDER BY o.text')){
+        const rows=QUESTIONS.filter(q=>q.gradi_opinione.includes(params[0]));
+        return {rows,rowCount:rows.length};
+      }
+      if(sql.startsWith('SELECT * FROM opinioni_risposte WHERE user_id')){
+        const row=answers.get(params[0]);
+        return {rows:row?[{...row}]:[],rowCount:row?1:0};
+      }
+      if(sql.includes('information_schema.columns')&&sql.includes('opinioni_risposte')){
+        const rows=params[0].filter(id=>IDS.includes(id)).map(column_name=>({column_name}));
+        return {rows,rowCount:rows.length};
+      }
+      if(sql.includes('FROM opinioni_risposte')&&sql.includes('FOR UPDATE')){
+        const row=answers.get(params[0]);
+        return {rows:row?[{...row}]:[],rowCount:row?1:0};
+      }
+      if(sql.startsWith('INSERT INTO opinioni_risposte')){
+        const m=/INSERT INTO opinioni_risposte \(([^)]+)\)/.exec(sql);
+        if(!m)throw Error('Unexpected INSERT SQL');
+        const columns=m[1].split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+        const row=Object.fromEntries(columns.map((key,i)=>[key,params[i]]));
+        answers.set(params[0],row);
+        return {rows:[],rowCount:1};
+      }
+      if(sql.startsWith('UPDATE opinioni_risposte SET')){
+        const m=/^UPDATE opinioni_risposte SET (.+) WHERE user_id = \$(\d+)/.exec(sql);
+        if(!m)throw Error('Unexpected UPDATE SQL');
+        const row=answers.get(params.at(-1));
+        if(!row)return {rows:[],rowCount:0};
+        for(const item of m[1].split(',')){
+          const match=/^([a-z][a-z0-9_]*) = \$(\d+)$/.exec(item.trim());
+          if(!match)throw Error('Unexpected column update');
+          row[match[1]]=params[Number(match[2])-1];
+        }
+        return {rows:[],rowCount:1};
+      }
+      throw Error('Unexpected SQL in synthetic HTTP test: '+sql);
+    },
+    async connect(){return {query:(...args)=>pool.query(...args),release(){}};}
+  };
+  const fake=(p,exports)=>{require.cache[p]={id:p,filename:p,loaded:true,exports};};
+  fake(paths.auth,{
+    pool,
+    verifyToken(req,res,next){
+      const token=req.get('authorization')?.replace(/^Bearer /,'');
+      if(!['account-a','account-b','inactive'].includes(token))
+        return res.status(401).json({success:false,error:'Autenticazione richiesta'});
+      req.userId=token;
+      req.user={id:token,isAdmin:false,isPolitician:false,isCandidate:false};
+      next();
+    },
+    requireAdmin:(_req,res)=>res.status(403).end()
+  });
+  fake(paths.jwt,{
+    verifyAccessToken(token){
+      if(!['account-a','account-b','inactive'].includes(token))throw Error('Invalid JWT');
+      return {userId:token};
+    }
+  });
+  fake(paths.civic,{requireVerifiedCivicIdentity:(_req,res)=>res.status(403).end()});
+  fake(paths.notifications,{createSupporterOpinionNotifications:async()=>({created:0})});
+  fake(paths.push,{sendPushToCurrentSupporters:async()=>0});
+  delete require.cache[paths.compat];
+  delete require.cache[paths.answers];
+  const app=express();
+  app.disable('x-powered-by');
+  app.use(express.json());
+  app.use('/api',require(paths.compat));
+  app.use('/api/opinioni',require(paths.answers));
+  const shadowRouters=packedShadow
+    ? ['fixed','trimmed','sparse'].map(encoding=>mountSyntheticPackedOpinionApi(app,{
+        encoding,questions:QUESTIONS,catalogIds:IDS,consents
+      }))
+    : [];
+  const server=http.createServer(app);
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const base='http://127.0.0.1:'+server.address().port;
+  const request=async(method,url,token,body,extraHeaders={},cacheMode='default')=>{
+    const response=await fetch(base+url,{
+      method,
+      cache:cacheMode,
+      headers:{
+        ...(token?{authorization:'Bearer '+token}:{}),
+        ...(body?{'content-type':'application/json'}:{}),
+        ...extraHeaders
+      },
+      ...(body?{body:JSON.stringify(body)}:{})
+    });
+    return {status:response.status,body:response.status===304?null:await response.json(),headers:response.headers};
+  };
+  try{
+    await fn({request,answers,consents,calls,shadowRouters});
+  }finally{
+    await new Promise(resolve=>server.close(resolve));
+    for(const [p,original] of old){
+      if(original)require.cache[p]=original;
+      else delete require.cache[p];
+    }
+  }
+}
+
+test('real GET and POST HTTP routes preserve legacy JSON after simulated packed conversion',async()=>{
+  await withActualRoutes(async({request,answers})=>{
+    const read=token=>request('GET','/api/opinioni-list?grado=N',token);
+    const save=(token,opinioni)=>request('POST','/api/opinioni/salva',token,{opinioni});
+    const initial=await read('account-a');
+    assert.equal(initial.status,200);
+    assert.equal(initial.body.total,4);
+    assert.ok(initial.body.data.every(x=>x.userAnswer===null));
+
+    const saved=await save('account-a',{caccia:'f',nato:'c',salario_minimo:'i'});
+    assert.equal(saved.status,200);
+    assert.equal(saved.body.success,true);
+    assert.equal(saved.body.savedCount,3);
+    assert.equal(saved.body.errorCount,0);
+
+    const after=await read('account-a');
+    assert.equal(after.status,200);
+    const actual=after.body.data.map(x=>({id:x.id,userAnswer:x.userAnswer}));
+    assert.deepEqual(actual,[
+      {id:'caccia',userAnswer:'f'},
+      {id:'nato',userAnswer:'c'},
+      {id:'salario_minimo',userAnswer:'i'},
+      {id:'energia_nucleare',userAnswer:null}
+    ]);
+    for(const encoding of ['fixed','trimmed','sparse']){
+      const row=answers.get('account-a');
+      const envelope=encodeEnvelope(registry,{
+        version:1,encoding,
+        answers:Object.fromEntries(IDS.map(id=>[id,row[id]??null]))
+      });
+      assert.deepEqual(decodeLegacyQuestionRows(registry,envelope,IDS),actual);
+    }
+    assert.equal(Object.hasOwn(after.body,'catalogVersion'),false);
+    assert.equal(Object.hasOwn(after.body,'payload'),false);
+
+    const second=await read('account-b');
+    assert.equal(second.status,200);
+    assert.ok(second.body.data.every(x=>x.userAnswer===null));
+    const saveSecond=await save('account-b',{nato:'i'});
+    assert.equal(saveSecond.status,200);
+    const a=await read('account-a');
+    assert.equal(a.body.data[1].userAnswer,'c');
+    const b=await read('account-b');
+    assert.equal(b.body.data[1].userAnswer,'i');
+  });
+});
+
+test('real HTTP routes deny missing/invalid auth, inactive account and missing grade',async()=>{
+  await withActualRoutes(async({request,answers})=>{
+    for(const token of [undefined,'invalid']){
+      assert.equal((await request('GET','/api/opinioni-list?grado=N',token)).status,401);
+      assert.equal((await request('POST','/api/opinioni/salva',token,
+        {opinioni:{caccia:'f'}})).status,401);
+    }
+    assert.equal((await request('GET','/api/opinioni-list?grado=N','inactive')).status,401);
+    assert.equal((await request('GET','/api/opinioni-list','account-a')).status,400);
+    assert.equal(answers.size,0);
+  });
+});
+
+test('real HTTP POST blocks revoked consent and invalid answers without changing stored votes',async()=>{
+  await withActualRoutes(async({request,answers,consents,calls})=>{
+    const post=opinioni=>request('POST','/api/opinioni/salva','account-a',{opinioni});
+    assert.equal((await post({caccia:'f'})).status,200);
+    const before={...answers.get('account-a')};
+    consents.set('account-a',false);
+    const n=calls.length;
+    const rejected=await post({caccia:'c'});
+    assert.equal(rejected.status,403);
+    assert.equal(rejected.body.consent_required,true);
+    assert.deepEqual(answers.get('account-a'),before);
+    assert.equal(calls.slice(n).some(x=>x.sql.startsWith('UPDATE ')),false);
+    consents.set('account-a',true);
+    const bad=await post({caccia:'unsupported'});
+    assert.equal(bad.status,400);
+    assert.deepEqual(answers.get('account-a'),before);
+  });
+});
+
+
+test('single-answer update preserves unrelated answers across legacy GET and all packed codecs',async()=>{
+  await withActualRoutes(async({request,answers})=>{
+    const post=opinioni=>request('POST','/api/opinioni/salva','account-a',{opinioni});
+    assert.equal((await post({caccia:'f',nato:'c',salario_minimo:'i'})).status,200);
+    const changed=await post({nato:'f'});
+    assert.equal(changed.status,200);
+    assert.equal(changed.body.savedCount,1);
+    const after=await request('GET','/api/opinioni-list?grado=N','account-a');
+    const expected=[
+      {id:'caccia',userAnswer:'f'},
+      {id:'nato',userAnswer:'f'},
+      {id:'salario_minimo',userAnswer:'i'},
+      {id:'energia_nucleare',userAnswer:null}
+    ];
+    assert.deepEqual(after.body.data.map(x=>({id:x.id,userAnswer:x.userAnswer})),expected);
+    for(const encoding of ['fixed','trimmed','sparse']){
+      const row=answers.get('account-a');
+      const envelope=encodeEnvelope(registry,{
+        version:1,encoding,
+        answers:Object.fromEntries(IDS.map(id=>[id,row[id]??null]))
+      });
+      assert.deepEqual(decodeLegacyQuestionRows(registry,envelope,IDS),expected);
+    }
+  });
+});
+
+
+test('CHARACTERIZATION: revoked consent blocks writes but legacy GET still reads own stored votes',async()=>{
+  await withActualRoutes(async({request,answers,consents,calls})=>{
+    const post=opinioni=>request('POST','/api/opinioni/salva','account-a',{opinioni});
+    const get=token=>request('GET','/api/opinioni-list?grado=N',token);
+    assert.equal((await post({caccia:'f'})).status,200);
+    consents.set('account-a',false);
+    const beforeRead=calls.length;
+    const ownRead=await get('account-a');
+    assert.equal(ownRead.status,200);
+    assert.equal(ownRead.body.data.find(q=>q.id==='caccia').userAnswer,'f');
+    // The current GET source does not consult user_consents. This test
+    // records existing behavior, NOT approval of its privacy semantics.
+    const readCalls=calls.slice(beforeRead);
+    assert.ok(readCalls.some(c=>c.sql.startsWith('SELECT * FROM opinioni_risposte')));
+    assert.equal(readCalls.some(c=>c.sql.includes('user_consents')),false);
+    const otherRead=await get('account-b');
+    assert.equal(otherRead.status,200);
+    assert.equal(otherRead.body.data.find(q=>q.id==='caccia').userAnswer,null);
+    const denied=await post({caccia:'c'});
+    assert.equal(denied.status,403);
+    assert.equal(answers.get('account-a').caccia,'f');
+    consents.set('account-a',true);
+    assert.equal((await post({caccia:'c'})).status,200);
+    assert.equal((await get('account-a')).body.data.find(q=>q.id==='caccia').userAnswer,'c');
+  });
+});
+
+
+test('personal opinion GET is no-store and never 304 after consent revocation',async()=>{
+  await withActualRoutes(async({request,consents,calls})=>{
+    const url='/api/opinioni-list?grado=N';
+    assert.equal((await request('POST','/api/opinioni/salva','account-a',
+      {opinioni:{caccia:'f'}})).status,200);
+    const first=await request('GET',url,'account-a');
+    assert.equal(first.status,200);
+    assert.match(first.headers.get('cache-control')||'',/\bno-store\b/i);
+    assert.match(first.headers.get('cache-control')||'',/\bprivate\b/i);
+    assert.match(first.headers.get('vary')||'',/authorization/i);
+    assert.equal(first.headers.get('pragma'),'no-cache');
+    assert.equal(first.body.data.find(x=>x.id==='caccia').userAnswer,'f');
+    const etag=first.headers.get('etag');
+    assert.ok(etag,'The legacy Express JSON route still emits an ETag');
+    consents.set('account-a',false);
+    const before=calls.length;
+    const conditional=await request('GET',url,'account-a',undefined,
+      {'if-none-match':etag},'force-cache');
+    assert.equal(conditional.status,200,'Conditional GET must not return 304');
+    assert.equal(conditional.body.data.find(x=>x.id==='caccia').userAnswer,'f');
+    assert.match(conditional.headers.get('cache-control')||'',/\bno-store\b/i);
+    assert.equal(calls.slice(before).some(c=>c.sql.includes('user_consents')),false);
+    // Policy remains unchanged: revocation blocks writes, not own-data reads.
+    assert.equal((await request('POST','/api/opinioni/salva','account-a',
+      {opinioni:{caccia:'c'}})).status,403);
+    const other=await request('GET',url,'account-b',undefined,
+      {'if-none-match':etag},'force-cache');
+    assert.equal(other.status,200);
+    assert.equal(other.body.data.find(x=>x.id==='caccia').userAnswer,null);
+    assert.match(other.headers.get('cache-control')||'',/\bno-store\b/i);
+  });
+});
+
+test('personal opinion GET forbids caching on unauthenticated and empty responses',async()=>{
+  await withActualRoutes(async({request})=>{
+    const url='/api/opinioni-list?grado=N';
+    const unauth=await request('GET',url,undefined);
+    assert.equal(unauth.status,401);
+    assert.match(unauth.headers.get('cache-control')||'',/\bno-store\b/i);
+    const empty=await request('GET',url,'account-b');
+    assert.equal(empty.status,200);
+    assert.ok(empty.body.data.every(x=>x.userAnswer===null));
+    assert.match(empty.headers.get('cache-control')||'',/\bno-store\b/i);
+    const missingGrade=await request('GET','/api/opinioni-list','account-b');
+    assert.equal(missingGrade.status,400);
+    assert.match(missingGrade.headers.get('cache-control')||'',/\bno-store\b/i);
+  });
+});
+
+test.todo('client-side cache purge on logout/account deletion/consent change and real Android verification');
+
+
+test('test-only packed HTTP shadow mirrors real legacy GET/POST for all codecs and accounts',async()=>{
+  await withActualRoutes(async({request,consents,shadowRouters})=>{
+    const formats=['fixed','trimmed','sparse'];
+    assert.deepEqual(shadowRouters.map(r=>r.encoding),formats);
+    const url='/api/opinioni-list?grado=N';
+    const postUrl='/api/opinioni/salva';
+    const shadowPath=(format,path)=>'/_synthetic/'+format+path;
+    const read=token=>request('GET',url,token);
+    const post=(token,opinioni)=>request('POST',postUrl,token,{opinioni});
+
+    const compareRead=async(token)=>{
+      const real=await read(token);
+      assert.equal(real.status,200);
+      for(const format of formats){
+        const packed=await request('GET',shadowPath(format,url),token);
+        assert.equal(packed.status,real.status,format+' GET status');
+        assert.deepEqual(packed.body,real.body,format+' GET legacy JSON body');
+        assert.match(packed.headers.get('cache-control')||'',/\bno-store\b/i);
+        for(const forbidden of ['encoding','catalogVersion','catalogFingerprint','payload']){
+          assert.equal(Object.hasOwn(packed.body,forbidden),false);
+          assert.equal(packed.body.data.some(q=>Object.hasOwn(q,forbidden)),false);
+        }
+      }
+    };
+    const compareWrite=async(token,opinioni)=>{
+      const real=await post(token,opinioni);
+      for(const format of formats){
+        const packed=await request('POST',shadowPath(format,postUrl),token,{opinioni});
+        assert.equal(packed.status,real.status,format+' POST status');
+        if(real.status===200) {
+          // Timestamp is generated independently by two real HTTP handlers.
+          const {timestamp:realTime,...realBody}=real.body;
+          const {timestamp:packedTime,...packedBody}=packed.body;
+          assert.ok(!Number.isNaN(Date.parse(realTime)));
+          assert.ok(!Number.isNaN(Date.parse(packedTime)));
+          assert.deepEqual(packedBody,realBody,format+' POST legacy success contract');
+          const buffer=shadowRouters.find(r=>r.encoding===format).snapshot(token);
+          assert.ok(buffer && Buffer.isBuffer(buffer.payload));
+          assert.equal(buffer.encoding,format);
+          assert.equal(buffer.catalogVersion,shadowRouters.find(r=>r.encoding===format).catalogVersion);
+        }else{
+          assert.equal(real.status,403,'Only consent denial is compared in this helper');
+          assert.deepEqual(packed.body,real.body,format+' consent rejection contract');
+        }
+      }
+      return real;
+    };
+
+    await compareRead('account-a');
+    await compareRead('account-b');
+    assert.equal((await compareWrite('account-a',{
+      caccia:'F',nato:'contrario',salario_minimo:'non lo so'
+    })).status,200);
+    await compareRead('account-a');
+    assert.equal((await compareWrite('account-b',{nato:'i'})).status,200);
+    await compareRead('account-a');
+    await compareRead('account-b');
+    assert.equal((await compareWrite('account-a',{nato:'f'})).status,200);
+    await compareRead('account-a');
+
+    // A catalog append does not rewrite old envelopes. Their votes remain
+    // readable as legacy JSON while the new slot remains implicitly NULL.
+    for(const shadow of shadowRouters){
+      assert.equal(shadow.snapshot('account-a').catalogVersion,1);
+      shadow.promote([...IDS,'carne_coltivata']);
+      assert.equal(shadow.catalogVersion,2);
+      assert.equal(shadow.snapshot('account-a').catalogVersion,1);
+    }
+    await compareRead('account-a');
+    await compareRead('account-b');
+    assert.equal((await compareWrite('account-a',{caccia:'i'})).status,200);
+    await compareRead('account-a');
+    for(const shadow of shadowRouters){
+      assert.equal(shadow.snapshot('account-a').catalogVersion,2);
+      assert.equal(shadow.snapshot('account-b').catalogVersion,1);
+    }
+
+    // Characterization only: this flips the consent flag, not the real
+    // revocation DELETE transaction. Both HTTP models must reject writes.
+    consents.set('account-a',false);
+    assert.equal((await compareWrite('account-a',{caccia:'c'})).status,403);
+    await compareRead('account-a');
+    await compareRead('account-b');
+    consents.set('account-a',true);
+    assert.equal((await compareWrite('account-a',{caccia:'c'})).status,200);
+    await compareRead('account-a');
+
+    // No synthetic authentication bypass or cross-account access.
+    for(const token of [undefined,'invalid','inactive']){
+      const original=await request('GET',url,token);
+      assert.equal(original.status,401);
+      for(const format of formats){
+        const fake=await request('GET',shadowPath(format,url),token);
+        assert.equal(fake.status,401);
+      }
+    }
+
+    // The test harness can simulate deletion, without claiming that this
+    // executes DEMOS's real consent-revocation or account-erasure route.
+    for(const shadow of shadowRouters){
+      shadow.erase('account-b');
+      assert.equal(shadow.snapshot('account-b'),null);
+    }
+    assert.ok(shadowRouters.every(shadow=>shadow.snapshot('account-a')!==null));
+  },{packedShadow:true});
+});
+
+test('test-only packed shadow rejects invalid answer without corrupting a previous BYTEA',async()=>{
+  await withActualRoutes(async({request,shadowRouters})=>{
+    const endpoint='/api/opinioni/salva';
+    const write=async(path,answers)=>request('POST',path,'account-a',{opinioni:answers});
+    assert.equal((await write(endpoint,{caccia:'f'})).status,200);
+    for(const shadow of shadowRouters){
+      const url='/_synthetic/'+shadow.encoding+endpoint;
+      assert.equal((await write(url,{caccia:'f'})).status,200);
+      const previous=shadow.snapshot('account-a');
+      assert.equal((await write(url,{caccia:'unsupported'})).status,400);
+      assert.equal((await write(url,{unknown_opinion:'f'})).status,400);
+      assert.deepEqual(shadow.snapshot('account-a'),previous);
+    }
+    assert.equal((await write(endpoint,{caccia:'unsupported'})).status,400);
+  },{packedShadow:true});
+});
+
+
+test('mixed-validity POST keeps only valid votes across real and packed HTTP routes',async()=>{
+  await withActualRoutes(async({request,shadowRouters})=>{
+    const formats=['fixed','trimmed','sparse'];
+    const endpoint='/api/opinioni/salva';
+    const get='/api/opinioni-list?grado=N';
+    const normalized=body=>{
+      const {timestamp,...remaining}=body;
+      if(timestamp!==undefined)assert.ok(Number.isFinite(Date.parse(timestamp)));
+      return remaining;
+    };
+    const comparePost=async(account,body,expectedSaved,expectedErrors)=>{
+      const legacy=await request('POST',endpoint,account,body);
+      assert.equal(legacy.status,200);
+      assert.equal(legacy.body.savedCount,expectedSaved);
+      assert.equal(legacy.body.errorCount,expectedErrors);
+      for(const format of formats){
+        const shadow=await request('POST','/_synthetic/'+format+endpoint,account,body);
+        assert.equal(shadow.status,legacy.status,format);
+        assert.deepEqual(normalized(shadow.body),normalized(legacy.body),
+          format+' must preserve successful partial-save JSON');
+      }
+    };
+    const compareGet=async(account)=>{
+      const legacy=await request('GET',get,account);
+      assert.equal(legacy.status,200);
+      for(const format of formats){
+        const shadow=await request('GET','/_synthetic/'+format+get,account);
+        assert.equal(shadow.status,200);
+        assert.deepEqual(shadow.body,legacy.body,format+' GET after partial POST');
+      }
+      return Object.fromEntries(legacy.body.data.map(r=>[r.id,r.userAnswer]));
+    };
+
+    // Two valid responses alongside an invalid value and an unknown ID:
+    // existing API returns HTTP 200 and commits only the two valid entries.
+    await comparePost('account-a',{opinioni:{
+      caccia:'favorevole',nato:'n/a',salario_minimo:'non lo so',
+      unknown_synthetic_question:'f'
+    }},2,2);
+    assert.deepEqual(await compareGet('account-a'),{
+      caccia:'f',nato:null,salario_minimo:'i',energia_nucleare:null
+    });
+
+    await comparePost('account-b',{opinioni:{
+      nato:'contrario',unknown_synthetic_question:'f'
+    }},1,1);
+    assert.deepEqual(await compareGet('account-b'),{
+      caccia:null,nato:'c',salario_minimo:null,energia_nucleare:null
+    });
+
+    // Updating an answered field must not erase previously stored answers;
+    // NULL and unknown IDs increment errorCount but do not create a vote.
+    await comparePost('account-a',{opinioni:{
+      caccia:'C',nato:null,energia_nucleare:'unsupported',
+      unknown_synthetic_question:'i'
+    }},1,3);
+    assert.deepEqual(await compareGet('account-a'),{
+      caccia:'c',nato:null,salario_minimo:'i',energia_nucleare:null
+    });
+    assert.deepEqual(await compareGet('account-b'),{
+      caccia:null,nato:'c',salario_minimo:null,energia_nucleare:null
+    });
+
+    for(const shadow of shadowRouters){
+      assert.ok(Buffer.isBuffer(shadow.snapshot('account-a').payload));
+      assert.equal(shadow.snapshot('account-a').encoding,shadow.encoding);
+    }
+  },{packedShadow:true});
+});
+
+test('all-invalid or empty POST matches legacy 400 and keeps all packed snapshots intact',async()=>{
+  await withActualRoutes(async({request,shadowRouters,consents})=>{
+    const endpoint='/api/opinioni/salva';
+    const get='/api/opinioni-list?grado=N';
+    const write=(route,account,body)=>request('POST',route,account,body);
+
+    // A successful baseline is required to prove that rejection does not
+    // truncate or replace a previously stored binary opinion payload.
+    const initial=await write(endpoint,'account-a',{opinioni:{caccia:'f'}});
+    assert.equal(initial.status,200);
+    for(const shadow of shadowRouters){
+      assert.equal((await write('/_synthetic/'+shadow.encoding+endpoint,
+        'account-a',{opinioni:{caccia:'f'}})).status,200);
+    }
+
+    const rejectedBodies=[
+      {opinioni:{unknown_synthetic_question:'f'}},
+      {opinioni:{nato:null,energia_nucleare:'unsupported'}},
+      {opinioni:{nato:false}},
+      {opinioni:{}},
+      {unknown_synthetic_question:'f'}
+    ];
+    for(const body of rejectedBodies){
+      const real=await write(endpoint,'account-a',body);
+      assert.equal(real.status,400,JSON.stringify(body));
+      for(const shadow of shadowRouters){
+        const previous=shadow.snapshot('account-a');
+        const fake=await write('/_synthetic/'+shadow.encoding+endpoint,
+          'account-a',body);
+        assert.equal(fake.status,real.status,shadow.encoding);
+        assert.deepEqual(fake.body,real.body,
+          shadow.encoding+' must preserve all-invalid error contract');
+        assert.deepEqual(shadow.snapshot('account-a'),previous,
+          'Rejected request must not mutate packed vote');
+      }
+    }
+
+    consents.set('account-a',false);
+    const forbidden=await write(endpoint,'account-a',{
+      opinioni:{caccia:'c',unknown_synthetic_question:'f'}
+    });
+    assert.equal(forbidden.status,403);
+    for(const shadow of shadowRouters){
+      const previous=shadow.snapshot('account-a');
+      const result=await write('/_synthetic/'+shadow.encoding+endpoint,
+        'account-a',{opinioni:{caccia:'c',unknown_synthetic_question:'f'}});
+      assert.equal(result.status,403);
+      assert.deepEqual(result.body,forbidden.body);
+      assert.deepEqual(shadow.snapshot('account-a'),previous);
+    }
+
+    // This only toggles the mock consent flag; no real DELETE-on-revoke
+    // and no policy for recovering previously persisted data is tested.
+    assert.equal((await request('GET',get,'account-a')).body.data[0].userAnswer,'f');
+    for(const shadow of shadowRouters){
+      const selected=await request('GET','/_synthetic/'+shadow.encoding+get,
+        'account-a');
+      assert.equal(selected.body.data[0].userAnswer,'f');
+    }
+  },{packedShadow:true});
+});
+
+
+test('real HTTP opinion save rechecks consent under transaction lock after a concurrent revoke',async()=>{
+  let revokeCount=0;
+  await withActualRoutes(async({request,answers,calls,consents})=>{
+    const result=await request('POST','/api/opinioni/salva','account-a',{
+      opinioni:{caccia:'f',nato:'c'}
+    });
+    assert.equal(result.status,403);
+    assert.equal(result.body.consent_required,true);
+    assert.equal(consents.get('account-a'),false);
+    assert.equal(answers.has('account-a'),false);
+    const sqls=calls.map(c=>c.sql);
+    const begin=sqls.indexOf('BEGIN');
+    const lock=sqls.findIndex(s=>s.startsWith('SELECT id FROM users WHERE id = $1 FOR UPDATE'));
+    const recheck=sqls.findIndex((s,i)=>i>lock&&s.includes('AS granted')&&s.includes('user_consents'));
+    const rollback=sqls.indexOf('ROLLBACK');
+    assert.ok(begin>=0&&begin<lock&&lock<recheck&&recheck<rollback);
+    assert.equal(sqls.some(s=>s.startsWith('INSERT INTO opinioni_risposte')),false);
+    assert.equal(sqls.some(s=>s.startsWith('UPDATE opinioni_risposte SET')),false);
+    assert.equal(revokeCount,1);
+  },{onConsentLock:async({account,consents})=>{
+    if(account==='account-a'){
+      consents.set(account,false);
+      revokeCount++;
+    }
+  }});
+});

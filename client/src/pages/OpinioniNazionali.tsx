@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { opinionQuestionsKey } from "@/lib/opinionQueryKeys";
 import { ApprofondimentoButton } from "@/components/ApprofondimentoButton";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 import { vibrateShort } from "@/utils/vibration";
@@ -60,9 +61,9 @@ export default function OpinioniNazionali() {
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
-    queryKey: ['opinioniQuestions', 'Nazionale'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=N");
+    queryKey: opinionQuestionsKey('Nazionale', user?.id),
+    queryFn: async ({ signal }) => {
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=N", undefined, undefined, signal);
       if (response.ok && response.data) {
         return response.data;
       }

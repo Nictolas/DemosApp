@@ -11,7 +11,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
+const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>, externalSignal?: AbortSignal) => {
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -34,6 +34,15 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
   
   const finalUrl = getApiUrl(url);
   
+  // Combine query cancellation with the existing 12-second request timeout.
+  // Using an AbortController listener keeps older Android WebViews compatible
+  // without requiring AbortSignal.any().
+  const controller = new AbortController();
+  const abortFromQuery = () => controller.abort();
+  if (externalSignal?.aborted) abortFromQuery();
+  else externalSignal?.addEventListener('abort', abortFromQuery, { once: true });
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+
   try {
     // Disabilita la cache per evitare problemi con status 304
     const fetchOptions: RequestInit = {
@@ -47,11 +56,7 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       cache: 'no-store'
     };
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
-    const response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal }).finally(() => {
-      clearTimeout(timeoutId);
-    });
+    const response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal });
     
     // Leggi il body come testo prima di parsarlo
     const text = await response.text();
@@ -119,6 +124,8 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     } as any;
   } catch (error: any) {
     if (error?.name === 'AbortError') {
+      // A cancelled React Query request is not a timeout; preserve its cause.
+      if (externalSignal?.aborted) throw error;
       throw new Error(`Timeout richiesta API (${DEFAULT_REQUEST_TIMEOUT_MS}ms): ${url}`);
     }
     // Se l'errore ha già status, rilancialo così com'è
@@ -127,6 +134,9 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     }
     // Altrimenti, crea un nuovo errore
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    externalSignal?.removeEventListener('abort', abortFromQuery);
   }
 };
 

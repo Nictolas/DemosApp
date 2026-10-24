@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, BarChart3 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { opinionQuestionsKey } from "@/lib/opinionQueryKeys";
 
 interface OpinionQuestion {
   id: string;
@@ -16,20 +18,22 @@ interface OpinionSelectorProps {
 }
 
 export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
+  const { user } = useAuth();
   const { data: questionsData, isLoading, isError } = useQuery<{
     success: boolean;
     data: OpinionQuestion[];
     grado: string;
     total: number;
   }>({
-    queryKey: ['opinioniQuestions', grado],
-    queryFn: async () => {
+    queryKey: opinionQuestionsKey(grado, user?.id),
+    queryFn: async ({ signal }) => {
       console.log('🔍 DEBUG - Caricamento opinioni per selettore...');
       // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`);
+      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`, undefined, undefined, signal);
       console.log('🔍 DEBUG - Risposta API selettore:', data);
       return data;
     },
+    enabled: !!user,
   });
 
   if (isLoading) {

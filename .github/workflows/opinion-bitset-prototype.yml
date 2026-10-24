@@ -1,0 +1,320 @@
+name: Opinion 2-bit prototype
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/utils/opinionBitset.js'
+      - 'api/utils/opinionTrimmedBitset.js'
+      - 'api/utils/opinionSparseBitset.js'
+      - 'api/utils/opinionCodecEnvelope.js'
+      - 'api/utils/opinionCatalogManifest.js'
+      - 'api/tests/opinionCatalogManifest.test.js'
+      - 'api/scripts/verify-opinion-catalog-persistence.js'
+      - 'api/scripts/verify-opinion-rls-isolation.js'
+      - 'api/scripts/verify-opinion-packed-http-concurrency.js'
+      - 'api/scripts/verify-opinion-revocation-race.js'
+      - 'api/scripts/verify-opinion-consent-real-route-race.js'
+      - 'api/routes/opinioni/user-answers.js'
+      - 'api/routes/user/political-opinions-consent.js'
+      - 'api/tests/opinionBitset.test.js'
+      - 'api/tests/opinionTextAggregateProbe.test.js'
+      - 'api/utils/opinionTextAggregateProbe.js'
+      - 'api/scripts/benchmark-opinion-text-aggregate.js'
+      - 'api/routes/sondaggi.js'
+      - 'api/utils/sondaggiTextBulk.js'
+      - 'api/tests/sondaggiTextBulk.test.js'
+      - 'api/tests/opinionStatsAccountPopulation.test.js'
+      - 'api/scripts/verify-sondaggi-text-endpoint.js'
+      - 'api/tests/opinionTrimmedBitset.test.js'
+      - 'api/tests/opinionSparseBitset.test.js'
+      - 'api/tests/opinionMatchingBitset.test.js'
+      - 'api/tests/opinionCodecEnvelope.test.js'
+      - 'api/tests/opinionCodecHttpContract.test.js'
+      - 'api/tests/fixtures/opinionPackedShadowHttpFixture.js'
+      - 'api/tests/opinionClientCacheContract.test.mjs'
+      - 'client/src/lib/opinionQueryKeys.ts'
+      - 'client/src/lib/queryClient.ts'
+      - 'client/tests/opinionQueryCancellation.test.mjs'
+      - 'client/src/pages/OpinioniNazionali.tsx'
+      - 'client/src/pages/OpinioniRegionali.tsx'
+      - 'client/src/pages/OpinioniComunali.tsx'
+      - 'client/src/pages/OpinioniEuropee.tsx'
+      - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
+      - 'client/src/hooks/use-auth.tsx'
+      - 'client/src/pages/GDPR/index.tsx'
+      - 'client/src/pages/Impostazioni/CancellaAccount/index.tsx'
+      - 'api/routes/compatibility.js'
+      - 'api/tests/ordinaryUserOpinionSave.test.js'
+      - 'api/tests/politicalOpinionWriteRules.smoke.test.js'
+      - 'api/tests/privacyLedgerLockOrder.test.js'
+      - 'api/routes/users/profile.js'
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/scripts/benchmark-opinion-bitset.js'
+      - 'api/scripts/benchmark-opinion-physical.js'
+      - 'api/scripts/benchmark-opinion-mixed-sources.js'
+      - 'api/scripts/benchmark-opinion-mixed-performance.js'
+      - 'api/scripts/evaluate-opinion-two-bit-decision.js'
+      - 'api/scripts/benchmark-opinion-concurrent-load-catalog.js'
+      - 'api/scripts/verify-opinion-crash-recovery.js'
+      - 'api/scripts/verify-opinion-idempotent-backup.js'
+      - 'api/scripts/verify-opinion-retry-revocation.js'
+      - 'api/scripts/verify-opinion-pgdump-restore.sh'
+      - 'api/scripts/verify-opinion-pgdump-restore.js'
+      - 'api/scripts/verify-opinion-erasure-after-restore.sh'
+      - 'api/scripts/verify-opinion-erasure-after-restore.js'
+      - 'api/scripts/verify-opinion-remote-erasure-journal.js'
+      - 'api/scripts/verify-opinion-remote-cutover-fence.js'
+      - 'api/scripts/benchmark-opinion-remote-fence.js'
+      - 'api/scripts/verify-opinion-local-admission-fence.js'
+      - 'api/scripts/verify-opinion-remote-erasure-journal.sh'
+      - 'api/scripts/benchmark-opinion-queries.js'
+      - 'api/scripts/verify-opinion-privacy-equivalence.js'
+      - 'api/docs/opinion-bitset-trimmed-probe-20261024.md'
+      - 'api/docs/opinion-bitset-prototype.md'
+      - 'api/docs/opinion-two-bit-go-no-go-20261024.md'
+      - '.github/workflows/opinion-bitset-prototype.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  codec-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Test 2-bit codec and catalog invariants
+        run: node --test api/tests/opinionBitset.test.js api/tests/opinionTrimmedBitset.test.js api/tests/opinionSparseBitset.test.js api/tests/opinionMatchingBitset.test.js api/tests/opinionCodecEnvelope.test.js api/tests/opinionCatalogManifest.test.js
+      - name: Test isolated TEXT aggregate SQL builder
+        run: node --test api/tests/opinionTextAggregateProbe.test.js
+      - name: Check account-scoped opinion cache and revocation purge
+        run: node --experimental-strip-types --test api/tests/opinionClientCacheContract.test.mjs
+      - name: Run deterministic standalone benchmark
+        run: node api/scripts/benchmark-opinion-bitset.js
+
+  physical-storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: opinion_bitset_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d opinion_bitset_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies without lifecycle scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Exercise real HTTP opinion routes with synthetic mocked pool
+        # Direct node:test execution avoids intermittent worker IPC deserialization errors.
+        run: node api/tests/opinionCodecHttpContract.test.js
+      - name: Verify existing consent revocation cleanup with synthetic mocks
+        run: node --test api/tests/politicalConsentAtomic.smoke.test.js
+      - name: Regression-check the existing authenticated opinion POST HTTP endpoint
+        # Direct execution avoids intermittent node:test worker IPC corruption.
+        run: node api/tests/ordinaryUserOpinionSave.test.js
+      - name: Regression-check national TEXT survey SQL, fallback and privacy
+        run: |
+          node api/tests/sondaggiTextBulk.test.js
+          node api/tests/opinionStatsAccountPopulation.test.js
+      - name: Verify admin opinion consent lock and replay ordering (mock DB)
+        run: |
+          node api/tests/politicalOpinionWriteRules.smoke.test.js
+          node api/tests/privacyLedgerLockOrder.test.js
+      - name: Measure real PostgreSQL heap, index and TOAST allocations
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-physical.js
+      - name: Evaluate realistic-shaped mixed-source storage and per-row catalog metadata
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-mixed-sources.js
+      - name: Evaluate provisional 2-bit migration economics and shared catalog overhead
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/evaluate-opinion-two-bit-decision.js
+      - name: Compare synthetic TEXT and packed read, write and catalog lookup latency
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-mixed-performance.js
+      - name: Stress synthetic concurrent TEXT/BYTEA saves and versioned catalog caches
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-concurrent-load-catalog.js
+      - name: Recover versioned opinions from terminated PostgreSQL backend
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-crash-recovery.js
+      - name: Exercise lost-ACK retry deduplication and consistent logical backup restore
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-idempotent-backup.js
+      - name: Validate idempotent retries never bypass synthetic consent revocation
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-retry-revocation.js
+      - name: Dump and restore synthetic BYTEA, catalog and retry ledger with PG17 CLI
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: bash api/scripts/verify-opinion-pgdump-restore.sh
+      - name: Reject resurrected opinions from a pre-revocation PostgreSQL backup
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: bash api/scripts/verify-opinion-erasure-after-restore.sh
+      - name: Check remote journal, benchmark reads and local-only admission protocol
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: bash api/scripts/verify-opinion-remote-erasure-journal.sh
+      - name: Verify SQL statistics, row locks and CAS; sample server query times
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-queries.js
+      - name: Compare legacy TEXT N+1 queries with grouped TEXT on synthetic data
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-text-aggregate.js
+      - name: Verify actual GET sondaggio with PostgreSQL 17 synthetic fixtures
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-sondaggi-text-endpoint.js
+      - name: Verify PERSON consent joins and anti-inference threshold for all codecs
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-privacy-equivalence.js
+      - name: Test catalog durability across PostgreSQL sessions and serialized appends
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-catalog-persistence.js
+      - name: Verify account RLS isolation on synthetic catalog and BYTEA rows
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-rls-isolation.js
+      - name: Verify concurrent BYTEA saves through disposable PostgreSQL HTTP API
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-packed-http-concurrency.js
+      - name: Exercise save-versus-revoke races with consent-row locks and negative control
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-revocation-race.js
+      - name: Verify actual opinion POST route coordinates with concurrent consent revocation
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-opinion-consent-real-route-race.js

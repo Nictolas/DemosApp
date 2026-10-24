@@ -221,6 +221,11 @@ router.put('/revoke', verifyToken, async (req, res) => {
     let cleanupResult = { totalDeleted: 0, deletedByTable: {} };
     try {
       await client.query('BEGIN');
+      // Coordination with POST /api/opinioni/salva: this UPDATE takes the
+      // users row lock before the consent cleanup. Opinion saves lock that
+      // same row and recheck consent in their write transaction, so a late
+      // POST cannot recreate answers after this revocation commits.
+      // Keep this users-first lock order in future refactors.
       result = await client.query(updateQuery, [userId]);
       if (result.rows.length > 0) {
         await client.query(

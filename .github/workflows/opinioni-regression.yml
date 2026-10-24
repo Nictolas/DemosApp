@@ -4,6 +4,15 @@ on:
   pull_request:
     paths:
       - 'api/routes/opinioni/**'
+      - 'api/routes/sondaggi.js'
+      - 'api/utils/sondaggiTextBulk.js'
+      - 'api/tests/sondaggiTextBulk.test.js'
+      - 'api/tests/opinionStatsAccountPopulation.test.js'
+      - 'api/scripts/verify-sondaggi-text-endpoint.js'
+      - 'api/routes/users/profile.js'
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/tests/politicalOpinionWriteRules.smoke.test.js'
+      - 'api/tests/privacyLedgerLockOrder.test.js'
       - 'api/utils/opinionStatsColumns.js'
       - 'api/tests/opinionStatsColumns.test.js'
       - 'api/tests/ordinaryUserOpinionSave.test.js'
@@ -38,9 +47,26 @@ jobs:
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Test mobile crash diagnostic and toast opacity
         run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs
+      - name: Verify real React Query cancellation of sensitive opinion requests
+        run: node --experimental-strip-types --test client/tests/opinionQueryCancellation.test.mjs
       - name: Build frontend
         run: npm --prefix client run build
       - name: Install API dependencies
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Verify opinion regressions
-        run: node --test --test-concurrency=1 api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js
+        # Execute node:test in-process. Separate Node workers intermittently
+        # fail to deserialize the runner's IPC messages (ERR_TEST_FAILURE).
+        # This avoids false failures without suppressing test assertions.
+        run: |
+          set -euo pipefail
+          for testfile in \
+            api/tests/opinionStatsColumns.test.js \
+            api/tests/ordinaryUserOpinionSave.test.js \
+            api/tests/politicalOpinionWriteRules.smoke.test.js \
+            api/tests/privacyLedgerLockOrder.test.js \
+            api/tests/sondaggiTextBulk.test.js \
+            api/tests/opinionStatsAccountPopulation.test.js \
+            api/tests/opinionPrivacy.test.js
+          do
+            node "$testfile"
+          done
