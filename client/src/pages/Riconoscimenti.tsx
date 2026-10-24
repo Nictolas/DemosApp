@@ -24,8 +24,12 @@ interface RiconoscimentoRow {
   provincia_candidatura: string | null;
   comune_candidatura: string | null;
   grado_candidatura: string | null;
+  fonte_elezione_url: string | null;
+  fonte_candidatura_url: string | null;
+  status: "pending" | "approved" | "rejected";
+  identity_status: string | null;
+  identity_provider: string | null;
   created_at: string;
-  user_email: string | null;
   ruolo_corrente: string | null;
 }
 
@@ -87,7 +91,7 @@ export default function Riconoscimenti() {
     onSuccess: () => {
       toast({
         title: "Richiesta approvata",
-        description: "Il ruolo dell'utente è stato aggiornato e la richiesta rimossa.",
+        description: "Il ruolo è stato aggiornato e la decisione è disponibile all'utente.",
         variant: "default"
       });
       queryClient.invalidateQueries({ queryKey: ["riconoscimenti"] });
@@ -106,7 +110,7 @@ export default function Riconoscimenti() {
     onSuccess: () => {
       toast({
         title: "Richiesta rifiutata",
-        description: "La richiesta è stata rimossa.",
+        description: "L'esito della richiesta è disponibile all'utente.",
         variant: "default"
       });
       queryClient.invalidateQueries({ queryKey: ["riconoscimenti"] });
@@ -143,7 +147,7 @@ export default function Riconoscimenti() {
             Riconoscimenti
           </CardTitle>
           <CardDescription>
-            Lista delle richieste di riconoscimento come Politico, Candidato o Candidato Politico. Approva o rifiuta per aggiornare il ruolo dell&apos;utente o rimuovere la richiesta.
+            Richieste in attesa di verifica. Apri i documenti ufficiali e confronta nome, cognome e ruolo con l'identità verificata tramite CIE prima di approvare.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -185,6 +189,11 @@ export default function Riconoscimenti() {
                       {r.tipo_ruolo === "C" && "Candidato (C)"}
                       {r.tipo_ruolo === "CP" && "Candidato Politico (CP)"}
                     </div>
+                    <div className={`text-xs font-medium ${r.identity_status === "verified" && r.identity_provider?.toUpperCase() === "CIE" ? "text-emerald-700" : "text-red-700"}`}>
+                      {r.identity_status === "verified" && r.identity_provider?.toUpperCase() === "CIE"
+                        ? "Identità verificata tramite CIE"
+                        : "CIE non verificata: non approvabile"}
+                    </div>
                     <div className="text-xs text-gray-600">
                       Ruolo attuale: {r.ruolo_corrente || "Nessuno / Elettore"}
                     </div>
@@ -204,6 +213,24 @@ export default function Riconoscimenti() {
                           : ""}
                       </div>
                     )}
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      {r.fonte_elezione_url && (
+                        <a href={r.fonte_elezione_url} target="_blank" rel="noopener noreferrer"
+                          className="font-medium text-blue-700 underline">
+                          Fonte ufficiale elezione
+                        </a>
+                      )}
+                      {r.fonte_candidatura_url && (
+                        <a href={r.fonte_candidatura_url} target="_blank" rel="noopener noreferrer"
+                          className="font-medium text-blue-700 underline">
+                          Fonte ufficiale candidatura
+                        </a>
+                      )}
+                      {((r.tipo_ruolo === "P" || r.tipo_ruolo === "CP") && !r.fonte_elezione_url) ||
+                       ((r.tipo_ruolo === "C" || r.tipo_ruolo === "CP") && !r.fonte_candidatura_url)
+                        ? <span className="font-semibold text-red-700">Fonte ufficiale mancante: non approvabile</span>
+                        : null}
+                    </div>
                     <div className="text-xs text-gray-500">
                       Richiesta del: {new Date(r.created_at).toLocaleString()}
                     </div>
@@ -219,7 +246,10 @@ export default function Riconoscimenti() {
                     </Button>
                     <Button
                       className="bg-emerald-600 hover:bg-emerald-700"
-                      disabled={approveMutation.isPending || rejectMutation.isPending}
+                      disabled={approveMutation.isPending || rejectMutation.isPending ||
+                        r.identity_status !== "verified" || r.identity_provider?.toUpperCase() !== "CIE" ||
+                        ((r.tipo_ruolo === "P" || r.tipo_ruolo === "CP") && !r.fonte_elezione_url) ||
+                        ((r.tipo_ruolo === "C" || r.tipo_ruolo === "CP") && !r.fonte_candidatura_url)}
                       onClick={() => approveMutation.mutate(r.id)}
                     >
                       Approva

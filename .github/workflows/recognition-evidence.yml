@@ -1,0 +1,40 @@
+name: Recognition CIE evidence validation
+
+on:
+  pull_request:
+    paths:
+      - 'api/routes/riconoscimenti.js'
+      - 'api/utils/recognitionEvidence.js'
+      - 'api/tests/recognitionEvidence.test.js'
+      - 'client/src/pages/Riconoscimento.tsx'
+      - 'client/src/pages/Riconoscimenti.tsx'
+      - 'api/database/**'
+      - '.github/workflows/recognition-evidence.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'api/routes/riconoscimenti.js'
+      - 'api/utils/recognitionEvidence.js'
+      - 'api/tests/recognitionEvidence.test.js'
+      - 'client/src/pages/Riconoscimento.tsx'
+      - 'client/src/pages/Riconoscimenti.tsx'
+
+jobs:
+  recognition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Validate backend syntax
+        run: node --check api/routes/riconoscimenti.js && node --check api/utils/recognitionEvidence.js
+      - name: Test evidence URL policy
+        run: node --test api/tests/recognitionEvidence.test.js
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts
+      - name: Build frontend
+        run: npm run build --prefix client
