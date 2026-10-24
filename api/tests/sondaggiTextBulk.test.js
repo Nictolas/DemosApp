@@ -30,14 +30,14 @@ function fakePool({ failGrouped = false, failMetadata = false } = {}) {
       if (sql.includes('information_schema.columns')) {
         if (failMetadata && !metadataFailed) {
           metadataFailed = true;
-          throw new Error('simulated one-off metadata failure');
+          throw Object.assign(new Error('unsupported metadata query'),{code:'0A000'});
         }
         return { rows: (params[0] || [])
           .filter(id => ['caccia', 'nato', 'sotto_soglia'].includes(id))
           .map(column_name => ({ column_name })) };
       }
       if (sql.includes('CROSS JOIN LATERAL (VALUES')) {
-        if (failGrouped) throw new Error('simulated grouping failure');
+        if (failGrouped) throw Object.assign(new Error('unsupported grouped query'),{code:'0A000'});
         return { rows: [
           { opinion_id: 'caccia', favorevole: '6', contrario: '3', indeciso: '1' },
           { opinion_id: 'nato', favorevole: '2', contrario: '4', indeciso: '4' },
