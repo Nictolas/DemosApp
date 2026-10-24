@@ -10,7 +10,7 @@ const {performance}=require('node:perf_hooks');
 const {Client,Pool}=require('pg');
 const {
   getNationalSurveyStats,getTerritorialSurveyStats,
-  buildNationalTextAggregateQuery
+  buildNationalTextAggregateQuery,buildTerritorialTextAggregateQuery
 }=require('../utils/sondaggiTextBulk');
 
 const DB='sondaggi_scale_ci';
@@ -128,10 +128,17 @@ async function read(db,scope){
 // directly before pivoting one result row per opinion. Compare with the
 // existing lateral-per-person implementation; do not publish the candidate
 // as app code until relative performance is measured.
-function directFilterAggregateSql(columns){
+function directFilterAggregateSql(columns,scope={}){
  const names=columns.map((id,i)=>({
    id,f:'f'+i,c:'c'+i,u:'i'+i
  }));
+ const filters={
+  regione:' AND u.regione_residenza=$1',
+  provincia:' AND u.regione_residenza=$1 AND u.provincia_residenza=$2',
+  comune:' AND u.regione_residenza=$1 AND u.provincia_residenza=$2 AND u.comune_residenza=$3'
+ };
+ const geography=scope.scope?filters[scope.scope]:''; 
+ assert.ok(!scope.scope||typeof geography==='string'&&geography!=='');
  const checks=names.flatMap(({id,f,c,u})=>[
   "COUNT(*) FILTER (WHERE orr.\""+id+"\" = 'f')::integer AS "+f,
   "COUNT(*) FILTER (WHERE orr.\""+id+"\" = 'c')::integer AS "+c,
@@ -144,7 +151,7 @@ function directFilterAggregateSql(columns){
   " FROM opinioni_risposte orr JOIN users u ON u.id=orr.user_id "+
   "LEFT JOIN user_consents uc ON uc.user_id=u.id "+
   "WHERE u.account_type='PERSON' AND "+
-  "COALESCE(uc.political_opinions_consent,u.political_opinions_consent,false) IS TRUE"+
+  "COALESCE(uc.political_opinions_consent,u.political_opinions_consent,false) IS TRUE"+geography+
   ") counts CROSS JOIN LATERAL (VALUES "+
   points.join(',')+") AS v(opinion_id,favorevole,contrario,indeciso) "+
   "WHERE (v.favorevole+v.contrario+v.indeciso)>0";
@@ -154,32 +161,37 @@ function normalizeStatRows(rows){
   [Number(r.favorevole),Number(r.contrario),Number(r.indeciso)]])
   .sort((a,b)=>a[0].localeCompare(b[0])));
 }
-async function compareAlternativeSql(db){
+async function compareAlternativeSql(db,scope){
  const ids=IDS.filter(id=>id!=='synthetic_opinion_092');
- const currentSql=buildNationalTextAggregateQuery(ids);
- const candidateSql=directFilterAggregateSql(ids);
- const original=normalizeStatRows((await db.query(currentSql)).rows);
- const proposed=normalizeStatRows((await db.query(candidateSql)).rows);
+ const oldSql=scope.scope?
+  buildTerritorialTextAggregateQuery(ids,{scope:scope.scope,params:scope.params}):
+  buildNationalTextAggregateQuery(ids);
+ const candidateSql=directFilterAggregateSql(ids,scope);
+ const params=scope.params||[];
+ const original=normalizeStatRows((await db.query(oldSql,params)).rows);
+ const proposed=normalizeStatRows((await db.query(candidateSql,params)).rows);
  assert.deepEqual(proposed,original,
-  'Direct-filter candidate must exactly match consent-aware grouped query');
+  'Direct FILTER SQL must exactly match grouped query in '+scope.name);
  const timings={current:[],candidate:[]};
  for(let i=0;i<7;i++){
   const order=i%2===0?['current','candidate']:['candidate','current'];
   for(const mode of order){
-   const sql=mode==='current'?currentSql:candidateSql;
+   const sql=mode==='current'?oldSql:candidateSql;
    const start=performance.now();
-   const data=await db.query(sql);
+   const data=await db.query(sql,params);
    const elapsed=performance.now()-start;
    assert.deepEqual(normalizeStatRows(data.rows),original,
-    'Direct-filter candidate response drift in '+mode);
+    'SQL result drift in '+mode+' scope='+scope.name);
    timings[mode].push(elapsed);
   }
  }
+ const candidateP50RelativeToCurrent=round(
+  percentile(timings.candidate,.5)/percentile(timings.current,.5));
  return {
+  scope:scope.name,
   current:summary(timings.current),
   candidate:summary(timings.candidate),
-  candidateP50RelativeToCurrent:round(
-   percentile(timings.candidate,.5)/percentile(timings.current,.5)),
+  candidateP50RelativeToCurrent,
   matchingConsentAndCounts:true,
   experimentalOnly:true
  };
@@ -211,11 +223,13 @@ async function main(){
     measurements.push({scope:scope.name,queries:3,
      publishedOpinions:published[0],...summary(durations)});
    }
+   const comparisons=[];
+   for(const scope of SCOPES)comparisons.push(await compareAlternativeSql(db,scope));
    const sizes=(await db.query(
     "SELECT pg_total_relation_size('opinioni_risposte'::regclass)::bigint bytes")).rows[0];
    datasets.push({
     accounts:count,responseTableBytes:Number(sizes.bytes),
-    scopes:measurements
+    scopes:measurements,comparisons
    });
   }
   // EXPLAIN is recorded for diagnostics, not used to infer a 1m-account SLA.
@@ -230,13 +244,12 @@ async function main(){
    sharedReadBlocks:explain.Plan['Shared Read Blocks'],
    rows:explain.Plan['Actual Rows']
   };
-  const candidateComparison=await compareAlternativeSql(db);
   console.log('SONDAGGI_TEXT_SCALE_CI_PASS');
   console.log('SONDAGGI_TEXT_SCALE_CI_RESULT_JSON='+JSON.stringify({
    postgres:17,synthetic:true,
    answerDensityApprox:'1/12; synthetic sparse TEXT',
    scenarios:SIZES,durationsMeasuredPerScope:REPETITIONS,
-   datasets,planner,candidateComparison,
+   datasets,planner,
    limitations:[
     'CI-only PostgreSQL17 and Node on the same host; not Supabase staging.',
     'Synthetic sparsity/consent/geography does not reproduce production distribution.',
