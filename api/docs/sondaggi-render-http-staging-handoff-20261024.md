@@ -82,3 +82,25 @@ La nuova versione della PR #258 introduce `OP37_SUPABASE_CA_CERT`, una variabile
 6. A benchmark concluso, ripristinare staging setup-only: rimuovere password e token dal servizio e disabilitare LOGIN nel DB staging. Il software **setup-only** rifiuta l'avvio se una password rimane configurata; la pulizia e il deploy di rollback devono essere coordinati.
 
 Fonti: https://supabase.com/docs/guides/database/connecting-to-postgres e https://supabase.com/docs/guides/platform/ssl-enforcement. La sola verifica HTTP connessa potrà misurare il costo della rete Render→Supabase; nessuna misura realistica al momento.
+
+## DOC-071 · HTTP Render↔Supabase verificato e chiusura credenziali (24/10/2026)
+
+**Ambiente autorizzato:** solo progetto Supabase **Demos-Staging**, schema `op37_sondaggi_ci` e servizio Render FREE `demos-sondaggi-op37-http-staging`. La PR #258 rimane **DRAFT**; la produzione DEMOS e la PR separata #247 (2-bit) non sono state modificate.
+
+- L'utente ha caricato il certificato pubblico Supabase **Root 2021 CA**, `CA:TRUE`, con validità da aprile 2021 ad aprile 2031; nessuna chiave privata era presente. La CA è stata installata temporaneamente nella variabile Render `OP37_SUPABASE_CA_CERT`. Il codice in PR #258 richiede `ssl.ca`, `servername=PGHOST` e `rejectUnauthorized=true`, senza bypass TLS.
+- **Deploy di misurazione:** `dep-dbehsm3ncjis73ea5vfg`, commit `5a3b31c87cc0e760200d8e2b3f6f94d8ca4fabd3`, stato Render **LIVE**. Il log applicativo `OP37_RENDER_STAGING_HTTP_PASS` conferma **48 richieste HTTP misurate** (12 per ambito) dopo il warm-up, 3 query SQL per richiesta, filtri di accesso, soglia privacy sintetica esattamente pari a 10, e controllo che una chiamata priva del token non divulghi dati.
+
+| Ambito | HTTP p50 (ms) | HTTP p95 (ms) |
+|---|---:|---:|
+| Nazionale | 37,32 | 199,62 |
+| Regionale | 31,51 | 121,45 |
+| Provinciale | 40,01 | 101,42 |
+| Comunale | 40,46 | 52,32 |
+
+**Significato delle misure:** HTTP su loopback interno Render con query attraverso rete TLS al PostgreSQL Supabase staging Frankfurt; **non** includono RTT del dispositivo, login, Android o traffico concorrente. Dataset privato interamente inventato da 1.200 account/risposte e 93 opinioni pubblicate. Sono campioni limitati: p95 e proporzioni nel piano Free non sono previsione di capacità per un milione di utenti. Non è stato eseguito un confronto HTTP con il candidato SQL `COUNT FILTER`; il relativo flag rimane default OFF.
+
+- **Pulizia avvenuta:** sul progetto Supabase Demos-Staging, `ALTER ROLE op37_http_staging_reader NOLOGIN PASSWORD NULL`; controllo esplicito `rolcanlogin=false`, `rolsuper=false`, `rolbypassrls=false`. Sul solo servizio Render staging, valori correnti `PGPASSWORD`, `OP37_HTTP_TOKEN` e `OP37_SUPABASE_CA_CERT` **svuotati**, `OP37_STAGING_SETUP_ONLY=yes`, senza sostituire o alterare altre variabili esistenti. Le chiavi vuote possono ancora comparire nella UI, ma non contengono le credenziali temporanee; la cronologia dei provider non è stata cancellata.
+- **Deploy di ripristino:** `dep-dbehti9srm7s73c6tfcg` sullo stesso commit, stato **LIVE**. I log attestano `OP37_RENDER_SETUP_ONLY_NO_DATABASE`, e non compare un nuovo tentativo di collegamento al DB. AutoDeploy del servizio rimane OFF.
+- Le credenziali temporanee **non sono mai state salvate nel repository o riportate nel documento**. La CA è pubblica e il file può essere riscaricato da Supabase. Nessuna migrazione BYTEA né merge.
+
+**Stato dopo DOC-071:** OP-37 verifica HTTP staging 12×4 **completata**; KPI-20 prima misura HTTP staging **registrata**, con ulteriori prove di carico/consenso in-app ancora da eseguire; OP-39 privacy end-to-end dell'app non dichiarata conclusa. Si può ora valutare una strategia di rilascio senza lasciare accessi temporanei aperti.
