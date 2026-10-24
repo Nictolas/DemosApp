@@ -6,6 +6,7 @@ const {spawn} = require('node:child_process');
 const path = require('node:path');
 const {
   eqToken,
+  validStagingConfig,
   assertSafeRead,
   rewriteOnlySyntheticTables
 } = require('../staging/op37_render_http_probe');
@@ -22,6 +23,40 @@ const baseEnv=()=>({
   NODE_ENV:'test'
 });
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+test('Render staging admits only Supabase EU IPv4 session-pooler and tenant-scoped custom reader',()=>{
+ const good={
+  RENDER:'true',OP37_STAGING_HTTP_ONLY:'yes',
+  PGHOST:'aws-0-eu-central-1.pooler.supabase.com',
+  PGPORT:'5432',PGDATABASE:'postgres',
+  PGUSER:'op37_http_staging_reader.fkeayjzvtuvzesljhjbc',
+  PGPASSWORD:'s'.repeat(64),OP37_HTTP_TOKEN:'t'.repeat(64)
+ };
+ assert.equal(validStagingConfig(good),true);
+ assert.equal(validStagingConfig({...good,
+   PGHOST:'aws-7-eu-central-1.pooler.supabase.com'}),true);
+ for(const change of [
+  {PGHOST:'db.fkeayjzvtuvzesljhjbc.supabase.co'},  // IPv6-only direct
+  {PGHOST:'aws-0-us-east-1.pooler.supabase.com'},
+  {PGHOST:'aws-0-eu-central-1.pooler.supabase.com.evil.test'},
+  {PGHOST:'aws-0-eu-central-1.pooler.supabase.com:5432'},
+  {PGPORT:'6543'},  // enforce session, not transaction
+  {PGUSER:'postgres'},
+  {PGUSER:'op37_http_staging_reader'},
+  {PGUSER:'op37_http_staging_reader.wxnblcqoyjqxktwkcqok'}, // production project ref
+  {PGDATABASE:'production'},
+  {PGPASSWORD:''},
+  {PGPASSWORD:'too-short'},
+  {OP37_HTTP_TOKEN:'too-short'},
+  {OP37_STAGING_HTTP_ONLY:'no'},
+  {DATABASE_URL:'postgres://example.invalid'},
+  {SUPABASE_SERVICE_ROLE_KEY:'forbidden'},
+  {SUPABASE_URL:'https://example.invalid'}
+ ]){
+  assert.equal(validStagingConfig({...good,...change}),false,
+    'Must fail closed: '+Object.keys(change)[0]);
+ }
+});
 
 test('all ordinary opinion and metadata SQL is rewritten to the private synthetic namespace',()=>{
  const queries=[
