@@ -1,0 +1,33 @@
+name: Legacy Menu retirement regression
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/**'
+      - 'api/tests/retiredMenuNavigation.smoke.test.js'
+      - 'api/tests/clientAdminCapability.smoke.test.js'
+      - '.github/workflows/legacy-menu-retirement.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'client/src/App.tsx'
+      - 'client/src/pages/ScegliRappresentante/components/EmptyState.tsx'
+      - 'api/tests/retiredMenuNavigation.smoke.test.js'
+      - '.github/workflows/legacy-menu-retirement.yml'
+
+jobs:
+  legacy-menu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm retired Menu route and return links
+        run: |
+          node --test api/tests/retiredMenuNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/dpoGestisciNavigation.smoke.test.js
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend
+        run: npm run build --prefix client
