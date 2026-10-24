@@ -15,6 +15,7 @@ const {
 const { createAuthorizationRequest } = require('../../services/cieOidcAuthorizationService');
 const {
   saveCieOidcTransaction,
+  saveCieRecognitionTransaction,
   consumeCieOidcTransaction
 } = require('../../services/cieOidcTransactionStore');
 const { exchangeAuthorizationCode } = require('../../services/cieOidcTokenService');
@@ -22,6 +23,7 @@ const { validateCieIdToken } = require('../../services/cieOidcIdTokenService');
 const { fetchAndValidateCieUserInfo } = require('../../services/cieOidcUserInfoService');
 const {
   buildCieCallbackRedirect,
+  buildRecognitionCieCallbackRedirect,
   buildRegistrationCieCallbackRedirect
 } = require('../../services/cieCallbackRedirectService');
 const { completeOAuthRegistrationAfterCie } = require('../../services/oauthRegistrationService');
@@ -29,6 +31,7 @@ const { completePasskeyRegistrationAfterCie } = require('../../services/passkeyR
 const { createRegistrationTicket } = require('../../services/registrationTicketStore');
 const { getPublicIdentityError } = require('../../services/identityPublicErrorService');
 const { IDENTITY_ERROR_CODES } = require('../../constants/identityVerification');
+const { assertSameVerifiedPerson, savePublicNameProof } = require('../../services/ciePublicIdentityProofStore');
 
 const router = express.Router();
 
@@ -127,6 +130,32 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
   }
 });
 
+// Public-role recognition is a separate CIE authentication. It requests
+// verified names only for the requesting candidate/elected official, not
+// for ordinary citizens or initial account verification.
+router.get('/identity/cie/recognition/start', verifyToken, async (req, res) => {
+  try {
+    const verified = await getIdentityVerificationStatus(req.userId);
+    if (verified?.verified !== true || String(verified?.provider || '').toUpperCase() !== 'CIE') {
+      return res.status(403).json({ success: false, code: 'CIE_REQUIRED', error: 'Verifica prima la tua identita con CIE.' });
+    }
+    const { authorizationUrl, transaction } = createAuthorizationRequest(
+      Math.floor(Date.now() / 1000), 'recognition'
+    );
+    await saveCieRecognitionTransaction(req.userId, transaction);
+    return res.json({ success: true, authorizationUrl });
+  } catch (error) {
+    const publicError = getPublicIdentityError(error, {
+      status: 503, error: 'Riconoscimento CIE non disponibile'
+    });
+    return res.status(publicError.status).json({
+      success: false,
+      ...(publicError.code ? { code: publicError.code } : {}),
+      error: publicError.error
+    });
+  }
+});
+
 // Callback OIDC CIE reale.
 // Esegue state/one-time transaction + token exchange private_key_jwt,
 // valida ID Token e UserInfo. Per una nuova registrazione crea l'account
@@ -134,6 +163,9 @@ router.get('/identity/cie/start', verifyToken, async (req, res) => {
 function redirectForCieTransaction(transaction, outcome, ticket = null) {
   if (transaction?.flow === 'registration') {
     return buildRegistrationCieCallbackRedirect(outcome, ticket);
+  }
+  if (transaction?.flow === 'recognition') {
+    return buildRecognitionCieCallbackRedirect(outcome === 'success' ? 'success' : 'error');
   }
   return buildCieCallbackRedirect(outcome);
 }
@@ -185,7 +217,8 @@ router.get('/cie/callback', async (req, res) => {
 
     const userInfo = await fetchAndValidateCieUserInfo({
       accessToken: tokens.accessToken,
-      expectedSub: idTokenClaims.sub
+      expectedSub: idTokenClaims.sub,
+      requirePublicNames: transaction.flow === 'recognition'
     });
 
     if (transaction.flow === 'registration') {
@@ -204,6 +237,12 @@ router.get('/cie/callback', async (req, res) => {
         303,
         buildRegistrationCieCallbackRedirect('success', registrationTicket)
       );
+    }
+
+    if (transaction.flow === 'recognition') {
+      await assertSameVerifiedPerson(transaction.userId, userInfo.fiscalNumber);
+      await savePublicNameProof(transaction.userId, userInfo);
+      return res.redirect(303, buildRecognitionCieCallbackRedirect('success'));
     }
 
     await completeCieVerificationFromVerifiedClaims({
