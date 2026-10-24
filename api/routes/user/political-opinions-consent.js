@@ -24,9 +24,7 @@ router.get('/', verifyToken, async (req, res) => {
     const query = `
       SELECT 
         COALESCE(uc.political_opinions_consent, u.political_opinions_consent) AS political_opinions_consent,
-        COALESCE(uc.political_opinions_consent_timestamp, u.political_opinions_consent_timestamp) AS political_opinions_consent_timestamp,
-        COALESCE(uc.political_opinions_consent_ip_address, u.political_opinions_consent_ip_address) AS political_opinions_consent_ip_address,
-        COALESCE(uc.political_opinions_consent_user_agent, u.political_opinions_consent_user_agent) AS political_opinions_consent_user_agent
+        COALESCE(uc.political_opinions_consent_timestamp, u.political_opinions_consent_timestamp) AS political_opinions_consent_timestamp
       FROM users u
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE u.id = $1
@@ -47,9 +45,9 @@ router.get('/', verifyToken, async (req, res) => {
       success: true,
       consent: {
         granted: userData.political_opinions_consent || false,
-        timestamp: userData.political_opinions_consent_timestamp,
-        ipAddress: userData.political_opinions_consent_ip_address,
-        userAgent: userData.political_opinions_consent_user_agent
+        // IP and user-agent are retained, when needed, only in the consent
+        // evidence store. They are unnecessary for this UI response.
+        timestamp: userData.political_opinions_consent_timestamp
       }
     });
     
