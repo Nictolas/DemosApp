@@ -956,3 +956,45 @@ intermittente di comunicazione del worker `node:test`
 nella regressione POST esistente, non per un'asserzione del codec.
 DOC-046 **PASS solo per il modello sintetico**; OP-41 resta
 **In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
+
+
+## Backup PostgreSQL 17 reale su database CI indipendente (DOC-047)
+
+Lo script `api/scripts/verify-opinion-pgdump-restore.sh` utilizza **i veri
+programmi PostgreSQL 17 `pg_dump -Fc`, `createdb` e `pg_restore`** forniti
+dall'immagine Docker `postgres:17` sulla macchina GitHub Actions. Opera
+esclusivamente sul servizio PostgreSQL CI di GitHub, mediante credenziali
+fittizie e verifica rigida di `GITHUB_ACTIONS`, host loopback, utente e
+database `opinion_bitset_ci`. Non conosce né utilizza credenziali o URL
+di Supabase. Gli archivi temporanei creati con `mktemp` vengono rimossi
+da un `trap` alla fine del passo CI; non vengono caricati come artifact.
+
+Al termine di DOC-046, `pg_dump` esporta in formato custom solo le
+**cinque tabelle sintetiche** `ci_idem_catalog`, `ci_idem_head`,
+`ci_idem_subjects`, `ci_idem_votes` e `ci_idem_requests`. Il file
+viene letto dal programma reale `pg_restore --list`, mentre un file
+deliberatamente troncato deve essere respinto. Successivamente
+`createdb` crea un **secondo database vuoto**
+`opinion_bitset_restore_ci` sullo stesso servizio effimero. Il ripristino
+utilizza `pg_restore --exit-on-error --single-transaction --no-owner
+--no-acl` e non modifica il database sorgente.
+
+Il verificatore `api/scripts/verify-opinion-pgdump-restore.js` confronta
+interamente le cinque tabelle sorgenti/ripristinate (compresi i
+**Buffer BYTEA grezzi**), recupera la mappatura versionata e controlla
+le fingerprint, decodifica sia i voti storici v1 sia i voti v2,
+verifica la presenza del registro idempotente con la richiesta la cui
+conferma HTTP era stata simulata come persa, controlla che il vincolo
+unico impedisca il reinserimento di `request_id` già committati e
+verifica che una scrittura transazionale sul DB recuperato non muti
+l'originale.
+
+Questa prova **non** costituisce un sistema di backup attivo su DEMOS,
+non prova la perdita fisica del server, `WAL`/`PITR`, replica geografica,
+conservazione/ripristino da storage remoto, ruoli e policy RLS reali,
+autenticazione, consenso, cancellazione GDPR, costi, Android o
+compatibilità globale con l'intero schema applicativo. Non introduce
+`BYTEA` nelle route vere e non autorizza alcuna migrazione.
+PR #247 **DRAFT**, OP-41 **In corso**, KPI-23 **Non verificato**,
+OP-42 **Da fare**. **CI in verifica: non dichiarare PASS prima
+del completamento del nuovo step.**
