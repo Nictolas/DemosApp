@@ -1180,4 +1180,28 @@ gestione delle chiavi, cutover coordinato, controllo completo
 degli accessi e verifica del consenso effettivo. Questa prova non
 dimostra conformità GDPR né introduce modifiche in produzione.
 PR #247 DRAFT, OP-41 **In corso**, KPI-23 **Non verificato**,
-OP-42 **Da fare**. Stato della CI ancora da confermare.
+OP-42 **Da fare**.
+
+**Evidenza CI DOC-050:** il run
+[#40104852569](https://github.com/Nictolas/DemosApp/actions/runs/40104852569)
+ha terminato il job `physical-storage` **SUCCESS**; lo step
+`Restore stale opinions with a separate PostgreSQL revocation journal`
+ha emesso `OPINION_REMOTE_JOURNAL_RESTORE_PASS` e
+`OPINION_REMOTE_JOURNAL_PGDUMP_CLI_PASS`. I test hanno
+verificato **3 eventi autenticati** nella catena fittizia:
+distruzione del solo database sorgente CI, ripristino
+di opinioni BYTEA già revocate, negazione SQL dei dati
+a un ruolo limitato finché il gate è chiuso, rifiuto
+di registro mancante/alterato/con coda incompleta,
+rollback di un recupero interrotto, mancata apertura
+quando arriva una revoca nel mezzo del replay, nuova
+eliminazione delle risposte e chiavi di retry e
+conservazione della risposta del soggetto non revocato.
+Il file `pg_dump` della prova conteneva 7.788 byte di
+dati sintetici; non è una stima di produzione.
+
+**DOC-050 PASS esclusivamente in CI isolata.**
+La prova NON dimostra una soluzione di conservazione
+autonoma e duratura, una barriera distribuita di
+cutover né l'integrazione con Supabase.
+
