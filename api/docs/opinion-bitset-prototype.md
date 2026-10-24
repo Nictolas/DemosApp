@@ -1253,4 +1253,20 @@ restano sulla stessa macchina GitHub Actions effimera.
 **Nessun deploy/merge/migrazione:** PR #247 DRAFT;
 OP-41 **In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
 
-**Evidenza CI DOC-051:** da registrare soltanto dopo PASS verificato.
+**Evidenza CI DOC-051:** il run PostgreSQL 17
+[#40105994886](https://github.com/Nictolas/DemosApp/actions/runs/40105994886)
+ha concluso `physical-storage` e `codec-tests` **SUCCESS**.
+Il passo `Verify separate revocation journal and coordinated
+read-cutover fence` ha emesso il marcatore
+`OPINION_REMOTE_CUTOVER_FENCE_PASS`. Il riepilogo attesta
+**due contese effettive** osservate tramite PostgreSQL:
+lo scrittore del journal attende la fine della lettura
+protetta e attende il COMMIT del database ripristinato.
+Dopo la modifica del registro remoto, nuove letture
+protette sono negate per mismatch del watermark fino
+a riconciliazione, e i voti BYTEA con relative
+`request_id` rimangono assenti al termine.
+Il test documenta esplicitamente l'assenza di copertura
+delle route reali e i costi/effetti di lock per-query.
+**DOC-051 PASS solo nel protocollo sperimentale**.
+
