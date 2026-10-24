@@ -421,3 +421,95 @@ test('HTTP surveys return 500, never successful partial stats, when fallback fai
   assert.equal(calls.filter(c=>c.sql.includes('CROSS JOIN LATERAL')).length,1);
  }
 });
+
+
+test('catalogs larger than 256 use bounded TEXT batches, not hundreds of fallback queries',async()=>{
+ const questions=Array.from({length:600},(_,i)=>({id:'op'+String(i).padStart(4,'0')}));
+ for(const scope of [null,...GEO_SCOPES]){
+  const calls=[];
+  const pool={async query(sql,params=[]){
+   calls.push({sql,params});
+   if(sql.includes('information_schema.columns')){
+    return {rows:params[0].map(column_name=>({column_name}))};
+   }
+   if(sql.includes('CROSS JOIN LATERAL (VALUES')){
+    const ids=[...sql.matchAll(/orr\."(op\d{4})"/g)].map(m=>m[1]);
+    assert.ok(ids.length>=1&&ids.length<=256);
+    const unique=new Set(ids);
+    assert.equal(ids.length,unique.size);
+    return {rows:ids.map(id=>({opinion_id:id,
+      favorevole:id==='op0257'?'9':'10',contrario:0,indeciso:0}))};
+   }
+   throw Error('Unexpected fallback or SQL: '+sql.slice(0,140));
+  }};
+  const stats=scope
+    ?await getTerritorialSurveyStats(pool,questions,scope)
+    :await getNationalSurveyStats(pool,questions);
+  assert.equal(Object.keys(stats).length,599);
+  assert.ok(!Object.hasOwn(stats,'op0257'));
+  assert.deepEqual(stats.op0000,{favorevole:10,contrario:0,indeciso:0});
+  assert.deepEqual(stats.op0599,{favorevole:10,contrario:0,indeciso:0});
+  assert.equal(calls.length,4,'One metadata query, three bounded grouped statements');
+  assert.equal(calls.filter(c=>c.sql.includes('CROSS JOIN LATERAL')).length,3);
+  const lengths=calls.filter(c=>c.sql.includes('CROSS JOIN LATERAL')).map(c=>
+    [...c.sql.matchAll(/orr\."(op\d{4})"/g)].length);
+  assert.deepEqual(lengths,[256,256,88]);
+  if(scope){
+   assert.deepEqual(calls.slice(1).map(c=>c.params),[scope.params,scope.params,scope.params]);
+  }
+ }
+});
+
+test('mid-batch DB outages discard all earlier batch results and stop subsequent batches',async()=>{
+ const questions=Array.from({length:600},(_,i)=>({id:'op'+String(i).padStart(4,'0')}));
+ for(const scope of [null,...GEO_SCOPES]){
+  for(const code of ['57014','08006','53300']){
+   let aggregates=0,queries=0;
+   const pool={async query(sql,params=[]){
+    queries++;
+    if(sql.includes('information_schema.columns')){
+     return {rows:params[0].map(column_name=>({column_name}))};
+    }
+    if(sql.includes('CROSS JOIN LATERAL (VALUES')){
+     aggregates++;
+     if(aggregates===2)throw Object.assign(Error('mid batch outage'),{code});
+     return {rows:[{opinion_id:'op0000',favorevole:10,contrario:0,indeciso:0}]};
+    }
+    throw Error('Legacy fallback must not run after multi-batch outage');
+   }};
+   await assert.rejects(
+     scope?getTerritorialSurveyStats(pool,questions,scope)
+       :getNationalSurveyStats(pool,questions),
+     e=>e.code===code
+   );
+   assert.equal(queries,3,'one whitelist read, two aggregates and no further statements');
+   assert.equal(aggregates,2);
+  }
+ }
+});
+
+test('large catalog refuses legacy query amplification if grouped SQL unsupported',async()=>{
+ for(const n of [129,257,600]){
+  const questions=Array.from({length:n},(_,i)=>({id:'op'+i}));
+  for(const scope of [null,...GEO_SCOPES]){
+   let queries=0,aggregates=0;
+   const pool={async query(sql,params=[]){
+    queries++;
+    if(sql.includes('information_schema.columns'))
+      return {rows:params[0].map(column_name=>({column_name}))};
+    if(sql.includes('CROSS JOIN LATERAL')){
+      aggregates++;
+      throw Object.assign(Error('grouped syntax incompatible'),{code:'0A000'});
+    }
+    throw Error('Unexpected legacy fallback work for '+n+' opinions');
+   }};
+   await assert.rejects(
+    scope?getTerritorialSurveyStats(pool,questions,scope,{warn:()=>{}})
+      :getNationalSurveyStats(pool,questions,{warn:()=>{}}),
+    e=>e.code==='SONDAGGI_FALLBACK_LIMIT'
+   );
+   assert.equal(queries,2,'only metadata and one grouped attempt');
+   assert.equal(aggregates,1);
+  }
+ }
+});
