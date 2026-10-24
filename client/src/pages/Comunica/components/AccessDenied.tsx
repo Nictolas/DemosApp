@@ -14,10 +14,10 @@ export const AccessDenied: React.FC = () => {
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
-            onClick={() => setLocation("/menu")}
+            onClick={() => setLocation("/preferiti")}
             className="flex items-center gap-2"
           >
-            Torna al Menu
+            Torna ai Preferiti
           </Button>
         </div>
 
