@@ -974,7 +974,8 @@ La lettura del consenso per `POST /api/opinioni/salva`, prima della transazione,
 ### H.2-bis Ulteriori percorsi di scrittura e cache frontend
 
 - L'endpoint amministrativo `PUT /api/users/:userId/opinioni` poteva scrivere dopo un pre-controllo del consenso eseguito fuori dalla transazione, e quindi subire la stessa race condition. La proposta implementa **identico lock della riga users**, lettura del consenso in una successiva istruzione SQL e scrittura dell'opinione nella medesima transazione. Richiede CI verde e ulteriore controllo prima del deploy.
-- I quattro componenti di inserimento Opinioni Nazionali/Regionali/Europee/Comunali usavano `queryKey: ['opinioniQuestions', grado]` per payload che possono contenere le **risposte personali**. Su un dispositivo condiviso, cache della sessione React Query e cambio account potevano condividere informazioni fra utenti diversi. La proposta include `user.id` nella chiave; separa la chiave del selettore statistico; rimuove immediatamente la cache delle risposte dopo `PUT .../revoke`.
+- I quattro componenti di inserimento Opinioni Nazionali/Regionali/Europee/Comunali usavano `queryKey: ['opinioniQuestions', grado]` per payload che possono contenere le **risposte personali**. Su un dispositivo condiviso, cache della sessione React Query e cambio account potevano condividere informazioni fra utenti diversi. La proposta include `user.id` nella chiave, separa la chiave del selettore statistico e, dopo una revoca riuscita, **annulla le richieste in corso e rimuove entrambe le cache** (`opinioniQuestions` e `statsOpinionQuestions`).
+- Durante la revisione sono stati individuati log di debug nel frontend che stampavano risposte individuali e payload HTTP, anche dal client API condiviso. Nella PR vengono rimossi e si aggiungono test statici contro la loro reintroduzione. Non è stata completata un'analisi di tutti i sistemi esterni di raccolta log o degli strumenti di monitoraggio.
 - La mitigazione delle cache non prova che altri percorsi di logout/riaccesso, service worker o storage locale non conservino dati sensibili: serve un test su dispositivo reale di logout, cambio account e revoca, con DevTools e strumenti di test che non registrino voti reali.
 
 ### H.3 Rischi residui che richiedono parere o ulteriori verifiche
@@ -991,7 +992,7 @@ La lettura del consenso per `POST /api/opinioni/salva`, prima della transazione,
 ### H.4 Evidenze e confini delle prove
 
 - La precedente PR [#258](https://github.com/Nictolas/DemosApp/pull/258), distribuita il 24 ottobre, ha superato test di aggregazione PostgreSQL sintetico, 4 route pubbliche e una soglia minima 10; ciò **non** equivale a una certificazione privacy completa.
-- L'esecuzione di test reali concorrenti per salvataggio e revoca sarà registrata nel nuovo PR di mitigazione. Nessuna operazione di revoca o scrittura di opinioni reali deve essere eseguita a scopo di test.
+- I test concorrenti PostgreSQL 17 con dati sintetici sono già stati eseguiti nella PR #264; l'ultima revisione richiede che ogni richiesta concorrente abbia raggiunto l'istruzione SQL in conflitto prima di rilasciare il primo blocco. La CI sul commit finale deve restare verde prima del rilascio. Nessuna operazione di revoca o scrittura di opinioni reali deve essere eseguita a scopo di test.
 - Le verifiche tecniche non implicano che il DPO abbia approvato il trattamento o la DPIA.
 
 ### H.5 Passaggi di approvazione
