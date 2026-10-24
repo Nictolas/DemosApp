@@ -44,8 +44,8 @@ export default function OpinioniEuropee() {
   // 1. Query per caricare le domande
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
     queryKey: ['opinioniQuestions', 'Europeo', user?.id],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=E");
+    queryFn: async ({ signal }) => {
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=E", undefined, undefined, signal);
       if (response.ok && response.data) {
         return response.data;
       }
