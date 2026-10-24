@@ -63,9 +63,9 @@ test('latest notification follows canonical feed targeting instead of legacy glo
   assert.match(feed, /rappresentante_comune/);
   assert.match(feed, /FROM notifiche_voti_comuni[\s\S]*WHERE id_utente = \$1::uuid/);
   assert.doesNotMatch(feed, /if \(!isAdmin && userComuneResidenza\)/);
-  assert.match(feed, /FROM notifiche_demos\s+WHERE \(titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = \$1::uuid\)/);
-  assert.match(feed, /FROM notifiche_comunali/);
-  assert.match(feed, /FROM political_opinion_notifications pon/);
+  assert.match(feed, /FROM notifiche_demos\s+ORDER BY/);
+  assert.match(feed, /institutional_territorial_notices/);
+  assert.match(feed, /loadCanonicalMunicipalityTargets\(pool, \{ userId \}\)/);
 });
 
 test('account erasure deletes both recipient and subject links', () => {
