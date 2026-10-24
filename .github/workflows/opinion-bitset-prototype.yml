@@ -13,6 +13,7 @@ on:
       - 'api/tests/opinionSparseBitset.test.js'
       - 'api/tests/opinionMatchingBitset.test.js'
       - 'api/tests/opinionCodecEnvelope.test.js'
+      - 'api/tests/ordinaryUserOpinionSave.test.js'
       - 'api/scripts/benchmark-opinion-bitset.js'
       - 'api/scripts/benchmark-opinion-physical.js'
       - 'api/scripts/benchmark-opinion-queries.js'
@@ -64,6 +65,8 @@ jobs:
           cache-dependency-path: api/package-lock.json
       - name: Install API dependencies without lifecycle scripts
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Regression-check the existing authenticated opinion POST HTTP endpoint
+        run: node --test api/tests/ordinaryUserOpinionSave.test.js
       - name: Measure real PostgreSQL heap, index and TOAST allocations
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'
