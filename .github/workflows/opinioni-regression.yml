@@ -38,6 +38,8 @@ jobs:
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Test mobile crash diagnostic and toast opacity
         run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs
+      - name: Verify real React Query cancellation of sensitive opinion requests
+        run: node --experimental-strip-types --test client/tests/opinionQueryCancellation.test.mjs
       - name: Build frontend
         run: npm --prefix client run build
       - name: Install API dependencies

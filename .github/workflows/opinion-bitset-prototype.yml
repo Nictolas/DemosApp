@@ -19,6 +19,8 @@ on:
       - 'api/tests/opinionCodecHttpContract.test.js'
       - 'api/tests/opinionClientCacheContract.test.mjs'
       - 'client/src/lib/opinionQueryKeys.ts'
+      - 'client/src/lib/queryClient.ts'
+      - 'client/tests/opinionQueryCancellation.test.mjs'
       - 'client/src/pages/OpinioniNazionali.tsx'
       - 'client/src/pages/OpinioniRegionali.tsx'
       - 'client/src/pages/OpinioniComunali.tsx'

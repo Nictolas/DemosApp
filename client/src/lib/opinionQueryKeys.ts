@@ -6,8 +6,13 @@ export function opinionQuestionsKey(grade: string, accountId: string | null | un
 }
 
 export function purgePersonalOpinionCache(client: {
+  cancelQueries: (filters: { queryKey: readonly string[] }) => Promise<unknown> | void;
   removeQueries: (filters: { queryKey: readonly string[] }) => void;
 }): void {
   // Prefix matches all grades, accounts and old unscoped cache entries.
-  client.removeQueries({ queryKey: [OPINION_QUESTIONS_PREFIX] });
+  const filters = { queryKey: [OPINION_QUESTIONS_PREFIX] as readonly string[] };
+  // Cancel active requests before removing their cached results. Query functions
+  // must consume React Query's AbortSignal to abort their underlying fetch.
+  void client.cancelQueries(filters);
+  client.removeQueries(filters);
 }

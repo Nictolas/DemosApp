@@ -26,10 +26,10 @@ export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
     total: number;
   }>({
     queryKey: opinionQuestionsKey(grado, user?.id),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       console.log('🔍 DEBUG - Caricamento opinioni per selettore...');
       // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`);
+      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`, undefined, undefined, signal);
       console.log('🔍 DEBUG - Risposta API selettore:', data);
       return data;
     },

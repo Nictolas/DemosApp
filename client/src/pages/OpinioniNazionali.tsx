@@ -62,8 +62,8 @@ export default function OpinioniNazionali() {
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: opinionQuestionsKey('Nazionale', user?.id),
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=N");
+    queryFn: async ({ signal }) => {
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=N", undefined, undefined, signal);
       if (response.ok && response.data) {
         return response.data;
       }

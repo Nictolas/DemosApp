@@ -23,12 +23,20 @@ test('purge drops all grades, accounts and legacy unscoped keys but not public s
     ['political-opinions-consent', 'account-b'],
     ['publicStats', 'Nazionale']
   ];
-  const client = { removeQueries({ queryKey }) {
+  const operations = [];
+  const client = {
+    cancelQueries({ queryKey }) {
+      operations.push('cancel:' + queryKey.join('/'));
+      return Promise.resolve();
+    },
+    removeQueries({ queryKey }) {
+      operations.push('remove:' + queryKey.join('/'));
     for (let i = keys.length - 1; i >= 0; i--) {
       if (queryKey.every((v, j) => keys[i][j] === v)) keys.splice(i, 1);
     }
   }};
   purgePersonalOpinionCache(client);
+  assert.deepEqual(operations, ['cancel:opinioniQuestions', 'remove:opinioniQuestions']);
   assert.deepEqual(keys, [['political-opinions-consent', 'account-b'], ['publicStats', 'Nazionale']]);
 });
 
@@ -43,6 +51,8 @@ test('all four opinion pages and selector scope cached political answers to user
     const code = source(file);
     assert.match(code, /queryKey:\s*opinionQuestionsKey\([^\n]+user\?\.id\)/, file);
     assert.match(code, /enabled:\s*!!user/, file);
+    assert.match(code, /queryFn:\s*async\s*\(\{ signal \}\)/, file);
+    assert.match(code, /apiRequest\("GET", [^\n]*undefined, undefined, signal\)/, file);
   }
 });
 
@@ -53,4 +63,12 @@ test('revoke, auth loss and account deletion explicitly purge opinion snapshots'
     'client/src/pages/Impostazioni/CancellaAccount/index.tsx'
   ]) assert.match(source(file), /purgePersonalOpinionCache\(queryClient\)/, file);
   assert.match(source('client/src/hooks/use-auth.tsx'), /if \(!token\) purgePersonalOpinionCache\(queryClient\)/);
+});
+
+test('API request forwards React Query cancellation and preserves timeout', () => {
+  const code = source('client/src/lib/queryClient.ts');
+  assert.match(code, /externalSignal\?: AbortSignal/);
+  assert.match(code, /externalSignal\?\.addEventListener\('abort', abortFromQuery/);
+  assert.match(code, /signal: controller\.signal/);
+  assert.match(code, /externalSignal\?\.removeEventListener\('abort', abortFromQuery/);
 });
