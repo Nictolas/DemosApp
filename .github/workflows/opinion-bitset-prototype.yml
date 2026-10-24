@@ -1,0 +1,28 @@
+name: Opinion 2-bit prototype
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/utils/opinionBitset.js'
+      - 'api/tests/opinionBitset.test.js'
+      - 'api/scripts/benchmark-opinion-bitset.js'
+      - 'api/docs/opinion-bitset-prototype.md'
+      - '.github/workflows/opinion-bitset-prototype.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  codec-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Test 2-bit codec and catalog invariants
+        run: node --test api/tests/opinionBitset.test.js
+      - name: Run deterministic standalone benchmark
+        run: node api/scripts/benchmark-opinion-bitset.js
