@@ -94,7 +94,7 @@ export default function ReferendumAbrogativi() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-100 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl space-y-6">
-        <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
+        <Link href="/preferiti"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna ai Preferiti</Button></Link>
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="flex items-center gap-2 justify-center text-2xl"><Vote className="h-6 w-6" />Referendum Abrogativi</CardTitle>
