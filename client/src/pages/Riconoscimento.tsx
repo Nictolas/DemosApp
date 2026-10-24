@@ -150,19 +150,6 @@ export default function Riconoscimento() {
   }, []);
 
   const handleStartCie = async () => {
-    const officialSource = (url: string) => {
-      try {
-        const parsed = new URL(url);
-        return parsed.protocol === "https:" && Boolean(parsed.hostname) &&
-          !parsed.username && !parsed.password;
-      } catch (_error) { return false; }
-    };
-    if ((mostraElezione && !officialSource(form.fonte_elezione_url)) ||
-        (mostraCandidatura && !officialSource(form.fonte_candidatura_url))) {
-      toast({ title: "Fonte ufficiale mancante", description: "Inserisci un collegamento HTTPS valido per ogni ruolo richiesto.", variant: "destructive" });
-      return;
-    }
-
     const token = localStorage.getItem("auth_token");
     if (!token) {
       toast({ title: "Accesso richiesto", description: "Accedi a DEMOS prima di verificare la CIE.", variant: "destructive" });
@@ -308,6 +295,19 @@ export default function Riconoscimento() {
         description: "Per Candidato o Candidato Politico inserisci almeno il grado di candidatura.",
         variant: "destructive"
       });
+      return;
+    }
+
+    const officialSource = (url: string) => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === "https:" && Boolean(parsed.hostname) &&
+          !parsed.username && !parsed.password;
+      } catch (_error) { return false; }
+    };
+    if ((mostraElezione && !officialSource(form.fonte_elezione_url)) ||
+        (mostraCandidatura && !officialSource(form.fonte_candidatura_url))) {
+      toast({ title: "Fonte ufficiale mancante", description: "Inserisci un collegamento HTTPS valido per ogni ruolo richiesto.", variant: "destructive" });
       return;
     }
 
