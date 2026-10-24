@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { opinionQuestionsKey } from "@/lib/opinionQueryKeys";
 import { ApprofondimentoButton } from "@/components/ApprofondimentoButton";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 import { vibrateShort } from "@/utils/vibration";
@@ -50,7 +51,7 @@ export default function OpinioniRegionali() {
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
-    queryKey: ['opinioniQuestions', 'Regionale'],
+    queryKey: opinionQuestionsKey('Regionale', user?.id),
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=R");
       if (response.ok && response.data) {

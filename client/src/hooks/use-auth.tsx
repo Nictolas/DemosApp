@@ -8,6 +8,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG, getApiUrl } from "@/lib/api-config";
 import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-token";
+import { purgePersonalOpinionCache } from "@/lib/opinionQueryKeys";
 import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
 import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
@@ -106,6 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
   });
+
+  // Authentication expiry bypasses explicit logout: discard sensitive query snapshots.
+  useEffect(() => {
+    if (!token) purgePersonalOpinionCache(queryClient);
+  }, [token, queryClient]);
 
   useEffect(() => {
     if (!isLoading && userData === null && token && !getAuthToken()) {

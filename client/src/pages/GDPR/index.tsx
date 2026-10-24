@@ -9,6 +9,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { purgePersonalOpinionCache } from "@/lib/opinionQueryKeys";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -42,6 +43,9 @@ export default function GDPR() {
       return response.data;
     },
     onSuccess: () => {
+      // Successful revocation deletes political answers on the server.
+      // Purge snapshots instead of displaying votes that no longer exist.
+      purgePersonalOpinionCache(queryClient);
       queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       toast({

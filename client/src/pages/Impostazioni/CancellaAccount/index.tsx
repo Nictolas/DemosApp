@@ -16,7 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { purgePersonalOpinionCache } from "@/lib/opinionQueryKeys";
 import { clearSessionTokens } from "@/lib/auth-token";
 
 interface DeletionStep {
@@ -104,6 +105,7 @@ export default function CancellaAccount() {
 
       // L'account non esiste più: rimuovi subito le credenziali locali e forza un reload pulito.
       clearSessionTokens();
+      purgePersonalOpinionCache(queryClient);
       window.location.assign("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore durante la cancellazione");
