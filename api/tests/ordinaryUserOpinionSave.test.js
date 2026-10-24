@@ -20,9 +20,12 @@ async function withOpinionApi({ consent = true } = {}, fn) {
       writes.push(sql);
       return { rows: [], rowCount: 0 };
     }
+    if (sql.startsWith('SELECT id FROM users WHERE id = $1 FOR UPDATE')) {
+      writes.push('USER_LOCK');
+      return { rows: [{id: 'ordinary-account'}], rowCount: 1 };
+    }
     if (sql.includes('AS granted') && sql.includes('user_consents')) {
-      assert.match(sql, /FOR UPDATE OF u$/, 'consent MUST hold a users row lock');
-      writes.push('CONSENT_LOCK');
+      writes.push('CONSENT_READ');
       return { rows: [{ id: 'ordinary-account', granted: consent }], rowCount: 1 };
     }
     if (sql.includes('information_schema.columns') && sql.includes('opinioni_risposte')) {
@@ -99,9 +102,10 @@ test('regular authenticated account with consent saves its opinion without CIE',
     assert.equal(body.errorCount, 0);
     assert.equal(writes.some(w => typeof w === 'object' && w.sql.startsWith('INSERT INTO opinioni_risposte')), true);
     assert.equal(writes.includes('COMMIT'), true);
-    assert.ok(writes.indexOf('BEGIN') < writes.indexOf('CONSENT_LOCK'));
+    assert.ok(writes.indexOf('BEGIN') < writes.indexOf('USER_LOCK'));
+    assert.ok(writes.indexOf('USER_LOCK') < writes.indexOf('CONSENT_READ'));
     const insertAt = writes.findIndex(w => typeof w === 'object');
-    assert.ok(writes.indexOf('CONSENT_LOCK') < insertAt, 'lock before insert');
+    assert.ok(writes.indexOf('CONSENT_READ') < insertAt, 'consent read before insert');
   });
 });
 
@@ -111,7 +115,7 @@ test('non-admin without political opinion consent remains blocked', async () => 
     assert.equal(response.status, 403);
     const body = await response.json();
     assert.equal(body.consent_required, true);
-    assert.deepEqual(writes, ['BEGIN','CONSENT_LOCK','ROLLBACK']);
+    assert.deepEqual(writes, ['BEGIN','USER_LOCK','CONSENT_READ','ROLLBACK']);
     assert.ok(!writes.includes('COMMIT'));
   });
 });
