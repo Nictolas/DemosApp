@@ -1130,5 +1130,21 @@ non prova conformità GDPR né backup reali. PR #247 rimane DRAFT:
 nessun merge, deploy, migrazione BYTEA o DDL in produzione.
 OP-41 **In corso**, KPI-23 **Non verificato**, OP-42 **Da fare**.
 
-**Stato:** il nuovo passo CI deve completarsi prima di assegnare
-a DOC-049 un esito PASS.
+**Evidenza CI verificata:** GitHub Actions PostgreSQL 17
+[#40103665578](https://github.com/Nictolas/DemosApp/actions/runs/40103665578)
+**SUCCESS**, job `physical-storage` e `codec-tests` SUCCESS.
+Il passo `Reject resurrected opinions from a pre-revocation PostgreSQL
+backup` emette `OPINION_ERASURE_RESTORE_PASS` e
+`OPINION_ERASURE_STALE_PGDUMP_CLI_PASS`. Il dump sintetico custom
+prima della revoca occupa **8.125 byte** e il restore separato
+ricrea realmente il BYTEA dell'utente A revocato (prova negativa).
+I controlli dichiarano PASS anche per gate chiuso, journal
+indisponibile, rollback del replay interrotto, nuova cancellazione
+delle opinioni e chiavi dopo replay, conservazione del voto
+storico dell'utente B, e idempotenza della riconciliazione.
+Nello stesso HEAD `7932b5b` sono riusciti gli altri cinque
+workflow: Opinioni #40103665490, Security #40103665560,
+Privacy erasure #40103665607, DPO #40103665626, Logging
+#40103665693. **DOC-049 PASS esclusivamente come prova sintetica**.
+Non è un meccanismo di ripristino approvato per i dati reali.
+OP-41 **In corso**, KPI-23 **Non verificato**.
