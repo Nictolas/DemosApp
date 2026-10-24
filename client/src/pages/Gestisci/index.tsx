@@ -21,7 +21,7 @@ export default function Gestisci() {
   const isAdmin = hasAdminCapability(user);
   const isDpo = hasDpoCapability(user);
 
-  if (!isAdmin && !isDpo) return <Redirect to="/menu" />;
+  if (!isAdmin && !isDpo) return <Redirect to="/preferiti" />;
 
   return (
     <PageContainer className="menu-page flex flex-col bg-[radial-gradient(circle_at_top_left,_#eef4ff_0%,_#f8fbff_35%,_#ffffff_70%)]">
