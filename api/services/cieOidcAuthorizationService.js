@@ -68,14 +68,23 @@ function getCieOidcConfig() {
   };
 }
 
-function createAuthorizationRequest(nowSeconds = Math.floor(Date.now() / 1000)) {
+function createAuthorizationRequest(
+  nowSeconds = Math.floor(Date.now() / 1000),
+  purpose = 'identity'
+) {
+  if (!['identity', 'recognition'].includes(purpose)) {
+    throw new Error('Finalita richiesta CIE non valida');
+  }
   const config = getCieOidcConfig();
   const transaction = createCieOidcTransaction();
   const scope = 'openid';
 
   const claims = {
     userinfo: {
-      [FISCAL_NUMBER_CLAIM]: null
+      [FISCAL_NUMBER_CLAIM]: null,
+      ...(purpose === 'recognition'
+        ? { given_name: { essential: true }, family_name: { essential: true } }
+        : {})
     }
   };
 
@@ -117,6 +126,7 @@ function createAuthorizationRequest(nowSeconds = Math.floor(Date.now() / 1000)) 
       state: transaction.state,
       nonce: transaction.nonce,
       codeVerifier: transaction.codeVerifier,
+      purpose,
       expiresAt: (nowSeconds + 300) * 1000
     }
   };
