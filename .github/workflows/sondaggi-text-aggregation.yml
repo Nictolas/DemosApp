@@ -15,6 +15,7 @@ on:
       - 'api/staging/op37_render_http_probe.js'
       - 'api/tests/sondaggiStagingSqlSafety.test.js'
       - 'api/tests/sondaggiRenderStagingIsolation.test.js'
+      - 'api/scripts/verify-sondaggi-render-setup-public.js'
       - 'api/docs/sondaggi-render-http-staging-handoff-20261024.md'
       - 'api/docs/sondaggi-supabase-staging-db-20261024.md'
       - '.github/workflows/sondaggi-text-aggregation.yml'
@@ -57,6 +58,11 @@ jobs:
           node api/tests/sondaggiStagingSqlSafety.test.js
           node api/tests/sondaggiRenderStagingIsolation.test.js
           node --check api/staging/op37_render_http_probe.js
+      - name: Verify live Render public setup-only routes deny data without credentials
+        env:
+          OP37_PUBLIC_SETUP_PROBE: no-credentials
+          OP37_STAGING_HTTP_ONLY: 'yes'
+        run: node api/scripts/verify-sondaggi-render-setup-public.js
       - name: Verify real GET Sondaggi on synthetic PostgreSQL 17 and 10-to-9 consent
         env:
           GITHUB_ACTIONS: 'true'
