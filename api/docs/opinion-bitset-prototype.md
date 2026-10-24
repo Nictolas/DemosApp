@@ -796,3 +796,61 @@ decisione automatica di migrazione. Il formato BYTEA resta escluso
 dalle route effettive; la PR è DRAFT, nessun merge/deploy/migrazione
 Supabase, OP-41 **In corso**, KPI-23 **Non verificato**, OP-42
 **Da fare**.
+
+
+## Concorrenza sotto contesa e invalidazione cache catalogo (DOC-044)
+
+**Test sperimentale, non installato nelle route DEMOS.**
+Il runner `api/scripts/benchmark-opinion-concurrent-load-catalog.js`
+opera esclusivamente sul servizio PostgreSQL 17 effimero di GitHub
+Actions `opinion_bitset_ci`, con guardia rigida sulle variabili
+di ambiente, credenziali fittizie e controllo della versione server.
+Duplica in quattro tabelle isolate i dati fittizi di DOC-042
+(824 soggetti, 94 opinioni, 288 fonti in scenario 35%), senza alterare
+le fixture dei benchmark precedenti o accedere a Supabase.
+
+**Contesa di scrittura:** per ciascuno dei formati TEXT (94 colonne)
+e BYTEA `sparse_versioned`, otto connessioni eseguono 12
+aggiornamenti ciascuna, per un totale di 96 transazioni per formato
+e scenario. Sono confrontati uno scenario `hot` (otto lavoratori
+sulla **stessa riga** ma su otto opinioni diverse) e `spread`
+(otto account diversi). Ogni scrittura usa BEGIN,
+SELECT ... FOR UPDATE, UPDATE e COMMIT, aggiorna una revisione
+intera e attende artificialmente **5 ms sotto il lock** per rendere
+osservabile la contesa. Il test verifica con
+`pg_stat_activity` e `pg_blocking_pids` che la contesa sul
+singolo account sia reale; dopo gli aggiornamenti verifica
+**tutte le revisioni e le risposte finali** per escludere
+scritture perse. Riporta mediana, p95 e media per scenario.
+Il ritardo sintetico altera i tempi: i numeri **NON sono
+latenze della produzione**, e il test non simula traffico Android
+o molti utenti contemporaneamente.
+
+**Cache di catalogo, prova di correttezza:** due connessioni
+PostgreSQL con cache Node **indipendenti**, ma nello stesso processo
+CI, caricano un catalogo append-only versionato e validato
+mediante fingerprint SHA-256. In una tabella `catalog_head`
+separata, la lettura `FOR SHARE` consente più scrittori
+contemporanei e la modifica `FOR UPDATE` serializza le
+operazioni che appendono nuove versioni. Due append concorrenti
+basate su versione 1 devono produrre un solo successo,
+con rigetto dell'altra come obsoleta; una cache rimasta alla
+versione 1 non può salvare dichiarandosi implicitamente
+aggiornata alla versione 2: la scrittura è respinta,
+senza modificare i dati, fino al caricamento della
+nuova versione. Una riga storica in formato BYTEA versione 1
+rimane decodificabile dopo l'append. Fingerprint alterate
+in una transazione di test sono rilevate e la modifica viene
+annullata dal ROLLBACK.
+
+Questa è soltanto una **proposta sperimentale di lock condiviso
+sul catalog head**: l'uso di `FOR SHARE`/ `FOR UPDATE`
+ha costi di contesa propri, così come una cache distribuita
+necessiterebbe gestione di invalidazione, riconnessione e
+consistenza di processo/replica. Il test non implementa
+pub/sub né una vera cache applicativa deployabile. Non testa
+JWT, consenso, RLS e pooler di Supabase, failover, revoca
+GDPR, backup, schemi reali, prestazioni economiche o Android.
+La PR resta DRAFT, nessun merge/deploy/DDL persistente,
+nessuna migrazione a BYTEA. OP-41 resta **In corso**;
+KPI-23 **Non verificato**; OP-42 **Da fare**.

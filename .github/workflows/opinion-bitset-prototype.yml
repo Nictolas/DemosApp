@@ -54,6 +54,7 @@ on:
       - 'api/scripts/benchmark-opinion-physical.js'
       - 'api/scripts/benchmark-opinion-mixed-sources.js'
       - 'api/scripts/benchmark-opinion-mixed-performance.js'
+      - 'api/scripts/benchmark-opinion-concurrent-load-catalog.js'
       - 'api/scripts/benchmark-opinion-queries.js'
       - 'api/scripts/verify-opinion-privacy-equivalence.js'
       - 'api/docs/opinion-bitset-trimmed-probe-20261024.md'
@@ -149,6 +150,15 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/benchmark-opinion-mixed-performance.js
+      - name: Stress synthetic concurrent TEXT/BYTEA saves and versioned catalog caches
+        env:
+          OPINION_BENCH_EPHEMERAL: 'yes'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_bitset_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-concurrent-load-catalog.js
       - name: Verify SQL statistics, row locks and CAS; sample server query times
         env:
           OPINION_BENCH_EPHEMERAL: 'yes'
