@@ -92,7 +92,7 @@ test('malformed payloads, trailing zeros, unknown IDs and padding are rejected',
   assert.throws(() => expandTrimmed(ids, Buffer.from([0, 1])), RangeError);
   assert.throws(() => expandTrimmed(ids, Buffer.from([0])), RangeError);
   assert.throws(() => expandTrimmed(ids, Buffer.from([0b00000001])), RangeError);
-  assert.throws(() => decodeTrimmed(ids, Buffer.from([0b00000100])), RangeError);
+  assert.throws(() => decodeTrimmed(ids, Buffer.from([0b00000010])), RangeError);
   assert.throws(() => readTrimmed(ids, Buffer.alloc(0), 'z'), RangeError);
   assert.throws(() => patchTrimmed(ids, Buffer.alloc(0), { z: 'f' }), RangeError);
   assert.throws(() => trimTrailingZeroBytes('01'), TypeError);
