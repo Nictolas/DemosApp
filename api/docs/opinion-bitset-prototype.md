@@ -1270,3 +1270,44 @@ Il test documenta esplicitamente l'assenza di copertura
 delle route reali e i costi/effetti di lock per-query.
 **DOC-051 PASS solo nel protocollo sperimentale**.
 
+
+
+## Microbenchmark del costo dei blocchi sul journal remoto (DOC-052)
+
+Lo script `api/scripts/benchmark-opinion-remote-fence.js`, eseguito
+esclusivamente nella CI temporanea PostgreSQL 17 dopo DOC-051,
+misura il costo incrementale della verifica per **ogni lettura
+protetta**. Confronta la stessa vista SQL `ci_remote_readable` e
+lo stesso ruolo limitato, prima con il controllo solo locale
+(`ci_remote_gate`), poi con il protocollo remoto di DOC-051:
+`BEGIN`, lock remoto `SELECT ... FOR SHARE`, verifica della
+catena MAC (cinque eventi fittizi), confronto delle sequenze,
+lettura SQL protetta e sblocco alla fine della richiesta.
+Letture locali e remote usano l'identico payload sintetico BYTEA;
+non è un test della route DEMOS o del codec su Supabase.
+
+Il runner confronta **1 e 8 lettori simultanei**, 128 richieste per
+modalità per ciascuna delle due repliche nel disegno ABBA,
+precedute da riscaldamento. Riporta tempo medio, mediana,
+p95, p99, richieste al secondo osservate e differenze tra
+modalità, senza imporre falsi limiti di produzione sui
+millisecondi CI. Un test ulteriore trattiene intenzionalmente
+un lock di lettura remoto per 125 ms e osserva tramite
+`pg_blocking_pids` se lo scrittore sullo stesso head attende
+e quanto viene ritardato. Una connessione remota
+irraggiungibile deve fallire senza ricadere sulla lettura
+locale non coordinata.
+
+**Limitazioni:** i due PostgreSQL sono sullo stesso runner Linux
+temporaneo, quindi tempi e throughput sono solo misure illustrative,
+non stime del carico, della rete reale o dei costi Supabase.
+Il journal comprende cinque soli eventi e non misura la gestione
+di milioni di revoche, cache, Android, API effettive o RLS.
+Il benchmark quantifica una proprietà potenzialmente costosa:
+tutte le letture diventano dipendenti dalla disponibilità del
+journal esterno e possono rallentare o bloccare una revoca.
+Non dimostra che l'architettura sia adeguata alla produzione.
+PR #247 DRAFT, nessun deploy, migrazione BYTEA o cambiamento a
+Supabase. OP-41 **In corso**, KPI-23 **Non verificato**, OP-42
+**Da fare**. **Esito DOC-052 in verifica CI**, da aggiornare
+solo sui risultati effettivi.
