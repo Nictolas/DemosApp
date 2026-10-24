@@ -402,8 +402,6 @@ export default function Riconoscimento() {
                 )}
                 <p className="text-xs text-slate-500">
                   Dopo la verifica potrai tornare a questa pagina dalle impostazioni.
-                  Nome e cognome del profilo non sono certificati dalla CIE:
-                  saranno confrontati con la fonte ufficiale.
                 </p>
               </div>
               <div className="font-semibold text-slate-900">2. Ruolo e territorio</div>
