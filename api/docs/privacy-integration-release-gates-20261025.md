@@ -40,7 +40,7 @@ La concatenazione è **lineare**, non una serie di 23 cambi indipendenti da inte
 
 ## Decisioni di privacy e documentazione da riconciliare
 
-- **Scelte di rappresentanti/candidati:** la proiezione pubblica espone queste selezioni; la loro base giuridica, l'eventuale opt-in alla pubblicazione, la rimozione su revoca e la distinzione da incarichi importati sono **ancora da definire**. Non modificare massivamente righe o visibilità per ipotesi; scegliere un trattamento coerente e testarlo prima del rilascio.
+- **Scelte di rappresentanti/candidati:** nel ramo in bozza, la proiezione pubblica ora **nasconde preventivamente** le scelte/ID del soggetto quando il consenso politico è revocato, preservando i campi solo con consenso attivo. È una mitigazione del rilascio di dati e non elimina righe di `user_representatives`. La loro base giuridica, l'eventuale opt-in alla pubblicazione, la conservazione/cancellazione su revoca e la distinzione da incarichi importati sono **ancora da definire**. Non cancellare massivamente i dati per ipotesi: assumere una decisione documentata e testare il cleanup prima del rilascio.
 - **DPIA:** nel repository il documento `DPIA_DemosApp.md` ha intestazione **versione 1.1, revisione marzo 2026**, le sezioni di parere DPO e decisione finale non sono compilate, e l'Allegato H (25 ottobre 2026) è ancora esplicitamente **bozza non approvata**. L'interlocutore ha dichiarato in chat di essere il DPO e di approvare la DPIA, ma l'identità del DPO riportata nell'ultima DPIA **non coincide con questa dichiarazione**. Prima di rappresentare il documento come approvato occorre riconciliare nomina/ruoli e associare l'esito a **versione, data, parere, rischi residui e firma/evidenza**. Nessuna approvazione retroattiva è inferibile dalla sola CI.
 - **Conservazioni/audit:** verificare che le durate e le basi giuridiche descritte nella DPIA rispecchino la configurazione reale di Axiom, Backblaze, audit outbox e cancellazione selettiva delle risposte.
 - **Test non sufficiente:** l'assenza di errori rilevati da CI non è una prova di anonimizzazione irreversibile o conformità complessiva.
@@ -54,3 +54,9 @@ La concatenazione è **lineare**, non una serie di 23 cambi indipendenti da inte
 5. Pubblicare con piano di monitoraggio e rollback, conservando evidenze della release candidate.
 
 **Stato finale di questo documento:** audit preliminare e piano test; nessun merge, deploy, modifica ai dati degli utenti o accesso a produzione.
+
+## Riscontro tecnico aggiuntivo — selezioni del profilo pubblico
+
+La revisione integrata del 25/10/2026 ha trovato un percorso residuo di esposizione: `user.rappresentante_*`, `user.candidato_*` e `public.rappresentanti/candidati` continuavano a essere serializzati anche se il consenso politico del soggetto risultava revocato, mentre il solo `governoIdeale` era già filtrato. Sul ramo in bozza è stata estesa la verifica **finale** del consenso prima della risposta: con consenso assente/revocato i campi user della selezione sono null e gli oggetti public delle selezioni sono vuoti. Con consenso attivo viene mantenuto il comportamento precedente. Test sintetici verificano preferenze residue e revoca durante la lettura.
+
+**Limite:** le righe in `user_representatives` e in altri store legacy non sono eliminate da questa correzione; servirà la decisione DPO/titolare sul perimetro e la DPIA. Una revoca conclusa dopo la verifica finale non ritira retroattivamente una risposta HTTP già inviata.

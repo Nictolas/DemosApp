@@ -20,6 +20,8 @@ async function request({
   let handlers, consentChecks = 0;
   const reads = [], logs = [];
   const targetId = '00000000-0000-4000-8000-000000000292';
+  const representativeId = '00000000-0000-4000-8000-000000000295';
+  const candidateId = '00000000-0000-4000-8000-000000000296';
   const pool = {
     async query(sql, params) {
       const q = String(sql).replace(/\s+/g, ' ').trim();
@@ -29,8 +31,16 @@ async function request({
         assert.deepEqual(Array.from(params), [targetId]);
         return { rows: targetFound ? [{
           id: targetId, nome: 'Synthetic', cognome: 'Candidate',
-          rappresentante_europeo: null, candidato_europeo: null
+          rappresentante_europeo: representativeId, candidato_europeo: candidateId
         }] : [] };
+      }
+      if (q.includes('SELECT id, nome, cognome, ruolo, avatar_config') &&
+          q.includes('FROM users')) {
+        const ids = Array.from(params[0]).map(String);
+        return { rows: [
+          { id: representativeId, nome: 'Synthetic', cognome: 'Representative', ruolo: 'P', avatar_config: null },
+          { id: candidateId, nome: 'Synthetic', cognome: 'Candidate', ruolo: 'C', avatar_config: null }
+        ].filter(row => ids.includes(row.id)) };
       }
       if (q.includes('FROM voti_')) {
         assert.match(q, /FROM voti_[a-z_]+ v/);
@@ -94,7 +104,7 @@ async function request({
   assert.match(res.headers['cache-control'], /(?:^|,\s*)private(?:,|$)/);
   assert.match(res.headers['cache-control'], /(?:^|,\s*)no-store(?:,|$)/);
   assert.equal(JSON.stringify(logs).includes('synthetic-sensitive-sql-param'), false);
-  return { res, reads, logs, consentChecks };
+  return { res, reads, logs, consentChecks, representativeId, candidateId };
 }
 
 test('public candidate with active consent can expose the desired government', async () => {
@@ -104,6 +114,37 @@ test('public candidate with active consent can expose the desired government', a
   assert.equal(res.body.user.nome, 'Synthetic');
   assert.equal(consentChecks, 2);
   assert.equal(reads.filter(q => q.includes('FROM voti_')).length, 14);
+});
+
+test('public profile exposes target selections when consent is active, not the viewer choices', async () => {
+  const { res, representativeId, candidateId } = await request();
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.user.rappresentante_europeo, representativeId);
+  assert.equal(res.body.user.candidato_europeo, candidateId);
+  assert.equal(res.body.public.rappresentanti.europeo[0].id, representativeId);
+  assert.equal(res.body.public.candidati.europeo[0].id, candidateId);
+});
+
+test('revoked consent hides residual representative/candidate IDs in every public projection field', async () => {
+  const { res, representativeId, candidateId } = await request({ granted: false });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.user.rappresentante_europeo, null);
+  assert.equal(res.body.user.candidato_europeo, null);
+  assert.deepEqual(JSON.parse(JSON.stringify(res.body.public.rappresentanti)), {});
+  assert.deepEqual(JSON.parse(JSON.stringify(res.body.public.candidati)), {});
+  assert.equal(JSON.stringify(res.body).includes(representativeId), false);
+  assert.equal(JSON.stringify(res.body).includes(candidateId), false);
+});
+
+test('revocation during public projection hides loaded target selections before HTTP response', async () => {
+  const { res, representativeId, candidateId } = await request({ revokeBeforeResponse: true });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.user.rappresentante_europeo, null);
+  assert.equal(res.body.user.candidato_europeo, null);
+  assert.deepEqual(JSON.parse(JSON.stringify(res.body.public.rappresentanti)), {});
+  assert.deepEqual(JSON.parse(JSON.stringify(res.body.public.candidati)), {});
+  assert.equal(JSON.stringify(res.body).includes(representativeId), false);
+  assert.equal(JSON.stringify(res.body).includes(candidateId), false);
 });
 
 test('revoked consent never reads remaining political votes from a public profile', async () => {

@@ -40,6 +40,9 @@ test('public projection omits private demographics and reads ministry votes only
   assert.ok(route.includes('getPoliticalConsentState(pool, userId)'));
   assert.ok(route.includes('WHERE v.userid::text = $1::text'));
   assert.ok(route.includes('governoIdeale: finalConsent.granted ? governoIdeale : {}'));
+  assert.ok(route.includes('rappresentanti: finalConsent.granted ? rappresentanti : {}'));
+  assert.ok(route.includes('candidati: finalConsent.granted ? candidati : {}'));
+  assert.ok(route.includes('user[field] = null;'));
 });
 
 test('other-person profile uses only the minimized target projection, never the Admin route', () => {

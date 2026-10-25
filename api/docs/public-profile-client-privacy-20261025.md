@@ -35,3 +35,7 @@ La CI privacy comprende i nuovi test, il backend sintetico di lettura dei voti p
 5. La CI privacy è una **suite focalizzata**, non una prova di tutti i test del repository: eseguire anche le altre verifiche pertinenti e controllare conflitti nell'integrazione di tutte le PR concatenate.
 
 **Nessun merge, deploy, cambio di dati reali o accesso alla produzione.**
+
+## Misura aggiuntiva nella revisione integrata
+
+L'endpoint `/api/users/:userId/public-profile` maschera ora anche le **selezioni personali** di rappresentanti e candidati se il consenso politico del soggetto è revocato: `public.rappresentanti` e `public.candidati` diventano oggetti vuoti, mentre i campi selezione `user.rappresentante_*`/`user.candidato_*` diventano null. I dati istituzionali indipendenti (grado candidatura/elezione) non vengono modificati. La persistenza e la rimozione delle selezioni restano decisioni documentali/tecniche aperte: non viene eseguita alcuna cancellazione.
