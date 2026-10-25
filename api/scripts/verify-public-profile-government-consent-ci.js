@@ -68,7 +68,24 @@ async function main() {
     assert.ok(start >= 0 && end > start, 'Government projection helper missing');
 
     const { getPoliticalConsentState } = require('../services/politicalConsentService');
-    const tempPool = { query: (...args) => client.query(...args) };
+    // The fixture uses one long-lived transaction to keep its tables TEMP.
+    // Real pool.query calls are independent autocommit statements. Savepoints
+    // reproduce that error isolation when a legacy ministry table is missing:
+    // otherwise PostgreSQL would abort the whole test transaction on 42P01.
+    const tempPool = {
+      async query(sql, params) {
+        await client.query('SAVEPOINT synthetic_read');
+        try {
+          const result = await client.query(sql, params);
+          await client.query('RELEASE SAVEPOINT synthetic_read');
+          return result;
+        } catch (error) {
+          await client.query('ROLLBACK TO SAVEPOINT synthetic_read');
+          await client.query('RELEASE SAVEPOINT synthetic_read');
+          throw error;
+        }
+      }
+    };
     const context = {
       pool: tempPool,
       MINISTRIES: ['difesa','esteri','cultura'],
