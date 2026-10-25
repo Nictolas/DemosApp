@@ -34,6 +34,7 @@ module.exports = {
     '/api/opinioni/',
     // Legacy personalized endpoint is /api/opinioni-list (hyphen, not slash).
     '/api/opinioni-list',
+    '/api/capo-stato/consenso', // personalized political preference and aggregate with consent
     // Authenticated candidate/representative endpoints expose political
     // selections, completion and personalized compatibility scores.
     '/api/candidati',

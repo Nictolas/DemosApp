@@ -13,6 +13,8 @@ on:
       - 'api/routes/referendum-vote.js'
       - 'api/routes/referendum.js'
       - 'api/routes/amnistia.js'
+      - 'api/routes/capo-stato.js'
+      - 'api/tests/headOfStateConsentPrivacy.smoke.test.js'
       - 'api/tests/amnestyConsentRevokeRace.smoke.test.js'
       - 'api/tests/legacyReferendumConsentRace.smoke.test.js'
       - 'api/tests/referendumRealVote.smoke.test.js'
@@ -79,7 +81,7 @@ jobs:
       - name: Verify HTTP abort propagates through actual API client and TanStack Query
         run: node --test client/tests/politicalOpinionHttpCancellation.test.mjs
       - name: Unit consent, ordinary opinion save and revoke privacy guards
-        run: node --test --test-concurrency=1 api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/politicalAggregatePrivacy.test.js api/tests/politicalOpinionReadCachePolicy.test.js api/tests/politicalProfileReadConsent.test.js api/tests/politicalMatchingService.test.js api/tests/politicalMatchingRoutes.smoke.test.js api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js api/tests/politicalConsentHttpNoStore.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/legacyReferendumConsentRace.smoke.test.js api/tests/amnestyConsentRevokeRace.smoke.test.js
+        run: node --test --test-concurrency=1 api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/politicalAggregatePrivacy.test.js api/tests/politicalOpinionReadCachePolicy.test.js api/tests/politicalProfileReadConsent.test.js api/tests/politicalMatchingService.test.js api/tests/politicalMatchingRoutes.smoke.test.js api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js api/tests/politicalConsentHttpNoStore.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/legacyReferendumConsentRace.smoke.test.js api/tests/amnestyConsentRevokeRace.smoke.test.js api/tests/headOfStateConsentPrivacy.smoke.test.js
       - name: Confirm real HTTP save-vs-revoke serialization on synthetic PostgreSQL 17
         env:
           GITHUB_ACTIONS: 'true'
