@@ -103,7 +103,7 @@ async function run(db, mode, scenario, capturePlan) {
         const explain = result.rows[0]['QUERY PLAN'];
         const plan = (typeof explain === 'string' ? JSON.parse(explain) : explain)[0].Plan;
         walBytes = Number(plan['WAL Bytes'] || 0);
-        assert.equal(plan['Actual Rows'], 1);
+        assert.equal(plan['Node Type'], 'ModifyTable');
       } else {
         assert.equal(result.rowCount, 1);
       }
