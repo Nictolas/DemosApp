@@ -15,6 +15,7 @@ function makePool() {
       const s = String(sql).replace(/\s+/g, ' ').trim();
       calls.push({ sql: s, params });
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(s)) return { rows: [], rowCount: 0 };
+      if (s.includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
       if (s.startsWith('DELETE FROM political_selections')) return { rows: [], rowCount: 1 };
       throw new Error(`Unexpected client query: ${s}`);
     },

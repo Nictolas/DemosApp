@@ -19,6 +19,13 @@ const {
 } = require('../../services/politicalSelectionService');
 
 const router = express.Router();
+
+// Authenticated profile routes can include personal political choices.
+// Apply before authentication so also 401/403 responses are never cached.
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
 const isSchemaMigrationError = (error) => (
   error &&
   (error.code === '42P01' || error.code === '42703')
@@ -448,17 +455,14 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
 // PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
 router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   try {
-    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
-    
+
     const { userId } = req.params;
     const { campo, rappresentanteId, source = 'matching' } = req.body;
     const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
-    
-    console.log('🔍 DEBUG - userId dal parametro:', userId);
-    console.log('🔍 DEBUG - authenticatedUserId dal token:', authenticatedUserId);
-    console.log('🔍 DEBUG - campo:', campo);
-    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
-    
+
+
+
+
     // Verifica che l'utente autenticato possa modificare questo profilo
     if (authenticatedUserId !== userId) {
       return res.status(403).json({
@@ -556,9 +560,7 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivi
     
     const isCandidato = campo.startsWith('candidato_');
     const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
-    
-    console.log(`✅ ${entityType} selezionato con successo`);
-    
+
     res.json({
       success: true,
       message: `${entityType} selezionato con successo`,
@@ -566,7 +568,13 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivi
     });
     
   } catch (error) {
-    console.error('❌ Errore nella selezione:', error);
+    if (error?.code === 'POLITICAL_SELECTION_CONSENT_REQUIRED') {
+      return res.status(403).json({ success: false, consent_required: true, error: 'Consenso politico necessario' });
+    }
+    if (error?.code === 'POLITICAL_SELECTION_USER_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    console.error('Errore interno nella selezione politica legacy');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -639,7 +647,13 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
     if (client) {
       try { await client.query('ROLLBACK'); } catch (_) {}
     }
-    console.error('Errore selezione politica canonica:', error);
+    if (error?.code === 'POLITICAL_SELECTION_CONSENT_REQUIRED') {
+      return res.status(403).json({ success: false, consent_required: true, error: 'Consenso politico necessario' });
+    }
+    if (error?.code === 'POLITICAL_SELECTION_USER_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    console.error('Errore interno nella selezione politica canonica');
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   } finally {
     if (client) client.release();

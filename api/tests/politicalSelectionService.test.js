@@ -38,6 +38,8 @@ test('setPoliticalSelection writes canonical row and Italian compatibility proje
   const db = {
     async query(sql, params) {
       queries.push({ sql, params });
+      if (String(sql).includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
+      if (String(sql).includes(' AS granted')) return { rows: [{ id: params[0], granted: true }], rowCount: 1 };
       if (/UPDATE users/.test(sql)) return { rowCount: 1, rows: [{ id: params[1] }] };
       return { rowCount: 1, rows: [] };
     },
@@ -60,6 +62,8 @@ test('USA selection writes only canonical storage and never invents a legacy col
   const db = {
     async query(sql, params) {
       queries.push({ sql, params });
+      if (String(sql).includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
+      if (String(sql).includes(' AS granted')) return { rows: [{ id: params[0], granted: true }], rowCount: 1 };
       return { rowCount: 1, rows: [] };
     },
   };
@@ -78,6 +82,8 @@ test('USA selection writes only canonical storage and never invents a legacy col
 test('missing canonical table falls back to legacy projection on writes', async () => {
   const db = {
     async query(sql, params) {
+      if (String(sql).includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
+      if (String(sql).includes(' AS granted')) return { rows: [{ id: params[0], granted: true }], rowCount: 1 };
       if (/political_selections/.test(sql)) {
         const error = new Error('missing');
         error.code = '42P01';

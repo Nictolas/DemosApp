@@ -10,6 +10,8 @@ const {
   getLegacySelectionDescriptors,
 } = require('./politicalJurisdictionRegistryService');
 
+const { getPoliticalConsentState } = require('./politicalConsentService');
+
 const SCHEMA_COMPAT_ERROR_CODES = new Set(['42P01', '42703']);
 const SELECTION_KINDS = new Set(['candidate', 'representative']);
 
@@ -148,6 +150,30 @@ async function setPoliticalSelection(db, {
     const error = new Error('Invalid political selection contract');
     error.code = 'POLITICAL_SELECTION_CONTRACT_INVALID';
     throw error;
+  }
+
+  // All call sites must hold a BEGIN transaction on this very db client.
+  // Revocation updates this same users row inside its own transaction.
+  // Acquiring the lock before checking consent serializes SELECT and REVOKE
+  // irrespective of how long matching/eligibility checks took upstream.
+  const lockedUser = await db.query(
+    'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+  );
+  if (!lockedUser.rows.length) {
+    const error = new Error('Political selection subject not found');
+    error.code = 'POLITICAL_SELECTION_USER_NOT_FOUND';
+    throw error;
+  }
+  // Deleting an existing choice must remain possible even after revocation.
+  // Setting a candidate/representative is processing political preference data
+  // and requires active Article 9 consent while the user lock is held.
+  if (selectedUserId !== null && selectedUserId !== undefined && selectedUserId !== '') {
+    const consent = await getPoliticalConsentState(db, userId);
+    if (!consent.granted) {
+      const error = new Error('Political consent required to set a selection');
+      error.code = 'POLITICAL_SELECTION_CONSENT_REQUIRED';
+      throw error;
+    }
   }
 
   const canonical = await writeCanonicalSelection(db, {
