@@ -296,29 +296,39 @@ router.post('/salva', verifyToken, async (req, res) => {
         console.log(`✅ Prima risposta salvata. Righe inserite: ${result.rowCount}`);
       } else {
         const previous = checkResult.rows[0];
-        const changes = insertFields
+        // Evita UPDATE inutili delle risposte già identiche: con 94 opinioni
+        // inviate in blocco, una sola risposta modificata deve scrivere
+        // soltanto quella colonna. Il conteggio delle risposte accettate rimane invariato.
+        const actualChanges = insertFields
           .map((field, index) => ({
             opinionId: field,
             previousValue: previous[field],
             newValue: insertValues[index]
           }))
-          // NULL/non risposta → prima risposta a quella singola Opinione: niente notifica.
-          .filter((change) =>
-            ['f', 'c', 'i'].includes(change.previousValue) &&
-            change.previousValue !== change.newValue
-          );
+          .filter((change) => change.previousValue !== change.newValue);
 
-        const updateQuery = `
-          UPDATE opinioni_risposte
-          SET ${updateFields.join(', ')}
-          WHERE user_id = $${updateFields.length + 1}
-        `;
-        const allValues = [...insertValues, userId];
-        const result = await client.query(updateQuery, allValues);
-        savedCount = updateFields.length;
-        if (result.rowCount === 0) {
-          throw new Error('Nessuna riga Opinioni aggiornata');
+        // NULL/non risposta → prima risposta a quella singola Opinione: niente notifica.
+        const changes = actualChanges.filter((change) =>
+          ['f', 'c', 'i'].includes(change.previousValue) &&
+          change.previousValue !== change.newValue
+        );
+
+        if (actualChanges.length > 0) {
+          const changedAssignments = actualChanges.map((change, index) =>
+            `"${String(change.opinionId).replace(/"/g, '""')}" = $${index + 1}`
+          );
+          const changedValues = actualChanges.map((change) => change.newValue);
+          const updateQuery = `
+            UPDATE opinioni_risposte
+            SET ${changedAssignments.join(', ')}
+            WHERE user_id = $${actualChanges.length + 1}
+          `;
+          const result = await client.query(updateQuery, [...changedValues, userId]);
+          if (result.rowCount === 0) {
+            throw new Error('Nessuna riga Opinioni aggiornata');
+          }
         }
+        savedCount = insertFields.length;
 
         if ((req.user?.isPolitician || req.user?.isCandidate) && changes.length > 0) {
           const notificationResult = await createSupporterOpinionNotifications(client, {
