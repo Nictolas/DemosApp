@@ -6,6 +6,7 @@ on:
       - 'api/routes/compatibility.js'
       - 'api/config/publicCachePolicy.js'
       - 'api/tests/politicalOpinionReadCachePolicy.test.js'
+      - 'api/scripts/verify-political-opinion-read-consent-ci.js'
       - 'api/tests/politicalConsentHttpNoStore.smoke.test.js'
       - 'api/routes/users/profile.js'
       - 'api/tests/politicalOpinionWriteRules.smoke.test.js'
@@ -76,3 +77,13 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-political-consent-save-race-ci.js
+      - name: Verify real PostgreSQL 17 consent-gated reads with residual synthetic answers
+        env:
+          GITHUB_ACTIONS: 'true'
+          POLITICAL_CONSENT_RACE_CI: synthetic
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: political_consent_race_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-political-opinion-read-consent-ci.js

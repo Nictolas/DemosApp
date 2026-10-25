@@ -9,7 +9,7 @@ const vm = require('node:vm');
 const routeSource = fs.readFileSync(path.join(__dirname, '../routes/compatibility.js'), 'utf8');
 const cachePolicy = require('../config/publicCachePolicy');
 
-function createSyntheticHandler({ validToken = true, activeUser = true } = {}) {
+function createSyntheticHandler({ validToken = true, activeUser = true, userConsent = true, consentOverride = null } = {}) {
   let handler;
   const queries = [];
   const pool = {
@@ -22,7 +22,13 @@ function createSyntheticHandler({ validToken = true, activeUser = true } = {}) {
         return { rows: [{ id: 'caccia', text: 'Caccia', gradi_opinione: ['N'] }] };
       }
       if (sql.includes('FROM opinioni_risposte')) {
-        return { rows: [{ user_id: 'synthetic-user', caccia: 'f' }] };
+        // This route must never load a personal answer without an Art. 9
+        // consent predicate in the same statement (not a stale precheck).
+        assert.match(sql, /JOIN users u ON u\.id = r\.user_id/);
+        assert.match(sql, /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
+        assert.match(sql, /COALESCE\([\s\S]*uc\.political_opinions_consent,[\s\S]*u\.political_opinions_consent,[\s\S]*false[\s\S]*\)\s*= true/);
+        const granted = consentOverride === null ? userConsent : consentOverride;
+        return { rows: granted ? [{ user_id: 'synthetic-user', caccia: 'f' }] : [] };
       }
       throw new Error('Unexpected synthetic SQL');
     },
@@ -97,6 +103,32 @@ test('successful personalized opinion response sends private no-store header', a
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.data[0].userAnswer, 'f');
   assert.ok(queries.some((sql) => sql.includes('FROM opinioni_risposte')));
+  assertNoStore(res);
+});
+
+test('revoked Art. 9 consent suppresses residual political answers without hiding public questions', async () => {
+  // Simulate a leftover answer row: the SQL consent predicate must filter it.
+  for (const options of [
+    { userConsent: false, consentOverride: null },
+    { userConsent: true, consentOverride: false },
+  ]) {
+    const { handler, queries } = createSyntheticHandler(options);
+    const res = responseStub();
+    await handler({ headers: { authorization: 'Bearer synthetic' }, query: { grado: 'N' } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.data.length, 1, 'public question should remain visible');
+    assert.equal(res.body.data[0].userAnswer, null, 'private answer must be absent');
+    assert.ok(queries.some(sql => sql.includes('FROM opinioni_risposte')));
+    assertNoStore(res);
+  }
+});
+
+test('consent override preserves authorized personal opinion reads', async () => {
+  const { handler } = createSyntheticHandler({ userConsent: false, consentOverride: true });
+  const res = responseStub();
+  await handler({ headers: { authorization: 'Bearer synthetic' }, query: { grado: 'N' } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.data[0].userAnswer, 'f');
   assertNoStore(res);
 });
 
