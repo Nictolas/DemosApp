@@ -6,6 +6,7 @@ const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
 const referendumVoteRoutes = require('./referendum-vote');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 
 const router = express.Router();
 
@@ -258,26 +259,69 @@ router.post('/abrogativi/:id/:action', verifyToken, async (req, res) => {
 
 // POST /api/referendum-abrogativi/vota - Salva preferenze referendum abrogativo
 router.post('/abrogativi/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+  const { voti } = req.body || {};
+  if (!Array.isArray(voti)) {
+    return res.status(400).json({ success: false, error: 'Elenco preferenze non valido' });
+  }
+
+  const userId = req.userId;
+  let client;
+  let transactionStarted = false;
   try {
-    const { voti } = req.body;
-    const userId = req.userId;
+    client = await pool.connect();
+    await client.query('BEGIN');
+    transactionStarted = true;
 
-    await pool.query('DELETE FROM voti_referendum_abrogativi WHERE userid = $1', [userId]);
+    // The revocation transaction updates this same users row before erasing
+    // votes. Acquire the lock BEFORE checking consent or replacing choices.
+    const lockedUser = await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE',
+      [userId]
+    );
+    if (lockedUser.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
 
+    // A separate SELECT after the lock observes a concurrent committed
+    // revocation under READ COMMITTED (a combined SELECT could be stale).
+    const consentState = await getPoliticalConsentState(client, userId);
+    if (!consentState.granted) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(403).json({
+        success: false,
+        error: 'Consenso richiesto',
+        code: 'POLITICAL_CONSENT_REQUIRED',
+        consent_required: true
+      });
+    }
+
+    await client.query('DELETE FROM voti_referendum_abrogativi WHERE userid = $1', [userId]);
     for (const referendumId of voti) {
-      await pool.query(
+      await client.query(
         'INSERT INTO voti_referendum_abrogativi (userid, referendum_id) VALUES ($1, $2) ON CONFLICT (userid, referendum_id) DO NOTHING',
         [userId, referendumId]
       );
     }
 
+    await client.query('COMMIT');
+    transactionStarted = false;
     res.json({ success: true, message: 'Preferenze salvate con successo' });
   } catch (error) {
+    if (transactionStarted) {
+      try { await client.query('ROLLBACK'); } catch (rollbackError) {
+        console.error('Errore rollback preferenze referendum:', rollbackError);
+      }
+    }
     console.error('❌ Errore nel salvare preferenze referendum:', error);
     res.status(500).json({
       success: false,
       error: 'Errore nel salvare le preferenze'
     });
+  } finally {
+    if (client) client.release();
   }
 });
 
