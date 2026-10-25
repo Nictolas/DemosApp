@@ -5,6 +5,8 @@ const { decompressUserLocation } = require('../../utils/locationUtils');
 const { verifyAccessToken, verifyOAuthPendingToken } = require('../../utils/jwt');
 const { decrypt: decryptEmail } = require('../../utils/emailCrypto');
 const { getAccountSubject } = require('../../services/accountCapabilitiesService');
+const { getPoliticalConsentState } = require('../../services/politicalConsentService');
+const { maskPoliticalSelectionsWithoutConsent } = require('../../services/personalPoliticalSelectionVisibilityService');
 
 const router = express.Router();
 const isSchemaMigrationError = (error) => (
@@ -107,7 +109,7 @@ router.get('/me', async (req, res) => {
         throw queryError;
       }
 
-      console.warn('⚠️ Fallback query /auth/me su users (schema nuovo non disponibile):', queryError.message);
+      console.warn('Fallback schema profilo autenticazione');
       result = await pool.query(
         `SELECT * FROM users WHERE id = $1`,
         [decoded.userId]
@@ -137,6 +139,11 @@ router.get('/me', async (req, res) => {
     }
 
     console.log('📤 Invio profilo utente completo');
+
+    // This final DB check precedes serialization of the personal profile.
+    // A residual legacy selection must not reappear after revocation.
+    const currentConsent = await getPoliticalConsentState(pool, user.id);
+    const visibleUser = maskPoliticalSelectionsWithoutConsent(user, currentConsent.granted);
 
     res.json({
       success: true,
@@ -172,16 +179,16 @@ router.get('/me', async (req, res) => {
         regione_candidatura: user.regione_candidatura,
         provincia_candidatura: user.provincia_candidatura,
         comune_candidatura: user.comune_candidatura,
-        rappresentante_europeo: user.rappresentante_europeo,
-        rappresentante_camera: user.rappresentante_camera,
-        rappresentante_senato: user.rappresentante_senato,
-        rappresentante_regionale: user.rappresentante_regionale,
-        rappresentante_comune: user.rappresentante_comune,
-        candidato_europeo: user.candidato_europeo,
-        candidato_camera: user.candidato_camera,
-        candidato_senato: user.candidato_senato,
-        candidato_regionale: user.candidato_regionale,
-        candidato_comune: user.candidato_comune,
+        rappresentante_europeo: visibleUser.rappresentante_europeo,
+        rappresentante_camera: visibleUser.rappresentante_camera,
+        rappresentante_senato: visibleUser.rappresentante_senato,
+        rappresentante_regionale: visibleUser.rappresentante_regionale,
+        rappresentante_comune: visibleUser.rappresentante_comune,
+        candidato_europeo: visibleUser.candidato_europeo,
+        candidato_camera: visibleUser.candidato_camera,
+        candidato_senato: visibleUser.candidato_senato,
+        candidato_regionale: visibleUser.candidato_regionale,
+        candidato_comune: visibleUser.candidato_comune,
         status: user.status,
         created_at: user.created_at,
         updated_at: user.updated_at
@@ -189,14 +196,13 @@ router.get('/me', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('💥 Errore durante il recupero profilo:', error);
-    console.error('📋 Stack trace completo:', error.stack);
+    console.error('Errore interno nel recupero profilo autenticazione');
     
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
       message: 'Impossibile recuperare il profilo utente',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: undefined
     });
   }
 });
