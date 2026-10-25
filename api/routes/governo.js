@@ -14,113 +14,103 @@ const pool = getPool();
 
 // ===== ENDPOINTS PER GOVERNO =====
 
-// GET /api/governo/voti - Ottieni dati per la pagina principale del governo
-router.get('/voti', verifyToken, async (req, res) => {
+// GET /api/governo/voti - consent-gated own votes, consent-only public rankings.
+router.get('/voti', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = req.userId || req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Utente non autenticato' });
 
-    // Lista dei ministeri
+    // Table identifiers come only from this fixed allowlist, never from HTTP.
     const ministeri = [
-      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
-      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 'ambiente_sicurezza_energetica',
-      'cultura', 'sport'
+      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno',
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente',
+      'ambiente_sicurezza_energetica', 'cultura', 'sport'
     ];
-
     const classifiche = {};
-    const mieiVoti = {};
-    const blocchi = {};
+    let mieiVoti = {};
+    let blocchi = {};
+    const consentState = await getPoliticalConsentState(pool, userId);
 
-    // Per ogni ministero, ottieni classifiche e voti utente
     for (const ministero of ministeri) {
-      const tableName = `voti_${ministero}`;
-      
-      console.log(`🔍 DEBUG - Processando ministero: ${ministero}, tabella: ${tableName}`);
-      
-      // Classifica per questo ministero
-      const classificaQuery = `
-        SELECT 
-          nome_display as nome,
-          COUNT(*) as voti
-        FROM ${tableName}
-        GROUP BY nome_display
-        ORDER BY voti DESC, nome_display ASC
-      `;
-
+      const tableName = 'voti_' + ministero;
+      const defaultBlock = { isBlocked: false, unlockDate: null };
+      blocchi[ministero] = defaultBlock;
+      classifiche[ministero] = [];
       try {
-        const classificaResult = await pool.query(classificaQuery);
-        console.log(`✅ DEBUG - ${ministero}: ${classificaResult.rows.length} record trovati`);
-        classifiche[ministero] = classificaResult.rows.map(row => ({
-          nome: row.nome,
-          voti: parseInt(row.voti)
+        // A vote left in a table after revocation must never inflate rankings.
+        const ranking = await pool.query(
+          'SELECT v.nome_display AS nome, COUNT(*)::integer AS voti ' +
+          'FROM ' + tableName + ' v ' +
+          'JOIN users u ON u.id::text = v.userid::text ' +
+          'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+          'WHERE COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+          'GROUP BY v.nome_display ORDER BY voti DESC, v.nome_display ASC'
+        );
+        classifiche[ministero] = ranking.rows.map(row => ({
+          nome: row.nome, voti: Number(row.voti)
         }));
+
+        if (!consentState.granted) continue;
+        // Read individual choices and Art. 9 consent in the same SQL statement.
+        const own = await pool.query(
+          'SELECT v.nome_display AS nome, v.timestamp ' +
+          'FROM ' + tableName + ' v ' +
+          'JOIN users u ON u.id::text = v.userid::text ' +
+          'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+          'WHERE v.userid::text = $1::text ' +
+          'AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+          'ORDER BY v.timestamp DESC LIMIT 1',
+          [userId]
+        );
+        const choice = own.rows[0] || null;
+        if (choice) mieiVoti[ministero] = choice.nome;
+
+        if (req.user?.isAdmin) continue;
+        const cooldown = await getPreferenceCooldown(pool, {
+          userId,
+          scope: 'governo:' + ministero,
+          fallbackChangedAt: choice?.timestamp || null
+        });
+        blocchi[ministero] = {
+          isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate
+        };
       } catch (error) {
-        console.error(`❌ DEBUG - Errore per ${ministero}:`, error.message);
-        classifiche[ministero] = [];
-      }
-
-      // Voti dell'utente per questo ministero
-      try {
-        const mieiVotiQuery = `
-          SELECT nome_display as nome
-          FROM ${tableName}
-          WHERE userid = $1
-          LIMIT 1
-        `;
-
-        const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
-        if (mieiVotiResult.rows.length > 0) {
-          mieiVoti[ministero] = mieiVotiResult.rows[0].nome;
+        // Legacy installs can lack an individual ministry table.
+        // Only undefined-table errors preserve the former empty-section behavior.
+        if (error?.code === '42P01') {
+          classifiche[ministero] = [];
+          delete mieiVoti[ministero];
+          blocchi[ministero] = defaultBlock;
+          continue;
         }
-      } catch (error) {
-        console.error(`❌ DEBUG - Errore nel recupero voti utente per ${ministero}:`, error.message);
-        // Continua senza aggiungere voti per questo ministero
-      }
-
-      // Cooldown per singolo ministero: non bloccare le altre preferenze.
-      try {
-        if (!req.user?.isAdmin) {
-          const lastChangeResult = await pool.query(
-            `SELECT MAX(timestamp) AS last_changed_at FROM ${tableName} WHERE userid = $1`,
-            [userId]
-          );
-          const cooldown = await getPreferenceCooldown(pool, {
-            userId,
-            scope: `governo:${ministero}`,
-            fallbackChangedAt: lastChangeResult.rows[0]?.last_changed_at || null
-          });
-          blocchi[ministero] = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
-        } else {
-          blocchi[ministero] = { isBlocked: false, unlockDate: null };
-        }
-      } catch (error) {
-        console.error(`Errore nel controllo cooldown per ${ministero}:`, error.message);
         throw error;
       }
     }
 
-    console.log('🔍 DEBUG - Risposta API governo/voti:');
-    console.log('📊 Classifiche:', Object.keys(classifiche).length, 'ministeri');
-    console.log('👤 Miei voti:', Object.keys(mieiVoti).length, 'voti utente');
-    const activeBlocks = Object.values(blocchi).filter((item) => item?.isBlocked);
-    const legacyUnlockDate = activeBlocks.map((item) => item.unlockDate).filter(Boolean).sort()[0] || null;
-    console.log('🔒 Cooldown per ministero:', blocchi);
+    // If revocation finished while reading preferences/cooldowns, do not
+    // serialize the earlier snapshot of personal answers or cooldown history.
+    const latestConsent = await getPoliticalConsentState(pool, userId);
+    if (!latestConsent.granted) {
+      mieiVoti = {};
+      blocchi = Object.fromEntries(ministeri.map(ministero => [
+        ministero, { isBlocked: false, unlockDate: null }
+      ]));
+    }
+    const activeBlocks = Object.values(blocchi).filter(item => item?.isBlocked);
+    const legacyUnlockDate = activeBlocks.map(item => item.unlockDate).filter(Boolean).sort()[0] || null;
 
-    res.json({
+    return res.json({
       classifiche,
       mieiVoti,
       blocchi,
-      blocco: {
-        isBlocked: activeBlocks.length > 0,
-        unlockDate: legacyUnlockDate
-      }
+      blocco: { isBlocked: activeBlocks.length > 0, unlockDate: legacyUnlockDate }
     });
-
-  } catch (error) {
-    console.error('❌ Errore nel recuperare voti governo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare i voti del governo'
-    });
+  } catch (_error) {
+    console.error('Errore interno nella lettura voti Governo');
+    return res.status(500).json({ success: false, error: 'Errore nel recuperare i voti del governo' });
   }
 });
 
@@ -270,56 +260,52 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/governo/ideale - Governo ideale dell'utente
-router.get('/ideale', verifyToken, async (req, res) => {
+// GET /api/governo/ideale - never return revoked personal political votes.
+router.get('/ideale', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, async (req, res) => {
   try {
-    console.log('🔍 GET /api/governo/ideale - Richiesta governo ideale');
-    const userId = req.userId;
-    
-    const governoIdeale = {};
-    
-    // Lista dei ministeri
+    const userId = req.userId || req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Utente non autenticato' });
+    const consent = await getPoliticalConsentState(pool, userId);
+    if (!consent.granted) return res.json({ success: true, data: {} });
+
     const ministeri = [
-      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
-      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 'ambiente_sicurezza_energetica',
-      'cultura', 'sport'
+      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno',
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente',
+      'ambiente_sicurezza_energetica', 'cultura', 'sport'
     ];
-    
-    // Per ogni ministero, ottieni il voto dell'utente
+    const governoIdeale = {};
     for (const ministero of ministeri) {
-      const tableName = `voti_${ministero}`;
-      
+      const tableName = 'voti_' + ministero;
       try {
-        const votoQuery = `
-          SELECT nome_display
-          FROM ${tableName}
-          WHERE userid = $1
-          ORDER BY timestamp DESC
-          LIMIT 1
-        `;
-        
-        const votoResult = await pool.query(votoQuery, [userId]);
-        if (votoResult.rows.length > 0) {
-          governoIdeale[ministero] = votoResult.rows[0].nome_display;
-        }
+        const result = await pool.query(
+          'SELECT v.nome_display ' +
+          'FROM ' + tableName + ' v ' +
+          'JOIN users u ON u.id::text = v.userid::text ' +
+          'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+          'WHERE v.userid::text = $1::text ' +
+          'AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+          'ORDER BY v.timestamp DESC LIMIT 1',
+          [userId]
+        );
+        if (result.rows[0]) governoIdeale[ministero] = result.rows[0].nome_display;
       } catch (error) {
-        console.warn(`⚠️ Errore per ministero ${ministero}:`, error.message);
-        // Continua con gli altri ministeri
+        if (error?.code === '42P01') continue;
+        throw error;
       }
     }
-    
-    console.log('🔍 DEBUG - Governo ideale recuperato:', governoIdeale);
-    
-    res.json({
+
+    // A finished revocation cannot leave an old personalized snapshot in this response.
+    const finalConsent = await getPoliticalConsentState(pool, userId);
+    return res.json({
       success: true,
-      data: governoIdeale
+      data: finalConsent.granted ? governoIdeale : {}
     });
-  } catch (error) {
-    console.error('❌ Errore nel recupero governo ideale:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+  } catch (_error) {
+    console.error('Errore interno nella lettura Governo ideale');
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
