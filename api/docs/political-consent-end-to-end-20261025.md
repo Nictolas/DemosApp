@@ -44,3 +44,8 @@ La route legacy autenticata `GET /api/opinioni-list` applica ora il consenso Art
 **Limite:** questa verifica è atomica rispetto allo snapshot della singola SELECT, ma **non serializza** la lettura con una revoca concorrente: una lettura già partita potrebbe terminare dopo la revoca. L'eventuale requisito di serializzazione forte delle letture richiede valutazione dedicata (costi DB, lock e prove concorrenti). Nessuna modifica a dati reali o produzione; DPIA ancora da validare con il DPO.
 
 Il workflow CI della PR esegue inoltre il vero router Express su PostgreSQL 17 locale con tabelle TEMP e soli dati sintetici: risposta concessa, override revocato con risposta residua, consenso assente, override concesso e autenticazione mancante. Il test rifiuta esplicitamente URL e variabili di produzione/Supabase/Render.
+
+
+## Lettura opinioni dai profili: proposta su ramo successivo (non rilasciata)
+
+Anche il GET autenticato \`/api/users/:userId/opinioni\` leggeva risposte e \`fonti_opinioni\` residue senza verificare il consenso politico. Il ramo successivo aggiunge nella SELECT delle risposte lo stesso filtro Art. 9 di \`/api/opinioni-list\`, preservando l'accesso alle domande senza esporre risposte/fonti dopo revoca. L'intestazione \`Cache-Control: private, no-store, max-age=0\` viene impostata prima dell'autenticazione. Test sintetici verificano le risposte, le fonti, l'override del consenso, gli accessi autorizzati e gli errori senza cache. Non serializza le letture già avviate con la revoca concorrente. Richiede CI, review e verifica Android prima di qualsiasi merge/rilascio; DPIA ancora da validare con DPO.
