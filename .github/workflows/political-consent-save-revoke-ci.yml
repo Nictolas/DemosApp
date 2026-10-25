@@ -69,9 +69,12 @@ on:
       - 'api/tests/legacyReferendumConsentRace.smoke.test.js'
       - 'api/tests/referendumRealVote.smoke.test.js'
       - 'api/services/politicalSelectionService.js'
+      - 'api/tests/personalSelectionReadConsent.test.js'
+      - 'api/scripts/verify-personal-selection-read-consent-ci.js'
+      - 'api/docs/personal-selection-revocation-20261025.md'
       - 'api/services/currentSupporterPushService.js'
       - 'api/services/politicalOpinionNotificationService.js'
-      - 'api/tests/supporterPoliticalConsentPrivacy.test.js'
+      - 'api/tests/supporterPoliticalConsentPrivacy.test.js api/tests/personalSelectionReadConsent.test.js'
       - 'api/scripts/verify-supporter-notification-consent-ci.js'
       - 'api/docs/supporter-notifications-consent-20261025.md'
       - 'api/services/politicalMatchingService.js'
@@ -279,3 +282,14 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-supporter-notification-consent-ci.js
+
+      - name: Verify personal selection reads after revocation on synthetic PostgreSQL 17
+        env:
+          GITHUB_ACTIONS: 'true'
+          POLITICAL_CONSENT_RACE_CI: synthetic
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: political_consent_race_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-personal-selection-read-consent-ci.js

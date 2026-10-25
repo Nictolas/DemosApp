@@ -4,6 +4,7 @@ const { verifyToken } = require('../middleware/auth');
 const { pool } = require('../middleware/auth');
 const { buildPoliticalMatches, getUserOpinionCompletion } = require('../services/politicalMatchingService');
 const { listEligibleCandidates, isCandidateSelectionEligible } = require('../services/politicalEligibilityService');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 const {
   getLegacySelectionDescriptors,
   getSelectionFieldContract,
@@ -28,8 +29,24 @@ const CANDIDATE_TEST_FIELD_MAPPING = Object.freeze(Object.fromEntries(
   CANDIDATE_SELECTION_DESCRIPTORS.map((item) => [item.testField, item.field])
 ));
 
+function emptyCandidateSelectionProjection() {
+  return {
+    state: { source: 'WITHHELD', strict: true, selections: [] },
+    projection: Object.fromEntries(CANDIDATE_SELECTION_DESCRIPTORS.map(({ field }) => [field, null])),
+  };
+}
+
 async function loadCandidateSelectionProjection(userId) {
+  // Election preferences are political personal data, not institutional records.
+  // A revoked consent takes precedence over legacy selection rows.
+  const consent = await getPoliticalConsentState(pool, userId);
+  if (!consent.granted) return emptyCandidateSelectionProjection();
+
   const state = await loadPoliticalSelections(pool, { userId, kind: 'candidate', adapterId: 'it' });
+  // A revocation may have completed while the selection store was queried.
+  const finalConsent = await getPoliticalConsentState(pool, userId);
+  if (!finalConsent.granted) return emptyCandidateSelectionProjection();
+
   const byOffice = selectionsByOffice(state);
   const projection = Object.fromEntries(CANDIDATE_SELECTION_DESCRIPTORS.map((descriptor) => [
     descriptor.field,
@@ -42,9 +59,7 @@ async function loadCandidateSelectionProjection(userId) {
 router.get('/', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
-    
-    console.log('🔍 DEBUG /api/candidati - Richiesta ricevuta per userId:', userId);
-    
+
     const selectionState = await loadCandidateSelectionProjection(userId);
     const identityResult = await pool.query(
       'SELECT id, nome, cognome, ruolo, status, avatar_config FROM users WHERE id = $1',
@@ -59,9 +74,7 @@ router.get('/', verifyToken, async (req, res) => {
         error: 'Utente non trovato'
       });
     }
-    
-    console.log('🔍 DEBUG - Utente trovato:', user.nome, user.cognome);
-    
+
     // Inizializza le strutture dati
     const candidatiSelezionati = {};
     const idMap = {};
@@ -87,35 +100,37 @@ router.get('/', verifyToken, async (req, res) => {
           FROM users
           WHERE id::text = $1
         `;
-        
-        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
+
         const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
-        console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
+
         const candidato = candidatoResult.rows[0];
         
         if (candidato) {
           candidatiSelezionati[categoria] = [candidato];
           idMap[categoria] = candidatoId;
-          console.log(`🔍 DEBUG - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
+
         } else {
-          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e categoria: ${categoria}`);
+
         }
       }
     }
-    
-    console.log('🔍 DEBUG - Candidati selezionati finali:', candidatiSelezionati);
-    console.log('🔍 DEBUG - ID Map finale:', idMap);
-    
+
+
+    // Last check protects the serialized response if revocation completed
+    // during selected-candidate detail fetching. Never return old choices.
+    const finalConsent = await getPoliticalConsentState(pool, userId);
     res.json({
       success: true,
       data: {
-        candidati: candidatiSelezionati,
-        idMap: idMap
+        candidati: finalConsent.granted ? candidatiSelezionati : {},
+        idMap: finalConsent.granted ? idMap : {}
       }
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare selezioni candidati utente:', error);
+
+    console.error('Errore interno nella lettura delle selezioni candidati');
+
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare selezioni candidati utente'
@@ -382,15 +397,12 @@ router.put('/seleziona-candidato', verifyToken, requireVerifiedCivicIdentity, as
 // GET /api/candidati/selezioni - Ottieni selezioni di candidati dell'utente
 router.get('/selezioni', verifyToken, async (req, res) => {
   try {
-    console.log('🔍 GET /api/candidati/selezioni - Richiesta selezioni candidati');
+
     const userId = req.userId;
-    console.log('🔍 DEBUG - userId:', userId);
-    
+
     const selectionState = await loadCandidateSelectionProjection(userId);
     const user = selectionState.projection;
-    
-    console.log('🔍 DEBUG Frontend - Utente selezioni candidati:', user);
-    
+
     // Ottieni i dettagli dei candidati selezionati
     const candidatiSelezionati = {};
     const idMap = {};
@@ -415,35 +427,37 @@ router.get('/selezioni', verifyToken, async (req, res) => {
           FROM users
           WHERE id::text = $1
         `;
-        
-        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
+
         const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
-        console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
+
         const candidato = candidatoResult.rows[0];
         
         if (candidato) {
           candidatiSelezionati[categoria] = [candidato];
           idMap[categoria] = candidatoId;
-          console.log(`🔍 DEBUG Frontend - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
+
         } else {
-          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e categoria: ${categoria}`);
+
         }
       }
     }
-    
-    console.log('🔍 DEBUG Frontend - Candidati selezionati finali:', candidatiSelezionati);
-    console.log('🔍 DEBUG Frontend - ID Map finale:', idMap);
-    
+
+
+    // Last check protects the serialized response if revocation completed
+    // during selected-candidate detail fetching. Never return old choices.
+    const finalConsent = await getPoliticalConsentState(pool, userId);
     res.json({
       success: true,
       data: {
-        candidati: candidatiSelezionati,
-        idMap: idMap
+        candidati: finalConsent.granted ? candidatiSelezionati : {},
+        idMap: finalConsent.granted ? idMap : {}
       }
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare selezioni candidati utente:', error);
+
+    console.error('Errore interno nella lettura delle selezioni candidati');
+
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare selezioni candidati utente'

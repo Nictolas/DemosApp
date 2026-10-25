@@ -10,6 +10,7 @@ const {
   getLegacySelectionDescriptors,
 } = require('../services/politicalJurisdictionRegistryService');
 const { loadPoliticalSelections, selectionsByOffice } = require('../services/politicalSelectionService');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 
 const router = express.Router();
 
@@ -21,8 +22,23 @@ router.use((_req, res, next) => {
 });
 const REPRESENTATIVE_SELECTION_DESCRIPTORS = Object.freeze(getLegacySelectionDescriptors('representative'));
 
+function emptyRepresentativeSelectionProjection() {
+  return {
+    state: { source: 'WITHHELD', strict: true, selections: [] },
+    projection: Object.fromEntries(REPRESENTATIVE_SELECTION_DESCRIPTORS.map(({ field }) => [field, null]))
+  };
+}
+
 async function loadRepresentativeSelectionProjection(userId) {
+  // Displaying selections after Article 9 revocation would continue processing
+  // personal political preferences even if legacy rows were not yet erased.
+  const consent = await getPoliticalConsentState(pool, userId);
+  if (!consent.granted) return emptyRepresentativeSelectionProjection();
+
   const state = await loadPoliticalSelections(pool, { userId, kind: 'representative', adapterId: 'it' });
+  const finalConsent = await getPoliticalConsentState(pool, userId);
+  if (!finalConsent.granted) return emptyRepresentativeSelectionProjection();
+
   const byOffice = selectionsByOffice(state);
   const projection = Object.fromEntries(REPRESENTATIVE_SELECTION_DESCRIPTORS.map((descriptor) => [
     descriptor.field,
@@ -187,11 +203,21 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       rappresentante_comune: utente.rappresentante_comune
     };
 
+    // Re-check consent immediately before serializing personally selected IDs.
+    // Matching results are separately gated on consent in the matching service.
+    const finalConsent = await getPoliticalConsentState(pool, userId);
+    const safeUtente = finalConsent.granted ? utenteMapped : {
+      rappresentante_europeo: null,
+      rappresentante_camera: null,
+      rappresentante_senato: null,
+      rappresentante_regione: null,
+      rappresentante_comune: null
+    };
     res.json({
       success: true,
       data: {
         candidati: candidati,
-        utente: utenteMapped,
+        utente: safeUtente,
         matching: {
           userComplete: matching.isComplete,
           totalOpinions: matching.totalOpinions,
@@ -222,20 +248,13 @@ router.get('/disponibili', verifyToken, async (req, res) => {
 // GET /api/rappresentanti - Ottieni rappresentanti dell'utente
 router.get('/', verifyToken, async (req, res) => {
   try {
-    console.log('🔍 GET /api/rappresentanti - Richiesta rappresentanti');
+
     const userId = req.userId;
 
     const selectionState = await loadRepresentativeSelectionProjection(userId);
     const user = selectionState.projection;
 
-    console.log('🔍 DEBUG Backend - User data:', {
-      userId,
-      rappresentante_europeo: user.rappresentante_europeo,
-      rappresentante_camera: user.rappresentante_camera,
-      rappresentante_senato: user.rappresentante_senato,
-      rappresentante_regionale: user.rappresentante_regionale,
-      rappresentante_comune: user.rappresentante_comune
-    });
+
 
     // Ottieni i dettagli dei rappresentanti selezionati
     const rappresentantiSelezionati = {};
@@ -248,7 +267,7 @@ router.get('/', verifyToken, async (req, res) => {
       const rappresentanteId = user[campo];
 
       if (rappresentanteId) {
-        console.log(`🔍 DEBUG Backend - Trovato rappresentante per ${categoria}: ${rappresentanteId}`);
+
         // Ottieni i dettagli del rappresentante
         const rappresentanteQuery = `
           SELECT
@@ -269,31 +288,30 @@ router.get('/', verifyToken, async (req, res) => {
           const rappresentante = rappresentanteResult.rows[0];
           rappresentantiSelezionati[categoria] = [rappresentante];
           idMap[rappresentanteId] = `${rappresentante.nome} ${rappresentante.cognome}`;
-          console.log(`🔍 DEBUG Backend - Rappresentante ${categoria} caricato:`, rappresentante.nome, rappresentante.cognome);
+
         } else {
-          console.log(`⚠️ DEBUG Backend - Rappresentante ${categoria} con ID ${rappresentanteId} non trovato nel database`);
+
         }
       } else {
-        console.log(`🔍 DEBUG Backend - Nessun rappresentante per ${categoria}`);
+
       }
     }
 
-    console.log('🔍 DEBUG Backend - Rappresentanti selezionati finali:', rappresentantiSelezionati);
-    console.log('🔍 DEBUG Backend - idMap finale:', idMap);
 
+    // Suppress a stale personal-choice snapshot if consent was revoked
+    // while resolving representative profiles and avatars.
+    const finalConsent = await getPoliticalConsentState(pool, userId);
     const responseData = {
       success: true,
       data: {
-        rappresentanti: rappresentantiSelezionati,
-        idMap
+        rappresentanti: finalConsent.granted ? rappresentantiSelezionati : {},
+        idMap: finalConsent.granted ? idMap : {}
       }
     };
 
-    console.log('🔍 DEBUG Backend - Response data:', JSON.stringify(responseData, null, 2));
-
     res.json(responseData);
   } catch (error) {
-    console.error('❌ Errore nel recuperare rappresentanti:', error);
+    console.error('Errore interno nella lettura rappresentanti');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare rappresentanti'
