@@ -296,29 +296,43 @@ router.post('/salva', verifyToken, async (req, res) => {
         console.log(`✅ Prima risposta salvata. Righe inserite: ${result.rowCount}`);
       } else {
         const previous = checkResult.rows[0];
-        const changes = insertFields
+        // Retain the consent check and user/answer row locks even when this
+        // request is a no-op. Only actual value changes should touch the
+        // PostgreSQL answer row (reduces UPDATE/WAL and unnecessary writes).
+        // Compare under FOR UPDATE: another writer cannot change the row
+        // between this comparison and the UPDATE below.
+        const actualChanges = insertFields
           .map((field, index) => ({
             opinionId: field,
             previousValue: previous[field],
             newValue: insertValues[index]
           }))
-          // NULL/non risposta → prima risposta a quella singola Opinione: niente notifica.
-          .filter((change) =>
-            ['f', 'c', 'i'].includes(change.previousValue) &&
-            change.previousValue !== change.newValue
-          );
+          .filter(change => change.previousValue !== change.newValue);
 
-        const updateQuery = `
-          UPDATE opinioni_risposte
-          SET ${updateFields.join(', ')}
-          WHERE user_id = $${updateFields.length + 1}
-        `;
-        const allValues = [...insertValues, userId];
-        const result = await client.query(updateQuery, allValues);
-        savedCount = updateFields.length;
-        if (result.rowCount === 0) {
-          throw new Error('Nessuna riga Opinioni aggiornata');
+        // A first answer to an unanswered question is not a position change
+        // notification. A politician/candidate changing f/c/i is.
+        const changes = actualChanges.filter(change =>
+          ['f', 'c', 'i'].includes(change.previousValue)
+        );
+
+        if (actualChanges.length > 0) {
+          const assignments = actualChanges.map((change, index) =>
+            `"${String(change.opinionId).replace(/"/g, '""')}" = $${index + 1}`
+          );
+          const newValues = actualChanges.map(change => change.newValue);
+          const updateQuery = `
+            UPDATE opinioni_risposte
+            SET ${assignments.join(', ')}
+            WHERE user_id = $${actualChanges.length + 1}
+          `;
+          const result = await client.query(updateQuery, [...newValues, userId]);
+          if (result.rowCount === 0) {
+            throw new Error('Nessuna riga Opinioni aggiornata');
+          }
         }
+        // Backwards-compatible API: accepted answer count, not SQL writes.
+        // A no-op batch remains a successful save, without notifications.
+        savedCount = insertFields.length;
 
         if ((req.user?.isPolitician || req.user?.isCandidate) && changes.length > 0) {
           const notificationResult = await createSupporterOpinionNotifications(client, {
