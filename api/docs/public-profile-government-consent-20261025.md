@@ -19,7 +19,7 @@ Il ruolo pubblico di politico/candidato non costituisce automaticamente un conse
 ## Test
 
 - Test unitari sintetici sulla route reale: consenso attivo, target revocato, revoca durante il caricamento, account non pubblico/inesistente, 401, errore SQL sanificato, schema legacy, HTTP no-store.
-- Regressione aggiornata del profilo pubblico, con struttura JSON mantenuta.
+- Il vecchio smoke test del profilo pubblico contiene asserzioni su componenti frontend non più corrispondenti al codice, già fuori da questo perimetro. Rimane **immutato** e non viene aggiunto al workflow privacy; i nuovi test unitari coprono invece l'endpoint reale, la struttura della risposta e l'isolamento delle preferenze.
 - Test PostgreSQL 17 sintetico e isolato: tabella `users`, `user_consents` e tabelle di voto tutte `TEMP`; caso con consenso attivo, voto residuo di utente revocato, revoca dopo lettura, fallback legacy e tabella ministeriale assente. `ROLLBACK` finale. Guardia su database e credenziali rifiuta ambienti non CI/locali.
 - Suite precedente privacy e build web mantenute.
 
