@@ -227,12 +227,22 @@ router.get('/:userId/public-profile', (_req, res, next) => {
     // suppress any earlier personal political snapshot before serialization.
     const finalConsent = await getPoliticalConsentState(pool, userId);
 
+    // Endorsements/selections are political choices made by this user, not
+    // official mandates. Do not publish legacy user/user_representatives IDs
+    // or selected-person details when Art. 9 consent is no longer active.
+    // Retention/erasure of these separate tables is a governance decision.
+    if (!finalConsent.granted) {
+      for (const [field] of [...REPRESENTATIVE_FIELDS, ...CANDIDATE_FIELDS]) {
+        user[field] = null;
+      }
+    }
+
     return res.json({
       success: true,
       user,
       public: {
-        rappresentanti,
-        candidati,
+        rappresentanti: finalConsent.granted ? rappresentanti : {},
+        candidati: finalConsent.granted ? candidati : {},
         governoIdeale: finalConsent.granted ? governoIdeale : {},
       },
     });

@@ -6,16 +6,14 @@ import { UserInfo } from "@/types/profile";
 interface ProfileCandidatesProps {
   userInfo: UserInfo | null;
   candidatiDetails?: Record<string, any>;
+  canEditSelections?: boolean;
 }
 
-export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandidatesProps) {
+export function ProfileCandidates({ userInfo, candidatiDetails, canEditSelections = true }: ProfileCandidatesProps) {
   const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
   const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
 
   const fetchCandidateNames = async (userInfo: any) => {
-    console.log('🔍 DEBUG ProfileCandidates - userInfo:', userInfo);
-    console.log('🔍 DEBUG ProfileCandidates - candidatiDetails:', candidatiDetails);
-    
     const candidates = {
       candidato_europeo: userInfo.candidato_europeo,
       candidato_camera: userInfo.candidato_camera,
@@ -23,8 +21,6 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
       candidato_regionale: userInfo.candidato_regionale,
       candidato_comune: userInfo.candidato_comune,
     };
-    console.log('🔍 DEBUG ProfileCandidates - candidates IDs:', candidates);
-    
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
     
@@ -38,19 +34,13 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
     };
     
     for (const [key, value] of Object.entries(candidates)) {
-      console.log(`🔍 DEBUG ProfileCandidates - Processing ${key}:`, value);
-      
       if (value && typeof value === 'string') {
         // Cerca nei dettagli completi
         const category = categoryMap[key];
-        console.log(`🔍 DEBUG ProfileCandidates - Category for ${key}:`, category);
-        console.log(`🔍 DEBUG ProfileCandidates - candidatiDetails[${category}]:`, candidatiDetails?.[category]);
-        
         if (candidatiDetails && candidatiDetails[category] && candidatiDetails[category].length > 0) {
           // Cerca il candidato con l'ID corrispondente
           const candidate = candidatiDetails[category].find((c: any) => c.id === value);
           if (candidate) {
-            console.log(`🔍 DEBUG ProfileCandidates - Found candidate for ${key}:`, candidate);
             names[key] = `${candidate.nome} ${candidate.cognome}`;
             if (candidate.avatar_config) {
               try {
@@ -68,26 +58,19 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
                 }
                 avatars[key] = config;
               } catch (e) {
-                console.log(`⚠️ DEBUG ProfileCandidates - Errore parsing avatar per ${key}:`, e);
                 avatars[key] = null;
               }
             }
           } else {
-            console.log(`🔍 DEBUG ProfileCandidates - Candidate with ID ${value} not found in ${category}`);
             names[key] = "Non selezionato";
           }
         } else {
-          console.log(`🔍 DEBUG ProfileCandidates - No details found for ${key}, setting as not selected`);
           names[key] = "Non selezionato";
         }
       } else {
-        console.log(`🔍 DEBUG ProfileCandidates - No value for ${key}, setting as not selected`);
         names[key] = "Non selezionato";
       }
     }
-    
-    console.log('🔍 DEBUG ProfileCandidates - Final names:', names);
-    console.log('🔍 DEBUG ProfileCandidates - Final avatars:', avatars);
     
     setCandidateNames(names);
     setCandidateAvatars(avatars);
@@ -105,12 +88,14 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-lg font-medium">Candidati Selezionati</h3>
-        <Link
+        {canEditSelections && (
+          <Link
           href="/candidati"
           className="hidden lg:inline-flex shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
         >
           Scegli Candidati
-        </Link>
+          </Link>
+        )}
       </div>
       
       {/* Candidato Europeo */}
