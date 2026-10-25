@@ -58,9 +58,11 @@ async function createSupporterOpinionNotifications(db, { subjectUserId, changes 
          $4,
          $5
        FROM users supporter
+       LEFT JOIN user_consents uc ON uc.user_id = supporter.id
        WHERE supporter.id::text <> $1::text
          AND supporter.status = 'a'
          AND supporter.id::text = ANY($6::text[])
+         AND COALESCE(uc.political_opinions_consent, supporter.political_opinions_consent, false) IS TRUE
        RETURNING id`,
       [
         String(subjectUserId),

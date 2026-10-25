@@ -57,8 +57,10 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
                 WHERE token IS NOT NULL AND btrim(token) <> ''
               ) AS fcm_tokens
        FROM users u
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
        WHERE u.status = 'a'
-         AND u.id::text = ANY($1::text[])`,
+         AND u.id::text = ANY($1::text[])
+         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
       [supporterState.userIds],
     );
     return result.rows.map((row) => ({ userId: row.id, tokens: normalizeTokens(row.fcm_tokens) }));
@@ -67,8 +69,10 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
     const result = await pool.query(
       `SELECT u.id, COALESCE(u.fcm_tokens, ARRAY[]::text[]) AS fcm_tokens
        FROM users u
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
        WHERE u.status = 'a'
-         AND u.id::text = ANY($1::text[])`,
+         AND u.id::text = ANY($1::text[])
+         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
       [supporterState.userIds],
     );
     return result.rows.map((row) => ({ userId: row.id, tokens: normalizeTokens(row.fcm_tokens) }));

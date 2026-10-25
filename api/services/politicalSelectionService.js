@@ -309,7 +309,9 @@ async function loadSupporterUserIds(db, {
       `SELECT DISTINCT u.id::text AS id
        FROM political_selections ps
        JOIN users u ON u.id = ps.user_id
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
        WHERE ${where.join(' AND ')}
+         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
        ORDER BY u.id::text`,
       params,
     );
@@ -337,8 +339,10 @@ async function loadSupporterUserIds(db, {
   const result = await db.query(
     `SELECT DISTINCT u.id::text AS id
      FROM users u
+     LEFT JOIN user_consents uc ON uc.user_id = u.id
      WHERE u.status = 'a'
        AND (${predicate})
+       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
      ORDER BY u.id::text`,
     [selectedUserId],
   );
