@@ -37,6 +37,8 @@ test('referendum ballots are separate from the retired priority vote', () => {
 test('the real referendum write path is protected and freezes at poll opening', () => {
   assert.match(route, /requireVerifiedCivicIdentity/);
   assert.match(route, /requirePoliticalConsent/);
+  assert.match(route, /SELECT id FROM users WHERE id = \$1 FOR UPDATE/);
+  assert.match(route, /getPoliticalConsentState\(client, req\.userId\)/);
   assert.match(route, /REFERENDUM_VOTE_FROZEN/);
   assert.match(route, /now >= opensAt/);
   assert.match(route, /scope: `referendum-vote:\$\{ballotId\}`/);

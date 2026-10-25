@@ -49,7 +49,12 @@ async function main(){
     require.resolve('../services/politicalConsentService'),
     require.resolve('../routes/opinioni/user-answers'),
     require.resolve('../routes/user/political-opinions-consent'),
-    require.resolve('../routes/users/profile')
+    require.resolve('../routes/users/profile'),
+    require.resolve('../config/database'),
+    require.resolve('../middleware/civicIdentity'),
+    require.resolve('../middleware/politicalConsent'),
+    require.resolve('../services/preferenceCooldownService'),
+    require.resolve('../routes/referendum-vote')
   ];
   const previous=new Map(paths.map(p=>[p,require.cache[p]]));
   let server;
@@ -93,6 +98,9 @@ async function main(){
     await real.query('CREATE TABLE users(id uuid PRIMARY KEY, political_opinions_consent boolean NOT NULL, political_opinions_consent_timestamp timestamptz, political_opinions_consent_ip_address text, political_opinions_consent_user_agent text, updated_at timestamptz DEFAULT now())');
     await real.query('CREATE TABLE user_consents(user_id uuid PRIMARY KEY,political_opinions_consent boolean,political_opinions_consent_timestamp timestamptz,political_opinions_consent_ip_address text,political_opinions_consent_user_agent text,updated_at timestamptz DEFAULT now())');
     await real.query('CREATE TABLE opinioni_risposte(user_id uuid PRIMARY KEY,energia_nucleare text)');
+    await real.query('CREATE TABLE civic_ballots(id uuid PRIMARY KEY,status text,opens_at timestamptz,closes_at timestamptz)');
+    await real.query('CREATE TABLE civic_ballot_positions(civic_ballot_id uuid NOT NULL,user_id uuid NOT NULL,choice text NOT NULL,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now(),PRIMARY KEY(civic_ballot_id,user_id))');
+    await real.query("INSERT INTO civic_ballots(id,status,opens_at,closes_at) VALUES('00000000-0000-4000-8000-000000000126','scheduled',NOW()+interval '10 days',NOW()+interval '11 days')");
     await real.query('CREATE TABLE opinioni_domande(id text PRIMARY KEY,text text)');
     await real.query("INSERT INTO opinioni_domande VALUES('energia_nucleare','Synthetic energy opinion')");
     await real.query('INSERT INTO users(id,political_opinions_consent) VALUES($1,true)',[ID]);
@@ -122,17 +130,33 @@ async function main(){
           const r=await db.query('DELETE FROM opinioni_risposte WHERE user_id=$1',[user]);
           return r.rowCount;
         }
+        if(table==='civic_ballot_positions'){
+          const r=await db.query('DELETE FROM civic_ballot_positions WHERE user_id=$1',[user]);
+          return r.rowCount;
+        }
         return 0;
       },
       tableHasColumn:async()=>false,
       quoteIdentifier:id=>'"'+String(id).replace(/"/g,'""')+'"'
     }};
-    for(const p of [service,saveRoute,revokeRoute,adminRoute])delete require.cache[p];
+    const [, , , , , , , dbConfig, civicIdentity, consentMiddleware, cooldownService, referendumVoteRoute] = paths;
+    require.cache[dbConfig]={id:dbConfig,filename:dbConfig,loaded:true,exports:{getPool:()=>pool}};
+    require.cache[civicIdentity]={id:civicIdentity,filename:civicIdentity,loaded:true,exports:{
+      requireVerifiedCivicIdentity:(_req,_res,next)=>next()
+    }};
+    require.cache[cooldownService]={id:cooldownService,filename:cooldownService,loaded:true,exports:{
+      getPreferenceCooldown:async()=>({isBlocked:false,unlockDate:null}),
+      assertPreferenceChangeAllowed:async()=>{},
+      recordPreferenceChange:async()=>{},
+      sendCooldownError:()=>false
+    }};
+    for(const p of [service,saveRoute,revokeRoute,adminRoute,consentMiddleware,referendumVoteRoute])delete require.cache[p];
 
     const app=express();app.disable('x-powered-by');app.use(express.json());
     app.use('/api/opinioni',require(saveRoute));
     app.use('/api/user/political-opinions-consent',require(revokeRoute));
     app.use('/api/users',require(adminRoute));
+    app.use('/api/referendum/vote-real',require(referendumVoteRoute));
     server=http.createServer(app);
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const base='http://127.0.0.1:'+server.address().port;
@@ -143,10 +167,13 @@ async function main(){
     const save=()=>request('/api/opinioni/salva','POST',{opinioni:{energia_nucleare:'f'}});
     const revoke=()=>request('/api/user/political-opinions-consent/revoke','PUT');
     const admin=()=>request('/api/users/'+ID+'/opinioni','PUT',{opinioni:{energia_nucleare:'f'}});
+    const referendumVote=()=>request('/api/referendum/vote-real/00000000-0000-4000-8000-000000000126/choice','POST',{choice:'YES'});
+    const referendumCount=async()=>Number((await real.query('SELECT COUNT(*)::int AS n FROM civic_ballot_positions WHERE user_id=$1',[ID])).rows[0].n);
     const reset=async()=>{
       await real.query('UPDATE users SET political_opinions_consent=true WHERE id=$1',[ID]);
       await real.query('UPDATE user_consents SET political_opinions_consent=true WHERE user_id=$1',[ID]);
       await real.query('DELETE FROM opinioni_risposte WHERE user_id=$1',[ID]);
+      await real.query('DELETE FROM civic_ballot_positions WHERE user_id=$1',[ID]);
     };
     const inspect=async()=>{
       const rows=await real.query('SELECT u.political_opinions_consent consent, uc.political_opinions_consent override, orr.energia_nucleare answer FROM users u JOIN user_consents uc ON uc.user_id=u.id LEFT JOIN opinioni_risposte orr ON orr.user_id=u.id WHERE u.id=$1',[ID]);
@@ -212,9 +239,42 @@ async function main(){
     assert.equal((await adminDenied.json()).consent_required,true);
     assert.deepEqual(await inspect(),{consent:false,override:false,answer:null});
 
+    // Real referendum forecast positions must serialize with the same revoke.
+    // A successful vote followed by revocation must be deleted atomically.
+    await reset();
+    blocked={phase:'save',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    const referendumFirst=referendumVote();
+    await timeout(blocked.locked.promise);
+    const revokeAfterReferendum=revoke();
+    await timeout(blocked.contender.promise);
+    blocked.resume.resolve();
+    assert.equal((await timeout(referendumFirst)).status,200);
+    assert.equal((await timeout(revokeAfterReferendum)).status,200);
+    assert.equal(await referendumCount(),0);
+
+    // A revocation already holding the user row lock must block and reject
+    // a subsequent vote, even if middleware saw an earlier active consent.
+    await reset();
+    blocked={phase:'revoke',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    const revokeBeforeReferendum=revoke();
+    await timeout(blocked.locked.promise);
+    const referendumAfterRevoke=referendumVote();
+    await timeout(blocked.contender.promise);
+    blocked.resume.resolve();
+    assert.equal((await timeout(revokeBeforeReferendum)).status,200);
+    const deniedReferendum=await timeout(referendumAfterRevoke);
+    assert.equal(deniedReferendum.status,403);
+    assert.equal((await deniedReferendum.json()).consent_required,true);
+    assert.equal(await referendumCount(),0);
+
+    await reset();
+    blocked=null;
+    assert.equal((await referendumVote()).status,200);
+    assert.equal(await referendumCount(),1);
+
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_REAL_PG17_PASS');
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_RESULT_JSON='+JSON.stringify({
-      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','admin-before-revoke','revoke-before-admin'],
+      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','admin-before-revoke','revoke-before-admin','referendum-before-revoke','revoke-before-referendum','referendum-with-active-consent'],
       postRevocationPersistedAnswers:0, unauthorizedWrites:0,
       isolated:true,productionUntouched:true
     }));
