@@ -188,6 +188,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                     onEditClick={() => setIsEditing(true)}
                     onModificaImmagine={handleModificaImmagine}
                     canEdit={isViewingOwnProfile}
+                    isOwnProfile={isViewingOwnProfile}
                     avatarConfig={avatarConfig}
                   />
                 </div>

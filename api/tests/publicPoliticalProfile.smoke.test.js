@@ -65,9 +65,9 @@ test('public projection returns target political selections and target ideal gov
 test('other-profile client uses the target projection instead of the viewer Admin/private endpoint', () => {
   assert.match(hook, /`\/api\/users\/\$\{targetUserId\}\/public-profile`/);
   assert.doesNotMatch(hook, /`\/api\/users\/\$\{userId\}`/);
-  assert.match(hook, /response\.data\.public\?\.rappresentanti/);
-  assert.match(hook, /response\.data\.public\?\.candidati/);
-  assert.match(hook, /response\.data\.public\?\.governoIdeale/);
+  assert.match(hook, /payload\.public\?\.rappresentanti/);
+  assert.match(hook, /payload\.public\?\.candidati/);
+  assert.match(hook, /payload\.public\?\.governoIdeale/);
 
   const ownOnly = sliceBetween(
     hook,
@@ -81,7 +81,7 @@ test('other-profile client uses the target projection instead of the viewer Admi
 
 test('target political opinions are converted from the target-aware endpoint payload', () => {
   assert.match(hook, /`\/api\/users\/\$\{targetUserId\}\/opinioni`/);
-  assert.match(hook, /Array\.isArray\(payload\.opinioni\)/);
+  assert.match(hook, /Array\.isArray\(data\?\.opinioni\)/);
   assert.match(hook, /normalizeOpinionValue\(item\.userAnswer\)/);
 });
 
