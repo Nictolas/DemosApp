@@ -3,6 +3,7 @@ const { getPool } = require('../../config/database');
 const { verifyToken } = require('../../middleware/auth');
 const { decompressUserLocation } = require('../../utils/locationUtils');
 const { getAccountSubject } = require('../../services/accountCapabilitiesService');
+const { getPoliticalConsentState } = require('../../services/politicalConsentService');
 
 const router = express.Router();
 const pool = getPool();
@@ -124,19 +125,32 @@ async function loadSelectionDetails(user, fields) {
 }
 
 async function loadIdealGovernment(userId) {
+  // These selections are personal political preferences, even for public
+  // politicians/candidates. Public-profile status does not override Article 9.
+  const consent = await getPoliticalConsentState(pool, userId);
+  if (!consent.granted) return {};
+
   const output = {};
   for (const ministry of MINISTRIES) {
     try {
+      // Fixed ministry allowlist; each SELECT checks consent in the same
+      // statement as the vote to exclude rows surviving a concurrent revoke.
       const result = await pool.query(
-        `SELECT nome_display
-         FROM voti_${ministry}
-         WHERE userid = $1
-         ORDER BY timestamp DESC
+        `SELECT v.nome_display
+         FROM voti_${ministry} v
+         JOIN users u ON u.id::text = v.userid::text
+         LEFT JOIN user_consents uc ON uc.user_id = u.id
+         WHERE v.userid::text = $1::text
+           AND COALESCE(
+             uc.political_opinions_consent, u.political_opinions_consent, false
+           ) IS TRUE
+         ORDER BY v.timestamp DESC
          LIMIT 1`,
         [userId],
       );
       if (result.rows[0]?.nome_display) output[ministry] = result.rows[0].nome_display;
     } catch (error) {
+      // Some supported legacy installations do not have every ministry table.
       if (error?.code !== '42P01') throw error;
     }
   }
@@ -145,7 +159,10 @@ async function loadIdealGovernment(userId) {
 
 // Proiezione pubblica minima per Politici/Candidati.
 // Non deve mai diventare un alias dell'endpoint Admin /api/users/:userId.
-router.get('/:userId/public-profile', verifyToken, async (req, res) => {
+router.get('/:userId/public-profile', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, async (req, res) => {
   try {
     const { userId } = req.params;
     const subject = await getAccountSubject(pool, userId);
@@ -206,17 +223,22 @@ router.get('/:userId/public-profile', verifyToken, async (req, res) => {
       loadIdealGovernment(userId),
     ]);
 
+    // If consent was revoked while the public projection was being built,
+    // suppress any earlier personal political snapshot before serialization.
+    const finalConsent = await getPoliticalConsentState(pool, userId);
+
     return res.json({
       success: true,
       user,
       public: {
         rappresentanti,
         candidati,
-        governoIdeale,
+        governoIdeale: finalConsent.granted ? governoIdeale : {},
       },
     });
   } catch (error) {
-    console.error('Errore nella proiezione pubblica P/C:', error);
+    // SQL stacks and params can reveal sensitive profile data. Log only a fixed label.
+    console.error('Errore interno nella proiezione pubblica P/C');
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });

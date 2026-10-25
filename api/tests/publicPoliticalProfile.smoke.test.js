@@ -21,7 +21,9 @@ function sliceBetween(source, start, end) {
 }
 
 test('public P/C projection is dedicated, authenticated and does not alias the Admin user endpoint', () => {
-  assert.match(route, /router\.get\('\/:userId\/public-profile', verifyToken,/);
+  assert.match(route, /router\.get\('\/:userId\/public-profile', \(_req, res, next\) =>/);
+  assert.match(route, /\}, verifyToken, async \(req, res\) =>/);
+  assert.match(route, /Cache-Control', 'private, no-store, max-age=0'/);
   assert.match(route, /const \{ verifyToken \} = require/);
   assert.match(route, /getAccountSubject\(pool, userId\)/);
   assert.match(route, /isPolitician/);
@@ -56,10 +58,12 @@ test('public projection returns target political selections and target ideal gov
   assert.match(route, /loadSelectionDetails\(rawUser, REPRESENTATIVE_FIELDS\)/);
   assert.match(route, /loadSelectionDetails\(rawUser, CANDIDATE_FIELDS\)/);
   assert.match(route, /loadIdealGovernment\(userId\)/);
-  assert.match(route, /WHERE userid = \$1/);
+  assert.match(route, /WHERE v\.userid::text = \$1::text/);
+  assert.match(route, /getPoliticalConsentState\(pool, userId\)/);
+  assert.match(route, /COALESCE\(/);
   assert.match(route, /rappresentanti,/);
   assert.match(route, /candidati,/);
-  assert.match(route, /governoIdeale,/);
+  assert.match(route, /governoIdeale: finalConsent\.granted \? governoIdeale : \{\}/);
 });
 
 test('other-profile client uses the target projection instead of the viewer Admin/private endpoint', () => {
