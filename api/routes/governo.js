@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { getPool } = require('../config/database');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
@@ -418,85 +419,106 @@ router.get('/consenso', async (req, res) => {
   }
 });
 
-// POST /api/governo/consenso - Salva il voto di consenso del governo
-router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+// POST /api/governo/consenso - Scelta politica transazionale rispetto alla revoca.
+// Set no-store before auth, including error and validation responses.
+router.post('/consenso', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+  let client = null;
+  let transactionStarted = false;
   try {
-    console.log('🔍 DEBUG /api/governo/consenso POST - Richiesta ricevuta');
-    
-    const { risposta } = req.body;
-    const userId = req.user.id;
-    
-
-    if (!risposta || !['Sì', 'Non so', 'No'].includes(risposta)) {
+    const { risposta } = req.body || {};
+    const userId = req.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Utente non autenticato' });
+    }
+    if (!['Sì', 'Non so', 'No'].includes(risposta)) {
       return res.status(400).json({
         success: false,
         error: 'Risposta non valida. Deve essere "Sì", "Non so" o "No"'
       });
     }
 
-    const currentResult = await pool.query(
+    client = await pool.connect();
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    // The consent-revocation route locks the same user row before erasure.
+    // A prior middleware check does not protect in-flight political writes.
+    const lockedUser = await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+    );
+    if (lockedUser.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const consentState = await getPoliticalConsentState(client, userId);
+    if (!consentState.granted) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(403).json({
+        success: false,
+        error: 'Consenso richiesto',
+        code: 'POLITICAL_CONSENT_REQUIRED',
+        consent_required: true
+      });
+    }
+
+    // Read the old choice, enforce cooldown, and replace it under the lock.
+    const currentResult = await client.query(
       `SELECT risposta, timestamp
        FROM consenso_governo
        WHERE userid = $1
        ORDER BY timestamp DESC
-       LIMIT 1`,
-      [userId]
+       LIMIT 1`, [userId]
     );
     const current = currentResult.rows[0] || null;
     if (current?.risposta === risposta) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.json({ success: true, message: 'Consenso già aggiornato', data: current });
     }
 
-    await assertPreferenceChangeAllowed(pool, {
+    await assertPreferenceChangeAllowed(client, {
       userId,
       scope: 'governo:consenso',
       fallbackChangedAt: current?.timestamp || null,
       isAdmin: Boolean(req.user?.isAdmin)
     });
 
-    // Inizia transazione
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      // Elimina il voto precedente se esiste
-      await client.query(
-        'DELETE FROM consenso_governo WHERE userid = $1',
-        [userId]
-      );
-      
-      // Inserisce il nuovo voto
-      const votoId = `consenso_gov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      await client.query(
-        `INSERT INTO consenso_governo (
-          id, userid, risposta, timestamp, created_at, updated_at
-        ) VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
-        [votoId, userId, risposta]
-      );
-      
-      await recordPreferenceChange(client, { userId, scope: 'governo:consenso' });
-      await client.query('COMMIT');
-      
-      res.json({
-        success: true,
-        message: 'Voto di consenso del governo salvato con successo',
-        data: {
-          risposta,
-          timestamp: new Date().toISOString()
-        }
-      });
-    } catch (error) {
-      // Rollback in caso di errore
-      await pool.query('ROLLBACK');
-      throw error;
-    }
-  } catch (error) {
-    if (sendCooldownError(res, error)) return;
-    console.error('❌ Errore nel salvataggio consenso governo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
+    await client.query('DELETE FROM consenso_governo WHERE userid = $1', [userId]);
+    // Preserve the existing legacy text identifier format for this table.
+    const votoId = 'consenso_gov_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11);
+    await client.query(
+      `INSERT INTO consenso_governo (id, userid, risposta, timestamp, created_at, updated_at)
+       VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
+      [votoId, userId, risposta]
+    );
+    await recordPreferenceChange(client, { userId, scope: 'governo:consenso' });
+    await client.query('COMMIT');
+    transactionStarted = false;
+
+    return res.json({
+      success: true,
+      message: 'Voto di consenso del governo salvato con successo',
+      data: { risposta, timestamp: new Date().toISOString() }
     });
+  } catch (error) {
+    if (transactionStarted && client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_rollbackError) {
+        console.error('Rollback consenso governo non riuscito');
+      }
+    }
+    if (sendCooldownError(res, error)) return;
+    // Do not log IDs, the political choice, SQL details or stacks.
+    console.error('Errore interno durante il salvataggio consenso governo');
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  } finally {
+    if (client) client.release();
   }
 });
 
