@@ -48,9 +48,11 @@ export default function GDPR() {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: ['opinioniQuestions'] }),
         queryClient.cancelQueries({ queryKey: ['statsOpinionQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['graziaData'] }),
       ]);
       queryClient.removeQueries({ queryKey: ['opinioniQuestions'] });
       queryClient.removeQueries({ queryKey: ['statsOpinionQuestions'] });
+      queryClient.removeQueries({ queryKey: ['graziaData'] });
       queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       toast({
