@@ -54,7 +54,8 @@ async function main(){
     require.resolve('../middleware/civicIdentity'),
     require.resolve('../middleware/politicalConsent'),
     require.resolve('../services/preferenceCooldownService'),
-    require.resolve('../routes/referendum-vote')
+    require.resolve('../routes/referendum-vote'),
+    require.resolve('../routes/referendum')
   ];
   const previous=new Map(paths.map(p=>[p,require.cache[p]]));
   let server;
@@ -100,6 +101,7 @@ async function main(){
     await real.query('CREATE TABLE opinioni_risposte(user_id uuid PRIMARY KEY,energia_nucleare text)');
     await real.query('CREATE TABLE civic_ballots(id uuid PRIMARY KEY,status text,opens_at timestamptz,closes_at timestamptz)');
     await real.query('CREATE TABLE civic_ballot_positions(civic_ballot_id uuid NOT NULL,user_id uuid NOT NULL,choice text NOT NULL,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now(),PRIMARY KEY(civic_ballot_id,user_id))');
+    await real.query("CREATE TABLE voti_referendum_abrogativi(userid uuid NOT NULL,referendum_id text NOT NULL CHECK (referendum_id <> 'invalid'),PRIMARY KEY(userid,referendum_id))");
     await real.query("INSERT INTO civic_ballots(id,status,opens_at,closes_at) VALUES('00000000-0000-4000-8000-000000000126','scheduled',NOW()+interval '10 days',NOW()+interval '11 days')");
     await real.query('CREATE TABLE opinioni_domande(id text PRIMARY KEY,text text)');
     await real.query("INSERT INTO opinioni_domande VALUES('energia_nucleare','Synthetic energy opinion')");
@@ -134,12 +136,16 @@ async function main(){
           const r=await db.query('DELETE FROM civic_ballot_positions WHERE user_id=$1',[user]);
           return r.rowCount;
         }
+        if(table==='voti_referendum_abrogativi'){
+          const r=await db.query('DELETE FROM voti_referendum_abrogativi WHERE userid=$1',[user]);
+          return r.rowCount;
+        }
         return 0;
       },
       tableHasColumn:async()=>false,
       quoteIdentifier:id=>'"'+String(id).replace(/"/g,'""')+'"'
     }};
-    const [, , , , , , , dbConfig, civicIdentity, consentMiddleware, cooldownService, referendumVoteRoute] = paths;
+    const [, , , , , , , dbConfig, civicIdentity, consentMiddleware, cooldownService, referendumVoteRoute, legacyReferendumRoute] = paths;
     require.cache[dbConfig]={id:dbConfig,filename:dbConfig,loaded:true,exports:{getPool:()=>pool}};
     require.cache[civicIdentity]={id:civicIdentity,filename:civicIdentity,loaded:true,exports:{
       requireVerifiedCivicIdentity:(_req,_res,next)=>next()
@@ -150,13 +156,14 @@ async function main(){
       recordPreferenceChange:async()=>{},
       sendCooldownError:()=>false
     }};
-    for(const p of [service,saveRoute,revokeRoute,adminRoute,consentMiddleware,referendumVoteRoute])delete require.cache[p];
+    for(const p of [service,saveRoute,revokeRoute,adminRoute,consentMiddleware,referendumVoteRoute,legacyReferendumRoute])delete require.cache[p];
 
     const app=express();app.disable('x-powered-by');app.use(express.json());
     app.use('/api/opinioni',require(saveRoute));
     app.use('/api/user/political-opinions-consent',require(revokeRoute));
     app.use('/api/users',require(adminRoute));
     app.use('/api/referendum/vote-real',require(referendumVoteRoute));
+    app.use('/api/referendum',require(legacyReferendumRoute));
     server=http.createServer(app);
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const base='http://127.0.0.1:'+server.address().port;
@@ -169,11 +176,15 @@ async function main(){
     const admin=()=>request('/api/users/'+ID+'/opinioni','PUT',{opinioni:{energia_nucleare:'f'}});
     const referendumVote=()=>request('/api/referendum/vote-real/00000000-0000-4000-8000-000000000126/choice','POST',{choice:'YES'});
     const referendumCount=async()=>Number((await real.query('SELECT COUNT(*)::int AS n FROM civic_ballot_positions WHERE user_id=$1',[ID])).rows[0].n);
+    const legacyVote=()=>request('/api/referendum/abrogativi/vota','POST',{voti:['ref-valid']});
+    const legacyVoteInvalid=()=>request('/api/referendum/abrogativi/vota','POST',{voti:['ref-new','invalid']});
+    const legacyVotes=async()=> (await real.query('SELECT referendum_id FROM voti_referendum_abrogativi WHERE userid=$1 ORDER BY referendum_id',[ID])).rows.map(r=>r.referendum_id);
     const reset=async()=>{
       await real.query('UPDATE users SET political_opinions_consent=true WHERE id=$1',[ID]);
       await real.query('UPDATE user_consents SET political_opinions_consent=true WHERE user_id=$1',[ID]);
       await real.query('DELETE FROM opinioni_risposte WHERE user_id=$1',[ID]);
       await real.query('DELETE FROM civic_ballot_positions WHERE user_id=$1',[ID]);
+      await real.query('DELETE FROM voti_referendum_abrogativi WHERE userid=$1',[ID]);
     };
     const inspect=async()=>{
       const rows=await real.query('SELECT u.political_opinions_consent consent, uc.political_opinions_consent override, orr.energia_nucleare answer FROM users u JOIN user_consents uc ON uc.user_id=u.id LEFT JOIN opinioni_risposte orr ON orr.user_id=u.id WHERE u.id=$1',[ID]);
@@ -272,9 +283,45 @@ async function main(){
     assert.equal((await referendumVote()).status,200);
     assert.equal(await referendumCount(),1);
 
+    // The still-reachable legacy referendum preference endpoint must obey
+    // the same user-row lock and consent rule as modern referendum forecasts.
+    await reset();
+    blocked={phase:'save',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    const legacyFirst=legacyVote();
+    await timeout(blocked.locked.promise);
+    const revokeAfterLegacy=revoke();
+    await timeout(blocked.contender.promise);
+    blocked.resume.resolve();
+    assert.equal((await timeout(legacyFirst)).status,200);
+    assert.equal((await timeout(revokeAfterLegacy)).status,200);
+    assert.deepEqual(await legacyVotes(),[]);
+
+    await reset();
+    blocked={phase:'revoke',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    const revokeBeforeLegacy=revoke();
+    await timeout(blocked.locked.promise);
+    const legacyAfterRevoke=legacyVote();
+    await timeout(blocked.contender.promise);
+    blocked.resume.resolve();
+    assert.equal((await timeout(revokeBeforeLegacy)).status,200);
+    const deniedLegacy=await timeout(legacyAfterRevoke);
+    assert.equal(deniedLegacy.status,403);
+    assert.equal((await deniedLegacy.json()).consent_required,true);
+    assert.deepEqual(await legacyVotes(),[]);
+
+    await reset();
+    blocked=null;
+    assert.equal((await legacyVote()).status,200);
+    assert.deepEqual(await legacyVotes(),['ref-valid']);
+
+    // A failed replacement must not erase a previously committed preference.
+    const invalidLegacy=await legacyVoteInvalid();
+    assert.equal(invalidLegacy.status,500);
+    assert.deepEqual(await legacyVotes(),['ref-valid']);
+
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_REAL_PG17_PASS');
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_RESULT_JSON='+JSON.stringify({
-      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','admin-before-revoke','revoke-before-admin','referendum-before-revoke','revoke-before-referendum','referendum-with-active-consent'],
+      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','admin-before-revoke','revoke-before-admin','referendum-before-revoke','revoke-before-referendum','referendum-with-active-consent','legacy-referendum-before-revoke','revoke-before-legacy-referendum','legacy-referendum-with-active-consent','legacy-referendum-replacement-rollback'],
       postRevocationPersistedAnswers:0, unauthorizedWrites:0,
       isolated:true,productionUntouched:true
     }));
