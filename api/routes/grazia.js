@@ -35,44 +35,45 @@ router.post('/', verifyToken, validateInput(['nome_carcerato', 'motivo']), async
   }
 });
 
-// GET /api/grazia - Ottieni richieste di grazia
-router.get('/', async (req, res) => {
+// GET /api/grazia - public catalog, never raw individual political ballots.
+router.get('/', (req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, async (req, res) => {
   try {
-    console.log('🔍 DEBUG: Chiamata endpoint /api/grazia');
+    // Legacy schemas use different column names; interpolate only allowlisted identifiers.
+    const columnsResult = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'voti_grazia'
+    `);
+    const columnNames = new Set(columnsResult.rows.map(row => row.column_name));
+    const userIdColumn = ['userid', 'user_id', 'userId'].find(name => columnNames.has(name));
+    if (!userIdColumn) throw new Error('Unsupported grace vote user column');
+    const timeColumn = ['timestamp', 'data_voto', 'created_at'].find(name => columnNames.has(name));
+    const ownerColumn = 'vg."' + userIdColumn + '"';
 
-    // Recupera userId se autenticato (opzionale)
     let userId = null;
     if (req.headers.authorization) {
       try {
         const jwt = require('jsonwebtoken');
         const token = req.headers.authorization.replace('Bearer ', '');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        userId = decoded.userId;
-        console.log(`🔍 DEBUG: Utente autenticato: ${userId}`);
-      } catch (authError) {
-        console.log('⚠️ Token non valido o assente, continuando senza autenticazione');
+        userId = decoded.userId || decoded.sub || null;
+      } catch (_error) {
+        // Invalid tokens get only the public catalog, without personal data.
       }
     }
 
-    // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
-    // Rimosso LIMIT per mostrare tutti i risultati (rimosso "Mostra Altro")
-    const query = `
-      SELECT *
-      FROM voti_grazia
-      ORDER BY created_at DESC
-    `;
-
-    const result = await pool.query(query);
-    console.log(`✅ Recuperati ${result.rows.length} record da voti_grazia`);
-
-    // La classifica include anche i carcerati inseriti dagli amministratori,
-    // senza attribuire loro voti fittizi. Il catalogo è separato dalle preferenze.
-    const classificaQuery = `
+    // A revoked account cannot contribute residual ballots to public totals.
+    const classificaResult = await pool.query(`
       WITH voti_per_nome AS (
-        SELECT BTRIM(nome) AS nome, COUNT(*)::bigint AS richieste
-        FROM voti_grazia
-        WHERE nome IS NOT NULL AND LENGTH(BTRIM(nome)) > 0
-        GROUP BY BTRIM(nome)
+        SELECT BTRIM(vg.nome) AS nome, COUNT(*)::bigint AS richieste
+        FROM voti_grazia vg
+        JOIN users u ON u.id::text = ${ownerColumn}::text
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE vg.nome IS NOT NULL AND LENGTH(BTRIM(vg.nome)) > 0
+          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
+        GROUP BY BTRIM(vg.nome)
       ), classificati AS (
         SELECT v.nome, v.richieste
         FROM voti_per_nome v
@@ -81,97 +82,41 @@ router.get('/', async (req, res) => {
           WHERE LOWER(BTRIM(c.nome)) = LOWER(v.nome) AND c.attivo = false
         )
         UNION ALL
-        SELECT nome, 0::bigint AS richieste
-        FROM grazia_carcerati
-        WHERE attivo = true
+        SELECT nome, 0::bigint AS richieste FROM grazia_carcerati WHERE attivo = true
       )
       SELECT nome, SUM(richieste)::integer AS richieste
-      FROM classificati
-      GROUP BY nome
-      ORDER BY richieste DESC, nome ASC
-    `;
+      FROM classificati GROUP BY nome ORDER BY richieste DESC, nome ASC
+    `);
 
-    const classificaResult = await pool.query(classificaQuery);
-    console.log(`✅ Classifica creata con ${classificaResult.rows.length} carcerati`);
-
-    // Recupera i voti dell'utente se autenticato
     let mieiVoti = [];
     let blocco = { isBlocked: false, unlockDate: null };
     if (userId) {
-      try {
-        // Rileva la struttura della tabella per capire quale colonna usare
-        let userIdColumn = 'user_id';
-        let timestampColumn = 'timestamp';
-
-        try {
-          const tableInfoQuery = `
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns
-            WHERE LOWER(table_name) = 'voti_grazia'
-            ORDER BY ordinal_position
-          `;
-          const tableInfo = await pool.query(tableInfoQuery);
-
-          const columns = tableInfo.rows.map(r => r.column_name);
-          const hasUserId = columns.includes('user_id');
-          const hasUserid = columns.includes('userid');
-          userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
-
-          // Rileva quale colonna timestamp usare
-          if (columns.includes('timestamp')) {
-            timestampColumn = 'timestamp';
-          } else if (columns.includes('data_voto')) {
-            timestampColumn = 'data_voto';
-          } else if (columns.includes('created_at')) {
-            timestampColumn = 'created_at';
-          }
-
-          console.log(`🔍 DEBUG GET - Colonna userId usata: ${userIdColumn}, timestamp: ${timestampColumn}`);
-        } catch (tableInfoError) {
-          console.log('⚠️ DEBUG GET - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
-        }
-
-        const mieiVotiQuery = `
-          SELECT nome
-          FROM voti_grazia
-          WHERE ${userIdColumn} = $1
-          ORDER BY ${timestampColumn} DESC
-        `;
-        const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
-        mieiVoti = mieiVotiResult.rows.map(row => row.nome);
-        console.log(`✅ Recuperati ${mieiVoti.length} voti per utente ${userId} usando colonna ${userIdColumn}`);
-
-        const lastChangeResult = await pool.query(
-          `SELECT MAX(${timestampColumn}) AS last_changed_at FROM voti_grazia WHERE ${userIdColumn} = $1`,
-          [userId]
-        );
+      // Read each personal ballot and Art. 9 consent in one SQL statement.
+      const mieiVotiResult = await pool.query(`
+        SELECT vg.nome, ${timeColumn ? 'vg."' + timeColumn + '" AS changed_at' : 'NULL::timestamptz AS changed_at'}
+        FROM voti_grazia vg
+        JOIN users u ON u.id::text = ${ownerColumn}::text
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE ${ownerColumn} = $1
+          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
+        ${timeColumn ? 'ORDER BY vg."' + timeColumn + '" DESC' : ''}
+      `, [userId]);
+      mieiVoti = mieiVotiResult.rows.map(row => row.nome);
+      if (mieiVotiResult.rows.length > 0) {
         const cooldown = await getPreferenceCooldown(pool, {
-          userId,
-          scope: 'grazia:preferenza',
-          fallbackChangedAt: lastChangeResult.rows[0]?.last_changed_at || null
+          userId, scope: 'grazia:preferenza',
+          fallbackChangedAt: mieiVotiResult.rows[0].changed_at || null
         });
         blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
-      } catch (error) {
-        console.error('⚠️ Errore nel recuperare voti utente:', error);
-        console.error('⚠️ Stack trace:', error.stack);
-        // Continua senza voti utente
       }
     }
 
-    res.json({
-      success: true,
-      classifica: classificaResult.rows,
-      richieste: result.rows,
-      mieiVoti: mieiVoti,
-      blocco
-    });
+    // Preserve the response key for old clients, but never return raw vote records.
+    return res.json({ success: true, classifica: classificaResult.rows,
+      richieste: [], mieiVoti, blocco });
   } catch (error) {
-    console.error('❌ Errore nel recuperare richieste grazia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare richieste grazia',
-      details: error.message
-    });
+    console.error('Errore nel recupero catalogo Grazia:', error);
+    return res.status(500).json({ success: false, error: 'Errore nel recuperare richieste grazia' });
   }
 });
 
