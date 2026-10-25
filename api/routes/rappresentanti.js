@@ -3,6 +3,7 @@ const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
+const { enforcePoliticalPersonalizationConsent } = require('../services/politicalPersonalizationAccessService');
 const { buildPoliticalMatches } = require('../services/politicalMatchingService');
 const { listEligibleRepresentatives } = require('../services/politicalEligibilityService');
 const {
@@ -52,6 +53,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
   try {
     const { grado_elezione } = req.query;
     const userId = req.userId;
+    if (!(await enforcePoliticalPersonalizationConsent(pool, userId, res))) return;
 
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado_elezione, userId });
 
@@ -213,6 +215,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       rappresentante_regione: null,
       rappresentante_comune: null
     };
+    // The consent may have been revoked while the match was calculated.
+    if (!(await enforcePoliticalPersonalizationConsent(pool, userId, res))) return;
     res.json({
       success: true,
       data: {

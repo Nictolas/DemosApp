@@ -8,7 +8,7 @@ const ROOT = path.resolve(__dirname, '..');
 const authPath = require.resolve(path.join(ROOT, 'middleware', 'auth.js'));
 const civicIdentityPath = require.resolve(path.join(ROOT, 'middleware', 'civicIdentity.js'));
 
-function makePool({ complete = true, canonicalBlocked = false } = {}) {
+function makePool({ complete = true, canonicalBlocked = false, granted = true } = {}) {
   const questionIds = ['q1', 'q2', 'q3', 'q4'];
   const userRow = { user_id: 'u1', q1: 'f', q2: 'c', q3: 'i', q4: complete ? 'f' : null };
   const subjectRows = {
@@ -24,7 +24,7 @@ function makePool({ complete = true, canonicalBlocked = false } = {}) {
     if (s.includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
     if (s.includes('COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) AS granted')) {
       assert.deepEqual(Array.from(params), ['u1']);
-      return { rows: [{ id: 'u1', granted: true }] };
+      return { rows: [{ id: 'u1', granted }] };
     }
       if (s.includes('FROM user_political_territories') || s.includes('FROM user_electoral_unit_memberships')) {
         const err = new Error('territory membership schema missing'); err.code = '42P01'; throw err;
@@ -187,6 +187,19 @@ test('candidate routes never allow browser or shared cache, including auth and v
       assert.equal(res.status, expected);
       assert.match(res.headers.get('cache-control') || '', /(?:^|,\s*)private(?:,|$)/);
       assert.match(res.headers.get('cache-control') || '', /(?:^|,\s*)no-store(?:,|$)/);
+    }
+  });
+});
+
+test('HTTP matching candidati: revoca consenso impedisce confronti, ma conserva un errore chiaro e non cacheabile', async () => {
+  await withCandidateApp(makePool({ granted: false }), async (base) => {
+    for (const route of ['/api/candidati/europei', '/api/candidati/disponibili?grado_candidatura=E']) {
+      const res = await fetch(base + route);
+      assert.equal(res.status, 403);
+      const body = await res.json();
+      assert.equal(body.code, 'POLITICAL_CONSENT_REQUIRED');
+      assert.equal(body.consent_required, true);
+      assert.match(res.headers.get('cache-control') || '', /no-store/);
     }
   });
 });

@@ -54,6 +54,13 @@ export default function RegistrazioneConsensiWizard() {
   const isPasskeyFlow = () =>
     typeof window !== "undefined" && !!window.localStorage.getItem("registrazione_passkey_flow");
 
+  const handleSkipPoliticalConsent = () => {
+    // Political consent is voluntary; registration and public browsing remain available.
+    localStorage.setItem("registrazione_political_opinions_consent", "false");
+    localStorage.setItem("registrazione_passkey_flow", "1");
+    setStep(4);
+  };
+
   const handleNext = () => {
     if (step === 1) {
       localStorage.setItem("registrazione_privacy_consent", "true");
@@ -238,7 +245,7 @@ export default function RegistrazioneConsensiWizard() {
       <p className="text-gray-600 text-sm mb-4">
         <strong>Consento esplicitamente</strong> al trattamento delle mie opinioni politiche (GDPR Art. 9). 
         Questo consenso è necessario per esprimere opinioni e votare sulla piattaforma. 
-        Puoi revocarlo in qualsiasi momento dalle impostazioni; in quel caso alcune funzionalità saranno limitate.
+        Puoi rifiutare o revocare il consenso in qualsiasi momento: non potrai usare confronti personalizzati, salvare opinioni o esprimere voti politici, ma potrai consultare le informazioni pubbliche.
       </p>
       <Button
         type="button"
@@ -246,6 +253,14 @@ export default function RegistrazioneConsensiWizard() {
         onClick={handleNext}
       >
         Accetto
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full text-sm mb-3"
+        onClick={handleSkipPoliticalConsent}
+      >
+        Continua senza consenso politico
       </Button>
       <Button
         type="button"

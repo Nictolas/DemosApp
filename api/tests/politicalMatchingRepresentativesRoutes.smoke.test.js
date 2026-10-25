@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const ROOT = path.resolve(__dirname, '..');
 const authPath = require.resolve(path.join(ROOT, 'middleware', 'auth.js'));
 
-function makePool({ complete = true, withEmptyProfiles = false } = {}) {
+function makePool({ complete = true, withEmptyProfiles = false, granted = true } = {}) {
   const questionIds = ['q1', 'q2', 'q3', 'q4'];
   const userRow = { user_id: 'u1', q1: 'f', q2: 'c', q3: 'i', q4: complete ? 'f' : null };
   const reps = {
@@ -29,7 +29,7 @@ function makePool({ complete = true, withEmptyProfiles = false } = {}) {
     if (s.includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
     if (s.includes('COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) AS granted')) {
       assert.deepEqual(Array.from(params), ['u1']);
-      return { rows: [{ id: 'u1', granted: true }] };
+      return { rows: [{ id: 'u1', granted }] };
     }
       if (s.includes('FROM user_political_territories') || s.includes('FROM user_electoral_unit_memberships')) {
         const err = new Error('territory membership schema missing'); err.code = '42P01'; throw err;
@@ -144,5 +144,17 @@ test('representative routes never allow browser or shared cache, including auth 
       assert.match(res.headers.get('cache-control') || '', /(?:^|,\s*)private(?:,|$)/);
       assert.match(res.headers.get('cache-control') || '', /(?:^|,\s*)no-store(?:,|$)/);
     }
+  }});
+});
+
+test('HTTP matching rappresentanti: consenso revocato => 403 senza suggerimenti personali', async () => {
+  await withRoute({ routeFile: 'rappresentanti.js', mount: '/api/rappresentanti', pool: makePool({ granted: false }), fn: async (base) => {
+    const res = await fetch(base + '/api/rappresentanti/disponibili?grado_elezione=E');
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.equal(body.code, 'POLITICAL_CONSENT_REQUIRED');
+    assert.equal(body.consent_required, true);
+    assert.equal(JSON.stringify(body).includes('matching_score'), false);
+    assert.match(res.headers.get('cache-control') || '', /no-store/);
   }});
 });

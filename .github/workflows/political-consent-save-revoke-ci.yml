@@ -10,6 +10,14 @@ on:
       - 'api/scripts/verify-political-opinion-read-consent-ci.js'
       - 'api/tests/politicalConsentHttpNoStore.smoke.test.js'
       - 'api/routes/users/profile.js'
+      - 'api/services/politicalPersonalizationAccessService.js'
+      - 'api/tests/politicalPersonalizationConsentGate.test.js'
+      - 'api/docs/political-personalization-consent-20261026.md'
+      - 'client/src/pages/GDPR/index.tsx'
+      - 'client/src/components/PoliticalOpinionsConsentModal.tsx'
+      - 'client/src/pages/registrazione-consensi.tsx'
+      - 'client/src/pages/registrazione-consensi-opinioni.tsx'
+      - 'client/tests/politicalPersonalizationConsentUI.test.mjs'
       - 'api/routes/auth/profile.js'
       - 'api/services/personalPoliticalSelectionVisibilityService.js'
       - 'api/tests/ownProfilePoliticalSelectionRead.test.js'
@@ -142,7 +150,7 @@ jobs:
       - name: Install isolated test dependencies
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Check client-side privacy regression
-        run: node --test client/tests/politicalOpinionPrivacyCache.test.mjs client/tests/gracePrivacyCache.test.mjs client/tests/headOfStatePrivacyCache.test.mjs client/tests/governmentPrivacyCache.test.mjs client/tests/publicProfilePrivacyClient.test.mjs
+        run: node --test client/tests/politicalOpinionPrivacyCache.test.mjs client/tests/gracePrivacyCache.test.mjs client/tests/headOfStatePrivacyCache.test.mjs client/tests/governmentPrivacyCache.test.mjs client/tests/publicProfilePrivacyClient.test.mjs client/tests/politicalPersonalizationConsentUI.test.mjs
       - name: Install and build production web client
         run: |
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
@@ -150,7 +158,7 @@ jobs:
       - name: Verify HTTP abort propagates through actual API client and TanStack Query
         run: node --test client/tests/politicalOpinionHttpCancellation.test.mjs
       - name: Unit consent, ordinary opinion save and revoke privacy guards
-        run: node --test --test-concurrency=1 api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/politicalAggregatePrivacy.test.js api/tests/politicalOpinionReadCachePolicy.test.js api/tests/politicalProfileReadConsent.test.js api/tests/politicalMatchingService.test.js api/tests/politicalMatchingRoutes.smoke.test.js api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js api/tests/politicalConsentHttpNoStore.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/legacyReferendumConsentRace.smoke.test.js api/tests/amnestyConsentRevokeRace.smoke.test.js api/tests/headOfStateConsentPrivacy.smoke.test.js api/tests/headOfStateVoteReadPrivacy.test.js api/tests/headOfStateVoteWritePrivacy.test.js api/tests/graceReadPrivacy.test.js api/tests/graceVoteWritePrivacy.test.js api/tests/proposalVoteConsentRace.test.js api/tests/governmentConfidenceConsentRace.test.js api/tests/governmentMinisterVoteConsentRace.test.js api/tests/governmentConfidenceReadPrivacy.test.js api/tests/governmentMinistryReadsPrivacy.test.js api/tests/publicProfileGovernmentConsent.test.js api/tests/publicPoliticalProfile.smoke.test.js api/tests/supporterPoliticalConsentPrivacy.test.js api/tests/politicalSelectionService.test.js api/tests/politicalSelectionWriteConsentRace.test.js api/tests/politicalSelectionRoute.test.js api/tests/politicalRepresentativeSelection.smoke.test.js api/tests/currentSupporterPushService.test.js api/tests/politicalOpinionNotificationService.test.js api/tests/ownProfilePoliticalSelectionRead.test.js
+        run: node --test --test-concurrency=1 api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/politicalAggregatePrivacy.test.js api/tests/politicalOpinionReadCachePolicy.test.js api/tests/politicalProfileReadConsent.test.js api/tests/politicalMatchingService.test.js api/tests/politicalMatchingRoutes.smoke.test.js api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js api/tests/politicalConsentHttpNoStore.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/legacyReferendumConsentRace.smoke.test.js api/tests/amnestyConsentRevokeRace.smoke.test.js api/tests/headOfStateConsentPrivacy.smoke.test.js api/tests/headOfStateVoteReadPrivacy.test.js api/tests/headOfStateVoteWritePrivacy.test.js api/tests/graceReadPrivacy.test.js api/tests/graceVoteWritePrivacy.test.js api/tests/proposalVoteConsentRace.test.js api/tests/governmentConfidenceConsentRace.test.js api/tests/governmentMinisterVoteConsentRace.test.js api/tests/governmentConfidenceReadPrivacy.test.js api/tests/governmentMinistryReadsPrivacy.test.js api/tests/publicProfileGovernmentConsent.test.js api/tests/publicPoliticalProfile.smoke.test.js api/tests/supporterPoliticalConsentPrivacy.test.js api/tests/politicalSelectionService.test.js api/tests/politicalSelectionWriteConsentRace.test.js api/tests/politicalSelectionRoute.test.js api/tests/politicalRepresentativeSelection.smoke.test.js api/tests/currentSupporterPushService.test.js api/tests/politicalOpinionNotificationService.test.js api/tests/ownProfilePoliticalSelectionRead.test.js api/tests/politicalPersonalizationConsentGate.test.js
       - name: Confirm real HTTP save-vs-revoke serialization on synthetic PostgreSQL 17
         env:
           GITHUB_ACTIONS: 'true'
