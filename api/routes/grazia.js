@@ -1,6 +1,7 @@
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
@@ -145,186 +146,132 @@ router.get('/richieste', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/grazia/vota - Salva voti grazia
-router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
-  console.log('🚨🚨🚨 POST /api/grazia/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
-
+// POST /api/grazia/vota - Preferenza politica serializzata con la revoca.
+// No-store applies even to authentication, validation and error responses.
+router.post('/vota', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+  let client = null;
+  let transactionStarted = false;
   try {
-    const { voti } = req.body;
-    // Usa req.userId con fallback a req.user.id per sicurezza
     const userId = req.userId || req.user?.id;
+    const { voti } = req.body || {};
 
     if (!userId) {
-      console.log('❌ DEBUG - User ID non trovato');
-      return res.status(401).json({
-        success: false,
-        error: 'Utente non autenticato'
-      });
+      return res.status(401).json({ success: false, error: 'Utente non autenticato' });
     }
-
     if (!Array.isArray(voti)) {
-      console.log('❌ DEBUG - Voti non è un array:', typeof voti);
-      return res.status(400).json({
-        success: false,
-        error: 'I voti devono essere un array'
-      });
+      return res.status(400).json({ success: false, error: 'I voti devono essere un array' });
     }
-
-    // Limita a massimo 1 voto come da limite configurato
     if (voti.length > 1) {
-      console.log('❌ DEBUG - Troppi voti:', voti.length);
       return res.status(400).json({
-        success: false,
-        error: 'Puoi selezionare al massimo 1 carcerato per Grazia'
+        success: false, error: 'Puoi selezionare al massimo 1 carcerato per Grazia'
       });
     }
-
-    // Rileva la struttura della tabella per capire quale colonna usare
-    let userIdColumn = 'user_id';
-    let idType = 'uuid'; // Default a UUID
-    let timestampColumn = 'timestamp'; // Default a timestamp
-
-    try {
-      const tableInfoQuery = `
-        SELECT column_name, data_type, is_nullable
-        FROM information_schema.columns
-        WHERE LOWER(table_name) = 'voti_grazia'
-        ORDER BY ordinal_position
-      `;
-      const tableInfo = await pool.query(tableInfoQuery);
-      console.log('🔍 DEBUG - Colonne tabella:', tableInfo.rows.map(r => `${r.column_name} (${r.data_type}, nullable: ${r.is_nullable})`));
-
-      const columns = tableInfo.rows.map(r => r.column_name);
-      const hasUserId = columns.includes('user_id');
-      const hasUserid = columns.includes('userid');
-      userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
-
-      // Rileva il tipo della colonna id
-      const idColumn = tableInfo.rows.find(r => r.column_name === 'id');
-      if (idColumn) {
-        idType = idColumn.data_type;
-        console.log('🔍 DEBUG - Tipo id rilevato:', idType);
-      }
-
-      // Rileva quale colonna timestamp usare
-      if (columns.includes('timestamp')) {
-        timestampColumn = 'timestamp';
-      } else if (columns.includes('data_voto')) {
-        timestampColumn = 'data_voto';
-      } else if (columns.includes('created_at')) {
-        timestampColumn = 'created_at';
-      }
-    } catch (tableInfoError) {
-      console.log('⚠️ DEBUG - Impossibile rilevare struttura tabella, uso default:', tableInfoError.message);
+    if (voti.length > 0 && (typeof voti[0] !== 'string' || voti[0].trim().length === 0)) {
+      return res.status(400).json({ success: false, error: 'Preferenza Grazia non valida' });
     }
+    const requestedVote = voti.length > 0 ? voti[0].trim() : null;
 
-    console.log('🔍 DEBUG - Colonna userId usata:', userIdColumn);
-    console.log('🔍 DEBUG - Tipo id usato:', idType);
-    console.log('🔍 DEBUG - Colonna timestamp usata:', timestampColumn);
+    client = await pool.connect();
+    await client.query('BEGIN');
+    transactionStarted = true;
 
-    const requestedVotes = voti.slice(0, 1).map((nome) => String(nome).trim()).filter(Boolean);
-    const existingResult = await pool.query(
-      `SELECT nome, ${timestampColumn} AS changed_at
-       FROM voti_grazia
-       WHERE ${userIdColumn} = $1
-       ORDER BY ${timestampColumn} DESC`,
+    // Consent revocation locks this same users row before erasing votes.
+    // The check after obtaining the lock is authoritative; middleware alone is not.
+    const lockedUser = await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE',
       [userId]
     );
-    const currentVotes = existingResult.rows.map((row) => String(row.nome || '').trim()).filter(Boolean).slice(0, 1);
-    const requestedVote = requestedVotes[0] || null;
-    const currentVote = currentVotes[0] || null;
+    if (lockedUser.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const consentState = await getPoliticalConsentState(client, userId);
+    if (!consentState.granted) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(403).json({
+        success: false, error: 'Consenso richiesto',
+        code: 'POLITICAL_CONSENT_REQUIRED',
+        consent_required: true
+      });
+    }
 
+    // Legacy column names are selected only from hardcoded allowlists.
+    // Schema probing, previous-vote read and cooldown use the locked client.
+    const schema = await client.query(
+      "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'voti_grazia' ORDER BY ordinal_position"
+    );
+    const columns = new Set(schema.rows.map(row => row.column_name));
+    const userIdColumn = ['userid', 'user_id', 'userId'].find(name => columns.has(name));
+    const timestampColumn = ['timestamp', 'data_voto', 'created_at'].find(name => columns.has(name));
+    if (!userIdColumn || !timestampColumn) throw new Error('Unsupported Grazia vote schema');
+    const quotedUserColumn = '"' + userIdColumn + '"';
+    const quotedTimestamp = '"' + timestampColumn + '"';
+    const idType = schema.rows.find(row => row.column_name === 'id')?.data_type || 'uuid';
+
+    const existingResult = await client.query(
+      'SELECT nome, ' + quotedTimestamp + ' AS changed_at FROM voti_grazia WHERE ' +
+        quotedUserColumn + ' = $1 ORDER BY ' + quotedTimestamp + ' DESC LIMIT 1',
+      [userId]
+    );
+    const previousVote = existingResult.rows[0] || null;
+    const currentVote = previousVote?.nome == null ? null : String(previousVote.nome).trim();
     if (requestedVote === currentVote) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.json({ success: true, message: 'Preferenza Grazia già aggiornata' });
     }
 
-    await assertPreferenceChangeAllowed(pool, {
+    await assertPreferenceChangeAllowed(client, {
       userId,
       scope: 'grazia:preferenza',
-      fallbackChangedAt: existingResult.rows[0]?.changed_at || null,
+      fallbackChangedAt: previousVote?.changed_at || null,
       isAdmin: Boolean(req.user?.isAdmin)
     });
 
-    // Inizia una transazione
-    console.log('🔍 DEBUG - Inizio transazione');
-    const client = await pool.connect();
-
-    try {
-      await client.query('BEGIN');
-
-      // Elimina i voti esistenti
-      console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userId);
-      const deleteQuery = `DELETE FROM voti_grazia WHERE ${userIdColumn} = $1`;
-      const deleteResult = await client.query(deleteQuery, [userId]);
-      console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
-
-      // Inserisci i nuovi voti
-      if (voti.length > 0) {
-        console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
-
-        for (const nome of requestedVotes) {
-          // Genera ID in base al tipo della colonna
-          let votoId;
-          if (idType === 'uuid') {
-            // Se la colonna è UUID, genera un UUID
-            const uuidResult = await client.query('SELECT gen_random_uuid() as id');
-            votoId = uuidResult.rows[0].id;
-          } else {
-            // Se è VARCHAR o TEXT, usa una stringa
-            votoId = `voto_grazia_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          }
-
-
-          // Inserisci il voto
-          const insertQuery = `
-            INSERT INTO voti_grazia (id, ${userIdColumn}, nome, ${timestampColumn})
-            VALUES ($1, $2, $3, NOW())
-          `;
-          const insertParams = [votoId, userId, nome];
-
-          await client.query(insertQuery, insertParams);
-          console.log('✅ DEBUG - Voto inserito con successo');
-        }
+    await client.query(
+      'DELETE FROM voti_grazia WHERE ' + quotedUserColumn + ' = $1',
+      [userId]
+    );
+    if (requestedVote !== null) {
+      let voteId;
+      if (idType === 'uuid') {
+        voteId = (await client.query('SELECT gen_random_uuid() AS id')).rows[0].id;
+      } else {
+        voteId = 'voto_grazia_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11);
       }
+      await client.query(
+        'INSERT INTO voti_grazia (id, ' + quotedUserColumn + ', nome, ' +
+          quotedTimestamp + ') VALUES ($1, $2, $3, NOW())',
+        [voteId, userId, requestedVote]
+      );
+    }
 
-      // Conferma la transazione
-      console.log('🔍 DEBUG - Commit transazione');
-      await recordPreferenceChange(client, { userId, scope: 'grazia:preferenza' });
-
-      await client.query('COMMIT');
-
-      console.log('✅ DEBUG - Voti salvati con successo');
-      res.json({ success: true, message: 'Voti grazia salvati' });
-    } catch (error) {
-      // Rollback in caso di errore
-      console.error('❌ DEBUG - Errore nella transazione, rollback:', error.message);
-      console.error('❌ DEBUG - Stack trace:', error.stack);
-      console.error('❌ DEBUG - Error code:', error.code);
-      console.error('❌ DEBUG - Error detail:', error.detail);
+    await recordPreferenceChange(client, { userId, scope: 'grazia:preferenza' });
+    await client.query('COMMIT');
+    transactionStarted = false;
+    return res.json({ success: true, message: 'Voti grazia salvati' });
+  } catch (error) {
+    if (transactionStarted && client) {
       try {
         await client.query('ROLLBACK');
-      } catch (rollbackError) {
-        console.error('❌ DEBUG - Errore durante rollback:', rollbackError.message);
+      } catch (_rollbackError) {
+        console.error('Rollback preferenza Grazia non riuscito');
       }
-      throw error;
-    } finally {
-      client.release();
-      console.log('🔍 DEBUG - Client rilasciato');
     }
-  } catch (error) {
     if (sendCooldownError(res, error)) return;
-    console.error('❌❌❌ ERRORE CRITICO nel salvataggio voti grazia ❌❌❌');
-    console.error('❌ Error message:', error.message);
-    console.error('❌ Error code:', error.code);
-    console.error('❌ Error detail:', error.detail);
-    console.error('❌ Error stack:', error.stack);
-
-    res.status(500).json({
+    // No vote values, user IDs, SQL details or stack traces in HTTP/logs.
+    console.error('Errore interno durante il salvataggio preferenza Grazia');
+    return res.status(500).json({
       success: false,
-      error: 'Errore nel salvare voti grazia',
-      details: error.message,
-      code: error.code
+      error: 'Errore nel salvare voti grazia'
     });
+  } finally {
+    if (client) client.release();
   }
 });
 

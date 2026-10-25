@@ -113,7 +113,7 @@ test('tutte le scritture cittadino che esprimono preferenze politiche richiedono
     ['routes/amnistia.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/capo-stato.js', "}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {"],
     ['routes/capo-stato.js', "router.post('/consenso', noStoreHeadOfStateConsent, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
-    ['routes/grazia.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/grazia.js', "}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {"],
     ['routes/iniziative-popolari.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/referendum.js', "router.post('/abrogativi/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/opinioni-proposte.js', "router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
