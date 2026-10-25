@@ -18,6 +18,7 @@ L'Art. 7(4) GDPR e le linee guida EDPB 05/2020 sulla condizionalità sconsiglian
 - Ciascuno dei tre endpoint di matching effettua una verifica **prima** del recupero di opinioni e una verifica **subito prima** di restituire il ranking, per nascondere risultati calcolati durante una revoca. Il middleware delle route mantiene Cache-Control private, no-store prima di autenticazione e di errori.
 - Entrambi i percorsi di registrazione con consenso politico permettono esplicitamente di proseguire senza aderire e salvano false in registrazione_political_opinions_consent; non è necessario accettare per arrivare al passaggio successivo.
 - Testi coerenti nella modale di consenso e nel dialogo GDPR: le funzioni personali diventano non disponibili; le altre categorie pubbliche restano fruibili. Rimossa la promessa di eliminazione “completa” non ancora dimostrata per i dati legacy.
+- La pagina di scelta candidati usa un solo endpoint parametrizzato `/api/candidati/disponibili?grado_candidatura=<E|C|S|R|CO>` per tutte le cinque categorie; l'alias `/api/candidati/europei` resta lato server per compatibilità con client Android precedenti. Il client mostra un messaggio mirato quando il server risponde con consenso richiesto.
 - Test HTTP su consenso revocato per candidati e rappresentanti; test unitari di errore, consenso, auth e ordine delle verifiche; test statici del client e build web.
 
 ## Cosa rimane

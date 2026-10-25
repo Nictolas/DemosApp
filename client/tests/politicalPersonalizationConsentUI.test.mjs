@@ -45,3 +45,19 @@ test('frontend keeps optional re-consent mechanism and consent cache invalidatio
   assert.match(gdpr, /\/api\/user\/political-opinions-consent\/revoke/);
   assert.match(gdpr, /queryClient\.removeQueries\(\{ queryKey: \['opinioniQuestions'\]/);
 });
+
+test('five candidate office categories share one generic endpoint, keep server alias for legacy apps', () => {
+  const hook = read('client/src/pages/ScegliRappresentante/hooks/useRappresentantiData.ts');
+  const grades = read('client/src/pages/ScegliRappresentante/utils/candidatoUtils.ts');
+  assert.match(hook, /getTitoloCandidati\(categoria\)/);
+  assert.match(hook, /\/api\/candidati\/disponibili\?grado_candidatura=/);
+  assert.doesNotMatch(hook, /url = "\/api\/candidati\/europei"/);
+  assert.match(hook, /Consenso politico necessario/);
+  for (const [category, grade] of [
+    ['europeo', 'E'], ['camera', 'C'], ['senato', 'S'],
+    ['regione', 'R'], ['comune', 'CO']
+  ]) {
+    assert.ok(grades.includes('case "' + category + '": return "' + grade + '"'));
+  }
+  assert.match(read('api/routes/candidati.js'), /router\.get\('\/europei', verifyToken/);
+});

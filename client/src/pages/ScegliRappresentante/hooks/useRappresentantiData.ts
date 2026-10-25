@@ -95,12 +95,10 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         let url: string;
 
         if (isCandidateRoute) {
-          if (categoria === "europeo") {
-            url = "/api/candidati/europei";
-          } else {
-            const gradoCandidatura = getTitoloCandidati(categoria);
-            url = `/api/candidati/disponibili?grado_candidatura=${encodeURIComponent(gradoCandidatura)}`;
-          }
+          // One endpoint covers all five candidate offices. Keep /europei
+          // server-side as a backwards-compatible alias for older clients.
+          const gradoCandidatura = getTitoloCandidati(categoria);
+          url = `/api/candidati/disponibili?grado_candidatura=${encodeURIComponent(gradoCandidatura)}`;
         } else {
           const gradoElezione = getTitolo(categoria);
           url = `/api/rappresentanti/disponibili?grado_elezione=${encodeURIComponent(gradoElezione)}`;
@@ -148,11 +146,16 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         }
       } catch (error) {
         console.error("Errore durante il recupero dei dati:", error);
+        const message = error instanceof Error ? error.message : "";
+        const consentMissing = message.includes("POLITICAL_CONSENT_REQUIRED") ||
+          message.includes("Consenso politico richiesto");
         toastRef.current({
-          title: "Errore",
-          description: isCandidateRoute
-            ? "Impossibile caricare i candidati."
-            : "Impossibile caricare i rappresentanti.",
+          title: consentMissing ? "Consenso politico necessario" : "Errore",
+          description: consentMissing
+            ? "Per usare il confronto personalizzato, puoi prestare il consenso dalla sezione Privacy."
+            : isCandidateRoute
+              ? "Impossibile caricare i candidati."
+              : "Impossibile caricare i rappresentanti.",
           variant: "destructive",
         });
       } finally {
