@@ -107,209 +107,124 @@ router.post('/test-vota', (_req, res) => {
   });
 });
 
-// POST /api/capo-stato/vota - Endpoint principale per voti (con autenticazione)
-router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  console.log('🚨🚨🚨 POST /api/capo-stato/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
-  console.log('🚨🚨🚨 Request ID:', requestId);
-  console.log('🚨🚨🚨 Timestamp:', new Date().toISOString());
-  console.log('🚨🚨🚨 Method:', req.method);
-  console.log('🚨🚨🚨 URL:', req.url);
-
+// POST /api/capo-stato/vota - Preferenza politica, serializzata con la revoca.
+// Set no-store BEFORE authentication, including validation and failure responses.
+router.post('/vota', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
   let client = null;
+  let transactionStarted = false;
   try {
-    console.log('🔍 DEBUG /api/capo-stato/vota - Richiesta ricevuta');
-
-    const { voti } = req.body;
-    // Usa req.userId con fallback a req.user.id per sicurezza
     const userId = req.userId || req.user?.id;
-
+    const { voti } = req.body || {};
     if (!userId) {
-      console.log('❌ DEBUG - User ID non trovato');
-      return res.status(401).json({
-        success: false,
-        error: 'Utente non autenticato'
-      });
+      return res.status(401).json({ success: false, error: 'Utente non autenticato' });
     }
-
-
     if (!Array.isArray(voti)) {
-      console.log('❌ DEBUG - Voti non è un array:', typeof voti);
+      return res.status(400).json({ success: false, error: 'I voti devono essere un array' });
+    }
+    if (voti.length > 1) {
       return res.status(400).json({
-        success: false,
-        error: 'I voti devono essere un array'
+        success: false, error: 'Puoi selezionare al massimo 1 candidato per Capo di Stato'
       });
     }
-
+    if (voti.length > 0 && (typeof voti[0] !== 'string' || voti[0].trim().length === 0)) {
+      return res.status(400).json({ success: false, error: 'Candidato non valido' });
+    }
     if (voti.some(isIneligibleCandidate)) {
       return res.status(422).json({
-        success: false,
-        error: 'Candidato non selezionabile',
+        success: false, error: 'Candidato non selezionabile',
         message: 'La persona indicata non e piu eleggibile per questa votazione'
       });
     }
 
-    // Controlla il limite di 1 voto massimo per Capo di Stato
-    if (voti.length > 1) {
-      console.log('❌ DEBUG - Troppi voti:', voti.length);
-      return res.status(400).json({
-        success: false,
-        error: 'Puoi selezionare al massimo 1 candidato per Capo di Stato'
+    client = await pool.connect();
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    // Revocation locks the same user row before deleting consent-scoped votes.
+    // Recheck consent after acquiring that lock, on the SAME client.
+    const lockedUser = await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+    );
+    if (lockedUser.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const consentState = await getPoliticalConsentState(client, userId);
+    if (!consentState.granted) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(403).json({
+        success: false, error: 'Consenso richiesto',
+        code: 'POLITICAL_CONSENT_REQUIRED', consent_required: true
       });
     }
 
-    const isAdmin = Boolean(req.user?.isAdmin);
-    let userIdColumn = 'userid';
-    let idType = 'uuid';
+    // Supported legacy schemas have different user column casing / ID types.
+    // Only literal allowlisted identifiers are used in SQL interpolation.
+    const schema = await client.query(
+      "SELECT column_name, data_type FROM information_schema.columns WHERE LOWER(table_name) = 'voti_capo_stato' ORDER BY ordinal_position"
+    );
+    const columns = new Set(schema.rows.map(row => row.column_name));
+    const column = ['userid', 'userId', 'user_id'].find(name => columns.has(name));
+    if (!column) throw new Error('Unsupported vote schema');
+    const userColumn = '"' + column + '"';
+    const idType = schema.rows.find(row => row.column_name === 'id')?.data_type || 'uuid';
 
-    try {
-      const tableInfo = await pool.query(`
-        SELECT column_name, data_type
-        FROM information_schema.columns
-        WHERE LOWER(table_name) = 'voti_capo_stato'
-        ORDER BY ordinal_position
-      `);
-      const columns = tableInfo.rows.map((row) => row.column_name);
-      if (!columns.includes('userid') && columns.includes('userId')) {
-        // Compatibilità schema legacy: il nome viene usato solo in query interpolate da questa allowlist.
-        // eslint-disable-next-line no-unused-vars
-        userIdColumn = 'userId';
-      }
-      const idColumn = tableInfo.rows.find((row) => row.column_name === 'id');
-      if (idColumn) idType = idColumn.data_type;
-    } catch (tableInfoError) {
-      console.warn('Impossibile rilevare struttura voti_capo_stato, uso schema canonico:', tableInfoError.message);
-    }
-
-    const existingResult = await pool.query(
-      `SELECT nome, timestamp FROM voti_capo_stato WHERE ${userIdColumn} = $1 ORDER BY timestamp DESC LIMIT 1`,
+    // Both the current vote and cooldown must be read AFTER the lock.
+    const existingResult = await client.query(
+      'SELECT nome, timestamp FROM voti_capo_stato WHERE ' + userColumn + ' = $1 ORDER BY timestamp DESC LIMIT 1',
       [userId]
     );
-    const existingVote = existingResult.rows[0] || null;
-    const requestedVote = voti.length > 0 ? String(voti[0]) : null;
-    const currentVote = existingVote?.nome ? String(existingVote.nome) : null;
-    const preferenceChanged = requestedVote !== currentVote;
-
-    if (!preferenceChanged) {
+    const current = existingResult.rows[0] || null;
+    const desiredVote = voti.length > 0 ? voti[0] : null;
+    const currentVote = current?.nome == null ? null : String(current.nome);
+    if (desiredVote === currentVote) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.json({ success: true, message: 'Preferenza già aggiornata', voti });
     }
 
-    await assertPreferenceChangeAllowed(pool, {
-      userId,
-      scope: 'capo-stato:preferenza',
-      fallbackChangedAt: existingVote?.timestamp || null,
-      isAdmin
+    await assertPreferenceChangeAllowed(client, {
+      userId, scope: 'capo-stato:preferenza',
+      fallbackChangedAt: current?.timestamp || null,
+      isAdmin: Boolean(req.user?.isAdmin)
     });
+    await client.query('DELETE FROM voti_capo_stato WHERE ' + userColumn + ' = $1', [userId]);
 
-    // Inizia una transazione
-    console.log('🔍 DEBUG - Inizio transazione');
-    client = await pool.connect();
-
-    try {
-      await client.query('BEGIN');
-
-      // Prima elimina tutti i voti esistenti dell'utente
-      console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userId);
-      const deleteQuery = `DELETE FROM voti_capo_stato WHERE ${userIdColumn} = $1`;
-      const deleteResult = await client.query(deleteQuery, [userId]);
-      console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
-
-      // Poi inserisce i nuovi voti
-      if (voti.length > 0) {
-        console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
-
-        for (const nome of voti) {
-          // Genera ID in base al tipo della colonna
-          let votoId;
-          if (idType === 'uuid') {
-            // Se la colonna è UUID, genera un UUID
-            const uuidResult = await client.query('SELECT gen_random_uuid() as id');
-            votoId = uuidResult.rows[0].id;
-          } else {
-            // Se è VARCHAR o TEXT, usa una stringa
-            votoId = `voto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          }
-
-
-          // Inserisci il voto
-          const insertQuery = `
-            INSERT INTO voti_capo_stato (id, ${userIdColumn}, nome, timestamp)
-            VALUES ($1, $2, $3, NOW())
-          `;
-          const insertParams = [votoId, userId, nome];
-
-          await client.query(insertQuery, insertParams);
-          console.log('✅ DEBUG - Voto inserito con successo');
-        }
-
-        console.log('🔍 DEBUG - Tutti i voti inseriti con successo');
+    if (desiredVote !== null) {
+      let voteId;
+      if (idType === 'uuid') {
+        voteId = (await client.query('SELECT gen_random_uuid() AS id')).rows[0].id;
+      } else {
+        voteId = 'voto_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11);
       }
-
-      // Conferma la transazione
-      console.log('🔍 DEBUG - Commit transazione');
-      await recordPreferenceChange(client, { userId, scope: 'capo-stato:preferenza' });
-
-      await client.query('COMMIT');
-
-      console.log('✅ DEBUG - Voti salvati con successo');
-      res.json({
-        success: true,
-        message: 'Voti salvati con successo',
-        voti: voti
-      });
-    } catch (error) {
-      // Rollback in caso di errore
-      console.error('❌ DEBUG - Errore nella transazione, rollback:', error.message);
-      console.error('❌ DEBUG - Stack trace:', error.stack);
-      console.error('❌ DEBUG - Error code:', error.code);
-      console.error('❌ DEBUG - Error detail:', error.detail);
-      console.error('❌ DEBUG - Error hint:', error.hint);
-      console.error('❌ DEBUG - Error name:', error.name);
+      await client.query(
+        'INSERT INTO voti_capo_stato (id, ' + userColumn + ', nome, timestamp) VALUES ($1, $2, $3, NOW())',
+        [voteId, userId, desiredVote]
+      );
+    }
+    await recordPreferenceChange(client, { userId, scope: 'capo-stato:preferenza' });
+    await client.query('COMMIT');
+    transactionStarted = false;
+    return res.json({ success: true, message: 'Voti salvati con successo', voti });
+  } catch (error) {
+    if (transactionStarted && client) {
       try {
         await client.query('ROLLBACK');
-      } catch (rollbackError) {
-        console.error('❌ DEBUG - Errore durante rollback:', rollbackError.message);
-      }
-      throw error;
-    } finally {
-      if (client) {
-        client.release();
-        client = null;
-        console.log('🔍 DEBUG - Client rilasciato');
+      } catch (_rollbackError) {
+        console.error('Rollback preferenza Capo di Stato non riuscito');
       }
     }
-  } catch (error) {
     if (sendCooldownError(res, error)) return;
-    console.error('❌❌❌ ERRORE CRITICO nel salvataggio voti capo di stato ❌❌❌');
-    console.error('❌ Request ID:', requestId);
-    console.error('❌ Error message:', error.message);
-    console.error('❌ Error name:', error.name);
-    console.error('❌ Error code:', error.code);
-    console.error('❌ Error detail:', error.detail);
-    console.error('❌ Error hint:', error.hint);
-    console.error('❌ Error stack:', error.stack);
-
-    // Rilascia il client se non è stato rilasciato
-    if (client) {
-      try {
-        client.release();
-      } catch (releaseError) {
-        console.error('❌ Errore nel rilasciare client:', releaseError.message);
-      }
-    }
-
-    // Assicurati che la risposta non sia già stata inviata
-    if (!res.headersSent) {
-      res.status(500).json({
-        success: false,
-        error: 'Errore interno del server',
-        details: error.message,
-        code: error.code,
-        requestId: requestId
-      });
-    } else {
-      console.error('❌ Risposta già inviata, impossibile inviare errore');
-    }
+    // Error details/stack traces could include political preferences or IDs.
+    console.error('Errore interno durante il salvataggio preferenza Capo di Stato');
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  } finally {
+    if (client) client.release();
   }
 });
 

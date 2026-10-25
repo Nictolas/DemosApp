@@ -111,7 +111,7 @@ test('lettura consenso usa user_consents con fallback users e fallisce chiusa', 
 test('tutte le scritture cittadino che esprimono preferenze politiche richiedono il guard condiviso', () => {
   const expectations = [
     ['routes/amnistia.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
-    ['routes/capo-stato.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/capo-stato.js', "}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {"],
     ['routes/capo-stato.js', "router.post('/consenso', noStoreHeadOfStateConsent, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/grazia.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/iniziative-popolari.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
