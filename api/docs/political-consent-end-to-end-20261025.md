@@ -49,3 +49,11 @@ Il workflow CI della PR esegue inoltre il vero router Express su PostgreSQL 17 l
 ## Lettura opinioni dai profili: proposta su ramo successivo (non rilasciata)
 
 Anche il GET autenticato \`/api/users/:userId/opinioni\` leggeva risposte e \`fonti_opinioni\` residue senza verificare il consenso politico. Il ramo successivo aggiunge nella SELECT delle risposte lo stesso filtro Art. 9 di \`/api/opinioni-list\`, preservando l'accesso alle domande senza esporre risposte/fonti dopo revoca. L'intestazione \`Cache-Control: private, no-store, max-age=0\` viene impostata prima dell'autenticazione. Test sintetici verificano le risposte, le fonti, l'override del consenso, gli accessi autorizzati e gli errori senza cache. Non serializza le letture già avviate con la revoca concorrente. Richiede CI, review e verifica Android prima di qualsiasi merge/rilascio; DPIA ancora da validare con DPO.
+
+## Matching politico e consenso di ogni partecipante — PR successiva in bozza
+
+Il motore condiviso `politicalMatchingService.getOpinionMapsByUserId`, usato dai suggerimenti di candidati e rappresentanti e dai controlli di completamento, leggeva tutte le righe `opinioni_risposte` richieste senza applicare il consenso del singolo soggetto. Una riga residua dopo revoca poteva influenzare percentuali, copertura e punteggi anche senza esporre direttamente la risposta.
+
+La SELECT batch ora filtra **ciascun utente** con `COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`, mantenendo il confronto in una sola query e l'assenza di risposte come `{}`. Il richiedente revocato non risulta più completo; le risposte residue di un candidato revocato non contribuiscono al punteggio. Le posizioni istituzionali importate restano fuori da questo intervento. Il test unitario verifica la presenza del predicato nella SELECT e i casi revocati, mentre il test CI PostgreSQL 17 con sole tabelle TEMP verifica i risultati effettivi su dati sintetici. Nessun dato reale è letto o modificato.
+
+**Limiti:** la SELECT non serializza una lettura già iniziata con la revoca concorrente; la verifica di cache/logout Android e la DPIA con il DPO restano aperte. Le PR concatenate rimangono bozze, senza merge o rilascio.

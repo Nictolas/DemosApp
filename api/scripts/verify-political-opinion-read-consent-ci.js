@@ -12,6 +12,8 @@ const { Pool } = require('pg');
 
 const DB = 'political_consent_race_ci';
 const ID = '00000000-0000-4000-8000-000000000268';
+const TARGET_ID = '00000000-0000-4000-8000-000000000270';
+const { getOpinionMapsByUserId, buildPoliticalMatches } = require('../services/politicalMatchingService');
 
 function guard() {
   const e = process.env;
@@ -103,11 +105,48 @@ async function main() {
     assert.equal(unauthorized.status, 401);
     assert.match(unauthorized.headers.get('cache-control') || '', /no-store/);
 
+    // The same real PostgreSQL 17 fixture verifies the shared matching engine.
+    // Both caller and candidate rows may survive a revocation: neither can
+    // influence the score or completion unless their own consent is active.
+    await client.query("INSERT INTO users VALUES ($1, 'a', 'c', true)", [TARGET_ID]);
+    await client.query('INSERT INTO user_consents VALUES ($1, true)', [TARGET_ID]);
+    await client.query("INSERT INTO opinioni_risposte VALUES ($1, 'c')", [TARGET_ID]);
+    const candidates = [{ id: TARGET_ID, nome: 'Synthetic', cognome: 'Candidate' }];
+    const maps = () => getOpinionMapsByUserId(client, [ID, TARGET_ID], ['caccia']);
+    const match = () => buildPoliticalMatches({ pool: client, userId: ID, subjects: candidates, grade: 'N' });
+
+    assert.deepEqual((await maps()).get(TARGET_ID), { caccia: 'c' });
+    assert.equal((await match()).matches[0].copertura_posizioni, 1);
+
+    // A candidate's revoked override suppresses even residual answers.
+    await client.query('UPDATE user_consents SET political_opinions_consent = false WHERE user_id = $1', [TARGET_ID]);
+    assert.deepEqual((await maps()).get(TARGET_ID), {});
+    const revokedCandidate = await match();
+    assert.equal(revokedCandidate.matches[0].copertura_posizioni, 0);
+    assert.equal(revokedCandidate.matches[0].matching_score, 0);
+
+    // A caller's revoked override suppresses their own completion and matches.
+    await client.query('UPDATE user_consents SET political_opinions_consent = false WHERE user_id = $1', [ID]);
+    const revokedCaller = await match();
+    assert.equal(revokedCaller.isComplete, false);
+    assert.deepEqual(revokedCaller.userAnswers, {});
+    assert.deepEqual(revokedCaller.matches, []);
+
+    // Missing override falls back to the legacy false flag (fail-closed).
+    await client.query('UPDATE users SET political_opinions_consent = false WHERE id = $1', [TARGET_ID]);
+    await client.query('UPDATE user_consents SET political_opinions_consent = NULL WHERE user_id = $1', [TARGET_ID]);
+    assert.deepEqual((await maps()).get(TARGET_ID), {});
+
+    // Explicit override true is authoritative, even if legacy is false.
+    await client.query('UPDATE user_consents SET political_opinions_consent = true WHERE user_id = $1', [TARGET_ID]);
+    assert.deepEqual((await maps()).get(TARGET_ID), { caccia: 'c' });
+    console.log('POLITICAL_MATCHING_CONSENT_REAL_PG17_PASS');
+
     console.log('POLITICAL_OPINION_READ_CONSENT_REAL_PG17_PASS');
     console.log('POLITICAL_OPINION_READ_CONSENT_RESULT_JSON=' + JSON.stringify({
       postgres: 17, fixture: 'temporary-synthetic-only',
       cases: ['granted', 'revoked-override', 'missing-consent', 'granted-override', 'unauthorized'],
-      unauthorizedPersonalAnswers: 0, productionUntouched: true
+      unauthorizedPersonalAnswers: 0, matchingConsentCases: ['granted', 'candidate-revoked', 'caller-revoked', 'legacy-false', 'explicit-override'], productionUntouched: true
     }));
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));

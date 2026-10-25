@@ -24,10 +24,15 @@ async function getOpinionMapsByUserId(pool, userIds, opinionIds) {
   }
 
   // Niente cast sulla colonna: PostgreSQL può usare l'indice di user_id.
+  // Non caricare neppure risposte residue dopo la revoca: consenso e risposte
+  // vengono valutati nella stessa SELECT, per utente e per ogni candidato.
   const result = await pool.query(
-    `SELECT *
-     FROM opinioni_risposte
-     WHERE user_id = ANY($1)`,
+    `SELECT r.*
+     FROM opinioni_risposte r
+     JOIN users u ON u.id = r.user_id
+     LEFT JOIN user_consents uc ON uc.user_id = u.id
+     WHERE r.user_id = ANY($1)
+       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
     [ids]
   );
 
