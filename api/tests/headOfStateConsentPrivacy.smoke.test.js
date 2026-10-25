@@ -209,7 +209,7 @@ test('GET anonymous/invalid-token responses remain private no-store', async () =
 
 test('CDN policy and revocation cleanup include head-of-state consent', () => {
   const policy = require('../config/publicCachePolicy');
-  assert.ok(policy.neverCachePathPrefixes.includes('/api/capo-stato/consenso'));
+  assert.ok(policy.neverCachePathPrefixes.some(prefix => '/api/capo-stato/consenso'.startsWith(prefix)));
   const consentService = fs.readFileSync(path.join(__dirname, '../services/politicalConsentService.js'), 'utf8');
   assert.match(consentService, /'consenso_capo_stato'/);
 });

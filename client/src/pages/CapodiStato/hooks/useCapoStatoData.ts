@@ -4,15 +4,15 @@ import { CapoStatoData } from "../types";
 
 export const useCapoStatoData = (user: any) => {
   return useQuery<CapoStatoData>({
-    queryKey: ['capoStatoData'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/capo-stato");
+    queryKey: ['capoStatoData', user?.id],
+    queryFn: async ({ signal }) => {
+      const response = await apiRequest("GET", "/api/capo-stato", undefined, undefined, signal);
       if (!response?.ok || !response?.data) {
         throw new Error(response?.data?.error || "Errore nel caricamento dei dati.");
       }
       return response.data;
     },
-    enabled: !!user && !!localStorage.getItem('auth_token'),
+    enabled: !!user?.id && !!localStorage.getItem('auth_token'),
     retry: 1,
     refetchOnWindowFocus: false
   });

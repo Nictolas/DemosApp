@@ -21,109 +21,79 @@ const isIneligibleCandidate = (name) => INELIGIBLE_CANDIDATE_NAMES.has(normalize
 
 // ===== ENDPOINTS PER CAPO DI STATO =====
 
-// GET /api/capo-stato - Lista candidati capo di stato con classifica voti
-router.get('/', async (req, res) => {
+// GET /api/capo-stato - public aggregate plus the authenticated account's choice.
+// The response can include personal political preferences: never cache it.
+router.get('/', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, async (req, res) => {
   try {
-    // Query per ottenere la classifica dei candidati basata sui voti ricevuti
-    const classificaQuery = `
-      SELECT
-        nome,
-        COUNT(*) as voti
-      FROM voti_capo_stato
-      GROUP BY nome
-      ORDER BY voti DESC, nome ASC
-    `;
+    // The old schema uses userid; some deployments use a quoted userId.
+    // Only allowlisted column names may be interpolated into SQL.
+    const columns = await pool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'voti_capo_stato'"
+    );
+    const available = new Set(columns.rows.map(row => row.column_name));
+    const userColumn = ['userid', 'userId', 'user_id'].find(name => available.has(name));
+    if (!userColumn) throw new Error('Unsupported head-of-state vote user column');
+    const userRef = 'v."' + userColumn + '"';
 
-    const classificaResult = await pool.query(classificaQuery);
-
-    console.log('🔍 DEBUG /api/capo-stato - Candidati trovati:', classificaResult.rows.length);
-
-    // Processa la classifica per il frontend
+    // A vote left over after consent revocation must not affect rankings.
+    const classificaResult = await pool.query(`
+      SELECT v.nome, COUNT(*) AS voti
+      FROM voti_capo_stato v
+      JOIN users u ON u.id::text = ${userRef}::text
+      LEFT JOIN user_consents uc ON uc.user_id = u.id
+      WHERE COALESCE(
+        uc.political_opinions_consent, u.political_opinions_consent, false
+      ) IS TRUE
+      GROUP BY v.nome
+      ORDER BY voti DESC, v.nome ASC
+    `);
     const classifica = classificaResult.rows
-      .filter(candidato => !isIneligibleCandidate(candidato.nome))
-      .map(candidato => ({
-        nome: candidato.nome,
-        voti: parseInt(candidato.voti, 10)
-      }));
+      .filter(candidate => !isIneligibleCandidate(candidate.nome))
+      .map(candidate => ({ nome: candidate.nome, voti: Number(candidate.voti) }));
 
-    // Ottieni i voti dell'utente corrente se autenticato
     let mieiVoti = [];
-    let blocco = {
-      isBlocked: false,
-      unlockDate: null
-    };
-
+    let blocco = { isBlocked: false, unlockDate: null };
     if (req.headers.authorization) {
+      let userId = null;
       try {
         const token = req.headers.authorization.replace('Bearer ', '');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId;
-
-        // Controlla il ruolo dell'utente
-        const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
-        const userResult = await pool.query(userQuery, [userId]);
-        const userRole = userResult.rows[0]?.ruolo;
-
-        // Cooldown canonico: la singola preferenza Capo di Stato può cambiare al massimo ogni 24 ore.
-        if (userRole !== 'Admin' && userRole !== 'AD') {
-          const tableInfoResult = await pool.query(`
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'voti_capo_stato'
-          `);
-          const voteColumns = tableInfoResult.rows.map((row) => row.column_name);
-          const cooldownUserColumn = voteColumns.includes('userid') ? 'userid' : 'userId';
-          const lastResult = await pool.query(
-            `SELECT MAX(timestamp) AS last_changed_at FROM voti_capo_stato WHERE ${cooldownUserColumn} = $1`,
-            [userId]
-          );
+        userId = decoded.userId || decoded.sub || decoded.id || null;
+      } catch (_error) {
+        // Invalid authentication cannot expose personalized vote data.
+      }
+      if (userId) {
+        // Consent and the personal vote are read in the SAME statement.
+        const personalResult = await pool.query(`
+          SELECT v.nome, v.timestamp AS changed_at, u.ruolo
+          FROM voti_capo_stato v
+          JOIN users u ON u.id::text = ${userRef}::text
+          LEFT JOIN user_consents uc ON uc.user_id = u.id
+          WHERE ${userRef} = $1
+            AND COALESCE(
+              uc.political_opinions_consent, u.political_opinions_consent, false
+            ) IS TRUE
+          ORDER BY v.timestamp DESC
+        `, [userId]);
+        mieiVoti = personalResult.rows.map(row => row.nome);
+        const lastVote = personalResult.rows[0];
+        if (lastVote && !['Admin', 'AD'].includes(lastVote.ruolo)) {
           const cooldown = await getPreferenceCooldown(pool, {
             userId,
             scope: 'capo-stato:preferenza',
-            fallbackChangedAt: lastResult.rows[0]?.last_changed_at || null
+            fallbackChangedAt: lastVote.changed_at || null
           });
           blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
         }
-
-        // Verifica la struttura della tabella per capire quale colonna usare
-        const tableInfoQuery = `
-          SELECT column_name, data_type
-          FROM information_schema.columns
-          WHERE table_name = 'voti_capo_stato'
-          ORDER BY ordinal_position
-        `;
-        const tableInfo = await pool.query(tableInfoQuery);
-        const columns = tableInfo.rows.map(r => r.column_name);
-        const hasUserId = columns.includes('userId');
-        const hasUserid = columns.includes('userid');
-        const userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'userId' : 'userid'); // Default a userid
-
-        const userVotiQuery = `
-          SELECT nome
-          FROM voti_capo_stato
-          WHERE ${userIdColumn} = $1
-        `;
-        const userVotiResult = await pool.query(userVotiQuery, [userId]);
-        mieiVoti = userVotiResult.rows.map(v => v.nome);
-      } catch (authError) {
-        console.log('⚠️ Token non valido per capo di stato:', authError.message);
       }
     }
-
-    const responseData = {
-      success: true,
-      classifica,
-      mieiVoti,
-      blocco
-    };
-
-    res.json(responseData);
+    return res.json({ success: true, classifica, mieiVoti, blocco });
   } catch (error) {
-    console.error('❌ Errore nel recupero candidati capo di stato:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    console.error('Errore nel recupero classifica Capo di Stato:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
