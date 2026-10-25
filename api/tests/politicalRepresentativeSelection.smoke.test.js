@@ -34,6 +34,8 @@ function makePool({ complete, canonicalBlocked = false }) {
     query: async (sql, params = []) => {
       const s = String(sql).replace(/\s+/g, ' ').trim();
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(s)) return { rows: [], rowCount: 0 };
+      if (s.includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
+      if (s.includes(' AS granted')) return { rows: [{ id: params[0], granted: true }], rowCount: 1 };
       if (s.startsWith('INSERT INTO political_selections') || s.startsWith('DELETE FROM political_selections')) {
         const err = new Error('political selections schema missing'); err.code = '42P01'; throw err;
       }

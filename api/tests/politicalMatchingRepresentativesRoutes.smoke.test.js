@@ -26,6 +26,7 @@ function makePool({ complete = true, withEmptyProfiles = false } = {}) {
   }
   const query = async (sql, params = []) => {
     const s = String(sql).replace(/\s+/g, ' ').trim();
+    if (s.includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
     if (s.includes('COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) AS granted')) {
       assert.deepEqual(Array.from(params), ['u1']);
       return { rows: [{ id: 'u1', granted: true }] };

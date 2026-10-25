@@ -292,15 +292,12 @@ router.get('/disponibili', verifyToken, async (req, res) => {
 // PUT /api/candidati/seleziona-candidato - Seleziona candidato per categoria
 router.put('/seleziona-candidato', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   try {
-    console.log('🎯 PUT /api/candidati/seleziona-candidato - Selezione candidato');
-    
+
     const { campo, candidatoId } = req.body;
     const userId = req.userId; // ID dell'utente autenticato dal token
-    
-    console.log('🔍 DEBUG - userId:', userId);
-    console.log('🔍 DEBUG - campo:', campo);
-    console.log('🔍 DEBUG - candidatoId:', candidatoId);
-    
+
+
+
     // Compatibilità client: i vecchi test_* vengono tradotti dall'adapter politico.
     const realField = CANDIDATE_TEST_FIELD_MAPPING[campo] || null;
     if (!realField) {
@@ -376,9 +373,7 @@ router.put('/seleziona-candidato', verifyToken, requireVerifiedCivicIdentity, as
         error: 'Utente non trovato'
       });
     }
-    
-    console.log('✅ Candidato selezionato con successo');
-    
+
     res.json({
       success: true,
       message: 'Candidato selezionato con successo',
@@ -386,7 +381,13 @@ router.put('/seleziona-candidato', verifyToken, requireVerifiedCivicIdentity, as
     });
     
   } catch (error) {
-    console.error('❌ Errore durante la selezione candidato:', error);
+    if (error?.code === 'POLITICAL_SELECTION_CONSENT_REQUIRED') {
+      return res.status(403).json({ success: false, consent_required: true, error: 'Consenso politico necessario' });
+    }
+    if (error?.code === 'POLITICAL_SELECTION_USER_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    console.error('Errore interno durante la selezione candidato');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
