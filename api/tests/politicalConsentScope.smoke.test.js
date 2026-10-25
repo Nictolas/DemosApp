@@ -117,7 +117,7 @@ test('tutte le scritture cittadino che esprimono preferenze politiche richiedono
     ['routes/iniziative-popolari.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/referendum.js', "router.post('/abrogativi/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/opinioni-proposte.js', "router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
-    ['routes/opinioni-proposte.js', "router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
+    ['routes/opinioni-proposte.js', "}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {"],
     ['routes/governo.js', "router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"],
     ['routes/governo.js', "router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent"]
   ];

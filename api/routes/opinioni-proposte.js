@@ -1,6 +1,7 @@
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { getPool } = require('../config/database');
 
@@ -11,8 +12,8 @@ const pool = getPool();
 
 // Lo schema dei voti sulle proposte è gestito esclusivamente tramite migrazione DB.
 // La route può soltanto verificarne la presenza e fallisce chiusa se manca.
-async function assertVotiTableExists() {
-  const result = await pool.query(
+async function assertVotiTableExists(db = pool) {
+  const result = await db.query(
     `SELECT to_regclass('public.voti_opinioni_proposte') AS relation_name`
   );
   if (!result.rows[0]?.relation_name) {
@@ -595,60 +596,88 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
   }
 });
 
-// POST /api/opinioni-proposte/:id/vota - Vota un'opinione proposta
-router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+// POST /api/opinioni-proposte/:id/vota - Supporto politico, coerente con la revoca.
+// No-store is set before authentication and validation, including failures.
+router.post('/:id/vota', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+  let client = null;
+  let started = false;
   try {
-    const { id } = req.params;
-    const userId = req.userId; // User ID dall'autenticazione JWT
-    
-    console.log('👍 POST /api/opinioni-proposte/:id/vota - Voto opinione proposta');
-    console.log('🔍 ID opinione:', id);
-    console.log('🔍 User ID:', userId);
-    
-    await assertVotiTableExists();
-    let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
-    if (checkResult.rows.length === 0) {
-      checkResult = await pool.query(
-        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
+    const userId = req.userId || req.user?.id;
+    const { id } = req.params || {};
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Utente non autenticato' });
+    }
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Identificativo opinione non valido' });
+    }
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    started = true;
+
+    // The revocation transaction updates this same users row. Lock it first,
+    // then re-evaluate Article 9 consent on the very same database client.
+    const lockedUser = await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE',
+      [userId]
+    );
+    if (lockedUser.rows.length === 0) {
+      await client.query('ROLLBACK');
+      started = false;
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const consentState = await getPoliticalConsentState(client, userId);
+    if (!consentState.granted) {
+      await client.query('ROLLBACK');
+      started = false;
+      return res.status(403).json({
+        success: false,
+        error: 'Consenso richiesto',
+        code: 'POLITICAL_CONSENT_REQUIRED',
+        consent_required: true
+      });
+    }
+
+    // Schema check and candidate lookup must use the locked transaction.
+    await assertVotiTableExists(client);
+    let found = await client.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
+    if (found.rows.length === 0) {
+      found = await client.query(
+        "SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')",
         [id]
       );
     }
-    if (checkResult.rows.length === 0) {
-      console.log('❌ Opinione non trovata o non in stato da approvare');
+    if (found.rows.length === 0) {
+      await client.query('ROLLBACK');
+      started = false;
       return res.status(404).json({
-        success: false,
-        error: 'Opinione non trovata o non in stato da approvare'
+        success: false, error: 'Opinione non trovata o non in stato da approvare'
       });
     }
-    console.log('✅ Opinione trovata, procedo con il voto...');
-    
-    // Inserisci il voto nella tabella voti_opinioni_proposte
-    const insertVotoQuery = `
-      INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
-      VALUES ($1, $2)
-      ON CONFLICT (utente_id, opinione_id) DO NOTHING
-    `;
-    
-    console.log('🔍 Inserimento voto con parametri:', { userId, id });
-    const insertResult = await pool.query(insertVotoQuery, [userId, id]);
-    console.log('📊 Risultato inserimento:', insertResult);
-    
-    console.log('✅ Voto registrato con successo per opinione:', id);
-    
-    res.json({
-      success: true,
-      message: 'Voto registrato con successo'
-    });
-    
-  } catch (error) {
-    console.error('❌ Errore nel voto:', error);
-    console.error('❌ Stack trace:', error.stack);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel voto',
-      message: error.message,
-      details: error.stack
-    });
+
+    await client.query(
+      'INSERT INTO voti_opinioni_proposte (utente_id, opinione_id) VALUES ($1, $2) ON CONFLICT (utente_id, opinione_id) DO NOTHING',
+      [userId, id]
+    );
+    await client.query('COMMIT');
+    started = false;
+    return res.json({ success: true, message: 'Voto registrato con successo' });
+  } catch (_error) {
+    if (started && client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_rollbackError) {
+        console.error('Rollback voto proposta non riuscito');
+      }
+    }
+    // Do not log vote IDs, account IDs or SQL stacks, and do not return internals.
+    console.error('Errore interno durante il voto a una proposta di opinione');
+    return res.status(500).json({ success: false, error: 'Errore nel voto' });
+  } finally {
+    if (client) client.release();
   }
 });
 
