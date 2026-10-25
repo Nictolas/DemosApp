@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { getPool } = require('../config/database');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
@@ -352,18 +353,18 @@ router.post('/', (_req, res) => {
 
 // ===== ENDPOINTS PER CONSENSO CAPO DI STATO =====
 
-// GET /api/capo-stato/consenso - Ottieni i dati di consenso
-router.get('/consenso', async (req, res) => {
-  try {
-    console.log('🔍 DEBUG /api/capo-stato/consenso GET - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
+// This endpoint mixes public totals and personalized political preferences.
+// Disable HTTP caching before authentication, including error responses.
+const noStoreHeadOfStateConsent = (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+};
 
-    // Ottieni i voti di consenso dell'utente corrente se autenticato
+// GET /api/capo-stato/consenso - Ottieni i dati di consenso
+router.get('/consenso', noStoreHeadOfStateConsent, async (req, res) => {
+  try {
     let mioConsenso = null;
-    let blocco = {
-      isBlocked: false,
-      unlockDate: null
-    };
+    let blocco = { isBlocked: false, unlockDate: null };
 
     if (req.headers.authorization) {
       try {
@@ -371,163 +372,159 @@ router.get('/consenso', async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.userId || decoded.email;
 
-        console.log('🔍 DEBUG - Token decodificato:', decoded);
-        console.log('🔍 DEBUG - User ID:', userId);
-
-        // Controlla se l'utente ha già votato per il consenso
-        const consensoQuery = `
-          SELECT risposta, timestamp
-          FROM consenso_capo_stato
-          WHERE userid = $1
-          ORDER BY timestamp DESC
-          LIMIT 1
-        `;
-
-        const consensoResult = await pool.query(consensoQuery, [userId]);
+        // Consent is checked by the same SQL statement that reads the answer:
+        // a residual row after revocation must not be returned to the client.
+        const consensoResult = await pool.query(
+          [
+            'SELECT cc.risposta, cc.timestamp',
+            'FROM consenso_capo_stato cc',
+            'JOIN users u ON u.id::text = cc.userid::text',
+            'LEFT JOIN user_consents uc ON uc.user_id = u.id',
+            'WHERE cc.userid = $1',
+            'AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
+            'ORDER BY cc.timestamp DESC LIMIT 1'
+          ].join(' '),
+          [userId]
+        );
 
         if (consensoResult.rows.length > 0) {
           mioConsenso = {
             risposta: consensoResult.rows[0].risposta,
             timestamp: consensoResult.rows[0].timestamp
           };
+          const cooldown = await getPreferenceCooldown(pool, {
+            userId,
+            scope: 'capo-stato:consenso',
+            fallbackChangedAt: consensoResult.rows[0]?.timestamp || null
+          });
+          blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
         }
-
-        const cooldown = await getPreferenceCooldown(pool, {
-          userId,
-          scope: 'capo-stato:consenso',
-          fallbackChangedAt: consensoResult.rows[0]?.timestamp || null
-        });
-        blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
       } catch (error) {
-        console.log('🔍 DEBUG - Token non valido per consenso:', error.message);
+        console.warn('Token non valido per consenso Capo di Stato');
       }
     }
 
-    // Ottieni le statistiche aggregate dei voti di consenso
-    const statsQuery = `
-      SELECT
-        risposta,
-        COUNT(*) as conteggio
-      FROM consenso_capo_stato
-      GROUP BY risposta
-      ORDER BY risposta
-    `;
+    // Exclude residual votes of users whose Art. 9 consent is revoked.
+    const statsResult = await pool.query(
+      [
+        'SELECT cc.risposta, COUNT(*) AS conteggio',
+        'FROM consenso_capo_stato cc',
+        'JOIN users u ON u.id::text = cc.userid::text',
+        'LEFT JOIN user_consents uc ON uc.user_id = u.id',
+        'WHERE COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
+        'GROUP BY cc.risposta ORDER BY cc.risposta'
+      ].join(' ')
+    );
 
-    const statsResult = await pool.query(statsQuery);
-
-    const statistiche = {
-      'Sì': 0,
-      'Non so': 0,
-      'No': 0,
-      totale: 0
-    };
-
-    statsResult.rows.forEach(row => {
-      statistiche[row.risposta] = parseInt(row.conteggio);
-      statistiche.totale += parseInt(row.conteggio);
+    const statistiche = { 'Sì': 0, 'Non so': 0, 'No': 0, totale: 0 };
+    statsResult.rows.forEach((row) => {
+      const count = parseInt(row.conteggio, 10);
+      statistiche[row.risposta] = count;
+      statistiche.totale += count;
     });
 
-    res.json({
-      success: true,
-      data: {
-        mioConsenso,
-        statistiche,
-        blocco
-      }
-    });
+    return res.json({ success: true, data: { mioConsenso, statistiche, blocco } });
   } catch (error) {
-    console.error('❌ Errore nel recupero dati consenso:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    console.error('Errore nel recupero dati consenso Capo di Stato:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
 // POST /api/capo-stato/consenso - Salva il voto di consenso
-router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+router.post('/consenso', noStoreHeadOfStateConsent, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+  let client = null;
+  let transactionStarted = false;
   try {
-    console.log('🔍 DEBUG /api/capo-stato/consenso - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
-    console.log('🔍 DEBUG - Body:', req.body);
-    console.log('🔍 DEBUG - User:', req.user);
+    const { risposta } = req.body || {};
+    const userId = req.userId || req.user?.id;
 
-    const { risposta } = req.body;
-    const userId = req.user.id;
-
-
-    if (!risposta || !['Sì', 'Non so', 'No'].includes(risposta)) {
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Utente non autenticato' });
+    }
+    if (!['Sì', 'Non so', 'No'].includes(risposta)) {
       return res.status(400).json({
         success: false,
         error: 'Risposta non valida. Deve essere "Sì", "Non so" o "No"'
       });
     }
 
-    const currentResult = await pool.query(
-      `SELECT risposta, timestamp
-       FROM consenso_capo_stato
-       WHERE userid = $1
-       ORDER BY timestamp DESC
-       LIMIT 1`,
+    client = await pool.connect();
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    // Revocation updates users before erasing political choices. Lock the
+    // same row, then recheck consent *after* acquiring the lock.
+    const lockedUser = await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE',
+      [userId]
+    );
+    if (lockedUser.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const consentState = await getPoliticalConsentState(client, userId);
+    if (!consentState.granted) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(403).json({
+        success: false,
+        error: 'Consenso richiesto',
+        code: 'POLITICAL_CONSENT_REQUIRED',
+        consent_required: true
+      });
+    }
+
+    const currentResult = await client.query(
+      'SELECT risposta, timestamp FROM consenso_capo_stato WHERE userid = $1 ORDER BY timestamp DESC LIMIT 1',
       [userId]
     );
     const current = currentResult.rows[0] || null;
     if (current?.risposta === risposta) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.json({ success: true, message: 'Consenso già aggiornato', data: current });
     }
 
-    await assertPreferenceChangeAllowed(pool, {
+    await assertPreferenceChangeAllowed(client, {
       userId,
       scope: 'capo-stato:consenso',
       fallbackChangedAt: current?.timestamp || null,
       isAdmin: Boolean(req.user?.isAdmin)
     });
 
-    // Inizia transazione
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      // Elimina il voto precedente se esiste
-      await client.query(
-        'DELETE FROM consenso_capo_stato WHERE userid = $1',
-        [userId]
-      );
+    await client.query('DELETE FROM consenso_capo_stato WHERE userid = $1', [userId]);
+    const votoId = 'consenso_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11);
+    await client.query(
+      [
+        'INSERT INTO consenso_capo_stato (',
+        'id, userid, risposta, timestamp, created_at, updated_at',
+        ') VALUES ($1, $2, $3, NOW(), NOW(), NOW())'
+      ].join(' '),
+      [votoId, userId, risposta]
+    );
+    await recordPreferenceChange(client, { userId, scope: 'capo-stato:consenso' });
+    await client.query('COMMIT');
+    transactionStarted = false;
 
-      // Inserisce il nuovo voto
-      const votoId = `consenso_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      await client.query(
-        `INSERT INTO consenso_capo_stato (
-          id, userid, risposta, timestamp, created_at, updated_at
-        ) VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
-        [votoId, userId, risposta]
-      );
-
-      // Conferma la transazione
-      await recordPreferenceChange(client, { userId, scope: 'capo-stato:consenso' });
-
-      await client.query('COMMIT');
-
-      res.json({
-        success: true,
-        message: 'Voto di consenso salvato con successo',
-        data: {
-          risposta,
-          timestamp: new Date().toISOString()
-        }
-      });
-    } catch (error) {
-      // Rollback in caso di errore
-      await pool.query('ROLLBACK');
-      throw error;
-    }
-  } catch (error) {
-    if (sendCooldownError(res, error)) return;
-    console.error('❌ Errore nel salvataggio consenso:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
+    return res.json({
+      success: true,
+      message: 'Voto di consenso salvato con successo',
+      data: { risposta, timestamp: new Date().toISOString() }
     });
+  } catch (error) {
+    if (transactionStarted && client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Errore rollback consenso Capo di Stato:', rollbackError);
+      }
+    }
+    if (sendCooldownError(res, error)) return;
+    console.error('Errore nel salvataggio consenso Capo di Stato:', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  } finally {
+    if (client) client.release();
   }
 });
 
