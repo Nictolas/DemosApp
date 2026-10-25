@@ -6,6 +6,8 @@ const { decompressUserOpinions, compressUserOpinions, getOpinionColumns } = requ
 const { compressUserLocation, decompressUserLocation } = require('../../utils/locationUtils');
 const { decompressGender } = require('../../utils/genderUtils');
 const { getAccountSubject } = require('../../services/accountCapabilitiesService');
+const { getPoliticalConsentState } = require('../../services/politicalConsentService');
+const { maskPoliticalSelectionsWithoutConsent } = require('../../services/personalPoliticalSelectionVisibilityService');
 const { getUserOpinionCompletion } = require('../../services/politicalMatchingService');
 const { normalizeOpinionAnswer } = require('../../utils/politicalMatching');
 const { isCandidateSelectionEligible, isRepresentativeSelectionEligible } = require('../../services/politicalEligibilityService');
@@ -99,7 +101,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         throw queryError;
       }
 
-      console.warn('⚠️ Fallback query /users/me su users (schema nuovo non disponibile):', queryError.message);
+      console.warn('Fallback schema profilo personale');
       result = await pool.query(
         `SELECT * FROM users WHERE id = $1`,
         [userId]
@@ -114,7 +116,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const user = result.rows[0];
-    console.log('✅ Profilo utente recuperato:', user.email);
+    // Do not log the subject's email or sensitive attributes.
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR), altrimenti DD/MM/YYYY
     let dataNascitaFormattata = null;
@@ -151,6 +153,11 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     // Applica decompressione per i dati geografici
     const decompressedUser = decompressUserLocation(user);
     
+    // This final DB check precedes serialization of the personal profile.
+    // A residual legacy selection must not reappear after revocation.
+    const currentConsent = await getPoliticalConsentState(pool, decompressedUser.id);
+    const visibleUser = maskPoliticalSelectionsWithoutConsent(decompressedUser, currentConsent.granted);
+
     res.json({
       success: true,
       user: {
@@ -176,16 +183,16 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         regione_candidatura: decompressedUser.regione_candidatura,
         provincia_candidatura: decompressedUser.provincia_candidatura,
         comune_candidatura: decompressedUser.comune_candidatura,
-        rappresentante_europeo: decompressedUser.rappresentante_europeo,
-        rappresentante_camera: decompressedUser.rappresentante_camera,
-        rappresentante_senato: decompressedUser.rappresentante_senato,
-        rappresentante_regionale: decompressedUser.rappresentante_regionale,
-        rappresentante_comune: decompressedUser.rappresentante_comune,
-        candidato_europeo: decompressedUser.candidato_europeo,
-        candidato_camera: decompressedUser.candidato_camera,
-        candidato_senato: decompressedUser.candidato_senato,
-        candidato_regionale: decompressedUser.candidato_regionale,
-        candidato_comune: decompressedUser.candidato_comune,
+        rappresentante_europeo: visibleUser.rappresentante_europeo,
+        rappresentante_camera: visibleUser.rappresentante_camera,
+        rappresentante_senato: visibleUser.rappresentante_senato,
+        rappresentante_regionale: visibleUser.rappresentante_regionale,
+        rappresentante_comune: visibleUser.rappresentante_comune,
+        candidato_europeo: visibleUser.candidato_europeo,
+        candidato_camera: visibleUser.candidato_camera,
+        candidato_senato: visibleUser.candidato_senato,
+        candidato_regionale: visibleUser.candidato_regionale,
+        candidato_comune: visibleUser.candidato_comune,
         status: decompressedUser.status,
         avatar_config: avatarConfig,
         created_at: decompressedUser.created_at,
@@ -202,7 +209,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero profilo:', error);
+    console.error('Errore interno nel recupero profilo personale');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
