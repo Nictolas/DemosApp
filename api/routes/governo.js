@@ -6,7 +6,7 @@ const { getPoliticalConsentState } = require('../services/politicalConsentServic
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { getPool } = require('../config/database');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
-const jwt = require('jsonwebtoken');
+const { verifyAccessToken } = require('../utils/jwt');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -355,95 +355,87 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
 
 // ===== ENDPOINTS PER CONSENSO GOVERNO =====
 
-// GET /api/governo/consenso - Ottieni i dati di consenso del governo
-router.get('/consenso', async (req, res) => {
+// GET /api/governo/consenso - public aggregate and consent-gated own choice.
+// Optional authentication can add personal choices: never allow caching.
+router.get('/consenso', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, async (req, res) => {
   try {
-    console.log('🔍 DEBUG /api/governo/consenso GET - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
-    
-    // Ottieni i voti di consenso dell'utente corrente se autenticato
     let mioConsenso = null;
-    let blocco = {
-      isBlocked: false,
-      unlockDate: null
-    };
-    
-    if (req.headers.authorization) {
+    let blocco = { isBlocked: false, unlockDate: null };
+    const authorization = req.headers.authorization;
+    let userId = null;
+    if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) {
       try {
-        const token = req.headers.authorization.replace('Bearer ', '');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId || decoded.email;
-        
-        console.log('🔍 DEBUG - Token decodificato:', decoded);
-        console.log('🔍 DEBUG - User ID:', userId);
-
-        // Controlla se l'utente ha già votato per il consenso
-        const consensoQuery = `
-          SELECT risposta, timestamp
-          FROM consenso_governo 
-          WHERE userid = $1
-          ORDER BY timestamp DESC
-          LIMIT 1
-        `;
-        
-        const consensoResult = await pool.query(consensoQuery, [userId]);
-        
-        if (consensoResult.rows.length > 0) {
-          mioConsenso = {
-            risposta: consensoResult.rows[0].risposta,
-            timestamp: consensoResult.rows[0].timestamp
-          };
-        }
-
-        const cooldown = await getPreferenceCooldown(pool, {
-          userId,
-          scope: 'governo:consenso',
-          fallbackChangedAt: consensoResult.rows[0]?.timestamp || null
-        });
-        blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
-      } catch (error) {
-        console.log('🔍 DEBUG - Token non valido per consenso governo:', error.message);
+        // Only signed, unexpired access tokens with correct type/issuer/audience.
+        const decoded = verifyAccessToken(authorization.slice(7));
+        userId = decoded.userId || decoded.sub || decoded.id || null;
+      } catch (_invalidToken) {
+        // Public aggregates remain available without authentication.
+        // Never log headers, bearer tokens or decoded payloads.
       }
     }
 
-    // Ottieni le statistiche aggregate dei voti di consenso
-    const statsQuery = `
-      SELECT 
-        risposta,
-        COUNT(*) as conteggio
-      FROM consenso_governo
-      GROUP BY risposta
-      ORDER BY risposta
-    `;
-    
-    const statsResult = await pool.query(statsQuery);
-    
-    const statistiche = {
-      'Sì': 0,
-      'Non so': 0,
-      'No': 0,
-      totale: 0
-    };
-    
-    statsResult.rows.forEach(row => {
-      statistiche[row.risposta] = parseInt(row.conteggio);
-      statistiche.totale += parseInt(row.conteggio);
-    });
+    if (userId) {
+      // Consent and the personal vote are read by ONE SQL statement,
+      // excluding any residual vote remaining after consent revocation.
+      const ownResult = await pool.query(
+        'SELECT cg.risposta, cg.timestamp ' +
+        'FROM consenso_governo cg ' +
+        'JOIN users u ON u.id::text = cg.userid::text ' +
+        'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+        'WHERE cg.userid::text = $1::text ' +
+        'AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+        'ORDER BY cg.timestamp DESC LIMIT 1',
+        [userId]
+      );
+      const consentState = await getPoliticalConsentState(pool, userId);
+      if (consentState.granted) {
+        const choice = ownResult.rows[0];
+        if (choice) {
+          mioConsenso = { risposta: choice.risposta, timestamp: choice.timestamp };
+        }
+        const cooldown = await getPreferenceCooldown(pool, {
+          userId,
+          scope: 'governo:consenso',
+          fallbackChangedAt: choice?.timestamp || null
+        });
+        blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
 
-    res.json({
-      success: true,
-      data: {
-        mioConsenso,
-        statistiche,
-        blocco
+        // If revocation finished during the cooldown lookup, avoid leaking
+        // preference or historic change metadata.
+        const finalConsent = await getPoliticalConsentState(pool, userId);
+        if (!finalConsent.granted) {
+          mioConsenso = null;
+          blocco = { isBlocked: false, unlockDate: null };
+        }
       }
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recupero dati consenso governo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    }
+
+    // Public totals must not count revoked accounts' residual ballots.
+    const statsResult = await pool.query(
+      'SELECT cg.risposta, COUNT(*)::integer AS conteggio ' +
+      'FROM consenso_governo cg ' +
+      'JOIN users u ON u.id::text = cg.userid::text ' +
+      'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+      'WHERE COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+      'GROUP BY cg.risposta ORDER BY cg.risposta'
+    );
+
+    const statistiche = { 'Sì': 0, 'Non so': 0, 'No': 0, totale: 0 };
+    for (const row of statsResult.rows) {
+      if (!Object.prototype.hasOwnProperty.call(statistiche, row.risposta)
+          || row.risposta === 'totale') continue;
+      const count = Number(row.conteggio) || 0;
+      statistiche[row.risposta] += count;
+      statistiche.totale += count;
+    }
+    return res.json({ success: true, data: { mioConsenso, statistiche, blocco } });
+  } catch (_error) {
+    // Never emit DB error strings, user IDs or choices to logs.
+    console.error('Errore interno nella lettura consenso Governo');
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 

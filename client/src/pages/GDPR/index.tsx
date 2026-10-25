@@ -50,11 +50,15 @@ export default function GDPR() {
         queryClient.cancelQueries({ queryKey: ['statsOpinionQuestions'] }),
         queryClient.cancelQueries({ queryKey: ['graziaData'] }),
         queryClient.cancelQueries({ queryKey: ['capoStatoData'] }),
+        queryClient.cancelQueries({ queryKey: ['consensoGovernoData'] }),
+        queryClient.cancelQueries({ queryKey: ['governoVoti'] }),
       ]);
       queryClient.removeQueries({ queryKey: ['opinioniQuestions'] });
       queryClient.removeQueries({ queryKey: ['statsOpinionQuestions'] });
       queryClient.removeQueries({ queryKey: ['graziaData'] });
       queryClient.removeQueries({ queryKey: ['capoStatoData'] });
+      queryClient.removeQueries({ queryKey: ['consensoGovernoData'] });
+      queryClient.removeQueries({ queryKey: ['governoVoti'] });
       queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       toast({
