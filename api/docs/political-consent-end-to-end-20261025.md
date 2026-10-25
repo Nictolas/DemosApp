@@ -36,3 +36,9 @@ Workflow CI `.github/workflows/political-consent-save-revoke-ci.yml` con Postgre
 La route autenticata `GET /api/user/political-opinions-consent` invia alla UI soltanto `consent.granted` e `consent.timestamp`. L'indirizzo IP e lo user-agent raccolti come prova del consenso non vengono più letti per questa risposta né inseriti nella cache React Query. Restano invariati il salvataggio della prova lato server, la revoca atomica, il registro di cancellazione e i percorsi separati di accesso GDPR.
 
 Test HTTP sul router Express con database sintetico verifica la lista precisa dei campi del JSON e l'assenza di query SQL sui campi IP/user-agent. Un test client impedisce che il contratto della UI li reintroduca. Il cambiamento è in bozza, non rilasciato; la DPIA richiede ancora la validazione del DPO. Eventuali consumatori API esterni devono verificare la compatibilità con la risposta minimizzata.
+
+## Lettura risposte protetta dal consenso — PR successiva in bozza
+
+La route legacy autenticata `GET /api/opinioni-list` applica ora il consenso Art. 9 **nella stessa SELECT** che recupera la riga di `opinioni_risposte`, tramite `users` e l'eventuale override `user_consents`. Se il consenso manca o risulta revocato, la risposta mantiene le domande pubbliche ma restituisce `userAnswer: null` anche se esistesse una riga residua. La politica HTTP `private, no-store` rimane invariata. Sono aggiunti test sintetici per consenso assente, revocato e override esplicitamente concesso.
+
+**Limite:** questa verifica è atomica rispetto allo snapshot della singola SELECT, ma **non serializza** la lettura con una revoca concorrente: una lettura già partita potrebbe terminare dopo la revoca. L'eventuale requisito di serializzazione forte delle letture richiede valutazione dedicata (costi DB, lock e prove concorrenti). Nessuna modifica a dati reali o produzione; DPIA ancora da validare con il DPO.
