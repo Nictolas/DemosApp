@@ -26,6 +26,10 @@ function makePool({ complete = true, withEmptyProfiles = false } = {}) {
   }
   const query = async (sql, params = []) => {
     const s = String(sql).replace(/\s+/g, ' ').trim();
+    if (s.includes('COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) AS granted')) {
+      assert.deepEqual(Array.from(params), ['u1']);
+      return { rows: [{ id: 'u1', granted: true }] };
+    }
       if (s.includes('FROM user_political_territories') || s.includes('FROM user_electoral_unit_memberships')) {
         const err = new Error('territory membership schema missing'); err.code = '42P01'; throw err;
       }
