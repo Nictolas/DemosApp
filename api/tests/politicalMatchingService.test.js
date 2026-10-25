@@ -6,7 +6,7 @@ const {
   buildPoliticalMatches
 } = require('../services/politicalMatchingService');
 
-function createPool({ opinionIds, rows }) {
+function createPool({ opinionIds, rows, consentByUser = {}, overrideByUser = {} }) {
   const calls = [];
 
   return {
@@ -19,9 +19,18 @@ function createPool({ opinionIds, rows }) {
       }
 
       if (sql.includes('FROM opinioni_risposte')) {
+        // The same SQL statement must enforce consent for every user in the batch.
+        assert.match(sql, /JOIN\s+users\s+u\s+ON\s+u\.id\s*=\s*r\.user_id/);
+        assert.match(sql, /LEFT\s+JOIN\s+user_consents\s+uc\s+ON\s+uc\.user_id\s*=\s*u\.id/);
+        assert.match(sql, /COALESCE\s*\(\s*uc\.political_opinions_consent\s*,\s*u\.political_opinions_consent\s*,\s*false\s*\)\s+IS\s+TRUE/);
         const requestedIds = new Set((params?.[0] || []).map(String));
         return {
-          rows: rows.filter((row) => requestedIds.has(String(row.user_id)))
+          rows: rows.filter((row) => {
+            const id = String(row.user_id);
+            const granted = Object.hasOwn(overrideByUser, id)
+              ? overrideByUser[id] : (Object.hasOwn(consentByUser, id) ? consentByUser[id] : true);
+            return requestedIds.has(id) && granted === true;
+          })
         };
       }
 
@@ -101,4 +110,56 @@ test('getUserOpinionCompletion considera Non lo so una risposta valida', async (
   assert.equal(result.isComplete, true);
   assert.equal(result.answeredOpinions, 2);
   assert.equal(result.completionPercentage, 100);
+});
+
+test('revoca del consenso del richiedente: risposte residue non producono suggerimenti', async () => {
+  const pool = createPool({
+    opinionIds: ['o1', 'o2'],
+    rows: [{ user_id: 'user', o1: 'f', o2: 'c' }, { user_id: 'candidate', o1: 'f', o2: 'c' }],
+    consentByUser: { user: true, candidate: true },
+    overrideByUser: { user: false }
+  });
+  const result = await buildPoliticalMatches({
+    pool, userId: 'user', grade: 'N',
+    subjects: [{ id: 'candidate', nome: 'Synthetic', cognome: 'Candidate' }]
+  });
+  assert.equal(result.isComplete, false);
+  assert.deepEqual(result.userAnswers, {});
+  assert.deepEqual(result.matches, []);
+});
+
+test('revoca del consenso del candidato: matching non inferisce le posizioni residue', async () => {
+  const pool = createPool({
+    opinionIds: ['o1', 'o2'],
+    rows: [{ user_id: 'user', o1: 'f', o2: 'c' }, { user_id: 'candidate', o1: 'f', o2: 'c' }],
+    consentByUser: { user: true, candidate: true },
+    overrideByUser: { candidate: false }
+  });
+  const result = await buildPoliticalMatches({
+    pool, userId: 'user', grade: 'N',
+    subjects: [{ id: 'candidate', nome: 'Synthetic', cognome: 'Candidate' }]
+  });
+  assert.equal(result.isComplete, true);
+  assert.equal(result.matches[0].copertura_posizioni, 0);
+  assert.equal(result.matches[0].matching_score, 0);
+  assert.equal(result.matches[0].posizioni_mancanti, 2);
+});
+
+test('assenza di consenso e override esplicito prevalgono sui dati legacy', async () => {
+  const pool = createPool({
+    opinionIds: ['o1'],
+    rows: [{ user_id: 'user', o1: 'f' }, { user_id: 'candidate', o1: 'c' }],
+    consentByUser: { user: true, candidate: false },
+    overrideByUser: { user: false, candidate: true }
+  });
+  const completion = await getUserOpinionCompletion(pool, 'user', 'N');
+  assert.equal(completion.isComplete, false);
+  const candidate = await getUserOpinionCompletion(pool, 'candidate', 'N');
+  assert.equal(candidate.isComplete, true);
+  assert.equal(candidate.userAnswers.o1, 'c');
+  const missingPool = createPool({
+    opinionIds: ['o1'], rows: [{ user_id: 'missing', o1: 'f' }],
+    consentByUser: { missing: null }
+  });
+  assert.deepEqual((await getUserOpinionCompletion(missingPool, 'missing', 'N')).userAnswers, {});
 });
