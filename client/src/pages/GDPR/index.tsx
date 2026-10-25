@@ -407,8 +407,7 @@ export default function GDPR() {
                   <Alert className="bg-blue-50 border-blue-200">
                     <Shield className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-800">
-                      Non hai ancora concesso il consenso alle opinioni politiche. 
-                      Puoi concederlo quando accedi alle pagine delle opinioni.
+                      Non hai un consenso attivo per le opinioni politiche: il confronto personalizzato e le nuove scelte politiche non sono disponibili. Puoi prestarlo nuovamente per utilizzare queste funzioni.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -516,12 +515,10 @@ export default function GDPR() {
                 Sei sicuro di voler revocare il consenso al trattamento delle opinioni politiche?
               </p>
               <p className="font-semibold text-orange-600">
-                ⚠️ Attenzione: Le tue opinioni politiche già espresse verranno eliminate 
-                completamente dal sistema (conforme GDPR Art. 17 - Diritto alla cancellazione).
+                Le opinioni e i voti personali coperti da questo consenso saranno cancellati secondo le regole della piattaforma. Le selezioni politiche eventualmente residue non saranno più utilizzate per le funzioni personalizzate.
               </p>
               <p>
-                Dopo la revoca, non potrai più esprimere opinioni politiche sulla piattaforma, 
-                ma potrai continuare a utilizzare tutte le altre funzionalità.
+                Dopo la revoca, non potrai più salvare opinioni o voti politici, scegliere candidati e rappresentanti o utilizzare confronti personalizzati. Potrai continuare a consultare le informazioni pubbliche, gestire la privacy e cancellare il tuo account.
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>

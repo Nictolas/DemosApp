@@ -76,7 +76,7 @@ export function PoliticalOpinionsConsentModal({
     onOpenChange(false);
     toast({
       title: "Consenso non concesso",
-      description: "Non potrai esprimere opinioni politiche, ma potrai utilizzare tutte le altre funzionalità della piattaforma.",
+      description: "Le funzioni basate sulle tue opinioni politiche non saranno disponibili. Puoi comunque consultare le informazioni pubbliche e gestire il tuo account.",
     });
   };
 
@@ -111,8 +111,7 @@ export function PoliticalOpinionsConsentModal({
                   trattare questi dati, è necessario il tuo <strong>consenso esplicito</strong>.
                 </p>
                 <p className="text-sm text-blue-800">
-                  <strong>Il consenso è opzionale:</strong> Se rifiuti, non potrai esprimere 
-                  opinioni politiche ma potrai utilizzare tutte le altre funzionalità della piattaforma.
+                  <strong>Il consenso è opzionale:</strong> Se rifiuti, non potrai salvare opinioni o voti politici, scegliere candidati e rappresentanti o ricevere confronti personalizzati. Potrai consultare informazioni pubbliche e gestire il tuo account.
                 </p>
               </div>
             </div>
@@ -138,7 +137,7 @@ export function PoliticalOpinionsConsentModal({
             </h4>
             <ul className="list-disc pl-6 space-y-1 text-sm text-gray-700">
               <li>Puoi <strong>revocare il consenso in qualsiasi momento</strong> dalle impostazioni del profilo</li>
-              <li>In caso di revoca, le opinioni già espresse verranno <strong>eliminate completamente</strong> (GDPR Art. 17)</li>
+              <li>In caso di revoca, i dati politici coperti dal consenso saranno <strong>cancellati secondo le regole applicabili</strong> e non saranno più usati per personalizzazioni</li>
               <li>Le tue opinioni <strong>individuali non vengono vendute o condivise</strong> con partiti politici, organizzazioni o terze parti, e <strong>non vengono utilizzate</strong> per targeting pubblicitario o scopi commerciali</li>
               <li>Le <strong>statistiche aggregate e anonime</strong> (non identificabili) possono essere condivise con giornalisti, ricercatori e organizzazioni per ricerca, analisi e informazione pubblica</li>
               <li>I dati sono protetti con <strong>crittografia</strong> e misure di sicurezza avanzate</li>

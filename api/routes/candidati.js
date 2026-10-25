@@ -2,6 +2,7 @@ const express = require('express');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { verifyToken } = require('../middleware/auth');
 const { pool } = require('../middleware/auth');
+const { enforcePoliticalPersonalizationConsent } = require('../services/politicalPersonalizationAccessService');
 const { buildPoliticalMatches, getUserOpinionCompletion } = require('../services/politicalMatchingService');
 const { listEligibleCandidates, isCandidateSelectionEligible } = require('../services/politicalEligibilityService');
 const { getPoliticalConsentState } = require('../services/politicalConsentService');
@@ -213,9 +214,12 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
 router.get('/europei', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
+    if (!(await enforcePoliticalPersonalizationConsent(pool, userId, res))) return;
     const eligibility = await listEligibleCandidates(pool, userId, 'E');
     const matching = await buildPoliticalMatches({ pool, userId, subjects: eligibility.subjects, grade: 'E' });
     const candidati = matching.matches.slice(0, 4);
+    // The consent may have been revoked while the match was calculated.
+    if (!(await enforcePoliticalPersonalizationConsent(pool, userId, res))) return;
     return res.json({
       success: true,
       data: candidati,
@@ -233,6 +237,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
   try {
     const { grado_candidatura } = req.query;
     const userId = req.userId;
+    if (!(await enforcePoliticalPersonalizationConsent(pool, userId, res))) return;
     
     console.log('🔍 DEBUG /api/candidati/disponibili - Richiesta ricevuta:', { grado_candidatura, userId });
     
@@ -271,6 +276,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       copertura: `${candidato.copertura_posizioni}/${candidato.copertura_totale}`
     })));
 
+    // The consent may have been revoked while the match was calculated.
+    if (!(await enforcePoliticalPersonalizationConsent(pool, userId, res))) return;
     res.json({
       success: true,
       data: candidatiMappati,

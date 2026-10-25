@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 export default function RegistrazioneConsensiOpinioni() {
   const [, navigate] = useLocation();
 
-  const handleAccetto = () => {
-    localStorage.setItem("registrazione_political_opinions_consent", "true");
+  const continueRegistration = (politicalConsent: boolean) => {
+    localStorage.setItem("registrazione_political_opinions_consent", String(politicalConsent));
     localStorage.setItem("registrazione_passkey_flow", "1");
     navigate("/registrazione-genere");
   };
@@ -24,17 +24,25 @@ export default function RegistrazioneConsensiOpinioni() {
         <p className="text-gray-600 text-sm mb-4">
           <strong>Consento esplicitamente</strong> al trattamento delle mie opinioni politiche (GDPR Art. 9). 
           Questo consenso è necessario per esprimere opinioni e votare sulla piattaforma. 
-          Puoi revocarlo in qualsiasi momento dalle impostazioni; in quel caso alcune funzionalità saranno limitate.
+          Puoi rifiutare o revocare il consenso in qualsiasi momento. Le funzioni che richiedono opinioni politiche non saranno disponibili senza consenso, ma potrai consultare le informazioni pubbliche.
         </p>
 
         <Button
           type="button"
           className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md mb-4"
-          onClick={handleAccetto}
+          onClick={() => continueRegistration(true)}
         >
           Accetto
         </Button>
 
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full text-sm mb-3"
+          onClick={() => continueRegistration(false)}
+        >
+          Continua senza consenso politico
+        </Button>
         <Button
           type="button"
           variant="outline"
