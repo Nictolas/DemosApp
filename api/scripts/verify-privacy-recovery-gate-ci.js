@@ -28,7 +28,7 @@ const event = (subject, type, time, details = {}) => ({
   event_type: type, occurred_at: time, details
 });
 function envelope(events, recoveryId=RECOVERY) {
-  const payload={formatVersion:1,recoveryId,capturedAt:'2026-10-26T01:00:00.000Z',events};
+  const payload={formatVersion:1,recoveryId,capturedAt:'2026-10-26T01:00:00.000Z',restoredBackupTakenAt:'2026-10-24T00:00:00.000Z',events};
   return {payload,signature:signature(payload,SECRET)};
 }
 async function count(db,table,subject) {
@@ -90,10 +90,12 @@ async function main() {
     assert.equal(first.verifiedExternalEvents,4);
     assert.equal(first.imported,4);
     assert.equal(first.revocationsReapplied,1);
+    assert.equal(first.staleSnapshotRevocationsReapplied,2);
     for (const table of ['political_selections','user_representatives','opinioni_risposte']) {
       assert.equal(await count(db,table,SUBJECT),0);
-      // Regrant is chronologically newer than revoke for OTHER.
-      assert.equal(await count(db,table,OTHER),1);
+      // Regrant is newer, but the restored backup predates BOTH the revoke
+      // and regrant. Old preferences must be erased, not resurrected.
+      assert.equal(await count(db,table,OTHER),0);
     }
     const subjectUser=(await db.query('SELECT nome,ruolo,political_opinions_consent,rappresentante_camera,candidato_comune FROM users WHERE id=$1',[SUBJECT])).rows[0];
     assert.equal(subjectUser.nome,'Subject');
@@ -101,6 +103,7 @@ async function main() {
     assert.equal(subjectUser.political_opinions_consent,false);
     assert.equal(subjectUser.rappresentante_camera,null);
     assert.equal(subjectUser.candidato_comune,null);
+    assert.equal((await db.query('SELECT political_opinions_consent FROM users WHERE id=$1',[OTHER])).rows[0].political_opinions_consent,true);
 
     const repeated=await reconcileRestoredPrivacyState({
       client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true
@@ -142,7 +145,7 @@ async function main() {
     assert.equal(await count(db,'political_selections',THIRD),0);
     console.log('PRIVACY_RECOVERY_GATE_PG17_PASS '+JSON.stringify({
       synthetic:true,externalHmacVerified:true,revokeAfterBackup:true,
-      regrantRetained:true,otherUserDataPreserved:true,idempotent:true,
+      regrantDoesNotResurrectOldChoices:true,otherUserDataPreserved:true,idempotent:true,
       replayFailureRolledBack:true,maintenanceRequired:true,
       productionUntouched:true
     }));
