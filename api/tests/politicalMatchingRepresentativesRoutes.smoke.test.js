@@ -38,7 +38,7 @@ function makePool({ complete = true, withEmptyProfiles = false, granted = true }
       return { rows: [{ id: 'u1', paese_residenza: 'IT', regione_residenza: 'TO', provincia_residenza: 'PI', comune_residenza: 'Pisa' }] };
     }
     if (s.includes('FROM political_mandates')) { const err = new Error('capability schema missing'); err.code = '42P01'; throw err; }
-    if (s.includes('FROM political_selections ps')) { const err = new Error('political selections schema missing'); err.code = '42P01'; throw err; }
+    if (s.includes('FROM public.political_selections ps')) { const err = new Error('political selections schema missing'); err.code = '42P01'; throw err; }
     if (s.includes('FROM users u') && s.includes("u.ruolo = 'P' OR u.ruolo = 'CP'")) {
       assert.match(s, /u\.status = 'a'/);
       return { rows: Object.keys(reps).map((id) => ({ id, nome: id.toUpperCase(), cognome: 'Test', ruolo: 'P', status: 'a', avatar_config: null, grado_elezione: params[0] })) };
