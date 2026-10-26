@@ -447,7 +447,8 @@ test('B2 readiness refuses orphaned delivery rows before any remote object read'
   let remoteReads = 0;
   const client = { async query(statement) {
     sql.push(statement);
-    if (statement.startsWith('BEGIN TRANSACTION')) return {rows:[]};
+    if (statement.startsWith('BEGIN TRANSACTION') ||
+        statement === 'SET LOCAL search_path = pg_catalog, public, pg_temp') return {rows:[]};
     if (statement.includes("to_regclass('public.privacy_erasure_ledger')")) {
       return {rows:[{ledger:true,outbox:true}]};
     }
@@ -479,7 +480,8 @@ test('B2 readiness rolls back when an immutable remote receipt disappears during
   let remoteReads = 0;
   const client = { async query(statement) {
     statements.push(statement);
-    if (statement.startsWith('BEGIN TRANSACTION')) return {rows:[]};
+    if (statement.startsWith('BEGIN TRANSACTION') ||
+        statement === 'SET LOCAL search_path = pg_catalog, public, pg_temp') return {rows:[]};
     if (statement.includes("to_regclass('public.privacy_erasure_ledger')")) {
       return {rows:[{ledger:true,outbox:true}]};
     }
@@ -518,7 +520,8 @@ test('B2 readiness refuses missing delivery receipt before remote reads and roll
   let remoteReads = 0;
   const client = { async query(statement) {
     statements.push(statement);
-    if (statement.startsWith('BEGIN TRANSACTION')) return {rows:[]};
+    if (statement.startsWith('BEGIN TRANSACTION') ||
+        statement === 'SET LOCAL search_path = pg_catalog, public, pg_temp') return {rows:[]};
     if (statement.includes("to_regclass('public.privacy_erasure_ledger')")) {
       return {rows:[{ledger:true,outbox:true}]};
     }
@@ -554,7 +557,8 @@ function syntheticB2ReadinessDb(events) {
   })).sort((a,b) => a.event_key.localeCompare(b.event_key));
   const client = {async query(sql, params=[]) {
     queries.push(sql);
-    if (sql.startsWith('BEGIN TRANSACTION')) return {rows:[]};
+    if (sql.startsWith('BEGIN TRANSACTION') ||
+        sql === 'SET LOCAL search_path = pg_catalog, public, pg_temp') return {rows:[]};
     if (sql.includes("to_regclass('public.privacy_erasure_ledger')")) {
       return {rows:[{ledger:true,outbox:true}]};
     }
@@ -622,6 +626,10 @@ test('B2 readiness requires verifiable expiry and accepts retained full batch', 
     }
   });
   assert.deepEqual(result,{ready:true,verifiedEvents:1,pinnedEvents:1});
+  const pin=good.queries.indexOf('SET LOCAL search_path = pg_catalog, public, pg_temp');
+  const firstSchemaRead=good.queries.findIndex(sql=>sql.includes("to_regclass('public.privacy_erasure_ledger')"));
+  assert.ok(pin>0 && firstSchemaRead>pin,
+    'pin verified public schema before any ledger/outbox reads');
   assert.ok(good.queries.includes('COMMIT'));
   assert.equal(good.queries.includes('ROLLBACK'),false);
 });
