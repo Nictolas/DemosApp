@@ -75,7 +75,12 @@ class PrivacyErasureLedgerService {
       throw new Error('Privacy ledger event requires userId');
     }
 
-    await this.ensureTable(client);
+    // Never execute DDL from a user-facing GDPR request in outbox mode.
+    // Both ledger and delivery tables must be installed/backfilled during
+    // an approved maintenance operation. A missing relation fails closed.
+    if (process.env.GDPR_ERASURE_OUTBOX_ENABLED !== 'true') {
+      await this.ensureTable(client);
+    }
     const eventKey = crypto.randomUUID();
     const params = [eventKey, String(userId), eventType, JSON.stringify(details)];
     if (process.env.GDPR_ERASURE_OUTBOX_ENABLED === 'true') {

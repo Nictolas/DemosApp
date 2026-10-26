@@ -77,6 +77,24 @@ async function main() {
     )).rows[0];
     assert.equal(metadata.n,DATABASE);
     assert.equal(Math.floor(metadata.v/10000),17);
+    // Both schemas absent: enabling the new feature must not create either
+    // table from a user request, even before any maintenance bootstrap.
+    const beforeSchema=await pool.query(
+      "SELECT to_regclass('public.privacy_erasure_ledger') AS ledger, " +
+      "to_regclass('public.privacy_erasure_delivery_outbox') AS outbox"
+    );
+    assert.deepEqual(beforeSchema.rows[0],{ledger:null,outbox:null});
+    await assert.rejects(
+      Ledger.recordEvent(pool,syntheticEvent()),
+      error=>error.code==='42P01'
+    );
+    const afterSchema=await pool.query(
+      "SELECT to_regclass('public.privacy_erasure_ledger') AS ledger, " +
+      "to_regclass('public.privacy_erasure_delivery_outbox') AS outbox"
+    );
+    assert.deepEqual(afterSchema.rows[0],{ledger:null,outbox:null},
+      'GDPR request must not create any database schema');
+    // The explicit legacy/bootstrap path remains supported.
     await Ledger.ensureTable(pool);
 
     const notInstalled=await PrivacyErasureOutboxWorker.status(pool);
@@ -241,6 +259,7 @@ async function main() {
       networkFailureRetry:true,postPutFailureRetry:true,failedDatabaseAckRetry:true,
       concurrentSkipLocked:true,noMissingEvents:true,
       missingOutboxFailsClosed:true,missingHistoricalRowsDetected:true,
+      missingLedgerFailsWithoutDDL:true,
       externalReceiptReadbackRequired:true,remoteTamperRejected:true,
       productionUntouched:true
     }));
