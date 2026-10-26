@@ -84,13 +84,29 @@ class PrivacyErasureOutboxWorker {
     }
     const counts = await client.query(
       'SELECT COUNT(*) FILTER (WHERE delivered_at IS NULL)::int AS pending, ' +
+      'COUNT(*) FILTER (WHERE delivered_at IS NOT NULL AND ' +
+      '(b2_version_id IS NULL OR b2_sha256 IS NULL OR ' +
+      'b2_sha256 !~ \'^[0-9a-f]{64}$\'))::int AS invalid_receipts, ' +
       'MIN(queued_at) FILTER (WHERE delivered_at IS NULL) AS oldest_pending_at ' +
       'FROM privacy_erasure_delivery_outbox'
     );
+    // Never infer "all exported" from an empty queue: an unbackfilled
+    // historical event may have no outbox row at all.
+    const missing = await client.query(
+      'SELECT count(*)::int AS n FROM privacy_erasure_ledger l ' +
+      'LEFT JOIN privacy_erasure_delivery_outbox o ON o.event_key=l.event_key ' +
+      'WHERE o.event_key IS NULL'
+    );
     const row = counts.rows[0];
+    const withoutOutbox = missing.rows[0].n;
     return {
-      installed: true, ready: row.pending === 0,
+      installed: true,
+      // Local readiness only. A release requires separate B2 full verification
+      // and an independently pinned external completeness checkpoint.
+      ready: row.pending === 0 && row.invalid_receipts === 0 && withoutOutbox === 0,
       pending: row.pending,
+      unqueued: withoutOutbox,
+      invalidReceipts: row.invalid_receipts,
       oldestPendingAt: row.oldest_pending_at || null
     };
   }
