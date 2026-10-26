@@ -39,3 +39,11 @@ La suite sintetica api/tests/privacyOfflineRecoveryExporter.test.js verifica blo
 ## Drill aggiuntivo PostgreSQL 17 isolato
 
 Lo script di CI api/scripts/verify-gdpr-transactional-outbox-pg17-ci.js riproduce il percorso con un database PostgreSQL 17 temporaneo e B2 simulato: nuovo evento pendente, manifesto/checkpoint sintetico, rifiuto di pin errato prima dell'export, caricamento remoto simulato seguito dalla revoca dell'autorizzazione locale, verifica del rollback della ricevuta nel database, worker ordinario che resta bloccato, e retry offline che riusa la medesima versione immutabile senza spegnere il flag di manutenzione HTTP. È una **prova applicativa in CI**, non un test di isolamento reale o Object Lock B2.
+
+## Correzione della verifica pre-PUT — 26/10
+
+La prima versione confrontava soltanto le **chiavi** dell'intero ledger con il manifesto e il **contenuto** degli eventi ancora pending. Questo lasciava passare un evento già consegnato ma alterato nel database, purché conservasse la stessa chiave. Il controllo ora confronta **tutti i campi di ogni evento**, inclusi quelli già consegnati, con il manifesto indipendente **prima della prima PUT B2**; usa pagine di 250 record per limitare la memoria. Se una pagina successiva contiene un evento modificato, nessuna PUT deve partire.
+
+La transazione offline usa isolamento REPEATABLE READ e acquisisce **prima di qualunque lettura del ledger** un lock PostgreSQL SHARE ROW EXCLUSIVE NOWAIT su ledger e outbox. Se un altro processo sta scrivendo una delle due tabelle, l'esportazione si ferma immediatamente con rollback senza B2 PUT. Il lock è mantenuto durante la verifica e l'export fino al commit/rollback, quindi **blocca anche altri writer su queste due tabelle**; ciò è intenzionale solo in una finestra di recovery isolata, non è appropriato come normale worker in produzione. Non congela le altre tabelle né gli ingressi Render/Supabase: resta obbligatoria la prova infrastrutturale indipendente.
+
+Nuovi test unitari: evento già consegnato alterato, evento alterato nella seconda pagina di 251 eventi, ordine e modalità di acquisizione del lock. Drill PostgreSQL 17: un writer concorrente trattiene un ROW EXCLUSIVE lock e l'esportatore deve ricevere SQLSTATE 55P03 prima di contattare B2 fittizio. Queste verifiche sono sintetiche e non equivalgono a una prova di recovery reale.
