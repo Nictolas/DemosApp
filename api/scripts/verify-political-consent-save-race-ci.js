@@ -75,7 +75,7 @@ async function main(){
           // BEFORE the first transaction is released. Otherwise a green
           // result could merely prove sequential requests.
           if(blocked && !blocked.contenderSeen && (
-            (blocked.phase==='save' && normalized.startsWith('UPDATE users SET political_opinions_consent = false')) ||
+            (blocked.phase==='save' && normalized.startsWith('UPDATE public.users SET political_opinions_consent = false')) ||
             (blocked.phase==='revoke' && /^SELECT id FROM users WHERE id = \$1 FOR UPDATE$/.test(normalized))
           )){
             blocked.contenderSeen=true;
@@ -84,7 +84,7 @@ async function main(){
           const answer=await c.query(sql,params);
           if(blocked && !blocked.consumed && (
             (blocked.phase==='save' && /^SELECT id FROM users WHERE id = \$1 FOR UPDATE$/.test(normalized)) ||
-            (blocked.phase==='revoke' && normalized.startsWith('UPDATE users SET political_opinions_consent = false'))
+            (blocked.phase==='revoke' && normalized.startsWith('UPDATE public.users SET political_opinions_consent = false'))
           )){
             blocked.consumed=true;
             blocked.locked.resolve();
