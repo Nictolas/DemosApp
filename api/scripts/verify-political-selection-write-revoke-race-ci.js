@@ -4,7 +4,7 @@
 // Never connects to Supabase/Render, never uses personal or production data.
 const assert = require('node:assert/strict');
 const { Pool } = require('pg');
-const { setPoliticalSelection } = require('../services/politicalSelectionService');
+const { setPoliticalSelection, loadPoliticalSelections, loadSupporterUserIds } = require('../services/politicalSelectionService');
 
 const USER = '00000000-0000-4000-8000-000000000289';
 const TARGET = '00000000-0000-4000-8000-000000000290';
@@ -229,6 +229,81 @@ async function main() {
       const temp=await shadow.query(
         'SELECT selected_user_id::text AS id FROM pg_temp.political_selections WHERE user_id=$1',[USER]);
       assert.deepEqual(temp.rows.map(row=>row.id),[shadowTarget]);
+
+      // Read-back MUST select the canonical row, never a stale or more
+      // permissive pg_temp.political_selections record on this same client.
+      const choices=await loadPoliticalSelections(shadow,{
+        userId:USER,kind:'candidate',adapterId:'us'
+      });
+      assert.equal(choices.source,'CANONICAL');
+      assert.deepEqual(choices.selections.map(choice=>choice.selectedUserId),[TARGET]);
+
+      // This is a disposable PG17 database with synthetic users only. Add
+      // just enough schema to exercise the real supporter visibility filter.
+      await real.query(
+        "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS status text DEFAULT 'a'"
+      );
+      await real.query(
+        'ALTER TABLE public.users ADD COLUMN IF NOT EXISTS rappresentante_camera uuid'
+      );
+      await real.query(
+        "UPDATE public.users SET status='a',rappresentante_camera=$2 WHERE id=$1",
+        [USER,TARGET]
+      );
+      await shadow.query(
+        'UPDATE pg_temp.user_consents SET political_opinions_consent=false WHERE user_id=$1',
+        [USER]
+      );
+      const visible=await loadSupporterUserIds(shadow,{
+        selectedUserId:TARGET,kind:'candidate',officeId:'us.house'
+      });
+      assert.equal(visible.source,'CANONICAL');
+      assert.deepEqual(visible.userIds,[USER],
+        'canonical supporter join must ignore revoked pg_temp consent');
+      const shadowOnly=await loadSupporterUserIds(shadow,{
+        selectedUserId:shadowTarget,kind:'candidate',officeId:'us.house'
+      });
+      assert.deepEqual(shadowOnly.userIds,[],
+        'shadow-only selection must not fabricate canonical supporters');
+
+      // Force the documented missing-canonical-table fallback via a
+      // synthetic adapter; its legacy projection and consent join must
+      // still read public.users / public.user_consents.
+      const legacyOnlyDb={
+        async query(sql,params){
+          if(String(sql).includes('FROM public.political_selections ps')){
+            const missing=new Error('synthetic canonical table unavailable');
+            missing.code='42P01';
+            throw missing;
+          }
+          return shadow.query(sql,params);
+        }
+      };
+      const legacyVisible=await loadSupporterUserIds(legacyOnlyDb,{
+        selectedUserId:TARGET,kind:'representative',officeId:'it.camera'
+      });
+      assert.equal(legacyVisible.source,'LEGACY');
+      assert.deepEqual(legacyVisible.userIds,[USER]);
+
+      await real.query(
+        'UPDATE public.user_consents SET political_opinions_consent=false WHERE user_id=$1',
+        [USER]
+      );
+      await shadow.query(
+        'UPDATE pg_temp.user_consents SET political_opinions_consent=true WHERE user_id=$1',
+        [USER]
+      );
+      const revokedSupporters=await loadSupporterUserIds(shadow,{
+        selectedUserId:TARGET,kind:'candidate',officeId:'us.house'
+      });
+      assert.deepEqual(revokedSupporters.userIds,[],
+        'canonical supporter read must reject revoked public consent');
+      const revokedLegacy=await loadSupporterUserIds(legacyOnlyDb,{
+        selectedUserId:TARGET,kind:'representative',officeId:'it.camera'
+      });
+      assert.deepEqual(revokedLegacy.userIds,[],
+        'legacy fallback must reject public consent revocation');
+      console.log('POLITICAL_SELECTION_READ_PUBLIC_SCHEMA_SHADOW_PG17_PASS');
 
       // Revocation updates public consent, leaving stale pg_temp copies
       // still granting. The next selection must fail, not trust the shadows.
