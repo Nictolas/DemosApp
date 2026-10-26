@@ -176,6 +176,13 @@ async function reconcileRestoredPrivacyState({
 
   await client.query('BEGIN');
   try {
+    // Schema checks below target public explicitly. Pin all subsequent
+    // unqualified ledger, outbox, and privacy cleanup queries to that same
+    // schema for THIS transaction only. Otherwise pg_temp or a caller-set
+    // search_path could shadow verified public tables with different data.
+    // Listing pg_temp LAST is intentional: PostgreSQL otherwise searches
+    // temporary relations first even when they are not named in search_path.
+    await client.query('SET LOCAL search_path = pg_catalog, public, pg_temp');
     // Serialize recovery sessions; use fixed, non-PII advisory lock.
     await client.query('SELECT pg_advisory_xact_lock(170026, 296)');
     // A missing ledger in the restored database is a schema/provisioning
