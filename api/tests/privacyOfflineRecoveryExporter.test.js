@@ -47,12 +47,25 @@ function receipt(event) {
     retentionUntil:'2026-10-27T00:00:00.000Z'};
 }
 function fakeDb(events = [EVENT], {unapproved=false, missing=false, orphan=false,
-  altered=false, deliveredEvents=[], tamperKey=null, onUpdate=null} = {}) {
+  altered=false, deliveredEvents=[], tamperKey=null, onUpdate=null,
+  onCommit=null, commitFault=null} = {}) {
   const calls=[];
+  let committed=false, staged=false, firstCommit=true;
   const db={async query(sql,params=[]) {
     calls.push(sql);
-    if (sql.startsWith('BEGIN TRANSACTION') || sql === 'COMMIT' ||
-        sql === 'ROLLBACK' || sql.startsWith('SELECT pg_advisory_xact_lock') ||
+    if (sql.startsWith('BEGIN TRANSACTION')) {staged=false;return {rows:[]};}
+    if (sql === 'COMMIT') {
+      const fault=firstCommit ? commitFault : null;
+      firstCommit=false;
+      if (fault === 'before') throw Error('synthetic commit rejected before durability');
+      if (staged) committed=true;
+      staged=false;
+      if (onCommit) onCommit();
+      if (fault === 'after') throw Error('synthetic commit acknowledgment lost');
+      return {rows:[]};
+    }
+    if (sql === 'ROLLBACK') {staged=false;return {rows:[]};}
+    if (sql.startsWith('SELECT pg_advisory_xact_lock') ||
         sql.startsWith('LOCK TABLE privacy_erasure_ledger')) return {rows:[]};
     if (sql.includes("to_regclass('public.privacy_erasure_ledger')")) {
       return {rows:[{ledger:true,outbox:true}]};
@@ -73,9 +86,10 @@ function fakeDb(events = [EVENT], {unapproved=false, missing=false, orphan=false
       return {rows:[{present:orphan}]};
     }
     if (sql.includes('FOR UPDATE OF o SKIP LOCKED')) {
-      return {rows:events.slice(0,params[0])};
+      return {rows:committed ? [] : events.slice(0,params[0])};
     }
     if (sql.startsWith('UPDATE privacy_erasure_delivery_outbox')) {
+      staged=true;
       if (onUpdate) onUpdate();
       return {rowCount:1,rows:[{event_key:params[0]}]};
     }
@@ -83,7 +97,8 @@ function fakeDb(events = [EVENT], {unapproved=false, missing=false, orphan=false
   },release(){calls.push('RELEASE');}};
   let connects=0;
   const pool={async connect(){connects++;return db;}};
-  return {pool,calls,get connections(){return connects;}};
+  return {pool,calls,get connections(){return connects;},
+    get committed(){return committed;}};
 }
 function harness({env={...VALID_ENV}, events=[EVENT], dbOpts={}, exporterOverrides={}}={}) {
   const db=fakeDb(events,dbOpts);
@@ -251,4 +266,39 @@ test('offline exporter aborts and leaves pending when quarantine is lost during 
   assert.ok(h2.db.calls.some(s=>s.startsWith('UPDATE privacy_erasure_delivery_outbox')));
   assert.ok(h2.db.calls.includes('ROLLBACK'));
   assert.equal(h2.db.calls.includes('COMMIT'),false);
+});
+
+test('offline exporter refuses success if quarantine is revoked during COMMIT',async()=>{
+  const env={...VALID_ENV};
+  const h=harness({env,dbOpts:{
+    onCommit:()=>{env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='false';}
+  }});
+  await assert.rejects(h.service.runOnce(h.db.pool,fixture()),/requires explicit quarantine/);
+  assert.equal(h.db.committed,true,'SQL commit may already be durable');
+  assert.equal(h.exports,1,'B2 write may already be durable');
+  assert.ok(h.db.calls.includes('COMMIT'));
+  assert.equal(h.db.calls.includes('ROLLBACK'),false,'durable commit cannot be rolled back');
+  env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='true';
+  const retry=await h.service.runOnce(h.db.pool,fixture());
+  assert.deepEqual(retry,{recoveryId:ID,delivered:0,moreMayRemain:false,readyForTraffic:false});
+  assert.equal(h.exports,1,'already committed receipt must not be exported twice');
+});
+
+test('offline exporter rejects uncertain COMMIT and retries both synthetic durability outcomes',async()=>{
+  for(const commitFault of ['before','after']){
+    const h=harness({dbOpts:{commitFault}});
+    await assert.rejects(h.service.runOnce(h.db.pool,fixture()),/synthetic commit/);
+    assert.equal(h.db.committed,commitFault==='after',commitFault);
+    assert.equal(h.exports,1);
+    assert.ok(h.db.calls.includes('ROLLBACK'),'best-effort rollback on uncertain COMMIT');
+    assert.ok(h.db.calls.includes('RELEASE'),'dedicated client released on failure');
+    const retry=await h.service.runOnce(h.db.pool,fixture());
+    assert.deepEqual(retry,{
+      recoveryId:ID,delivered:commitFault==='before'?1:0,
+      moreMayRemain:commitFault==='before',readyForTraffic:false
+    },commitFault);
+    assert.equal(h.db.committed,true);
+    assert.equal(h.exports,commitFault==='before'?2:1,
+      'retry exports only if SQL receipt remains pending');
+  }
 });
