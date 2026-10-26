@@ -11,6 +11,7 @@ La sola assenza di eventi orfani **non prova** la completezza del manifest ester
 ## Correzione
 
 - Prima di importare il manifest e di cancellare dati, `reconcileRestoredPrivacyState` (solo con outbox attiva) esegue un anti-join outbox→ledger e rifiuta la riconciliazione se trova una riga outbox priva di evento corrispondente. La transazione viene annullata, conservando l'evidenza del problema.
+- `PrivacyErasureOutboxWorker.status` segnala anche il conteggio aggregato `orphaned` e imposta `ready:false` se maggiore di zero. È soltanto un riepilogo locale, non una certificazione del contenuto B2.
 - `verifyOutboxRecoveryReadiness` esegue lo stesso controllo all'inizio della transazione `REPEATABLE READ READ ONLY`, prima della scansione ledger→outbox e prima di ogni GET di oggetti B2. L'errore non include identificativi utente.
 - Il controllo non crea tabelle, non modifica il database e non contatta servizi esterni in autonomia. L'operatore deve ricostruire e approvare il registro completo con prove indipendenti; **non eliminare semplicemente la riga orfana** per far diventare verde il test.
 - Aggiunta la dipendenza dal file `privacyOutboxRecoveryReadiness.js` ai path di attivazione del workflow recovery CI.
@@ -19,6 +20,7 @@ La sola assenza di eventi orfani **non prova** la completezza del manifest ester
 
 - Test unitario con database simulato che contiene un orfano: il recovery B2 rifiuta, esegue rollback, non legge alcun oggetto remoto e non procede alla scansione ordinaria.
 - PostgreSQL 17 disposable: dopo il provisioning della tabella, la fixture crea intenzionalmente un orfano disabilitando temporaneamente i trigger FK **solo in CI locale isolata**; il replay deve fallire prima di importare o cancellare dati, preservare l'evidenza, e superare il replay normale dopo la pulizia della sola fixture sintetica.
+- La CI outbox PostgreSQL 17 simula a sua volta un orfano, verifica che il riepilogo locale mostri `orphaned:1` e `ready:false`, che la verifica remota rifiuti l'incoerenza, e che la normale verifica sintetica torni positiva dopo la pulizia della sola fixture.
 - Il ripristino fisico `pg_dump`/`pg_restore` e gli altri test privacy restano invariati. Gli esiti CI sono da riportare solo dopo l'esecuzione verificata.
 
 ## Blocchi di produzione ancora aperti — issue #296
