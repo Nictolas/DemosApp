@@ -404,7 +404,22 @@ test('recovery HTTP middleware refuses health, GET, write and OPTIONS with no-st
       assert.equal(response.headers.get('cache-control'), 'private, no-store, max-age=0');
       assert.equal((await response.json()).code, 'GDPR_RECOVERY_MAINTENANCE');
     }
+    // A typo in the recovery switch must NOT silently reopen traffic.
+    for (const malformed of ['TRUE', 'true ', 'FALSE', 'false ', '0', '']) {
+      process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE = malformed;
+      for (const [route, method] of [['/api/health', 'GET'],
+        ['/api/opinioni/salva', 'POST'], ['/api/opinioni/salva', 'OPTIONS']]) {
+        const blocked = await fetch('http://127.0.0.1:' + port + route, { method });
+        assert.equal(blocked.status, 503,
+          'Malformed maintenance flag must not serve ' + method + ' ' + route);
+        assert.equal(blocked.headers.get('cache-control'),
+          'private, no-store, max-age=0');
+        assert.equal((await blocked.json()).code, 'GDPR_RECOVERY_MAINTENANCE');
+      }
+    }
     process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE = 'false';
+    assert.equal((await fetch('http://127.0.0.1:' + port + '/api/health')).status, 200);
+    delete process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
     assert.equal((await fetch('http://127.0.0.1:' + port + '/api/health')).status, 200);
   } finally {
     if (previous === undefined) delete process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
