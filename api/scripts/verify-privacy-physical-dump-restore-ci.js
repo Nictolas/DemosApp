@@ -223,10 +223,12 @@ async function main() {
     };
     await assert.rejects(reconcileRestoredPrivacyState({
       client: db, envelope: null, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint$3), /Missing signed/);
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
+    }), /Missing signed/);
     await assert.rejects(reconcileRestoredPrivacyState({
       client: db, envelope: saved, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: false, ...approvedCheckpoint$3), /maintenance/);
+      expectedRecoveryId: SESSION, maintenanceConfirmed: false, ...approvedCheckpoint
+    }), /maintenance/);
     // This manifest is itself correctly signed by the CI key but truncated:
     // the independently pinned digest must still reject it *before* any SQL.
     const stalePayload = {...saved.payload, events:saved.payload.events.slice(0,2)};
@@ -240,7 +242,8 @@ async function main() {
     forged.payload.events[0].subject_user_id = SUBJECTS.unaffected;
     await assert.rejects(reconcileRestoredPrivacyState({
       client: db, envelope: forged, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint$3), /signature invalid/);
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
+    }), /signature invalid/);
     assert.equal(await count(db, 'political_selections', SUBJECTS.revoked), 1);
 
     // Fail *after* the ledger import but *before* deletion completes.
@@ -254,13 +257,15 @@ async function main() {
     };
     await assert.rejects(reconcileRestoredPrivacyState({
       client: faultClient, envelope: saved, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint$3), /synthetic-restore-fault/);
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
+    }), /synthetic-restore-fault/);
     assert.equal(await count(db, 'users', SUBJECTS.deleted), 1);
     assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM privacy_erasure_ledger')).rows[0].n, 0);
 
     const reconciled = await reconcileRestoredPrivacyState({
       client: db, envelope: saved, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint$3);
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
+    });
     assert.equal(reconciled.verifiedExternalEvents, 4);
     assert.equal(reconciled.imported, 4);
     assert.equal(reconciled.staleSnapshotRevocationsReapplied, 2);
@@ -286,7 +291,8 @@ async function main() {
     assert.equal(regrantState.political_opinions_consent, true);
     const again = await reconcileRestoredPrivacyState({
       client: db, envelope: saved, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint$3);
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
+    });
     assert.equal(again.imported, 0);
 
     console.log('GDPR_PHYSICAL_PGDUMP_PGRESTORE_CI_PASS ' + JSON.stringify({
