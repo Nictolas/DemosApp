@@ -65,3 +65,14 @@ Un controllo basato sull'oggetto JavaScript originale non garantisce che i byte 
 In modalità outbox il codice **serializza i dettagli una sola volta**, rifiuta una serializzazione non valida e sottopone a `PrivacyErasureB2Journal.normalizeEvent` esattamente il valore JSON ottenuto, deserializzato. La **stessa stringa originale** viene passata al parametro JSONB nella query atomica. In questo modo la verifica della dimensione coincide con il contenuto che PostgreSQL riceve, anche per valori con `Date` o `toJSON`. In modalità legacy il percorso non è modificato.
 
 La regressione usa esclusivamente valori inventati e un client SQL simulato: oggetto con `toJSON` ereditato sovradimensionato, serializzatore mutevole, serializzazione `undefined`, e caso positivo con `Date` serializzata. Non implica cambiamenti al database, riscritture di eventi esistenti, modifiche a B2 o decisioni sulla DPIA. Questa correzione **non** dimostra completezza/freschezza della cronologia esterna.
+
+
+## Confronto indipendente dell'identità della ricevuta B2
+
+Dopo `verifyArchivedReceipt`, il gate offline `verifyOutboxRecoveryReadiness` ora confronta **nuovamente** i campi `versionId` e `sha256` restituiti dall'esportatore con i valori della ricevuta presente nell'outbox. Un adattatore B2 difettoso, sostituito o incompleto potrebbe altrimenti restituire soltanto una scadenza COMPLIANCE formalmente valida; non è sufficiente a certificare che sia stata verificata la **versione esatta** dell'evento.
+
+Se uno dei campi è assente o non coincide, la verifica fallisce, la transazione read-only termina con `ROLLBACK` e il gate non restituisce `ready=true`. I controlli di scadenza Object Lock, SHA e contenuto già eseguiti nel journal reale restano obbligatori; il nuovo confronto è una difesa aggiuntiva, non li sostituisce.
+
+I test sintetici coprono: campi mancanti, VersionId diverso, SHA-256 diverso e una ricevuta priva di SHA, tutti con rollback e senza commit. I mock già presenti ora restituiscono anche l'identità della versione che affermano di aver letto. Nessun collegamento a B2 reale, migrazione o modifica ai dati.
+
+**Limite:** anche una ricevuta coerente non certifica che non esistano eventi persi prima della persistenza esterna. Rimangono necessari checkpoint indipendente recente, quarantena dell'infrastruttura e approvazioni DPIA/titolare/DPO.
