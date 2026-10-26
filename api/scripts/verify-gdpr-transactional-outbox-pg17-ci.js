@@ -101,8 +101,29 @@ async function main() {
     );
     assert.deepEqual(afterSchema.rows[0],{ledger:null,outbox:null},
       'GDPR request must not create any database schema');
-    // The explicit legacy/bootstrap path remains supported.
+    // Even the legacy outbox-disabled write path must fail before creating
+    // the missing public GDPR ledger on a user-facing request.
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED='false';
+    try {
+      await assert.rejects(
+        Ledger.recordEvent(pool,syntheticEvent()),error=>error.code==='42P01'
+      );
+      const afterLegacy=await pool.query(
+        "SELECT to_regclass('public.privacy_erasure_ledger') AS ledger, " +
+        "to_regclass('public.privacy_erasure_delivery_outbox') AS outbox"
+      );
+      assert.deepEqual(afterLegacy.rows[0],{ledger:null,outbox:null},
+        'legacy GDPR request must never create an unprotected ledger');
+    } finally {
+      process.env.GDPR_ERASURE_OUTBOX_ENABLED='true';
+    }
+    // Explicit offline/bootstrap provisioning is still supported.
     await Ledger.ensureTable(pool);
+    assert.equal(await value(pool,`
+      SELECT c.relrowsecurity::int FROM pg_catalog.pg_class c
+      JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relname='privacy_erasure_ledger'
+    `),1,'GDPR ledger must be RLS-protected at first committed creation');
 
     const notInstalled=await PrivacyErasureOutboxWorker.status(pool);
     assert.equal(notInstalled.installed,false);
@@ -154,6 +175,35 @@ async function main() {
       'GRANT SELECT, INSERT, UPDATE, DELETE ON public.privacy_erasure_delivery_outbox ' +
       'TO anon, authenticated, service_role'
     );
+    // Maintenance may encounter an old ledger with insecure privileges.
+    // Hardening must be idempotent and must preserve the legacy event.
+    await pool.query(
+      'GRANT SELECT, INSERT, UPDATE, DELETE ON public.privacy_erasure_ledger ' +
+      'TO anon, authenticated, service_role'
+    );
+    assert.equal(await value(pool,`
+      SELECT count(*)::int FROM pg_catalog.pg_roles r
+      WHERE r.rolname IN ('anon','authenticated','service_role')
+        AND has_table_privilege(r.rolname,'public.privacy_erasure_ledger','SELECT')
+    `),3,'synthetic fixture must prove public ledger grants were applied');
+    await Ledger.ensureTable(pool);
+    assert.equal(await value(pool,`
+      SELECT count(*)::int FROM pg_catalog.pg_roles r
+      WHERE r.rolname IN ('anon','authenticated','service_role')
+        AND (
+          has_table_privilege(r.rolname,'public.privacy_erasure_ledger','SELECT') OR
+          has_table_privilege(r.rolname,'public.privacy_erasure_ledger','INSERT') OR
+          has_table_privilege(r.rolname,'public.privacy_erasure_ledger','UPDATE') OR
+          has_table_privilege(r.rolname,'public.privacy_erasure_ledger','DELETE')
+        )
+    `),0,'ledger bootstrap must revoke every API role privilege');
+    assert.equal(await value(pool,`
+      SELECT c.relrowsecurity::int FROM pg_catalog.pg_class c
+      JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relname='privacy_erasure_ledger'
+    `),1,'ledger RLS must remain active during maintenance');
+    assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_ledger'),1,
+      'ledger maintenance hardening must preserve the historical event');
     assert.equal(await value(pool,`
       SELECT count(*)::int FROM pg_catalog.pg_roles r
       WHERE r.rolname IN ('anon','authenticated','service_role')

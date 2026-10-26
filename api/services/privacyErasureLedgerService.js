@@ -19,6 +19,9 @@ class PrivacyErasureLedgerService {
   }
 
   static async ensureTable(client) {
+    // Explicit maintenance/legacy-bootstrap helper. CREATE + RLS + REVOKE
+    // must be in ONE PostgreSQL command, so an exposed table never commits.
+    // Do NOT invoke provisioning on a live user-facing request.
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.privacy_erasure_ledger (
         event_key TEXT PRIMARY KEY,
@@ -30,7 +33,24 @@ class PrivacyErasureLedgerService {
         )),
         occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         details JSONB NOT NULL DEFAULT '{}'::jsonb
-      )
+      );
+      -- Provision the GDPR ledger as a single transactional block: the table
+      -- must never commit in public without RLS and restricted API grants.
+      ALTER TABLE public.privacy_erasure_ledger ENABLE ROW LEVEL SECURITY;
+      REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM PUBLIC;
+      DO $gdpr_ledger_privileges$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='anon') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM anon;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticated') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM authenticated;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='service_role') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM service_role;
+        END IF;
+      END
+      $gdpr_ledger_privileges$;
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_privacy_erasure_ledger_subject_time
@@ -109,12 +129,10 @@ class PrivacyErasureLedgerService {
 
     const outboxEnabled = this.outboxEnabled();
 
-    // Never execute DDL from a user-facing GDPR request in outbox mode.
-    // Both ledger and delivery tables must be installed/backfilled during
-    // an approved maintenance operation. A missing relation fails closed.
-    if (!outboxEnabled) {
-      await this.ensureTable(client);
-    }
+    // Never execute DDL from ANY user-facing GDPR request, including legacy.
+    // Both modes require intentional pre-installation. A missing table fails
+    // closed instead of creating an exposed public relation in the middle of
+    // an account deletion or consent revocation.
     const eventKey = crypto.randomUUID();
     const subjectUserId = String(userId);
     const detailsJson = JSON.stringify(details);
