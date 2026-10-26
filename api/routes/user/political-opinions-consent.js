@@ -88,7 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
     
     // Salva il consenso esplicito
     const updateQuery = `
-      UPDATE public.users 
+      UPDATE public.users
       SET 
         political_opinions_consent = $1,
         political_opinions_consent_timestamp = NOW(),
@@ -210,7 +210,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
     
     // Revoca il consenso
     const updateQuery = `
-      UPDATE public.users 
+      UPDATE public.users
       SET 
         political_opinions_consent = false,
         political_opinions_consent_timestamp = NULL,
