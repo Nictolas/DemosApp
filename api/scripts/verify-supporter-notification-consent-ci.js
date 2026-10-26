@@ -68,6 +68,12 @@ async function main() {
       'CREATE INDEX idx_user_devices_user_active_ci ' +
       'ON public.user_devices(user_id,is_active)'
     );
+    // Probe the same btree access path as the migration's UNIQUE(fcm_token).
+    // CI creates a disposable index inside the rollback-only transaction.
+    await client.query(
+      'CREATE UNIQUE INDEX idx_user_devices_token_exact_ci ' +
+      'ON public.user_devices(fcm_token)'
+    );
     await client.query('CREATE TEMP TABLE users (id uuid PRIMARY KEY, status text NOT NULL, political_opinions_consent boolean, fcm_tokens text[] DEFAULT ARRAY[]::text[], rappresentante_camera uuid)');
     await client.query('CREATE TEMP TABLE user_consents (user_id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE political_selections (user_id uuid, selection_kind text, political_office_id text, selected_user_id uuid)');
@@ -267,16 +273,54 @@ async function main() {
     }),true);
     console.log('SUPPORTER_DEVICE_ACTIVE_INDEX_PLAN_PG17_PASS');
 
+    // A direct equality probe can use the btree index already provided
+    // by the canonical UNIQUE(fcm_token) migration. The service SQL must
+    // use that probe first, and still retain btrim normalization on a miss.
+    const assertIndexedExactProbe = { async query(sql,params) {
+      const statement=String(sql);
+      if(!statement.startsWith('SELECT EXISTS')) return pg.query(sql,params);
+      assert.match(statement,/registered\.fcm_token = \$2/);
+      assert.match(statement,/btrim\(registered\.fcm_token\) = \$2/);
+      assert.match(statement,/WHEN EXISTS\s*\([\s\S]*THEN FALSE\s*ELSE NOT EXISTS/);
+      await client.query('SAVEPOINT synthetic_exact_fcm_plan');
+      try {
+        await client.query('SET LOCAL enable_seqscan = off');
+        const plan=await client.query(
+          'EXPLAIN (FORMAT JSON) SELECT 1 FROM public.user_devices registered ' +
+          'WHERE registered.fcm_token=$1',[params[1]]
+        );
+        const nodes=[];
+        const visit=(node)=>{nodes.push(node);for(const child of node.Plans||[]) visit(child);};
+        visit(plan.rows[0]['QUERY PLAN'][0].Plan);
+        assert.ok(nodes.some(node=>
+          /Index/.test(node['Node Type']||'') &&
+          node['Index Name']==='idx_user_devices_token_exact_ci' &&
+          /fcm_token/.test(node['Index Cond']||'')
+        ),'exact canonical FCM lookup must support unique token btree index; observed: ' +
+          JSON.stringify(nodes.filter(n=>/Index/.test(n['Node Type']||'')).map(n=>({
+            type:n['Node Type'],name:n['Index Name'],condition:n['Index Cond']
+          }))));
+      } finally {
+        await client.query('ROLLBACK TO SAVEPOINT synthetic_exact_fcm_plan');
+        await client.query('RELEASE SAVEPOINT synthetic_exact_fcm_plan');
+      }
+      return pg.query(sql,params);
+    } };
+    assert.equal(await isCurrentSupporterTokenEligible(assertIndexedExactProbe,{
+      userIds:[granted],token:'device-granted'
+    }),true);
+    console.log('SUPPORTER_FCM_EXACT_INDEX_PLAN_PG17_PASS');
+
     // A stale legacy token must NEVER resurrect a canonical inactive row,
     // nor misattribute a token registered to another user. Whitespace
     // conflicts deliberately exercise the same normalized FCM token.
     await client.query(
-      "UPDATE public.users SET fcm_tokens=ARRAY['token-granted',' inactive-device ','moved-device'] " +
+      "UPDATE public.users SET fcm_tokens=ARRAY['token-granted',' inactive-device ','moved-device','padded-inactive'] " +
       'WHERE id=$1',[granted]
     );
     await client.query(
       "INSERT INTO public.user_devices(user_id,is_active,fcm_token) " +
-      "VALUES ($1,true,'moved-device')",[subject]
+      "VALUES ($1,true,'moved-device'),($2,false,' padded-inactive ')",[subject,granted]
     );
     const conflicting=await loadCurrentSupporterTokens(pg,{
       subjectUserId:subject,kind:'representative',level:'CAMERA'
@@ -287,6 +331,9 @@ async function main() {
     assert.deepEqual(conflictingTokens.get(granted).sort(),
       ['device-granted','token-granted'].sort(),
       'registered canonical device rows override same-token legacy copies');
+    assert.equal(await isCurrentSupporterTokenEligible(pg,{
+      userIds:[granted],token:'padded-inactive'
+    }),false,'normalized slow fallback must suppress padded canonical inactive token');
     assert.equal(await isCurrentSupporterTokenEligible(pg,{
       userIds:[granted],token:'inactive-device'
     }),false,'inactive registered device cannot be revived through legacy array');
@@ -303,8 +350,10 @@ async function main() {
       [granted]
     );
     await client.query(
-      "DELETE FROM public.user_devices WHERE user_id=$1 AND fcm_token='moved-device'",
-      [subject]
+      "DELETE FROM public.user_devices WHERE " +
+      "(user_id=$1 AND fcm_token='moved-device') OR " +
+      "(user_id=$2 AND fcm_token=' padded-inactive ')",
+      [subject,granted]
     );
     console.log('SUPPORTER_DEVICE_OVERRIDES_LEGACY_PG17_PASS');
 
