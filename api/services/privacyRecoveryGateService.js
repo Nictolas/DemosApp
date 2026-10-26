@@ -305,6 +305,7 @@ async function reconcileRestoredPrivacyState({
 }
 
 module.exports = {
+  normalizeEvent,
   normalizePayload,
   signature,
   manifestDigest,
