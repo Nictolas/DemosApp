@@ -271,6 +271,40 @@ async function main(){
     assert.match(opinionUpdates[0].sql,/SET "energia_nucleare" = \$1 WHERE user_id = \$2/);
     assert.deepEqual(opinionUpdates[0].params,['c',ID]);
 
+    // Revocation and a repeated, no-op save must still serialize. Skipping
+    // an UPDATE must never skip the users-row consent lock.
+    await reset();
+    blocked=null;
+    assert.equal((await save()).status,200);
+    opinionUpdates.length=0;
+    blocked={phase:'save',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    const noOpBeforeRevoke=save();
+    await timeout(blocked.locked.promise);
+    const revokeAfterNoOp=revoke();
+    await timeout(blocked.contender.promise);
+    blocked.resume.resolve();
+    const noOpResult=await timeout(noOpBeforeRevoke);
+    assert.equal(noOpResult.status,200);
+    assert.equal((await noOpResult.json()).savedCount,1);
+    assert.equal((await timeout(revokeAfterNoOp)).status,200);
+    assert.equal(opinionUpdates.length,0,'no-op save must not create an UPDATE');
+    assert.deepEqual(await inspect(),{consent:false,override:false,answer:null});
+
+    await reset();
+    blocked=null;
+    assert.equal((await save()).status,200);
+    blocked={phase:'revoke',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    const revokeBeforeNoOp=revoke();
+    await timeout(blocked.locked.promise);
+    const noOpAfterRevoke=save();
+    await timeout(blocked.contender.promise);
+    blocked.resume.resolve();
+    assert.equal((await timeout(revokeBeforeNoOp)).status,200);
+    const deniedNoOp=await timeout(noOpAfterRevoke);
+    assert.equal(deniedNoOp.status,403);
+    assert.equal((await deniedNoOp.json()).consent_required,true);
+    assert.deepEqual(await inspect(),{consent:false,override:false,answer:null});
+
     // The admin route must observe the same serialization guarantees.
     await reset();
     blocked={phase:'save',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
@@ -367,7 +401,7 @@ async function main(){
 
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_REAL_PG17_PASS');
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_RESULT_JSON='+JSON.stringify({
-      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','http-multi-new-fields','http-noop-delta','http-single-column-update','http-legacy-flat-payload','admin-before-revoke','revoke-before-admin','referendum-before-revoke','revoke-before-referendum','referendum-with-active-consent','legacy-referendum-before-revoke','revoke-before-legacy-referendum','legacy-referendum-with-active-consent','legacy-referendum-replacement-rollback'],
+      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','http-multi-new-fields','http-noop-delta','http-single-column-update','http-legacy-flat-payload','noop-before-revoke','revoke-before-noop','admin-before-revoke','revoke-before-admin','referendum-before-revoke','revoke-before-referendum','referendum-with-active-consent','legacy-referendum-before-revoke','revoke-before-legacy-referendum','legacy-referendum-with-active-consent','legacy-referendum-replacement-rollback'],
       postRevocationPersistedAnswers:0, unauthorizedWrites:0,
       isolated:true,productionUntouched:true
     }));
