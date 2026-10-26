@@ -10,7 +10,20 @@ class PrivacyErasureOutboxWorker {
     this.env = env;
     this.exporter = exporter || new PrivacyErasureB2Journal({ env });
   }
+  // Local defence-in-depth only. An environment variable does not prove
+  // that OTHER Render instances, Supabase Data API or workers are isolated.
+  // An authorized offline recovery exporter needs a separate reviewed
+  // procedure; never add an environment-only bypass here.
+  assertNotInRecovery() {
+    const mode = this.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
+    if (mode !== undefined && mode !== 'false') {
+      throw Error('GDPR outbox worker blocked during recovery maintenance');
+    }
+  }
   validate() {
+    // Apply the same fail-closed semantics as the HTTP maintenance middleware,
+    // before exporter configuration, PostgreSQL or any network calls.
+    this.assertNotInRecovery();
     if (this.env.GDPR_ERASURE_OUTBOX_ENABLED !== 'true' ||
         this.env.GDPR_ERASURE_OUTBOX_WORKER_ENABLED !== 'true') {
       throw Error('GDPR erasure outbox worker is disabled');
@@ -29,6 +42,8 @@ class PrivacyErasureOutboxWorker {
     try {
       await client.query('BEGIN');
       inTransaction = true;
+      // The maintenance switch may have changed while acquiring a client.
+      this.assertNotInRecovery();
       // Every worker reads only pending rows; no timestamp cursor that can
       // permanently miss a concurrently committed or delayed event.
       const result = await client.query(
@@ -41,10 +56,16 @@ class PrivacyErasureOutboxWorker {
       );
       let delivered = 0;
       for (const event of result.rows) {
+        // A switch while selecting rows must stop BEFORE issuing B2 PUT.
+        this.assertNotInRecovery();
         // This network call happens while holding only the pending row lock.
         // A crash after B2 PUT but before COMMIT leaves the row pending;
         // B2 archiveEvent() checks the immutable same-key version on retry.
         const archived = await this.exporter.archiveEvent(event);
+        // A recovery switch can occur during the remote readback/PUT.
+        // In that case leave the delivery row pending in PostgreSQL; a
+        // later approved retry can reuse the exact immutable B2 version.
+        this.assertNotInRecovery();
         if (archived.eventKey !== event.event_key ||
             !/^[0-9a-f]{64}$/.test(archived.sha256 || '') ||
             typeof archived.versionId !== 'string' ||
@@ -63,6 +84,9 @@ class PrivacyErasureOutboxWorker {
         }
         delivered++;
       }
+      // Recheck before committing the entire batch; an external switch
+      // between this check and COMMIT still requires infrastructure freeze.
+      this.assertNotInRecovery();
       await client.query('COMMIT');
       inTransaction = false;
       return { delivered, moreMayRemain: delivered === limit };
