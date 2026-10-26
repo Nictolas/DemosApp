@@ -41,6 +41,9 @@ test('notification insert targets users resolved by canonical current selections
   assert.match(calls[0].sql, /FROM public\.political_selections ps/);
   const insert = calls.find((call) => /INSERT INTO public\.political_opinion_notifications/.test(call.sql));
   assert.match(insert.sql, /supporter\.id::text = ANY\(\$6::text\[\]\)/);
+  assert.match(insert.sql, /FROM public\.users supporter/);
+  assert.match(insert.sql, /LEFT JOIN public\.user_consents uc/);
+  assert.match(calls[1].sql, /FROM public\.opinioni_domande/);
   assert.deepEqual(insert.params[5], ['supporter-1', 'supporter-2']);
   assert.doesNotMatch(insert.sql, /rappresentante_|candidato_|FROM\s+sostenitori\b/i);
 });
