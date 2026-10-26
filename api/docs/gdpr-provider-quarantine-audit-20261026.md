@@ -67,3 +67,38 @@ Questi controlli verificano **soltanto la coerenza delle date dichiarate dall'op
 Il controllo offline aggiuntivo `api/services/privacyRecoveryOriginalEvidenceGate.js` confronta le impronte SHA-256 dei **byte originali** forniti da un operatore autorizzato con i digest contenuti nelle 15 attestazioni verificate con Ed25519. Verifica prima firme, chiavi indipendentemente autorizzate, coerenza temporale e completezza. Un singolo documento mancante, manomesso, vuoto, fornito come testo/base64 invece di Buffer o riutilizzato per controlli separati produce `NO_GO`. Rifiuta anche campi estranei, getter e file oltre 4 MiB ciascuno / 16 MiB in aggregato (limiti difensivi per l'analisi offline). I risultati includono **solo contatori e codici di errore non sensibili**, non i documenti originali.
 
 **Limite fondamentale:** l'applicazione non scarica né autentica autonomamente documenti da Render o Supabase. Devono essere acquisiti tramite canale provider attendibile e preservati senza conversione, normalizzazione del testo o screenshot manipolati. Il modulo può dimostrare che i byte esaminati corrispondono al digest **firmato**, ma non prova che quei byte siano veramente originari del provider o che attestino un isolamento valido. La catena di fiducia degli attestatori, le restrizioni provider reali, le versioni B2 e l'indipendenza/freschezza del ledger devono essere verificate separatamente. **Il miglior esito resta `MANUAL_INDEPENDENT_REVIEW_REQUIRED`, mai GO**. Nessun accesso ai provider né ripristino operativo.
+
+
+## Seconda ricognizione provider in sola lettura (26 ottobre 2026)
+
+**Dati osservati:** connettori ufficiali Render `list_services(includePreviews=true)` e Supabase `get_advisors(type=security)`, `list_edge_functions`, `list_extensions`. Nessuna credenziale, query su righe utenti, modifica dei servizi, rotazione o richiesta di restore. La ricognizione è un'istantanea **ante-quarantena**: non si può riutilizzarla come prova di isolamento operativo.
+
+### Render: perimetro dei deploy
+
+| Gruppo | Servizi rilevati | Stato osservato | Implicazione per recovery |
+| --- | --- | --- | --- |
+| Produzione (API) | `demos-backend` | branch `main`, `rootDir=api`, `autoDeploy=yes`, non sospeso, manutenzione Render web disattivata | Verificare il blocco di ingress, dei job già avviati e dei redeploy automatici durante l'intero recovery |
+| Produzione (web) | `demos-frontend` | branch `main`, `rootDir=client`, `autoDeploy=yes`, non sospeso | Isolare anche client e cache che potrebbero continuare a inviare richieste; il sito statico non equivale al DB |
+| Staging e sonde | 9 altri servizi (sondaggi OP37, B2 readonly, outbox readonly, P07 dry-run, first four playbooks, action-runner sandbox, security gates, functional staging, security staging) | tutti `autoDeploy=no`, non sospesi; manutenzione web disattivata dove applicabile; `demos-security-gates-staging` segue `main` | `autoDeploy=no` non significa processi arrestati né credenziali isolate. Verificare per **ciascuna istanza** se possiede URL/token/connessioni di produzione, senza esportare segreti |
+| Tutto il workspace Render | 11 servizi (10 web service, 1 static site) | tutti attivi/non sospesi nell'istante della verifica | Non è stata attestata alcuna quarantena in corso |
+
+**Assenza di conferma:** nessuno dei comandi di lettura utilizzati espone in modo attestabile una matrice affidabile `servizio → destinazione DATABASE_URL/SUPABASE_URL` senza gestione protetta dei segreti. Il vero collegamento staging/produzione resta `UNKNOWN` e non può essere dedotto dal nome, dal ramo Git, da un banner `readonly` o dalla documentazione della sonda. Render web maintenance non interrompe necessariamente connessioni SQL già aperte. I controlli sopra sono una fotografia, non una validazione del comportamento a servizi fermati.
+
+### Supabase: risultati di sicurezza e scheduler
+
+| Controllo | Produzione `Demos` | `Demos-Staging` | Interpretazione |
+| --- | --- | --- | --- |
+| Edge Functions via API amministrativa | **0** | **0** | Nessuna Edge Function registrata al momento della richiesta; non esclude client, storage, Auth, Realtime o altri worker |
+| Estensioni `pg_cron` / `pg_net` installate | **0 / 0** | **0 / 0** | Nessun job che dipenda da tali estensioni installate rilevato; non esclude trigger o schedulazioni esterne |
+| Advisor security: `rls_enabled_no_policy` | `INFO`: **112** tabelle | Nessun avviso | Tutte le tabelle `public` osservate hanno RLS; nessuna policy è indicata dal linter. **Non è automaticamente una vulnerabilità**: con RLS senza policy, l'accesso dei ruoli soggetti a RLS è normalmente negato. La scelta può essere intenzionale per un backend con credenziali privilegiate |
+| Advisor security: `extension_in_public` | `WARN`: **3** (`pg_stat_statements`, `pgcrypto`, `unaccent`) | Nessun avviso | Hardening potenziale da valutare separatamente, senza spostamenti/rimozioni di estensioni in produzione |
+| Switch *Enable Data API* e accesso RPC pubblico | **NON VERIFICATO** | **NON VERIFICATO** | Gli advisor e i cataloghi SQL **non** attestano lo stato dell'interruttore Dashboard, né il comportamento dei singoli endpoint |
+| Isolamento connessioni PostgreSQL dirette e pooler | **NON VERIFICATO** | **NON VERIFICATO** | Un conteggio momentaneo delle sessioni non prova il blocco del collegamento, né l'assenza futura di nuovi client |
+
+Documentazione degli avvisi Supabase: [RLS senza policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) e [estensioni nello schema public](https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public).
+
+### Checkpoint GO/NO-GO dopo la ricognizione
+
+- **Migliorata la conoscenza del perimetro, non lo stato della quarantena.** Si sono identificati 11 servizi, 2 auto-deploy di produzione, 0 Edge Functions e 0 scheduler `pg_cron/pg_net` installati. Questa scoperta non attesta alcun arresto.
+- **Ancora obbligatori per un GO operativo:** conferma separata dello stato e dell'isolamento della Data API, mappatura attestata dei collegamenti staging→DB di produzione, quarantena/rete/pooler/worker, prova di assenza di scritture in volo e di nuove scritture, attestazione indipendente della completezza degli eventi GDPR, ricevute B2 immutabili e approvazione titolare/DPO.
+- **Verdetto: NO-GO.** Nessun dato di questa sezione può essere usato come `verified: true` nelle 15 attestazioni di quarantena: le condizioni di isolamento non sono state materialmente esercitate.
