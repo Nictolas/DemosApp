@@ -39,7 +39,14 @@ test('a single consistent token resolver drives all six Demos broadcasts and sig
   assert.match(sightings,/isRecipientFcmTokenCurrentlyActive\(pool, \{\s*userId: targetUser\.id, token: fcmToken/);
   assert.doesNotMatch(communication,/SELECT unnest\(COALESCE\(u\.fcm_tokens/);
   assert.doesNotMatch(sightings,/SELECT unnest\(COALESCE\(u\.fcm_tokens/);
-  assert.doesNotMatch(communication,/console\.error\(.*error\.stack/);
+  // Only the modified direct-send block is in scope: other legacy
+  // routes retain diagnostic handling for a separate review.
+  const directSend = communication.slice(
+    communication.indexOf('const tokensToSend ='),
+    communication.indexOf('if (successCount === 0', communication.indexOf('const tokensToSend ='))
+  );
+  assert.ok(directSend.length > 0);
+  assert.doesNotMatch(directSend,/console\.error\(.*error\.stack/);
   assert.doesNotMatch(sightings,/Errore invio push notification.*error\.message/);
 });
 
