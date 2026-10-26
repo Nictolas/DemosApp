@@ -5,6 +5,7 @@ on:
     paths:
       - 'api/app.js'
       - 'api/middleware/privacyRecoveryMaintenance.js'
+      - 'api/services/privacyOutboxRecoveryReadiness.js'
       - 'api/services/privacyRecoveryGateService.js'
       - 'api/services/privacyErasureLedgerService.js'
       - 'api/services/politicalConsentService.js'
