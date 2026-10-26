@@ -408,6 +408,26 @@ class PrivacyErasureLedgerService {
   static async applyCurrentPrivacyState(client) {
     await this.ensureTable(client);
 
+    // Fail BEFORE deleting any account or political data if historical
+    // grants and revocations share a timestamp. event_key is a random UUID,
+    // not a reliable ordering of consent, and cannot resolve this tie.
+    // This guard also protects direct ledger replay callers (not only the
+    // signed-manifest recovery entry point).
+    const ambiguousConsent = await client.query(`
+      SELECT EXISTS (
+        SELECT 1
+        FROM privacy_erasure_ledger revoked
+        JOIN privacy_erasure_ledger granted
+          ON granted.subject_user_id = revoked.subject_user_id
+         AND granted.occurred_at = revoked.occurred_at
+        WHERE revoked.event_type = 'political_consent_revoked'
+          AND granted.event_type = 'political_consent_granted'
+      ) AS present
+    `);
+    if (ambiguousConsent.rows[0]?.present !== false) {
+      throw Error('Ambiguous simultaneous GDPR consent grant and revocation in ledger');
+    }
+
     const accountEvents = await client.query(`
       SELECT DISTINCT subject_user_id
       FROM privacy_erasure_ledger
