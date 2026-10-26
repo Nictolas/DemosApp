@@ -82,6 +82,45 @@ async function clearLegacyUserOpinionColumns(db, userId) {
   return update.rowCount > 0 ? columns.length : 0;
 }
 
+// Le scelte personali di candidati/rappresentanti non sono mandati pubblici.
+// Le proiezioni legacy devono essere cancellate, non solo nascoste nei GET,
+// altrimenti ricompaiono se l'utente concede nuovamente il consenso.
+async function clearPersonalPoliticalSelections(db, userId) {
+  const { getLegacySelectionFields } = require('./politicalJurisdictionRegistryService');
+  const selectionFields = getLegacySelectionFields('both');
+  const deletedByTable = {};
+  let totalDeleted = 0;
+
+  for (const table of ['political_selections', 'user_representatives']) {
+    const deleted = await PrivacyErasureLedgerService.deleteByAnyColumn(
+      db, table, ['user_id'], userId
+    );
+    if (deleted > 0) deletedByTable[table] = deleted;
+    totalDeleted += deleted;
+  }
+
+  const result = await db.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'users'
+      AND column_name = ANY($1::text[])
+  `, [selectionFields]);
+  const available = new Set(result.rows.map(row => row.column_name));
+  const assignments = selectionFields.filter(field => available.has(field)).map(
+    field => `${PrivacyErasureLedgerService.quoteIdentifier(field)} = NULL`
+  );
+  let legacySelectionsCleared = 0;
+  if (assignments.length > 0) {
+    const updated = await db.query(
+      `UPDATE users SET ${assignments.join(', ')}, updated_at = NOW() WHERE id = $1`,
+      [userId]
+    );
+    legacySelectionsCleared = updated.rowCount > 0 ? assignments.length : 0;
+  }
+  return { totalDeleted, deletedByTable, legacySelectionsCleared };
+}
+
 async function clearPendingProposalLink(db, userId) {
   if (!(await PrivacyErasureLedgerService.tableHasColumn(db, 'users', 'opinione_proposta_id'))) {
     return 0;
@@ -110,6 +149,10 @@ async function cleanupConsentScopedPoliticalData(db, userId) {
     totalDeleted += deleted;
   }
 
+  const personalSelections = await clearPersonalPoliticalSelections(db, userId);
+  totalDeleted += personalSelections.totalDeleted;
+  Object.assign(deletedByTable, personalSelections.deletedByTable);
+
   const legacyOpinionColumnsCleared = await clearLegacyUserOpinionColumns(db, userId);
   const proposalLinksCleared = await clearPendingProposalLink(db, userId);
 
@@ -117,7 +160,8 @@ async function cleanupConsentScopedPoliticalData(db, userId) {
     totalDeleted,
     deletedByTable,
     legacyOpinionColumnsCleared,
-    proposalLinksCleared
+    proposalLinksCleared,
+    legacySelectionsCleared: personalSelections.legacySelectionsCleared
   };
 }
 
@@ -127,5 +171,6 @@ module.exports = {
   getPoliticalConsentState,
   clearLegacyUserOpinionColumns,
   clearPendingProposalLink,
+  clearPersonalPoliticalSelections,
   cleanupConsentScopedPoliticalData
 };
