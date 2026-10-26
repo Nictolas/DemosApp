@@ -61,8 +61,18 @@ class PrivacyOfflineRecoveryExporter {
     let open = false;
     try {
       this.assertQuarantine();
-      await client.query('BEGIN');
+      await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ');
       open = true;
+      // Fail closed if ANY other transaction is writing ledger/outbox. A
+      // signed snapshot comparison is unsafe while rows can change between
+      // verification and B2 PUT. NOWAIT avoids waiting behind a live writer;
+      // both locks are transaction-scoped and released on COMMIT/ROLLBACK.
+      // This is NOT a substitute for freezing other application tables or
+      // every Supabase/Render ingress at the infrastructure level.
+      await client.query(
+        'LOCK TABLE privacy_erasure_ledger, privacy_erasure_delivery_outbox ' +
+        'IN SHARE ROW EXCLUSIVE MODE NOWAIT'
+      );
       await client.query('SELECT pg_advisory_xact_lock(170026, 296)');
       const schema = await client.query(
         "SELECT to_regclass('public.privacy_erasure_ledger') IS NOT NULL AS ledger, " +
@@ -72,22 +82,36 @@ class PrivacyOfflineRecoveryExporter {
         throw Error('Offline GDPR export requires preinstalled ledger and outbox');
       }
 
-      // Do not PUT any object if the restored database has incomplete or
-      // unapproved history or orphaned delivery records. This is only local
-      // consistency: the trusted external authority still must prove freshness.
-      const keys = approved.events.map(event => event.event_key);
-      const unexpected = await client.query(
-        'SELECT EXISTS (SELECT 1 FROM privacy_erasure_ledger ' +
-        'WHERE NOT (event_key = ANY($1::text[]))) AS present', [keys]
-      );
-      if (unexpected.rows[0]?.present !== false) {
-        throw Error('Restored GDPR ledger contains events outside approved manifest');
+      // Compare ALL ledger contents, including previously delivered events,
+      // to the independently approved manifest BEFORE the first B2 PUT.
+      // Key/count-only checks would miss a modified delivered event with the
+      // same UUID; checking only pending rows is insufficient. Read in pages
+      // to avoid fetching up to 100k sensitive events in a single SQL result.
+      // The table locks + REPEATABLE READ hold the verified history stable.
+      const unseen = new Map(approved.events.map(e => [e.event_key, e]));
+      let cursor = '';
+      for (;;) {
+        this.assertQuarantine();
+        const page = await client.query(
+          'SELECT event_key, subject_user_id, event_type, occurred_at, details ' +
+          'FROM privacy_erasure_ledger ' +
+          'WHERE event_key > $1 ORDER BY event_key ASC LIMIT $2',
+          [cursor, 250]
+        );
+        if (page.rows.length === 0) break;
+        for (const row of page.rows) {
+          const expected = unseen.get(row.event_key);
+          if (!expected) {
+            throw Error('Restored GDPR ledger contains events outside approved manifest');
+          }
+          if (JSON.stringify(normalizeEvent(row)) !== JSON.stringify(expected)) {
+            throw Error('Restored GDPR ledger event differs from approved external manifest');
+          }
+          unseen.delete(row.event_key);
+          cursor = row.event_key;
+        }
       }
-      const missing = await client.query(
-        'SELECT count(*)::int AS n FROM privacy_erasure_ledger ' +
-        'WHERE event_key = ANY($1::text[])', [keys]
-      );
-      if (missing.rows[0]?.n !== approved.events.length) {
+      if (unseen.size !== 0) {
         throw Error('Restored GDPR ledger missing approved external events');
       }
       const outboxIntegrity = await client.query(
@@ -114,6 +138,8 @@ class PrivacyOfflineRecoveryExporter {
         'ORDER BY o.queued_at ASC, o.event_key ASC LIMIT $1 ' +
         'FOR UPDATE OF o SKIP LOCKED', [limit]
       );
+      // The complete ledger was already checked under transaction-scoped
+      // table locks; keep the per-pending-row comparison as a final guard.
       const expectedByKey = new Map(approved.events.map(e => [e.event_key, e]));
       let delivered = 0;
       let earliestRetentionUntil = null;
