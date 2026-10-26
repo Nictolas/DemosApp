@@ -12,6 +12,8 @@ const { normalizeEvent, verifySignedManifest, assertIndependentRecoveryCheckpoin
 async function verifyOutboxRecoveryReadiness(client, {
   maintenanceConfirmed = false,
   exporter = new PrivacyErasureB2Journal(),
+  envelope, secret, expectedRecoveryId, expectedManifestDigest,
+  expectedRestoredBackupTakenAt, expectedCapturedAt,
   maxEvents = 100000,
   pageSize = 100
 } = {}) {
@@ -25,6 +27,15 @@ async function verifyOutboxRecoveryReadiness(client, {
       !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 250) {
     throw Error('Invalid GDPR recovery verification configuration');
   }
+  // An independently pinned manifest is required before DB or B2 access.
+  const approved = verifySignedManifest(envelope, secret, expectedRecoveryId);
+  assertIndependentRecoveryCheckpoint(envelope, {
+    expectedManifestDigest, expectedRestoredBackupTakenAt, expectedCapturedAt
+  });
+  if (approved.events.length > maxEvents) {
+    throw Error('Approved GDPR manifest exceeds verification safety cap');
+  }
+  const unseen = new Map(approved.events.map(event => [event.event_key, event]));
   // Refuse before SQL when B2 is not explicitly configured/available.
   exporter.config();
   let open = false;
