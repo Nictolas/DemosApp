@@ -263,16 +263,21 @@ class PrivacyErasureB2Journal {
     // truncates to milliseconds. Truncating a page cursor can revisit the same
     // row on the next batch (even indefinitely with limit=1).
     // Preserve the exact UTC timestamp text emitted by PostgreSQL.
+    // Accept ONLY the lossless cursor returned by archiveBatch. In
+    // particular, never accept a JS Date or a millisecond-only timestamp:
+    // either would silently truncate PostgreSQL microseconds on resume.
     const cursor = after == null ? null : {
-      occurred_at: after.occurred_at instanceof Date
-        ? after.occurred_at.toISOString() : after.occurred_at,
-      event_key: String(after.event_key || '')
+      occurred_at: after.occurred_at,
+      event_key: after.event_key
     };
-    if (cursor && (!UUID.test(cursor.event_key) ||
+    if (cursor && (typeof cursor.event_key !== 'string' ||
+        !UUID.test(cursor.event_key) ||
         typeof cursor.occurred_at !== 'string' ||
-        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}Z$/.test(cursor.occurred_at) ||
-        !Number.isFinite(Date.parse(cursor.occurred_at)))) {
-      throw Error('Invalid archive cursor');
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(cursor.occurred_at) ||
+        !Number.isFinite(Date.parse(cursor.occurred_at)) ||
+        new Date(cursor.occurred_at).toISOString() !==
+          cursor.occurred_at.slice(0, -4) + 'Z')) {
+      throw Error('Invalid archive cursor: exact six-digit PostgreSQL timestamp required');
     }
     // This query intentionally does not create or mutate database tables.
     // Newly committed events after this snapshot need subsequent batches.
