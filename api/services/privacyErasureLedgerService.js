@@ -419,7 +419,7 @@ class PrivacyErasureLedgerService {
         FROM privacy_erasure_ledger revoked
         JOIN privacy_erasure_ledger granted
           ON granted.subject_user_id = revoked.subject_user_id
-         AND granted.occurred_at = revoked.occurred_at
+         AND date_trunc('milliseconds', granted.occurred_at) =\n             date_trunc('milliseconds', revoked.occurred_at)
         WHERE revoked.event_type = 'political_consent_revoked'
           AND granted.event_type = 'political_consent_granted'
       ) AS present
