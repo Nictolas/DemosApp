@@ -27,13 +27,21 @@ function normalizeEvent(row) {
   }
   // Store only the fields used by the ledger, in stable order, to avoid
   // accidentally signing/exporting unrelated PII from arbitrary row objects.
-  return {
+  const event = {
     event_key: row.event_key,
     subject_user_id: row.subject_user_id,
     event_type: row.event_type,
     occurred_at: timestamp.toISOString(),
     details: canonicalJson(details)
   };
+  // A signed recovery manifest must never authorize events that the
+  // immutable B2 journal cannot archive. The journal enforces the same
+  // 8192-byte canonical JSON cap; reject oversized history before any SQL,
+  // replay, outbox delivery or B2 readback can start.
+  if (Buffer.byteLength(JSON.stringify(event), 'utf8') > 8192) {
+    throw Error('Signed GDPR recovery event exceeds B2 archive limit');
+  }
+  return event;
 }
 function normalizePayload(payload) {
   if (!payload || typeof payload !== 'object' || payload.formatVersion !== FORMAT_VERSION ||
