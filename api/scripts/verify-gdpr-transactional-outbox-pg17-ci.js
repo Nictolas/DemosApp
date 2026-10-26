@@ -5,7 +5,8 @@ const crypto = require('node:crypto');
 const { Pool } = require('pg');
 const Ledger = require('../services/privacyErasureLedgerService');
 const { PrivacyErasureOutboxWorker } = require('../services/privacyErasureOutboxWorker');
-const { PrivacyErasureB2Journal } = require('../services/privacyErasureB2Journal');
+const { PrivacyErasureB2Journal, normalizeEvent: normalizeB2Event } = require('../services/privacyErasureB2Journal');
+const { PrivacyOfflineRecoveryExporter } = require('../services/privacyOfflineRecoveryExporter');
 const { verifyOutboxRecoveryReadiness } = require('../services/privacyOutboxRecoveryReadiness');
 const { signature, manifestDigest } = require('../services/privacyRecoveryGateService');
 
@@ -480,6 +481,88 @@ async function main() {
       'WHERE event_key=$1 AND delivered_at IS NOT NULL',
       [maintenanceEvent.event_key]),1);
 
+    // Separate offline exporter during a quarantined recovery, using ONLY
+    // disposable PG17 and a simulated immutable B2 receipt. The ordinary
+    // worker stays disabled; the public HTTP maintenance flag remains true.
+    const offlinePending=await Ledger.recordEvent(pool,syntheticEvent());
+    await pinSnapshot();
+    const offlineEnv={
+      DEMOS_PRIVACY_RECOVERY_MAINTENANCE:'true',
+      GDPR_ERASURE_OUTBOX_ENABLED:'true',
+      GDPR_ERASURE_RECOVERY_OFFLINE_EXPORT_ENABLED:'true',
+      GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'false'
+    };
+    const offlineObjects=new Map();
+    let offlinePuts=0, configChecks=0, failAfterRemote=true;
+    const offlineExporter={
+      config(){configChecks++;return {bucket:'synthetic-offline-recovery'};},
+      async archiveEvent(row){
+        offlinePuts++;
+        const canonical=normalizeB2Event(row);
+        const sha256=crypto.createHash('sha256')
+          .update(JSON.stringify(canonical)).digest('hex');
+        const previous=offlineObjects.get(row.event_key);
+        const saved=previous||{
+          eventKey:row.event_key,versionId:'synthetic-offline-locked-version',
+          sha256,retentionUntil:new Date(Date.now()+86400000).toISOString()
+        };
+        offlineObjects.set(row.event_key,saved);
+        assert.equal(saved.sha256,sha256);
+        if(failAfterRemote){
+          failAfterRemote=false;
+          // A separate incident operator withdrew local authorization after
+          // a remote immutable PUT, but BEFORE the database ACK was committed.
+          offlineEnv.GDPR_ERASURE_RECOVERY_OFFLINE_EXPORT_ENABLED='false';
+        }
+        return saved;
+      }
+    };
+    const offlineRunner=new PrivacyOfflineRecoveryExporter({
+      env:offlineEnv,exporter:offlineExporter
+    });
+    await assert.rejects(offlineRunner.runOnce(pool,{
+      ...approvedCheckpoint,
+      expectedManifestDigest:'f'.repeat(64),
+      maintenanceConfirmed:true,quarantineConfirmed:true,limit:1
+    }),/freshness checkpoint/);
+    assert.equal(configChecks,0,'stale independent pin must reject before B2');
+    assert.equal(offlinePuts,0);
+    await assert.rejects(offlineRunner.runOnce(pool,{
+      ...approvedCheckpoint,maintenanceConfirmed:true,
+      quarantineConfirmed:true,limit:1
+    }),/requires explicit quarantine/);
+    assert.equal(offlinePuts,1);
+    assert.equal(offlineObjects.size,1,
+      'the remote PUT was completed by the fake exporter');
+    assert.equal(await value(pool,
+      'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox '+
+      'WHERE event_key=$1 AND delivered_at IS NULL',
+      [offlinePending.event_key]),1,
+    'withdrawn recovery authorization must rollback the SQL ACK');
+    // Ordinary workers remain forbidden during maintenance: this is NOT a
+    // switch back to production service and is NOT recovery readiness.
+    const ordinaryDuringFreeze=new PrivacyErasureOutboxWorker({
+      env:{...offlineEnv,GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'true'},
+      exporter:offlineExporter
+    });
+    await assert.rejects(ordinaryDuringFreeze.runOnce(pool),
+      /blocked during recovery maintenance/);
+    offlineEnv.GDPR_ERASURE_RECOVERY_OFFLINE_EXPORT_ENABLED='true';
+    const recovered=await offlineRunner.runOnce(pool,{
+      ...approvedCheckpoint,maintenanceConfirmed:true,
+      quarantineConfirmed:true,limit:1
+    });
+    assert.deepEqual(recovered,{
+      recoveryId:recoveryId,delivered:1,moreMayRemain:true,readyForTraffic:false
+    });
+    assert.equal(offlineObjects.size,1,'retry must reuse same immutable object');
+    assert.equal(await value(pool,
+      'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox '+
+      'WHERE event_key=$1 AND delivered_at IS NOT NULL',
+      [offlinePending.event_key]),1);
+    assert.equal(offlineEnv.DEMOS_PRIVACY_RECOVERY_MAINTENANCE,'true',
+      'the public ingress must remain blocked during offline delivery');
+
     console.log('GDPR_TRANSACTIONAL_OUTBOX_PG17_PASS '+JSON.stringify({
       synthetic:true,transactionRollbackAtomic:true,
       historicalBackfillIdempotent:true,oneStatementAutocommit:true,
@@ -491,6 +574,7 @@ async function main() {
       externalReceiptReadbackRequired:true,remoteTamperRejected:true,
       microsecondExportCursorPg17:true,
       recoveryMaintenanceWorkerAbortPg17:true,
+      isolatedOfflineRecoveryExporterPg17:true,
       productionUntouched:true
     }));
   } finally {
