@@ -7,6 +7,7 @@
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { Pool } = require('pg');
+const Ledger = require('../services/privacyErasureLedgerService');
 const { signature, manifestDigest, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
 const DB = 'privacy_recovery_gate_ci';
 const SUBJECT = '00000000-0000-4000-8000-000000000301';
@@ -91,6 +92,35 @@ async function main() {
     await assert.rejects(reconcileRestoredPrivacyState({
       client:db,envelope:signed,secret:SECRET,expectedRecoveryId:'wrong_session',maintenanceConfirmed:true,...approved
     }),/session/);
+    // A restored DB may contain an event deliberately omitted from an
+    // otherwise correctly signed (and independently pinned) manifest. Never
+    // proceed: the omission is a consistency failure, not permission to
+    // discard the unknown event.
+    await Ledger.ensureTable(db);
+    const omitted = event(THIRD,'political_consent_revoked','2026-10-24T14:00:00Z',
+      {reason:'synthetic-unapproved-snapshot-event'});
+    await db.query(
+      'INSERT INTO privacy_erasure_ledger ' +
+      '(event_key,subject_user_id,event_type,occurred_at,details) ' +
+      'VALUES ($1,$2,$3,$4,$5::jsonb)',
+      [omitted.event_key,omitted.subject_user_id,omitted.event_type,
+        omitted.occurred_at,JSON.stringify(omitted.details)]
+    );
+    await assert.rejects(reconcileRestoredPrivacyState({
+      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,
+      maintenanceConfirmed:true,...approved
+    }),/absent from approved manifest/);
+    assert.equal(Number((await db.query(
+      'SELECT count(*)::int AS n FROM privacy_erasure_ledger WHERE event_key=$1',
+      [omitted.event_key])).rows[0].n),1);
+    assert.equal(await count(db,'political_selections',SUBJECT),1);
+    assert.equal(Number((await db.query(
+      'SELECT count(*)::int AS n FROM privacy_erasure_ledger'
+    )).rows[0].n),1,'failed recovery must not import unapproved ledger');
+    // CI-only cleanup of the injected synthetic inconsistent event.
+    await db.query('DELETE FROM privacy_erasure_ledger WHERE event_key=$1',
+      [omitted.event_key]);
+
     // The signed 2026-10-25 revocation must erase the 2026-10-24 DB snapshot.
     const first=await reconcileRestoredPrivacyState({
       client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
@@ -158,6 +188,7 @@ async function main() {
       synthetic:true,externalHmacVerified:true,revokeAfterBackup:true,
       regrantDoesNotResurrectOldChoices:true,otherUserDataPreserved:true,idempotent:true,
       replayFailureRolledBack:true,maintenanceRequired:true,
+      unapprovedRestoredEventRejected:true,
       productionUntouched:true
     }));
   } catch(error) {
