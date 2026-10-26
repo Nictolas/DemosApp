@@ -808,7 +808,7 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
 
     // Invia la notifica push
     debugLog(`📤 Invio notifica push a Firebase...`);
-    debugLog(`   Token: ${fcmToken.substring(0, 30)}...`);
+    debugLog('   Token FCM: [omesso]');
     debugLog(`   Titolo: ${title}`);
     debugLog(`   Body: ${body}`);
     debugLog(`   Data:`, JSON.stringify(data));
@@ -1053,7 +1053,7 @@ async function notifyAllUsers(titolo, commento) {
         debugLog(`   ${index + 1}. ${utente.email || utente.id} - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
         if (utente.fcm_tokens && utente.fcm_tokens.length > 0) {
           utente.fcm_tokens.forEach((token, tokenIndex) => {
-            debugLog(`      Token ${tokenIndex + 1}: ${token.substring(0, 30)}...`);
+            debugLog(`      Token ${tokenIndex + 1}: [omesso]`);
           });
         }
       });
@@ -1094,7 +1094,6 @@ async function notifyAllUsers(titolo, commento) {
     let pushSuccessCount = 0;
     let pushFailureCount = 0;
 
-    const invalidTokens = []; // Raccogli token non validi da rimuovere
     
     debugLog(`📤 Invio push notifications a ${utentiConPushResult.rows.length} utenti...`);
     debugLog(`📋 Dettagli utenti che riceveranno la notifica:`);
@@ -1111,6 +1110,8 @@ async function notifyAllUsers(titolo, commento) {
     for (const utente of utentiConPushResult.rows) {
       const fcmTokens = utente.fcm_tokens || [];
       const validTokens = [];
+      // Never retry or invalidate tokens belonging to a previous recipient.
+      const invalidTokens = [];
       
       debugLog(`  📱 Utente ${utente.email || utente.id}: ${fcmTokens.length} token(s) FCM`);
       
