@@ -33,7 +33,7 @@ class PrivacyErasureLedgerService {
       )
     `);
     await client.query(`
-      CREATE INDEX IF NOT EXISTS public.idx_privacy_erasure_ledger_subject_time
+      CREATE INDEX IF NOT EXISTS idx_privacy_erasure_ledger_subject_time
       ON public.privacy_erasure_ledger(subject_user_id, occurred_at DESC)
     `);
   }
@@ -56,7 +56,7 @@ class PrivacyErasureLedgerService {
       )
     `);
     await client.query(`
-      CREATE INDEX IF NOT EXISTS public.idx_privacy_erasure_outbox_pending
+      CREATE INDEX IF NOT EXISTS idx_privacy_erasure_outbox_pending
       ON public.privacy_erasure_delivery_outbox (queued_at, event_key)
       WHERE delivered_at IS NULL
     `);
