@@ -176,7 +176,7 @@ async function main() {
       }),0,'maintenance backfill remains idempotent under shadow');
       assert.equal(await value(writerShadow,
         'SELECT count(*)::int FROM public.privacy_erasure_delivery_outbox '+
-        'WHERE event_key=ANY($1::text[])',shadowKeys),3);
+        'WHERE event_key=ANY($1::text[])',[shadowKeys]),3);
       assert.equal(await value(writerShadow,
         'SELECT count(*)::int FROM pg_temp.privacy_erasure_ledger'),0);
       assert.equal(await value(writerShadow,
