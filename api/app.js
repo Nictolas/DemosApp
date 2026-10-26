@@ -535,6 +535,9 @@ app.use((error, req, res, next) => {
   }
 });
 
+// Recovery maintenance must also suppress application-owned periodic jobs.
+// This is not a substitute for pausing other Render workers or provider APIs.
+if (process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE !== 'true') {
 // Avvia sistema di audit logging
 auditManager.start();
 
@@ -632,6 +635,10 @@ if (process.env.ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC === 'true') {
 if (process.env.AXIOM_ARCHIVE_ENABLED === 'true') {
   const axiomArchiveJob = require('./jobs/axiomArchiveJob');
   axiomArchiveJob.start();
+}
+
+} else {
+  console.warn('GDPR recovery maintenance: HTTP blocked and app-owned background jobs disabled');
 }
 
 module.exports = app;
