@@ -270,7 +270,7 @@ class PrivacyErasureB2Journal {
     };
     if (cursor && (!UUID.test(cursor.event_key) ||
         typeof cursor.occurred_at !== 'string' ||
-        !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3,6}Z$/.test(cursor.occurred_at) ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}Z$/.test(cursor.occurred_at) ||
         !Number.isFinite(Date.parse(cursor.occurred_at)))) {
       throw Error('Invalid archive cursor');
     }
@@ -293,7 +293,7 @@ class PrivacyErasureB2Journal {
       // for JSON, but must never be reused as the SQL pagination cursor.
       const exactTimestamp = raw.cursor_occurred_at;
       if (typeof exactTimestamp !== 'string' ||
-          !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$/.test(exactTimestamp) ||
+          !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(exactTimestamp) ||
           !Number.isFinite(Date.parse(exactTimestamp))) {
         throw Error('GDPR archive batch requires exact PostgreSQL timestamp cursor');
       }
