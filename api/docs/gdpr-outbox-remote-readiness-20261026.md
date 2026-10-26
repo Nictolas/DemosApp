@@ -56,3 +56,12 @@ Con `GDPR_ERASURE_OUTBOX_ENABLED=true`, ogni `recordEvent` valida **prima della 
 - La modalità legacy senza outbox non viene modificata da questa PR. Non dimostra completezza o freschezza del checkpoint esterno e non sostituisce la prova di quarantena infrastrutturale.
 
 Test solo con oggetti e client PostgreSQL simulati. Nessun accesso a B2 o a dati reali.
+
+
+## Correzione della divergenza tra JSON preflight e JSON PostgreSQL
+
+Un controllo basato sull'oggetto JavaScript originale non garantisce che i byte validati siano quelli effettivamente inseriti in PostgreSQL. Per esempio un oggetto con metodo `toJSON` ereditato può apparire piccolo all'enumerazione delle proprietà ma produrre un JSON superiore a 8192 byte. Un serializzatore che cambia risposta fra due invocazioni crea lo stesso rischio.
+
+In modalità outbox il codice **serializza i dettagli una sola volta**, rifiuta una serializzazione non valida e sottopone a `PrivacyErasureB2Journal.normalizeEvent` esattamente il valore JSON ottenuto, deserializzato. La **stessa stringa originale** viene passata al parametro JSONB nella query atomica. In questo modo la verifica della dimensione coincide con il contenuto che PostgreSQL riceve, anche per valori con `Date` o `toJSON`. In modalità legacy il percorso non è modificato.
+
+La regressione usa esclusivamente valori inventati e un client SQL simulato: oggetto con `toJSON` ereditato sovradimensionato, serializzatore mutevole, serializzazione `undefined`, e caso positivo con `Date` serializzata. Non implica cambiamenti al database, riscritture di eventi esistenti, modifiche a B2 o decisioni sulla DPIA. Questa correzione **non** dimostra completezza/freschezza della cronologia esterna.

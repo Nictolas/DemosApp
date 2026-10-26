@@ -102,6 +102,69 @@ test('outbox preflight rejects events B2 cannot archive before any PostgreSQL I/
   }
 });
 
+test('GDPR outbox preflight checks exact SQL JSON despite inherited and stateful toJSON', async () => {
+  const previous = process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+  process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'true';
+  const queries = [];
+  const db = {async query(sql, params) {
+    queries.push({sql, params});
+    return {rows:[{event_key:'synthetic-test-event'}]};
+  }};
+  const eventType = Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED;
+  try {
+    // The original JS object looks tiny when enumerated, but its inherited
+    // toJSON serializes a >8 KB payload into the PostgreSQL parameter.
+    const inherited = Object.create({
+      toJSON() { return {synthetic:'x'.repeat(9000)}; }
+    });
+    inherited.harmless = true;
+    await assert.rejects(Ledger.recordEvent(db, {
+      userId:KEY, eventType, details:inherited
+    }), /minimization limit/);
+    assert.equal(queries.length,0);
+
+    // Only one JSON serialization is permitted: the first is oversized but
+    // a second call would return a smaller value and falsely pass preflight.
+    let calls = 0;
+    const changing = {toJSON() {
+      calls++;
+      return {synthetic:'x'.repeat(calls === 1 ? 9000 : 5)};
+    }};
+    await assert.rejects(Ledger.recordEvent(db, {
+      userId:KEY, eventType, details:changing
+    }), /minimization limit/);
+    assert.equal(calls,1,'toJSON must not be invoked a second time');
+    assert.equal(queries.length,0);
+
+    // JSON.stringify can return undefined for a custom serializer. Reject
+    // it before SQL rather than passing an invalid JSONB parameter.
+    await assert.rejects(Ledger.recordEvent(db, {
+      userId:KEY, eventType, details:{toJSON(){return undefined;}}
+    }), /Invalid GDPR outbox JSON details/);
+    assert.equal(queries.length,0);
+
+    // A Date serializes to an ISO string (not an empty plain object). The
+    // exact SQL parameter must be accepted and remain B2-normalizable.
+    const valid = await Ledger.recordEvent(db, {
+      userId:KEY, eventType,
+      details:{at:new Date('2026-10-26T00:00:00.000Z'), source:'x'.repeat(7900)}
+    });
+    assert.equal(valid.event_key,'synthetic-test-event');
+    assert.equal(queries.length,1);
+    assert.match(queries[0].sql,/INSERT INTO privacy_erasure_delivery_outbox/);
+    const actualDetails = JSON.parse(queries[0].params[3]);
+    assert.equal(actualDetails.at,'2026-10-26T00:00:00.000Z');
+    assert.doesNotThrow(() => normalizeB2Event({
+      event_key: '00000000-0000-4000-8000-000000000321',
+      subject_user_id: KEY, event_type: eventType,
+      occurred_at: '2026-10-26T00:00:00.000Z', details: actualDetails
+    }));
+  } finally {
+    if (previous === undefined) delete process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+    else process.env.GDPR_ERASURE_OUTBOX_ENABLED = previous;
+  }
+});
+
 test('HMAC is stable regardless of object key order and PostgreSQL JSONB property order', () => {
   const event = mkEvent();
   const reordered = { ...event, details: { z: 1, action: 'test' } };
