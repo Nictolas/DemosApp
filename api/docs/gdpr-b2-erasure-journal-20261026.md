@@ -15,6 +15,8 @@ Preparare una copia cifrata e immutabile degli eventi confermati del ledger Post
 - Prima del caricamento controlla collisioni e verifica lo schema; chiede cifratura server-side AES256 e lock COMPLIANCE. Dopo il caricamento legge il **VersionId esatto** e i dati della retention con `GetObjectRetention`, scarica la stessa versione, confronta hash SHA-256 e contenuto.
 - Se la chiave e' gia' presente, non sovrascrive: accetta la versione esistente solo dopo controlli di SHA, lunghezza, retention e contenuto. Se bucket/configurazione/ritenzione/read-back non rispettano il contratto, fallisce.
 - `archiveBatch` puo' esportare un massimo di 100 eventi ordinati per data e UUID, con cursore. Il cursore restituito e' valido solo dopo che tutti gli oggetti del batch sono stati verificati; se un oggetto fallisce, il chiamante non deve avanzare alcun checkpoint.
+- **Precisione del cursore (PR draft):** PostgreSQL memorizza microsecondi, mentre `Date.toISOString()` arrotonda ai millisecondi. Per evitare che un secondo batch ripeta il primo evento, la query restituisce un cursore UTC ISO con **sei cifre decimali** indipendente dal timestamp JS del corpo firmato. Trasmettere il valore `result.cursor` **senza trasformarlo in Date**, senza troncarne i decimali e senza ricostruirlo dal campo `occurred_at` dell'evento. Il cursore non e' una attestazione di completezza dopo guasto, ne' un checkpoint immutabile; se mancano precisione o metadati, l'operazione deve fallire senza ulteriori PUT.
+
 - Non esegue DELETE, listing di dati di utenti, log delle preferenze, migrazioni, aggiornamenti al DB, invio di email o modifica delle impostazioni B2.
 
 ## Variabili dedicate (solo dopo progetto, DPIA e approvazione)
