@@ -50,6 +50,13 @@ async function main() {
     assert.equal(Math.floor(meta.version / 10000), 17);
 
     await client.query('BEGIN');
+    // Canonical consent reads use public; prior synthetic race drills may
+    // already have created these relations in this disposable PG17 database.
+    // Every fixture write here is enclosed by the outer ROLLBACK transaction.
+    await client.query('CREATE TABLE IF NOT EXISTS public.users ' +
+      '(id uuid PRIMARY KEY,political_opinions_consent boolean)');
+    await client.query('CREATE TABLE IF NOT EXISTS public.user_consents ' +
+      '(user_id uuid PRIMARY KEY,political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE users (id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE user_consents (user_id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE voti_difesa (userid uuid, nome_display text, timestamp timestamptz DEFAULT NOW())');
@@ -59,6 +66,18 @@ async function main() {
     const revoked = '00000000-0000-4000-8000-000000000294';
     await client.query('INSERT INTO users VALUES ($1,true),($2,true)', [active, revoked]);
     await client.query('INSERT INTO user_consents VALUES ($1,true),($2,false)', [active, revoked]);
+    await client.query(
+      'INSERT INTO public.users(id,political_opinions_consent) ' +
+      'VALUES ($1,true),($2,true) ON CONFLICT (id) ' +
+      'DO UPDATE SET political_opinions_consent=EXCLUDED.political_opinions_consent',
+      [active,revoked]
+    );
+    await client.query(
+      'INSERT INTO public.user_consents(user_id,political_opinions_consent) ' +
+      'VALUES ($1,true),($2,false) ON CONFLICT (user_id) ' +
+      'DO UPDATE SET political_opinions_consent=EXCLUDED.political_opinions_consent',
+      [active,revoked]
+    );
     await client.query("INSERT INTO voti_difesa (userid,nome_display) VALUES ($1,'Synthetic Active Minister'),($2,'Synthetic Revoked Minister')", [active, revoked]);
     await client.query("INSERT INTO voti_esteri (userid,nome_display) VALUES ($1,'Synthetic Foreign Minister')", [active]);
 
@@ -107,12 +126,14 @@ async function main() {
 
     // Keep the vote row in place: query consent gate must still protect it.
     await client.query('UPDATE user_consents SET political_opinions_consent=false WHERE user_id=$1', [active]);
+    await client.query('UPDATE public.user_consents SET political_opinions_consent=false WHERE user_id=$1', [active]);
     data = await context.readIdeal(active);
     assert.deepEqual(Object.keys(data), [], 'Residual ballot after revocation must never appear');
 
     // A missing per-purpose consent row falls back to the user's legacy
     // consent column, preserving the existing schema-compatibility policy.
     await client.query('DELETE FROM user_consents WHERE user_id=$1', [active]);
+    await client.query('DELETE FROM public.user_consents WHERE user_id=$1', [active]);
     data = await context.readIdeal(active);
     assert.equal(data.difesa, 'Synthetic Active Minister');
 
