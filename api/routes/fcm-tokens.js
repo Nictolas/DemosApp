@@ -186,11 +186,12 @@ router.post('/', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel salvataggio token FCM:', error);
+    // Database errors may contain token values: never expose them to
+    // clients or application logs.
+    console.error('❌ Errore nel salvataggio token FCM:', error?.code || 'internal_error');
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -257,7 +258,7 @@ router.post('/cleanup', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nella pulizia token FCM:', error);
+    console.error('❌ Errore nella pulizia token FCM:', error?.code || 'internal_error');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -301,7 +302,7 @@ router.delete('/:token', verifyToken, async (req, res) => {
       message: 'Token FCM rimosso con successo'
     });
   } catch (error) {
-    console.error('❌ Errore nella rimozione token FCM:', error);
+    console.error('❌ Errore nella rimozione token FCM:', error?.code || 'internal_error');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
