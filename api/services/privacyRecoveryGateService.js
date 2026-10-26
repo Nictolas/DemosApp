@@ -201,6 +201,15 @@ async function reconcileRestoredPrivacyState({
     if (outboxSchema.rows[0]?.installed !== outboxEnabled) {
       throw Error('GDPR recovery outbox schema/mode mismatch: offline provisioning required');
     }
+    // Serialize the complete signed-history validation AND import against
+    // non-cooperating ledger/outbox writers. Mirror the offline exporter's
+    // lock order: transaction-scoped advisory first, relation locks second.
+    // NOWAIT fails closed rather than waiting behind a live table writer.
+    // This does NOT isolate other tables or external Render/Supabase ingress.
+    await client.query(outboxEnabled
+      ? 'LOCK TABLE privacy_erasure_ledger, privacy_erasure_delivery_outbox ' +
+        'IN SHARE ROW EXCLUSIVE MODE NOWAIT'
+      : 'LOCK TABLE privacy_erasure_ledger IN SHARE ROW EXCLUSIVE MODE NOWAIT');
     if (outboxEnabled) {
       // An outbox-only row may be a trace of a missing ledger event in a
       // damaged/legacy restore. Never silently keep it while replaying the
