@@ -65,3 +65,11 @@ I test sono sintetici; queste modifiche non garantiscono revoca atomica con Fire
 La route GET Admin `/api/comunicazioni/debug-firebase-admin` controlla la presenza e l'inizializzazione locale di Firebase, **senza più chiamare `messaging.send()`**. Aprire la schermata diagnostica non scatena notifiche reali. Il test invio è indicato come non eseguito. Errori e risposte diagnostiche sono minimizzati a messaggi costanti e codici FCM validati.
 
 La GET Admin `/api/comunicazioni/debug-notifiche-demos` mantiene il solo conteggio dei dispositivi idonei, senza restituire i prefissi dei token FCM. La pagina usa il conteggio, quindi non necessita delle anteprime. Nessuna chiamata di invio reale è stata effettuata in questa modifica.
+
+## Addendum — audit degli strumenti di manutenzione manuale FCM (26 ottobre 2026)
+
+I file storici `api/fix_fcm_tokens.sql` e `pulisci-token-fcm-invalidi.sql` avevano query con token e identificativi, e il primo conteneva correzioni mutative dell'array `users.fcm_tokens` non serializzate con il registro canonico. Ora contengono **solo query aggregate racchiuse in una transazione READ ONLY**. Non selezionano identificativi account, indirizzi email né token. Non tentano di scegliere l'ultimo elemento legacy come token più recente.
+
+Tre vecchie diagnostiche root (`verifica-fcm-tokens.cjs`, `verifica-push-notifiche.cjs`, `verifica-utenti-demos-fcm.cjs`) accedevano tramite `DATABASE_URL`, mostravano identità o prefissi/token interi e una poteva perfino creare la colonna legacy. Sono state ritirate con uscita esplicita, **senza importare database/Firebase né aprire connessioni**. Le verifiche funzionali continuano nella CI PostgreSQL 17 con dati sintetici.
+
+`server/notifica.service.js` mantiene un sender Firebase/Firestore storico non conforme alle nuove regole. L'audit statico mostra che i punti d'ingresso dichiarati in `render.yaml` sono sotto `api`, senza import diretto da `api/index.js` o `api/server.js`: **non costituisce prova che nessun processo esterno o deploy legacy lo esegua**. Questo sender NON è stato modificato né attivato e resta da censire negli ambienti/runtime prima di qualunque rilascio. Nessuna prova di accesso a Supabase, dati reali, o provider Firebase.
