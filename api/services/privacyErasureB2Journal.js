@@ -259,15 +259,27 @@ class PrivacyErasureB2Journal {
         !Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw Error('Explicit database connection and bounded GDPR batch required');
     }
+    // PostgreSQL timestamps retain microseconds, whereas JS Date/toISOString()
+    // truncates to milliseconds. Truncating a page cursor can revisit the same
+    // row on the next batch (even indefinitely with limit=1).
+    // Preserve the exact UTC timestamp text emitted by PostgreSQL.
     const cursor = after == null ? null : {
-      occurred_at: new Date(after.occurred_at).toISOString(),
+      occurred_at: after.occurred_at instanceof Date
+        ? after.occurred_at.toISOString() : after.occurred_at,
       event_key: String(after.event_key || '')
     };
-    if (cursor && !UUID.test(cursor.event_key)) throw Error('Invalid archive cursor');
+    if (cursor && (!UUID.test(cursor.event_key) ||
+        typeof cursor.occurred_at !== 'string' ||
+        !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3,6}Z$/.test(cursor.occurred_at) ||
+        !Number.isFinite(Date.parse(cursor.occurred_at)))) {
+      throw Error('Invalid archive cursor');
+    }
     // This query intentionally does not create or mutate database tables.
     // Newly committed events after this snapshot need subsequent batches.
     const result = await db.query(
-      'SELECT event_key,subject_user_id,event_type,occurred_at,details ' +
+      'SELECT event_key,subject_user_id,event_type,occurred_at,details, ' +
+      "to_char(occurred_at AT TIME ZONE 'UTC', " +
+      `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_occurred_at ` +
       'FROM privacy_erasure_ledger ' +
       'WHERE ($1::timestamptz IS NULL OR (occurred_at,event_key) > ($1::timestamptz,$2::text)) ' +
       'ORDER BY occurred_at ASC,event_key ASC LIMIT $3',
@@ -276,10 +288,19 @@ class PrivacyErasureB2Journal {
     let last = cursor;
     for (const raw of result.rows) {
       const event = normalizeEvent(raw);
+      // Fail before B2 I/O if the query cannot provide a lossless cursor.
+      // The normalized event timestamp is intentionally millisecond-based
+      // for JSON, but must never be reused as the SQL pagination cursor.
+      const exactTimestamp = raw.cursor_occurred_at;
+      if (typeof exactTimestamp !== 'string' ||
+          !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$/.test(exactTimestamp) ||
+          !Number.isFinite(Date.parse(exactTimestamp))) {
+        throw Error('GDPR archive batch requires exact PostgreSQL timestamp cursor');
+      }
       // Do not advance the return cursor until the B2 object was read back
       // and its exact immutable version retention was checked.
       await this.archiveEvent(event);
-      last = {occurred_at:event.occurred_at,event_key:event.event_key};
+      last = {occurred_at:exactTimestamp,event_key:event.event_key};
     }
     return {exported:result.rows.length, cursor:last};
   }
