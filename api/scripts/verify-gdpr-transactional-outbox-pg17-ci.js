@@ -126,6 +126,81 @@ async function main() {
     assert.equal(await Ledger.backfillDeliveryOutbox(pool,{maintenanceConfirmed:true}),1);
     assert.equal(await Ledger.backfillDeliveryOutbox(pool,{maintenanceConfirmed:true}),0);
     assert.equal((await PrivacyErasureOutboxWorker.status(pool)).pending,1);
+    // A pooled PostgreSQL session can prefer pg_temp or another schema.
+    // Exercise both live outbox and legacy writes, explicit maintenance
+    // bootstrap/backfill, capture and import against shadow tables. A bare
+    // relation name would either fail on missing columns or hit the shadow.
+    const writerShadow=await pool.connect();
+    const shadowKeys=[];
+    try {
+      await writerShadow.query(
+        'CREATE TEMP TABLE privacy_erasure_ledger (event_key text PRIMARY KEY)'
+      );
+      await writerShadow.query(
+        'CREATE TEMP TABLE privacy_erasure_delivery_outbox (event_key text PRIMARY KEY)'
+      );
+      await writerShadow.query('SET search_path TO pg_temp, public');
+      const outboxEvent=await Ledger.recordEvent(writerShadow,syntheticEvent());
+      shadowKeys.push(outboxEvent.event_key);
+      assert.equal(await value(writerShadow,
+        'SELECT count(*)::int FROM public.privacy_erasure_delivery_outbox WHERE event_key=$1',
+        [outboxEvent.event_key]),1,'outbox mode must queue in public');
+      process.env.GDPR_ERASURE_OUTBOX_ENABLED='false';
+      try {
+        const legacyEvent=await Ledger.recordEvent(writerShadow,syntheticEvent());
+        shadowKeys.push(legacyEvent.event_key);
+        assert.equal(await value(writerShadow,
+          'SELECT count(*)::int FROM public.privacy_erasure_ledger WHERE event_key=$1',
+          [legacyEvent.event_key]),1,'legacy mode must write public ledger');
+      } finally {
+        process.env.GDPR_ERASURE_OUTBOX_ENABLED='true';
+      }
+      const captured=await Ledger.captureCurrent(writerShadow);
+      assert.ok(captured.some(row=>row.event_key===outboxEvent.event_key),
+        'capture must read public ledger rather than empty shadow');
+      const imported={
+        event_key:n(),subject_user_id:n(),
+        event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+        occurred_at:new Date().toISOString(),
+        details:{source:'synthetic-shadow-import'}
+      };
+      shadowKeys.push(imported.event_key);
+      assert.equal(await Ledger.mergeCaptured(writerShadow,[imported],{
+        requirePreinstalled:true
+      }),1,'offline import must target public ledger');
+      assert.equal(await Ledger.backfillDeliveryOutbox(writerShadow,{
+        maintenanceConfirmed:true
+      }),2,'maintenance backfill must queue legacy and imported public events');
+      assert.equal(await Ledger.backfillDeliveryOutbox(writerShadow,{
+        maintenanceConfirmed:true
+      }),0,'maintenance backfill remains idempotent under shadow');
+      assert.equal(await value(writerShadow,
+        'SELECT count(*)::int FROM public.privacy_erasure_delivery_outbox '+
+        'WHERE event_key=ANY($1::text[])',shadowKeys),3);
+      assert.equal(await value(writerShadow,
+        'SELECT count(*)::int FROM pg_temp.privacy_erasure_ledger'),0);
+      assert.equal(await value(writerShadow,
+        'SELECT count(*)::int FROM pg_temp.privacy_erasure_delivery_outbox'),0);
+      assert.equal((await writerShadow.query('SHOW search_path')).rows[0].search_path,
+        'pg_temp, public','writer/bootstrap must not alter session settings');
+    } finally {
+      process.env.GDPR_ERASURE_OUTBOX_ENABLED='true';
+      // Delete only disposable fixture events; no production data exists here.
+      await writerShadow.query(
+        'DELETE FROM public.privacy_erasure_delivery_outbox WHERE event_key=ANY($1::text[])',
+        [shadowKeys]
+      );
+      await writerShadow.query(
+        'DELETE FROM public.privacy_erasure_ledger WHERE event_key=ANY($1::text[])',
+        [shadowKeys]
+      );
+      await writerShadow.query('RESET search_path');
+      await writerShadow.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_delivery_outbox');
+      await writerShadow.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_ledger');
+      writerShadow.release();
+    }
+    assert.equal((await PrivacyErasureOutboxWorker.status(pool)).pending,1,
+      'synthetic shadow fixture cleanup must preserve preexisting ledger');
     const b2=fakeB2();
     // Synthetic stand-in for an independently approved, immutable checkpoint.
     // Never use this DB-derived approval process on a real recovery.
@@ -740,6 +815,7 @@ async function main() {
       offlineExporterRejectsConcurrentWriterPg17:true,
       readinessAndOfflineExporterSchemaShadowPg17:true,
       ordinaryWorkerAndStatusSchemaShadowPg17:true,
+      ledgerWriterBootstrapAndImportSchemaShadowPg17:true,
       productionUntouched:true
     }));
   } finally {
