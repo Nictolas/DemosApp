@@ -184,7 +184,7 @@ class PrivacyErasureB2Journal {
     if (!(finishedAt instanceof Date) || !Number.isFinite(finishedAt.getTime())) {
       throw Error('Invalid clock');
     }
-    if (retentionUntil < finishedAt) {
+    if (retentionUntil <= finishedAt) {
       throw Error('B2 event object retention expired during readback');
     }
     return {sha256:expectedHash, versionId};

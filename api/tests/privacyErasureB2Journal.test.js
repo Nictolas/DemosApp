@@ -230,6 +230,28 @@ test('recovery rejects Object Lock that expires while its version body is read',
     'recovery must not repair expired evidence by writing a new version');
 });
 
+test('recovery rejects a version whose retention expires exactly at readback completion',async()=>{
+  const b2=new FakeB2(),event=EVT();
+  let now=new Date(FIXED);
+  const journal=new PrivacyErasureB2Journal({
+    client:b2,env:env(),clock:()=>new Date(now)
+  });
+  const saved=await journal.archiveEvent(event);
+  const expires=new Date(FIXED.getTime()+1000);
+  b2.objects.get(saved.key).until=expires;
+  const send=b2.send.bind(b2);
+  b2.send=async command=>{
+    const response=await send(command);
+    if(command.constructor.name==='GetObjectCommand') now=new Date(expires);
+    return response;
+  };
+  const writesBefore=b2.calls.filter(x=>x.name==='PutObjectCommand').length;
+  await assert.rejects(journal.verifyArchivedReceipt(event,{
+    versionId:saved.versionId,sha256:saved.sha256
+  }),/retention expired during readback/);
+  assert.equal(b2.calls.filter(x=>x.name==='PutObjectCommand').length,writesBefore);
+});
+
 test('invalid verification clock fails before contacting B2',async()=>{
   const b2=new FakeB2(),event=EVT();
   const saved=await service(b2).archiveEvent(event);
