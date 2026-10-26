@@ -60,6 +60,46 @@ test('duplicate events, events after capture and malformed timestamps fail durin
   assert.throws(() => fixture([mkEvent('political_consent_revoked', { occurred_at: 'bad' })]),
     /Invalid event timestamp/);
 });
+test('signed recovery refuses events that cannot fit the immutable B2 archive before any I/O', async () => {
+  // B2 archiveEvent normalizes canonical JSON and refuses >8192 bytes.
+  // Without matching validation here, a valid signed recovery could commit
+  // an oversized event that the B2 worker can never deliver.
+  const within = mkEvent('political_consent_revoked', {
+    details: {synthetic: 'x'.repeat(7900)}
+  });
+  assert.doesNotThrow(() => fixture([within]));
+  const oversized = mkEvent('political_consent_revoked', {
+    details: {synthetic: 'x'.repeat(9000)}
+  });
+  assert.throws(() => fixture([oversized]), /B2 archive limit/);
+
+  // An attacker-supplied signed-looking manifest must be rejected during
+  // normalization, without connecting to PostgreSQL or contacting B2.
+  const payload = {
+    formatVersion:1,recoveryId:ID,
+    capturedAt:'2026-10-26T01:00:00.000Z',
+    restoredBackupTakenAt:'2026-10-24T00:00:00.000Z',
+    events:[oversized]
+  };
+  const envelope = {payload,signature:'a'.repeat(64)};
+  let sql = 0, network = 0;
+  const client = {async query(){sql++;throw Error('unexpected SQL');}};
+  const exporter = {
+    config(){network++;throw Error('unexpected B2');},
+    async verifyArchivedReceipt(){network++;throw Error('unexpected B2');}
+  };
+  await assert.rejects(reconcileRestoredPrivacyState({
+    client,envelope,secret:SECRET,expectedRecoveryId:ID,
+    maintenanceConfirmed:true
+  }),/B2 archive limit/);
+  await assert.rejects(verifyOutboxRecoveryReadiness(client,{
+    maintenanceConfirmed:true,exporter,envelope,secret:SECRET,
+    expectedRecoveryId:ID
+  }),/B2 archive limit/);
+  assert.equal(sql,0);
+  assert.equal(network,0);
+});
+
 test('opposing consent events at the same millisecond cannot be signed or replayed', async () => {
   const sameInstant = '2026-10-26T00:00:00.000Z';
   const revoke = mkEvent('political_consent_revoked', {occurred_at:sameInstant});
