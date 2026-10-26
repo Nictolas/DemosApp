@@ -13,7 +13,7 @@ Se una connessione PostgreSQL acquisisce `search_path=pg_temp,public`, il blocco
 ## Modifiche progettuali isolate
 
 - La scrittura delle opinioni blocca `public.users` prima di leggere il consenso da `public.users` + `public.user_consents`; tutte le letture e `INSERT`/`UPDATE` delle risposte nella stessa transazione usano `public.opinioni_risposte`. La verifica delle colonne ammesse nell'`information_schema` è limitata esplicitamente a `table_schema='public'`.
-- `setPoliticalSelection` blocca `public.users`, usa la verifica canonica del consenso e scrive in `public.political_selections`. Le proiezioni legacy consentite restano compatibili, ma i campi in `users` e `user_representatives` sono aggiornati in `public`. Anche le letture del servizio e le selezioni dei sostenitori fanno riferimento allo schema canonico.
+- `setPoliticalSelection` blocca `public.users`, usa la verifica canonica del consenso e scrive in `public.political_selections`. Le proiezioni legacy consentite restano compatibili, ma i campi in `users` e `user_representatives` sono aggiornati in `public`. Le query di sola lettura per proiezioni e sostenitori sono **fuori dal perimetro di questa PR** e richiedono audit separato.
 - Nessun nuovo parametro, migrazione, DDL, flag, transazione, credenziale o accesso B2 nella logica applicativa.
 
 ## Regressioni sintetiche
