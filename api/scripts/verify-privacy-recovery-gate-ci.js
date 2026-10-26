@@ -7,6 +7,7 @@
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { Pool } = require('pg');
+const Ledger = require('../services/privacyErasureLedgerService');
 const { signature, manifestDigest, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
 const DB = 'privacy_recovery_gate_ci';
 const SUBJECT = '00000000-0000-4000-8000-000000000301';
@@ -95,6 +96,7 @@ async function main() {
     // otherwise correctly signed (and independently pinned) manifest. Never
     // proceed: the omission is a consistency failure, not permission to
     // discard the unknown event.
+    await Ledger.ensureTable(db);
     const omitted = event(THIRD,'political_consent_revoked','2026-10-24T14:00:00Z',
       {reason:'synthetic-unapproved-snapshot-event'});
     await db.query(
