@@ -35,3 +35,6 @@ Un backup anteriore a una revoca o cancellazione account può ripristinare dati 
 - Test Android/CDN e approvazione della catena di PR prima del deploy.
 
 **L'issue #296 resta aperta; questa PR non implementa né autorizza un restore operativo in produzione.**
+## Correzione parità flag HTTP/job (26 ottobre 2026, DRAFT)
+
+L'audit ha individuato una divergenza: `privacyRecoveryMaintenance` bloccava HTTP per qualsiasi valore impostato diverso da `false`, mentre l'avvio dei job in `api/app.js` veniva fermato solo da `true` esatto. Un errore `TRUE` o `true ` lasciava quindi attivi audit, sync, ottimizzazioni e altri job mentre HTTP rispondeva 503. Il predicato `isPrivacyRecoveryMaintenanceActive` è ora condiviso da middleware, avvio job dell'app e worker outbox. Test sintetici verificano valori assenti, `false`, `true`, valori malformati e parità con l'app. **Non dimostra né sostituisce la quarantena di worker esterni, Supabase Data API, client SQL diretti, istanze già avviate o traffico su altri provider.** In particolare modificare la variabile d'ambiente richiede il riavvio di tutte le istanze perché i job già avviati non vengono fermati dal solo controllo iniziale.
