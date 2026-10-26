@@ -154,6 +154,19 @@ async function reconcileRestoredPrivacyState({
     await client.query('SELECT pg_advisory_xact_lock(170026, 296)');
     await Ledger.ensureTable(client);
 
+    // Restoring a signed event without its delivery-outbox row makes
+    // subsequent B2 verification incorrectly report "no pending work".
+    // Provisioning is strictly an OFFLINE operator action: no recovery DDL
+    // can implicitly create a delivery table and silently accept missing
+    // schema. An existing table also cannot be ignored by disabling the flag.
+    const outboxSchema = await client.query(
+      "SELECT to_regclass('public.privacy_erasure_delivery_outbox') IS NOT NULL AS installed"
+    );
+    const outboxEnabled = process.env.GDPR_ERASURE_OUTBOX_ENABLED === 'true';
+    if (outboxSchema.rows[0]?.installed !== outboxEnabled) {
+      throw Error('GDPR recovery outbox schema/mode mismatch: offline provisioning required');
+    }
+
     // Fail closed if the restored database has ANY GDPR event missing from
     // the independently pinned manifest. A matching HMAC only authenticates
     // the supplied manifest; it does not authorize silently ignoring rows in
@@ -195,6 +208,38 @@ async function reconcileRestoredPrivacyState({
     if (confirmed.rows[0]?.n !== payload.events.length) {
       throw Error('Incomplete external erasure ledger import');
     }
+
+    let outboxInserted = 0;
+    let pendingExternalReceipts = null;
+    if (outboxEnabled) {
+      // The approved external events are imported AND queued atomically with
+      // the privacy replay, without overwriting prior immutable B2 receipts.
+      // Existing historical ledger entries are included as well. The
+      // post-restore B2 worker/readiness verifier handles pending versions.
+      const queued = await client.query(
+        'INSERT INTO privacy_erasure_delivery_outbox (event_key) ' +
+        'SELECT event_key FROM privacy_erasure_ledger ' +
+        'ON CONFLICT (event_key) DO NOTHING'
+      );
+      outboxInserted = queued.rowCount || 0;
+      const unqueued = await client.query(
+        'SELECT COUNT(*)::int AS n FROM privacy_erasure_ledger l ' +
+        'LEFT JOIN privacy_erasure_delivery_outbox o ON o.event_key=l.event_key ' +
+        'WHERE o.event_key IS NULL'
+      );
+      if (unqueued.rows[0]?.n !== 0) {
+        throw Error('GDPR recovery left ledger events without delivery-outbox rows');
+      }
+      const pending = await client.query(
+        'SELECT COUNT(*)::int AS n FROM privacy_erasure_delivery_outbox ' +
+        'WHERE delivered_at IS NULL'
+      );
+      pendingExternalReceipts = pending.rows[0]?.n;
+      if (!Number.isInteger(pendingExternalReceipts) || pendingExternalReceipts < 0) {
+        throw Error('GDPR outbox pending delivery count could not be verified');
+      }
+    }
+
     const applied = await Ledger.applyCurrentPrivacyState(client);
     // A re-grant does NOT resurrect choices from the snapshot BEFORE an older
     // revocation. Any revocation newer than the restored backup invalidates
@@ -217,6 +262,10 @@ async function reconcileRestoredPrivacyState({
       capturedAt: payload.capturedAt,
       verifiedExternalEvents: payload.events.length,
       imported,
+      // These counts are NOT authorization to reopen traffic. Every receipt
+      // still needs external B2 readback and an independent freshness pin.
+      outboxInserted,
+      pendingExternalReceipts,
       staleSnapshotRevocationsReapplied,
       // Totals only; never return the subject IDs or political details.
       ...applied

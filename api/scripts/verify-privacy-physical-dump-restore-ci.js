@@ -270,6 +270,17 @@ async function main() {
     await db.query('DELETE FROM privacy_erasure_ledger WHERE event_key=$1',
       [unexpectedKey]);
 
+    // A real pg_restore may contain a ledger but not an outbox table. The
+    // operator must provision it explicitly while traffic is quarantined.
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'true';
+    await assert.rejects(reconcileRestoredPrivacyState({
+      client:db,envelope:saved,secret:SECRET,expectedRecoveryId:SESSION,
+      maintenanceConfirmed:true,...approvedCheckpoint
+    }),/outbox schema\/mode mismatch/);
+    assert.equal((await db.query(
+      'SELECT COUNT(*)::int AS n FROM privacy_erasure_ledger'
+    )).rows[0].n,0);
+    await Ledger.ensureDeliveryOutbox(db);
     // Fail *after* the ledger import but *before* deletion completes.
     const faultClient = {
       async query(sql, params) {
@@ -293,6 +304,11 @@ async function main() {
     assert.equal(reconciled.verifiedExternalEvents, 4);
     assert.equal(reconciled.imported, 4);
     assert.equal(reconciled.staleSnapshotRevocationsReapplied, 2);
+    assert.equal(reconciled.outboxInserted,4);
+    assert.equal(reconciled.pendingExternalReceipts,4);
+    assert.equal(Number((await db.query(
+      'SELECT count(*)::int AS n FROM privacy_erasure_delivery_outbox'
+    )).rows[0].n),4);
 
     for (const id of [SUBJECTS.revoked, SUBJECTS.regranted]) {
       for (const table of ['political_selections','user_representatives','opinioni_risposte']) {
@@ -318,6 +334,8 @@ async function main() {
       expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
     });
     assert.equal(again.imported, 0);
+    assert.equal(again.outboxInserted,0);
+    assert.equal(again.pendingExternalReceipts,4);
 
     console.log('GDPR_PHYSICAL_PGDUMP_PGRESTORE_CI_PASS ' + JSON.stringify({
       fixture: 'disposable-postgres-17',
@@ -326,6 +344,8 @@ async function main() {
       missingOrTamperedManifestRefused: true,
       validlySignedStaleManifestRefused: true,
       unapprovedRestoredLedgerEventRejected: true,
+      missingOutboxSchemaRejected: true,
+      recoveredEventsQueuedForB2: true,
       rollbackAfterFailure: true, consentRegrantDidNotResurrectChoices: true,
       deletedAccountStayedDeleted: true, unaffectedUserPreserved: true,
       replayIdempotent: true, realDataTouched: false
