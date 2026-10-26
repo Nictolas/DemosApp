@@ -397,6 +397,48 @@ async function main() {
     assert.equal(await value(pool,
       'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox WHERE delivered_at IS NOT NULL'),3);
 
+    // Ordinary worker and its local status endpoint must also resist a
+    // borrowed PG17 session resolving pg_temp before public. The temporary
+    // relations deliberately lack delivered_at/queued_at; using them would
+    // fail the status check or prevent delivery of the real pending event.
+    const shadowPending=await Ledger.recordEvent(pool,syntheticEvent());
+    const workerShadow=await pool.connect();
+    try {
+      await workerShadow.query(
+        'CREATE TEMP TABLE privacy_erasure_ledger (event_key text PRIMARY KEY)'
+      );
+      await workerShadow.query(
+        'CREATE TEMP TABLE privacy_erasure_delivery_outbox (event_key text PRIMARY KEY)'
+      );
+      await workerShadow.query('SET search_path TO pg_temp, public');
+      const before=await PrivacyErasureOutboxWorker.status(workerShadow);
+      assert.equal(before.pending,1,'status must read the public pending event');
+      assert.equal(before.ready,false,'pending public event prevents local readiness');
+      const shadowPool={async connect(){return {
+        query:(sql,params)=>workerShadow.query(sql,params),
+        release(){}
+      };}};
+      assert.equal((await worker.runOnce(shadowPool,{limit:1})).delivered,1);
+      assert.ok(b2.objects.has(shadowPending.event_key),
+        'ordinary worker must export the verified public pending event');
+      const after=await PrivacyErasureOutboxWorker.status(workerShadow);
+      assert.equal(after.pending,0);
+      assert.equal(after.unqueued,0);
+      assert.equal(after.orphaned,0);
+      assert.equal(after.ready,true,'local status only, not B2 recovery readiness');
+      assert.equal(await value(workerShadow,
+        'SELECT count(*)::int FROM pg_temp.privacy_erasure_ledger'),0);
+      assert.equal(await value(workerShadow,
+        'SELECT count(*)::int FROM pg_temp.privacy_erasure_delivery_outbox'),0);
+      assert.equal((await workerShadow.query('SHOW search_path')).rows[0].search_path,
+        'pg_temp, public','ordinary worker must not change session settings');
+    } finally {
+      await workerShadow.query('RESET search_path');
+      await workerShadow.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_delivery_outbox');
+      await workerShadow.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_ledger');
+      workerShadow.release();
+    }
+
     // Verify microsecond pagination against REAL disposable PostgreSQL 17,
     // not just a JS mock of the to_char() expression.
     const cursorClient = await pool.connect();
@@ -697,6 +739,7 @@ async function main() {
       isolatedOfflineRecoveryExporterPg17:true,
       offlineExporterRejectsConcurrentWriterPg17:true,
       readinessAndOfflineExporterSchemaShadowPg17:true,
+      ordinaryWorkerAndStatusSchemaShadowPg17:true,
       productionUntouched:true
     }));
   } finally {
