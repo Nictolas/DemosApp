@@ -437,6 +437,49 @@ async function main() {
       cursorClient.release();
     }
 
+    // Recovery flag switched while an archive was in flight. In a real
+    // database, a successful immutable PUT must NOT commit the local ACK
+    // after maintenance is engaged; the queued row remains retryable.
+    const maintenanceEvent=await Ledger.recordEvent(pool,syntheticEvent());
+    const maintenanceEnv={
+      GDPR_ERASURE_OUTBOX_ENABLED:'true',
+      GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'true',
+      DEMOS_PRIVACY_RECOVERY_MAINTENANCE:'false'
+    };
+    const guardedExporter={
+      config:()=>b2.exporter.config(),
+      archiveEvent:async row=>{
+        const receipt=await b2.exporter.archiveEvent(row);
+        maintenanceEnv.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='true';
+        return receipt;
+      }
+    };
+    const maintenanceWorker=new PrivacyErasureOutboxWorker({
+      env:maintenanceEnv,exporter:guardedExporter
+    });
+    await assert.rejects(maintenanceWorker.runOnce(pool,{limit:1}),
+      /blocked during recovery maintenance/);
+    assert.ok(b2.objects.has(maintenanceEvent.event_key),
+      'B2 upload may complete before the maintenance switch');
+    assert.equal(await value(pool,
+      'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox '+
+      'WHERE event_key=$1 AND delivered_at IS NULL',
+      [maintenanceEvent.event_key]),1,
+    'maintenance must rollback the delivery marker');
+    // No work may start under maintenance, even when B2 already holds the
+    // exact immutable event and the worker could otherwise reuse it.
+    await assert.rejects(maintenanceWorker.runOnce(pool,{limit:1}),
+      /blocked during recovery maintenance/);
+    maintenanceEnv.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='false';
+    const afterFreeze=new PrivacyErasureOutboxWorker({
+      env:maintenanceEnv,exporter:b2.exporter
+    });
+    assert.equal((await afterFreeze.runOnce(pool,{limit:1})).delivered,1);
+    assert.equal(await value(pool,
+      'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox '+
+      'WHERE event_key=$1 AND delivered_at IS NOT NULL',
+      [maintenanceEvent.event_key]),1);
+
     console.log('GDPR_TRANSACTIONAL_OUTBOX_PG17_PASS '+JSON.stringify({
       synthetic:true,transactionRollbackAtomic:true,
       historicalBackfillIdempotent:true,oneStatementAutocommit:true,
@@ -447,6 +490,7 @@ async function main() {
       missingLedgerFailsWithoutDDL:true,
       externalReceiptReadbackRequired:true,remoteTamperRejected:true,
       microsecondExportCursorPg17:true,
+      recoveryMaintenanceWorkerAbortPg17:true,
       productionUntouched:true
     }));
   } finally {

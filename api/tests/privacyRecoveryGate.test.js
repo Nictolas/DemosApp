@@ -8,6 +8,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { privacyRecoveryMaintenance } = require('../middleware/privacyRecoveryMaintenance');
 const Ledger = require('../services/privacyErasureLedgerService');
+const { PrivacyErasureOutboxWorker } = require('../services/privacyErasureOutboxWorker');
 const { verifyOutboxRecoveryReadiness } = require('../services/privacyOutboxRecoveryReadiness');
 const { normalizeEvent: normalizeB2Event } = require('../services/privacyErasureB2Journal');
 const {
@@ -30,6 +31,109 @@ function fixture(events = [mkEvent()]) {
     events
   });
 }
+test('outbox worker fails closed during recovery maintenance before SQL and B2', async () => {
+  const env = {
+    GDPR_ERASURE_OUTBOX_ENABLED:'true',
+    GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'true'
+  };
+  let connections = 0, b2 = 0;
+  const pool = {async connect() {
+    connections++;
+    throw Error('Unexpected PostgreSQL connection');
+  }};
+  const exporter = {
+    config() { b2++; return {}; },
+    async archiveEvent() { b2++; throw Error('Unexpected B2 archive'); }
+  };
+  const worker = new PrivacyErasureOutboxWorker({env,exporter});
+  for (const mode of ['true', 'TRUE', 'false ', 'true ', '', '0']) {
+    env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE = mode;
+    await assert.rejects(worker.runOnce(pool),/blocked during recovery maintenance/,
+      'recovery flag '+JSON.stringify(mode));
+    assert.equal(connections,0,'no SQL connection during recovery');
+    assert.equal(b2,0,'no B2 calls during recovery');
+  }
+  // A normal, explicit false setting must not trip the maintenance gate.
+  env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE = 'false';
+  assert.doesNotThrow(()=>worker.validate());
+  delete env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
+  assert.doesNotThrow(()=>worker.validate());
+  assert.equal(b2,2,'config is allowed only when maintenance is not active');
+});
+
+test('outbox worker rolls back when recovery starts during B2 delivery', async () => {
+  const env = {
+    GDPR_ERASURE_OUTBOX_ENABLED:'true',
+    GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'true',
+    DEMOS_PRIVACY_RECOVERY_MAINTENANCE:'false'
+  };
+  const log=[];
+  const event=mkEvent();
+  const client = {
+    async query(sql) {
+      log.push(sql);
+      if(sql==='BEGIN' || sql==='ROLLBACK') return {rows:[]};
+      if(sql.includes('FOR UPDATE OF o SKIP LOCKED')) return {rows:[event]};
+      throw Error('Unexpected SQL after recovery flag was enabled');
+    },
+    release(){log.push('RELEASE');}
+  };
+  const pool={async connect(){log.push('CONNECT');return client;}};
+  let uploads=0;
+  const worker=new PrivacyErasureOutboxWorker({env,exporter:{
+    config(){return {};},
+    async archiveEvent(row){
+      uploads++;
+      assert.equal(row.event_key,event.event_key);
+      env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='true';
+      return {eventKey:event.event_key,versionId:'synthetic-b2-version',sha256:'a'.repeat(64)};
+    }
+  }});
+  await assert.rejects(worker.runOnce(pool,{limit:1}),/blocked during recovery maintenance/);
+  assert.equal(uploads,1,'one B2 operation was already in flight');
+  assert.ok(log.includes('ROLLBACK'));
+  assert.ok(log.includes('RELEASE'));
+  assert.equal(log.some(sql=>sql.includes('UPDATE privacy_erasure_delivery_outbox')),false,
+    'delivery marker must remain pending after the switch');
+  assert.equal(log.includes('COMMIT'),false);
+});
+
+test('outbox worker rolls back when recovery starts after SQL delivery update', async () => {
+  const env = {
+    GDPR_ERASURE_OUTBOX_ENABLED:'true',
+    GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'true',
+    DEMOS_PRIVACY_RECOVERY_MAINTENANCE:'false'
+  };
+  const log=[];
+  const event=mkEvent();
+  const client={
+    async query(sql) {
+      log.push(sql);
+      if(sql==='BEGIN'||sql==='ROLLBACK') return {rows:[]};
+      if(sql.includes('FOR UPDATE OF o SKIP LOCKED')) return {rows:[event]};
+      if(sql.includes('UPDATE privacy_erasure_delivery_outbox')) {
+        env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='true';
+        return {rowCount:1,rows:[{event_key:event.event_key}]};
+      }
+      throw Error('Unexpected SQL');
+    },
+    release(){log.push('RELEASE');}
+  };
+  const worker=new PrivacyErasureOutboxWorker({env,exporter:{
+    config(){return {};},
+    async archiveEvent(){
+      return {eventKey:event.event_key,versionId:'synthetic-b2-version',sha256:'a'.repeat(64)};
+    }
+  }});
+  await assert.rejects(worker.runOnce({
+    async connect(){return client;}
+  },{limit:1}),/blocked during recovery maintenance/);
+  assert.ok(log.some(sql=>sql.includes('UPDATE privacy_erasure_delivery_outbox')));
+  assert.ok(log.includes('ROLLBACK'),'SQL update must be rolled back');
+  assert.equal(log.includes('COMMIT'),false,'no commit after maintenance was engaged');
+  assert.ok(log.includes('RELEASE'));
+});
+
 test('malformed GDPR outbox flag refuses event writes and recovery before any SQL', async () => {
   const previous = process.env.GDPR_ERASURE_OUTBOX_ENABLED;
   let queries = 0;

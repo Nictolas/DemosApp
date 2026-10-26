@@ -43,3 +43,17 @@ Le preferenze possono contenere dati ex art. 9 GDPR. Non aggiungere dettagli al 
 - Suite regression: privacy, ledger, recupero e contratto B2 immutabile sui rami stacked.
 
 **Nessun merge, deploy o write B2 reale.**
+
+
+## Gate locale di quarantena sul worker (PR successiva a #324)
+
+Il worker outbox avviato nel percorso normale non deve proseguire durante una procedura di recovery GDPR. Il codice applica il flag `DEMOS_PRIVACY_RECOVERY_MAINTENANCE` con la stessa semantica fail-closed del middleware HTTP:
+
+- Solo flag **assente** oppure valore esatto `false` permette l'esportazione ordinaria.
+- Qualunque altro valore impostato, anche `true`, `TRUE`, stringa vuota o con spazi, blocca il worker **prima** di configurare B2 e prima di aprire il pool PostgreSQL.
+- Il controllo viene ripetuto subito dopo `BEGIN`, prima di ogni export, al ritorno da ciascuna chiamata B2 e prima del `COMMIT`. Se il flag cambia durante una chiamata B2, il worker esegue `ROLLBACK` e lascia la ricevuta non confermata nel DB. Se l'oggetto B2 era già stato caricato, un'esecuzione futura **autorizzata**, con quarantena terminata, può verificarlo e riutilizzare la stessa versione.
+- I test sintetici e il drill PostgreSQL 17 verificano l'assenza di nuove connessioni durante maintenance, il rollback in corso di batch e il retry senza duplicare l'oggetto fittizio.
+
+**Limiti della protezione locale:** un flag ambientale non si propaga automaticamente a vecchi processi o istanze separate e non chiude Supabase Data API, connessioni dirette o altri writer. Il controllo non è sincronizzato atomicamente con l'ultima transazione; una variazione del flag dopo l'ultimo controllo non sostituisce un freeze infrastrutturale dimostrato. Prima di un recovery vero, interrompere e verificare tutte le istanze e revocare/limitare gli ingressi previsti nella procedura approvata.
+
+**Recovery offline separato:** durante un restore potrebbe servire esportare eventi reimportati *senza* riaprire API pubbliche. Questa PR non aggiunge un bypass per il worker ordinario. Servono un runner offline specifico, isolato e verificabile, responsabilità operative, approvazione documentata del titolare e valutazione DPO: non disattivare il flag di recovery al solo scopo di far ripartire il worker normale. Nessun deploy/merge/migrazione/configurazione/contatto con B2 reali.
