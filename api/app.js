@@ -138,6 +138,9 @@ const isProductionApp = process.env.NODE_ENV === 'production';
 const mountDevApiSurface = !isProductionApp || process.env.ALLOW_DEV_API_SURFACE === 'true';
 
 const app = express();
+const { privacyRecoveryMaintenance } = require('./middleware/privacyRecoveryMaintenance');
+// Must run before CORS OPTIONS and every API handler during GDPR recovery.
+app.use(privacyRecoveryMaintenance);
 
 // Configurazione per proxy (necessario per rate limiting in produzione)
 // In produzione, fidati solo dei proxy di Render
