@@ -42,6 +42,9 @@ test('supporter token lookup resolves supporter identity through canonical polit
   });
   assert.deepEqual(rows, [{ userId: 'supporter-1', tokens: ['tok-1', 'tok-2'] }]);
   assert.match(calls[0].sql, /FROM public\.political_selections ps/);
+  assert.match(calls[1].sql, /FROM public\.user_devices d/);
+  assert.match(calls[1].sql, /FROM public\.users u/);
+  assert.match(calls[1].sql, /LEFT JOIN public\.user_consents uc/);
   assert.match(calls[0].sql, /ps\.political_office_id = \$3/);
   assert.equal(calls[0].params[2], 'it.camera');
   assert.doesNotMatch(calls[0].sql, /\bsostenitori\b/i);
