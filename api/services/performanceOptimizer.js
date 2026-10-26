@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 // File: api/services/performanceOptimizer.js
 // Sistema di ottimizzazione performance che si integra con il monitoraggio esistente
 const { getPool, getPoolStats } = require('../config/database');
@@ -38,6 +39,7 @@ class PerformanceOptimizer {
 
   // Avvia ottimizzazioni automatiche
   start() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.isOptimizing) return;
 
     const optimizerEnabled = process.env.ENABLE_PERFORMANCE_OPTIMIZER !== 'false';
@@ -81,6 +83,7 @@ class PerformanceOptimizer {
 
   // Esegue ottimizzazioni basate sulle metriche correnti
   async performOptimizations() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     try {
       const poolStats = getPoolStats();
       const memoryUsage = process.memoryUsage();
@@ -206,6 +209,7 @@ class PerformanceOptimizer {
 
   // Aggiorna le metriche per il monitoraggio
   async updateMetrics() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     try {
       const poolStats = getPoolStats();
       const memoryUsage = process.memoryUsage();

@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 /**
  * Job automatico per il monitoraggio delle violazioni
  * Esegue rilevamento continuo e invio notifiche
@@ -33,6 +34,7 @@ class ViolationMonitoringJob {
    * Avvia il job di monitoraggio
    */
   start() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.isRunning) {
       console.log('⚠️ Job di monitoraggio violazioni già in esecuzione');
       return;
@@ -85,6 +87,7 @@ class ViolationMonitoringJob {
    * Esegue il monitoraggio delle violazioni
    */
   async performMonitoring() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     try {
       console.log('🔍 Esecuzione monitoraggio violazioni...');
       
@@ -245,6 +248,7 @@ class ViolationMonitoringJob {
    * Invia riepilogo giornaliero
    */
   async sendDailySummary() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     try {
       const today = new Date().toDateString();
       
@@ -302,6 +306,7 @@ class ViolationMonitoringJob {
    * Esegue monitoraggio immediato
    */
   async performImmediateMonitoring() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     try {
       console.log('🔍 Esecuzione monitoraggio immediato...');
       

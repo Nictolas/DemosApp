@@ -1,4 +1,5 @@
 'use strict';
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 
 const { getPool } = require('../config/database');
 const { syncItalianPoliticalTerritoriesFromProfiles } = require('../services/politicalTerritoryResolverService');
@@ -21,6 +22,7 @@ class PoliticalTerritoryResolverJob {
   }
 
   async execute() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.isRunning) return this.lastResult;
     this.isRunning = true;
     this.lastRunAt = new Date();
@@ -44,6 +46,7 @@ class PoliticalTerritoryResolverJob {
   }
 
   start() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.interval) return;
     console.log(`🚀 Resolver territoriale politico attivo ogni ${this.intervalMs / 3600000}h`);
     setImmediate(() => this.execute().catch(() => {}));

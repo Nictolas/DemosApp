@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 /**
  * Gestore semplificato per il sistema di audit logging
  * Funziona senza dipendenze esterne
@@ -17,6 +18,7 @@ class AuditManager {
    * Avvia il sistema di audit (senza job automatici)
    */
   start() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (!this.isEnabled) {
       console.log('⚠️ Sistema di audit disabilitato');
       return;
@@ -51,8 +53,10 @@ class AuditManager {
    * Avvia pulizia manuale dei log vecchi
    */
   startManualCleanup() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     // Esegui pulizia ogni 24 ore
     this.cleanupInterval = setInterval(async () => {
+      if (isPrivacyRecoveryMaintenanceActive()) return;
       try {
         console.log('🧹 Avvio pulizia manuale log di audit...');
         const deletedCount = await AuditService.cleanupOldLogs(auditConfig.logRetentionDays);
@@ -67,6 +71,7 @@ class AuditManager {
    * Esegue pulizia manuale immediata
    */
   async cleanupNow() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     try {
       console.log('🧹 Esecuzione pulizia immediata...');
       const deletedCount = await AuditService.cleanupOldLogs(auditConfig.logRetentionDays);

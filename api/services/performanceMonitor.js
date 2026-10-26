@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 // File: api/services/performanceMonitor.js
 const os = require('os');
 const process = require('process');
@@ -59,6 +60,7 @@ class PerformanceMonitor {
 
   // Avvia monitoraggio
   start(intervalMs = 30000) {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.isMonitoring) {
       console.log('⚠️ Performance monitoring già attivo');
       return;
@@ -66,6 +68,7 @@ class PerformanceMonitor {
 
     this.isMonitoring = true;
     this.monitoringInterval = setInterval(async () => {
+      if (isPrivacyRecoveryMaintenanceActive()) return;
       try {
         this.tickCount += 1;
         await this.collectMetrics();
@@ -91,6 +94,7 @@ class PerformanceMonitor {
 
   // Raccoglie metriche sistema
   async collectMetrics() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     const timestamp = new Date().toISOString();
     
     // Metriche sistema
