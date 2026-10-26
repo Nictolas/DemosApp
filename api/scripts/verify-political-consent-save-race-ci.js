@@ -413,11 +413,31 @@ async function main(){
       for (const c of borrowed) {
         await c.query('CREATE TEMP TABLE users (LIKE public.users INCLUDING DEFAULTS)');
         await c.query('CREATE TEMP TABLE user_consents (LIKE public.user_consents INCLUDING DEFAULTS)');
+        await c.query('CREATE TEMP TABLE opinioni_risposte (LIKE public.opinioni_risposte INCLUDING DEFAULTS)');
+        await c.query("INSERT INTO pg_temp.opinioni_risposte(user_id,energia_nucleare) VALUES($1,'i')",[ID]);
         await c.query('INSERT INTO pg_temp.users SELECT * FROM public.users WHERE id=$1',[ID]);
         await c.query('INSERT INTO pg_temp.user_consents SELECT * FROM public.user_consents WHERE user_id=$1',[ID]);
         await c.query('SET search_path TO pg_temp, public');
       }
     } finally { for (const c of borrowed) c.release(); }
+    // Keep the real public.users row locked by a revoke while an opinion
+    // save starts on another pooled connection. All connections also have
+    // pg_temp.users: an unqualified FOR UPDATE would lock the wrong row.
+    blocked={phase:'revoke',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    const publicRevokeFirst=revoke();
+    await timeout(blocked.locked.promise);
+    const publicSaveSecond=save();
+    await timeout(blocked.contender.promise);
+    blocked.resume.resolve();
+    assert.equal((await timeout(publicRevokeFirst)).status,200);
+    const deniedShadowOpinion=await timeout(publicSaveSecond);
+    assert.equal(deniedShadowOpinion.status,403,
+      'opinion save after public revoke must not succeed on a shadow row');
+    assert.equal((await deniedShadowOpinion.json()).consent_required,true);
+    assert.equal(Number((await real.query(
+      'SELECT COUNT(*)::int AS n FROM public.opinioni_risposte WHERE user_id=$1',[ID]
+    )).rows[0].n),0,'revoke must leave no canonical opinion choices');
+    blocked=null;
     const publicFlags=async()=>{
       const x=await real.query(
         'SELECT u.political_opinions_consent AS base, ' +
@@ -451,6 +471,20 @@ async function main(){
     } finally { for (const c of shadowBeforeGrant) c.release(); }
     assert.equal((await grant()).status,200,'grant must update canonical public users');
     assert.deepEqual(await publicFlags(),{base:true,override:true});
+    assert.equal((await save()).status,200,
+      'opinion save must target canonical responses despite temporary shadow');
+    const canonicalAnswer=await real.query(
+      'SELECT energia_nucleare FROM public.opinioni_risposte WHERE user_id=$1',[ID]);
+    assert.equal(canonicalAnswer.rows[0]?.energia_nucleare,'f');
+    const shadowAnswers=await Promise.all([real.connect(),real.connect(),real.connect()]);
+    try {
+      for (const c of shadowAnswers) {
+        const saved=await c.query(
+          'SELECT energia_nucleare FROM pg_temp.opinioni_risposte WHERE user_id=$1',[ID]);
+        assert.equal(saved.rows[0]?.energia_nucleare,'i',
+          'an opinion write must not update shadow answer rows');
+      }
+    } finally { for (const c of shadowAnswers) c.release(); }
     const afterGrant=await consentRead();
     assert.equal(afterGrant.status,200);
     assert.equal((await afterGrant.json()).consent.granted,true);
@@ -482,11 +516,13 @@ async function main(){
         assert.equal(uc.rows[0].political_opinions_consent,true,
           'revoke must never modify temporary consents');
         await c.query('RESET search_path');
+        await c.query('DROP TABLE pg_temp.opinioni_risposte');
         await c.query('DROP TABLE pg_temp.user_consents');
         await c.query('DROP TABLE pg_temp.users');
       }
     } finally { for (const c of finalShadows) c.release(); }
 
+    console.log('POLITICAL_OPINION_ROW_LOCK_AND_SHADOW_PG17_PASS');
     console.log('POLITICAL_CONSENT_PUBLIC_SCHEMA_SHADOW_PG17_PASS');
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_REAL_PG17_PASS');
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_RESULT_JSON='+JSON.stringify({
