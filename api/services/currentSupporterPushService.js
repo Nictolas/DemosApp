@@ -59,7 +59,7 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
        FROM public.users u
        LEFT JOIN public.user_consents uc ON uc.user_id = u.id
        WHERE u.status = 'a'
-         AND u.id::text = ANY($1::text[])
+         AND u.id = ANY($1::uuid[])
          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
       [supporterState.userIds],
     );
@@ -71,7 +71,7 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
        FROM public.users u
        LEFT JOIN public.user_consents uc ON uc.user_id = u.id
        WHERE u.status = 'a'
-         AND u.id::text = ANY($1::text[])
+         AND u.id = ANY($1::uuid[])
          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
       [supporterState.userIds],
     );
@@ -79,6 +79,9 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
   }
 }
 
+// Compare user UUID values natively so public.users_pkey can be used even
+// when there are many registered users. The IDs come from the canonical
+// political supporter lookup (public.users.id), which is UUID typed.
 // A narrow, read-only consent/token check immediately before each external
 // send. It deliberately does not hold a database transaction or row lock
 // across Firebase I/O: that would block user revocation on remote latency.
@@ -89,7 +92,7 @@ async function isCurrentSupporterTokenEligible(pool, { userIds, token }) {
 
   const consentFilter = `FROM public.users u
      LEFT JOIN public.user_consents uc ON uc.user_id = u.id
-     WHERE u.id::text = ANY($1::text[])
+     WHERE u.id = ANY($1::uuid[])
        AND u.status = 'a'
        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`;
   const legacyToken = `EXISTS (
