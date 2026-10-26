@@ -52,7 +52,16 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
                     AND d.fcm_token IS NOT NULL
                     AND btrim(d.fcm_token) <> ''
                   UNION
-                  SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) AS token
+                  SELECT legacy.token
+                  FROM unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) AS legacy(token)
+                  WHERE legacy.token IS NOT NULL
+                    AND btrim(legacy.token) <> ''
+                    -- A canonical device record (even inactive or owned by
+                    -- another account) overrides any stale legacy copy.
+                    AND NOT EXISTS (
+                      SELECT 1 FROM public.user_devices registered
+                      WHERE btrim(registered.fcm_token) = btrim(legacy.token)
+                    )
                 ) tokens
                 WHERE token IS NOT NULL AND btrim(token) <> ''
               ) AS fcm_tokens
@@ -99,11 +108,22 @@ async function isCurrentSupporterTokenEligible(pool, { userIds, token }) {
            SELECT 1 FROM unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) legacy(token)
            WHERE btrim(legacy.token) = $2
          )`;
+  // A token registered anywhere in the canonical device registry must
+  // never become eligible via an older users.fcm_tokens array. This
+  // includes an inactive device and a device transferred to another user.
+  // Only tokens with NO device row may use the compatibility fallback.
+  const unregisteredLegacyToken = `(
+         ${legacyToken}
+         AND NOT EXISTS (
+           SELECT 1 FROM public.user_devices registered
+           WHERE btrim(registered.fcm_token) = $2
+         )
+       )`;
   const primary = `SELECT EXISTS (
      SELECT 1
      ${consentFilter}
        AND (
-         ${legacyToken}
+         ${unregisteredLegacyToken}
          OR EXISTS (
            SELECT 1 FROM public.user_devices d
            WHERE d.user_id = u.id AND d.is_active = TRUE
