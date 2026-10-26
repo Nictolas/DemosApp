@@ -15,7 +15,8 @@ async function verifyOutboxRecoveryReadiness(client, {
   envelope, secret, expectedRecoveryId, expectedManifestDigest,
   expectedRestoredBackupTakenAt, expectedCapturedAt,
   maxEvents = 100000,
-  pageSize = 100
+  pageSize = 100,
+  clock = () => new Date()
 } = {}) {
   if (maintenanceConfirmed !== true) {
     throw Error('Independent maintenance/quarantine attestation required');
@@ -24,7 +25,8 @@ async function verifyOutboxRecoveryReadiness(client, {
       typeof exporter?.verifyArchivedReceipt !== 'function' ||
       typeof exporter?.config !== 'function' ||
       !Number.isInteger(maxEvents) || maxEvents < 1 || maxEvents > 1000000 ||
-      !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 250) {
+      !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 250 ||
+      typeof clock !== 'function') {
     throw Error('Invalid GDPR recovery verification configuration');
   }
   // An independently pinned manifest is required before DB or B2 access.
@@ -65,6 +67,7 @@ async function verifyOutboxRecoveryReadiness(client, {
     }
     let cursor = '';
     let verified = 0;
+    let earliestRetentionUntil = null;
     for (;;) {
       const result = await client.query(
         'SELECT l.event_key, l.subject_user_id, l.event_type, ' +
@@ -95,7 +98,19 @@ async function verifyOutboxRecoveryReadiness(client, {
           versionId: row.b2_version_id, sha256: row.b2_sha256
         };
         // No B2 writes. Read back the exact recorded immutable object version.
-        await exporter.verifyArchivedReceipt(row, receipt);
+        const checked = await exporter.verifyArchivedReceipt(row, receipt);
+        // Individual readbacks are not enough: a version verified at the
+        // beginning of a long scan may expire before the LAST event is read.
+        // Require an explicit expiry from the independently checked B2 lock.
+        const expiry = checked?.retentionUntil;
+        const until = typeof expiry === 'string' ? new Date(expiry) : null;
+        if (!until || !Number.isFinite(until.getTime()) ||
+            until.toISOString() !== expiry) {
+          throw Error('B2 receipt verifier omitted a valid retention expiry');
+        }
+        if (!earliestRetentionUntil || until < earliestRetentionUntil) {
+          earliestRetentionUntil = until;
+        }
         unseen.delete(row.event_key);
         verified++;
         cursor = row.event_key;
@@ -103,6 +118,13 @@ async function verifyOutboxRecoveryReadiness(client, {
     }
     if (unseen.size !== 0) {
       throw Error('Approved external GDPR manifest has events missing from restored ledger');
+    }
+    const finishedAt = clock();
+    if (!(finishedAt instanceof Date) || !Number.isFinite(finishedAt.getTime())) {
+      throw Error('Invalid GDPR recovery verification clock');
+    }
+    if (!earliestRetentionUntil || earliestRetentionUntil <= finishedAt) {
+      throw Error('B2 event Object Lock expired during full recovery verification');
     }
     await client.query('COMMIT');
     open = false;
