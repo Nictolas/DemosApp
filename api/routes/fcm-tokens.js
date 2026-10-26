@@ -7,8 +7,13 @@ require('dotenv').config();
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
+function normalizeFcmToken(token) {
+  return typeof token === 'string' ? token.trim() : '';
+}
+
 function isValidFcmToken(token) {
-  return !!(token && token.trim() && token.length > 100 && !token.startsWith('web_'));
+  const normalizedToken = normalizeFcmToken(token);
+  return normalizedToken.length > 100 && !normalizedToken.startsWith('web_');
 }
 
 function isMissingLegacyFcmColumn(error) {
@@ -18,7 +23,7 @@ function isMissingLegacyFcmColumn(error) {
 async function getLegacyTokens(userId) {
   try {
     const userResult = await pool.query(
-      'SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens FROM users WHERE id = $1',
+      'SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens FROM public.users WHERE id = $1',
       [userId]
     );
 
@@ -26,7 +31,7 @@ async function getLegacyTokens(userId) {
     return userResult.rows[0].fcm_tokens || [];
   } catch (error) {
     if (!isMissingLegacyFcmColumn(error)) throw error;
-    const userResult = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+    const userResult = await pool.query('SELECT 1 FROM public.users WHERE id = $1', [userId]);
     return userResult.rows.length === 0 ? null : [];
   }
 }
@@ -34,7 +39,7 @@ async function getLegacyTokens(userId) {
 async function updateLegacyTokens(userId, tokens) {
   try {
     await pool.query(
-      'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
+      'UPDATE public.users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
       [tokens, userId]
     );
     return true;
@@ -46,7 +51,7 @@ async function updateLegacyTokens(userId, tokens) {
 
 async function upsertUserDeviceToken(userId, token) {
   await pool.query(
-    `INSERT INTO user_devices (user_id, fcm_token, is_active, last_seen_at, created_at, updated_at)
+    `INSERT INTO public.user_devices (user_id, fcm_token, is_active, last_seen_at, created_at, updated_at)
      VALUES ($1, $2, TRUE, NOW(), NOW(), NOW())
      ON CONFLICT (fcm_token) DO UPDATE SET
        user_id = EXCLUDED.user_id,
@@ -59,19 +64,19 @@ async function upsertUserDeviceToken(userId, token) {
 
 async function deactivateOtherUserDeviceTokens(userId, tokenToKeep) {
   await pool.query(
-    `UPDATE user_devices
+    `UPDATE public.user_devices
      SET is_active = FALSE, updated_at = NOW()
      WHERE user_id = $1
-       AND fcm_token <> $2`,
+       AND btrim(fcm_token) <> $2`,
     [userId, tokenToKeep]
   );
 }
 
 async function deactivateUserDeviceToken(userId, token) {
   await pool.query(
-    `UPDATE user_devices
+    `UPDATE public.user_devices
      SET is_active = FALSE, updated_at = NOW()
-     WHERE user_id = $1 AND fcm_token = $2`,
+     WHERE user_id = $1 AND btrim(fcm_token) = $2`,
     [userId, token]
   );
 }
@@ -80,7 +85,7 @@ async function deactivateUserDeviceToken(userId, token) {
 router.post('/', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id || req.user.userId;
-    const { token } = req.body;
+    const token = normalizeFcmToken(req.body?.token);
     
     if (!userId) {
       return res.status(401).json({
@@ -130,20 +135,18 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Filtra i token validi (solo quelli che sono token FCM reali, non device ID fittizi)
-    const validExistingTokens = existingTokens.filter(t => 
-      isValidFcmToken(t)
-    );
+    const validExistingTokens = existingTokens.filter(isValidFcmToken);
     
     // TOKEN SOLO PER MOBILE: Mantieni sempre solo 1 token (il più recente)
     // Quando viene aggiunto un nuovo token mobile, rimuovi tutti i vecchi
     // Questo garantisce che ci sia sempre solo il token mobile più recente
     let updatedTokens;
-    if (validExistingTokens.includes(token)) {
+    if (validExistingTokens.some(existing => normalizeFcmToken(existing) === token)) {
       // Token già presente, mantieni solo questo token (rimuovi eventuali altri)
       updatedTokens = [token];
       if (validExistingTokens.length > 1) {
         console.log(`   🧹 Rimossi ${validExistingTokens.length - 1} token extra (manteniamo solo questo token mobile)`);
-        console.log(`   📋 Token rimossi: ${validExistingTokens.filter(t => t !== token).map(t => t.substring(0, 30) + '...').join(', ')}`);
+        // Never log raw or partial registration tokens.
       } else {
         console.log('   ℹ️ Token già presente, nessuna modifica');
       }
@@ -153,7 +156,7 @@ router.post('/', verifyToken, async (req, res) => {
       
       if (validExistingTokens.length > 0) {
         console.log(`   🧹 Rimossi ${validExistingTokens.length} token vecchi (manteniamo solo 1 token mobile)`);
-        console.log(`   📋 Token rimossi: ${validExistingTokens.map(t => t.substring(0, 30) + '...').join(', ')}`);
+        // Never log raw or partial registration tokens.
       }
       
       console.log(`   ✅ Token mobile aggiunto. Totale token: 1 (solo mobile)`);
@@ -215,18 +218,18 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     }
 
     // Filtra i token validi
-    const validTokens = existingTokens.filter(t => 
-      isValidFcmToken(t)
-    );
+    const validTokens = existingTokens.filter(isValidFcmToken);
     
     // Mantieni solo l'ultimo token (più recente)
-    const cleanedTokens = validTokens.length > 0 ? [validTokens[validTokens.length - 1]] : [];
+    const cleanedTokens = validTokens.length > 0
+      ? [normalizeFcmToken(validTokens[validTokens.length - 1])]
+      : [];
     
     if (validTokens.length > 1) {
       const removedCount = validTokens.length - 1;
       console.log(`   🧹 Rimossi ${removedCount} token duplicati`);
-      console.log(`   📋 Token rimossi: ${validTokens.slice(0, -1).map(t => t.substring(0, 30) + '...').join(', ')}`);
-      console.log(`   ✅ Mantenuto solo l'ultimo token: ${cleanedTokens[0].substring(0, 30)}...`);
+      // Never log token prefixes during cleanup.
+      console.log('   ✅ Mantenuto solo il token più recente');
     } else {
       console.log(`   ℹ️ Nessun token duplicato trovato (${validTokens.length} token presente)`);
     }
@@ -236,7 +239,7 @@ router.post('/cleanup', verifyToken, async (req, res) => {
 
     // Allinea nuovo storage: disattiva tutti i token user, poi attiva solo il più recente (se presente)
     await pool.query(
-      `UPDATE user_devices SET is_active = FALSE, updated_at = NOW() WHERE user_id = $1`,
+      `UPDATE public.user_devices SET is_active = FALSE, updated_at = NOW() WHERE user_id = $1`,
       [userId]
     );
     if (cleanedTokens.length > 0) {
@@ -267,7 +270,7 @@ router.post('/cleanup', verifyToken, async (req, res) => {
 router.delete('/:token', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id || req.user.userId;
-    const { token } = req.params;
+    const token = normalizeFcmToken(req.params.token);
     
     if (!userId) {
       return res.status(401).json({
@@ -284,8 +287,8 @@ router.delete('/:token', verifyToken, async (req, res) => {
       });
     }
 
-    // Rimuovi il token
-    const updatedTokens = existingTokens.filter(t => t !== token);
+    // Remove historical legacy copies with outer whitespace too.
+    const updatedTokens = existingTokens.filter(t => normalizeFcmToken(t) !== token);
     
     // Salva i token aggiornati
     await updateLegacyTokens(userId, updatedTokens);
