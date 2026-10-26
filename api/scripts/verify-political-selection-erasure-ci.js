@@ -57,6 +57,13 @@ async function main(){
     assert.equal(version.db,DB);
     assert.equal(Math.floor(version.version/10000),17);
     await setup(db);
+    // Explicit CI fixture provisioning mirrors the required reviewed DB
+    // migration; GDPR event writes now fail closed if the ledger is absent.
+    await Ledger.ensureTable(db);
+    assert.equal(await scalar(db,`
+      SELECT c.relrowsecurity::int FROM pg_catalog.pg_class c
+      WHERE c.oid='public.privacy_erasure_ledger'::regclass
+    `),1,'synthetic GDPR ledger bootstrap must enable RLS');
     await db.query('BEGIN');
     const pending=await cleanupConsentScopedPoliticalData(db,USER);
     assert.equal(pending.deletedByTable.political_selections,2);
