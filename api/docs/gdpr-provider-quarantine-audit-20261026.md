@@ -134,3 +134,9 @@ Nel progetto separato `Demos-Staging` è stato confermato lo schema `op37_sondag
 6. Soltanto dopo la messa in sicurezza di schema, worker, B2, ingress e consenso del titolare/DPO, valutare l'abilitazione coordinata dei flag e il rollout. La riapertura richiede verifiche GDPR e un'ulteriore decisione documentata, non il semplice superamento della CI.
 
 **GO/NO-GO invariato: NO-GO.** L'outbox in Draft è una protezione *non ancora in esercizio*, il ledger esterno non è certificato completo e non esiste attestazione della quarantena in produzione.
+
+## Collegamento del ruolo SQL backend al ledger (27 ottobre 2026)
+
+Una lettura diretta di `pg_catalog` ha confermato che il ledger attuale è di proprietà del ruolo `postgres`, con RLS attivo, zero policy, niente FORCE RLS; `anon`, `authenticated` e `service_role` non hanno SELECT/INSERT, mentre `postgres` ha entrambi. Il codice backend usa `DATABASE_URL` ma non si conosce il **ruolo effettivo della connessione Render**; la presenza di una tabella con RLS non basta a dimostrare che un diverso writer autorizzato possa scrivere. Vedi `gdpr-database-role-migration-preflight-20261027.md` per query di sola lettura e istruzioni; non stampare stringhe di connessione e non confondere il ruolo REST `service_role` con quello del pool SQL.
+
+**La condizione è ancora NON ATTESTATA e NO-GO**. Nessun ruolo è stato creato o modificato in Supabase; i test di RLS del writer non-proprietario usano solo PostgreSQL 17 disposable.
