@@ -20,7 +20,7 @@ class PrivacyErasureLedgerService {
 
   static async ensureTable(client) {
     await client.query(`
-      CREATE TABLE IF NOT EXISTS privacy_erasure_ledger (
+      CREATE TABLE IF NOT EXISTS public.privacy_erasure_ledger (
         event_key TEXT PRIMARY KEY,
         subject_user_id TEXT NOT NULL,
         event_type TEXT NOT NULL CHECK (event_type IN (
@@ -33,8 +33,8 @@ class PrivacyErasureLedgerService {
       )
     `);
     await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_privacy_erasure_ledger_subject_time
-      ON privacy_erasure_ledger(subject_user_id, occurred_at DESC)
+      CREATE INDEX IF NOT EXISTS public.idx_privacy_erasure_ledger_subject_time
+      ON public.privacy_erasure_ledger(subject_user_id, occurred_at DESC)
     `);
   }
 
@@ -43,8 +43,8 @@ class PrivacyErasureLedgerService {
     // turning on the feature. IF NOT EXISTS supports synthetic CI bootstrap;
     // it does NOT replace explicit schema migration and permission review.
     await client.query(`
-      CREATE TABLE IF NOT EXISTS privacy_erasure_delivery_outbox (
-        event_key TEXT PRIMARY KEY REFERENCES privacy_erasure_ledger(event_key) ON DELETE RESTRICT,
+      CREATE TABLE IF NOT EXISTS public.privacy_erasure_delivery_outbox (
+        event_key TEXT PRIMARY KEY REFERENCES public.privacy_erasure_ledger(event_key) ON DELETE RESTRICT,
         queued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         delivered_at TIMESTAMPTZ,
         b2_version_id TEXT,
@@ -56,8 +56,8 @@ class PrivacyErasureLedgerService {
       )
     `);
     await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_privacy_erasure_outbox_pending
-      ON privacy_erasure_delivery_outbox (queued_at, event_key)
+      CREATE INDEX IF NOT EXISTS public.idx_privacy_erasure_outbox_pending
+      ON public.privacy_erasure_delivery_outbox (queued_at, event_key)
       WHERE delivered_at IS NULL
     `);
   }
@@ -71,8 +71,8 @@ class PrivacyErasureLedgerService {
     await this.ensureTable(client);
     await this.ensureDeliveryOutbox(client);
     const result = await client.query(`
-      INSERT INTO privacy_erasure_delivery_outbox (event_key)
-      SELECT event_key FROM privacy_erasure_ledger
+      INSERT INTO public.privacy_erasure_delivery_outbox (event_key)
+      SELECT event_key FROM public.privacy_erasure_ledger
       ON CONFLICT (event_key) DO NOTHING
     `);
     return result.rowCount || 0;
@@ -125,13 +125,13 @@ class PrivacyErasureLedgerService {
       // In a surrounding consent/account transaction both roll back together.
       const atomic = await client.query(`
         WITH event_insert AS (
-          INSERT INTO privacy_erasure_ledger
+          INSERT INTO public.privacy_erasure_ledger
             (event_key, subject_user_id, event_type, occurred_at, details)
           VALUES ($1, $2, $3, NOW(), $4::jsonb)
           RETURNING event_key, subject_user_id, event_type, occurred_at, details
         ),
         delivery_insert AS (
-          INSERT INTO privacy_erasure_delivery_outbox (event_key)
+          INSERT INTO public.privacy_erasure_delivery_outbox (event_key)
           SELECT event_key FROM event_insert
           RETURNING event_key
         )
@@ -144,7 +144,7 @@ class PrivacyErasureLedgerService {
       return atomic.rows[0];
     }
     const result = await client.query(
-      `INSERT INTO privacy_erasure_ledger
+      `INSERT INTO public.privacy_erasure_ledger
         (event_key, subject_user_id, event_type, occurred_at, details)
        VALUES ($1, $2, $3, NOW(), $4::jsonb)
        RETURNING event_key, subject_user_id, event_type, occurred_at, details`,
@@ -157,7 +157,7 @@ class PrivacyErasureLedgerService {
     await this.ensureTable(client);
     const result = await client.query(`
       SELECT event_key, subject_user_id, event_type, occurred_at, details
-      FROM privacy_erasure_ledger
+      FROM public.privacy_erasure_ledger
       ORDER BY occurred_at ASC, event_key ASC
     `);
     return result.rows;
@@ -170,7 +170,7 @@ class PrivacyErasureLedgerService {
     let merged = 0;
     for (const row of rows) {
       const result = await client.query(
-        `INSERT INTO privacy_erasure_ledger
+        `INSERT INTO public.privacy_erasure_ledger
           (event_key, subject_user_id, event_type, occurred_at, details)
          VALUES ($1, $2, $3, $4, $5::jsonb)
          ON CONFLICT (event_key) DO NOTHING`,
