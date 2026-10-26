@@ -124,7 +124,57 @@ async function main() {
       /maintenance/
     );
     assert.equal(await Ledger.backfillDeliveryOutbox(pool,{maintenanceConfirmed:true}),1);
+    // The outbox must be RLS-protected from its FIRST committed creation,
+    // not merely configured later by an operator migration.
+    assert.equal(await value(pool,`
+      SELECT c.relrowsecurity::int
+      FROM pg_catalog.pg_class c
+      JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relname='privacy_erasure_delivery_outbox'
+    `),1,'outbox must enable RLS atomically during first installation');
+
+    // Simulate Supabase's potentially permissive default public grants and
+    // prove an idempotent maintenance reprovision removes them on a real PG17.
+    await pool.query(`
+      DO $test_roles$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='anon') THEN
+          CREATE ROLE anon NOLOGIN;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticated') THEN
+          CREATE ROLE authenticated NOLOGIN;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='service_role') THEN
+          CREATE ROLE service_role NOLOGIN;
+        END IF;
+      END
+      $test_roles$;
+    `);
+    await pool.query(
+      'GRANT SELECT, INSERT, UPDATE, DELETE ON public.privacy_erasure_delivery_outbox ' +
+      'TO anon, authenticated, service_role'
+    );
+    assert.equal(await value(pool,`
+      SELECT count(*)::int FROM pg_catalog.pg_roles r
+      WHERE r.rolname IN ('anon','authenticated','service_role')
+        AND has_table_privilege(r.rolname,'public.privacy_erasure_delivery_outbox','SELECT')
+    `),3,'synthetic setup must really grant SELECT before hardening');
     assert.equal(await Ledger.backfillDeliveryOutbox(pool,{maintenanceConfirmed:true}),0);
+    assert.equal(await value(pool,`
+      SELECT count(*)::int FROM pg_catalog.pg_roles r
+      WHERE r.rolname IN ('anon','authenticated','service_role')
+        AND (
+          has_table_privilege(r.rolname,'public.privacy_erasure_delivery_outbox','SELECT') OR
+          has_table_privilege(r.rolname,'public.privacy_erasure_delivery_outbox','INSERT') OR
+          has_table_privilege(r.rolname,'public.privacy_erasure_delivery_outbox','UPDATE') OR
+          has_table_privilege(r.rolname,'public.privacy_erasure_delivery_outbox','DELETE')
+        )
+    `),0,'outbox provisioning must revoke anonymous/authenticated/service API grants');
+    assert.equal(await value(pool,`
+      SELECT c.relrowsecurity::int FROM pg_catalog.pg_class c
+      JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relname='privacy_erasure_delivery_outbox'
+    `),1,'maintenance reprovision must preserve enabled RLS');
     assert.equal((await PrivacyErasureOutboxWorker.status(pool)).pending,1);
     // A pooled PostgreSQL session can prefer pg_temp or another schema.
     // Exercise both live outbox and legacy writes, explicit maintenance

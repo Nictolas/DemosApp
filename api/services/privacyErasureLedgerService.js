@@ -42,6 +42,9 @@ class PrivacyErasureLedgerService {
     // This table must be installed intentionally by the operator before
     // turning on the feature. IF NOT EXISTS supports synthetic CI bootstrap;
     // it does NOT replace explicit schema migration and permission review.
+    // The CREATE + RLS + REVOKE statements below MUST be one SQL request:
+    // no auto-commit window may expose this table through Supabase Data API.
+    // The operator must still isolate providers before running this DDL.
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.privacy_erasure_delivery_outbox (
         event_key TEXT PRIMARY KEY REFERENCES public.privacy_erasure_ledger(event_key) ON DELETE RESTRICT,
@@ -53,7 +56,25 @@ class PrivacyErasureLedgerService {
           (delivered_at IS NULL AND b2_version_id IS NULL AND b2_sha256 IS NULL)
           OR (delivered_at IS NOT NULL AND b2_version_id IS NOT NULL AND b2_sha256 IS NOT NULL)
         )
-      )
+      );
+      -- PostgreSQL executes this batch as one implicit transaction when
+      -- no explicit BEGIN is open. Never expose a just-created public table
+      -- before RLS and API role grants are locked down.
+      ALTER TABLE public.privacy_erasure_delivery_outbox ENABLE ROW LEVEL SECURITY;
+      REVOKE ALL ON TABLE public.privacy_erasure_delivery_outbox FROM PUBLIC;
+      DO $gdpr_outbox_privileges$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='anon') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_delivery_outbox FROM anon;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticated') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_delivery_outbox FROM authenticated;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='service_role') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_delivery_outbox FROM service_role;
+        END IF;
+      END
+      $gdpr_outbox_privileges$;
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_privacy_erasure_outbox_pending
