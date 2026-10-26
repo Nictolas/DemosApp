@@ -61,6 +61,24 @@ test('duplicate events, events after capture and malformed timestamps fail durin
   assert.throws(() => fixture([mkEvent('political_consent_revoked', { occurred_at: 'bad' })]),
     /Invalid event timestamp/);
 });
+test('mixed-case GDPR event UUID is rejected before signing or database access', async () => {
+  const noncanonical = mkEvent('political_consent_revoked', {
+    event_key: 'ABCDEF12-3456-4ABC-8DEF-123456789ABC'
+  });
+  assert.throws(() => fixture([noncanonical]), /Invalid signed privacy recovery event/);
+  let queries = 0;
+  const client = {async query(){ queries++; throw Error('Unexpected SQL'); }};
+  await assert.rejects(reconcileRestoredPrivacyState({
+    client,
+    envelope: {payload:{
+      formatVersion:1,recoveryId:ID,capturedAt:'2026-10-26T01:00:00.000Z',
+      restoredBackupTakenAt:'2026-10-24T00:00:00.000Z',events:[noncanonical]
+    },signature:'a'.repeat(64)},
+    secret:SECRET,expectedRecoveryId:ID,maintenanceConfirmed:true
+  }), /Invalid signed privacy recovery event/);
+  assert.equal(queries,0);
+});
+
 test('signed recovery refuses events that cannot fit the immutable B2 archive before any I/O', async () => {
   // B2 archiveEvent normalizes canonical JSON and refuses >8192 bytes.
   // Without matching validation here, a valid signed recovery could commit

@@ -265,6 +265,13 @@ test('invalid verification clock fails before contacting B2',async()=>{
   assert.equal(b2.calls.length,before);
 });
 
+test('noncanonical mixed-case event IDs cannot produce B2 objects',async()=>{
+  const b2=new FakeB2(),journal=service(b2);
+  const event={...EVT(),event_key:'ABCDEF12-3456-4ABC-8DEF-123456789ABC'};
+  await assert.rejects(journal.archiveEvent(event),/Invalid GDPR ledger event/);
+  assert.equal(b2.calls.length,0,'reject malformed event IDs before any remote request');
+});
+
 test('existing event key with changed content is a fatal conflict',async()=>{
   const b2=new FakeB2(),event=EVT();
   await service(b2).archiveEvent(event);

@@ -9,7 +9,7 @@ const {
 } = require('@aws-sdk/client-s3');
 
 const TYPES = new Set(['account_deleted', 'political_consent_revoked', 'political_consent_granted']);
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MS_DAY = 86400000;
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
@@ -30,7 +30,7 @@ function normalizeEvent(row) {
     throw Error('Invalid GDPR ledger details');
   }
   const event = {
-    event_key: row.event_key.toLowerCase(),
+    event_key: row.event_key,
     subject_user_id: row.subject_user_id,
     event_type: row.event_type,
     occurred_at: when.toISOString(),
