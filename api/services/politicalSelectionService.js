@@ -221,7 +221,7 @@ async function loadLegacySelections(db, {
 
   const result = await db.query(
     `SELECT ${fields.join(', ')}
-     FROM public.users
+     FROM users
      WHERE id = $1`,
     [userId],
   );
@@ -277,7 +277,7 @@ async function loadPoliticalSelections(db, {
          ps.source,
          ps.context,
          ps.updated_at
-       FROM public.political_selections ps
+       FROM political_selections ps
        WHERE ${where.join(' AND ')}
        ORDER BY ps.selection_kind, ps.political_office_id`,
       params,
@@ -333,9 +333,9 @@ async function loadSupporterUserIds(db, {
     }
     const result = await db.query(
       `SELECT DISTINCT u.id::text AS id
-       FROM public.political_selections ps
-       JOIN public.users u ON u.id = ps.user_id
-       LEFT JOIN public.user_consents uc ON uc.user_id = u.id
+       FROM political_selections ps
+       JOIN users u ON u.id = ps.user_id
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
        WHERE ${where.join(' AND ')}
          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
        ORDER BY u.id::text`,
@@ -364,8 +364,8 @@ async function loadSupporterUserIds(db, {
   const predicate = fields.map((field) => `u.${field}::text = $1::text`).join(' OR ');
   const result = await db.query(
     `SELECT DISTINCT u.id::text AS id
-     FROM public.users u
-     LEFT JOIN public.user_consents uc ON uc.user_id = u.id
+     FROM users u
+     LEFT JOIN user_consents uc ON uc.user_id = u.id
      WHERE u.status = 'a'
        AND (${predicate})
        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
