@@ -46,7 +46,10 @@ test('supporter token lookup resolves supporter identity through canonical polit
   assert.match(calls[1].sql,
     /NOT EXISTS\s*\(\s*SELECT 1 FROM public\.user_devices registered/);
   assert.match(calls[1].sql,
+    /registered\.fcm_token = btrim\(legacy\.token\)/);
+  assert.match(calls[1].sql,
     /btrim\(registered\.fcm_token\) = btrim\(legacy\.token\)/);
+  assert.match(calls[1].sql, /WHEN EXISTS\s*\([\s\S]*THEN FALSE\s*ELSE NOT EXISTS/);
   assert.match(calls[1].sql, /FROM public\.users u/);
   assert.match(calls[1].sql, /u\.id = ANY\(\$1::uuid\[\]\)/);
   assert.doesNotMatch(calls[1].sql, /u\.id::text = ANY/);
