@@ -1,7 +1,9 @@
 'use strict';
 
 // PostgreSQL 17 localhost CI only: canonical/legacy supporters and notifications.
-// All fixtures are synthetic TEMP tables in a rolled-back transaction.
+// All fixtures are synthetic on disposable PG17 in one rolled-back transaction.
+// Canonical selection lookups target public; downstream delivery mocks still
+// exercise their existing temporary tables as a separate, limited contract.
 const assert = require('node:assert/strict');
 const { Pool } = require('pg');
 const { loadSupporterUserIds } = require('../services/politicalSelectionService');
@@ -33,6 +35,23 @@ async function main() {
     assert.equal(meta.db, 'political_consent_race_ci');
     assert.equal(Math.floor(meta.version / 10000), 17);
     await client.query('BEGIN');
+    // This test runs BEFORE the canonical-selection write drill in CI.
+    // Create its synthetic canonical relation within the rollback-only
+    // transaction instead of depending on a later workflow step.
+    await client.query(
+      'CREATE TABLE IF NOT EXISTS public.political_selections (' +
+      'user_id uuid NOT NULL,selection_kind text NOT NULL,' +
+      'jurisdiction_id text NOT NULL,political_office_id text NOT NULL,' +
+      'selected_user_id uuid NOT NULL,selected_candidacy_id uuid,' +
+      'selected_mandate_id uuid,source text,context jsonb,' +
+      'updated_at timestamptz DEFAULT NOW(),' +
+      'UNIQUE (user_id,selection_kind,political_office_id))'
+    );
+    // Other CI scripts create public.users/consents/selections in this same
+    // disposable PG17 database. Populate only made-up IDs, and ROLLBACK
+    // every public change (including fixture columns) at the end.
+    await client.query("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS status text DEFAULT 'a'");
+    await client.query('ALTER TABLE public.users ADD COLUMN IF NOT EXISTS rappresentante_camera uuid');
     await client.query('CREATE TEMP TABLE users (id uuid PRIMARY KEY, status text NOT NULL, political_opinions_consent boolean, fcm_tokens text[] DEFAULT ARRAY[]::text[], rappresentante_camera uuid)');
     await client.query('CREATE TEMP TABLE user_consents (user_id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE political_selections (user_id uuid, selection_kind text, political_office_id text, selected_user_id uuid)');
@@ -44,6 +63,30 @@ async function main() {
     const granted = '00000000-0000-4000-8000-000000000302';
     const revoked = '00000000-0000-4000-8000-000000000303';
     const fallback = '00000000-0000-4000-8000-000000000304';
+    await client.query(
+      "INSERT INTO public.users(id,status,political_opinions_consent,rappresentante_camera) " +
+      "VALUES ($1,'a',true,NULL),($2,'a',true,$1),($3,'a',true,$1),($4,'a',true,$1) " +
+      "ON CONFLICT (id) DO UPDATE SET " +
+      "status=EXCLUDED.status,political_opinions_consent=EXCLUDED.political_opinions_consent," +
+      "rappresentante_camera=EXCLUDED.rappresentante_camera",
+      [subject,granted,revoked,fallback]
+    );
+    await client.query(
+      'INSERT INTO public.user_consents(user_id,political_opinions_consent) ' +
+      'VALUES ($1,true),($2,false) ON CONFLICT (user_id) DO UPDATE SET ' +
+      'political_opinions_consent=EXCLUDED.political_opinions_consent',
+      [granted,revoked]
+    );
+    await client.query(
+      "INSERT INTO public.political_selections " +
+      "(user_id,selection_kind,jurisdiction_id,political_office_id,selected_user_id,source,context) " +
+      "VALUES ($1,'representative','it','it.camera',$4,'matching','{}'::jsonb)," +
+      "($2,'representative','it','it.camera',$4,'matching','{}'::jsonb)," +
+      "($3,'representative','it','it.camera',$4,'matching','{}'::jsonb) " +
+      "ON CONFLICT (user_id,selection_kind,political_office_id) DO UPDATE SET " +
+      "selected_user_id=EXCLUDED.selected_user_id",
+      [granted,revoked,fallback,subject]
+    );
     await client.query("INSERT INTO users(id,status,political_opinions_consent,fcm_tokens,rappresentante_camera) VALUES ($1,'a',true,ARRAY[]::text[],NULL),($2,'a',true,ARRAY['token-granted'],$1),($3,'a',true,ARRAY['token-revoked'],$1),($4,'a',true,ARRAY['token-fallback'],$1)", [subject,granted,revoked,fallback]);
     await client.query('INSERT INTO user_consents(user_id,political_opinions_consent) VALUES ($1,true),($2,false)', [granted,revoked]);
     await client.query("INSERT INTO political_selections(user_id,selection_kind,political_office_id,selected_user_id) VALUES ($1,'representative','it.camera',$4),($2,'representative','it.camera',$4),($3,'representative','it.camera',$4)", [granted,revoked,fallback,subject]);
@@ -92,6 +135,7 @@ async function main() {
     // Revoke after supporter ID lookup but before notification INSERT.
     await client.query('UPDATE user_consents SET political_opinions_consent=true WHERE user_id=$1', [granted]);
     await client.query('DELETE FROM political_selections WHERE user_id=$1', [fallback]);
+    await client.query('DELETE FROM public.political_selections WHERE user_id=$1', [fallback]);
     const revokeAtInsert = { async query(sql, params) {
       if (String(sql).includes('INSERT INTO political_opinion_notifications')) {
         await client.query('UPDATE user_consents SET political_opinions_consent=false WHERE user_id=$1', [granted]);
@@ -107,8 +151,21 @@ async function main() {
 
     // Missing canonical table must fall back to legacy user columns with the
     // identical active-consent filter, including the missing-override case.
-    await client.query('DROP TABLE political_selections');
-    supporters = await loadSupporterUserIds(pg, opts);
+    await client.query(
+      'UPDATE public.user_consents SET political_opinions_consent=false WHERE user_id=$1',
+      [granted]
+    );
+    // Do not drop the canonical table. A synthetic 42P01 adapter exercises
+    // the documented missing-canonical-schema fallback without DDL damage.
+    const noCanonical = { async query(sql, params) {
+      if (String(sql).includes('FROM public.political_selections ps')) {
+        const err = Error('synthetic canonical selection table unavailable');
+        err.code = '42P01';
+        throw err;
+      }
+      return pg.query(sql, params);
+    } };
+    supporters = await loadSupporterUserIds(noCanonical, opts);
     assert.equal(supporters.source, 'LEGACY');
     assert.deepEqual(supporters.userIds, [fallback]);
     console.log('SUPPORTER_NOTIFICATION_CONSENT_PG17_SYNTHETIC_PASS');

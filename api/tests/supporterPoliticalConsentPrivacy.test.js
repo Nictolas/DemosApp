@@ -11,7 +11,7 @@ const consentPredicate =
   /COALESCE\(uc\.political_opinions_consent,\s*(?:u|supporter)\.political_opinions_consent,\s*false\) IS TRUE/;
 
 function assertScoped(sql) {
-  assert.match(sql, /LEFT JOIN user_consents uc ON uc\.user_id = (?:u|supporter)\.id/);
+  assert.match(sql, /LEFT JOIN (?:public\.)?user_consents uc ON uc\.user_id = (?:u|supporter)\.id/);
   assert.match(sql, consentPredicate);
 }
 
@@ -19,8 +19,8 @@ test('canonical supporter lookup filters political consent in the same SELECT', 
   let statements = 0;
   const db = { async query(sql, params) {
     statements++;
-    assert.match(sql, /FROM political_selections ps/);
-    assert.match(sql, /JOIN users u ON u\.id = ps\.user_id/);
+    assert.match(sql, /FROM public\.political_selections ps/);
+    assert.match(sql, /JOIN public\.users u ON u\.id = ps\.user_id/);
     assert.match(sql, /u\.status = 'a'/);
     assertScoped(sql);
     assert.deepEqual(params, ['synthetic-subject', 'representative', 'it.camera']);
@@ -38,12 +38,12 @@ test('legacy fallback also excludes revoked supporters, without losing office sc
   let lookups = 0;
   const db = { async query(sql, params) {
     lookups++;
-    if (/FROM political_selections ps/.test(sql)) {
+    if (/FROM public\.political_selections ps/.test(sql)) {
       const e = Error('synthetic relation missing');
       e.code = '42P01';
       throw e;
     }
-    assert.match(sql, /FROM users u/);
+    assert.match(sql, /FROM public\.users u/);
     assertScoped(sql);
     assert.match(sql, /u\.status = 'a'/);
     assert.match(sql, /rappresentante_camera/);
@@ -62,7 +62,7 @@ test('push token lookup rechecks consent after reading supporter IDs', async () 
   let lookups = 0;
   const db = { async query(sql) {
     lookups++;
-    if (/FROM political_selections ps/.test(sql)) {
+    if (/FROM public\.political_selections ps/.test(sql)) {
       assertScoped(sql);
       return { rows: [{ id: 'synthetic-consented' }] };
     }
@@ -83,7 +83,7 @@ test('push token lookup rechecks consent after reading supporter IDs', async () 
 test('legacy push token path also rechecks consent after a missing device table', async () => {
   let attempts = 0;
   const db = { async query(sql) {
-    if (/FROM political_selections ps/.test(sql)) return { rows: [{ id: 'synthetic-consented' }] };
+    if (/FROM public\.political_selections ps/.test(sql)) return { rows: [{ id: 'synthetic-consented' }] };
     attempts++;
     assertScoped(sql);
     if (attempts === 1) {
@@ -106,7 +106,7 @@ test('notification INSERT filters consent again so a revocation between reads is
   const seen = [];
   const db = { async query(sql, params) {
     seen.push(String(sql));
-    if (/FROM political_selections ps/.test(sql)) return {
+    if (/FROM public\.political_selections ps/.test(sql)) return {
       rows: [{ id: '11111111-1111-1111-1111-111111111122' }]
     };
     if (/FROM opinioni_domande/.test(sql)) return { rows: [{ id: '42', text: 'Test question' }] };

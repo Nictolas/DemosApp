@@ -53,6 +53,17 @@ async function main() {
       '(id uuid PRIMARY KEY,political_opinions_consent boolean)');
     await client.query('CREATE TABLE IF NOT EXISTS public.user_consents ' +
       '(user_id uuid PRIMARY KEY,political_opinions_consent boolean)');
+    // Recreated only inside this disposable PG17 rollback-only fixture:
+    // public is the authoritative selection source; pg_temp is adversarial.
+    await client.query(
+      'CREATE TABLE IF NOT EXISTS public.political_selections (' +
+      'user_id uuid NOT NULL,selection_kind text NOT NULL,' +
+      'jurisdiction_id text NOT NULL,political_office_id text NOT NULL,' +
+      'selected_user_id uuid NOT NULL,selected_candidacy_id uuid,' +
+      'selected_mandate_id uuid,source text,context jsonb,' +
+      'updated_at timestamptz DEFAULT NOW(),' +
+      'UNIQUE (user_id,selection_kind,political_office_id))'
+    );
     await client.query('CREATE TEMP TABLE users (id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE user_consents (user_id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query(
@@ -66,6 +77,7 @@ async function main() {
     const active = '00000000-0000-4000-8000-000000000296';
     const revoked = '00000000-0000-4000-8000-000000000297';
     const chosen = '00000000-0000-4000-8000-000000000298';
+    const fakeShadow = '00000000-0000-4000-8000-000000000299';
     await client.query('INSERT INTO users VALUES ($1,true),($2,true)', [active, revoked]);
     await client.query('INSERT INTO user_consents VALUES ($1,true),($2,false)', [active, revoked]);
     await client.query(
@@ -87,7 +99,16 @@ async function main() {
           'user_id, selection_kind, jurisdiction_id, political_office_id,' +
           'selected_user_id, source, context) ' +
           'VALUES ($1, $2, \'it\', \'it.camera\', $3, \'matching\', \'{}\'::jsonb)',
-          [userId, kind, chosen]
+          [userId, kind, fakeShadow]
+        );
+        await client.query(
+          'INSERT INTO public.political_selections (' +
+          'user_id,selection_kind,jurisdiction_id,political_office_id,' +
+          'selected_user_id,source,context) ' +
+          "VALUES ($1,$2,'it','it.camera',$3,'matching','{}'::jsonb) " +
+          'ON CONFLICT (user_id,selection_kind,political_office_id) DO UPDATE SET ' +
+          'selected_user_id=EXCLUDED.selected_user_id',
+          [userId,kind,chosen]
         );
       }
     }
@@ -149,6 +170,12 @@ async function main() {
       );
       await client.query('UPDATE public.user_consents SET political_opinions_consent=true WHERE user_id=$1', [active]);
     }
+    const syntheticShadow=(await client.query(
+      'SELECT selected_user_id::text AS id FROM pg_temp.political_selections LIMIT 1'
+    )).rows[0].id;
+    assert.equal(syntheticShadow,fakeShadow,
+      'shadow preferences must differ from verified public selection');
+    console.log('PERSONAL_SELECTION_CANONICAL_SCHEMA_SHADOW_PG17_PASS');
     console.log('PERSONAL_SELECTION_READ_REVOKE_PG17_SYNTHETIC_PASS');
   } finally {
     if (client) {

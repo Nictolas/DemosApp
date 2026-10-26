@@ -28,7 +28,7 @@ test('supporter token lookup resolves supporter identity through canonical polit
   const pool = {
     async query(sql, params) {
       calls.push({ sql: String(sql), params });
-      if (/FROM political_selections ps/.test(sql)) return { rows: [{ id: 'supporter-1' }] };
+      if (/FROM public\.political_selections ps/.test(sql)) return { rows: [{ id: 'supporter-1' }] };
       if (/FROM users u/.test(sql)) {
         return { rows: [{ id: 'supporter-1', fcm_tokens: ['tok-1', 'tok-1', 'tok-2'] }] };
       }
@@ -41,7 +41,7 @@ test('supporter token lookup resolves supporter identity through canonical polit
     level: 'CAMERA',
   });
   assert.deepEqual(rows, [{ userId: 'supporter-1', tokens: ['tok-1', 'tok-2'] }]);
-  assert.match(calls[0].sql, /FROM political_selections ps/);
+  assert.match(calls[0].sql, /FROM public\.political_selections ps/);
   assert.match(calls[0].sql, /ps\.political_office_id = \$3/);
   assert.equal(calls[0].params[2], 'it.camera');
   assert.doesNotMatch(calls[0].sql, /\bsostenitori\b/i);
