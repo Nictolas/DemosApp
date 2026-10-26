@@ -1,5 +1,16 @@
 'use strict';
 
+// Shared status gate, including older compatibility codes.
+const BLOCKED_FCM_USER_STATUSES = Object.freeze(['banned','deleted','disabled','2','9']);
+// Only fixed, reviewed preference checks may be selected by callers.
+const FCM_PREFERENCE_SQL = Object.freeze({
+  animali: `AND NOT EXISTS (SELECT 1 FROM public.notifiche_preferenze np
+    WHERE np.user_id = u.id AND np.animali IS FALSE)`,
+  demos: `AND EXISTS (SELECT 1 FROM public.notifiche_preferenze np
+    WHERE np.user_id = u.id AND np.demos IS TRUE)`
+});
+
+
 // Canonical device rows, including inactive or transferred registrations,
 // always override historical users.fcm_tokens copies.
 const RESOLVED_FCM_TOKENS_LATERAL_SQL = `
@@ -36,25 +47,34 @@ async function getResolvedUserFcmTokens(pool, userId) {
     `SELECT r.tokens AS fcm_tokens
      FROM public.users u
      CROSS JOIN LATERAL (${RESOLVED_FCM_TOKENS_LATERAL_SQL}) r
-     WHERE u.id = $1`, [userId]
+     WHERE u.id = $1
+       AND (u.status IS NULL OR LOWER(BTRIM(u.status::text)) <> ALL($2::text[]))`,
+    [userId, BLOCKED_FCM_USER_STATUSES]
   );
   return result.rows[0]?.fcm_tokens || [];
 }
 
 // Recheck just before Firebase I/O: errors propagate and block delivery,
 // without marking the affected token as invalid.
-async function isUserFcmTokenEligible(pool, { userId, token } = {}) {
+async function isUserFcmTokenEligible(pool, { userId, token, preference = null } = {}) {
   if (!userId || typeof token !== 'string' || !token.trim()) return false;
+  if (preference !== null &&
+      !Object.prototype.hasOwnProperty.call(FCM_PREFERENCE_SQL, preference)) return false;
+  const preferenceFilter = preference === null ? '' : FCM_PREFERENCE_SQL[preference];
   const result = await pool.query(
     `SELECT ($2::text = ANY(r.tokens)) AS eligible
      FROM public.users u
      CROSS JOIN LATERAL (${RESOLVED_FCM_TOKENS_LATERAL_SQL}) r
-     WHERE u.id = $1`, [userId, token.trim()]
+     WHERE u.id = $1
+       AND (u.status IS NULL OR LOWER(BTRIM(u.status::text)) <> ALL($3::text[]))
+       ${preferenceFilter}`,
+    [userId, token.trim(), BLOCKED_FCM_USER_STATUSES]
   );
   return result.rows[0]?.eligible === true;
 }
 
 module.exports = {
+  BLOCKED_FCM_USER_STATUSES,
   RESOLVED_FCM_TOKENS_LATERAL_SQL,
   getResolvedUserFcmTokens,
   isUserFcmTokenEligible,

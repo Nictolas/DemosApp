@@ -35,3 +35,30 @@ test('missing input does not query',async()=>{
   assert.equal(await isUserFcmTokenEligible(pool,{userId:'mock',token:'  '}),false);
   assert.deepEqual(await getResolvedUserFcmTokens(pool,null),[]);
 });
+
+test('blocked accounts cannot return tokens or pass the pre-send check',async()=>{
+  const {BLOCKED_FCM_USER_STATUSES}=require('../services/fcmTokenReadResolver');
+  const queries=[],id='00000000-0000-4000-8000-000000000611';
+  const pool={query:async(sql,params)=>{queries.push({sql,params});return {rows:[{eligible:false,fcm_tokens:[]}]};}};
+  await getResolvedUserFcmTokens(pool,id);
+  await isUserFcmTokenEligible(pool,{userId:id,token:'abc'});
+  assert.ok(BLOCKED_FCM_USER_STATUSES.includes('deleted'));
+  assert.ok(queries.every(q=>q.sql.includes('u.status')));
+  assert.ok(queries.every(q=>q.params.includes(BLOCKED_FCM_USER_STATUSES)));
+});
+test('supported notification preferences recheck current status and unknown values fail closed',async()=>{
+  const queries=[],id='00000000-0000-4000-8000-000000000611';
+  const pool={query:async(sql)=>{queries.push(sql);return {rows:[{eligible:true}]};}};
+  assert.equal(await isUserFcmTokenEligible(pool,{userId:id,token:'abc',preference:'animali'}),true);
+  assert.match(queries[0],/np\.animali IS FALSE/);
+  assert.equal(await isUserFcmTokenEligible(pool,{userId:id,token:'abc',preference:'demos'}),true);
+  assert.match(queries[1],/np\.demos IS TRUE/);
+  assert.equal(await isUserFcmTokenEligible(pool,{userId:id,token:'abc',preference:'bad;DROP'}),false);
+  assert.equal(queries.length,2);
+});
+test('both notification channels pass a preference and sightings filter disabled accounts',()=>{
+  const comm=read('routes/comunicazioni.js'),av=read('routes/avvistamenti.js');
+  assert.match(comm,/userId: utente\.id, token, preference: 'demos'/);
+  assert.match(av,/userId: targetUser\.id, token: fcmToken, preference: 'animali'/);
+  assert.match(av,/BLOCKED_FCM_USER_STATUSES/);
+});

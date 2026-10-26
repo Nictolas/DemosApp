@@ -6,7 +6,7 @@ const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getAccountSubject } = require('../services/accountCapabilitiesService');
 const { sendPushToCurrentSupporters } = require('../services/currentSupporterPushService');
 const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
-const { RESOLVED_FCM_TOKENS_LATERAL_SQL, getResolvedUserFcmTokens, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
+const { BLOCKED_FCM_USER_STATUSES, RESOLVED_FCM_TOKENS_LATERAL_SQL, getResolvedUserFcmTokens, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
 const { safeFcmErrorCode } = require('../utils/fcmDiagnostics');
 const { resolvePoliticalOffice } = require('../services/politicalJurisdictionRegistryService');
 require('dotenv').config();
@@ -21,7 +21,7 @@ const debugWarn = (...args) => {
 };
 
 // Status utente considerati bloccati per invio notifiche push
-const BLOCKED_USER_STATUSES = ['banned', 'deleted', 'disabled', '2', '9'];
+const BLOCKED_USER_STATUSES = BLOCKED_FCM_USER_STATUSES;
 
 async function getResolvedFcmTokensForUser(userId) {
   return getResolvedUserFcmTokens(pool, userId);
@@ -1083,7 +1083,7 @@ async function notifyAllUsers(titolo, commento) {
           debugLog(`    🔔 Invio notifica push a token: ${'[omesso]'}...`);
           
           let eligible = false;
-          try { eligible = await isUserFcmTokenEligible(pool, { userId: utente.id, token }); }
+          try { eligible = await isUserFcmTokenEligible(pool, { userId: utente.id, token, preference: 'demos' }); }
           catch (error) { debugWarn('FCM bulk read unavailable:', safeFcmErrorCode(error)); }
           if (!eligible) continue;
           const result = await sendPushNotification(

@@ -3,7 +3,7 @@ const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
-const { RESOLVED_FCM_TOKENS_LATERAL_SQL, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
+const { BLOCKED_FCM_USER_STATUSES, RESOLVED_FCM_TOKENS_LATERAL_SQL, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
 const { safeFcmErrorCode } = require('../utils/fcmDiagnostics');
 require('dotenv').config();
 
@@ -91,9 +91,10 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
        WHERE u.comune_residenza = $1 
          AND u.id != $2 
          AND u.comune_residenza IS NOT NULL
+         AND (u.status IS NULL OR LOWER(BTRIM(u.status::text)) <> ALL($3::text[]))
          AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
          AND (np.animali = true OR np.animali IS NULL)`,
-      [comuneResidenza, userId]
+      [comuneResidenza, userId, BLOCKED_FCM_USER_STATUSES]
     );
 
     const targetUsers = usersResult.rows;
@@ -123,7 +124,7 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
         if (!fcmToken || !fcmToken.trim()) continue;
         let eligible = false;
         try {
-          eligible = await isUserFcmTokenEligible(pool, { userId: targetUser.id, token: fcmToken });
+          eligible = await isUserFcmTokenEligible(pool, { userId: targetUser.id, token: fcmToken, preference: 'animali' });
         } catch (error) {
           console.warn('Avvistamenti FCM pre-send read unavailable:', safeFcmErrorCode(error));
         }
