@@ -157,6 +157,35 @@ async function main() {
     }),/outbox schema\/mode mismatch/);
     process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'true';
 
+    // Corrupt-restored-schema fixture: simulate an outbox receipt whose
+    // ledger event disappeared. Real FK normally forbids this, but a legacy
+    // or damaged restore may lack that guarantee. This is isolated PG17 CI
+    // only (guarded by fixed localhost credentials and disposable database).
+    const orphanKey = crypto.randomUUID();
+    await db.query('SET session_replication_role = replica');
+    try {
+      await db.query(
+        'INSERT INTO privacy_erasure_delivery_outbox(event_key) VALUES ($1)',
+        [orphanKey]
+      );
+    } finally {
+      await db.query('SET session_replication_role = origin');
+    }
+    await assert.rejects(reconcileRestoredPrivacyState({
+      client:noDdlClient,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,
+      maintenanceConfirmed:true,...approved
+    }),/outbox contains orphaned events/);
+    assert.equal(await count(db,'political_selections',SUBJECT),1);
+    assert.equal(Number((await db.query(
+      'SELECT count(*)::int AS n FROM privacy_erasure_ledger'
+    )).rows[0].n),0);
+    assert.equal(Number((await db.query(
+      'SELECT count(*)::int AS n FROM privacy_erasure_delivery_outbox WHERE event_key=$1',
+      [orphanKey]
+    )).rows[0].n),1,'failed recovery must preserve the inconsistent evidence');
+    // CI-only cleanup of the deliberately injected orphan.
+    await db.query('DELETE FROM privacy_erasure_delivery_outbox WHERE event_key=$1',[orphanKey]);
+
     // The signed 2026-10-25 revocation must erase the 2026-10-24 DB snapshot.
     const first=await reconcileRestoredPrivacyState({
       client:noDdlClient,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
