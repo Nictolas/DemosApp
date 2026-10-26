@@ -1,7 +1,8 @@
 'use strict';
 
 // Real PostgreSQL 17 SQL regression for Government confidence GET.
-// Uses only ephemeral TEMP tables and synthetic IDs on CI localhost.
+// Uses synthetic tables in a rollback-only transaction on CI localhost.
+// Consent identity tables are deliberately in public, the canonical schema.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -43,13 +44,13 @@ async function main() {
     assert.equal(meta.db, 'political_consent_race_ci');
     assert.equal(Math.floor(meta.version / 10000), 17);
     await client.query('BEGIN');
-    await client.query('CREATE TEMP TABLE users(id uuid PRIMARY KEY, political_opinions_consent boolean)');
-    await client.query('CREATE TEMP TABLE user_consents(user_id uuid PRIMARY KEY, political_opinions_consent boolean)');
+    await client.query('CREATE TABLE public.users(id uuid PRIMARY KEY, political_opinions_consent boolean)');
+    await client.query('CREATE TABLE public.user_consents(user_id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE consenso_governo(userid uuid, risposta text, timestamp timestamptz DEFAULT NOW())');
     const active = '00000000-0000-4000-8000-000000000287';
     const revoked = '00000000-0000-4000-8000-000000000288';
-    await client.query('INSERT INTO users VALUES ($1,true),($2,true)', [active, revoked]);
-    await client.query('INSERT INTO user_consents VALUES ($1,true),($2,false)', [active, revoked]);
+    await client.query('INSERT INTO public.users VALUES ($1,true),($2,true)', [active, revoked]);
+    await client.query('INSERT INTO public.user_consents VALUES ($1,true),($2,false)', [active, revoked]);
     await client.query("INSERT INTO consenso_governo(userid,risposta) VALUES ($1,'Sì'),($2,'No')", [active, revoked]);
 
     const source = fs.readFileSync(path.join(__dirname, '../routes/governo.js'), 'utf8');
@@ -113,7 +114,7 @@ async function main() {
     assert.equal(data.statistiche.totale, 1);
 
     // Deliberately keep a residual vote row after revoking the active subject.
-    await client.query('UPDATE user_consents SET political_opinions_consent=false WHERE user_id=$1', [active]);
+    await client.query('UPDATE public.user_consents SET political_opinions_consent=false WHERE user_id=$1', [active]);
     data = await read('active');
     assert.equal(data.mioConsenso, null);
     assert.equal(data.blocco.isBlocked, false);
