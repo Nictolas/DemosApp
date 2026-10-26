@@ -258,6 +258,42 @@ async function main() {
     b2.objects.set(committed.event_key,lost);
     assert.deepEqual(await readiness(),{ready:true,verifiedEvents:2,pinnedEvents:2});
 
+    // Simulate a truncated restored ledger while keeping an independently
+    // pinned manifest with two events. Readback of every remaining B2 version
+    // must NOT report ready: the absent event is detected at end-of-scan.
+    const truncatedClient=await pool.connect();
+    try {
+      const missingRowClient={
+        async query(sql,params) {
+          const response=await truncatedClient.query(sql,params);
+          if (String(sql).includes('FROM privacy_erasure_ledger l ')) {
+            return {...response,rows:response.rows.filter(
+              row=>row.event_key!==committed.event_key
+            )};
+          }
+          return response;
+        }
+      };
+      await assert.rejects(verifyOutboxRecoveryReadiness(missingRowClient,{
+        exporter:b2.exporter,maintenanceConfirmed:true,...approvedCheckpoint
+      }),/events missing from restored ledger/);
+      const modifiedRowClient={
+        async query(sql,params) {
+          const response=await truncatedClient.query(sql,params);
+          if (String(sql).includes('FROM privacy_erasure_ledger l ')) {
+            return {...response,rows:response.rows.map(row=>
+              row.event_key===committed.event_key
+                ? {...row,details:{source:'tampered-local-ledger'}}
+                : row)};
+          }
+          return response;
+        }
+      };
+      await assert.rejects(verifyOutboxRecoveryReadiness(modifiedRowClient,{
+        exporter:b2.exporter,maintenanceConfirmed:true,...approvedCheckpoint
+      }),/conflicts with approved external manifest/);
+    } finally {truncatedClient.release();}
+
     // Two concurrent consumers must never export the same pending row.
     const latest=await Ledger.recordEvent(pool,syntheticEvent());
     await pinSnapshot();
