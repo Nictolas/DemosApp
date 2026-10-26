@@ -20,6 +20,14 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       for (const [table,col] of [['notifiche_demos','id_utente'],['notifiche_comunali','id_utente'],['programmi','utente_id'],['political_selections','user_id']]) {
         await pool.query(`INSERT INTO "${table}"("${col}") VALUES('fixture1'),('fixture2')`);
       }
+      // Explicit synthetic-only bootstrap: user-facing GDPR requests must
+      // never create a missing public privacy ledger on their own.
+      await Erasure.ensureTable(pool);
+      const ready = await pool.query(
+        "SELECT relrowsecurity AS rls FROM pg_catalog.pg_class " +
+        "WHERE oid='public.privacy_erasure_ledger'::regclass"
+      );
+      assert.equal(ready.rows[0].rls, true);
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
