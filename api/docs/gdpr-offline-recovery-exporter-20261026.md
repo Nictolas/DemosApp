@@ -55,3 +55,9 @@ La verifica locale prima di `COMMIT` non e' una barriera atomica. Un nuovo contr
 Se `COMMIT` lancia un errore (per esempio perdita dell'ACK), il rollback e' soltanto best-effort e **non dimostra** che il commit non sia avvenuto. Il chiamante riceve errore, nessun `readyForTraffic`; un retry autorizzato rilegge l'outbox: se la consegna e' durevole non riesporta, altrimenti il journal deve riutilizzare una copia B2 immutabile verificata.
 
 Regressioni con PostgreSQL/B2 **simulati**: revoca locale durante commit riuscito; errore prima del commit; perdita della conferma dopo commit riuscito. Non sono test distribuiti o reali, e non sostituiscono freeze infrastrutturale, checkpoint esterno completo/fresco, DPIA e prove B2 staging. Nessun deploy, migrazione, credenziale o dato di produzione.
+
+## Ordine dei blocchi tra replay ed esportazione offline (regressione sintetica)
+
+Il replay del ledger firmato ottiene per primo l'advisory lock transazionale `pg_advisory_xact_lock(170026, 296)`, poi scrive ledger/outbox. L'esportatore offline, invece, prendeva prima il lock di tabella `SHARE ROW EXCLUSIVE NOWAIT` e solo dopo l'advisory lock. Se i due processi si sovrapponevano, il replay poteva attendere il lock di tabella detenuto dall'esportatore mentre quest'ultimo attendeva l'advisory lock detenuto dal replay: **ordine inverso e potenziale deadlock**.
+
+L'esportatore acquisisce ora **prima l'advisory lock**, poi i lock di tabella con NOWAIT. Questo rende coerente l'ordine fra i due componenti cooperanti. Il test unitario verifica esplicitamente `BEGIN → advisory → table locks → scansione → pending/B2`, mentre la suite PostgreSQL 17 gia' esistente verifica il rifiuto di writer concorrenti prima di PUT B2. Questa correzione non prova l'isolamento di altri processi privi di advisory lock, ne' la completezza del checkpoint esterno. Non e' stata eseguita una prova distribuita su provider reali.
