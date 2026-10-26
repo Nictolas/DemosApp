@@ -154,12 +154,29 @@ async function reconcileRestoredPrivacyState({
     await client.query('SELECT pg_advisory_xact_lock(170026, 296)');
     await Ledger.ensureTable(client);
 
+    // Fail closed if the restored database has ANY GDPR event missing from
+    // the independently pinned manifest. A matching HMAC only authenticates
+    // the supplied manifest; it does not authorize silently ignoring rows in
+    // the restored ledger. The operator must reconcile histories off-line and
+    // obtain a new independent approval instead of erasing unknown entries.
+    const signedKeys = payload.events.map(e => e.event_key);
+    const unapproved = await client.query(
+      'SELECT EXISTS (' +
+      ' SELECT 1 FROM privacy_erasure_ledger ' +
+      ' WHERE NOT (event_key = ANY($1::text[]))' +
+      ') AS present',
+      [signedKeys]
+    );
+    if (unapproved.rows[0]?.present !== false) {
+      throw Error('Restored GDPR ledger contains events absent from approved manifest');
+    }
+
     // If the restored database contains an event with the same key but a
     // different subject/type/time, do NOT silently accept ON CONFLICT DO NOTHING.
     const existing = await client.query(
       'SELECT event_key, subject_user_id, event_type, occurred_at, details ' +
       'FROM privacy_erasure_ledger WHERE event_key = ANY($1::text[])',
-      [payload.events.map(e => e.event_key)]
+      [signedKeys]
     );
     const eventsByKey = new Map(payload.events.map(e => [e.event_key, e]));
     for (const row of existing.rows) {
@@ -173,7 +190,7 @@ async function reconcileRestoredPrivacyState({
     const confirmed = await client.query(
       'SELECT count(*)::integer AS n FROM privacy_erasure_ledger ' +
       'WHERE event_key = ANY($1::text[])',
-      [payload.events.map(e => e.event_key)]
+      [signedKeys]
     );
     if (confirmed.rows[0]?.n !== payload.events.length) {
       throw Error('Incomplete external erasure ledger import');
