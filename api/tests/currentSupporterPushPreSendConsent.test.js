@@ -23,7 +23,9 @@ test('pre-send proof uses only public account, consent, and device tables with b
   assert.match(seen[0].sql, /FROM public\.user_devices d/);
   assert.match(seen[0].sql,
     /NOT EXISTS\s*\(\s*SELECT 1 FROM public\.user_devices registered/);
+  assert.match(seen[0].sql, /registered\.fcm_token = \$2/);
   assert.match(seen[0].sql, /btrim\(registered\.fcm_token\) = \$2/);
+  assert.match(seen[0].sql, /WHEN EXISTS\s*\([\s\S]*THEN FALSE\s*ELSE NOT EXISTS/);
   assert.match(seen[0].sql, /OR EXISTS\s*\(\s*SELECT 1 FROM public\.user_devices d/);
   assert.match(seen[0].sql, /d\.is_active = TRUE/);
   assert.match(seen[0].sql, /u\.status = 'a'/);
