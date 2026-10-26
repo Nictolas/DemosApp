@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { safeDiagnosticCode } = require('../utils/logPrivacy');
 const { pool } = require('../middleware/auth');
 const { getFirebaseAdmin } = require('./firebaseAdmin');
+const { invalidateFailedFcmTokens } = require('./fcmTokenInvalidationService');
 
 const DEFAULT_COOLDOWN_MS = 5 * 60 * 1000;
 const recentAlerts = new Map();
@@ -130,11 +131,13 @@ async function getAdminDeviceTokens(adminIds) {
   return result.rows;
 }
 
-async function invalidateToken(token) {
+async function invalidateToken(userId, token) {
   try {
-    await pool.query('DELETE FROM user_devices WHERE fcm_token = $1', [token]);
+    await invalidateFailedFcmTokens(pool, { userId, tokens: [token] });
   } catch (error) {
-    console.warn('Operational alert: impossibile eliminare token FCM invalido:', error.message);
+    // Never expose raw database errors, device tokens or account IDs in logs.
+    console.warn('Operational alert: invalidazione token FCM fallita:',
+      error?.code || 'database_error');
   }
 }
 
@@ -169,7 +172,7 @@ async function pushToAdmins(adminIds, title, body, alert) {
         code.includes('invalid-registration-token') ||
         code.includes('invalid-argument')
       ) {
-        await invalidateToken(device.fcm_token);
+        await invalidateToken(device.user_id, device.fcm_token);
       }
     }
   }
