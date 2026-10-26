@@ -47,6 +47,11 @@ function makePool({ complete = true, canonicalBlocked = false, granted = true } 
       const ids = params[0].map(String);
       return { rows: ids.map((id) => id === 'u1' ? userRow : subjectRows[id]).filter(Boolean) };
     }
+    if (s.includes('FROM public.political_selections ps')) {
+      const err = new Error('political selections schema missing');
+      err.code = '42P01';
+      throw err;
+    }
     if (s.startsWith('INSERT INTO public.political_selections') || s.startsWith('DELETE FROM public.political_selections')) { const err = new Error('political selections schema missing'); err.code = '42P01'; throw err; }
     if (s.includes("to_regclass('public.user_representatives')")) return { rows: [{ available: false }], rowCount: 1 };
     if (s.startsWith('UPDATE public.users SET candidato_')) return { rows: [{ id: 'u1' }], rowCount: 1 };
