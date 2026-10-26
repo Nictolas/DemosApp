@@ -37,7 +37,7 @@ test('only Politician/Candidate self-writes emit supporter notifications', () =>
 
 test('current canonical selections are the supporter source and historical supporter tables are not used', () => {
   assert.match(service, /loadSupporterUserIds/);
-  assert.match(selectionService, /FROM political_selections ps/);
+  assert.match(selectionService, /FROM public\.political_selections ps/);
   assert.match(selectionService, /source: 'LEGACY'/);
   assert.doesNotMatch(service, /rappresentante_|candidato_|FROM\s+sostenitori\b/i);
 });
