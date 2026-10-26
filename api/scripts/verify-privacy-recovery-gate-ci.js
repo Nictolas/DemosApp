@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { Pool } = require('pg');
 const Ledger = require('../services/privacyErasureLedgerService');
+const PoliticalConsent = require('../services/politicalConsentService');
 const { signature, manifestDigest, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
 const DB = 'privacy_recovery_gate_ci';
 const SUBJECT = '00000000-0000-4000-8000-000000000301';
@@ -46,6 +47,19 @@ async function count(db,table,subject) {
     'SELECT count(*)::int AS n FROM "'+table+'" WHERE user_id=$1',[subject]
   )).rows[0].n);
 }
+async function valueForUser(db,table,subject) {
+  // The table name comes ONLY from this fixed disposable CI fixture.
+  assert.ok(new Set([
+    'public.users','pg_temp.users','public.opinioni_risposte',
+    'pg_temp.opinioni_risposte','public.political_selections',
+    'pg_temp.political_selections'
+  ]).has(table));
+  const column=table.endsWith('.users')?'id':'user_id';
+  return Number((await db.query(
+    'SELECT count(*)::int AS n FROM '+table+' WHERE '+column+'=$1',
+    [subject]
+  )).rows[0].n);
+}
 async function setup(db) {
   const meta=(await db.query("SELECT current_database() AS n,current_setting('server_version_num')::integer AS v")).rows[0];
   assert.equal(meta.n,DB);
@@ -70,6 +84,111 @@ async function main() {
   const db=await pool.connect();
   try {
     await setup(db);
+    // Test the LIVE cleanup helpers directly, outside the signed recovery
+    // replay (which already pins search_path transaction-locally). Borrowed
+    // connections must not let pg_temp shadow canonical personal-data tables.
+    await db.query('BEGIN');
+    try {
+      await db.query(
+        'CREATE TABLE public.comunicazioni ' +
+        '(id uuid PRIMARY KEY,id_utente uuid,read_by uuid[])'
+      );
+      await db.query(
+        'CREATE TABLE public.reazioni (utente_id uuid,comunicazione_id uuid)'
+      );
+      const ownedComm='00000000-0000-4000-8000-000000000401';
+      const otherComm='00000000-0000-4000-8000-000000000402';
+      await db.query(
+        'INSERT INTO public.comunicazioni(id,id_utente,read_by) VALUES ' +
+        '($1,$3,ARRAY[$3]::uuid[]),($2,$4,ARRAY[$3]::uuid[])',
+        [ownedComm,otherComm,THIRD,OTHER]
+      );
+      await db.query(
+        'INSERT INTO public.reazioni(utente_id,comunicazione_id) VALUES ' +
+        '($1,$2),($3,$4)',[THIRD,otherComm,OTHER,ownedComm]
+      );
+      for (const [table,key] of [
+        ['users','id'],['user_consents','user_id'],
+        ['opinioni_risposte','user_id'],['political_selections','user_id'],
+        ['user_representatives','user_id']
+      ]) {
+        await db.query(
+          'CREATE TEMP TABLE "'+table+'" (LIKE public."'+table+'" INCLUDING DEFAULTS) ' +
+          'ON COMMIT DROP'
+        );
+        await db.query(
+          'INSERT INTO pg_temp."'+table+'" SELECT * FROM public."'+table+'" ' +
+          'WHERE "'+key+'"=$1',[THIRD]
+        );
+      }
+      for (const table of ['comunicazioni','reazioni']) {
+        await db.query(
+          'CREATE TEMP TABLE "'+table+'" (LIKE public."'+table+'" INCLUDING DEFAULTS) ' +
+          'ON COMMIT DROP'
+        );
+        await db.query('INSERT INTO pg_temp."'+table+'" SELECT * FROM public."'+table+'"');
+      }
+      // Make the shadow consent disagree with the canonical table.
+      await db.query(
+        'UPDATE pg_temp.user_consents SET political_opinions_consent=false ' +
+        'WHERE user_id=$1',[THIRD]
+      );
+      await db.query('SET LOCAL search_path = pg_temp, public');
+      assert.deepEqual(await PoliticalConsent.getPoliticalConsentState(db,THIRD),
+        {exists:true,granted:true},
+        'political consent read must prefer verified public users/user_consents');
+      await Ledger.enforcePoliticalRevocation(db,THIRD);
+      assert.equal(await valueForUser(db,'public.opinioni_risposte',THIRD),0,
+        'revocation must delete public political responses');
+      assert.equal(await valueForUser(db,'public.political_selections',THIRD),0,
+        'revocation must delete public personal political selections');
+      assert.equal(await valueForUser(db,'pg_temp.opinioni_risposte',THIRD),1,
+        'revocation must never delete shadow political responses');
+      assert.equal(await valueForUser(db,'pg_temp.political_selections',THIRD),1,
+        'revocation must never delete shadow political selections');
+      const revokedPublic=await db.query(
+        'SELECT political_opinions_consent FROM public.users WHERE id=$1',[THIRD]
+      );
+      assert.equal(revokedPublic.rows[0].political_opinions_consent,false);
+      const revokedConsent=await db.query(
+        'SELECT political_opinions_consent FROM public.user_consents WHERE user_id=$1',[THIRD]
+      );
+      assert.equal(revokedConsent.rows[0].political_opinions_consent,false);
+      assert.equal(await valueForUser(db,'pg_temp.users',THIRD),1);
+      const erased=await Ledger.enforceAccountDeletion(db,THIRD);
+      assert.equal(erased.userDeleted,1);
+      assert.equal(await valueForUser(db,'public.users',THIRD),0);
+      assert.equal(await valueForUser(db,'pg_temp.users',THIRD),1,
+        'account erasure must not touch temporary user shadow');
+      assert.equal(Number((await db.query(
+        'SELECT count(*)::int AS n FROM public.reazioni'
+      )).rows[0].n),0,
+      'account deletion must clean reactions by user and linked messages');
+      assert.equal(Number((await db.query(
+        'SELECT count(*)::int AS n FROM pg_temp.reazioni'
+      )).rows[0].n),2,
+      'account deletion must preserve temporary reaction shadow');
+      assert.equal(Number((await db.query(
+        'SELECT count(*)::int AS n FROM public.comunicazioni WHERE id=$1',[ownedComm]
+      )).rows[0].n),0);
+      const remainingComm=await db.query(
+        'SELECT read_by FROM public.comunicazioni WHERE id=$1',[otherComm]
+      );
+      assert.deepEqual(remainingComm.rows[0].read_by,[],
+        'read_by on another user message must drop erased account');
+      assert.equal(Number((await db.query(
+        'SELECT count(*)::int AS n FROM pg_temp.comunicazioni'
+      )).rows[0].n),2);
+      assert.equal(await valueForUser(db,'public.users',OTHER),1,
+        'other public user must not be deleted');
+    } finally {
+      // Roll back *all* synthetic mutations, including temporary and newly
+      // created public tables. Existing signed replay fixtures stay intact.
+      await db.query('ROLLBACK');
+    }
+    assert.equal(await valueForUser(db,'public.users',THIRD),1,
+      'rollback restores public synthetic account and its preferences');
+    assert.equal(await valueForUser(db,'public.opinioni_risposte',THIRD),1);
     const events=[
       event(SUBJECT,'political_consent_granted','2026-10-24T12:00:00Z',{original:true}),
       event(SUBJECT,'political_consent_revoked','2026-10-25T12:00:00Z',{reason:'synthetic'}),
@@ -357,7 +476,7 @@ async function main() {
       outboxSchemaMismatchRejected:true,restoredEventsQueuedAtomically:true,
       deliveryReceiptPreserved:true,simultaneousConsentTieRejected:true,
       missingLedgerRejectedWithoutDdl:true,recoveryReplayZeroDdl:true,
-      productionUntouched:true
+      cleanupPublicSchemaShadowPg17:true,productionUntouched:true
     }));
   } catch(error) {
     await db.query('ROLLBACK').catch(()=>{});
