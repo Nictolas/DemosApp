@@ -204,6 +204,45 @@ test('invalid COMPLIANCE retention is rejected before any B2 body download',asyn
   assert.equal(b2.calls.filter(x=>x.name==='GetObjectCommand').length,readsBefore);
 });
 
+test('recovery rejects Object Lock that expires while its version body is read',async()=>{
+  const b2=new FakeB2(),event=EVT();
+  let now=new Date(FIXED);
+  const journal=new PrivacyErasureB2Journal({
+    client:b2,env:env(),clock:()=>new Date(now)
+  });
+  const saved=await journal.archiveEvent(event);
+  // Synthetic near-expiry version: it is retained at the initial metadata
+  // check, but no longer retained when the body download finishes.
+  b2.objects.get(saved.key).until=new Date(FIXED.getTime()+1000);
+  const send=b2.send.bind(b2);
+  b2.send=async command=>{
+    const response=await send(command);
+    if(command.constructor.name==='GetObjectCommand') {
+      now=new Date(FIXED.getTime()+2000);
+    }
+    return response;
+  };
+  const putBefore=b2.calls.filter(x=>x.name==='PutObjectCommand').length;
+  await assert.rejects(journal.verifyArchivedReceipt(event,{
+    versionId:saved.versionId,sha256:saved.sha256
+  }),/retention expired during readback/);
+  assert.equal(b2.calls.filter(x=>x.name==='PutObjectCommand').length,putBefore,
+    'recovery must not repair expired evidence by writing a new version');
+});
+
+test('invalid verification clock fails before contacting B2',async()=>{
+  const b2=new FakeB2(),event=EVT();
+  const saved=await service(b2).archiveEvent(event);
+  const invalid=new PrivacyErasureB2Journal({
+    client:b2,env:env(),clock:()=>new Date(NaN)
+  });
+  const before=b2.calls.length;
+  await assert.rejects(invalid.verifyArchivedReceipt(event,{
+    versionId:saved.versionId,sha256:saved.sha256
+  }),/Invalid clock/);
+  assert.equal(b2.calls.length,before);
+});
+
 test('existing event key with changed content is a fatal conflict',async()=>{
   const b2=new FakeB2(),event=EVT();
   await service(b2).archiveEvent(event);

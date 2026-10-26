@@ -145,15 +145,19 @@ class PrivacyErasureB2Journal {
   async readVerified(client, cfg, key, event, expectedHash, versionId, requiredUntil) {
     // Metadata/headers are not enough: download the chosen object *version*.
     if (!versionId) throw Error('B2 object version ID required');
+    if (!(requiredUntil instanceof Date) || !Number.isFinite(requiredUntil.getTime())) {
+      throw Error('Invalid clock');
+    }
     // Check retention BEFORE opening the object body. In addition to
     // failing closed, this avoids fetching/abandoning a stream when the
     // immutable version is not legally retained.
     const retained = await client.send(new GetObjectRetentionCommand({
       Bucket: cfg.bucket, Key: key, VersionId: versionId
     }));
+    const retentionUntil = new Date(retained.Retention?.RetainUntilDate);
     if (retained.Retention?.Mode !== 'COMPLIANCE' ||
-        !Number.isFinite(new Date(retained.Retention.RetainUntilDate).getTime()) ||
-        new Date(retained.Retention.RetainUntilDate) < requiredUntil) {
+        !Number.isFinite(retentionUntil.getTime()) ||
+        retentionUntil < requiredUntil) {
       throw Error('B2 event object is not retained in COMPLIANCE mode');
     }
     const read = await client.send(new GetObjectCommand({
@@ -173,6 +177,16 @@ class PrivacyErasureB2Journal {
     if (JSON.stringify(candidate) !== JSON.stringify(event)) {
       throw Error('B2 archived event content differs from PostgreSQL ledger');
     }
+    // The object can be valid when retention is first checked yet expire
+    // while its body is streamed. Never declare recovery readiness on a
+    // receipt whose COMPLIANCE lock has expired by the end of readback.
+    const finishedAt = this.clock();
+    if (!(finishedAt instanceof Date) || !Number.isFinite(finishedAt.getTime())) {
+      throw Error('Invalid clock');
+    }
+    if (retentionUntil < finishedAt) {
+      throw Error('B2 event object retention expired during readback');
+    }
     return {sha256:expectedHash, versionId};
   }
   async verifyArchivedReceipt(raw, receipt) {
@@ -190,10 +204,14 @@ class PrivacyErasureB2Journal {
     if (hash !== receipt.sha256) {
       throw Error('GDPR B2 receipt does not match local ledger event');
     }
+    const checkedAt = this.clock();
+    if (!(checkedAt instanceof Date) || !Number.isFinite(checkedAt.getTime())) {
+      throw Error('Invalid clock');
+    }
     const client = this.s3(cfg);
     await this.assertBucketCompliance(client, cfg);
     return this.readVerified(
-      client, cfg, keyFor(event), event, hash, receipt.versionId, this.clock()
+      client, cfg, keyFor(event), event, hash, receipt.versionId, checkedAt
     );
   }
 
