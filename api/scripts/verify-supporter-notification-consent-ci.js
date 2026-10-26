@@ -62,6 +62,12 @@ async function main() {
       'CREATE TABLE IF NOT EXISTS public.user_devices ' +
       '(user_id uuid,is_active boolean,fcm_token text)'
     );
+    // Existing versioned migration defines (user_id,is_active). Mirror
+    // only its access-path columns, in this disposable rollback-only fixture.
+    await client.query(
+      'CREATE INDEX idx_user_devices_user_active_ci ' +
+      'ON public.user_devices(user_id,is_active)'
+    );
     await client.query('CREATE TEMP TABLE users (id uuid PRIMARY KEY, status text NOT NULL, political_opinions_consent boolean, fcm_tokens text[] DEFAULT ARRAY[]::text[], rappresentante_camera uuid)');
     await client.query('CREATE TEMP TABLE user_consents (user_id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE political_selections (user_id uuid, selection_kind text, political_office_id text, selected_user_id uuid)');
@@ -107,7 +113,8 @@ async function main() {
     await client.query('DELETE FROM public.user_devices WHERE user_id=ANY($1::uuid[])',[[subject,granted,revoked,fallback]]);
     await client.query(
       "INSERT INTO public.user_devices(user_id,is_active,fcm_token) VALUES " +
-      "($1,true,'device-granted'),($2,true,'device-revoked')",
+      "($1,true,'device-granted'),($2,true,'device-revoked')," +
+      "($1,false,'inactive-device')",
       [granted,revoked]
     );
     // Temporary shadow users/devices carry contradictory tokens.
@@ -211,6 +218,54 @@ async function main() {
     assert.equal(await isCurrentSupporterTokenEligible(pg, {
       userIds: [granted], token: 'device-granted'
     }),true);
+    assert.equal(await isCurrentSupporterTokenEligible(pg, {
+      userIds: [granted], token: 'inactive-device'
+    }),false,'inactive canonical device must not be eligible');
+    assert.ok(!tokens.get(granted).includes('inactive-device'),
+      'initial token discovery must exclude inactive canonical device');
+
+    // Access-path availability, NOT a timing claim. The migration ships a
+    // (user_id,is_active) index, and the actual pre-send query must continue
+    // to constrain both columns. PostgreSQL is free to choose other plans
+    // for the full joined query; probe the device predicate by itself.
+    const inspectDeviceIndex = { async query(sql,params) {
+      const statement=String(sql);
+      if(!statement.startsWith('SELECT EXISTS')) return pg.query(sql,params);
+      assert.match(statement,/FROM public\.user_devices d/);
+      assert.match(statement,/d\.user_id = u\.id AND d\.is_active = TRUE/);
+      await client.query('SAVEPOINT synthetic_device_index_plan');
+      try {
+        await client.query('SET LOCAL enable_seqscan = off');
+        const plan=await client.query(
+          'EXPLAIN (FORMAT JSON) SELECT d.fcm_token ' +
+          'FROM public.user_devices d ' +
+          'WHERE d.user_id = $1::uuid AND d.is_active = TRUE ' +
+          'AND btrim(d.fcm_token) = $2',[params[0][0],params[1]]
+        );
+        const nodes=[];
+        const visit=(node)=>{
+          nodes.push(node);
+          for(const child of node.Plans||[]) visit(child);
+        };
+        visit(plan.rows[0]['QUERY PLAN'][0].Plan);
+        assert.ok(nodes.some(node=>
+          /Index/.test(node['Node Type']||'') &&
+          node['Index Name']==='idx_user_devices_user_active_ci' &&
+          /user_id/.test(node['Index Cond']||'')
+        ),'device consent predicate must support the migration index by user_id; observed: ' +
+          JSON.stringify(nodes.filter(n=>/Index/.test(n['Node Type']||'')).map(n=>({
+            type:n['Node Type'],name:n['Index Name'],condition:n['Index Cond']
+          }))));
+      } finally {
+        await client.query('ROLLBACK TO SAVEPOINT synthetic_device_index_plan');
+        await client.query('RELEASE SAVEPOINT synthetic_device_index_plan');
+      }
+      return pg.query(sql,params);
+    } };
+    assert.equal(await isCurrentSupporterTokenEligible(inspectDeviceIndex,{
+      userIds:[granted],token:'device-granted'
+    }),true);
+    console.log('SUPPORTER_DEVICE_ACTIVE_INDEX_PLAN_PG17_PASS');
     assert.equal(await isCurrentSupporterTokenEligible(pg, {
       userIds: [revoked], token: 'token-revoked'
     }),false);
