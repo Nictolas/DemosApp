@@ -174,7 +174,12 @@ async function main() {
 
     // Atomic outbox CTE must also work without a surrounding BEGIN.
     const committed=await Ledger.recordEvent(pool,syntheticEvent());
-    await assert.rejects(readiness(),/absent from approved external manifest/);
+    // Both rows are pending here: UUID ordering can cause a missing receipt
+    // to fail before the unapproved event is reached. Do not make this
+    // assertion depend on random UUID order; test the manifest rejection
+    // deterministically below once all approved receipts are delivered.
+    await assert.rejects(readiness(),
+      /absent from approved external manifest|no verified external delivery receipt/);
     await pinSnapshot();
     assert.equal(await value(pool,
       'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox WHERE event_key=$1',
@@ -227,6 +232,16 @@ async function main() {
     assert.equal(b2.objects.size,2);
     assert.equal((await PrivacyErasureOutboxWorker.status(pool)).ready,true);
     assert.equal((await worker.runOnce(pool,{limit:1})).delivered,0);
+    assert.deepEqual(await readiness({pageSize:1}),{ready:true,verifiedEvents:2,pinnedEvents:2});
+    // Once every approved event has a valid receipt, a newly committed
+    // unapproved ledger event MUST be rejected regardless of UUID order.
+    const unapproved=await Ledger.recordEvent(pool,syntheticEvent());
+    await assert.rejects(readiness(),/absent from approved external manifest/);
+    // Disposable CI fixture cleanup; never delete a real GDPR ledger event.
+    await pool.query('DELETE FROM privacy_erasure_delivery_outbox WHERE event_key=$1',
+      [unapproved.event_key]);
+    await pool.query('DELETE FROM privacy_erasure_ledger WHERE event_key=$1',
+      [unapproved.event_key]);
     assert.deepEqual(await readiness({pageSize:1}),{ready:true,verifiedEvents:2,pinnedEvents:2});
     await assert.rejects(readiness({maxEvents:1,pageSize:1}),/safety cap/);
     // An unqueued historical event must make even the zero-pending summary

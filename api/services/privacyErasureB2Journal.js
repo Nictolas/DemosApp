@@ -44,13 +44,36 @@ function normalizeEvent(row) {
 function checksum(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
-function bytesOf(body) {
-  if (Buffer.isBuffer(body)) return Promise.resolve(body);
-  if (typeof body === 'string') return Promise.resolve(Buffer.from(body));
-  if (body && typeof body.transformToByteArray === 'function') {
-    return body.transformToByteArray().then(x => Buffer.from(x));
+const MAX_EVENT_BYTES = 8192;
+async function bytesOf(body) {
+  // AWS SDK Node GetObject.Body is an async iterable. Do not call
+  // transformToByteArray() first: it buffers the entire remote object and
+  // lets an oversized/malicious B2 response exhaust recovery memory.
+  if (body && typeof body[Symbol.asyncIterator] === 'function') {
+    const chunks = [];
+    let size = 0;
+    for await (const part of body) {
+      const chunk = Buffer.isBuffer(part) ? part : Buffer.from(part);
+      size += chunk.length;
+      if (size > MAX_EVENT_BYTES) {
+        if (typeof body.destroy === 'function') body.destroy();
+        throw Error('B2 archived event exceeds bounded read limit');
+      }
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks, size);
   }
-  throw Error('Unsupported B2 read response');
+  // Never call transformToByteArray() on an untrusted remote response:
+  // it may allocate an arbitrary amount of memory before the size check.
+  // Node AWS SDK S3 GetObject.Body must support streaming; reject
+  // non-streaming SDK variants instead of pretending the cap is enforced.
+  const buffer = Buffer.isBuffer(body) ? body
+    : typeof body === 'string' ? Buffer.from(body) : null;
+  if (!buffer) throw Error('B2 read response must be a bounded Node stream');
+  if (buffer.length > MAX_EVENT_BYTES) {
+    throw Error('B2 archived event exceeds bounded read limit');
+  }
+  return buffer;
 }
 function notFound(error) {
   return error && (
@@ -122,21 +145,28 @@ class PrivacyErasureB2Journal {
   async readVerified(client, cfg, key, event, expectedHash, versionId, requiredUntil) {
     // Metadata/headers are not enough: download the chosen object *version*.
     if (!versionId) throw Error('B2 object version ID required');
-    const [retained, read] = await Promise.all([
-      client.send(new GetObjectRetentionCommand({
-        Bucket: cfg.bucket, Key: key, VersionId: versionId
-      })),
-      client.send(new GetObjectCommand({
-        Bucket: cfg.bucket, Key: key, VersionId: versionId
-      }))
-    ]);
+    // Check retention BEFORE opening the object body. In addition to
+    // failing closed, this avoids fetching/abandoning a stream when the
+    // immutable version is not legally retained.
+    const retained = await client.send(new GetObjectRetentionCommand({
+      Bucket: cfg.bucket, Key: key, VersionId: versionId
+    }));
     if (retained.Retention?.Mode !== 'COMPLIANCE' ||
         !Number.isFinite(new Date(retained.Retention.RetainUntilDate).getTime()) ||
         new Date(retained.Retention.RetainUntilDate) < requiredUntil) {
       throw Error('B2 event object is not retained in COMPLIANCE mode');
     }
+    const read = await client.send(new GetObjectCommand({
+      Bucket: cfg.bucket, Key: key, VersionId: versionId
+    }));
+    if (read.ContentLength != null &&
+        (!Number.isSafeInteger(read.ContentLength) ||
+         read.ContentLength > MAX_EVENT_BYTES || read.ContentLength < 0)) {
+      if (typeof read.Body?.destroy === 'function') read.Body.destroy();
+      throw Error('B2 archived event exceeds bounded read limit');
+    }
     const payload = await bytesOf(read.Body);
-    if (payload.length > 8192 || checksum(payload) !== expectedHash) {
+    if (checksum(payload) !== expectedHash) {
       throw Error('B2 archived event hash mismatch');
     }
     const candidate = normalizeEvent(JSON.parse(payload.toString('utf8')));
