@@ -79,6 +79,52 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
   }
 }
 
+// A narrow, read-only consent/token check immediately before each external
+// send. It deliberately does not hold a database transaction or row lock
+// across Firebase I/O: that would block user revocation on remote latency.
+async function isCurrentSupporterTokenEligible(pool, { userIds, token }) {
+  const ids = [...new Set((userIds || []).map((id) => String(id || '').trim()).filter(Boolean))];
+  const currentToken = String(token || '').trim();
+  if (!ids.length || !currentToken) return false;
+
+  const consentFilter = `FROM public.users u
+     LEFT JOIN public.user_consents uc ON uc.user_id = u.id
+     WHERE u.id::text = ANY($1::text[])
+       AND u.status = 'a'
+       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`;
+  const legacyToken = `EXISTS (
+           SELECT 1 FROM unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) legacy(token)
+           WHERE btrim(legacy.token) = $2
+         )`;
+  const primary = `SELECT EXISTS (
+     SELECT 1
+     ${consentFilter}
+       AND (
+         ${legacyToken}
+         OR EXISTS (
+           SELECT 1 FROM public.user_devices d
+           WHERE d.user_id = u.id AND d.is_active = TRUE
+             AND btrim(d.fcm_token) = $2
+         )
+       )
+   ) AS eligible`;
+  try {
+    const result = await pool.query(primary, [ids, currentToken]);
+    return result.rows[0]?.eligible === true;
+  } catch (error) {
+    if (!['42P01', '42703'].includes(error?.code)) throw error;
+    // Preserve legacy deployments without a devices table. Never use an
+    // unqualified table or treat a database failure as valid consent.
+    const fallback = `SELECT EXISTS (
+       SELECT 1
+       ${consentFilter}
+         AND ${legacyToken}
+     ) AS eligible`;
+    const result = await pool.query(fallback, [ids, currentToken]);
+    return result.rows[0]?.eligible === true;
+  }
+}
+
 async function sendPushToCurrentSupporters(pool, {
   subjectUserId,
   kind = 'representative',
@@ -89,9 +135,18 @@ async function sendPushToCurrentSupporters(pool, {
 }) {
   const supporters = await loadCurrentSupporterTokens(pool, { subjectUserId, kind, level });
   const admin = getFirebaseAdmin();
-  const tokens = [...new Set(supporters.flatMap((row) => row.tokens))];
+  // Retain the identity that authorized each token so the pre-send check
+  // verifies current consent and token registration for that same account.
+  const ownersByToken = new Map();
+  for (const row of supporters) {
+    for (const token of row.tokens) {
+      if (!ownersByToken.has(token)) ownersByToken.set(token, new Set());
+      ownersByToken.get(token).add(String(row.userId));
+    }
+  }
+  const tokens = [...ownersByToken.keys()];
   if (!admin || tokens.length === 0) {
-    return { targetedUsers: supporters.length, tokens: tokens.length, sent: 0, failed: 0, firebaseAvailable: Boolean(admin) };
+    return { targetedUsers: supporters.length, tokens: tokens.length, sent: 0, failed: 0, skipped: 0, firebaseAvailable: Boolean(admin) };
   }
 
   const safeData = Object.fromEntries(
@@ -99,7 +154,25 @@ async function sendPushToCurrentSupporters(pool, {
   );
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
   for (const token of tokens) {
+    let eligible = false;
+    try {
+      eligible = await isCurrentSupporterTokenEligible(pool, {
+        userIds: [...ownersByToken.get(token)],
+        token,
+      });
+    } catch (error) {
+      // Fail closed: an unavailable consent source must never trigger a push.
+      // Do not write recipient, token or political information to logs.
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Supporter push consent recheck unavailable:', error?.code || 'database_error');
+      }
+    }
+    if (!eligible) {
+      skipped += 1;
+      continue;
+    }
     try {
       await admin.messaging().send({
         token,
@@ -116,7 +189,7 @@ async function sendPushToCurrentSupporters(pool, {
     }
   }
 
-  return { targetedUsers: supporters.length, tokens: tokens.length, sent, failed, firebaseAvailable: true };
+  return { targetedUsers: supporters.length, tokens: tokens.length, sent, failed, skipped, firebaseAvailable: true };
 }
 
 module.exports = {
@@ -124,5 +197,6 @@ module.exports = {
   CANDIDATE_FIELDS,
   resolveSelectionFields,
   loadCurrentSupporterTokens,
+  isCurrentSupporterTokenEligible,
   sendPushToCurrentSupporters,
 };

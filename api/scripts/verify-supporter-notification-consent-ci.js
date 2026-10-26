@@ -7,7 +7,10 @@
 const assert = require('node:assert/strict');
 const { Pool } = require('pg');
 const { loadSupporterUserIds } = require('../services/politicalSelectionService');
-const { loadCurrentSupporterTokens } = require('../services/currentSupporterPushService');
+const {
+  loadCurrentSupporterTokens,
+  isCurrentSupporterTokenEligible,
+} = require('../services/currentSupporterPushService');
 const { createSupporterOpinionNotifications } = require('../services/politicalOpinionNotificationService');
 
 async function main() {
@@ -156,6 +159,20 @@ async function main() {
     assert.deepEqual(tokens.get(granted).sort(), ['device-granted', 'token-granted'].sort());
     assert.deepEqual(tokens.get(fallback), ['token-fallback']);
     assert.equal(tokens.has(revoked), false);
+    // Verify the actual read-only eligibility query on disposable PG17,
+    // including the shadow-first search_path from this fixture.
+    assert.equal(await isCurrentSupporterTokenEligible(pg, {
+      userIds: [granted], token: 'token-granted'
+    }),true);
+    assert.equal(await isCurrentSupporterTokenEligible(pg, {
+      userIds: [granted], token: 'device-granted'
+    }),true);
+    assert.equal(await isCurrentSupporterTokenEligible(pg, {
+      userIds: [revoked], token: 'token-revoked'
+    }),false);
+    assert.equal(await isCurrentSupporterTokenEligible(pg, {
+      userIds: [granted], token: 'shadow-granted'
+    }),false);
     assert.ok(![...tokens.values()].flat().some(token=>token.startsWith('shadow-')),
       'canonical push must ignore stale shadow tokens');
     const missingCanonicalDevice={ async query(sql,params){
@@ -174,6 +191,14 @@ async function main() {
     assert.deepEqual(oldById.get(fallback),['token-fallback']);
     assert.equal(oldById.has(revoked),false,
       'legacy token fallback must still read revoked canonical consent');
+    const fallbackEligibility=await isCurrentSupporterTokenEligible(missingCanonicalDevice,{
+      userIds:[granted],token:'token-granted'
+    });
+    assert.equal(fallbackEligibility,true,
+      'real PG17 legacy pre-send fallback must use canonical token ownership');
+    assert.equal(await isCurrentSupporterTokenEligible(missingCanonicalDevice,{
+      userIds:[granted],token:'device-granted'
+    }),false,'a device-only token is ineligible when canonical device table is absent');
 
     // Revoke after ID lookup but before the push-token SELECT.
     const revokedAtTokenRead = { async query(sql, params) {
@@ -186,6 +211,10 @@ async function main() {
       subjectUserId: subject, kind: 'representative', level: 'CAMERA'
     });
     assert.deepEqual(rows.map(x => String(x.userId)), [fallback]);
+    assert.equal(await isCurrentSupporterTokenEligible(pg,{
+      userIds:[granted],token:'token-granted'
+    }),false,'real PG17 pre-send recheck must reflect completed public revocation');
+    console.log('SUPPORTER_PUSH_PRESEND_REAL_PG17_PASS');
 
     // Revoke after supporter ID lookup but before notification INSERT.
     await client.query('UPDATE public.user_consents SET political_opinions_consent=true WHERE user_id=$1', [granted]);
