@@ -56,6 +56,10 @@ async function main() {
     await client.query('CREATE TEMP TABLE user_consents (user_id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE political_selections (user_id uuid, selection_kind text, political_office_id text, selected_user_id uuid)');
     await client.query('CREATE TEMP TABLE user_devices (user_id uuid, is_active boolean, fcm_token text)');
+    // Canonical and shadow notification tables deliberately disagree.
+    // All DDL is rolled back on this disposable CI database.
+    await client.query('CREATE TABLE IF NOT EXISTS public.opinioni_domande (id text PRIMARY KEY, text text)');
+    await client.query('CREATE TABLE IF NOT EXISTS public.political_opinion_notifications (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, recipient_user_id uuid, subject_user_id uuid, opinion_id text, opinion_text text, previous_value text, new_value text)');
     await client.query('CREATE TEMP TABLE opinioni_domande (id text PRIMARY KEY, text text)');
     await client.query('CREATE TEMP TABLE political_opinion_notifications (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, recipient_user_id uuid, subject_user_id uuid, opinion_id text, opinion_text text, previous_value text, new_value text)');
 
@@ -91,7 +95,8 @@ async function main() {
     await client.query('INSERT INTO user_consents(user_id,political_opinions_consent) VALUES ($1,true),($2,false)', [granted,revoked]);
     await client.query("INSERT INTO political_selections(user_id,selection_kind,political_office_id,selected_user_id) VALUES ($1,'representative','it.camera',$4),($2,'representative','it.camera',$4),($3,'representative','it.camera',$4)", [granted,revoked,fallback,subject]);
     await client.query("INSERT INTO user_devices(user_id,is_active,fcm_token) VALUES ($1,true,'device-granted'),($2,true,'device-revoked')", [granted,revoked]);
-    await client.query("INSERT INTO opinioni_domande(id,text) VALUES ('42','Synthetic opinion')");
+    await client.query("INSERT INTO public.opinioni_domande(id,text) VALUES ('42','Synthetic public opinion') ON CONFLICT (id) DO UPDATE SET text=EXCLUDED.text");
+    await client.query("INSERT INTO opinioni_domande(id,text) VALUES ('42','Shadow opinion must not be used')");
 
     // A SAVEPOINT mimics independent pool.query statement error isolation
     // while retaining TEMP tables within the fixture transaction.
@@ -136,9 +141,20 @@ async function main() {
     await client.query('UPDATE user_consents SET political_opinions_consent=true WHERE user_id=$1', [granted]);
     await client.query('DELETE FROM political_selections WHERE user_id=$1', [fallback]);
     await client.query('DELETE FROM public.political_selections WHERE user_id=$1', [fallback]);
+    // Positive proof: notification goes to public and uses canonical question text.
+    const firstInsert = await createSupporterOpinionNotifications(pg, {
+      subjectUserId: subject,
+      changes: [{ opinionId: '42', previousValue: 'f', newValue: 'c' }]
+    });
+    assert.equal(firstInsert.created, 1);
+    assert.equal((await client.query('SELECT count(*)::integer count FROM public.political_opinion_notifications')).rows[0].count, 1);
+    assert.equal((await client.query('SELECT count(*)::integer count FROM political_opinion_notifications')).rows[0].count, 0);
+    assert.equal((await client.query('SELECT opinion_text FROM public.political_opinion_notifications LIMIT 1')).rows[0].opinion_text, 'Synthetic public opinion');
+    await client.query('DELETE FROM public.political_opinion_notifications');
+
     const revokeAtInsert = { async query(sql, params) {
-      if (String(sql).includes('INSERT INTO political_opinion_notifications')) {
-        await client.query('UPDATE user_consents SET political_opinions_consent=false WHERE user_id=$1', [granted]);
+      if (String(sql).includes('INSERT INTO public.political_opinion_notifications')) {
+        await client.query('UPDATE public.user_consents SET political_opinions_consent=false WHERE user_id=$1', [granted]);
       }
       return pg.query(sql, params);
     } };
@@ -147,6 +163,7 @@ async function main() {
       changes: [{ opinionId: '42', previousValue: 'f', newValue: 'c' }]
     });
     assert.equal(result.created, 0);
+    assert.equal((await client.query('SELECT count(*)::integer count FROM public.political_opinion_notifications')).rows[0].count, 0);
     assert.equal((await client.query('SELECT count(*)::integer count FROM political_opinion_notifications')).rows[0].count, 0);
 
     // Missing canonical table must fall back to legacy user columns with the
