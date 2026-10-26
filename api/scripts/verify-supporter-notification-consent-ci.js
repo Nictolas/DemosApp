@@ -35,6 +35,18 @@ async function main() {
     assert.equal(meta.db, 'political_consent_race_ci');
     assert.equal(Math.floor(meta.version / 10000), 17);
     await client.query('BEGIN');
+    // This test runs BEFORE the canonical-selection write drill in CI.
+    // Create its synthetic canonical relation within the rollback-only
+    // transaction instead of depending on a later workflow step.
+    await client.query(
+      'CREATE TABLE IF NOT EXISTS public.political_selections (' +
+      'user_id uuid NOT NULL,selection_kind text NOT NULL,' +
+      'jurisdiction_id text NOT NULL,political_office_id text NOT NULL,' +
+      'selected_user_id uuid NOT NULL,selected_candidacy_id uuid,' +
+      'selected_mandate_id uuid,source text,context jsonb,' +
+      'updated_at timestamptz DEFAULT NOW(),' +
+      'UNIQUE (user_id,selection_kind,political_office_id))'
+    );
     // Other CI scripts create public.users/consents/selections in this same
     // disposable PG17 database. Populate only made-up IDs, and ROLLBACK
     // every public change (including fixture columns) at the end.
