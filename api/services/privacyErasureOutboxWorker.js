@@ -97,15 +97,25 @@ class PrivacyErasureOutboxWorker {
       'LEFT JOIN privacy_erasure_delivery_outbox o ON o.event_key=l.event_key ' +
       'WHERE o.event_key IS NULL'
     );
+    // An outbox-only row can be a trace of a lost ledger event after an
+    // incomplete/legacy restore. A zero-pending summary must not hide it.
+    const orphaned = await client.query(
+      'SELECT COUNT(*)::int AS n FROM privacy_erasure_delivery_outbox o ' +
+      'WHERE NOT EXISTS (' +
+      'SELECT 1 FROM privacy_erasure_ledger l WHERE l.event_key=o.event_key)'
+    );
     const row = counts.rows[0];
     const withoutOutbox = missing.rows[0].n;
+    const withoutLedger = orphaned.rows[0]?.n;
     return {
       installed: true,
       // Local readiness only. A release requires separate B2 full verification
       // and an independently pinned external completeness checkpoint.
-      ready: row.pending === 0 && row.invalid_receipts === 0 && withoutOutbox === 0,
+      ready: row.pending === 0 && row.invalid_receipts === 0 &&
+        withoutOutbox === 0 && withoutLedger === 0,
       pending: row.pending,
       unqueued: withoutOutbox,
+      orphaned: withoutLedger,
       invalidReceipts: row.invalid_receipts,
       oldestPendingAt: row.oldest_pending_at || null
     };
