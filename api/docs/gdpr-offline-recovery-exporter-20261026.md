@@ -47,3 +47,11 @@ La prima versione confrontava soltanto le **chiavi** dell'intero ledger con il m
 La transazione offline usa isolamento REPEATABLE READ e acquisisce **prima di qualunque lettura del ledger** un lock PostgreSQL SHARE ROW EXCLUSIVE NOWAIT su ledger e outbox. Se un altro processo sta scrivendo una delle due tabelle, l'esportazione si ferma immediatamente con rollback senza B2 PUT. Il lock è mantenuto durante la verifica e l'export fino al commit/rollback, quindi **blocca anche altri writer su queste due tabelle**; ciò è intenzionale solo in una finestra di recovery isolata, non è appropriato come normale worker in produzione. Non congela le altre tabelle né gli ingressi Render/Supabase: resta obbligatoria la prova infrastrutturale indipendente.
 
 Nuovi test unitari: evento già consegnato alterato, evento alterato nella seconda pagina di 251 eventi, ordine e modalità di acquisizione del lock. Drill PostgreSQL 17: un writer concorrente trattiene un ROW EXCLUSIVE lock e l'esportatore deve ricevere SQLSTATE 55P03 prima di contattare B2 fittizio. Queste verifiche sono sintetiche e non equivalgono a una prova di recovery reale.
+
+## Autorizzazione revocata durante COMMIT e conferma SQL incerta (test sintetici)
+
+La verifica locale prima di `COMMIT` non e' una barriera atomica. Un nuovo controllo dopo `COMMIT` rifiuta di dichiarare successo ordinario se la quarantena locale e' stata revocata mentre PostgreSQL finalizzava la transazione. **Il commit gia' durevole non si annulla**; occorre riconciliazione indipendente prima di qualunque decisione di riapertura.
+
+Se `COMMIT` lancia un errore (per esempio perdita dell'ACK), il rollback e' soltanto best-effort e **non dimostra** che il commit non sia avvenuto. Il chiamante riceve errore, nessun `readyForTraffic`; un retry autorizzato rilegge l'outbox: se la consegna e' durevole non riesporta, altrimenti il journal deve riutilizzare una copia B2 immutabile verificata.
+
+Regressioni con PostgreSQL/B2 **simulati**: revoca locale durante commit riuscito; errore prima del commit; perdita della conferma dopo commit riuscito. Non sono test distribuiti o reali, e non sostituiscono freeze infrastrutturale, checkpoint esterno completo/fresco, DPIA e prove B2 staging. Nessun deploy, migrazione, credenziale o dato di produzione.
