@@ -6,6 +6,7 @@ const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getAccountSubject } = require('../services/accountCapabilitiesService');
 const { sendPushToCurrentSupporters } = require('../services/currentSupporterPushService');
 const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
+const { RESOLVED_FCM_TOKENS_LATERAL_SQL, getResolvedUserFcmTokens, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
 const { resolvePoliticalOffice } = require('../services/politicalJurisdictionRegistryService');
 require('dotenv').config();
 
@@ -22,33 +23,7 @@ const debugWarn = (...args) => {
 const BLOCKED_USER_STATUSES = ['banned', 'deleted', 'disabled', '2', '9'];
 
 async function getResolvedFcmTokensForUser(userId) {
-  // Sorgente primaria: user_devices (schema nuovo)
-  const deviceTokensResult = await pool.query(
-    `SELECT DISTINCT d.fcm_token
-     FROM user_devices d
-     WHERE d.user_id = $1
-       AND d.is_active = TRUE
-       AND d.fcm_token IS NOT NULL
-       AND btrim(d.fcm_token) <> ''`,
-    [userId]
-  );
-
-  const deviceTokens = deviceTokensResult.rows.map(r => r.fcm_token).filter(Boolean);
-  if (deviceTokens.length > 0) {
-    return deviceTokens;
-  }
-
-  // Fallback legacy: users.fcm_tokens
-  const legacyResult = await pool.query(
-    `SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens
-     FROM users
-     WHERE id = $1`,
-    [userId]
-  );
-
-  if (legacyResult.rows.length === 0) return [];
-  const legacyTokens = legacyResult.rows[0].fcm_tokens || [];
-  return [...new Set(legacyTokens.filter(t => t && t.trim()))];
+  return getResolvedUserFcmTokens(pool, userId);
 }
 
 async function invalidateUserFcmTokens(userId, invalidTokens = []) {
@@ -371,6 +346,11 @@ router.post('/send-user-notification', (req, res, next) => {
       
       debugLog(`    🔔 Tentativo ${i + 1}/${tokensToSend.length}: invio notifica push a token: ${'[omesso]'}...`);
       
+      // Revocation or transfer can occur after the initial token lookup.
+      let eligible = false;
+      try { eligible = await isUserFcmTokenEligible(pool, { userId, token }); }
+      catch (error) { debugWarn('FCM pre-send read unavailable:', error?.code || 'database_error'); }
+      if (!eligible) continue;
       try {
         const result = await sendPushNotification(
           token,
@@ -948,21 +928,8 @@ async function notifyAllUsers(titolo, commento) {
       SELECT COUNT(*) as count
       FROM users u
       LEFT JOIN LATERAL (
-        SELECT ARRAY(
-          SELECT DISTINCT tok
-          FROM (
-            SELECT d.fcm_token as tok
-            FROM user_devices d
-            WHERE d.user_id = u.id
-              AND d.is_active = TRUE
-              AND d.fcm_token IS NOT NULL
-              AND btrim(d.fcm_token) <> ''
-            UNION
-            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-          ) merged
-          WHERE tok IS NOT NULL AND btrim(tok) <> ''
-        ) as tokens
-      ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
       WHERE (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
         AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
     `, [BLOCKED_USER_STATUSES]);
@@ -998,21 +965,8 @@ async function notifyAllUsers(titolo, commento) {
       FROM users u
       INNER JOIN notifiche_preferenze np ON u.id = np.user_id
       LEFT JOIN LATERAL (
-        SELECT ARRAY(
-          SELECT DISTINCT tok
-          FROM (
-            SELECT d.fcm_token as tok
-            FROM user_devices d
-            WHERE d.user_id = u.id
-              AND d.is_active = TRUE
-              AND d.fcm_token IS NOT NULL
-              AND btrim(d.fcm_token) <> ''
-            UNION
-            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-          ) merged
-          WHERE tok IS NOT NULL AND btrim(tok) <> ''
-        ) as tokens
-      ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
       WHERE np.demos = true
         AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
         AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
@@ -1032,20 +986,7 @@ async function notifyAllUsers(titolo, commento) {
         FROM users u
         LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
         LEFT JOIN LATERAL (
-          SELECT ARRAY(
-            SELECT DISTINCT tok
-            FROM (
-              SELECT d.fcm_token as tok
-              FROM user_devices d
-              WHERE d.user_id = u.id
-                AND d.is_active = TRUE
-                AND d.fcm_token IS NOT NULL
-                AND btrim(d.fcm_token) <> ''
-              UNION
-              SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-            ) merged
-            WHERE tok IS NOT NULL AND btrim(tok) <> ''
-          ) as tokens
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
         ) tokens ON TRUE
         WHERE COALESCE(np.demos, false) = true
           AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
@@ -1070,20 +1011,7 @@ async function notifyAllUsers(titolo, commento) {
         FROM users u
         INNER JOIN notifiche_preferenze np ON u.id = np.user_id
         LEFT JOIN LATERAL (
-          SELECT ARRAY(
-            SELECT DISTINCT tok
-            FROM (
-              SELECT d.fcm_token as tok
-              FROM user_devices d
-              WHERE d.user_id = u.id
-                AND d.is_active = TRUE
-                AND d.fcm_token IS NOT NULL
-                AND btrim(d.fcm_token) <> ''
-              UNION
-              SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-            ) merged
-            WHERE tok IS NOT NULL AND btrim(tok) <> ''
-          ) as tokens
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
         ) tokens ON TRUE
         WHERE np.demos IS TRUE
           AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
@@ -1122,7 +1050,7 @@ async function notifyAllUsers(titolo, commento) {
         debugLog(`   ${index + 1}. ${utente.email || utente.id} - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
         if (utente.fcm_tokens && utente.fcm_tokens.length > 0) {
           utente.fcm_tokens.forEach((token, tokenIndex) => {
-            debugLog(`      Token ${tokenIndex + 1}: ${token.substring(0, 30)}...`);
+            debugLog(`      Token ${tokenIndex + 1}: [omesso]`);
           });
         }
       });
@@ -1188,6 +1116,10 @@ async function notifyAllUsers(titolo, commento) {
         if (token && token.trim()) {
           debugLog(`    🔔 Invio notifica push a token: ${'[omesso]'}...`);
           
+          let eligible = false;
+          try { eligible = await isUserFcmTokenEligible(pool, { userId: utente.id, token }); }
+          catch (error) { debugWarn('FCM bulk read unavailable:', error?.code || 'database_error'); }
+          if (!eligible) continue;
           const result = await sendPushNotification(
             token,
             pushTitle,
@@ -1504,21 +1436,8 @@ router.get('/debug-notifiche-demos', verifyToken, requireAdmin, async (req, res)
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
       LEFT JOIN LATERAL (
-        SELECT ARRAY(
-          SELECT DISTINCT tok
-          FROM (
-            SELECT d.fcm_token as tok
-            FROM user_devices d
-            WHERE d.user_id = u.id
-              AND d.is_active = TRUE
-              AND d.fcm_token IS NOT NULL
-              AND btrim(d.fcm_token) <> ''
-            UNION
-            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-          ) merged
-          WHERE tok IS NOT NULL AND btrim(tok) <> ''
-        ) as tokens
-      ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
       WHERE u.id = $1
     `, [userId]);
     
@@ -1542,21 +1461,8 @@ router.get('/debug-notifiche-demos', verifyToken, requireAdmin, async (req, res)
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
       LEFT JOIN LATERAL (
-        SELECT ARRAY(
-          SELECT DISTINCT tok
-          FROM (
-            SELECT d.fcm_token as tok
-            FROM user_devices d
-            WHERE d.user_id = u.id
-              AND d.is_active = TRUE
-              AND d.fcm_token IS NOT NULL
-              AND btrim(d.fcm_token) <> ''
-            UNION
-            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-          ) merged
-          WHERE tok IS NOT NULL AND btrim(tok) <> ''
-        ) as tokens
-      ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
       WHERE array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
     `);
     

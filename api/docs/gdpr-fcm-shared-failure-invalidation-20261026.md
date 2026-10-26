@@ -49,3 +49,7 @@ Questa modifica riguarda soltanto l'invalidazione dopo un errore Firebase; nessu
 - L'issue **#296** resta bloccata da ledger GDPR esterno indipendente completo/fresco/durevole, quarantena Render/Supabase/Data API/worker, verifiche B2 Object Lock COMPLIANCE/VersionId/retention in staging e decisioni DPIA/titolare/DPO/retention/costi.
 
 **Nessun merge, deploy, migrazione, accesso a dati reali o produzione, configurazione credenziali, spesa o attivazione servizi.**
+
+## Addendum 26 ottobre 2026 — selezione dei destinatari
+
+Le query in `comunicazioni.js` e `avvistamenti.js` condividono `fcmTokenReadResolver.js`. Un token legacy è scartato se esiste un record canonico corrispondente, anche inattivo o trasferito. I token storici con spazi sono normalizzati. Un controllo immediatamente prima di ogni invio Firebase evita l'uso di token revocati dopo la selezione; un errore di lettura blocca l'invio senza invalidare il token. Non vi è atomicità con la consegna remota Firebase. I test PostgreSQL 17 disposable coprono questi scenari senza provider esterni né dati reali. L'issue #296 rimane aperta.

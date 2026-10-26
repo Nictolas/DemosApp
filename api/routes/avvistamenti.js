@@ -3,6 +3,7 @@ const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
+const { RESOLVED_FCM_TOKENS_LATERAL_SQL, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -84,21 +85,8 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
        FROM users u
        LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
        LEFT JOIN LATERAL (
-         SELECT ARRAY(
-           SELECT DISTINCT tok
-           FROM (
-             SELECT d.fcm_token as tok
-             FROM user_devices d
-             WHERE d.user_id = u.id
-               AND d.is_active = TRUE
-               AND d.fcm_token IS NOT NULL
-               AND btrim(d.fcm_token) <> ''
-             UNION
-             SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-           ) merged
-           WHERE tok IS NOT NULL AND btrim(tok) <> ''
-         ) as tokens
-       ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
        WHERE u.comune_residenza = $1 
          AND u.id != $2 
          AND u.comune_residenza IS NOT NULL
@@ -132,7 +120,13 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
       // Invia push notification a tutti i token dell'utente
       for (const fcmToken of fcmTokens) {
         if (!fcmToken || !fcmToken.trim()) continue;
-
+        let eligible = false;
+        try {
+          eligible = await isUserFcmTokenEligible(pool, { userId: targetUser.id, token: fcmToken });
+        } catch (error) {
+          console.warn('Avvistamenti FCM pre-send read unavailable:', error?.code || 'database_error');
+        }
+        if (!eligible) continue;
         try {
           if (!admin) {
             console.warn('⚠️ Firebase Admin non disponibile. Notifica push non inviata.');

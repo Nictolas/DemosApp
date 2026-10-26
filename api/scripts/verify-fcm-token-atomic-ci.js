@@ -7,6 +7,7 @@ const { Pool } = require('pg');
 const express = require('express');
 const http = require('node:http');
 const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
+const { getResolvedUserFcmTokens, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
 const DB = 'political_consent_race_ci';
 const USER = '00000000-0000-4000-8000-000000000611';
 const OTHER = '00000000-0000-4000-8000-000000000612';
@@ -265,6 +266,49 @@ async function main() {
     assert.equal(crossUser.invalidated,0);
     assert.equal((await state(OTHER)).devices.find(d=>d.token===LAST)?.active,true);
     console.log('FCM_SHARED_INVALIDATION_TRANSFER_PG17_PASS');
+
+    // Inactive canonical record prevents resurrecting old legacy copies.
+    await real.query('UPDATE public.users SET fcm_tokens=$1 WHERE id=$2',
+      [[NEW,' '+NEW+' '],USER]);
+    assert.deepEqual(await getResolvedUserFcmTokens(pool,USER),[]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:NEW}),false);
+    console.log('FCM_READ_INACTIVE_CANONICAL_PG17_PASS');
+
+    // Transferred token cannot be used by its previous legacy owner.
+    await real.query('UPDATE public.users SET fcm_tokens=$1 WHERE id=$2',[[LAST],USER]);
+    assert.deepEqual(await getResolvedUserFcmTokens(pool,USER),[]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:LAST}),false);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:OTHER,token:LAST}),true);
+    console.log('FCM_READ_TRANSFERRED_CANONICAL_PG17_PASS');
+
+    // Unregistered legacy token with outer whitespace is still normalized.
+    const SPACED='W'.repeat(125);
+    await real.query('UPDATE public.users SET fcm_tokens=$1 WHERE id=$2',
+      [[' '+SPACED+' ',NEW,LAST],USER]);
+    assert.deepEqual(await getResolvedUserFcmTokens(pool,USER),[SPACED]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED}),true);
+    console.log('FCM_READ_TRIMMED_LEGACY_PG17_PASS');
+
+    // A revocation after selection is recognized by the pre-send check.
+    const REVOKED='R'.repeat(125);
+    await real.query(
+      'INSERT INTO public.user_devices(user_id,fcm_token,is_active) VALUES($1,$2,TRUE)',
+      [USER,REVOKED]
+    );
+    assert.ok((await getResolvedUserFcmTokens(pool,USER)).includes(REVOKED));
+    await real.query(
+      'UPDATE public.user_devices SET is_active=FALSE WHERE user_id=$1 AND fcm_token=$2',
+      [USER,REVOKED]
+    );
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:REVOKED}),false);
+    console.log('FCM_READ_REVOKED_AFTER_SELECTION_PG17_PASS');
+
+    await assert.rejects(
+      isUserFcmTokenEligible({query:async()=>{throw Object.assign(
+        Error('synthetic read failure'),{code:'57014'});}},
+      {userId:USER,token:SPACED}),e=>e?.code==='57014'
+    );
+    console.log('FCM_READ_ERROR_FAIL_CLOSED_PG17_PASS');
   } finally {
     if(lockHold) lockHold.unblock.resume();
     failSql=null;
