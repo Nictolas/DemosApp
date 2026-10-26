@@ -42,6 +42,10 @@ class PrivacyErasureOutboxWorker {
     try {
       await client.query('BEGIN');
       inTransaction = true;
+      // A borrowed pool client may have a hostile search_path or pg_temp
+      // shadow tables. Pin the same public ledger/outbox that the recovery
+      // checks verify, for this transaction only (no persistent DB changes).
+      await client.query('SET LOCAL search_path = pg_catalog, public, pg_temp');
       // The maintenance switch may have changed while acquiring a client.
       this.assertNotInRecovery();
       // Every worker reads only pending rows; no timestamp cursor that can
@@ -112,21 +116,21 @@ class PrivacyErasureOutboxWorker {
       '(b2_version_id IS NULL OR b2_sha256 IS NULL OR ' +
       'b2_sha256 !~ \'^[0-9a-f]{64}$\'))::int AS invalid_receipts, ' +
       'MIN(queued_at) FILTER (WHERE delivered_at IS NULL) AS oldest_pending_at ' +
-      'FROM privacy_erasure_delivery_outbox'
+      'FROM public.privacy_erasure_delivery_outbox'
     );
     // Never infer "all exported" from an empty queue: an unbackfilled
     // historical event may have no outbox row at all.
     const missing = await client.query(
-      'SELECT count(*)::int AS n FROM privacy_erasure_ledger l ' +
-      'LEFT JOIN privacy_erasure_delivery_outbox o ON o.event_key=l.event_key ' +
+      'SELECT count(*)::int AS n FROM public.privacy_erasure_ledger l ' +
+      'LEFT JOIN public.privacy_erasure_delivery_outbox o ON o.event_key=l.event_key ' +
       'WHERE o.event_key IS NULL'
     );
     // An outbox-only row can be a trace of a lost ledger event after an
     // incomplete/legacy restore. A zero-pending summary must not hide it.
     const orphaned = await client.query(
-      'SELECT COUNT(*)::int AS n FROM privacy_erasure_delivery_outbox o ' +
+      'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_delivery_outbox o ' +
       'WHERE NOT EXISTS (' +
-      'SELECT 1 FROM privacy_erasure_ledger l WHERE l.event_key=o.event_key)'
+      'SELECT 1 FROM public.privacy_erasure_ledger l WHERE l.event_key=o.event_key)'
     );
     const row = counts.rows[0];
     const withoutOutbox = missing.rows[0].n;
