@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -208,16 +209,9 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
           // Se il token non è più valido, rimuovilo
           if (error.code === 'messaging/registration-token-not-registered' || 
               error.code === 'messaging/invalid-registration-token') {
-            await pool.query(
-              `UPDATE user_devices
-               SET is_active = FALSE, updated_at = NOW()
-               WHERE user_id = $1 AND fcm_token = $2`,
-              [targetUser.id, fcmToken]
-            );
-            await pool.query(
-              'UPDATE users SET fcm_tokens = array_remove(fcm_tokens, $1) WHERE id = $2',
-              [fcmToken, targetUser.id]
-            );
+            await invalidateFailedFcmTokens(pool, {
+              userId: targetUser.id, tokens: [fcmToken]
+            });
             console.log(`🗑️ Token FCM non valido rimosso per utente ${targetUser.id}`);
           }
         }
