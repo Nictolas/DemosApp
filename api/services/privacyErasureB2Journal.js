@@ -63,12 +63,13 @@ async function bytesOf(body) {
     }
     return Buffer.concat(chunks, size);
   }
-  // Compatibility with synthetic fixtures / nonstreaming SDK responses.
+  // Never call transformToByteArray() on an untrusted remote response:
+  // it may allocate an arbitrary amount of memory before the size check.
+  // Node AWS SDK S3 GetObject.Body must support streaming; reject
+  // non-streaming SDK variants instead of pretending the cap is enforced.
   const buffer = Buffer.isBuffer(body) ? body
-    : typeof body === 'string' ? Buffer.from(body)
-    : body && typeof body.transformToByteArray === 'function'
-      ? Buffer.from(await body.transformToByteArray()) : null;
-  if (!buffer) throw Error('Unsupported B2 read response');
+    : typeof body === 'string' ? Buffer.from(body) : null;
+  if (!buffer) throw Error('B2 read response must be a bounded Node stream');
   if (buffer.length > MAX_EVENT_BYTES) {
     throw Error('B2 archived event exceeds bounded read limit');
   }
