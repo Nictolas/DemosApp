@@ -29,17 +29,17 @@ function stubStore({ canonical = true, legacy = true, fields = ['rappresentante_
           return { rows: (params[0] || []).filter(name => fields.includes(name)).map(column_name => ({ column_name })) };
         }
       }
-      if (s.startsWith('DELETE FROM "political_selections"')) {
+      if (s.startsWith('DELETE FROM public."political_selections"')) {
         assert.deepEqual(params, [SELECTED_ID]);
         assert.match(s, /"user_id"::text = \$1/);
         assert.doesNotMatch(s, /selected_user_id/);
         return { rowCount: 2 };
       }
-      if (s.startsWith('DELETE FROM "user_representatives"')) {
+      if (s.startsWith('DELETE FROM public."user_representatives"')) {
         assert.deepEqual(params, [SELECTED_ID]);
         return { rowCount: 1 };
       }
-      if (s.startsWith('UPDATE users SET')) {
+      if (s.startsWith('UPDATE public.users SET')) {
         updates++;
         assert.match(s, /"rappresentante_camera" = NULL/);
         assert.match(s, /"candidato_comune" = NULL/);
@@ -73,7 +73,7 @@ test('unknown canonical/legacy relations and missing projection columns are sche
 test('personal erasure never deletes rows where the user is only the selected public subject', async () => {
   const storage = stubStore({ legacy: false, fields: [] });
   await clearPersonalPoliticalSelections(storage.db, SELECTED_ID);
-  const canonicalDelete = storage.statements.find(x => x.sql.startsWith('DELETE FROM "political_selections"'));
+  const canonicalDelete = storage.statements.find(x => x.sql.startsWith('DELETE FROM public."political_selections"'));
   assert.ok(canonicalDelete);
   assert.match(canonicalDelete.sql, /"user_id"::text = \$1/);
   assert.doesNotMatch(canonicalDelete.sql, /"selected_user_id"::text = \$1/);
