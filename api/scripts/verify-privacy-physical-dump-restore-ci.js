@@ -305,7 +305,7 @@ async function main() {
     // Fail *after* the ledger import but *before* deletion completes.
     const faultClient = {
       async query(sql, params) {
-        if (String(sql).startsWith('DELETE FROM users WHERE id::text')) {
+        if (String(sql).startsWith('DELETE FROM public.users WHERE id::text')) {
           throw Error('synthetic-restore-fault');
         }
         return db.query(sql, params);

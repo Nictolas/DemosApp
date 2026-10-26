@@ -46,6 +46,13 @@ async function main() {
     assert.equal(info.name, 'political_consent_race_ci');
     assert.equal(Math.floor(info.version / 10000), 17);
     await client.query('BEGIN');
+    // Canonical consent reads use public; prior synthetic race drills may
+    // already have created these relations in this disposable PG17 database.
+    // Every fixture write here is enclosed by the outer ROLLBACK transaction.
+    await client.query('CREATE TABLE IF NOT EXISTS public.users ' +
+      '(id uuid PRIMARY KEY,political_opinions_consent boolean)');
+    await client.query('CREATE TABLE IF NOT EXISTS public.user_consents ' +
+      '(user_id uuid PRIMARY KEY,political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE users (id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query('CREATE TEMP TABLE user_consents (user_id uuid PRIMARY KEY, political_opinions_consent boolean)');
     await client.query(
@@ -61,6 +68,18 @@ async function main() {
     const chosen = '00000000-0000-4000-8000-000000000298';
     await client.query('INSERT INTO users VALUES ($1,true),($2,true)', [active, revoked]);
     await client.query('INSERT INTO user_consents VALUES ($1,true),($2,false)', [active, revoked]);
+    await client.query(
+      'INSERT INTO public.users(id,political_opinions_consent) ' +
+      'VALUES ($1,true),($2,true) ON CONFLICT (id) ' +
+      'DO UPDATE SET political_opinions_consent=EXCLUDED.political_opinions_consent',
+      [active,revoked]
+    );
+    await client.query(
+      'INSERT INTO public.user_consents(user_id,political_opinions_consent) ' +
+      'VALUES ($1,true),($2,false) ON CONFLICT (user_id) ' +
+      'DO UPDATE SET political_opinions_consent=EXCLUDED.political_opinions_consent',
+      [active,revoked]
+    );
     for (const userId of [active, revoked]) {
       for (const kind of ['candidate', 'representative']) {
         await client.query(
@@ -121,12 +140,14 @@ async function main() {
         'UPDATE user_consents SET political_opinions_consent=false WHERE user_id=$1',
         [active]
       );
+      await client.query('UPDATE public.user_consents SET political_opinions_consent=false WHERE user_id=$1', [active]);
       result = await context.loadProjection(active);
       assert.equal(result.projection[c.field], null, c.kind + ' post-revoke');
       await client.query(
         'UPDATE user_consents SET political_opinions_consent=true WHERE user_id=$1',
         [active]
       );
+      await client.query('UPDATE public.user_consents SET political_opinions_consent=true WHERE user_id=$1', [active]);
     }
     console.log('PERSONAL_SELECTION_READ_REVOKE_PG17_SYNTHETIC_PASS');
   } finally {

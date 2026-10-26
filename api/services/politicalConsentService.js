@@ -40,8 +40,8 @@ async function getPoliticalConsentState(db, userId) {
     `SELECT
        u.id,
        COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) AS granted
-     FROM users u
-     LEFT JOIN user_consents uc ON uc.user_id = u.id
+     FROM public.users u
+     LEFT JOIN public.user_consents uc ON uc.user_id = u.id
      WHERE u.id = $1`,
     [userId]
   );
@@ -76,7 +76,7 @@ async function clearLegacyUserOpinionColumns(db, userId) {
     .map((column) => `${PrivacyErasureLedgerService.quoteIdentifier(column)} = NULL`)
     .join(', ');
   const update = await db.query(
-    `UPDATE users SET ${assignments}, updated_at = NOW() WHERE id = $1`,
+    `UPDATE public.users SET ${assignments}, updated_at = NOW() WHERE id = $1`,
     [userId]
   );
   return update.rowCount > 0 ? columns.length : 0;
@@ -113,7 +113,7 @@ async function clearPersonalPoliticalSelections(db, userId) {
   let legacySelectionsCleared = 0;
   if (assignments.length > 0) {
     const updated = await db.query(
-      `UPDATE users SET ${assignments.join(', ')}, updated_at = NOW() WHERE id = $1`,
+      `UPDATE public.users SET ${assignments.join(', ')}, updated_at = NOW() WHERE id = $1`,
       [userId]
     );
     legacySelectionsCleared = updated.rowCount > 0 ? assignments.length : 0;
@@ -126,7 +126,7 @@ async function clearPendingProposalLink(db, userId) {
     return 0;
   }
   const update = await db.query(
-    `UPDATE users
+    `UPDATE public.users
      SET opinione_proposta_id = NULL, updated_at = NOW()
      WHERE id = $1 AND opinione_proposta_id IS NOT NULL`,
     [userId]

@@ -17,7 +17,7 @@ function syntheticDb({ userFound = true, granted = true, failConsent = false, fa
       operations.push({ sql: q, params });
       if (q === 'SELECT id FROM users WHERE id = $1 FOR UPDATE')
         return { rows: userFound ? [{ id: USER }] : [], rowCount: Number(userFound) };
-      if (q.includes(' AS granted') && q.includes('FROM users u')) {
+      if (q.includes(' AS granted') && q.includes('FROM public.users u')) {
         if (failConsent) throw Error('synthetic-secret-database-message');
         return { rows: [{ id: USER, granted }], rowCount: 1 };
       }
