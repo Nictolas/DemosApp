@@ -39,9 +39,9 @@ function makeFakeDatabase({ legacy = [], canonical = [], legacyColumnMissing = f
       } else state.devices.push({ userId, token, active: true });
       return { rowCount: 1, rows: [] };
     }
-    if (s.startsWith('UPDATE public.user_devices') && s.includes('btrim(fcm_token) <> $2')) {
+    if (s.startsWith('UPDATE public.user_devices') && s.includes('fcm_token <> $2')) {
       for (const item of state.devices) {
-        if (item.userId === params[0] && item.token.trim() !== params[1]) item.active = false;
+        if (item.userId === params[0] && item.token !== params[1]) item.active = false;
       }
       return { rowCount: 1, rows: [] };
     }
@@ -100,7 +100,10 @@ const oldToken = 'Y'.repeat(125);
 test('HTTP POST normalizes a new mobile token before both legacy and canonical persistence', async () => {
   const pool = makeFakeDatabase({
     legacy: [' ' + rawToken + ' ', oldToken],
-    canonical: [{ userId: USER, token: oldToken, active: true }],
+    canonical: [
+      { userId: USER, token: oldToken, active: true },
+      { userId: USER, token: '  ' + rawToken + '  ', active: true },
+    ],
   });
   await withSyntheticFcmRouter(pool, async base => {
     const response = await fetch(base, {
@@ -111,6 +114,8 @@ test('HTTP POST normalizes a new mobile token before both legacy and canonical p
     const stored = pool.state.devices.find(d => d.token === rawToken);
     assert.ok(stored && stored.active, 'new token must be saved without outer whitespace');
     assert.equal(pool.state.devices.find(d => d.token === oldToken).active, false);
+    assert.equal(pool.state.devices.find(d => d.token === '  ' + rawToken + '  ').active,false,
+      'older whitespace variant must be deactivated after normalized replacement');
     const insert = pool.state.queries.find(q => q.sql.startsWith('INSERT INTO public.user_devices'));
     assert.deepEqual(insert.params, [USER, rawToken]);
     assert.ok(pool.state.queries.every(q => !/\b(?:FROM|UPDATE|INTO) users\b|\b(?:FROM|UPDATE|INTO) user_devices\b/i.test(q.sql)),
