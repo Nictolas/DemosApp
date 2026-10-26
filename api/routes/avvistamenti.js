@@ -3,6 +3,10 @@ const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
+const {
+  RECIPIENT_FCM_TOKENS_LATERAL_SQL,
+  isRecipientFcmTokenCurrentlyActive,
+} = require('../services/fcmRecipientTokenService');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -26,7 +30,7 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
 
     // Recupera il comune di residenza dell'utente che invia la notifica
     const userResult = await pool.query(
-      'SELECT comune_residenza FROM users WHERE id = $1',
+      'SELECT comune_residenza FROM public.users WHERE id = $1',
       [userId]
     );
 
@@ -81,24 +85,9 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
          u.id,
          COALESCE(tokens.tokens, ARRAY[]::text[]) as fcm_tokens,
          COALESCE(np.animali, true) as animali
-       FROM users u
+       FROM public.users u
        LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
-       LEFT JOIN LATERAL (
-         SELECT ARRAY(
-           SELECT DISTINCT tok
-           FROM (
-             SELECT d.fcm_token as tok
-             FROM user_devices d
-             WHERE d.user_id = u.id
-               AND d.is_active = TRUE
-               AND d.fcm_token IS NOT NULL
-               AND btrim(d.fcm_token) <> ''
-             UNION
-             SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-           ) merged
-           WHERE tok IS NOT NULL AND btrim(tok) <> ''
-         ) as tokens
-       ) tokens ON TRUE
+       ${RECIPIENT_FCM_TOKENS_LATERAL_SQL}
        WHERE u.comune_residenza = $1 
          AND u.id != $2 
          AND u.comune_residenza IS NOT NULL
@@ -134,6 +123,12 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
         if (!fcmToken || !fcmToken.trim()) continue;
 
         try {
+          // Recipient lists can become stale during multi-user fan-out.
+          // Never send to a revoked, transferred or unverifiable token.
+          const eligible = await isRecipientFcmTokenCurrentlyActive(pool, {
+            userId: targetUser.id, token: fcmToken
+          });
+          if (!eligible) continue;
           if (!admin) {
             console.warn('⚠️ Firebase Admin non disponibile. Notifica push non inviata.');
             continue;
@@ -204,7 +199,7 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
           console.log(`✅ Push notification inviata a utente ${targetUser.id}`);
         } catch (error) {
           errors++;
-          console.error(`❌ Errore invio push notification a utente ${targetUser.id}:`, error.message);
+          console.error('Errore invio push avvistamento:', error?.code || 'internal_error');
           
           // Se il token non è più valido, rimuovilo
           if (error.code === 'messaging/registration-token-not-registered' || 
