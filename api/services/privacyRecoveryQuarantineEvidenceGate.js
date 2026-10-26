@@ -22,6 +22,18 @@ const REQUIRED_CONTROLS = Object.freeze({
   b2ImmutableVersionReadback: 'b2_version_readback',
   controllerAndDpoApproval: 'controller_dpo_approval'
 });
+// The external GDPR history must be pinned AFTER all ingress and worker
+// isolation evidence, and after the backup cutoff has been approved. A recent
+// ledger snapshot taken before the last writer was isolated can miss a revoke.
+// These are evidence OBSERVATION timestamps, not a proof of actual isolation.
+const BEFORE_LEDGER = Object.freeze([
+  'renderIngressIsolation', 'renderIngressProbe',
+  'renderWorkersStopped', 'renderInFlightDrained',
+  'renderStagingCredentialsMapped', 'supabaseDataApiDisabled',
+  'supabaseDataApiProbe', 'supabasePostgresAndPoolerIsolation',
+  'supabaseDatabaseProbe', 'supabaseOtherManagedEndpoints',
+  'externalClientsAndCiStopped', 'approvedBackupCutoff'
+]);
 const RECOVERY_ID = /^[a-zA-Z0-9_-]{8,100}$/;
 const EVIDENCE_REF = /^[a-zA-Z0-9_.:/#-]{8,160}$/;
 
@@ -49,6 +61,8 @@ function assessQuarantineEvidence(payload, { now = new Date() } = {}) {
     }
   }
   let checked = 0;
+  const timestamps = Object.create(null);
+  const usedReferences = new Set();
   for (const [key, sourceType] of Object.entries(REQUIRED_CONTROLS)) {
     const item = Object.prototype.hasOwnProperty.call(controls, key) ? controls[key] : null;
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
@@ -69,7 +83,27 @@ function assessQuarantineEvidence(payload, { now = new Date() } = {}) {
       blockers.push('STALE_OR_INVALID_TIME:' + key);
       continue;
     }
+    // A single copied verification ID must not stand in for independently
+    // collected evidence across separate provider or approval surfaces.
+    if (usedReferences.has(item.reference)) {
+      blockers.push('REUSED_REFERENCE:' + key);
+      continue;
+    }
+    usedReferences.add(item.reference);
+    timestamps[key] = observedAt.getTime();
     checked++;
+  }
+  if (blockers.length === 0) {
+    const lastIsolationProof = Math.max(...BEFORE_LEDGER.map(key => timestamps[key]));
+    if (timestamps.independentLedgerFreshness <= lastIsolationProof) {
+      blockers.push('OUT_OF_ORDER:independentLedgerFreshness');
+    }
+    if (timestamps.b2ImmutableVersionReadback <= timestamps.independentLedgerFreshness) {
+      blockers.push('OUT_OF_ORDER:b2ImmutableVersionReadback');
+    }
+    if (timestamps.controllerAndDpoApproval <= timestamps.b2ImmutableVersionReadback) {
+      blockers.push('OUT_OF_ORDER:controllerAndDpoApproval');
+    }
   }
   if (blockers.length > 0) {
     return { decision: 'NO_GO', blockers, checked, required: Object.keys(REQUIRED_CONTROLS).length };
