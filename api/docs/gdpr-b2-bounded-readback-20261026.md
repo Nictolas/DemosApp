@@ -10,11 +10,11 @@ La verifica della versione B2 eseguiva `GetObject` insieme a `GetObjectRetention
 
 La verifica controlla prima la retention COMPLIANCE della **versione specifica**. Solo dopo chiama `GetObject`. Una lunghezza dichiarata superiore a 8192 byte viene rifiutata immediatamente; il corpo Node.js è letto come stream a chunk con limite cumulativo di 8192 byte, senza usare il buffer completo dell'SDK. Se la dimensione supera il limite, il flusso viene chiuso e il recovery fallisce. Restano il confronto SHA-256, contenuto canonico, VersionId e verifica read-only; non è consentito riparare oggetti assenti tramite PUT.
 
-Il fallback `transformToByteArray()` serve soltanto per corpi non iterabili: può ancora allocare memoria prima del controllo se una libreria diversa restituisce un corpo nonstreaming e non dichiara `ContentLength`. Il contratto runtime Node AWS SDK deve quindi mantenere il corpo come async iterable per la garanzia di memoria limitata; non presentare questa correzione come una protezione universale per qualsiasi implementazione di Body.
+Il metodo **non** invoca più `transformToByteArray()`: un corpo nonstreaming viene rifiutato, anziché rischiare un'allocazione illimitata. Il runtime Node AWS SDK deve quindi fornire un corpo async iterable (oppure un buffer/stringa già materializzati e di dimensioni verificabili). La dimensione dei singoli chunk resta responsabilità dello stack HTTP, ma il totale accettato dal verificatore non supera 8192 byte.
 
 ## Verifiche
 
-Test sintetici: ContentLength falso/enorme, stream più grande del limite con lunghezza assente, stream valido spezzato in chunk, retention non conforme senza GetObject, nessun PUT durante il readback. Nessuna rete B2 reale, credenziale o dato personale reale.
+Test sintetici: ContentLength falso/enorme, stream più grande del limite con lunghezza assente, stream valido spezzato in chunk, rifiuto senza chiamata a `transformToByteArray()` di corpi nonstreaming, retention non conforme senza GetObject, nessun PUT durante il readback. Nessuna rete B2 reale, credenziale o dato personale reale.
 
 ## Limiti aperti — #296
 
