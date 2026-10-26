@@ -94,14 +94,58 @@ function verifySignedManifest(envelope, secret, expectedRecoveryId) {
   }
   return payload;
 }
+// This SHA-256 checkpoint must come from an independent, trusted channel.
+// If read from the same untrusted source as envelope, it has no anti-rollback value.
+function manifestDigest(envelope) {
+  if (!envelope || !/^[0-9a-f]{64}$/.test(envelope.signature || '')) {
+    throw Error('Invalid manifest for checkpoint digest');
+  }
+  return crypto.createHash('sha256')
+    .update(JSON.stringify({
+      payload: normalizePayload(envelope.payload),
+      signature: envelope.signature
+    }))
+    .digest('hex');
+}
+
+function assertIndependentRecoveryCheckpoint(envelope, {
+  expectedManifestDigest, expectedRestoredBackupTakenAt, expectedCapturedAt
+} = {}) {
+  if (typeof expectedManifestDigest !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(expectedManifestDigest)) {
+    throw Error('Independent manifest checkpoint is required');
+  }
+  const approvedBackup = new Date(expectedRestoredBackupTakenAt);
+  const approvedCapture = new Date(expectedCapturedAt);
+  if (!expectedRestoredBackupTakenAt || !expectedCapturedAt ||
+      !Number.isFinite(approvedBackup.getTime()) ||
+      !Number.isFinite(approvedCapture.getTime())) {
+    throw Error('Independent backup/capture timestamps are required');
+  }
+  const payload = normalizePayload(envelope.payload);
+  if (payload.restoredBackupTakenAt !== approvedBackup.toISOString() ||
+      payload.capturedAt !== approvedCapture.toISOString()) {
+    throw Error('Manifest dates mismatch independently approved recovery metadata');
+  }
+  const computed = Buffer.from(manifestDigest(envelope), 'hex');
+  const approved = Buffer.from(expectedManifestDigest, 'hex');
+  if (!crypto.timingSafeEqual(computed, approved)) {
+    throw Error('Signed manifest differs from independent freshness checkpoint');
+  }
+}
+
 async function reconcileRestoredPrivacyState({
-  client, envelope, secret, expectedRecoveryId, maintenanceConfirmed
+  client, envelope, secret, expectedRecoveryId, maintenanceConfirmed,
+  expectedManifestDigest, expectedRestoredBackupTakenAt, expectedCapturedAt
 }) {
   // Important: this is an offline function, NOT a public HTTP handler.
   // An operator must ALSO isolate all provider access, all backend instances,
   // workers and Supabase Data API; HTTP middleware alone is insufficient.
   if (maintenanceConfirmed !== true) throw Error('Recovery maintenance has not been confirmed');
   const payload = verifySignedManifest(envelope, secret, expectedRecoveryId);
+  assertIndependentRecoveryCheckpoint(envelope, {
+    expectedManifestDigest, expectedRestoredBackupTakenAt, expectedCapturedAt
+  });
   if (!client || typeof client.query !== 'function') throw Error('Database client required');
 
   await client.query('BEGIN');
@@ -169,6 +213,8 @@ async function reconcileRestoredPrivacyState({
 module.exports = {
   normalizePayload,
   signature,
+  manifestDigest,
+  assertIndependentRecoveryCheckpoint,
   verifySignedManifest,
   reconcileRestoredPrivacyState
 };
