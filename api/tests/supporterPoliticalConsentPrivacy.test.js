@@ -109,9 +109,10 @@ test('notification INSERT filters consent again so a revocation between reads is
     if (/FROM public\.political_selections ps/.test(sql)) return {
       rows: [{ id: '11111111-1111-1111-1111-111111111122' }]
     };
-    if (/FROM opinioni_domande/.test(sql)) return { rows: [{ id: '42', text: 'Test question' }] };
-    if (/INSERT INTO political_opinion_notifications/.test(sql)) {
-      assert.match(sql, /FROM users supporter/);
+    if (/FROM public\.opinioni_domande/.test(sql)) return { rows: [{ id: '42', text: 'Test question' }] };
+    if (/INSERT INTO public\.political_opinion_notifications/.test(sql)) {
+      assert.match(sql, /FROM public\.users supporter/);
+      assert.match(sql, /LEFT JOIN public\.user_consents uc/);
       assertScoped(sql);
       assert.match(sql, /supporter\.status = 'a'/);
       assert.deepEqual(params[5], ['11111111-1111-1111-1111-111111111122']);

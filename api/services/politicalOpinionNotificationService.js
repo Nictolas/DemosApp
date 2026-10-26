@@ -15,7 +15,7 @@ async function loadOpinionTexts(db, opinionIds) {
   if (opinionIds.length === 0) return new Map();
   const result = await db.query(
     `SELECT id::text AS id, text
-     FROM opinioni_domande
+     FROM public.opinioni_domande
      WHERE id::text = ANY($1::text[])`,
     [opinionIds],
   );
@@ -42,7 +42,7 @@ async function createSupporterOpinionNotifications(db, { subjectUserId, changes 
   for (const change of normalizedChanges) {
     const opinionText = texts.get(change.opinionId) || change.opinionId;
     const result = await db.query(
-      `INSERT INTO political_opinion_notifications (
+      `INSERT INTO public.political_opinion_notifications (
          recipient_user_id,
          subject_user_id,
          opinion_id,
@@ -57,8 +57,8 @@ async function createSupporterOpinionNotifications(db, { subjectUserId, changes 
          $3,
          $4,
          $5
-       FROM users supporter
-       LEFT JOIN user_consents uc ON uc.user_id = supporter.id
+       FROM public.users supporter
+       LEFT JOIN public.user_consents uc ON uc.user_id = supporter.id
        WHERE supporter.id::text <> $1::text
          AND supporter.status = 'a'
          AND supporter.id::text = ANY($6::text[])
