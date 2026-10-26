@@ -242,6 +242,10 @@ class PrivacyErasureLedgerService {
       ['preference_change_cooldowns', 'user_id'],
       ['political_opinion_notifications', 'recipient_user_id'],
       ['political_opinion_notifications', 'subject_user_id'],
+      // Account-owned canonical/legacy political preferences must not remain
+      // as orphaned rows when older schemas lack ON DELETE CASCADE.
+      ['user_representatives', 'user_id'],
+      ['user_consents', 'user_id'],
       ['political_selections', 'user_id'],
       ['political_selections', 'selected_user_id'],
       ['user_political_territories', 'user_id'],
