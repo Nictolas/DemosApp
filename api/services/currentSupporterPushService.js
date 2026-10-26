@@ -58,10 +58,19 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
                     AND btrim(legacy.token) <> ''
                     -- A canonical device record (even inactive or owned by
                     -- another account) overrides any stale legacy copy.
-                    AND NOT EXISTS (
-                      SELECT 1 FROM public.user_devices registered
-                      WHERE btrim(registered.fcm_token) = btrim(legacy.token)
-                    )
+                    AND CASE
+                      -- Most registrations store the exact FCM token. Probe
+                      -- the existing unique fcm_token index first, but never
+                      -- trust a miss: older rows may contain outer spaces.
+                      WHEN EXISTS (
+                        SELECT 1 FROM public.user_devices registered
+                        WHERE registered.fcm_token = btrim(legacy.token)
+                      ) THEN FALSE
+                      ELSE NOT EXISTS (
+                        SELECT 1 FROM public.user_devices registered
+                        WHERE btrim(registered.fcm_token) = btrim(legacy.token)
+                      )
+                    END
                 ) tokens
                 WHERE token IS NOT NULL AND btrim(token) <> ''
               ) AS fcm_tokens
@@ -114,10 +123,16 @@ async function isCurrentSupporterTokenEligible(pool, { userIds, token }) {
   // Only tokens with NO device row may use the compatibility fallback.
   const unregisteredLegacyToken = `(
          ${legacyToken}
-         AND NOT EXISTS (
-           SELECT 1 FROM public.user_devices registered
-           WHERE btrim(registered.fcm_token) = $2
-         )
+         AND CASE
+           WHEN EXISTS (
+             SELECT 1 FROM public.user_devices registered
+             WHERE registered.fcm_token = $2
+           ) THEN FALSE
+           ELSE NOT EXISTS (
+             SELECT 1 FROM public.user_devices registered
+             WHERE btrim(registered.fcm_token) = $2
+           )
+         END
        )`;
   const primary = `SELECT EXISTS (
      SELECT 1
