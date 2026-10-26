@@ -95,7 +95,22 @@ class PrivacyErasureLedgerService {
       await this.ensureTable(client);
     }
     const eventKey = crypto.randomUUID();
-    const params = [eventKey, String(userId), eventType, JSON.stringify(details)];
+    const subjectUserId = String(userId);
+    const detailsJson = JSON.stringify(details);
+    if (outboxEnabled) {
+      // The B2 journal refuses events over 8192 bytes, non-object details
+      // and oversized subject IDs. Validate with the exact same normalizer
+      // BEFORE touching PostgreSQL; otherwise an atomic outbox commit can
+      // leave an undeliverable GDPR event permanently pending.
+      // The eventual database NOW() timestamp has the same canonical ISO
+      // length as this synthetic timestamp, so the byte cap is exact.
+      const { normalizeEvent } = require('./privacyErasureB2Journal');
+      normalizeEvent({
+        event_key: eventKey, subject_user_id: subjectUserId, event_type: eventType,
+        occurred_at: '2000-01-01T00:00:00.000Z', details
+      });
+    }
+    const params = [eventKey, subjectUserId, eventType, detailsJson];
     if (outboxEnabled) {
       // NO automatic DDL on a live revocation/deletion request. This fails
       // closed if the schema was not deliberately provisioned and backfilled

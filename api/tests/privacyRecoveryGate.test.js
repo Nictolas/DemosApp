@@ -68,6 +68,40 @@ test('malformed GDPR outbox flag refuses event writes and recovery before any SQ
   }
 });
 
+test('outbox preflight rejects events B2 cannot archive before any PostgreSQL I/O', async () => {
+  const old = process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+  process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'true';
+  const statements = [];
+  const db = {async query(sql) {
+    statements.push(sql);
+    return {rows:[{event_key:'synthetic-test-event'}]};
+  }};
+  const eventType = Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED;
+  try {
+    for (const rejected of [
+      {userId:KEY, details:{synthetic:'x'.repeat(9000)}},
+      {userId:KEY, details:['array-is-not-an-object']},
+      {userId:'u'.repeat(129), details:{source:'synthetic'}}
+    ]) {
+      await assert.rejects(Ledger.recordEvent(db, {
+        ...rejected, eventType
+      }), /minimization limit|Invalid GDPR ledger details|Invalid GDPR ledger event/);
+      assert.equal(statements.length,0,
+        'invalid GDPR event must not write ledger or delivery outbox');
+    }
+    const valid = await Ledger.recordEvent(db, {
+      userId:KEY, eventType, details:{synthetic:'x'.repeat(7900)}
+    });
+    assert.equal(valid.event_key,'synthetic-test-event');
+    assert.equal(statements.length,1);
+    assert.match(statements[0],/INSERT INTO privacy_erasure_ledger/);
+    assert.match(statements[0],/INSERT INTO privacy_erasure_delivery_outbox/);
+  } finally {
+    if (old === undefined) delete process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+    else process.env.GDPR_ERASURE_OUTBOX_ENABLED = old;
+  }
+});
+
 test('HMAC is stable regardless of object key order and PostgreSQL JSONB property order', () => {
   const event = mkEvent();
   const reordered = { ...event, details: { z: 1, action: 'test' } };

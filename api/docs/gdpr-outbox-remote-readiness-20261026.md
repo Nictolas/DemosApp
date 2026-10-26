@@ -44,3 +44,15 @@ Prima di qualsiasi ripristino reale serve una sorgente *indipendente e attendibi
 Definire e approvare con titolare/DPO: autorità del checkpoint, barriera/durabilità degli eventi di revoca, retention, recovery point objective, procedura di incident response, attestazioni e costi della verifica B2. Non stabilire implicitamente questi parametri nel codice o nella CI.
 
 I due nuovi test dual-loss drill in api/tests/privacyRecoveryGate.test.js usano esclusivamente eventi fittizi, DB simulato e mock B2, senza credenziali o connessioni reali. Nessun merge, deploy, migrazione o attivazione.
+
+
+## Preflight della dimensione eventi nella modalità outbox (PR successiva a #320)
+
+Con `GDPR_ERASURE_OUTBOX_ENABLED=true`, ogni `recordEvent` valida **prima della prima query PostgreSQL** lo stesso evento con lo stesso normalizzatore usato da `PrivacyErasureB2Journal`. La previsione usa un UUID canonico già generato, l'ID soggetto, il tipo, i dettagli e un timestamp ISO sintetico della stessa lunghezza di quello reale.
+
+- Rifiuta eventi oltre 8192 byte dopo serializzazione canonica e dettagli non-oggetto (es. array), o identificativi soggetto non archiviabili. Un evento non consegnabile non deve entrare nel ledger/outbox atomico.
+- Regressione sintetica verifica **zero query SQL** per tutti i casi rifiutati e una singola query atomica ledger+outbox per un evento valido sotto il limite.
+- Non ripara eventuali eventi troppo grandi già presenti in snapshot precedenti; richiede inventario e decisione documentata prima di qualsiasi migrazione o azione su registri reali. Non cancellare o alterare registrazioni per aggirare il gate.
+- La modalità legacy senza outbox non viene modificata da questa PR. Non dimostra completezza o freschezza del checkpoint esterno e non sostituisce la prova di quarantena infrastrutturale.
+
+Test solo con oggetti e client PostgreSQL simulati. Nessun accesso a B2 o a dati reali.
