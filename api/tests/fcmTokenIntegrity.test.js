@@ -36,7 +36,11 @@ test('FCM service worker has no fake project configuration and reads registered 
 
 test('backend rejects fake or malformed FCM tokens before token persistence', () => {
   const route = read('api/routes/fcm-tokens.js');
-  assert.match(route, /token\.length > 100 && !token\.startsWith\('web_'\)/);
+  assert.match(route, /normalizedToken\.length > 100 && !normalizedToken\.startsWith\('web_'\)/);
+  assert.match(route, /typeof token === 'string' \? token\.trim\(\) : ''/);
+  assert.match(route, /const token = normalizeFcmToken\(req\.body\?\.token\)/);
+  assert.match(route, /const token = normalizeFcmToken\(req\.params\.token\)/);
+  assert.doesNotMatch(route, /Token rimossi:.*substring/);
   const validation = route.indexOf('if (!isValidFcmToken(token))');
   const existingLookup = route.indexOf('const existingTokens = await getLegacyTokens(userId);', validation);
   const legacyWrite = route.indexOf("await updateLegacyTokens(userId, updatedTokens);", validation);

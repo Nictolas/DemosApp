@@ -7,16 +7,19 @@ const source = fs.readFileSync(path.resolve(__dirname, '..', 'routes', 'fcm-toke
 
 test('FCM token route tolerates removal of legacy users.fcm_tokens column', () => {
   assert.match(source, /error\?\.code === '42703'/);
-  assert.match(source, /SELECT 1 FROM users WHERE id = \$1/);
+  assert.match(source, /SELECT 1 FROM public\.users WHERE id = \$1/);
   assert.match(source, /async function updateLegacyTokens/);
   assert.equal((source.match(/await updateLegacyTokens\(/g) || []).length, 3);
 });
 
 test('canonical user_devices storage remains authoritative for write and revoke', () => {
-  assert.match(source, /INSERT INTO user_devices/);
+  assert.match(source, /INSERT INTO public\.user_devices/);
   assert.match(source, /is_active = TRUE/);
   assert.match(source, /async function deactivateUserDeviceToken/);
   assert.match(source, /SET is_active = FALSE/);
+  assert.match(source, /UPDATE public\.user_devices/);
+  assert.match(source, /btrim\(fcm_token\) = \$2/);
+  assert.match(source, /fcm_token <> \$2/);
 });
 test('versioned migration creates canonical user_devices schema idempotently', () => {
   const migration = fs.readFileSync(path.resolve(__dirname, '..', 'database', 'create-user-devices-table.sql'), 'utf8');
