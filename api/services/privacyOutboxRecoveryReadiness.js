@@ -44,6 +44,11 @@ async function verifyOutboxRecoveryReadiness(client, {
   try {
     await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
     open = true;
+    // Schema presence is verified in public, but the subsequent joins use
+    // unqualified names. Never let a borrowed connection's search_path (or
+    // temporary shadow tables) make a different ledger look ready.
+    // Transaction-local only; no persistent DB setting is changed.
+    await client.query('SET LOCAL search_path = pg_catalog, public, pg_temp');
     const presence = await client.query(
       "SELECT to_regclass('public.privacy_erasure_ledger') IS NOT NULL AS ledger, " +
       "to_regclass('public.privacy_erasure_delivery_outbox') IS NOT NULL AS outbox"

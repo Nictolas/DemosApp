@@ -239,6 +239,35 @@ async function main() {
     assert.equal((await PrivacyErasureOutboxWorker.status(pool)).ready,true);
     assert.equal((await worker.runOnce(pool,{limit:1})).delivered,0);
     assert.deepEqual(await readiness({pageSize:1}),{ready:true,verifiedEvents:2,pinnedEvents:2});
+    // A dedicated PostgreSQL connection may have a hostile/stale search_path
+    // and pg_temp shadows of the verified public ledger/outbox. Read-only
+    // recovery must not read these fake tables or report on their contents.
+    const readinessShadow=await pool.connect();
+    try {
+      await readinessShadow.query(
+        'CREATE TEMP TABLE privacy_erasure_ledger (event_key text PRIMARY KEY)'
+      );
+      await readinessShadow.query(
+        'CREATE TEMP TABLE privacy_erasure_delivery_outbox (event_key text PRIMARY KEY)'
+      );
+      await readinessShadow.query('SET search_path TO pg_temp, public');
+      const verified=await verifyOutboxRecoveryReadiness(readinessShadow,{
+        exporter:b2.exporter,maintenanceConfirmed:true,...approvedCheckpoint,
+        pageSize:1
+      });
+      assert.deepEqual(verified,{ready:true,verifiedEvents:2,pinnedEvents:2});
+      assert.equal(await value(readinessShadow,
+        'SELECT count(*)::int FROM pg_temp.privacy_erasure_ledger'),0);
+      assert.equal(await value(readinessShadow,
+        'SELECT count(*)::int FROM pg_temp.privacy_erasure_delivery_outbox'),0);
+      assert.equal((await readinessShadow.query('SHOW search_path')).rows[0].search_path,
+        'pg_temp, public','readiness must not change the session setting');
+    } finally {
+      await readinessShadow.query('RESET search_path');
+      await readinessShadow.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_delivery_outbox');
+      await readinessShadow.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_ledger');
+      readinessShadow.release();
+    }
     // Once every approved event has a valid receipt, a newly committed
     // unapproved ledger event MUST be rejected regardless of UUID order.
     const unapproved=await Ledger.recordEvent(pool,syntheticEvent());
@@ -610,10 +639,39 @@ async function main() {
     await assert.rejects(ordinaryDuringFreeze.runOnce(pool),
       /blocked during recovery maintenance/);
     offlineEnv.GDPR_ERASURE_RECOVERY_OFFLINE_EXPORT_ENABLED='true';
-    const recovered=await offlineRunner.runOnce(pool,{
-      ...approvedCheckpoint,maintenanceConfirmed:true,
-      quarantineConfirmed:true,limit:1
-    });
+    // Repeat the successful offline retry on a borrowed client whose session
+    // deliberately resolves temporary names before public. Only the verified
+    // public ledger/outbox may be read or ACKed by the recovery exporter.
+    const exporterShadow=await pool.connect();
+    let recovered;
+    try {
+      await exporterShadow.query(
+        'CREATE TEMP TABLE privacy_erasure_ledger (event_key text PRIMARY KEY)'
+      );
+      await exporterShadow.query(
+        'CREATE TEMP TABLE privacy_erasure_delivery_outbox (event_key text PRIMARY KEY)'
+      );
+      await exporterShadow.query('SET search_path TO pg_temp, public');
+      const shadowPool={async connect(){return {
+        query:(sql,params)=>exporterShadow.query(sql,params),
+        release(){}
+      };}};
+      recovered=await offlineRunner.runOnce(shadowPool,{
+        ...approvedCheckpoint,maintenanceConfirmed:true,
+        quarantineConfirmed:true,limit:1
+      });
+      assert.equal(await value(exporterShadow,
+        'SELECT count(*)::int FROM pg_temp.privacy_erasure_ledger'),0);
+      assert.equal(await value(exporterShadow,
+        'SELECT count(*)::int FROM pg_temp.privacy_erasure_delivery_outbox'),0);
+      assert.equal((await exporterShadow.query('SHOW search_path')).rows[0].search_path,
+        'pg_temp, public','offline export must not change session settings');
+    } finally {
+      await exporterShadow.query('RESET search_path');
+      await exporterShadow.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_delivery_outbox');
+      await exporterShadow.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_ledger');
+      exporterShadow.release();
+    }
     assert.deepEqual(recovered,{
       recoveryId:recoveryId,delivered:1,moreMayRemain:true,readyForTraffic:false
     });
@@ -638,6 +696,7 @@ async function main() {
       recoveryMaintenanceWorkerAbortPg17:true,
       isolatedOfflineRecoveryExporterPg17:true,
       offlineExporterRejectsConcurrentWriterPg17:true,
+      readinessAndOfflineExporterSchemaShadowPg17:true,
       productionUntouched:true
     }));
   } finally {
