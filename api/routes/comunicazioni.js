@@ -350,13 +350,19 @@ router.post('/send-user-notification', (req, res, next) => {
       
       debugLog(`    🔔 Tentativo ${i + 1}/${tokensToSend.length}: invio notifica push a token: ${'[omesso]'}...`);
       
+      // A temporary database error must suppress delivery, not incorrectly
+      // classify a healthy token as permanently invalid at Firebase.
+      let stillCurrent = false;
       try {
-        // An asynchronous notification may be sent after a token was
-        // revoked or transferred. Refresh its canonical ownership first.
-        if (!await isRecipientFcmTokenCurrentlyActive(pool, { userId, token })) {
-          debugLog('Notifica diretta saltata: token FCM non più attivo');
-          continue;
-        }
+        stillCurrent = await isRecipientFcmTokenCurrentlyActive(pool, { userId, token });
+      } catch (error) {
+        debugWarn('Verifica token destinatario non disponibile:', error?.code || 'database_error');
+      }
+      if (!stillCurrent) {
+        debugLog('Notifica diretta saltata: token FCM revocato o non verificabile');
+        continue;
+      }
+      try {
         const result = await sendPushNotification(
           token,
           titolo,
