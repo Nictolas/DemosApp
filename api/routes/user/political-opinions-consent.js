@@ -25,8 +25,8 @@ router.get('/', verifyToken, async (req, res) => {
       SELECT 
         COALESCE(uc.political_opinions_consent, u.political_opinions_consent) AS political_opinions_consent,
         COALESCE(uc.political_opinions_consent_timestamp, u.political_opinions_consent_timestamp) AS political_opinions_consent_timestamp
-      FROM users u
-      LEFT JOIN user_consents uc ON uc.user_id = u.id
+      FROM public.users u
+      LEFT JOIN public.user_consents uc ON uc.user_id = u.id
       WHERE u.id = $1
     `;
     
@@ -88,7 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
     
     // Salva il consenso esplicito
     const updateQuery = `
-      UPDATE users 
+      UPDATE public.users 
       SET 
         political_opinions_consent = $1,
         political_opinions_consent_timestamp = NOW(),
@@ -114,7 +114,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       if (result.rows.length > 0) {
         await client.query(
-          `INSERT INTO user_consents (
+          `INSERT INTO public.user_consents (
             user_id, political_opinions_consent, political_opinions_consent_timestamp,
             political_opinions_consent_ip_address, political_opinions_consent_user_agent
           ) VALUES ($1, true, NOW(), $2, $3)
@@ -210,7 +210,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
     
     // Revoca il consenso
     const updateQuery = `
-      UPDATE users 
+      UPDATE public.users 
       SET 
         political_opinions_consent = false,
         political_opinions_consent_timestamp = NULL,
@@ -229,7 +229,7 @@ router.put('/revoke', verifyToken, async (req, res) => {
       result = await client.query(updateQuery, [userId]);
       if (result.rows.length > 0) {
         await client.query(
-          `INSERT INTO user_consents (
+          `INSERT INTO public.user_consents (
             user_id, political_opinions_consent, political_opinions_consent_timestamp,
             political_opinions_consent_ip_address, political_opinions_consent_user_agent
           ) VALUES ($1, false, NULL, NULL, NULL)
