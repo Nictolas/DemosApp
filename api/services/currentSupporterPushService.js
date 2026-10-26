@@ -46,7 +46,7 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
                 SELECT DISTINCT token
                 FROM (
                   SELECT d.fcm_token AS token
-                  FROM user_devices d
+                  FROM public.user_devices d
                   WHERE d.user_id = u.id
                     AND d.is_active = TRUE
                     AND d.fcm_token IS NOT NULL
@@ -56,8 +56,8 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
                 ) tokens
                 WHERE token IS NOT NULL AND btrim(token) <> ''
               ) AS fcm_tokens
-       FROM users u
-       LEFT JOIN user_consents uc ON uc.user_id = u.id
+       FROM public.users u
+       LEFT JOIN public.user_consents uc ON uc.user_id = u.id
        WHERE u.status = 'a'
          AND u.id::text = ANY($1::text[])
          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
@@ -68,8 +68,8 @@ async function loadCurrentSupporterTokens(pool, { subjectUserId, kind, level }) 
     if (!['42P01', '42703'].includes(error?.code)) throw error;
     const result = await pool.query(
       `SELECT u.id, COALESCE(u.fcm_tokens, ARRAY[]::text[]) AS fcm_tokens
-       FROM users u
-       LEFT JOIN user_consents uc ON uc.user_id = u.id
+       FROM public.users u
+       LEFT JOIN public.user_consents uc ON uc.user_id = u.id
        WHERE u.status = 'a'
          AND u.id::text = ANY($1::text[])
          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
