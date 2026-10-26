@@ -23,7 +23,7 @@ test('notification insert targets users resolved by canonical current selections
   const db = {
     async query(sql, params) {
       calls.push({ sql: String(sql), params });
-      if (/FROM political_selections ps/.test(sql)) return { rows: [{ id: 'supporter-1' }, { id: 'supporter-2' }] };
+      if (/FROM public\.political_selections ps/.test(sql)) return { rows: [{ id: 'supporter-1' }, { id: 'supporter-2' }] };
       if (/FROM opinioni_domande/.test(sql)) return { rows: [{ id: '42', text: 'Energia nucleare' }] };
       if (/INSERT INTO political_opinion_notifications/.test(sql)) {
         return { rows: [{ id: 'n1' }, { id: 'n2' }], rowCount: 2 };
@@ -38,7 +38,7 @@ test('notification insert targets users resolved by canonical current selections
   });
 
   assert.deepEqual(result, { created: 2, changes: 1 });
-  assert.match(calls[0].sql, /FROM political_selections ps/);
+  assert.match(calls[0].sql, /FROM public\.political_selections ps/);
   const insert = calls.find((call) => /INSERT INTO political_opinion_notifications/.test(call.sql));
   assert.match(insert.sql, /supporter\.id::text = ANY\(\$6::text\[\]\)/);
   assert.deepEqual(insert.params[5], ['supporter-1', 'supporter-2']);
