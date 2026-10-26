@@ -23,6 +23,7 @@ function signed(payload) { return { payload, signature: signature(payload, SECRE
 function fixture(events = [mkEvent()]) {
   return signed({
     formatVersion: 1, recoveryId: ID, capturedAt: '2026-10-26T01:00:00.000Z',
+    restoredBackupTakenAt: '2026-10-24T00:00:00.000Z',
     events
   });
 }
