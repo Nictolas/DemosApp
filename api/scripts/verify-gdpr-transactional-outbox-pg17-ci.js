@@ -102,9 +102,18 @@ async function main() {
     assert.equal(await Ledger.backfillDeliveryOutbox(pool,{maintenanceConfirmed:true}),0);
     assert.equal((await PrivacyErasureOutboxWorker.status(pool)).pending,1);
     const b2=fakeB2();
-    const readiness=opts=>verifyOutboxRecoveryReadiness(pool,{exporter:b2.exporter,
-      maintenanceConfirmed:true,...opts});
-    await assert.rejects(verifyOutboxRecoveryReadiness(pool,{exporter:b2.exporter}),/quarantine/);
+    const readiness=async opts=>{
+      // A multi-query transaction MUST use a dedicated pg client.
+      const client=await pool.connect();
+      try {
+        return await verifyOutboxRecoveryReadiness(client,{
+          exporter:b2.exporter,maintenanceConfirmed:true,...opts
+        });
+      } finally {client.release();}
+    };
+    await assert.rejects(verifyOutboxRecoveryReadiness({
+      query(){throw Error('unexpected-sql')}
+    },{exporter:b2.exporter}),/quarantine/);
     await assert.rejects(readiness(),/no verified external delivery receipt/);
 
     const eventsBefore=await value(pool,'SELECT COUNT(*)::int FROM privacy_erasure_ledger');
