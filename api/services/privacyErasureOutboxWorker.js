@@ -4,6 +4,7 @@
 // starts on app boot. Pending rows live in the SAME transactional PostgreSQL
 // database as the GDPR ledger; this alone does not survive a total DB loss.
 const { PrivacyErasureB2Journal } = require('./privacyErasureB2Journal');
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 
 class PrivacyErasureOutboxWorker {
   constructor({ env = process.env, exporter = null } = {}) {
@@ -15,8 +16,7 @@ class PrivacyErasureOutboxWorker {
   // An authorized offline recovery exporter needs a separate reviewed
   // procedure; never add an environment-only bypass here.
   assertNotInRecovery() {
-    const mode = this.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
-    if (mode !== undefined && mode !== 'false') {
+    if (isPrivacyRecoveryMaintenanceActive(this.env)) {
       throw Error('GDPR outbox worker blocked during recovery maintenance');
     }
   }

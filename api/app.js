@@ -138,7 +138,7 @@ const isProductionApp = process.env.NODE_ENV === 'production';
 const mountDevApiSurface = !isProductionApp || process.env.ALLOW_DEV_API_SURFACE === 'true';
 
 const app = express();
-const { privacyRecoveryMaintenance } = require('./middleware/privacyRecoveryMaintenance');
+const { privacyRecoveryMaintenance, isPrivacyRecoveryMaintenanceActive } = require('./middleware/privacyRecoveryMaintenance');
 // Must run before CORS OPTIONS and every API handler during GDPR recovery.
 app.use(privacyRecoveryMaintenance);
 
@@ -537,7 +537,7 @@ app.use((error, req, res, next) => {
 
 // Recovery maintenance must also suppress application-owned periodic jobs.
 // This is not a substitute for pausing other Render workers or provider APIs.
-if (process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE !== 'true') {
+if (!isPrivacyRecoveryMaintenanceActive()) {
 // Avvia sistema di audit logging
 auditManager.start();
 

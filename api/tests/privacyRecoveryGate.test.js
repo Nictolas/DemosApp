@@ -6,7 +6,7 @@ const path = require('node:path');
 const express = require('express');
 const http = require('node:http');
 const crypto = require('node:crypto');
-const { privacyRecoveryMaintenance } = require('../middleware/privacyRecoveryMaintenance');
+const { privacyRecoveryMaintenance, isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 const Ledger = require('../services/privacyErasureLedgerService');
 const { PrivacyErasureOutboxWorker } = require('../services/privacyErasureOutboxWorker');
 const { verifyOutboxRecoveryReadiness } = require('../services/privacyOutboxRecoveryReadiness');
@@ -826,4 +826,40 @@ test('dual-loss drill: stale signed manifest refused by newer independent pin be
   // This function cannot prove that the supplied trusted checkpoint is the
   // NEWEST one. An out-of-band checkpoint authority/incident decision is
   // still mandatory; neither a signed manifest nor a local 'ready' proves it.
+});
+
+test('HTTP, boot-time job gate and outbox worker agree on malformed GDPR maintenance flags',()=>{
+  const cases = [
+    [{}, false],
+    [{ DEMOS_PRIVACY_RECOVERY_MAINTENANCE:'false' }, false],
+    ...['true','TRUE','true ','FALSE','false ','0','', 'false\\n'].map(value=>[
+      { DEMOS_PRIVACY_RECOVERY_MAINTENANCE:value }, true
+    ])
+  ];
+  for (const [env,blocked] of cases) {
+    assert.equal(isPrivacyRecoveryMaintenanceActive(env),blocked,
+      'Unexpected maintenance decision for '+JSON.stringify(env));
+    const worker = new PrivacyErasureOutboxWorker({
+      env,
+      exporter: {config(){throw Error('External configuration must not be read');}}
+    });
+    if (blocked) {
+      assert.throws(()=>worker.assertNotInRecovery(),/blocked during recovery maintenance/);
+    } else {
+      assert.doesNotThrow(()=>worker.assertNotInRecovery());
+    }
+  }
+});
+
+test('application startup suppresses all app-owned periodic jobs using the SAME fail-closed HTTP predicate',()=>{
+  const src = fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
+  const importAt=src.indexOf('isPrivacyRecoveryMaintenanceActive } = require(');
+  const guardAt=src.indexOf('if (!isPrivacyRecoveryMaintenanceActive()) {');
+  const auditAt=src.indexOf('auditManager.start();');
+  const workerStartAt=src.indexOf('dataRetentionJob.start();');
+  const elseAt=src.indexOf("GDPR recovery maintenance: HTTP blocked and app-owned background jobs disabled");
+  assert.ok(importAt >= 0);
+  assert.ok(guardAt > importAt && auditAt > guardAt && workerStartAt > guardAt);
+  assert.ok(elseAt > workerStartAt);
+  assert.doesNotMatch(src,/DEMOS_PRIVACY_RECOVERY_MAINTENANCE\\s*!==\\s*['"]true['"]/);
 });
