@@ -63,17 +63,21 @@ class PrivacyOfflineRecoveryExporter {
       this.assertQuarantine();
       await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ');
       open = true;
-      // Fail closed if ANY other transaction is writing ledger/outbox. A
-      // signed snapshot comparison is unsafe while rows can change between
-      // verification and B2 PUT. NOWAIT avoids waiting behind a live writer;
-      // both locks are transaction-scoped and released on COMMIT/ROLLBACK.
-      // This is NOT a substitute for freezing other application tables or
-      // every Supabase/Render ingress at the infrastructure level.
+      // Acquire the shared recovery advisory lock BEFORE relation locks.
+      // The signed ledger replay acquires this advisory lock first and then
+      // writes the same tables. Reversing the order here can deadlock:
+      // offline exporter holds relation locks while waiting for replay's
+      // advisory lock, while replay waits for those relation locks.
+      await client.query('SELECT pg_advisory_xact_lock(170026, 296)');
+      // Fail closed if ANY other transaction is writing ledger/outbox.
+      // Keep relation locks until COMMIT/ROLLBACK, avoiding a changing
+      // snapshot between validation and B2 PUT. NOWAIT refuses uncoordinated
+      // writers rather than waiting behind them. These SQL locks do NOT
+      // attest to a full provider-level Render/Supabase quarantine.
       await client.query(
         'LOCK TABLE privacy_erasure_ledger, privacy_erasure_delivery_outbox ' +
         'IN SHARE ROW EXCLUSIVE MODE NOWAIT'
       );
-      await client.query('SELECT pg_advisory_xact_lock(170026, 296)');
       const schema = await client.query(
         "SELECT to_regclass('public.privacy_erasure_ledger') IS NOT NULL AS ledger, " +
         "to_regclass('public.privacy_erasure_delivery_outbox') IS NOT NULL AS outbox"
