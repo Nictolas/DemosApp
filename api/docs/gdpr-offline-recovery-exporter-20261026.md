@@ -35,3 +35,7 @@ L'advisory lock transazionale (170026, 296) è condiviso col replay del ledger. 
 La suite sintetica api/tests/privacyOfflineRecoveryExporter.test.js verifica blocco pre-I/O su flag errati, attestazioni assenti, firma manomessa e manifesto stantio; rollback per storico locale incompleto/alterato, ricevute errate e perdita della quarantena durante B2 o dopo l'UPDATE; successo ristretto a eventi firmati e restituzione di readyForTraffic:false. È inclusa nel workflow di recovery GDPR; i database di CI sono separati e sintetici.
 
 **Stato DRAFT. Nessun merge, deploy, migrazione, segreto, accesso a dati reali, costo o modifica produzione.**
+
+## Drill aggiuntivo PostgreSQL 17 isolato
+
+Lo script di CI api/scripts/verify-gdpr-transactional-outbox-pg17-ci.js riproduce il percorso con un database PostgreSQL 17 temporaneo e B2 simulato: nuovo evento pendente, manifesto/checkpoint sintetico, rifiuto di pin errato prima dell'export, caricamento remoto simulato seguito dalla revoca dell'autorizzazione locale, verifica del rollback della ricevuta nel database, worker ordinario che resta bloccato, e retry offline che riusa la medesima versione immutabile senza spegnere il flag di manutenzione HTTP. È una **prova applicativa in CI**, non un test di isolamento reale o Object Lock B2.
