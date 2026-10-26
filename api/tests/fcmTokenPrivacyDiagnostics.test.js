@@ -11,6 +11,7 @@ test('only bounded diagnostic codes may enter FCM logs',()=>{
   assert.equal(safeFcmErrorCode({code:'messaging/registration-token-not-registered',message:secret}),
     'messaging/registration-token-not-registered');
   assert.equal(safeFcmErrorCode({code:'23514'}),'23514');
+  assert.equal(safeFcmErrorCode({code:'app/invalid-credential'}),'app/invalid-credential');
   assert.equal(safeFcmErrorCode({code:secret}),'FCM_UNCLASSIFIED');
   assert.equal(safeFcmErrorCode({code:'messaging/'+secret}),'FCM_UNCLASSIFIED');
   assert.equal(safeFcmErrorCode({message:secret}),'FCM_UNCLASSIFIED');
@@ -50,4 +51,17 @@ test('operational alerts recheck recipients and all auxiliary senders mask error
   assert.doesNotMatch(ops,/console\.error\('Operational alert delivery failed:', error\.message/);
   assert.doesNotMatch(supporters,/error\?\.code \|\| error\?\.message/);
   assert.doesNotMatch(av,/details: error\.message/);
+});
+
+test('GET diagnostics never sends Firebase messages or exposes token prefixes',()=>{
+  const source=read('routes/comunicazioni.js');
+  const getDebug=source.slice(source.indexOf("router.get('/debug-firebase-admin'"),
+    source.indexOf("router.get('/debug-notifiche-demos'"));
+  const getNotifiche=source.slice(source.indexOf("router.get('/debug-notifiche-demos'"),
+    source.indexOf("router.get('/ultima-comunicazione'"));
+  assert.doesNotMatch(getDebug,/messaging\.send\(/);
+  assert.doesNotMatch(getDebug,/testError\.message|error\.stack/);
+  assert.match(getDebug,/Diagnostica sola lettura: nessuna notifica di test inviata/);
+  assert.doesNotMatch(getNotifiche,/preview:|substring\(0, 30\)/);
+  assert.match(getNotifiche,/numero_token_fcm: fcmTokens\.length/);
 });

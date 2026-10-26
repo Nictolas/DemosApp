@@ -1183,7 +1183,7 @@ router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) 
       }
     };
     
-    debugLog('🔍 Variabili d\'ambiente:', JSON.stringify(debugInfo.environment, null, 2));
+    debugLog('🔍 Verifica della presenza della configurazione Firebase completata');
     
     // Verifica corrispondenza tra variabili d'ambiente
     const envCheck = {
@@ -1269,66 +1269,18 @@ router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) 
           debugLog('✅ admin.messaging() disponibile');
           debugInfo.stato_inizializzazione.messaging_disponibile = true;
           
-          // Test reale: prova a inviare una notifica di test (se l'utente ha un token FCM)
-          try {
-            const userId = req.user?.id;
-            if (userId) {
-              const resolvedTokens = await getResolvedFcmTokensForUser(userId);
-              if (resolvedTokens.length > 0) {
-                const testToken = resolvedTokens[0];
-                debugLog('🧪 Test invio notifica reale: token FCM presente');
-                
-                const testMessage = {
-                  token: testToken,
-                  notification: {
-                    title: 'Test Diagnostica',
-                    body: 'Notifica di test dalla diagnostica Firebase Admin'
-                  },
-                  data: {
-                    type: 'diagnostic_test',
-                    timestamp: new Date().toISOString()
-                  }
-                };
-                
-                try {
-                  const testResponse = await messaging.send(testMessage);
-                  debugLog('✅ Test invio notifica riuscito. Message ID:', testResponse);
-                  debugInfo.stato_inizializzazione.test_invio = {
-                    successo: true,
-                    message_id: testResponse,
-                    messaggio: 'Notifica di test inviata con successo'
-                  };
-                } catch (testError) {
-                  console.error('❌ Test invio notifica fallito:', testError.message);
-                  debugInfo.stato_inizializzazione.test_invio = {
-                    successo: false,
-                    errore: testError.message,
-                    codice: testError.code || 'N/A',
-                    messaggio: `Errore durante test invio: ${testError.message}`
-                  };
-                }
-              } else {
-                debugLog('ℹ️ Utente corrente non ha token FCM per test reale');
-                debugInfo.stato_inizializzazione.test_invio = {
-                  successo: null,
-                  messaggio: 'Utente corrente non ha token FCM registrati per il test'
-                };
-              }
-            }
-          } catch (testError) {
-            console.error('❌ Errore durante preparazione test invio:', testError.message);
-            debugInfo.stato_inizializzazione.test_invio = {
-              successo: false,
-              errore: testError.message,
-              messaggio: `Errore durante preparazione test: ${testError.message}`
-            };
-          }
+          // GET diagnostics must remain side-effect-free: simply opening
+          // the admin page must never send a real Firebase notification.
+          debugInfo.stato_inizializzazione.test_invio = {
+            successo: null,
+            messaggio: 'Diagnostica sola lettura: nessuna notifica di test inviata'
+          };
         } catch (messagingError) {
-          console.error('❌ admin.messaging() non disponibile:', messagingError.message);
+          console.error('❌ admin.messaging() non disponibile:', safeFcmErrorCode(messagingError));
           debugInfo.stato_inizializzazione.messaging_disponibile = false;
           debugInfo.stato_inizializzazione.errore = {
-            message: `Messaging non disponibile: ${messagingError.message}`,
-            code: messagingError.code || 'N/A'
+            message: 'Messaging Firebase non disponibile',
+            code: safeFcmErrorCode(messagingError)
           };
         }
       } else {
@@ -1340,17 +1292,11 @@ router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) 
         };
       }
     } catch (error) {
-      console.error('❌ Errore durante inizializzazione:', error);
-      console.error('❌ Error name:', error.name);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error code:', error.code);
-      console.error('❌ Error stack:', error.stack);
+      console.error('❌ Errore durante inizializzazione Firebase:', safeFcmErrorCode(error));
       debugInfo.stato_inizializzazione.admin_disponibile = false;
       debugInfo.stato_inizializzazione.errore = {
-        message: error.message,
-        code: error.code || 'N/A',
-        name: error.name || 'N/A',
-        stack: error.stack ? error.stack.substring(0, 1000) : 'N/A'
+        message: 'Inizializzazione Firebase non riuscita',
+        code: safeFcmErrorCode(error)
       };
     }
     
@@ -1359,7 +1305,7 @@ router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) 
       data: debugInfo
     });
   } catch (error) {
-    console.error('❌ Errore nel debug Firebase Admin:', error);
+    console.error('❌ Errore nel debug Firebase Admin:', safeFcmErrorCode(error));
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -1452,15 +1398,11 @@ router.get('/debug-notifiche-demos', verifyToken, requireAdmin, async (req, res)
           numero_token_fcm: fcmTokens.length,
           ricevera_notifiche: user.ricevera_notifiche
         },
-        token_fcm: fcmTokens.length > 0 ? fcmTokens.map(t => ({
-          preview: t ? `${t.substring(0, 30)}...` : null,
-          length: t ? t.length : 0
-        })) : [],
         statistiche_globali: allUsersResult.rows[0]
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel debug notifiche Demos:', error);
+    console.error('❌ Errore nel debug notifiche Demos:', safeFcmErrorCode(error));
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

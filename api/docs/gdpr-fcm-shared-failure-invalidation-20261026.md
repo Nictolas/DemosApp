@@ -59,3 +59,9 @@ Le query in `comunicazioni.js` e `avvistamenti.js` condividono `fcmTokenReadReso
 I percorsi di notifica individuale e collettiva non espongono più nei log i prefissi dei token, i payload delle push, gli errori Firebase completi o gli stack associati all'invio. I diagnostici passano attraverso codici sintatticamente delimitati (o `FCM_UNCLASSIFIED`). La pulizia delle notifiche Demos collettive mantiene ora `invalidTokens` dentro il ciclo del singolo destinatario: nessun token accumulato per un utente precedente può essere passato all'invalidatore di un successivo account. Le eccezioni generiche durante l'invio individuale non vengono più equiparate a token scaduti. Gli avvisi operativi verificano nuovamente il token prima dell'invio; i log degli altri sender noti sono minimizzati.
 
 I test sono sintetici; queste modifiche non garantiscono revoca atomica con Firebase e non autorizzano merge, deploy o recovery dell'issue #296.
+
+## Addendum — diagnostica FCM senza invio e senza anteprima segreti
+
+La route GET Admin `/api/comunicazioni/debug-firebase-admin` controlla la presenza e l'inizializzazione locale di Firebase, **senza più chiamare `messaging.send()`**. Aprire la schermata diagnostica non scatena notifiche reali. Il test invio è indicato come non eseguito. Errori e risposte diagnostiche sono minimizzati a messaggi costanti e codici FCM validati.
+
+La GET Admin `/api/comunicazioni/debug-notifiche-demos` mantiene il solo conteggio dei dispositivi idonei, senza restituire i prefissi dei token FCM. La pagina usa il conteggio, quindi non necessita delle anteprime. Nessuna chiamata di invio reale è stata effettuata in questa modifica.
