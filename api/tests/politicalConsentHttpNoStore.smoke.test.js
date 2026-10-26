@@ -29,7 +29,7 @@ test('real consent router prevents HTTP caching before authentication and on eve
   const pool = {
     async query(sql) {
       databaseReads++;
-      assert.match(String(sql), /FROM users u/);
+      assert.match(String(sql), /FROM public\.users u\s+LEFT JOIN public\.user_consents uc/);
       assert.doesNotMatch(String(sql), /political_opinions_consent_(?:ip_address|user_agent)/, 'read only fields needed by the UI');
       if (mode === 'fail') throw new Error('synthetic database error');
       if (mode === 'missing') return { rows: [] };
