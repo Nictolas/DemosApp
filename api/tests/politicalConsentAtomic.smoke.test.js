@@ -113,14 +113,14 @@ test('grant records durable privacy state inside the same transaction before com
       sequence.push(s);
       return { rows: [], rowCount: 0 };
     }
-    if (s.startsWith('UPDATE users SET political_opinions_consent = $1')) {
+    if (s.startsWith('UPDATE public.users SET political_opinions_consent = $1')) {
       sequence.push('UPDATE_USERS_GRANTED');
       return {
         rows: [{ political_opinions_consent: true, political_opinions_consent_timestamp: '2026-10-12T10:00:00Z' }],
         rowCount: 1
       };
     }
-    if (s.startsWith('INSERT INTO user_consents')) {
+    if (s.startsWith('INSERT INTO public.user_consents')) {
       sequence.push('UPSERT_CONSENT_GRANTED');
       return { rows: [], rowCount: 1 };
     }
@@ -150,11 +150,11 @@ test('revocation deletes political opinions and records revocation before commit
       sequence.push(s);
       return { rows: [], rowCount: 0 };
     }
-    if (s.startsWith('UPDATE users SET political_opinions_consent = false')) {
+    if (s.startsWith('UPDATE public.users SET political_opinions_consent = false')) {
       sequence.push('UPDATE_USERS_REVOKED');
       return { rows: [{ id: 'u-consent' }], rowCount: 1 };
     }
-    if (s.startsWith('INSERT INTO user_consents')) {
+    if (s.startsWith('INSERT INTO public.user_consents')) {
       sequence.push('UPSERT_CONSENT_REVOKED');
       return { rows: [], rowCount: 1 };
     }
@@ -199,11 +199,11 @@ test('opinion deletion failure rolls back revocation and never records a durable
       sequence.push(s);
       return { rows: [], rowCount: 0 };
     }
-    if (s.startsWith('UPDATE users SET political_opinions_consent = false')) {
+    if (s.startsWith('UPDATE public.users SET political_opinions_consent = false')) {
       sequence.push('UPDATE_USERS_REVOKED');
       return { rows: [{ id: 'u-consent' }], rowCount: 1 };
     }
-    if (s.startsWith('INSERT INTO user_consents')) {
+    if (s.startsWith('INSERT INTO public.user_consents')) {
       sequence.push('UPSERT_CONSENT_REVOKED');
       return { rows: [], rowCount: 1 };
     }

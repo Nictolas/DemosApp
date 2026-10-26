@@ -75,7 +75,7 @@ async function main(){
           // BEFORE the first transaction is released. Otherwise a green
           // result could merely prove sequential requests.
           if(blocked && !blocked.contenderSeen && (
-            (blocked.phase==='save' && normalized.startsWith('UPDATE users SET political_opinions_consent = false')) ||
+            (blocked.phase==='save' && normalized.startsWith('UPDATE public.users SET political_opinions_consent = false')) ||
             (blocked.phase==='revoke' && /^SELECT id FROM users WHERE id = \$1 FOR UPDATE$/.test(normalized))
           )){
             blocked.contenderSeen=true;
@@ -84,7 +84,7 @@ async function main(){
           const answer=await c.query(sql,params);
           if(blocked && !blocked.consumed && (
             (blocked.phase==='save' && /^SELECT id FROM users WHERE id = \$1 FOR UPDATE$/.test(normalized)) ||
-            (blocked.phase==='revoke' && normalized.startsWith('UPDATE users SET political_opinions_consent = false'))
+            (blocked.phase==='revoke' && normalized.startsWith('UPDATE public.users SET political_opinions_consent = false'))
           )){
             blocked.consumed=true;
             blocked.locked.resolve();
@@ -399,6 +399,95 @@ async function main(){
     assert.equal(invalidLegacy.status,500);
     assert.deepEqual(await legacyVotes(),['ref-valid']);
 
+
+    // Real POST/PUT/GET regression on borrowed PG17 connections with pg_temp
+    // shadows. The ledger writer now uses public tables, so the consent
+    // flags MUST be updated/read in public as well. No application data:
+    // only this disposable localhost synthetic CI database is involved.
+    await reset();
+    blocked=null;
+    const grant=()=>request('/api/user/political-opinions-consent','POST',{consent:true});
+    const consentRead=()=>request('/api/user/political-opinions-consent','GET');
+    const borrowed=await Promise.all([real.connect(),real.connect(),real.connect()]);
+    try {
+      for (const c of borrowed) {
+        await c.query('CREATE TEMP TABLE users (LIKE public.users INCLUDING DEFAULTS)');
+        await c.query('CREATE TEMP TABLE user_consents (LIKE public.user_consents INCLUDING DEFAULTS)');
+        await c.query('INSERT INTO pg_temp.users SELECT * FROM public.users WHERE id=$1',[ID]);
+        await c.query('INSERT INTO pg_temp.user_consents SELECT * FROM public.user_consents WHERE user_id=$1',[ID]);
+        await c.query('SET search_path TO pg_temp, public');
+      }
+    } finally { for (const c of borrowed) c.release(); }
+    const publicFlags=async()=>{
+      const x=await real.query(
+        'SELECT u.political_opinions_consent AS base, ' +
+        'uc.political_opinions_consent AS override ' +
+        'FROM public.users u JOIN public.user_consents uc ON uc.user_id=u.id ' +
+        'WHERE u.id=$1',[ID]);
+      assert.equal(x.rows.length,1);
+      return x.rows[0];
+    };
+    // Opposing public/shadow values prove GET resolves the canonical tables.
+    await real.query('UPDATE public.users SET political_opinions_consent=false WHERE id=$1',[ID]);
+    await real.query('UPDATE public.user_consents SET political_opinions_consent=false WHERE user_id=$1',[ID]);
+    const shadowForGet=await Promise.all([real.connect(),real.connect(),real.connect()]);
+    try {
+      for (const c of shadowForGet) {
+        await c.query('UPDATE pg_temp.users SET political_opinions_consent=true WHERE id=$1',[ID]);
+        await c.query('UPDATE pg_temp.user_consents SET political_opinions_consent=true WHERE user_id=$1',[ID]);
+      }
+    } finally { for (const c of shadowForGet) c.release(); }
+    const beforeGrant=await consentRead();
+    assert.equal(beforeGrant.status,200);
+    assert.equal((await beforeGrant.json()).consent.granted,false,
+      'GET must not accept a fake granted consent in pg_temp');
+
+    const shadowBeforeGrant=await Promise.all([real.connect(),real.connect(),real.connect()]);
+    try {
+      for (const c of shadowBeforeGrant) {
+        await c.query('UPDATE pg_temp.users SET political_opinions_consent=false WHERE id=$1',[ID]);
+        await c.query('UPDATE pg_temp.user_consents SET political_opinions_consent=false WHERE user_id=$1',[ID]);
+      }
+    } finally { for (const c of shadowBeforeGrant) c.release(); }
+    assert.equal((await grant()).status,200,'grant must update canonical public users');
+    assert.deepEqual(await publicFlags(),{base:true,override:true});
+    const afterGrant=await consentRead();
+    assert.equal(afterGrant.status,200);
+    assert.equal((await afterGrant.json()).consent.granted,true);
+    const checkGrantShadows=await Promise.all([real.connect(),real.connect(),real.connect()]);
+    try {
+      for (const c of checkGrantShadows) {
+        const u=await c.query('SELECT political_opinions_consent FROM pg_temp.users WHERE id=$1',[ID]);
+        const uc=await c.query('SELECT political_opinions_consent FROM pg_temp.user_consents WHERE user_id=$1',[ID]);
+        assert.equal(u.rows[0].political_opinions_consent,false,
+          'grant must never modify temporary users');
+        assert.equal(uc.rows[0].political_opinions_consent,false,
+          'grant must never modify temporary consents');
+        await c.query('UPDATE pg_temp.users SET political_opinions_consent=true WHERE id=$1',[ID]);
+        await c.query('UPDATE pg_temp.user_consents SET political_opinions_consent=true WHERE user_id=$1',[ID]);
+      }
+    } finally { for (const c of checkGrantShadows) c.release(); }
+    assert.equal((await revoke()).status,200,'revoke must update canonical public users');
+    assert.deepEqual(await publicFlags(),{base:false,override:false});
+    const afterRevoke=await consentRead();
+    assert.equal(afterRevoke.status,200);
+    assert.equal((await afterRevoke.json()).consent.granted,false);
+    const finalShadows=await Promise.all([real.connect(),real.connect(),real.connect()]);
+    try {
+      for (const c of finalShadows) {
+        const u=await c.query('SELECT political_opinions_consent FROM pg_temp.users WHERE id=$1',[ID]);
+        const uc=await c.query('SELECT political_opinions_consent FROM pg_temp.user_consents WHERE user_id=$1',[ID]);
+        assert.equal(u.rows[0].political_opinions_consent,true,
+          'revoke must never modify temporary users');
+        assert.equal(uc.rows[0].political_opinions_consent,true,
+          'revoke must never modify temporary consents');
+        await c.query('RESET search_path');
+        await c.query('DROP TABLE pg_temp.user_consents');
+        await c.query('DROP TABLE pg_temp.users');
+      }
+    } finally { for (const c of finalShadows) c.release(); }
+
+    console.log('POLITICAL_CONSENT_PUBLIC_SCHEMA_SHADOW_PG17_PASS');
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_REAL_PG17_PASS');
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_RESULT_JSON='+JSON.stringify({
       postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','http-multi-new-fields','http-noop-delta','http-single-column-update','http-legacy-flat-payload','noop-before-revoke','revoke-before-noop','admin-before-revoke','revoke-before-admin','referendum-before-revoke','revoke-before-referendum','referendum-with-active-consent','legacy-referendum-before-revoke','revoke-before-legacy-referendum','legacy-referendum-with-active-consent','legacy-referendum-replacement-rollback'],
