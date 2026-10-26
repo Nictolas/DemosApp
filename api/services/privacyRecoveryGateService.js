@@ -44,6 +44,10 @@ function normalizePayload(payload) {
   }
   const captured = new Date(payload.capturedAt);
   if (!Number.isFinite(captured.getTime())) throw Error('Invalid external privacy snapshot timestamp');
+  const backup = new Date(payload.restoredBackupTakenAt);
+  if (!Number.isFinite(backup.getTime()) || backup > captured) {
+    throw Error('Invalid signed restored-backup timestamp');
+  }
   const events = payload.events.map(normalizeEvent);
   const keys = new Set();
   for (const event of events) {
@@ -61,6 +65,7 @@ function normalizePayload(payload) {
     formatVersion: FORMAT_VERSION,
     recoveryId: payload.recoveryId,
     capturedAt: captured.toISOString(),
+    restoredBackupTakenAt: backup.toISOString(),
     events
   };
 }
@@ -130,12 +135,28 @@ async function reconcileRestoredPrivacyState({
       throw Error('Incomplete external erasure ledger import');
     }
     const applied = await Ledger.applyCurrentPrivacyState(client);
+    // A re-grant does NOT resurrect choices from the snapshot BEFORE an older
+    // revocation. Any revocation newer than the restored backup invalidates
+    // that backup's personal selections even if a newer grant exists.
+    // Do not override current grant flags here: new consent can remain valid.
+    const staleRevocations = await client.query(
+      'SELECT DISTINCT subject_user_id FROM privacy_erasure_ledger ' +
+      'WHERE event_type = $1 AND occurred_at > $2::timestamptz',
+      [Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED, payload.restoredBackupTakenAt]
+    );
+    const { cleanupConsentScopedPoliticalData } = require('./politicalConsentService');
+    let staleSnapshotRevocationsReapplied = 0;
+    for (const row of staleRevocations.rows) {
+      await cleanupConsentScopedPoliticalData(client, row.subject_user_id);
+      staleSnapshotRevocationsReapplied++;
+    }
     await client.query('COMMIT');
     return {
       recoveryId: payload.recoveryId,
       capturedAt: payload.capturedAt,
       verifiedExternalEvents: payload.events.length,
       imported,
+      staleSnapshotRevocationsReapplied,
       // Totals only; never return the subject IDs or political details.
       ...applied
     };
