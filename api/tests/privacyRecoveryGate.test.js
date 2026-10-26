@@ -253,6 +253,41 @@ test('B2 readiness rolls back when an immutable remote receipt disappears during
   assert.equal(statements.includes('COMMIT'),false);
 });
 
+test('B2 readiness refuses missing delivery receipt before remote reads and rolls back', async () => {
+  const envelope = fixture();
+  const event = envelope.payload.events[0];
+  const statements = [];
+  let remoteReads = 0;
+  const client = { async query(statement) {
+    statements.push(statement);
+    if (statement.startsWith('BEGIN TRANSACTION')) return {rows:[]};
+    if (statement.includes("to_regclass('public.privacy_erasure_ledger')")) {
+      return {rows:[{ledger:true,outbox:true}]};
+    }
+    if (statement.includes('FROM privacy_erasure_delivery_outbox o')) {
+      return {rows:[{present:false}]};
+    }
+    if (statement.includes('ORDER BY l.event_key')) {
+      return {rows:[{...event,delivered_at:null,b2_version_id:null,b2_sha256:null}]};
+    }
+    if (statement === 'ROLLBACK') return {rows:[]};
+    throw Error('Unexpected SQL after missing receipt');
+  }};
+  const exporter = {
+    config() { return {}; },
+    async verifyArchivedReceipt() { remoteReads++; throw Error('Unexpected B2 GET'); }
+  };
+  await assert.rejects(verifyOutboxRecoveryReadiness(client, {
+    maintenanceConfirmed:true,exporter,envelope,secret:SECRET,expectedRecoveryId:ID,
+    expectedManifestDigest:manifestDigest(envelope),
+    expectedRestoredBackupTakenAt:envelope.payload.restoredBackupTakenAt,
+    expectedCapturedAt:envelope.payload.capturedAt
+  }), /no verified external delivery receipt/);
+  assert.equal(remoteReads,0);
+  assert.ok(statements.includes('ROLLBACK'));
+  assert.equal(statements.includes('COMMIT'),false);
+});
+
 test('recovery HTTP middleware refuses health, GET, write and OPTIONS with no-store', async () => {
   const previous = process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
   const app = express();
