@@ -91,10 +91,10 @@ async function main() {
         const tx = {
           async query(sql, params) {
             const statement = String(sql).replace(/\s+/g, ' ').trim();
-            if (hold?.phase === 'revoke' && statement === 'SELECT id FROM users WHERE id = $1 FOR UPDATE')
+            if (hold?.phase === 'revoke' && statement === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE')
               hold.contender.resolve();
             const answer = await c.query(sql, params);
-            if (hold?.phase === 'save' && !hold.paused && statement === 'SELECT id FROM users WHERE id = $1 FOR UPDATE') {
+            if (hold?.phase === 'save' && !hold.paused && statement === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE') {
               hold.paused = true;
               hold.locked.resolve();
               await timeout(hold.resume.promise);
