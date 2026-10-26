@@ -29,7 +29,7 @@ test('supporter token lookup resolves supporter identity through canonical polit
     async query(sql, params) {
       calls.push({ sql: String(sql), params });
       if (/FROM public\.political_selections ps/.test(sql)) return { rows: [{ id: 'supporter-1' }] };
-      if (/FROM users u/.test(sql)) {
+      if (/FROM public\.users u/.test(sql)) {
         return { rows: [{ id: 'supporter-1', fcm_tokens: ['tok-1', 'tok-1', 'tok-2'] }] };
       }
       throw new Error(`Unexpected query: ${sql}`);
