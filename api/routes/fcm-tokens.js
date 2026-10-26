@@ -67,7 +67,7 @@ async function deactivateOtherUserDeviceTokens(userId, tokenToKeep) {
     `UPDATE public.user_devices
      SET is_active = FALSE, updated_at = NOW()
      WHERE user_id = $1
-       AND btrim(fcm_token) <> $2`,
+       AND fcm_token <> $2`,
     [userId, tokenToKeep]
   );
 }
