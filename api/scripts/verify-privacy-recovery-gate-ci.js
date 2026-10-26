@@ -92,6 +92,24 @@ async function main() {
     await assert.rejects(reconcileRestoredPrivacyState({
       client:db,envelope:signed,secret:SECRET,expectedRecoveryId:'wrong_session',maintenanceConfirmed:true,...approved
     }),/session/);
+    // The restored DB does not yet have a GDPR ledger. Recovery must reject
+    // that snapshot without creating a replacement or deleting user data.
+    const noDdlClient = {
+      async query(sql, params) {
+        assert.doesNotMatch(String(sql), /\\bCREATE\\s+(?:TABLE|INDEX)\\b/i,
+          'recovery must not execute implicit schema DDL');
+        return db.query(sql, params);
+      }
+    };
+    await assert.rejects(reconcileRestoredPrivacyState({
+      client:noDdlClient,envelope:signed,secret:SECRET,
+      expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
+    }),/ledger schema missing/);
+    assert.equal((await db.query(
+      "SELECT to_regclass('public.privacy_erasure_ledger') AS relation"
+    )).rows[0].relation,null);
+    assert.equal(await count(db,'political_selections',SUBJECT),1);
+
     // A restored DB may contain an event deliberately omitted from an
     // otherwise correctly signed (and independently pinned) manifest. Never
     // proceed: the omission is a consistency failure, not permission to
@@ -141,7 +159,7 @@ async function main() {
 
     // The signed 2026-10-25 revocation must erase the 2026-10-24 DB snapshot.
     const first=await reconcileRestoredPrivacyState({
-      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
+      client:noDdlClient,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
     });
     assert.equal(first.verifiedExternalEvents,4);
     assert.equal(first.imported,4);
@@ -172,7 +190,7 @@ async function main() {
     assert.equal((await db.query('SELECT political_opinions_consent FROM users WHERE id=$1',[OTHER])).rows[0].political_opinions_consent,true);
 
     const repeated=await reconcileRestoredPrivacyState({
-      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
+      client:noDdlClient,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
     });
     assert.equal(repeated.imported,0);
     assert.equal(repeated.outboxInserted,0);
@@ -241,7 +259,7 @@ async function main() {
     assert.equal(await count(db,'political_selections',THIRD),1);
     assert.equal(Number((await db.query('SELECT count(*)::int AS n FROM privacy_erasure_ledger WHERE event_key=$1',[thirdEvent.event_key])).rows[0].n),0);
     const recovered=await reconcileRestoredPrivacyState({
-      client:db,envelope:thirdEnvelope,secret:SECRET,
+      client:noDdlClient,envelope:thirdEnvelope,secret:SECRET,
       expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...thirdApproved
     });
     assert.equal(recovered.imported,1);
@@ -255,6 +273,7 @@ async function main() {
       unapprovedRestoredEventRejected:true,
       outboxSchemaMismatchRejected:true,restoredEventsQueuedAtomically:true,
       deliveryReceiptPreserved:true,simultaneousConsentTieRejected:true,
+      missingLedgerRejectedWithoutDdl:true,recoveryReplayZeroDdl:true,
       productionUntouched:true
     }));
   } catch(error) {
