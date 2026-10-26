@@ -6,6 +6,7 @@ const { Pool } = require('pg');
 const Ledger = require('../services/privacyErasureLedgerService');
 const { PrivacyErasureOutboxWorker } = require('../services/privacyErasureOutboxWorker');
 const { verifyOutboxRecoveryReadiness } = require('../services/privacyOutboxRecoveryReadiness');
+const { signature, manifestDigest } = require('../services/privacyRecoveryGateService');
 
 const DATABASE='gdpr_erasure_outbox_ci';
 function guard() {
@@ -120,12 +121,36 @@ async function main() {
     assert.equal(await Ledger.backfillDeliveryOutbox(pool,{maintenanceConfirmed:true}),0);
     assert.equal((await PrivacyErasureOutboxWorker.status(pool)).pending,1);
     const b2=fakeB2();
+    // Synthetic stand-in for an independently approved, immutable checkpoint.
+    // Never use this DB-derived approval process on a real recovery.
+    const secret='synthetic-only-outbox-checkpoint-key-over-32-bytes';
+    const recoveryId='outbox_ci_20261026';
+    let approvedCheckpoint;
+    const pinSnapshot=async()=>{
+      const events=(await pool.query(
+        'SELECT event_key,subject_user_id,event_type,occurred_at,details ' +
+        'FROM privacy_erasure_ledger ORDER BY occurred_at,event_key'
+      )).rows;
+      const payload={
+        formatVersion:1,recoveryId,
+        restoredBackupTakenAt:'2026-01-01T00:00:00.000Z',
+        capturedAt:new Date(Date.now()+60000).toISOString(),events
+      };
+      const envelope={payload,signature:signature(payload,secret)};
+      approvedCheckpoint={
+        envelope,secret,expectedRecoveryId:recoveryId,
+        expectedManifestDigest:manifestDigest(envelope),
+        expectedRestoredBackupTakenAt:payload.restoredBackupTakenAt,
+        expectedCapturedAt:payload.capturedAt
+      };
+    };
+    await pinSnapshot();
     const readiness=async opts=>{
       // A multi-query transaction MUST use a dedicated pg client.
       const client=await pool.connect();
       try {
         return await verifyOutboxRecoveryReadiness(client,{
-          exporter:b2.exporter,maintenanceConfirmed:true,...opts
+          exporter:b2.exporter,maintenanceConfirmed:true,...approvedCheckpoint,...opts
         });
       } finally {client.release();}
     };
@@ -149,6 +174,8 @@ async function main() {
 
     // Atomic outbox CTE must also work without a surrounding BEGIN.
     const committed=await Ledger.recordEvent(pool,syntheticEvent());
+    await assert.rejects(readiness(),/absent from approved external manifest/);
+    await pinSnapshot();
     assert.equal(await value(pool,
       'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox WHERE event_key=$1',
       [committed.event_key]),1);
@@ -200,7 +227,7 @@ async function main() {
     assert.equal(b2.objects.size,2);
     assert.equal((await PrivacyErasureOutboxWorker.status(pool)).ready,true);
     assert.equal((await worker.runOnce(pool,{limit:1})).delivered,0);
-    assert.deepEqual(await readiness({pageSize:1}),{ready:true,verifiedEvents:2});
+    assert.deepEqual(await readiness({pageSize:1}),{ready:true,verifiedEvents:2,pinnedEvents:2});
     await assert.rejects(readiness({maxEvents:1,pageSize:1}),/safety cap/);
     // An unqueued historical event must make even the zero-pending summary
     // fail; the operator cannot mistake "no work queued" for "all events".
@@ -215,7 +242,7 @@ async function main() {
     assert.equal((await PrivacyErasureOutboxWorker.status(pool)).pending,1);
     // Re-deliver the repaired missing receipt and recheck the remote version.
     assert.equal((await worker.runOnce(pool,{limit:1})).delivered,1);
-    assert.deepEqual(await readiness(),{ready:true,verifiedEvents:2});
+    assert.deepEqual(await readiness(),{ready:true,verifiedEvents:2,pinnedEvents:2});
     // A plausible-looking but forged local receipt cannot satisfy the B2 read.
     await pool.query('UPDATE privacy_erasure_delivery_outbox SET b2_sha256=$2 WHERE event_key=$1',
       [committed.event_key,'f'.repeat(64)]);
@@ -229,10 +256,11 @@ async function main() {
     b2.objects.delete(committed.event_key);
     await assert.rejects(readiness(),/synthetic-remote-receipt-mismatch/);
     b2.objects.set(committed.event_key,lost);
-    assert.deepEqual(await readiness(),{ready:true,verifiedEvents:2});
+    assert.deepEqual(await readiness(),{ready:true,verifiedEvents:2,pinnedEvents:2});
 
     // Two concurrent consumers must never export the same pending row.
     const latest=await Ledger.recordEvent(pool,syntheticEvent());
+    await pinSnapshot();
     let signalStarted;
     let signalResume;
     const started=new Promise(resolve=>{signalStarted=resolve;});
@@ -247,7 +275,7 @@ async function main() {
     assert.equal((await firstWorker).delivered,1);
     assert.ok(b2.objects.has(latest.event_key));
     assert.equal((await PrivacyErasureOutboxWorker.status(pool)).pending,0);
-    assert.deepEqual(await readiness({pageSize:1}),{ready:true,verifiedEvents:3});
+    assert.deepEqual(await readiness({pageSize:1}),{ready:true,verifiedEvents:3,pinnedEvents:3});
     assert.equal(await value(pool,
       'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox WHERE delivered_at IS NULL'),0);
     assert.equal(await value(pool,
