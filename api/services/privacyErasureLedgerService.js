@@ -7,6 +7,17 @@ class PrivacyErasureLedgerService {
     POLITICAL_CONSENT_GRANTED: 'political_consent_granted'
   });
 
+  // Never silently fall back to the legacy non-outbox write path because of
+  // a typo in a GDPR durability flag. Only an absent flag or explicit 'false'
+  // opts out; an unexpected configured value fails before database I/O.
+  static outboxEnabled() {
+    const mode = process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+    if (mode !== undefined && mode !== 'false' && mode !== 'true') {
+      throw Error('Invalid GDPR erasure outbox mode');
+    }
+    return mode === 'true';
+  }
+
   static async ensureTable(client) {
     await client.query(`
       CREATE TABLE IF NOT EXISTS privacy_erasure_ledger (
@@ -52,7 +63,7 @@ class PrivacyErasureLedgerService {
   }
 
   static async backfillDeliveryOutbox(client, { maintenanceConfirmed = false } = {}) {
-    if (maintenanceConfirmed !== true || process.env.GDPR_ERASURE_OUTBOX_ENABLED !== 'true') {
+    if (maintenanceConfirmed !== true || !this.outboxEnabled()) {
       throw Error('GDPR ledger outbox backfill requires approved maintenance');
     }
     // Must run only after ALL ingress and workers are quiesced.
@@ -75,15 +86,17 @@ class PrivacyErasureLedgerService {
       throw new Error('Privacy ledger event requires userId');
     }
 
+    const outboxEnabled = this.outboxEnabled();
+
     // Never execute DDL from a user-facing GDPR request in outbox mode.
     // Both ledger and delivery tables must be installed/backfilled during
     // an approved maintenance operation. A missing relation fails closed.
-    if (process.env.GDPR_ERASURE_OUTBOX_ENABLED !== 'true') {
+    if (!outboxEnabled) {
       await this.ensureTable(client);
     }
     const eventKey = crypto.randomUUID();
     const params = [eventKey, String(userId), eventType, JSON.stringify(details)];
-    if (process.env.GDPR_ERASURE_OUTBOX_ENABLED === 'true') {
+    if (outboxEnabled) {
       // NO automatic DDL on a live revocation/deletion request. This fails
       // closed if the schema was not deliberately provisioned and backfilled
       // during an approved maintenance window.

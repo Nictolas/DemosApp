@@ -170,6 +170,9 @@ async function reconcileRestoredPrivacyState({
     expectedManifestDigest, expectedRestoredBackupTakenAt, expectedCapturedAt
   });
   if (!client || typeof client.query !== 'function') throw Error('Database client required');
+  // A malformed flag must not silently switch replay to legacy no-outbox
+  // mode. Reject before BEGIN and before any restored database access.
+  const outboxEnabled = Ledger.outboxEnabled();
 
   await client.query('BEGIN');
   try {
@@ -194,7 +197,7 @@ async function reconcileRestoredPrivacyState({
     const outboxSchema = await client.query(
       "SELECT to_regclass('public.privacy_erasure_delivery_outbox') IS NOT NULL AS installed"
     );
-    const outboxEnabled = process.env.GDPR_ERASURE_OUTBOX_ENABLED === 'true';
+    // The mode was validated before opening the transaction.
     if (outboxSchema.rows[0]?.installed !== outboxEnabled) {
       throw Error('GDPR recovery outbox schema/mode mismatch: offline provisioning required');
     }

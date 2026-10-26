@@ -7,6 +7,7 @@ const express = require('express');
 const http = require('node:http');
 const crypto = require('node:crypto');
 const { privacyRecoveryMaintenance } = require('../middleware/privacyRecoveryMaintenance');
+const Ledger = require('../services/privacyErasureLedgerService');
 const { verifyOutboxRecoveryReadiness } = require('../services/privacyOutboxRecoveryReadiness');
 const { normalizeEvent: normalizeB2Event } = require('../services/privacyErasureB2Journal');
 const {
@@ -29,6 +30,44 @@ function fixture(events = [mkEvent()]) {
     events
   });
 }
+test('malformed GDPR outbox flag refuses event writes and recovery before any SQL', async () => {
+  const previous = process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+  let queries = 0;
+  const db = { async query() {
+    queries++;
+    throw Error('SQL must not run for malformed outbox mode');
+  }};
+  const envelope = fixture();
+  const checkpoint = {
+    expectedManifestDigest: manifestDigest(envelope),
+    expectedRestoredBackupTakenAt: envelope.payload.restoredBackupTakenAt,
+    expectedCapturedAt: envelope.payload.capturedAt
+  };
+  try {
+    for (const malformed of ['', 'TRUE', 'true ', 'FALSE', 'false ', '0']) {
+      process.env.GDPR_ERASURE_OUTBOX_ENABLED = malformed;
+      assert.throws(() => Ledger.outboxEnabled(), /Invalid GDPR erasure outbox mode/);
+      await assert.rejects(Ledger.recordEvent(db, {
+        userId: KEY, eventType: Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED
+      }), /Invalid GDPR erasure outbox mode/);
+      await assert.rejects(reconcileRestoredPrivacyState({
+        client: db, envelope, secret: SECRET, expectedRecoveryId: ID,
+        maintenanceConfirmed: true, ...checkpoint
+      }), /Invalid GDPR erasure outbox mode/);
+      assert.equal(queries, 0, 'no database access on invalid GDPR outbox flag');
+    }
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'false';
+    assert.equal(Ledger.outboxEnabled(), false);
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'true';
+    assert.equal(Ledger.outboxEnabled(), true);
+    delete process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+    assert.equal(Ledger.outboxEnabled(), false);
+  } finally {
+    if (previous === undefined) delete process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+    else process.env.GDPR_ERASURE_OUTBOX_ENABLED = previous;
+  }
+});
+
 test('HMAC is stable regardless of object key order and PostgreSQL JSONB property order', () => {
   const event = mkEvent();
   const reordered = { ...event, details: { z: 1, action: 'test' } };
