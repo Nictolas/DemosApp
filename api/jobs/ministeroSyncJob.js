@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 const ministeroSync = require('../services/ministeroSync');
 const logger = require('../services/centralizedLogger');
 
@@ -29,9 +30,11 @@ class MinisteroSyncJob {
    * alcun record, il tentativo deve fallire invece di essere marcato come successo.
    */
   async executeWithRetry() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     let lastError = null;
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      if (isPrivacyRecoveryMaintenanceActive()) return;
       try {
         const result = await ministeroSync.syncAll();
         const processed = Number(result?.created || 0) + Number(result?.updated || 0);
@@ -63,6 +66,7 @@ class MinisteroSyncJob {
   }
 
   async execute() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.isRunning) {
       console.log('⏸️ Sincronizzazione Ministero già in corso, skip...');
       return;
@@ -93,6 +97,7 @@ class MinisteroSyncJob {
   }
 
   start() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.interval) {
       console.log('⚠️ Job sincronizzazione Ministero già avviato');
       return;
@@ -124,6 +129,7 @@ class MinisteroSyncJob {
    * Sincronizza solo i referendum "in corso" per avere dati più freschi.
    */
   async syncInCorsoOnly() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.isRunningInCorso || this.isRunning) {
       console.log('⏸️ Sincronizzazione già in corso, skip sync in corso...');
       return;

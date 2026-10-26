@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 /**
  * Job automatico per la gestione della data retention
  * Esegue pulizia automatica dei dati scaduti
@@ -26,6 +27,7 @@ class DataRetentionJob {
    * Avvia il job di data retention
    */
   start() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.isRunning) {
       console.log('⚠️ Job di data retention già in esecuzione');
       return;
@@ -78,6 +80,7 @@ class DataRetentionJob {
    * Esegue pulizia giornaliera
    */
   async performDailyCleanup() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     try {
       console.log('🧹 Esecuzione pulizia giornaliera dati scaduti...');
       
@@ -121,6 +124,7 @@ class DataRetentionJob {
    * Invia notifiche settimanali
    */
   async sendWeeklyNotifications() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     try {
       console.log('📧 Invio notifiche settimanali data retention...');
       
@@ -166,6 +170,7 @@ class DataRetentionJob {
    * Esegue pulizia immediata
    */
   async performImmediateCleanup() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     try {
       console.log('🧹 Esecuzione pulizia immediata...');
       
