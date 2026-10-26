@@ -74,31 +74,74 @@ async function inspectRuntimeGdprLedgerRole(pool) {
     client.release();
   }
 }
-module.exports={ inspectRuntimeGdprLedgerRole };
+// This one-shot CLI must NOT use database.getPool(): the application
+// singleton attaches verbose connect/client/error listeners that may print
+// raw connection errors, including potentially sensitive driver metadata.
+// The dedicated pool uses the exact backend connection configuration and
+// CA policy, but no app logging hooks. No new credential is requested.
+function makeOneShotBackendConfigPool() {
+  if (!process.env.DATABASE_URL) throw Error('Required DB configuration missing');
+  const { Pool } = require('pg');
+  const { poolConfig } = require('../config/database');
+  const pool = new Pool({
+    ...poolConfig, max: 1, min: 0,
+    allowExitOnIdle: true,
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 5000,
+    query_timeout: 5000
+  });
+  // Suppress raw driver exceptions from idle pool errors. The result still
+  // fails closed; no secret-bearing exception is printed by this CLI.
+  pool.on('error', () => {});
+  return pool;
+}
+
+async function runOperatorRolePreflight({
+  env = process.env, createPool = makeOneShotBackendConfigPool,
+  writeOut = message => process.stdout.write(message),
+  writeErr = message => process.stderr.write(message)
+} = {}) {
+  if (env.DEMOS_GDPR_ROLE_PREFLIGHT_READONLY !== 'acknowledged') {
+    writeErr('GDPR_SQL_ROLE_PREFLIGHT_NOT_AUTHORIZED\n');
+    return 2;
+  }
+  let pool = null, result = null, failed = false;
+  try {
+    pool = await createPool();
+    result = await inspectRuntimeGdprLedgerRole(pool);
+  } catch (_) {
+    failed = true;
+  } finally {
+    if (pool && typeof pool.end === 'function') {
+      try {
+        await pool.end();
+      } catch (_) {
+        failed = true;
+      }
+    } else {
+      failed = true;
+    }
+  }
+  // Never print partial success before the connection closes reliably.
+  if (failed) {
+    writeErr('GDPR_SQL_ROLE_PREFLIGHT_FAILED\n');
+    return 1;
+  }
+  writeOut(JSON.stringify(result)+'\n');
+  // Even a complete catalog result is MANUAL REVIEW, not recovery approval.
+  // No automatic system should interpret process exit 0 as GDPR recovery GO.
+  return result.verdict === 'MANUAL_INDEPENDENT_REVIEW_REQUIRED' ? 2 : 1;
+}
+
+module.exports={ inspectRuntimeGdprLedgerRole, runOperatorRolePreflight };
 
 if (require.main === module) {
-  // Inactive unless explicitly invoked by an authorized operator from the
-  // Render service's own environment. NOT wired to app start, HTTP or jobs.
-  if (process.env.DEMOS_GDPR_ROLE_PREFLIGHT_READONLY !== 'acknowledged') {
-    process.stderr.write('GDPR_SQL_ROLE_PREFLIGHT_NOT_AUTHORIZED\n');
-    process.exitCode=2;
-  } else {
-    (async()=>{
-      let closePool;
-      try {
-        // Lazy-load after opt-in: never initialize PostgreSQL accidentally.
-        const database=require('../config/database');
-        closePool=database.closePool;
-        const result=await inspectRuntimeGdprLedgerRole(database.getPool());
-        process.stdout.write(JSON.stringify(result)+'\n');
-        if (result.verdict.startsWith('NO_GO_')) process.exitCode=1;
-      } catch (_) {
-        // Never emit raw SQL errors/hostnames/credentials into service logs.
-        process.stderr.write('GDPR_SQL_ROLE_PREFLIGHT_FAILED\n');
-        process.exitCode=1;
-      } finally {
-        if (closePool) await closePool().catch(()=>{});
-      }
-    })();
-  }
+  runOperatorRolePreflight().then(
+    code => { process.exitCode = code; },
+    () => {
+      // Defensive last-chance sanitization; no raw DB/driver error text.
+      process.stderr.write('GDPR_SQL_ROLE_PREFLIGHT_FAILED\n');
+      process.exitCode = 1;
+    }
+  );
 }
