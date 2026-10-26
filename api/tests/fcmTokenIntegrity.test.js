@@ -43,7 +43,7 @@ test('backend rejects fake or malformed FCM tokens before token persistence', ()
   assert.doesNotMatch(route, /Token rimossi:.*substring/);
   const validation = route.indexOf('if (!isValidFcmToken(token))');
   const existingLookup = route.indexOf('const existingTokens = await getLegacyTokens(client, userId);', validation);
-  const legacyWrite = route.indexOf("await updateLegacyTokens(userId, updatedTokens);", validation);
+  const legacyWrite = route.indexOf("await updateLegacyTokens(client, userId, updatedTokens);", validation);
   assert.ok(validation >= 0);
   assert.ok(existingLookup > validation);
   assert.ok(legacyWrite > validation);
