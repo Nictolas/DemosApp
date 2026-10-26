@@ -60,5 +60,81 @@ test('unknown catalog formats cannot imply readiness and always release connecti
 });
 test('the preflight is not registered as HTTP handler or scheduled job',async()=>{
   const loaded=require('../scripts/gdpr-ledger-runtime-role-preflight');
-  assert.deepEqual(Object.keys(loaded),['inspectRuntimeGdprLedgerRole']);
+  assert.deepEqual(Object.keys(loaded).sort(),
+    ['inspectRuntimeGdprLedgerRole','runOperatorRolePreflight'].sort());
+});
+
+const {runOperatorRolePreflight} = require('../scripts/gdpr-ledger-runtime-role-preflight');
+function capturedWriter() {
+ const output=[],errors=[];
+ return {output,errors,writeOut:v=>output.push(v),writeErr:v=>errors.push(v)};
+}
+function disposablePool(row=owner,{onQuery=null,onEnd=null}={}) {
+ let reads=0,closed=0,released=0;
+ return {
+  stats:()=>({reads,closed,released}),
+  async connect() { return {
+   async query(sql) {
+    reads++; assert.match(sql,/^\s*SELECT\s/i);
+    if(onQuery)throw onQuery;
+    return {rows:[row]};
+   },
+   release(){released++;}
+  };},
+  async end(){closed++;if(onEnd)throw onEnd;}
+ };
+}
+test('standalone CLI is inert without explicit opt-in and never creates a connection',async()=>{
+ const c=capturedWriter();let started=0;
+ const code=await runOperatorRolePreflight({
+  env:{},createPool:()=>{started++;throw Error('unexpected DB connection');},...c
+ });
+ assert.equal(code,2);assert.equal(started,0);
+ assert.equal(c.output.length,0);
+ assert.deepEqual(c.errors,['GDPR_SQL_ROLE_PREFLIGHT_NOT_AUTHORIZED\n']);
+});
+test('standalone CLI prints only redacted verdict and terminates with nonzero manual-review exit',async()=>{
+ const c=capturedWriter(),p=disposablePool();
+ const code=await runOperatorRolePreflight({
+  env:{DEMOS_GDPR_ROLE_PREFLIGHT_READONLY:'acknowledged'},createPool:()=>p,...c
+ });
+ assert.equal(code,2);
+ assert.deepEqual(c.errors,[]);
+ assert.equal(c.output.length,1);
+ assert.equal(JSON.parse(c.output[0]).verdict,'MANUAL_INDEPENDENT_REVIEW_REQUIRED');
+ assert.equal(c.output[0].includes('DATABASE_URL'),false);
+ assert.deepEqual(p.stats(),{reads:1,closed:1,released:1});
+});
+test('standalone CLI returns explicit NO_GO status without provider sensitive identifiers',async()=>{
+ const c=capturedWriter(),p=disposablePool({...owner,role_is_owner:false});
+ const code=await runOperatorRolePreflight({
+  env:{DEMOS_GDPR_ROLE_PREFLIGHT_READONLY:'acknowledged'},createPool:()=>p,...c
+ });
+ assert.equal(code,1);
+ assert.equal(JSON.parse(c.output[0]).verdict,'NO_GO_RLS_DEFAULT_DENY');
+ assert.deepEqual(p.stats(),{reads:1,closed:1,released:1});
+});
+test('database SQL and pool close failures are sanitized with no partial success',async()=>{
+ const secret='postgres://highly-sensitive-db-password@internal-host/prod';
+ for(const opts of [{onQuery:Error(secret)},{onEnd:Error(secret)}]) {
+  const c=capturedWriter(),p=disposablePool(owner,opts);
+  const code=await runOperatorRolePreflight({
+   env:{DEMOS_GDPR_ROLE_PREFLIGHT_READONLY:'acknowledged'},createPool:()=>p,...c
+  });
+  assert.equal(code,1);
+  assert.deepEqual(c.errors,['GDPR_SQL_ROLE_PREFLIGHT_FAILED\n']);
+  assert.deepEqual(c.output,[]);
+  assert.equal(JSON.stringify(c).includes(secret),false);
+  assert.equal(p.stats().closed,1);
+ }
+});
+test('pool factory failures never echo connection details',async()=>{
+ const c=capturedWriter();
+ const code=await runOperatorRolePreflight({
+  env:{DEMOS_GDPR_ROLE_PREFLIGHT_READONLY:'acknowledged'},
+  createPool:()=>{throw Error('host=db-prod.internal password=secret');},...c
+ });
+ assert.equal(code,1);
+ assert.deepEqual(c.errors,['GDPR_SQL_ROLE_PREFLIGHT_FAILED\n']);
+ assert.deepEqual(c.output,[]);
 });
