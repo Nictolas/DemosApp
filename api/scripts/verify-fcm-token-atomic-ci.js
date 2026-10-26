@@ -7,6 +7,11 @@ const { Pool } = require('pg');
 const express = require('express');
 const http = require('node:http');
 const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
+const {
+  RECIPIENT_FCM_TOKENS_LATERAL_SQL,
+  loadRecipientFcmTokensForUser,
+  isRecipientFcmTokenCurrentlyActive
+}=require('../services/fcmRecipientTokenService');
 const DB = 'political_consent_race_ci';
 const USER = '00000000-0000-4000-8000-000000000611';
 const OTHER = '00000000-0000-4000-8000-000000000612';
@@ -265,6 +270,79 @@ async function main() {
     assert.equal(crossUser.invalidated,0);
     assert.equal((await state(OTHER)).devices.find(d=>d.token===LAST)?.active,true);
     console.log('FCM_SHARED_INVALIDATION_TRANSFER_PG17_PASS');
+
+    // The public.users legacy array can contain tokens that are canonically
+    // inactive, transferred to another owner, or stored with outer spaces.
+    // All broad/directed/sightings recipient paths use the same LATERAL SQL.
+    const LEGACY_ONLY='G'.repeat(125);
+    const PADDED='P'.repeat(125);
+    await real.query(
+      'INSERT INTO public.user_devices(user_id,fcm_token,is_active) VALUES($1,$2,false)',
+      [USER,' '+PADDED+' ']
+    );
+    await real.query(
+      'UPDATE public.users SET fcm_tokens=$1 WHERE id=$2',
+      [[OLD,NEW,LAST,' '+PADDED+' ',' '+LEGACY_ONLY+' '],USER]
+    );
+    const publicRecipients=await real.query(
+      `SELECT u.id::text AS owner, COALESCE(tokens.tokens, ARRAY[]::text[]) AS fcm_tokens
+       FROM public.users u
+       ${RECIPIENT_FCM_TOKENS_LATERAL_SQL}
+       WHERE u.id=ANY($1::uuid[])
+       ORDER BY owner`,[[USER,OTHER]]
+    );
+    const recipients=new Map(publicRecipients.rows.map(r=>[r.owner,r.fcm_tokens]));
+    assert.deepEqual(recipients.get(USER),[LEGACY_ONLY],
+      'canonical inactive/transferred/padded tokens must not revive via old arrays');
+    assert.deepEqual(recipients.get(OTHER),[LAST],
+      'active new owner retains the transferred canonical device');
+    assert.deepEqual(await loadRecipientFcmTokensForUser(pool,USER),[LEGACY_ONLY]);
+    assert.equal(await isRecipientFcmTokenCurrentlyActive(pool,{
+      userId:USER,token:LEGACY_ONLY
+    }),true);
+    for(const token of [OLD,NEW,LAST,PADDED]){
+      assert.equal(await isRecipientFcmTokenCurrentlyActive(pool,{
+        userId:USER,token
+      }),false,'stale canonical token must be excluded for old owner');
+    }
+    assert.equal(await isRecipientFcmTokenCurrentlyActive(pool,{
+      userId:OTHER,token:LAST
+    }),true);
+    console.log('FCM_RECIPIENT_CANONICAL_PRECEDENCE_PG17_PASS');
+
+    // Between recipient enumeration and remote Firebase delivery the token
+    // can be revoked. The fresh pre-send resolver must now refuse it.
+    await invalidateFailedFcmTokens(pool,{userId:USER,tokens:[LEGACY_ONLY]});
+    assert.equal(await isRecipientFcmTokenCurrentlyActive(pool,{
+      userId:USER,token:LEGACY_ONLY
+    }),false);
+    assert.deepEqual(await loadRecipientFcmTokensForUser(pool,USER),[]);
+    console.log('FCM_RECIPIENT_PRESEND_REVOKE_PG17_PASS');
+
+    // Normalize legacy shadow relation names in the isolated session to
+    // prove the qualified resolver does not consult pg_temp.users/devices.
+    const shadow=await real.connect();
+    try {
+      await shadow.query('BEGIN');
+      await shadow.query('CREATE TEMP TABLE users (id uuid, fcm_tokens text[]) ON COMMIT DROP');
+      await shadow.query(
+        'CREATE TEMP TABLE user_devices (user_id uuid,fcm_token text,is_active boolean) ON COMMIT DROP'
+      );
+      await shadow.query(
+        'INSERT INTO users VALUES ($1,$2)',
+        [USER,['shadow-token']]
+      );
+      await shadow.query(
+        "INSERT INTO user_devices VALUES ($1,'shadow-device',true)",[USER]
+      );
+      await shadow.query('SET LOCAL search_path TO pg_temp,public');
+      assert.deepEqual(await loadRecipientFcmTokensForUser(shadow,USER),[]);
+      assert.equal(await isRecipientFcmTokenCurrentlyActive(shadow,{
+        userId:USER,token:'shadow-token'
+      }),false);
+      await shadow.query('ROLLBACK');
+    } finally { shadow.release(); }
+    console.log('FCM_RECIPIENT_SHADOW_SCHEMA_PG17_PASS');
   } finally {
     if(lockHold) lockHold.unblock.resume();
     failSql=null;
