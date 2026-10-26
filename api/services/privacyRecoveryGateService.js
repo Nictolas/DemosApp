@@ -5,9 +5,16 @@ const Ledger = require('./privacyErasureLedgerService');
 
 const FORMAT_VERSION = 1;
 const TYPES = new Set(Object.values(Ledger.EVENT_TYPES));
+function canonicalJson(value) {
+  if (Array.isArray(value)) return value.map(canonicalJson);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalJson(value[key])]));
+  }
+  return value;
+}
 function normalizeEvent(row) {
   if (!row || typeof row !== 'object' || Array.isArray(row) ||
-      typeof row.event_key !== 'string' || !/^[0-9a-f-]{36}$/i.test(row.event_key) ||
+      typeof row.event_key !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.event_key) ||
       typeof row.subject_user_id !== 'string' || row.subject_user_id.length < 1 ||
       row.subject_user_id.length > 128 || !TYPES.has(row.event_type)) {
     throw Error('Invalid signed privacy recovery event');
@@ -25,7 +32,7 @@ function normalizeEvent(row) {
     subject_user_id: row.subject_user_id,
     event_type: row.event_type,
     occurred_at: timestamp.toISOString(),
-    details
+    details: canonicalJson(details)
   };
 }
 function normalizePayload(payload) {
