@@ -1,5 +1,14 @@
 'use strict';
 
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
+
+function blockedSnapshot({ fetched=0,captured=0,suppressed=0 }={}) {
+  return {
+    schemaReady:false, fetched, captured, suppressed,
+    errors:[], maintenanceBlocked:true, reason:'GDPR_RECOVERY_MAINTENANCE'
+  };
+}
+
 const DEFAULT_BUCKET_HOURS = 6;
 const DEFAULT_RETENTION_DAYS = 730;
 const MIN_PUBLIC_RESPONSES = 10;
@@ -19,6 +28,8 @@ async function captureReferendumForecastSnapshots({
   bucketHours = Number(process.env.REFERENDUM_FORECAST_SNAPSHOT_HOURS || DEFAULT_BUCKET_HOURS),
   retentionDays = Number(process.env.REFERENDUM_FORECAST_SNAPSHOT_RETENTION_DAYS || DEFAULT_RETENTION_DAYS),
 } = {}) {
+  // This service may be invoked independently of its scheduler.
+  if (isPrivacyRecoveryMaintenanceActive()) return blockedSnapshot();
   if (!pool?.query) throw new Error('DATABASE_POOL_REQUIRED');
 
   const currentBucket = bucketStart(now, bucketHours);
@@ -43,9 +54,15 @@ async function captureReferendumForecastSnapshots({
 
   let captured = 0;
   let suppressed = 0;
+  if (isPrivacyRecoveryMaintenanceActive()) {
+    return blockedSnapshot({fetched:aggregates.rows.length});
+  }
   const errors = [];
 
   for (const row of aggregates.rows) {
+    if (isPrivacyRecoveryMaintenanceActive()) {
+      return blockedSnapshot({fetched:aggregates.rows.length,captured,suppressed});
+    }
     const total = Number(row.total_responses || 0);
     const yes = Number(row.yes_count || 0);
     const no = Number(row.no_count || 0);
@@ -64,6 +81,9 @@ async function captureReferendumForecastSnapshots({
     const snapshotTime = isFrozen ? opensAt : currentBucket;
 
     try {
+      if (isPrivacyRecoveryMaintenanceActive()) {
+        return blockedSnapshot({fetched:aggregates.rows.length,captured,suppressed});
+      }
       const result = await pool.query(
         isFrozen
           ? `INSERT INTO civic_ballot_forecast_snapshots (
@@ -93,7 +113,15 @@ async function captureReferendumForecastSnapshots({
         ],
       );
       captured += Number(result.rowCount || 0);
+      // In-flight SQL may already have committed: only provider isolation
+      // can guarantee that no write overlaps a real recovery.
+      if (isPrivacyRecoveryMaintenanceActive()) {
+        return blockedSnapshot({fetched:aggregates.rows.length,captured,suppressed});
+      }
     } catch (error) {
+      if (isPrivacyRecoveryMaintenanceActive()) {
+        return blockedSnapshot({fetched:aggregates.rows.length,captured,suppressed});
+      }
       errors.push({ ballotId: row.civic_ballot_id, error: error.message });
     }
   }
