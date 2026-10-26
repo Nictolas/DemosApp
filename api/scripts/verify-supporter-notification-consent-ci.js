@@ -135,6 +135,7 @@ async function main() {
     // Revoke after supporter ID lookup but before notification INSERT.
     await client.query('UPDATE user_consents SET political_opinions_consent=true WHERE user_id=$1', [granted]);
     await client.query('DELETE FROM political_selections WHERE user_id=$1', [fallback]);
+    await client.query('DELETE FROM public.political_selections WHERE user_id=$1', [fallback]);
     const revokeAtInsert = { async query(sql, params) {
       if (String(sql).includes('INSERT INTO political_opinion_notifications')) {
         await client.query('UPDATE user_consents SET political_opinions_consent=false WHERE user_id=$1', [granted]);
