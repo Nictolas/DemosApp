@@ -1,5 +1,7 @@
 'use strict';
 
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
+
 const { getPool } = require('../config/database');
 const { captureReferendumForecastSnapshots } = require('../services/referendumForecastSnapshotService');
 
@@ -17,12 +19,17 @@ class ReferendumForecastSnapshotJob {
   }
 
   async execute() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.isRunning) return this.lastResult;
     this.isRunning = true;
     this.lastRunAt = new Date();
     try {
       const result = await captureReferendumForecastSnapshots({ pool: getPool(), now: this.lastRunAt });
       this.lastResult = result;
+      if (isPrivacyRecoveryMaintenanceActive() || result?.maintenanceBlocked) {
+        this.lastError = 'GDPR_RECOVERY_MAINTENANCE';
+        return result;
+      }
       this.lastError = result.errors?.length ? `${result.errors.length} snapshot errors` : null;
       if (result.errors?.length) {
         console.warn(`⚠️ Snapshot referendum parziali: ${result.captured}/${result.fetched}, errori=${result.errors.length}`);
@@ -52,6 +59,7 @@ class ReferendumForecastSnapshotJob {
   }
 
   start() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.interval) return;
     console.log(`🚀 Job snapshot referendum attivo ogni ${this.intervalMs / 60000} min`);
     setImmediate(() => this.execute().catch(() => {}));
