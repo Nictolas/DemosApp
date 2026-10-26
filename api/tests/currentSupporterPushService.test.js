@@ -44,6 +44,8 @@ test('supporter token lookup resolves supporter identity through canonical polit
   assert.match(calls[0].sql, /FROM public\.political_selections ps/);
   assert.match(calls[1].sql, /FROM public\.user_devices d/);
   assert.match(calls[1].sql, /FROM public\.users u/);
+  assert.match(calls[1].sql, /u\.id = ANY\(\$1::uuid\[\]\)/);
+  assert.doesNotMatch(calls[1].sql, /u\.id::text = ANY/);
   assert.match(calls[1].sql, /LEFT JOIN public\.user_consents uc/);
   assert.match(calls[0].sql, /ps\.political_office_id = \$3/);
   assert.equal(calls[0].params[2], 'it.camera');
