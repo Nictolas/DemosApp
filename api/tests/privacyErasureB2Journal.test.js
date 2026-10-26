@@ -84,7 +84,7 @@ test('default disabled, log bucket reuse, unapproved retention and non-TLS endpo
     env({GDPR_LEDGER_B2_ENDPOINT:'https://localhost:443'})
   ]) {
     const archive=new PrivacyErasureB2Journal({env:config,client:fake});
-    await assert.rejects(archive.archiveEvent(EVT()),/disabled|dedicated|TLS/);
+    await assert.rejects(archive.archiveEvent(EVT()),/disabled|dedicated|TLS/i);
   }
   assert.equal(fake.calls.length,0);
 });
