@@ -94,6 +94,24 @@ on:
       - 'api/routes/fcm-tokens.js'
       - 'api/tests/fcmTokenNormalizedHttp.smoke.test.js'
       - 'api/scripts/verify-fcm-token-atomic-ci.js'
+      - 'api/services/fcmTokenReadResolver.js'
+      - 'api/tests/fcmTokenReadResolver.test.js'
+      - 'api/tests/fcmTokenPrivacyDiagnostics.test.js'
+      - 'api/tests/fcmManualMaintenanceAudit.test.js'
+      - 'server/notifica.service.js'
+      - 'api/fix_fcm_tokens.sql'
+      - 'pulisci-token-fcm-invalidi.sql'
+      - 'verifica-fcm-tokens.cjs'
+      - 'verifica-push-notifiche.cjs'
+      - 'verifica-utenti-demos-fcm.cjs'
+      - 'api/utils/fcmDiagnostics.js'
+      - 'api/services/fcmTokenInvalidationService.js'
+      - 'api/routes/comunicazioni.js'
+      - 'api/routes/avvistamenti.js'
+      - 'api/services/operationalAlertService.js'
+      - 'api/tests/fcmTokenInvalidation.test.js'
+      - 'api/tests/fcmTokenWriterAudit.test.js'
+      - 'api/docs/gdpr-fcm-shared-failure-invalidation-20261026.md'
       - 'api/docs/gdpr-fcm-atomic-write-serialization-20261026.md'
       - 'api/tests/fcmTokenLegacyFallback.test.js'
       - 'api/tests/fcmTokenIntegrity.test.js'
@@ -156,7 +174,10 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '22'
+          # Node 22 test runner may corrupt V8 result framing after Unicode stdout.
+          # nodejs/node#64061, fixed in v24 (nodejs/node#64706).
+          # This changes CI only; Render production runtime is unchanged.
+          node-version: '24'
           cache: npm
           cache-dependency-path: api/package-lock.json
       - name: Install isolated test dependencies
@@ -170,7 +191,7 @@ jobs:
       - name: Verify HTTP abort propagates through actual API client and TanStack Query
         run: node --test client/tests/politicalOpinionHttpCancellation.test.mjs
       - name: Unit consent, ordinary opinion save and revoke privacy guards
-        run: node --test --test-concurrency=1 api/tests/opinionDeltaWrites.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/politicalAggregatePrivacy.test.js api/tests/politicalOpinionReadCachePolicy.test.js api/tests/politicalProfileReadConsent.test.js api/tests/politicalMatchingService.test.js api/tests/politicalMatchingRoutes.smoke.test.js api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js api/tests/politicalConsentHttpNoStore.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/legacyReferendumConsentRace.smoke.test.js api/tests/amnestyConsentRevokeRace.smoke.test.js api/tests/headOfStateConsentPrivacy.smoke.test.js api/tests/headOfStateVoteReadPrivacy.test.js api/tests/headOfStateVoteWritePrivacy.test.js api/tests/graceReadPrivacy.test.js api/tests/graceVoteWritePrivacy.test.js api/tests/proposalVoteConsentRace.test.js api/tests/governmentConfidenceConsentRace.test.js api/tests/governmentMinisterVoteConsentRace.test.js api/tests/governmentConfidenceReadPrivacy.test.js api/tests/governmentMinistryReadsPrivacy.test.js api/tests/publicProfileGovernmentConsent.test.js api/tests/publicPoliticalProfile.smoke.test.js api/tests/supporterPoliticalConsentPrivacy.test.js api/tests/politicalSelectionService.test.js api/tests/politicalSelectionWriteConsentRace.test.js api/tests/politicalSelectionRoute.test.js api/tests/politicalRepresentativeSelection.smoke.test.js api/tests/fcmTokenNormalizedHttp.smoke.test.js api/tests/fcmTokenLegacyFallback.test.js api/tests/fcmTokenIntegrity.test.js api/tests/currentSupporterPushService.test.js api/tests/currentSupporterPushPreSendConsent.test.js api/tests/currentSupporterPushQueryBudget.test.js api/tests/politicalOpinionNotificationService.test.js api/tests/ownProfilePoliticalSelectionRead.test.js api/tests/politicalPersonalizationConsentGate.test.js
+        run: node --test --test-concurrency=1 api/tests/opinionDeltaWrites.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/politicalAggregatePrivacy.test.js api/tests/politicalOpinionReadCachePolicy.test.js api/tests/politicalProfileReadConsent.test.js api/tests/politicalMatchingService.test.js api/tests/politicalMatchingRoutes.smoke.test.js api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js api/tests/politicalConsentHttpNoStore.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/legacyReferendumConsentRace.smoke.test.js api/tests/amnestyConsentRevokeRace.smoke.test.js api/tests/headOfStateConsentPrivacy.smoke.test.js api/tests/headOfStateVoteReadPrivacy.test.js api/tests/headOfStateVoteWritePrivacy.test.js api/tests/graceReadPrivacy.test.js api/tests/graceVoteWritePrivacy.test.js api/tests/proposalVoteConsentRace.test.js api/tests/governmentConfidenceConsentRace.test.js api/tests/governmentMinisterVoteConsentRace.test.js api/tests/governmentConfidenceReadPrivacy.test.js api/tests/governmentMinistryReadsPrivacy.test.js api/tests/publicProfileGovernmentConsent.test.js api/tests/publicPoliticalProfile.smoke.test.js api/tests/supporterPoliticalConsentPrivacy.test.js api/tests/politicalSelectionService.test.js api/tests/politicalSelectionWriteConsentRace.test.js api/tests/politicalSelectionRoute.test.js api/tests/politicalRepresentativeSelection.smoke.test.js api/tests/fcmTokenInvalidation.test.js api/tests/fcmTokenReadResolver.test.js api/tests/fcmTokenPrivacyDiagnostics.test.js api/tests/fcmManualMaintenanceAudit.test.js api/tests/fcmTokenWriterAudit.test.js api/tests/fcmTokenNormalizedHttp.smoke.test.js api/tests/fcmTokenLegacyFallback.test.js api/tests/fcmTokenIntegrity.test.js api/tests/currentSupporterPushService.test.js api/tests/currentSupporterPushPreSendConsent.test.js api/tests/currentSupporterPushQueryBudget.test.js api/tests/politicalOpinionNotificationService.test.js api/tests/ownProfilePoliticalSelectionRead.test.js api/tests/politicalPersonalizationConsentGate.test.js
       - name: Confirm real HTTP save-vs-revoke serialization on synthetic PostgreSQL 17
         env:
           GITHUB_ACTIONS: 'true'

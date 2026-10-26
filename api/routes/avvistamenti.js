@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
+const { BLOCKED_FCM_USER_STATUSES, RESOLVED_FCM_TOKENS_LATERAL_SQL, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
+const { safeFcmErrorCode } = require('../utils/fcmDiagnostics');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -83,27 +86,15 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
        FROM users u
        LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
        LEFT JOIN LATERAL (
-         SELECT ARRAY(
-           SELECT DISTINCT tok
-           FROM (
-             SELECT d.fcm_token as tok
-             FROM user_devices d
-             WHERE d.user_id = u.id
-               AND d.is_active = TRUE
-               AND d.fcm_token IS NOT NULL
-               AND btrim(d.fcm_token) <> ''
-             UNION
-             SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-           ) merged
-           WHERE tok IS NOT NULL AND btrim(tok) <> ''
-         ) as tokens
-       ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
        WHERE u.comune_residenza = $1 
          AND u.id != $2 
          AND u.comune_residenza IS NOT NULL
+         AND (u.status IS NULL OR LOWER(BTRIM(u.status::text)) <> ALL($3::text[]))
          AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
          AND (np.animali = true OR np.animali IS NULL)`,
-      [comuneResidenza, userId]
+      [comuneResidenza, userId, BLOCKED_FCM_USER_STATUSES]
     );
 
     const targetUsers = usersResult.rows;
@@ -131,7 +122,13 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
       // Invia push notification a tutti i token dell'utente
       for (const fcmToken of fcmTokens) {
         if (!fcmToken || !fcmToken.trim()) continue;
-
+        let eligible = false;
+        try {
+          eligible = await isUserFcmTokenEligible(pool, { userId: targetUser.id, token: fcmToken, preference: 'animali' });
+        } catch (error) {
+          console.warn('Avvistamenti FCM pre-send read unavailable:', safeFcmErrorCode(error));
+        }
+        if (!eligible) continue;
         try {
           if (!admin) {
             console.warn('⚠️ Firebase Admin non disponibile. Notifica push non inviata.');
@@ -203,21 +200,14 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
           console.log(`✅ Push notification inviata a utente ${targetUser.id}`);
         } catch (error) {
           errors++;
-          console.error(`❌ Errore invio push notification a utente ${targetUser.id}:`, error.message);
+          console.error('❌ Errore invio push avvistamento:', safeFcmErrorCode(error));
           
           // Se il token non è più valido, rimuovilo
           if (error.code === 'messaging/registration-token-not-registered' || 
               error.code === 'messaging/invalid-registration-token') {
-            await pool.query(
-              `UPDATE user_devices
-               SET is_active = FALSE, updated_at = NOW()
-               WHERE user_id = $1 AND fcm_token = $2`,
-              [targetUser.id, fcmToken]
-            );
-            await pool.query(
-              'UPDATE users SET fcm_tokens = array_remove(fcm_tokens, $1) WHERE id = $2',
-              [fcmToken, targetUser.id]
-            );
+            await invalidateFailedFcmTokens(pool, {
+              userId: targetUser.id, tokens: [fcmToken]
+            });
             console.log(`🗑️ Token FCM non valido rimosso per utente ${targetUser.id}`);
           }
         }
@@ -236,11 +226,11 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore in avvisa-vicini:', error);
+    console.error('❌ Errore in avvisa-vicini:', safeFcmErrorCode(error));
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      details: error.message
+      details: 'Errore di elaborazione'
     });
   }
 });

@@ -6,6 +6,8 @@ const assert = require('node:assert/strict');
 const { Pool } = require('pg');
 const express = require('express');
 const http = require('node:http');
+const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
+const { getResolvedUserFcmTokens, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
 const DB = 'political_consent_race_ci';
 const USER = '00000000-0000-4000-8000-000000000611';
 const OTHER = '00000000-0000-4000-8000-000000000612';
@@ -111,6 +113,14 @@ async function main() {
     await real.query(
       'ALTER TABLE public.users ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT NOW()'
     );
+    await real.query('ALTER TABLE public.users ADD COLUMN IF NOT EXISTS status text');
+    await real.query(
+      'CREATE TABLE IF NOT EXISTS public.notifiche_preferenze ('+
+      'user_id uuid PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,'+
+      'animali boolean,demos boolean)'
+    );
+    await real.query('ALTER TABLE public.notifiche_preferenze ADD COLUMN IF NOT EXISTS animali boolean');
+    await real.query('ALTER TABLE public.notifiche_preferenze ADD COLUMN IF NOT EXISTS demos boolean');
     await real.query(
       'CREATE TABLE IF NOT EXISTS public.user_devices ('+
       'id bigserial PRIMARY KEY,user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,'+
@@ -205,6 +215,130 @@ async function main() {
     )).rows;
     assert.deepEqual(canonical,[{fcm_token:NEW,is_active:true}]);
     console.log('FCM_ATOMIC_OPTIONAL_LEGACY_SAVEPOINT_PG17_PASS');
+
+    // No legacy column: shared invalidation must first deactivate the
+    // canonical record and recover its optional 42703 via a savepoint.
+    const missingLegacy = await invalidateFailedFcmTokens(pool,{
+      userId:USER,tokens:[' '+NEW+' ',NEW]
+    });
+    assert.equal(missingLegacy.invalidated,1);
+    assert.equal(missingLegacy.legacyRemoved,0);
+    assert.equal((await real.query(
+      'SELECT is_active FROM public.user_devices WHERE user_id=$1 AND fcm_token=$2',
+      [USER,NEW]
+    )).rows[0]?.is_active,false);
+    console.log('FCM_SHARED_INVALIDATION_MISSING_LEGACY_PG17_PASS');
+
+    // Re-add only to this disposable GitHub CI DB, then test rollback of
+    // the canonical UPDATE if a subsequent legacy write fails.
+    await real.query(
+      'ALTER TABLE public.users ADD COLUMN IF NOT EXISTS fcm_tokens text[] '+
+      'DEFAULT ARRAY[]::text[]'
+    );
+    await real.query('UPDATE public.users SET fcm_tokens=$1 WHERE id=$2',[[NEW],USER]);
+    await real.query(
+      'UPDATE public.user_devices SET is_active=TRUE WHERE user_id=$1 AND fcm_token=$2',
+      [USER,NEW]
+    );
+    const beforeInvalidation=await state(USER);
+    failSql='UPDATE public.users SET fcm_tokens =';
+    try {
+      await assert.rejects(
+        invalidateFailedFcmTokens(pool,{userId:USER,tokens:[NEW]}),
+        e=>e?.code==='23514',
+        'synthetic legacy SQL error must abort entire shared invalidation'
+      );
+    } finally { failSql=null; }
+    assert.deepEqual(await state(USER),beforeInvalidation,
+      'canonical deactivation must rollback when legacy write fails');
+    console.log('FCM_SHARED_INVALIDATION_ROLLBACK_PG17_PASS');
+
+    // Successful invalidation must deactivate, not DELETE, the canonical
+    // row, and atomically remove normalized variants from the legacy array.
+    await real.query('UPDATE public.users SET fcm_tokens=$1 WHERE id=$2',
+      [[' '+NEW+' ',OLD],USER]);
+    const result=await invalidateFailedFcmTokens(pool,{
+      userId:USER,tokens:[' '+NEW+' ',NEW]
+    });
+    assert.equal(result.invalidated,1);
+    assert.equal(result.legacyRemoved,1);
+    assert.equal((await state(USER)).devices.find(d=>d.token===NEW)?.active,false);
+    assert.deepEqual((await state(USER)).legacy,[OLD]);
+    console.log('FCM_SHARED_INVALIDATION_CANONICAL_PG17_PASS');
+
+    // A stale Firebase failure from the former owner must never mutate
+    // another account's current canonical device registration.
+    const crossUser=await invalidateFailedFcmTokens(pool,{
+      userId:USER,tokens:[LAST]
+    });
+    assert.equal(crossUser.invalidated,0);
+    assert.equal((await state(OTHER)).devices.find(d=>d.token===LAST)?.active,true);
+    console.log('FCM_SHARED_INVALIDATION_TRANSFER_PG17_PASS');
+
+    // Inactive canonical record prevents resurrecting old legacy copies.
+    await real.query('UPDATE public.users SET fcm_tokens=$1 WHERE id=$2',
+      [[NEW,' '+NEW+' '],USER]);
+    assert.deepEqual(await getResolvedUserFcmTokens(pool,USER),[]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:NEW}),false);
+    console.log('FCM_READ_INACTIVE_CANONICAL_PG17_PASS');
+
+    // Transferred token cannot be used by its previous legacy owner.
+    await real.query('UPDATE public.users SET fcm_tokens=$1 WHERE id=$2',[[LAST],USER]);
+    assert.deepEqual(await getResolvedUserFcmTokens(pool,USER),[]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:LAST}),false);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:OTHER,token:LAST}),true);
+    console.log('FCM_READ_TRANSFERRED_CANONICAL_PG17_PASS');
+
+    // Unregistered legacy token with outer whitespace is still normalized.
+    const SPACED='W'.repeat(125);
+    await real.query('UPDATE public.users SET fcm_tokens=$1 WHERE id=$2',
+      [[' '+SPACED+' ',NEW,LAST],USER]);
+    assert.deepEqual(await getResolvedUserFcmTokens(pool,USER),[SPACED]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED}),true);
+    console.log('FCM_READ_TRIMMED_LEGACY_PG17_PASS');
+
+    // A revocation after selection is recognized by the pre-send check.
+    const REVOKED='R'.repeat(125);
+    await real.query(
+      'INSERT INTO public.user_devices(user_id,fcm_token,is_active) VALUES($1,$2,TRUE)',
+      [USER,REVOKED]
+    );
+    assert.ok((await getResolvedUserFcmTokens(pool,USER)).includes(REVOKED));
+    await real.query(
+      'UPDATE public.user_devices SET is_active=FALSE WHERE user_id=$1 AND fcm_token=$2',
+      [USER,REVOKED]
+    );
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:REVOKED}),false);
+    console.log('FCM_READ_REVOKED_AFTER_SELECTION_PG17_PASS');
+
+    await assert.rejects(
+      isUserFcmTokenEligible({query:async()=>{throw Object.assign(
+        Error('synthetic read failure'),{code:'57014'});}},
+      {userId:USER,token:SPACED}),e=>e?.code==='57014'
+    );
+    console.log('FCM_READ_ERROR_FAIL_CLOSED_PG17_PASS');
+
+    // Account disabled after destination selection must not receive a push.
+    await real.query('UPDATE public.users SET status=$1 WHERE id=$2',['disabled',USER]);
+    assert.deepEqual(await getResolvedUserFcmTokens(pool,USER),[]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED}),false);
+    await real.query('UPDATE public.users SET status=NULL WHERE id=$1',[USER]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED}),true);
+    console.log('FCM_READ_DISABLED_ACCOUNT_PG17_PASS');
+
+    // Channel permissions are re-read after the original token selection.
+    await real.query(
+      'INSERT INTO public.notifiche_preferenze(user_id,animali,demos) '+
+      'VALUES($1,TRUE,TRUE) ON CONFLICT(user_id) DO UPDATE '+
+      'SET animali=EXCLUDED.animali,demos=EXCLUDED.demos',[USER]
+    );
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED,preference:'animali'}),true);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED,preference:'demos'}),true);
+    await real.query('UPDATE public.notifiche_preferenze SET animali=FALSE,demos=FALSE WHERE user_id=$1',[USER]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED,preference:'animali'}),false);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED,preference:'demos'}),false);
+    console.log('FCM_READ_PREFERENCE_REVOKE_PG17_PASS');
+
   } finally {
     if(lockHold) lockHold.unblock.resume();
     failSql=null;
@@ -218,6 +352,7 @@ async function main() {
       await real.query('ALTER TABLE public.users ADD COLUMN IF NOT EXISTS fcm_tokens text[] '+
         'DEFAULT ARRAY[]::text[]');
       await real.query('DELETE FROM public.user_devices WHERE user_id=ANY($1::uuid[])',[[USER,OTHER]]);
+      await real.query('DELETE FROM public.notifiche_preferenze WHERE user_id=ANY($1::uuid[])',[[USER,OTHER]]);
       await real.query('DELETE FROM public.users WHERE id=ANY($1::uuid[])',[[USER,OTHER]]);
     } finally {
       await real.end();

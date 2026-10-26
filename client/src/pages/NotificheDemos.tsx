@@ -570,7 +570,7 @@ export default function NotificheDemos() {
                   </div>
                 )}
 
-                {/* Test Invio Reale */}
+                {/* Stato diagnostico: questa GET non invia notifiche reali */}
                 {firebaseDebugData.data.stato_inizializzazione.test_invio && (
                   <div className="mt-4 p-3 rounded-lg border-2">
                     <div className="font-semibold mb-2 flex items-center gap-2">
@@ -587,7 +587,7 @@ export default function NotificheDemos() {
                       ) : (
                         <>
                           <span className="text-gray-600">ℹ️</span>
-                          <span>Test Invio Reale: Non disponibile</span>
+                          <span>Test invio: non eseguito (diagnostica sola lettura)</span>
                         </>
                       )}
                     </div>

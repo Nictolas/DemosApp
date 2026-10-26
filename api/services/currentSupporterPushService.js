@@ -1,4 +1,5 @@
 const { getFirebaseAdmin } = require('./firebaseAdmin');
+const { safeFcmErrorCode } = require('../utils/fcmDiagnostics');
 const {
   getLegacySelectionDescriptors,
   getLegacySelectionFields,
@@ -204,7 +205,7 @@ async function sendPushToCurrentSupporters(pool, {
       // Fail closed: an unavailable consent source must never trigger a push.
       // Do not write recipient, token or political information to logs.
       if (process.env.NODE_ENV !== 'production') {
-        console.warn('Supporter push consent recheck unavailable:', error?.code || 'database_error');
+        console.warn('Supporter push consent recheck unavailable:', safeFcmErrorCode(error));
       }
     }
     if (!eligible) {
@@ -222,7 +223,7 @@ async function sendPushToCurrentSupporters(pool, {
     } catch (error) {
       failed += 1;
       if (process.env.NODE_ENV !== 'production') {
-        console.warn('Push sostenitore corrente non inviato:', error?.code || error?.message);
+        console.warn('Push sostenitore corrente non inviato:', safeFcmErrorCode(error));
       }
     }
   }

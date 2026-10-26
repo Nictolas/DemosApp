@@ -5,6 +5,9 @@ const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getAccountSubject } = require('../services/accountCapabilitiesService');
 const { sendPushToCurrentSupporters } = require('../services/currentSupporterPushService');
+const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
+const { BLOCKED_FCM_USER_STATUSES, RESOLVED_FCM_TOKENS_LATERAL_SQL, getResolvedUserFcmTokens, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
+const { safeFcmErrorCode } = require('../utils/fcmDiagnostics');
 const { resolvePoliticalOffice } = require('../services/politicalJurisdictionRegistryService');
 require('dotenv').config();
 
@@ -18,70 +21,14 @@ const debugWarn = (...args) => {
 };
 
 // Status utente considerati bloccati per invio notifiche push
-const BLOCKED_USER_STATUSES = ['banned', 'deleted', 'disabled', '2', '9'];
+const BLOCKED_USER_STATUSES = BLOCKED_FCM_USER_STATUSES;
 
 async function getResolvedFcmTokensForUser(userId) {
-  // Sorgente primaria: user_devices (schema nuovo)
-  const deviceTokensResult = await pool.query(
-    `SELECT DISTINCT d.fcm_token
-     FROM user_devices d
-     WHERE d.user_id = $1
-       AND d.is_active = TRUE
-       AND d.fcm_token IS NOT NULL
-       AND btrim(d.fcm_token) <> ''`,
-    [userId]
-  );
-
-  const deviceTokens = deviceTokensResult.rows.map(r => r.fcm_token).filter(Boolean);
-  if (deviceTokens.length > 0) {
-    return deviceTokens;
-  }
-
-  // Fallback legacy: users.fcm_tokens
-  const legacyResult = await pool.query(
-    `SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens
-     FROM users
-     WHERE id = $1`,
-    [userId]
-  );
-
-  if (legacyResult.rows.length === 0) return [];
-  const legacyTokens = legacyResult.rows[0].fcm_tokens || [];
-  return [...new Set(legacyTokens.filter(t => t && t.trim()))];
+  return getResolvedUserFcmTokens(pool, userId);
 }
 
 async function invalidateUserFcmTokens(userId, invalidTokens = []) {
-  if (!invalidTokens || invalidTokens.length === 0) return;
-  const cleanedInvalid = [...new Set(invalidTokens.filter(t => t && t.trim()))];
-  if (cleanedInvalid.length === 0) return;
-
-  // Nuovo storage: disattiva token in user_devices
-  try {
-    await pool.query(
-      `UPDATE user_devices
-       SET is_active = FALSE, updated_at = NOW()
-       WHERE user_id = $1
-         AND fcm_token = ANY($2::text[])`,
-      [userId, cleanedInvalid]
-    );
-  } catch (err) {
-    debugWarn('⚠️ Impossibile invalidare token in user_devices:', err.message);
-  }
-
-  // Legacy storage: rimuovi token da users.fcm_tokens (fallback transitorio)
-  const legacyResult = await pool.query(
-    `SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens
-     FROM users
-     WHERE id = $1`,
-    [userId]
-  );
-  if (legacyResult.rows.length === 0) return;
-  const currentLegacyTokens = legacyResult.rows[0].fcm_tokens || [];
-  const filteredLegacyTokens = currentLegacyTokens.filter(t => !cleanedInvalid.includes(t));
-  await pool.query(
-    'UPDATE users SET fcm_tokens = $1 WHERE id = $2',
-    [filteredLegacyTokens, userId]
-  );
+  return invalidateFailedFcmTokens(pool, { userId, tokens: invalidTokens });
 }
 
 // NOTE: Le funzioni createNotificheUtente e updateNotificheUtente sono state rimosse
@@ -175,7 +122,7 @@ function buildInstitutionalVoteKey({ level, voteDate, title, sourceVoteId }) {
 
 // Debug routing only outside production; never dump request bodies.
 router.use((req, res, next) => {
-  debugLog(`ROUTER COMUNICAZIONI: ${req.method} ${req.path}`);
+  debugLog(`ROUTER COMUNICAZIONI: ${req.method}`);
   next();
 });
 
@@ -184,8 +131,8 @@ router.use((req, res, next) => {
 router.post('/send-demos-notification', (req, res, next) => {
   debugLog('🔵 ========== ROUTE HIT: /send-demos-notification ==========');
   debugLog('🔵 Method:', req.method);
-  debugLog('🔵 Path:', req.path);
-  debugLog('🔵 Original URL:', req.originalUrl);
+  debugLog('🔵 Route: comunicazioni');
+  debugLog('🔵 Route: comunicazioni');
   debugLog('🔵 Base URL:', req.baseUrl);
   debugLog('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
   next();
@@ -193,11 +140,11 @@ router.post('/send-demos-notification', (req, res, next) => {
   try {
     debugLog('📢 ========== RICEVUTA RICHIESTA INVIO NOTIFICA DEMOS ==========');
     debugLog('📢 Timestamp:', new Date().toISOString());
-    debugLog('📢 User ID:', req.user?.id);
-    debugLog('📢 Request body:', JSON.stringify(req.body));
+    debugLog('📢 Richiesta Admin verificata');
+    debugLog('📢 Corpo richiesta ricevuto (contenuto omesso)');
     const { titolo, messaggio } = req.body;
     
-    debugLog('📝 Dati ricevuti:', { titolo, messaggio });
+    debugLog('📝 Campi notifica ricevuti');
     
     if (!titolo) {
       debugLog('❌ Titolo mancante');
@@ -250,8 +197,7 @@ router.post('/send-demos-notification', (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nell\'invio notifica Demos:', error);
-    console.error('❌ Stack:', error.stack);
+    console.error('❌ Errore nell\'invio notifica Demos:', safeFcmErrorCode(error));
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -264,8 +210,8 @@ router.post('/send-demos-notification', (req, res, next) => {
 router.post('/send-user-notification', (req, res, next) => {
   debugLog('🔵 ========== ROUTE HIT: /send-user-notification ==========');
   debugLog('🔵 Method:', req.method);
-  debugLog('🔵 Path:', req.path);
-  debugLog('🔵 Original URL:', req.originalUrl);
+  debugLog('🔵 Route: comunicazioni');
+  debugLog('🔵 Route: comunicazioni');
   debugLog('🔵 Headers Authorization:', req.headers.authorization ? 'Presente' : 'Mancante');
   next();
 }, verifyToken, requireAdmin, async (req, res) => {
@@ -273,14 +219,11 @@ router.post('/send-user-notification', (req, res, next) => {
     debugLog('\n\n');
     debugLog('🚨🚨🚨 ========== INIZIO INVIO NOTIFICA A UTENTE SPECIFICO ========== 🚨🚨🚨');
     debugLog('📢 Timestamp:', new Date().toISOString());
-    debugLog('📢 User ID richiedente:', req.user?.id);
+    debugLog('📢 Richiedente autorizzato');
     
     const { userId, titolo, messaggio } = req.body;
     
-    debugLog('📢 User ID destinatario:', userId);
-    debugLog('📢 Titolo:', titolo);
-    debugLog('📢 Messaggio:', messaggio);
-    debugLog('📢 Request body completo:', JSON.stringify(req.body));
+    debugLog('📢 Richiesta notifica individuale ricevuta (identificativi e contenuto omessi)');
     debugLog('\n');
     
     // Verifica Firebase Admin all'inizio
@@ -327,7 +270,7 @@ router.post('/send-user-notification', (req, res, next) => {
     const fcmTokens = await getResolvedFcmTokensForUser(userId);
     
     // Log dettagliato per debug
-    debugLog(`   📊 Token FCM nel database per ${destinatario.email}:`);
+    debugLog('   📊 Token FCM disponibili per il destinatario:');
     debugLog(`      - Numero token: ${fcmTokens.length}`);
     if (fcmTokens.length > 0) {
       fcmTokens.forEach((token, idx) => {
@@ -350,7 +293,7 @@ router.post('/send-user-notification', (req, res, next) => {
       });
     }
 
-    debugLog(`📤 Invio notifica a ${destinatario.email} (${destinatario.nome} ${destinatario.cognome})`);
+    debugLog('📤 Invio notifica a destinatario idoneo');
     debugLog(`   Token FCM disponibili: ${fcmTokens.length}`);
     if (fcmTokens.length > 0) {
       debugLog(`   📋 Token disponibili:`);
@@ -372,7 +315,7 @@ router.post('/send-user-notification', (req, res, next) => {
     // Se ci sono più token, significa che c'è un token desktop vecchio che deve essere rimosso
     const tokensToSend = fcmTokens.length > 0 ? [fcmTokens[fcmTokens.length - 1]] : [];
     
-    debugLog(`    🔍 Invio notifica a ${fcmTokens.length} token FCM disponibili nel database (tag: ${notificationTag})...`);
+    debugLog(`    🔍 Invio notifica a ${fcmTokens.length} token FCM disponibili nel database`);
     debugLog(`    📊 Strategia: Userò SOLO l'ULTIMO token (${tokensToSend.length} token selezionato)`);
     
     if (fcmTokens.length > 1) {
@@ -400,6 +343,11 @@ router.post('/send-user-notification', (req, res, next) => {
       
       debugLog(`    🔔 Tentativo ${i + 1}/${tokensToSend.length}: invio notifica push a token: ${'[omesso]'}...`);
       
+      // Revocation or transfer can occur after the initial token lookup.
+      let eligible = false;
+      try { eligible = await isUserFcmTokenEligible(pool, { userId, token }); }
+      catch (error) { debugWarn('FCM pre-send read unavailable:', safeFcmErrorCode(error)); }
+      if (!eligible) continue;
       try {
         const result = await sendPushNotification(
           token,
@@ -436,15 +384,11 @@ router.post('/send-user-notification', (req, res, next) => {
         }
       } catch (error) {
         failureCount++;
-        console.error(`    ❌ Eccezione durante invio notifica (token ${i + 1}/${tokensToSend.length}):`, error);
-        console.error(`    ❌ Error message: ${error.message}`);
-        console.error(`    ❌ Error stack: ${error.stack}`);
-        // Non rimuovere il token se è un errore di configurazione (es. Firebase Admin non configurato)
-        if (error.message && error.message.includes('Firebase Admin')) {
-          debugLog(`    ⚠️ Errore di configurazione Firebase, token mantenuto`);
-        } else {
+        console.error('FCM send failure:', safeFcmErrorCode(error));
+        // A generic exception does not prove that the registration is stale.
+        if (error?.code === 'messaging/registration-token-not-registered' ||
+            error?.code === 'messaging/invalid-registration-token') {
           invalidTokens.push(token);
-          debugLog(`    🗑️ Token ${i + 1} marcato per rimozione a causa di eccezione`);
         }
       }
     }
@@ -456,7 +400,7 @@ router.post('/send-user-notification', (req, res, next) => {
     // Rimuovi token non validi dal database
     if (invalidTokens.length > 0) {
       await invalidateUserFcmTokens(userId, invalidTokens);
-      debugLog(`🧹 Rimossi/invalidati ${invalidTokens.length} token FCM non validi per utente ${userId}`);
+      debugLog(`🧹 Invalidati ${invalidTokens.length} token FCM non validi`);
     }
 
     debugLog('\n');
@@ -473,7 +417,7 @@ router.post('/send-user-notification', (req, res, next) => {
     // Salva la notifica nella tabella notifiche_demos se almeno una notifica è stata inviata con successo
     if (successCount > 0) {
       try {
-        debugLog(`💾 Salvataggio notifica in notifiche_demos per utente ${userId}...`);
+        debugLog('💾 Salvataggio notifica Demos');
         const saveResult = await pool.query(`
           INSERT INTO notifiche_demos (
             id, id_utente, titolo, testo, data, data_creazione
@@ -489,9 +433,7 @@ router.post('/send-user-notification', (req, res, next) => {
         const notificaId = saveResult.rows[0].id;
         debugLog(`✅ Notifica salvata in notifiche_demos con ID: ${notificaId}`);
       } catch (saveError) {
-        console.error(`❌ Errore nel salvataggio notifica in notifiche_demos:`, saveError);
-        console.error(`❌ Error message: ${saveError.message}`);
-        console.error(`❌ Error stack: ${saveError.stack}`);
+        console.error('❌ Errore nel salvataggio notifica Demos:', safeFcmErrorCode(saveError));
         // Non bloccare la risposta se il salvataggio fallisce
       }
     } else {
@@ -780,8 +722,8 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       }
       debugLog('✅ admin.messaging() verificato e disponibile');
     } catch (messagingError) {
-      console.error('❌ Errore nell\'accesso a admin.messaging():', messagingError.message);
-      return { success: false, error: `Errore Firebase messaging: ${messagingError.message}` };
+      console.error('❌ Firebase messaging non disponibile:', safeFcmErrorCode(messagingError));
+      return { success: false, error: 'Firebase messaging non disponibile', code: safeFcmErrorCode(messagingError) };
     }
 
     // Prepara il messaggio FCM
@@ -846,10 +788,7 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
 
     // Invia la notifica push
     debugLog(`📤 Invio notifica push a Firebase...`);
-    debugLog(`   Token: ${fcmToken.substring(0, 30)}...`);
-    debugLog(`   Titolo: ${title}`);
-    debugLog(`   Body: ${body}`);
-    debugLog(`   Data:`, JSON.stringify(data));
+    debugLog('   Contenuto e token omessi per privacy');
     
     try {
       debugLog(`🔧 Verifica admin.messaging() disponibile...`);
@@ -858,32 +797,13 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       
       debugLog(`📤 Chiamata a messaging.send()...`);
       const response = await messaging.send(message);
-      debugLog(`✅ Push notification inviata con successo a Firebase. Message ID: ${response}`);
+      debugLog('✅ Push notification accettata da Firebase');
       debugLog(`   Firebase ha accettato la notifica e la invierà al dispositivo`);
       
       return { success: true, messageId: response };
     } catch (sendError) {
-      console.error(`❌ Errore durante l'invio a Firebase:`);
-      console.error(`   Error name: ${sendError.name || 'N/A'}`);
-      console.error(`   Error message: ${sendError.message}`);
-      console.error(`   Error code: ${sendError.code || 'N/A'}`);
-      console.error(`   Error stack: ${sendError.stack ? sendError.stack.substring(0, 500) : 'N/A'}`);
-      console.error(`   Token: ${fcmToken?.substring(0, 30)}...`);
-      
-      // Log dettagliato per errori comuni
-      if (sendError.code) {
-        console.error(`   📋 Error code specifico: ${sendError.code}`);
-        if (sendError.code.includes('invalid')) {
-          console.error(`   ⚠️ Errore di validazione - verifica il formato del token o del messaggio`);
-        }
-        if (sendError.code.includes('permission') || sendError.code.includes('auth')) {
-          console.error(`   ⚠️ Errore di autenticazione/autorizzazione - verifica le credenziali Firebase`);
-        }
-        if (sendError.code.includes('quota') || sendError.code.includes('limit')) {
-          console.error(`   ⚠️ Errore di quota/limite - verifica i limiti del progetto Firebase`);
-        }
-      }
-      
+      console.error('❌ Errore invio a Firebase:', safeFcmErrorCode(sendError));
+
       // Gestisci errori specifici di FCM
       if (sendError.code === 'messaging/invalid-registration-token' || 
           sendError.code === 'messaging/registration-token-not-registered') {
@@ -896,16 +816,14 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
     }
   } catch (error) {
     // Gestisci altri errori
-    console.error('❌ Errore invio push notification:', error.message);
-    console.error('❌ Error code:', error.code || 'N/A');
-    console.error('❌ Token:', fcmToken?.substring(0, 30) || 'N/A');
+    console.error('❌ Errore invio push notification:', safeFcmErrorCode(error));
     
     if (error.code === 'messaging/invalid-registration-token' || 
         error.code === 'messaging/registration-token-not-registered') {
       return { success: false, error: 'Token non valido', shouldRemoveToken: true, code: error.code };
     }
     
-    return { success: false, error: error.message, code: error.code };
+    return { success: false, error: 'Invio push non riuscito', code: safeFcmErrorCode(error) };
   }
 }
 
@@ -977,21 +895,8 @@ async function notifyAllUsers(titolo, commento) {
       SELECT COUNT(*) as count
       FROM users u
       LEFT JOIN LATERAL (
-        SELECT ARRAY(
-          SELECT DISTINCT tok
-          FROM (
-            SELECT d.fcm_token as tok
-            FROM user_devices d
-            WHERE d.user_id = u.id
-              AND d.is_active = TRUE
-              AND d.fcm_token IS NOT NULL
-              AND btrim(d.fcm_token) <> ''
-            UNION
-            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-          ) merged
-          WHERE tok IS NOT NULL AND btrim(tok) <> ''
-        ) as tokens
-      ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
       WHERE (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
         AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
     `, [BLOCKED_USER_STATUSES]);
@@ -1027,21 +932,8 @@ async function notifyAllUsers(titolo, commento) {
       FROM users u
       INNER JOIN notifiche_preferenze np ON u.id = np.user_id
       LEFT JOIN LATERAL (
-        SELECT ARRAY(
-          SELECT DISTINCT tok
-          FROM (
-            SELECT d.fcm_token as tok
-            FROM user_devices d
-            WHERE d.user_id = u.id
-              AND d.is_active = TRUE
-              AND d.fcm_token IS NOT NULL
-              AND btrim(d.fcm_token) <> ''
-            UNION
-            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-          ) merged
-          WHERE tok IS NOT NULL AND btrim(tok) <> ''
-        ) as tokens
-      ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
       WHERE np.demos = true
         AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
         AND array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
@@ -1061,20 +953,7 @@ async function notifyAllUsers(titolo, commento) {
         FROM users u
         LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
         LEFT JOIN LATERAL (
-          SELECT ARRAY(
-            SELECT DISTINCT tok
-            FROM (
-              SELECT d.fcm_token as tok
-              FROM user_devices d
-              WHERE d.user_id = u.id
-                AND d.is_active = TRUE
-                AND d.fcm_token IS NOT NULL
-                AND btrim(d.fcm_token) <> ''
-              UNION
-              SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-            ) merged
-            WHERE tok IS NOT NULL AND btrim(tok) <> ''
-          ) as tokens
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
         ) tokens ON TRUE
         WHERE COALESCE(np.demos, false) = true
           AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
@@ -1099,20 +978,7 @@ async function notifyAllUsers(titolo, commento) {
         FROM users u
         INNER JOIN notifiche_preferenze np ON u.id = np.user_id
         LEFT JOIN LATERAL (
-          SELECT ARRAY(
-            SELECT DISTINCT tok
-            FROM (
-              SELECT d.fcm_token as tok
-              FROM user_devices d
-              WHERE d.user_id = u.id
-                AND d.is_active = TRUE
-                AND d.fcm_token IS NOT NULL
-                AND btrim(d.fcm_token) <> ''
-              UNION
-              SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-            ) merged
-            WHERE tok IS NOT NULL AND btrim(tok) <> ''
-          ) as tokens
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
         ) tokens ON TRUE
         WHERE np.demos IS TRUE
           AND (u.status IS NULL OR COALESCE(u.status::text, '') <> ALL($1::text[]))
@@ -1148,10 +1014,10 @@ async function notifyAllUsers(titolo, commento) {
     if (utentiConPushResult.rows.length > 0) {
       debugLog('📋 Dettagli utenti che riceveranno la notifica:');
       utentiConPushResult.rows.forEach((utente, index) => {
-        debugLog(`   ${index + 1}. ${utente.email || utente.id} - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
+        debugLog(`   ${index + 1}. Destinatario - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
         if (utente.fcm_tokens && utente.fcm_tokens.length > 0) {
           utente.fcm_tokens.forEach((token, tokenIndex) => {
-            debugLog(`      Token ${tokenIndex + 1}: ${token.substring(0, 30)}...`);
+            debugLog(`      Token ${tokenIndex + 1}: [omesso]`);
           });
         }
       });
@@ -1192,16 +1058,14 @@ async function notifyAllUsers(titolo, commento) {
     let pushSuccessCount = 0;
     let pushFailureCount = 0;
 
-    const invalidTokens = []; // Raccogli token non validi da rimuovere
-    
     debugLog(`📤 Invio push notifications a ${utentiConPushResult.rows.length} utenti...`);
     debugLog(`📋 Dettagli utenti che riceveranno la notifica:`);
     utentiConPushResult.rows.forEach((utente, index) => {
-      debugLog(`   ${index + 1}. ${utente.email || utente.id}:`);
+      debugLog(`   ${index + 1}. Destinatario`);
       debugLog(`      - Token FCM: ${utente.fcm_tokens?.length || 0} token(s)`);
       if (utente.fcm_tokens && utente.fcm_tokens.length > 0) {
         utente.fcm_tokens.forEach((token, tokenIndex) => {
-          debugLog(`         Token ${tokenIndex + 1}: ${'[omesso]'}...`);
+          debugLog(`         Token ${tokenIndex + 1}: [omesso]`);
         });
       }
     });
@@ -1209,14 +1073,19 @@ async function notifyAllUsers(titolo, commento) {
     for (const utente of utentiConPushResult.rows) {
       const fcmTokens = utente.fcm_tokens || [];
       const validTokens = [];
+      const invalidTokens = []; // Per-user only; never reuse a prior user's failures.
       
-      debugLog(`  📱 Utente ${utente.email || utente.id}: ${fcmTokens.length} token(s) FCM`);
+      debugLog(`  📱 Destinatario: ${fcmTokens.length} token(s) FCM`);
       
       // Invia push notification a tutti i token FCM dell'utente
       for (const token of fcmTokens) {
         if (token && token.trim()) {
           debugLog(`    🔔 Invio notifica push a token: ${'[omesso]'}...`);
           
+          let eligible = false;
+          try { eligible = await isUserFcmTokenEligible(pool, { userId: utente.id, token, preference: 'demos' }); }
+          catch (error) { debugWarn('FCM bulk read unavailable:', safeFcmErrorCode(error)); }
+          if (!eligible) continue;
           const result = await sendPushNotification(
             token,
             pushTitle,
@@ -1245,7 +1114,7 @@ async function notifyAllUsers(titolo, commento) {
             }
             // Se il token non è valido, segnalo per rimozione
             if (result.shouldRemoveToken) {
-              invalidTokens.push({ userId: utente.id, token });
+              invalidTokens.push(token);
               debugLog(`    🗑️ Token marcato per rimozione (non valido o scaduto)`);
             } else {
               validTokens.push(token); // Mantieni il token se l'errore è temporaneo
@@ -1256,19 +1125,19 @@ async function notifyAllUsers(titolo, commento) {
       }
       
       // Rimuovi token non validi dal database
-      if (invalidTokens.length > 0 && validTokens.length !== fcmTokens.length) {
+      if (invalidTokens.length > 0) {
         try {
-          await invalidateUserFcmTokens(utente.id, invalidTokens.map(t => t.token));
-          debugLog(`🧹 Rimossi ${fcmTokens.length - validTokens.length} token FCM non validi per utente ${utente.id}`);
+          await invalidateUserFcmTokens(utente.id, invalidTokens);
+          debugLog(`🧹 Invalidati ${invalidTokens.length} token FCM non validi`);
         } catch (error) {
-          console.error(`❌ Errore nella rimozione token FCM per utente ${utente.id}:`, error);
+          console.error('❌ Errore nell\'invalidazione token FCM:', safeFcmErrorCode(error));
         }
       }
     }
 
     debugLog(`✅ Push notifications Demos inviate: ${pushSuccessCount} successi, ${pushFailureCount} fallimenti a ${utentiConPushResult.rows.length} utenti`);
   } catch (error) {
-    console.error('❌ Errore nell\'invio notifiche Demos:', error);
+    console.error('❌ Errore nell\'invio notifiche Demos:', safeFcmErrorCode(error));
   }
 }
 
@@ -1314,7 +1183,7 @@ router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) 
       }
     };
     
-    debugLog('🔍 Variabili d\'ambiente:', JSON.stringify(debugInfo.environment, null, 2));
+    debugLog('🔍 Verifica della presenza della configurazione Firebase completata');
     
     // Verifica corrispondenza tra variabili d'ambiente
     const envCheck = {
@@ -1400,66 +1269,18 @@ router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) 
           debugLog('✅ admin.messaging() disponibile');
           debugInfo.stato_inizializzazione.messaging_disponibile = true;
           
-          // Test reale: prova a inviare una notifica di test (se l'utente ha un token FCM)
-          try {
-            const userId = req.user?.id;
-            if (userId) {
-              const resolvedTokens = await getResolvedFcmTokensForUser(userId);
-              if (resolvedTokens.length > 0) {
-                const testToken = resolvedTokens[0];
-                debugLog('🧪 Test invio notifica reale: token FCM presente');
-                
-                const testMessage = {
-                  token: testToken,
-                  notification: {
-                    title: 'Test Diagnostica',
-                    body: 'Notifica di test dalla diagnostica Firebase Admin'
-                  },
-                  data: {
-                    type: 'diagnostic_test',
-                    timestamp: new Date().toISOString()
-                  }
-                };
-                
-                try {
-                  const testResponse = await messaging.send(testMessage);
-                  debugLog('✅ Test invio notifica riuscito. Message ID:', testResponse);
-                  debugInfo.stato_inizializzazione.test_invio = {
-                    successo: true,
-                    message_id: testResponse,
-                    messaggio: 'Notifica di test inviata con successo'
-                  };
-                } catch (testError) {
-                  console.error('❌ Test invio notifica fallito:', testError.message);
-                  debugInfo.stato_inizializzazione.test_invio = {
-                    successo: false,
-                    errore: testError.message,
-                    codice: testError.code || 'N/A',
-                    messaggio: `Errore durante test invio: ${testError.message}`
-                  };
-                }
-              } else {
-                debugLog('ℹ️ Utente corrente non ha token FCM per test reale');
-                debugInfo.stato_inizializzazione.test_invio = {
-                  successo: null,
-                  messaggio: 'Utente corrente non ha token FCM registrati per il test'
-                };
-              }
-            }
-          } catch (testError) {
-            console.error('❌ Errore durante preparazione test invio:', testError.message);
-            debugInfo.stato_inizializzazione.test_invio = {
-              successo: false,
-              errore: testError.message,
-              messaggio: `Errore durante preparazione test: ${testError.message}`
-            };
-          }
+          // GET diagnostics must remain side-effect-free: simply opening
+          // the admin page must never send a real Firebase notification.
+          debugInfo.stato_inizializzazione.test_invio = {
+            successo: null,
+            messaggio: 'Diagnostica sola lettura: nessuna notifica di test inviata'
+          };
         } catch (messagingError) {
-          console.error('❌ admin.messaging() non disponibile:', messagingError.message);
+          console.error('❌ admin.messaging() non disponibile:', safeFcmErrorCode(messagingError));
           debugInfo.stato_inizializzazione.messaging_disponibile = false;
           debugInfo.stato_inizializzazione.errore = {
-            message: `Messaging non disponibile: ${messagingError.message}`,
-            code: messagingError.code || 'N/A'
+            message: 'Messaging Firebase non disponibile',
+            code: safeFcmErrorCode(messagingError)
           };
         }
       } else {
@@ -1471,17 +1292,11 @@ router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) 
         };
       }
     } catch (error) {
-      console.error('❌ Errore durante inizializzazione:', error);
-      console.error('❌ Error name:', error.name);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error code:', error.code);
-      console.error('❌ Error stack:', error.stack);
+      console.error('❌ Errore durante inizializzazione Firebase:', safeFcmErrorCode(error));
       debugInfo.stato_inizializzazione.admin_disponibile = false;
       debugInfo.stato_inizializzazione.errore = {
-        message: error.message,
-        code: error.code || 'N/A',
-        name: error.name || 'N/A',
-        stack: error.stack ? error.stack.substring(0, 1000) : 'N/A'
+        message: 'Inizializzazione Firebase non riuscita',
+        code: safeFcmErrorCode(error)
       };
     }
     
@@ -1490,7 +1305,7 @@ router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) 
       data: debugInfo
     });
   } catch (error) {
-    console.error('❌ Errore nel debug Firebase Admin:', error);
+    console.error('❌ Errore nel debug Firebase Admin:', safeFcmErrorCode(error));
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -1533,21 +1348,8 @@ router.get('/debug-notifiche-demos', verifyToken, requireAdmin, async (req, res)
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
       LEFT JOIN LATERAL (
-        SELECT ARRAY(
-          SELECT DISTINCT tok
-          FROM (
-            SELECT d.fcm_token as tok
-            FROM user_devices d
-            WHERE d.user_id = u.id
-              AND d.is_active = TRUE
-              AND d.fcm_token IS NOT NULL
-              AND btrim(d.fcm_token) <> ''
-            UNION
-            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-          ) merged
-          WHERE tok IS NOT NULL AND btrim(tok) <> ''
-        ) as tokens
-      ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
       WHERE u.id = $1
     `, [userId]);
     
@@ -1571,21 +1373,8 @@ router.get('/debug-notifiche-demos', verifyToken, requireAdmin, async (req, res)
       FROM users u
       LEFT JOIN notifiche_preferenze np ON u.id = np.user_id
       LEFT JOIN LATERAL (
-        SELECT ARRAY(
-          SELECT DISTINCT tok
-          FROM (
-            SELECT d.fcm_token as tok
-            FROM user_devices d
-            WHERE d.user_id = u.id
-              AND d.is_active = TRUE
-              AND d.fcm_token IS NOT NULL
-              AND btrim(d.fcm_token) <> ''
-            UNION
-            SELECT unnest(COALESCE(u.fcm_tokens, ARRAY[]::text[])) as tok
-          ) merged
-          WHERE tok IS NOT NULL AND btrim(tok) <> ''
-        ) as tokens
-      ) tokens ON TRUE
+          ${RESOLVED_FCM_TOKENS_LATERAL_SQL}
+        ) tokens ON TRUE
       WHERE array_length(COALESCE(tokens.tokens, ARRAY[]::text[]), 1) > 0
     `);
     
@@ -1609,15 +1398,11 @@ router.get('/debug-notifiche-demos', verifyToken, requireAdmin, async (req, res)
           numero_token_fcm: fcmTokens.length,
           ricevera_notifiche: user.ricevera_notifiche
         },
-        token_fcm: fcmTokens.length > 0 ? fcmTokens.map(t => ({
-          preview: t ? `${t.substring(0, 30)}...` : null,
-          length: t ? t.length : 0
-        })) : [],
         statistiche_globali: allUsersResult.rows[0]
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel debug notifiche Demos:', error);
+    console.error('❌ Errore nel debug notifiche Demos:', safeFcmErrorCode(error));
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

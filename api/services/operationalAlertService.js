@@ -2,6 +2,9 @@ const crypto = require('crypto');
 const { safeDiagnosticCode } = require('../utils/logPrivacy');
 const { pool } = require('../middleware/auth');
 const { getFirebaseAdmin } = require('./firebaseAdmin');
+const { invalidateFailedFcmTokens } = require('./fcmTokenInvalidationService');
+const { safeFcmErrorCode } = require('../utils/fcmDiagnostics');
+const { isUserFcmTokenEligible } = require('./fcmTokenReadResolver');
 
 const DEFAULT_COOLDOWN_MS = 5 * 60 * 1000;
 const recentAlerts = new Map();
@@ -130,11 +133,13 @@ async function getAdminDeviceTokens(adminIds) {
   return result.rows;
 }
 
-async function invalidateToken(token) {
+async function invalidateToken(userId, token) {
   try {
-    await pool.query('DELETE FROM user_devices WHERE fcm_token = $1', [token]);
+    await invalidateFailedFcmTokens(pool, { userId, tokens: [token] });
   } catch (error) {
-    console.warn('Operational alert: impossibile eliminare token FCM invalido:', error.message);
+    // Never expose raw database errors, device tokens or account IDs in logs.
+    console.warn('Operational alert: invalidazione token FCM fallita:',
+      safeFcmErrorCode(error));
   }
 }
 
@@ -147,6 +152,17 @@ async function pushToAdmins(adminIds, title, body, alert) {
   let failed = 0;
 
   for (const device of devices) {
+    // Recheck the canonical owner before contacting Firebase. A transfer or
+    // revocation may occur while sending previous admin alerts.
+    let eligible = false;
+    try {
+      eligible = await isUserFcmTokenEligible(pool, {
+        userId: device.user_id, token: device.fcm_token
+      });
+    } catch (error) {
+      console.warn('Operational alert FCM pre-send read failed:', safeFcmErrorCode(error));
+    }
+    if (!eligible) continue;
     try {
       await firebaseAdmin.messaging().send({
         token: device.fcm_token,
@@ -163,13 +179,13 @@ async function pushToAdmins(adminIds, title, body, alert) {
       sent += 1;
     } catch (error) {
       failed += 1;
-      const code = error?.code || '';
+      const code = safeFcmErrorCode(error);
       if (
         code.includes('registration-token-not-registered') ||
         code.includes('invalid-registration-token') ||
         code.includes('invalid-argument')
       ) {
-        await invalidateToken(device.fcm_token);
+        await invalidateToken(device.user_id, device.fcm_token);
       }
     }
   }
@@ -232,7 +248,7 @@ class OperationalAlertService {
         push
       };
     } catch (error) {
-      console.error('Operational alert delivery failed:', error.message);
+      console.error('Operational alert delivery failed:', safeFcmErrorCode(error));
       return {
         success: false,
         suppressed: false,
