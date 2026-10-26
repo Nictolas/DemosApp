@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 const cron = require('node-cron');
 const { AxiomArchiveService } = require('../services/axiomArchiveService');
 
@@ -5,6 +6,7 @@ let task = null;
 let running = false;
 
 async function runAxiomArchiveOnce() {
+  if (isPrivacyRecoveryMaintenanceActive()) return { skipped: true, reason: 'gdpr-recovery-maintenance' };
   if (running) {
     console.warn('Axiom archive skipped: previous run is still active');
     return { skipped: true, reason: 'already-running' };
@@ -34,6 +36,7 @@ async function runAxiomArchiveOnce() {
 }
 
 function start() {
+  if (isPrivacyRecoveryMaintenanceActive()) return null;
   if (process.env.AXIOM_ARCHIVE_ENABLED !== 'true') return null;
   if (task) return task;
 

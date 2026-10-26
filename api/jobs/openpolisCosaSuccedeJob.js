@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 /**
  * Job per aggiornare gli ultimi DDL approvati (Camera e Senato) da Openpolis "Cosa succede".
  * Esegue scraping della homepage e delle pagine dettaglio, salva in openpolis_ultimi_ddl_approvati.
@@ -30,6 +31,7 @@ async function ensureTable(pool) {
  * Esegue un singolo ciclo: fetch Openpolis -> salva in DB.
  */
 async function runOpenpolisCosaSuccedeSync() {
+  if (isPrivacyRecoveryMaintenanceActive()) return;
   let pool;
   try {
     pool = getPool();
@@ -62,6 +64,7 @@ const openpolisCosaSuccedeJob = cron.schedule(openpolisCosaSuccedeCron, runOpenp
 });
 
 function startOpenpolisCosaSuccedeJob() {
+  if (isPrivacyRecoveryMaintenanceActive()) return;
   console.log('🚀 Avvio job Openpolis Cosa succede (ultimi DDL approvati)...');
   openpolisCosaSuccedeJob.start();
   console.log(`✅ Job Openpolis Cosa succede avviato (cron: ${openpolisCosaSuccedeCron})`);

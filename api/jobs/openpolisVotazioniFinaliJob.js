@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 /**
  * Job per aggiornare le votazioni finali decisive da Openpolis.
  * Esegue scraping della lista /votazioni?main_vote_type=is_final, salva in openpolis_votazioni_finali_decisive.
@@ -31,6 +32,7 @@ async function ensureTable(pool) {
  * Esegue un singolo ciclo: fetch lista Openpolis voti finali -> salva in DB.
  */
 async function runOpenpolisVotazioniFinaliSync() {
+  if (isPrivacyRecoveryMaintenanceActive()) return;
   let pool;
   try {
     pool = getPool();
@@ -60,6 +62,7 @@ const openpolisVotazioniFinaliJob = cron.schedule(openpolisVotazioniFinaliCron, 
 });
 
 function startOpenpolisVotazioniFinaliJob() {
+  if (isPrivacyRecoveryMaintenanceActive()) return;
   console.log('🚀 Avvio job Openpolis votazioni finali decisive...');
   openpolisVotazioniFinaliJob.start();
   console.log(`✅ Job Openpolis votazioni finali avviato (cron: ${openpolisVotazioniFinaliCron})`);

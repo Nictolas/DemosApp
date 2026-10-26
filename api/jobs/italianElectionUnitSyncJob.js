@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 ﻿'use strict';
 
 const { getPool } = require('../config/database');
@@ -15,6 +16,7 @@ class ItalianElectionUnitSyncJob {
   }
 
   async execute() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     if (this.isRunning) return this.lastResult;
     const eventId = String(process.env.ITALIAN_ELECTION_UNIT_SYNC_EVENT_ID || '').trim();
     const sourceId = String(process.env.ITALIAN_ELECTION_UNIT_SYNC_SOURCE_ID || 'POLITICHE_20220925').trim();
@@ -50,6 +52,7 @@ class ItalianElectionUnitSyncJob {
   }
 
   start() {
+    if (isPrivacyRecoveryMaintenanceActive()) return;
     setImmediate(() => this.execute().catch(() => {}));
   }
 

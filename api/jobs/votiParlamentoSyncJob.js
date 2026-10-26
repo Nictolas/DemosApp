@@ -1,3 +1,4 @@
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
 const cron = require('node-cron');
 const { Pool } = require('pg');
 const axios = require('axios');
@@ -268,6 +269,7 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
  */
 const votiParlamentoSyncCron = process.env.VOTI_PARLAMENTO_SYNC_CRON || '0 */6 * * *';
 const votiParlamentoSyncJob = cron.schedule(votiParlamentoSyncCron, async () => {
+  if (isPrivacyRecoveryMaintenanceActive()) return;
   try {
     console.log('🔄 Avvio sincronizzazione automatica votazioni parlamentari...');
     
@@ -314,6 +316,7 @@ const votiParlamentoSyncJob = cron.schedule(votiParlamentoSyncCron, async () => 
  * Avvia il job di sincronizzazione
  */
 const startVotiParlamentoSyncJob = () => {
+  if (isPrivacyRecoveryMaintenanceActive()) return;
   console.log('🚀 Avvio job sincronizzazione votazioni parlamentari...');
   console.log(`   - Cron: ${votiParlamentoSyncCron}`);
   console.log('   - Camera e Senato');
