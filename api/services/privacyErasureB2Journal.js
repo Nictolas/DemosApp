@@ -187,7 +187,9 @@ class PrivacyErasureB2Journal {
     if (retentionUntil <= finishedAt) {
       throw Error('B2 event object retention expired during readback');
     }
-    return {sha256:expectedHash, versionId};
+    // The recovery verifier needs the expiry of every version, not just
+    // the fact that each one was retained at its individual readback time.
+    return {sha256:expectedHash, versionId, retentionUntil:retentionUntil.toISOString()};
   }
   async verifyArchivedReceipt(raw, receipt) {
     // Strictly read-only: a recovery readiness check must NEVER repair a
