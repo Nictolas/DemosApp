@@ -17,6 +17,8 @@ on:
       - 'api/tests/privacyRecoveryQuarantineEvidenceGate.test.js'
       - 'api/services/privacyOfflineRecoveryExporter.js'
       - 'api/tests/privacyOfflineRecoveryExporter.test.js'
+      - 'api/jobs/votiParlamentoSyncJob.js'
+      - 'api/tests/votiParlamentoMaintenance.test.js'
       - 'api/jobs/referendumForecastSnapshotJob.js'
       - 'api/services/referendumForecastSnapshotService.js'
       - 'api/tests/referendumForecastMaintenance.test.js'
@@ -64,10 +66,11 @@ jobs:
           node --check api/services/privacyRecoverySignedEvidenceGate.js
           node --check api/services/privacyRecoveryOriginalEvidenceGate.js
           node --check api/services/privacyOfflineRecoveryExporter.js
+          node --check api/jobs/votiParlamentoSyncJob.js
           node --check api/jobs/referendumForecastSnapshotJob.js
           node --check api/services/referendumForecastSnapshotService.js
           node --check api/scripts/verify-privacy-recovery-gate-ci.js
-          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js api/tests/privacyOfflineRecoveryExporter.test.js api/tests/privacyRecoveryQuarantineEvidenceGate.test.js api/tests/privacyRecoverySignedEvidenceGate.test.js api/tests/privacyRecoveryOriginalEvidenceGate.test.js api/tests/referendumForecastMaintenance.test.js
+          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js api/tests/privacyOfflineRecoveryExporter.test.js api/tests/privacyRecoveryQuarantineEvidenceGate.test.js api/tests/privacyRecoverySignedEvidenceGate.test.js api/tests/privacyRecoveryOriginalEvidenceGate.test.js api/tests/referendumForecastMaintenance.test.js api/tests/votiParlamentoMaintenance.test.js
       - name: Replay externally signed revocations on synthetic PostgreSQL 17
         env:
           GITHUB_ACTIONS: 'true'

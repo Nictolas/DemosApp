@@ -101,7 +101,10 @@ async function fetchFromSparql(camera = 'Camera', limit = 100) {
 /**
  * Processa e salva le votazioni nella tabella "parlamento"
  */
-async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
+async function processAndSaveVotazioni(sparqlResults, camera = 'Camera', db = pool) {
+  // This writer uses an independent PostgreSQL pool. The cron entry guard
+  // alone cannot prevent writes after a slow SPARQL download.
+  if (isPrivacyRecoveryMaintenanceActive()) return 0;
   if (sparqlResults.length === 0) return [];
 
   const votazioni = {};
@@ -204,8 +207,10 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
   // Salva nella tabella "parlamento"
   let savedCount = 0;
   for (const votazione of Object.values(votazioni)) {
+    // Stop before each separate statement: no new writes after maintenance.
+    if (isPrivacyRecoveryMaintenanceActive()) break;
     try {
-      await pool.query(
+      await db.query(
         `INSERT INTO parlamento (
           uri, votazione_id, camera, titolo, descrizione, data_votazione, esito,
           uri_seduta, numero_seduta, titolo_seduta, legislatura,
@@ -255,7 +260,10 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
         ]
       );
       savedCount++;
+      // In-flight SQL could still commit; do not dispatch the next statement.
+      if (isPrivacyRecoveryMaintenanceActive()) break;
     } catch (error) {
+      if (isPrivacyRecoveryMaintenanceActive()) break;
       console.error(`❌ Errore nel salvare votazione ${votazione.uri}:`, error.message);
     }
   }
@@ -268,48 +276,47 @@ async function processAndSaveVotazioni(sparqlResults, camera = 'Camera') {
  * Default ogni 6 ore; override con env VOTI_PARLAMENTO_SYNC_CRON (sintassi node-cron).
  */
 const votiParlamentoSyncCron = process.env.VOTI_PARLAMENTO_SYNC_CRON || '0 */6 * * *';
+// The cron task and the independently callable cycle share the same checks.
+// Inject fetch/save only for synthetic regression tests; no external calls in CI.
+async function runVotiParlamentoSyncCycle({
+  fetch = fetchFromSparql, save = processAndSaveVotazioni
+} = {}) {
+  let totalSaved = 0;
+  const blocked = () => ({blocked:true,saved:totalSaved});
+  if (isPrivacyRecoveryMaintenanceActive()) return blocked();
+  console.log('🔄 Avvio sincronizzazione automatica votazioni parlamentari...');
+  const limit = 50;
+  for (const camera of ['Camera','Senato']) {
+    if (isPrivacyRecoveryMaintenanceActive()) return blocked();
+    try {
+      const results = await fetch(camera,limit);
+      // A remote fetch can take 30 seconds while maintenance is enabled.
+      if (isPrivacyRecoveryMaintenanceActive()) return blocked();
+      if (results.length) {
+        const saved = await save(results,camera);
+        if (typeof saved === 'number') totalSaved += saved;
+      }
+      if (isPrivacyRecoveryMaintenanceActive()) return blocked();
+      console.log(`✅ ${camera}: sincronizzazione votazioni completata`);
+    } catch (error) {
+      if (isPrivacyRecoveryMaintenanceActive()) return blocked();
+      console.error(`❌ Errore sincronizzazione ${camera}:`,error.message);
+    }
+  }
+  if (isPrivacyRecoveryMaintenanceActive()) return blocked();
+  console.log(`✅ Sincronizzazione completata: ${totalSaved} votazioni salvate/aggiornate`);
+  return {blocked:false,saved:totalSaved};
+}
 const votiParlamentoSyncJob = cron.schedule(votiParlamentoSyncCron, async () => {
-  if (isPrivacyRecoveryMaintenanceActive()) return;
   try {
-    console.log('🔄 Avvio sincronizzazione automatica votazioni parlamentari...');
-    
-    const limit = 50; // Limite per ogni camera
-    let totalSaved = 0;
-    
-    // Sincronizza Camera
-    try {
-      console.log('🔍 Sincronizzazione Camera...');
-      const sparqlResultsCamera = await fetchFromSparql('Camera', limit);
-      if (sparqlResultsCamera.length > 0) {
-        const saved = await processAndSaveVotazioni(sparqlResultsCamera, 'Camera');
-        totalSaved += saved;
-        console.log(`✅ Camera: ${saved} votazioni salvate/aggiornate`);
-      }
-    } catch (error) {
-      console.error('❌ Errore sincronizzazione Camera:', error.message);
-    }
-    
-    // Sincronizza Senato
-    try {
-      console.log('🔍 Sincronizzazione Senato...');
-      const sparqlResultsSenato = await fetchFromSparql('Senato', limit);
-      if (sparqlResultsSenato.length > 0) {
-        const saved = await processAndSaveVotazioni(sparqlResultsSenato, 'Senato');
-        totalSaved += saved;
-        console.log(`✅ Senato: ${saved} votazioni salvate/aggiornate`);
-      }
-    } catch (error) {
-      console.error('❌ Errore sincronizzazione Senato:', error.message);
-    }
-    
-    console.log(`✅ Sincronizzazione completata: ${totalSaved} votazioni totali salvate/aggiornate`);
-    
+    await runVotiParlamentoSyncCycle();
   } catch (error) {
-    console.error('❌ Errore nella sincronizzazione automatica votazioni parlamentari:', error);
+    if (isPrivacyRecoveryMaintenanceActive()) return;
+    console.error('❌ Errore sincronizzazione automatica votazioni parlamentari:',error);
   }
 }, {
-  scheduled: false, // Non avviare automaticamente (va avviato manualmente)
-  timezone: 'Europe/Rome'
+  scheduled:false,
+  timezone:'Europe/Rome'
 });
 
 /**
@@ -338,5 +345,8 @@ const stopVotiParlamentoSyncJob = () => {
 module.exports = {
   startVotiParlamentoSyncJob,
   stopVotiParlamentoSyncJob,
-  votiParlamentoSyncJob
+  votiParlamentoSyncJob,
+  // Explicitly exported to verify independent-pool writes without network or DB.
+  processAndSaveVotazioni,
+  runVotiParlamentoSyncCycle
 };
