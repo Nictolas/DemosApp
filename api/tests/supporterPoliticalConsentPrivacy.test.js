@@ -11,7 +11,7 @@ const consentPredicate =
   /COALESCE\(uc\.political_opinions_consent,\s*(?:u|supporter)\.political_opinions_consent,\s*false\) IS TRUE/;
 
 function assertScoped(sql) {
-  assert.match(sql, /LEFT JOIN (?:public\.)?user_consents uc ON uc\.user_id = (?:u|supporter)\.id/);
+  assert.match(sql, /LEFT JOIN public\.user_consents uc ON uc\.user_id = (?:u|supporter)\.id/);
   assert.match(sql, consentPredicate);
 }
 
@@ -66,7 +66,7 @@ test('push token lookup rechecks consent after reading supporter IDs', async () 
       assertScoped(sql);
       return { rows: [{ id: 'synthetic-consented' }] };
     }
-    if (/FROM users u/.test(sql)) {
+    if (/FROM public\.users u/.test(sql)) {
       assertScoped(sql);
       assert.match(sql, /u\.id::text = ANY\(\$1::text\[\]\)/);
       return { rows: [{ id: 'synthetic-consented', fcm_tokens: ['synthetic-token'] }] };
@@ -87,12 +87,12 @@ test('legacy push token path also rechecks consent after a missing device table'
     attempts++;
     assertScoped(sql);
     if (attempts === 1) {
-      assert.match(sql, /FROM user_devices d/);
+      assert.match(sql, /FROM public\.user_devices d/);
       const e = Error('synthetic device table missing');
       e.code = '42P01';
       throw e;
     }
-    assert.doesNotMatch(sql, /FROM user_devices d/);
+    assert.doesNotMatch(sql, /FROM public\.user_devices d/);
     return { rows: [{ id: 'synthetic-consented', fcm_tokens: ['synthetic-old-token'] }] };
   } };
   const rows = await loadCurrentSupporterTokens(db, {
