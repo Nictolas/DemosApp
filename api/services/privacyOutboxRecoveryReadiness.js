@@ -99,6 +99,14 @@ async function verifyOutboxRecoveryReadiness(client, {
         };
         // No B2 writes. Read back the exact recorded immutable object version.
         const checked = await exporter.verifyArchivedReceipt(row, receipt);
+        // Do not rely only on the exporter claiming success. A substituted,
+        // stale or incomplete verifier could return a plausible retention
+        // timestamp while referring to another B2 version or event hash.
+        // Match BOTH immutable receipt identifiers again at this gate.
+        if (checked?.versionId !== receipt.versionId ||
+            checked?.sha256 !== receipt.sha256) {
+          throw Error('B2 receipt verifier returned mismatched version or SHA256');
+        }
         // Individual readbacks are not enough: a version verified at the
         // beginning of a long scan may expire before the LAST event is read.
         // Require an explicit expiry from the independently checked B2 lock.

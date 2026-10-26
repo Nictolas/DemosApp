@@ -473,10 +473,10 @@ test('B2 readiness rejects an early Object Lock expiry after later receipts fini
   let reads = 0;
   const exporter = {
     config() { return {}; },
-    async verifyArchivedReceipt() {
+    async verifyArchivedReceipt(_row, receipt) {
       reads++;
       if (reads === 2) now = new Date('2026-10-26T00:00:02.000Z');
-      return {retentionUntil: reads === 1
+      return {...receipt, retentionUntil: reads === 1
         ? '2026-10-26T00:00:01.000Z' : '2026-10-26T00:00:10.000Z'};
     }
   };
@@ -505,7 +505,7 @@ test('B2 readiness requires verifiable expiry and accepts retained full batch', 
   await assert.rejects(verifyOutboxRecoveryReadiness(bad.client,{
     ...approved,exporter:{
       config(){return {};},
-      async verifyArchivedReceipt(){return {versionId:'synthetic-locked-version'};}
+      async verifyArchivedReceipt(_row, receipt){return {...receipt};}
     }
   }),/omitted a valid retention expiry/);
   assert.ok(bad.queries.includes('ROLLBACK'));
@@ -514,12 +514,55 @@ test('B2 readiness requires verifiable expiry and accepts retained full batch', 
   const result = await verifyOutboxRecoveryReadiness(good.client,{
     ...approved,exporter:{
       config(){return {};},
-      async verifyArchivedReceipt(){return {retentionUntil:'2026-10-26T00:00:10.000Z'};}
+      async verifyArchivedReceipt(_row, receipt){return {...receipt,retentionUntil:'2026-10-26T00:00:10.000Z'};}
     }
   });
   assert.deepEqual(result,{ready:true,verifiedEvents:1,pinnedEvents:1});
   assert.ok(good.queries.includes('COMMIT'));
   assert.equal(good.queries.includes('ROLLBACK'),false);
+});
+
+
+test('B2 readiness rejects verifier response with absent or mismatched immutable receipt identity', async () => {
+  const envelope = fixture();
+  const opts = {
+    maintenanceConfirmed:true,envelope,secret:SECRET,expectedRecoveryId:ID,
+    expectedManifestDigest:manifestDigest(envelope),
+    expectedRestoredBackupTakenAt:envelope.payload.restoredBackupTakenAt,
+    expectedCapturedAt:envelope.payload.capturedAt,
+    clock:()=>new Date('2026-10-26T00:00:00.000Z')
+  };
+  const cases = [
+    {name:'missing both', response:()=>({retentionUntil:'2026-10-27T00:00:00.000Z'})},
+    {name:'wrong version', response:receipt=>({
+      ...receipt,versionId:'different-immutable-B2-version',
+      retentionUntil:'2026-10-27T00:00:00.000Z'
+    })},
+    {name:'wrong SHA256', response:receipt=>({
+      ...receipt,sha256:'f'.repeat(64),
+      retentionUntil:'2026-10-27T00:00:00.000Z'
+    })},
+    {name:'missing SHA256', response:receipt=>({
+      versionId:receipt.versionId,retentionUntil:'2026-10-27T00:00:00.000Z'
+    })}
+  ];
+  for (const fixtureCase of cases) {
+    const {client, queries} = syntheticB2ReadinessDb(envelope.payload.events);
+    let checks = 0;
+    await assert.rejects(verifyOutboxRecoveryReadiness(client,{
+      ...opts,exporter:{
+        config(){return {};},
+        async verifyArchivedReceipt(_row,receipt) {
+          checks++;
+          return fixtureCase.response(receipt);
+        }
+      }
+    }),/B2 receipt verifier returned mismatched version or SHA256/,
+    fixtureCase.name);
+    assert.equal(checks,1,fixtureCase.name);
+    assert.ok(queries.includes('ROLLBACK'),fixtureCase.name);
+    assert.equal(queries.includes('COMMIT'),false,fixtureCase.name);
+  }
 });
 
 test('recovery HTTP middleware refuses health, GET, write and OPTIONS with no-store', async () => {
@@ -587,11 +630,11 @@ test('dual-loss drill: independently pinned later event missing from both restor
   let remoteReads = 0;
   const exporter = {
     config() { return {}; },
-    async verifyArchivedReceipt(row) {
+    async verifyArchivedReceipt(row, receipt) {
       remoteReads++;
       assert.equal(row.event_key, archived.event_key,
         'a lost event must not be fabricated as a B2 receipt');
-      return {retentionUntil: '2026-10-27T00:00:00.000Z'};
+      return {...receipt, retentionUntil: '2026-10-27T00:00:00.000Z'};
     }
   };
   await assert.rejects(verifyOutboxRecoveryReadiness(client, {
