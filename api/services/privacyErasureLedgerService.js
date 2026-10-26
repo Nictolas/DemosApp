@@ -280,7 +280,11 @@ class PrivacyErasureLedgerService {
   }
 
   static async enforcePoliticalRevocation(client, userId) {
-    let opinionsDeleted = await this.deleteByUserId(client, 'opinioni_risposte', userId);
+    // Restore/backup reconciliation must enforce exactly the same erasure
+    // scope as the live consent-revocation transaction. Import lazily because
+    // politicalConsentService depends on this ledger's schema helpers.
+    const { cleanupConsentScopedPoliticalData } = require('./politicalConsentService');
+    const cleanup = await cleanupConsentScopedPoliticalData(client, userId);
 
     const userConsentColumns = [
       'political_opinions_consent',
@@ -319,7 +323,9 @@ class PrivacyErasureLedgerService {
       );
     }
 
-    return { opinionsDeleted };
+    return { opinionsDeleted: cleanup.deletedByTable.opinioni_risposte || 0,
+      totalDeleted: cleanup.totalDeleted,
+      legacySelectionsCleared: cleanup.legacySelectionsCleared };
   }
 
   static async applyCurrentPrivacyState(client) {
