@@ -55,7 +55,7 @@ async function writeCanonicalSelection(db, {
   try {
     if (selectedUserId == null || selectedUserId === '') {
       await db.query(
-        `DELETE FROM political_selections
+        `DELETE FROM public.political_selections
          WHERE user_id = $1
            AND selection_kind = $2
            AND political_office_id = $3`,
@@ -65,7 +65,7 @@ async function writeCanonicalSelection(db, {
     }
 
     await db.query(
-      `INSERT INTO political_selections (
+      `INSERT INTO public.political_selections (
          user_id, selection_kind, jurisdiction_id, political_office_id,
          selected_user_id, selected_candidacy_id, selected_mandate_id,
          source, context, updated_at
@@ -109,7 +109,7 @@ async function writeLegacySelectionProjection(db, {
   if (!field) return { available: false, written: false, field: null };
 
   const result = await db.query(
-    `UPDATE users
+    `UPDATE public.users
      SET ${field} = $1, updated_at = NOW()
      WHERE id = $2
      RETURNING id`,
@@ -121,7 +121,7 @@ async function writeLegacySelectionProjection(db, {
   );
   if (legacyRelation.rows[0]?.available) {
     await db.query(
-      `INSERT INTO user_representatives (user_id, ${field})
+      `INSERT INTO public.user_representatives (user_id, ${field})
        VALUES ($1, $2)
        ON CONFLICT (user_id) DO UPDATE SET
          ${field} = EXCLUDED.${field},
@@ -157,7 +157,7 @@ async function setPoliticalSelection(db, {
   // Acquiring the lock before checking consent serializes SELECT and REVOKE
   // irrespective of how long matching/eligibility checks took upstream.
   const lockedUser = await db.query(
-    'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+    'SELECT id FROM public.users WHERE id = $1 FOR UPDATE', [userId]
   );
   if (!lockedUser.rows.length) {
     const error = new Error('Political selection subject not found');
@@ -221,7 +221,7 @@ async function loadLegacySelections(db, {
 
   const result = await db.query(
     `SELECT ${fields.join(', ')}
-     FROM users
+     FROM public.users
      WHERE id = $1`,
     [userId],
   );
@@ -277,7 +277,7 @@ async function loadPoliticalSelections(db, {
          ps.source,
          ps.context,
          ps.updated_at
-       FROM political_selections ps
+       FROM public.political_selections ps
        WHERE ${where.join(' AND ')}
        ORDER BY ps.selection_kind, ps.political_office_id`,
       params,
@@ -333,9 +333,9 @@ async function loadSupporterUserIds(db, {
     }
     const result = await db.query(
       `SELECT DISTINCT u.id::text AS id
-       FROM political_selections ps
-       JOIN users u ON u.id = ps.user_id
-       LEFT JOIN user_consents uc ON uc.user_id = u.id
+       FROM public.political_selections ps
+       JOIN public.users u ON u.id = ps.user_id
+       LEFT JOIN public.user_consents uc ON uc.user_id = u.id
        WHERE ${where.join(' AND ')}
          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
        ORDER BY u.id::text`,
@@ -364,8 +364,8 @@ async function loadSupporterUserIds(db, {
   const predicate = fields.map((field) => `u.${field}::text = $1::text`).join(' OR ');
   const result = await db.query(
     `SELECT DISTINCT u.id::text AS id
-     FROM users u
-     LEFT JOIN user_consents uc ON uc.user_id = u.id
+     FROM public.users u
+     LEFT JOIN public.user_consents uc ON uc.user_id = u.id
      WHERE u.status = 'a'
        AND (${predicate})
        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
