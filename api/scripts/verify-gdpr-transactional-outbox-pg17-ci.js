@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const { Pool } = require('pg');
 const Ledger = require('../services/privacyErasureLedgerService');
 const { PrivacyErasureOutboxWorker } = require('../services/privacyErasureOutboxWorker');
+const { PrivacyErasureB2Journal } = require('../services/privacyErasureB2Journal');
 const { verifyOutboxRecoveryReadiness } = require('../services/privacyOutboxRecoveryReadiness');
 const { signature, manifestDigest } = require('../services/privacyRecoveryGateService');
 
@@ -366,6 +367,64 @@ async function main() {
     assert.equal(await value(pool,
       'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox WHERE delivered_at IS NOT NULL'),3);
 
+    // Verify microsecond pagination against REAL disposable PostgreSQL 17,
+    // not just a JS mock of the to_char() expression.
+    const cursorClient = await pool.connect();
+    try {
+      await cursorClient.query('BEGIN');
+      // A transaction-local shadow table ensures exactly two invented events.
+      // No production schema or external B2 service is touched.
+      await cursorClient.query(
+        'CREATE TEMP TABLE privacy_erasure_ledger ' +
+        '(LIKE public.privacy_erasure_ledger INCLUDING DEFAULTS) ON COMMIT DROP'
+      );
+      const earlyKey='ffffffff-ffff-4fff-8fff-ffffffffffff';
+      const lateKey='00000000-0000-4000-8000-000000000001';
+      for (const [key,time] of [
+        [earlyKey,'2026-10-26T03:00:00.000123Z'],
+        [lateKey,'2026-10-26T03:00:00.000987Z']
+      ]) {
+        await cursorClient.query(
+          'INSERT INTO privacy_erasure_ledger ' +
+          '(event_key,subject_user_id,event_type,occurred_at,details) ' +
+          'VALUES($1,$2,$3,$4::timestamptz,$5::jsonb)',
+          [key,n(),Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,time,
+            JSON.stringify({source:'invented-microsecond-ci'})]
+        );
+      }
+      // archiveEvent is an in-memory stand-in: archiveBatch still performs its
+      // actual SQL against the temporary PG17 ledger, but never contacts B2.
+      const archive = new PrivacyErasureB2Journal({
+        env:{
+          GDPR_LEDGER_B2_ENABLED:'true',
+          GDPR_LEDGER_B2_BUCKET:'synthetic-gdpr-b2-ci',
+          GDPR_LEDGER_B2_REGION:'eu-central-003',
+          GDPR_LEDGER_B2_ENDPOINT:'https://s3.eu-central-003.backblazeb2.com',
+          GDPR_LEDGER_B2_ACCESS_KEY_ID:'synthetic-ci',
+          GDPR_LEDGER_B2_SECRET_ACCESS_KEY:'synthetic-ci',
+          GDPR_LEDGER_B2_RETENTION_DAYS:'30',
+          B2_BUCKET_NAME:'separate-synthetic-ci'
+        }
+      });
+      const archived=[];
+      archive.archiveEvent=async event=>{
+        archived.push(event.event_key);
+        return {eventKey:event.event_key,versionId:'fake-ci-only'};
+      };
+      const page1=await archive.archiveBatch(cursorClient,{limit:1});
+      assert.equal(page1.cursor.occurred_at,'2026-10-26T03:00:00.000123Z');
+      assert.equal(page1.cursor.event_key,earlyKey);
+      const page2=await archive.archiveBatch(cursorClient,{after:page1.cursor,limit:1});
+      assert.equal(page2.cursor.occurred_at,'2026-10-26T03:00:00.000987Z');
+      assert.equal(page2.cursor.event_key,lateKey);
+      const page3=await archive.archiveBatch(cursorClient,{after:page2.cursor,limit:1});
+      assert.equal(page3.exported,0);
+      assert.deepEqual(archived,[earlyKey,lateKey]);
+    } finally {
+      await cursorClient.query('ROLLBACK');
+      cursorClient.release();
+    }
+
     console.log('GDPR_TRANSACTIONAL_OUTBOX_PG17_PASS '+JSON.stringify({
       synthetic:true,transactionRollbackAtomic:true,
       historicalBackfillIdempotent:true,oneStatementAutocommit:true,
@@ -375,6 +434,7 @@ async function main() {
       orphanedOutboxRejectedBySummaryAndReadiness:true,
       missingLedgerFailsWithoutDDL:true,
       externalReceiptReadbackRequired:true,remoteTamperRejected:true,
+      microsecondExportCursorPg17:true,
       productionUntouched:true
     }));
   } finally {
