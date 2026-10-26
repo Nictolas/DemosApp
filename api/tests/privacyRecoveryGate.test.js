@@ -8,6 +8,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { privacyRecoveryMaintenance } = require('../middleware/privacyRecoveryMaintenance');
 const { verifyOutboxRecoveryReadiness } = require('../services/privacyOutboxRecoveryReadiness');
+const { normalizeEvent: normalizeB2Event } = require('../services/privacyErasureB2Journal');
 const {
   signature, manifestDigest, assertIndependentRecoveryCheckpoint, verifySignedManifest, reconcileRestoredPrivacyState
 } = require('../services/privacyRecoveryGateService');
@@ -68,10 +69,12 @@ test('signed recovery refuses events that cannot fit the immutable B2 archive be
     details: {synthetic: 'x'.repeat(7900)}
   });
   assert.doesNotThrow(() => fixture([within]));
+  assert.doesNotThrow(() => normalizeB2Event(within));
   const oversized = mkEvent('political_consent_revoked', {
     details: {synthetic: 'x'.repeat(9000)}
   });
   assert.throws(() => fixture([oversized]), /B2 archive limit/);
+  assert.throws(() => normalizeB2Event(oversized), /minimization limit/);
 
   // An attacker-supplied signed-looking manifest must be rejected during
   // normalization, without connecting to PostgreSQL or contacting B2.
