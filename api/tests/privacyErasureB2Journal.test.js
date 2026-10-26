@@ -30,6 +30,7 @@ class FakeB2 {
   constructor({mode='COMPLIANCE',days=30,failRead=false,failRetention=false}={}) {
     this.mode=mode;this.days=days;this.failRead=failRead;
     this.failRetention=failRetention;this.objects=new Map();this.calls=[];
+    this.declaredLength=null;this.streamChunks=null;this.streamDestroyed=false;
   }
   async send(command) {
     const name=command.constructor.name,input=command.input;
@@ -62,9 +63,22 @@ class FakeB2 {
       }};
     }
     if(name==='GetObjectCommand') {
-      return {Body:{transformToByteArray:async()=>Uint8Array.from(
-        this.failRead?Buffer.from('{"bad":true}'):object.body
-      )}};
+      if(this.streamChunks) {
+        const chunks=this.streamChunks;
+        const stream={
+          async *[Symbol.asyncIterator]() {
+            for(const chunk of chunks) yield chunk;
+          },
+          destroy:()=>{this.streamDestroyed=true;}
+        };
+        return {ContentLength:this.declaredLength ?? undefined,Body:stream};
+      }
+      return {
+        ContentLength:this.declaredLength ?? object.body.length,
+        Body:{transformToByteArray:async()=>Uint8Array.from(
+          this.failRead?Buffer.from('{"bad":true}'):object.body
+        )}
+      };
     }
     throw Error('Unexpected AWS operation: '+name);
   }
@@ -136,6 +150,44 @@ test('read-only recovery verification refuses missing or altered immutable B2 ve
   await assert.rejects(client.verifyArchivedReceipt(event,receipt),/hash mismatch/);
   assert.equal(b2.calls.filter(c=>c.name==='PutObjectCommand').length,putBefore);
 });
+test('readback is bounded: reject huge declared length before buffering and abort oversized streamed body',async()=>{
+  const b2=new FakeB2(),event=EVT(),journal=service(b2);
+  const saved=await journal.archiveEvent(event);
+  const receipt={versionId:saved.versionId,sha256:saved.sha256};
+  const putCount=b2.calls.filter(x=>x.name==='PutObjectCommand').length;
+
+  // Header alone must reject before transformToByteArray() is invoked.
+  b2.declaredLength=90000000;
+  await assert.rejects(journal.verifyArchivedReceipt(event,receipt),/bounded read limit/);
+  b2.declaredLength=null;
+
+  // A lying/missing ContentLength must not bypass the streaming cap.
+  b2.streamChunks=[Buffer.alloc(4096),Buffer.alloc(4097)];
+  await assert.rejects(journal.verifyArchivedReceipt(event,receipt),/bounded read limit/);
+  assert.equal(b2.streamDestroyed,true);
+
+  // A valid chunked body must still verify the exact immutable version.
+  const valid=b2.objects.get(saved.key).body;
+  b2.streamChunks=[valid.subarray(0,10),valid.subarray(10)];
+  b2.streamDestroyed=false;
+  const verified=await journal.verifyArchivedReceipt(event,receipt);
+  assert.equal(verified.versionId,saved.versionId);
+  assert.equal(b2.streamDestroyed,false);
+  assert.equal(b2.calls.filter(x=>x.name==='PutObjectCommand').length,putCount,
+    'readiness must remain strictly read-only');
+});
+
+test('invalid COMPLIANCE retention is rejected before any B2 body download',async()=>{
+  const b2=new FakeB2(),event=EVT(),journal=service(b2);
+  const saved=await journal.archiveEvent(event);
+  b2.failRetention=true;
+  const readsBefore=b2.calls.filter(x=>x.name==='GetObjectCommand').length;
+  await assert.rejects(journal.verifyArchivedReceipt(event,{
+    versionId:saved.versionId,sha256:saved.sha256
+  }),/COMPLIANCE/);
+  assert.equal(b2.calls.filter(x=>x.name==='GetObjectCommand').length,readsBefore);
+});
+
 test('existing event key with changed content is a fatal conflict',async()=>{
   const b2=new FakeB2(),event=EVT();
   await service(b2).archiveEvent(event);
