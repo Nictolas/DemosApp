@@ -11,53 +11,140 @@ const routePath = require.resolve(path.join(__dirname, '..', 'routes', 'fcm-toke
 const databasePath = require.resolve(path.join(__dirname, '..', 'config', 'database.js'));
 const authPath = require.resolve(path.join(__dirname, '..', 'middleware', 'auth.js'));
 
-function makeFakeDatabase({ legacy = [], canonical = [], legacyColumnMissing = false } = {}) {
+function makeFakeDatabase({
+  legacy = [], canonical = [], legacyColumnMissing = false,
+  failOperation = null, userMissing = false, delayFirstWrite = null,
+} = {}) {
   const state = {
     legacy: [...legacy],
     devices: canonical.map(item => ({ ...item })),
     queries: [],
+    released: 0,
+    rolledBack: 0,
+    committed: 0,
   };
-  const query = async (sql, params = []) => {
-    const s = String(sql).replace(/\s+/g, ' ').trim();
-    state.queries.push({ sql: s, params });
-    if (s.startsWith('SELECT COALESCE(fcm_tokens') && s.includes('FROM public.users')) {
-      if (legacyColumnMissing) throw Object.assign(Error('synthetic column missing'), { code: '42703' });
-      return { rows: [{ fcm_tokens: [...state.legacy] }] };
-    }
-    if (s.startsWith('SELECT 1 FROM public.users')) return { rows: [{ '?column?': 1 }] };
-    if (s.startsWith('UPDATE public.users SET fcm_tokens')) {
-      if (legacyColumnMissing) throw Object.assign(Error('synthetic column missing'), { code: '42703' });
-      state.legacy = [...params[0]];
-      return { rowCount: 1, rows: [] };
-    }
-    if (s.startsWith('INSERT INTO public.user_devices')) {
-      const [userId, token] = params;
-      const match = state.devices.find(item => item.token === token);
-      if (match) {
-        match.userId = userId;
-        match.active = true;
-      } else state.devices.push({ userId, token, active: true });
-      return { rowCount: 1, rows: [] };
-    }
-    if (s.startsWith('UPDATE public.user_devices') && s.includes('fcm_token <> $2')) {
-      for (const item of state.devices) {
-        if (item.userId === params[0] && item.token !== params[1]) item.active = false;
-      }
-      return { rowCount: 1, rows: [] };
-    }
-    if (s.startsWith('UPDATE public.user_devices') && s.includes('btrim(fcm_token) = $2')) {
-      for (const item of state.devices) {
-        if (item.userId === params[0] && item.token.trim() === params[1]) item.active = false;
-      }
-      return { rowCount: 1, rows: [] };
-    }
-    if (s.startsWith('UPDATE public.user_devices') && s.includes('WHERE user_id = $1')) {
-      for (const item of state.devices) if (item.userId === params[0]) item.active = false;
-      return { rowCount: 1, rows: [] };
-    }
-    throw Error('Unexpected SQL in FCM synthetic HTTP test: ' + s);
+  const backup = () => ({
+    legacy: [...state.legacy], devices: state.devices.map(item => ({ ...item })),
+  });
+  const restore = (snapshot) => {
+    state.legacy = [...snapshot.legacy];
+    state.devices = snapshot.devices.map(item => ({ ...item }));
   };
-  return { state, query };
+  let waitForLock = Promise.resolve();
+  let delayed = false;
+  const connect = async () => {
+    let initial = null;
+    let savepoint = null;
+    let releaseRowLock = null;
+    let aborted = false;
+    let active = false;
+    async function close(commit) {
+      if (!active) throw Error('No synthetic transaction');
+      if (!commit) {
+        restore(initial);
+        state.rolledBack++;
+      } else {
+        if (aborted) throw Error('Cannot commit aborted SQL transaction');
+        state.committed++;
+      }
+      active = false;
+      if (releaseRowLock) {
+        releaseRowLock();
+        releaseRowLock = null;
+      }
+    }
+    return {
+      async query(sql, params = []) {
+        const q = String(sql).replace(/\\s+/g, ' ').trim();
+        state.queries.push({ sql: q, params });
+        if (q === 'BEGIN') {
+          active = true;
+          return {rows:[]};
+        }
+        if (q === 'COMMIT') { await close(true);return {rows:[]}; }
+        if (q === 'ROLLBACK') { await close(false);return {rows:[]}; }
+        if (q === 'SAVEPOINT fcm_legacy_column') {
+          savepoint = backup();
+          return {rows:[]};
+        }
+        if (q === 'RELEASE SAVEPOINT fcm_legacy_column') {
+          savepoint = null;
+          return {rows:[]};
+        }
+        if (q === 'ROLLBACK TO SAVEPOINT fcm_legacy_column') {
+          if (!savepoint) throw Error('No legacy savepoint');
+          restore(savepoint);
+          aborted = false;
+          return {rows:[]};
+        }
+        if (aborted) throw Object.assign(Error('Synthetic transaction aborted'),{code:'25P02'});
+        if (q === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE') {
+          const prior = waitForLock;
+          let unlock;
+          waitForLock = new Promise(resolve => {unlock=resolve;});
+          await prior;
+          releaseRowLock = unlock;
+          initial = backup();
+          return {rows:userMissing ? [] : [{id:params[0]}]};
+        }
+        if (failOperation && q.includes(failOperation)) {
+          aborted = true;
+          throw Object.assign(Error('Synthetic injected SQL failure'),{code:'23514'});
+        }
+        if (q.startsWith('SELECT COALESCE(fcm_tokens') && q.includes('FROM public.users')) {
+          if (legacyColumnMissing) {
+            aborted = true;
+            throw Object.assign(Error('Synthetic legacy column missing'),{code:'42703'});
+          }
+          return { rows: [{ fcm_tokens: [...state.legacy] }] };
+        }
+        if (q.startsWith('SELECT 1 FROM public.users')) return { rows: [{ '?column?': 1 }] };
+        if (q.startsWith('UPDATE public.users SET fcm_tokens')) {
+          if (legacyColumnMissing) {
+            aborted = true;
+            throw Object.assign(Error('Synthetic legacy column missing'),{code:'42703'});
+          }
+          if (delayFirstWrite && !delayed) {
+            delayed=true;
+            await delayFirstWrite();
+          }
+          state.legacy = [...params[0]];
+          return { rowCount: 1, rows: [] };
+        }
+        if (q.startsWith('INSERT INTO public.user_devices')) {
+          const [userId, token] = params;
+          const match = state.devices.find(item => item.token === token);
+          if (match) {
+            match.userId = userId;
+            match.active = true;
+          } else state.devices.push({ userId, token, active: true });
+          return { rowCount: 1, rows: [] };
+        }
+        if (q.startsWith('UPDATE public.user_devices') && q.includes('fcm_token <> $2')) {
+          for (const item of state.devices) {
+            if (item.userId === params[0] && item.token !== params[1]) item.active = false;
+          }
+          return { rowCount: 1, rows: [] };
+        }
+        if (q.startsWith('UPDATE public.user_devices') && q.includes('btrim(fcm_token) = $2')) {
+          for (const item of state.devices) {
+            if (item.userId === params[0] && item.token.trim() === params[1]) item.active = false;
+          }
+          return { rowCount: 1, rows: [] };
+        }
+        if (q.startsWith('UPDATE public.user_devices') && q.includes('WHERE user_id = $1')) {
+          for (const item of state.devices) if (item.userId === params[0]) item.active = false;
+          return { rowCount: 1, rows: [] };
+        }
+        throw Error('Unexpected SQL in FCM synthetic HTTP test: '+q);
+      },
+      release() {
+        if (active) throw Error('Released uncommitted synthetic FCM transaction');
+        state.released++;
+      }
+    };
+  };
+  return {state, connect};
 }
 
 async function withSyntheticFcmRouter(pool, exercise) {
