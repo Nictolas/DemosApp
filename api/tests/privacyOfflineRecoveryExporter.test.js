@@ -206,14 +206,16 @@ test('offline exporter verifies all 251 signed events across pages before ANY B2
   assert.ok(h.db.calls.includes('ROLLBACK'));
 });
 
-test('offline exporter acquires both table write-exclusion locks before scanning or B2',async()=>{
+test('offline exporter acquires shared replay advisory lock before both table locks and B2',async()=>{
   const h=harness();
   await h.service.runOnce(h.db.pool,fixture());
+  const advisory=h.db.calls.findIndex(sql=>sql.includes('pg_advisory_xact_lock(170026, 296)'));
   const lock=h.db.calls.findIndex(sql=>sql.startsWith('LOCK TABLE'));
   const scan=h.db.calls.findIndex(sql=>sql.includes('WHERE event_key > $1'));
   const pending=h.db.calls.findIndex(sql=>sql.includes('FOR UPDATE OF o SKIP LOCKED'));
   assert.ok(h.db.calls[0].startsWith('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ'));
-  assert.ok(lock>0 && scan>lock && pending>scan);
+  assert.ok(advisory>0 && lock>advisory && scan>lock && pending>scan,
+    'consistent advisory-then-table lock order prevents inversion with signed replay');
   assert.match(h.db.calls[lock],/SHARE ROW EXCLUSIVE MODE NOWAIT/);
 });
 
