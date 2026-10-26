@@ -186,6 +186,39 @@ async function main() {
     // CI-only cleanup of the deliberately injected orphan.
     await db.query('DELETE FROM privacy_erasure_delivery_outbox WHERE event_key=$1',[orphanKey]);
 
+    // Disposable PG17: test a non-cooperating writer that owns a ROW
+    // EXCLUSIVE table lock WITHOUT our recovery advisory lock. Replay must
+    // refuse both cases with 55P03 before any import or privacy cleanup.
+    for (const table of ['privacy_erasure_ledger','privacy_erasure_delivery_outbox']) {
+      const writer=await pool.connect();
+      try {
+        await writer.query('BEGIN');
+        if (table === 'privacy_erasure_ledger') {
+          await writer.query(
+            'UPDATE privacy_erasure_ledger SET details=details WHERE event_key=$1',
+            [omitted.event_key]
+          );
+        } else {
+          await writer.query(
+            'UPDATE privacy_erasure_delivery_outbox ' +
+            'SET delivered_at=delivered_at WHERE event_key=$1', [omitted.event_key]
+          );
+        }
+        await assert.rejects(reconcileRestoredPrivacyState({
+          client:noDdlClient,envelope:signed,secret:SECRET,
+          expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
+        }),error=>error.code==='55P03',
+        'replay must reject a concurrent '+table+' writer before state mutation');
+        assert.equal(Number((await db.query(
+          'SELECT count(*)::int AS n FROM privacy_erasure_ledger'
+        )).rows[0].n),0,'failed concurrent replay must not import events');
+        assert.equal(await count(db,'political_selections',SUBJECT),1,
+          'failed concurrent replay must not erase restored choices');
+      } finally {
+        await writer.query('ROLLBACK');
+        writer.release();
+      }
+    }
     // The signed 2026-10-25 revocation must erase the 2026-10-24 DB snapshot.
     const first=await reconcileRestoredPrivacyState({
       client:noDdlClient,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
