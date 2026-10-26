@@ -49,6 +49,20 @@ async function verifyOutboxRecoveryReadiness(client, {
     if (!presence.rows[0]?.ledger || !presence.rows[0]?.outbox) {
       throw Error('Incomplete GDPR ledger/outbox schema: recovery refused');
     }
+    // The forward ledger->outbox check alone misses outbox-only events.
+    // An incomplete/corrupt restore could drop a ledger event but leave a
+    // delivered receipt in a legacy outbox without its expected foreign key.
+    // Do not declare readiness when ANY delivery record lacks a ledger row.
+    const orphaned = await client.query(
+      'SELECT EXISTS (' +
+      ' SELECT 1 FROM privacy_erasure_delivery_outbox o ' +
+      ' WHERE NOT EXISTS (' +
+      ' SELECT 1 FROM privacy_erasure_ledger l WHERE l.event_key=o.event_key' +
+      ' )) AS present'
+    );
+    if (orphaned.rows[0]?.present !== false) {
+      throw Error('GDPR delivery outbox contains orphaned events: recovery refused');
+    }
     let cursor = '';
     let verified = 0;
     for (;;) {

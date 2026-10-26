@@ -273,6 +273,36 @@ async function main() {
     b2.objects.set(committed.event_key,lost);
     assert.deepEqual(await readiness(),{ready:true,verifiedEvents:2,pinnedEvents:2});
 
+    // A legacy/corrupted restore may contain a delivery row without its
+    // ledger event. Bypass the FK trigger ONLY in this guarded disposable
+    // PostgreSQL 17 CI database to reproduce that otherwise forbidden state.
+    const orphanKey = n();
+    const corruptFixture = await pool.connect();
+    try {
+      await corruptFixture.query('SET session_replication_role = replica');
+      try {
+        await corruptFixture.query(
+          'INSERT INTO privacy_erasure_delivery_outbox ' +
+          '(event_key,delivered_at,b2_version_id,b2_sha256) ' +
+          'VALUES ($1,NOW(),$2,$3)',
+          [orphanKey,'synthetic-orphan-version','a'.repeat(64)]
+        );
+      } finally {
+        await corruptFixture.query('SET session_replication_role = origin');
+      }
+    } finally {corruptFixture.release();}
+    const orphanSummary = await PrivacyErasureOutboxWorker.status(pool);
+    assert.equal(orphanSummary.pending,0);
+    assert.equal(orphanSummary.unqueued,0);
+    assert.equal(orphanSummary.orphaned,1);
+    assert.equal(orphanSummary.ready,false);
+    await assert.rejects(readiness(),/orphaned events/);
+    // Remove ONLY the invented inconsistent fixture, not any real evidence.
+    await pool.query('DELETE FROM privacy_erasure_delivery_outbox WHERE event_key=$1',
+      [orphanKey]);
+    assert.equal((await PrivacyErasureOutboxWorker.status(pool)).orphaned,0);
+    assert.deepEqual(await readiness(),{ready:true,verifiedEvents:2,pinnedEvents:2});
+
     // Simulate a truncated restored ledger while keeping an independently
     // pinned manifest with two events. Readback of every remaining B2 version
     // must NOT report ready: the absent event is detected at end-of-scan.
@@ -338,6 +368,7 @@ async function main() {
       networkFailureRetry:true,postPutFailureRetry:true,failedDatabaseAckRetry:true,
       concurrentSkipLocked:true,noMissingEvents:true,
       missingOutboxFailsClosed:true,missingHistoricalRowsDetected:true,
+      orphanedOutboxRejectedBySummaryAndReadiness:true,
       missingLedgerFailsWithoutDDL:true,
       externalReceiptReadbackRequired:true,remoteTamperRejected:true,
       productionUntouched:true

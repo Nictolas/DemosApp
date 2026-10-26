@@ -198,6 +198,21 @@ async function reconcileRestoredPrivacyState({
     if (outboxSchema.rows[0]?.installed !== outboxEnabled) {
       throw Error('GDPR recovery outbox schema/mode mismatch: offline provisioning required');
     }
+    if (outboxEnabled) {
+      // An outbox-only row may be a trace of a missing ledger event in a
+      // damaged/legacy restore. Never silently keep it while replaying the
+      // approved manifest, or the later B2 readiness could miss it.
+      const orphaned = await client.query(
+        'SELECT EXISTS (' +
+        ' SELECT 1 FROM privacy_erasure_delivery_outbox o ' +
+        ' WHERE NOT EXISTS (' +
+        ' SELECT 1 FROM privacy_erasure_ledger l WHERE l.event_key=o.event_key' +
+        ' )) AS present'
+      );
+      if (orphaned.rows[0]?.present !== false) {
+        throw Error('GDPR recovery outbox contains orphaned events: manual reconciliation required');
+      }
+    }
 
     // Fail closed if the restored database has ANY GDPR event missing from
     // the independently pinned manifest. A matching HMAC only authenticates
