@@ -52,3 +52,7 @@ Per stato verificato dei servizi Render, metadati Supabase e blocchi esterni non
 ## Preflight indipendente e fallback NO-GO (26 ottobre 2026)
 
 Per raccogliere attestazioni di quarantena verificabili per singola superficie senza includere segreti nel risultato, usare il componente *offline* `api/services/privacyRecoveryQuarantineEvidenceGate.js` insieme all'inventario `gdpr-provider-quarantine-audit-20261026.md`. Non è un agente che possa interrogare Render/Supabase: richiede riferimenti prodotti e verificati dall'operatore. Qualunque lacuna `NO_GO`; pacchetto formalmente completo `MANUAL_INDEPENDENT_REVIEW_REQUIRED`. **Non avvia né sblocca alcun recovery e non sostituisce approvazione del titolare/DPO.**
+
+## Preflight delle firme sulle evidenze (26 ottobre 2026)
+
+È disponibile un controllo offline separato `api/services/privacyRecoverySignedEvidenceGate.js`: richiede Ed25519 e impronte delle chiavi fidate approvate per canale indipendente, con riferimenti e digest dei documenti, ed esegue prima i controlli di completezza e cronologia. Non è collegato automaticamente al ripristino. Una firma valida **non dimostra** che l'endpoint sia stato bloccato o che il ledger esterno sia completo; prima di un recovery reale restano obbligatorie verifiche indipendenti dei provider, della catena di fiducia e dei documenti, oltre a decisione manuale del titolare/DPO.
