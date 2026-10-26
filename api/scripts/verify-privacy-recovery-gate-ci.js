@@ -96,7 +96,7 @@ async function main() {
     // that snapshot without creating a replacement or deleting user data.
     const noDdlClient = {
       async query(sql, params) {
-        assert.doesNotMatch(String(sql), /\\bCREATE\\s+(?:TABLE|INDEX)\\b/i,
+        assert.doesNotMatch(String(sql), /\bCREATE\s+(?:TABLE|INDEX)\b/i,
           'recovery must not execute implicit schema DDL');
         return db.query(sql, params);
       }
