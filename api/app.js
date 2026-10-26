@@ -583,7 +583,7 @@ if (process.env.ENABLE_VIOLATION_MONITORING === 'true') {
 // Avvia job di backup automatico (solo se abilitato)
 if (process.env.ENABLE_AUTOMATIC_BACKUP === 'true') {
   console.warn(
-    'Legacy application JSON backup is retired and will not start. Use PostgreSQL/provider recovery (Neon PITR in production).'
+    'Legacy application JSON backup is retired and will not start. Use PostgreSQL/provider recovery (Supabase in production; verify backup/PITR availability and approved isolation).'
   );
 }
 
