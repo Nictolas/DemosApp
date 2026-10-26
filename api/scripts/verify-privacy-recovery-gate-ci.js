@@ -184,6 +184,32 @@ async function main() {
     assert.equal(retainedReceipt.b2_version_id,'synthetic-locked-version');
     assert.equal(retainedReceipt.b2_sha256,'a'.repeat(64));
 
+    // A direct ledger replay must also reject contradictory consent events
+    // whose timestamps collide at the signed manifest's millisecond precision.
+    // In the old ORDER BY occurred_at DESC, event_key DESC, random UUID
+    // ordering could have selected an unsafe consent grant.
+    const tiedRevoke = event(THIRD,'political_consent_revoked',
+      '2026-10-25T14:00:00.000000Z');
+    const tiedGrant = event(THIRD,'political_consent_granted',
+      '2026-10-25T14:00:00.000500Z');
+    for (const entry of [tiedRevoke,tiedGrant]) {
+      await db.query(
+        'INSERT INTO privacy_erasure_ledger ' +
+        '(event_key,subject_user_id,event_type,occurred_at,details) ' +
+        'VALUES ($1,$2,$3,$4,$5::jsonb)',
+        [entry.event_key,entry.subject_user_id,entry.event_type,
+          entry.occurred_at,JSON.stringify(entry.details)]
+      );
+    }
+    await assert.rejects(Ledger.applyCurrentPrivacyState(db),
+      /Ambiguous simultaneous GDPR consent/);
+    assert.equal(await count(db,'political_selections',THIRD),1);
+    assert.equal(await count(db,'political_selections',SUBJECT),0);
+    await db.query(
+      'DELETE FROM privacy_erasure_ledger WHERE event_key = ANY($1::text[])',
+      [[tiedRevoke.event_key,tiedGrant.event_key]]
+    );
+
     // Even a *validly signed* manifest cannot silently rewrite an event
     // that already exists with the same key and a different subject/type.
     const conflictingEvents=structuredClone(events);
@@ -228,7 +254,8 @@ async function main() {
       replayFailureRolledBack:true,maintenanceRequired:true,
       unapprovedRestoredEventRejected:true,
       outboxSchemaMismatchRejected:true,restoredEventsQueuedAtomically:true,
-      deliveryReceiptPreserved:true,productionUntouched:true
+      deliveryReceiptPreserved:true,simultaneousConsentTieRejected:true,
+      productionUntouched:true
     }));
   } catch(error) {
     await db.query('ROLLBACK').catch(()=>{});

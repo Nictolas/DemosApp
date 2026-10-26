@@ -50,11 +50,26 @@ function normalizePayload(payload) {
   }
   const events = payload.events.map(normalizeEvent);
   const keys = new Set();
+  const consentTimestamps = new Map();
   for (const event of events) {
     if (keys.has(event.event_key)) throw Error('Repeated event in external privacy manifest');
     keys.add(event.event_key);
     if (new Date(event.occurred_at) > captured) {
       throw Error('External event occurred after manifest capture timestamp');
+    }
+    if (event.event_type === Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED ||
+        event.event_type === Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED) {
+      // PostgreSQL's former timestamp + random UUID tie-break could select
+      // "granted" over "revoked" for two opposing events at the same instant.
+      // Their real order is unknowable: do not infer consent from UUID order.
+      // Compare normalized millisecond timestamps, just as the signed
+      // manifest does, so sub-millisecond ambiguity is also rejected.
+      const stamp = JSON.stringify([event.subject_user_id, event.occurred_at]);
+      const previous = consentTimestamps.get(stamp);
+      if (previous && previous !== event.event_type) {
+        throw Error('Ambiguous simultaneous GDPR consent grant and revocation');
+      }
+      consentTimestamps.set(stamp, event.event_type);
     }
   }
   // Snapshot lists must be in stable chronological order. This is used for
