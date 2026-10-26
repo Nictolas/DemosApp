@@ -448,7 +448,7 @@ async function main() {
     const thirdApproved=approvedCheckpoint(thirdEnvelope);
     const injected={
       async query(sql,params) {
-        if (String(sql).startsWith('DELETE FROM "political_selections"')) {
+        if (String(sql).startsWith('DELETE FROM public."political_selections"')) {
           throw Error('synthetic recovery write failure');
         }
         return db.query(sql,params);
