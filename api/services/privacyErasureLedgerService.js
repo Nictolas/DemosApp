@@ -79,7 +79,9 @@ class PrivacyErasureLedgerService {
     const eventKey = crypto.randomUUID();
     const params = [eventKey, String(userId), eventType, JSON.stringify(details)];
     if (process.env.GDPR_ERASURE_OUTBOX_ENABLED === 'true') {
-      await this.ensureDeliveryOutbox(client);
+      // NO automatic DDL on a live revocation/deletion request. This fails
+      // closed if the schema was not deliberately provisioned and backfilled
+      // during an approved maintenance window.
       // ONE PostgreSQL statement makes event + pending-delivery durable
       // atomically even if the caller forgot to open an explicit transaction.
       // In a surrounding consent/account transaction both roll back together.

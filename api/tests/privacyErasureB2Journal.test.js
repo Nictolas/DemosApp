@@ -116,6 +116,26 @@ test('event writes only to dedicated bucket, no identity in keys or metadata; lo
   assert.equal(reused.reused,true);
   assert.equal(b2.calls.filter(x=>x.name==='PutObjectCommand').length,1);
 });
+test('read-only recovery verification refuses missing or altered immutable B2 versions',async()=>{
+  const b2=new FakeB2(),event=EVT(),client=service(b2);
+  const uploaded=await client.archiveEvent(event);
+  const receipt={versionId:uploaded.versionId,sha256:uploaded.sha256};
+  const putBefore=b2.calls.filter(c=>c.name==='PutObjectCommand').length;
+  const checked=await client.verifyArchivedReceipt(event,receipt);
+  assert.equal(checked.versionId,uploaded.versionId);
+  assert.equal(b2.calls.filter(c=>c.name==='PutObjectCommand').length,putBefore);
+  await assert.rejects(client.verifyArchivedReceipt(event,{
+    versionId:uploaded.versionId,sha256:'f'.repeat(64)
+  }),/does not match/);
+  const original=b2.objects.get(uploaded.key);
+  b2.objects.delete(uploaded.key);
+  await assert.rejects(client.verifyArchivedReceipt(event,receipt),/Missing object/);
+  assert.equal(b2.calls.filter(c=>c.name==='PutObjectCommand').length,putBefore,
+    'readiness must never silently reupload missing evidence');
+  b2.objects.set(uploaded.key,{...original,body:Buffer.from('{"altered":true}')});
+  await assert.rejects(client.verifyArchivedReceipt(event,receipt),/hash mismatch/);
+  assert.equal(b2.calls.filter(c=>c.name==='PutObjectCommand').length,putBefore);
+});
 test('existing event key with changed content is a fatal conflict',async()=>{
   const b2=new FakeB2(),event=EVT();
   await service(b2).archiveEvent(event);
