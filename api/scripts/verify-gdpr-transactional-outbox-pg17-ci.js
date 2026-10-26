@@ -50,7 +50,11 @@ function fakeB2() {
         type:row.event_type,details:row.details
       })).digest('hex');
       if(prior && prior.sha256!==sha256) throw Error('immutable key collision');
-      const receipt=prior||{eventKey:row.event_key,sha256,versionId:'immutable-version-ci'};
+      // Synthetic stand-in for the COMPLIANCE expiry returned by real B2
+      // GetObjectRetention; no network or real bucket is used by this drill.
+      const receipt=prior||{eventKey:row.event_key,sha256,
+        versionId:'immutable-version-ci',
+        retentionUntil:new Date(Date.now()+30*24*60*60*1000).toISOString()};
       objects.set(row.event_key,receipt);
       if(barrier){
         const gate=barrier;barrier=null;gate.started();
