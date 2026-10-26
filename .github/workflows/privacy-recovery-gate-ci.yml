@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'api/app.js'
+      - 'api/routes/cleanup.js'
+      - 'api/routes/migrations.js'
+      - 'api/tests/privacyLegacyRoutesRetired.test.js'
       - 'api/middleware/privacyRecoveryMaintenance.js'
       - 'api/docs/gdpr-provider-quarantine-audit-20261026.md'
       - 'api/docs/gdpr-backup-restore-gate-20261026.md'
@@ -67,10 +70,12 @@ jobs:
           node --check api/services/privacyRecoveryOriginalEvidenceGate.js
           node --check api/services/privacyOfflineRecoveryExporter.js
           node --check api/jobs/votiParlamentoSyncJob.js
+          node --check api/routes/cleanup.js
+          node --check api/routes/migrations.js
           node --check api/jobs/referendumForecastSnapshotJob.js
           node --check api/services/referendumForecastSnapshotService.js
           node --check api/scripts/verify-privacy-recovery-gate-ci.js
-          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js api/tests/privacyOfflineRecoveryExporter.test.js api/tests/privacyRecoveryQuarantineEvidenceGate.test.js api/tests/privacyRecoverySignedEvidenceGate.test.js api/tests/privacyRecoveryOriginalEvidenceGate.test.js api/tests/referendumForecastMaintenance.test.js api/tests/votiParlamentoMaintenance.test.js
+          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js api/tests/privacyOfflineRecoveryExporter.test.js api/tests/privacyRecoveryQuarantineEvidenceGate.test.js api/tests/privacyRecoverySignedEvidenceGate.test.js api/tests/privacyRecoveryOriginalEvidenceGate.test.js api/tests/referendumForecastMaintenance.test.js api/tests/votiParlamentoMaintenance.test.js api/tests/privacyLegacyRoutesRetired.test.js
       - name: Replay externally signed revocations on synthetic PostgreSQL 17
         env:
           GITHUB_ACTIONS: 'true'
