@@ -14,7 +14,7 @@ function canonicalJson(value) {
 }
 function normalizeEvent(row) {
   if (!row || typeof row !== 'object' || Array.isArray(row) ||
-      typeof row.event_key !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.event_key) ||
+      typeof row.event_key !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(row.event_key) ||
       typeof row.subject_user_id !== 'string' || row.subject_user_id.length < 1 ||
       row.subject_user_id.length > 128 || !TYPES.has(row.event_type)) {
     throw Error('Invalid signed privacy recovery event');
