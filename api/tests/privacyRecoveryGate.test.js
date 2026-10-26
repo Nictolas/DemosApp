@@ -183,6 +183,37 @@ test('B2 readiness requires independently approved signed history before any DB 
   assert.equal(remote,0);
 });
 
+test('B2 readiness refuses orphaned delivery rows before any remote object read', async () => {
+  const envelope = fixture();
+  const sql = [];
+  let remoteReads = 0;
+  const client = { async query(statement) {
+    sql.push(statement);
+    if (statement.startsWith('BEGIN TRANSACTION')) return {rows:[]};
+    if (statement.includes("to_regclass('public.privacy_erasure_ledger')")) {
+      return {rows:[{ledger:true,outbox:true}]};
+    }
+    if (statement.includes('FROM privacy_erasure_delivery_outbox o')) {
+      return {rows:[{present:true}]};
+    }
+    if (statement === 'ROLLBACK') return {rows:[]};
+    throw Error('Unexpected SQL after orphan detection');
+  }};
+  const exporter = {
+    config() { return {}; },
+    async verifyArchivedReceipt() { remoteReads++; throw Error('Unexpected B2 GET'); }
+  };
+  await assert.rejects(verifyOutboxRecoveryReadiness(client, {
+    maintenanceConfirmed:true,exporter,envelope,secret:SECRET,expectedRecoveryId:ID,
+    expectedManifestDigest:manifestDigest(envelope),
+    expectedRestoredBackupTakenAt:envelope.payload.restoredBackupTakenAt,
+    expectedCapturedAt:envelope.payload.capturedAt
+  }), /orphaned events/);
+  assert.equal(remoteReads,0);
+  assert.ok(sql.includes('ROLLBACK'));
+  assert.equal(sql.some(statement => statement.includes('ORDER BY l.event_key')),false);
+});
+
 test('recovery HTTP middleware refuses health, GET, write and OPTIONS with no-store', async () => {
   const previous = process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
   const app = express();
