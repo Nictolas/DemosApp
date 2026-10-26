@@ -863,3 +863,33 @@ test('application startup suppresses all app-owned periodic jobs using the SAME 
   assert.ok(elseAt > workerStartAt);
   assert.doesNotMatch(src,/DEMOS_PRIVACY_RECOVERY_MAINTENANCE\s*!==\s*['"]true['"]/);
 });
+
+test('locally configured recurring work rechecks recovery maintenance on every new invocation',()=>{
+  const guarded=["api/jobs/dataRetentionJob.js","api/jobs/violationMonitoringJob.js","api/jobs/ministeroSyncJob.js","api/jobs/civicProcessSyncJob.js","api/jobs/politicalTerritoryResolverJob.js","api/jobs/italianElectionUnitSyncJob.js","api/jobs/votiParlamentoSyncJob.js","api/jobs/openpolisCosaSuccedeJob.js","api/jobs/openpolisVotazioniFinaliJob.js","api/jobs/axiomArchiveJob.js","api/services/auditManager.js","api/services/performanceMonitor.js","api/services/performanceOptimizer.js"];
+  for(const file of guarded){
+    const source=fs.readFileSync(path.join(__dirname,'..','..',file),'utf8');
+    assert.match(source,/require\(['"]\.\.\/middleware\/privacyRecoveryMaintenance['"]\)/);
+    const tests=(source.match(/if \(isPrivacyRecoveryMaintenanceActive\(\)\)/g)||[]).length;
+    assert.ok(tests>=2,'Expected separate start/invocation gates in '+file);
+  }
+  const audit=fs.readFileSync(path.join(__dirname,'..','services','auditManager.js'),'utf8');
+  const monitor=fs.readFileSync(path.join(__dirname,'..','services','performanceMonitor.js'),'utf8');
+  const ministero=fs.readFileSync(path.join(__dirname,'..','jobs','ministeroSyncJob.js'),'utf8');
+  const predicate='if (isPrivacyRecoveryMaintenanceActive()) return;';
+  assert.ok(audit.includes('setInterval(async () => {\n      '+predicate));
+  assert.ok(monitor.includes('setInterval(async () => {\n      '+predicate));
+  assert.ok(ministero.includes('for (let attempt = 1; attempt <= this.maxRetries; attempt++) {\n      '+predicate));
+});
+test('a pre-existing archival task is denied before contacting Axiom when maintenance activates',async()=>{
+  const original=process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
+  try {
+    process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='TRUE';
+    const {runAxiomArchiveOnce}=require('../jobs/axiomArchiveJob');
+    assert.deepEqual(await runAxiomArchiveOnce(),{
+      skipped:true,reason:'gdpr-recovery-maintenance'
+    });
+  } finally {
+    if(original===undefined)delete process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
+    else process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE=original;
+  }
+});
