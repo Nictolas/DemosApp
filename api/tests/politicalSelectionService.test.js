@@ -114,7 +114,7 @@ test('canonical reads are authoritative and do not fall back merely because they
 test('supporter lookup uses canonical selection relation when available', async () => {
   const db = {
     async query(sql) {
-      assert.match(sql, /FROM public\.political_selections ps/);
+      assert.match(sql, /FROM political_selections ps/);
       return { rows: [{ id: 'u1' }, { id: 'u2' }] };
     },
   };
