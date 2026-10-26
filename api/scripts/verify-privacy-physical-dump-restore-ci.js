@@ -65,7 +65,7 @@ function dockerPostgres(tool, args, tempDir) {
 
 async function count(db, table, userId) {
   assert.ok(['users', 'political_selections', 'user_representatives',
-    'opinioni_risposte'].includes(table));
+    'user_consents', 'opinioni_risposte'].includes(table));
   const column = table === 'users' ? 'id' : 'user_id';
   const result = await db.query(
     'SELECT COUNT(*)::int AS n FROM "' + table + '" WHERE "' + column + '"=$1',
@@ -177,6 +177,10 @@ async function main() {
     assert.equal(await count(db, 'political_selections', SUBJECTS.revoked), 0);
     assert.equal(await count(db, 'political_selections', SUBJECTS.regranted), 0);
     assert.equal(await count(db, 'users', SUBJECTS.deleted), 0);
+    assert.equal(await count(db, 'user_consents', SUBJECTS.deleted), 0);
+    assert.equal(await count(db, 'user_representatives', SUBJECTS.deleted), 0);
+    assert.equal(await count(db, 'political_selections', SUBJECTS.deleted), 0);
+    assert.equal(await count(db, 'opinioni_risposte', SUBJECTS.deleted), 0);
     const events = await Ledger.captureCurrent(db);
     assert.equal(events.length, 4);
     const payload = {
