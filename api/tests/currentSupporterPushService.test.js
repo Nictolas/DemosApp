@@ -43,6 +43,10 @@ test('supporter token lookup resolves supporter identity through canonical polit
   assert.deepEqual(rows, [{ userId: 'supporter-1', tokens: ['tok-1', 'tok-2'] }]);
   assert.match(calls[0].sql, /FROM public\.political_selections ps/);
   assert.match(calls[1].sql, /FROM public\.user_devices d/);
+  assert.match(calls[1].sql,
+    /NOT EXISTS\s*\(\s*SELECT 1 FROM public\.user_devices registered/);
+  assert.match(calls[1].sql,
+    /btrim\(registered\.fcm_token\) = btrim\(legacy\.token\)/);
   assert.match(calls[1].sql, /FROM public\.users u/);
   assert.match(calls[1].sql, /u\.id = ANY\(\$1::uuid\[\]\)/);
   assert.doesNotMatch(calls[1].sql, /u\.id::text = ANY/);
