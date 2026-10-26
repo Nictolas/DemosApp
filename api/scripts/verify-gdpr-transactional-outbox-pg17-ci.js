@@ -527,6 +527,43 @@ async function main() {
     }),/freshness checkpoint/);
     assert.equal(configChecks,0,'stale independent pin must reject before B2');
     assert.equal(offlinePuts,0);
+    // PostgreSQL 17 replay/export coordination: a signed-ledger replay first
+    // holds the shared transaction-scoped advisory lock. The exporter MUST
+    // wait on that lock before trying either relation lock; acquiring the
+    // relation lock first could deadlock against replay's pending SQL writes.
+    const replayHoldingAdvisory=await pool.connect();
+    try {
+      await replayHoldingAdvisory.query('BEGIN');
+      await replayHoldingAdvisory.query('SELECT pg_advisory_xact_lock(170026, 296)');
+      const probeSql=[];
+      const probePool={async connect(){
+        const pgClient=await pool.connect();
+        return {
+          async query(sql,params){
+            probeSql.push(sql);
+            const response=await pgClient.query(sql,params);
+            if(sql.startsWith('BEGIN TRANSACTION')) {
+              // Local to this transaction, never a DB-wide configuration.
+              await pgClient.query("SET LOCAL lock_timeout = '250ms'");
+            }
+            return response;
+          },
+          release(){pgClient.release();}
+        };
+      }};
+      await assert.rejects(offlineRunner.runOnce(probePool,{
+        ...approvedCheckpoint,maintenanceConfirmed:true,
+        quarantineConfirmed:true,limit:1
+      }),error=>error.code==='55P03',
+      'offline exporter must wait for replay advisory lock without holding table locks');
+      assert.ok(probeSql.some(sql=>sql.includes('pg_advisory_xact_lock(170026, 296)')));
+      assert.equal(probeSql.some(sql=>sql.startsWith('LOCK TABLE')),false,
+        'no table write-exclusion lock may precede shared replay advisory lock');
+      assert.equal(offlinePuts,0,'advisory lock wait must precede B2 PUT');
+    } finally {
+      await replayHoldingAdvisory.query('ROLLBACK');
+      replayHoldingAdvisory.release();
+    }
     // Real PostgreSQL 17 concurrency: another writer's ROW EXCLUSIVE lock
     // must make the offline export fail NOWAIT before any remote B2 call.
     const concurrentWriter=await pool.connect();
