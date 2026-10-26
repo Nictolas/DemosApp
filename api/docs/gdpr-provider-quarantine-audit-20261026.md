@@ -35,3 +35,17 @@ Nei servizi web Render è stata osservata una lista di ingresso HTTP che compren
 **NO-GO / non verificato:** Data API abilitata/disabilitata; isolamento effettivo degli endpoint Supabase; connessioni dirette PostgreSQL e pooler; legame credenziali tra staging e produzione; arresto verificato di tutti i worker e richieste in corso; completezza/freschezza indipendente del ledger esterno dopo un possibile guasto; approvazioni DPIA/titolare/DPO. Il progetto produzione e le istanze Render sono osservati attivi. Nessun restore o test di mancata accessibilità è stato eseguito sulla produzione.
 
 **Non eseguire automaticamente sospensioni, modifiche RLS/GRANT, disabilitazioni Data API, rotazioni credenziali, revoche SQL o deploy:** richiedono un playbook operatore approvato. La CI con dati sintetici non può convertire questi elementi mancanti in una dichiarazione di isolamento.
+
+## Offline evidence preflight: completezza, non attestazione (26 ottobre 2026)
+
+Il modulo puro `api/services/privacyRecoveryQuarantineEvidenceGate.js` consente di controllare in modo riproducibile la *completezza formale* di una futura raccolta di attestazioni operatore. Non contatta servizi, non interroga SQL, non muta dati e **non certifica la verità delle attestazioni**.
+
+Richiede 15 controlli separati su Render ingress/worker/attività in corso/staging, Supabase Data API e prova di blocco, PostgreSQL+pooler e prova di blocco, altri endpoint Supabase, client esterni/CI, backup cutoff, freschezza indipendente del ledger, B2 immutable readback e autorizzazioni titolare/DPO. Ogni prova deve riferirsi all'ID recovery giusto, allo scope produzione, alla sorgente indicata, a un riferimento opaco senza segreti e avere età massima di 15 minuti (tolleranza orologio futuro 60 secondi). Informazioni mancanti/contraddittorie/scadute restituiscono `NO_GO` con codici senza PII. Anche quando tutte le caselle sintetiche risultano compilate correttamente, l'output è solo `MANUAL_INDEPENDENT_REVIEW_REQUIRED` — **mai GO o autorizzazione a riaprire**.
+
+Un JSON auto-compilato può essere falso: la verifica della reale quarantena e la firma/approvazione esterna sono attività umane e infrastrutturali. **Il preflight non è collegato automaticamente al replay PostgreSQL** e non deve essere spacciato come barriera di produzione. L'issue #296 resta OPEN.
+
+## Evidenza integrativa di catalogo e connessioni (26 ottobre 2026)
+
+Una successiva lettura esclusivamente aggregata di `pg_stat_activity` su Supabase produzione ha rilevato, nell'istante del controllo, **5 client PostgreSQL**, **1 attivo**, **3 indirizzi distinti** e nessuna sessione `idle in transaction`. Non sono stati letti indirizzi IP, SQL delle sessioni o nomi applicativi. **È soltanto un campione istantaneo:** non identifica quali servizi siano collegati, né prova assenza di scritture in altri momenti.
+
+Il catalogo delle **72 funzioni `public` con EXECUTE per `anon`** include funzioni nominali per ricerca log (`find_logs_by_ip`, `find_audit_logs_by_ip`, ecc.), alcune funzioni di sincronizzazione e funzioni di estensioni. **Nessuna è SECURITY DEFINER.** Le sole firme/volatilità non provano esposizione RPC, capacità di accedere alle tabelle o vulnerabilità: esaminare autorizzazioni ed esposizione reale prima di trarre conclusioni o modificare GRANT.

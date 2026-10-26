@@ -48,3 +48,7 @@ Oltre al gate all'avvio (#348), sono stati introdotti controlli *prima di ogni n
 ## Inventario provider e criterio NO-GO (rilevazione in sola lettura, 26 ottobre 2026)
 
 Per stato verificato dei servizi Render, metadati Supabase e blocchi esterni non attestati, consultare `gdpr-provider-quarantine-audit-20261026.md`. Questi metadati NON attestano un ambiente già isolato. Attualmente il criterio di apertura **GO/NO-GO è NO-GO**: Data API e connessioni SQL esterne non sono state verificate come interrotte, così come i collegamenti dei servizi di staging alle credenziali di produzione. Nessun restore o quarantena reale eseguiti.
+
+## Preflight indipendente e fallback NO-GO (26 ottobre 2026)
+
+Per raccogliere attestazioni di quarantena verificabili per singola superficie senza includere segreti nel risultato, usare il componente *offline* `api/services/privacyRecoveryQuarantineEvidenceGate.js` insieme all'inventario `gdpr-provider-quarantine-audit-20261026.md`. Non è un agente che possa interrogare Render/Supabase: richiede riferimenti prodotti e verificati dall'operatore. Qualunque lacuna `NO_GO`; pacchetto formalmente completo `MANUAL_INDEPENDENT_REVIEW_REQUIRED`. **Non avvia né sblocca alcun recovery e non sostituisce approvazione del titolare/DPO.**
