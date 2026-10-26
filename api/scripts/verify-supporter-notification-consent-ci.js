@@ -164,6 +164,50 @@ async function main() {
     assert.equal(await isCurrentSupporterTokenEligible(pg, {
       userIds: [granted], token: 'token-granted'
     }),true);
+
+    // Index availability regression, not a latency benchmark: PostgreSQL
+    // may choose a sequential scan on a tiny synthetic fixture. Disable
+    // seqscans ONLY inside a savepoint to verify that the primary-key
+    // access path is usable with UUID predicates; roll the setting back.
+    const indexPlanCheck = { async query(sql, params) {
+      const query = String(sql);
+      if (!query.startsWith('SELECT EXISTS')) return pg.query(sql,params);
+      assert.match(query, /u\.id = ANY\(\$1::uuid\[\]\)/);
+      await client.query('SAVEPOINT synthetic_uuid_plan');
+      try {
+        await client.query('SET LOCAL enable_seqscan = off');
+        // Probe the UUID predicate in isolation. PostgreSQL may reorder
+        // joins within the full consent query, so an Index Cond specifically
+        // attached to public.users is not guaranteed in that complete plan.
+        const result=await client.query(
+          'EXPLAIN (FORMAT JSON) SELECT u.id FROM public.users u ' +
+          'WHERE u.id = ANY($1::uuid[])',[params[0]]
+        );
+        const root=result.rows[0]['QUERY PLAN'][0].Plan;
+        const all=[];
+        const visit=(plan)=>{
+          all.push(plan);
+          for(const child of plan.Plans||[]) visit(child);
+        };
+        visit(root);
+        assert.ok(all.some(p=>
+          /Index/.test(p['Node Type']||'') &&
+          p['Index Name']==='users_pkey' &&
+          /\bid\s*=\s*(?:ANY\s*\(|'[^']+'::uuid)/.test(p['Index Cond']||'')
+        ),'native UUID predicate must be able to use users_pkey; observed: ' +
+          JSON.stringify(all.filter(p=>/Index/.test(p['Node Type']||'')).map(p=>({
+            type:p['Node Type'],index:p['Index Name'],condition:p['Index Cond']
+          }))));
+      } finally {
+        await client.query('ROLLBACK TO SAVEPOINT synthetic_uuid_plan');
+        await client.query('RELEASE SAVEPOINT synthetic_uuid_plan');
+      }
+      return pg.query(sql,params);
+    } };
+    assert.equal(await isCurrentSupporterTokenEligible(indexPlanCheck,{
+      userIds:[granted],token:'token-granted'
+    }),true);
+    console.log('SUPPORTER_PRESEND_UUID_INDEX_PLAN_PG17_PASS');
     assert.equal(await isCurrentSupporterTokenEligible(pg, {
       userIds: [granted], token: 'device-granted'
     }),true);

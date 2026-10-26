@@ -68,7 +68,7 @@ test('push token lookup rechecks consent after reading supporter IDs', async () 
     }
     if (/FROM public\.users u/.test(sql)) {
       assertScoped(sql);
-      assert.match(sql, /u\.id::text = ANY\(\$1::text\[\]\)/);
+      assert.match(sql, /u\.id = ANY\(\$1::uuid\[\]\)/);
       return { rows: [{ id: 'synthetic-consented', fcm_tokens: ['synthetic-token'] }] };
     }
     throw Error('Unexpected SQL');

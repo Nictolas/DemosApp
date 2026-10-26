@@ -17,6 +17,8 @@ test('pre-send proof uses only public account, consent, and device tables with b
   assert.equal(seen.length, 1);
   assert.deepEqual(seen[0].params, [['user-one', 'user-two'], 'device-A']);
   assert.match(seen[0].sql, /FROM public\.users u/);
+  assert.match(seen[0].sql, /u\.id = ANY\(\$1::uuid\[\]\)/);
+  assert.doesNotMatch(seen[0].sql, /u\.id::text = ANY/);
   assert.match(seen[0].sql, /LEFT JOIN public\.user_consents uc/);
   assert.match(seen[0].sql, /FROM public\.user_devices d/);
   assert.match(seen[0].sql, /d\.is_active = TRUE/);
