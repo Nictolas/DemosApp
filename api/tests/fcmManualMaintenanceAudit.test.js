@@ -23,7 +23,7 @@ test('retired root-level scripts never contact PostgreSQL or reveal identities/t
   for(const file of ['verifica-fcm-tokens.cjs','verifica-push-notifiche.cjs','verifica-utenti-demos-fcm.cjs']){
     const src=read(file);
     assert.match(src,/process\.exitCode = 2/);
-    assert.doesNotMatch(src,/(?:require\(['"](?:pg|dotenv)|DATABASE_URL|(?:new\s+Pool|connect\(|\.query\(|firebaseAdmin|fcm_tokens|console\.log\(.*user)/i);
+    assert.doesNotMatch(src,/require\(['"](?:pg|dotenv)|DATABASE_URL|new\s+Pool|connect\(|\.query\(|firebaseAdmin|fcm_tokens|console\.log\(.*user/i);
   }
 });
 
