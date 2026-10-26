@@ -93,6 +93,8 @@ on:
       - 'api/docs/personal-selection-revocation-20261025.md'
       - 'api/routes/fcm-tokens.js'
       - 'api/tests/fcmTokenNormalizedHttp.smoke.test.js'
+      - 'api/scripts/verify-fcm-token-atomic-ci.js'
+      - 'api/docs/gdpr-fcm-atomic-write-serialization-20261026.md'
       - 'api/tests/fcmTokenLegacyFallback.test.js'
       - 'api/tests/fcmTokenIntegrity.test.js'
       - 'api/docs/gdpr-fcm-new-write-normalization-20261026.md'
@@ -343,3 +345,14 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-own-profile-selection-consent-ci.js
+
+      - name: Verify FCM registration and revocation are atomic on synthetic PostgreSQL 17
+        env:
+          GITHUB_ACTIONS: 'true'
+          POLITICAL_CONSENT_RACE_CI: synthetic
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: political_consent_race_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-fcm-token-atomic-ci.js
