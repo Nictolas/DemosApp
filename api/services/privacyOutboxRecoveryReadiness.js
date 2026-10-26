@@ -1,6 +1,7 @@
 'use strict';
 
 const { PrivacyErasureB2Journal } = require('./privacyErasureB2Journal');
+const { normalizeEvent, verifySignedManifest, assertIndependentRecoveryCheckpoint } = require('./privacyRecoveryGateService');
 
 /**
  * Read-only offline acceptance check for a QUARANTINED source DB.
