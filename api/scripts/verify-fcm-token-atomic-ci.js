@@ -113,6 +113,14 @@ async function main() {
     await real.query(
       'ALTER TABLE public.users ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT NOW()'
     );
+    await real.query('ALTER TABLE public.users ADD COLUMN IF NOT EXISTS status text');
+    await real.query(
+      'CREATE TABLE IF NOT EXISTS public.notifiche_preferenze ('+
+      'user_id uuid PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,'+
+      'animali boolean,demos boolean)'
+    );
+    await real.query('ALTER TABLE public.notifiche_preferenze ADD COLUMN IF NOT EXISTS animali boolean');
+    await real.query('ALTER TABLE public.notifiche_preferenze ADD COLUMN IF NOT EXISTS demos boolean');
     await real.query(
       'CREATE TABLE IF NOT EXISTS public.user_devices ('+
       'id bigserial PRIMARY KEY,user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,'+
@@ -309,6 +317,28 @@ async function main() {
       {userId:USER,token:SPACED}),e=>e?.code==='57014'
     );
     console.log('FCM_READ_ERROR_FAIL_CLOSED_PG17_PASS');
+
+    // Account disabled after destination selection must not receive a push.
+    await real.query('UPDATE public.users SET status=$1 WHERE id=$2',['disabled',USER]);
+    assert.deepEqual(await getResolvedUserFcmTokens(pool,USER),[]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED}),false);
+    await real.query('UPDATE public.users SET status=NULL WHERE id=$1',[USER]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED}),true);
+    console.log('FCM_READ_DISABLED_ACCOUNT_PG17_PASS');
+
+    // Channel permissions are re-read after the original token selection.
+    await real.query(
+      'INSERT INTO public.notifiche_preferenze(user_id,animali,demos) '+
+      'VALUES($1,TRUE,TRUE) ON CONFLICT(user_id) DO UPDATE '+
+      'SET animali=EXCLUDED.animali,demos=EXCLUDED.demos',[USER]
+    );
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED,preference:'animali'}),true);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED,preference:'demos'}),true);
+    await real.query('UPDATE public.notifiche_preferenze SET animali=FALSE,demos=FALSE WHERE user_id=$1',[USER]);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED,preference:'animali'}),false);
+    assert.equal(await isUserFcmTokenEligible(pool,{userId:USER,token:SPACED,preference:'demos'}),false);
+    console.log('FCM_READ_PREFERENCE_REVOKE_PG17_PASS');
+
   } finally {
     if(lockHold) lockHold.unblock.resume();
     failSql=null;
@@ -322,6 +352,7 @@ async function main() {
       await real.query('ALTER TABLE public.users ADD COLUMN IF NOT EXISTS fcm_tokens text[] '+
         'DEFAULT ARRAY[]::text[]');
       await real.query('DELETE FROM public.user_devices WHERE user_id=ANY($1::uuid[])',[[USER,OTHER]]);
+      await real.query('DELETE FROM public.notifiche_preferenze WHERE user_id=ANY($1::uuid[])',[[USER,OTHER]]);
       await real.query('DELETE FROM public.users WHERE id=ANY($1::uuid[])',[[USER,OTHER]]);
     } finally {
       await real.end();
