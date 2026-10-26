@@ -60,7 +60,7 @@ function makeUserAnswersPool({ granted = true } = {}) {
   const query = async (sql, params = []) => {
     const s = String(sql).replace(/\s+/g, ' ').trim();
     if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(s)) return { rows: [], rowCount: 0 };
-    if (s === 'SELECT id FROM users WHERE id = $1 FOR UPDATE') {
+    if (s === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE') {
       return { rows: [{ id: 'u1' }], rowCount: 1 };
     }
     if (s.includes('political_opinions_consent') && s.includes('AS granted')) {
@@ -69,10 +69,10 @@ function makeUserAnswersPool({ granted = true } = {}) {
     if (s.includes('information_schema.columns') && s.includes('opinioni_risposte')) {
       return { rows: [{ column_name: 'q1' }] };
     }
-    if (s.includes('FROM opinioni_risposte') && s.includes('FOR UPDATE')) {
+    if (s.includes('FROM public.opinioni_risposte') && s.includes('FOR UPDATE')) {
       return { rows: [] };
     }
-    if (s.startsWith('INSERT INTO opinioni_risposte')) {
+    if (s.startsWith('INSERT INTO public.opinioni_risposte')) {
       writes.push({ sql: s, params });
       return { rowCount: 1, rows: [] };
     }
