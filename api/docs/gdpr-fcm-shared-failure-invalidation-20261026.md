@@ -53,3 +53,9 @@ Questa modifica riguarda soltanto l'invalidazione dopo un errore Firebase; nessu
 ## Addendum 26 ottobre 2026 — selezione dei destinatari
 
 Le query in `comunicazioni.js` e `avvistamenti.js` condividono `fcmTokenReadResolver.js`. Un token legacy è scartato se esiste un record canonico corrispondente, anche inattivo o trasferito. I token storici con spazi sono normalizzati. Un controllo immediatamente prima di ogni invio Firebase evita l'uso di token revocati dopo la selezione; un errore di lettura blocca l'invio senza invalidare il token. Non vi è atomicità con la consegna remota Firebase. I test PostgreSQL 17 disposable coprono questi scenari senza provider esterni né dati reali. L'issue #296 rimane aperta.
+
+## Addendum — riduzione log FCM e invalidazioni multiutente
+
+I percorsi di notifica individuale e collettiva non espongono più nei log i prefissi dei token, i payload delle push, gli errori Firebase completi o gli stack associati all'invio. I diagnostici passano attraverso codici sintatticamente delimitati (o `FCM_UNCLASSIFIED`). La pulizia delle notifiche Demos collettive mantiene ora `invalidTokens` dentro il ciclo del singolo destinatario: nessun token accumulato per un utente precedente può essere passato all'invalidatore di un successivo account. Le eccezioni generiche durante l'invio individuale non vengono più equiparate a token scaduti. Gli avvisi operativi verificano nuovamente il token prima dell'invio; i log degli altri sender noti sono minimizzati.
+
+I test sono sintetici; queste modifiche non garantiscono revoca atomica con Firebase e non autorizzano merge, deploy o recovery dell'issue #296.

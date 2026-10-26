@@ -4,6 +4,7 @@ const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
 const { RESOLVED_FCM_TOKENS_LATERAL_SQL, isUserFcmTokenEligible } = require('../services/fcmTokenReadResolver');
+const { safeFcmErrorCode } = require('../utils/fcmDiagnostics');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -124,7 +125,7 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
         try {
           eligible = await isUserFcmTokenEligible(pool, { userId: targetUser.id, token: fcmToken });
         } catch (error) {
-          console.warn('Avvistamenti FCM pre-send read unavailable:', error?.code || 'database_error');
+          console.warn('Avvistamenti FCM pre-send read unavailable:', safeFcmErrorCode(error));
         }
         if (!eligible) continue;
         try {
@@ -198,7 +199,7 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
           console.log(`✅ Push notification inviata a utente ${targetUser.id}`);
         } catch (error) {
           errors++;
-          console.error(`❌ Errore invio push notification a utente ${targetUser.id}:`, error.message);
+          console.error('❌ Errore invio push avvistamento:', safeFcmErrorCode(error));
           
           // Se il token non è più valido, rimuovilo
           if (error.code === 'messaging/registration-token-not-registered' || 
@@ -224,11 +225,11 @@ router.post('/avvisa-vicini', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore in avvisa-vicini:', error);
+    console.error('❌ Errore in avvisa-vicini:', safeFcmErrorCode(error));
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      details: error.message
+      details: 'Errore di elaborazione'
     });
   }
 });
