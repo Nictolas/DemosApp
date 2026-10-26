@@ -59,6 +59,29 @@ test('duplicate events, events after capture and malformed timestamps fail durin
   assert.throws(() => fixture([mkEvent('political_consent_revoked', { occurred_at: 'bad' })]),
     /Invalid event timestamp/);
 });
+test('opposing consent events at the same millisecond cannot be signed or replayed', async () => {
+  const sameInstant = '2026-10-26T00:00:00.000Z';
+  const revoke = mkEvent('political_consent_revoked', {occurred_at:sameInstant});
+  const grant = mkEvent('political_consent_granted', {
+    occurred_at:'2026-10-26T00:00:00.000500Z'
+  });
+  assert.throws(() => fixture([revoke, grant]), /Ambiguous simultaneous GDPR consent/);
+  // No DB query may be attempted even if a caller supplies a signed-looking
+  // envelope. The collision is rejected during payload normalization.
+  const payload = {
+    formatVersion:1, recoveryId:ID, capturedAt:'2026-10-26T01:00:00.000Z',
+    restoredBackupTakenAt:'2026-10-24T00:00:00.000Z',
+    events:[revoke,grant]
+  };
+  let queries = 0;
+  await assert.rejects(reconcileRestoredPrivacyState({
+    client:{async query(){queries++;}},
+    envelope:{payload,signature:'a'.repeat(64)},
+    secret:SECRET,expectedRecoveryId:ID,maintenanceConfirmed:true
+  }), /Ambiguous simultaneous GDPR consent/);
+  assert.equal(queries,0);
+});
+
 test('pinned external SHA256 refuses signed stale manifests without any DB access', async () => {
   const approved = fixture();
   const stale = fixture([mkEvent('political_consent_revoked',{
