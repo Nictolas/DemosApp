@@ -27,6 +27,46 @@ class PrivacyErasureLedgerService {
     `);
   }
 
+  static async ensureDeliveryOutbox(client) {
+    // This table must be installed intentionally by the operator before
+    // turning on the feature. IF NOT EXISTS supports synthetic CI bootstrap;
+    // it does NOT replace explicit schema migration and permission review.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS privacy_erasure_delivery_outbox (
+        event_key TEXT PRIMARY KEY REFERENCES privacy_erasure_ledger(event_key) ON DELETE RESTRICT,
+        queued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        delivered_at TIMESTAMPTZ,
+        b2_version_id TEXT,
+        b2_sha256 CHAR(64),
+        CHECK (
+          (delivered_at IS NULL AND b2_version_id IS NULL AND b2_sha256 IS NULL)
+          OR (delivered_at IS NOT NULL AND b2_version_id IS NOT NULL AND b2_sha256 IS NOT NULL)
+        )
+      )
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_privacy_erasure_outbox_pending
+      ON privacy_erasure_delivery_outbox (queued_at, event_key)
+      WHERE delivered_at IS NULL
+    `);
+  }
+
+  static async backfillDeliveryOutbox(client, { maintenanceConfirmed = false } = {}) {
+    if (maintenanceConfirmed !== true || process.env.GDPR_ERASURE_OUTBOX_ENABLED !== 'true') {
+      throw Error('GDPR ledger outbox backfill requires approved maintenance');
+    }
+    // Must run only after ALL ingress and workers are quiesced.
+    // The database copy alone cannot prove that freeze.
+    await this.ensureTable(client);
+    await this.ensureDeliveryOutbox(client);
+    const result = await client.query(`
+      INSERT INTO privacy_erasure_delivery_outbox (event_key)
+      SELECT event_key FROM privacy_erasure_ledger
+      ON CONFLICT (event_key) DO NOTHING
+    `);
+    return result.rowCount || 0;
+  }
+
   static async recordEvent(client, { userId, eventType, details = {} }) {
     if (!Object.values(this.EVENT_TYPES).includes(eventType)) {
       throw new Error(`Unsupported privacy ledger event: ${eventType}`);
@@ -37,12 +77,38 @@ class PrivacyErasureLedgerService {
 
     await this.ensureTable(client);
     const eventKey = crypto.randomUUID();
+    const params = [eventKey, String(userId), eventType, JSON.stringify(details)];
+    if (process.env.GDPR_ERASURE_OUTBOX_ENABLED === 'true') {
+      await this.ensureDeliveryOutbox(client);
+      // ONE PostgreSQL statement makes event + pending-delivery durable
+      // atomically even if the caller forgot to open an explicit transaction.
+      // In a surrounding consent/account transaction both roll back together.
+      const atomic = await client.query(`
+        WITH event_insert AS (
+          INSERT INTO privacy_erasure_ledger
+            (event_key, subject_user_id, event_type, occurred_at, details)
+          VALUES ($1, $2, $3, NOW(), $4::jsonb)
+          RETURNING event_key, subject_user_id, event_type, occurred_at, details
+        ),
+        delivery_insert AS (
+          INSERT INTO privacy_erasure_delivery_outbox (event_key)
+          SELECT event_key FROM event_insert
+          RETURNING event_key
+        )
+        SELECT e.* FROM event_insert e
+        JOIN delivery_insert d ON d.event_key = e.event_key
+      `, params);
+      if (atomic.rows.length !== 1) {
+        throw Error('GDPR ledger event was not queued atomically');
+      }
+      return atomic.rows[0];
+    }
     const result = await client.query(
       `INSERT INTO privacy_erasure_ledger
         (event_key, subject_user_id, event_type, occurred_at, details)
        VALUES ($1, $2, $3, NOW(), $4::jsonb)
        RETURNING event_key, subject_user_id, event_type, occurred_at, details`,
-      [eventKey, String(userId), eventType, JSON.stringify(details)]
+      params
     );
     return result.rows[0];
   }

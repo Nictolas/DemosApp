@@ -1,0 +1,58 @@
+name: GDPR transactional outbox and B2 retry (synthetic PG17)
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/services/privacyErasureOutboxWorker.js'
+      - 'api/scripts/verify-gdpr-transactional-outbox-pg17-ci.js'
+      - '.github/workflows/gdpr-erasure-outbox-ci.yml'
+      - 'api/docs/gdpr-transactional-outbox-20261026.md'
+
+permissions:
+  contents: read
+
+jobs:
+  transactional-gdpr-outbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: gdpr_erasure_outbox_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gdpr_erasure_outbox_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Syntax check and legacy GDPR unit tests
+        run: |
+          node --check api/services/privacyErasureLedgerService.js
+          node --check api/services/privacyErasureOutboxWorker.js
+          node --check api/scripts/verify-gdpr-transactional-outbox-pg17-ci.js
+          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js api/tests/politicalSelectionRevocationErasure.test.js
+      - name: Test PostgreSQL transactional outbox with simulated B2 failure/retry
+        env:
+          GITHUB_ACTIONS: 'true'
+          GDPR_OUTBOX_SYNTHETIC_CI: isolated
+          GDPR_ERASURE_OUTBOX_ENABLED: 'true'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: gdpr_erasure_outbox_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-gdpr-transactional-outbox-pg17-ci.js
