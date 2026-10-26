@@ -16,7 +16,7 @@ function makePool() {
       calls.push({ sql: s, params });
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(s)) return { rows: [], rowCount: 0 };
       if (s.includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
-      if (s.startsWith('DELETE FROM political_selections')) return { rows: [], rowCount: 1 };
+      if (s.startsWith('DELETE FROM public.political_selections')) return { rows: [], rowCount: 1 };
       throw new Error(`Unexpected client query: ${s}`);
     },
     release() {},
@@ -77,6 +77,6 @@ test('generic endpoint can remove a US House selection without any Italian legac
     });
   });
   const sql = pool.calls.map((call) => call.sql).join('\n');
-  assert.match(sql, /DELETE FROM political_selections/);
+  assert.match(sql, /DELETE FROM public.political_selections/);
   assert.doesNotMatch(sql, /candidato_|rappresentante_|user_representatives|UPDATE users/);
 });
