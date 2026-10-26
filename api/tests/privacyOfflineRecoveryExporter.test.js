@@ -65,6 +65,9 @@ function fakeDb(events = [EVENT], {unapproved=false, missing=false, orphan=false
       return {rows:[]};
     }
     if (sql === 'ROLLBACK') {staged=false;return {rows:[]};}
+    if (sql === 'SET LOCAL search_path = pg_catalog, public, pg_temp') {
+      return {rows:[]};
+    }
     if (sql.startsWith('SELECT pg_advisory_xact_lock') ||
         sql.startsWith('LOCK TABLE privacy_erasure_ledger')) return {rows:[]};
     if (sql.includes("to_regclass('public.privacy_erasure_ledger')")) {
@@ -209,11 +212,14 @@ test('offline exporter verifies all 251 signed events across pages before ANY B2
 test('offline exporter acquires shared replay advisory lock before both table locks and B2',async()=>{
   const h=harness();
   await h.service.runOnce(h.db.pool,fixture());
+  const schemaPin=h.db.calls.indexOf('SET LOCAL search_path = pg_catalog, public, pg_temp');
   const advisory=h.db.calls.findIndex(sql=>sql.includes('pg_advisory_xact_lock(170026, 296)'));
   const lock=h.db.calls.findIndex(sql=>sql.startsWith('LOCK TABLE'));
   const scan=h.db.calls.findIndex(sql=>sql.includes('WHERE event_key > $1'));
   const pending=h.db.calls.findIndex(sql=>sql.includes('FOR UPDATE OF o SKIP LOCKED'));
   assert.ok(h.db.calls[0].startsWith('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ'));
+  assert.ok(schemaPin>0 && advisory>schemaPin,
+    'transaction must select verified public schema BEFORE reading ledger/outbox');
   assert.ok(advisory>0 && lock>advisory && scan>lock && pending>scan,
     'consistent advisory-then-table lock order prevents inversion with signed replay');
   assert.match(h.db.calls[lock],/SHARE ROW EXCLUSIVE MODE NOWAIT/);
