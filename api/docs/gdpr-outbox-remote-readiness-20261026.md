@@ -18,6 +18,8 @@
 - Nessun collegamento automatico all'app, alle route utente o alle procedure di deploy.
 - Nessun client B2/DB reale disponibile o invocato dai test.
 - Un controllo con `maintenanceConfirmed=true` e' una dichiarazione del chiamante: la funzione NON puo' dimostrare che Supabase Data API, altre istanze o vecchi client siano davvero isolati.
+- **Semantica fail-closed del flag HTTP (bozza):** `DEMOS_PRIVACY_RECOVERY_MAINTENANCE` non impostato o esattamente `false` lascia proseguire il normale traffico; esattamente `true` risponde 503. Qualsiasi altro valore **impostato**, compresi `TRUE`, `false ` (spazi), `0` o una stringa vuota, risponde **503**: un errore di battitura in una configurazione di recovery non deve sbloccare silenziosamente l'API. Per il normale servizio usare una variabile assente o `false`; non interpretare il blocco HTTP come prova di quarantena infrastrutturale.
+
 - Per una prova corretta eseguire solo su database isolato con client dedicato e checkpoint esterno approvato. Non passare identita' o preferenze in log.
 - Il controllo B2 completo richiede una lettura per evento: costi, latenza e limiti delle API vanno valutati a parte.
 
