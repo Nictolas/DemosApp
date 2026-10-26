@@ -121,6 +121,24 @@ async function main() {
     await db.query('DELETE FROM privacy_erasure_ledger WHERE event_key=$1',
       [omitted.event_key]);
 
+    // Mismatched installation or mode must refuse without any replay.
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'true';
+    await assert.rejects(reconcileRestoredPrivacyState({
+      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,
+      maintenanceConfirmed:true,...approved
+    }),/outbox schema\/mode mismatch/);
+    assert.equal(await count(db,'political_selections',SUBJECT),1);
+    assert.equal(Number((await db.query(
+      'SELECT count(*)::int AS n FROM privacy_erasure_ledger'
+    )).rows[0].n),0);
+    await Ledger.ensureDeliveryOutbox(db);
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'false';
+    await assert.rejects(reconcileRestoredPrivacyState({
+      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,
+      maintenanceConfirmed:true,...approved
+    }),/outbox schema\/mode mismatch/);
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'true';
+
     // The signed 2026-10-25 revocation must erase the 2026-10-24 DB snapshot.
     const first=await reconcileRestoredPrivacyState({
       client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
@@ -129,6 +147,16 @@ async function main() {
     assert.equal(first.imported,4);
     assert.equal(first.revocationsReapplied,1);
     assert.equal(first.staleSnapshotRevocationsReapplied,2);
+    assert.equal(first.outboxInserted,4);
+    assert.equal(first.pendingExternalReceipts,4);
+    assert.equal(Number((await db.query(
+      'SELECT count(*)::int AS n FROM privacy_erasure_delivery_outbox'
+    )).rows[0].n),4);
+    await db.query(
+      'UPDATE privacy_erasure_delivery_outbox SET delivered_at=NOW(), ' +
+      'b2_version_id=$2, b2_sha256=$3 WHERE event_key=$1',
+      [events[0].event_key,'synthetic-locked-version','a'.repeat(64)]
+    );
     for (const table of ['political_selections','user_representatives','opinioni_risposte']) {
       assert.equal(await count(db,table,SUBJECT),0);
       // Regrant is newer, but the restored backup predates BOTH the revoke
@@ -147,6 +175,14 @@ async function main() {
       client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
     });
     assert.equal(repeated.imported,0);
+    assert.equal(repeated.outboxInserted,0);
+    assert.equal(repeated.pendingExternalReceipts,3);
+    const retainedReceipt = (await db.query(
+      'SELECT b2_version_id,b2_sha256 FROM privacy_erasure_delivery_outbox ' +
+      'WHERE event_key=$1', [events[0].event_key]
+    )).rows[0];
+    assert.equal(retainedReceipt.b2_version_id,'synthetic-locked-version');
+    assert.equal(retainedReceipt.b2_sha256,'a'.repeat(64));
 
     // Even a *validly signed* manifest cannot silently rewrite an event
     // that already exists with the same key and a different subject/type.
@@ -183,13 +219,16 @@ async function main() {
       expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...thirdApproved
     });
     assert.equal(recovered.imported,1);
+    assert.equal(recovered.outboxInserted,1);
+    assert.equal(recovered.pendingExternalReceipts,4);
     assert.equal(await count(db,'political_selections',THIRD),0);
     console.log('PRIVACY_RECOVERY_GATE_PG17_PASS '+JSON.stringify({
       synthetic:true,externalHmacVerified:true,revokeAfterBackup:true,
       regrantDoesNotResurrectOldChoices:true,otherUserDataPreserved:true,idempotent:true,
       replayFailureRolledBack:true,maintenanceRequired:true,
       unapprovedRestoredEventRejected:true,
-      productionUntouched:true
+      outboxSchemaMismatchRejected:true,restoredEventsQueuedAtomically:true,
+      deliveryReceiptPreserved:true,productionUntouched:true
     }));
   } catch(error) {
     await db.query('ROLLBACK').catch(()=>{});
