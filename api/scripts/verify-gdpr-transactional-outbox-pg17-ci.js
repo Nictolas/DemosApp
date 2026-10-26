@@ -414,6 +414,18 @@ async function main() {
       const page1=await archive.archiveBatch(cursorClient,{limit:1});
       assert.equal(page1.cursor.occurred_at,'2026-10-26T03:00:00.000123Z');
       assert.equal(page1.cursor.event_key,earlyKey);
+      // The caller must not convert the exact cursor to Date/toISOString:
+      // doing so would truncate the microseconds and repeat page 1.
+      const archivedBefore=archived.length;
+      await assert.rejects(archive.archiveBatch(cursorClient,{
+        after:{...page1.cursor,occurred_at:new Date(page1.cursor.occurred_at)},
+        limit:1
+      }),/Invalid archive cursor/);
+      await assert.rejects(archive.archiveBatch(cursorClient,{
+        after:{...page1.cursor,occurred_at:new Date(page1.cursor.occurred_at).toISOString()},
+        limit:1
+      }),/Invalid archive cursor/);
+      assert.equal(archived.length,archivedBefore);
       const page2=await archive.archiveBatch(cursorClient,{after:page1.cursor,limit:1});
       assert.equal(page2.cursor.occurred_at,'2026-10-26T03:00:00.000987Z');
       assert.equal(page2.cursor.event_key,lateKey);
