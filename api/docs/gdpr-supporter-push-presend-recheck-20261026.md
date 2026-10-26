@@ -18,7 +18,7 @@
 
 Il nuovo test `api/tests/currentSupporterPushPreSendConsent.test.js`, incluso nel workflow di privacy/consenso, verifica: uso esclusivo di `public`, parametri vincolati, condizioni di consenso e token ancora registrato, fallback `42P01`, fail-closed su errori del DB, soppressione del secondo token se la revoca arriva durante il primo invio e soppressione di token rimossi. La facade Firebase è sostituita da uno stub locale all'interno del file di test: **nessuna notifica viene spedita e nessuna credenziale viene letta**.
 
-Restano inoltre le prove sintetiche PostgreSQL 17 dei precedenti interventi (#338) sul rispetto della revoca tra lookup iniziale e lettura token, nonché gli altri controlli di CI.
+Ho esteso anche `api/scripts/verify-supporter-notification-consent-ci.js`, già protetto da sentinelle anti-produzione, con vere SELECT `isCurrentSupporterTokenEligible` su PostgreSQL 17 disposable. Verifica token legacy/dispositivo `public`, esclusione dei token `pg_temp`, consenso revocato, fallback `42P01` e rifiuto di un token dopo revoca transazionale; marcatore `SUPPORTER_PUSH_PRESEND_REAL_PG17_PASS`. Restano anche le prove sintetiche precedenti (#338) e gli altri controlli di CI.
 
 ## Garanzie *non* ottenute
 
