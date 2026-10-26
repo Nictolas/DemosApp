@@ -270,8 +270,14 @@ test('offline exporter aborts and leaves pending when quarantine is lost during 
 
 test('offline exporter refuses success if quarantine is revoked during COMMIT',async()=>{
   const env={...VALID_ENV};
+  let revokeOnce=true;
   const h=harness({env,dbOpts:{
-    onCommit:()=>{env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='false';}
+    onCommit:()=>{
+      if (revokeOnce) {
+        revokeOnce=false;
+        env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='false';
+      }
+    }
   }});
   await assert.rejects(h.service.runOnce(h.db.pool,fixture()),/requires explicit quarantine/);
   assert.equal(h.db.committed,true,'SQL commit may already be durable');
