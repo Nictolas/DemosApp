@@ -233,8 +233,8 @@ test('outbox preflight rejects events B2 cannot archive before any PostgreSQL I/
     });
     assert.equal(valid.event_key,'synthetic-test-event');
     assert.equal(statements.length,1);
-    assert.match(statements[0],/INSERT INTO privacy_erasure_ledger/);
-    assert.match(statements[0],/INSERT INTO privacy_erasure_delivery_outbox/);
+    assert.match(statements[0],/INSERT INTO public\.privacy_erasure_ledger/);
+    assert.match(statements[0],/INSERT INTO public\.privacy_erasure_delivery_outbox/);
   } finally {
     if (old === undefined) delete process.env.GDPR_ERASURE_OUTBOX_ENABLED;
     else process.env.GDPR_ERASURE_OUTBOX_ENABLED = old;
@@ -290,7 +290,7 @@ test('GDPR outbox preflight checks exact SQL JSON despite inherited and stateful
     });
     assert.equal(valid.event_key,'synthetic-test-event');
     assert.equal(queries.length,1);
-    assert.match(queries[0].sql,/INSERT INTO privacy_erasure_delivery_outbox/);
+    assert.match(queries[0].sql,/INSERT INTO public\.privacy_erasure_delivery_outbox/);
     const actualDetails = JSON.parse(queries[0].params[3]);
     assert.equal(actualDetails.at,'2026-10-26T00:00:00.000Z');
     assert.doesNotThrow(() => normalizeB2Event({
