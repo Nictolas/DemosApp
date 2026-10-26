@@ -204,6 +204,50 @@ async function main() {
     `),1,'ledger RLS must remain active during maintenance');
     assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_ledger'),1,
       'ledger maintenance hardening must preserve the historical event');
+    // On a Supabase-style schema, granting INSERT/SELECT to an application
+    // SQL role is NOT enough when RLS is enabled without any policies.
+    // Reproduce the actual SQL permission boundary on disposable PG17.
+    // Never grant BYPASSRLS or turn RLS off as a workaround.
+    await pool.query('CREATE ROLE gdpr_nonowner_ci NOLOGIN NOBYPASSRLS');
+    await pool.query('GRANT USAGE ON SCHEMA public TO gdpr_nonowner_ci');
+    await pool.query(
+      'GRANT SELECT, INSERT ON TABLE public.privacy_erasure_ledger TO gdpr_nonowner_ci'
+    );
+    const nonOwner = await pool.connect();
+    try {
+      await nonOwner.query('BEGIN');
+      await nonOwner.query('SET LOCAL ROLE gdpr_nonowner_ci');
+      const visible = await nonOwner.query(
+        'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+      );
+      assert.equal(visible.rows[0].n, 0,
+        'non-owner must not read protected historical events without an RLS policy');
+      await assert.rejects(
+        nonOwner.query(`
+          INSERT INTO public.privacy_erasure_ledger
+          (event_key, subject_user_id, event_type, occurred_at, details)
+          VALUES ($1, $2, 'political_consent_revoked', NOW(), '{}'::jsonb)
+        `, [n(), n()]),
+        error=>error.code==='42501',
+        'non-owner with SQL INSERT grant but no RLS policy must be denied'
+      );
+    } finally {
+      await nonOwner.query('ROLLBACK');
+      nonOwner.release();
+    }
+    assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_ledger'),1,
+      'failed non-owner writes cannot add an event to the ledger');
+    // The owning SQL role is still able to record the event using a normal
+    // preinstalled table. This models owner-bypass of RLS without FORCE RLS.
+    const ownerState=await pool.query(`
+      SELECT c.relrowsecurity AS rls, c.relforcerowsecurity AS forced,
+        pg_get_userbyid(c.relowner)=current_user AS is_owner
+      FROM pg_catalog.pg_class c
+      WHERE c.oid='public.privacy_erasure_ledger'::regclass
+    `);
+    assert.deepEqual(ownerState.rows[0],{rls:true,forced:false,is_owner:true},
+      'disposable writer must be the table owner and RLS must remain enabled');
+
     assert.equal(await value(pool,`
       SELECT count(*)::int FROM pg_catalog.pg_roles r
       WHERE r.rolname IN ('anon','authenticated','service_role')
