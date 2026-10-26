@@ -40,7 +40,7 @@ test('setPoliticalSelection writes canonical row and Italian compatibility proje
       queries.push({ sql, params });
       if (String(sql).includes('FOR UPDATE')) return { rows: [{ id: params[0] }], rowCount: 1 };
       if (String(sql).includes(' AS granted')) return { rows: [{ id: params[0], granted: true }], rowCount: 1 };
-      if (/UPDATE users/.test(sql)) return { rowCount: 1, rows: [{ id: params[1] }] };
+      if (/UPDATE public\.users/.test(sql)) return { rowCount: 1, rows: [{ id: params[1] }] };
       return { rowCount: 1, rows: [] };
     },
   };
@@ -53,7 +53,7 @@ test('setPoliticalSelection writes canonical row and Italian compatibility proje
   });
   assert.equal(result.canonical.available, true);
   assert.equal(result.legacy.field, 'rappresentante_camera');
-  assert.ok(queries.some(({ sql }) => /INSERT INTO political_selections/.test(sql)));
+  assert.ok(queries.some(({ sql }) => /INSERT INTO public\.political_selections/.test(sql)));
   assert.ok(queries.some(({ sql }) => /SET rappresentante_camera = \$1/.test(sql)));
 });
 
@@ -76,7 +76,7 @@ test('USA selection writes only canonical storage and never invents a legacy col
   });
   assert.equal(result.canonical.available, true);
   assert.equal(result.legacy.available, false);
-  assert.equal(queries.filter(({ sql }) => /UPDATE users/.test(sql)).length, 0);
+  assert.equal(queries.filter(({ sql }) => /UPDATE public\.users/.test(sql)).length, 0);
 });
 
 test('missing canonical table falls back to legacy projection on writes', async () => {
@@ -89,7 +89,7 @@ test('missing canonical table falls back to legacy projection on writes', async 
         error.code = '42P01';
         throw error;
       }
-      if (/UPDATE users/.test(sql)) return { rowCount: 1, rows: [{ id: params[1] }] };
+      if (/UPDATE public\.users/.test(sql)) return { rowCount: 1, rows: [{ id: params[1] }] };
       return { rowCount: 1, rows: [] };
     },
   };
@@ -114,7 +114,7 @@ test('canonical reads are authoritative and do not fall back merely because they
 test('supporter lookup uses canonical selection relation when available', async () => {
   const db = {
     async query(sql) {
-      assert.match(sql, /FROM political_selections ps/);
+      assert.match(sql, /FROM public\.political_selections ps/);
       return { rows: [{ id: 'u1' }, { id: 'u2' }] };
     },
   };
