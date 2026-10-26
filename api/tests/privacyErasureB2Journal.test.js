@@ -73,11 +73,10 @@ class FakeB2 {
         };
         return {ContentLength:this.declaredLength ?? undefined,Body:stream};
       }
+      const payload=this.failRead?Buffer.from('{"bad":true}'):object.body;
       return {
         ContentLength:this.declaredLength ?? object.body.length,
-        Body:{transformToByteArray:async()=>Uint8Array.from(
-          this.failRead?Buffer.from('{"bad":true}'):object.body
-        )}
+        Body:{async *[Symbol.asyncIterator](){yield payload;}}
       };
     }
     throw Error('Unexpected AWS operation: '+name);
@@ -156,7 +155,7 @@ test('readback is bounded: reject huge declared length before buffering and abor
   const receipt={versionId:saved.versionId,sha256:saved.sha256};
   const putCount=b2.calls.filter(x=>x.name==='PutObjectCommand').length;
 
-  // Header alone must reject before transformToByteArray() is invoked.
+  // Header alone must reject before consuming any body stream.
   b2.declaredLength=90000000;
   await assert.rejects(journal.verifyArchivedReceipt(event,receipt),/bounded read limit/);
   b2.declaredLength=null;
@@ -175,6 +174,23 @@ test('readback is bounded: reject huge declared length before buffering and abor
   assert.equal(b2.streamDestroyed,false);
   assert.equal(b2.calls.filter(x=>x.name==='PutObjectCommand').length,putCount,
     'readiness must remain strictly read-only');
+});
+
+test('nonstreaming B2 body is rejected without invoking an unbounded buffer helper',async()=>{
+  const b2=new FakeB2(),event=EVT(),journal=service(b2);
+  const saved=await journal.archiveEvent(event);
+  const originalSend=b2.send.bind(b2);
+  let called=false;
+  b2.send=async command=>{
+    if(command.constructor.name==='GetObjectCommand') {
+      return {Body:{transformToByteArray:async()=>{called=true;return Buffer.alloc(1000000);}}};
+    }
+    return originalSend(command);
+  };
+  await assert.rejects(journal.verifyArchivedReceipt(event,{
+    versionId:saved.versionId,sha256:saved.sha256
+  }),/bounded Node stream/);
+  assert.equal(called,false,'unbounded transformToByteArray must never run');
 });
 
 test('invalid COMPLIANCE retention is rejected before any B2 body download',async()=>{
