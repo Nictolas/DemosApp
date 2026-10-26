@@ -133,7 +133,7 @@ async function main(){
       recordEvent:async()=>{},
       async deleteByAnyColumn(db,table,_cols,user){
         if(table==='opinioni_risposte'){
-          const r=await db.query('DELETE FROM opinioni_risposte WHERE user_id=$1',[user]);
+          const r=await db.query('DELETE FROM public.opinioni_risposte WHERE user_id=$1',[user]);
           return r.rowCount;
         }
         if(table==='civic_ballot_positions'){
