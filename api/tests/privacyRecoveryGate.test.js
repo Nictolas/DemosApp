@@ -473,3 +473,70 @@ test('main app mounts recovery gate before CORS OPTIONS, logging and routes', ()
   assert.ok(i < src.indexOf('app.options('));
   assert.ok(i < src.indexOf("app.use('/api', healthRoutes)"));
 });
+
+
+test('dual-loss drill: independently pinned later event missing from both restored DB and B2 blocks readiness', async () => {
+  // A was archived before the backup; B committed AFTER the backup but was
+  // not yet delivered to B2 when the database failed. Both are invented.
+  // The trusted manifest/checkpoint was captured outside the failed DB.
+  const archived = mkEvent('political_consent_revoked', {
+    occurred_at: '2026-10-25T00:10:00.000Z'
+  });
+  const lost = mkEvent('political_consent_revoked', {
+    occurred_at: '2026-10-26T00:45:00.000Z'
+  });
+  const latest = fixture([archived, lost]);
+  const {client, queries} = syntheticB2ReadinessDb([archived]);
+  let remoteReads = 0;
+  const exporter = {
+    config() { return {}; },
+    async verifyArchivedReceipt(row) {
+      remoteReads++;
+      assert.equal(row.event_key, archived.event_key,
+        'a lost event must not be fabricated as a B2 receipt');
+      return {retentionUntil: '2026-10-27T00:00:00.000Z'};
+    }
+  };
+  await assert.rejects(verifyOutboxRecoveryReadiness(client, {
+    maintenanceConfirmed: true, exporter, envelope: latest,
+    secret: SECRET, expectedRecoveryId: ID,
+    expectedManifestDigest: manifestDigest(latest),
+    expectedRestoredBackupTakenAt: latest.payload.restoredBackupTakenAt,
+    expectedCapturedAt: latest.payload.capturedAt,
+    clock: () => new Date('2026-10-26T01:00:00.000Z'),
+    pageSize: 1
+  }), /events missing from restored ledger/);
+  assert.equal(remoteReads, 1, 'only surviving A has an archived receipt');
+  assert.ok(queries.includes('ROLLBACK'));
+  assert.equal(queries.includes('COMMIT'), false);
+});
+
+test('dual-loss drill: stale signed manifest refused by newer independent pin before DB or B2 access', async () => {
+  const archived = mkEvent('political_consent_revoked', {
+    occurred_at: '2026-10-25T00:10:00.000Z'
+  });
+  const lost = mkEvent('political_consent_revoked', {
+    occurred_at: '2026-10-26T00:45:00.000Z'
+  });
+  const stale = fixture([archived]); // Correctly signed, but incomplete.
+  const latest = fixture([archived, lost]); // Independent trusted evidence.
+  assert.notEqual(manifestDigest(stale), manifestDigest(latest));
+  let sql = 0, b2 = 0;
+  const client = {async query() { sql++; throw Error('unexpected SQL'); }};
+  const exporter = {
+    config() { b2++; throw Error('unexpected B2 config'); },
+    async verifyArchivedReceipt() { b2++; throw Error('unexpected B2 GET'); }
+  };
+  await assert.rejects(verifyOutboxRecoveryReadiness(client, {
+    maintenanceConfirmed: true, exporter, envelope: stale,
+    secret: SECRET, expectedRecoveryId: ID,
+    expectedManifestDigest: manifestDigest(latest),
+    expectedRestoredBackupTakenAt: latest.payload.restoredBackupTakenAt,
+    expectedCapturedAt: latest.payload.capturedAt
+  }), /freshness checkpoint/);
+  assert.equal(sql, 0);
+  assert.equal(b2, 0);
+  // This function cannot prove that the supplied trusted checkpoint is the
+  // NEWEST one. An out-of-band checkpoint authority/incident decision is
+  // still mandatory; neither a signed manifest nor a local 'ready' proves it.
+});
