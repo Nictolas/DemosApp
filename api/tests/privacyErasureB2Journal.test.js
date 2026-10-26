@@ -136,6 +136,8 @@ test('read-only recovery verification refuses missing or altered immutable B2 ve
   const putBefore=b2.calls.filter(c=>c.name==='PutObjectCommand').length;
   const checked=await client.verifyArchivedReceipt(event,receipt);
   assert.equal(checked.versionId,uploaded.versionId);
+  assert.equal(checked.retentionUntil,b2.objects.get(uploaded.key).until.toISOString(),
+    'readback must expose the independently verified COMPLIANCE expiry');
   assert.equal(b2.calls.filter(c=>c.name==='PutObjectCommand').length,putBefore);
   await assert.rejects(client.verifyArchivedReceipt(event,{
     versionId:uploaded.versionId,sha256:'f'.repeat(64)
