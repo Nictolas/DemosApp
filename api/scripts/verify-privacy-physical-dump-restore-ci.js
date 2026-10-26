@@ -221,6 +221,27 @@ async function main() {
       expectedRestoredBackupTakenAt: backupTakenAt,
       expectedCapturedAt: payload.capturedAt
     };
+    // Simulate an incomplete physical restore with the GDPR ledger schema
+    // absent. The signed replay must not auto-create a replacement table.
+    await db.query('DROP TABLE privacy_erasure_ledger');
+    const noDdlClient = {
+      async query(sql, params) {
+        assert.doesNotMatch(String(sql), /\bCREATE\s+(?:TABLE|INDEX)\b/i,
+          'offline recovery must not perform schema DDL');
+        return db.query(sql, params);
+      }
+    };
+    await assert.rejects(reconcileRestoredPrivacyState({
+      client:noDdlClient,envelope:saved,secret:SECRET,
+      expectedRecoveryId:SESSION,maintenanceConfirmed:true,...approvedCheckpoint
+    }),/ledger schema missing/);
+    assert.equal((await db.query(
+      "SELECT to_regclass('public.privacy_erasure_ledger') AS relation"
+    )).rows[0].relation,null);
+    assert.equal(await count(db,'political_selections',SUBJECTS.revoked),1);
+    // Explicit CI-only repair of the intentionally damaged disposable DB.
+    await Ledger.ensureTable(db);
+
     await assert.rejects(reconcileRestoredPrivacyState({
       client: db, envelope: null, secret: SECRET,
       expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
@@ -298,7 +319,7 @@ async function main() {
     assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM privacy_erasure_ledger')).rows[0].n, 0);
 
     const reconciled = await reconcileRestoredPrivacyState({
-      client: db, envelope: saved, secret: SECRET,
+      client: noDdlClient, envelope: saved, secret: SECRET,
       expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
     });
     assert.equal(reconciled.verifiedExternalEvents, 4);
@@ -330,7 +351,7 @@ async function main() {
     )).rows[0];
     assert.equal(regrantState.political_opinions_consent, true);
     const again = await reconcileRestoredPrivacyState({
-      client: db, envelope: saved, secret: SECRET,
+      client: noDdlClient, envelope: saved, secret: SECRET,
       expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
     });
     assert.equal(again.imported, 0);
@@ -345,6 +366,8 @@ async function main() {
       validlySignedStaleManifestRefused: true,
       unapprovedRestoredLedgerEventRejected: true,
       missingOutboxSchemaRejected: true,
+      missingLedgerSchemaRejectedWithoutDdl: true,
+      replayZeroImplicitDdl: true,
       recoveredEventsQueuedForB2: true,
       rollbackAfterFailure: true, consentRegrantDidNotResurrectChoices: true,
       deletedAccountStayedDeleted: true, unaffectedUserPreserved: true,

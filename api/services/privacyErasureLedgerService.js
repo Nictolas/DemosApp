@@ -130,8 +130,10 @@ class PrivacyErasureLedgerService {
     return result.rows;
   }
 
-  static async mergeCaptured(client, rows = []) {
-    await this.ensureTable(client);
+  static async mergeCaptured(client, rows = [], { requirePreinstalled = false } = {}) {
+    // The offline recovery gate must never silently provision a missing
+    // ledger. Keep legacy explicit import behavior for existing callers.
+    if (!requirePreinstalled) await this.ensureTable(client);
     let merged = 0;
     for (const row of rows) {
       const result = await client.query(
@@ -405,8 +407,10 @@ class PrivacyErasureLedgerService {
       legacySelectionsCleared: cleanup.legacySelectionsCleared };
   }
 
-  static async applyCurrentPrivacyState(client) {
-    await this.ensureTable(client);
+  static async applyCurrentPrivacyState(client, { requirePreinstalled = false } = {}) {
+    // The signed offline recovery path verifies the schema before replay.
+    // Do not run implicit CREATE TABLE/INDEX inside that transaction.
+    if (!requirePreinstalled) await this.ensureTable(client);
 
     // Fail BEFORE deleting any account or political data if historical
     // grants and revocations share a timestamp. event_key is a random UUID,

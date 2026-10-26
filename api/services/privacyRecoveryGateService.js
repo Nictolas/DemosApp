@@ -167,7 +167,16 @@ async function reconcileRestoredPrivacyState({
   try {
     // Serialize recovery sessions; use fixed, non-PII advisory lock.
     await client.query('SELECT pg_advisory_xact_lock(170026, 296)');
-    await Ledger.ensureTable(client);
+    // A missing ledger in the restored database is a schema/provisioning
+    // failure. Never create it as a side effect of a signed replay: an
+    // apparently successful import into a fresh table could mask a broken
+    // or incomplete restore.
+    const ledgerSchema = await client.query(
+      "SELECT to_regclass('public.privacy_erasure_ledger') IS NOT NULL AS installed"
+    );
+    if (ledgerSchema.rows[0]?.installed !== true) {
+      throw Error('GDPR recovery ledger schema missing: offline provisioning required');
+    }
 
     // Restoring a signed event without its delivery-outbox row makes
     // subsequent B2 verification incorrectly report "no pending work".
@@ -214,7 +223,9 @@ async function reconcileRestoredPrivacyState({
       }
     }
 
-    const imported = await Ledger.mergeCaptured(client, payload.events);
+    const imported = await Ledger.mergeCaptured(client, payload.events, {
+      requirePreinstalled: true
+    });
     const confirmed = await client.query(
       'SELECT count(*)::integer AS n FROM privacy_erasure_ledger ' +
       'WHERE event_key = ANY($1::text[])',
@@ -255,7 +266,9 @@ async function reconcileRestoredPrivacyState({
       }
     }
 
-    const applied = await Ledger.applyCurrentPrivacyState(client);
+    const applied = await Ledger.applyCurrentPrivacyState(client, {
+      requirePreinstalled: true
+    });
     // A re-grant does NOT resurrect choices from the snapshot BEFORE an older
     // revocation. Any revocation newer than the restored backup invalidates
     // that backup's personal selections even if a newer grant exists.
