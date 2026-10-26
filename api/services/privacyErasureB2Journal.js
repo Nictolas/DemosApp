@@ -145,6 +145,28 @@ class PrivacyErasureB2Journal {
     }
     return {sha256:expectedHash, versionId};
   }
+  async verifyArchivedReceipt(raw, receipt) {
+    // Strictly read-only: a recovery readiness check must NEVER repair a
+    // missing archive by uploading it; that would hide a lost external copy.
+    const cfg = this.config();
+    const event = normalizeEvent(raw);
+    if (!receipt || typeof receipt.versionId !== 'string' ||
+        receipt.versionId.length === 0 ||
+        receipt.versionId.length > 256 ||
+        !/^[0-9a-f]{64}$/.test(receipt.sha256 || '')) {
+      throw Error('GDPR B2 receipt missing or invalid');
+    }
+    const hash = checksum(Buffer.from(JSON.stringify(event)));
+    if (hash !== receipt.sha256) {
+      throw Error('GDPR B2 receipt does not match local ledger event');
+    }
+    const client = this.s3(cfg);
+    await this.assertBucketCompliance(client, cfg);
+    return this.readVerified(
+      client, cfg, keyFor(event), event, hash, receipt.versionId, this.clock()
+    );
+  }
+
   async archiveEvent(raw) {
     const cfg = this.config();
     const event = normalizeEvent(raw);
