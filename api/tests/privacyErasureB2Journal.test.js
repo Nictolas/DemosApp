@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { PrivacyErasureB2Journal, validatedConfig, keyFor } =
   require('../services/privacyErasureB2Journal');
+const { PrivacyErasureOutboxWorker } = require('../services/privacyErasureOutboxWorker');
 
 const FIXED = new Date('2026-10-26T04:00:00.000Z');
 const EVT = () => ({
@@ -101,6 +102,35 @@ test('default disabled, log bucket reuse, unapproved retention and non-TLS endpo
   }
   assert.equal(fake.calls.length,0);
 });
+test('B2 config rejects region/endpoint mismatch before worker SQL or network access',async()=>{
+  const fake=new FakeB2();
+  let connections=0;
+  const pool={async connect(){connections++;throw Error('Unexpected PostgreSQL connection');}};
+  for(const override of [
+    {GDPR_LEDGER_B2_REGION:'us-west-004'},
+    {GDPR_LEDGER_B2_REGION:'EU-CENTRAL-003'},
+    {GDPR_LEDGER_B2_REGION:'eu-central-003/other'},
+    {GDPR_LEDGER_B2_ENDPOINT:'https://s3.us-west-004.backblazeb2.com'},
+    {GDPR_LEDGER_B2_ENDPOINT:'https://user:pass@s3.eu-central-003.backblazeb2.com'},
+    {GDPR_LEDGER_B2_ENDPOINT:'https://s3.eu-central-003.backblazeb2.com:444'}
+  ]) {
+    const cfg=env({
+      GDPR_ERASURE_OUTBOX_ENABLED:'true',
+      GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'true',
+      ...override
+    });
+    assert.throws(()=>validatedConfig(cfg),/matching the configured region/);
+    const exporter=new PrivacyErasureB2Journal({env:cfg,client:fake});
+    const worker=new PrivacyErasureOutboxWorker({env:cfg,exporter});
+    await assert.rejects(worker.runOnce(pool),/matching the configured region/);
+    assert.equal(connections,0,'worker must reject before SQL');
+    assert.equal(fake.calls.length,0,'worker must reject before B2');
+  }
+  const valid=validatedConfig(env());
+  assert.equal(valid.region,'eu-central-003');
+  assert.equal(valid.endpoint,'https://s3.eu-central-003.backblazeb2.com');
+});
+
 test('B2 COMPLIANCE bucket is required; GOVERNANCE or inadequate default days fail before PUT', async()=>{
   for(const config of [{mode:'GOVERNANCE',days:30},{mode:'COMPLIANCE',days:3}]){
     const b2=new FakeB2(config);

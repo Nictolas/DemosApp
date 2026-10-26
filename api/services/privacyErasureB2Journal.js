@@ -99,10 +99,15 @@ function validatedConfig(env) {
   }
   let url;
   try { url = new URL(endpoint); } catch (_) { throw Error('Invalid B2 endpoint'); }
-  if (url.protocol !== 'https:' ||
-      !/^s3\.[a-z0-9-]+\.backblazeb2\.com$/.test(url.hostname) ||
+  // Signing with a different region from the official endpoint causes
+  // authentication failures and can strand GDPR outbox deliveries. Validate
+  // the pair before opening PostgreSQL or constructing an S3 network client.
+  const endpointRegion = /^s3\.([a-z0-9-]+)\.backblazeb2\.com$/.exec(url.hostname);
+  if (url.protocol !== 'https:' || !endpointRegion ||
+      !/^[a-z0-9-]+$/.test(region) || endpointRegion[1] !== region ||
+      url.port !== '' || url.username || url.password ||
       url.pathname !== '/' || url.search || url.hash) {
-    throw Error('Only the official TLS Backblaze S3 endpoint is allowed');
+    throw Error('Only the official TLS Backblaze S3 endpoint matching the configured region is allowed');
   }
   return { bucket, region, endpoint, accessKeyId, secretAccessKey, retentionDays };
 }

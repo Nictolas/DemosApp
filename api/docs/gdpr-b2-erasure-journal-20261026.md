@@ -44,3 +44,27 @@ Preparare una copia cifrata e immutabile degli eventi confermati del ledger Post
 - https://www.backblaze.com/docs/cloud-storage-configure-immutable-storage-for-reseller-and-msp-customers
 
 **Prossimo passaggio:** definire una outbox e un checkpoint esterno affidabile, senza fare affidamento sulla singola copia del DB o sull'ultimo oggetto visibile del bucket; preparare una prova B2 staging completamente separata. No merge, no deploy, no data migration.
+
+
+## Preflight B2: corrispondenza regione/endpoint (draft)
+
+`GDPR_LEDGER_B2_REGION` deve essere identico al segmento regionale dell'endpoint HTTPS ufficiale `https://s3.<regione>.backblazeb2.com`. Il client rifiuta mismatch tra regione configurata ed endpoint, nomi di regione malformati, credenziali incorporate nell'URL e porte non standard. La verifica avviene in `validatedConfig` prima di costruire il client S3; per il worker outbox `runOnce` fallisce prima di `pool.connect` e di ogni chiamata B2. Nessun rilevamento automatico di regione né modifica a endpoint o segreti.
+
+Test esclusivamente sintetici: sei configurazioni errate e una corretta, con contatori su connessioni PostgreSQL e chiamate B2 che restano a zero per tutti i casi rifiutati. Non prova che credenziali, regione, bucket, Object Lock o connessione funzionino su un servizio reale.
+
+## Decisione ancora aperta: worker durante la quarantena
+
+Il flag HTTP `DEMOS_PRIVACY_RECOVERY_MAINTENANCE` protegge soltanto Express. Il worker outbox oggi ha flag separati e non consulta tale variabile. Durante un recupero potrebbe servire un'esportazione *offline e autorizzata* degli eventi reimportati, ma un worker ordinario non deve continuare ad agire sulla base di un database ripristinato prima delle verifiche. Bloccare indistintamente il worker quando il flag HTTP è impostato impedirebbe anche un recupero autorizzato: occorre prima definire ruoli, procedura e fonte di autorizzazione distinta e verificabile, barriera di quiescenza su tutte le istanze, e ordine fra replay, consegna B2 e verifica finale.
+
+Questa PR **non modifica** il comportamento di manutenzione del worker. La quarantena Render/Supabase/Data API/worker e la relativa prova operativa restano un punto bloccante dell'issue #296, soggetto a decisione del titolare/DPO. Non dedurre l'isolamento di componenti separati dal solo flag HTTP.
+
+
+## Preflight coerente tra regione ed endpoint (PR successiva a #322)
+
+Il client B2 usa la regione configurata per firmare le richieste S3. Una regione differente da quella dell'endpoint ufficiale puo' provocare errori di autenticazione e lasciare eventi GDPR pendenti nell'outbox. La validazione ora accetta soltanto un URL HTTPS ufficiale `https://s3.<regione>.backblazeb2.com` la cui regione coincide **esattamente** con `GDPR_LEDGER_B2_REGION`. Rifiuta anche credenziali incorporate nell'URL, porte non standard, percorsi/query/fragment e regioni con formato non valido.
+
+Il worker invoca `exporter.config()` **prima di aprire PostgreSQL**. Il test sintetico verifica che configurazioni discordanti vengano respinte senza chiamare `pool.connect()` o il client B2; verifica anche un esempio valido. Questo controllo non prova la raggiungibilita' del servizio, la correttezza delle credenziali o la configurazione di Object Lock sul bucket reale.
+
+**Dipendenza recovery documentata:** `DEMOS_PRIVACY_RECOVERY_MAINTENANCE` protegge il traffico HTTP, ma non e' un interruttore universale dei worker. Durante un recovery autorizzato potrebbe essere necessario esportare eventi ripristinati mantenendo chiusi gli ingressi pubblici. Non si introduce un blocco indiscriminato dei worker senza un protocollo di quarantena e di autorizzazione operativa approvato; l'isolamento reale di tutte le istanze, dei worker e della Supabase Data API resta obbligatorio per chiudere #296.
+
+Solo CI sintetica, nessun accesso a PostgreSQL/B2 reali, segreti, deploy, migrazione o attivazione. La scelta su DPIA, retention, costi e checkpoint indipendente resta sospesa.
