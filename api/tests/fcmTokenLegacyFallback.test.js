@@ -19,7 +19,7 @@ test('canonical user_devices storage remains authoritative for write and revoke'
   assert.match(source, /SET is_active = FALSE/);
   assert.match(source, /UPDATE public\.user_devices/);
   assert.match(source, /btrim\(fcm_token\) = \$2/);
-  assert.match(source, /btrim\(fcm_token\) <> \$2/);
+  assert.match(source, /fcm_token <> \$2/);
 });
 test('versioned migration creates canonical user_devices schema idempotently', () => {
   const migration = fs.readFileSync(path.resolve(__dirname, '..', 'database', 'create-user-devices-table.sql'), 'utf8');
