@@ -11,6 +11,8 @@ on:
       - 'api/services/privacyRecoveryGateService.js'
       - 'api/services/privacyRecoveryQuarantineEvidenceGate.js'
       - 'api/services/privacyRecoverySignedEvidenceGate.js'
+      - 'api/services/privacyRecoveryOriginalEvidenceGate.js'
+      - 'api/tests/privacyRecoveryOriginalEvidenceGate.test.js'
       - 'api/tests/privacyRecoverySignedEvidenceGate.test.js'
       - 'api/tests/privacyRecoveryQuarantineEvidenceGate.test.js'
       - 'api/services/privacyOfflineRecoveryExporter.js'
@@ -57,9 +59,10 @@ jobs:
           node --check api/services/privacyRecoveryGateService.js
           node --check api/services/privacyRecoveryQuarantineEvidenceGate.js
           node --check api/services/privacyRecoverySignedEvidenceGate.js
+          node --check api/services/privacyRecoveryOriginalEvidenceGate.js
           node --check api/services/privacyOfflineRecoveryExporter.js
           node --check api/scripts/verify-privacy-recovery-gate-ci.js
-          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js api/tests/privacyOfflineRecoveryExporter.test.js api/tests/privacyRecoveryQuarantineEvidenceGate.test.js api/tests/privacyRecoverySignedEvidenceGate.test.js
+          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js api/tests/privacyOfflineRecoveryExporter.test.js api/tests/privacyRecoveryQuarantineEvidenceGate.test.js api/tests/privacyRecoverySignedEvidenceGate.test.js api/tests/privacyRecoveryOriginalEvidenceGate.test.js
       - name: Replay externally signed revocations on synthetic PostgreSQL 17
         env:
           GITHUB_ACTIONS: 'true'

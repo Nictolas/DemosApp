@@ -56,3 +56,7 @@ Per raccogliere attestazioni di quarantena verificabili per singola superficie s
 ## Preflight delle firme sulle evidenze (26 ottobre 2026)
 
 È disponibile un controllo offline separato `api/services/privacyRecoverySignedEvidenceGate.js`: richiede Ed25519 e impronte delle chiavi fidate approvate per canale indipendente, con riferimenti e digest dei documenti, ed esegue prima i controlli di completezza e cronologia. Non è collegato automaticamente al ripristino. Una firma valida **non dimostra** che l'endpoint sia stato bloccato o che il ledger esterno sia completo; prima di un recovery reale restano obbligatorie verifiche indipendenti dei provider, della catena di fiducia e dei documenti, oltre a decisione manuale del titolare/DPO.
+
+## Verifica degli originali delle attestazioni (26 ottobre 2026 — DRAFT)
+
+Dopo aver verificato le firme Ed25519 e le impronte delle chiavi approvate out-of-band, il modulo puramente locale `api/services/privacyRecoveryOriginalEvidenceGate.js` controlla l'hash SHA-256 dei Buffer con i documenti originali ricevuti dal canale attendibile. Un mismatch, un originale assente o sovradimensionato -> `NO_GO`. Il modulo **non scarica** file, non legge PII dall'infrastruttura, non firma documenti, non conosce la loro origine e non autorizza automaticamente il restore. Servono comunque revisione indipendente ed esplicita approvazione.
