@@ -47,28 +47,33 @@ function receipt(event) {
     retentionUntil:'2026-10-27T00:00:00.000Z'};
 }
 function fakeDb(events = [EVENT], {unapproved=false, missing=false, orphan=false,
-  altered=false, onUpdate=null} = {}) {
+  altered=false, deliveredAltered=false, tamperKey=null, onUpdate=null} = {}) {
   const calls=[];
   const db={async query(sql,params=[]) {
     calls.push(sql);
-    if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK' ||
-        sql.startsWith('SELECT pg_advisory_xact_lock')) return {rows:[]};
+    if (sql.startsWith('BEGIN TRANSACTION') || sql === 'COMMIT' ||
+        sql === 'ROLLBACK' || sql.startsWith('SELECT pg_advisory_xact_lock') ||
+        sql.startsWith('LOCK TABLE privacy_erasure_ledger')) return {rows:[]};
     if (sql.includes("to_regclass('public.privacy_erasure_ledger')")) {
       return {rows:[{ledger:true,outbox:true}]};
     }
-    if (sql.includes('WHERE NOT (event_key = ANY')) {
-      return {rows:[{present:unapproved}]};
-    }
-    if (sql.includes('SELECT count(*)::int AS n FROM privacy_erasure_ledger')) {
-      return {rows:[{n:missing ? events.length - 1 : events.length}]};
+    if (sql.includes('FROM privacy_erasure_ledger ') &&
+        sql.includes('WHERE event_key > $1 ORDER BY event_key ASC LIMIT $2')) {
+      const extra={...EVENT,event_key:'ffffffff-ffff-4fff-8fff-ffffffffffff'};
+      const source=[...events,...(unapproved?[extra]:[])].sort(
+        (a,b)=>a.event_key.localeCompare(b.event_key));
+      const visible=(missing?source.slice(1):source)
+        .filter(e=>e.event_key>params[0]).slice(0,params[1]);
+      return {rows:visible.map(e=>(altered || deliveredAltered ||
+        e.event_key===tamperKey)
+        ? {...e,details:{source:'tampered-delivered-or-pending'}} : e)};
     }
     if (sql.includes('LEFT JOIN privacy_erasure_delivery_outbox o') &&
         sql.includes('UNION ALL')) {
       return {rows:[{present:orphan}]};
     }
     if (sql.includes('FOR UPDATE OF o SKIP LOCKED')) {
-      return {rows:events.slice(0,params[0]).map(e=>altered
-        ? {...e,details:{source:'tampered'}} : e)};
+      return {rows:events.slice(0,params[0])};
     }
     if (sql.startsWith('UPDATE privacy_erasure_delivery_outbox')) {
       if (onUpdate) onUpdate();
@@ -148,7 +153,9 @@ test('offline exporter refuses incomplete, extra, orphaned or tampered restored 
     ['extra',{unapproved:true},/outside approved manifest/],
     ['missing',{missing:true},/missing approved external events/],
     ['orphan',{orphan:true},/missing or orphaned outbox/],
-    ['tampered',{altered:true},/differs from approved external manifest/]
+    ['tampered',{altered:true},/differs from approved external manifest/],
+    ['already delivered event tampered',{deliveredAltered:true},
+      /differs from approved external manifest/]
   ]){
     const h=harness({dbOpts});
     await assert.rejects(h.service.runOnce(h.db.pool,fixture()),expected,name);
@@ -156,6 +163,31 @@ test('offline exporter refuses incomplete, extra, orphaned or tampered restored 
     assert.ok(h.db.calls.includes('ROLLBACK'),name);
     assert.ok(!h.db.calls.includes('COMMIT'),name);
   }
+});
+
+test('offline exporter verifies all 251 signed events across pages before ANY B2 upload',async()=>{
+  const events=Array.from({length:251},(_,i)=>({
+    ...EVENT,
+    event_key:'00000000-0000-4000-8000-'+(i+1).toString(16).padStart(12,'0')
+  }));
+  const tamperedLast=events[250].event_key;
+  const h=harness({events,dbOpts:{tamperKey:tamperedLast}});
+  await assert.rejects(h.service.runOnce(h.db.pool,fixture(events)),
+    /differs from approved external manifest/);
+  assert.equal(h.exports,0,'later-page tamper must block first B2 PUT');
+  assert.ok(h.db.calls.filter(sql=>sql.includes('WHERE event_key > $1')).length>=2);
+  assert.ok(h.db.calls.includes('ROLLBACK'));
+});
+
+test('offline exporter acquires both table write-exclusion locks before scanning or B2',async()=>{
+  const h=harness();
+  await h.service.runOnce(h.db.pool,fixture());
+  const lock=h.db.calls.findIndex(sql=>sql.startsWith('LOCK TABLE'));
+  const scan=h.db.calls.findIndex(sql=>sql.includes('WHERE event_key > $1'));
+  const pending=h.db.calls.findIndex(sql=>sql.includes('FOR UPDATE OF o SKIP LOCKED'));
+  assert.ok(h.db.calls[0].startsWith('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ'));
+  assert.ok(lock>0 && scan>lock && pending>scan);
+  assert.match(h.db.calls[lock],/SHARE ROW EXCLUSIVE MODE NOWAIT/);
 });
 
 test('offline exporter commits only signed event with valid immutable B2 receipt and never claims traffic ready',async()=>{
