@@ -72,7 +72,8 @@ test('outbox worker rolls back when recovery starts during B2 delivery', async (
   const client = {
     async query(sql) {
       log.push(sql);
-      if(sql==='BEGIN' || sql==='ROLLBACK') return {rows:[]};
+      if(sql==='BEGIN' || sql==='ROLLBACK' ||
+         sql==='SET LOCAL search_path = pg_catalog, public, pg_temp') return {rows:[]};
       if(sql.includes('FOR UPDATE OF o SKIP LOCKED')) return {rows:[event]};
       throw Error('Unexpected SQL after recovery flag was enabled');
     },
@@ -91,6 +92,10 @@ test('outbox worker rolls back when recovery starts during B2 delivery', async (
   }});
   await assert.rejects(worker.runOnce(pool,{limit:1}),/blocked during recovery maintenance/);
   assert.equal(uploads,1,'one B2 operation was already in flight');
+  const schemaPin=log.indexOf('SET LOCAL search_path = pg_catalog, public, pg_temp');
+  const select=log.findIndex(sql=>sql.includes('FOR UPDATE OF o SKIP LOCKED'));
+  assert.ok(log.indexOf('BEGIN')<schemaPin && schemaPin<select,
+    'pin public schema before reading pending outbox rows and sending B2');
   assert.ok(log.includes('ROLLBACK'));
   assert.ok(log.includes('RELEASE'));
   assert.equal(log.some(sql=>sql.includes('UPDATE privacy_erasure_delivery_outbox')),false,
@@ -109,7 +114,8 @@ test('outbox worker rolls back when recovery starts after SQL delivery update', 
   const client={
     async query(sql) {
       log.push(sql);
-      if(sql==='BEGIN'||sql==='ROLLBACK') return {rows:[]};
+      if(sql==='BEGIN'||sql==='ROLLBACK' ||
+         sql==='SET LOCAL search_path = pg_catalog, public, pg_temp') return {rows:[]};
       if(sql.includes('FOR UPDATE OF o SKIP LOCKED')) return {rows:[event]};
       if(sql.includes('UPDATE privacy_erasure_delivery_outbox')) {
         env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE='true';
@@ -132,6 +138,35 @@ test('outbox worker rolls back when recovery starts after SQL delivery update', 
   assert.ok(log.includes('ROLLBACK'),'SQL update must be rolled back');
   assert.equal(log.includes('COMMIT'),false,'no commit after maintenance was engaged');
   assert.ok(log.includes('RELEASE'));
+});
+
+test('ordinary outbox worker aborts before B2 when schema pin fails', async () => {
+  const statements=[];
+  let b2Calls=0, released=false;
+  const worker=new PrivacyErasureOutboxWorker({
+    env:{GDPR_ERASURE_OUTBOX_ENABLED:'true',GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'true'},
+    exporter:{
+      config(){return {};},
+      async archiveEvent(){b2Calls++;throw Error('unexpected B2');}
+    }
+  });
+  const client={
+    async query(sql){
+      statements.push(sql);
+      if(sql==='BEGIN' || sql==='ROLLBACK') return {rows:[]};
+      if(sql==='SET LOCAL search_path = pg_catalog, public, pg_temp')
+        throw Error('synthetic-schema-pin-rejected');
+      throw Error('unexpected SQL');
+    },
+    release(){released=true;}
+  };
+  await assert.rejects(worker.runOnce({async connect(){return client;}}),
+    /synthetic-schema-pin-rejected/);
+  assert.deepEqual(statements,[
+    'BEGIN','SET LOCAL search_path = pg_catalog, public, pg_temp','ROLLBACK'
+  ]);
+  assert.equal(b2Calls,0,'never send a remote event when schema is uncertain');
+  assert.equal(released,true);
 });
 
 test('malformed GDPR outbox flag refuses event writes and recovery before any SQL', async () => {
