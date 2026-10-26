@@ -125,6 +125,11 @@ async function main() {
       'UPDATE user_consents SET political_opinions_consent=false WHERE user_id=$1',
       [active]
     );
+    // The canonical consent gate reads public.user_consents, not the shadow.
+    await client.query(
+      'UPDATE public.user_consents SET political_opinions_consent=false WHERE user_id=$1',
+      [active]
+    );
     const stillStored = (await client.query(
       'SELECT candidato_camera FROM user_representatives WHERE user_id=$1',
       [active]
