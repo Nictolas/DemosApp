@@ -20,7 +20,7 @@ async function withOpinionApi({ consent = true } = {}, fn) {
       writes.push(sql);
       return { rows: [], rowCount: 0 };
     }
-    if (sql.startsWith('SELECT id FROM users WHERE id = $1 FOR UPDATE')) {
+    if (sql.startsWith('SELECT id FROM public.users WHERE id = $1 FOR UPDATE')) {
       writes.push('USER_LOCK');
       return { rows: [{id: 'ordinary-account'}], rowCount: 1 };
     }
@@ -31,10 +31,10 @@ async function withOpinionApi({ consent = true } = {}, fn) {
     if (sql.includes('information_schema.columns') && sql.includes('opinioni_risposte')) {
       return { rows: [{ column_name: 'energia_nucleare' }], rowCount: 1 };
     }
-    if (sql.includes('FROM opinioni_risposte') && sql.includes('FOR UPDATE')) {
+    if (sql.includes('FROM public.opinioni_risposte') && sql.includes('FOR UPDATE')) {
       return { rows: [], rowCount: 0 };
     }
-    if (sql.startsWith('INSERT INTO opinioni_risposte')) {
+    if (sql.startsWith('INSERT INTO public.opinioni_risposte')) {
       writes.push({ sql, params });
       return { rows: [], rowCount: 1 };
     }
@@ -100,7 +100,7 @@ test('regular authenticated account with consent saves its opinion without CIE',
     assert.equal(body.success, true);
     assert.equal(body.savedCount, 1);
     assert.equal(body.errorCount, 0);
-    assert.equal(writes.some(w => typeof w === 'object' && w.sql.startsWith('INSERT INTO opinioni_risposte')), true);
+    assert.equal(writes.some(w => typeof w === 'object' && w.sql.startsWith('INSERT INTO public.opinioni_risposte')), true);
     assert.equal(writes.includes('COMMIT'), true);
     assert.ok(writes.indexOf('BEGIN') < writes.indexOf('USER_LOCK'));
     assert.ok(writes.indexOf('USER_LOCK') < writes.indexOf('CONSENT_READ'));

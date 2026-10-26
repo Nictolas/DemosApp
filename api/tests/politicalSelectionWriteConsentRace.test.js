@@ -15,19 +15,19 @@ function syntheticDb({ userFound = true, granted = true, failConsent = false, fa
     async query(sql, params) {
       const q = String(sql).replace(/\s+/g, ' ').trim();
       operations.push({ sql: q, params });
-      if (q === 'SELECT id FROM users WHERE id = $1 FOR UPDATE')
+      if (q === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE')
         return { rows: userFound ? [{ id: USER }] : [], rowCount: Number(userFound) };
       if (q.includes(' AS granted') && q.includes('FROM public.users u')) {
         if (failConsent) throw Error('synthetic-secret-database-message');
         return { rows: [{ id: USER, granted }], rowCount: 1 };
       }
-      if (q.startsWith('INSERT INTO political_selections')) {
+      if (q.startsWith('INSERT INTO public.political_selections')) {
         if (failInsert) throw Error('synthetic-secret-insert-failure');
         return { rows: [], rowCount: 1 };
       }
-      if (q.startsWith('DELETE FROM political_selections'))
+      if (q.startsWith('DELETE FROM public.political_selections'))
         return { rows: [], rowCount: 1 };
-      if (q.startsWith('UPDATE users SET'))
+      if (q.startsWith('UPDATE public.users SET'))
         return { rows: [{ id: USER }], rowCount: 1 };
       if (q.includes("to_regclass('public.user_representatives')"))
         return { rows: [{ available: false }], rowCount: 1 };
@@ -49,10 +49,10 @@ test('active consent: acquire row lock, check on same client, then write canonic
   assert.equal(result.canonical.available, true);
   assert.equal(result.legacy.field, 'rappresentante_camera');
   const qs = operations.map(x => x.sql);
-  assert.equal(qs[0], 'SELECT id FROM users WHERE id = $1 FOR UPDATE');
+  assert.equal(qs[0], 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE');
   assert.match(qs[1], /COALESCE\(uc.political_opinions_consent, u.political_opinions_consent, false\) AS granted/);
-  assert.ok(qs.findIndex(x => x.startsWith('INSERT INTO political_selections')) > 1);
-  assert.ok(qs.findIndex(x => x.startsWith('UPDATE users SET')) > 1);
+  assert.ok(qs.findIndex(x => x.startsWith('INSERT INTO public.political_selections')) > 1);
+  assert.ok(qs.findIndex(x => x.startsWith('UPDATE public.users SET')) > 1);
   assert.equal(qs.filter(x => x.includes('FOR UPDATE')).length, 1);
 });
 
@@ -80,8 +80,8 @@ test('voluntary deletion after revocation still works and does not require reins
   assert.equal(result.canonical.removed, true);
   assert.equal(result.legacy.field, 'rappresentante_camera');
   assert.equal(operations.filter(x => x.sql.includes(' AS granted')).length, 0);
-  assert.equal(operations[0].sql, 'SELECT id FROM users WHERE id = $1 FOR UPDATE');
-  assert.ok(operations.some(x => x.sql.startsWith('DELETE FROM political_selections')));
+  assert.equal(operations[0].sql, 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE');
+  assert.ok(operations.some(x => x.sql.startsWith('DELETE FROM public.political_selections')));
 });
 
 test('missing user is rejected before consent or any political write', async () => {
@@ -99,7 +99,7 @@ test('consent DB failure is fail-closed: no new selection', async () => {
 test('canonical write failure never reaches legacy user fields', async () => {
   const { db, operations } = syntheticDb({ failInsert: true });
   await assert.rejects(call(db), /synthetic-secret-insert-failure/);
-  assert.equal(operations.some(x => x.sql.startsWith('UPDATE users SET')), false);
+  assert.equal(operations.some(x => x.sql.startsWith('UPDATE public.users SET')), false);
 });
 
 test('all three routes map revoked consent to HTTP 403 and do not print SQL errors', () => {
@@ -126,7 +126,7 @@ test('consent check and user-row lock are in the shared service, not outside the
   const end = src.indexOf('async function loadLegacySelections', begin);
   const body = src.slice(begin, end);
   assert.ok(begin >= 0 && end > begin);
-  assert.ok(body.includes('SELECT id FROM users WHERE id = $1 FOR UPDATE'));
+  assert.ok(body.includes('SELECT id FROM public.users WHERE id = $1 FOR UPDATE'));
   assert.ok(body.indexOf('await getPoliticalConsentState(db, userId)') < body.indexOf('const canonical = await writeCanonicalSelection(db'));
   assert.ok(body.includes("selectedUserId !== null && selectedUserId !== undefined && selectedUserId !== ''"));
 });

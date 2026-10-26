@@ -177,7 +177,7 @@ router.post('/salva', verifyToken, async (req, res) => {
     const checkColumnsQuery = `
       SELECT column_name 
       FROM information_schema.columns 
-      WHERE table_name = 'opinioni_risposte' 
+      WHERE table_schema = 'public' AND table_name = 'opinioni_risposte'
       AND column_name != 'user_id'
       AND column_name != 'fonti_opinioni'
       AND column_name = ANY($1::text[])
@@ -252,7 +252,7 @@ router.post('/salva', verifyToken, async (req, res) => {
       // statement could otherwise observe an older user_consents snapshot
       // while waiting for the revoked users row to become available.
       const lockedUser = await client.query(
-        'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+        'SELECT id FROM public.users WHERE id = $1 FOR UPDATE', [userId]
       );
       if (lockedUser.rows.length === 0) {
         throw Object.assign(new Error('User absent at opinion save'), {
@@ -265,8 +265,8 @@ router.post('/salva', verifyToken, async (req, res) => {
           u.political_opinions_consent,
           false
         ) AS granted
-        FROM users u
-        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        FROM public.users u
+        LEFT JOIN public.user_consents uc ON uc.user_id = u.id
         WHERE u.id = $1
       `, [userId]);
       if (consentState.rows[0]?.granted !== true) {
@@ -278,7 +278,7 @@ router.post('/salva', verifyToken, async (req, res) => {
       const quotedFields = insertFields.map((field) => `"${String(field).replace(/"/g, '""')}"`);
       const checkQuery = `
         SELECT user_id${quotedFields.length ? `, ${quotedFields.join(', ')}` : ''}
-        FROM opinioni_risposte
+        FROM public.opinioni_risposte
         WHERE user_id = $1
         FOR UPDATE
       `;
@@ -287,7 +287,7 @@ router.post('/salva', verifyToken, async (req, res) => {
       if (checkResult.rows.length === 0) {
         // Prima risposta: salva, ma non notificare i sostenitori.
         const insertQuery = `
-          INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+          INSERT INTO public.opinioni_risposte (user_id, ${insertFields.join(', ')})
           VALUES ($1, ${insertFields.map((_, i) => `$${i + 2}`).join(', ')})
         `;
         const allValues = [userId, ...insertValues];
@@ -319,7 +319,7 @@ router.post('/salva', verifyToken, async (req, res) => {
           );
           const changedValues = actualChanges.map((change) => change.newValue);
           const updateQuery = `
-            UPDATE opinioni_risposte
+            UPDATE public.opinioni_risposte
             SET ${changedAssignments.join(', ')}
             WHERE user_id = $${actualChanges.length + 1}
           `;
@@ -657,7 +657,7 @@ router.put('/:id/approfondimento', verifyToken, requireAdmin, async (req, res) =
       const checkColumnQuery = `
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'opinioni_risposte' 
+        WHERE table_schema = 'public' AND table_name = 'opinioni_risposte'
         AND column_name = $1
       `;
       const columnCheck = await pool.query(checkColumnQuery, [actualId]);

@@ -23,7 +23,7 @@ async function save({ current = null, opinions, politician = false, consent = tr
     const normalized = String(sql).replace(/\s+/g, ' ').trim();
     queries.push({ sql: normalized, params });
     if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(normalized)) return { rows: [], rowCount: 0 };
-    if (normalized === 'SELECT id FROM users WHERE id = $1 FOR UPDATE') {
+    if (normalized === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE') {
       return { rows: userExists ? [{ id: 'test-user' }] : [] };
     }
     if (normalized.includes('political_opinions_consent') && normalized.includes('AS granted')) {
@@ -32,11 +32,11 @@ async function save({ current = null, opinions, politician = false, consent = tr
     if (normalized.includes('information_schema.columns') && normalized.includes('opinioni_risposte')) {
       return { rows: Object.keys(opinions).map((column_name) => ({ column_name })) };
     }
-    if (normalized.includes('FROM opinioni_risposte') && normalized.includes('FOR UPDATE')) {
+    if (normalized.includes('FROM public.opinioni_risposte') && normalized.includes('FOR UPDATE')) {
       return { rows: current ? [{ user_id: 'test-user', ...current }] : [] };
     }
-    if (normalized.startsWith('UPDATE opinioni_risposte') ||
-        normalized.startsWith('INSERT INTO opinioni_risposte')) {
+    if (normalized.startsWith('UPDATE public.opinioni_risposte') ||
+        normalized.startsWith('INSERT INTO public.opinioni_risposte')) {
       writes.push({ sql: normalized, params });
       return { rowCount: 1, rows: [] };
     }
@@ -105,7 +105,7 @@ test('94 unchanged answers do not cause database UPDATE; API count remains stabl
   assert.equal(result.writes.length, 0);
   assert.equal(result.notifications, 0);
   assert.equal(result.queries.filter(({sql}) => sql.includes('FOR UPDATE')).length, 2);
-  const lockIndex = result.queries.findIndex(({sql}) => sql === 'SELECT id FROM users WHERE id = $1 FOR UPDATE');
+  const lockIndex = result.queries.findIndex(({sql}) => sql === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE');
   const consentIndex = result.queries.findIndex(({sql}) => sql.includes('political_opinions_consent') && sql.includes('AS granted'));
   assert.ok(lockIndex >= 0 && consentIndex > lockIndex, 'consent must be checked after user lock');
 });
@@ -125,7 +125,7 @@ test('new user first answers are still inserted as a batch', async () => {
   const result = await save({ current: null, opinions: allAnswers() });
   assert.equal(result.status, 200);
   assert.equal(result.writes.length, 1);
-  assert.match(result.writes[0].sql, /INSERT INTO opinioni_risposte/);
+  assert.match(result.writes[0].sql, /INSERT INTO public.opinioni_risposte/);
   assert.equal(result.response.savedCount, 94);
 });
 
@@ -159,7 +159,7 @@ test('missing political-consent is fail closed after acquiring user lock', async
   assert.equal(result.writes.length, 0);
   assert.ok(result.queries.some(({sql}) => sql === 'ROLLBACK'));
   assert.ok(!result.queries.some(({sql}) => sql === 'COMMIT'));
-  assert.equal(result.queries.filter(({sql}) => sql === 'SELECT id FROM users WHERE id = $1 FOR UPDATE').length, 1);
+  assert.equal(result.queries.filter(({sql}) => sql === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE').length, 1);
 });
 
 

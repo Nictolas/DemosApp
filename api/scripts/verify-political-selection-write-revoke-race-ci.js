@@ -91,10 +91,10 @@ async function main() {
         const tx = {
           async query(sql, params) {
             const statement = String(sql).replace(/\s+/g, ' ').trim();
-            if (hold?.phase === 'revoke' && statement === 'SELECT id FROM users WHERE id = $1 FOR UPDATE')
+            if (hold?.phase === 'revoke' && statement === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE')
               hold.contender.resolve();
             const answer = await c.query(sql, params);
-            if (hold?.phase === 'save' && !hold.paused && statement === 'SELECT id FROM users WHERE id = $1 FOR UPDATE') {
+            if (hold?.phase === 'save' && !hold.paused && statement === 'SELECT id FROM public.users WHERE id = $1 FOR UPDATE') {
               hold.paused = true;
               hold.locked.resolve();
               await timeout(hold.resume.promise);
@@ -177,6 +177,84 @@ async function main() {
     const ordinary = await save();
     assert.equal(ordinary.ok, true);
     assert.deepEqual(await inspect(), { granted: true, choices: [TARGET] });
+
+    // A non-cooperating borrowed connection may have temporary shadows and
+    // search_path=pg_temp,public. A row-lock on pg_temp.users would NOT
+    // serialize with the consent revoke on public.users.
+    await reset();
+    const shadow=await real.connect();
+    const revoker=await real.connect();
+    let revokerOpen=false;
+    try {
+      await shadow.query('CREATE TEMP TABLE users (LIKE public.users INCLUDING DEFAULTS)');
+      await shadow.query('CREATE TEMP TABLE user_consents (LIKE public.user_consents INCLUDING DEFAULTS)');
+      await shadow.query('CREATE TEMP TABLE political_selections (LIKE public.political_selections INCLUDING DEFAULTS)');
+      await shadow.query('INSERT INTO pg_temp.users SELECT * FROM public.users WHERE id=$1',[USER]);
+      await shadow.query('INSERT INTO pg_temp.user_consents SELECT * FROM public.user_consents WHERE user_id=$1',[USER]);
+      const shadowTarget='00000000-0000-4000-8000-000000000291';
+      await shadow.query(
+        'INSERT INTO pg_temp.political_selections ' +
+        '(user_id,selection_kind,jurisdiction_id,political_office_id,selected_user_id,source,context) ' +
+        "VALUES ($1,'candidate','us','us.house',$2,'matching','{}'::jsonb)",
+        [USER,shadowTarget]
+      );
+      await shadow.query('SET search_path TO pg_temp, public');
+      const writeOnBorrowed=()=>setPoliticalSelection(shadow,{
+        userId:USER,kind:'candidate',officeValue:'us.house',adapterId:'us',
+        selectedUserId:TARGET,source:'matching'
+      });
+
+      // Hold the canonical row exclusively from a separate transaction.
+      // lock_timeout makes this a bounded *real PG17* proof of the lock target.
+      await revoker.query('BEGIN');revokerOpen=true;
+      await revoker.query(
+        'UPDATE public.users SET political_opinions_consent=false WHERE id=$1',[USER]);
+      await shadow.query('BEGIN');
+      await shadow.query("SET LOCAL lock_timeout = '300ms'");
+      await assert.rejects(writeOnBorrowed(),
+        err=>err.code==='55P03',
+        'selection must wait for public.users lock, never pg_temp.users');
+      await shadow.query('ROLLBACK');
+      await revoker.query('ROLLBACK');revokerOpen=false;
+
+      // The same borrowed session must save ONLY to canonical selections,
+      // leaving the conflicting temporary selection unchanged.
+      await shadow.query('BEGIN');
+      const stored=await writeOnBorrowed();
+      assert.equal(stored.canonical.written,true);
+      await shadow.query('COMMIT');
+      const canonical=await real.query(
+        'SELECT selected_user_id::text AS id FROM public.political_selections WHERE user_id=$1',[USER]);
+      assert.deepEqual(canonical.rows.map(row=>row.id),[TARGET]);
+      const temp=await shadow.query(
+        'SELECT selected_user_id::text AS id FROM pg_temp.political_selections WHERE user_id=$1',[USER]);
+      assert.deepEqual(temp.rows.map(row=>row.id),[shadowTarget]);
+
+      // Revocation updates public consent, leaving stale pg_temp copies
+      // still granting. The next selection must fail, not trust the shadows.
+      await real.query(
+        'UPDATE public.users SET political_opinions_consent=false WHERE id=$1',[USER]);
+      await real.query(
+        'UPDATE public.user_consents SET political_opinions_consent=false WHERE user_id=$1',[USER]);
+      await shadow.query('BEGIN');
+      await assert.rejects(writeOnBorrowed(),
+        err=>err.code==='POLITICAL_SELECTION_CONSENT_REQUIRED');
+      await shadow.query('ROLLBACK');
+      const after=await real.query(
+        'SELECT selected_user_id::text AS id FROM public.political_selections WHERE user_id=$1',[USER]);
+      assert.deepEqual(after.rows.map(row=>row.id),[TARGET]);
+      console.log('POLITICAL_SELECTION_PUBLIC_LOCK_AND_SHADOW_PG17_PASS');
+    } finally {
+      if (revokerOpen) await revoker.query('ROLLBACK').catch(()=>{});
+      revoker.release();
+      await shadow.query('ROLLBACK').catch(()=>{});
+      await shadow.query('RESET search_path').catch(()=>{});
+      await shadow.query('DROP TABLE IF EXISTS pg_temp.political_selections').catch(()=>{});
+      await shadow.query('DROP TABLE IF EXISTS pg_temp.user_consents').catch(()=>{});
+      await shadow.query('DROP TABLE IF EXISTS pg_temp.users').catch(()=>{});
+      shadow.release();
+    }
+
     console.log('POLITICAL_SELECTION_SAVE_REVOKE_PG17_SYNTHETIC_PASS');
   } finally {
     await real.end();
