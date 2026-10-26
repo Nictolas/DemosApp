@@ -192,6 +192,10 @@ class PrivacyOfflineRecoveryExporter {
       }
       await client.query('COMMIT');
       open = false;
+      // The local flag may change while COMMIT runs. A post-commit check
+      // cannot undo durable SQL/B2 effects, but must refuse ordinary success
+      // if authorization was revoked during that interval. Reconcile first.
+      this.assertQuarantine();
       // Not recovery readiness: a complete separately pinned B2 readback is
       // still required, with an independently demonstrated writer freeze.
       return {recoveryId:approved.recoveryId, delivered,
