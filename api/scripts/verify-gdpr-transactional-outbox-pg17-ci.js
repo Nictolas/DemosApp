@@ -527,6 +527,31 @@ async function main() {
     }),/freshness checkpoint/);
     assert.equal(configChecks,0,'stale independent pin must reject before B2');
     assert.equal(offlinePuts,0);
+    // Real PostgreSQL 17 concurrency: another writer's ROW EXCLUSIVE lock
+    // must make the offline export fail NOWAIT before any remote B2 call.
+    const concurrentWriter=await pool.connect();
+    try {
+      await concurrentWriter.query('BEGIN');
+      await concurrentWriter.query(
+        'UPDATE privacy_erasure_ledger SET details=details WHERE event_key=$1',
+        [offlinePending.event_key]
+      );
+      const putsBeforeLock=offlinePuts;
+      await assert.rejects(offlineRunner.runOnce(pool,{
+        ...approvedCheckpoint,maintenanceConfirmed:true,
+        quarantineConfirmed:true,limit:1
+      }),error=>error.code==='55P03',
+      'offline exporter must reject a concurrent ledger writer');
+      assert.equal(offlinePuts,putsBeforeLock,
+        'write-exclusion failure must precede B2 PUT');
+      assert.equal(await value(pool,
+        'SELECT COUNT(*)::int FROM privacy_erasure_delivery_outbox '+
+        'WHERE event_key=$1 AND delivered_at IS NULL',
+        [offlinePending.event_key]),1);
+    } finally {
+      await concurrentWriter.query('ROLLBACK');
+      concurrentWriter.release();
+    }
     await assert.rejects(offlineRunner.runOnce(pool,{
       ...approvedCheckpoint,maintenanceConfirmed:true,
       quarantineConfirmed:true,limit:1
@@ -575,6 +600,7 @@ async function main() {
       microsecondExportCursorPg17:true,
       recoveryMaintenanceWorkerAbortPg17:true,
       isolatedOfflineRecoveryExporterPg17:true,
+      offlineExporterRejectsConcurrentWriterPg17:true,
       productionUntouched:true
     }));
   } finally {
