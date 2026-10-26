@@ -8,7 +8,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { privacyRecoveryMaintenance } = require('../middleware/privacyRecoveryMaintenance');
 const {
-  signature, verifySignedManifest, reconcileRestoredPrivacyState
+  signature, manifestDigest, assertIndependentRecoveryCheckpoint, verifySignedManifest, reconcileRestoredPrivacyState
 } = require('../services/privacyRecoveryGateService');
 
 const SECRET = 'synthetic-test-only-hmac-key-at-least-32-bytes';
@@ -58,6 +58,33 @@ test('duplicate events, events after capture and malformed timestamps fail durin
   })]), /after manifest/);
   assert.throws(() => fixture([mkEvent('political_consent_revoked', { occurred_at: 'bad' })]),
     /Invalid event timestamp/);
+});
+test('pinned external SHA256 refuses signed stale manifests without any DB access', async () => {
+  const approved = fixture();
+  const stale = fixture([mkEvent('political_consent_revoked',{
+    occurred_at:'2026-10-25T00:00:00.000Z'
+  })]);
+  const checkpoint = {
+    expectedManifestDigest: manifestDigest(approved),
+    expectedRestoredBackupTakenAt: approved.payload.restoredBackupTakenAt,
+    expectedCapturedAt: approved.payload.capturedAt
+  };
+  assert.doesNotThrow(()=>assertIndependentRecoveryCheckpoint(approved,checkpoint));
+  assert.throws(()=>assertIndependentRecoveryCheckpoint(stale,checkpoint),/freshness checkpoint/);
+  assert.throws(()=>assertIndependentRecoveryCheckpoint(approved,{
+    ...checkpoint,expectedRestoredBackupTakenAt:'2026-10-23T00:00:00Z'
+  }),/dates mismatch/);
+  let queries=0;
+  const client={async query(){queries++;}};
+  await assert.rejects(reconcileRestoredPrivacyState({
+    client,envelope:stale,secret:SECRET,expectedRecoveryId:ID,
+    maintenanceConfirmed:true,...checkpoint
+  }),/freshness checkpoint/);
+  await assert.rejects(reconcileRestoredPrivacyState({
+    client,envelope:approved,secret:SECRET,expectedRecoveryId:ID,
+    maintenanceConfirmed:true
+  }),/checkpoint is required/);
+  assert.equal(queries,0);
 });
 test('recovery rejects a missing maintenance attestation BEFORE connecting to DB', async () => {
   let queries = 0;

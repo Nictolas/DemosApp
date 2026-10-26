@@ -15,7 +15,7 @@ const { setTimeout: delay } = require('node:timers/promises');
 const { Pool } = require('pg');
 const Ledger = require('../services/privacyErasureLedgerService');
 const { cleanupConsentScopedPoliticalData } = require('../services/politicalConsentService');
-const { signature, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
+const { signature, manifestDigest, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
 
 const DB = 'privacy_recovery_gate_ci';
 const SESSION = 'real_dump_restore_ci_20261026';
@@ -214,19 +214,35 @@ async function main() {
     assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM privacy_erasure_ledger')).rows[0].n, 0);
 
     const saved = JSON.parse(fs.readFileSync(externalManifest, 'utf8'));
+    // A reference SHA-256 is pinned separately BEFORE reading the manifest.
+    // Real recovery must obtain this reference from an independent trusted store.
+    const approvedCheckpoint = {
+      expectedManifestDigest: manifestDigest(envelope),
+      expectedRestoredBackupTakenAt: backupTakenAt,
+      expectedCapturedAt: payload.capturedAt
+    };
     await assert.rejects(reconcileRestoredPrivacyState({
       client: db, envelope: null, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
     }), /Missing signed/);
     await assert.rejects(reconcileRestoredPrivacyState({
       client: db, envelope: saved, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: false
+      expectedRecoveryId: SESSION, maintenanceConfirmed: false, ...approvedCheckpoint
     }), /maintenance/);
+    // This manifest is itself correctly signed by the CI key but truncated:
+    // the independently pinned digest must still reject it *before* any SQL.
+    const stalePayload = {...saved.payload, events:saved.payload.events.slice(0,2)};
+    const stale = {payload:stalePayload, signature:signature(stalePayload,SECRET)};
+    await assert.rejects(reconcileRestoredPrivacyState({
+      client:db,envelope:stale,secret:SECRET,
+      expectedRecoveryId:SESSION,maintenanceConfirmed:true,...approvedCheckpoint
+    }),/freshness checkpoint/);
+    assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM privacy_erasure_ledger')).rows[0].n,0);
     const forged = structuredClone(saved);
     forged.payload.events[0].subject_user_id = SUBJECTS.unaffected;
     await assert.rejects(reconcileRestoredPrivacyState({
       client: db, envelope: forged, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
     }), /signature invalid/);
     assert.equal(await count(db, 'political_selections', SUBJECTS.revoked), 1);
 
@@ -241,14 +257,14 @@ async function main() {
     };
     await assert.rejects(reconcileRestoredPrivacyState({
       client: faultClient, envelope: saved, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
     }), /synthetic-restore-fault/);
     assert.equal(await count(db, 'users', SUBJECTS.deleted), 1);
     assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM privacy_erasure_ledger')).rows[0].n, 0);
 
     const reconciled = await reconcileRestoredPrivacyState({
       client: db, envelope: saved, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
     });
     assert.equal(reconciled.verifiedExternalEvents, 4);
     assert.equal(reconciled.imported, 4);
@@ -275,7 +291,7 @@ async function main() {
     assert.equal(regrantState.political_opinions_consent, true);
     const again = await reconcileRestoredPrivacyState({
       client: db, envelope: saved, secret: SECRET,
-      expectedRecoveryId: SESSION, maintenanceConfirmed: true
+      expectedRecoveryId: SESSION, maintenanceConfirmed: true, ...approvedCheckpoint
     });
     assert.equal(again.imported, 0);
 
@@ -284,6 +300,7 @@ async function main() {
       realDumpRestore: true, originalDbDestroyed: true,
       externalSignedLedgerSurvived: true,
       missingOrTamperedManifestRefused: true,
+      validlySignedStaleManifestRefused: true,
       rollbackAfterFailure: true, consentRegrantDidNotResurrectChoices: true,
       deletedAccountStayedDeleted: true, unaffectedUserPreserved: true,
       replayIdempotent: true, realDataTouched: false

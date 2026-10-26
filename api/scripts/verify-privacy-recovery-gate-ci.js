@@ -7,7 +7,7 @@
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { Pool } = require('pg');
-const { signature, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
+const { signature, manifestDigest, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
 const DB = 'privacy_recovery_gate_ci';
 const SUBJECT = '00000000-0000-4000-8000-000000000301';
 const OTHER = '00000000-0000-4000-8000-000000000302';
@@ -30,6 +30,13 @@ const event = (subject, type, time, details = {}) => ({
 function envelope(events, recoveryId=RECOVERY) {
   const payload={formatVersion:1,recoveryId,capturedAt:'2026-10-26T01:00:00.000Z',restoredBackupTakenAt:'2026-10-24T00:00:00.000Z',events};
   return {payload,signature:signature(payload,SECRET)};
+}
+// The CI synthetic fixture pins the digest in advance; production must source
+// this approval from a *different* trusted channel than the JSON manifest.
+function approvedCheckpoint(envelope) {
+  return {expectedManifestDigest:manifestDigest(envelope),
+    expectedRestoredBackupTakenAt:envelope.payload.restoredBackupTakenAt,
+    expectedCapturedAt:envelope.payload.capturedAt};
 }
 async function count(db,table,subject) {
   const allowed=['opinioni_risposte','political_selections','user_representatives'];
@@ -69,23 +76,24 @@ async function main() {
       event(OTHER,'political_consent_granted','2026-10-26T00:30:00Z')
     ];
     const signed=envelope(events);
+    const approved=approvedCheckpoint(signed);
     // No maintenance approval means no query and no changes.
     await assert.rejects(reconcileRestoredPrivacyState({
-      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:false
+      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:false,...approved
     }),/maintenance/);
     assert.equal(await count(db,'political_selections',SUBJECT),1);
     // Signed payload must exactly match approved session and content.
     const tampered=structuredClone(signed);
     tampered.payload.events[1].subject_user_id=THIRD;
     await assert.rejects(reconcileRestoredPrivacyState({
-      client:db,envelope:tampered,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true
+      client:db,envelope:tampered,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
     }),/signature invalid/);
     await assert.rejects(reconcileRestoredPrivacyState({
-      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:'wrong_session',maintenanceConfirmed:true
+      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:'wrong_session',maintenanceConfirmed:true,...approved
     }),/session/);
     // The signed 2026-10-25 revocation must erase the 2026-10-24 DB snapshot.
     const first=await reconcileRestoredPrivacyState({
-      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true
+      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
     });
     assert.equal(first.verifiedExternalEvents,4);
     assert.equal(first.imported,4);
@@ -106,7 +114,7 @@ async function main() {
     assert.equal((await db.query('SELECT political_opinions_consent FROM users WHERE id=$1',[OTHER])).rows[0].political_opinions_consent,true);
 
     const repeated=await reconcileRestoredPrivacyState({
-      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true
+      client:db,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
     });
     assert.equal(repeated.imported,0);
 
@@ -114,15 +122,18 @@ async function main() {
     // that already exists with the same key and a different subject/type.
     const conflictingEvents=structuredClone(events);
     conflictingEvents[0].details={changed:true};
+    const conflictEnvelope=envelope(conflictingEvents);
+    const conflictApproved=approvedCheckpoint(conflictEnvelope);
     await assert.rejects(reconcileRestoredPrivacyState({
-      client:db,envelope:envelope(conflictingEvents),secret:SECRET,
-      expectedRecoveryId:RECOVERY,maintenanceConfirmed:true
+      client:db,envelope:conflictEnvelope,secret:SECRET,
+      expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...conflictApproved
     }),/conflicts with signed/);
 
     // A failure after ledger import must rollback the import AND any
     // performed deletions. The operator cannot reopen until retry succeeds.
     const thirdEvent=event(THIRD,'political_consent_revoked','2026-10-25T12:00:00Z');
     const thirdEnvelope=envelope([...events,thirdEvent]);
+    const thirdApproved=approvedCheckpoint(thirdEnvelope);
     const injected={
       async query(sql,params) {
         if (String(sql).startsWith('DELETE FROM "political_selections"')) {
@@ -133,13 +144,13 @@ async function main() {
     };
     await assert.rejects(reconcileRestoredPrivacyState({
       client:injected,envelope:thirdEnvelope,secret:SECRET,
-      expectedRecoveryId:RECOVERY,maintenanceConfirmed:true
+      expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...thirdApproved
     }),/synthetic recovery write failure/);
     assert.equal(await count(db,'political_selections',THIRD),1);
     assert.equal(Number((await db.query('SELECT count(*)::int AS n FROM privacy_erasure_ledger WHERE event_key=$1',[thirdEvent.event_key])).rows[0].n),0);
     const recovered=await reconcileRestoredPrivacyState({
       client:db,envelope:thirdEnvelope,secret:SECRET,
-      expectedRecoveryId:RECOVERY,maintenanceConfirmed:true
+      expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...thirdApproved
     });
     assert.equal(recovered.imported,1);
     assert.equal(await count(db,'political_selections',THIRD),0);
