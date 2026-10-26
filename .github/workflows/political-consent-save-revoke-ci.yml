@@ -98,6 +98,7 @@ on:
       - 'api/tests/fcmTokenReadResolver.test.js'
       - 'api/tests/fcmTokenPrivacyDiagnostics.test.js'
       - 'api/tests/fcmManualMaintenanceAudit.test.js'
+      - 'server/notifica.service.js'
       - 'api/fix_fcm_tokens.sql'
       - 'pulisci-token-fcm-invalidi.sql'
       - 'verifica-fcm-tokens.cjs'

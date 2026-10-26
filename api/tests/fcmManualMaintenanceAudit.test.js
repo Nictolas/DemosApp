@@ -38,3 +38,21 @@ test('historical server sender is not configured as active Render API entrypoint
   // This only checks the configured entrypoints, not any external workers,
   // manual deployments or connections outside the repository.
 });
+
+test('archived Firestore push service is fail-closed even if imported externally',async()=>{
+  const vm=require('node:vm');
+  const source=read('server/notifica.service.js');
+  assert.doesNotMatch(source,/\b(?:adminDb|DATABASE_URL)\b|messaging\s*\(\)\s*\.send|\btopicMessage\b/);
+  assert.match(source,/LEGACY_FIREBASE_PUSH_DISABLED/);
+  const legacy=vm.runInNewContext(
+    source.replace(/export default NotificaService;\s*$/,'NotificaService;'),
+    Object.create(null),
+    {timeout:1000}
+  );
+  const direct=await legacy.sendPushNotification('user','title','message');
+  const bulk=await legacy.sendPushNotificationsForComunicazione('politician');
+  assert.equal(direct.success,false);
+  assert.equal(bulk.success,false);
+  assert.equal(direct.error,'LEGACY_FIREBASE_PUSH_DISABLED');
+  assert.equal(bulk.error,'LEGACY_FIREBASE_PUSH_DISABLED');
+});

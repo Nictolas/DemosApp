@@ -73,3 +73,18 @@ I file storici `api/fix_fcm_tokens.sql` e `pulisci-token-fcm-invalidi.sql` aveva
 Tre vecchie diagnostiche root (`verifica-fcm-tokens.cjs`, `verifica-push-notifiche.cjs`, `verifica-utenti-demos-fcm.cjs`) accedevano tramite `DATABASE_URL`, mostravano identità o prefissi/token interi e una poteva perfino creare la colonna legacy. Sono state ritirate con uscita esplicita, **senza importare database/Firebase né aprire connessioni**. Le verifiche funzionali continuano nella CI PostgreSQL 17 con dati sintetici.
 
 `server/notifica.service.js` mantiene un sender Firebase/Firestore storico non conforme alle nuove regole. L'audit statico mostra che i punti d'ingresso dichiarati in `render.yaml` sono sotto `api`, senza import diretto da `api/index.js` o `api/server.js`: **non costituisce prova che nessun processo esterno o deploy legacy lo esegua**. Questo sender NON è stato modificato né attivato e resta da censire negli ambienti/runtime prima di qualunque rilascio. Nessuna prova di accesso a Supabase, dati reali, o provider Firebase.
+
+## Addendum — audit runtime Render/Supabase e quarantena sender storico (26 ottobre 2026)
+
+### Evidenza provider, sola lettura
+
+- Render: 11 servizi DEMOS censiti nel workspace. `demos-backend` live con `rootDir=api`, `startCommand=node index.js`, branch `main`, deploy automatico abilitato. **Deploy live sul commit `77cfd86277e8a7c5c5540d42464fe5af46923d01` del 24 ottobre 2026**, quindi le correzioni su PR #346 sono **solo nel branch Draft**, non sul backend live.
+- Staging Render censiti (staging HTTP, security, rollback, B2 e Audit Outbox) con deploy automatico disattivato e comandi di avvio sotto `api`, diversi da `server/notifica.service.js`. `demos-functional-staging` usa `cd api && node index.js`; nessun servizio Render censito dichiara un entrypoint `server/notifica.service.js`.
+- Supabase: progetti `Demos` e `Demos-Staging` **senza Edge Functions** e con `pg_cron` / `pg_net` non installate secondo la lista estensioni del provider. Non sono stati eseguiti SQL su dati utente o query di log.
+- La verifica dei metadati non prova l'assenza di servizi su altri provider, deploy manuali o processi con credenziali proprie. L'assenza di Edge Functions non esclude trigger SQL o client esterni.
+
+### Blocco esplicito del sender storico
+
+`server/notifica.service.js`, importato solo dal vecchio `server/comunicazione.service.js` nell'indice di codice esaminato, conteneva due metodi FCM che leggevano `utenti.fcmToken` Firestore e inviavano anche a topic sostenitori senza ricontrollare consenso o revoca correnti. I due metodi ora **restituiscono sempre** `{success:false,error:'LEGACY_FIREBASE_PUSH_DISABLED'}` senza contattare Firebase. Rimossi dal modulo anche la creazione inutilizzata di un pool PostgreSQL e i chiamanti Firebase per l'invio push; gli altri metodi storici non-FCM restano invariati. Test statico/dinamico verifica il fail-closed persino in caso di import accidentale, con un ambiente VM che non dispone di accesso alla rete o al database.
+
+Questa quarantena entra in vigore **solo dopo un futuro merge/rilascio autorizzato**. Non è stato modificato alcun servizio remoto o ambiente runtime. Restano invariati i limiti di atomicità del provider, l'audit di possibili sistemi esterni e tutti i prerequisiti dell'issue #296.
