@@ -47,7 +47,7 @@ function receipt(event) {
     retentionUntil:'2026-10-27T00:00:00.000Z'};
 }
 function fakeDb(events = [EVENT], {unapproved=false, missing=false, orphan=false,
-  altered=false, deliveredAltered=false, tamperKey=null, onUpdate=null} = {}) {
+  altered=false, deliveredEvents=[], tamperKey=null, onUpdate=null} = {}) {
   const calls=[];
   const db={async query(sql,params=[]) {
     calls.push(sql);
@@ -60,11 +60,11 @@ function fakeDb(events = [EVENT], {unapproved=false, missing=false, orphan=false
     if (sql.includes('FROM privacy_erasure_ledger ') &&
         sql.includes('WHERE event_key > $1 ORDER BY event_key ASC LIMIT $2')) {
       const extra={...EVENT,event_key:'ffffffff-ffff-4fff-8fff-ffffffffffff'};
-      const source=[...events,...(unapproved?[extra]:[])].sort(
+      const source=[...events,...deliveredEvents,...(unapproved?[extra]:[])].sort(
         (a,b)=>a.event_key.localeCompare(b.event_key));
       const visible=(missing?source.slice(1):source)
         .filter(e=>e.event_key>params[0]).slice(0,params[1]);
-      return {rows:visible.map(e=>(altered || deliveredAltered ||
+      return {rows:visible.map(e=>(altered ||
         e.event_key===tamperKey)
         ? {...e,details:{source:'tampered-delivered-or-pending'}} : e)};
     }
@@ -153,9 +153,7 @@ test('offline exporter refuses incomplete, extra, orphaned or tampered restored 
     ['extra',{unapproved:true},/outside approved manifest/],
     ['missing',{missing:true},/missing approved external events/],
     ['orphan',{orphan:true},/missing or orphaned outbox/],
-    ['tampered',{altered:true},/differs from approved external manifest/],
-    ['already delivered event tampered',{deliveredAltered:true},
-      /differs from approved external manifest/]
+    ['tampered',{altered:true},/differs from approved external manifest/]
   ]){
     const h=harness({dbOpts});
     await assert.rejects(h.service.runOnce(h.db.pool,fixture()),expected,name);
@@ -163,6 +161,20 @@ test('offline exporter refuses incomplete, extra, orphaned or tampered restored 
     assert.ok(h.db.calls.includes('ROLLBACK'),name);
     assert.ok(!h.db.calls.includes('COMMIT'),name);
   }
+});
+
+test('offline exporter rejects tampering of an ALREADY delivered event before pending PUT',async()=>{
+  const delivered={...EVENT,
+    event_key:'00000000-0000-4000-8000-000000000327',
+    occurred_at:'2026-10-26T00:20:00.000Z'};
+  const h=harness({events:[EVENT],dbOpts:{
+    deliveredEvents:[delivered],tamperKey:delivered.event_key
+  }});
+  await assert.rejects(h.service.runOnce(h.db.pool,fixture([EVENT,delivered])),
+    /differs from approved external manifest/);
+  assert.equal(h.exports,0,'pending event must not PUT if delivered history is altered');
+  assert.equal(h.db.calls.some(sql=>sql.includes('FOR UPDATE OF o SKIP LOCKED')),false);
+  assert.ok(h.db.calls.includes('ROLLBACK'));
 });
 
 test('offline exporter verifies all 251 signed events across pages before ANY B2 upload',async()=>{
