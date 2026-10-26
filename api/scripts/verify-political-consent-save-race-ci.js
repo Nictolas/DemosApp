@@ -68,7 +68,7 @@ async function main(){
       return {
         async query(sql,params){
           const normalized=sourceSql(sql);
-          if(normalized.startsWith('UPDATE opinioni_risposte')){
+          if(normalized.startsWith('UPDATE public.opinioni_risposte')){
             opinionUpdates.push({sql:normalized,params:[...(params||[])]});
           }
           // The second HTTP request must reach its competing DB statement
@@ -76,14 +76,14 @@ async function main(){
           // result could merely prove sequential requests.
           if(blocked && !blocked.contenderSeen && (
             (blocked.phase==='save' && normalized.startsWith('UPDATE public.users SET political_opinions_consent = false')) ||
-            (blocked.phase==='revoke' && /^SELECT id FROM users WHERE id = \$1 FOR UPDATE$/.test(normalized))
+            (blocked.phase==='revoke' && /^SELECT id FROM public.users WHERE id = \$1 FOR UPDATE$/.test(normalized))
           )){
             blocked.contenderSeen=true;
             blocked.contender.resolve();
           }
           const answer=await c.query(sql,params);
           if(blocked && !blocked.consumed && (
-            (blocked.phase==='save' && /^SELECT id FROM users WHERE id = \$1 FOR UPDATE$/.test(normalized)) ||
+            (blocked.phase==='save' && /^SELECT id FROM public.users WHERE id = \$1 FOR UPDATE$/.test(normalized)) ||
             (blocked.phase==='revoke' && normalized.startsWith('UPDATE public.users SET political_opinions_consent = false'))
           )){
             blocked.consumed=true;
