@@ -45,7 +45,9 @@ if (!isLocalTestDatabase) {
     ['consenso_governo', 'userid'],
     ['consenso_capo_stato', 'userid'],
     ['candidature_elezioni', 'user_id'],
-    ['notifiche', 'user_id']
+    ['notifiche', 'user_id'],
+    ['user_representatives', 'user_id'],
+    ['user_consents', 'user_id']
   ];
 
   const resetSchema = async () => {
