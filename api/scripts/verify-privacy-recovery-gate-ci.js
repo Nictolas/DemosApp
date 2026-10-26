@@ -219,10 +219,31 @@ async function main() {
         writer.release();
       }
     }
-    // The signed 2026-10-25 revocation must erase the 2026-10-24 DB snapshot.
-    const first=await reconcileRestoredPrivacyState({
-      client:noDdlClient,envelope:signed,secret:SECRET,expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
-    });
+    // The recovery preflight explicitly checks the public schema, but most
+    // ledger/outbox statements use unqualified table names. A stale or
+    // compromised session search_path must not redirect replay to pg_temp
+    // shadow tables, including when those temporary names take precedence.
+    // This synthetic fixture is created ONLY in disposable PG17 CI.
+    await db.query('CREATE TEMP TABLE privacy_erasure_ledger (event_key text PRIMARY KEY)');
+    await db.query('CREATE TEMP TABLE privacy_erasure_delivery_outbox (event_key text PRIMARY KEY)');
+    await db.query('SET search_path TO pg_temp, public');
+    let first;
+    try {
+      first=await reconcileRestoredPrivacyState({
+        client:noDdlClient,envelope:signed,secret:SECRET,
+        expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
+      });
+      assert.equal(Number((await db.query(
+        'SELECT count(*)::int AS n FROM pg_temp.privacy_erasure_ledger'
+      )).rows[0].n),0,'replay must not import into temporary ledger shadow');
+      assert.equal(Number((await db.query(
+        'SELECT count(*)::int AS n FROM pg_temp.privacy_erasure_delivery_outbox'
+      )).rows[0].n),0,'replay must not queue into temporary outbox shadow');
+    } finally {
+      await db.query('RESET search_path');
+      await db.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_delivery_outbox');
+      await db.query('DROP TABLE IF EXISTS pg_temp.privacy_erasure_ledger');
+    }
     assert.equal(first.verifiedExternalEvents,4);
     assert.equal(first.imported,4);
     assert.equal(first.revocationsReapplied,1);
