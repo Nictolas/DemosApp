@@ -27,3 +27,20 @@
 ## Test sintetici previsti
 
 PostgreSQL 17 su GitHub Actions: schema assente e SQL fail-closed, backfill, transazioni e retry, coda pendente, eventi ledger non accodati, receipt alterata, oggetto remoto eliminato, scansione paginata e limite massimo di verifica. Nessun dato di produzione.
+
+
+## Drill sintetico: perdita contemporanea del database e di un evento non ancora archiviato
+
+- Evento inventato **A**: presente nel backup e nel relativo oggetto B2 immutabile.
+- Evento inventato **B**: registrato dopo il backup, non ancora esportato in B2 prima del guasto; il restore recupera soltanto A. La verifica locale di outbox/ledger può quindi apparire regolare.
+- **Caso con fonte indipendente recente:** il manifesto firmato e il digest di checkpoint ottenuti tramite un canale esterno affidabile includono A+B. La scansione del DB ripristinato rileva B mancante, esegue ROLLBACK e rifiuta ready=true.
+- **Caso di rollback del manifesto:** il manifesto firmato contiene soltanto A, ma il pin indipendente più recente è relativo ad A+B. Il controllo rifiuta il manifesto **prima di SQL e B2**.
+- **Limite non risolvibile con questi test:** se il checkpoint indipendente è esso stesso vecchio, compromesso, o non ha mai incluso B, un insieme coerente A-only può superare i controlli tecnici. Nessuna firma o SHA256 dimostra da sola quale sia l'ultima scrittura realmente avvenuta. Il risultato ready=true resta **solo tecnico**, non autorizzazione a servire il database.
+
+### Blocco operativo non aggirabile senza nuova decisione
+
+Prima di qualsiasi ripristino reale serve una sorgente *indipendente e attendibile* che certifichi completezza, ordine e freschezza della cronologia fino al punto di interruzione delle scritture, insieme a prove di quarantena di tutti gli ingressi (API, Data API Supabase, worker, istanze e credenziali già distribuite). Se non è dimostrabile che B fosse stato acquisito da tale fonte, il guasto lascia una **finestra di perdita non dimostrabilmente recuperabile**: non riaprire il servizio solo perché le ricevute degli eventi sopravvissuti passano.
+
+Definire e approvare con titolare/DPO: autorità del checkpoint, barriera/durabilità degli eventi di revoca, retention, recovery point objective, procedura di incident response, attestazioni e costi della verifica B2. Non stabilire implicitamente questi parametri nel codice o nella CI.
+
+I due nuovi test dual-loss drill in api/tests/privacyRecoveryGate.test.js usano esclusivamente eventi fittizi, DB simulato e mock B2, senza credenziali o connessioni reali. Nessun merge, deploy, migrazione o attivazione.
