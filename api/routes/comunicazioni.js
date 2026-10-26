@@ -5,6 +5,7 @@ const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getAccountSubject } = require('../services/accountCapabilitiesService');
 const { sendPushToCurrentSupporters } = require('../services/currentSupporterPushService');
+const { invalidateFailedFcmTokens } = require('../services/fcmTokenInvalidationService');
 const { resolvePoliticalOffice } = require('../services/politicalJurisdictionRegistryService');
 require('dotenv').config();
 
@@ -51,37 +52,7 @@ async function getResolvedFcmTokensForUser(userId) {
 }
 
 async function invalidateUserFcmTokens(userId, invalidTokens = []) {
-  if (!invalidTokens || invalidTokens.length === 0) return;
-  const cleanedInvalid = [...new Set(invalidTokens.filter(t => t && t.trim()))];
-  if (cleanedInvalid.length === 0) return;
-
-  // Nuovo storage: disattiva token in user_devices
-  try {
-    await pool.query(
-      `UPDATE user_devices
-       SET is_active = FALSE, updated_at = NOW()
-       WHERE user_id = $1
-         AND fcm_token = ANY($2::text[])`,
-      [userId, cleanedInvalid]
-    );
-  } catch (err) {
-    debugWarn('⚠️ Impossibile invalidare token in user_devices:', err.message);
-  }
-
-  // Legacy storage: rimuovi token da users.fcm_tokens (fallback transitorio)
-  const legacyResult = await pool.query(
-    `SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens
-     FROM users
-     WHERE id = $1`,
-    [userId]
-  );
-  if (legacyResult.rows.length === 0) return;
-  const currentLegacyTokens = legacyResult.rows[0].fcm_tokens || [];
-  const filteredLegacyTokens = currentLegacyTokens.filter(t => !cleanedInvalid.includes(t));
-  await pool.query(
-    'UPDATE users SET fcm_tokens = $1 WHERE id = $2',
-    [filteredLegacyTokens, userId]
-  );
+  return invalidateFailedFcmTokens(pool, { userId, tokens: invalidTokens });
 }
 
 // NOTE: Le funzioni createNotificheUtente e updateNotificheUtente sono state rimosse
