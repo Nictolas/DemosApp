@@ -63,6 +63,11 @@ class PrivacyOfflineRecoveryExporter {
       this.assertQuarantine();
       await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ');
       open = true;
+      // All preflight checks target public explicitly. A borrowed SQL
+      // connection may carry a caller-controlled search_path or pg_temp
+      // shadow relations. Pin ledger/outbox and all downstream queries to
+      // the verified schema for THIS transaction, restoring it on exit.
+      await client.query('SET LOCAL search_path = pg_catalog, public, pg_temp');
       // Acquire the shared recovery advisory lock BEFORE relation locks.
       // The signed ledger replay acquires this advisory lock first and then
       // writes the same tables. Reversing the order here can deadlock:
