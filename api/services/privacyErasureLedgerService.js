@@ -98,16 +98,21 @@ class PrivacyErasureLedgerService {
     const subjectUserId = String(userId);
     const detailsJson = JSON.stringify(details);
     if (outboxEnabled) {
-      // The B2 journal refuses events over 8192 bytes, non-object details
-      // and oversized subject IDs. Validate with the exact same normalizer
-      // BEFORE touching PostgreSQL; otherwise an atomic outbox commit can
-      // leave an undeliverable GDPR event permanently pending.
-      // The eventual database NOW() timestamp has the same canonical ISO
-      // length as this synthetic timestamp, so the byte cap is exact.
+      // Validate the EXACT JSON value being sent to PostgreSQL, not the
+      // original JS object. Dates, inherited/non-enumerable toJSON methods
+      // and stateful serializers can produce different JSON on a second
+      // traversal, bypassing the 8192-byte immutable B2 archive limit.
+      // Serialize once, then preflight the parsed, immutable-in-practice
+      // snapshot that is also used as the SQL parameter.
+      if (typeof detailsJson !== 'string') {
+        throw Error('Invalid GDPR outbox JSON details');
+      }
       const { normalizeEvent } = require('./privacyErasureB2Journal');
       normalizeEvent({
         event_key: eventKey, subject_user_id: subjectUserId, event_type: eventType,
-        occurred_at: '2000-01-01T00:00:00.000Z', details
+        // NOW() has the same canonical ISO timestamp length.
+        occurred_at: '2000-01-01T00:00:00.000Z',
+        details: JSON.parse(detailsJson)
       });
     }
     const params = [eventKey, subjectUserId, eventType, detailsJson];
