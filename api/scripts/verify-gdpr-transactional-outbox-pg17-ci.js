@@ -237,6 +237,30 @@ async function main() {
     }
     assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_ledger'),1,
       'failed non-owner writes cannot add an event to the ledger');
+    // Exercise the exact metadata-only runtime preflight against BOTH roles.
+    // Still no live Render access and no GDPR event rows in the preflight.
+    const {inspectRuntimeGdprLedgerRole} =
+      require('./gdpr-ledger-runtime-role-preflight');
+    const ownerReadiness = await inspectRuntimeGdprLedgerRole(pool);
+    assert.equal(ownerReadiness.verdict,'MANUAL_INDEPENDENT_REVIEW_REQUIRED');
+    assert.equal(ownerReadiness.observations.runtimeRoleIsLedgerOwner,true);
+    const roleClient=await pool.connect();
+    try {
+      await roleClient.query('BEGIN');
+      await roleClient.query('SET LOCAL ROLE gdpr_nonowner_ci');
+      const borrowed={async connect(){return {
+        query:sql=>roleClient.query(sql),
+        release(){}
+      };}};
+      const denied=await inspectRuntimeGdprLedgerRole(borrowed);
+      assert.equal(denied.verdict,'NO_GO_RLS_DEFAULT_DENY');
+      assert.equal(denied.observations.runtimeRoleIsLedgerOwner,false);
+      assert.equal(denied.observations.runtimeRoleHasInsertGrant,true);
+      assert.equal(denied.observations.ledgerPolicyCount,0);
+    } finally {
+      await roleClient.query('ROLLBACK');
+      roleClient.release();
+    }
     // The owning SQL role is still able to record the event using a normal
     // preinstalled table. This models owner-bypass of RLS without FORCE RLS.
     const ownerState=await pool.query(`
