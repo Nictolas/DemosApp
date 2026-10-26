@@ -177,7 +177,7 @@ router.post('/salva', verifyToken, async (req, res) => {
     const checkColumnsQuery = `
       SELECT column_name 
       FROM information_schema.columns 
-      WHERE table_schema = 'public' AND table_name = 'opinioni_risposte' 
+      WHERE table_schema = 'public' AND table_name = 'opinioni_risposte'
       AND column_name != 'user_id'
       AND column_name != 'fonti_opinioni'
       AND column_name = ANY($1::text[])
@@ -657,7 +657,7 @@ router.put('/:id/approfondimento', verifyToken, requireAdmin, async (req, res) =
       const checkColumnQuery = `
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_schema = 'public' AND table_name = 'opinioni_risposte' 
+        WHERE table_schema = 'public' AND table_name = 'opinioni_risposte'
         AND column_name = $1
       `;
       const columnCheck = await pool.query(checkColumnQuery, [actualId]);
