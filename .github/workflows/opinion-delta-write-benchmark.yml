@@ -1,0 +1,54 @@
+name: Opinion delta-write benchmark (synthetic PostgreSQL 17)
+
+on:
+  pull_request:
+    paths:
+      - 'api/routes/opinioni/user-answers.js'
+      - 'api/scripts/benchmark-opinion-delta-writes-ci.js'
+      - 'api/tests/opinionDeltaWrites.test.js'
+      - '.github/workflows/opinion-delta-write-benchmark.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  delta-write-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: opinion_delta_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d opinion_delta_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies without lifecycle scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Validate benchmark and run focused delta-write tests
+        run: |
+          node --check api/scripts/benchmark-opinion-delta-writes-ci.js
+          node --test api/tests/opinionDeltaWrites.test.js
+      - name: Compare legacy vs delta writes on disposable PostgreSQL 17
+        env:
+          GITHUB_ACTIONS: 'true'
+          OPINION_DELTA_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: opinion_delta_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/benchmark-opinion-delta-writes-ci.js

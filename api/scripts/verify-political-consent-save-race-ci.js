@@ -60,6 +60,7 @@ async function main(){
   const previous=new Map(paths.map(p=>[p,require.cache[p]]));
   let server;
   let blocked=null;
+  const opinionUpdates=[];
   const pool={
     query:(...args)=>real.query(...args),
     async connect(){
@@ -67,6 +68,9 @@ async function main(){
       return {
         async query(sql,params){
           const normalized=sourceSql(sql);
+          if(normalized.startsWith('UPDATE opinioni_risposte')){
+            opinionUpdates.push({sql:normalized,params:[...(params||[])]});
+          }
           // The second HTTP request must reach its competing DB statement
           // BEFORE the first transaction is released. Otherwise a green
           // result could merely prove sequential requests.
@@ -98,7 +102,7 @@ async function main(){
     assert.equal(Math.floor(v.v/10000),17);
     await real.query('CREATE TABLE users(id uuid PRIMARY KEY, political_opinions_consent boolean NOT NULL, political_opinions_consent_timestamp timestamptz, political_opinions_consent_ip_address text, political_opinions_consent_user_agent text, updated_at timestamptz DEFAULT now())');
     await real.query('CREATE TABLE user_consents(user_id uuid PRIMARY KEY,political_opinions_consent boolean,political_opinions_consent_timestamp timestamptz,political_opinions_consent_ip_address text,political_opinions_consent_user_agent text,updated_at timestamptz DEFAULT now())');
-    await real.query('CREATE TABLE opinioni_risposte(user_id uuid PRIMARY KEY,energia_nucleare text)');
+    await real.query('CREATE TABLE opinioni_risposte(user_id uuid PRIMARY KEY,energia_nucleare text,sperimentazione_animale text,caccia text)');
     await real.query('CREATE TABLE civic_ballots(id uuid PRIMARY KEY,status text,opens_at timestamptz,closes_at timestamptz)');
     await real.query('CREATE TABLE civic_ballot_positions(civic_ballot_id uuid NOT NULL,user_id uuid NOT NULL,choice text NOT NULL,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now(),PRIMARY KEY(civic_ballot_id,user_id))');
     await real.query("CREATE TABLE voti_referendum_abrogativi(userid uuid NOT NULL,referendum_id text NOT NULL CHECK (referendum_id <> 'invalid'),PRIMARY KEY(userid,referendum_id))");
@@ -225,6 +229,82 @@ async function main(){
     blocked=null;
     assert.equal((await save()).status,200);
     assert.deepEqual(await inspect(),{consent:true,override:true,answer:'f'});
+
+    // Real HTTP contract of the optimized route, including the legacy mobile
+    // payload: accepted count is NOT the number of database columns rewritten.
+    const payload={energia_nucleare:'f',sperimentazione_animale:'c',caccia:'i'};
+    opinionUpdates.length=0;
+    const firstFields=await request('/api/opinioni/salva','POST',{opinioni:payload});
+    assert.equal(firstFields.status,200);
+    assert.equal((await firstFields.json()).savedCount,3);
+    assert.equal(opinionUpdates.length,1,'initial NULL fields must be updated together');
+    assert.match(opinionUpdates[0].sql,/SET "sperimentazione_animale" = \$1, "caccia" = \$2 WHERE user_id = \$3/);
+    opinionUpdates.length=0;
+    const identical=await request('/api/opinioni/salva','POST',{opinioni:payload});
+    assert.equal(identical.status,200);
+    const identicalBody=await identical.json();
+    assert.equal(identicalBody.savedCount,3,'unchanged answers remain accepted');
+    assert.equal(identicalBody.errorCount,0);
+    assert.equal(opinionUpdates.length,0,'no-op must skip all opinion UPDATE statements');
+    opinionUpdates.length=0;
+    const changedFields=await request('/api/opinioni/salva','POST',{
+      opinioni:{...payload,sperimentazione_animale:'f'}
+    });
+    assert.equal(changedFields.status,200);
+    assert.equal((await changedFields.json()).savedCount,3);
+    assert.equal(opinionUpdates.length,1);
+    assert.match(opinionUpdates[0].sql,/SET "sperimentazione_animale" = \$1 WHERE user_id = \$2/);
+    assert.deepEqual(opinionUpdates[0].params,['f',ID]);
+    const changedRow=(await real.query(
+      'SELECT energia_nucleare,sperimentazione_animale,caccia FROM opinioni_risposte WHERE user_id=$1',[ID]
+    )).rows[0];
+    assert.deepEqual(changedRow,{energia_nucleare:'f',sperimentazione_animale:'f',caccia:'i'});
+
+    // Older clients can still submit the answers directly in the request body
+    // with Italian answer labels. Do not make the new delta-write path require
+    // a new Android release or an extra wrapper field.
+    opinionUpdates.length=0;
+    const legacyBody=await request('/api/opinioni/salva','POST',{energia_nucleare:'Contrario'});
+    assert.equal(legacyBody.status,200);
+    assert.equal((await legacyBody.json()).savedCount,1);
+    assert.equal(opinionUpdates.length,1);
+    assert.match(opinionUpdates[0].sql,/SET "energia_nucleare" = \$1 WHERE user_id = \$2/);
+    assert.deepEqual(opinionUpdates[0].params,['c',ID]);
+
+    // Revocation and a repeated, no-op save must still serialize. Skipping
+    // an UPDATE must never skip the users-row consent lock.
+    await reset();
+    blocked=null;
+    assert.equal((await save()).status,200);
+    opinionUpdates.length=0;
+    blocked={phase:'save',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    const noOpBeforeRevoke=save();
+    await timeout(blocked.locked.promise);
+    const revokeAfterNoOp=revoke();
+    await timeout(blocked.contender.promise);
+    blocked.resume.resolve();
+    const noOpResult=await timeout(noOpBeforeRevoke);
+    assert.equal(noOpResult.status,200);
+    assert.equal((await noOpResult.json()).savedCount,1);
+    assert.equal((await timeout(revokeAfterNoOp)).status,200);
+    assert.equal(opinionUpdates.length,0,'no-op save must not create an UPDATE');
+    assert.deepEqual(await inspect(),{consent:false,override:false,answer:null});
+
+    await reset();
+    blocked=null;
+    assert.equal((await save()).status,200);
+    blocked={phase:'revoke',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    const revokeBeforeNoOp=revoke();
+    await timeout(blocked.locked.promise);
+    const noOpAfterRevoke=save();
+    await timeout(blocked.contender.promise);
+    blocked.resume.resolve();
+    assert.equal((await timeout(revokeBeforeNoOp)).status,200);
+    const deniedNoOp=await timeout(noOpAfterRevoke);
+    assert.equal(deniedNoOp.status,403);
+    assert.equal((await deniedNoOp.json()).consent_required,true);
+    assert.deepEqual(await inspect(),{consent:false,override:false,answer:null});
+
     // The admin route must observe the same serialization guarantees.
     await reset();
     blocked={phase:'save',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
@@ -321,7 +401,7 @@ async function main(){
 
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_REAL_PG17_PASS');
     console.log('POLITICAL_CONSENT_SAVE_REVOKE_RESULT_JSON='+JSON.stringify({
-      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','admin-before-revoke','revoke-before-admin','referendum-before-revoke','revoke-before-referendum','referendum-with-active-consent','legacy-referendum-before-revoke','revoke-before-legacy-referendum','legacy-referendum-with-active-consent','legacy-referendum-replacement-rollback'],
+      postgres:17,fixture:'synthetic-only',cases:['save-before-revoke','revoke-before-save','grant-and-save','http-multi-new-fields','http-noop-delta','http-single-column-update','http-legacy-flat-payload','noop-before-revoke','revoke-before-noop','admin-before-revoke','revoke-before-admin','referendum-before-revoke','revoke-before-referendum','referendum-with-active-consent','legacy-referendum-before-revoke','revoke-before-legacy-referendum','legacy-referendum-with-active-consent','legacy-referendum-replacement-rollback'],
       postRevocationPersistedAnswers:0, unauthorizedWrites:0,
       isolated:true,productionUntouched:true
     }));
