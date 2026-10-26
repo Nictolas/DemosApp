@@ -290,11 +290,17 @@ test('cursor advances only when every object in bounded batch is verified',async
   const b2=new FakeB2();const a=EVT(),c=EVT();c.occurred_at='2026-10-26T03:30:00.000Z';
   const queries=[];
   const db={async query(sql,params){
-    queries.push({sql,params});return {rows:[a,c]};
+    queries.push({sql,params});return {rows:[
+      {...a,cursor_occurred_at:'2026-10-26T03:00:00.000000Z'},
+      {...c,cursor_occurred_at:'2026-10-26T03:30:00.000000Z'}
+    ]};
   }};
   const result=await service(b2).archiveBatch(db,{limit:2});
   assert.equal(result.exported,2);
-  assert.deepEqual(result.cursor,{occurred_at:c.occurred_at,event_key:c.event_key});
+  assert.deepEqual(result.cursor,{
+    occurred_at:'2026-10-26T03:30:00.000000Z',event_key:c.event_key
+  });
+  assert.ok(queries[0].sql.includes('AS cursor_occurred_at'));
   assert.equal(b2.objects.size,2);
   assert.ok(queries[0].sql.includes('ORDER BY occurred_at ASC,event_key ASC LIMIT $3'));
   assert.equal(queries[0].params[2],2);
@@ -302,6 +308,76 @@ test('cursor advances only when every object in bounded batch is verified',async
   await assert.rejects(disabled.archiveBatch(db),/disabled/);
   assert.equal(queries.length,1);
 });
+test('manual B2 batch cursor preserves PostgreSQL microseconds across pages',async()=>{
+  const b2=new FakeB2(),journal=service(b2);
+  // Opposite UUID lexical order deliberately rules out UUID ordering as a
+  // substitute for the precise timestamp ordering used by PostgreSQL.
+  const a={...EVT(),event_key:'ffffffff-ffff-4fff-8fff-ffffffffffff'};
+  const b={...EVT(),event_key:'00000000-0000-4000-8000-000000000001'};
+  // Node pg normally converts TIMESTAMPTZ to Date, losing microseconds.
+  // Both event JSON bodies contain the same normalized millisecond.
+  const first='2026-10-26T03:00:00.000123Z';
+  const second='2026-10-26T03:00:00.000987Z';
+  const queries=[];
+  const db={async query(sql,params){
+    queries.push(params);
+    assert.ok(sql.includes('to_char(occurred_at AT TIME ZONE'));
+    if(params[0]===null) return {rows:[{...a,cursor_occurred_at:first}]};
+    if(params[0]===first && params[1]===a.event_key) {
+      return {rows:[{...b,cursor_occurred_at:second}]};
+    }
+    if(params[0]===second && params[1]===b.event_key) return {rows:[]};
+    throw Error('Repeated or truncated PostgreSQL timestamp cursor');
+  }};
+  const one=await journal.archiveBatch(db,{limit:1});
+  assert.deepEqual(one.cursor,{occurred_at:first,event_key:a.event_key});
+  const two=await journal.archiveBatch(db,{after:one.cursor,limit:1});
+  assert.deepEqual(two.cursor,{occurred_at:second,event_key:b.event_key});
+  const done=await journal.archiveBatch(db,{after:two.cursor,limit:1});
+  assert.equal(done.exported,0);
+  assert.deepEqual(done.cursor,two.cursor);
+  assert.equal(b2.objects.size,2);
+  assert.equal(queries.length,3);
+});
+
+test('manual B2 archive refuses missing exact timestamp before remote I/O',async()=>{
+  const b2=new FakeB2(),journal=service(b2);
+  await assert.rejects(journal.archiveBatch({
+    async query(){return {rows:[EVT()]};}
+  },{limit:1}),/requires exact PostgreSQL timestamp cursor/);
+  assert.equal(b2.calls.length,0);
+  await assert.rejects(journal.archiveBatch({query:async()=>({rows:[]})},{
+    after:{occurred_at:'2026-10-26T03:00:00.00012INVALIDZ',
+      event_key:'ffffffff-ffff-4fff-8fff-ffffffffffff'},
+    limit:1
+  }),/Invalid archive cursor/);
+});
+
+test('manual B2 archive rejects lossy or invalid resume cursor before SQL and B2',async()=>{
+  const b2=new FakeB2(),journal=service(b2);
+  let sql=0;
+  const db={async query(){sql++;return {rows:[]};}};
+  const key='ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const invalid=[
+    {occurred_at:new Date('2026-10-26T03:00:00.000Z'),event_key:key},
+    {occurred_at:'2026-10-26T03:00:00.000Z',event_key:key},
+    {occurred_at:'2026-10-26T03:00:00.00012Z',event_key:key},
+    {occurred_at:'2026-02-30T03:00:00.000123Z',event_key:key},
+    {occurred_at:'2026-10-26T03:00:00.000123Z',event_key:key.toUpperCase()}
+  ];
+  for(const after of invalid) {
+    await assert.rejects(journal.archiveBatch(db,{after,limit:1}),
+      /Invalid archive cursor/);
+  }
+  assert.equal(sql,0,'invalid cursor must be refused before database query');
+  assert.equal(b2.calls.length,0,'invalid cursor must not contact B2');
+  const exact={occurred_at:'2026-10-26T03:00:00.000123Z',event_key:key};
+  const result=await journal.archiveBatch(db,{after:exact,limit:1});
+  assert.deepEqual(result.cursor,exact);
+  assert.equal(result.exported,0);
+  assert.equal(sql,1);
+});
+
 test('invalid batch size and invalid UUID or oversized details reject before PUT',async()=>{
   const b2=new FakeB2(),s=service(b2),event=EVT();
   await assert.rejects(s.archiveBatch({query:async()=>({rows:[]})},{limit:999}),/bounded/);
