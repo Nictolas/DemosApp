@@ -8,6 +8,8 @@ on:
       - 'api/services/privacyOutboxRecoveryReadiness.js'
       - 'api/services/privacyErasureB2Journal.js'
       - 'api/scripts/verify-gdpr-transactional-outbox-pg17-ci.js'
+      - 'api/scripts/gdpr-ledger-runtime-role-preflight.js'
+      - 'api/tests/gdprLedgerRuntimeRolePreflight.test.js'
       - '.github/workflows/gdpr-erasure-outbox-ci.yml'
       - 'api/docs/gdpr-transactional-outbox-20261026.md'
 
@@ -47,7 +49,8 @@ jobs:
           node --check api/services/privacyErasureOutboxWorker.js
           node --check api/services/privacyOutboxRecoveryReadiness.js
           node --check api/scripts/verify-gdpr-transactional-outbox-pg17-ci.js
-          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js api/tests/politicalSelectionRevocationErasure.test.js
+          node --check api/scripts/gdpr-ledger-runtime-role-preflight.js
+          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js api/tests/politicalSelectionRevocationErasure.test.js api/tests/gdprLedgerRuntimeRolePreflight.test.js
       - name: Test PostgreSQL transactional outbox with simulated B2 failure/retry
         env:
           GITHUB_ACTIONS: 'true'
