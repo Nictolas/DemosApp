@@ -861,5 +861,5 @@ test('application startup suppresses all app-owned periodic jobs using the SAME 
   assert.ok(importAt >= 0);
   assert.ok(guardAt > importAt && auditAt > guardAt && workerStartAt > guardAt);
   assert.ok(elseAt > workerStartAt);
-  assert.doesNotMatch(src,/DEMOS_PRIVACY_RECOVERY_MAINTENANCE\\s*!==\\s*['"]true['"]/);
+  assert.doesNotMatch(src,/DEMOS_PRIVACY_RECOVERY_MAINTENANCE\s*!==\s*['"]true['"]/);
 });
