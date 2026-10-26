@@ -36,8 +36,8 @@ class PrivacyErasureOutboxWorker {
         'FROM privacy_erasure_delivery_outbox o ' +
         'JOIN privacy_erasure_ledger l ON l.event_key=o.event_key ' +
         'WHERE o.delivered_at IS NULL ' +
-        'ORDER BY o.queued_at ASC, o.event_key ASC ' +
-        'FOR UPDATE OF o SKIP LOCKED LIMIT $1', [limit]
+        'ORDER BY o.queued_at ASC, o.event_key ASC LIMIT $1 ' +
+        'FOR UPDATE OF o SKIP LOCKED', [limit]
       );
       let delivered = 0;
       for (const event of result.rows) {
