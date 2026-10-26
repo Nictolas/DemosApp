@@ -21,6 +21,10 @@ test('pre-send proof uses only public account, consent, and device tables with b
   assert.doesNotMatch(seen[0].sql, /u\.id::text = ANY/);
   assert.match(seen[0].sql, /LEFT JOIN public\.user_consents uc/);
   assert.match(seen[0].sql, /FROM public\.user_devices d/);
+  assert.match(seen[0].sql,
+    /NOT EXISTS\s*\(\s*SELECT 1 FROM public\.user_devices registered/);
+  assert.match(seen[0].sql, /btrim\(registered\.fcm_token\) = \$2/);
+  assert.match(seen[0].sql, /OR EXISTS\s*\(\s*SELECT 1 FROM public\.user_devices d/);
   assert.match(seen[0].sql, /d\.is_active = TRUE/);
   assert.match(seen[0].sql, /u\.status = 'a'/);
   assert.match(seen[0].sql, /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);

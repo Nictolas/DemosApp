@@ -266,6 +266,48 @@ async function main() {
       userIds:[granted],token:'device-granted'
     }),true);
     console.log('SUPPORTER_DEVICE_ACTIVE_INDEX_PLAN_PG17_PASS');
+
+    // A stale legacy token must NEVER resurrect a canonical inactive row,
+    // nor misattribute a token registered to another user. Whitespace
+    // conflicts deliberately exercise the same normalized FCM token.
+    await client.query(
+      "UPDATE public.users SET fcm_tokens=ARRAY['token-granted',' inactive-device ','moved-device'] " +
+      'WHERE id=$1',[granted]
+    );
+    await client.query(
+      "INSERT INTO public.user_devices(user_id,is_active,fcm_token) " +
+      "VALUES ($1,true,'moved-device')",[subject]
+    );
+    const conflicting=await loadCurrentSupporterTokens(pg,{
+      subjectUserId:subject,kind:'representative',level:'CAMERA'
+    });
+    const conflictingTokens=new Map(
+      conflicting.map(row=>[String(row.userId),row.tokens])
+    );
+    assert.deepEqual(conflictingTokens.get(granted).sort(),
+      ['device-granted','token-granted'].sort(),
+      'registered canonical device rows override same-token legacy copies');
+    assert.equal(await isCurrentSupporterTokenEligible(pg,{
+      userIds:[granted],token:'inactive-device'
+    }),false,'inactive registered device cannot be revived through legacy array');
+    assert.equal(await isCurrentSupporterTokenEligible(pg,{
+      userIds:[granted],token:'moved-device'
+    }),false,'token transferred to another account cannot be used by former owner');
+    assert.equal(await isCurrentSupporterTokenEligible(pg,{
+      userIds:[subject],token:'moved-device'
+    }),true,'active registered owner remains eligible');
+    // Restore the exact prior synthetic fixture for the downstream
+    // canonical-fallback and revocation test cases.
+    await client.query(
+      "UPDATE public.users SET fcm_tokens=ARRAY['token-granted'] WHERE id=$1",
+      [granted]
+    );
+    await client.query(
+      "DELETE FROM public.user_devices WHERE user_id=$1 AND fcm_token='moved-device'",
+      [subject]
+    );
+    console.log('SUPPORTER_DEVICE_OVERRIDES_LEGACY_PG17_PASS');
+
     assert.equal(await isCurrentSupporterTokenEligible(pg, {
       userIds: [revoked], token: 'token-revoked'
     }),false);
