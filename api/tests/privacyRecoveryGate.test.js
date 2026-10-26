@@ -7,6 +7,7 @@ const express = require('express');
 const http = require('node:http');
 const crypto = require('node:crypto');
 const { privacyRecoveryMaintenance } = require('../middleware/privacyRecoveryMaintenance');
+const { verifyOutboxRecoveryReadiness } = require('../services/privacyOutboxRecoveryReadiness');
 const {
   signature, manifestDigest, assertIndependentRecoveryCheckpoint, verifySignedManifest, reconcileRestoredPrivacyState
 } = require('../services/privacyRecoveryGateService');
@@ -118,6 +119,27 @@ test('recovery rejects a missing maintenance attestation BEFORE connecting to DB
   }), /maintenance/);
   assert.equal(queries, 0);
 });
+test('B2 readiness requires independently approved signed history before any DB or network access', async () => {
+  let sql = 0, remote = 0;
+  const client = { async query() { sql++; throw Error('unexpected-sql'); } };
+  const exporter = {
+    config() { remote++; throw Error('unexpected-remote'); },
+    async verifyArchivedReceipt() { remote++; throw Error('unexpected-remote'); }
+  };
+  await assert.rejects(verifyOutboxRecoveryReadiness(client,{
+    maintenanceConfirmed:true,exporter
+  }),/Missing signed/);
+  const envelope = fixture();
+  await assert.rejects(verifyOutboxRecoveryReadiness(client,{
+    maintenanceConfirmed:true,exporter,envelope,secret:SECRET,expectedRecoveryId:ID,
+    expectedManifestDigest:'f'.repeat(64),
+    expectedRestoredBackupTakenAt:envelope.payload.restoredBackupTakenAt,
+    expectedCapturedAt:envelope.payload.capturedAt
+  }),/freshness checkpoint/);
+  assert.equal(sql,0);
+  assert.equal(remote,0);
+});
+
 test('recovery HTTP middleware refuses health, GET, write and OPTIONS with no-store', async () => {
   const previous = process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
   const app = express();
