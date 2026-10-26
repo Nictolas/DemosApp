@@ -55,7 +55,7 @@ function makeFakeDatabase({
     }
     return {
       async query(sql, params = []) {
-        const q = String(sql).replace(/\\s+/g, ' ').trim();
+        const q = String(sql).replace(/\s+/g, ' ').trim();
         state.queries.push({ sql: q, params });
         if (q === 'BEGIN') {
           active = true;
@@ -271,4 +271,125 @@ test('HTTP POST retains column-missing legacy fallback without skipping canonica
     assert.ok(pool.state.queries.some(q => q.sql.startsWith('SELECT 1 FROM public.users')));
     assert.equal(pool.state.legacy.length, 0);
   });
+});
+
+test('HTTP POST failure rolls back both legacy and canonical writes', async () => {
+  const pool = makeFakeDatabase({
+    legacy: [oldToken],
+    canonical: [{userId:USER,token:oldToken,active:true}],
+    failOperation:'INSERT INTO public.user_devices',
+  });
+  await withSyntheticFcmRouter(pool, async base => {
+    const response = await fetch(base,{
+      method:'POST',headers:mobile,body:JSON.stringify({token:rawToken})
+    });
+    assert.equal(response.status,500);
+    assert.equal('details' in await response.json(),false);
+  });
+  assert.deepEqual(pool.state.legacy,[oldToken]);
+  assert.deepEqual(pool.state.devices,[{userId:USER,token:oldToken,active:true}]);
+  assert.equal(pool.state.rolledBack,1);
+  assert.equal(pool.state.committed,0);
+  assert.equal(pool.state.released,1);
+});
+
+test('HTTP cleanup failure cannot commit partly deactivated canonical devices', async () => {
+  const original=[
+    {userId:USER,token:oldToken,active:true},
+    {userId:USER,token:rawToken,active:true},
+  ];
+  const pool=makeFakeDatabase({
+    legacy:[oldToken,rawToken],canonical:original,
+    failOperation:'UPDATE public.user_devices SET is_active',
+  });
+  await withSyntheticFcmRouter(pool,async base=>{
+    const response=await fetch(base+'/cleanup',{method:'POST',headers:mobile});
+    assert.equal(response.status,500);
+    assert.equal('details' in await response.json(),false);
+  });
+  assert.deepEqual(pool.state.legacy,[oldToken,rawToken]);
+  assert.deepEqual(pool.state.devices,original);
+  assert.equal(pool.state.rolledBack,1);
+  assert.equal(pool.state.released,1);
+});
+
+test('HTTP DELETE failure rolls back the legacy removal as well', async () => {
+  const original={userId:USER,token:rawToken,active:true};
+  const pool=makeFakeDatabase({
+    legacy:[rawToken,oldToken],canonical:[original],
+    failOperation:'AND btrim(fcm_token) = $2',
+  });
+  await withSyntheticFcmRouter(pool,async base=>{
+    const response=await fetch(base+'/'+rawToken,{method:'DELETE',headers:mobile});
+    assert.equal(response.status,500);
+  });
+  assert.deepEqual(pool.state.legacy,[rawToken,oldToken]);
+  assert.deepEqual(pool.state.devices,[original]);
+  assert.equal(pool.state.rolledBack,1);
+  assert.equal(pool.state.released,1);
+});
+
+test('all FCM mutation routes return 404 and rollback when the canonical account is absent',async()=>{
+  const pool=makeFakeDatabase({userMissing:true});
+  await withSyntheticFcmRouter(pool,async base=>{
+    const post=await fetch(base,{method:'POST',headers:mobile,body:JSON.stringify({token:rawToken})});
+    const cleanup=await fetch(base+'/cleanup',{method:'POST',headers:mobile});
+    const remove=await fetch(base+'/'+rawToken,{method:'DELETE',headers:mobile});
+    assert.deepEqual([post.status,cleanup.status,remove.status],[404,404,404]);
+  });
+  assert.equal(pool.state.committed,0);
+  assert.equal(pool.state.rolledBack,3);
+  assert.equal(pool.state.released,3);
+  assert.equal(pool.state.queries.some(x=>/UPDATE public\.|INSERT INTO public\./.test(x.sql)),false);
+});
+
+test('legacy SQLSTATE 42703 uses rollback-to-savepoint then commits canonical registration',async()=>{
+  const pool=makeFakeDatabase({legacyColumnMissing:true});
+  await withSyntheticFcmRouter(pool,async base=>{
+    const post=await fetch(base,{method:'POST',headers:mobile,body:JSON.stringify({token:rawToken})});
+    assert.equal(post.status,200);
+  });
+  assert.equal(pool.state.committed,1);
+  assert.equal(pool.state.rolledBack,0);
+  assert.equal(pool.state.released,1);
+  assert.equal(pool.state.queries.filter(q=>q.sql==='ROLLBACK TO SAVEPOINT fcm_legacy_column').length,2);
+  assert.deepEqual(pool.state.legacy,[]);
+  assert.equal(pool.state.devices.find(x=>x.token===rawToken).active,true);
+});
+
+test('same-account concurrent register then revoke serialize: revocation wins after commit',async()=>{
+  let entered;
+  const firstWrite=new Promise(resolve=>{entered=resolve});
+  let resume;
+  const hold=new Promise(resolve=>{resume=resolve});
+  const pool=makeFakeDatabase({
+    delayFirstWrite:async()=>{entered();await hold}
+  });
+  await withSyntheticFcmRouter(pool,async base=>{
+    const register=fetch(base,{
+      method:'POST',headers:mobile,body:JSON.stringify({token:rawToken})
+    });
+    await firstWrite;
+    const revoke=fetch(base+'/'+rawToken,{method:'DELETE',headers:mobile});
+    try {
+      let seen=false;
+      for(let i=0;i<80;i++){
+        if(pool.state.queries.filter(q=>q.sql==='SELECT id FROM public.users WHERE id = $1 FOR UPDATE').length===2){
+          seen=true;break;
+        }
+        await new Promise(resolve=>setTimeout(resolve,10));
+      }
+      assert.equal(seen,true,'revocation must contend on canonical public.users row');
+      assert.equal(pool.state.committed,0,'registration must still hold its row lock');
+    } finally {
+      resume();
+    }
+    const [a,b]=await Promise.all([register,revoke]);
+    assert.equal(a.status,200);
+    assert.equal(b.status,200);
+  });
+  assert.deepEqual(pool.state.legacy,[]);
+  assert.equal(pool.state.devices.find(x=>x.token===rawToken).active,false);
+  assert.equal(pool.state.committed,2);
+  assert.equal(pool.state.released,2);
 });
