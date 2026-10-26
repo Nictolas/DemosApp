@@ -353,6 +353,31 @@ test('manual B2 archive refuses missing exact timestamp before remote I/O',async
   }),/Invalid archive cursor/);
 });
 
+test('manual B2 archive rejects lossy or invalid resume cursor before SQL and B2',async()=>{
+  const b2=new FakeB2(),journal=service(b2);
+  let sql=0;
+  const db={async query(){sql++;return {rows:[]};}};
+  const key='ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const invalid=[
+    {occurred_at:new Date('2026-10-26T03:00:00.000Z'),event_key:key},
+    {occurred_at:'2026-10-26T03:00:00.000Z',event_key:key},
+    {occurred_at:'2026-10-26T03:00:00.00012Z',event_key:key},
+    {occurred_at:'2026-02-30T03:00:00.000123Z',event_key:key},
+    {occurred_at:'2026-10-26T03:00:00.000123Z',event_key:key.toUpperCase()}
+  ];
+  for(const after of invalid) {
+    await assert.rejects(journal.archiveBatch(db,{after,limit:1}),
+      /Invalid archive cursor/);
+  }
+  assert.equal(sql,0,'invalid cursor must be refused before database query');
+  assert.equal(b2.calls.length,0,'invalid cursor must not contact B2');
+  const exact={occurred_at:'2026-10-26T03:00:00.000123Z',event_key:key};
+  const result=await journal.archiveBatch(db,{after:exact,limit:1});
+  assert.deepEqual(result.cursor,exact);
+  assert.equal(result.exported,0);
+  assert.equal(sql,1);
+});
+
 test('invalid batch size and invalid UUID or oversized details reject before PUT',async()=>{
   const b2=new FakeB2(),s=service(b2),event=EVT();
   await assert.rejects(s.archiveBatch({query:async()=>({rows:[]})},{limit:999}),/bounded/);
