@@ -282,8 +282,10 @@ async function main() {
       await corruptFixture.query('SET session_replication_role = replica');
       try {
         await corruptFixture.query(
-          'INSERT INTO privacy_erasure_delivery_outbox(event_key) VALUES ($1)',
-          [orphanKey]
+          'INSERT INTO privacy_erasure_delivery_outbox ' +
+          '(event_key,delivered_at,b2_version_id,b2_sha256) ' +
+          'VALUES ($1,NOW(),$2,$3)',
+          [orphanKey,'synthetic-orphan-version','a'.repeat(64)]
         );
       } finally {
         await corruptFixture.query('SET session_replication_role = origin');
