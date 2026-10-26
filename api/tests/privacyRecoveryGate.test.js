@@ -893,3 +893,15 @@ test('a pre-existing archival task is denied before contacting Axiom when mainte
     else process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE=original;
   }
 });
+
+test('provider recovery inventory stays explicitly NO-GO until independent isolation is evidenced',()=>{
+  const report=fs.readFileSync(path.join(__dirname,'..','docs','gdpr-provider-quarantine-audit-20261026.md'),'utf8');
+  const appSource=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
+  assert.match(report,/NO-GO/);
+  for(const control of ['Render','Supabase Data API','PostgreSQL','Realtime','B2','DPO','staging','ledger']) {
+    assert.ok(report.includes(control),'Missing recovery isolation surface: '+control);
+  }
+  assert.match(report,/nessun restore/i);
+  assert.match(appSource,/Supabase in production/);
+  assert.doesNotMatch(appSource,/Neon PITR in production/);
+});
