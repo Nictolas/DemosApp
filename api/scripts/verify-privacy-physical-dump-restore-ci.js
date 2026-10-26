@@ -246,6 +246,30 @@ async function main() {
     }), /signature invalid/);
     assert.equal(await count(db, 'political_selections', SUBJECTS.revoked), 1);
 
+    // The physically restored database contains an additional historical
+    // event that an otherwise authentic and independently pinned external
+    // manifest omits. Recovery must refuse to continue or alter that event.
+    const unexpectedKey = crypto.randomUUID();
+    await db.query(
+      'INSERT INTO privacy_erasure_ledger ' +
+      '(event_key,subject_user_id,event_type,occurred_at,details) ' +
+      'VALUES ($1,$2,$3,$4,$5::jsonb)',
+      [unexpectedKey,SUBJECTS.unaffected,
+        Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+        '2026-10-24T04:00:00.000Z',JSON.stringify({source:'synthetic-omitted'})]
+    );
+    await assert.rejects(reconcileRestoredPrivacyState({
+      client: db, envelope: saved, secret: SECRET, expectedRecoveryId: SESSION,
+      maintenanceConfirmed: true, ...approvedCheckpoint
+    }), /absent from approved manifest/);
+    assert.equal((await db.query(
+      'SELECT COUNT(*)::int AS n FROM privacy_erasure_ledger WHERE event_key=$1',
+      [unexpectedKey])).rows[0].n,1);
+    assert.equal(await count(db,'political_selections',SUBJECTS.revoked),1);
+    assert.equal(await count(db,'users',SUBJECTS.deleted),1);
+    await db.query('DELETE FROM privacy_erasure_ledger WHERE event_key=$1',
+      [unexpectedKey]);
+
     // Fail *after* the ledger import but *before* deletion completes.
     const faultClient = {
       async query(sql, params) {
@@ -301,6 +325,7 @@ async function main() {
       externalSignedLedgerSurvived: true,
       missingOrTamperedManifestRefused: true,
       validlySignedStaleManifestRefused: true,
+      unapprovedRestoredLedgerEventRejected: true,
       rollbackAfterFailure: true, consentRegrantDidNotResurrectChoices: true,
       deletedAccountStayedDeleted: true, unaffectedUserPreserved: true,
       replayIdempotent: true, realDataTouched: false
