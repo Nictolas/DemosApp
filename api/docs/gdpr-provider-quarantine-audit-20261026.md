@@ -156,3 +156,14 @@ La correzione Draft introduce `runVotiParlamentoSyncCycle` (richiamato dal cron)
 Il backup JSON applicativo legacy è invece **già ritirato**: `BackupService.assertLegacyBackupAvailable()` genera sempre `LEGACY_APP_BACKUP_RETIRED`. Non va quindi dichiarato come writer/backup attivo sulla base di vecchi timer rimasti nel codice.
 
 **Limite:** in-flight INSERT può comunque committare; una flag locale non interrompe connessioni già aperte né job in altre istanze. Nessuna prova di quarantena realizzata senza blocco provider diretto/pooler/Data API, drain e verifica delle sonde indipendenti. Nessun deploy a produzione.
+
+
+## Ritiro delle route legacy distruttive bypass GDPR (27 ottobre 2026 — DRAFT)
+
+**Perimetro verificato nel repository:** `api/app.js` monta `/api/cleanup` e `/api/migrations` solo dietro `ALLOW_DEV_API_SURFACE=true` (o equivalente guardia della superficie di sviluppo), e i rispettivi router richiedono già `verifyToken` e `requireAdmin`. Non sono endpoint anonimi normalmente aperti in produzione. Il problema residuo è **l'eventuale bypass logico del GDPR se la superficie dev viene abilitata**: le route `/delete-temporary-users` e `/delete-test-user` eseguivano `DELETE FROM users` usando `new Pool` proprio, senza utilizzare il flusso canonico `PrivacyErasureLedgerService` e la transazione di cancellazione. Inoltre loggavano email e metadati utente ed eseguivano query di conferma separate.
+
+La route di sviluppo `/api/migrations/add-political-opinions-consent-columns` eseguiva `ALTER TABLE users`/CREATE INDEX su HTTP, con una vecchia chiave di fallback hardcoded `TEMPORARY_MIGRATION_KEY_CHANGE_ME`. Pur richiedendo amministratore e superficie dev, questa mutazione DDL non è appropriata durante recovery.
+
+**Correzione Draft:** entrambe le route di cancellazione e quella di migrazione restano riconoscibili, ma rispondono invariabilmente `410 Gone` dopo i middleware di autenticazione, senza aprire connessioni o divulgare l'email/passata chiave. Il corpo esplicita `LEGACY_USER_CLEANUP_RETIRED` o `LEGACY_HTTP_GDPR_MIGRATION_RETIRED`; `Cache-Control: no-store`. I test sintetici VM caricano il codice reale con Express/autenticazione sostituiti da fixture e **rifiutano ogni dipendenza verso DB**, verificando tre handler, admin guard, risposta 410, nessuna riga personale o chiave di fallback riprodotta. La cancellazione account canonica rimane disponibile secondo le condizioni e il consenso applicabili, e i cambiamenti di schema devono passare per migrazioni approvate.
+
+**Nessuna prova di precedente abuso:** nessuna chiamata agli endpoint, nessun dato reale letto e nessuna modifica su Render/Supabase. Questo ritiro è proposto in PR Draft; senza merge/deploy l'istanza produzione continua a eseguire il codice di `main`. Il ripristino resta **NO-GO**, e le garanzie di isolamento infrastrutturale / B2 ledger esterno rimangono da dimostrare.
