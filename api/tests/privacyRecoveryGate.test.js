@@ -306,6 +306,86 @@ test('B2 readiness refuses missing delivery receipt before remote reads and roll
   assert.equal(statements.includes('COMMIT'),false);
 });
 
+function syntheticB2ReadinessDb(events) {
+  const queries = [];
+  const rows = events.map(event => ({
+    ...event, delivered_at: '2026-10-26T00:00:00.000Z',
+    b2_version_id: 'synthetic-locked-version', b2_sha256: 'a'.repeat(64)
+  })).sort((a,b) => a.event_key.localeCompare(b.event_key));
+  const client = {async query(sql, params=[]) {
+    queries.push(sql);
+    if (sql.startsWith('BEGIN TRANSACTION')) return {rows:[]};
+    if (sql.includes("to_regclass('public.privacy_erasure_ledger')")) {
+      return {rows:[{ledger:true,outbox:true}]};
+    }
+    if (sql.includes('FROM privacy_erasure_delivery_outbox o')) {
+      return {rows:[{present:false}]};
+    }
+    if (sql.includes('ORDER BY l.event_key')) {
+      return {rows:rows.filter(row => row.event_key > params[0]).slice(0,params[1])};
+    }
+    if (sql === 'ROLLBACK' || sql === 'COMMIT') return {rows:[]};
+    throw Error('Unexpected synthetic readiness SQL');
+  }};
+  return {client,queries};
+}
+
+test('B2 readiness rejects an early Object Lock expiry after later receipts finish', async () => {
+  const envelope = fixture([mkEvent(),mkEvent()]);
+  const {client,queries} = syntheticB2ReadinessDb(envelope.payload.events);
+  let now = new Date('2026-10-26T00:00:00.000Z');
+  let reads = 0;
+  const exporter = {
+    config() { return {}; },
+    async verifyArchivedReceipt() {
+      reads++;
+      if (reads === 2) now = new Date('2026-10-26T00:00:02.000Z');
+      return {retentionUntil: reads === 1
+        ? '2026-10-26T00:00:01.000Z' : '2026-10-26T00:00:10.000Z'};
+    }
+  };
+  await assert.rejects(verifyOutboxRecoveryReadiness(client, {
+    maintenanceConfirmed:true,exporter,envelope,secret:SECRET,expectedRecoveryId:ID,
+    expectedManifestDigest:manifestDigest(envelope),
+    expectedRestoredBackupTakenAt:envelope.payload.restoredBackupTakenAt,
+    expectedCapturedAt:envelope.payload.capturedAt,
+    pageSize:1,clock:()=>new Date(now)
+  }), /Object Lock expired during full recovery verification/);
+  assert.equal(reads,2,'both individual B2 checks completed before batch expiry');
+  assert.ok(queries.includes('ROLLBACK'));
+  assert.equal(queries.includes('COMMIT'),false);
+});
+
+test('B2 readiness requires verifiable expiry and accepts retained full batch', async () => {
+  const envelope = fixture();
+  const approved = {
+    maintenanceConfirmed:true,envelope,secret:SECRET,expectedRecoveryId:ID,
+    expectedManifestDigest:manifestDigest(envelope),
+    expectedRestoredBackupTakenAt:envelope.payload.restoredBackupTakenAt,
+    expectedCapturedAt:envelope.payload.capturedAt,
+    clock:()=>new Date('2026-10-26T00:00:00.000Z')
+  };
+  const bad = syntheticB2ReadinessDb(envelope.payload.events);
+  await assert.rejects(verifyOutboxRecoveryReadiness(bad.client,{
+    ...approved,exporter:{
+      config(){return {};},
+      async verifyArchivedReceipt(){return {versionId:'synthetic-locked-version'};}
+    }
+  }),/omitted a valid retention expiry/);
+  assert.ok(bad.queries.includes('ROLLBACK'));
+  assert.equal(bad.queries.includes('COMMIT'),false);
+  const good = syntheticB2ReadinessDb(envelope.payload.events);
+  const result = await verifyOutboxRecoveryReadiness(good.client,{
+    ...approved,exporter:{
+      config(){return {};},
+      async verifyArchivedReceipt(){return {retentionUntil:'2026-10-26T00:00:10.000Z'};}
+    }
+  });
+  assert.deepEqual(result,{ready:true,verifiedEvents:1,pinnedEvents:1});
+  assert.ok(good.queries.includes('COMMIT'));
+  assert.equal(good.queries.includes('ROLLBACK'),false);
+});
+
 test('recovery HTTP middleware refuses health, GET, write and OPTIONS with no-store', async () => {
   const previous = process.env.DEMOS_PRIVACY_RECOVERY_MAINTENANCE;
   const app = express();
