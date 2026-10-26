@@ -76,14 +76,18 @@ async function main(){
           // result could merely prove sequential requests.
           if(blocked && !blocked.contenderSeen && (
             (blocked.phase==='save' && normalized.startsWith('UPDATE public.users SET political_opinions_consent = false')) ||
-            (blocked.phase==='revoke' && /^SELECT id FROM public.users WHERE id = \$1 FOR UPDATE$/.test(normalized))
+            (blocked.phase==='revoke' && (blocked.requireCanonicalLock
+              ? /^SELECT id FROM public\.users WHERE id = \$1 FOR UPDATE$/
+              : /^SELECT id FROM (?:public\.)?users WHERE id = \$1 FOR UPDATE$/).test(normalized))
           )){
             blocked.contenderSeen=true;
             blocked.contender.resolve();
           }
           const answer=await c.query(sql,params);
           if(blocked && !blocked.consumed && (
-            (blocked.phase==='save' && /^SELECT id FROM public.users WHERE id = \$1 FOR UPDATE$/.test(normalized)) ||
+            (blocked.phase==='save' && (blocked.requireCanonicalLock
+              ? /^SELECT id FROM public\.users WHERE id = \$1 FOR UPDATE$/
+              : /^SELECT id FROM (?:public\.)?users WHERE id = \$1 FOR UPDATE$/).test(normalized)) ||
             (blocked.phase==='revoke' && normalized.startsWith('UPDATE public.users SET political_opinions_consent = false'))
           )){
             blocked.consumed=true;
@@ -423,7 +427,7 @@ async function main(){
     // Keep the real public.users row locked by a revoke while an opinion
     // save starts on another pooled connection. All connections also have
     // pg_temp.users: an unqualified FOR UPDATE would lock the wrong row.
-    blocked={phase:'revoke',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false};
+    blocked={phase:'revoke',locked:gate(),resume:gate(),contender:gate(),consumed:false,contenderSeen:false,requireCanonicalLock:true};
     const publicRevokeFirst=revoke();
     await timeout(blocked.locked.promise);
     const publicSaveSecond=save();
