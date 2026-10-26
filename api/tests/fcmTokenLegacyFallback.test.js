@@ -9,6 +9,11 @@ test('FCM token route tolerates removal of legacy users.fcm_tokens column', () =
   assert.match(source, /error\?\.code === '42703'/);
   assert.match(source, /SELECT 1 FROM public\.users WHERE id = \$1/);
   assert.match(source, /async function updateLegacyTokens/);
+  assert.match(source, /ROLLBACK TO SAVEPOINT fcm_legacy_column/);
+  assert.match(source, /SELECT id FROM public\.users WHERE id = \$1 FOR UPDATE/);
+  assert.match(source, /await client\.query\('COMMIT'\)/);
+  assert.match(source, /await client\.query\('ROLLBACK'\)/);
+  assert.match(source, /client\.release\(\)/);
   assert.equal((source.match(/await updateLegacyTokens\(/g) || []).length, 3);
 });
 
