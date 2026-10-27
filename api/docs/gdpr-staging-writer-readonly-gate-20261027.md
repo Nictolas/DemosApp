@@ -140,3 +140,32 @@ Il 27/10/2026 è stata inviata alla connessione SQL amministrativa Supabase la *
 4. Solo dopo eseguire una revoca+rollback sintetica sul database di staging segregato. Prima di qualunque recovery reale rimangono il ledger esterno indipendente e fresco, quarantena completa e approvazione GDPR/DPO.
 
 **Decisione odierna: NO-GO invariato, motivato da un blocco di attestazione della connessione runtime.** Nessuna modifica a database, IAM, hosting, rete, trigger di deploy o archivi.
+
+## Verifica mirata del blocco writer — 27 ottobre 2026 (cataloghi, sola lettura)
+
+La ricognizione è stata ripetuta tramite i connettori Supabase e Render, senza leggere righe personali, variabili riservate, URL di connessione o log applicativi, e senza eseguire DML/DDL:
+
+| Evidenza | Demos produzione | Demos-Staging |
+| --- | --- | --- |
+| Database PostgreSQL | 17 | 17 |
+| Tabelle core GDPR presenti in `public` fra le sei controllate | 6/6 | 0/6 |
+| `public.privacy_erasure_ledger` | presente, owner `postgres` | assente |
+| RLS del ledger | attiva, `FORCE=false`, 0 policy | non applicabile |
+| Ruolo SQL `demos_staging_runtime` nel catalogo ruoli | non trovato | **non trovato** |
+| Ruolo amministrativo `postgres` | `LOGIN=true`, `BYPASSRLS=true` | `LOGIN=true`, `BYPASSRLS=true` |
+
+**Interpretazione limitata:**
+
+1. Le interrogazioni sono avvenute **con il ruolo amministrativo del connettore**. Il proprietario del ledger in produzione è `postgres`, ma ciò **non dimostra** che il backend Render acceda con quel ruolo. L'assenza di policy RLS comporta che un writer non-owner e `NOBYPASSRLS` non possa scrivere il registro senza ulteriori interventi espliciti e verificati.
+2. Il ruolo `demos_staging_runtime` richiesto dalla futura configurazione minima della PR #369 **non esiste** nel progetto Demos-Staging. Non è stato creato, né è stato creato il ledger o il resto dello schema. Non usare `postgres` con `BYPASSRLS` per simulare il ruolo applicativo.
+3. La ricerca in `pg_catalog.pg_stat_activity` del nome applicativo `demos-app-performance-optimized` non ha trovato sessioni corrispondenti al momento della query, né in produzione né in staging. Questo **non** dimostra che il backend sia inattivo e **non** attesta il suo ruolo SQL: un pooler o sessioni transitorie possono non comparire con tale nome.
+4. Render `demos-functional-staging` rimane `autoDeploy=no`, piano Free, comando `cd api && node index.js`, ramo `staging/functional-integration-v0`, allowlist HTTP `0.0.0.0/0`. **Non è un ambiente di test GDPR privato** e non può essere collegato a Demos-Staging sulla base del solo nome. Nessun servizio è stato modificato.
+5. Il database Render `demos-civic-staging-db` (PostgreSQL 17, piano Free) riporta ancora scadenza **8 novembre 2026**: non proporlo come archivio persistente del ledger.
+
+**Sequenza minima prima di chiedere una finestra di esecuzione:**
+
+- **Decisione esplicita A (ancora da ottenere):** approvare l'uso *esclusivamente di Demos-Staging* per creare in `public` le sole sei tabelle core sintetiche mancanti e un writer dedicato `LOGIN NOBYPASSRLS`, con DDL esatto, owner/GRANT/policy minime, rollback e isolamento dai cinque oggetti esistenti in altri schemi. La protezione del ledger deve essere provata senza privilegi amministrativi nel processo applicativo. Nessuna copia di account o dati reali.
+- **Decisione esplicita B (separata):** approvare una modalità privata di esecuzione che dimostri il writer realmente usato dal processo di test. La sola CI usa-e-getta attuale è verde ma **non** prova il servizio Render; il web service Free pubblico non deve essere presentato come staging isolato. Preferire una valutazione dell'esecuzione senza endpoint HTTP pubblico prima di qualunque risorsa a pagamento.
+- **Gate C (sempre successivo e indipendente):** fonte esterna completa/continua del *ledger GDPR*, distinta dall'archivio dei log Axiom→B2; attestare checkpoint indipendente, freschezza, cifratura, retention e recovery in quarantena prima di un restore reale.
+
+**Stato risultante: NO-GO, non una regressione.** Questa nota è una ricognizione senza autorizzazione implicita a creare ruoli, tabelle, segreti, servizi o deploy. La PR #371 resta Draft e dipendente dalla #366.
