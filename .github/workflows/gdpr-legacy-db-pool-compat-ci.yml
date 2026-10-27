@@ -7,6 +7,8 @@ on:
       - 'api/config/database.js'
       - 'api/utils/databaseTlsPolicy.js'
       - 'api/routes/user/gdpr-requests.js'
+      - 'api/routes/user/gdpr-rights.js'
+      - 'client/src/pages/GDPRRights.tsx'
       - 'api/tests/gdprLegacyDbPoolCompat.test.js'
       - 'api/tests/gdprLegacyRequestsRoute.test.js'
       - 'api/tests/gdprLegacyRequestsPg17.test.js'
@@ -49,6 +51,7 @@ jobs:
         run: |
           node --check api/config/db.js
           node --check api/routes/user/gdpr-requests.js
+          node --check api/routes/user/gdpr-rights.js
           node --check api/tests/gdprLegacyDbPoolCompat.test.js
           node --check api/tests/gdprLegacyRequestsRoute.test.js
           node --test --test-concurrency=1 api/tests/gdprLegacyDbPoolCompat.test.js api/tests/gdprLegacyRequestsRoute.test.js api/tests/databaseTlsPolicy.test.js
@@ -59,3 +62,18 @@ jobs:
         run: |
           node --check api/tests/gdprLegacyRequestsPg17.test.js
           node --test --test-concurrency=1 api/tests/gdprLegacyRequestsPg17.test.js
+
+  gdpr-history-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install client dependencies without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build client to verify actual GDPR history screen
+        run: npm run build --prefix client
