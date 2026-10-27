@@ -26,7 +26,7 @@ interface RightsRequest {
 export default function GDPRRights() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<RightsRequest[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -36,15 +36,23 @@ export default function GDPRRights() {
   }, []);
 
   const loadRightsRequests = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
       const response = await apiRequest('GET', '/api/user/rights-requests');
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data.data || []);
+      if (!response.ok) {
+        throw new Error('GDPR_HISTORY_HTTP_ERROR');
       }
-    } catch (error) {
-      console.error('Errore nel caricamento richieste:', error);
+      const payload = await response.json();
+      if (payload?.success !== true || !Array.isArray(payload.data)) {
+        throw new Error('GDPR_HISTORY_INVALID_RESPONSE');
+      }
+      setRequests(payload.data);
+    } catch {
+      // A failed or RLS-filtered query must not appear as an empty history.
+      // Do not log HTTP errors or private request details to the console.
+      setRequests([]);
+      setError('Non è stato possibile verificare lo storico delle richieste. Riprova più tardi o contatta il DPO.');
     } finally {
       setLoading(false);
     }
@@ -120,6 +128,10 @@ export default function GDPRRights() {
         <CardContent>
           {loading ? (
             <div className="text-center py-4">Caricamento...</div>
+          ) : error ? (
+            <div className="text-center py-4 text-gray-500" role="status">
+              Storico non disponibile: impossibile verificare le richieste.
+            </div>
           ) : requests.length === 0 ? (
             <div className="text-center py-4 text-gray-500">
               Nessuna richiesta presente
