@@ -251,3 +251,66 @@ test('failed PostgreSQL INSERT or missing RETURNING ID never fabricates success'
     });
   }finally{console.error=originalLog;}
 });
+
+test('actual GDPRRights history route rejects RLS-filtered responses before reading requests', async () => {
+  const paths = [
+    require.resolve('../middleware/auth'),
+    require.resolve('../middleware/validation'),
+    require.resolve('../services/auditService'),
+    require.resolve('../utils/emailCrypto'),
+    require.resolve('../routes/user/gdpr-rights')
+  ];
+  const old = paths.map(path=>require.cache[path]);
+  let filtered=true;
+  let historyReads=0;
+  const mockedPool={
+    async query(sql,params){
+      if(sql.includes('row_security_active(')){
+        return {rows:[{complete_visibility:!filtered}]};
+      }
+      if(sql.includes('FROM user_rights_requests')){
+        historyReads++;
+        assert.deepEqual(params,['synthetic-subject',50,0]);
+        return {rows:[{
+          id:'synthetic-request',request_type:'access',
+          status:'pending',created_at:'2026-10-28T00:00:00Z'
+        }]};
+      }
+      throw Error('Unrecognized SQL in test');
+    }
+  };
+  try {
+    const modules = [
+      {verifyToken(req,res,next){next();},pool:mockedPool},
+      {validateInput(){return (req,res,next)=>next();}},
+      {logAction:async()=>{},getUserAuditLogs:async()=>[]},
+      {decrypt(value){return value;}},
+      null
+    ];
+    for(let i=0;i<paths.length-1;i++)require.cache[paths[i]]={
+      id:paths[i],filename:paths[i],loaded:true,exports:modules[i]
+    };
+    delete require.cache[paths[4]];
+    const router=require('../routes/user/gdpr-rights');
+    const layer=router.stack.find(x=>x.route?.path==='/rights-requests'&&x.route?.methods.get);
+    assert.ok(layer);
+    const get=layer.route.stack.at(-1).handle;
+    const blocked=response();
+    await get({userId:'synthetic-subject',query:{}},blocked);
+    assert.equal(blocked.statusCode,503);
+    assert.equal(blocked.body.success,false);
+    assert.equal(historyReads,0,'RLS-filtered history must not be fetched');
+
+    filtered=false;
+    const visible=response();
+    await get({userId:'synthetic-subject',query:{}},visible);
+    assert.equal(visible.statusCode,200);
+    assert.equal(visible.body.data.length,1);
+    assert.equal(historyReads,1);
+  } finally {
+    for(let i=0;i<paths.length;i++){
+      delete require.cache[paths[i]];
+      if(old[i])require.cache[paths[i]]=old[i];
+    }
+  }
+});
