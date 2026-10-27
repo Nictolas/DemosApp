@@ -11,6 +11,7 @@ on:
       - 'api/tests/gdprLegacyRequestsRoute.test.js'
       - 'api/tests/gdprLegacyRequestsPg17.test.js'
       - 'api/docs/gdpr-legacy-db-rights-hardening-20261028.md'
+      - 'api/docs/gdpr-rights-idempotent-retries-20261028.md'
       - 'api/tests/databaseTlsPolicy.test.js'
       - '.github/workflows/gdpr-legacy-db-pool-compat-ci.yml'
 
