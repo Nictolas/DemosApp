@@ -12,11 +12,25 @@ const HEX_SHA256 = /^[0-9a-f]{64}$/;
 const MAX_EVENTS = 250000;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_FUTURE_MS = 5 * 60 * 1000;
+const EVENT_FIELDS = Object.freeze([
+  'event_key', 'subject_user_id', 'event_type', 'occurred_at', 'details'
+]);
+const BUNDLE_FIELDS = Object.freeze(['manifest', 'events', 'signature']);
 
 function invalid(code = 'GDPR_EXTERNAL_EVIDENCE_INVALID') {
   const error = new Error(code);
   error.code = code;
   return error;
+}
+
+// Never silently discard extra payload fields before checking the signed digest.
+// Every own property (including non-enumerable or symbol keys) must be covered.
+function hasExactFields(value, fields) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return false;
+  const keys = Reflect.ownKeys(value);
+  return keys.length === fields.length && fields.every(field => Object.hasOwn(value, field));
 }
 
 function canonical(value, depth = 0) {
@@ -61,7 +75,7 @@ function normalize(events, capturedAt) {
   let previous = null;
   const tieTypes = new Map();
   return events.map(row => {
-    if (!row || typeof row !== 'object' || Array.isArray(row) ||
+    if (!hasExactFields(row, EVENT_FIELDS) ||
         typeof row.event_key !== 'string' || !row.event_key.trim() ||
         typeof row.subject_user_id !== 'string' || !row.subject_user_id.trim() ||
         !TYPES.has(row.event_type) ||
@@ -130,7 +144,7 @@ function verifyOffline(bundle, {
   now = Date.now(), maxAgeMs = 60 * 60 * 1000
 } = {}) {
   const key = keyBuffer(secret);
-  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) throw invalid();
+  if (!hasExactFields(bundle, BUNDLE_FIELDS)) throw invalid();
   const { manifest, events, signature } = bundle;
   if (!manifest || typeof manifest !== 'object' || manifest.version !== 1 ||
       typeof expectedSource !== 'string' || manifest.source !== expectedSource ||
