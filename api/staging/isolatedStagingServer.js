@@ -1,14 +1,42 @@
 'use strict';
 
+const http = require('node:http');
 const { assertIsolatedStagingEnvironment } = require('./isolatedStagingGuard');
 
-// Use ONLY as an explicitly reviewed Render staging start command:
-//   cd api && node staging/isolatedStagingServer.js
-// Never change production's normal "node index.js" start command.
-function startIsolatedStaging({ env = process.env, launch = () => require('../server') } = {}) {
-  // This MUST complete before loading server/app/database, Firebase or jobs.
+// Readiness-only: no app, database pool, Firebase, route or worker import.
+// Until provider quarantine is independently attested, NEVER import ../server.
+function createReadinessHandler() {
+  return (request, response) => {
+    response.setHeader('Cache-Control', 'no-store');
+    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    if (request.method === 'GET' && request.url === '/__staging/health') {
+      response.statusCode = 200;
+      response.end(JSON.stringify({
+        status: 'preflight-only',
+        gdprReady: false,
+        databaseConnected: false,
+        externalProvidersConnected: false
+      }));
+      return;
+    }
+    response.statusCode = 404;
+    response.end(JSON.stringify({ error: 'not_found' }));
+  };
+}
+
+function startIsolatedStaging({
+  env = process.env,
+  launch = (runtimeEnv) => http.createServer(createReadinessHandler())
+    .on('error', () => {
+      console.error('DEMOS_STAGING_HTTP_START_FAILED');
+      process.exitCode = 1;
+    })
+    .listen(Number(runtimeEnv.PORT), '0.0.0.0')
+} = {}) {
+  // Complete this offline check BEFORE opening even a local HTTP socket.
   const attestation = assertIsolatedStagingEnvironment(env);
-  launch();
+  launch(env);
   return attestation;
 }
 
@@ -22,4 +50,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { startIsolatedStaging };
+module.exports = { startIsolatedStaging, createReadinessHandler };
