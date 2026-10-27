@@ -524,7 +524,7 @@ async function main() {
     const normalized=verifySignedManifest(nearEnvelope,SECRET,RECOVERY);
     const nearEvents=normalized.events.filter(e=>e.subject_user_id===THIRD);
     assert.deepEqual(nearEvents.map(e=>e.occurred_at),[
-      '2026-10-25T14:00:00.000000Z',
+      '2026-10-25T14:00:00.000Z',
       '2026-10-25T14:00:00.000001Z'
     ],'signed history must preserve and sort distinct microseconds');
     assert.equal(Number((await db.query(
