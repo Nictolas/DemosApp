@@ -53,7 +53,10 @@ function assertIsolatedStagingEnvironment(env = process.env) {
       !Number.isInteger(Number(env.DATABASE_POOL_MAX)) ||
       Number(env.DATABASE_POOL_MAX) < 1 ||
       Number(env.DATABASE_POOL_MAX) > 5 ||
-      env.DATABASE_POOL_MIN !== '0') {
+      env.DATABASE_POOL_MIN !== '0' ||
+      typeof env.PORT !== 'string' ||
+      !/^[1-9][0-9]{0,4}$/.test(env.PORT) ||
+      Number(env.PORT) > 65535) {
     reject('DEMOS_STAGING_SIDE_EFFECTS_REJECTED');
   }
 
