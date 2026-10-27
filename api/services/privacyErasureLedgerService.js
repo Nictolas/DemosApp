@@ -135,31 +135,51 @@ class PrivacyErasureLedgerService {
   }
 
   static async mergeCaptured(client, rows = []) {
-    // Import requires separate, authorized schema provisioning first.
+    // An offline operator must still wrap import AND privacy replay in one
+    // transaction. Preflight every captured value nevertheless: a late bad
+    // timestamp, duplicate event key or JSON serialization failure must not
+    // leave earlier rows inserted by a caller that forgot BEGIN.
     await this.assertProtectedLedger(client);
-    // Validate the entire captured batch before the first INSERT. Without
-    // this preflight, String(null/undefined) would become a valid TEXT subject
-    // identifier and an invalid later event could leave earlier rows imported.
-    // Legitimate ledger captures always contain nonempty string identities.
-    if (!Array.isArray(rows) || rows.some((row) =>
-      !row || typeof row !== 'object' ||
-      typeof row.event_key !== 'string' || !row.event_key.trim() ||
-      typeof row.subject_user_id !== 'string' || !row.subject_user_id.trim() ||
-      !Object.values(this.EVENT_TYPES).includes(row.event_type)
-    )) {
+    const invalid = () => {
       const error = new Error('GDPR_LEDGER_INVALID_CAPTURED_EVENT');
       error.code = 'GDPR_LEDGER_INVALID_CAPTURED_EVENT';
-      throw error;
+      return error;
+    };
+    if (!Array.isArray(rows)) throw invalid();
+    const seenKeys = new Set();
+    const prepared = [];
+    for (const row of rows) {
+      if (!row || typeof row !== 'object' ||
+          typeof row.event_key !== 'string' || !row.event_key.trim() ||
+          typeof row.subject_user_id !== 'string' || !row.subject_user_id.trim() ||
+          !Object.values(this.EVENT_TYPES).includes(row.event_type) ||
+          seenKeys.has(row.event_key)) throw invalid();
+
+      // PostgreSQL accepts implicit NULL or permissive timestamp casts, and
+      // JavaScript Date loses microseconds. Require lossless UTC text from
+      // captureCurrent (or an equivalent validated legacy UTC timestamp).
+      const timestamp = row.occurred_at;
+      const match = typeof timestamp === 'string' &&
+        /^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,6}))?Z$/.exec(timestamp);
+      if (!match) throw invalid();
+      const milliseconds = match[1] + '.' +
+        (match[2] || '').padEnd(3, '0').slice(0, 3) + 'Z';
+      const parsed = new Date(milliseconds);
+      if (!Number.isFinite(parsed.getTime()) ||
+          parsed.toISOString() !== milliseconds) throw invalid();
+
+      // Serialize once in the preflight. Objects with circular references,
+      // BigInt or a serializer returning undefined must fail before ANY DML.
+      let details;
+      try { details = JSON.stringify(row.details || {}); } catch (_) { throw invalid(); }
+      if (typeof details !== 'string') throw invalid();
+      seenKeys.add(row.event_key);
+      prepared.push([
+        row.event_key, row.subject_user_id, row.event_type, timestamp, details
+      ]);
     }
     let merged = 0;
-    for (const row of rows) {
-      const event = [
-        row.event_key,
-        String(row.subject_user_id),
-        row.event_type,
-        row.occurred_at,
-        JSON.stringify(row.details || {})
-      ];
+    for (const event of prepared) {
       const result = await client.query(
         `INSERT INTO public.privacy_erasure_ledger
           (event_key, subject_user_id, event_type, occurred_at, details)
