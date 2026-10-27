@@ -210,19 +210,39 @@ class PrivacyErasureLedgerService {
     if (!requirePreinstalled) await this.ensureTable(client);
     let merged = 0;
     for (const row of rows) {
+      const event = [
+        row.event_key,
+        String(row.subject_user_id),
+        row.event_type,
+        row.occurred_at,
+        JSON.stringify(row.details || {})
+      ];
       const result = await client.query(
         `INSERT INTO public.privacy_erasure_ledger
           (event_key, subject_user_id, event_type, occurred_at, details)
          VALUES ($1, $2, $3, $4, $5::jsonb)
          ON CONFLICT (event_key) DO NOTHING`,
-        [
-          row.event_key,
-          String(row.subject_user_id),
-          row.event_type,
-          row.occurred_at,
-          JSON.stringify(row.details || {})
-        ]
+        event
       );
+      if (result.rowCount === 0) {
+        // The event UUID is the immutable identity. A conflicting event must
+        // never be treated as successful idempotent recovery. In particular,
+        // an event with the same key but a different revocation/subject/time
+        // must fail closed rather than be silently discarded.
+        const existing = await client.query(
+          `SELECT (
+             subject_user_id = $2::text AND event_type = $3::text
+             AND occurred_at = $4::timestamptz AND details = $5::jsonb
+           ) AS identical
+           FROM public.privacy_erasure_ledger WHERE event_key = $1`,
+          event
+        );
+        if (existing.rows.length !== 1 || existing.rows[0].identical !== true) {
+          const error = new Error('GDPR_LEDGER_EVENT_KEY_CONFLICT');
+          error.code = 'GDPR_LEDGER_EVENT_KEY_CONFLICT';
+          throw error;
+        }
+      }
       merged += result.rowCount || 0;
     }
     return merged;
