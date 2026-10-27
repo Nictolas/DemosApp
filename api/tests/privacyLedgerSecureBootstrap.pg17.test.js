@@ -393,7 +393,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
-  test('GDPR import rejects malformed captured identities before any batch write',async()=>{
+  test('GDPR import preflights identities, timestamps and details before any batch write',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const valid={
       event_key:'synthetic-valid-batch-event',
@@ -409,6 +409,8 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
 
       // The first event is valid: rejecting a later malformed event must not
       // leave a partial import even when the caller omitted BEGIN/ROLLBACK.
+      const circular={source:'synthetic-circular'};
+      circular.self=circular;
       const invalid=[
         {...valid,event_key:'synthetic-null-subject',subject_user_id:null},
         {...valid,event_key:'synthetic-missing-subject',subject_user_id:undefined},
@@ -416,7 +418,16 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         {...valid,event_key:'synthetic-blank-subject',subject_user_id:'   '},
         {...valid,event_key:''},
         {...valid,event_key:undefined},
-        {...valid,event_type:'unknown-event'}
+        {...valid,event_type:'unknown-event'},
+        {...valid,event_key:'synthetic-missing-time',occurred_at:null},
+        {...valid,event_key:'synthetic-invalid-time',occurred_at:'not-a-time'},
+        {...valid,event_key:'synthetic-impossible-time',occurred_at:'2026-02-30T00:00:00.000000Z'},
+        {...valid,event_key:'synthetic-date-object',
+          occurred_at:new Date('2026-01-02T03:04:05.123Z')},
+        {...valid,event_key:'synthetic-bigint',details:{value:1n}},
+        {...valid,event_key:'synthetic-circular',details:circular},
+        {...valid,event_key:'synthetic-undefined-json',details:Symbol('invalid')},
+        valid // A duplicate within one captured batch must never be replayed.
       ];
       for (const row of invalid) {
         await assert.rejects(
@@ -433,6 +444,11 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       );
       assert.equal(await Ledger.mergeCaptured(pool,[valid]),1,
         'a valid captured event must still import normally');
+      let serializationCalls=0;
+      const serializedOnce={...valid,event_key:'synthetic-single-serialization',
+        details:{toJSON(){serializationCalls++;return {source:'synthetic-once'};}}};
+      assert.equal(await Ledger.mergeCaptured(pool,[serializedOnce]),1);
+      assert.equal(serializationCalls,1,'details must be serialized once before SQL');
     } finally {
       await pool.end();
     }
