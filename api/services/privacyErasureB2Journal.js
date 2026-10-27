@@ -25,7 +25,8 @@ function normalizeEvent(row) {
       row.subject_user_id.length === 0 || row.subject_user_id.length > 128 ||
       !TYPES.has(row.event_type)) throw Error('Invalid GDPR ledger event');
   const when = normalizeLedgerTimestamp(row.occurred_at);
-  const details = row.details == null ? {} : row.details;
+  // A missing JSONB payload is invalid, not an empty event to sign or archive.
+  const details = row.details;
   if (typeof details !== 'object' || !details || Array.isArray(details)) {
     throw Error('Invalid GDPR ledger details');
   }
