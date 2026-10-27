@@ -65,10 +65,75 @@ test('GDPR POST persists a real request ID via parameterized DPO table before 20
   });
   assert.equal(calls.length,1);
   assert.match(calls[0].sql,/INSERT INTO public\.user_rights_requests/);
+  assert.match(calls[0].sql,/ON CONFLICT \(id\) DO NOTHING/);
   assert.match(calls[0].sql,/RETURNING id, request_type, status, created_at/);
-  assert.deepEqual(calls[0].args.slice(0,2),['synthetic-user','erasure']);
-  assert.deepEqual(JSON.parse(calls[0].args[2]),
+  assert.match(calls[0].args[0],/^[0-9a-f]{8}-[0-9a-f-]{27,}$/);
+  assert.deepEqual(calls[0].args.slice(1,3),['synthetic-user','erasure']);
+  assert.deepEqual(JSON.parse(calls[0].args[3]),
     {source:'gdpr_requests_api',details:'synthetic private message'});
+});
+
+test('GDPR Idempotency-Key retry returns same saved receipt without duplicate INSERT', async () => {
+  const key='e5633efb-2d49-4bcb-99ee-37833470f54a';
+  let calls=0;
+  const pool={async query(sql,params){
+    calls++;
+    assert.equal(params[0],key);
+    if(sql.startsWith('INSERT')) {
+      return {rows:calls===1?[{id:key,request_type:'access',status:'pending',created_at:'2026-10-28T00:00:00Z'}]:[]};
+    }
+    assert.match(sql,/WHERE id=\$1::uuid AND user_id=\$2/);
+    assert.deepEqual(params.slice(1,3),['user-1','access']);
+    return {rows:[{id:key,request_type:'access',status:'processing',created_at:'2026-10-28T00:00:00Z'}]};
+  }};
+  await withMockedRoute(pool,async ({post})=>{
+    const req={userId:'user-1',headers:{'idempotency-key':key},body:{tipo:'access',dettagli:'fixture'}};
+    const one=response();await post(req,one);
+    assert.equal(one.statusCode,201);
+    const two=response();await post(req,two);
+    assert.equal(two.statusCode,200);
+    assert.equal(two.body.data.id,one.body.data.id);
+    assert.equal(two.body.data.stato,'processing');
+  });
+  assert.equal(calls,3);
+});
+
+test('same Idempotency-Key with changed owner or payload never reveals another request', async () => {
+  const key='e5633efb-2d49-4bcb-99ee-37833470f54a';
+  let writes=0;
+  const pool={async query(sql){
+    if(sql.startsWith('INSERT')){writes++;return {rows:[]};}
+    return {rows:[]};
+  }};
+  await withMockedRoute(pool,async ({post})=>{
+    for(const req of [
+      {userId:'another-user',headers:{'idempotency-key':key},body:{tipo:'access',dettagli:'fixture'}},
+      {userId:'user-1',headers:{'idempotency-key':key},body:{tipo:'access',dettagli:'different'}}
+    ]){
+      const result=response();await post(req,result);
+      assert.equal(result.statusCode,409);
+      assert.equal(result.body.success,false);
+      assert.equal(JSON.stringify(result.body).includes(key),false);
+    }
+  });
+  assert.equal(writes,2);
+});
+
+test('invalid Idempotency-Key is refused before SQL',async()=>{
+  let count=0;
+  const pool={async query(){count++;throw Error('SQL should not run');}};
+  await withMockedRoute(pool,async ({post})=>{
+    for(const value of ['not-uuid','00000000-0000-0000-0000-000000000000',
+      'e5633efb-2d49-4bcb-99ee-37833470f54a;DROP TABLE x']){
+      const r=response();await post({
+        userId:'user-1',headers:{'idempotency-key':value},
+        body:{tipo:'access',dettagli:'fixture'}
+      },r);
+      assert.equal(r.statusCode,400);
+      assert.equal(r.body.success,false);
+    }
+  });
+  assert.equal(count,0);
 });
 
 test('GDPR GET reads only the authenticated user history and excludes request details', async () => {
