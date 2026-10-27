@@ -87,4 +87,100 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       await pool.end();
     }
   });
+
+  test('GDPR ledger failures roll back previously changed consent and account data',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const userId='synthetic-revocation-user';
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await pool.query(`
+        CREATE TABLE users (id text PRIMARY KEY, political_opinions_consent boolean NOT NULL);
+        CREATE TABLE political_selections (
+          id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          user_id text NOT NULL REFERENCES users(id)
+        );
+      `);
+      await pool.query('INSERT INTO users(id, political_opinions_consent) VALUES ($1,true)',[userId]);
+      await pool.query('INSERT INTO political_selections(user_id) VALUES ($1)',[userId]);
+      await Ledger.ensureTable(pool);
+
+      // Both actual HTTP routes keep event recording and preceding mutations
+      // within one SQL transaction. Model those steps against real PG17.
+      for (const failureMode of ['ledger_missing','rls_disabled','api_role_grant']) {
+        if (failureMode==='ledger_missing') {
+          await pool.query('DROP TABLE public.privacy_erasure_ledger');
+        } else if (failureMode==='rls_disabled') {
+          await pool.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
+        } else {
+          await pool.query('GRANT INSERT ON public.privacy_erasure_ledger TO anon');
+        }
+
+        for (const operation of ['political_consent_revoked','account_deleted']) {
+          const client=await pool.connect();
+          try {
+            await client.query('BEGIN');
+            if (operation==='political_consent_revoked') {
+              await client.query(
+                'UPDATE users SET political_opinions_consent=false WHERE id=$1',[userId]
+              );
+              await client.query('DELETE FROM political_selections WHERE user_id=$1',[userId]);
+            } else {
+              await client.query('DELETE FROM political_selections WHERE user_id=$1',[userId]);
+              await client.query('DELETE FROM users WHERE id=$1',[userId]);
+            }
+            await assert.rejects(
+              Ledger.recordEvent(client,{
+                userId,eventType:Ledger.EVENT_TYPES[operation==='account_deleted'?
+                  'ACCOUNT_DELETED':'POLITICAL_CONSENT_REVOKED'],
+                details:{source:'transactional-ci-fixture'}
+              }),
+              error=>error?.code===(failureMode==='ledger_missing'?
+                '42P01':'GDPR_LEDGER_SCHEMA_NOT_PROTECTED'),
+              'ledger defect must prevent commit after earlier user changes'
+            );
+          } finally {
+            await client.query('ROLLBACK');
+            client.release();
+          }
+          const snapshot=await pool.query(`
+            SELECT u.political_opinions_consent AS consent,
+              (SELECT COUNT(*)::int FROM political_selections WHERE user_id=$1) AS choices
+            FROM users u WHERE u.id=$1
+          `,[userId]);
+          assert.deepEqual(snapshot.rows,[{consent:true,choices:1}],
+            failureMode+' / '+operation+' must roll back every user mutation');
+        }
+        // Reinstall/protect schema ONLY between fixture phases, never in a
+        // user-facing request: also preserves the subsequent phases' safety.
+        await Ledger.ensureTable(pool);
+      }
+
+      const client=await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          'UPDATE users SET political_opinions_consent=false WHERE id=$1',[userId]
+        );
+        await client.query('DELETE FROM political_selections WHERE user_id=$1',[userId]);
+        await Ledger.recordEvent(client,{
+          userId,eventType:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+          details:{source:'synthetic-success'}
+        });
+        await client.query('COMMIT');
+      } catch(e) {
+        await client.query('ROLLBACK');throw e;
+      } finally {client.release();}
+      const after=await pool.query(`
+        SELECT
+          (SELECT political_opinions_consent FROM users WHERE id=$1) AS consent,
+          (SELECT COUNT(*)::int FROM political_selections WHERE user_id=$1) AS choices,
+          (SELECT COUNT(*)::int FROM public.privacy_erasure_ledger) AS ledger_events
+      `,[userId]);
+      assert.deepEqual(after.rows,[{consent:false,choices:0,ledger_events:1}],
+        'after approved protected provisioning, transaction must commit once');
+    } finally {
+      await pool.end();
+    }
+  });
 }
