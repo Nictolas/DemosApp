@@ -8,8 +8,12 @@ class PrivacyErasureLedgerService {
   });
 
   static async ensureTable(client) {
+    // OPERATOR-ONLY bootstrap/maintenance. PostgreSQL commits the entire
+    // multi-statement query atomically: never commit a public relation before
+    // RLS and revocation of PostgREST API-role grants are applied.
+    // Never invoke this helper from a user-facing GDPR transaction.
     await client.query(`
-      CREATE TABLE IF NOT EXISTS privacy_erasure_ledger (
+      CREATE TABLE IF NOT EXISTS public.privacy_erasure_ledger (
         event_key TEXT PRIMARY KEY,
         subject_user_id TEXT NOT NULL,
         event_type TEXT NOT NULL CHECK (event_type IN (
@@ -19,11 +23,26 @@ class PrivacyErasureLedgerService {
         )),
         occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         details JSONB NOT NULL DEFAULT '{}'::jsonb
-      )
+      );
+      ALTER TABLE public.privacy_erasure_ledger ENABLE ROW LEVEL SECURITY;
+      REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM PUBLIC;
+      DO $gdpr_ledger_privileges$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM anon;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM authenticated;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM service_role;
+        END IF;
+      END
+      $gdpr_ledger_privileges$;
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_privacy_erasure_ledger_subject_time
-      ON privacy_erasure_ledger(subject_user_id, occurred_at DESC)
+      ON public.privacy_erasure_ledger(subject_user_id, occurred_at DESC)
     `);
   }
 
@@ -35,10 +54,12 @@ class PrivacyErasureLedgerService {
       throw new Error('Privacy ledger event requires userId');
     }
 
-    await this.ensureTable(client);
+    // The ledger must be preinstalled in a reviewed maintenance operation.
+    // Missing relation fails closed (42P01), without DDL during deletion or
+    // political-consent revocation and without creating an unprotected table.
     const eventKey = crypto.randomUUID();
     const result = await client.query(
-      `INSERT INTO privacy_erasure_ledger
+      `INSERT INTO public.privacy_erasure_ledger
         (event_key, subject_user_id, event_type, occurred_at, details)
        VALUES ($1, $2, $3, NOW(), $4::jsonb)
        RETURNING event_key, subject_user_id, event_type, occurred_at, details`,
