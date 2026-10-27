@@ -148,6 +148,15 @@ jobs:
       - name: Phase 2 CI staging evidence (RT01-RT06)
         run: npm run test:security-phase2-staging
 
+      # These synthetic tests were run by dedicated Render staging services
+      # but not by this workflow. Cover them locally before retirement:
+      # HTTP is loopback-only; AI providers and actions are fakes/non-executable.
+      - name: Security legacy staging parity (synthetic, no remote providers)
+        run: |
+          node --test api/tests/securityPhase2DeployedHarness.test.js
+          node --test api/tests/securityAiQualityEvaluation.test.js
+          node --test api/tests/securityActionCatalog.test.js
+
       - name: Phase 5 Action Runner sandbox (RT10)
         run: node --test api/tests/securityActionRunnerSandbox.test.js
 
