@@ -31,10 +31,25 @@ I chiamanti **legacy senza header** continuano a produrre una nuova richiesta a 
 
 ## Cosa manca ancora
 
-- Non abbiamo individuato sul frontend attuale un invio di `POST /api/user/gdpr-requests`. La pagina `client/src/pages/GDPRRights.tsx` consulta **`GET /api/user/rights-requests`**, esposto dal diverso modulo `api/routes/user/gdpr-rights.js`; la pagina mostra solo uno storico. **Questa PR non modifica la pagina né promette idempotenza di endpoint differenti.**
+- Non abbiamo individuato sul frontend attuale un invio di `POST /api/user/gdpr-requests`. La pagina `client/src/pages/GDPRRights.tsx` consulta **`GET /api/user/rights-requests`**, esposto dal diverso modulo `api/routes/user/gdpr-rights.js`; la pagina mostra solo uno storico. **Questa PR corregge anche questo percorso di sola lettura**, ma non promette idempotenza di endpoint differenti.
 - Un futuro client che invia domande GDPR tramite questa route dovrà generare e riutilizzare la stessa `Idempotency-Key` senza memorizzare testo sensibile più a lungo del necessario. Gli utenti non devono essere istruiti a provare chiamate HTTP a mano.
 - La successiva verifica dell'identità SQL **effettivamente usata da Render**, delle policy RLS compatibili e della presa in carico DPO rimane obbligatoria.
 - Questo meccanismo non rende automaticamente idempotenti le cancellazioni dell'account o le esportazioni che utilizzano `/api/user/gdpr-rights`; richiedono analisi dedicata.
 - Recupero GDPR #296 **NO-GO**: il journal B2 esterno non è stato attestato e manca la prova completa di restore in quarantena.
 
 **Nessun rilascio automatico.**
+
+## Verifica del vero percorso utente per lo storico GDPR
+
+Durante la ricognizione è emerso che la pagina corrente usa un endpoint diverso dalla nuova POST idempotente. Prima della correzione:
+
+- `GET /api/user/rights-requests` poteva restituire un insieme **RLS-filtrato** apparentemente completo; il browser non aveva modo di distinguere zero righe visibili da zero richieste reali;
+- `client/src/pages/GDPRRights.tsx` non impostava un messaggio d'errore quando HTTP falliva, mantenendo `requests=[]` e quindi mostrando «Nessuna richiesta presente» anche se il database non era accessibile.
+
+La PR include ora un controllo conservativo con `pg_catalog.row_security_active` nel **vero** handler `gdpr-rights.js`. Un ruolo SQL con visibilità filtrata produce **HTTP 503** anziché uno storico parziale. La pagina React verifica status HTTP, `success=true` e `data` array; solo dopo una risposta verificata rende «Nessuna richiesta presente». Per un errore o risposta non valida visualizza «Storico non disponibile» con un avviso, senza scrivere payload personali in console.
+
+Questo comportamento **non fornisce una policy RLS nuova** né autorizza un bypass: finché Render non dispone di una modalità di lettura sicura e verificata, l'utente può vedere uno stato di indisponibilità anziché uno storico. Questo è un gate operativo aperto, non una funzione dichiarabile GO.
+
+**Verifiche CI:** sul commit `72d8b3f`, [workflow #40604819354](https://github.com/Nictolas/DemosApp/actions/runs/40604819354) **SUCCESS**, **16/16 test backend unitari, 1/1 integrazione PostgreSQL 17**, build Vite `client` **SUCCESS**; [Legacy Menu #40604819292](https://github.com/Nictolas/DemosApp/actions/runs/40604819292) **SUCCESS**; Snyk **SUCCESS**. Nessuna chiamata a database o storage di produzione.
+
+**Rimane da validare prima del rilascio** la navigazione/login Android/iOS, il contratto del frontend di invio delle richieste con `Idempotency-Key` stabile, il ruolo SQL reale usato da Render, le policy approvate per storico e INSERT, la presa in carico DPO e l'archivio/recovery B2 indipendente. Issue #296 resta **NO-GO**.
