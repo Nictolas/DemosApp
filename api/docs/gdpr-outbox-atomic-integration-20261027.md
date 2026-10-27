@@ -11,7 +11,7 @@
 - Nella modalità outbox il payload viene serializzato una sola volta, verificato dal contratto B2 e trasmesso con la stessa copia JSON a PostgreSQL; `null`, array, falsi, serializzazioni invalide e contenuti oltre il limite B2 vengono rifiutati **prima delle scritture**.
 - `recordEvent` richiede che **entrambe** le relazioni esistano e siano protette da RLS/ACL; **non esegue DDL** da nessuna richiesta utente. La scrittura usa una singola istruzione PostgreSQL con due CTE di modifica e inserisce l'evento e la riga di coda atomicamente. Funziona anche dentro una transazione di consenso/cancellazione del chiamante.
 - `ensureDeliveryOutbox()` è esclusivamente un installer per una **futura** finestra di manutenzione autorizzata: crea `privacy_erasure_delivery_outbox`, applica RLS e `FORCE RLS` e revoca nello stesso comando SQL i permessi non necessari a `PUBLIC`, `anon`, `authenticated` e `service_role`.
-- `assertProtectedOutbox()` verifica esclusivamente i cataloghi (RLS e grant); non ispeziona utenti o eventi. Un outbox mancante o esposto causa errore e impedisce nuove scritture in modalità outbox.
+- `assertProtectedOutbox()` verifica esclusivamente i cataloghi (RLS, **FORCE RLS** e grant); non ispeziona utenti o eventi. Un outbox mancante, senza FORCE RLS oppure esposto ai ruoli Data API causa errore e impedisce nuove scritture in modalità outbox.
 - `mergeCaptured()` conserva il **fail-closed sui `details` JSONB nulli/mancanti** della #371 e l'arresto sui conflitti di chiave evento. Non è stato importato `row.details == null ? {} : row.details` dal vecchio codice di recovery.
 
 ## Evidenza PostgreSQL 17 — SOLO CI usa-e-getta
