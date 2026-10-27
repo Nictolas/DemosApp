@@ -2,6 +2,61 @@
 
 **27 ottobre 2026 — Solo PR Draft; nessun merge/deploy.** È una proposta di rilascio limitata, non la migrazione dell'outbox o l'autorizzazione al ripristino.
 
+## Gate distinto: revoca delle selezioni personali (#295) — verificato 27 ottobre 2026
+
+**Questa hotfix di sicurezza del ledger NON costituisce il completamento
+dell'erasure delle scelte politiche personali.** La
+[PR #295](https://github.com/Nictolas/DemosApp/pull/295) è una correzione
+ancora **OPEN/DRAFT, stacked su altri rami**, distinta dalla #366.
+
+Il codice `main` / #366 di `cleanupConsentScopedPoliticalData` cancella
+opinioni e voti collegati al consenso, ma non cancella attualmente le **scelte
+personali** nelle tabelle `political_selections` e
+`user_representatives`, né la relativa proiezione di campi legacy di
+rappresentanti/candidati in `users`. La #295 propone di eliminare in
+transazione solo le selezioni appartenenti alla persona che revoca il
+consenso, preservando quelle altrui, e di applicare la stessa pulizia
+anche al replay GDPR dopo restore; richiede una separata review DPIA e
+approvazione del perimetro giuridico.
+
+**Evidenza effettiva solo da cataloghi SQL Supabase di PRODUZIONE
+(27 ottobre, nessuna riga personale letta):**
+- `public.political_selections` è una tabella con `user_id` e
+  `selected_user_id`;
+- `public.user_representatives` è una tabella con `user_id` e 10
+  colonne con prefissi `rappresentante_` / `candidato_`;
+- `public.users` contiene 11 colonne con tali prefissi.
+Questa verifica **non attesta che esistano utenti revocanti con selezioni
+residue**: dimostra soltanto che le strutture interessate sono reali.
+**Non eseguire query sulle scelte individuali per cercare conferme**.
+
+Non integrare la #295 tramite l'intera catena stacked senza review.
+Non aggiungere automaticamente questa modifica alla #366: una
+correzione del protocollo tecnico del ledger e un ampliamento dello scope
+dell'erasure sono decisioni di rilascio distinte. Un eventuale GO
+circoscritto al bootstrap ledger deve escludere esplicitamente qualsiasi
+dichiarazione di **GDPR erasure completo**; il recovery rimane NO-GO.
+
+### Catalogo reale del ledger: cosa è già verificato
+
+Le SELECT di soli cataloghi su Supabase PROD hanno attestato per
+`public.privacy_erasure_ledger`: relazione esistente, **RLS attiva**,
+proprietario `postgres`, **zero policy**, nessun grant `PUBLIC` su
+tabella/colonne, nessun DML per i ruoli API `anon`,
+`authenticated` e `service_role`, 5 colonne essenziali, 1 PK e
+l'indice `idx_privacy_erasure_ledger_subject_time`. **Non sostenere che
+il registro sia attualmente esposto.** Non è ancora stata accertata
+l'identità SQL con cui Render scrive, poiché lo SQL Editor/connector
+Supabase usa un'altra sessione e non sostituisce il pool runtime.
+
+Stato al controllo: `main=e98153f`; backend produttivo LIVE
+sull'ultimo commit applicativo `35586fb` (i commit successivi
+hanno modificato solo la CI GitHub). La PR #366 è DRAFT, il branch
+diverge da `main` e mostra 8 file di diff, compresi due file Sondaggi
+già allineati come blob al contenuto attuale di `main`. **Revisionare
+sempre il diff finale e le CI prima di qualsiasi merge con deploy
+automatico**.
+
 ## Perché separarla dalla catena Draft
 
 Il confronto GitHub `main...06fb2e0c` (#365) registra **468 commit / 237 file** di differenza rispetto a `main`. Render backend live utilizza ancora `main` commit `77cfd862`; i deploy automatici sono attivati. Non è prudente integrare tutta la catena per risolvere un singolo rischio.
