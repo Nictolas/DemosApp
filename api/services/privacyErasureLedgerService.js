@@ -176,9 +176,6 @@ class PrivacyErasureLedgerService {
     }
 
     const outboxEnabled = this.outboxEnabled();
-    // Reuse main-isolated #366's read-only RLS/ACL preflight in BOTH modes.
-    // Existing outbox atomicity is unchanged; fail before any event DML.
-    await this.assertProtectedLedger(client);
 
     // Never execute DDL from ANY user-facing GDPR request, including legacy.
     // Both modes require intentional pre-installation. A missing table fails
@@ -205,6 +202,10 @@ class PrivacyErasureLedgerService {
         details: JSON.parse(detailsJson)
       });
     }
+    // Validate the B2 payload first without ANY SQL. Reuse #366's
+    // read-only RLS/ACL preflight in BOTH modes after that local validation,
+    // but before the first ledger or outbox INSERT.
+    await this.assertProtectedLedger(client);
     const params = [eventKey, subjectUserId, eventType, detailsJson];
     if (outboxEnabled) {
       // NO automatic DDL on a live revocation/deletion request. This fails
