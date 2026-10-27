@@ -568,4 +568,88 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+
+  test('restore replay mirrors live consent cleanup and ignores pg_temp shadow users',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const userId='synthetic-revoked-with-votes';
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await pool.query(`
+        CREATE TABLE public.users (
+          id text PRIMARY KEY,
+          political_opinions_consent boolean NOT NULL,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz,
+          answer text,
+          opinione_proposta_id text
+        );
+        CREATE TABLE public.opinioni_risposte (user_id text, answer text);
+        CREATE TABLE public.voti_ice (user_id text, vote text);
+        CREATE TABLE public.user_consents (
+          user_id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+      `);
+      await pool.query(
+        'INSERT INTO public.users(id,political_opinions_consent,answer,opinione_proposta_id) VALUES ($1,true,$2,$3)',
+        [userId,'public-legacy-answer','public-proposal']
+      );
+      await pool.query('INSERT INTO public.opinioni_risposte(user_id,answer) VALUES ($1,$2)',
+        [userId,'synthetic-opinion']);
+      await pool.query('INSERT INTO public.voti_ice(user_id,vote) VALUES ($1,$2)',
+        [userId,'synthetic-vote']);
+      await pool.query('INSERT INTO public.user_consents(user_id,political_opinions_consent) VALUES ($1,true)',[userId]);
+      await Ledger.ensureTable(pool);
+      await Ledger.recordEvent(pool,{
+        userId,eventType:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+        details:{source:'synthetic-restore-consent'}
+      });
+
+      const client=await pool.connect();
+      try {
+        await client.query('CREATE TEMP TABLE users (LIKE public.users)');
+        await client.query(
+          'INSERT INTO pg_temp.users(id,political_opinions_consent,answer,opinione_proposta_id) VALUES ($1,true,$2,$3)',
+          [userId,'shadow-answer','shadow-proposal']
+        );
+        await client.query('SET search_path TO pg_temp, public');
+        const replay=await Ledger.applyCurrentPrivacyState(client);
+        assert.equal(replay.revocationsReapplied,1);
+        assert.equal(replay.opinionsRemoved,1);
+        const publicUser=await client.query(
+          'SELECT political_opinions_consent AS consent, answer, opinione_proposta_id AS proposal FROM public.users WHERE id=$1',
+          [userId]
+        );
+        assert.deepEqual(publicUser.rows,[{consent:false,answer:null,proposal:null}],
+          'restore replay must clear the real legacy opinion/proposal fields');
+        const publicConsent=await client.query(
+          'SELECT political_opinions_consent AS consent FROM public.user_consents WHERE user_id=$1',[userId]
+        );
+        assert.deepEqual(publicConsent.rows,[{consent:false}]);
+        const votes=await client.query('SELECT COUNT(*)::int AS n FROM public.voti_ice WHERE user_id=$1',[userId]);
+        assert.equal(votes.rows[0].n,0,'restore must not resurrect consent-scoped votes');
+        const opinions=await client.query('SELECT COUNT(*)::int AS n FROM public.opinioni_risposte WHERE user_id=$1',[userId]);
+        assert.equal(opinions.rows[0].n,0);
+        const shadow=await client.query(
+          'SELECT political_opinions_consent AS consent, answer, opinione_proposta_id AS proposal FROM pg_temp.users WHERE id=$1',
+          [userId]
+        );
+        assert.deepEqual(shadow.rows,[{consent:true,answer:'shadow-answer',proposal:'shadow-proposal'}],
+          'a temporary table must never divert real GDPR cleanup');
+      } finally {
+        await client.query('RESET search_path');
+        client.release();
+      }
+    } finally {
+      await pool.end();
+    }
+  });
+
 }
