@@ -5,6 +5,9 @@ const assert = require('node:assert/strict');
 const { assertIsolatedStagingEnvironment, STAGING_PROJECT_ID } =
   require('../staging/isolatedStagingGuard');
 const { startIsolatedStaging } = require('../staging/isolatedStagingServer');
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const STAGING_USERNAME = 'demos_staging_runtime.' + STAGING_PROJECT_ID;
 const baseEnv = () => ({
@@ -127,4 +130,24 @@ test('a failed preflight never loads server, app, DB or any external provider', 
     connectionKind:'supabase-pooler',poolMax:2
   });
   assert.equal(boots,1);
+});
+
+test('actual staging entrypoint exits before importing server on a bad DB target', () => {
+  const env={...baseEnv(),DATABASE_URL:'postgresql://u:fake@prod.invalid/postgres'};
+  const result=spawnSync(process.execPath,['staging/isolatedStagingServer.js'],{
+    cwd:path.resolve(__dirname,'..'),env,encoding:'utf8',timeout:5000
+  });
+  assert.equal(result.status,1);
+  assert.match(result.stderr,/DEMOS_STAGING_BOOT_REJECTED/);
+  assert.doesNotMatch(result.stderr,/prod\.invalid|synthetic-password|fake@/);
+});
+
+test('app integrates the pre-import fence and does not schedule its passive jobs on staging', () => {
+  const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
+  const fence=app.indexOf("assertIsolatedStagingEnvironment(process.env)");
+  const express=app.indexOf("const express = require('express')");
+  assert.ok(fence>0 && express>fence,'staging guard must run before routes/pools/providers');
+  assert.match(app,/if \(!isolatedStaging\) auditManager\.start\(\)/);
+  assert.match(app,/const performanceMonitorEnabled = !isolatedStaging &&/);
+  assert.match(app,/if \(!isolatedStaging\) performanceOptimizer\.start\(\)/);
 });
