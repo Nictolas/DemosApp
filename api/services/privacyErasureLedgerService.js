@@ -7,6 +7,17 @@ class PrivacyErasureLedgerService {
     POLITICAL_CONSENT_GRANTED: 'political_consent_granted'
   });
 
+  // Optional. The default is OFF. Never auto-enable B2 or worker processing.
+  static outboxEnabled() {
+    const mode = process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+    if (mode !== undefined && mode !== 'false' && mode !== 'true') {
+      const error = new Error('GDPR_ERASURE_OUTBOX_INVALID_MODE');
+      error.code = 'GDPR_ERASURE_OUTBOX_INVALID_MODE';
+      throw error;
+    }
+    return mode === 'true';
+  }
+
   static async ensureTable(client) {
     // OPERATOR-ONLY bootstrap/maintenance. PostgreSQL commits the entire
     // multi-statement query atomically: never commit a public relation before
@@ -43,6 +54,52 @@ class PrivacyErasureLedgerService {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_privacy_erasure_ledger_subject_time
       ON public.privacy_erasure_ledger(subject_user_id, occurred_at DESC)
+    `);
+  }
+
+  static async ensureDeliveryOutbox(client) {
+    // This table must be installed intentionally by the operator before
+    // turning on the feature. IF NOT EXISTS supports synthetic CI bootstrap;
+    // it does NOT replace explicit schema migration and permission review.
+    // The CREATE + RLS + REVOKE statements below MUST be one SQL request:
+    // no auto-commit window may expose this table through Supabase Data API.
+    // The operator must still isolate providers before running this DDL.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS public.privacy_erasure_delivery_outbox (
+        event_key TEXT PRIMARY KEY REFERENCES public.privacy_erasure_ledger(event_key) ON DELETE RESTRICT,
+        queued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        delivered_at TIMESTAMPTZ,
+        b2_version_id TEXT,
+        b2_sha256 CHAR(64),
+        CHECK (
+          (delivered_at IS NULL AND b2_version_id IS NULL AND b2_sha256 IS NULL)
+          OR (delivered_at IS NOT NULL AND b2_version_id IS NOT NULL AND b2_sha256 IS NOT NULL)
+        )
+      );
+      -- PostgreSQL executes this batch as one implicit transaction when
+      -- no explicit BEGIN is open. Never expose a just-created public table
+      -- before RLS and API role grants are locked down.
+      ALTER TABLE public.privacy_erasure_delivery_outbox ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.privacy_erasure_delivery_outbox FORCE ROW LEVEL SECURITY;
+      REVOKE ALL ON TABLE public.privacy_erasure_delivery_outbox FROM PUBLIC;
+      DO $gdpr_outbox_privileges$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='anon') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_delivery_outbox FROM anon;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticated') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_delivery_outbox FROM authenticated;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='service_role') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_delivery_outbox FROM service_role;
+        END IF;
+      END
+      $gdpr_outbox_privileges$;
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_privacy_erasure_outbox_pending
+      ON public.privacy_erasure_delivery_outbox (queued_at, event_key)
+      WHERE delivered_at IS NULL
     `);
   }
 
@@ -93,6 +150,53 @@ class PrivacyErasureLedgerService {
     }
   }
 
+  static async assertProtectedOutbox(client) {
+    // This check only inspects pg_catalog; it never reads outbox rows.
+    // regclass resolution raises 42P01 if a restore omitted the ledger.
+    // A restored table that exists but lacks RLS or has API/public grants
+    // must not silently accept a new sensitive GDPR event.
+    const result = await client.query(`
+      SELECT c.relrowsecurity AS rls_enabled,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.aclexplode(
+            COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))
+          ) acl WHERE acl.grantee = 0
+        ) AS public_grants_exist,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_attribute a
+          CROSS JOIN LATERAL pg_catalog.aclexplode(a.attacl) acl
+          WHERE a.attrelid = c.oid
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+            AND acl.grantee = 0
+        ) AS public_column_grants_exist,
+        (
+          SELECT COUNT(*)::integer
+          FROM pg_catalog.pg_roles r
+          WHERE r.rolname IN ('anon', 'authenticated', 'service_role')
+            AND (
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'SELECT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'INSERT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'UPDATE') OR
+              pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE')
+            )
+        ) AS api_roles_with_dml_grants
+      FROM pg_catalog.pg_class c
+      WHERE c.oid = 'public.privacy_erasure_delivery_outbox'::regclass
+    `);
+    const state = result.rows?.[0];
+    if (state?.rls_enabled !== true ||
+        state?.public_grants_exist !== false ||
+        state?.public_column_grants_exist !== false ||
+        state?.api_roles_with_dml_grants !== 0) {
+      const error = new Error('GDPR_OUTBOX_SCHEMA_NOT_PROTECTED');
+      error.code = 'GDPR_OUTBOX_SCHEMA_NOT_PROTECTED';
+      throw error;
+    }
+  }
+
   static async recordEvent(client, { userId, eventType, details = {} }) {
     if (!Object.values(this.EVENT_TYPES).includes(eventType)) {
       throw new Error(`Unsupported privacy ledger event: ${eventType}`);
@@ -101,19 +205,62 @@ class PrivacyErasureLedgerService {
       throw new Error('Privacy ledger event requires userId');
     }
 
-    // The ledger must be preinstalled in a reviewed maintenance operation.
-    // Missing relation fails closed (42P01), without DDL during deletion or
-    // political-consent revocation and without creating an unprotected table.
-    // Even a pre-existing ledger must be rejected if restored with RLS off,
-    // unexpected table/column PUBLIC grants or exposed API-role permissions.
-    await this.assertProtectedLedger(client);
+    // Serialize details ONCE, use the same JSON bytes for preflight and SQL.
+    // A malformed body must never cause partial ledger/outbox writes.
+    const outboxEnabled = this.outboxEnabled();
     const eventKey = crypto.randomUUID();
+    const subjectUserId = String(userId);
+    const detailsJson = JSON.stringify(details);
+    if (outboxEnabled) {
+      if (typeof detailsJson !== 'string') {
+        throw Error('Invalid GDPR outbox JSON details');
+      }
+      const { normalizeEvent } = require('./privacyErasureB2Journal');
+      normalizeEvent({
+        event_key: eventKey,
+        subject_user_id: subjectUserId,
+        event_type: eventType,
+        // SQL's NOW() will provide the real UTC timestamp later.
+        occurred_at: '2000-01-01T00:00:00.000Z',
+        details: JSON.parse(detailsJson)
+      });
+    }
+
+    // Both tables must be preinstalled explicitly by an operator. NO DDL
+    // in consent, deletion or normal user-facing request transactions.
+    await this.assertProtectedLedger(client);
+    if (outboxEnabled) await this.assertProtectedOutbox(client);
+
+    const params = [eventKey, subjectUserId, eventType, detailsJson];
+    if (outboxEnabled) {
+      // PostgreSQL executes both data-modifying CTEs as ONE SQL statement:
+      // either the privacy event and its delivery receipt queue both exist,
+      // or NEITHER does. They also join the caller's outer transaction.
+      const result = await client.query(`
+        WITH event_insert AS (
+          INSERT INTO public.privacy_erasure_ledger
+            (event_key, subject_user_id, event_type, occurred_at, details)
+          VALUES ($1, $2, $3, NOW(), $4::jsonb)
+          RETURNING event_key, subject_user_id, event_type, occurred_at, details
+        ), delivery_insert AS (
+          INSERT INTO public.privacy_erasure_delivery_outbox (event_key)
+          SELECT event_key FROM event_insert
+          RETURNING event_key
+        )
+        SELECT e.* FROM event_insert e
+        JOIN delivery_insert d ON d.event_key = e.event_key
+      `, params);
+      if (result.rows?.length !== 1) {
+        throw Error('GDPR ledger event was not queued atomically');
+      }
+      return result.rows[0];
+    }
     const result = await client.query(
       `INSERT INTO public.privacy_erasure_ledger
         (event_key, subject_user_id, event_type, occurred_at, details)
        VALUES ($1, $2, $3, NOW(), $4::jsonb)
        RETURNING event_key, subject_user_id, event_type, occurred_at, details`,
-      [eventKey, String(userId), eventType, JSON.stringify(details)]
+      params
     );
     return result.rows[0];
   }
