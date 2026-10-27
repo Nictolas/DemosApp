@@ -7,6 +7,9 @@ on:
       - 'api/services/privacyErasureB2Journal.js'
       - 'api/services/privacyErasureLedgerService.js'
       - 'api/tests/gdprOutboxWorkerIsolated.pg17.test.js'
+      - 'api/tests/gdprBackendPoolIsolated.pg17.test.js'
+      - 'api/config/database.js'
+      - 'api/utils/databaseTlsPolicy.js'
       - '.github/workflows/gdpr-b2-worker-retry-isolated-ci.yml'
 
 permissions:
@@ -48,3 +51,5 @@ jobs:
           node --check api/services/privacyErasureOutboxWorker.js
           node --check api/tests/gdprOutboxWorkerIsolated.pg17.test.js
           node --test --test-concurrency=1 api/tests/gdprOutboxWorkerIsolated.pg17.test.js
+          node --check api/tests/gdprBackendPoolIsolated.pg17.test.js
+          GDPR_BACKEND_POOL_CI=isolated node --test --test-concurrency=1 api/tests/gdprBackendPoolIsolated.pg17.test.js
