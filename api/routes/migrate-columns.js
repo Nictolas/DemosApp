@@ -1,75 +1,15 @@
-const express = require('express');
-const router = express.Router();
-const { Pool } = require('pg');
-require('dotenv').config();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+'use strict';
+// Retired migration endpoint: schema modifications must use separately
+// reviewed and approved SQL migrations, never an HTTP route or public Pool.
+const express=require('express');
+const {verifyToken,requireAdmin}=require('../middleware/auth');
+const router=express.Router();
+router.use(verifyToken,requireAdmin);
+router.post('/columns',(_req,res)=>{
+  res.set('Cache-Control','no-store');
+  return res.status(410).json({
+    success:false,code:'LEGACY_HTTP_SCHEMA_MIGRATION_RETIRED',
+    message:'Schema migration requires an approved offline maintenance operation.'
+  });
 });
-
-// POST /api/migrate/columns - Crea colonne attivisti e organizzazioni
-router.post('/columns', async (req, res) => {
-  try {
-    console.log('🚀 Inizio migrazione colonne...');
-    
-    // Controlla se la colonna attivisti esiste
-    const checkAttivisti = await pool.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' AND column_name = 'attivisti'
-    `);
-    
-    if (checkAttivisti.rows.length === 0) {
-      console.log('📝 Creando colonna attivisti...');
-      await pool.query(`
-        ALTER TABLE users ADD COLUMN attivisti VARCHAR(255) DEFAULT NULL
-      `);
-      console.log('✅ Colonna attivisti creata');
-    } else {
-      console.log('✅ Colonna attivisti esiste già');
-    }
-    
-    // Controlla se la colonna organizzazioni esiste
-    const checkOrganizzazioni = await pool.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' AND column_name = 'organizzazioni'
-    `);
-    
-    if (checkOrganizzazioni.rows.length === 0) {
-      console.log('📝 Creando colonna organizzazioni...');
-      await pool.query(`
-        ALTER TABLE users ADD COLUMN organizzazioni VARCHAR(255) DEFAULT NULL
-      `);
-      console.log('✅ Colonna organizzazioni creata');
-    } else {
-      console.log('✅ Colonna organizzazioni esiste già');
-    }
-    
-    // Verifica foreign keys
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_attivisti ON users (attivisti)
-    `);
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_organizzazioni ON users (organizzazioni)
-    `);
-    
-    console.log('🎉 Migrazione completata con successo!');
-    
-    res.json({
-      success: true,
-      message: 'Colonne create con successo'
-    });
-    
-  } catch (error) {
-    console.error('❌ Errore durante la migrazione:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-module.exports = router;
-
+module.exports=router;

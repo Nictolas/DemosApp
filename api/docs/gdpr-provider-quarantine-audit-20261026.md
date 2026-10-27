@@ -167,3 +167,23 @@ La route di sviluppo `/api/migrations/add-political-opinions-consent-columns` es
 **Correzione Draft:** entrambe le route di cancellazione e quella di migrazione restano riconoscibili, ma rispondono invariabilmente `410 Gone` dopo i middleware di autenticazione, senza aprire connessioni o divulgare l'email/passata chiave. Il corpo esplicita `LEGACY_USER_CLEANUP_RETIRED` o `LEGACY_HTTP_GDPR_MIGRATION_RETIRED`; `Cache-Control: no-store`. I test sintetici VM caricano il codice reale con Express/autenticazione sostituiti da fixture e **rifiutano ogni dipendenza verso DB**, verificando tre handler, admin guard, risposta 410, nessuna riga personale o chiave di fallback riprodotta. La cancellazione account canonica rimane disponibile secondo le condizioni e il consenso applicabili, e i cambiamenti di schema devono passare per migrazioni approvate.
 
 **Nessuna prova di precedente abuso:** nessuna chiamata agli endpoint, nessun dato reale letto e nessuna modifica su Render/Supabase. Questo ritiro è proposto in PR Draft; senza merge/deploy l'istanza produzione continua a eseguire il codice di `main`. Il ripristino resta **NO-GO**, e le garanzie di isolamento infrastrutturale / B2 ledger esterno rimangono da dimostrare.
+
+## Inventario verificato: superfici HTTP, pool SQL e DDL (27 ottobre 2026; Draft)
+
+`api/app.js` monta `privacyRecoveryMaintenance` **prima** delle route. Il blocco è per le nuove richieste; non annulla richieste già entrate. In questa revisione sono stati confrontati gli import/mount effettivi con i pool creati nei singoli moduli:
+
+| Modulo | Raggiungibilità dall'app | Query mutanti verificate | Esito Draft |
+| --- | --- | --- | --- |
+| `routes/attivismo-tipologie.js` | `/api/attivismo-tipologie` normale; PUT autenticata; pool indipendente | `UPDATE users.tipologie_attivismo` | Guard anche all'ingresso del PUT e dopo il SELECT, immediatamente prima dell'UPDATE |
+| `routes/admin/database.js` | `/api/admin` normale; POST e GET protette da Admin | `ALTER TABLE opinioni` su POST | POST ritirata `410`; GET di metadata read-only preservata |
+| `routes/migrate-columns.js` | `/api/migrate` solo sviluppo o `ALLOW_DEV_API_SURFACE=true` | `ALTER TABLE users` e `CREATE INDEX`; in origine **senza autenticazione di route** | Aggiunto admin guard e ritiro definitivo della POST `410` |
+| `routes/cleanup.js`, `routes/migrations.js` | Solo superficie dev + Admin | `DELETE users`, `ALTER TABLE` | Già ritirate nella PR #363 |
+| `routes/database.js` | `/api` normale | Lettura `information_schema` nel percorso esaminato | Read-only; non è un writer |
+| `routes/sostenitori-totale.js` | `/api/sostenitori` normale | Solo SELECT nel percorso esaminato | Read-only; pool separato |
+| `routes/verifica-ruoli.js`, `routes/gestione-utenti-aggiuntivi.js`, `routes/categorie.js`, `routes/security/index.js` | Nessun import/mount diretto nell'`app.js` esaminato | Alcuni file contengono DML, ma non se ne prova la raggiungibilità via app | Non vanno descritti come endpoint produttivi attivi senza ulteriori dipendenze |
+
+La route normale `/api/attivismo-tipologie/:userId` può completare il SELECT del profilo dopo l'attivazione del flag e quindi inviare un UPDATE su pool separato. La nuova guardia prima della scrittura interrompe questo caso, mentre il controllo di identità/autorizzazione del proprietario resta invariato. Il test con backend simulato conferma blocco a metà richiesta, assenza UPDATE, mantenimento del percorso normale e rifiuto dell'accesso a profili altrui.
+
+I due endpoint DDL legacy non saranno più invocabili nemmeno da un amministratore (la route /api/migrate è già dev-gated). Si conserva la GET read-only dell'amministrazione. Ogni modifica dello schema passa da migrazione offline controllata e revisionata. È una riduzione della superficie di rischio, **non** una prova che i precedenti endpoint siano stati usati o che siano stati effettivamente attivi in produzione.
+
+**Limitazione operativa essenziale:** i controlli applicativi non impediscono il commit di query già inviate, non isolano Data API/pooler e non sono presenti nel servizio Render finché la PR è Draft. Recovery #296 **NO-GO**; nessuna DDL/SQL reale, nessun accesso a dati utente, nessun merge/deploy.
