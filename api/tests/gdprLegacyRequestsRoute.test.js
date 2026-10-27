@@ -75,6 +75,9 @@ test('GDPR GET reads only the authenticated user history and excludes request de
   const calls = [];
   const pool = {async query(sql,args) {
     calls.push({sql,args});
+    if (sql.includes('row_security_active(')) {
+      return {rows:[{complete_visibility:true}]};
+    }
     return {rows:[{
       id:'synthetic-id',request_type:'access',status:'pending',
       created_at:'2026-10-28T00:00:00Z',processed_at:null,
@@ -92,39 +95,41 @@ test('GDPR GET reads only the authenticated user history and excludes request de
     }]);
     assert.equal(JSON.stringify(res.body).includes('must-never-be-returned'),false);
   });
-  assert.equal(calls.length,1);
-  assert.deepEqual(calls[0].args,['synthetic-user']);
-  assert.match(calls[0].sql,/WHERE user_id = \$1/);
-  assert.ok(!calls[0].sql.includes('request_data'));
+  assert.equal(calls.length,2);
+  assert.ok(calls[0].sql.includes('row_security_active('));
+  assert.deepEqual(calls[1].args,['synthetic-user']);
+  assert.match(calls[1].sql,/WHERE user_id = \$1/);
+  assert.ok(!calls[1].sql.includes('request_data'));
 });
 
-test('GDPR GET never reports a false empty history when RLS has no visible policy', async () => {
-  let canSee = false;
-  let count = 0;
+test('GDPR GET refuses incomplete RLS-scoped history even when a policy exists', async () => {
+  let rlsActive = true;
+  let queryCount = 0;
   const pool = { async query(sql) {
-    count++;
-    if (sql.includes('FROM public.user_rights_requests')) return {rows:[]};
-    if (sql.includes('AS may_read_requests')) {
-      return {rows:[{may_read_requests:canSee}]};
+    queryCount++;
+    if (sql.includes('row_security_active(')) {
+      return {rows:[{complete_visibility:!rlsActive}]};
     }
+    if (sql.includes('FROM public.user_rights_requests')) return {rows:[]};
     throw Error('unexpected query');
   }};
-  const origLog=console.error;
-  console.error=()=>{};
+  const origLog = console.error;
+  console.error = () => {};
   try {
     await withMockedRoute(pool, async ({get}) => {
-      const hidden=response();
+      const hidden = response();
       await get({userId:'synthetic-user'},hidden);
       assert.equal(hidden.statusCode,503);
       assert.equal(hidden.body.success,false);
       assert.ok(!JSON.stringify(hidden.body).includes('"data":[]'));
-      canSee=true;
-      const legitimateEmpty=response();
-      await get({userId:'synthetic-user'},legitimateEmpty);
-      assert.equal(legitimateEmpty.statusCode,200);
-      assert.deepEqual(legitimateEmpty.body.data,[]);
+      assert.equal(queryCount,1,'do not query incomplete RLS-scoped history');
+      rlsActive = false;
+      const legitimatelyEmpty = response();
+      await get({userId:'synthetic-user'},legitimatelyEmpty);
+      assert.equal(legitimatelyEmpty.statusCode,200);
+      assert.deepEqual(legitimatelyEmpty.body.data,[]);
     });
-    assert.equal(count,4);
+    assert.equal(queryCount,3);
   } finally {console.error=origLog;}
 });
 
