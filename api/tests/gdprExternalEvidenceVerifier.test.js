@@ -114,6 +114,28 @@ test('duplicate event IDs, inverted event order and equal-time conflicting conse
   fails(() => sign(ambiguous), 'GDPR_EXTERNAL_EVIDENCE_AMBIGUOUS_CONSENT');
 });
 
+test('chronological ordering uses normalized microseconds, not timestamp string spelling', () => {
+  const chronological = [
+    { ...EVENTS[0], occurred_at: '2026-10-27T18:43:00.123Z' },
+    { ...EVENTS[1], occurred_at: '2026-10-27T18:43:00.123001Z' }
+  ];
+  const verified = check(sign(chronological));
+  assert.equal(verified.eventCount, 2);
+  fails(() => sign(chronological.slice().reverse()),
+    'GDPR_EXTERNAL_EVIDENCE_EVENT_ORDER');
+});
+
+test('equivalent timestamp spellings cannot hide conflicting consent events', () => {
+  const conflicting = [
+    { ...EVENTS[0], event_key: 'synthetic-first',
+      occurred_at: '2026-10-27T18:43:00.123000Z' },
+    { ...EVENTS[0], event_key: 'synthetic-second',
+      event_type: 'political_consent_granted',
+      occurred_at: '2026-10-27T18:43:00.123Z' }
+  ];
+  fails(() => sign(conflicting), 'GDPR_EXTERNAL_EVIDENCE_AMBIGUOUS_CONSENT');
+});
+
 test('empty signed archive does not magically demonstrate historical completeness', () => {
   const bundle = sign([]);
   const report = check(bundle);
