@@ -425,4 +425,53 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+
+  test('missing or unprotected ledger must block capture, import and replay without auto-provisioning',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const synthetic=[{
+      event_key:'synthetic-restore-event',
+      subject_user_id:'synthetic-restore-user',
+      event_type:Ledger.EVENT_TYPES.ACCOUNT_DELETED,
+      occurred_at:'2026-02-03T04:05:06.000Z',
+      details:{source:'synthetic-recovery'}
+    }];
+    const operations=[
+      ['capture',()=>Ledger.captureCurrent(pool)],
+      ['import',()=>Ledger.mergeCaptured(pool,synthetic)],
+      ['replay',()=>Ledger.applyCurrentPrivacyState(pool)]
+    ];
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      for(const [name,operation] of operations) {
+        await assert.rejects(operation(),e=>e?.code==='42P01',
+          name+' must fail instead of manufacturing a clean empty ledger');
+      }
+      assert.equal((await pool.query("SELECT to_regclass('public.privacy_erasure_ledger') AS ledger")).rows[0].ledger,null,
+        'offline helpers must not create missing restore evidence');
+      await Ledger.ensureTable(pool);
+      await pool.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
+      for(const [name,operation] of operations) {
+        await assert.rejects(operation(),e=>e?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+          name+' must reject a restored ledger without RLS');
+      }
+      assert.equal((await pool.query('SELECT COUNT(*)::integer AS n FROM public.privacy_erasure_ledger')).rows[0].n,0,
+        'unprotected ledger must remain empty after rejected import');
+      await Ledger.ensureTable(pool);
+      assert.deepEqual(await Ledger.captureCurrent(pool),[]);
+      assert.equal(await Ledger.mergeCaptured(pool,synthetic),1);
+      const recorded=await Ledger.captureCurrent(pool);
+      assert.equal(recorded.length,1);
+      assert.equal(recorded[0].subject_user_id,synthetic[0].subject_user_id);
+      // A protected replay with a deletion event is permitted only with the
+      // corresponding public user schema present. Its deletion helper is
+      // schema-aware, so no real users or external services are involved.
+      assert.deepEqual(await Ledger.applyCurrentPrivacyState(pool),{
+        accountsRemoved:0,dependentRowsRemoved:0,revocationsReapplied:0,opinionsRemoved:0
+      });
+    } finally {
+      await pool.end();
+    }
+  });
+
 }
