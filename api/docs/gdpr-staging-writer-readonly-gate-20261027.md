@@ -37,3 +37,23 @@ Se il registro è assente, `NO_GO_MISSING_LEDGER`. In presenza di registro, il r
 5. Revisione DPIA e piano di deploy/rollback con `autoDeploy=yes`. **Nessun merge/deploy prima del GO dedicato.**
 
 **Conclusione:** la sola certificazione del codice e di CI sintetica non autorizza il recovery di produzione.
+
+## Nuova prova del pool reale, ma esclusivamente su CI sintetica (27 ottobre 2026)
+
+La PR #371 aggiunge `api/scripts/verify-gdpr-writer-pool-ci.js`. Il workflow GitHub usa **PostgreSQL 17 temporaneo su 127.0.0.1**, già inizializzato dal test di cancellazione, crea un ruolo SQL `LOGIN NOBYPASSRLS` distinto dal proprietario del ledger, e lo connette **tramite `api/config/database.js` e `getPool()` identici al backend** (nessuna stringa di connessione di Render/Supabase è letta o richiesta). La guardia iniziale richiede esplicitamente runner GitHub Actions, marker, database, hostname, username e password tutti **sintetici e locali**, ed esclude variabili Render/Supabase e un `DATABASE_URL` ereditato.
+
+Il test prova:
+- `recordEvent` fallisce `42501` senza policy RLS, nonostante `GRANT INSERT/SELECT`;
+- `ROLLBACK` non aggiunge eventi;
+- policy sintetiche limitate a **un solo identificativo inventato** permettono una transazione `ROLLBACK` e una `COMMIT`, distinguibili;
+- l'inserimento su un **altro** identificativo inventato è rifiutato ancora da RLS.
+- L'esito riporta `realRenderWriterAttested=false` per evitare equivalenze improprie con il ruolo effettivo Render.
+
+Questa prova è più vicina al comportamento runtime del codice rispetto alle simulazioni che creano direttamente un `new Pool()`, ma **non sostituisce l'isolamento e la verifica del servizio Render di staging**.
+
+## Discovery delle risorse staging esistenti (sola lettura)
+
+Render ha `demos-civic-staging-db` (ID `dpg-db4id8id0e5s73cfb0cg-a`), **PostgreSQL 17**, piano **free**, region `frankfurt`, in stato disponibile. La risorsa indica una **scadenza 8 novembre 2026**: non va usata come ledger GDPR persistente senza verificare il ciclo di vita della risorsa. L'IP allowlist è vuota; il tool di query esterno ha rifiutato la connessione. **Non è stato modificato l'allowlist**, né sono state lette o modificate tabelle Render. La semplice esistenza di questo DB non prova che `demos-functional-staging` lo utilizzi o che contenga solo dati fittizi.
+
+Il catalogo Supabase `Demos-Staging` include già **altri schemi e tabelle**, tra cui `demos_private` (1 tabella) e `op37_sondaggi_ci` (4 tabelle). L'assenza delle 6 tabelle core GDPR in `public` **non** significa che l'intero progetto sia vuoto o che sia liberamente azzerabile. Nessuno schema di staging esistente può essere eliminato o sovrascritto senza una separata analisi d'impatto.
+
