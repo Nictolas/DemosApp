@@ -57,3 +57,19 @@ Render ha `demos-civic-staging-db` (ID `dpg-db4id8id0e5s73cfb0cg-a`), **PostgreS
 
 Il catalogo Supabase `Demos-Staging` include già **altri schemi e tabelle**, tra cui `demos_private` (1 tabella) e `op37_sondaggi_ci` (4 tabelle). L'assenza delle 6 tabelle core GDPR in `public` **non** significa che l'intero progetto sia vuoto o che sia liberamente azzerabile. Nessuno schema di staging esistente può essere eliminato o sovrascritto senza una separata analisi d'impatto.
 
+
+## Cancellazione account senza dipendere dai vincoli FK (27 ottobre 2026)
+
+La query di sola lettura su **pg_catalog**, Supabase progetto **Demos** di produzione, ha verificato che `public.user_representatives.user_id`, `public.user_consents.user_id` e `public.political_selections.user_id`/ `selected_user_id` hanno ciascuno un vincolo `REFERENCES users(id) ON DELETE CASCADE`. Non sono state lette righe personali o modificate tabelle. **La produzione già beneficia dunque del cascading**, non è corretto sostenere che gli account cancellati abbiano automaticamente lasciato righe residue.
+
+Per evitare di dipendere **soltanto** dal fatto che una copia o uno schema ricostruito preservi i vincoli, il percorso `PrivacyErasureLedgerService.cleanupAdditionalAccountData` della #371 cancella ora esplicitamente per proprietario anche `user_representatives` e `user_consents`, oltre alle cancellazioni già previste di `political_selections`. Questo si applica sia alla cancellazione ordinaria tramite gli helper già usati sia al replay di un evento `account_deleted`; lo scopo è la difesa in profondità, non una prova di residui reali.
+
+La fixture di `api/scripts/verify-political-selection-erasure-ci.js` prepara intenzionalmente le quattro relazioni **senza alcuna foreign key** su PostgreSQL 17 effimero. Verifica l'eliminazione di `users`, `user_consents`, `user_representatives`, `political_selections` per l'account bersaglio, il rollback che conserva tutte le righe, il commit che le elimina e la preservazione di un altro account.
+
+**Quattro workflow passati** sul commit applicativo `526826d`:
+- [Political selection synthetic, PG17 #40561071712](https://github.com/Nictolas/DemosApp/actions/runs/40561071712)
+- [GDPR ledger secure bootstrap #40561071556](https://github.com/Nictolas/DemosApp/actions/runs/40561071556)
+- [Privacy erasure regression #40561071568](https://github.com/Nictolas/DemosApp/actions/runs/40561071568)
+- [Civic identity regression #40561071716](https://github.com/Nictolas/DemosApp/actions/runs/40561071716)
+
+**Limite:** la simulazione senza vincoli non verifica tutti i casi di uno snapshot malformato. In produzione restano non attestati il ruolo SQL runtime Render e il recovery esterno B2. Le quattro CI non autorizzano merge o deploy.
