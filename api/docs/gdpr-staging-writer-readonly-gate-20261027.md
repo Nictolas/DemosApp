@@ -73,3 +73,17 @@ La fixture di `api/scripts/verify-political-selection-erasure-ci.js` prepara int
 - [Civic identity regression #40561071716](https://github.com/Nictolas/DemosApp/actions/runs/40561071716)
 
 **Limite:** la simulazione senza vincoli non verifica tutti i casi di uno snapshot malformato. In produzione restano non attestati il ruolo SQL runtime Render e il recovery esterno B2. Le quattro CI non autorizzano merge o deploy.
+
+## Distinzione fondamentale: archivio Axiom/B2 e ledger di erasure (27 ottobre 2026)
+
+**NO-GO finché non provato con evidenza esterna:** il documento `docs/operations/axiom-b2-log-archive.md` descrive e prova una pipeline Axiom → B2 per i **log** (dataset `centralized_logs` e `real-time`). La presenza di checkpoint/manifest/hash per quei log **non attesta** che i record del registro PostgreSQL `public.privacy_erasure_ledger` siano copiati, verificati e recuperabili indipendentemente dal database principale. Il codice `api/services/backupService.js` marca come ritirato il vecchio backup JSON applicativo, inadatto al disaster recovery. Non presentare il test `archive:axiom:verify-latest` come una prova di un *GDPR tombstone archive*.
+
+**Evidenza necessaria prima di qualunque restore reale:** (a) origine indipendente, privata, con scope e permessi minimi, (b) manifest della cronologia `account_deleted` / `political_consent_revoked` / `political_consent_granted` con conteggio e hash verificati, (c) finestra temporale e ultimo evento/durata massima consentita di ritardo, (d) capacità di recupero verificata **in quarantena** su database isolato e ruoli autorizzati, (e) garanzia di fermare gli scrittori e importare/re-applicare la cronologia prima di servire utenti, (f) verifica fail-closed per copie incomplete, eventi duplicati con contenuti diversi e conflitti temporali, (g) validazione giuridica/privacy dell'eventuale retention indipendente dal backup dei log.
+
+**Questa PR non crea un archivio aggiuntivo** né copia eventi personali in B2: fino a approvazione DPIA/operatore, creare copie esterne sensibili sarebbe una nuova attività di trattamento. Le suite PostgreSQL 17 sintetiche testano gli algoritmi del ledger, **non** la continuità o la freschezza dell'archiviazione fuori dal database.
+
+### Read-only identity probe anche senza schema ledger
+
+La sonda `api/scripts/attest-gdpr-writer-readonly.js` esegue ora una `SELECT` con singleton + `LEFT JOIN` a `pg_catalog`. In un database Supabase Demos-Staging ancora privo di `privacy_erasure_ledger`, restituisce **l'identità SQL della sessione** e `NO_GO_MISSING_LEDGER`, senza DDL, dati personali o falsa attestazione del ledger. La politica di destinazione non è cambiata: **solo** lo specifico progetto Supabase Demos-Staging e solo con marker di esecuzione esplicita; il report mantiene `live_render_pool_verified=false`.
+
+La CI esegue tale SQL anche attraverso il modulo `api/config/database.js` contro PostgreSQL 17 usa-e-getta, verificando presenza e assenza artificiale della relazione. **Non equivale ancora** a esecuzione sul processo Render esistente. Nessun servizio o variabile di ambiente Render è stato modificato.
