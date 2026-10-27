@@ -169,3 +169,21 @@ La ricognizione è stata ripetuta tramite i connettori Supabase e Render, senza 
 - **Gate C (sempre successivo e indipendente):** fonte esterna completa/continua del *ledger GDPR*, distinta dall'archivio dei log Axiom→B2; attestare checkpoint indipendente, freschezza, cifratura, retention e recovery in quarantena prima di un restore reale.
 
 **Stato risultante: NO-GO, non una regressione.** Questa nota è una ricognizione senza autorizzazione implicita a creare ruoli, tabelle, segreti, servizi o deploy. La PR #371 resta Draft e dipendente dalla #366.
+
+## Bootstrap sintetico effettivamente applicato a Demos-Staging — 27 ottobre 2026
+
+**Questo aggiornamento supera le annotazioni precedenti che descrivono Demos-Staging come privo di tabelle/ruolo.** Non supera il blocco GDPR di produzione.
+
+**Autorizzazione:** conferma dell'operatore a procedere con la preparazione limitata al progetto Supabase Demos-Staging (non produzione), senza usare dati personali reali, segreti, Render o B2.
+
+- Progetto identificato dal connettore come `Demos-Staging`, ref `fkeayjzvtuvzesljhjbc`, PostgreSQL 17; prima del bootstrap `public` aveva zero tabelle e il ruolo dedicato non esisteva.
+- La migrazione tracciata `20261027205040` / `gdpr_synthetic_staging_secure_bootstrap_20261027` è stata **eseguita con successo** esclusivamente su questo progetto, da `api/docs/sql/gdpr-staging-synthetic-bootstrap-20261027.sql`. Una sola istruzione `DO` con DDL transazionale evita qualsiasi commit parziale: se l'asserzione RLS/ACL fallisce non sopravvivono le tabelle o il ruolo.
+- Sono state create **esattamente 6 tabelle** in `public`: `users`, `user_consents`, `opinioni_risposte`, `political_selections`, `user_representatives`, `privacy_erasure_ledger`. Tutte hanno `RLS=true` e `FORCE RLS=true`.
+- **7 policy** limitano il ruolo `demos_staging_runtime` ai due ID UUID *inventati*. Su ogni tabella i ruoli `anon`, `authenticated` e `service_role` risultano con **0 privilegi DML**; il bootstrap ha revocato eventuali grant automatici prima del commit. Il ledger attribuisce al writer solo `SELECT` e `INSERT`, non `UPDATE` o `DELETE`. Nessuna modifica ai default ACL globali.
+- I dati sono esclusivamente sintetici: `users=2`, `user_consents=2`, `opinioni_risposte=1`, `political_selections=2`, `user_representatives=1`, `privacy_erasure_ledger=0`, `unexpected_users=0`.
+- Il ruolo SQL ha `LOGIN=true`, `BYPASSRLS=false`, `SUPERUSER=false`, `CREATEROLE=false`, `CREATEDB=false`, `INHERIT=false`, ed è stato creato con `PASSWORD NULL`: nessun segreto di autenticazione nuovo. Il connettore amministrativo **non** ha `SET ROLE` verso questo ruolo; non è stata quindi provata una scrittura eseguita *come* il writer.
+- I cinque oggetti preesistenti negli schemi `demos_private` e `op37_sondaggi_ci` sono rimasti presenti e RLS attivi. Nessun oggetto in tali schemi è stato modificato.
+- I Supabase Security Advisors hanno restituito **zero lint** dopo la migrazione. Questa non è una certificazione complessiva di sicurezza o un GO al recovery.
+- È disponibile il file `api/docs/sql/gdpr-staging-synthetic-readonly-check-20261027.sql` per ripetere le attestazioni senza leggere righe personali. Il file `api/docs/sql/gdpr-staging-synthetic-rollback-20261027.sql` è **solo un piano di rollback, NON eseguito**; abortisce quando trova deriva o eventi nel ledger, non usa `CASCADE`, e richiede nuova autorizzazione e migrazione dedicata.
+
+**Ancora da verificare (NO-GO):** il writer SQL autenticamente collegato al processo backend isolato, senza credenziali amministrative, il comportamento effettivo di `recordEvent`/rollback e delle revoche con fixture in un processo autorizzato; la continuità e freschezza di un archivio **separato del ledger GDPR** rispetto ai soli log Axiom/B2; l'ingress/egress isolato dell'eventuale runtime. Non configurare password, Render, backup, né fondere PR #366/#371 automaticamente. La creazione di questo schema sintetico **non equivale a un clone dell'intera produzione**.
