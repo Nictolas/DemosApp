@@ -490,6 +490,25 @@ class PrivacyErasureLedgerService {
     // but these core relations/columns must exist before any replay mutation.
     await this.assertReplayCoreSchema(client);
 
+    // Two opposite consent events with the same PostgreSQL timestamp have no
+    // trustworthy causal order: event_key is a random UUID, not a sequence.
+    // Refuse replay before any deletion instead of arbitrarily choosing the
+    // last consent state. Clock skew across distinct timestamps remains an
+    // independent recovery attestation concern.
+    const orderCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM public.privacy_erasure_ledger
+        WHERE event_type IN ('political_consent_revoked', 'political_consent_granted')
+        GROUP BY subject_user_id, occurred_at
+        HAVING COUNT(DISTINCT event_type) > 1
+      ) AS ambiguous
+    `);
+    if (orderCheck.rows?.[0]?.ambiguous !== false) {
+      const error = new Error('GDPR_LEDGER_AMBIGUOUS_CONSENT_ORDER');
+      error.code = 'GDPR_LEDGER_AMBIGUOUS_CONSENT_ORDER';
+      throw error;
+    }
+
     const accountEvents = await client.query(`
       SELECT DISTINCT subject_user_id
       FROM public.privacy_erasure_ledger
