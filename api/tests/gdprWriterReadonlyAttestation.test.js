@@ -120,7 +120,7 @@ test('RLS alone is insufficient when PUBLIC or Supabase API roles still have pri
 test('probe query never reads ledger rows or performs DML/DDL', () => {
   assert.match(SQL, /aclexplode/);
   assert.match(SQL, /api_roles_with_dml_grants/);
-  assert.match(SQL, /FROM pg_catalog\\.pg_class/);
+  assert.match(SQL, /FROM pg_catalog\.pg_class/);
   assert.match(SQL, /LEFT JOIN/);
   assert.doesNotMatch(SQL, /FROM public\.privacy_erasure_ledger/);
   assert.doesNotMatch(SQL, /^\s*(INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE)\b/gmi);
