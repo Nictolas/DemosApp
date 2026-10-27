@@ -629,6 +629,20 @@ router.post('/object', validateInput(['reason', 'categories']), async (req, res)
 router.get('/rights-requests', async (req, res) => {
   try {
     const userId = req.userId;
+    // This is the actual endpoint consumed by client/src/pages/GDPRRights.tsx.
+    // A policy-filtered SQL SELECT may silently return an incomplete list.
+    // Until a reviewed read-all role/view is deployed, refuse to claim it
+    // is a complete history. The query contains no request payload.
+    const visibility = await pool.query(
+      "SELECT NOT pg_catalog.row_security_active(" +
+      "'public.user_rights_requests'::regclass) AS complete_visibility"
+    );
+    if (visibility.rows?.[0]?.complete_visibility !== true) {
+      return res.status(503).json({
+        success: false,
+        error: 'Impossibile verificare lo storico delle richieste in questo momento'
+      });
+    }
     const { status, limit = 50, offset = 0 } = req.query;
 
     let query = `
@@ -663,7 +677,7 @@ router.get('/rights-requests', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore nel recupero richieste diritti:', error);
+    console.error('Errore recupero storico diritti GDPR:', error?.code || 'QUERY_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
