@@ -63,7 +63,7 @@ class FakeB2 {
       this.failAfterPut = false;
       throw Error('synthetic network timeout after B2 PUT');
     }
-    if (typeof this.onReceipt === 'function') this.onReceipt();
+    if (typeof this.onReceipt === 'function') await this.onReceipt();
     return {
       ...receipt,
       key: this.returnBadKey ? key + '-tampered' : key,
@@ -223,15 +223,44 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     assert.equal(done.delivered, 1);
     assert.deepEqual(await counts(admin), {ledger:5,outbox:5,pending:0,delivered:5});
 
+    // Two independently acquired PostgreSQL clients must not deliver the
+    // same pending event concurrently. The first keeps its row locked while
+    // the fake B2 call is paused; the second must SKIP LOCKED, not duplicate.
+    await Ledger.recordEvent(admin, event(6));
+    let unblockB2, announceB2;
+    const blockedB2 = new Promise(resolve => { unblockB2 = resolve; });
+    const enteredB2 = new Promise(resolve => { announceB2 = resolve; });
+    let waiting = true;
+    fake.onReceipt = async () => {
+      if (waiting) {
+        waiting = false;
+        announceB2();
+        await blockedB2;
+      }
+    };
+    const activeDelivery = worker.runOnce(workerPool);
+    await enteredB2;
+    try {
+      const competingDelivery = await worker.runOnce(workerPool);
+      assert.equal(competingDelivery.delivered, 0);
+      assert.equal(competingDelivery.moreMayRemain, false);
+    } finally {
+      unblockB2();
+    }
+    const singleDelivery = await activeDelivery;
+    assert.equal(singleDelivery.delivered, 1);
+    fake.onReceipt = null;
+    assert.deepEqual(await counts(admin), {ledger:6,outbox:6,pending:0,delivered:6});
+
     // Never interpret an empty pending queue as an independently complete history.
     process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'false';
-    await Ledger.recordEvent(admin, event(6));
+    await Ledger.recordEvent(admin, event(7));
     const incomplete = await PrivacyErasureOutboxWorker.status(admin);
     assert.equal(incomplete.ready, false);
     assert.equal(incomplete.unqueued, 1);
     assert.equal(incomplete.pending, 0);
-    assert.equal((await counts(admin)).ledger, 6);
-    assert.equal((await counts(admin)).outbox, 5);
+    assert.equal((await counts(admin)).ledger, 7);
+    assert.equal((await counts(admin)).outbox, 6);
     const otherVisibility = (await workerPool.query(
       'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger WHERE subject_user_id=$1',
       [OTHER]
@@ -243,7 +272,8 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
       workerRoleNoBypass: true, adminRejected: true,
       retryAfterRemoteWrite: true, immutableVersionReused: true,
       maintenanceMidArchiveRollback: true, invalidReceiptRejected: true,
-      deniedAckLeavesPending: true, unqueuedHistoryNotReady: true,
+      deniedAckLeavesPending: true, concurrentWorkersSkipLocked: true,
+      unqueuedHistoryNotReady: true,
       productionUntouched: true
     }));
   } finally {
