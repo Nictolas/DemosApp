@@ -68,11 +68,9 @@ jobs:
           node api/tests/sondaggiStagingSqlSafety.test.js
           node api/tests/sondaggiRenderStagingIsolation.test.js
           node --check api/staging/op37_render_http_probe.js
-      - name: Verify live Render public setup-only routes deny data without credentials
-        env:
-          OP37_PUBLIC_SETUP_PROBE: no-credentials
-          OP37_STAGING_HTTP_ONLY: 'yes'
-        run: node api/scripts/verify-sondaggi-render-setup-public.js
+      # The unit-test step above starts the real OP37 setup-only server
+      # on localhost and checks its HTTP denial contract without any DB keys.
+      # Do not require a permanently hosted Render staging service for CI.
       - name: Verify real GET Sondaggi on synthetic PostgreSQL 17 and 10-to-9 consent
         env:
           GITHUB_ACTIONS: 'true'
