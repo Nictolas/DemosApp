@@ -1,4 +1,5 @@
 'use strict';
+const crypto = require('node:crypto');
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
@@ -74,21 +75,60 @@ router.post('/', verifyToken, async (req, res) => {
       error: 'Dettagli non validi o troppo lunghi (massimo 2000 caratteri)'
     });
   }
+  // Optional client-generated UUIDv4: the client MUST reuse exactly the
+  // same value when retrying an uncertain HTTP request. No additional
+  // database column or uniqueness migration is needed: id is already a PK.
+  // Legacy callers without a key retain the old behavior (new request).
+  const header = req.headers?.['idempotency-key'];
+  if (header !== undefined && (
+    typeof header !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(header)
+  )) {
+    return res.status(400).json({
+      success: false, error: 'Idempotency-Key non valida: serve un UUID v4'
+    });
+  }
+  const requestId = header === undefined ? crypto.randomUUID() : header.toLowerCase();
+  const data = JSON.stringify({source: 'gdpr_requests_api', details: dettagli});
   try {
+    // Conflict handling is race-safe at the UNIQUE/PRIMARY KEY constraint:
+    // ON CONFLICT DO NOTHING waits for a concurrent insert to settle.
+    // The follow-up SELECT is a NEW READ COMMITTED snapshot, which can see
+    // the winner after an in-flight insert commits.
     const result = await pool.query(
       'INSERT INTO public.user_rights_requests ' +
-      '(user_id, request_type, request_data, status) ' +
-      "VALUES ($1, $2, $3::jsonb, 'pending') " +
+      '(id, user_id, request_type, request_data, status) ' +
+      "VALUES ($1::uuid, $2, $3, $4::jsonb, 'pending') " +
+      'ON CONFLICT (id) DO NOTHING ' +
       'RETURNING id, request_type, status, created_at',
-      [userId, tipo, JSON.stringify({ source: 'gdpr_requests_api', details: dettagli })]
+      [requestId, userId, tipo, data]
     );
-    const stored = result.rows?.[0];
-    if (!stored?.id || stored.status !== 'pending') {
+    let stored = result.rows?.[0];
+    const replay = !stored;
+    if (replay) {
+      const previous = await pool.query(
+        'SELECT id, request_type, status, created_at ' +
+        'FROM public.user_rights_requests ' +
+        'WHERE id=$1::uuid AND user_id=$2 AND request_type=$3 ' +
+        'AND request_data=$4::jsonb LIMIT 1',
+        [requestId, userId, tipo, data]
+      );
+      stored = previous.rows?.[0];
+      // A key for someone else's request or with different details may
+      // never leak that user's metadata or mutate their request.
+      if (!stored?.id) {
+        return res.status(409).json({
+          success: false,
+          error: 'Chiave di richiesta già utilizzata o richiesta non verificabile'
+        });
+      }
+    }
+    if (!stored?.id || (!replay && stored.status !== 'pending')) {
       throw Error('GDPR_RIGHTS_REQUEST_NOT_PERSISTED');
     }
-    return res.status(201).json({
+    return res.status(replay ? 200 : 201).json({
       success: true,
-      message: 'Richiesta GDPR registrata con successo',
+      message: replay ? 'Richiesta GDPR già registrata' : 'Richiesta GDPR registrata con successo',
       data: {
         id: stored.id,
         tipo: stored.request_type,
