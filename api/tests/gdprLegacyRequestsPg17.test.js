@@ -118,6 +118,59 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
       assert.deepEqual(otherHistory.body.data,[]);
     });
 
+    // Actual concurrent writes with the same client UUID must collapse
+    // into exactly one row. No frontend/client secret is used.
+    const concurrentKey='ee500c1a-b5a7-4c0a-9de2-d0e60e5a1a31';
+    await withPoolRoute(admin,async ({post})=>{
+      const body={tipo:'access',dettagli:'same-synthetic-concurrent-request'};
+      const attempts=await Promise.all(Array.from({length:3},async()=>{
+        const res=response();
+        await post({userId:USER,headers:{'idempotency-key':concurrentKey},body},res);
+        return res;
+      }));
+      assert.deepEqual(attempts.map(r=>r.statusCode).sort(),[200,200,201]);
+      assert.ok(attempts.every(r=>r.body.data.id===concurrentKey));
+      assert.equal((await admin.query(
+        'SELECT COUNT(*)::int AS n FROM public.user_rights_requests WHERE id=$1',
+        [concurrentKey]
+      )).rows[0].n,1);
+      for(const mutated of [
+        {userId:OTHER,body},
+        {userId:USER,body:{tipo:'access',dettagli:'different-request'}}
+      ]){
+        const result=response();
+        await post({...mutated,headers:{'idempotency-key':concurrentKey}},result);
+        assert.equal(result.statusCode,409);
+        assert.equal(result.body.success,false);
+      }
+      assert.equal((await admin.query(
+        'SELECT COUNT(*)::int AS n FROM public.user_rights_requests WHERE id=$1',
+        [concurrentKey]
+      )).rows[0].n,1);
+
+      // Simulate the server COMMIT succeeding but the HTTP receipt getting
+      // lost. On retry, the same ID must return the real existing row.
+      const uncertainKey='e018f48a-8a11-46c7-8f94-553ba1fae032';
+      await admin.query(
+        "INSERT INTO public.user_rights_requests " +
+        "(id,user_id,request_type,request_data,status) " +
+        "VALUES ($1,$2,$3,$4::jsonb,'pending')",
+        [uncertainKey,USER,'erasure',
+         JSON.stringify({source:'gdpr_requests_api',details:'synthetic-after-commit'})]
+      );
+      const retry=response();
+      await post({
+        userId:USER,headers:{'idempotency-key':uncertainKey},
+        body:{tipo:'erasure',dettagli:'synthetic-after-commit'}
+      },retry);
+      assert.equal(retry.statusCode,200);
+      assert.equal(retry.body.data.id,uncertainKey);
+      assert.equal((await admin.query(
+        'SELECT COUNT(*)::int AS n FROM public.user_rights_requests WHERE id=$1',
+        [uncertainKey]
+      )).rows[0].n,1);
+    });
+
     await admin.query(
       "CREATE ROLE " + DENIED_ROLE +
       " LOGIN PASSWORD 'synthetic-ci-only' NOBYPASSRLS NOSUPERUSER"
@@ -161,12 +214,13 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
     const final=(await admin.query(
       'SELECT COUNT(*)::int AS n FROM public.user_rights_requests'
     )).rows[0].n;
-    assert.equal(final,1,'restricted role must not create a false right request');
+    assert.equal(final,3,'only the first request and two distinct idempotent keys exist');
 
     console.log('GDPR_LEGACY_RIGHTS_REAL_PG17_PASS ' + JSON.stringify({
       onlySyntheticData:true,persistedReceiptUsesDatabaseId:true,
       userHistoryScoped:true,requestDetailsNotReflected:true,
       RlsDeniedWriteNoFakeAck:true,RlsHiddenHistoryNoFalseEmpty:true,
+      concurrentRetryExactlyOnce:true, uncertainCommitRetryRecovered:true,
       noProviderAccess:true,productionUntouched:true
     }));
   }finally{
