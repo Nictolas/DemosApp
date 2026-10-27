@@ -96,6 +96,57 @@ test('injected unsigned bundle properties cannot be accepted as signed evidence'
   fails(() => check(altered), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
 });
 
+test('nested hidden, symbol and accessor properties are not silently excluded from integrity proof', () => {
+  const hidden = structuredClone(sign());
+  Object.defineProperty(hidden.events[0].details.counts, 'hidden_id', {
+    value: 'synthetic-private-value', enumerable: false
+  });
+  fails(() => check(hidden), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+
+  const symbol = structuredClone(sign());
+  symbol.events[0].details[Symbol('synthetic-secret')] = 'not-hashed';
+  fails(() => check(symbol), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+
+  const getter = structuredClone(sign());
+  Object.defineProperty(getter.events[0].details.counts, 'deleted', {
+    get() { throw new Error('UNSAFE_GETTER_INVOKED'); },
+    enumerable: true, configurable: true
+  });
+  fails(() => check(getter), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+
+  const beforeSeal = structuredClone(EVENTS);
+  Object.defineProperty(beforeSeal[0].details, 'invisible', {
+    value: true, enumerable: false
+  });
+  fails(() => sign(beforeSeal), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+});
+
+test('nested array metadata, sparse entries and accessors cannot bypass signed JSON checks', () => {
+  const events = structuredClone(EVENTS);
+  events[0].details.positions = [1, 2];
+  const extra = structuredClone(sign(events));
+  extra.events[0].details.positions[Symbol('extra')] = 'synthetic-unsigned';
+  fails(() => check(extra), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+
+  const hidden = structuredClone(sign(events));
+  Object.defineProperty(hidden.events[0].details.positions, 'audit_hint', {
+    value: 'synthetic-unsigned', enumerable: false
+  });
+  fails(() => check(hidden), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+
+  const sparse = structuredClone(sign(events));
+  delete sparse.events[0].details.positions[0];
+  sparse.events[0].details.positions.additional = 'synthetic-unsigned';
+  fails(() => check(sparse), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+
+  const accessor = structuredClone(sign(events));
+  Object.defineProperty(accessor.events[0].details.positions, '0', {
+    get() { throw new Error('UNSAFE_GETTER_INVOKED'); },
+    enumerable: true, configurable: true
+  });
+  fails(() => check(accessor), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+});
+
 test('even a newly re-signed truncated copy cannot match the independently pinned signature', () => {
   const original = sign();
   const truncated = sign(EVENTS.slice(0, 1));
