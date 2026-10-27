@@ -412,11 +412,11 @@ test('signed recovery refuses events that cannot fit the immutable B2 archive be
   assert.equal(network,0);
 });
 
-test('opposing consent events at the same millisecond cannot be signed or replayed', async () => {
+test('opposing consent events at the exact same microsecond cannot be signed or replayed', async () => {
   const sameInstant = '2026-10-26T00:00:00.000Z';
   const revoke = mkEvent('political_consent_revoked', {occurred_at:sameInstant});
   const grant = mkEvent('political_consent_granted', {
-    occurred_at:'2026-10-26T00:00:00.000500Z'
+    occurred_at:'2026-10-26T00:00:00.000000Z'
   });
   assert.throws(() => fixture([revoke, grant]), /Ambiguous simultaneous GDPR consent/);
   // No DB query may be attempted even if a caller supplies a signed-looking
@@ -433,6 +433,21 @@ test('opposing consent events at the same millisecond cannot be signed or replay
     secret:SECRET,expectedRecoveryId:ID,maintenanceConfirmed:true
   }), /Ambiguous simultaneous GDPR consent/);
   assert.equal(queries,0);
+});
+
+test('opposing consent events one microsecond apart retain signed order', () => {
+  const revoke=mkEvent('political_consent_revoked',{
+    occurred_at:'2026-10-26T00:00:00.000Z'
+  });
+  const grant=mkEvent('political_consent_granted',{
+    occurred_at:'2026-10-26T00:00:00.000001Z'
+  });
+  const signed=fixture([grant,revoke]);
+  const verified=verifySignedManifest(signed,SECRET,ID);
+  assert.deepEqual(verified.events.map(e=>e.occurred_at),[
+    '2026-10-26T00:00:00.000Z',
+    '2026-10-26T00:00:00.000001Z'
+  ]);
 });
 
 test('pinned external SHA256 refuses signed stale manifests without any DB access', async () => {
