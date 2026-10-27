@@ -120,6 +120,53 @@ class PrivacyErasureLedgerService {
     return result.rowCount || 0;
   }
 
+  static async assertProtectedLedger(client) {
+    // This check only inspects pg_catalog; it never reads GDPR event rows.
+    // regclass resolution raises 42P01 if a restore omitted the ledger.
+    // A restored table that exists but lacks RLS or has API/public grants
+    // must not silently accept a new sensitive GDPR event.
+    const result = await client.query(`
+      SELECT c.relrowsecurity AS rls_enabled,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.aclexplode(
+            COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))
+          ) acl WHERE acl.grantee = 0
+        ) AS public_grants_exist,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_attribute a
+          CROSS JOIN LATERAL pg_catalog.aclexplode(a.attacl) acl
+          WHERE a.attrelid = c.oid
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+            AND acl.grantee = 0
+        ) AS public_column_grants_exist,
+        (
+          SELECT COUNT(*)::integer
+          FROM pg_catalog.pg_roles r
+          WHERE r.rolname IN ('anon', 'authenticated', 'service_role')
+            AND (
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'SELECT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'INSERT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'UPDATE') OR
+              pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE')
+            )
+        ) AS api_roles_with_dml_grants
+      FROM pg_catalog.pg_class c
+      WHERE c.oid = 'public.privacy_erasure_ledger'::regclass
+    `);
+    const state = result.rows?.[0];
+    if (state?.rls_enabled !== true ||
+        state?.public_grants_exist !== false ||
+        state?.public_column_grants_exist !== false ||
+        state?.api_roles_with_dml_grants !== 0) {
+      const error = new Error('GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      error.code = 'GDPR_LEDGER_SCHEMA_NOT_PROTECTED';
+      throw error;
+    }
+  }
+
   static async recordEvent(client, { userId, eventType, details = {} }) {
     if (!Object.values(this.EVENT_TYPES).includes(eventType)) {
       throw new Error(`Unsupported privacy ledger event: ${eventType}`);
@@ -129,6 +176,9 @@ class PrivacyErasureLedgerService {
     }
 
     const outboxEnabled = this.outboxEnabled();
+    // Reuse main-isolated #366's read-only RLS/ACL preflight in BOTH modes.
+    // Existing outbox atomicity is unchanged; fail before any event DML.
+    await this.assertProtectedLedger(client);
 
     // Never execute DDL from ANY user-facing GDPR request, including legacy.
     // Both modes require intentional pre-installation. A missing table fails
@@ -194,7 +244,8 @@ class PrivacyErasureLedgerService {
   }
 
   static async captureCurrent(client) {
-    await this.ensureTable(client);
+    // Capturing recovery evidence must never bootstrap a missing ledger.
+    await this.assertProtectedLedger(client);
     const result = await client.query(`
       SELECT event_key, subject_user_id, event_type,
         to_char(occurred_at AT TIME ZONE 'UTC',
@@ -243,6 +294,9 @@ class PrivacyErasureLedgerService {
     // The offline recovery gate must never silently provision a missing
     // ledger. Keep legacy explicit import behavior for existing callers.
     if (!requirePreinstalled) await this.ensureTable(client);
+    // Signed recovery always uses requirePreinstalled and must reject a
+    // restored ledger with RLS disabled or unexpected API/PUBLIC grants.
+    await this.assertProtectedLedger(client);
     let merged = 0;
     for (const event of prepared) {
       const result = await client.query(
