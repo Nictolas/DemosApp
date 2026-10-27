@@ -689,11 +689,23 @@ async function main() {
     const cursorClient = await pool.connect();
     try {
       await cursorClient.query('BEGIN');
-      // A transaction-local shadow table ensures exactly two invented events.
-      // No production schema or external B2 service is touched.
+      // Work only in a disposable PG17 CI database. The transaction rolls
+      // back its public ledger fixture and all trigger/outbox side effects.
+      // Deliberately keep a same-named temp table: the B2 exporter MUST read
+      // public.privacy_erasure_ledger rather than this shadow relation.
+      await cursorClient.query('DELETE FROM public.privacy_erasure_ledger');
       await cursorClient.query(
         'CREATE TEMP TABLE privacy_erasure_ledger ' +
         '(LIKE public.privacy_erasure_ledger INCLUDING DEFAULTS) ON COMMIT DROP'
+      );
+      await cursorClient.query(
+        'INSERT INTO pg_temp.privacy_erasure_ledger ' +
+        '(event_key,subject_user_id,event_type,occurred_at,details) ' +
+        'VALUES ($1,$2,$3,$4::timestamptz,$5::jsonb)',
+        ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',n(),
+          Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED,
+          '2026-10-26T02:00:00.000001Z',
+          JSON.stringify({source:'temp-shadow-must-not-export'})]
       );
       const earlyKey='ffffffff-ffff-4fff-8fff-ffffffffffff';
       const lateKey='00000000-0000-4000-8000-000000000001';
@@ -702,15 +714,16 @@ async function main() {
         [lateKey,'2026-10-26T03:00:00.000987Z']
       ]) {
         await cursorClient.query(
-          'INSERT INTO privacy_erasure_ledger ' +
+          'INSERT INTO public.privacy_erasure_ledger ' +
           '(event_key,subject_user_id,event_type,occurred_at,details) ' +
           'VALUES($1,$2,$3,$4::timestamptz,$5::jsonb)',
           [key,n(),Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,time,
             JSON.stringify({source:'invented-microsecond-ci'})]
         );
       }
-      // archiveEvent is an in-memory stand-in: archiveBatch still performs its
-      // actual SQL against the temporary PG17 ledger, but never contacts B2.
+      // archiveEvent is an in-memory stand-in: archiveBatch runs real PG17 SQL
+      // against the public ledger despite the competing pg_temp table.
+      // No external B2 service is contacted.
       const archive = new PrivacyErasureB2Journal({
         env:{
           GDPR_LEDGER_B2_ENABLED:'true',
