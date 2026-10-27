@@ -122,7 +122,7 @@ class PrivacyErasureLedgerService {
     await this.ensureTable(client);
     const result = await client.query(`
       SELECT event_key, subject_user_id, event_type, occurred_at, details
-      FROM privacy_erasure_ledger
+      FROM public.privacy_erasure_ledger
       ORDER BY occurred_at ASC, event_key ASC
     `);
     return result.rows;
@@ -133,7 +133,7 @@ class PrivacyErasureLedgerService {
     let merged = 0;
     for (const row of rows) {
       const result = await client.query(
-        `INSERT INTO privacy_erasure_ledger
+        `INSERT INTO public.privacy_erasure_ledger
           (event_key, subject_user_id, event_type, occurred_at, details)
          VALUES ($1, $2, $3, $4, $5::jsonb)
          ON CONFLICT (event_key) DO NOTHING`,
@@ -398,7 +398,7 @@ class PrivacyErasureLedgerService {
 
     const accountEvents = await client.query(`
       SELECT DISTINCT subject_user_id
-      FROM privacy_erasure_ledger
+      FROM public.privacy_erasure_ledger
       WHERE event_type = 'account_deleted'
     `);
 
@@ -413,7 +413,7 @@ class PrivacyErasureLedgerService {
     const consentStates = await client.query(`
       SELECT DISTINCT ON (subject_user_id)
         subject_user_id, event_type, occurred_at
-      FROM privacy_erasure_ledger
+      FROM public.privacy_erasure_ledger
       WHERE event_type IN ('political_consent_revoked', 'political_consent_granted')
       ORDER BY subject_user_id, occurred_at DESC, event_key DESC
     `);
