@@ -129,6 +129,41 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       }
       assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger')).rows[0].n,1,
         'non-owner rejection must not create another event');
+
+      // Prove the constrained non-owner path works on disposable PG17 too.
+      // INSERT ... RETURNING needs both INSERT and SELECT RLS policies. This
+      // is NOT a grant/policy recommendation for Render or production: the
+      // actual backend SQL identity and provider isolation remain unknown.
+      await pool.query(`CREATE POLICY gdpr_ci_backend_insert
+        ON public.privacy_erasure_ledger FOR INSERT TO gdpr_nonowner_ci
+        WITH CHECK (true)`);
+      await pool.query(`CREATE POLICY gdpr_ci_backend_select
+        ON public.privacy_erasure_ledger FOR SELECT TO gdpr_nonowner_ci
+        USING (true)`);
+      const allowed=await pool.connect();
+      try {
+        await allowed.query('BEGIN');
+        await allowed.query('SET LOCAL ROLE gdpr_nonowner_ci');
+        const identity=await allowed.query('SELECT current_user AS current_role');
+        assert.equal(identity.rows[0].current_role,'gdpr_nonowner_ci');
+        const inserted=await Ledger.recordEvent(allowed,{
+          ...fixture, userId:'synthetic-nonowner-rls-authorized'
+        });
+        assert.equal(inserted.subject_user_id,'synthetic-nonowner-rls-authorized');
+        assert.equal((await allowed.query(
+          'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+        )).rows[0].n,2,'RLS-authorized non-owner sees the synthetic event');
+      } finally {
+        await allowed.query('ROLLBACK');
+        allowed.release();
+      }
+      assert.equal((await pool.query(
+        'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+      )).rows[0].n,1,'non-owner synthetic insert must roll back completely');
+      assert.equal(await queryPrivileges(),0,
+        'non-owner RLS policies must not grant Supabase API roles access');
+      await pool.query('DROP POLICY gdpr_ci_backend_insert ON public.privacy_erasure_ledger');
+      await pool.query('DROP POLICY gdpr_ci_backend_select ON public.privacy_erasure_ledger');
       await pool.query('REVOKE ALL ON public.privacy_erasure_ledger FROM gdpr_nonowner_ci');
       await pool.query('REVOKE USAGE ON SCHEMA public FROM gdpr_nonowner_ci');
       await pool.query('DROP ROLE gdpr_nonowner_ci');
