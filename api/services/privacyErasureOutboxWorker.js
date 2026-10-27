@@ -51,7 +51,10 @@ class PrivacyErasureOutboxWorker {
       // Every worker reads only pending rows; no timestamp cursor that can
       // permanently miss a concurrently committed or delayed event.
       const result = await client.query(
-        'SELECT o.event_key, l.subject_user_id, l.event_type, l.occurred_at, l.details ' +
+        'SELECT o.event_key, l.subject_user_id, l.event_type, ' +
+        "to_char(l.occurred_at AT TIME ZONE 'UTC', " +
+        `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at, ` +
+        'l.details ' +
         'FROM privacy_erasure_delivery_outbox o ' +
         'JOIN privacy_erasure_ledger l ON l.event_key=o.event_key ' +
         'WHERE o.delivered_at IS NULL ' +

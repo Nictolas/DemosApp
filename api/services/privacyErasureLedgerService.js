@@ -195,7 +195,9 @@ class PrivacyErasureLedgerService {
   static async captureCurrent(client) {
     await this.ensureTable(client);
     const result = await client.query(`
-      SELECT event_key, subject_user_id, event_type, occurred_at, details
+      SELECT event_key, subject_user_id, event_type,
+        to_char(occurred_at AT TIME ZONE 'UTC',
+          'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at, details
       FROM public.privacy_erasure_ledger
       ORDER BY occurred_at ASC, event_key ASC
     `);

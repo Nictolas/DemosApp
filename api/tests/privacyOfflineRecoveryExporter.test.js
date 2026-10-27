@@ -223,6 +223,8 @@ test('offline exporter acquires shared replay advisory lock before both table lo
   assert.ok(advisory>0 && lock>advisory && scan>lock && pending>scan,
     'consistent advisory-then-table lock order prevents inversion with signed replay');
   assert.match(h.db.calls[lock],/SHARE ROW EXCLUSIVE MODE NOWAIT/);
+  assert.match(h.db.calls[scan],/to_char\(occurred_at AT TIME ZONE/);
+  assert.match(h.db.calls[pending],/to_char\(l\.occurred_at AT TIME ZONE/);
 });
 
 test('offline exporter commits only signed event with valid immutable B2 receipt and never claims traffic ready',async()=>{

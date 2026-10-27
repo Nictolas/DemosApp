@@ -102,7 +102,10 @@ class PrivacyOfflineRecoveryExporter {
       for (;;) {
         this.assertQuarantine();
         const page = await client.query(
-          'SELECT event_key, subject_user_id, event_type, occurred_at, details ' +
+          'SELECT event_key, subject_user_id, event_type, ' +
+          "to_char(occurred_at AT TIME ZONE 'UTC', " +
+        `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at, ` +
+          'details ' +
           'FROM privacy_erasure_ledger ' +
           'WHERE event_key > $1 ORDER BY event_key ASC LIMIT $2',
           [cursor, 250]
@@ -140,7 +143,10 @@ class PrivacyOfflineRecoveryExporter {
 
       this.assertQuarantine();
       const pending = await client.query(
-        'SELECT o.event_key, l.subject_user_id, l.event_type, l.occurred_at, l.details ' +
+        'SELECT o.event_key, l.subject_user_id, l.event_type, ' +
+        "to_char(l.occurred_at AT TIME ZONE 'UTC', " +
+        `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at, ` +
+        'l.details ' +
         'FROM privacy_erasure_delivery_outbox o ' +
         'JOIN privacy_erasure_ledger l ON l.event_key=o.event_key ' +
         'WHERE o.delivered_at IS NULL ' +

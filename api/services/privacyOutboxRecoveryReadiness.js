@@ -76,7 +76,9 @@ async function verifyOutboxRecoveryReadiness(client, {
     for (;;) {
       const result = await client.query(
         'SELECT l.event_key, l.subject_user_id, l.event_type, ' +
-        'l.occurred_at, l.details, o.delivered_at, ' +
+        "to_char(l.occurred_at AT TIME ZONE 'UTC', " +
+        `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at, ` +
+        'l.details, o.delivered_at, ' +
         'o.b2_version_id, o.b2_sha256 ' +
         'FROM privacy_erasure_ledger l ' +
         'LEFT JOIN privacy_erasure_delivery_outbox o ON o.event_key=l.event_key ' +

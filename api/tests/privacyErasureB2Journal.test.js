@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
-const { PrivacyErasureB2Journal, validatedConfig, keyFor } =
+const { PrivacyErasureB2Journal, normalizeEvent, validatedConfig, keyFor } =
   require('../services/privacyErasureB2Journal');
 const { PrivacyErasureOutboxWorker } = require('../services/privacyErasureOutboxWorker');
 
@@ -414,4 +414,30 @@ test('invalid batch size and invalid UUID or oversized details reject before PUT
   await assert.rejects(s.archiveEvent({...event,event_key:'no'}),/Invalid GDPR/);
   await assert.rejects(s.archiveEvent({...event,details:{info:'X'.repeat(9000)}}),/minimization limit/);
   assert.equal(b2.calls.some(x=>x.name==='PutObjectCommand'),false);
+});
+
+test('immutable B2 content distinguishes adjacent PostgreSQL microseconds',async()=>{
+  const b2=new FakeB2(),journal=service(b2);
+  const event={...EVT(),occurred_at:'2026-10-26T03:00:00.123456Z'};
+  const next={...event,occurred_at:'2026-10-26T03:00:00.123457Z'};
+  assert.notEqual(JSON.stringify(normalizeEvent(event)),JSON.stringify(normalizeEvent(next)));
+  const archived=await journal.archiveEvent(event);
+  assert.equal(JSON.parse(b2.objects.get(archived.key).body.toString()).occurred_at,event.occurred_at);
+  await assert.rejects(journal.archiveEvent(next),/different content/);
+  assert.equal(b2.calls.filter(c=>c.name==='PutObjectCommand').length,1);
+});
+
+test('archiveBatch writes exact SQL cursor instead of lossy pg Date',async()=>{
+  const b2=new FakeB2(),journal=service(b2);
+  const event=EVT(),exact='2026-10-26T03:00:00.123456Z';
+  const db={async query(){return {rows:[{
+    ...event,occurred_at:new Date('2026-10-26T03:00:00.123Z'),
+    cursor_occurred_at:exact
+  }]};}};
+  const result=await journal.archiveBatch(db,{limit:1});
+  assert.equal(result.exported,1);
+  assert.equal(result.cursor.occurred_at,exact);
+  const stored=b2.objects.get(keyFor({...event,occurred_at:exact}));
+  assert.ok(stored);
+  assert.equal(JSON.parse(stored.body.toString()).occurred_at,exact);
 });

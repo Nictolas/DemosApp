@@ -905,3 +905,51 @@ test('provider recovery inventory stays explicitly NO-GO until independent isola
   assert.match(appSource,/Supabase in production/);
   assert.doesNotMatch(appSource,/Neon PITR in production/);
 });
+
+test('signed recovery and B2 content distinguish adjacent PostgreSQL microseconds', () => {
+  const event=mkEvent('political_consent_revoked',{occurred_at:'2026-10-26T00:00:00.123456Z'});
+  const next={...event,occurred_at:'2026-10-26T00:00:00.123457Z'};
+  assert.notEqual(signature(fixture([event]).payload,SECRET),signature(fixture([next]).payload,SECRET));
+  assert.notEqual(manifestDigest(fixture([event])),manifestDigest(fixture([next])));
+  assert.equal(normalizeB2Event(event).occurred_at,event.occurred_at);
+  assert.equal(normalizeB2Event(next).occurred_at,next.occurred_at);
+  assert.equal(normalizeB2Event({...event,occurred_at:'2026-10-26T00:00:00.123000Z'}).occurred_at,
+    '2026-10-26T00:00:00.123Z','legacy millisecond-only hashes stay stable');
+  assert.throws(()=>fixture([{...event,occurred_at:new Date('2026-10-26T00:00:00.123Z')}]),
+    /Invalid event timestamp/);
+  assert.throws(()=>normalizeB2Event({...event,occurred_at:new Date('2026-10-26T00:00:00.123Z')}),
+    /lossless UTC text/);
+  assert.throws(()=>signed({
+    formatVersion:1,recoveryId:ID,capturedAt:'2026-10-26T00:00:00.123Z',
+    restoredBackupTakenAt:'2026-10-24T00:00:00.000Z',events:[event]
+  }),/after manifest/,'sub-millisecond event must not pass a millisecond capture boundary');
+});
+
+test('outbox worker queries exact UTC text before B2 delivery',async()=>{
+  const event=mkEvent('political_consent_revoked',{occurred_at:'2026-10-26T00:00:00.123456Z'});
+  let exported=null;
+  const client={
+    async query(sql){
+      if(sql.includes('FOR UPDATE OF o SKIP LOCKED')){
+        assert.match(sql,/to_char\(l\.occurred_at AT TIME ZONE/);
+        assert.match(sql,/AS occurred_at/);
+        return {rows:[event]};
+      }
+      if(sql.includes('UPDATE privacy_erasure_delivery_outbox')){
+        return {rowCount:1,rows:[{event_key:event.event_key}]};
+      }
+      return {rows:[]};
+    },
+    release(){}
+  };
+  const worker=new PrivacyErasureOutboxWorker({
+    env:{GDPR_ERASURE_OUTBOX_ENABLED:'true',GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'true'},
+    exporter:{config(){return {};},async archiveEvent(row){
+      exported=row.occurred_at;
+      return {eventKey:row.event_key,versionId:'synthetic-b2-version',sha256:'a'.repeat(64)};
+    }}
+  });
+  const result=await worker.runOnce({async connect(){return client;}},{limit:1});
+  assert.equal(result.delivered,1);
+  assert.equal(exported,event.occurred_at);
+});
