@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { Pool } = require('pg');
 const Ledger = require('../services/privacyErasureLedgerService');
 const { cleanupConsentScopedPoliticalData } = require('../services/politicalConsentService');
+const { sealOffline, verifyOffline } = require('../services/gdprExternalEvidenceVerifier');
 const DB='political_selection_erasure_ci';
 const USER='00000000-0000-4000-8000-000000000301';
 const OTHER='00000000-0000-4000-8000-000000000302';
@@ -138,7 +139,33 @@ async function main(){
     assert.equal(await scalar(db,'SELECT COUNT(*)::int FROM users WHERE id=$1',[USER]),1,
       'deleting the other account must not remove a surviving user');
 
-    console.log('POLITICAL_SELECTION_ERASURE_PG17_PASS '+JSON.stringify({fixture:'synthetic',rollback:true,revocation:true,regrantNoResurrection:true,laterGrantPreserved:true,laterRevocationReplay:true,ledgerReplay:true,otherUserSelectionsPreserved:true,candidacyStatusPreserved:true,accountDeletionWithoutForeignKeys:true,accountDeletionRollback:true,productionUntouched:true}));
+    // Join the real pg17 captureCurrent serialization with the OFFLINE
+    // proof. This does not upload, export to any external provider, or change
+    // the existing ledger. The HMAC is synthetic and pinned independently by
+    // the test harness only.
+    const ledgerRows=await Ledger.captureCurrent(db);
+    assert.equal(ledgerRows.length,3);
+    const syntheticKey=Buffer.alloc(32,19);
+    const capturedAt=new Date().toISOString();
+    const sealed=sealOffline({
+      events:ledgerRows,capturedAt,source:'gdpr_synthetic_pg17'
+    },syntheticKey);
+    const pinnedSignature=sealed.signature;
+    const validated=verifyOffline(sealed,{
+      secret:syntheticKey,expectedSignature:pinnedSignature,
+      expectedSource:'gdpr_synthetic_pg17',
+      now:Date.now(),maxAgeMs:3600000
+    });
+    assert.equal(validated.eventCount,ledgerRows.length);
+    assert.equal(validated.status,'INTEGRITY_ONLY_NOT_RECOVERY_GO');
+    assert.equal(validated.externalLedgerCompletenessAttested,false);
+    const missingEvent={...sealed,events:sealed.events.slice(0,-1)};
+    assert.throws(()=>verifyOffline(missingEvent,{
+      secret:syntheticKey,expectedSignature:pinnedSignature,
+      expectedSource:'gdpr_synthetic_pg17',now:Date.now()
+    }),e=>e?.code==='GDPR_EXTERNAL_EVIDENCE_DIGEST_MISMATCH');
+
+    console.log('POLITICAL_SELECTION_ERASURE_PG17_PASS '+JSON.stringify({fixture:'synthetic',rollback:true,revocation:true,regrantNoResurrection:true,laterGrantPreserved:true,laterRevocationReplay:true,ledgerReplay:true,otherUserSelectionsPreserved:true,candidacyStatusPreserved:true,accountDeletionWithoutForeignKeys:true,accountDeletionRollback:true,signedPg17LedgerCapture:true,independentPinDetectsDroppedEvent:true,productionUntouched:true}));
   }catch(error){
     await db.query('ROLLBACK').catch(()=>{});
     throw error;
