@@ -111,7 +111,13 @@ test('actual backend pool logs in as separate NOBYPASSRLS writer/worker and ACKs
       user: 'postgres', password: 'synthetic-only', ssl: false, max: 2
     });
     for (const role of ['anon', 'authenticated', 'service_role']) {
-      await admin.query('CREATE ROLE ' + role + ' NOLOGIN');
+      // Roles are cluster-wide, and the preceding worker suite may already
+      // have created them in its separate ephemeral PostgreSQL database.
+      await admin.query(
+        'DO $roles$ BEGIN IF NOT EXISTS (' +
+        "SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='" + role + "'" +
+        ') THEN CREATE ROLE ' + role + ' NOLOGIN; END IF; END $roles$;'
+      );
     }
     await Ledger.ensureTable(admin);
     await Ledger.ensureDeliveryOutbox(admin);
