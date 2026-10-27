@@ -4,7 +4,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { assertIsolatedStagingEnvironment, STAGING_PROJECT_ID } =
   require('../staging/isolatedStagingGuard');
-const { startIsolatedStaging } = require('../staging/isolatedStagingServer');
+const { startIsolatedStaging, createReadinessHandler } =
+  require('../staging/isolatedStagingServer');
+const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -142,19 +144,55 @@ test('actual staging entrypoint exits before importing server on a bad DB target
   assert.doesNotMatch(result.stderr,/prod\.invalid|synthetic-password|fake@/);
 });
 
-test('app integrates the pre-import fence and does not schedule its passive jobs on staging', () => {
+test('full app rejects isolated mode before any Express routes or DB modules', () => {
   const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
   const fence=app.indexOf("assertIsolatedStagingEnvironment(process.env)");
+  const refuse=app.indexOf("throw error;");
   const express=app.indexOf("const express = require('express')");
-  assert.ok(fence>0 && express>fence,'staging guard must run before routes/pools/providers');
-  assert.match(app,/if \(!isolatedStaging\) auditManager\.start\(\)/);
-  assert.match(app,/const performanceMonitorEnabled = !isolatedStaging &&/);
-  assert.match(app,/if \(!isolatedStaging\) performanceOptimizer\.start\(\)/);
+  assert.ok(fence>0 && refuse>fence && express>refuse,
+    'full backend must fail before routes/pools/providers in isolated staging');
+  assert.match(app,/DEMOS_STAGING_FULL_APP_NOT_AUTHORIZED/);
+  const server=fs.readFileSync(path.join(__dirname,'..','staging','isolatedStagingServer.js'),'utf8');
+  assert.doesNotMatch(server,/require\(['"]\.\.\/(?:app|server)['"]\)/,
+    'readiness-only entrypoint must not import the normal server');
+});
 
-  const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');
-  assert.match(server,/if \(process\.env\.DEMOS_DEPLOYMENT_SCOPE !== 'isolated-staging'\) \{/);
-  const firebaseInit=server.indexOf('initializeFirebaseAdmin()');
-  const isolationGuard=server.indexOf("if (process.env.DEMOS_DEPLOYMENT_SCOPE !== 'isolated-staging')");
-  assert.ok(isolationGuard>0 && firebaseInit>isolationGuard,
-    'Firebase Admin initialization must stay in the non-staging block');
+test('invalid or missing listen port is denied before serving HTTP', () => {
+  for (const PORT of [undefined,'','0','-1','100000','not-a-port','00080']) {
+    rejected({PORT}, 'DEMOS_STAGING_SIDE_EFFECTS_REJECTED');
+  }
+});
+
+test('readiness-only endpoint exposes no real application or sensitive data', async (t) => {
+  const server=http.createServer(createReadinessHandler());
+  await new Promise((resolve,reject)=>{
+    server.once('error',reject);
+    server.listen(0,'127.0.0.1',resolve);
+  });
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const base='http://127.0.0.1:'+server.address().port;
+  const health=await fetch(base+'/__staging/health');
+  assert.equal(health.status,200);
+  assert.equal(health.headers.get('cache-control'),'no-store');
+  assert.equal(health.headers.get('content-type'),'application/json; charset=utf-8');
+  const json=await health.json();
+  assert.deepEqual(json,{
+    status:'preflight-only',
+    gdprReady:false,
+    databaseConnected:false,
+    externalProvidersConnected:false
+  });
+  for (const route of [
+    '/api/health','/api/auth/login','/api/sondaggi','/api/avvistamenti',
+    '/api/admin/database','/api/user/delete-account',
+    '/__staging/health?debug=true'
+  ]) {
+    const response=await fetch(base+route);
+    assert.equal(response.status,404,route);
+    assert.equal(response.headers.get('cache-control'),'no-store',route);
+    assert.deepEqual(await response.json(),{error:'not_found'},route);
+  }
+  const mutation=await fetch(base+'/__staging/health',{method:'POST'});
+  assert.equal(mutation.status,404);
+  assert.deepEqual(await mutation.json(),{error:'not_found'});
 });
