@@ -67,6 +67,90 @@ La produzione senza quel flag segue esattamente il proprio percorso.
 4. Testare le sole risposte `/__staging/health` e 404 su route applicative
    e confermare che non siano state aperte connessioni ai provider.
 
+## Piano operativo di rilascio fase 1 — REVIEW, NON AUTORIZZAZIONE (metadata Render 27/10/2026)
+
+**Target esatto:** `demos-functional-staging`, servizio Render
+`srv-db52l1g473hc739ld250`, workspace «Nicolas».
+**Baseline attualmente distribuita:** deploy `dep-db8bf3gm7kps73dpusu0`,
+commit `645d72d37b9178233b7f66c7433cb90e51bf585c`,
+comando `cd api && node index.js`, ramo configurato
+`staging/functional-integration-v0`, `autoDeploy=no`.
+**Rischio concreto:** Render espone attualmente il servizio con
+`ipAllowList=0.0.0.0/0`, `maintenanceMode=false` e nessun
+`healthCheckPath` configurato. Il processo readiness-only della PR
+risponde intenzionalmente su `0.0.0.0`: senza una restrizione **esterna**
+dell'ingress, il suo endpoint health sarebbe raggiungibile pubblicamente.
+Nessuno di questi metadata prova l'isolamento delle connessioni in uscita,
+delle variabili ereditate o l'assenza di consumer esterni.
+
+### Gate 0 — inventario e decisione (solo letture non sensibili)
+
+- Congelare nel verbale **ID servizio, branch, deployed SHA, start command,
+  auto-deploy, IP allowlist, maintenance, URL e health check**; annotare ogni
+  differenza riscontrata prima della finestra. Non leggere env o segreti.
+- Il responsabile infrastruttura deve attestare **fuori da questa PR**
+  chi usa URL pubblica/interna: GitHub Actions, webhook, cron, monitor,
+  callback, probe e operatori. La sola ricerca nel repo e metriche vuote
+  non dimostrano assenza di dipendenze. Bloccare se manca l'attestazione.
+- Definire e far verificare **ingress non pubblico** (IP allowlist
+  stretta o controllo equivalente verificabile) e **egress/provider
+  quarantine** indipendente dal codice. L'allowlist delle env è difesa
+  aggiuntiva, non firewall; metadata Render attuali non attestano egress.
+  Bloccare il rollout se non si può dimostrare la segregazione.
+- Confermare che nessun environment group o configurazione del servizio
+  possa introdurre variabili non ammesse: **verifica da parte
+  dell'operatore autorizzato senza pubblicarne nomi/valori sensibili**.
+  Il processo deve fallire chiuso, non si deve ampliare l'allowlist per
+  adattarsi a credenziali presenti.
+
+### Gate 1 — proposta di change separata, da approvare prima di agire
+
+- **Autorizzazione A, distinta:** eventuale merge della PR Draft `#369`
+  in `main`; Render backend/frontend hanno auto-deploy e un merge non
+  è neutro anche se il percorso di produzione senza scope è invariato.
+  In alternativa preparare un ref immutabile approvato per il solo staging.
+- **Autorizzazione B, distinta e successiva:** cambiare *solo* sul servizio
+  `srv-db52l1g473hc739ld250` ref/branch, start command e profilo
+  readiness-only; approvare anche ogni modifica ingress/egress e
+  configurazione Render con lista esatta di operazioni e responsabile.
+  Nessun database, schema, ruolo SQL, provider o worker va attivato.
+- Registrare SHA immutabile da distribuire, hash delle prove CI sull'HEAD,
+  finestra, responsabile, snapshot dei soli metadata e punto di arresto.
+  **Nessuna fase 2** implicita e nessun riuso del vecchio `stagingMigrate`.
+
+### Gate 2 — prove post-change, SOLO dopo autorizzazioni A/B
+
+1. Verificare dal deployment Render il commit **esatto** e l'entrypoint
+   `node staging/isolatedStagingServer.js`; non dedurre dal solo GitHub.
+2. Con ingresso autorizzato verificare `GET /__staging/health` =
+   `200` con `gdprReady=false`, `databaseConnected=false` e
+   `externalProvidersConnected=false`; le route normali e POST = `404`.
+   `200` **non significa** GDPR pronto.
+3. Verificare separatamente che ingress non autorizzato sia negato,
+   egress/provider sia segregato e non siano partiti worker, SQL,
+   Firebase o altri processi. Se la prova indipendente manca: **NO-GO**.
+4. Archiviare solo timestamp, SHA, stato dei gate, risultati sintetici
+   e firme degli approvatori; mai password, URL di connessione o eventi
+   GDPR reali.
+
+### Abort e rollback (piano, NON esecuzione)
+
+- Qualunque env inattesa deve provocare `DEMOS_STAGING_BOOT_REJECTED`
+  **prima** di aprire HTTP; un crash/fail-closed è esito corretto, non
+  motivo per inserire segreti o lanciare `api/index.js`.
+- In caso di ingresso pubblico non previsto, egress non attestato,
+  route applicative raggiungibili o commit errato: **fermare la finestra
+  e mantenere il servizio non utilizzabile** tramite azione di
+  isolamento approvata; non fare fallback automatico al vecchio ramo.
+- Il precedente deploy `645d72` è un riferimento storico per eventuale
+  ripristino, **non una baseline di sicurezza certificata**: riattivarlo
+  richiede una nuova autorizzazione e verifica delle sue connessioni.
+  Se non esiste una baseline sicura, rollback significa **restare
+  isolati/non disponibili** finché il titolare approva un nuovo piano.
+- Nessun rollback o sospensione è autorizzato da questa checklist.
+  Recovery GDPR `#296` rimane **NO-GO** anche se tutti i test di
+  readiness-only sono verdi.
+
 ## Profilo 2 — staging funzionale e GDPR: NON implementato né autorizzato
 
 La funzione pura `assertStagingDatabaseTarget(url)` è già testata con URL
