@@ -108,7 +108,37 @@ async function main(){
     await db.query('COMMIT');
     await assertErased(db);
     assert.equal((await db.query('SELECT political_opinions_consent FROM users WHERE id=$1',[USER])).rows[0].political_opinions_consent,false);
-    console.log('POLITICAL_SELECTION_ERASURE_PG17_PASS '+JSON.stringify({fixture:'synthetic',rollback:true,revocation:true,regrantNoResurrection:true,laterGrantPreserved:true,laterRevocationReplay:true,ledgerReplay:true,otherUserSelectionsPreserved:true,candidacyStatusPreserved:true,productionUntouched:true}));
+
+    // Account deletion must not depend on foreign keys existing after a
+    // partial backup restore. This fixture intentionally has NO FKs.
+    // A separate user owns a canonical selection and a legacy
+    // user_representatives row; both, plus user_consents, must be purged.
+    await db.query(
+      'INSERT INTO user_representatives(user_id,rappresentante_camera) VALUES ($1,$2)',
+      [OTHER,USER]
+    );
+    const accountCounts=async()=>({
+      users:await scalar(db,'SELECT COUNT(*)::int FROM users WHERE id=$1',[OTHER]),
+      consent:await scalar(db,'SELECT COUNT(*)::int FROM user_consents WHERE user_id=$1',[OTHER]),
+      choices:await scalar(db,'SELECT COUNT(*)::int FROM political_selections WHERE user_id=$1',[OTHER]),
+      representatives:await scalar(db,'SELECT COUNT(*)::int FROM user_representatives WHERE user_id=$1',[OTHER]),
+    });
+    assert.deepEqual(await accountCounts(), {users:1,consent:1,choices:1,representatives:1});
+    await db.query('BEGIN');
+    const deletionProbe=await Ledger.enforceAccountDeletion(db,OTHER);
+    assert.equal(deletionProbe.userDeleted,1);
+    assert.deepEqual(await accountCounts(), {users:0,consent:0,choices:0,representatives:0});
+    await db.query('ROLLBACK');
+    assert.deepEqual(await accountCounts(), {users:1,consent:1,choices:1,representatives:1});
+    await db.query('BEGIN');
+    const deletion=await Ledger.enforceAccountDeletion(db,OTHER);
+    assert.equal(deletion.userDeleted,1);
+    await db.query('COMMIT');
+    assert.deepEqual(await accountCounts(), {users:0,consent:0,choices:0,representatives:0});
+    assert.equal(await scalar(db,'SELECT COUNT(*)::int FROM users WHERE id=$1',[USER]),1,
+      'deleting the other account must not remove a surviving user');
+
+    console.log('POLITICAL_SELECTION_ERASURE_PG17_PASS '+JSON.stringify({fixture:'synthetic',rollback:true,revocation:true,regrantNoResurrection:true,laterGrantPreserved:true,laterRevocationReplay:true,ledgerReplay:true,otherUserSelectionsPreserved:true,candidacyStatusPreserved:true,accountDeletionWithoutForeignKeys:true,accountDeletionRollback:true,productionUntouched:true}));
   }catch(error){
     await db.query('ROLLBACK').catch(()=>{});
     throw error;
