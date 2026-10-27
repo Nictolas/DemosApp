@@ -213,7 +213,14 @@ test('outbox preflight rejects events B2 cannot archive before any PostgreSQL I/
   const statements = [];
   const db = {async query(sql) {
     statements.push(sql);
-    return {rows:[{event_key:'synthetic-test-event'}]};
+    if (sql.includes('pg_catalog.aclexplode')) return {rows:[{
+      rls_enabled:true, public_grants_exist:false,
+      public_column_grants_exist:false, api_roles_with_dml_grants:0
+    }]};
+    if (sql.includes('WITH event_insert')) {
+      return {rows:[{event_key:'synthetic-test-event'}]};
+    }
+    throw Error('Unexpected synthetic GDPR SQL');
   }};
   const eventType = Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED;
   try {
@@ -232,9 +239,10 @@ test('outbox preflight rejects events B2 cannot archive before any PostgreSQL I/
       userId:KEY, eventType, details:{synthetic:'x'.repeat(7900)}
     });
     assert.equal(valid.event_key,'synthetic-test-event');
-    assert.equal(statements.length,1);
-    assert.match(statements[0],/INSERT INTO public\.privacy_erasure_ledger/);
-    assert.match(statements[0],/INSERT INTO public\.privacy_erasure_delivery_outbox/);
+    assert.equal(statements.length,2);
+    assert.match(statements[0],/pg_catalog\.aclexplode/);
+    assert.match(statements[1],/INSERT INTO public\.privacy_erasure_ledger/);
+    assert.match(statements[1],/INSERT INTO public\.privacy_erasure_delivery_outbox/);
   } finally {
     if (old === undefined) delete process.env.GDPR_ERASURE_OUTBOX_ENABLED;
     else process.env.GDPR_ERASURE_OUTBOX_ENABLED = old;
@@ -247,7 +255,14 @@ test('GDPR outbox preflight checks exact SQL JSON despite inherited and stateful
   const queries = [];
   const db = {async query(sql, params) {
     queries.push({sql, params});
-    return {rows:[{event_key:'synthetic-test-event'}]};
+    if (sql.includes('pg_catalog.aclexplode')) return {rows:[{
+      rls_enabled:true, public_grants_exist:false,
+      public_column_grants_exist:false, api_roles_with_dml_grants:0
+    }]};
+    if (sql.includes('WITH event_insert')) {
+      return {rows:[{event_key:'synthetic-test-event'}]};
+    }
+    throw Error('Unexpected synthetic GDPR SQL');
   }};
   const eventType = Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED;
   try {
@@ -289,9 +304,10 @@ test('GDPR outbox preflight checks exact SQL JSON despite inherited and stateful
       details:{at:new Date('2026-10-26T00:00:00.000Z'), source:'x'.repeat(7900)}
     });
     assert.equal(valid.event_key,'synthetic-test-event');
-    assert.equal(queries.length,1);
-    assert.match(queries[0].sql,/INSERT INTO public\.privacy_erasure_delivery_outbox/);
-    const actualDetails = JSON.parse(queries[0].params[3]);
+    assert.equal(queries.length,2);
+    assert.match(queries[0].sql,/pg_catalog\.aclexplode/);
+    assert.match(queries[1].sql,/INSERT INTO public\.privacy_erasure_delivery_outbox/);
+    const actualDetails = JSON.parse(queries[1].params[3]);
     assert.equal(actualDetails.at,'2026-10-26T00:00:00.000Z');
     assert.doesNotThrow(() => normalizeB2Event({
       event_key: '00000000-0000-4000-8000-000000000321',
