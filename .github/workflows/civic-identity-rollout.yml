@@ -45,10 +45,15 @@ jobs:
         run: |
           node --check middleware/civicIdentity.js
           node --check services/civicIdentityPolicy.js
-          node --test \
+          # Isolate HTTP smoke suites one process at a time. Node 22's
+          # parallel test IPC intermittently fails to deserialize an otherwise
+          # successful politicalRepresentativeSelection smoke test.
+          for suite in \
             tests/civicIdentityRollout.test.js \
             tests/civicIdentityAdminException.test.js \
             tests/civicIdentityScope.smoke.test.js \
             tests/politicalRepresentativeSelection.smoke.test.js \
             tests/politicalSelectionRoute.test.js \
-            tests/politicalConsentScope.smoke.test.js
+            tests/politicalConsentScope.smoke.test.js; do
+            node --test --test-concurrency=1 "$suite" || exit 1
+          done
