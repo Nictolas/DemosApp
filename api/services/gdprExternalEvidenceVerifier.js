@@ -136,7 +136,7 @@ function verifyOffline(bundle, {
       manifest.previousSignature !== expectedPreviousSignature) {
     throw invalid('GDPR_EXTERNAL_EVIDENCE_ANCHOR_MISMATCH');
   }
-  if (typeof maxAgeMs !== 'number' || maxAgeMs <= 0 || maxAgeMs > MAX_AGE_MS ||
+  if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0 || maxAgeMs > MAX_AGE_MS ||
       !Number.isFinite(now)) throw invalid();
   const capturedAtMs = utcMillis(manifest.capturedAt);
   if (capturedAtMs > now + MAX_FUTURE_MS ||
