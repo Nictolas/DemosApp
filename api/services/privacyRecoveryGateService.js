@@ -71,11 +71,12 @@ function normalizePayload(payload) {
     if (event.event_type === Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED ||
         event.event_type === Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED) {
       // PostgreSQL's former timestamp + random UUID tie-break could select
-      // "granted" over "revoked" for two opposing events at the same instant.
-      // Their real order is unknowable: do not infer consent from UUID order.
-      // Match SQL replay's conservative same-millisecond ambiguity guard,
-      // while retaining exact microseconds in signed events.
-      const stamp = JSON.stringify([event.subject_user_id, event.occurred_at.slice(0, 23)]);
+      // "granted" over "revoked" for opposing events at the EXACT same instant.
+      // Normalize to six digits: distinct microseconds within a millisecond
+      // have a known PostgreSQL order and must not be collapsed by JS Date.
+      const stamp = JSON.stringify([
+        event.subject_user_id, microsecondTimestamp(event.occurred_at)
+      ]);
       const previous = consentTimestamps.get(stamp);
       if (previous && previous !== event.event_type) {
         throw Error('Ambiguous simultaneous GDPR consent grant and revocation');
