@@ -5,6 +5,16 @@ require('dotenv').config();
 
 // Importa il middleware di autenticazione corretto
 const { verifyToken } = require('../middleware/auth');
+const { isPrivacyRecoveryMaintenanceActive } = require('../middleware/privacyRecoveryMaintenance');
+
+function recoveryBlocked(res) {
+  res.set('Cache-Control','private, no-store, max-age=0');
+  res.set('Retry-After','120');
+  return res.status(503).json({
+    success:false,code:'GDPR_RECOVERY_MAINTENANCE',
+    error:'Servizio temporaneamente non disponibile per manutenzione dei dati'
+  });
+}
 
 // Configurazione database
 const pool = new Pool({
@@ -126,6 +136,8 @@ router.get('/', async (req, res) => {
 // PUT /api/attivismo-tipologie/:userId - Aggiorna le tipologie di un utente
 router.put('/:userId', verifyToken, async (req, res) => {
   try {
+    // Covers requests already admitted before a live recovery flag changed.
+    if (isPrivacyRecoveryMaintenanceActive()) return recoveryBlocked(res);
     const { userId } = req.params;
     const { tipologie } = req.body;
     
@@ -218,6 +230,9 @@ router.put('/:userId', verifyToken, async (req, res) => {
       return tipologiaInfo;
     });
     
+    // The SELECT above can complete after recovery starts; block the
+    // independent-pool UPDATE even for a request already in flight.
+    if (isPrivacyRecoveryMaintenanceActive()) return recoveryBlocked(res);
     // Aggiorna le tipologie nel database
     const result = await pool.query(
       'UPDATE users SET tipologie_attivismo = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING tipologie_attivismo',
