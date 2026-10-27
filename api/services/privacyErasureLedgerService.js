@@ -374,7 +374,12 @@ class PrivacyErasureLedgerService {
   }
 
   static async enforcePoliticalRevocation(client, userId) {
-    let opinionsDeleted = await this.deleteByUserId(client, 'opinioni_risposte', userId);
+    // Restore replay must erase the same consent-scoped political data as the
+    // live revocation route, including votes and legacy opinion columns.
+    // Lazy require avoids the module cycle: politicalConsentService uses our
+    // schema-aware deletion helpers.
+    const { cleanupConsentScopedPoliticalData } = require('./politicalConsentService');
+    const cleanup = await cleanupConsentScopedPoliticalData(client, userId);
 
     const userConsentColumns = [
       'political_opinions_consent',
@@ -413,7 +418,7 @@ class PrivacyErasureLedgerService {
       );
     }
 
-    return { opinionsDeleted };
+    return { opinionsDeleted: cleanup.deletedByTable.opinioni_risposte || 0 };
   }
 
   static async assertReplayCoreSchema(client) {
