@@ -52,10 +52,13 @@ test('existing ledger emits only a cautious, redacted readonly identity report',
     current_role: 'synthetic_writer', session_role: 'synthetic_writer',
     role_setting: 'none', database_name: 'postgres', ledger_rls: true,
     ledger_force_rls: false, ledger_owner: true,
-    ledger_insert_grant: true, ledger_select_grant: true, bypass_rls: false
+    ledger_insert_grant: true, ledger_select_grant: true, bypass_rls: false,
+    public_grants_exist: false, public_column_grants_exist: false,
+    api_roles_with_dml_grants: 0
   }]);
   assert.equal(report.sql_writer_attested, true);
   assert.equal(report.catalog_eligibility, 'POSSIBLE_NOT_PROVEN');
+  assert.equal(report.ledger_acl_protected, true);
   assert.equal(report.status, 'READONLY_IDENTITY_ONLY_NOT_RELEASE_GO');
   assert.equal(report.live_render_pool_verified, false);
   assert.doesNotMatch(JSON.stringify(report), /SECRET|DATABASE_URL|5432|6543|supabase.co/);
@@ -66,13 +69,42 @@ test('non-owner without bypass never obtains a positive catalog eligibility clai
     current_role: 'limited_writer', session_role: 'limited_writer',
     database_name: 'postgres', ledger_rls: true, ledger_force_rls: false,
     ledger_owner: false, ledger_insert_grant: true,
-    ledger_select_grant: true, bypass_rls: false
+    ledger_select_grant: true, bypass_rls: false,
+    public_grants_exist: false, public_column_grants_exist: false,
+    api_roles_with_dml_grants: 0
   }]);
   assert.equal(result.catalog_eligibility, 'NOT_ATTESTED');
   assert.equal(result.status, 'READONLY_IDENTITY_ONLY_NOT_RELEASE_GO');
 });
 
+test('RLS alone is insufficient when PUBLIC or Supabase API roles still have privileges', () => {
+  const base = {
+    current_role: 'synthetic_writer', session_role: 'synthetic_writer',
+    role_setting: 'none', database_name: 'postgres', ledger_rls: true,
+    ledger_force_rls: false, ledger_owner: true, bypass_rls: false,
+    ledger_insert_grant: true, ledger_select_grant: true,
+    public_grants_exist: false, public_column_grants_exist: false,
+    api_roles_with_dml_grants: 0
+  };
+  for (const extra of [
+    { public_grants_exist: true },
+    { public_column_grants_exist: true },
+    { api_roles_with_dml_grants: 1 },
+    { public_grants_exist: undefined },
+    { api_roles_with_dml_grants: undefined },
+    { ledger_rls: false }
+  ]) {
+    const report = publicReport([{ ...base, ...extra }]);
+    assert.equal(report.ledger_acl_protected, false);
+    assert.equal(report.catalog_eligibility, 'NOT_ATTESTED');
+    assert.equal(report.status, 'NO_GO_LEDGER_SCHEMA_NOT_PROTECTED');
+    assert.equal(report.live_render_pool_verified, false);
+  }
+});
+
 test('probe query never reads ledger rows or performs DML/DDL', () => {
+  assert.match(SQL, /aclexplode/);
+  assert.match(SQL, /api_roles_with_dml_grants/);
   assert.match(SQL, /FROM pg_catalog\.pg_class/);
   assert.doesNotMatch(SQL, /FROM public\.privacy_erasure_ledger/);
   assert.doesNotMatch(SQL, /^\s*(INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE)\b/gmi);
