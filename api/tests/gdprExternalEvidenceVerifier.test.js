@@ -93,6 +93,9 @@ test('stale, implausibly future, or invalid capture time cannot pass freshness g
     'GDPR_EXTERNAL_EVIDENCE_STALE');
   fails(() => check(bundle, { now: NOW - 3600000 }),
     'GDPR_EXTERNAL_EVIDENCE_STALE');
+  for (const maxAgeMs of [NaN, Infinity, -1, 0]) {
+    fails(() => check(bundle, { maxAgeMs }), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+  }
   fails(() => sealOffline({
     events: EVENTS, source: SOURCE, capturedAt: '2026-02-30T18:45:00Z'
   }, KEY), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
