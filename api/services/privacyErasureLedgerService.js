@@ -168,10 +168,10 @@ class PrivacyErasureLedgerService {
     return `"${String(identifier).replace(/"/g, '""')}"`;
   }
 
-  static async deleteByColumn(client, table, column, userId) {
+  // Schema-qualified DML is essential in offline GDPR replay: pg_temp can\n  // shadow an unqualified public relation even when metadata checks use public.\n  static async deleteByColumn(client, table, column, userId) {
     if (!(await this.tableHasColumn(client, table, column))) return 0;
     const result = await client.query(
-      `DELETE FROM ${this.quoteIdentifier(table)} WHERE ${this.quoteIdentifier(column)}::text = $1`,
+      `DELETE FROM public.${this.quoteIdentifier(table)} WHERE ${this.quoteIdentifier(column)}::text = $1`,
       [String(userId)]
     );
     return result.rowCount || 0;
@@ -195,7 +195,7 @@ class PrivacyErasureLedgerService {
       .map((row) => `${this.quoteIdentifier(row.column_name)}::text = $1`)
       .join(' OR ');
     const result = await client.query(
-      `DELETE FROM ${this.quoteIdentifier(table)} WHERE ${conditions}`,
+      `DELETE FROM public.${this.quoteIdentifier(table)} WHERE ${conditions}`,
       [String(userId)]
     );
     return result.rowCount || 0;
@@ -217,11 +217,11 @@ class PrivacyErasureLedgerService {
     const udtName = columnInfo.rows[0].udt_name;
     let sql;
     if (udtName === '_uuid') {
-      sql = `UPDATE ${this.quoteIdentifier(table)}
+      sql = `UPDATE public.${this.quoteIdentifier(table)}
              SET ${this.quoteIdentifier(column)} = array_remove(${this.quoteIdentifier(column)}, $1::uuid)
              WHERE $1::uuid = ANY(${this.quoteIdentifier(column)})`;
     } else if (['_text', '_varchar', '_bpchar'].includes(udtName)) {
-      sql = `UPDATE ${this.quoteIdentifier(table)}
+      sql = `UPDATE public.${this.quoteIdentifier(table)}
              SET ${this.quoteIdentifier(column)} = array_remove(${this.quoteIdentifier(column)}, $1::text)
              WHERE $1::text = ANY(${this.quoteIdentifier(column)}::text[])`;
     } else {
@@ -284,9 +284,9 @@ class PrivacyErasureLedgerService {
       await this.tableHasColumn(client, 'comunicazioni', 'id_utente')
     ) {
       const result = await client.query(
-        `DELETE FROM reazioni
+        `DELETE FROM public.reazioni
          WHERE comunicazione_id::text IN (
-           SELECT id::text FROM comunicazioni WHERE id_utente::text = $1
+           SELECT id::text FROM public.comunicazioni WHERE id_utente::text = $1
          )`,
         [String(userId)]
       );
@@ -343,7 +343,7 @@ class PrivacyErasureLedgerService {
 
     let userDeleted = 0;
     if (await this.tableHasColumn(client, 'users', 'id')) {
-      const result = await client.query('DELETE FROM users WHERE id::text = $1', [String(userId)]);
+      const result = await client.query('DELETE FROM public.users WHERE id::text = $1', [String(userId)]);
       userDeleted = result.rowCount || 0;
     }
 
@@ -364,7 +364,7 @@ class PrivacyErasureLedgerService {
     );
     if (userHasConsent.every(Boolean)) {
       await client.query(
-        `UPDATE users SET
+        `UPDATE public.users SET
            political_opinions_consent = false,
            political_opinions_consent_timestamp = NULL,
            political_opinions_consent_ip_address = NULL,
@@ -379,7 +379,7 @@ class PrivacyErasureLedgerService {
     const consentHasFlag = await this.tableHasColumn(client, 'user_consents', 'political_opinions_consent');
     if (consentHasUserId && consentHasFlag) {
       await client.query(
-        `UPDATE user_consents SET
+        `UPDATE public.user_consents SET
            political_opinions_consent = false,
            political_opinions_consent_timestamp = NULL,
            political_opinions_consent_ip_address = NULL,
