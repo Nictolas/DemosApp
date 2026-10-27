@@ -125,6 +125,25 @@ async function main() {
       WHERE n.nspname='public' AND c.relname='privacy_erasure_ledger'
     `),1,'GDPR ledger must be RLS-protected at first committed creation');
 
+    // #366 main-isolated guard is now integrated into the Draft outbox
+    // writer, capture and signed-import paths. Simulate an existing ledger
+    // restored with RLS accidentally disabled: NO SQL event can be written.
+    await pool.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED='false';
+    try {
+      await assert.rejects(Ledger.recordEvent(pool,syntheticEvent()),
+        error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      await assert.rejects(Ledger.captureCurrent(pool),
+        error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      await assert.rejects(Ledger.mergeCaptured(pool,[],{requirePreinstalled:true}),
+        error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_ledger'),0,
+        'RLS-off restore must not get a new ledger event');
+    } finally {
+      process.env.GDPR_ERASURE_OUTBOX_ENABLED='true';
+      await pool.query('ALTER TABLE public.privacy_erasure_ledger ENABLE ROW LEVEL SECURITY');
+    }
+
     const notInstalled=await PrivacyErasureOutboxWorker.status(pool);
     assert.equal(notInstalled.installed,false);
     assert.equal(notInstalled.ready,false);
@@ -186,6 +205,23 @@ async function main() {
       WHERE r.rolname IN ('anon','authenticated','service_role')
         AND has_table_privilege(r.rolname,'public.privacy_erasure_ledger','SELECT')
     `),3,'synthetic fixture must prove public ledger grants were applied');
+    // A real protected ledger can still have accidental table OR column
+    // grants from a restore. Neither normal outbox writes nor offline import
+    // may proceed until explicit maintenance removes these grants.
+    await assert.rejects(Ledger.recordEvent(pool,syntheticEvent()),
+      error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+    await assert.rejects(Ledger.captureCurrent(pool),
+      error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+    await assert.rejects(Ledger.mergeCaptured(pool,[],{requirePreinstalled:true}),
+      error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+    assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_ledger'),1,
+      'unsafe API grants must not create an event');
+    assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_delivery_outbox'),1,
+      'unsafe API grants must not enqueue an event');
+    await pool.query('GRANT SELECT (details) ON public.privacy_erasure_ledger TO PUBLIC');
+    await assert.rejects(Ledger.recordEvent(pool,syntheticEvent()),
+      error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+    await pool.query('REVOKE SELECT (details) ON public.privacy_erasure_ledger FROM PUBLIC');
     await Ledger.ensureTable(pool);
     assert.equal(await value(pool,`
       SELECT count(*)::int FROM pg_catalog.pg_roles r
