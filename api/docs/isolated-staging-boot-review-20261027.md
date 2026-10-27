@@ -1,118 +1,121 @@
-# DEMOS — staging unificato: controllo di avvio isolato (Draft, 27 ottobre 2026)
+# DEMOS — staging unico: prima fase di sola disponibilità, senza database (27 ottobre 2026)
 
-## Scopo e confini
+## Perché esiste
 
-Questa modifica introduce un **preflight sincrono e senza rete** destinato
-esclusivamente al **primo preflight HTTP di sola disponibilità** dello staging. È basata sul `main` corrente,
-non sul vecchio ramo Render `staging/functional-integration-v0`.
-Non configura, provisiona, migra, prova o modifica alcun database Render,
-Supabase, B2 o servizio di produzione. Il recovery GDPR #296 resta **NO-GO**.
+Il ramo storico `staging/functional-integration-v0` è troppo divergente da
+`main` e il suo bootstrap non attesta il progetto database di destinazione.
+Questa PR prepara una **modalità di prova limitata**, che non esegue app,
+route, SQL, migrazioni, job né chiamate ai provider. È basata sul `main`
+corrente ma resta Draft. Non modifica Render, Supabase, credenziali o dati.
 
-**Non avviare la nuova entrypoint su Render** finché le condizioni sottostanti
-non sono state verificate e il relativo cambiamento infrastrutturale
-separatamente autorizzato. Il test in GitHub Actions usa solo URL, ruoli
-e credenziali **fittizi**; non apre connessioni esterne.
+**La modalità non è uno staging GDPR funzionante.** Il recovery dell'issue
+[#296](https://github.com/Nictolas/DemosApp/issues/296) resta NO-GO.
 
-## Avvio previsto, soltanto dopo approvazione operativa
+## Profilo 1 — readiness-only, da autorizzare prima del deploy
 
-L'eventuale servizio da riutilizzare è Render `demos-functional-staging`
-(`srv-db52l1g473hc739ld250`), mantenendo **lo stesso servizio** ma non
-il ramo storico. La futura revisione dovrà partire dal codice aggiornato e
-usare esplicitamente `cd api && node staging/isolatedStagingServer.js`.
-Il comando di produzione `node index.js` non viene modificato da questa PR. **Questo comando di staging NON avvia DEMOS né accede a PostgreSQL**: espone soltanto `GET /__staging/health` con `gdprReady=false` e restituisce 404 per ogni altra rotta, comprese le API utente, le operazioni di cancellazione e le route admin. Il controllo restituisce 200 per disponibilità del *solo processo*, NON per disponibilità del DB o del recovery.
+L'eventuale candidato da riutilizzare è il servizio Render
+`demos-functional-staging` (`srv-db52l1g473hc739ld250`), con un futuro
+ramo basato su `main` e il comando esclusivo:
 
-Prima dell'avvio è necessario predisporre, con atti separatamente approvati:
+```sh
+cd api && node staging/isolatedStagingServer.js
+```
 
-- `NODE_ENV=production` per bloccare le route API di sviluppo/migrazione;
-  `DEMOS_DEPLOYMENT_SCOPE=isolated-staging` e
-  `DEMOS_STAGING_PROJECT_ID=fkeayjzvtuvzesljhjbc`.
-- `DEMOS_STAGING_CONFIRMATION=synthetic-only-no-prod-providers`.
-  Il valore **non è un token di sicurezza**: è soltanto un opt-in esplicito.
-- `DATABASE_URL` verso **Demos-Staging** su endpoint Supabase diretto
-  `db.<id>.supabase.co:5432/postgres` con ruolo
-  `demos_staging_runtime`, oppure pooler di Frankfurt `aws-N-eu-central-1.pooler.supabase.com`
-  e username `demos_staging_runtime.<id>`, con `<id>` uguale esattamente
-  al progetto staging. La password va custodita **soltanto nel provider**.
-  Nessuna connessione o credenziale di produzione può essere riutilizzata.
-- `DATABASE_POOL_MAX=2` (mai oltre 5);
-  `DATABASE_POOL_MIN=0`;
-  `PORT` numerica fra 1 e 65535 (preferibilmente quella assegnata da Render);
-  `PERFORMANCE_MONITOR_ENABLED=false`;
-  `ALLOW_DEV_API_SURFACE=false`.
-- Nessuna variabile aggiuntiva con token per Firebase/FCM, Axiom, B2,
-  Supabase API, SMTP, Redis, JWT, Google o altri provider. Il nuovo guard
-  usa una **allowlist stretta** anche per chiavi env non sensibili. Nuove
-  chiavi (comprese quelle injected da Render) richiedono review esplicita:
-  la mancata inclusione blocca l'avvio, non dà diritto a eludere il guard.
+Il normale entrypoint di produzione resta **inalterato**. Il comando sopra
+non carica `api/server.js` o `api/app.js`: apre soltanto il server HTTP
+nativo di Node e risponde 200 a `GET /__staging/health`, con corpo fisso
+`status=preflight-only`, `gdprReady=false`,
+`databaseConnected=false`, `externalProvidersConnected=false`.
+Ogni altra rotta e ogni metodo di scrittura rispondono **404**.
+Il 200 indica solo l'avvio del piccolo processo, non la disponibilità di
+DEMOS, del database o del recovery.
 
-Il pooler è condiviso fra progetti Supabase: controllare **sia**
-il nome utente qualificato dal project reference, **sia** la destinazione
-DNS. L'URI deve avere database `postgres`, host ammesso, password presente,
-porta 5432/6543 adeguata e nessun `options`, `search_path` o parametro
-di instradamento non previsto. Il processo non registra URI, password o
-username, nemmeno in caso di errore.
+La fase 1 richiede soltanto:
 
-Il controllo parte nel wrapper **prima di qualunque importazione** del backend.
-Nel profilo preliminare, `api/staging/isolatedStagingServer.js` avvia soltanto
-il modulo HTTP nativo di Node.js; non richiede `api/server.js`,
-`api/app.js`, le route, i pool DB, i job né Firebase. Inoltre, l'avvio
-dell'applicazione completa con `DEMOS_DEPLOYMENT_SCOPE=isolated-staging`
-è **espressamente vietato da `api/app.js`**, dopo l'ulteriore controllo env
-e **prima** dell'importazione di Express o dei servizi. Questo impedisce
-anche l'aggiramento accidentale tramite `node index.js`. La modifica non
-altera il normale `api/server.js` produttivo. Ogni `ENABLE_*` sconosciuto
-viene rifiutato dall'allowlist. La futura abilitazione delle API funzionali
-richiede nuova progettazione, prove e autorizzazione, non un semplice flag.
+- `NODE_ENV=production` (in modo che un futuro full app non abiliti route dev).
+- `DEMOS_DEPLOYMENT_SCOPE=isolated-staging`.
+- `DEMOS_STAGING_PROJECT_ID=fkeayjzvtuvzesljhjbc` (identificatore pubblico,
+  non una credenziale; usato ora per verificare la configurazione prevista).
+- `DEMOS_STAGING_RUNTIME_PROFILE=readiness-only`.
+- `DEMOS_STAGING_CONFIRMATION=synthetic-only-no-prod-providers` (opt-in,
+  **non** token di autenticazione).
+- `PORT` numerica fra 1 e 65535, preferibilmente assegnata da Render.
 
-## Condizioni ancora NON soddisfatte
+**Non impostare `DATABASE_URL` in fase 1.** Non impostare neanche
+`DATABASE_POOL_MAX`, `DATABASE_POOL_MIN`, `JWT_SECRET`, chiavi FCM,
+Firebase, Axiom, B2, Supabase, Redis, SMTP, Google o flag `ENABLE_*`.
+Il guard utilizza una allowlist stretta per qualsiasi env valorizzata,
+incluse chiavi inserite da Render: quelle non riconosciute bloccano l'avvio
+e richiedono review, non aggiramento del controllo.
 
-1. **Schema**: `Demos-Staging` attualmente ha zero tabelle `public`
-   e soltanto le quattro tabelle sintetiche sotto `op37_sondaggi_ci`.
-   Il ruolo `demos_staging_runtime` non è stato attestato né creato;
-   i test accettano solo la *forma* del relativo login. Non lanciare
-   migrazioni con il ruolo runtime. Richiede una procedura DDL separata,
-   un bootstrap minimo con dati sintetici e ledger protetto con RLS/ACL.
-2. **Isolamento esterno**: la validazione di URL/env non prova da sola
-   isolamento della rete, degli altri worker/cron, dei webhook,
-   dell'ingress Render pubblico, dei bucket/provider Axiom/B2,
-   delle notifiche push o delle route che chiamano servizi senza
-   credenziali. Servono inventario e attestazione di provider, egress
-   e allowlist ingress prima di qualunque deploy.
-3. **Identità SQL effettiva**: dopo il provisioning e solo nel nuovo
-   staging isolato e dopo l'autorizzazione a passare dalla modalità di sola
-   disponibilità a quella funzionale, testare attraverso **lo stesso pool del backend**
-   `current_user`, `session_user`, `current_database()`,
-   RLS e privilegi di tabella/colonna, con query ai soli cataloghi e
-   senza righe utente. Non inferire il writer dal SQL Editor Supabase.
-4. **Codice**: il vecchio ramo `staging/functional-integration-v0` è
-   divergente; non riutilizzarne ciecamente bootstrap e migrations, che
-   ammettono il solo database `demos_civic_staging_db` (Render).
-   Questa PR non modifica il vecchio ramo, non cambia `DATABASE_URL`
-   e non dichiara il backend di staging pronto alle prove E2E.
-5. **Rilascio**: rivedere la diff della PR e la CI sull'HEAD.
-   Un eventuale merge su `main` può attivare un auto-deploy Render
-   anche se il guard resta inattivo in produzione. Richiede il consenso
-   **specifico** al merge e un piano di verifica. L'attivazione su staging
-   richiede **un'altra autorizzazione**, con dettagli di servizio, ramo,
-   runtime, destinatario DB, job disabilitati, rollback e criteri GO/NO-GO.
+Il wrapper verifica le env prima di aprire persino il socket HTTP.
+`api/app.js` blocca espressamente **qualsiasi avvio dell'applicazione
+completa in modalità `isolated-staging`**, anche se qualcuno invoca
+per errore l'entrypoint storico. Il blocco si applica prima di importare
+Express, le route o i moduli che potrebbero aprire connessioni.
+La produzione senza quel flag segue esattamente il proprio percorso.
 
-## Invarianti verificati nei test sintetici
+### Controlli ancora richiesti prima di attivare anche la sola fase 1
 
-- Un URL pooler verso produzione o altro progetto/ruolo, una destinazione
-  diretta errata, un parametro d'override o password mancante ⇒ **reject**.
-- Env con credenziali provider, `JWT_SECRET`, `ENABLE_*`,
-  `DATABASE_POOL_MAX` troppo alto o debug endpoint abilitati ⇒ **reject**.
-- Un preflight negativo non apre neppure un socket HTTP e non legge il DB;
-  il processo non importa mai `../server`, neppure su preflight positivo.
-- Il server di sola disponibilità risponde 200 unicamente a
-  `GET /__staging/health` con `gdprReady=false`,
-  `databaseConnected=false` ed `externalProvidersConnected=false`.
-  Ogni altra richiesta (incluse route API e metodi di scrittura) riceve 404.
-- Un avvio dell'intera app con `isolated-staging` viene rifiutato
-  **prima** di caricare Express, pool, Firebase e job.
-- Il ramo normale di produzione non viene alterato da questa protezione
-  senza la selezione esplicita `isolated-staging`.
+1. Approvare **uno specifico piano Render** (servizio, ramo, start command,
+   env consentite, ingress, rollback e health check). L'eventuale merge della
+   PR richiede autorizzazione separata perché `main` effettua auto-deploy.
+2. Verificare e isolare ingress e reti provider, dipendenze e webhook esterni.
+   La allowlist delle env non dimostra l'isolamento dell'infrastruttura.
+3. Verificare che il servizio non sia utilizzato da consumer di produzione e
+   che il vecchio ramo possa essere ritirato senza interrompere prove.
+4. Testare le sole risposte `/__staging/health` e 404 su route applicative
+   e confermare che non siano state aperte connessioni ai provider.
 
-**Non considerare questi test prova di isolamento reale.**
-Nessun merge, DDL/GRANT, scrittura su Supabase, cambio Render, secret read,
-ripristino o dismissione di staging è incluso nella presente modifica.
+## Profilo 2 — staging funzionale e GDPR: NON implementato né autorizzato
+
+La funzione pura `assertStagingDatabaseTarget(url)` è già testata con URL
+**inventati** ma **non** viene invocata dal processo readiness-only. Verifica
+solo la forma di un futuro URL verso il progetto Supabase staging:
+endpoint diretto `db.<project-ref>.supabase.co` o pooler Frankfurt con
+username qualificato `demos_staging_runtime.<project-ref>`, database
+`postgres`, porta ammessa e parametri SQL limitati.
+
+Questa funzione NON dimostra la destinazione effettiva dopo la connessione,
+l'esistenza del ruolo, RLS, privilegi SQL, identità dei provider o assenza
+di side effect. Non riutilizzare la password o il ruolo amministrativo
+della produzione per superare il controllo.
+
+Prima della futura fase 2 serviranno:
+
+- Approvazione di un database staging durevole, indipendente e popolato
+  **soltanto con dati inventati**. Attualmente `Demos-Staging` contiene
+  zero tabelle `public` e quattro tabelle private `op37_sondaggi_ci`.
+- Migrazioni mirate e ledger `privacy_erasure_ledger` con protezione RLS,
+  ACL e ruoli dedicati; piano di DDL/GRANT separatamente autorizzato.
+- Attestazione effettiva, tramite il pool del backend staging, di
+  `current_user`, `session_user`, `current_database()`, RLS/ACL
+  dai soli cataloghi, senza leggere eventi GDPR o righe degli utenti.
+- Audit di moduli/cron/webhook, ingress/egress, notifiche e provider esterni
+  con criterio fail-closed e piano di rollback.
+- Nuova modifica al codice, test e autorizzazione specifica per abilitare
+  solo le route funzionali desiderate; **non basta cambiare un flag**.
+- Quarantena e verifica indipendente B2 prima di qualunque prova di recovery.
+
+Il vecchio Render PostgreSQL Free `demos-civic-staging-db` riporta
+`expiresAt=2026-11-08T17:38:42Z` e non è una base durevole. Non lanciarvi
+restore o migrazioni GDPR, né puntare il vecchio bootstrap `stagingMigrate`
+direttamente a Supabase: quel codice verifica il nome del database Render,
+non il progetto Supabase effettivo.
+
+## Evidenze di questa PR
+
+- Test Node 22 con dati e URI esclusivamente sintetici, nessun segreto reale.
+- Rifiuto della **stessa URL staging valida** quando viene inserita in
+  `DATABASE_URL` nel profilo readiness-only: zero credenziali DB necessarie.
+- Rifiuto di env/provider sconosciuti, credenziali produzione e porte errate.
+- Controllo futuro SQL target separato e senza rete, con casi diretti/pooler
+  approvati o respinti.
+- Verifica HTTP in loopback che `/__staging/health` è l'unica rotta
+  disponibile; API utente/amministratore e POST restituiscono 404.
+- Il full app in `isolated-staging` è bloccato prima di importare Express,
+  PostgreSQL, Firebase o altri servizi.
+- **I test non attestano l'isolamento reale di Render/Supabase.**
+
+Nessun merge, deploy, modifica infrastrutturale, DDL/GRANT, accesso a segreti,
+copia di dati reali, restore o dismissione di staging autorizzati da questa PR.
