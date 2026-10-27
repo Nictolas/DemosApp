@@ -739,4 +739,71 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+
+  test('replay refuses equal-timestamp grant/revoke ambiguity before any account or opinion deletion',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const revokedId='synthetic-timestamp-tie';
+    const deletedId='synthetic-account-before-tie';
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await pool.query(`
+        CREATE TABLE public.users (
+          id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+        CREATE TABLE public.opinioni_risposte (user_id text, answer text);
+        CREATE TABLE public.user_consents (
+          user_id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+      `);
+      await pool.query('INSERT INTO public.users(id,political_opinions_consent) VALUES ($1,true),($2,true)',
+        [revokedId,deletedId]);
+      await pool.query('INSERT INTO public.opinioni_risposte(user_id,answer) VALUES ($1,$3),($2,$3)',
+        [revokedId,deletedId,'synthetic opinion']);
+      await pool.query('INSERT INTO public.user_consents(user_id,political_opinions_consent) VALUES ($1,true)',
+        [revokedId]);
+      await Ledger.ensureTable(pool);
+      const tie='2026-10-27T08:00:00.123456Z';
+      await pool.query(`
+        INSERT INTO public.privacy_erasure_ledger
+          (event_key,subject_user_id,event_type,occurred_at,details)
+        VALUES
+          ('synthetic-tie-revoke',$1,'political_consent_revoked',$3::timestamptz,'{}'::jsonb),
+          ('synthetic-tie-grant',$1,'political_consent_granted',$3::timestamptz,'{}'::jsonb),
+          ('synthetic-delete',$2,'account_deleted',$3::timestamptz,'{}'::jsonb)
+      `,[revokedId,deletedId,tie]);
+      await assert.rejects(Ledger.applyCurrentPrivacyState(pool),
+        e=>e?.code==='GDPR_LEDGER_AMBIGUOUS_CONSENT_ORDER',
+        'random event keys cannot establish the order of contradictory consent events');
+      assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM public.users')).rows[0].n,2,
+        'even a preceding account deletion must not partially execute');
+      assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM public.opinioni_risposte')).rows[0].n,2,
+        'no opinion may be changed before the ambiguity gate');
+      assert.equal((await pool.query('SELECT political_opinions_consent AS consent FROM public.user_consents WHERE user_id=$1',
+        [revokedId])).rows[0].consent,true);
+
+      // With the conflicting grant removed, the same synthetic replay can run.
+      await pool.query("DELETE FROM public.privacy_erasure_ledger WHERE event_key='synthetic-tie-grant'");
+      const result=await Ledger.applyCurrentPrivacyState(pool);
+      assert.equal(result.accountsRemoved,1);
+      assert.equal(result.revocationsReapplied,1);
+      assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM public.users WHERE id=$1',[deletedId])).rows[0].n,0);
+      assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM public.opinioni_risposte')).rows[0].n,0);
+      assert.equal((await pool.query('SELECT political_opinions_consent AS consent FROM public.user_consents WHERE user_id=$1',
+        [revokedId])).rows[0].consent,false);
+    } finally {
+      await pool.end();
+    }
+  });
+
 }
