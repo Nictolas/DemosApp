@@ -52,6 +52,32 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       await Ledger.ensureTable(pool);
       assert.equal(await queryPrivileges(),0,'idempotent bootstrap must strip inappropriate grants');
 
+      // A table-level-only ACL check misses PostgreSQL column grants. Such
+      // grants must fail closed even while a zero-policy RLS currently masks
+      // reads, because a future restored policy could permit access.
+      await pool.query('GRANT SELECT (subject_user_id) ON public.privacy_erasure_ledger TO anon');
+      const columnGrant=await pool.query(`
+        SELECT
+          has_table_privilege('anon','public.privacy_erasure_ledger','SELECT') AS table_select,
+          has_any_column_privilege('anon','public.privacy_erasure_ledger','SELECT') AS column_select
+      `);
+      assert.deepEqual(columnGrant.rows[0],{table_select:false,column_select:true});
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'a column-only anon grant must fail closed');
+      await Ledger.ensureTable(pool);
+      assert.equal(await queryPrivileges(),0,'reprovisioning must revoke column-level anon grants');
+      await pool.query('GRANT SELECT (details) ON public.privacy_erasure_ledger TO PUBLIC');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'PUBLIC column-level grants must fail closed');
+      await Ledger.ensureTable(pool);
+      await pool.query('GRANT UPDATE (details) ON public.privacy_erasure_ledger TO authenticated');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'authenticated column-only UPDATE must fail closed');
+      await Ledger.ensureTable(pool);
+
       // A restored or manually altered table may exist but lack the
       // protection needed to accept fresh consent/deletion history.
       await pool.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
@@ -83,6 +109,29 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         WHERE oid='public.privacy_erasure_ledger'::regclass
       `);
       assert.equal(owner.rows[0].rls,true);
+      // Model an independent backend SQL role on the same disposable PG17.
+      // A table grant is insufficient if RLS has zero policies; no production
+      // role identity or permission can be inferred from owner-only CI.
+      await pool.query('CREATE ROLE gdpr_nonowner_ci NOLOGIN NOBYPASSRLS');
+      await pool.query('GRANT USAGE ON SCHEMA public TO gdpr_nonowner_ci');
+      await pool.query('GRANT SELECT, INSERT ON public.privacy_erasure_ledger TO gdpr_nonowner_ci');
+      const nonowner=await pool.connect();
+      try {
+        await nonowner.query('SET ROLE gdpr_nonowner_ci');
+        const identity=await nonowner.query('SELECT current_user AS current_role');
+        assert.equal(identity.rows[0].current_role,'gdpr_nonowner_ci');
+        await assert.rejects(Ledger.recordEvent(nonowner,fixture),
+          error=>error?.code==='42501',
+          'non-owner with INSERT grant but no RLS policy must be denied');
+      } finally {
+        await nonowner.query('RESET ROLE');
+        nonowner.release();
+      }
+      assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger')).rows[0].n,1,
+        'non-owner rejection must not create another event');
+      await pool.query('REVOKE ALL ON public.privacy_erasure_ledger FROM gdpr_nonowner_ci');
+      await pool.query('REVOKE USAGE ON SCHEMA public FROM gdpr_nonowner_ci');
+      await pool.query('DROP ROLE gdpr_nonowner_ci');
     } finally {
       await pool.end();
     }
