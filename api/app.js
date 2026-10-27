@@ -1,4 +1,10 @@
 require('dotenv').config();
+// Validate the isolated staging target BEFORE importing route modules, DB
+// pools, Firebase or jobs. Production has no change without this explicit mode.
+const isolatedStaging = process.env.DEMOS_DEPLOYMENT_SCOPE === 'isolated-staging';
+if (isolatedStaging) {
+  require('./staging/isolatedStagingGuard').assertIsolatedStagingEnvironment(process.env);
+}
 const express = require('express');
 require('express-async-errors'); // Cattura errori/rejection da route async e li passa al middleware di errore (evita crash)
 const cors = require('cors');
@@ -532,12 +538,13 @@ app.use((error, req, res, next) => {
   }
 });
 
-// Avvia sistema di audit logging
-auditManager.start();
+// A staging smoke-test must not run periodic audit delivery.
+if (!isolatedStaging) auditManager.start();
 
 // Avvia sistema di monitoraggio performance
 const performanceMonitor = require('./services/performanceMonitor');
-const performanceMonitorEnabled = process.env.PERFORMANCE_MONITOR_ENABLED !== 'false';
+const performanceMonitorEnabled = !isolatedStaging &&
+  process.env.PERFORMANCE_MONITOR_ENABLED !== 'false';
 const defaultPerformanceMonitorIntervalMs = process.env.NODE_ENV === 'production' ? 120000 : 30000;
 const performanceMonitorIntervalMs = Math.max(
   15000,
@@ -551,7 +558,7 @@ if (performanceMonitorEnabled) {
 
 // Avvia sistema di ottimizzazione performance
 const performanceOptimizer = require('./services/performanceOptimizer');
-performanceOptimizer.start();
+if (!isolatedStaging) performanceOptimizer.start();
 
 /**
  * Job in background e impatto su Supabase (connessioni, query ripetute):
