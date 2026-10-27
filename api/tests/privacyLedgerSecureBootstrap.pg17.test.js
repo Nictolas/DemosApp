@@ -232,4 +232,79 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       await pool.end();
     }
   });
+
+  test('GDPR capture, import and replay ignore a shadow ledger on the session search_path',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const revokeId='synthetic-public-revocation';
+    const keepId='synthetic-shadow-must-survive';
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await pool.query(`
+        CREATE TABLE public.users (
+          id text PRIMARY KEY,
+          political_opinions_consent boolean NOT NULL,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+        CREATE TABLE public.opinioni_risposte (user_id text NOT NULL, answer text);
+      `);
+      await pool.query('INSERT INTO public.users(id,political_opinions_consent) VALUES ($1,true),($2,true)',[revokeId,keepId]);
+      await pool.query('INSERT INTO public.opinioni_risposte(user_id,answer) VALUES ($1,\'revoke\'),($2,\'keep\')',[revokeId,keepId]);
+      await Ledger.ensureTable(pool);
+      await Ledger.recordEvent(pool,{
+        userId:revokeId,eventType:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+        details:{source:'public-synthetic-ledger'}
+      });
+
+      const client=await pool.connect();
+      try {
+        // PostgreSQL resolves an unqualified relation through pg_temp first.
+        // A stale restore session must never use that shadow for GDPR replay.
+        await client.query('CREATE TEMP TABLE privacy_erasure_ledger (LIKE public.privacy_erasure_ledger INCLUDING ALL)');
+        await client.query('SET search_path TO pg_temp, public');
+        await client.query(`
+          INSERT INTO privacy_erasure_ledger(event_key,subject_user_id,event_type,details)
+          VALUES ('forged-temp-event',$1,'account_deleted','{}'::jsonb)
+        `,[keepId]);
+
+        const captured=await Ledger.captureCurrent(client);
+        assert.equal(captured.length,1,'capture must read the protected public ledger');
+        assert.equal(captured[0].subject_user_id,revokeId);
+        assert.equal(captured[0].event_type,Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED);
+
+        const imported=await Ledger.mergeCaptured(client,[{
+          event_key:'synthetic-imported-event',
+          subject_user_id:keepId,
+          event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED,
+          occurred_at:new Date().toISOString(),
+          details:{source:'synthetic-import'}
+        }]);
+        assert.equal(imported,1);
+        assert.equal((await client.query('SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger')).rows[0].n,2,
+          'import must write to public ledger, not the temporary shadow');
+        assert.equal((await client.query('SELECT COUNT(*)::int AS n FROM pg_temp.privacy_erasure_ledger')).rows[0].n,1,
+          'the forged temporary event must remain irrelevant');
+
+        const replay=await Ledger.applyCurrentPrivacyState(client);
+        assert.equal(replay.accountsRemoved,0,'a forged temp account deletion must not execute');
+        assert.equal(replay.revocationsReapplied,1);
+        assert.equal(replay.opinionsRemoved,1);
+        const users=await client.query('SELECT id,political_opinions_consent AS consent FROM public.users ORDER BY id');
+        assert.deepEqual(users.rows,[
+          {id:revokeId,consent:false},
+          {id:keepId,consent:true}
+        ].sort((a,b)=>a.id.localeCompare(b.id)));
+        const opinions=await client.query('SELECT user_id FROM public.opinioni_risposte');
+        assert.deepEqual(opinions.rows,[{user_id:keepId}]);
+      } finally {
+        await client.query('RESET search_path');
+        client.release();
+      }
+    } finally {
+      await pool.end();
+    }
+  });
 }
