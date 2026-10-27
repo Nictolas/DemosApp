@@ -377,6 +377,10 @@ class PrivacyErasureLedgerService {
       ['political_opinion_notifications', 'subject_user_id'],
       ['political_selections', 'user_id'],
       ['political_selections', 'selected_user_id'],
+      // Do not rely solely on restored FK ON DELETE CASCADE constraints.
+      // A partial/legacy restore may have the table but lack its FK.
+      ['user_representatives', 'user_id'],
+      ['user_consents', 'user_id'],
       ['user_political_territories', 'user_id'],
       ['user_electoral_unit_memberships', 'user_id'],
       ['riconoscimenti', 'user_id'],
