@@ -59,14 +59,25 @@ class PrivacyErasureLedgerService {
             COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))
           ) acl WHERE acl.grantee = 0
         ) AS public_grants_exist,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_attribute a
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+            COALESCE(a.attacl, '{}'::aclitem[])
+          ) acl
+          WHERE a.attrelid = c.oid
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+            AND acl.grantee = 0
+        ) AS public_column_grants_exist,
         (
           SELECT COUNT(*)::integer
           FROM pg_catalog.pg_roles r
           WHERE r.rolname IN ('anon', 'authenticated', 'service_role')
             AND (
-              pg_catalog.has_table_privilege(r.rolname, c.oid, 'SELECT') OR
-              pg_catalog.has_table_privilege(r.rolname, c.oid, 'INSERT') OR
-              pg_catalog.has_table_privilege(r.rolname, c.oid, 'UPDATE') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'SELECT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'INSERT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'UPDATE') OR
               pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE')
             )
         ) AS api_roles_with_dml_grants
@@ -76,6 +87,7 @@ class PrivacyErasureLedgerService {
     const state = result.rows?.[0];
     if (state?.rls_enabled !== true ||
         state?.public_grants_exist !== false ||
+        state?.public_column_grants_exist !== false ||
         state?.api_roles_with_dml_grants !== 0) {
       const error = new Error('GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
       error.code = 'GDPR_LEDGER_SCHEMA_NOT_PROTECTED';
@@ -95,7 +107,7 @@ class PrivacyErasureLedgerService {
     // Missing relation fails closed (42P01), without DDL during deletion or
     // political-consent revocation and without creating an unprotected table.
     // Even a pre-existing ledger must be rejected if restored with RLS off,
-    // unexpected PUBLIC grants or exposed Supabase API-role permissions.
+    // unexpected table/column PUBLIC grants or exposed API-role permissions.
     await this.assertProtectedLedger(client);
     const eventKey = crypto.randomUUID();
     const result = await client.query(
