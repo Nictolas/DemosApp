@@ -340,6 +340,41 @@ async function main() {
         ...imported, details:{source:'synthetic-shadow-import'}
       }],{requirePreinstalled:true}),0,
       'an identical event key must remain an idempotent replay');
+      // Preflight ALL captured rows before SQL. A malformed second record
+      // cannot leave the first record durable when an operator directly
+      // invokes mergeCaptured without BEGIN. Nothing uses real GDPR data.
+      const circular={source:'synthetic-circular'};
+      circular.self=circular;
+      const invalidBatchRows=[
+        {...imported,event_key:n(),subject_user_id:null},
+        {...imported,event_key:n(),subject_user_id:'   '},
+        {...imported,event_key:n(),event_type:'invalid-type'},
+        {...imported,event_key:n(),occurred_at:null},
+        {...imported,event_key:n(),occurred_at:new Date()},
+        {...imported,event_key:n(),occurred_at:'2026-02-30T01:02:03.000000Z'},
+        {...imported,event_key:n(),occurred_at:'2026-10-26T03:00:00.123456+01:00'},
+        {...imported,event_key:n(),details:{invalid:1n}},
+        {...imported,event_key:n(),details:circular},
+        {...imported,event_key:n(),details:'not-a-json-object'},
+        {...imported,event_key:n(),details:[1,2,3]},
+        {...imported,event_key:n(),details:{toJSON(){return undefined;}}},
+        imported
+      ];
+      for(const invalidRow of invalidBatchRows) {
+        const validFirst={...imported,event_key:n(),
+          details:{source:'synthetic-preflight-first'}};
+        await assert.rejects(
+          Ledger.mergeCaptured(writerShadow,[validFirst,invalidRow],{
+            requirePreinstalled:true
+          }),
+          error=>error?.code==='GDPR_LEDGER_INVALID_CAPTURED_EVENT',
+          'invalid later event must fail before writing earlier valid event'
+        );
+        assert.equal(await value(writerShadow,
+          'SELECT count(*)::int FROM public.privacy_erasure_ledger WHERE event_key=$1',
+          [validFirst.event_key]),0,
+        'malformed batch may not insert its first event');
+      }
 
       // Same UUID with different personal subject, consent action, precise
       // timestamp or JSON payload is a GDPR integrity conflict, never a
