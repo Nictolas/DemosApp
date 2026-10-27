@@ -47,10 +47,25 @@ test('empty catalog is always NO-GO, not interpreted as missing user data', () =
   assert.equal(report.live_render_pool_verified, false);
 });
 
+test('missing ledger still reports independent SQL session identity without false readiness', () => {
+  const report = publicReport([{
+    current_role: 'synthetic_staging_writer', session_role: 'synthetic_staging_writer',
+    role_setting: 'none', database_name: 'postgres', ledger_present: false,
+    ledger_rls: null, ledger_insert_grant: null, ledger_select_grant: null
+  }]);
+  assert.equal(report.current_role, 'synthetic_staging_writer');
+  assert.equal(report.session_role, 'synthetic_staging_writer');
+  assert.equal(report.sql_writer_attested, true);
+  assert.equal(report.ledger_present, false);
+  assert.equal(report.catalog_eligibility, 'NOT_ATTESTED');
+  assert.equal(report.status, 'NO_GO_MISSING_LEDGER');
+  assert.equal(report.live_render_pool_verified, false);
+});
+
 test('existing ledger emits only a cautious, redacted readonly identity report', () => {
   const report = publicReport([{
     current_role: 'synthetic_writer', session_role: 'synthetic_writer',
-    role_setting: 'none', database_name: 'postgres', ledger_rls: true,
+    role_setting: 'none', database_name: 'postgres', ledger_present: true, ledger_rls: true,
     ledger_force_rls: false, ledger_owner: true,
     ledger_insert_grant: true, ledger_select_grant: true, bypass_rls: false,
     public_grants_exist: false, public_column_grants_exist: false,
@@ -67,7 +82,7 @@ test('existing ledger emits only a cautious, redacted readonly identity report',
 test('non-owner without bypass never obtains a positive catalog eligibility claim', () => {
   const result = publicReport([{
     current_role: 'limited_writer', session_role: 'limited_writer',
-    database_name: 'postgres', ledger_rls: true, ledger_force_rls: false,
+    database_name: 'postgres', ledger_present: true, ledger_rls: true, ledger_force_rls: false,
     ledger_owner: false, ledger_insert_grant: true,
     ledger_select_grant: true, bypass_rls: false,
     public_grants_exist: false, public_column_grants_exist: false,
@@ -80,7 +95,7 @@ test('non-owner without bypass never obtains a positive catalog eligibility clai
 test('RLS alone is insufficient when PUBLIC or Supabase API roles still have privileges', () => {
   const base = {
     current_role: 'synthetic_writer', session_role: 'synthetic_writer',
-    role_setting: 'none', database_name: 'postgres', ledger_rls: true,
+    role_setting: 'none', database_name: 'postgres', ledger_present: true, ledger_rls: true,
     ledger_force_rls: false, ledger_owner: true, bypass_rls: false,
     ledger_insert_grant: true, ledger_select_grant: true,
     public_grants_exist: false, public_column_grants_exist: false,
@@ -105,7 +120,8 @@ test('RLS alone is insufficient when PUBLIC or Supabase API roles still have pri
 test('probe query never reads ledger rows or performs DML/DDL', () => {
   assert.match(SQL, /aclexplode/);
   assert.match(SQL, /api_roles_with_dml_grants/);
-  assert.match(SQL, /FROM pg_catalog\.pg_class/);
+  assert.match(SQL, /FROM pg_catalog\\.pg_class/);
+  assert.match(SQL, /LEFT JOIN/);
   assert.doesNotMatch(SQL, /FROM public\.privacy_erasure_ledger/);
   assert.doesNotMatch(SQL, /^\s*(INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE)\b/gmi);
 });
