@@ -8,6 +8,7 @@ on:
       - 'api/routes/user/political-opinions-consent.js'
       - 'api/tests/politicalSelectionRevocationErasure.test.js'
       - 'api/scripts/verify-political-selection-erasure-ci.js'
+      - 'api/scripts/verify-gdpr-writer-pool-ci.js'
       - 'api/scripts/attest-gdpr-writer-readonly.js'
       - 'api/tests/gdprWriterReadonlyAttestation.test.js'
       - '.github/workflows/political-selection-erasure-ci.yml'
@@ -45,6 +46,7 @@ jobs:
       - name: Unit check schema-aware erasure, scope and consent
         run: |
           node --check api/scripts/verify-political-selection-erasure-ci.js
+          node --check api/scripts/verify-gdpr-writer-pool-ci.js
           node --check api/scripts/attest-gdpr-writer-readonly.js
           node --test api/tests/gdprWriterReadonlyAttestation.test.js
           node --test --test-concurrency=1 api/tests/politicalSelectionRevocationErasure.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalConsentAtomic.smoke.test.js
@@ -58,3 +60,13 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic-only
         run: node api/scripts/verify-political-selection-erasure-ci.js
+      - name: Backend database pool writer-role RLS and rollback on local PG17
+        env:
+          GITHUB_ACTIONS: 'true'
+          GDPR_WRITER_POOL_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: political_selection_erasure_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-gdpr-writer-pool-ci.js
