@@ -9,19 +9,24 @@ try {
   process.exit(1);
 }
 
-// Inizializza Firebase Admin all'avvio per verificare la configurazione
-try {
-  console.log('🔥 Inizializzazione Firebase Admin all\'avvio...');
-  const { initializeFirebaseAdmin } = require('./services/firebaseAdmin');
-  const admin = initializeFirebaseAdmin();
-  if (admin) {
-    console.log('✅ Firebase Admin inizializzato correttamente all\'avvio');
-  } else {
-    console.warn('⚠️ Firebase Admin non inizializzato - verifica le variabili d\'ambiente su Render.com');
+// Isolated staging is a synthetic-only environment: do not even initialize
+// Firebase Admin, regardless of implicit ADC or later environment changes.
+// Ordinary production startup remains unchanged.
+if (process.env.DEMOS_DEPLOYMENT_SCOPE !== 'isolated-staging') {
+  // Inizializza Firebase Admin all'avvio per verificare la configurazione
+  try {
+    console.log('🔥 Inizializzazione Firebase Admin all\'avvio...');
+    const { initializeFirebaseAdmin } = require('./services/firebaseAdmin');
+    const admin = initializeFirebaseAdmin();
+    if (admin) {
+      console.log('✅ Firebase Admin inizializzato correttamente all\'avvio');
+    } else {
+      console.warn('⚠️ Firebase Admin non inizializzato - verifica le variabili d\'ambiente su Render.com');
+    }
+  } catch (error) {
+    console.error('❌ Errore nell\'inizializzazione Firebase Admin all\'avvio:', error.message);
+    console.error('❌ Stack:', error.stack);
   }
-} catch (error) {
-  console.error('❌ Errore nell\'inizializzazione Firebase Admin all\'avvio:', error.message);
-  console.error('❌ Stack:', error.stack);
 }
 
 const PORT = process.env.PORT || 3001;
