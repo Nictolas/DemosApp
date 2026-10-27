@@ -103,6 +103,20 @@ test('PG17 transactional event + outbox never loses #371 null-details protection
     `)).rows[0];
     assert.deepEqual(security, {rls: true, forced: true, exposed_api_roles: 0});
 
+    // Even a preexisting table must not be used when FORCE RLS is removed.
+    await admin.query('ALTER TABLE public.privacy_erasure_delivery_outbox NO FORCE ROW LEVEL SECURITY');
+    await assert.rejects(Ledger.recordEvent(admin, event()),
+      error => error.code === 'GDPR_OUTBOX_SCHEMA_NOT_PROTECTED');
+    await admin.query('ALTER TABLE public.privacy_erasure_delivery_outbox FORCE ROW LEVEL SECURITY');
+    assert.deepEqual(await counts(admin), {ledger: 0, outbox: 0});
+
+    // Supabase-style API role grants are a hard failure, not an acceptable shortcut.
+    await admin.query('GRANT SELECT ON public.privacy_erasure_delivery_outbox TO anon');
+    await assert.rejects(Ledger.recordEvent(admin, event()),
+      error => error.code === 'GDPR_OUTBOX_SCHEMA_NOT_PROTECTED');
+    await admin.query('REVOKE SELECT ON public.privacy_erasure_delivery_outbox FROM anon');
+    assert.deepEqual(await counts(admin), {ledger: 0, outbox: 0});
+
     // App failure/cancellation rolls back both tables, never just one.
     const tx = await admin.connect();
     try {
