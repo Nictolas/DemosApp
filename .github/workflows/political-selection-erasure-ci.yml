@@ -11,6 +11,8 @@ on:
       - 'api/scripts/verify-gdpr-writer-pool-ci.js'
       - 'api/scripts/attest-gdpr-writer-readonly.js'
       - 'api/tests/gdprWriterReadonlyAttestation.test.js'
+      - 'api/services/gdprExternalEvidenceVerifier.js'
+      - 'api/tests/gdprExternalEvidenceVerifier.test.js'
       - '.github/workflows/political-selection-erasure-ci.yml'
 
 permissions:
@@ -49,6 +51,8 @@ jobs:
           node --check api/scripts/verify-gdpr-writer-pool-ci.js
           node --check api/scripts/attest-gdpr-writer-readonly.js
           node --test api/tests/gdprWriterReadonlyAttestation.test.js
+          node --check api/services/gdprExternalEvidenceVerifier.js
+          node --test api/tests/gdprExternalEvidenceVerifier.test.js
           node --test --test-concurrency=1 api/tests/politicalSelectionRevocationErasure.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/politicalConsentAtomic.smoke.test.js
       - name: Real PostgreSQL 17 restore and erase political selections
         env:
