@@ -194,3 +194,64 @@ test('readiness server returns only fixed no-data health and denies application 
   assert.equal(mutation.status,404);
   assert.deepEqual(await mutation.json(),{error:'not_found'});
 });
+
+
+test('real credentialless CLI serves only readiness on a TCP port and stops cleanly', async t => {
+  const net = require('node:net');
+  const { spawn } = require('node:child_process');
+  const reservation = net.createServer();
+  await new Promise((resolve, reject) => {
+    reservation.once('error', reject);
+    reservation.listen(0, '127.0.0.1', resolve);
+  });
+  const port = String(reservation.address().port);
+  await new Promise((resolve, reject) =>
+    reservation.close(err => err ? reject(err) : resolve()));
+
+  // Never inherit CI or provider credentials into a child process.
+  const env = { ...baseEnv(), PORT: port };
+  const child = spawn(process.execPath, ['staging/isolatedStagingServer.js'], {
+    cwd: path.resolve(__dirname, '..'), env, stdio: ['ignore', 'pipe', 'pipe']
+  });
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', part => { stderr += part.slice(0, 1500); });
+  const exited = new Promise(resolve => child.once('exit',
+    (code, signal) => resolve({ code, signal })));
+  t.after(async () => {
+    if (child.exitCode === null && child.signalCode === null)
+      child.kill('SIGTERM');
+    await exited;
+  });
+
+  const base = 'http://127.0.0.1:' + port;
+  let health = null;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    if (child.exitCode !== null) break;
+    try {
+      health = await fetch(base + '/__staging/health', {
+        signal: AbortSignal.timeout(300)
+      });
+      break;
+    } catch {
+      await new Promise(resolve => setTimeout(resolve, 40));
+    }
+  }
+  assert.ok(health, 'entrypoint must serve the readiness route; ' +
+    (stderr.includes('DEMOS_STAGING_BOOT_REJECTED') ? 'boot-rejected' : 'no-response'));
+  assert.equal(health.status, 200);
+  assert.equal(health.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await health.json(), {
+    status: 'preflight-only', gdprReady: false,
+    databaseConnected: false, externalProvidersConnected: false
+  });
+  for (const [endpoint, method] of [
+    ['/api/auth/login', 'GET'],
+    ['/api/user/delete-account', 'GET'],
+    ['/api/sondaggi', 'POST']
+  ]) {
+    const denied = await fetch(base + endpoint, { method });
+    assert.equal(denied.status, 404, endpoint);
+    assert.deepEqual(await denied.json(), { error: 'not_found' }, endpoint);
+  }
+});
