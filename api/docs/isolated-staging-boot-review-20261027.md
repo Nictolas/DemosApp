@@ -3,7 +3,7 @@
 ## Scopo e confini
 
 Questa modifica introduce un **preflight sincrono e senza rete** destinato
-esclusivamente al futuro staging funzionale. È basata sul `main` corrente,
+esclusivamente al **primo preflight HTTP di sola disponibilità** dello staging. È basata sul `main` corrente,
 non sul vecchio ramo Render `staging/functional-integration-v0`.
 Non configura, provisiona, migra, prova o modifica alcun database Render,
 Supabase, B2 o servizio di produzione. Il recovery GDPR #296 resta **NO-GO**.
@@ -19,7 +19,7 @@ L'eventuale servizio da riutilizzare è Render `demos-functional-staging`
 (`srv-db52l1g473hc739ld250`), mantenendo **lo stesso servizio** ma non
 il ramo storico. La futura revisione dovrà partire dal codice aggiornato e
 usare esplicitamente `cd api && node staging/isolatedStagingServer.js`.
-Il comando di produzione `node index.js` non viene modificato da questa PR.
+Il comando di produzione `node index.js` non viene modificato da questa PR. **Questo comando di staging NON avvia DEMOS né accede a PostgreSQL**: espone soltanto `GET /__staging/health` con `gdprReady=false` e restituisce 404 per ogni altra rotta, comprese le API utente, le operazioni di cancellazione e le route admin. Il controllo restituisce 200 per disponibilità del *solo processo*, NON per disponibilità del DB o del recovery.
 
 Prima dell'avvio è necessario predisporre, con atti separatamente approvati:
 
@@ -36,6 +36,7 @@ Prima dell'avvio è necessario predisporre, con atti separatamente approvati:
   Nessuna connessione o credenziale di produzione può essere riutilizzata.
 - `DATABASE_POOL_MAX=2` (mai oltre 5);
   `DATABASE_POOL_MIN=0`;
+  `PORT` numerica fra 1 e 65535 (preferibilmente quella assegnata da Render);
   `PERFORMANCE_MONITOR_ENABLED=false`;
   `ALLOW_DEV_API_SURFACE=false`.
 - Nessuna variabile aggiuntiva con token per Firebase/FCM, Axiom, B2,
@@ -51,15 +52,17 @@ porta 5432/6543 adeguata e nessun `options`, `search_path` o parametro
 di instradamento non previsto. Il processo non registra URI, password o
 username, nemmeno in caso di errore.
 
-Il controllo parte prima di qualunque importazione di route/pool Firebase
-nel wrapper e viene **ripetuto all'inizio di `api/app.js` dopo dotenv**,
-per rifiutare eventuali segreti caricati da un file locale. In modalità
-`isolated-staging`, `app.js` evita di lanciare
-`auditManager.start()`, `performanceMonitor.start()` e
-`performanceOptimizer.start()`. Anche `api/server.js` evita
-esplicitamente di inizializzare Firebase Admin in questo modo.
-Ogni `ENABLE_*` sconosciuto viene
-rifiutato dall'allowlist; i job espliciti non devono essere abilitati.
+Il controllo parte nel wrapper **prima di qualunque importazione** del backend.
+Nel profilo preliminare, `api/staging/isolatedStagingServer.js` avvia soltanto
+il modulo HTTP nativo di Node.js; non richiede `api/server.js`,
+`api/app.js`, le route, i pool DB, i job né Firebase. Inoltre, l'avvio
+dell'applicazione completa con `DEMOS_DEPLOYMENT_SCOPE=isolated-staging`
+è **espressamente vietato da `api/app.js`**, dopo l'ulteriore controllo env
+e **prima** dell'importazione di Express o dei servizi. Questo impedisce
+anche l'aggiramento accidentale tramite `node index.js`. La modifica non
+altera il normale `api/server.js` produttivo. Ogni `ENABLE_*` sconosciuto
+viene rifiutato dall'allowlist. La futura abilitazione delle API funzionali
+richiede nuova progettazione, prove e autorizzazione, non un semplice flag.
 
 ## Condizioni ancora NON soddisfatte
 
@@ -76,7 +79,8 @@ rifiutato dall'allowlist; i job espliciti non devono essere abilitati.
    credenziali. Servono inventario e attestazione di provider, egress
    e allowlist ingress prima di qualunque deploy.
 3. **Identità SQL effettiva**: dopo il provisioning e solo nel nuovo
-   staging isolato, testare attraverso **lo stesso pool del backend**
+   staging isolato e dopo l'autorizzazione a passare dalla modalità di sola
+   disponibilità a quella funzionale, testare attraverso **lo stesso pool del backend**
    `current_user`, `session_user`, `current_database()`,
    RLS e privilegi di tabella/colonna, con query ai soli cataloghi e
    senza righe utente. Non inferire il writer dal SQL Editor Supabase.
@@ -98,7 +102,14 @@ rifiutato dall'allowlist; i job espliciti non devono essere abilitati.
   diretta errata, un parametro d'override o password mancante ⇒ **reject**.
 - Env con credenziali provider, `JWT_SECRET`, `ENABLE_*`,
   `DATABASE_POOL_MAX` troppo alto o debug endpoint abilitati ⇒ **reject**.
-- Un preflight negativo non esegue `require('../server')`, né connessioni.
+- Un preflight negativo non apre neppure un socket HTTP e non legge il DB;
+  il processo non importa mai `../server`, neppure su preflight positivo.
+- Il server di sola disponibilità risponde 200 unicamente a
+  `GET /__staging/health` con `gdprReady=false`,
+  `databaseConnected=false` ed `externalProvidersConnected=false`.
+  Ogni altra richiesta (incluse route API e metodi di scrittura) riceve 404.
+- Un avvio dell'intera app con `isolated-staging` viene rifiutato
+  **prima** di caricare Express, pool, Firebase e job.
 - Il ramo normale di produzione non viene alterato da questa protezione
   senza la selezione esplicita `isolated-staging`.
 
