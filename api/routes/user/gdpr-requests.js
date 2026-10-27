@@ -21,6 +21,32 @@ router.get('/', verifyToken, async (req, res) => {
       'ORDER BY created_at DESC NULLS LAST, id DESC LIMIT 50',
       [userId]
     );
+    // An empty SELECT is not proof of an empty history when RLS is enabled:
+    // a non-owner with no SELECT policy silently sees zero rows in PostgreSQL.
+    // Reject this case rather than inventing an empty request history.
+    if (result.rows.length === 0) {
+      const visibility = await pool.query(
+        'SELECT (' +
+        'NOT c.relrowsecurity OR r.rolsuper OR r.rolbypassrls OR ' +
+        '(c.relowner = r.oid AND NOT c.relforcerowsecurity) OR ' +
+        'EXISTS (' +
+        ' SELECT 1 FROM pg_catalog.pg_policy p ' +
+        ' WHERE p.polrelid=c.oid AND p.polcmd IN (\'r\',\'*\') ' +
+        ' AND (0 = ANY(p.polroles) OR EXISTS (' +
+        '   SELECT 1 FROM unnest(p.polroles) policy_role ' +
+        '   WHERE policy_role=r.oid OR ' +
+        '   pg_catalog.pg_has_role(r.oid, policy_role, \'USAGE\')' +
+        ' ))' +
+        ')' +
+        ') AS may_read_requests ' +
+        'FROM pg_catalog.pg_class c CROSS JOIN pg_catalog.pg_roles r ' +
+        'WHERE c.oid=\'public.user_rights_requests\'::regclass ' +
+        'AND r.rolname=current_user'
+      );
+      if (visibility.rows?.[0]?.may_read_requests !== true) {
+        throw Error('GDPR_RIGHTS_HISTORY_RLS_NOT_VISIBLE');
+      }
+    }
     return res.json({
       success: true,
       data: result.rows.map(row => ({
