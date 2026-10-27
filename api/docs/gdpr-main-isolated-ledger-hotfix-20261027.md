@@ -42,3 +42,26 @@ La cancellazione account canonica e le concessioni/revoche del consenso politico
 La review ha individuato una lacuna concreta nel controllo `assertProtectedLedger`: `has_table_privilege` non rileva necessariamente i `GRANT SELECT/INSERT/UPDATE` assegnati **solo a singole colonne**. Con RLS e zero policy attuali tali grant non bastano per leggere il ledger, ma dopo un restore con policy diversa non sarebbe corretto certificare il registro come privo di privilegi API. Il controllo ora include `has_any_column_privilege` per i tre ruoli Supabase e ispeziona `pg_attribute.attacl` per eventuali grant a `PUBLIC` su colonne; in caso di anomalia `recordEvent` fallisce chiuso. Il provisioning `REVOKE ALL ON TABLE` rimuove anche i privilegi di colonna corrispondenti secondo PostgreSQL 17; la regressione sintetica lo verifica con grant fittizi a `anon`, `authenticated` e `PUBLIC`.
 
 La stessa suite PostgreSQL 17 simula `SET ROLE gdpr_nonowner_ci` (NOLOGIN, NOBYPASSRLS) con `USAGE` schema e `GRANT INSERT/SELECT` sul ledger: senza una policy RLS applicabile, `recordEvent` fallisce con `42501` e non aggiunge eventi. Questa è una **prova negativa di compatibilità**, non l'identificazione del ruolo effettivo Render. Un operatore autorizzato deve attestare il writer SQL del vero backend prima del rilascio; nessun `GRANT`, policy o `BYPASSRLS` sul database reale viene proposto o eseguito automaticamente. Restore e deploy restano NO-GO.
+
+
+## Gate operativi verificati in sola lettura — 27 ottobre 2026
+
+**Evidenze dal controllo dei cataloghi (nessun dato utente e nessuna mutazione):**
+- Supabase **Demos-Staging** (`fkeayjzvtuvzesljhjbc`): `to_regclass('public.privacy_erasure_ledger') IS NOT NULL = false`. Il bootstrap protetto **non è stato eseguito** e le route GDPR con il nuovo codice fallirebbero chiuse fino a provisioning autorizzato.
+- Supabase **Demos** (`wxnblcqoyjqxktwkcqok`): tabella presente, `relrowsecurity=true`, proprietario `postgres`. Sono informazioni sulla **relazione**, non una prova del writer Render.
+- Il controllo aggregato delle sessioni `pg_stat_activity` per `application_name='demos-app-performance-optimized'` o `demos%` non ha restituito connessioni attribuibili all'applicazione, né nello staging né in produzione. Questo **non prova** che il backend non sia connesso: il pooler può nascondere il nome dell'app e le connessioni potrebbero essere inattive.
+- L'identità `postgres` vista usando lo strumento SQL di Supabase indica solo **la connessione di ispezione**. Non attribuirla al servizio Render.
+
+**Attestazione necessaria del writer:** da una connessione temporanea in sola lettura che usi *esattamente il pool e la configurazione del processo backend* destinato allo staging, raccogliere esclusivamente `current_user`, `session_user`, `current_setting('role', true)`, `current_database()` e i risultati booleani dei controlli `has_table_privilege` / `pg_class.relrowsecurity` dopo il provisioning. Non registrare `DATABASE_URL`, password, indirizzi, query applicative, identificativi utenti o eventi del ledger. `current_user` richiesto via Supabase SQL editor **non è sostitutivo** della prova dal pool Render. Verificare il ruolo per l'endpoint effettivo (anche con Supavisor), e che il writer possa inserirvi un evento **soltanto in un database sintetico o staging quarantinato**; la prova non deve avvenire con dati personali reali.
+
+**Sequenza proposta per staging, senza esecuzione automatica:**
+1. Confermare un freeze dello staging e l'isolamento dei processi che scrivono/leggono dati personali; accertare che l'ambiente sia separato dalla produzione.
+2. Verificare lo snapshot/sorgente, il catalogo del database, la disponibilità del ruolo manutentore e la possibilità di revertire codice senza far perdere il ledger. Approvare separatamente ogni DDL dello staging.
+3. Solo dopo approvazione, l'operatore esegue il bootstrap intenzionale `ensureTable` sul database di staging con ruolo SQL autorizzato, e controlla RLS, privilegi tabella/colonna e assenza di accesso ai ruoli API.
+4. Con lo stesso pool utilizzato dal backend di staging, verificare fingerprint del ruolo e risultato di una transazione sintetica con `ROLLBACK` per accertare autorizzazioni e RLS; eseguire gli endpoint reali solo su utenti di prova e ambiente isolato. Nessun invio reale ai provider esterni.
+5. Compilare un verbale senza PII: progetto, commit, PG version, ruolo SQL, bootstrap, RLS, privilegi, output PASS/FAIL, rollback e responsabile. **FAIL su uno qualunque ⇒ NO-GO**.
+
+**Separare rilascio del fix da recovery completo:**
+- Prima di qualunque merge: piano di finestra e comunicazione, valutazione `autoDeploy` Render su `main`, smoke test, backup, owner e procedura di arresto/rollback applicativo. Non effettuare automaticamente né merge né deploy.
+- Non rimuovere o indebolire RLS per sbloccare uno scrittore non autorizzato; il test sintetico nonowner con errore `42501` è un limite di compatibilità intenzionale, non un difetto da eludere.
+- Il ripristino GDPR resta **NO-GO** finché non esistono isolamento cross-provider, evidenza indipendente di integrità/completamento/freschezza del registro esterno B2, replay transazionale e controlli di readiness fail-closed, nonché autorizzazione DPO/titolare.
