@@ -316,6 +316,48 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+  test('GDPR capture preserves PostgreSQL microseconds for exact idempotent offline replay',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const event={
+      event_key:'synthetic-microsecond-event',
+      subject_user_id:'synthetic-precision-person',
+      event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+      occurred_at:'2026-01-02T03:04:05.123456Z',
+      details:{source:'synthetic-microsecond-capture'}
+    };
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await Ledger.ensureTable(pool);
+      assert.equal(await Ledger.mergeCaptured(pool,[event]),1);
+
+      // node-postgres parses TIMESTAMPTZ as a JS Date and silently drops
+      // microseconds. Capture must export a precise UTC string instead.
+      const captured=await Ledger.captureCurrent(pool);
+      assert.equal(captured.length,1);
+      assert.equal(captured[0].occurred_at,event.occurred_at,
+        'a captured ledger event must retain all six fractional digits');
+      assert.equal(await Ledger.mergeCaptured(pool,captured),0,
+        'recapturing the same event must not be misidentified as a conflict');
+
+      await pool.query('TRUNCATE public.privacy_erasure_ledger');
+      assert.equal(await Ledger.mergeCaptured(pool,captured),1);
+      const restored=await pool.query(`SELECT to_char(occurred_at AT TIME ZONE 'UTC',
+        'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS precise_time
+        FROM public.privacy_erasure_ledger WHERE event_key=$1`,[event.event_key]);
+      assert.equal(restored.rows[0].precise_time,event.occurred_at,
+        'export/import must preserve the exact PostgreSQL timestamp');
+
+      await assert.rejects(
+        Ledger.mergeCaptured(pool,[{...captured[0],occurred_at:'2026-01-02T03:04:05.123457Z'}]),
+        error=>error?.code==='GDPR_LEDGER_EVENT_KEY_CONFLICT',
+        'a one-microsecond change must still fail closed'
+      );
+    } finally {
+      await pool.end();
+    }
+  });
+
   test('GDPR offline import accepts identical replays but rejects conflicting event keys',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const fixed={
