@@ -46,6 +46,43 @@ class PrivacyErasureLedgerService {
     `);
   }
 
+  static async assertProtectedLedger(client) {
+    // This check only inspects pg_catalog; it never reads GDPR event rows.
+    // regclass resolution raises 42P01 if a restore omitted the ledger.
+    // A restored table that exists but lacks RLS or has API/public grants
+    // must not silently accept a new sensitive GDPR event.
+    const result = await client.query(`
+      SELECT c.relrowsecurity AS rls_enabled,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.aclexplode(
+            COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))
+          ) acl WHERE acl.grantee = 0
+        ) AS public_grants_exist,
+        (
+          SELECT COUNT(*)::integer
+          FROM pg_catalog.pg_roles r
+          WHERE r.rolname IN ('anon', 'authenticated', 'service_role')
+            AND (
+              pg_catalog.has_table_privilege(r.rolname, c.oid, 'SELECT') OR
+              pg_catalog.has_table_privilege(r.rolname, c.oid, 'INSERT') OR
+              pg_catalog.has_table_privilege(r.rolname, c.oid, 'UPDATE') OR
+              pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE')
+            )
+        ) AS api_roles_with_dml_grants
+      FROM pg_catalog.pg_class c
+      WHERE c.oid = 'public.privacy_erasure_ledger'::regclass
+    `);
+    const state = result.rows?.[0];
+    if (state?.rls_enabled !== true ||
+        state?.public_grants_exist !== false ||
+        state?.api_roles_with_dml_grants !== 0) {
+      const error = new Error('GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      error.code = 'GDPR_LEDGER_SCHEMA_NOT_PROTECTED';
+      throw error;
+    }
+  }
+
   static async recordEvent(client, { userId, eventType, details = {} }) {
     if (!Object.values(this.EVENT_TYPES).includes(eventType)) {
       throw new Error(`Unsupported privacy ledger event: ${eventType}`);
@@ -57,6 +94,9 @@ class PrivacyErasureLedgerService {
     // The ledger must be preinstalled in a reviewed maintenance operation.
     // Missing relation fails closed (42P01), without DDL during deletion or
     // political-consent revocation and without creating an unprotected table.
+    // Even a pre-existing ledger must be rejected if restored with RLS off,
+    // unexpected PUBLIC grants or exposed Supabase API-role permissions.
+    await this.assertProtectedLedger(client);
     const eventKey = crypto.randomUUID();
     const result = await client.query(
       `INSERT INTO public.privacy_erasure_ledger

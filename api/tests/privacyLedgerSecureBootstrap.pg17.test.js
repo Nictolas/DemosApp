@@ -52,6 +52,28 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       await Ledger.ensureTable(pool);
       assert.equal(await queryPrivileges(),0,'idempotent bootstrap must strip inappropriate grants');
 
+      // A restored or manually altered table may exist but lack the
+      // protection needed to accept fresh consent/deletion history.
+      await pool.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'an existing unprotected restored table must reject GDPR events');
+      assert.equal((await pool.query('SELECT COUNT(*)::integer AS n FROM public.privacy_erasure_ledger')).rows[0].n,0);
+      await Ledger.ensureTable(pool);
+
+      await pool.query('GRANT SELECT ON public.privacy_erasure_ledger TO PUBLIC');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'PUBLIC table grants cannot be permitted even if RLS is on');
+      await Ledger.ensureTable(pool);
+
+      await pool.query('GRANT INSERT ON public.privacy_erasure_ledger TO anon');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'Supabase API-role INSERT grant must be rejected before a write');
+      await Ledger.ensureTable(pool);
+      assert.equal(await queryPrivileges(),0);
+
       const recorded=await Ledger.recordEvent(pool,fixture);
       assert.equal(recorded.event_type,Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED);
       const one=await pool.query('SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger');
