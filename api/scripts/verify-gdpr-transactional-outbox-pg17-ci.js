@@ -377,8 +377,10 @@ async function main() {
     let approvedCheckpoint;
     const pinSnapshot=async()=>{
       const events=(await pool.query(
-        'SELECT event_key,subject_user_id,event_type,occurred_at,details ' +
-        'FROM privacy_erasure_ledger ORDER BY occurred_at,event_key'
+        'SELECT event_key,subject_user_id,event_type, ' +
+        "to_char(occurred_at AT TIME ZONE 'UTC', " +
+        `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at, details ` +
+        'FROM privacy_erasure_ledger ORDER BY privacy_erasure_ledger.occurred_at,event_key'
       )).rows;
       const payload={
         formatVersion:1,recoveryId,
