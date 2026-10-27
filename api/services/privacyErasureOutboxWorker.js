@@ -146,49 +146,72 @@ class PrivacyErasureOutboxWorker {
   }
 
   static async status(client) {
-    if (!client || typeof client.query !== 'function') throw Error('DB connection required');
-    const reg = await client.query(
-      "SELECT to_regclass('public.privacy_erasure_delivery_outbox') IS NOT NULL AS installed"
-    );
-    if (!reg.rows[0]?.installed) {
-      return { installed: false, ready: false, pending: null, oldestPendingAt: null };
+    if (!client || typeof client.query !== 'function') {
+      throw Error('DB connection required');
     }
-    const counts = await client.query(
-      'SELECT COUNT(*) FILTER (WHERE delivered_at IS NULL)::int AS pending, ' +
-      'COUNT(*) FILTER (WHERE delivered_at IS NOT NULL AND ' +
-      '(b2_version_id IS NULL OR b2_sha256 IS NULL OR ' +
-      'b2_sha256 !~ \'^[0-9a-f]{64}$\'))::int AS invalid_receipts, ' +
-      'MIN(queued_at) FILTER (WHERE delivered_at IS NULL) AS oldest_pending_at ' +
-      'FROM public.privacy_erasure_delivery_outbox'
+    const reg = await client.query(
+      "SELECT to_regclass('public.privacy_erasure_ledger') IS NOT NULL AS ledger, " +
+      "to_regclass('public.privacy_erasure_delivery_outbox') IS NOT NULL AS outbox"
     );
-    // Never infer "all exported" from an empty queue: an unbackfilled
-    // historical event may have no outbox row at all.
-    const missing = await client.query(
-      'SELECT count(*)::int AS n FROM public.privacy_erasure_ledger l ' +
-      'LEFT JOIN public.privacy_erasure_delivery_outbox o ON o.event_key=l.event_key ' +
-      'WHERE o.event_key IS NULL'
-    );
-    // An outbox-only row can be a trace of a lost ledger event after an
-    // incomplete/legacy restore. A zero-pending summary must not hide it.
-    const orphaned = await client.query(
-      'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_delivery_outbox o ' +
-      'WHERE NOT EXISTS (' +
-      'SELECT 1 FROM public.privacy_erasure_ledger l WHERE l.event_key=o.event_key)'
-    );
-    const row = counts.rows[0];
-    const withoutOutbox = missing.rows[0].n;
-    const withoutLedger = orphaned.rows[0]?.n;
+    if (reg.rows[0]?.ledger !== true || reg.rows[0]?.outbox !== true) {
+      return { installed: false, ready: false, pending: null,
+        unqueued: null, orphaned: null, invalidReceipts: null,
+        oldestPendingAt: null, completeVisibility: false };
+    }
+
+    // RLS-filtered SELECTs can show zero pending events despite real pending
+    // rows belonging to other subjects. A status intended for an operator
+    // must refuse a positive result without unrestricted SQL visibility.
+    // Current_user is the identity that actually executes the SELECTs.
+    const access = await client.query(`
+      SELECT (r.rolsuper OR r.rolbypassrls) AS complete_visibility
+      FROM pg_catalog.pg_roles r WHERE r.rolname = current_user
+    `);
+    const completeVisibility = access.rows?.[0]?.complete_visibility === true;
+    if (!completeVisibility) {
+      return { installed: true, ready: false, pending: null,
+        unqueued: null, orphaned: null, invalidReceipts: null,
+        oldestPendingAt: null, completeVisibility: false };
+    }
+
+    // A SINGLE SQL statement takes one READ COMMITTED snapshot for every
+    // counter. Separate SELECTs can produce inconsistent "ready" results
+    // when writers append an event between counting pending and unqueued.
+    // FULL JOIN detects both ledger-only and outbox-only orphaned records.
+    const summary = await client.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE o.event_key IS NOT NULL
+          AND o.delivered_at IS NULL)::integer AS pending,
+        COUNT(*) FILTER (WHERE o.event_key IS NOT NULL
+          AND o.delivered_at IS NOT NULL AND (
+          o.b2_version_id IS NULL OR o.b2_sha256 IS NULL OR
+          o.b2_sha256 !~ '^[0-9a-f]{64}$'))::integer AS invalid_receipts,
+        MIN(o.queued_at) FILTER (WHERE o.event_key IS NOT NULL
+          AND o.delivered_at IS NULL) AS oldest_pending_at,
+        COUNT(*) FILTER (WHERE l.event_key IS NOT NULL
+          AND o.event_key IS NULL)::integer AS unqueued,
+        COUNT(*) FILTER (WHERE o.event_key IS NOT NULL
+          AND l.event_key IS NULL)::integer AS orphaned
+      FROM public.privacy_erasure_ledger l
+      FULL JOIN public.privacy_erasure_delivery_outbox o
+        ON o.event_key = l.event_key
+    `);
+    const row = summary.rows?.[0];
+    if (!row || ![row.pending, row.invalid_receipts, row.unqueued,
+      row.orphaned].every(value => Number.isSafeInteger(value) && value >= 0)) {
+      throw Error('GDPR_OUTBOX_STATUS_INCOMPLETE');
+    }
     return {
       installed: true,
-      // Local readiness only. A release requires separate B2 full verification
-      // and an independently pinned external completeness checkpoint.
+      // Local counts are NOT an external, independently pinned recovery proof.
       ready: row.pending === 0 && row.invalid_receipts === 0 &&
-        withoutOutbox === 0 && withoutLedger === 0,
+        row.unqueued === 0 && row.orphaned === 0,
       pending: row.pending,
-      unqueued: withoutOutbox,
-      orphaned: withoutLedger,
+      unqueued: row.unqueued,
+      orphaned: row.orphaned,
       invalidReceipts: row.invalid_receipts,
-      oldestPendingAt: row.oldest_pending_at || null
+      oldestPendingAt: row.oldest_pending_at || null,
+      completeVisibility: true
     };
   }
 }
