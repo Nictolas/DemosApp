@@ -62,9 +62,7 @@ class PrivacyErasureLedgerService {
         EXISTS (
           SELECT 1
           FROM pg_catalog.pg_attribute a
-          CROSS JOIN LATERAL pg_catalog.aclexplode(
-            COALESCE(a.attacl, '{}'::aclitem[])
-          ) acl
+          CROSS JOIN LATERAL pg_catalog.aclexplode(a.attacl) acl
           WHERE a.attrelid = c.oid
             AND a.attnum > 0
             AND NOT a.attisdropped
