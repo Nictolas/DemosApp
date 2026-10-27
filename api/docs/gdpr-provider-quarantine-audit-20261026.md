@@ -187,3 +187,7 @@ La route normale `/api/attivismo-tipologie/:userId` può completare il SELECT de
 I due endpoint DDL legacy non saranno più invocabili nemmeno da un amministratore (la route /api/migrate è già dev-gated). Si conserva la GET read-only dell'amministrazione. Ogni modifica dello schema passa da migrazione offline controllata e revisionata. È una riduzione della superficie di rischio, **non** una prova che i precedenti endpoint siano stati usati o che siano stati effettivamente attivi in produzione.
 
 **Limitazione operativa essenziale:** i controlli applicativi non impediscono il commit di query già inviate, non isolano Data API/pooler e non sono presenti nel servizio Render finché la PR è Draft. Recovery #296 **NO-GO**; nessuna DDL/SQL reale, nessun accesso a dati utente, nessun merge/deploy.
+
+## Confronto effettivo tra deploy Render live e PR Draft (27 ottobre 2026)
+
+La ricognizione incrociata fra Render e GitHub ha dimostrato che il deploy backend live è ancora sul commit `77cfd862` del 24 ottobre, **privo del middleware di manutenzione GDPR e del worker outbox**, mentre la catena Draft non è integrata. I 11 servizi Render sono non sospesi e i due servizi di produzione hanno auto-deploy abilitato. Il ledger SQL esiste con RLS, l'outbox non è installata. Dettagli, matrice dei file e piano di rilascio/isolamento in `gdpr-live-provider-deployment-attestation-20261027.md`. Il recovery rimane **NO-GO**.
