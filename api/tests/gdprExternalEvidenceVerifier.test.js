@@ -69,6 +69,33 @@ test('removing a deleted-account event, editing details, or changing manifest co
   fails(() => check(count), 'GDPR_EXTERNAL_EVIDENCE_DIGEST_MISMATCH');
 });
 
+test('injected unsigned event fields are rejected, not silently removed before hashing', () => {
+  const original = sign();
+  const injected = structuredClone(original);
+  injected.events[0].unexpected_personal_data = 'synthetic-extra-pii';
+  fails(() => check(injected), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+
+  const addedBeforeSigning = EVENTS.map(event => ({ ...event }));
+  addedBeforeSigning[1].recovery_debug_field = 'synthetic-unexpected';
+  fails(() => sign(addedBeforeSigning), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+
+  const nonEnumerable = structuredClone(original);
+  Object.defineProperty(nonEnumerable.events[0], 'hidden_data', {
+    value: 'synthetic-hidden', enumerable: false
+  });
+  fails(() => check(nonEnumerable), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+});
+
+test('injected unsigned bundle properties cannot be accepted as signed evidence', () => {
+  const original = sign();
+  fails(() => check({ ...original, externalNote: 'synthetic-unsigned' }),
+    'GDPR_EXTERNAL_EVIDENCE_INVALID');
+  const symbolKey = Symbol('synthetic-unsigned');
+  const altered = structuredClone(original);
+  altered[symbolKey] = 'synthetic-unsigned';
+  fails(() => check(altered), 'GDPR_EXTERNAL_EVIDENCE_INVALID');
+});
+
 test('even a newly re-signed truncated copy cannot match the independently pinned signature', () => {
   const original = sign();
   const truncated = sign(EVENTS.slice(0, 1));
