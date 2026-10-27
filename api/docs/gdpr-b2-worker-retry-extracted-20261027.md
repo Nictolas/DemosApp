@@ -24,9 +24,35 @@ La suite B2 della #372 copre separatamente Object Lock COMPLIANCE e readback per
 
 ## Bloccanti non risolti
 
-1. Ruolo worker SQL separato ed ACL/policy minime installati su **staging isolato** solo con piano approvato. Lo schema attuale di Demos-Staging non ha ancora l'outbox; produzione invariata.
+1. **Completato solo nello staging Supabase:** ruolo worker SQL separato, outbox e policy RLS minime installati con rollback/prove SQL sintetiche. Rimane da testare il processo backend isolato, con credenziali sicure e senza endpoint pubblico. Produzione invariata.
 2. Runtime backend privato con credenziali gestite e ruoli verificati realmente in connessione. Non usare servizi web Free esposti come staging isolato.
 3. Bucket GDPR B2 dedicato con Object Lock COMPLIANCE, cifratura, retention approvata, readback e checkpoint di completezza/freschezza firmato e conservato in canale esterno.
 4. Prova end-to-end di perdita/restore in ambiente in quarantena, riconciliazione bidirezionale con outbox e approvazione del DPO/titolare prima della messa in esercizio.
 
 **Nessun merge, deploy, nuovo segreto o accesso a dati personali.** Issue #296 resta OPEN/NO-GO.
+
+## Demos-Staging: outbox e ruolo worker installati (27 ottobre 2026)
+
+**Questa sezione aggiorna i riferimenti precedenti all'outbox assente. La creazione del database NON autorizza un rilascio né dimostra una connessione effettiva da Render.**
+
+Il progetto Supabase **Demos-Staging** (`fkeayjzvtuvzesljhjbc`, PostgreSQL 17) era già dotato delle 6 tabelle `public` sintetiche e del ruolo `demos_staging_runtime` con RLS/FORCE RLS, mentre `privacy_erasure_delivery_outbox` e il ruolo dedicato al worker non esistevano. Il ledger conteneva **zero eventi** e gli utenti erano esclusivamente i due UUID inventati `...0301` e `...0302`.
+
+### Bootstrap e attestazioni
+
+- SQL operator-only: `api/docs/sql/gdpr-staging-outbox-worker-secure-bootstrap-20261027.sql`. Prima eseguito in una singola transazione `BEGIN; DO ...; ROLLBACK;` (successo; nessun oggetto persistito), quindi applicato con la migrazione Supabase **`20261027225727`**, nome **`gdpr_staging_b2_outbox_worker_secure_20261027`**. Contiene sentinelle sul bootstrap preesistente `20261027205040`, esatta cardinalità degli utenti fittizi e registro vuoto, vietando la sovrascrittura.
+- Nuova tabella `public.privacy_erasure_delivery_outbox`: proprietario `postgres`, **RLS=true**, **FORCE RLS=true**, **4 policy** per writer e worker. Il ledger esistente dispone ora di una ulteriore policy `SELECT` per il worker. `anon`, `authenticated` e `service_role`: **zero privilegi DML** sulla tabella. `demos_staging_runtime` può inserire una consegna; il worker può leggere il ledger e aggiornare solo `delivered_at`, `b2_version_id`, `b2_sha256` nella coda, non inserirvi eventi.
+- Nuovo ruolo `demos_staging_b2_worker`: `LOGIN`, `NOBYPASSRLS`, `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`, `NOINHERIT`, **`PASSWORD NULL`**. La password SQL è nulla anche per `demos_staging_runtime`; verificato nel catalogo `pg_authid` senza leggere alcun segreto. Nessuna credenziale Render/Backblaze B2 generata o configurata.
+- Postcheck SQL: **2 utenti sintetici**, `privacy_erasure_ledger=0`, `privacy_erasure_delivery_outbox=0`, **0 utenti estranei**, 4 policy outbox, 3 policy ledger; Supabase Security Advisor `lints=[]`. Gli altri schemi e i privilegi preesistenti non sono stati alterati.
+
+### Prove con transazioni annullate
+
+- `api/docs/sql/gdpr-staging-outbox-worker-transaction-rollback-20261027.sql`: concedendo temporaneamente `SET ROLE` nel medesimo `BEGIN`, l'effettivo ruolo `demos_staging_runtime` ha inserito ledger+outbox mediante CTE atomiche; l'effettivo `demos_staging_b2_worker` ha ottenuto il lock dell'evento pendente (`FOR UPDATE SKIP LOCKED`) e scritto una **ricevuta puramente fittizia**. Il risultato prima del rollback conteneva 1 evento e 1 ricevuta; **`ROLLBACK`** ha ripristinato 0/0 eventi.
+- `api/docs/sql/gdpr-staging-outbox-worker-denial-rollback-20261027.sql`: un evento deliberatamente di soggetto *estraneo* alla policy non era visibile al worker; neppure la consegna era visibile o aggiornabile. Le prove di `INSERT` non autorizzato su ledger e outbox sono state respinte con `insufficient_privilege`. Anche questo esperimento è stato **interamente annullato**.
+- Postcheck indipendente dopo entrambe: `ledger=0`, `outbox=0`, `users=2`, `pg_has_role('postgres', writer, 'SET')=false`, `pg_has_role('postgres', worker, 'SET')=false`, outbox ancora con RLS/FORCE RLS attivi.
+- `api/docs/sql/gdpr-staging-outbox-worker-guarded-rollback-20261027.sql` è un piano di rollback **non eseguito**: controlla identità staging, fixture, policy, zero eventi e assenza di sessioni worker; non usa drop in cascata e mantiene le 6 tabelle originarie.
+
+### Gate ancora aperti
+
+**Non c'è un collegamento Render→staging testato.** La prova con `SET LOCAL ROLE` dimostra privilegi e transazioni PostgreSQL, non la correttezza di TLS, `DATABASE_URL`, `api/config/database.js`, pool Render, autenticazione o comportamento di un servizio privato. Inoltre **non è stato contattato B2**: non esistono evidenze verificate di bucket GDPR separato con Object Lock COMPLIANCE e retention approvata, di una sequenza completa/fresca di eventi esterni o di un restore completo in quarantena.
+
+**Decisione invariata:** issue #296, recovery GDPR **NO-GO**. Le PR stacked restano Draft, nessun merge su `main`, nessun deploy o modifica ai dati di produzione.
