@@ -141,6 +141,8 @@ test('Render staging setup-only really exposes no SQL or survey route',async()=>
       signal:AbortSignal.timeout(350)
     });
     assert.equal(response.status,503);
+    assert.equal(response.headers.get('cache-control'),'no-store',
+      'local setup-only /health must not be cached');
     const j=await response.json();
     assert.equal(j.ready,false);
     assert.equal(j.reason,'staging_credential_not_configured');
@@ -153,6 +155,8 @@ test('Render staging setup-only really exposes no SQL or survey route',async()=>
   assert.equal(connected,true,'Setup-only server did not listen');
   const root=await fetch('http://127.0.0.1:'+PORT+'/');
   assert.equal(root.status,200);
+  assert.equal(root.headers.get('cache-control'),'no-store',
+    'local setup-only root must not be cached');
   const overview=await root.json();
   assert.equal(overview.databaseConnected,false);
   assert.equal(overview.productionConnected,false);
@@ -162,6 +166,10 @@ test('Render staging setup-only really exposes no SQL or survey route',async()=>
     '/api/sondaggi/toscana/pisa/pisa','/api/users']){
     const resp=await fetch('http://127.0.0.1:'+PORT+route);
     assert.equal(resp.status,route==='/benchmark/summary'?503:404,route);
+    assert.equal(resp.headers.get('cache-control'),'no-store',route);
+    const body=await resp.json();
+    if(route==='/benchmark/summary')assert.equal(body.ready,false,route);
+    else assert.equal(body.error,'not_found',route);
   }
   assert.match(stdout,/OP37_RENDER_SETUP_ONLY_NO_DATABASE/);
   assert.equal(stderr,'');
