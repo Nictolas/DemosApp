@@ -280,7 +280,8 @@ class PrivacyErasureLedgerService {
         // JS Date drops PostgreSQL microseconds: require validated UTC text.
         timestamp = normalizeLedgerTimestamp(row.occurred_at);
         // Snapshot a custom toJSON exactly once. B2 accepts only a JSON object.
-        details = JSON.stringify(row.details == null ? {} : row.details);
+        // Do not turn missing/null JSONB into a valid-looking empty archive.
+        details = JSON.stringify(row.details);
         const parsed = JSON.parse(details);
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
           throw invalid();
