@@ -55,6 +55,43 @@ per errore l'entrypoint storico. Il blocco si applica prima di importare
 Express, le route o i moduli che potrebbero aprire connessioni.
 La produzione senza quel flag segue esattamente il proprio percorso.
 
+### Render Free: limite strutturale all'ingress (verificato su documentazione ufficiale)
+
+Il servizio web Render candidato è attualmente sul piano **Free** e ha
+`ipAllowList=0.0.0.0/0`: è **pubblicamente raggiungibile**. Secondo la
+[documentazione ufficiale Render sulle Inbound IP Rules](https://render.com/docs/inbound-ip-rules),
+le restrizioni IP sui **web service** richiedono un workspace
+**Scale o Enterprise**: non basta acquistare il solo compute Starter.
+La documentazione [Free](https://render.com/docs/free) conferma inoltre
+che i web service Free non possono ricevere connessioni dalla rete privata
+di Render. La documentazione sui [Private Services](https://render.com/docs/private-services)
+e [First Deploy](https://render.com/docs/your-first-deploy) conferma
+che un servizio realmente privato è una risorsa distinta, **non gratuita**.
+
+**Decisione tecnica per il piano attuale: NO deploy sul web service Free
+come staging GDPR "non pubblico".** Anche un endpoint health senza
+credenziali non soddisfa il criterio di ingress non pubblico.
+Continuare i test readiness-only nel runner effimero di GitHub Actions
+finché non viene approvata e verificata una delle seguenti soluzioni:
+
+- workspace Scale/Enterprise con restrizioni IP effettive, sempre
+  **da testare in ingresso e da valutare economicamente**; oppure
+- private service Render a pagamento con rete/test runner compatibili,
+  isolamento indipendente dei provider e piano costi approvato; oppure
+- un'alternativa isolata senza web service pubblico, con un piano di
+  provisioning, rete, ruoli e rollback sottoposto a nuova approvazione.
+
+Non dedurre che una variabile env, una route che risponde 404, una
+protezione Supabase DB o una rete privata di Render impediscano l'accesso
+pubblico al web service: sono livelli di sicurezza diversi.
+La configurazione di Network Restrictions di Supabase riguarda
+**PostgreSQL e il pooler**, non le API HTTP del progetto, come precisa
+la [documentazione Supabase](https://supabase.com/docs/guides/platform/network-restrictions).
+
+Questa conclusione **non richiede né autorizza upgrade, costi,
+provisioning, sospensioni o eliminazioni**. Il piano operativo di seguito
+resta uno schema preparatorio per un'infrastruttura adeguata e approvata.
+
 ### Controlli ancora richiesti prima di attivare anche la sola fase 1
 
 1. Approvare **uno specifico piano Render** (servizio, ramo, start command,
