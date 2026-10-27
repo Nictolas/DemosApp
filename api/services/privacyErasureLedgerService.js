@@ -168,7 +168,9 @@ class PrivacyErasureLedgerService {
     return `"${String(identifier).replace(/"/g, '""')}"`;
   }
 
-  // Schema-qualified DML is essential in offline GDPR replay: pg_temp can\n  // shadow an unqualified public relation even when metadata checks use public.\n  static async deleteByColumn(client, table, column, userId) {
+  // Schema-qualified DML is essential in offline GDPR replay: pg_temp can
+  // shadow an unqualified public relation even when metadata checks use public.
+  static async deleteByColumn(client, table, column, userId) {
     if (!(await this.tableHasColumn(client, table, column))) return 0;
     const result = await client.query(
       `DELETE FROM public.${this.quoteIdentifier(table)} WHERE ${this.quoteIdentifier(column)}::text = $1`,
