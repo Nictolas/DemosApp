@@ -1,9 +1,12 @@
 require('dotenv').config();
-// Validate the isolated staging target BEFORE importing route modules, DB
-// pools, Firebase or jobs. Production has no change without this explicit mode.
-const isolatedStaging = process.env.DEMOS_DEPLOYMENT_SCOPE === 'isolated-staging';
-if (isolatedStaging) {
+// Isolated staging has a separate readiness-only entrypoint. Deliberately
+// forbid loading the full app/routes/workers before independent provider
+// quarantine and an explicit later security review.
+if (process.env.DEMOS_DEPLOYMENT_SCOPE === 'isolated-staging') {
   require('./staging/isolatedStagingGuard').assertIsolatedStagingEnvironment(process.env);
+  const error = new Error('DEMOS_STAGING_FULL_APP_NOT_AUTHORIZED');
+  error.code = 'DEMOS_STAGING_FULL_APP_NOT_AUTHORIZED';
+  throw error;
 }
 const express = require('express');
 require('express-async-errors'); // Cattura errori/rejection da route async e li passa al middleware di errore (evita crash)
@@ -538,13 +541,12 @@ app.use((error, req, res, next) => {
   }
 });
 
-// A staging smoke-test must not run periodic audit delivery.
-if (!isolatedStaging) auditManager.start();
+// Avvia sistema di audit logging
+auditManager.start();
 
 // Avvia sistema di monitoraggio performance
 const performanceMonitor = require('./services/performanceMonitor');
-const performanceMonitorEnabled = !isolatedStaging &&
-  process.env.PERFORMANCE_MONITOR_ENABLED !== 'false';
+const performanceMonitorEnabled = process.env.PERFORMANCE_MONITOR_ENABLED !== 'false';
 const defaultPerformanceMonitorIntervalMs = process.env.NODE_ENV === 'production' ? 120000 : 30000;
 const performanceMonitorIntervalMs = Math.max(
   15000,
@@ -558,7 +560,7 @@ if (performanceMonitorEnabled) {
 
 // Avvia sistema di ottimizzazione performance
 const performanceOptimizer = require('./services/performanceOptimizer');
-if (!isolatedStaging) performanceOptimizer.start();
+performanceOptimizer.start();
 
 /**
  * Job in background e impatto su Supabase (connessioni, query ripetute):
