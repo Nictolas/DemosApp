@@ -127,7 +127,7 @@ test('operator status obtains all four counters from one SQL snapshot', async ()
   assert.equal(result.unqueued, 0);
   assert.equal(result.completeVisibility, true);
   assert.equal(seen.length, 3, 'one joined SQL snapshot after schema and role preflight');
-  assert.match(seen[2], /FULL JOIN public\\.privacy_erasure_delivery_outbox/);
+  assert.ok(seen[2].includes('FULL JOIN public.privacy_erasure_delivery_outbox'));
 });
 
 test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and drift checks', async () => {
