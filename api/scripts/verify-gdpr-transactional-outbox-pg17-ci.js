@@ -357,8 +357,7 @@ async function main() {
         {...imported,event_key:n(),details:circular},
         {...imported,event_key:n(),details:'not-a-json-object'},
         {...imported,event_key:n(),details:[1,2,3]},
-        {...imported,event_key:n(),details:{toJSON(){return undefined;}}},
-        imported
+        {...imported,event_key:n(),details:{toJSON(){return undefined;}}}
       ];
       for(const invalidRow of invalidBatchRows) {
         const validFirst={...imported,event_key:n(),
@@ -375,6 +374,20 @@ async function main() {
           [validFirst.event_key]),0,
         'malformed batch may not insert its first event');
       }
+
+      const intraBatch={...imported,event_key:n(),
+        details:{source:'synthetic-duplicate-key'}};
+      await assert.rejects(
+        Ledger.mergeCaptured(writerShadow,[intraBatch,{...intraBatch}],{
+          requirePreinstalled:true
+        }),
+        error=>error?.code==='GDPR_LEDGER_INVALID_CAPTURED_EVENT',
+        'duplicate event key inside one batch must fail before the first insert'
+      );
+      assert.equal(await value(writerShadow,
+        'SELECT count(*)::int FROM public.privacy_erasure_ledger WHERE event_key=$1',
+        [intraBatch.event_key]),0,
+      'duplicate-key batch must not leave a partial import');
 
       // Same UUID with different personal subject, consent action, precise
       // timestamp or JSON payload is a GDPR integrity conflict, never a
