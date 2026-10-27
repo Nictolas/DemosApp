@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const {normalizeLedgerTimestamp} = require('./privacyLedgerTimestamp');
 
 class PrivacyErasureLedgerService {
   static EVENT_TYPES = Object.freeze({
@@ -205,18 +206,45 @@ class PrivacyErasureLedgerService {
   }
 
   static async mergeCaptured(client, rows = [], { requirePreinstalled = false } = {}) {
+    // Preflight every row before the FIRST SQL statement: a malformed later
+    // event must not leave earlier writes in a direct caller that forgot BEGIN.
+    // This complements, but cannot replace, the signed recovery transaction.
+    const invalid = () => {
+      const error = new Error('GDPR_LEDGER_INVALID_CAPTURED_EVENT');
+      error.code = 'GDPR_LEDGER_INVALID_CAPTURED_EVENT';
+      return error;
+    };
+    if (!Array.isArray(rows)) throw invalid();
+    const prepared = [];
+    const seenKeys = new Set();
+    for (const row of rows) {
+      if (!row || typeof row !== 'object' ||
+          typeof row.event_key !== 'string' || !row.event_key.trim() ||
+          typeof row.subject_user_id !== 'string' || !row.subject_user_id.trim() ||
+          !Object.values(this.EVENT_TYPES).includes(row.event_type) ||
+          seenKeys.has(row.event_key)) throw invalid();
+      let timestamp, details;
+      try {
+        // JS Date drops PostgreSQL microseconds: require validated UTC text.
+        timestamp = normalizeLedgerTimestamp(row.occurred_at);
+        // Snapshot a custom toJSON exactly once. B2 accepts only a JSON object.
+        details = JSON.stringify(row.details == null ? {} : row.details);
+        const parsed = JSON.parse(details);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw invalid();
+        }
+      } catch (_) { throw invalid(); }
+      seenKeys.add(row.event_key);
+      prepared.push([
+        row.event_key, row.subject_user_id, row.event_type, timestamp, details
+      ]);
+    }
+
     // The offline recovery gate must never silently provision a missing
     // ledger. Keep legacy explicit import behavior for existing callers.
     if (!requirePreinstalled) await this.ensureTable(client);
     let merged = 0;
-    for (const row of rows) {
-      const event = [
-        row.event_key,
-        String(row.subject_user_id),
-        row.event_type,
-        row.occurred_at,
-        JSON.stringify(row.details || {})
-      ];
+    for (const event of prepared) {
       const result = await client.query(
         `INSERT INTO public.privacy_erasure_ledger
           (event_key, subject_user_id, event_type, occurred_at, details)
