@@ -137,6 +137,20 @@ class PrivacyErasureLedgerService {
   static async mergeCaptured(client, rows = []) {
     // Import requires separate, authorized schema provisioning first.
     await this.assertProtectedLedger(client);
+    // Validate the entire captured batch before the first INSERT. Without
+    // this preflight, String(null/undefined) would become a valid TEXT subject
+    // identifier and an invalid later event could leave earlier rows imported.
+    // Legitimate ledger captures always contain nonempty string identities.
+    if (!Array.isArray(rows) || rows.some((row) =>
+      !row || typeof row !== 'object' ||
+      typeof row.event_key !== 'string' || !row.event_key.trim() ||
+      typeof row.subject_user_id !== 'string' || !row.subject_user_id.trim() ||
+      !Object.values(this.EVENT_TYPES).includes(row.event_type)
+    )) {
+      const error = new Error('GDPR_LEDGER_INVALID_CAPTURED_EVENT');
+      error.code = 'GDPR_LEDGER_INVALID_CAPTURED_EVENT';
+      throw error;
+    }
     let merged = 0;
     for (const row of rows) {
       const event = [
