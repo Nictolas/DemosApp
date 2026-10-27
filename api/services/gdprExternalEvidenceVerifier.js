@@ -40,14 +40,19 @@ function canonical(value, depth = 0) {
   throw invalid();
 }
 
-function utcMillis(text) {
+function utcInstant(text) {
   const m = typeof text === 'string' &&
     /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?Z$/.exec(text);
   if (!m) throw invalid();
   const ms = m[1] + '.' + (m[2] || '').padEnd(3, '0').slice(0, 3) + 'Z';
   const date = new Date(ms);
   if (!Number.isFinite(date.getTime()) || date.toISOString() !== ms) throw invalid();
-  return date.getTime();
+  // Normalize for chronological comparisons without losing microsecond precision.
+  // Keep each original timestamp unchanged in the signed event payload.
+  return {
+    millis: date.getTime(),
+    orderKey: m[1] + '.' + (m[2] || '').padEnd(6, '0') + 'Z'
+  };
 }
 
 function normalize(events, capturedAt) {
@@ -62,16 +67,16 @@ function normalize(events, capturedAt) {
         !TYPES.has(row.event_type) ||
         !row.details || typeof row.details !== 'object' || Array.isArray(row.details) ||
         seen.has(row.event_key)) throw invalid();
-    const ms = utcMillis(row.occurred_at);
-    if (ms > capturedAt + MAX_FUTURE_MS) throw invalid('GDPR_EXTERNAL_EVIDENCE_FUTURE_EVENT');
-    const order = row.occurred_at + '\u0000' + row.event_key;
+    const instant = utcInstant(row.occurred_at);
+    if (instant.millis > capturedAt + MAX_FUTURE_MS) throw invalid('GDPR_EXTERNAL_EVIDENCE_FUTURE_EVENT');
+    const order = instant.orderKey + '\u0000' + row.event_key;
     if (previous !== null && order <= previous) {
       throw invalid('GDPR_EXTERNAL_EVIDENCE_EVENT_ORDER');
     }
     previous = order;
     seen.add(row.event_key);
     if (row.event_type !== 'account_deleted') {
-      const tieKey = row.subject_user_id + '\u0000' + row.occurred_at;
+      const tieKey = row.subject_user_id + '\u0000' + instant.orderKey;
       const earlier = tieTypes.get(tieKey);
       if (earlier && earlier !== row.event_type) {
         throw invalid('GDPR_EXTERNAL_EVIDENCE_AMBIGUOUS_CONSENT');
@@ -105,7 +110,7 @@ function sealOffline({ events, capturedAt, source, previousSignature = null }, s
   const key = keyBuffer(secret);
   if (typeof source !== 'string' || !/^[a-z0-9_-]{5,80}$/.test(source)) throw invalid();
   if (previousSignature !== null && !HEX_SHA256.test(previousSignature)) throw invalid();
-  const captureTime = utcMillis(capturedAt);
+  const captureTime = utcInstant(capturedAt).millis;
   const rows = normalize(events, captureTime);
   const manifest = {
     version: 1,
@@ -138,7 +143,7 @@ function verifyOffline(bundle, {
   }
   if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0 || maxAgeMs > MAX_AGE_MS ||
       !Number.isFinite(now)) throw invalid();
-  const capturedAtMs = utcMillis(manifest.capturedAt);
+  const capturedAtMs = utcInstant(manifest.capturedAt).millis;
   if (capturedAtMs > now + MAX_FUTURE_MS ||
       now - capturedAtMs > maxAgeMs) {
     throw invalid('GDPR_EXTERNAL_EVIDENCE_STALE');
