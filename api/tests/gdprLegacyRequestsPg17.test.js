@@ -126,6 +126,13 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
     await admin.query(
       'GRANT SELECT,INSERT ON public.user_rights_requests TO ' + DENIED_ROLE
     );
+    // A policy may be present but permit only some other user's records.
+    // A catalog policy-count check alone would wrongly certify completeness.
+    await admin.query(
+      'CREATE POLICY gdpr_ci_partial_history ' +
+      'ON public.user_rights_requests FOR SELECT TO ' + DENIED_ROLE +
+      " USING (user_id='" + OTHER + "')"
+    );
     restricted=new Pool({
       host:'127.0.0.1',port:5432,database:'gdpr_legacy_rights_ci',
       user:DENIED_ROLE,password:'synthetic-ci-only',ssl:false,max:1
