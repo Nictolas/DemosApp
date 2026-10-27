@@ -104,6 +104,9 @@ router.post('/', verifyToken, async (req, res) => {
       [requestId, userId, tipo, data]
     );
     let stored = result.rows?.[0];
+    if (stored && (!stored.id || stored.status !== 'pending')) {
+      throw Error('GDPR_RIGHTS_REQUEST_NOT_PERSISTED');
+    }
     const replay = !stored;
     if (replay) {
       const previous = await pool.query(
