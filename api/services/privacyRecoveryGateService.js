@@ -221,6 +221,11 @@ async function reconcileRestoredPrivacyState({
       ? 'LOCK TABLE privacy_erasure_ledger, privacy_erasure_delivery_outbox ' +
         'IN SHARE ROW EXCLUSIVE MODE NOWAIT'
       : 'LOCK TABLE privacy_erasure_ledger IN SHARE ROW EXCLUSIVE MODE NOWAIT');
+    // A partially restored core schema must halt BEFORE importing any
+    // independently signed events into the restored ledger/outbox. The
+    // catalog-only check is the same main-isolated #366 invariant used by
+    // direct replay, and cannot erase personal data or create relations.
+    await Ledger.assertReplayCoreSchema(client);
     if (outboxEnabled) {
       // An outbox-only row may be a trace of a missing ledger event in a
       // damaged/legacy restore. Never silently keep it while replaying the
