@@ -43,7 +43,28 @@ const SQL = `
     c.relforcerowsecurity AS ledger_force_rls,
     (pg_catalog.pg_get_userbyid(c.relowner) = current_user) AS ledger_owner,
     pg_catalog.has_table_privilege(current_user, c.oid, 'INSERT') AS ledger_insert_grant,
-    pg_catalog.has_table_privilege(current_user, c.oid, 'SELECT') AS ledger_select_grant
+    pg_catalog.has_table_privilege(current_user, c.oid, 'SELECT') AS ledger_select_grant,
+    EXISTS (
+      SELECT 1 FROM pg_catalog.aclexplode(
+        COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))
+      ) acl WHERE acl.grantee = 0
+    ) AS public_grants_exist,
+    EXISTS (
+      SELECT 1 FROM pg_catalog.pg_attribute a
+      CROSS JOIN LATERAL pg_catalog.aclexplode(a.attacl) acl
+      WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+        AND acl.grantee = 0
+    ) AS public_column_grants_exist,
+    (
+      SELECT COUNT(*)::integer FROM pg_catalog.pg_roles r
+      WHERE r.rolname IN ('anon', 'authenticated', 'service_role')
+        AND (
+          pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'SELECT') OR
+          pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'INSERT') OR
+          pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'UPDATE') OR
+          pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE')
+        )
+    ) AS api_roles_with_dml_grants
   FROM pg_catalog.pg_class c
   JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public'
@@ -60,7 +81,14 @@ function publicReport(rows) {
   };
   const identityPresent = typeof state.current_role === 'string' &&
     typeof state.session_role === 'string' && !!state.database_name;
-  const qualified = state.ledger_rls === true && state.ledger_insert_grant === true &&
+  // Match the fail-closed checks enforced by Ledger.assertProtectedLedger.
+  // A positive writer/owner grant alone does NOT mean the ledger is safe.
+  const ledgerProtected = state.ledger_rls === true &&
+    state.public_grants_exist === false &&
+    state.public_column_grants_exist === false &&
+    state.api_roles_with_dml_grants === 0;
+  const qualified = ledgerProtected && state.ledger_insert_grant === true &&
+    state.ledger_select_grant === true &&
     (state.ledger_owner === true || (state.bypass_rls === true && state.ledger_force_rls !== true));
   return {
     project: 'Demos-Staging', environment_target_checked: true,
@@ -68,6 +96,7 @@ function publicReport(rows) {
     role_setting: state.role_setting,
     database_name: state.database_name,
     ledger_present: true, ledger_rls: state.ledger_rls === true,
+    ledger_acl_protected: ledgerProtected,
     ledger_force_rls: state.ledger_force_rls === true,
     ledger_owner: state.ledger_owner === true,
     ledger_insert_grant: state.ledger_insert_grant === true,
@@ -77,7 +106,9 @@ function publicReport(rows) {
     // Catalog checks cannot prove policy outcomes or actual recordEvent writes.
     catalog_eligibility: qualified ? 'POSSIBLE_NOT_PROVEN' : 'NOT_ATTESTED',
     live_render_pool_verified: false,
-    status: 'READONLY_IDENTITY_ONLY_NOT_RELEASE_GO'
+    status: ledgerProtected
+      ? 'READONLY_IDENTITY_ONLY_NOT_RELEASE_GO'
+      : 'NO_GO_LEDGER_SCHEMA_NOT_PROTECTED'
   };
 }
 
