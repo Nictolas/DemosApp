@@ -101,6 +101,35 @@ test('worker disabled/misconfigured/recovery maintenance fails before DB and B2'
   assert.equal(fake.calls, 0);
 });
 
+test('operator status obtains all four counters from one SQL snapshot', async () => {
+  const seen = [];
+  const client = {
+    async query(sql) {
+      seen.push(sql);
+      if (sql.includes("to_regclass('public.privacy_erasure_ledger')")) {
+        return { rows: [{ledger: true, outbox: true}] };
+      }
+      if (sql.includes('AS complete_visibility')) {
+        return { rows: [{complete_visibility: true}] };
+      }
+      if (sql.includes('FULL JOIN public.privacy_erasure_delivery_outbox')) {
+        // A newly committed queued event can appear in the snapshot; a
+        // READY answer must not mix older pending counts with newer rows.
+        return { rows: [{pending: 1, invalid_receipts: 0,
+          oldest_pending_at: null, unqueued: 0, orphaned: 0}] };
+      }
+      throw Error('Unexpected extra status query');
+    }
+  };
+  const result = await PrivacyErasureOutboxWorker.status(client);
+  assert.equal(result.ready, false);
+  assert.equal(result.pending, 1);
+  assert.equal(result.unqueued, 0);
+  assert.equal(result.completeVisibility, true);
+  assert.equal(seen.length, 3, 'one joined SQL snapshot after schema and role preflight');
+  assert.match(seen[2], /FULL JOIN public\\.privacy_erasure_delivery_outbox/);
+});
+
 test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and drift checks', async () => {
   guard();
   const prior = process.env.GDPR_ERASURE_OUTBOX_ENABLED;
@@ -167,7 +196,16 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     assert.equal(fake.calls, 1);
     const ready = await PrivacyErasureOutboxWorker.status(admin);
     assert.equal(ready.ready, true);
+    assert.equal(ready.completeVisibility, true);
     assert.equal(ready.unqueued, 0);
+    // A worker restricted by subject-level RLS cannot certify COMPLETE
+    // outbox health, even when all rows currently visible to it are delivered.
+    const partial = await PrivacyErasureOutboxWorker.status(workerPool);
+    assert.equal(partial.installed, true);
+    assert.equal(partial.ready, false);
+    assert.equal(partial.completeVisibility, false);
+    assert.equal(partial.pending, null, 'do not show RLS-filtered counts as global');
+    assert.equal(partial.unqueued, null);
 
     // Network dies AFTER an immutable remote version was written:
     // SQL ACK must stay pending, and later retry reuses the same version.
