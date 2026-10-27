@@ -345,7 +345,7 @@ test('manual B2 exporter cannot read a pg_temp ledger shadow',async()=>{
   const db={async query(sql){
     // A borrowed PostgreSQL session could carry an earlier temporary relation
     // named privacy_erasure_ledger. An unqualified FROM would read it instead.
-    if (/\\bFROM public\\.privacy_erasure_ledger\\b/.test(sql)) {
+    if (sql.includes('FROM public.privacy_erasure_ledger ')) {
       return {rows:[{...official,cursor_occurred_at:'2026-10-26T03:00:00.000000Z'}]};
     }
     return {rows:[{...tempShadow,cursor_occurred_at:'2026-10-26T03:00:00.000000Z'}]};
