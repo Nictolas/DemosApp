@@ -101,3 +101,42 @@ Un involucro comprende `events` (contiene gli identificativi, pertanto **è esso
 Il risultato ritorna **sempre** `INTEGRITY_ONLY_NOT_RECOVERY_GO`, `externalLedgerCompletenessAttested=false` e `recoveryApproved=false`, anche con HMAC e pin validi. Il modulo non è collegato ad alcuna API, job o backup di produzione. La suite usa solo dati inventati e una chiave sintetica.
 
 **NO-GO immutato** fino a una fonte esterna realmente verificata, prova di continuità/freschezza, ripristino quarantinato, attestazione vera del writer Render e approvazione titolare/DPO.
+
+## Ricognizione provider live in sola lettura — 27 ottobre 2026
+
+**Fonti interrogate:** Render `list_services`, `get_service`, `list_postgres_instances`, `list_deploys`, `list_logs` filtrato per parole relative al database; Supabase `list_projects` e `execute_sql` esclusivamente `SELECT` da `pg_catalog`. Nessuna credenziale letta/stampata, riga personale interrogata o risorsa modificata.
+
+### Render: inventario e scelta responsabile dello staging
+
+L'ambiente Render contiene **11 servizi totali**, di cui **9 denominati staging** e i due servizi di produzione `demos-backend` e `demos-frontend`, entrambi su `main` con `autoDeploy=yes`. Gli staging hanno `autoDeploy=no` e scopi distinti:
+
+| Servizio | Natura attestata dal solo comando di avvio | Uso per prove GDPR su dati |
+| --- | --- | --- |
+| `demos-functional-staging` (`srv-db52l1g473hc739ld250`) | Backend completo `cd api && node index.js`, branch `staging/functional-integration-v0`, ultimo deploy live consultato commit `645d72d` del 15 ottobre | **NON UTILIZZARE** fino a identificazione esatta della connessione PostgreSQL; potrebbe non essere isolato |
+| `demos-security-staging` | Stack specifico di test sicurezza | Da valutare; non è confermato come clone del backend con DB GDPR |
+| `demos-security-gates-staging` | Test + endpoint di sola prova, status `executable:false` nel comando di start | Non sostituisce un vero backend + PostgreSQL |
+| `demos-action-runner-sandbox-staging` | Suite test + endpoint sintetico `externalClientsAllowed:false` dichiarato nel comando | Non sostituisce un vero backend + PostgreSQL |
+| `demos-first-four-playbooks-staging` | Suite test + endpoint sintetico P01–P04 | Non sostituisce un vero backend + PostgreSQL |
+| `demos-p07-rollback-dryrun-staging` | Suite test + endpoint sintetico non eseguibile | Non sostituisce un vero backend + PostgreSQL |
+| `demos-outbox-readonly-staging` | Health-check read-only outbox | Non prova l'isolamento della connessione di `demos-functional-staging` |
+| `demos-b2-readonly-restore-staging` | Health-check archivio **log Axiom** B2 | Non prova il backup del ledger GDPR |
+| `demos-sondaggi-op37-http-staging` | Sonda HTTP per sondaggi OP37 | Non è un ambiente GDPR |
+
+Questa classificazione descrive **l'intento del comando di avvio**, non una certificazione crittografica dell'isolamento runtime di ogni servizio. **Non creare nuovi staging o eliminare quelli attuali** fino a verificare uso effettivo, dipendenze e possibili test ancora in corso. L'eventuale consolidamento richiede un inventario delle dipendenze e una conferma separata.
+
+L'unico PostgreSQL attualmente elencato direttamente in Render è `demos-civic-staging-db` (`dpg-db4id8id0e5s73cfb0cg-a`), Postgres 17, piano free, accesso esterno bloccato dall'allowlist IP vuota, scadenza riportata **8 novembre 2026**. Nessun tool con accesso in lettura alla configurazione completa delle variabili dei web service è disponibile nel connettore Render; `get_service` **non espone alcun legame verificabile** fra `demos-functional-staging` e questa istanza. Le query ai log di staging filtrate per `database` e `Supabase` non hanno fornito prova del collegamento. **NON inferire il database dal nome del servizio**.
+
+### Supabase Demos-Staging: prova reale del solo catalogo
+
+Il progetto dedicato `Demos-Staging` (`fkeayjzvtuvzesljhjbc`) è **ACTIVE_HEALTHY**, PostgreSQL 17. Nel suo schema `public` non esistono le sei tabelle GDPR core, incluso `privacy_erasure_ledger`. I cataloghi confermano però la presenza di altre tabelle non-core negli schemi `demos_private` (1) e `op37_sondaggi_ci` (4); **non pulire né sovrascrivere** questi schemi.
+
+Il 27/10/2026 è stata inviata alla connessione SQL amministrativa Supabase la **SELECT identica** alla `SQL` di `api/scripts/attest-gdpr-writer-readonly.js`. La query ha funzionato davvero su PostgreSQL di staging e ha restituito una sola riga con: `current_user=postgres`, `session_user=postgres`, `current_database=postgres`, `rolbypassrls=true`, `ledger_present=false`. **Questo è il ruolo del connettore Supabase**, privilegiato per l'amministrazione: **NON** è una prova che Render usi `postgres`, che il ledger sia idoneo o che la connessione effettiva del backend sia stata testata. La sonda rimane `NO_GO_MISSING_LEDGER`.
+
+### Passaggio operativo minimo necessario
+
+1. Certificare per ispezione **senza condividere il valore di `DATABASE_URL`** il solo riferimento del progetto/hostname e dell'utente DB usati da `demos-functional-staging` in Render, includendo eventuali environment groups; confrontare con il riferimento staging, **mai con la produzione**. Se il target è incerto o punta a produzione, fermarsi.
+2. Decidere quale database di staging utilizzare **senza sovrascrivere le 5 tabelle già presenti in Supabase**, senza dipendere dal database Render free in scadenza. Preparare unicamente fixture sintetiche e lo schema necessario dopo review della migrazione.
+3. Da un processo Render di staging esplicitamente attestato, eseguire la sonda SQL read-only sul target approvato, senza registrare credenziali o dati personali; verificare una **identità writer non privilegiata** e la configurazione del ledger. Un `postgres` amministrativo con `rolbypassrls=true` non è una soluzione per aggirare le policy.
+4. Solo dopo eseguire una revoca+rollback sintetica sul database di staging segregato. Prima di qualunque recovery reale rimangono il ledger esterno indipendente e fresco, quarantena completa e approvazione GDPR/DPO.
+
+**Decisione odierna: NO-GO invariato, motivato da un blocco di attestazione della connessione runtime.** Nessuna modifica a database, IAM, hosting, rete, trigger di deploy o archivi.
