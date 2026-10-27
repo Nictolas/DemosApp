@@ -984,3 +984,34 @@ test('outbox worker queries exact UTC text before B2 delivery',async()=>{
   assert.equal(result.delivered,1);
   assert.equal(exported,event.occurred_at);
 });
+
+// Regression: a malformed external event must not silently become '{}' in
+// either the immutable B2 journal or the offline ledger replay. All invented.
+test('missing GDPR archive details fail before SQL and B2 normalization', async () => {
+  const valid = {
+    event_key: '00000000-0000-4000-8000-000000000301',
+    subject_user_id: 'synthetic-subject',
+    event_type: 'political_consent_revoked',
+    occurred_at: '2026-10-26T03:00:00.000Z',
+    details: {source: 'synthetic-only'}
+  };
+  const malformed = [
+    {...valid, event_key: '00000000-0000-4000-8000-000000000302', details: null},
+    {...valid, event_key: '00000000-0000-4000-8000-000000000303', details: undefined},
+    (() => {
+      const row = {...valid, event_key: '00000000-0000-4000-8000-000000000304'};
+      delete row.details;
+      return row;
+    })()
+  ];
+  for (const row of malformed) {
+    assert.throws(() => normalizeB2Event(row), /Invalid GDPR ledger details/);
+    let queries = 0;
+    const db = {async query() { queries++; throw Error('SQL must not run'); }};
+    await assert.rejects(
+      Ledger.mergeCaptured(db, [valid, row], {requirePreinstalled: true}),
+      error => error?.code === 'GDPR_LEDGER_INVALID_CAPTURED_EVENT'
+    );
+    assert.equal(queries, 0, 'invalid archive must be rejected before any SQL');
+  }
+});
