@@ -125,7 +125,10 @@ async function main() {
     const result = await client.query({ text: SQL, rowMode: 'object', query_timeout: 5000 });
     const report = publicReport(result.rows);
     process.stdout.write('GDPR_WRITER_READONLY_REPORT ' + JSON.stringify(report) + '\n');
-    if (!report.ledger_present || !report.sql_writer_attested) process.exitCode = 2;
+    if (!report.ledger_present || !report.sql_writer_attested ||
+        report.status !== 'READONLY_IDENTITY_ONLY_NOT_RELEASE_GO') {
+      process.exitCode = 2;
+    }
   } finally {
     if (client) client.release();
     await closePool();
