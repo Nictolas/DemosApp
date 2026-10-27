@@ -5,6 +5,7 @@
 const assert = require('node:assert/strict');
 const { Client } = require('pg');
 const Ledger = require('../services/privacyErasureLedgerService');
+const { SQL: attestSQL, publicReport } = require('./attest-gdpr-writer-readonly');
 
 const DB = 'political_selection_erasure_ci';
 const SUBJECT = 'synthetic-gdpr-pool-ci-subject';
@@ -85,6 +86,33 @@ async function main() {
     assert.equal(writer.database_name, DB);
     assert.equal(writer.bypass_rls, false);
 
+    // The staging SELECT-only probe must disclose the SQL identity even if
+    // no GDPR ledger is installed yet. Test the SQL, not just the formatter,
+    // against the disposable database and the same backend pool.
+    const probeRows = (await poolClient.query(attestSQL)).rows;
+    assert.equal(probeRows.length, 1);
+    const protectedProbe = publicReport(probeRows);
+    assert.equal(protectedProbe.current_role, ROLE);
+    assert.equal(protectedProbe.sql_writer_attested, true);
+    assert.equal(protectedProbe.ledger_present, true);
+    assert.equal(protectedProbe.ledger_acl_protected, true);
+    assert.equal(protectedProbe.status, 'READONLY_IDENTITY_ONLY_NOT_RELEASE_GO');
+    assert.equal(protectedProbe.live_render_pool_verified, false);
+
+    const missingSQL = attestSQL.replace(
+      "c.relname = 'privacy_erasure_ledger'",
+      "c.relname = 'missing_ledger_synthetic_ci'"
+    );
+    assert.notEqual(missingSQL, attestSQL);
+    const missingRows = (await poolClient.query(missingSQL)).rows;
+    assert.equal(missingRows.length, 1);
+    const missingProbe = publicReport(missingRows);
+    assert.equal(missingProbe.current_role, ROLE);
+    assert.equal(missingProbe.sql_writer_attested, true);
+    assert.equal(missingProbe.ledger_present, false);
+    assert.equal(missingProbe.catalog_eligibility, 'NOT_ATTESTED');
+    assert.equal(missingProbe.status, 'NO_GO_MISSING_LEDGER');
+
     // RLS with zero policies MUST block the same transaction path used
     // by the app even when INSERT/SELECT table grants exist.
     await poolClient.query('BEGIN');
@@ -140,6 +168,7 @@ async function main() {
       sqlRoleNotOwner: true, sqlRoleNoBypassRls: true,
       rlsDenyWithoutPolicies: true, rollbackPreservesLedger: true,
       committedSyntheticEvent: true, narrowPolicyRejectsOtherSubject: true,
+      readonlyProbeSqlExecuted: true, emptyLedgerStillReportsSqlIdentity: true,
       realRenderWriterAttested: false, productionUntouched: true
     }));
   } finally {
