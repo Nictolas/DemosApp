@@ -636,24 +636,22 @@ class PrivacyErasureLedgerService {
     // Optional legacy relations remain schema-aware in cleanup helpers.
     await this.assertReplayCoreSchema(client);
 
-    // Fail BEFORE deleting any account or political data if historical
-    // grants and revocations share a timestamp. event_key is a random UUID,
-    // not a reliable ordering of consent, and cannot resolve this tie.
-    // This guard also protects direct ledger replay callers (not only the
-    // signed-manifest recovery entry point).
+    // Exact PostgreSQL microseconds are the authoritative event order.
+    // DISTINCT grant/revocation times inside one millisecond are ordered,
+    // whereas a true timestamp tie has no trustworthy causal sequence.
+    // Fail closed on ties BEFORE any cleanup; never order random UUIDs.
     const ambiguousConsent = await client.query(`
       SELECT EXISTS (
-        SELECT 1
-        FROM public.privacy_erasure_ledger revoked
-        JOIN public.privacy_erasure_ledger granted
-          ON granted.subject_user_id = revoked.subject_user_id
-         AND date_trunc('milliseconds', granted.occurred_at) =\n             date_trunc('milliseconds', revoked.occurred_at)
-        WHERE revoked.event_type = 'political_consent_revoked'
-          AND granted.event_type = 'political_consent_granted'
+        SELECT 1 FROM public.privacy_erasure_ledger
+        WHERE event_type IN ('political_consent_revoked', 'political_consent_granted')
+        GROUP BY subject_user_id, occurred_at
+        HAVING COUNT(DISTINCT event_type) > 1
       ) AS present
     `);
-    if (ambiguousConsent.rows[0]?.present !== false) {
-      throw Error('Ambiguous simultaneous GDPR consent grant and revocation in ledger');
+    if (ambiguousConsent.rows?.[0]?.present !== false) {
+      const error = new Error('Ambiguous simultaneous GDPR consent grant and revocation in ledger');
+      error.code = 'GDPR_LEDGER_AMBIGUOUS_CONSENT_ORDER';
+      throw error;
     }
 
     const accountEvents = await client.query(`
