@@ -213,7 +213,14 @@ test('outbox preflight rejects events B2 cannot archive before any PostgreSQL I/
   const statements = [];
   const db = {async query(sql) {
     statements.push(sql);
-    return {rows:[{event_key:'synthetic-test-event'}]};
+    if (sql.includes('pg_catalog.aclexplode')) return {rows:[{
+      rls_enabled:true, public_grants_exist:false,
+      public_column_grants_exist:false, api_roles_with_dml_grants:0
+    }]};
+    if (sql.includes('WITH event_insert')) {
+      return {rows:[{event_key:'synthetic-test-event'}]};
+    }
+    throw Error('Unexpected synthetic GDPR SQL');
   }};
   const eventType = Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED;
   try {
@@ -232,9 +239,10 @@ test('outbox preflight rejects events B2 cannot archive before any PostgreSQL I/
       userId:KEY, eventType, details:{synthetic:'x'.repeat(7900)}
     });
     assert.equal(valid.event_key,'synthetic-test-event');
-    assert.equal(statements.length,1);
-    assert.match(statements[0],/INSERT INTO public\.privacy_erasure_ledger/);
-    assert.match(statements[0],/INSERT INTO public\.privacy_erasure_delivery_outbox/);
+    assert.equal(statements.length,2);
+    assert.match(statements[0],/pg_catalog\.aclexplode/);
+    assert.match(statements[1],/INSERT INTO public\.privacy_erasure_ledger/);
+    assert.match(statements[1],/INSERT INTO public\.privacy_erasure_delivery_outbox/);
   } finally {
     if (old === undefined) delete process.env.GDPR_ERASURE_OUTBOX_ENABLED;
     else process.env.GDPR_ERASURE_OUTBOX_ENABLED = old;
@@ -247,7 +255,14 @@ test('GDPR outbox preflight checks exact SQL JSON despite inherited and stateful
   const queries = [];
   const db = {async query(sql, params) {
     queries.push({sql, params});
-    return {rows:[{event_key:'synthetic-test-event'}]};
+    if (sql.includes('pg_catalog.aclexplode')) return {rows:[{
+      rls_enabled:true, public_grants_exist:false,
+      public_column_grants_exist:false, api_roles_with_dml_grants:0
+    }]};
+    if (sql.includes('WITH event_insert')) {
+      return {rows:[{event_key:'synthetic-test-event'}]};
+    }
+    throw Error('Unexpected synthetic GDPR SQL');
   }};
   const eventType = Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED;
   try {
@@ -289,9 +304,10 @@ test('GDPR outbox preflight checks exact SQL JSON despite inherited and stateful
       details:{at:new Date('2026-10-26T00:00:00.000Z'), source:'x'.repeat(7900)}
     });
     assert.equal(valid.event_key,'synthetic-test-event');
-    assert.equal(queries.length,1);
-    assert.match(queries[0].sql,/INSERT INTO public\.privacy_erasure_delivery_outbox/);
-    const actualDetails = JSON.parse(queries[0].params[3]);
+    assert.equal(queries.length,2);
+    assert.match(queries[0].sql,/pg_catalog\.aclexplode/);
+    assert.match(queries[1].sql,/INSERT INTO public\.privacy_erasure_delivery_outbox/);
+    const actualDetails = JSON.parse(queries[1].params[3]);
     assert.equal(actualDetails.at,'2026-10-26T00:00:00.000Z');
     assert.doesNotThrow(() => normalizeB2Event({
       event_key: '00000000-0000-4000-8000-000000000321',
@@ -396,11 +412,11 @@ test('signed recovery refuses events that cannot fit the immutable B2 archive be
   assert.equal(network,0);
 });
 
-test('opposing consent events at the same millisecond cannot be signed or replayed', async () => {
+test('opposing consent events at the exact same microsecond cannot be signed or replayed', async () => {
   const sameInstant = '2026-10-26T00:00:00.000Z';
   const revoke = mkEvent('political_consent_revoked', {occurred_at:sameInstant});
   const grant = mkEvent('political_consent_granted', {
-    occurred_at:'2026-10-26T00:00:00.000500Z'
+    occurred_at:'2026-10-26T00:00:00.000000Z'
   });
   assert.throws(() => fixture([revoke, grant]), /Ambiguous simultaneous GDPR consent/);
   // No DB query may be attempted even if a caller supplies a signed-looking
@@ -417,6 +433,21 @@ test('opposing consent events at the same millisecond cannot be signed or replay
     secret:SECRET,expectedRecoveryId:ID,maintenanceConfirmed:true
   }), /Ambiguous simultaneous GDPR consent/);
   assert.equal(queries,0);
+});
+
+test('opposing consent events one microsecond apart retain signed order', () => {
+  const revoke=mkEvent('political_consent_revoked',{
+    occurred_at:'2026-10-26T00:00:00.000Z'
+  });
+  const grant=mkEvent('political_consent_granted',{
+    occurred_at:'2026-10-26T00:00:00.000001Z'
+  });
+  const signed=fixture([grant,revoke]);
+  const verified=verifySignedManifest(signed,SECRET,ID);
+  assert.deepEqual(verified.events.map(e=>e.occurred_at),[
+    '2026-10-26T00:00:00.000Z',
+    '2026-10-26T00:00:00.000001Z'
+  ]);
 });
 
 test('pinned external SHA256 refuses signed stale manifests without any DB access', async () => {
@@ -904,4 +935,83 @@ test('provider recovery inventory stays explicitly NO-GO until independent isola
   assert.match(report,/nessun restore/i);
   assert.match(appSource,/Supabase in production/);
   assert.doesNotMatch(appSource,/Neon PITR in production/);
+});
+
+test('signed recovery and B2 content distinguish adjacent PostgreSQL microseconds', () => {
+  const event=mkEvent('political_consent_revoked',{occurred_at:'2026-10-26T00:00:00.123456Z'});
+  const next={...event,occurred_at:'2026-10-26T00:00:00.123457Z'};
+  assert.notEqual(signature(fixture([event]).payload,SECRET),signature(fixture([next]).payload,SECRET));
+  assert.notEqual(manifestDigest(fixture([event])),manifestDigest(fixture([next])));
+  assert.equal(normalizeB2Event(event).occurred_at,event.occurred_at);
+  assert.equal(normalizeB2Event(next).occurred_at,next.occurred_at);
+  assert.equal(normalizeB2Event({...event,occurred_at:'2026-10-26T00:00:00.123000Z'}).occurred_at,
+    '2026-10-26T00:00:00.123Z','legacy millisecond-only hashes stay stable');
+  assert.throws(()=>fixture([{...event,occurred_at:new Date('2026-10-26T00:00:00.123Z')}]),
+    /Invalid event timestamp/);
+  assert.throws(()=>normalizeB2Event({...event,occurred_at:new Date('2026-10-26T00:00:00.123Z')}),
+    /lossless UTC text/);
+  assert.throws(()=>signed({
+    formatVersion:1,recoveryId:ID,capturedAt:'2026-10-26T00:00:00.123Z',
+    restoredBackupTakenAt:'2026-10-24T00:00:00.000Z',events:[event]
+  }),/after manifest/,'sub-millisecond event must not pass a millisecond capture boundary');
+});
+
+test('outbox worker queries exact UTC text before B2 delivery',async()=>{
+  const event=mkEvent('political_consent_revoked',{occurred_at:'2026-10-26T00:00:00.123456Z'});
+  let exported=null;
+  const client={
+    async query(sql){
+      if(sql.includes('FOR UPDATE OF o SKIP LOCKED')){
+        assert.match(sql,/to_char\(l\.occurred_at AT TIME ZONE/);
+        assert.match(sql,/AS occurred_at/);
+        return {rows:[event]};
+      }
+      if(sql.includes('UPDATE privacy_erasure_delivery_outbox')){
+        return {rowCount:1,rows:[{event_key:event.event_key}]};
+      }
+      return {rows:[]};
+    },
+    release(){}
+  };
+  const worker=new PrivacyErasureOutboxWorker({
+    env:{GDPR_ERASURE_OUTBOX_ENABLED:'true',GDPR_ERASURE_OUTBOX_WORKER_ENABLED:'true'},
+    exporter:{config(){return {};},async archiveEvent(row){
+      exported=row.occurred_at;
+      return {eventKey:row.event_key,versionId:'synthetic-b2-version',sha256:'a'.repeat(64)};
+    }}
+  });
+  const result=await worker.runOnce({async connect(){return client;}},{limit:1});
+  assert.equal(result.delivered,1);
+  assert.equal(exported,event.occurred_at);
+});
+
+// Regression: a malformed external event must not silently become '{}' in
+// either the immutable B2 journal or the offline ledger replay. All invented.
+test('missing GDPR archive details fail before SQL and B2 normalization', async () => {
+  const valid = {
+    event_key: '00000000-0000-4000-8000-000000000301',
+    subject_user_id: 'synthetic-subject',
+    event_type: 'political_consent_revoked',
+    occurred_at: '2026-10-26T03:00:00.000Z',
+    details: {source: 'synthetic-only'}
+  };
+  const malformed = [
+    {...valid, event_key: '00000000-0000-4000-8000-000000000302', details: null},
+    {...valid, event_key: '00000000-0000-4000-8000-000000000303', details: undefined},
+    (() => {
+      const row = {...valid, event_key: '00000000-0000-4000-8000-000000000304'};
+      delete row.details;
+      return row;
+    })()
+  ];
+  for (const row of malformed) {
+    assert.throws(() => normalizeB2Event(row), /Invalid GDPR ledger details/);
+    let queries = 0;
+    const db = {async query() { queries++; throw Error('SQL must not run'); }};
+    await assert.rejects(
+      Ledger.mergeCaptured(db, [valid, row], {requirePreinstalled: true}),
+      error => error?.code === 'GDPR_LEDGER_INVALID_CAPTURED_EVENT'
+    );
+    assert.equal(queries, 0, 'invalid archive must be rejected before any SQL');
+  }
 });

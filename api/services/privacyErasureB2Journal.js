@@ -3,6 +3,7 @@
 // DRAFT, operator-invoked only. This is an immutable *copy* of committed GDPR
 // events, NOT a transactionally complete recovery authority / checkpoint.
 const crypto = require('node:crypto');
+const {normalizeLedgerTimestamp} = require('./privacyLedgerTimestamp');
 const {
   S3Client, GetObjectLockConfigurationCommand, HeadObjectCommand,
   GetObjectCommand, GetObjectRetentionCommand, PutObjectCommand
@@ -23,9 +24,9 @@ function normalizeEvent(row) {
       typeof row.subject_user_id !== 'string' ||
       row.subject_user_id.length === 0 || row.subject_user_id.length > 128 ||
       !TYPES.has(row.event_type)) throw Error('Invalid GDPR ledger event');
-  const when = new Date(row.occurred_at);
-  if (!Number.isFinite(when.getTime())) throw Error('Invalid GDPR ledger timestamp');
-  const details = row.details == null ? {} : row.details;
+  const when = normalizeLedgerTimestamp(row.occurred_at);
+  // A missing JSONB payload is invalid, not an empty event to sign or archive.
+  const details = row.details;
   if (typeof details !== 'object' || !details || Array.isArray(details)) {
     throw Error('Invalid GDPR ledger details');
   }
@@ -33,7 +34,7 @@ function normalizeEvent(row) {
     event_key: row.event_key,
     subject_user_id: row.subject_user_id,
     event_type: row.event_type,
-    occurred_at: when.toISOString(),
+    occurred_at: when,
     details: stable(details)
   };
   if (Buffer.byteLength(JSON.stringify(event)) > 8192) {
@@ -290,23 +291,22 @@ class PrivacyErasureB2Journal {
       'SELECT event_key,subject_user_id,event_type,occurred_at,details, ' +
       "to_char(occurred_at AT TIME ZONE 'UTC', " +
       `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_occurred_at ` +
-      'FROM privacy_erasure_ledger ' +
+      // Explicit schema prevents pg_temp/search_path shadowing during manual B2 export.
+      'FROM public.privacy_erasure_ledger ' +
       'WHERE ($1::timestamptz IS NULL OR (occurred_at,event_key) > ($1::timestamptz,$2::text)) ' +
       'ORDER BY occurred_at ASC,event_key ASC LIMIT $3',
       [cursor?.occurred_at || null,cursor?.event_key || null,limit]
     );
     let last = cursor;
     for (const raw of result.rows) {
-      const event = normalizeEvent(raw);
-      // Fail before B2 I/O if the query cannot provide a lossless cursor.
-      // The normalized event timestamp is intentionally millisecond-based
-      // for JSON, but must never be reused as the SQL pagination cursor.
+      // pg Date loses microseconds. Use exact SQL text for B2 and cursor.
       const exactTimestamp = raw.cursor_occurred_at;
       if (typeof exactTimestamp !== 'string' ||
           !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(exactTimestamp) ||
           !Number.isFinite(Date.parse(exactTimestamp))) {
         throw Error('GDPR archive batch requires exact PostgreSQL timestamp cursor');
       }
+      const event = normalizeEvent({...raw, occurred_at: exactTimestamp});
       // Do not advance the return cursor until the B2 object was read back
       // and its exact immutable version retention was checked.
       await this.archiveEvent(event);

@@ -9,7 +9,7 @@ const crypto = require('node:crypto');
 const { Pool } = require('pg');
 const Ledger = require('../services/privacyErasureLedgerService');
 const PoliticalConsent = require('../services/politicalConsentService');
-const { signature, manifestDigest, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
+const { signature, manifestDigest, verifySignedManifest, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
 const DB = 'privacy_recovery_gate_ci';
 const SUBJECT = '00000000-0000-4000-8000-000000000301';
 const OTHER = '00000000-0000-4000-8000-000000000302';
@@ -305,6 +305,61 @@ async function main() {
     // CI-only cleanup of the deliberately injected orphan.
     await db.query('DELETE FROM privacy_erasure_delivery_outbox WHERE event_key=$1',[orphanKey]);
 
+    // A partial physical restore may preserve the GDPR ledger and outbox
+    // while omitting a required privacy column or an entire core relation.
+    // All DDL below is ONLY on the disposable, localhost PG17 CI database.
+    // Neither direct replay nor signed recovery may import tombstones,
+    // delete preferences or claim success with such an incomplete schema.
+    const damagedSchemaFixtures = [
+      {
+        label:'required-consent-column',
+        breakSql:'ALTER TABLE public.user_consents ' +
+          'RENAME COLUMN political_opinions_consent_user_agent ' +
+          'TO political_opinions_consent_user_agent_hidden_ci',
+        repairSql:'ALTER TABLE public.user_consents ' +
+          'RENAME COLUMN political_opinions_consent_user_agent_hidden_ci ' +
+          'TO political_opinions_consent_user_agent'
+      },
+      {
+        label:'required-opinion-table',
+        breakSql:'ALTER TABLE public.opinioni_risposte ' +
+          'RENAME TO opinioni_risposte_hidden_ci',
+        repairSql:'ALTER TABLE public.opinioni_risposte_hidden_ci ' +
+          'RENAME TO opinioni_risposte'
+      }
+    ];
+    for (const damaged of damagedSchemaFixtures) {
+      await db.query(damaged.breakSql);
+      try {
+        await assert.rejects(
+          Ledger.applyCurrentPrivacyState(db,{requirePreinstalled:true}),
+          error=>error?.code==='GDPR_REPLAY_SCHEMA_INCOMPLETE',
+          damaged.label+' must block direct replay before mutation'
+        );
+        await assert.rejects(
+          reconcileRestoredPrivacyState({
+            client:noDdlClient,envelope:signed,secret:SECRET,
+            expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
+          }),
+          error=>error?.code==='GDPR_REPLAY_SCHEMA_INCOMPLETE',
+          damaged.label+' must block signed replay before importing ledger'
+        );
+        assert.equal(Number((await db.query(
+          'SELECT count(*)::int AS n FROM public.privacy_erasure_ledger'
+        )).rows[0].n),0,
+        'incomplete schema must not import signed events');
+        assert.equal(Number((await db.query(
+          'SELECT count(*)::int AS n FROM public.privacy_erasure_delivery_outbox'
+        )).rows[0].n),0,
+        'incomplete schema must not enqueue external receipts');
+        assert.equal(await count(db,'political_selections',SUBJECT),1,
+          'incomplete schema must not erase restored political selections');
+      } finally {
+        await db.query(damaged.repairSql);
+      }
+      await Ledger.assertReplayCoreSchema(db);
+    }
+
     // Disposable PG17: test a non-cooperating writer that owns a ROW
     // EXCLUSIVE table lock WITHOUT our recovery advisory lock. Replay must
     // refuse both cases with 55P03 before any import or privacy cleanup.
@@ -404,31 +459,85 @@ async function main() {
     assert.equal(retainedReceipt.b2_version_id,'synthetic-locked-version');
     assert.equal(retainedReceipt.b2_sha256,'a'.repeat(64));
 
-    // A direct ledger replay must also reject contradictory consent events
-    // whose timestamps collide at the signed manifest's millisecond precision.
-    // In the old ORDER BY occurred_at DESC, event_key DESC, random UUID
-    // ordering could have selected an unsafe consent grant.
+    // PostgreSQL timestamptz retains microseconds: same exact timestamp
+    // with contradictory consent actions is ambiguous, but two distinct
+    // instants within ONE millisecond must preserve their actual ordering.
+    // Every fixture write here is rolled back on this disposable PG17 client.
     const tiedRevoke = event(THIRD,'political_consent_revoked',
       '2026-10-25T14:00:00.000000Z');
     const tiedGrant = event(THIRD,'political_consent_granted',
-      '2026-10-25T14:00:00.000500Z');
-    for (const entry of [tiedRevoke,tiedGrant]) {
-      await db.query(
-        'INSERT INTO privacy_erasure_ledger ' +
-        '(event_key,subject_user_id,event_type,occurred_at,details) ' +
-        'VALUES ($1,$2,$3,$4,$5::jsonb)',
-        [entry.event_key,entry.subject_user_id,entry.event_type,
-          entry.occurred_at,JSON.stringify(entry.details)]
+      '2026-10-25T14:00:00.000000Z');
+    await db.query('BEGIN');
+    try {
+      for (const entry of [tiedRevoke,tiedGrant]) {
+        await db.query(
+          'INSERT INTO public.privacy_erasure_ledger ' +
+          '(event_key,subject_user_id,event_type,occurred_at,details) ' +
+          'VALUES ($1,$2,$3,$4,$5::jsonb)',
+          [entry.event_key,entry.subject_user_id,entry.event_type,
+            entry.occurred_at,JSON.stringify(entry.details)]
+        );
+      }
+      await assert.rejects(
+        Ledger.applyCurrentPrivacyState(db,{requirePreinstalled:true}),
+        error=>error?.code==='GDPR_LEDGER_AMBIGUOUS_CONSENT_ORDER',
+        'a true same-microsecond tie cannot be resolved with UUID order'
       );
+      assert.equal(await count(db,'political_selections',THIRD),1,
+        'exact tie must fail before removing any political selections');
+
+      // A later grant 500 microseconds after the revocation is NOT a tie.
+      // An ordinary direct replay must select the newer grant for this user.
+      await db.query('UPDATE public.privacy_erasure_ledger SET occurred_at=$2 ' +
+        'WHERE event_key=$1',[tiedGrant.event_key,'2026-10-25T14:00:00.000500Z']);
+      await Ledger.applyCurrentPrivacyState(db,{requirePreinstalled:true});
+      assert.equal(await count(db,'political_selections',THIRD),1,
+        'newer microsecond grant must not be mistaken for a simultaneous tie');
+
+      // The same millisecond with a revocation 1 microsecond later must
+      // correctly apply the revocation (rather than trusting random UUID).
+      await db.query('UPDATE public.privacy_erasure_ledger SET occurred_at=$2 ' +
+        'WHERE event_key=$1',[tiedRevoke.event_key,'2026-10-25T14:00:00.000501Z']);
+      await Ledger.applyCurrentPrivacyState(db,{requirePreinstalled:true});
+      assert.equal(await count(db,'political_selections',THIRD),0,
+        'newer microsecond revocation must erase old political selections');
+    } finally {
+      await db.query('ROLLBACK');
     }
-    await assert.rejects(Ledger.applyCurrentPrivacyState(db),
-      /Ambiguous simultaneous GDPR consent/);
-    assert.equal(await count(db,'political_selections',THIRD),1);
+    assert.equal(await count(db,'political_selections',THIRD),1,
+      'synthetic microsecond scenarios must leave no permanent state changes');
     assert.equal(await count(db,'political_selections',SUBJECT),0);
-    await db.query(
-      'DELETE FROM privacy_erasure_ledger WHERE event_key = ANY($1::text[])',
-      [[tiedRevoke.event_key,tiedGrant.event_key]]
+
+    // Signed recovery rejects a true timestamp tie even before the
+    // manifest can be signed or any database transaction can begin.
+    // This is distinct from direct replay, which detects a pre-existing
+    // ambiguous ledger state with the stable SQL error code above.
+    assert.throws(
+      () => envelope([...events,tiedRevoke,tiedGrant]),
+      /Ambiguous simultaneous GDPR consent grant and revocation/,
+      'a contradictory exact-microsecond tie must not be signable'
     );
+    // Signed manifests MUST retain the ordering of two opposite actions
+    // separated by only one microsecond (JS Date alone loses that detail).
+    const laterGrant={...tiedGrant,occurred_at:'2026-10-25T14:00:00.000001Z'};
+    const nearEnvelope=envelope([...events,tiedRevoke,laterGrant]);
+    const normalized=verifySignedManifest(nearEnvelope,SECRET,RECOVERY);
+    const nearEvents=normalized.events.filter(e=>e.subject_user_id===THIRD);
+    assert.deepEqual(nearEvents.map(e=>e.occurred_at),[
+      '2026-10-25T14:00:00.000Z',
+      '2026-10-25T14:00:00.000001Z'
+    ],'signed history must preserve and sort distinct microseconds');
+    assert.equal(Number((await db.query(
+      'SELECT count(*)::int AS n FROM public.privacy_erasure_ledger ' +
+      'WHERE event_key = ANY($1::text[])',
+      [[tiedRevoke.event_key,tiedGrant.event_key]]
+    )).rows[0].n),0,'manifest validation must not write ledger rows');
+    assert.equal(Number((await db.query(
+      'SELECT count(*)::int AS n FROM public.privacy_erasure_delivery_outbox ' +
+      'WHERE event_key = ANY($1::text[])',
+      [[tiedRevoke.event_key,tiedGrant.event_key]]
+    )).rows[0].n),0,'manifest validation must not queue B2 events');
+    assert.equal(await count(db,'political_selections',THIRD),1);
 
     // Even a *validly signed* manifest cannot silently rewrite an event
     // that already exists with the same key and a different subject/type.

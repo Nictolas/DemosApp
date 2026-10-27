@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const {normalizeLedgerTimestamp} = require('./privacyLedgerTimestamp');
 
 class PrivacyErasureLedgerService {
   static EVENT_TYPES = Object.freeze({
@@ -119,6 +120,53 @@ class PrivacyErasureLedgerService {
     return result.rowCount || 0;
   }
 
+  static async assertProtectedLedger(client) {
+    // This check only inspects pg_catalog; it never reads GDPR event rows.
+    // regclass resolution raises 42P01 if a restore omitted the ledger.
+    // A restored table that exists but lacks RLS or has API/public grants
+    // must not silently accept a new sensitive GDPR event.
+    const result = await client.query(`
+      SELECT c.relrowsecurity AS rls_enabled,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.aclexplode(
+            COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))
+          ) acl WHERE acl.grantee = 0
+        ) AS public_grants_exist,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_attribute a
+          CROSS JOIN LATERAL pg_catalog.aclexplode(a.attacl) acl
+          WHERE a.attrelid = c.oid
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+            AND acl.grantee = 0
+        ) AS public_column_grants_exist,
+        (
+          SELECT COUNT(*)::integer
+          FROM pg_catalog.pg_roles r
+          WHERE r.rolname IN ('anon', 'authenticated', 'service_role')
+            AND (
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'SELECT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'INSERT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'UPDATE') OR
+              pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE')
+            )
+        ) AS api_roles_with_dml_grants
+      FROM pg_catalog.pg_class c
+      WHERE c.oid = 'public.privacy_erasure_ledger'::regclass
+    `);
+    const state = result.rows?.[0];
+    if (state?.rls_enabled !== true ||
+        state?.public_grants_exist !== false ||
+        state?.public_column_grants_exist !== false ||
+        state?.api_roles_with_dml_grants !== 0) {
+      const error = new Error('GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      error.code = 'GDPR_LEDGER_SCHEMA_NOT_PROTECTED';
+      throw error;
+    }
+  }
+
   static async recordEvent(client, { userId, eventType, details = {} }) {
     if (!Object.values(this.EVENT_TYPES).includes(eventType)) {
       throw new Error(`Unsupported privacy ledger event: ${eventType}`);
@@ -154,6 +202,10 @@ class PrivacyErasureLedgerService {
         details: JSON.parse(detailsJson)
       });
     }
+    // Validate the B2 payload first without ANY SQL. Reuse #366's
+    // read-only RLS/ACL preflight in BOTH modes after that local validation,
+    // but before the first ledger or outbox INSERT.
+    await this.assertProtectedLedger(client);
     const params = [eventKey, subjectUserId, eventType, detailsJson];
     if (outboxEnabled) {
       // NO automatic DDL on a live revocation/deletion request. This fails
@@ -193,9 +245,12 @@ class PrivacyErasureLedgerService {
   }
 
   static async captureCurrent(client) {
-    await this.ensureTable(client);
+    // Capturing recovery evidence must never bootstrap a missing ledger.
+    await this.assertProtectedLedger(client);
     const result = await client.query(`
-      SELECT event_key, subject_user_id, event_type, occurred_at, details
+      SELECT event_key, subject_user_id, event_type,
+        to_char(occurred_at AT TIME ZONE 'UTC',
+          'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at, details
       FROM public.privacy_erasure_ledger
       ORDER BY occurred_at ASC, event_key ASC
     `);
@@ -203,24 +258,75 @@ class PrivacyErasureLedgerService {
   }
 
   static async mergeCaptured(client, rows = [], { requirePreinstalled = false } = {}) {
+    // Preflight every row before the FIRST SQL statement: a malformed later
+    // event must not leave earlier writes in a direct caller that forgot BEGIN.
+    // This complements, but cannot replace, the signed recovery transaction.
+    const invalid = () => {
+      const error = new Error('GDPR_LEDGER_INVALID_CAPTURED_EVENT');
+      error.code = 'GDPR_LEDGER_INVALID_CAPTURED_EVENT';
+      return error;
+    };
+    if (!Array.isArray(rows)) throw invalid();
+    const prepared = [];
+    const seenKeys = new Set();
+    for (const row of rows) {
+      if (!row || typeof row !== 'object' ||
+          typeof row.event_key !== 'string' || !row.event_key.trim() ||
+          typeof row.subject_user_id !== 'string' || !row.subject_user_id.trim() ||
+          !Object.values(this.EVENT_TYPES).includes(row.event_type) ||
+          seenKeys.has(row.event_key)) throw invalid();
+      let timestamp, details;
+      try {
+        // JS Date drops PostgreSQL microseconds: require validated UTC text.
+        timestamp = normalizeLedgerTimestamp(row.occurred_at);
+        // Snapshot a custom toJSON exactly once. B2 accepts only a JSON object.
+        // Do not turn missing/null JSONB into a valid-looking empty archive.
+        details = JSON.stringify(row.details);
+        const parsed = JSON.parse(details);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw invalid();
+        }
+      } catch (_) { throw invalid(); }
+      seenKeys.add(row.event_key);
+      prepared.push([
+        row.event_key, row.subject_user_id, row.event_type, timestamp, details
+      ]);
+    }
+
     // The offline recovery gate must never silently provision a missing
     // ledger. Keep legacy explicit import behavior for existing callers.
     if (!requirePreinstalled) await this.ensureTable(client);
+    // Signed recovery always uses requirePreinstalled and must reject a
+    // restored ledger with RLS disabled or unexpected API/PUBLIC grants.
+    await this.assertProtectedLedger(client);
     let merged = 0;
-    for (const row of rows) {
+    for (const event of prepared) {
       const result = await client.query(
         `INSERT INTO public.privacy_erasure_ledger
           (event_key, subject_user_id, event_type, occurred_at, details)
          VALUES ($1, $2, $3, $4, $5::jsonb)
          ON CONFLICT (event_key) DO NOTHING`,
-        [
-          row.event_key,
-          String(row.subject_user_id),
-          row.event_type,
-          row.occurred_at,
-          JSON.stringify(row.details || {})
-        ]
+        event
       );
+      if (result.rowCount === 0) {
+        // The event UUID is the immutable identity. A conflicting event must
+        // never be treated as successful idempotent recovery. In particular,
+        // an event with the same key but a different revocation/subject/time
+        // must fail closed rather than be silently discarded.
+        const existing = await client.query(
+          `SELECT (
+             subject_user_id = $2::text AND event_type = $3::text
+             AND occurred_at = $4::timestamptz AND details = $5::jsonb
+           ) AS identical
+           FROM public.privacy_erasure_ledger WHERE event_key = $1`,
+          event
+        );
+        if (existing.rows.length !== 1 || existing.rows[0].identical !== true) {
+          const error = new Error('GDPR_LEDGER_EVENT_KEY_CONFLICT');
+          error.code = 'GDPR_LEDGER_EVENT_KEY_CONFLICT';
+          throw error;
+        }
+      }
       merged += result.rowCount || 0;
     }
     return merged;
@@ -479,29 +585,74 @@ class PrivacyErasureLedgerService {
       legacySelectionsCleared: cleanup.legacySelectionsCleared };
   }
 
+  static async assertReplayCoreSchema(client) {
+    // A partial/old restore must never be reported as a successful replay
+    // merely because schema-aware deletion helpers skip missing relations.
+    // Inspect only catalog metadata; do not read user rows.
+    const result = await client.query(`
+      SELECT NOT EXISTS (
+        SELECT 1
+        FROM (VALUES
+          ('users', 'id'),
+          ('users', 'political_opinions_consent'),
+          ('users', 'political_opinions_consent_timestamp'),
+          ('users', 'political_opinions_consent_ip_address'),
+          ('users', 'political_opinions_consent_user_agent'),
+          ('users', 'updated_at'),
+          ('opinioni_risposte', 'user_id'),
+          ('user_consents', 'user_id'),
+          ('user_consents', 'political_opinions_consent'),
+          ('user_consents', 'political_opinions_consent_timestamp'),
+          ('user_consents', 'political_opinions_consent_ip_address'),
+          ('user_consents', 'political_opinions_consent_user_agent'),
+          ('user_consents', 'updated_at')
+        ) AS required(table_name, column_name)
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_class c
+          JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+          JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+          WHERE n.nspname = 'public'
+            AND c.relname = required.table_name
+            AND c.relkind IN ('r', 'p')
+            AND a.attname = required.column_name
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+        )
+      ) AS complete
+    `);
+    if (result.rows?.[0]?.complete !== true) {
+      const error = new Error('GDPR_REPLAY_SCHEMA_INCOMPLETE');
+      error.code = 'GDPR_REPLAY_SCHEMA_INCOMPLETE';
+      throw error;
+    }
+  }
+
   static async applyCurrentPrivacyState(client, { requirePreinstalled = false } = {}) {
     // The signed offline recovery path verifies the schema before replay.
     // Do not run implicit CREATE TABLE/INDEX inside that transaction.
     if (!requirePreinstalled) await this.ensureTable(client);
+    await this.assertProtectedLedger(client);
+    // Direct callers must also refuse partial restored core tables before DML.
+    // Optional legacy relations remain schema-aware in cleanup helpers.
+    await this.assertReplayCoreSchema(client);
 
-    // Fail BEFORE deleting any account or political data if historical
-    // grants and revocations share a timestamp. event_key is a random UUID,
-    // not a reliable ordering of consent, and cannot resolve this tie.
-    // This guard also protects direct ledger replay callers (not only the
-    // signed-manifest recovery entry point).
+    // Exact PostgreSQL microseconds are the authoritative event order.
+    // DISTINCT grant/revocation times inside one millisecond are ordered,
+    // whereas a true timestamp tie has no trustworthy causal sequence.
+    // Fail closed on ties BEFORE any cleanup; never order random UUIDs.
     const ambiguousConsent = await client.query(`
       SELECT EXISTS (
-        SELECT 1
-        FROM public.privacy_erasure_ledger revoked
-        JOIN public.privacy_erasure_ledger granted
-          ON granted.subject_user_id = revoked.subject_user_id
-         AND date_trunc('milliseconds', granted.occurred_at) =\n             date_trunc('milliseconds', revoked.occurred_at)
-        WHERE revoked.event_type = 'political_consent_revoked'
-          AND granted.event_type = 'political_consent_granted'
+        SELECT 1 FROM public.privacy_erasure_ledger
+        WHERE event_type IN ('political_consent_revoked', 'political_consent_granted')
+        GROUP BY subject_user_id, occurred_at
+        HAVING COUNT(DISTINCT event_type) > 1
       ) AS present
     `);
-    if (ambiguousConsent.rows[0]?.present !== false) {
-      throw Error('Ambiguous simultaneous GDPR consent grant and revocation in ledger');
+    if (ambiguousConsent.rows?.[0]?.present !== false) {
+      const error = new Error('Ambiguous simultaneous GDPR consent grant and revocation in ledger');
+      error.code = 'GDPR_LEDGER_AMBIGUOUS_CONSENT_ORDER';
+      throw error;
     }
 
     const accountEvents = await client.query(`

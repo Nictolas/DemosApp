@@ -125,6 +125,25 @@ async function main() {
       WHERE n.nspname='public' AND c.relname='privacy_erasure_ledger'
     `),1,'GDPR ledger must be RLS-protected at first committed creation');
 
+    // #366 main-isolated guard is now integrated into the Draft outbox
+    // writer, capture and signed-import paths. Simulate an existing ledger
+    // restored with RLS accidentally disabled: NO SQL event can be written.
+    await pool.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED='false';
+    try {
+      await assert.rejects(Ledger.recordEvent(pool,syntheticEvent()),
+        error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      await assert.rejects(Ledger.captureCurrent(pool),
+        error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      await assert.rejects(Ledger.mergeCaptured(pool,[],{requirePreinstalled:true}),
+        error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_ledger'),0,
+        'RLS-off restore must not get a new ledger event');
+    } finally {
+      process.env.GDPR_ERASURE_OUTBOX_ENABLED='true';
+      await pool.query('ALTER TABLE public.privacy_erasure_ledger ENABLE ROW LEVEL SECURITY');
+    }
+
     const notInstalled=await PrivacyErasureOutboxWorker.status(pool);
     assert.equal(notInstalled.installed,false);
     assert.equal(notInstalled.ready,false);
@@ -186,6 +205,23 @@ async function main() {
       WHERE r.rolname IN ('anon','authenticated','service_role')
         AND has_table_privilege(r.rolname,'public.privacy_erasure_ledger','SELECT')
     `),3,'synthetic fixture must prove public ledger grants were applied');
+    // A real protected ledger can still have accidental table OR column
+    // grants from a restore. Neither normal outbox writes nor offline import
+    // may proceed until explicit maintenance removes these grants.
+    await assert.rejects(Ledger.recordEvent(pool,syntheticEvent()),
+      error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+    await assert.rejects(Ledger.captureCurrent(pool),
+      error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+    await assert.rejects(Ledger.mergeCaptured(pool,[],{requirePreinstalled:true}),
+      error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+    assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_ledger'),1,
+      'unsafe API grants must not create an event');
+    assert.equal(await value(pool,'SELECT count(*)::int FROM public.privacy_erasure_delivery_outbox'),1,
+      'unsafe API grants must not enqueue an event');
+    await pool.query('GRANT SELECT (details) ON public.privacy_erasure_ledger TO PUBLIC');
+    await assert.rejects(Ledger.recordEvent(pool,syntheticEvent()),
+      error=>error.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+    await pool.query('REVOKE SELECT (details) ON public.privacy_erasure_ledger FROM PUBLIC');
     await Ledger.ensureTable(pool);
     assert.equal(await value(pool,`
       SELECT count(*)::int FROM pg_catalog.pg_roles r
@@ -336,6 +372,94 @@ async function main() {
       assert.equal(await Ledger.mergeCaptured(writerShadow,[imported],{
         requirePreinstalled:true
       }),1,'offline import must target public ledger');
+      assert.equal(await Ledger.mergeCaptured(writerShadow,[{
+        ...imported, details:{source:'synthetic-shadow-import'}
+      }],{requirePreinstalled:true}),0,
+      'an identical event key must remain an idempotent replay');
+      // Preflight ALL captured rows before SQL. A malformed second record
+      // cannot leave the first record durable when an operator directly
+      // invokes mergeCaptured without BEGIN. Nothing uses real GDPR data.
+      const circular={source:'synthetic-circular'};
+      circular.self=circular;
+      const invalidBatchRows=[
+        {...imported,event_key:n(),subject_user_id:null},
+        {...imported,event_key:n(),subject_user_id:'   '},
+        {...imported,event_key:n(),event_type:'invalid-type'},
+        {...imported,event_key:n(),occurred_at:null},
+        {...imported,event_key:n(),occurred_at:new Date()},
+        {...imported,event_key:n(),occurred_at:'2026-02-30T01:02:03.000000Z'},
+        {...imported,event_key:n(),occurred_at:'2026-10-26T03:00:00.123456+01:00'},
+        {...imported,event_key:n(),details:{invalid:1n}},
+        {...imported,event_key:n(),details:circular},
+        {...imported,event_key:n(),details:'not-a-json-object'},
+        {...imported,event_key:n(),details:[1,2,3]},
+        {...imported,event_key:n(),details:{toJSON(){return undefined;}}}
+      ];
+      for(const invalidRow of invalidBatchRows) {
+        const validFirst={...imported,event_key:n(),
+          details:{source:'synthetic-preflight-first'}};
+        await assert.rejects(
+          Ledger.mergeCaptured(writerShadow,[validFirst,invalidRow],{
+            requirePreinstalled:true
+          }),
+          error=>error?.code==='GDPR_LEDGER_INVALID_CAPTURED_EVENT',
+          'invalid later event must fail before writing earlier valid event'
+        );
+        assert.equal(await value(writerShadow,
+          'SELECT count(*)::int FROM public.privacy_erasure_ledger WHERE event_key=$1',
+          [validFirst.event_key]),0,
+        'malformed batch may not insert its first event');
+      }
+
+      const intraBatch={...imported,event_key:n(),
+        details:{source:'synthetic-duplicate-key'}};
+      await assert.rejects(
+        Ledger.mergeCaptured(writerShadow,[intraBatch,{...intraBatch}],{
+          requirePreinstalled:true
+        }),
+        error=>error?.code==='GDPR_LEDGER_INVALID_CAPTURED_EVENT',
+        'duplicate event key inside one batch must fail before the first insert'
+      );
+      assert.equal(await value(writerShadow,
+        'SELECT count(*)::int FROM public.privacy_erasure_ledger WHERE event_key=$1',
+        [intraBatch.event_key]),0,
+      'duplicate-key batch must not leave a partial import');
+
+      // Same UUID with different personal subject, consent action, precise
+      // timestamp or JSON payload is a GDPR integrity conflict, never a
+      // successful ON CONFLICT DO NOTHING. Test against real disposable PG17,
+      // with a temp shadow and no B2 calls or production database access.
+      const collisions=[
+        {...imported,subject_user_id:n()},
+        {...imported,event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED},
+        {...imported,occurred_at:'2026-01-02T03:04:05.123456Z'},
+        {...imported,details:{source:'changed-synthetic-shadow-import'}}
+      ];
+      for(const conflicting of collisions) {
+        const transient={...imported,event_key:n(),
+          details:{source:'synthetic-pre-conflict-batch'}};
+        // Direct callers still need an explicit transaction. A conflicting
+        // later event must abort the caller's whole batch on ROLLBACK.
+        await writerShadow.query('BEGIN');
+        try {
+          await assert.rejects(
+            Ledger.mergeCaptured(writerShadow,[transient,conflicting],{
+              requirePreinstalled:true
+            }),
+            error=>error?.code==='GDPR_LEDGER_EVENT_KEY_CONFLICT'
+          );
+        } finally {
+          await writerShadow.query('ROLLBACK');
+        }
+        assert.equal(await value(writerShadow,
+          'SELECT count(*)::int FROM public.privacy_erasure_ledger WHERE event_key=$1',
+          [transient.event_key]),0,
+        'rollback must remove any earlier event in the conflicting batch');
+        assert.equal(await value(writerShadow,
+          'SELECT count(*)::int FROM public.privacy_erasure_ledger WHERE event_key=$1',
+          [imported.event_key]),1,
+        'the pre-existing canonical event must survive a rejected import');
+      }
       assert.equal(await Ledger.backfillDeliveryOutbox(writerShadow,{
         maintenanceConfirmed:true
       }),2,'maintenance backfill must queue legacy and imported public events');
@@ -377,8 +501,10 @@ async function main() {
     let approvedCheckpoint;
     const pinSnapshot=async()=>{
       const events=(await pool.query(
-        'SELECT event_key,subject_user_id,event_type,occurred_at,details ' +
-        'FROM privacy_erasure_ledger ORDER BY occurred_at,event_key'
+        'SELECT event_key,subject_user_id,event_type, ' +
+        "to_char(occurred_at AT TIME ZONE 'UTC', " +
+        `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at, details ` +
+        'FROM privacy_erasure_ledger ORDER BY privacy_erasure_ledger.occurred_at,event_key'
       )).rows;
       const payload={
         formatVersion:1,recoveryId,
@@ -687,11 +813,26 @@ async function main() {
     const cursorClient = await pool.connect();
     try {
       await cursorClient.query('BEGIN');
-      // A transaction-local shadow table ensures exactly two invented events.
-      // No production schema or external B2 service is touched.
+      // Work only in a disposable PG17 CI database. The transaction rolls
+      // back its public ledger fixture and all trigger/outbox side effects.
+      // Deliberately keep a same-named temp table: the B2 exporter MUST read
+      // public.privacy_erasure_ledger rather than this shadow relation.
+      // Existing synthetic outbox rows reference ledger events by FK.
+      // Clear the dependent fixture first, only inside this rolled-back CI transaction.
+      await cursorClient.query('DELETE FROM public.privacy_erasure_delivery_outbox');
+      await cursorClient.query('DELETE FROM public.privacy_erasure_ledger');
       await cursorClient.query(
         'CREATE TEMP TABLE privacy_erasure_ledger ' +
         '(LIKE public.privacy_erasure_ledger INCLUDING DEFAULTS) ON COMMIT DROP'
+      );
+      await cursorClient.query(
+        'INSERT INTO pg_temp.privacy_erasure_ledger ' +
+        '(event_key,subject_user_id,event_type,occurred_at,details) ' +
+        'VALUES ($1,$2,$3,$4::timestamptz,$5::jsonb)',
+        ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',n(),
+          Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED,
+          '2026-10-26T02:00:00.000001Z',
+          JSON.stringify({source:'temp-shadow-must-not-export'})]
       );
       const earlyKey='ffffffff-ffff-4fff-8fff-ffffffffffff';
       const lateKey='00000000-0000-4000-8000-000000000001';
@@ -700,15 +841,16 @@ async function main() {
         [lateKey,'2026-10-26T03:00:00.000987Z']
       ]) {
         await cursorClient.query(
-          'INSERT INTO privacy_erasure_ledger ' +
+          'INSERT INTO public.privacy_erasure_ledger ' +
           '(event_key,subject_user_id,event_type,occurred_at,details) ' +
           'VALUES($1,$2,$3,$4::timestamptz,$5::jsonb)',
           [key,n(),Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,time,
             JSON.stringify({source:'invented-microsecond-ci'})]
         );
       }
-      // archiveEvent is an in-memory stand-in: archiveBatch still performs its
-      // actual SQL against the temporary PG17 ledger, but never contacts B2.
+      // archiveEvent is an in-memory stand-in: archiveBatch runs real PG17 SQL
+      // against the public ledger despite the competing pg_temp table.
+      // No external B2 service is contacted.
       const archive = new PrivacyErasureB2Journal({
         env:{
           GDPR_LEDGER_B2_ENABLED:'true',

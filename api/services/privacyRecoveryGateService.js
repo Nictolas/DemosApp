@@ -2,6 +2,7 @@
 
 const crypto = require('node:crypto');
 const Ledger = require('./privacyErasureLedgerService');
+const {normalizeLedgerTimestamp, microsecondTimestamp} = require('./privacyLedgerTimestamp');
 
 const FORMAT_VERSION = 1;
 const TYPES = new Set(Object.values(Ledger.EVENT_TYPES));
@@ -19,8 +20,9 @@ function normalizeEvent(row) {
       row.subject_user_id.length > 128 || !TYPES.has(row.event_type)) {
     throw Error('Invalid signed privacy recovery event');
   }
-  const timestamp = new Date(row.occurred_at);
-  if (!Number.isFinite(timestamp.getTime())) throw Error('Invalid event timestamp');
+  let timestamp;
+  try { timestamp = normalizeLedgerTimestamp(row.occurred_at); }
+  catch (_) { throw Error('Invalid event timestamp'); }
   const details = row.details == null ? {} : row.details;
   if (!details || typeof details !== 'object' || Array.isArray(details)) {
     throw Error('Invalid privacy recovery event details');
@@ -31,7 +33,7 @@ function normalizeEvent(row) {
     event_key: row.event_key,
     subject_user_id: row.subject_user_id,
     event_type: row.event_type,
-    occurred_at: timestamp.toISOString(),
+    occurred_at: timestamp,
     details: canonicalJson(details)
   };
   // A signed recovery manifest must never authorize events that the
@@ -62,17 +64,19 @@ function normalizePayload(payload) {
   for (const event of events) {
     if (keys.has(event.event_key)) throw Error('Repeated event in external privacy manifest');
     keys.add(event.event_key);
-    if (new Date(event.occurred_at) > captured) {
+    if (microsecondTimestamp(event.occurred_at) >
+        microsecondTimestamp(captured.toISOString())) {
       throw Error('External event occurred after manifest capture timestamp');
     }
     if (event.event_type === Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED ||
         event.event_type === Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED) {
       // PostgreSQL's former timestamp + random UUID tie-break could select
-      // "granted" over "revoked" for two opposing events at the same instant.
-      // Their real order is unknowable: do not infer consent from UUID order.
-      // Compare normalized millisecond timestamps, just as the signed
-      // manifest does, so sub-millisecond ambiguity is also rejected.
-      const stamp = JSON.stringify([event.subject_user_id, event.occurred_at]);
+      // "granted" over "revoked" for opposing events at the EXACT same instant.
+      // Normalize to six digits: distinct microseconds within a millisecond
+      // have a known PostgreSQL order and must not be collapsed by JS Date.
+      const stamp = JSON.stringify([
+        event.subject_user_id, microsecondTimestamp(event.occurred_at)
+      ]);
       const previous = consentTimestamps.get(stamp);
       if (previous && previous !== event.event_type) {
         throw Error('Ambiguous simultaneous GDPR consent grant and revocation');
@@ -82,7 +86,8 @@ function normalizePayload(payload) {
   }
   // Snapshot lists must be in stable chronological order. This is used for
   // operator review, not for the SQL state computation which uses timestamp/key.
-  events.sort((a, b) => a.occurred_at.localeCompare(b.occurred_at) ||
+  events.sort((a, b) => microsecondTimestamp(a.occurred_at)
+    .localeCompare(microsecondTimestamp(b.occurred_at)) ||
     a.event_key.localeCompare(b.event_key));
   return {
     formatVersion: FORMAT_VERSION,
@@ -217,6 +222,11 @@ async function reconcileRestoredPrivacyState({
       ? 'LOCK TABLE privacy_erasure_ledger, privacy_erasure_delivery_outbox ' +
         'IN SHARE ROW EXCLUSIVE MODE NOWAIT'
       : 'LOCK TABLE privacy_erasure_ledger IN SHARE ROW EXCLUSIVE MODE NOWAIT');
+    // A partially restored core schema must halt BEFORE importing any
+    // independently signed events into the restored ledger/outbox. The
+    // catalog-only check is the same main-isolated #366 invariant used by
+    // direct replay, and cannot erase personal data or create relations.
+    await Ledger.assertReplayCoreSchema(client);
     if (outboxEnabled) {
       // An outbox-only row may be a trace of a missing ledger event in a
       // damaged/legacy restore. Never silently keep it while replaying the
@@ -253,8 +263,10 @@ async function reconcileRestoredPrivacyState({
     // If the restored database contains an event with the same key but a
     // different subject/type/time, do NOT silently accept ON CONFLICT DO NOTHING.
     const existing = await client.query(
-      'SELECT event_key, subject_user_id, event_type, occurred_at, details ' +
-      'FROM privacy_erasure_ledger WHERE event_key = ANY($1::text[])',
+      'SELECT event_key, subject_user_id, event_type, ' +
+      "to_char(occurred_at AT TIME ZONE 'UTC', " +
+        `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at, ` +
+      'details FROM privacy_erasure_ledger WHERE event_key = ANY($1::text[])',
       [signedKeys]
     );
     const eventsByKey = new Map(payload.events.map(e => [e.event_key, e]));
