@@ -136,7 +136,11 @@ class PrivacyErasureOutboxWorker {
       this.assertNotInRecovery();
       await client.query('COMMIT');
       inTransaction = false;
-      return { delivered, moreMayRemain: delivered === limit };
+      // A short/empty SKIP LOCKED batch is NOT evidence that the global
+      // queue is drained: another worker may hold locks, or RLS may hide
+      // pending rows from this least-privilege SQL role. Return unknown
+      // instead of falsely claiming there are no remaining events.
+      return { delivered, moreMayRemain: delivered === limit ? true : null };
     } catch (error) {
       if (inTransaction) await client.query('ROLLBACK');
       throw error;
