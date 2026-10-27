@@ -308,6 +308,61 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+  test('GDPR offline import accepts identical replays but rejects conflicting event keys',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const fixed={
+      event_key:'synthetic-fixed-event',
+      subject_user_id:'synthetic-person',
+      event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+      occurred_at:'2026-01-02T03:04:05.000Z',
+      details:{source:'synthetic-b2'}
+    };
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await Ledger.ensureTable(pool);
+      assert.equal(await Ledger.mergeCaptured(pool,[fixed]),1);
+      assert.equal(await Ledger.mergeCaptured(pool,[{...fixed,details:{source:'synthetic-b2'}}]),0,
+        'an identical event may be replayed idempotently');
+
+      const tampered=[
+        {...fixed,subject_user_id:'different-synthetic-person'},
+        {...fixed,event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED},
+        {...fixed,occurred_at:'2026-01-02T03:04:06.000Z'},
+        {...fixed,details:{source:'changed-synthetic-b2'}}
+      ];
+      for (const conflicting of tampered) {
+        const client=await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await assert.rejects(
+            Ledger.mergeCaptured(client,[
+              {...fixed,event_key:'synthetic-batch-new-event'},
+              conflicting
+            ]),
+            e=>e?.code==='GDPR_LEDGER_EVENT_KEY_CONFLICT',
+            'same event_key with altered GDPR event data must fail closed'
+          );
+          await client.query('ROLLBACK');
+        } finally {
+          client.release();
+        }
+        const snapshot=await pool.query(`
+          SELECT event_key,subject_user_id,event_type,occurred_at,details
+          FROM public.privacy_erasure_ledger ORDER BY event_key
+        `);
+        assert.equal(snapshot.rows.length,1,'failed batch must not persist a partial import');
+        assert.equal(snapshot.rows[0].event_key,fixed.event_key);
+        assert.equal(snapshot.rows[0].subject_user_id,fixed.subject_user_id);
+        assert.equal(snapshot.rows[0].event_type,fixed.event_type);
+        assert.equal(snapshot.rows[0].occurred_at.toISOString(),fixed.occurred_at);
+        assert.deepEqual(snapshot.rows[0].details,fixed.details);
+      }
+    } finally {
+      await pool.end();
+    }
+  });
+
   test('GDPR replay targets public account and opinion tables despite temp shadows',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const eraseId='synthetic-delete-public';
