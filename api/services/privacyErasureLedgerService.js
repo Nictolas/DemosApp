@@ -160,7 +160,7 @@ class PrivacyErasureLedgerService {
       // captureCurrent (or an equivalent validated legacy UTC timestamp).
       const timestamp = row.occurred_at;
       const match = typeof timestamp === 'string' &&
-        /^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,6}))?Z$/.exec(timestamp);
+        /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?Z$/.exec(timestamp);
       if (!match) throw invalid();
       const milliseconds = match[1] + '.' +
         (match[2] || '').padEnd(3, '0').slice(0, 3) + 'Z';
