@@ -358,6 +358,51 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+  test('GDPR import rejects malformed captured identities before any batch write',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const valid={
+      event_key:'synthetic-valid-batch-event',
+      subject_user_id:'synthetic-valid-subject',
+      event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+      occurred_at:'2026-01-02T03:04:05.123456Z',
+      details:{source:'synthetic-import'}
+    };
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await Ledger.ensureTable(pool);
+
+      // The first event is valid: rejecting a later malformed event must not
+      // leave a partial import even when the caller omitted BEGIN/ROLLBACK.
+      const invalid=[
+        {...valid,event_key:'synthetic-null-subject',subject_user_id:null},
+        {...valid,event_key:'synthetic-missing-subject',subject_user_id:undefined},
+        {...valid,event_key:'synthetic-empty-subject',subject_user_id:''},
+        {...valid,event_key:'synthetic-blank-subject',subject_user_id:'   '},
+        {...valid,event_key:''},
+        {...valid,event_key:undefined},
+        {...valid,event_type:'unknown-event'}
+      ];
+      for (const row of invalid) {
+        await assert.rejects(
+          Ledger.mergeCaptured(pool,[valid,row]),
+          error=>error?.code==='GDPR_LEDGER_INVALID_CAPTURED_EVENT',
+          'malformed capture must fail before writing any valid preceding event'
+        );
+        const state=await pool.query('SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger');
+        assert.equal(state.rows[0].n,0,'invalid batch must not leave any imported rows');
+      }
+      await assert.rejects(
+        Ledger.mergeCaptured(pool,{event_key:'not-an-array'}),
+        error=>error?.code==='GDPR_LEDGER_INVALID_CAPTURED_EVENT'
+      );
+      assert.equal(await Ledger.mergeCaptured(pool,[valid]),1,
+        'a valid captured event must still import normally');
+    } finally {
+      await pool.end();
+    }
+  });
+
   test('GDPR offline import accepts identical replays but rejects conflicting event keys',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const fixed={
