@@ -584,10 +584,57 @@ class PrivacyErasureLedgerService {
       legacySelectionsCleared: cleanup.legacySelectionsCleared };
   }
 
+  static async assertReplayCoreSchema(client) {
+    // A partial/old restore must never be reported as a successful replay
+    // merely because schema-aware deletion helpers skip missing relations.
+    // Inspect only catalog metadata; do not read user rows.
+    const result = await client.query(`
+      SELECT NOT EXISTS (
+        SELECT 1
+        FROM (VALUES
+          ('users', 'id'),
+          ('users', 'political_opinions_consent'),
+          ('users', 'political_opinions_consent_timestamp'),
+          ('users', 'political_opinions_consent_ip_address'),
+          ('users', 'political_opinions_consent_user_agent'),
+          ('users', 'updated_at'),
+          ('opinioni_risposte', 'user_id'),
+          ('user_consents', 'user_id'),
+          ('user_consents', 'political_opinions_consent'),
+          ('user_consents', 'political_opinions_consent_timestamp'),
+          ('user_consents', 'political_opinions_consent_ip_address'),
+          ('user_consents', 'political_opinions_consent_user_agent'),
+          ('user_consents', 'updated_at')
+        ) AS required(table_name, column_name)
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_class c
+          JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+          JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+          WHERE n.nspname = 'public'
+            AND c.relname = required.table_name
+            AND c.relkind IN ('r', 'p')
+            AND a.attname = required.column_name
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+        )
+      ) AS complete
+    `);
+    if (result.rows?.[0]?.complete !== true) {
+      const error = new Error('GDPR_REPLAY_SCHEMA_INCOMPLETE');
+      error.code = 'GDPR_REPLAY_SCHEMA_INCOMPLETE';
+      throw error;
+    }
+  }
+
   static async applyCurrentPrivacyState(client, { requirePreinstalled = false } = {}) {
     // The signed offline recovery path verifies the schema before replay.
     // Do not run implicit CREATE TABLE/INDEX inside that transaction.
     if (!requirePreinstalled) await this.ensureTable(client);
+    await this.assertProtectedLedger(client);
+    // Direct callers must also refuse partial restored core tables before DML.
+    // Optional legacy relations remain schema-aware in cleanup helpers.
+    await this.assertReplayCoreSchema(client);
 
     // Fail BEFORE deleting any account or political data if historical
     // grants and revocations share a timestamp. event_key is a random UUID,
