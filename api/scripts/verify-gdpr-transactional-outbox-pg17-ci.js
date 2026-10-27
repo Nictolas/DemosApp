@@ -336,6 +336,46 @@ async function main() {
       assert.equal(await Ledger.mergeCaptured(writerShadow,[imported],{
         requirePreinstalled:true
       }),1,'offline import must target public ledger');
+      assert.equal(await Ledger.mergeCaptured(writerShadow,[{
+        ...imported, details:{source:'synthetic-shadow-import'}
+      }],{requirePreinstalled:true}),0,
+      'an identical event key must remain an idempotent replay');
+
+      // Same UUID with different personal subject, consent action, precise
+      // timestamp or JSON payload is a GDPR integrity conflict, never a
+      // successful ON CONFLICT DO NOTHING. Test against real disposable PG17,
+      // with a temp shadow and no B2 calls or production database access.
+      const collisions=[
+        {...imported,subject_user_id:n()},
+        {...imported,event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED},
+        {...imported,occurred_at:'2026-01-02T03:04:05.123456Z'},
+        {...imported,details:{source:'changed-synthetic-shadow-import'}}
+      ];
+      for(const conflicting of collisions) {
+        const transient={...imported,event_key:n(),
+          details:{source:'synthetic-pre-conflict-batch'}};
+        // Direct callers still need an explicit transaction. A conflicting
+        // later event must abort the caller's whole batch on ROLLBACK.
+        await writerShadow.query('BEGIN');
+        try {
+          await assert.rejects(
+            Ledger.mergeCaptured(writerShadow,[transient,conflicting],{
+              requirePreinstalled:true
+            }),
+            error=>error?.code==='GDPR_LEDGER_EVENT_KEY_CONFLICT'
+          );
+        } finally {
+          await writerShadow.query('ROLLBACK');
+        }
+        assert.equal(await value(writerShadow,
+          'SELECT count(*)::int FROM public.privacy_erasure_ledger WHERE event_key=$1',
+          [transient.event_key]),0,
+        'rollback must remove any earlier event in the conflicting batch');
+        assert.equal(await value(writerShadow,
+          'SELECT count(*)::int FROM public.privacy_erasure_ledger WHERE event_key=$1',
+          [imported.event_key]),1,
+        'the pre-existing canonical event must survive a rejected import');
+      }
       assert.equal(await Ledger.backfillDeliveryOutbox(writerShadow,{
         maintenanceConfirmed:true
       }),2,'maintenance backfill must queue legacy and imported public events');
