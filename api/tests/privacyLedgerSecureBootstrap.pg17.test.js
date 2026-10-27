@@ -250,6 +250,14 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
           updated_at timestamptz
         );
         CREATE TABLE public.opinioni_risposte (user_id text NOT NULL, answer text);
+        CREATE TABLE public.user_consents (
+          user_id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
       `);
       await pool.query('INSERT INTO public.users(id,political_opinions_consent) VALUES ($1,true),($2,true)',[revokeId,keepId]);
       await pool.query('INSERT INTO public.opinioni_risposte(user_id,answer) VALUES ($1,\'revoke\'),($2,\'keep\')',[revokeId,keepId]);
@@ -380,6 +388,14 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
           updated_at timestamptz
         );
         CREATE TABLE public.opinioni_risposte (user_id text NOT NULL, answer text);
+        CREATE TABLE public.user_consents (
+          user_id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
       `);
       await pool.query('INSERT INTO public.users(id,political_opinions_consent) VALUES ($1,true),($2,true)',[eraseId,revokeId]);
       await pool.query('INSERT INTO public.opinioni_risposte(user_id,answer) VALUES ($1,\'delete\'),($2,\'revoke\')',[eraseId,revokeId]);
@@ -426,6 +442,64 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
   });
 
 
+  test('GDPR replay rejects incomplete restored core schema before mutating consent or opinions',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const userId='synthetic-incomplete-restore-user';
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await pool.query(`
+        CREATE TABLE public.users (
+          id text PRIMARY KEY,
+          political_opinions_consent boolean NOT NULL,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+        CREATE TABLE public.opinioni_risposte (user_id text, answer text);
+      `);
+      await pool.query('INSERT INTO public.users(id,political_opinions_consent) VALUES ($1,true)',[userId]);
+      await pool.query('INSERT INTO public.opinioni_risposte(user_id,answer) VALUES ($1,$2)',[userId,'synthetic opinion']);
+      await Ledger.ensureTable(pool);
+      await Ledger.recordEvent(pool,{
+        userId,eventType:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+        details:{source:'synthetic-incomplete-restore'}
+      });
+      const assertUnchanged=async()=>{
+        assert.equal((await pool.query('SELECT political_opinions_consent AS consent FROM public.users WHERE id=$1',[userId])).rows[0].consent,true);
+        assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM public.opinioni_risposte WHERE user_id=$1',[userId])).rows[0].n,1);
+      };
+      await assert.rejects(Ledger.applyCurrentPrivacyState(pool),
+        e=>e?.code==='GDPR_REPLAY_SCHEMA_INCOMPLETE','missing user_consents must block replay');
+      await assertUnchanged();
+
+      await pool.query(`
+        CREATE TABLE public.user_consents (
+          user_id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        )
+      `);
+      await pool.query('ALTER TABLE public.users DROP COLUMN political_opinions_consent_user_agent');
+      await assert.rejects(Ledger.applyCurrentPrivacyState(pool),
+        e=>e?.code==='GDPR_REPLAY_SCHEMA_INCOMPLETE','missing core consent column must block replay');
+      await assertUnchanged();
+
+      await pool.query('ALTER TABLE public.users ADD COLUMN political_opinions_consent_user_agent text');
+      const replay=await Ledger.applyCurrentPrivacyState(pool);
+      assert.equal(replay.revocationsReapplied,1);
+      assert.equal(replay.opinionsRemoved,1);
+      assert.equal((await pool.query('SELECT political_opinions_consent AS consent FROM public.users WHERE id=$1',[userId])).rows[0].consent,false);
+      assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM public.opinioni_risposte WHERE user_id=$1',[userId])).rows[0].n,0);
+    } finally {
+      await pool.end();
+    }
+  });
+
   test('missing or unprotected ledger must block capture, import and replay without auto-provisioning',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const synthetic=[{
@@ -463,9 +537,29 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       const recorded=await Ledger.captureCurrent(pool);
       assert.equal(recorded.length,1);
       assert.equal(recorded[0].subject_user_id,synthetic[0].subject_user_id);
-      // A protected replay with a deletion event is permitted only with the
-      // corresponding public user schema present. Its deletion helper is
-      // schema-aware, so no real users or external services are involved.
+      // A protected ledger alone is insufficient: a partial restore lacking
+      // the core user/consent schema must not be declared successfully replayed.
+      await assert.rejects(Ledger.applyCurrentPrivacyState(pool),
+        e=>e?.code==='GDPR_REPLAY_SCHEMA_INCOMPLETE');
+      await pool.query(`
+        CREATE TABLE public.users (
+          id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+        CREATE TABLE public.opinioni_risposte (user_id text);
+        CREATE TABLE public.user_consents (
+          user_id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+      `);
       assert.deepEqual(await Ledger.applyCurrentPrivacyState(pool),{
         accountsRemoved:0,dependentRowsRemoved:0,revocationsReapplied:0,opinionsRemoved:0
       });
