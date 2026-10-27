@@ -39,6 +39,7 @@ const SQL = `
     current_database() AS database_name,
     (SELECT rolbypassrls FROM pg_catalog.pg_roles WHERE rolname = current_user)
       AS bypass_rls,
+    (c.oid IS NOT NULL) AS ledger_present,
     c.relrowsecurity AS ledger_rls,
     c.relforcerowsecurity AS ledger_force_rls,
     (pg_catalog.pg_get_userbyid(c.relowner) = current_user) AS ledger_owner,
@@ -65,11 +66,17 @@ const SQL = `
           pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE')
         )
     ) AS api_roles_with_dml_grants
-  FROM pg_catalog.pg_class c
-  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'public'
-    AND c.relname = 'privacy_erasure_ledger'
-    AND c.relkind IN ('r', 'p')
+  -- A singleton LEFT JOIN returns a session identity even when the ledger
+  -- is absent in an otherwise empty staging database. No ledger rows are read.
+  FROM (SELECT 1) anchor
+  LEFT JOIN (
+    SELECT c.*
+    FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = 'privacy_erasure_ledger'
+      AND c.relkind IN ('r', 'p')
+  ) c ON true
 `;
 
 function publicReport(rows) {
@@ -81,6 +88,18 @@ function publicReport(rows) {
   };
   const identityPresent = typeof state.current_role === 'string' &&
     typeof state.session_role === 'string' && !!state.database_name;
+  // A missing ledger is a NO-GO, but must not hide the SQL identity evidence
+  // needed to configure a safe staging process before operator-led bootstrap.
+  if (state.ledger_present !== true) {
+    return {
+      project: 'Demos-Staging', environment_target_checked: true,
+      current_role: state.current_role, session_role: state.session_role,
+      role_setting: state.role_setting, database_name: state.database_name,
+      ledger_present: false, sql_writer_attested: identityPresent,
+      catalog_eligibility: 'NOT_ATTESTED', live_render_pool_verified: false,
+      status: 'NO_GO_MISSING_LEDGER'
+    };
+  }
   // Match the fail-closed checks enforced by Ledger.assertProtectedLedger.
   // A positive writer/owner grant alone does NOT mean the ledger is safe.
   const ledgerProtected = state.ledger_rls === true &&
