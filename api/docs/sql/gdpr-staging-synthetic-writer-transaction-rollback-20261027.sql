@@ -7,7 +7,7 @@ SET LOCAL lock_timeout = '3s';
 SET LOCAL statement_timeout = '15s';
 -- PostgreSQL 17 CREATEROLE bootstrap auto-membership is SET FALSE.
 -- This grant changes it only inside the transaction, reverted by ROLLBACK.
-GRANT demos_staging_runtime TO postgres WITH ADMIN TRUE, INHERIT FALSE, SET TRUE;
+GRANT demos_staging_runtime TO postgres WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
 SET LOCAL ROLE demos_staging_runtime;
 
 DO $gdpr_proof$
