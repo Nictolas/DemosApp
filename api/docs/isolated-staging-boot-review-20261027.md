@@ -56,7 +56,9 @@ nel wrapper e viene **ripetuto all'inizio di `api/app.js` dopo dotenv**,
 per rifiutare eventuali segreti caricati da un file locale. In modalità
 `isolated-staging`, `app.js` evita di lanciare
 `auditManager.start()`, `performanceMonitor.start()` e
-`performanceOptimizer.start()`. Ogni `ENABLE_*` sconosciuto viene
+`performanceOptimizer.start()`. Anche `api/server.js` evita
+esplicitamente di inizializzare Firebase Admin in questo modo.
+Ogni `ENABLE_*` sconosciuto viene
 rifiutato dall'allowlist; i job espliciti non devono essere abilitati.
 
 ## Condizioni ancora NON soddisfatte
