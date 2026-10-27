@@ -30,7 +30,10 @@ function hasExactFields(value, fields) {
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return false;
   const keys = Reflect.ownKeys(value);
-  return keys.length === fields.length && fields.every(field => Object.hasOwn(value, field));
+  return keys.length === fields.length && fields.every(field => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, field);
+    return descriptor?.enumerable === true && Object.hasOwn(descriptor, 'value');
+  });
 }
 
 function canonical(value, depth = 0) {
@@ -40,13 +43,28 @@ function canonical(value, depth = 0) {
   }
   if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value);
   if (Array.isArray(value)) {
-    if (value.length > 100000 || Object.keys(value).length !== value.length) throw invalid();
+    // JSON ignores symbol/non-enumerable array members. Reject rather than
+    // attest an archive whose complete payload was not covered by the digest.
+    if (value.length > 100000 ||
+        Reflect.ownKeys(value).length !== value.length + 1) throw invalid();
+    for (let index = 0; index < value.length; index++) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (descriptor?.enumerable !== true ||
+          !Object.hasOwn(descriptor, 'value')) throw invalid();
+    }
     return '[' + value.map(item => canonical(item, depth + 1)).join(',') + ']';
   }
   if (value && typeof value === 'object' &&
       (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) {
-    const keys = Object.keys(value).sort();
+    const keys = Reflect.ownKeys(value);
     if (keys.length > 2000) throw invalid();
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      // Hidden, symbol or accessor properties are not ordinary JSON data.
+      if (typeof key !== 'string' || descriptor?.enumerable !== true ||
+          !Object.hasOwn(descriptor, 'value')) throw invalid();
+    }
+    keys.sort();
     return '{' + keys.map(key =>
       JSON.stringify(key) + ':' + canonical(value[key], depth + 1)
     ).join(',') + '}';
