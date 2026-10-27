@@ -307,4 +307,67 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       await pool.end();
     }
   });
+
+  test('GDPR replay targets public account and opinion tables despite temp shadows',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const eraseId='synthetic-delete-public';
+    const revokeId='synthetic-revoke-public';
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await pool.query(`
+        CREATE TABLE public.users (
+          id text PRIMARY KEY,
+          political_opinions_consent boolean NOT NULL,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+        CREATE TABLE public.opinioni_risposte (user_id text NOT NULL, answer text);
+      `);
+      await pool.query('INSERT INTO public.users(id,political_opinions_consent) VALUES ($1,true),($2,true)',[eraseId,revokeId]);
+      await pool.query('INSERT INTO public.opinioni_risposte(user_id,answer) VALUES ($1,\'delete\'),($2,\'revoke\')',[eraseId,revokeId]);
+      await Ledger.ensureTable(pool);
+      await Ledger.recordEvent(pool,{
+        userId:eraseId,eventType:Ledger.EVENT_TYPES.ACCOUNT_DELETED,
+        details:{source:'synthetic-account-deletion'}
+      });
+      await Ledger.recordEvent(pool,{
+        userId:revokeId,eventType:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+        details:{source:'synthetic-consent-revocation'}
+      });
+
+      const client=await pool.connect();
+      try {
+        // Both public tables exist and were verified via information_schema,
+        // but pg_temp shadows would intercept unqualified DELETE/UPDATE.
+        await client.query('CREATE TEMP TABLE users (LIKE public.users INCLUDING ALL)');
+        await client.query('CREATE TEMP TABLE opinioni_risposte (LIKE public.opinioni_risposte INCLUDING ALL)');
+        await client.query('INSERT INTO pg_temp.users SELECT * FROM public.users');
+        await client.query('INSERT INTO pg_temp.opinioni_risposte SELECT * FROM public.opinioni_risposte');
+        await client.query('SET search_path TO pg_temp, public');
+
+        const replay=await Ledger.applyCurrentPrivacyState(client);
+        assert.equal(replay.accountsRemoved,1,'account deletion must affect the public account');
+        assert.equal(replay.revocationsReapplied,1);
+        assert.equal(replay.opinionsRemoved,1,'revocation must delete the public opinion');
+        const publicAccounts=await client.query('SELECT id, political_opinions_consent AS consent FROM public.users ORDER BY id');
+        assert.deepEqual(publicAccounts.rows,[{id:revokeId,consent:false}]);
+        const publicOpinions=await client.query('SELECT user_id FROM public.opinioni_risposte');
+        assert.deepEqual(publicOpinions.rows,[],'no withdrawn or deleted public opinions may survive');
+        const tempAccounts=await client.query('SELECT id, political_opinions_consent AS consent FROM pg_temp.users ORDER BY id');
+        assert.deepEqual(tempAccounts.rows,[{id:eraseId,consent:true},{id:revokeId,consent:true}]);
+        const tempOpinions=await client.query('SELECT user_id FROM pg_temp.opinioni_risposte ORDER BY user_id');
+        assert.deepEqual(tempOpinions.rows,[{user_id:eraseId},{user_id:revokeId}],
+          'replay must not mutate shadow tables');
+      } finally {
+        await client.query('RESET search_path');
+        client.release();
+      }
+    } finally {
+      await pool.end();
+    }
+  });
+
 }
