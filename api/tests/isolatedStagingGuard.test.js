@@ -150,4 +150,11 @@ test('app integrates the pre-import fence and does not schedule its passive jobs
   assert.match(app,/if \(!isolatedStaging\) auditManager\.start\(\)/);
   assert.match(app,/const performanceMonitorEnabled = !isolatedStaging &&/);
   assert.match(app,/if \(!isolatedStaging\) performanceOptimizer\.start\(\)/);
+
+  const server=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');
+  assert.match(server,/if \(process\.env\.DEMOS_DEPLOYMENT_SCOPE !== 'isolated-staging'\) \{/);
+  const firebaseInit=server.indexOf('initializeFirebaseAdmin()');
+  const isolationGuard=server.indexOf("if (process.env.DEMOS_DEPLOYMENT_SCOPE !== 'isolated-staging')");
+  assert.ok(isolationGuard>0 && firebaseInit>isolationGuard,
+    'Firebase Admin initialization must stay in the non-staging block');
 });
