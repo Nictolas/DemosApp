@@ -9,7 +9,7 @@ const crypto = require('node:crypto');
 const { Pool } = require('pg');
 const Ledger = require('../services/privacyErasureLedgerService');
 const PoliticalConsent = require('../services/politicalConsentService');
-const { signature, manifestDigest, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
+const { signature, manifestDigest, verifySignedManifest, reconcileRestoredPrivacyState } = require('../services/privacyRecoveryGateService');
 const DB = 'privacy_recovery_gate_ci';
 const SUBJECT = '00000000-0000-4000-8000-000000000301';
 const OTHER = '00000000-0000-4000-8000-000000000302';
@@ -508,24 +508,35 @@ async function main() {
       'synthetic microsecond scenarios must leave no permanent state changes');
     assert.equal(await count(db,'political_selections',SUBJECT),0);
 
-    // A signed replay with an exact tie must similarly fail and rollback
-    // its newly imported events and queued B2 outbox rows as one unit.
-    const simultaneousEnvelope=envelope([...events,tiedRevoke,tiedGrant]);
-    const simultaneousApproved=approvedCheckpoint(simultaneousEnvelope);
-    await assert.rejects(reconcileRestoredPrivacyState({
-      client:noDdlClient,envelope:simultaneousEnvelope,secret:SECRET,
-      expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...simultaneousApproved
-    }),error=>error?.code==='GDPR_LEDGER_AMBIGUOUS_CONSENT_ORDER');
+    // Signed recovery rejects a true timestamp tie even before the
+    // manifest can be signed or any database transaction can begin.
+    // This is distinct from direct replay, which detects a pre-existing
+    // ambiguous ledger state with the stable SQL error code above.
+    assert.throws(
+      () => envelope([...events,tiedRevoke,tiedGrant]),
+      /Ambiguous simultaneous GDPR consent grant and revocation/,
+      'a contradictory exact-microsecond tie must not be signable'
+    );
+    // Signed manifests MUST retain the ordering of two opposite actions
+    // separated by only one microsecond (JS Date alone loses that detail).
+    const laterGrant={...tiedGrant,occurred_at:'2026-10-25T14:00:00.000001Z'};
+    const nearEnvelope=envelope([...events,tiedRevoke,laterGrant]);
+    const normalized=verifySignedManifest(nearEnvelope,SECRET,RECOVERY);
+    const nearEvents=normalized.events.filter(e=>e.subject_user_id===THIRD);
+    assert.deepEqual(nearEvents.map(e=>e.occurred_at),[
+      '2026-10-25T14:00:00.000000Z',
+      '2026-10-25T14:00:00.000001Z'
+    ],'signed history must preserve and sort distinct microseconds');
     assert.equal(Number((await db.query(
       'SELECT count(*)::int AS n FROM public.privacy_erasure_ledger ' +
       'WHERE event_key = ANY($1::text[])',
       [[tiedRevoke.event_key,tiedGrant.event_key]]
-    )).rows[0].n),0,'failed signed replay must rollback ambiguous new events');
+    )).rows[0].n),0,'manifest validation must not write ledger rows');
     assert.equal(Number((await db.query(
       'SELECT count(*)::int AS n FROM public.privacy_erasure_delivery_outbox ' +
       'WHERE event_key = ANY($1::text[])',
       [[tiedRevoke.event_key,tiedGrant.event_key]]
-    )).rows[0].n),0,'failed signed replay must rollback B2 queue entries');
+    )).rows[0].n),0,'manifest validation must not queue B2 events');
     assert.equal(await count(db,'political_selections',THIRD),1);
 
     // Even a *validly signed* manifest cannot silently rewrite an event
