@@ -168,11 +168,16 @@ class PrivacyErasureLedgerService {
       if (!Number.isFinite(parsed.getTime()) ||
           parsed.toISOString() !== milliseconds) throw invalid();
 
+      // Ledger details are JSONB objects in actual PostgreSQL captures.
+      // Do not silently turn absent/null/false/0 details into '{}' during restore.
+      // A malformed archive must fail before the first INSERT in the batch.
+      if (!row.details || typeof row.details !== 'object' ||
+          Array.isArray(row.details)) throw invalid();
       // Serialize once in the preflight. Objects with circular references,
       // BigInt or a serializer returning undefined must fail before ANY DML.
       let details;
-      try { details = JSON.stringify(row.details || {}); } catch (_) { throw invalid(); }
-      if (typeof details !== 'string') throw invalid();
+      try { details = JSON.stringify(row.details); } catch (_) { throw invalid(); }
+      if (typeof details !== 'string' || details[0] !== '{') throw invalid();
       seenKeys.add(row.event_key);
       prepared.push([
         row.event_key, row.subject_user_id, row.event_type, timestamp, details
