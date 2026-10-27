@@ -65,3 +65,20 @@ La stessa suite PostgreSQL 17 simula `SET ROLE gdpr_nonowner_ci` (NOLOGIN, NOBYP
 - Prima di qualunque merge: piano di finestra e comunicazione, valutazione `autoDeploy` Render su `main`, smoke test, backup, owner e procedura di arresto/rollback applicativo. Non effettuare automaticamente né merge né deploy.
 - Non rimuovere o indebolire RLS per sbloccare uno scrittore non autorizzato; il test sintetico nonowner con errore `42501` è un limite di compatibilità intenzionale, non un difetto da eludere.
 - Il ripristino GDPR resta **NO-GO** finché non esistono isolamento cross-provider, evidenza indipendente di integrità/completamento/freschezza del registro esterno B2, replay transazionale e controlli di readiness fail-closed, nonché autorizzazione DPO/titolare.
+
+
+## Verifica Render nel workspace confermato — 27 ottobre 2026
+
+Workspace Render **Nicolas** (ID `tea-d2gs3eadbo4c73ag95rg`), ispezionato in sola lettura con il consenso dell'operatore.
+
+- **Backend produzione**: servizio `demos-backend` (`srv-d2gt3dodl3ps73fmereg`), branch `main`, root `api`, **autoDeploy=yes / trigger commit**. Ultimo deploy `live`, ID `dep-dbeihmuq1p3s73eam4f0`, commit esatto `77cfd86277e8a7c5c5540d42464fe5af46923d01`, completato il **24 ottobre 2026 alle 21:54:38 UTC**. Questo verifica che il backend reale **non contiene PR #366**.
+- **Frontend produzione**: servizio `demos-frontend` (`srv-d2nm5pmmcj7s73cophhg`), branch `main`, root `client`, **autoDeploy=yes / trigger commit**. La finestra di merge deve considerare **entrambi** i servizi: eventuali build filter potrebbero essere configurati altrove ma non sono stati attestati; non assumere che un merge backend-only lasci il frontend invariato.
+- **Staging HTTP funzionale**: `demos-functional-staging` (`srv-db52l1g473hc739ld250`), branch `staging/functional-integration-v0`, autoDeploy=no, ultimo deploy `live` commit `645d72d37b9178233b7f66c7433cb90e51bf585c` completato il 15 ottobre 2026. È **separato** dal rilascio #366; non assumere che usi il progetto Supabase Demos-Staging.
+- **Altro database Render**: `demos-civic-staging-db` (PostgreSQL 17, ID `dpg-db4id8id0e5s73cfb0cg-a`) è una risorsa diversa dal progetto **Supabase Demos-Staging**. La sua esistenza non dimostra né il database né il ruolo SQL utilizzati dal backend.
+- **Ruolo SQL effettivo backend**: **NON ATTESTATO**. Il servizio Render espone metadati del deploy e configurazione, ma le API di sola lettura disponibili non forniscono la connection string o il suo username. La ricerca nei log applicativi non ha restituito `current_user`/`session_user` del pool PostgreSQL: le voci `role` individuate erano ruoli applicativi, non database. Le sessioni `pg_stat_activity` Supabase mostravano servizi di piattaforma/Supavisor ma nessuna attribuzione univoca al processo backend. **Non inferire** il ruolo dell'app da `postgres` del SQL editor o dalle sessioni di sistema.
+
+**Verifica futura obbligatoria e non ancora eseguita:** dal processo effettivo di staging (stessa configurazione di pool/driver e ruolo SQL previsto per Render), eseguire solo le query non sensibili `SELECT current_user, session_user, current_setting('role', true), current_database()` e controlli di privilegi; attestare il risultato senza URL, password, host, dati utente o eventi. Solo dopo isolamento e bootstrap staging autorizzato, eseguire test di scrittura su fixture artificiali, includendo rollback. Nessuna prova SQL runtime di produzione va usata come scorciatoia.
+
+**CI del nuovo HEAD documentale:** i due workflow di #366 risultano ancora `success` sul commit `3995eb6` (documentazione). Non cambia il codice applicativo né risolve le verifiche operative.
+
+**Stato e decisione immutati:** PR #366 OPEN/DRAFT, nessun merge, nessun deploy, nessuna mutazione del database; ripristino GDPR **NO-GO**.
