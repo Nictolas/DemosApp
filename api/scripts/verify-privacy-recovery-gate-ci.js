@@ -305,6 +305,61 @@ async function main() {
     // CI-only cleanup of the deliberately injected orphan.
     await db.query('DELETE FROM privacy_erasure_delivery_outbox WHERE event_key=$1',[orphanKey]);
 
+    // A partial physical restore may preserve the GDPR ledger and outbox
+    // while omitting a required privacy column or an entire core relation.
+    // All DDL below is ONLY on the disposable, localhost PG17 CI database.
+    // Neither direct replay nor signed recovery may import tombstones,
+    // delete preferences or claim success with such an incomplete schema.
+    const damagedSchemaFixtures = [
+      {
+        label:'required-consent-column',
+        breakSql:'ALTER TABLE public.user_consents ' +
+          'RENAME COLUMN political_opinions_consent_user_agent ' +
+          'TO political_opinions_consent_user_agent_hidden_ci',
+        repairSql:'ALTER TABLE public.user_consents ' +
+          'RENAME COLUMN political_opinions_consent_user_agent_hidden_ci ' +
+          'TO political_opinions_consent_user_agent'
+      },
+      {
+        label:'required-opinion-table',
+        breakSql:'ALTER TABLE public.opinioni_risposte ' +
+          'RENAME TO opinioni_risposte_hidden_ci',
+        repairSql:'ALTER TABLE public.opinioni_risposte_hidden_ci ' +
+          'RENAME TO opinioni_risposte'
+      }
+    ];
+    for (const damaged of damagedSchemaFixtures) {
+      await db.query(damaged.breakSql);
+      try {
+        await assert.rejects(
+          Ledger.applyCurrentPrivacyState(db,{requirePreinstalled:true}),
+          error=>error?.code==='GDPR_REPLAY_SCHEMA_INCOMPLETE',
+          damaged.label+' must block direct replay before mutation'
+        );
+        await assert.rejects(
+          reconcileRestoredPrivacyState({
+            client:noDdlClient,envelope:signed,secret:SECRET,
+            expectedRecoveryId:RECOVERY,maintenanceConfirmed:true,...approved
+          }),
+          error=>error?.code==='GDPR_REPLAY_SCHEMA_INCOMPLETE',
+          damaged.label+' must block signed replay before importing ledger'
+        );
+        assert.equal(Number((await db.query(
+          'SELECT count(*)::int AS n FROM public.privacy_erasure_ledger'
+        )).rows[0].n),0,
+        'incomplete schema must not import signed events');
+        assert.equal(Number((await db.query(
+          'SELECT count(*)::int AS n FROM public.privacy_erasure_delivery_outbox'
+        )).rows[0].n),0,
+        'incomplete schema must not enqueue external receipts');
+        assert.equal(await count(db,'political_selections',SUBJECT),1,
+          'incomplete schema must not erase restored political selections');
+      } finally {
+        await db.query(damaged.repairSql);
+      }
+      await Ledger.assertReplayCoreSchema(db);
+    }
+
     // Disposable PG17: test a non-cooperating writer that owns a ROW
     // EXCLUSIVE table lock WITHOUT our recovery advisory lock. Replay must
     // refuse both cases with 55P03 before any import or privacy cleanup.
