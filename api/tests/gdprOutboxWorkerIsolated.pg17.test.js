@@ -188,7 +188,7 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     assert.deepEqual(await counts(admin), {ledger:1,outbox:1,pending:1,delivered:0});
 
     let done = await worker.runOnce(workerPool);
-    assert.deepEqual(done, {delivered:1,moreMayRemain:false});
+    assert.deepEqual(done, {delivered:1,moreMayRemain:null});
     assert.deepEqual(await counts(admin), {ledger:1,outbox:1,pending:0,delivered:1});
     assert.equal(fake.calls, 1);
     done = await worker.runOnce(workerPool);
@@ -281,7 +281,8 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     try {
       const competingDelivery = await worker.runOnce(workerPool);
       assert.equal(competingDelivery.delivered, 0);
-      assert.equal(competingDelivery.moreMayRemain, false);
+      assert.equal(competingDelivery.moreMayRemain, null,
+        'SKIP LOCKED empty result cannot certify queue drained');
     } finally {
       unblockB2();
     }
@@ -305,6 +306,23 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     )).rows[0].n;
     assert.equal(otherVisibility, 0);
 
+    // A real pending row can be invisible to this worker because the
+    // ledger's SELECT RLS policy is subject-scoped. Zero delivered must
+    // NEVER be reported as a proof that no pending work remains.
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'true';
+    await Ledger.recordEvent(admin, {
+      ...event(8), userId: OTHER
+    });
+    const pendingBeforeHidden = (await counts(admin)).pending;
+    assert.equal(pendingBeforeHidden, 1);
+    const callsBeforeHidden = fake.calls;
+    const hiddenBatch = await worker.runOnce(workerPool);
+    assert.deepEqual(hiddenBatch, {delivered:0,moreMayRemain:null});
+    assert.equal(fake.calls, callsBeforeHidden);
+    assert.equal((await counts(admin)).pending, 1,
+      'hidden event must remain pending for authorized remediation');
+    assert.equal((await PrivacyErasureOutboxWorker.status(admin)).ready, false);
+
     console.log('GDPR_B2_WORKER_PG17_SYNTHETIC_PASS ' + JSON.stringify({
       noProviderIO: true, exactReceiptBinding: true,
       workerRoleNoBypass: true, adminRejected: true,
@@ -312,6 +330,8 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
       maintenanceMidArchiveRollback: true, invalidReceiptRejected: true,
       deniedAckLeavesPending: true, concurrentWorkersSkipLocked: true,
       unqueuedHistoryNotReady: true,
+      rlsHiddenPendingCannotReportDrained: true,
+      skipLockedCannotReportDrained: true,
       productionUntouched: true
     }));
   } finally {
