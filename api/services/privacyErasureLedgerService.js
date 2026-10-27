@@ -122,7 +122,12 @@ class PrivacyErasureLedgerService {
     // Never manufacture an empty history while trying to capture evidence.
     await this.assertProtectedLedger(client);
     const result = await client.query(`
-      SELECT event_key, subject_user_id, event_type, occurred_at, details
+      SELECT event_key, subject_user_id, event_type,
+        -- node-postgres TIMESTAMPTZ -> Date truncates PostgreSQL microseconds.
+        -- Preserve full precision for signed/exported recovery evidence.
+        to_char(occurred_at AT TIME ZONE 'UTC',
+          'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at,
+        details
       FROM public.privacy_erasure_ledger
       ORDER BY occurred_at ASC, event_key ASC
     `);
