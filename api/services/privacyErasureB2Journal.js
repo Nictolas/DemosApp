@@ -290,7 +290,8 @@ class PrivacyErasureB2Journal {
       'SELECT event_key,subject_user_id,event_type,occurred_at,details, ' +
       "to_char(occurred_at AT TIME ZONE 'UTC', " +
       `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_occurred_at ` +
-      'FROM privacy_erasure_ledger ' +
+      // Explicit schema prevents pg_temp/search_path shadowing during manual B2 export.
+      'FROM public.privacy_erasure_ledger ' +
       'WHERE ($1::timestamptz IS NULL OR (occurred_at,event_key) > ($1::timestamptz,$2::text)) ' +
       'ORDER BY occurred_at ASC,event_key ASC LIMIT $3',
       [cursor?.occurred_at || null,cursor?.event_key || null,limit]
