@@ -693,6 +693,9 @@ async function main() {
       // back its public ledger fixture and all trigger/outbox side effects.
       // Deliberately keep a same-named temp table: the B2 exporter MUST read
       // public.privacy_erasure_ledger rather than this shadow relation.
+      // Existing synthetic outbox rows reference ledger events by FK.
+      // Clear the dependent fixture first, only inside this rolled-back CI transaction.
+      await cursorClient.query('DELETE FROM public.privacy_erasure_delivery_outbox');
       await cursorClient.query('DELETE FROM public.privacy_erasure_ledger');
       await cursorClient.query(
         'CREATE TEMP TABLE privacy_erasure_ledger ' +
