@@ -119,7 +119,8 @@ class PrivacyErasureLedgerService {
   }
 
   static async captureCurrent(client) {
-    await this.ensureTable(client);
+    // Never manufacture an empty history while trying to capture evidence.
+    await this.assertProtectedLedger(client);
     const result = await client.query(`
       SELECT event_key, subject_user_id, event_type, occurred_at, details
       FROM public.privacy_erasure_ledger
@@ -129,7 +130,8 @@ class PrivacyErasureLedgerService {
   }
 
   static async mergeCaptured(client, rows = []) {
-    await this.ensureTable(client);
+    // Import requires separate, authorized schema provisioning first.
+    await this.assertProtectedLedger(client);
     let merged = 0;
     for (const row of rows) {
       const event = [
@@ -415,7 +417,8 @@ class PrivacyErasureLedgerService {
   }
 
   static async applyCurrentPrivacyState(client) {
-    await this.ensureTable(client);
+    // Missing tombstones must block replay, not look like a clean restore.
+    await this.assertProtectedLedger(client);
 
     const accountEvents = await client.query(`
       SELECT DISTINCT subject_user_id
