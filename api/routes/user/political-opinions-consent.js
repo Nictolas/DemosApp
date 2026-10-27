@@ -256,7 +256,8 @@ router.put('/revoke', verifyToken, async (req, res) => {
             political_records_deleted_count: cleanupResult.totalDeleted,
             deleted_by_table: cleanupResult.deletedByTable,
             legacy_opinion_columns_cleared_count: cleanupResult.legacyOpinionColumnsCleared,
-            proposal_links_cleared_count: cleanupResult.proposalLinksCleared
+            proposal_links_cleared_count: cleanupResult.proposalLinksCleared,
+            legacy_selections_cleared_count: cleanupResult.legacySelectionsCleared
           }
         });
       }

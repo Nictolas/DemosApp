@@ -25,6 +25,8 @@ L'Art. 7(4) GDPR e le linee guida EDPB 05/2020 sulla condizionalità sconsiglian
 
 Non è dimostrata l'anonimizzazione permanente di qualunque risultato aggregato. Per i dati ricavati da gruppi piccoli, territorio e sequenza temporale possono creare rischi di inferenza: applicare soglie già previste e valutare nella DPIA l'effettiva non-identificabilità.
 
-Le tabelle political_selections, user_representatives e i campi legacy in users non sono ancora eliminati nella revoca: resta da definire una policy documentata di retention/erasure. Sono inoltre necessarie prove Android/CDN, logout/cambio account e verifica formale della versione DPIA con approvazione DPO, insieme a test di integrazione dei PR cumulativi.
+**Proposta tecnica PR #295 (ancora DRAFT):** la revoca elimina transazionalmente le selezioni personali da `political_selections` e `user_representatives` e azzera i dieci campi legacy di scelta in `users`. La stessa cancellazione viene riapplicata dal privacy-erasure ledger dopo un ripristino che riportasse in vita dati antecedenti alla revoca. Non vengono cancellati i mandati, i voti istituzionali importati o le scelte di altri utenti che hanno selezionato il profilo revocante. Il codice è stato verificato con test PostgreSQL sintetici, **non** su utenti di produzione.
+
+La policy sulla conservazione di eventuali scelte soggette a un'altra base giuridica, la descrizione dell'effetto della revoca nell'informativa, i tempi e le garanzie operative di restore/backup devono essere validati da titolare e DPO nella DPIA prima del rilascio. Un database ripristinato non deve diventare accessibile agli utenti prima del replay degli eventi di cancellazione. Restano necessarie prove Android/CDN, logout/cambio account e integrazione finale di tutte le PR privacy.
 
 Nessun codice della proposta deve essere pubblicato prima della review integrata, delle verifiche di conformità e dell'autorizzazione esplicita al deploy.
