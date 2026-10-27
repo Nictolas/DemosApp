@@ -98,6 +98,36 @@ test('GDPR GET reads only the authenticated user history and excludes request de
   assert.ok(!calls[0].sql.includes('request_data'));
 });
 
+test('GDPR GET never reports a false empty history when RLS has no visible policy', async () => {
+  let canSee = false;
+  let count = 0;
+  const pool = { async query(sql) {
+    count++;
+    if (sql.includes('FROM public.user_rights_requests')) return {rows:[]};
+    if (sql.includes('AS may_read_requests')) {
+      return {rows:[{may_read_requests:canSee}]};
+    }
+    throw Error('unexpected query');
+  }};
+  const origLog=console.error;
+  console.error=()=>{};
+  try {
+    await withMockedRoute(pool, async ({get}) => {
+      const hidden=response();
+      await get({userId:'synthetic-user'},hidden);
+      assert.equal(hidden.statusCode,503);
+      assert.equal(hidden.body.success,false);
+      assert.ok(!JSON.stringify(hidden.body).includes('"data":[]'));
+      canSee=true;
+      const legitimateEmpty=response();
+      await get({userId:'synthetic-user'},legitimateEmpty);
+      assert.equal(legitimateEmpty.statusCode,200);
+      assert.deepEqual(legitimateEmpty.body.data,[]);
+    });
+    assert.equal(count,4);
+  } finally {console.error=origLog;}
+});
+
 test('GDPR route rejects unauthenticated and invalid inputs before SQL', async () => {
   let sqlCalls=0;
   const pool={async query(){sqlCalls++;throw Error('must not query');}};
