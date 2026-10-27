@@ -8,6 +8,7 @@ on:
       - 'api/staging/isolatedStaging*.js'
       - 'api/tests/isolatedStagingGuard.test.js'
       - 'api/app.js'
+      - 'api/server.js'
       - '.github/workflows/staging-isolated-boot-ci.yml'
   workflow_dispatch:
 
