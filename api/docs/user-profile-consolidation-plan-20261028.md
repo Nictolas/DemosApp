@@ -111,3 +111,9 @@ Test eseguito con esito positivo nello schema privato dello staging, versionato 
 Confronto INFORMATION_SCHEMA read-only: `public.user_profile` di produzione e `qa_user_profile_20261028.user_profile` su Demos-Staging hanno **29 colonne ciascuno**, con 0 nomi mancanti, 0 nomi extra e **0 differenze di tipo SQL o nullabilità**. Anche PK su user_id e FK ON DELETE CASCADE sono state verificate.
 
 Questo consente un test più fedele del backfill di profili e avatar, **non** prova la parità di `users`, `user_political_territories`, trigger, indici, autorizzazioni, API o applicazione. Lo staging `public` continua a non contenere quelle due tabelle e non va usato come E2E certificato.
+
+## Preflight aggiornato durante la sessione — stato più recente
+
+Un successivo preflight read-only nella stessa sessione ha rilevato **1.856 users / 1.716 user_profile / 140 profili mancanti**; gli avatar recuperabili erano diventati **1.613 = 1.475 solo in users per profili già presenti + 138 per utenti senza profilo**. 86 avatar in entrambe le tabelle equivalenti come JSON, nessun conflitto/JSON non valido. Rispetto ai 1.857/1.717 e 1.614 precedenti, un account con profilo è scomparso per attività esterna; **questa PR non ha eseguito DML di produzione**.
+
+Il documento conserva i conteggi precedenti come storia delle verifiche: **sono istantanee, non invarianti**. All'atto della migrazione reale bisognerà rieseguire il preflight e proteggere la coerenza transazionale, non imporre 140 o 1.613 come numero fisso. La migrazione rimane NO-GO.
