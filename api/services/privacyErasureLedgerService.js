@@ -493,6 +493,30 @@ class PrivacyErasureLedgerService {
     return result.rowCount || 0;
   }
 
+  // Preserve independently useful public civic records while removing the
+  // account reference. Fail closed if a future schema makes the field required:
+  // silently skipping it would leave a personal identifier after deletion.
+  static async clearNullableUserReference(client, table, column, userId) {
+    const info = await client.query(
+      `SELECT is_nullable FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
+      [table, column]
+    );
+    if (info.rows.length === 0) return 0;
+    if (info.rows[0].is_nullable !== 'YES') {
+      const error = new Error('GDPR_ERASURE_REFERENCE_NOT_NULLABLE');
+      error.code = 'GDPR_ERASURE_REFERENCE_NOT_NULLABLE';
+      throw error;
+    }
+    const result = await client.query(
+      `UPDATE public.${this.quoteIdentifier(table)}
+       SET ${this.quoteIdentifier(column)} = NULL
+       WHERE ${this.quoteIdentifier(column)}::text = $1`,
+      [String(userId)]
+    );
+    return result.rowCount || 0;
+  }
+
   static async cleanupAdditionalAccountData(client, userId) {
     let rowsDeleted = 0;
     let rowsUnlinked = 0;
@@ -572,6 +596,28 @@ class PrivacyErasureLedgerService {
       ['programmi', 'utente_id'],
       ['user_profile', 'user_id'],
       ['active_sessions', 'user_id'],
+      // Explicit erasure also works on a partial restore without FK CASCADE.
+      // GDPR request receipts are account-scoped; the separate protected
+      // privacy_erasure_ledger remains the minimum restore tombstone.
+      ['user_rights_requests', 'user_id'],
+      ['data_processing_limits', 'user_id'],
+      ['rate_limit_violations', 'user_id'],
+      ['premium_requests', 'userid'],
+      ['richieste_premium', 'utente_id'],
+      ['richieste_grazia', 'utente_id'],
+      ['segnalazioni', 'utente_id'],
+      ['notifiche_avvistamenti', 'id_utente'],
+      ['notifiche_voti_comuni', 'id_utente'],
+      ['notifiche_voti_parlamento', 'id_utente'],
+      ['grazia_requests', 'userid'],
+      // Handle dependent public-profile rows before deleting users.
+      // political_programs depends on political_candidacies, and mandate
+      // snapshots depend on political_mandates; children must go first.
+      ['candidati', 'user_id'],
+      ['mandate_program_snapshots', 'user_id'],
+      ['political_programs', 'user_id'],
+      ['political_candidacies', 'user_id'],
+      ['political_mandates', 'user_id'],
       ['user_devices', 'user_id'],
       ['user_notifications', 'user_id'],
       ['notifiche_preferenze', 'user_id'],
@@ -587,10 +633,30 @@ class PrivacyErasureLedgerService {
       ['user_political_territories', 'user_id'],
       ['user_electoral_unit_memberships', 'user_id'],
       ['riconoscimenti', 'user_id'],
-      ['user_auth_providers', 'user_id']
+      ['user_auth_providers', 'user_id'],
+      ['user_providers', 'user_id'],
+      ['sessions', 'user_id']
     ];
     for (const [table, column] of directLinks) {
       rowsDeleted += await this.deleteByColumn(client, table, column, userId);
+    }
+
+    // Public processes may outlive the author/approver's DEMOS account.
+    // Preserve the civic item, NOT the deleted user's UUID: relevant columns
+    // are nullable in the audited 2026-10-28 production schema.
+    const nullableLinks = [
+      ['eventi', 'creator_user_id'],
+      ['eventi', 'approved_by_user_id'],
+      ['eventi', 'election_lifecycle_closed_by_user_id'],
+      ['referendum_abrogativi', 'userid'],
+      ['iniziative_popolari', 'userid'],
+      ['governo_attuale', 'user_id'],
+      ['programmi', 'user_id_backup'],
+      ['civic_process_reconciliation_candidates', 'reviewed_by_user_id'],
+      ['civic_processes', 'realized_verified_by_user_id']
+    ];
+    for (const [table, column] of nullableLinks) {
+      rowsUnlinked += await this.clearNullableUserReference(client, table, column, userId);
     }
 
     return { rowsDeleted, rowsUnlinked };
