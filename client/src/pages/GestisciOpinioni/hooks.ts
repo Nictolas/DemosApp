@@ -89,39 +89,6 @@ export const useOpinioniMutations = () => {
     queryClient.invalidateQueries({ queryKey: ['opinioniProposte'] });
   };
 
-  // Mutazioni per le opinioni ufficiali
-  const addMutation = useMutation({
-    mutationFn: (newData: { id: string; text: string; gradi_opinione: string[] }) => 
-      apiRequest('POST', '/api/opinioni', newData),
-    onSuccess: () => { 
-      toast({ title: "Successo", description: "Opinione aggiunta." }); 
-      invalidateAll(); 
-    },
-    onError: () => toast({ title: "Errore", description: "Impossibile aggiungere l'opinione.", variant: "destructive" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest('DELETE', `/api/opinioni/${id}`),
-    onSuccess: () => { 
-      toast({ title: "Successo", description: "Opinione eliminata." }); 
-      invalidateAll(); 
-    },
-    onError: () => toast({ title: "Errore", description: "Impossibile eliminare l'opinione.", variant: "destructive" }),
-  });
-
-  const editMutation = useMutation({
-    mutationFn: (updatedData: { id: string; text: string; gradi_opinione: string[] }) => 
-      apiRequest('PUT', `/api/opinioni/${updatedData.id}`, { 
-        text: updatedData.text, 
-        gradi_opinione: updatedData.gradi_opinione 
-      }),
-    onSuccess: () => { 
-      toast({ title: "Successo", description: "Opinione aggiornata." }); 
-      invalidateAll(); 
-    },
-    onError: () => toast({ title: "Errore", description: "Impossibile aggiornare l'opinione.", variant: "destructive" }),
-  });
-
   // Mutazioni per le opinioni proposte
   const processPropostaMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'accetta' | 'rifiuta' }) => {
@@ -136,10 +103,5 @@ export const useOpinioniMutations = () => {
     onError: () => toast({ title: "Errore", description: "Impossibile processare la proposta.", variant: "destructive" }),
   });
 
-  return {
-    addMutation,
-    deleteMutation,
-    editMutation,
-    processPropostaMutation
-  };
+  return { processPropostaMutation };
 };

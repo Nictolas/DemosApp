@@ -41,7 +41,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     const answers = answersResult.rows[0] || {};
     const userAnswers = {};
     for (const op of opinionResult.rows) {
-      const key = op.text.replace(/\\s+/g,'_').toLowerCase();
+      const key = op.text.replace(/\s+/g,'_').toLowerCase();
       userAnswers[key] = answers[op.id] ?? null;
     }
 
