@@ -33,9 +33,7 @@ function createQaApp() {
     if (sql.includes('AS granted') && sql.includes('user_consents')) {
       return { rows: validUser(params) ? [{ granted: state.consent }] : [], rowCount: 1 };
     }
-    if (sql.includes('information_schema.columns') && sql.includes('opinioni_risposte')) {
-      return { rows: (params[0] || []).filter(id => ids.has(id)).map(column_name => ({ column_name })) };
-    }
+    if (sql.includes('information_schema.columns')) throw Error('No schema lookup in QA save');
     if (sql.startsWith('SELECT * FROM opinioni_risposte WHERE user_id')) {
       return { rows: state.hasRow && validUser(params) ? [{ user_id: USER_ID, ...state.answers }] : [] };
     }

@@ -86,43 +86,6 @@ router.post('/salva', verifyToken, async (req, res) => {
     let notificationsCreated = 0;
     let changedOpinionsForPush = [];
     
-    // Mappa delle opinioni ai campi del database
-    const opinionMapping = {
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento'
-    };
     
     // Prepara i campi da aggiornare
     const updateFields = [];
@@ -132,41 +95,20 @@ router.post('/salva', verifyToken, async (req, res) => {
     
     const unmappedOpinions = [];
     
-    // Verifica quali colonne esistono in opinioni_risposte
-    // Usa direttamente gli ID inviati dal frontend (che provengono da opinioni_domande)
-    const opinionIdsToCheck = Object.keys(opinioni);
-    const checkColumnsQuery = `
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'opinioni_risposte' 
-      AND column_name != 'user_id'
-      AND column_name != 'fonti_opinioni'
-      AND column_name = ANY($1::text[])
-    `;
-    const checkColumnsResult = await pool.query(checkColumnsQuery, [opinionIdsToCheck]);
-    const existingColumns = new Set(checkColumnsResult.rows.map(row => row.column_name));
-    
-    console.log(`🔍 DEBUG - Opinion da verificare: ${opinionIdsToCheck.length}`);
+    // Published IDs are the canonical SQL column allowlist; no metadata SELECT.
     
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       
-      // Usa direttamente l'ID inviato dal frontend (che proviene da opinioni_domande)
-      // Verifica solo che la colonna esista in opinioni_risposte
-      let dbField = opinionId;
-      
-      if (!existingColumns.has(opinionId)) {
-        // Se la colonna non esiste, prova il mapping (per compatibilità con vecchie opinioni)
-        dbField = opinionMapping[opinionId];
-        if (!dbField) {
-          console.warn('⚠️ Campo opinione non riconosciuto');
-          unmappedOpinions.push(opinionId);
-          errorCount++;
-          continue;
-        } else {
-        }
-      } else {
+      // Accept only opinion IDs published in this release. The 94/94
+      // catalog-to-answer-column parity is a mandatory pre-release check.
+      const dbField = getOpinionById(opinionId)?.id;
+      if (!dbField) {
+        console.warn('⚠️ Campo opinione non riconosciuto');
+        unmappedOpinions.push(opinionId);
+        errorCount++;
+        continue;
       }
-      
+
       // Una volta espressa, un'Opinione può soltanto cambiare tra f/c/i: NULL non è una risposta.
       const dbValue = normalizeOpinionAnswer(risposta);
       if (!dbValue) {

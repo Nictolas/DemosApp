@@ -41,6 +41,7 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
 
     const guardedPool={
       query: async(sql,values=[])=>{
+        if(String(sql).includes('information_schema.columns')) throw Error('Save must not query schema metadata');
         const data=await database.query(sql,values);
         if(holdConsentCheck && String(sql).includes('AS granted') && !String(sql).includes('FOR UPDATE OF u')){
           const latch=holdConsentCheck;holdConsentCheck=null;
@@ -96,6 +97,11 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
       method:'POST',headers:{...auth,'content-type':'application/json'},
       body:JSON.stringify({opinioni:chosen})
     });
+    const deniedUnknown=await localFetch(base+'/api/opinioni/salva',{
+      method:'POST',headers:{...auth,'content-type':'application/json'},
+      body:JSON.stringify({opinioni:{nonexistent_opinion_qa:'f'}})
+    });
+    assert.equal(deniedUnknown.status,400);
     const saved=await post();
     const result=await saved.json();
     assert.equal(saved.status,200);

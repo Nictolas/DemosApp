@@ -35,9 +35,7 @@ async function withAndroid110Contract(callback) {
     if(sql.includes('AS granted') && sql.includes('user_consents')) {
       return {rows:[{granted:true}],rowCount:1};
     }
-    if(sql.includes('information_schema.columns') && sql.includes('opinioni_risposte')) {
-      return {rows:(params[0]||[]).filter(id=>id===fixtureId).map(column_name=>({column_name}))};
-    }
+    if(sql.includes('information_schema.columns')) throw Error('No DB schema lookup on save');
     if(['BEGIN','COMMIT','ROLLBACK'].includes(sql))return {rows:[],rowCount:0};
     if(sql.includes('FROM opinioni_risposte') && sql.includes('FOR UPDATE')){
       return {rows:state.hasRow?[{user_id:emailFreeFakeUser,[fixtureId]:state.answer}]:[],rowCount:state.hasRow?1:0};
@@ -119,6 +117,7 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
     assert.equal(result.success,true);
     assert.equal(result.savedCount,1);
     assert.equal(result.errorCount,0);
+    assert.equal(state.sql.some(sql=>sql.includes('information_schema')),false,'Save must use catalog IDs, not DB metadata');
     const beginPosition=state.sql.findIndex(sql=>sql==='BEGIN');
     const lockedConsentPosition=state.sql.findIndex(sql=>sql.includes('FOR UPDATE OF u'));
     const insertPosition=state.sql.findIndex(sql=>sql.startsWith('INSERT INTO opinioni_risposte'));

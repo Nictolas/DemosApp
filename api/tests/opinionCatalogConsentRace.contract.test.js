@@ -30,9 +30,7 @@ async function serveWriteRoute({lockedConsent}, callback) {
       // commit before the transactional row lock is acquired.
       return {rows:[{granted:true}],rowCount:1};
     }
-    if(sql.includes('information_schema.columns') && sql.includes('opinioni_risposte')){
-      return {rows:[{column_name:'energia_nucleare'}],rowCount:1};
-    }
+    if(sql.includes('information_schema.columns')) throw Error('No DB schema lookup on save');
     if(sql.startsWith('SELECT user_id') && sql.includes('FROM opinioni_risposte') && sql.includes('FOR UPDATE')){
       return {rows:[],rowCount:0};
     }
@@ -101,6 +99,7 @@ test('active consent locked inside transaction allows the existing save contract
     const data=await res.json();
     assert.equal(res.status,200);
     assert.equal(data.savedCount,1);
+    assert.equal(state.queries.some(s=>s.includes('information_schema')),false);
     assert.equal(state.writes,1);
     assert.equal(state.commits,1);
     assert.equal(state.rollbacks,0);
