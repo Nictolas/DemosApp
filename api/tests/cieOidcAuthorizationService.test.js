@@ -13,6 +13,7 @@ const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
 });
 
 function configure() {
+  process.env.CIE_SEX_COLLECTION_ENABLED = 'false';
   process.env.CIE_OIDC_ENABLED = 'true';
   process.env.CIE_RP_ENTITY_ID = 'https://demos.example/rp';
   process.env.CIE_OP_ISSUER = 'https://cie-op.example';
@@ -77,4 +78,20 @@ test('OIDC CIE reale resta disabilitato senza flag esplicito', () => {
     () => createAuthorizationRequest(),
     error => error.code === 'CIE_OIDC_DISABLED'
   );
+});
+
+test('CIE richiede gender solo con abilitazione esplicita della raccolta del sesso', () => {
+  process.env.CIE_SEX_COLLECTION_ENABLED = 'true';
+  const { authorizationUrl } = createAuthorizationRequest(1700000000);
+  const request = new URL(authorizationUrl).searchParams.get('request');
+  const decoded = jwt.verify(request, publicKey, {
+    algorithms: ['RS256'],
+    audience: 'https://cie-op.example',
+    issuer: 'https://demos.example/rp',
+    clockTimestamp: 1700000000
+  });
+  assert.deepEqual(decoded.claims.userinfo, {
+    [FISCAL_NUMBER_CLAIM]: null,
+    gender: null
+  });
 });
