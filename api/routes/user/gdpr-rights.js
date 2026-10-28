@@ -459,72 +459,62 @@ router.put('/limit-processing', validateInput(['limited', 'categories']), async 
  * Oppone al trattamento per motivi legittimi
  */
 router.post('/object', validateInput(['reason', 'categories']), async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { reason, categories } = req.body;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
-
-    console.log(`🚫 Richiesta opposizione trattamento per utente: ${userId}`);
-
-    // Valida le categorie
-    const validCategories = [
-      'personal_data', 'political_opinions', 'voting_data', 
-      'communication_data', 'technical_data'
-    ];
-    
-    const invalidCategories = categories.filter(cat => !validCategories.includes(cat));
-    if (invalidCategories.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: `Categorie non valide: ${invalidCategories.join(', ')}`
-      });
-    }
-
-    // Registra l'opposizione
-    const requestQuery = `
-      INSERT INTO user_rights_requests (user_id, request_type, request_data, status)
-      VALUES ($1, $2, $3, 'pending')
-      RETURNING id
-    `;
-    
-    const requestResult = await pool.query(requestQuery, [
-      userId,
-      'object_processing',
-      JSON.stringify({ 
-        reason, 
-        categories,
-        request_date: new Date().toISOString()
-      })
-    ]);
-
-    const requestId = requestResult.rows[0].id;
-
-    // Log dell'opposizione
-    await AuditService.logAction({
-      userId,
-      action: 'PROCESSING_OBJECTION',
-      resource: 'user_rights_requests',
-      resourceId: requestId,
-      details: { reason, categories },
-      ipAddress,
-      userAgent,
-      success: true
-    });
-
-    res.json({
-      success: true,
-      message: 'Opposizione al trattamento registrata. Verrà esaminata entro 30 giorni.',
-      request_id: requestId
-    });
-
-  } catch (error) {
-    console.error('❌ Errore nell\'opposizione trattamento:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server durante la registrazione dell\'opposizione'
+  const userId = req.userId || req.user?.id;
+  const {reason, categories} = req.body || {};
+  const allowed = new Set([
+    'personal_data', 'political_opinions', 'voting_data',
+    'communication_data', 'technical_data'
+  ]);
+  if (!userId) {
+    return res.status(401).json({success:false,error:'Autenticazione richiesta'});
+  }
+  if (typeof reason !== 'string' || !reason.trim() || reason.length > 1000 ||
+      !Array.isArray(categories) || categories.length < 1 ||
+      categories.length > allowed.size ||
+      categories.some(category => typeof category !== 'string' || !allowed.has(category)) ||
+      new Set(categories).size !== categories.length) {
+    return res.status(400).json({
+      success:false,error:'Motivo o categorie della richiesta non validi'
     });
   }
+  let requestId;
+  try {
+    const saved = await pool.query(
+      'INSERT INTO public.user_rights_requests ' +
+      '(user_id, request_type, request_data, status) ' +
+      "VALUES ($1, 'object_processing', $2::jsonb, 'pending') RETURNING id",
+      [userId, JSON.stringify({reason:reason.trim(),categories,request_date:new Date().toISOString()})]
+    );
+    requestId = saved.rows?.[0]?.id;
+    if (saved.rowCount !== 1 || !requestId) {
+      throw Error('GDPR_OBJECTION_RECEIPT_NOT_CONFIRMED');
+    }
+  } catch (error) {
+    // A failed or uncertain INSERT must not manufacture a receipt.
+    console.error('GDPR_OBJECTION_PERSIST_FAILED', error?.code || 'QUERY_FAILED');
+    return res.status(503).json({
+      success:false,
+      error:'Registrazione non confermata. Controlla lo storico prima di riprovare.'
+    });
+  }
+  // The durable PostgreSQL receipt is authoritative. An independent audit
+  // delivery failure must not turn a successful INSERT into HTTP 500 and
+  // encourage an accidental duplicate objection.
+  try {
+    await AuditService.logAction({
+      userId, action:'PROCESSING_OBJECTION', resource:'user_rights_requests',
+      resourceId:requestId, details:{categories},
+      ipAddress:req.ip || req.connection?.remoteAddress,
+      userAgent:req.get?.('User-Agent'), success:true
+    });
+  } catch (_) {
+    console.error('GDPR_OBJECTION_SECONDARY_AUDIT_FAILED');
+  }
+  return res.json({
+    success:true,
+    message:'Opposizione al trattamento registrata. Verrà esaminata entro 30 giorni.',
+    request_id:requestId
+  });
 });
 
 /**

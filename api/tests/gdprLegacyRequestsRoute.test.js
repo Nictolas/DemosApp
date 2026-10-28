@@ -426,3 +426,105 @@ test('legacy DELETE /api/user/account cannot bypass canonical password and ledge
     }
   }
 });
+
+
+test('shared validation never logs GDPR bodies or emails and rejects long input before next', () => {
+  const {validateInput,validateEmail} = require('../middleware/validation');
+  const oldLog=console.log, oldError=console.error, logged=[];
+  console.log=(...args)=>logged.push(args.join(' '));
+  console.error=(...args)=>logged.push(args.join(' '));
+  try {
+    let nextCalls=0;
+    const valid=response();
+    const sensitive='synthetic-secret-reason-and-email@example.test';
+    validateInput(['limited','categories'])({
+      path:'/api/user/limit-processing',
+      body:{limited:false,categories:['personal_data'],reason:sensitive}
+    },valid,()=>{nextCalls++;});
+    assert.equal(nextCalls,1,'false is a valid restriction removal');
+    const tooLong=response();
+    validateInput(['reason'])({
+      path:'/api/user/object',body:{reason:'X'.repeat(1001)}
+    },tooLong,()=>{nextCalls++;});
+    assert.equal(tooLong.statusCode,400);
+    assert.equal(nextCalls,1,'oversize fields must not reach route handler');
+    const missing=response();
+    validateInput(['reason'])({path:'/api/user/object'},missing,()=>{nextCalls++;});
+    assert.equal(missing.statusCode,400);
+    const badEmail=response();
+    validateEmail({path:'/register',body:{email:sensitive+' bad'}},badEmail,()=>{nextCalls++;});
+    assert.equal(badEmail.statusCode,400);
+    assert.equal(logged.join(' ').includes(sensitive),false,
+      'sensitive body and email must never be logged');
+  } finally {
+    console.log=oldLog;console.error=oldError;
+  }
+});
+
+test('GDPR objection validates categories and acknowledges committed receipt despite audit outage',async()=>{
+  const paths=[
+    require.resolve('../middleware/auth'),
+    require.resolve('../middleware/validation'),
+    require.resolve('../services/auditService'),
+    require.resolve('../utils/emailCrypto'),
+    require.resolve('../routes/user/gdpr-rights')
+  ];
+  const prior=paths.map(path=>require.cache[path]);
+  let sqlCalls=0,auditCalls=0,missingReceipt=false;
+  const fakePool={async query(sql,params){
+    sqlCalls++;
+    assert.match(sql,/INSERT INTO public\\.user_rights_requests/);
+    assert.deepEqual(params[0],'synthetic-objection-user');
+    assert.equal(JSON.parse(params[1]).reason,'synthetic-private-reason');
+    return missingReceipt?{rowCount:0,rows:[]}:
+      {rowCount:1,rows:[{id:'synthetic-objection-receipt'}]};
+  }};
+  const mocks=[
+    {verifyToken(_req,_res,next){next();},pool:fakePool},
+    {validateInput(){return (_req,_res,next)=>next();}},
+    {async logAction(){auditCalls++;throw Error('synthetic-audit-unavailable');},
+      async getUserAuditLogs(){return [];}},
+    {decrypt(value){return value;}}
+  ];
+  const oldLog=console.log,oldError=console.error,logs=[];
+  console.log=(...args)=>logs.push(args.join(' '));
+  console.error=(...args)=>logs.push(args.join(' '));
+  try{
+    for(let i=0;i<4;i++)require.cache[paths[i]]={
+      id:paths[i],filename:paths[i],loaded:true,exports:mocks[i]
+    };
+    delete require.cache[paths[4]];
+    const router=require('../routes/user/gdpr-rights');
+    const layer=router.stack.find(item=>item.route?.path==='/object'&&item.route?.methods.post);
+    assert.ok(layer);
+    const handler=layer.route.stack.at(-1).handle;
+    const req=(categories,reason='synthetic-private-reason')=>({
+      userId:'synthetic-objection-user',body:{reason,categories},
+      ip:'127.0.0.1',get:()=> 'synthetic-test-agent'
+    });
+    for(const categories of [undefined,'political_opinions',[],['invalid'],['personal_data','personal_data']]){
+      const bad=response();await handler(req(categories),bad);
+      assert.equal(bad.statusCode,400);
+    }
+    assert.equal(sqlCalls,0,'invalid objection must not query PostgreSQL');
+    const saved=response();
+    await handler(req(['political_opinions']),saved);
+    assert.equal(saved.statusCode,200);
+    assert.equal(saved.body.success,true);
+    assert.equal(saved.body.request_id,'synthetic-objection-receipt');
+    assert.equal(sqlCalls,1);assert.equal(auditCalls,1);
+    assert.equal(JSON.stringify(saved.body).includes('synthetic-private-reason'),false);
+    missingReceipt=true;
+    const uncertain=response();await handler(req(['political_opinions']),uncertain);
+    assert.equal(uncertain.statusCode,503);
+    assert.equal(uncertain.body.success,false);
+    assert.equal(auditCalls,1,'no audit success after unconfirmed INSERT');
+    assert.equal(logs.join(' ').includes('synthetic-private-reason'),false);
+  }finally{
+    console.log=oldLog;console.error=oldError;
+    for(let i=0;i<paths.length;i++){
+      delete require.cache[paths[i]];
+      if(prior[i])require.cache[paths[i]]=prior[i];
+    }
+  }
+});
