@@ -215,32 +215,38 @@ WHERE u.account_type = 'PERSON'
     WHERE pc.user_id = u.id AND pc.status = 'ACTIVE'
   );
 
-INSERT INTO political_mandates (
-  user_id, election_event_id, office_code, institution_code, jurisdiction, status, source, legacy_context
-)
-SELECT
-  u.id,
-  NULL,
-  u.grado_elezione,
-  NULL,
-  jsonb_strip_nulls(jsonb_build_object(
-    'country', u.paese_elezione,
-    'region', u.regione_elezione,
-    'province', u.provincia_elezione,
-    'municipality', u.comune_elezione,
-    'level', u.grado_elezione
-  )),
-  'ACTIVE',
-  'LEGACY_BACKFILL',
-  jsonb_build_object('legacy_role', u.ruolo)
-FROM users u
-WHERE u.account_type = 'PERSON'
-  AND u.ruolo IN ('P', 'CP', 'Politico', 'Candidato Politico')
-  AND NOT EXISTS (
-    SELECT 1 FROM political_mandates pm
-    WHERE pm.user_id = u.id AND pm.status = 'ACTIVE'
-  );
+-- FAIL CLOSED: an imported legacy role 'P' is NOT evidence that a political
+-- mandate is currently active. In particular, a former deputy may now be a
+-- senator; copying users.grado_elezione to an ACTIVE mandate fabricates a
+-- second simultaneous office, and NOW() is the migration time, not the start.
+--
+-- Only a verified, dated mandate may be inserted by an identity-first import
+-- process. Abort this entire migration rather than fabricate a public office
+-- or quietly downgrade legacy political accounts via role projection below.
+-- Existing production LEGACY_BACKFILL rows are NOT modified by this guard:
+-- they require a separate, audited remediation backed by official records.
+DO $unverified_mandate_guard$
+DECLARE
+  unresolved_count BIGINT;
+BEGIN
+  SELECT COUNT(*) INTO unresolved_count
+  FROM users u
+  WHERE u.account_type = 'PERSON'
+    AND u.ruolo IN ('P', 'CP', 'Politico', 'Candidato Politico')
+    AND NOT EXISTS (
+      SELECT 1 FROM political_mandates pm
+      WHERE pm.user_id = u.id AND pm.status = 'ACTIVE'
+    );
 
+  IF unresolved_count > 0 THEN
+    RAISE EXCEPTION
+      'Unverified legacy politician mandates: % users require identity-first verification; migration aborted before role projection',
+      unresolved_count
+      USING ERRCODE = 'P0001',
+            HINT = 'Verify current and historical offices from institutional identifiers, then insert dated mandates explicitly. Do not create LEGACY_BACKFILL/ACTIVE from users.grado_elezione.';
+  END IF;
+END
+$unverified_mandate_guard$;
 
 -- During the transition, users.ruolo is maintained only as a compatibility projection.
 -- New authorization/business logic should consume account_type/flags/relations instead.
