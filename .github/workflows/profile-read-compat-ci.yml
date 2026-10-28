@@ -62,7 +62,13 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Run compatibility regression tests
         working-directory: api
-        run: node --test --test-concurrency=1 tests/userProfileReadService.test.js tests/userProfileWriteService.test.js tests/politicalTerritoryMembershipService.test.js tests/eventFeedService.test.js tests/politicalRepresentativeSelection.smoke.test.js tests/userProfileMissingAccount.smoke.test.js
+        # Run HTTP smoke tests as direct Node processes: the Node 22 test-runner
+        # child-process IPC occasionally fails to deserialize high-output test files.
+        # Direct execution still runs node:test and propagates non-zero exits.
+        run: |
+          node --test --test-concurrency=1 tests/userProfileReadService.test.js tests/userProfileWriteService.test.js tests/politicalTerritoryMembershipService.test.js tests/eventFeedService.test.js
+          node tests/politicalRepresentativeSelection.smoke.test.js
+          node tests/userProfileMissingAccount.smoke.test.js
       - name: Run PostgreSQL 17 synthetic profile and preflight checks
         working-directory: api
         env:
