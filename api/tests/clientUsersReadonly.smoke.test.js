@@ -53,3 +53,16 @@ test('canonical deletion services stay available for GDPR and account self-servi
   assert.match(self, /PrivacyErasureLedgerService\.enforceAccountDeletion\(client, userId\)/);
   assert.match(service, /static async enforceAccountDeletion/);
 });
+
+test('user totals appear only under Statistiche, not as redundant cards in Gestisci', () => {
+  const page = read('client/src/pages/Utenti/index.tsx');
+  const gestisci = page.slice(page.indexOf('<TabsContent value="gestisci"'), page.indexOf('<TabsContent value="statistiche"'));
+  const statistiche = page.slice(page.indexOf('<TabsContent value="statistiche"'));
+  assert.ok(gestisci.length > 100, 'Gestisci tab is present');
+  assert.doesNotMatch(gestisci, /Totale Utenti|text-green-900|text-blue-900/);
+  assert.doesNotMatch(gestisci, /\{allUsers\.length\}/);
+  assert.match(gestisci, /Tutti gli Utenti/);
+  assert.match(gestisci, /<UsersTable/);
+  assert.match(gestisci, /<MobileUsersTable/);
+  assert.match(statistiche, /stats\.totalUsers/);
+});
