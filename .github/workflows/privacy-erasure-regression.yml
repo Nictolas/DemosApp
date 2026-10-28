@@ -6,6 +6,8 @@ on:
       - 'api/tests/legacyAdminCleanup.smoke.test.js'
       - 'api/tests/accountDeletion.integration.test.js'
       - 'api/tests/legacyLinkedRows.integration.test.js'
+      - 'api/tests/gdprRightsAccountDeletion.smoke.test.js'
+      - 'api/routes/user/gdpr-rights.js'
       - '.github/workflows/privacy-erasure-regression.yml'
 jobs:
   account-erasure:
@@ -33,5 +35,7 @@ jobs:
       - run: npm ci --prefix api --ignore-scripts
       - name: Test canonical account erasure with synthetic users
         run: node --test api/tests/legacyAdminCleanup.smoke.test.js api/tests/accountDeletion.integration.test.js
+      - name: Verify GDPR account route uses a single transaction
+        run: node api/tests/gdprRightsAccountDeletion.smoke.test.js
       - name: Verify legacy linked rows and foreign keys
         run: node --test api/tests/legacyLinkedRows.integration.test.js
