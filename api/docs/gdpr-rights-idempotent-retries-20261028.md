@@ -73,3 +73,9 @@ Per `PUT /api/user/limit-processing` vale ora lo stesso header facoltativo `Idem
 - Client legacy senza header: comportamento precedente, ogni PUT è una nuova richiesta.
 
 Il test PostgreSQL 17 sintetico copre risposta perduta, retry dopo una scelta successiva opposta, conflitto fra utenti/payload, tre chiamate concorrenti con una sola ricevuta e rifiuto di UUID malformati. Non è una verifica di ACL/RLS del vero writer Render.
+
+## Retry dell'opposizione al trattamento (POST)
+
+Anche `POST /api/user/object` supporta `Idempotency-Key` UUID v4 facoltativa, riusata soltanto per il medesimo tentativo. Una `INSERT ... ON CONFLICT (id) DO NOTHING` sfrutta la PK esistente, senza DDL. Un conflitto viene riconosciuto con una seconda SELECT nello snapshot successivo, vincolata a **ID, utente, tipo di richiesta e contenuto JSONB** (esclusa la data tecnica). Un duplicato verificato restituisce HTTP 200, `replayed:true` e la ricevuta originale; collisioni diverse producono 409 senza rivelare altri utenti. Errori del database non producono falsi successi. Un replay non produce un secondo audit log.
+
+La prova PostgreSQL 17 sintetica include tre richieste simultanee con una sola ricevuta persistita, retry dopo risposta HTTP incerta, rifiuto di UUID malformati e collisioni tra utente/payload diversi. La gestione DPO effettiva e le policy SQL reali rimangono NO-GO senza attestazioni.

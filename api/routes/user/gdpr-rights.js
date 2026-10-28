@@ -530,43 +530,82 @@ router.post('/object', validateInput(['reason', 'categories']), async (req, res)
       success:false,error:'Motivo o categorie della richiesta non validi'
     });
   }
-  let requestId;
+  // The same browser retry key must correspond to exactly one objection.
+  // Requests without this optional header keep the legacy behavior.
+  const header = req.headers?.['idempotency-key'];
+  if (header !== undefined && (
+    typeof header !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(header)
+  )) {
+    return res.status(400).json({
+      success:false,error:'Idempotency-Key non valida: serve un UUID v4'
+    });
+  }
+  const requestId = header === undefined ? crypto.randomUUID() : header.toLowerCase();
+  const payload = {reason:reason.trim(),categories};
+  let stored;
+  let replay = false;
   try {
     const saved = await pool.query(
       'INSERT INTO public.user_rights_requests ' +
-      '(user_id, request_type, request_data, status) ' +
-      "VALUES ($1, 'object_processing', $2::jsonb, 'pending') RETURNING id",
-      [userId, JSON.stringify({reason:reason.trim(),categories,request_date:new Date().toISOString()})]
+      '(id, user_id, request_type, request_data, status) ' +
+      "VALUES ($1::uuid, $2, 'object_processing', $3::jsonb, 'pending') " +
+      'ON CONFLICT (id) DO NOTHING RETURNING id, user_id, request_type, status',
+      [requestId, userId, JSON.stringify({
+        ...payload,request_date:new Date().toISOString()
+      })]
     );
-    requestId = saved.rows?.[0]?.id;
-    if (saved.rowCount !== 1 || !requestId) {
+    stored = saved.rows?.[0];
+    replay = !stored;
+    if (replay) {
+      // A separate READ COMMITTED statement can see the unique-key winner
+      // after PostgreSQL finishes waiting for its concurrent transaction.
+      const previous = await pool.query(
+        'SELECT id, status FROM public.user_rights_requests ' +
+        "WHERE id=$1::uuid AND user_id=$2 AND request_type='object_processing' " +
+        "AND request_data - 'request_date' = $3::jsonb LIMIT 1",
+        [requestId,userId,JSON.stringify(payload)]
+      );
+      stored = previous.rows?.[0];
+      if (!stored?.id) {
+        return res.status(409).json({
+          success:false,error:'Chiave già utilizzata o richiesta non verificabile'
+        });
+      }
+    } else if (saved.rowCount !== 1 || !stored?.id ||
+        String(stored.id).toLowerCase() !== requestId ||
+        String(stored.user_id) !== String(userId) ||
+        stored.request_type !== 'object_processing' ||
+        stored.status !== 'pending') {
       throw Error('GDPR_OBJECTION_RECEIPT_NOT_CONFIRMED');
     }
   } catch (error) {
-    // A failed or uncertain INSERT must not manufacture a receipt.
     console.error('GDPR_OBJECTION_PERSIST_FAILED', error?.code || 'QUERY_FAILED');
     return res.status(503).json({
       success:false,
       error:'Registrazione non confermata. Controlla lo storico prima di riprovare.'
     });
   }
-  // The durable PostgreSQL receipt is authoritative. An independent audit
-  // delivery failure must not turn a successful INSERT into HTTP 500 and
-  // encourage an accidental duplicate objection.
-  try {
-    await AuditService.logAction({
-      userId, action:'PROCESSING_OBJECTION', resource:'user_rights_requests',
-      resourceId:requestId, details:{categories},
-      ipAddress:req.ip || req.connection?.remoteAddress,
-      userAgent:req.get?.('User-Agent'), success:true
-    });
-  } catch (_) {
-    console.error('GDPR_OBJECTION_SECONDARY_AUDIT_FAILED');
+  // The durable receipt is authoritative; audit delivery must not cause
+  // duplicate objections or false HTTP failures. Never re-log a retry.
+  if (!replay) {
+    try {
+      await AuditService.logAction({
+        userId, action:'PROCESSING_OBJECTION', resource:'user_rights_requests',
+        resourceId:stored.id, details:{categories},
+        ipAddress:req.ip || req.connection?.remoteAddress,
+        userAgent:req.get?.('User-Agent'), success:true
+      });
+    } catch (_) {
+      console.error('GDPR_OBJECTION_SECONDARY_AUDIT_FAILED');
+    }
   }
   return res.json({
     success:true,
-    message:'Opposizione al trattamento registrata. Verrà esaminata entro 30 giorni.',
-    request_id:requestId
+    message:replay ? 'Opposizione già registrata. Controlla lo stato nello storico.' :
+      'Opposizione al trattamento registrata. Verrà esaminata entro 30 giorni.',
+    request_id:stored.id,
+    ...(replay ? {replayed:true,request_status:stored.status} : {})
   });
 });
 

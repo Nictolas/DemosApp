@@ -89,7 +89,11 @@ async function withRightsHistoryRoute(pool, callback) {
       layer.route?.path==='/limit-processing' && layer.route?.methods.put
     )?.route.stack.at(-1)?.handle;
     assert.equal(typeof put,'function');
-    await callback(handler,put);
+    const object=router.stack.find(layer=>
+      layer.route?.path==='/object' && layer.route?.methods.post
+    )?.route.stack.at(-1)?.handle;
+    assert.equal(typeof object,'function');
+    await callback(handler,put,object);
   } finally {
     for(let i=0;i<paths.length;i++){
       delete require.cache[paths[i]];
@@ -454,6 +458,66 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
       }
       assert.equal(await receiptCount(),5,
         'new idempotent PUT scenarios intentionally add three distinct receipts');
+    });
+
+
+    // A browser may retry an objection if the HTTP response is lost.
+    // Distinct user/payload collisions are denied, and parallel retries
+    // must create a single authoritative PostgreSQL receipt.
+    await withRightsHistoryRoute(admin,async (_get,_put,object)=>{
+      const key='a45a75e1-64b3-4dd6-995d-3b9546a81dc3';
+      const request=(userId,reason,uuid=key)=>({
+        userId, headers:{'idempotency-key':uuid},
+        body:{reason,categories:['political_opinions']},
+        ip:'127.0.0.1',connection:{remoteAddress:'127.0.0.1'},
+        get:()=> 'synthetic-gdpr-ci'
+      });
+      const count=async()=>(await admin.query(
+        "SELECT COUNT(*)::int AS n FROM public.user_rights_requests " +
+        "WHERE user_id=$1 AND request_type='object_processing'",[USER]
+      )).rows[0].n;
+      const original=response();
+      await object(request(USER,'synthetic-objection'),original);
+      assert.equal(original.statusCode,200);
+      assert.equal(original.body.request_id,key);
+      assert.equal(await count(),1);
+      const uncertainReply=response();
+      await object(request(USER,'synthetic-objection'),uncertainReply);
+      assert.equal(uncertainReply.statusCode,200);
+      assert.equal(uncertainReply.body.replayed,true);
+      assert.equal(uncertainReply.body.request_id,key);
+      assert.equal(await count(),1);
+      for(const [id,reason] of [
+        [OTHER,'synthetic-objection'],[USER,'different-synthetic-objection']
+      ]){
+        const conflict=response();
+        await object(request(id,reason),conflict);
+        assert.equal(conflict.statusCode,409);
+        assert.equal(conflict.body.success,false);
+      }
+      assert.equal(await count(),1);
+
+      const parallelKey='b5ed8a90-1a3b-45cb-80df-e9f14d880052';
+      const parallel=await Promise.all(Array.from({length:3},async()=>{
+        const result=response();
+        await object(request(USER,'synthetic-parallel-objection',parallelKey),result);
+        return result;
+      }));
+      assert.ok(parallel.every(result=>result.statusCode===200));
+      assert.equal(parallel.filter(result=>result.body.replayed).length,2);
+      assert.ok(parallel.every(result=>result.body.request_id===parallelKey));
+      assert.equal(await count(),2);
+
+      const invalid=response();
+      await object(request(USER,'synthetic-malformed-key','invalid-key'),invalid);
+      assert.equal(invalid.statusCode,400);
+      assert.equal(await count(),2);
+      const badCategory=response();
+      await object({userId:USER,body:{
+        reason:'synthetic invalid',categories:['unknown_private_category']
+      }},badCategory);
+      assert.equal(badCategory.statusCode,400);
+      assert.equal(await count(),2);
     });
 
     console.log('GDPR_LEGACY_RIGHTS_REAL_PG17_PASS ' + JSON.stringify({
