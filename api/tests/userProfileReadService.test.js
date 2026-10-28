@@ -60,3 +60,21 @@ test('missing user returns null', async () => {
   const row = await loadUserResidence({ query: async () => ({ rows: [] }) }, 'u4');
   assert.equal(row, null);
 });
+
+test('strict canonical mode preserves explicit NULL instead of resurrecting users residence', () => {
+  const sql = buildUserResidenceSql({ strictProfileOwner: true });
+  for (const field of RESIDENCE_FIELDS) {
+    assert.ok(sql.includes(`CASE WHEN p.user_id IS NOT NULL THEN p.${field} ELSE u.${field} END AS ${field}`));
+    assert.ok(!sql.includes(`COALESCE(p.${field}, u.${field})`));
+  }
+});
+
+test('strict canonical mode fails closed when the canonical table is absent', async () => {
+  let count = 0;
+  const missing = Object.assign(new Error('table missing'), { code: '42P01' });
+  await assert.rejects(
+    loadUserResidence({ query: async () => { count += 1; throw missing; } }, 'u1', { strictProfileOwner: true }),
+    error => error === missing
+  );
+  assert.equal(count, 1, 'no silent fallback to users when canonical ownership is required');
+});
