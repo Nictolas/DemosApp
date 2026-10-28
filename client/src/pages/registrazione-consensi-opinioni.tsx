@@ -7,7 +7,7 @@ export default function RegistrazioneConsensiOpinioni() {
   const handleAccetto = () => {
     localStorage.setItem("registrazione_political_opinions_consent", "true");
     localStorage.setItem("registrazione_passkey_flow", "1");
-    navigate("/registrazione-genere");
+    navigate("/registrazione-cittadinanza");
   };
 
   return (
