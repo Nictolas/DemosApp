@@ -119,6 +119,11 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
     assert.equal(result.success,true);
     assert.equal(result.savedCount,1);
     assert.equal(result.errorCount,0);
+    const beginPosition=state.sql.findIndex(sql=>sql==='BEGIN');
+    const lockedConsentPosition=state.sql.findIndex(sql=>sql.includes('FOR UPDATE OF u'));
+    const insertPosition=state.sql.findIndex(sql=>sql.startsWith('INSERT INTO opinioni_risposte'));
+    assert.ok(beginPosition>=0 && lockedConsentPosition>beginPosition, 'Consent must be locked inside the write transaction');
+    assert.ok(insertPosition>lockedConsentPosition, 'No opinion writes before locking consent');
 
     // The published Android 1.0.10 saveAndVerifyOpinions() requires an
     // authenticated fresh GET returning the same ID and compressed value.

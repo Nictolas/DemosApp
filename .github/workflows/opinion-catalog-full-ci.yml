@@ -36,7 +36,7 @@ jobs:
       - name: Install backend dependencies for isolated HTTP regression
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Android 1.0.10 legacy Opinions HTTP contract (no real accounts)
-        run: node api/tests/opinionCatalogAndroid110.contract.test.js
+        run: node --test api/tests/opinionCatalogAndroid110.contract.test.js api/tests/opinionCatalogConsentRace.contract.test.js
       - name: Install frontend without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: TypeScript and Vite frontend build (no release)

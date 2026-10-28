@@ -201,6 +201,34 @@ router.post('/salva', verifyToken, async (req, res) => {
     try {
       await client.query('BEGIN');
 
+      // Serialize saving with consent revocation, which UPDATE-locks users.
+      // The earlier read is only a fast precheck: it is NOT authoritative
+      // when revocation can run concurrently on another connection.
+      const lockedConsent = await client.query(`
+        SELECT COALESCE(
+          uc.political_opinions_consent,
+          u.political_opinions_consent,
+          false
+        ) AS granted
+        FROM users u
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE u.id = $1
+        FOR UPDATE OF u
+      `, [userId]);
+      if (lockedConsent.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, error: 'Utente non trovato' });
+      }
+      if (lockedConsent.rows[0].granted !== true) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          success: false,
+          error: 'Consenso richiesto',
+          message: 'Per salvare opinioni politiche è necessario un consenso esplicito attivo.',
+          consent_required: true
+        });
+      }
+
       const quotedFields = insertFields.map((field) => `"${String(field).replace(/"/g, '""')}"`);
       const checkQuery = `
         SELECT user_id${quotedFields.length ? `, ${quotedFields.join(', ')}` : ''}
