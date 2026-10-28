@@ -10,6 +10,7 @@ const {
 
 const router = express.Router();
 const { resolvePublishedOpinionColumn } = require('../../utils/opinionStatsColumns');
+const { protectSexOpinionRows } = require('../../utils/canonicalSexAggregate');
 
 // GET /api/opinioni/candidati - Endpoint di test senza autenticazione
 router.get('/candidati', async (req, res) => {
@@ -289,27 +290,12 @@ async function serveOpinionSexBreakdown(req, res) {
       params
     );
 
-    const rows = result.rows.map(row => ({
-      sesso: row.sesso,
-      favorevole: Number(row.favorevole) || 0,
-      contrario: Number(row.contrario) || 0,
-      indeciso: Number(row.indeciso) || 0
-    }));
-
-    // Le sottocelle 1-9 e le celle di meno di 10 rispondenti possono
-    // rendere identificabili preferenze politiche. Nascondere tutto
-    // l'incrocio anziche' restituire celle parziali ricostruibili.
-    const suppressed = rows.some(row =>
-      !cellThresholdMet(row) ||
-      ['favorevole', 'contrario', 'indeciso'].some(key =>
-        row[key] > 0 && row[key] < minimumCellSize
-      )
-    );
+    const protectedStats = protectSexOpinionRows(result.rows, minimumCellSize);
     return res.json({
       success: true,
       minimumCellSize,
-      suppressed,
-      data: suppressed ? [] : rows
+      suppressed: protectedStats.suppressed,
+      data: protectedStats.data
     });
   } catch (error) {
     console.error('Errore statistiche sesso CIE per opinione:', error);
