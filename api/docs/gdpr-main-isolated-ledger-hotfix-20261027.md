@@ -152,3 +152,60 @@ Le tre operazioni si arrestano ora con `42P01` quando manca `public.privacy_eras
 La correzione isolata riutilizza nel replay lo **stesso helper** già usato dal percorso live, senza importare la catena Draft. Due `UPDATE users` del helper sono stati qualificati `public.users` per impedire che un `search_path` ostile devii la cancellazione su una tabella temporanea. Un nuovo test PG17 sintetico verifica la rimozione di opinioni, voti `voti_ice`, campo opinione legacy e collegamento a proposta, l'azzeramento dei consensi e la conservazione della tabella temporanea ombra.
 
 **Limiti espliciti:** la parità riguarda **il perimetro già implementato su `main`**. Le selezioni personali `political_selections` e `user_representatives` e i campi legacy dei candidati/rappresentanti sono coperti dalla separata PR Draft #295, **non** da questa modifica: la convergenza tra le due PR dovrà essere verificata prima di un futuro rilascio. Il campo di ritorno `opinionsRemoved` conta solo le opinioni, non tutte le righe politiche eliminate. Il test non dimostra una vera quarantena, un writer Render autorizzato, un ledger B2 completo né il corretto deploy. Questa correzione amplia il delta della PR a **6 file**, restando basata direttamente su `main`; nessun merge o deploy.
+
+## Offline recovery requires unfiltered ledger visibility (28 October 2026)
+
+A protected RLS ledger may return a partial or empty history to a
+subject-scoped SQL operator. Previously `captureCurrent`, `mergeCaptured`
+and `applyCurrentPrivacyState` checked RLS and ACL configuration but not
+whether the executing SQL role could see **all** tombstone events. The
+result could appear to be a complete export or successful replay.
+
+These offline-only functions now call `assertUnfilteredLedger`, which
+checks `pg_catalog.row_security_active` for the exact
+`public.privacy_erasure_ledger` relation under the executing SQL role.
+If RLS would filter the view, it fails closed with
+`GDPR_LEDGER_VISIBILITY_INCOMPLETE`, before reading or modifying rows.
+Live `recordEvent` is unchanged, retaining least-privilege RLS support.
+
+A disposable PostgreSQL 17 regression creates two synthetic events and
+grants a separate non-owner role a SELECT policy for just one event.
+Export, import and replay reject the partially visible role without
+mutating records; owner export still sees both events. This never reads
+real records or accesses Render, Supabase or B2.
+
+Global SQL visibility is a *necessary*, not sufficient, recovery gate.
+It does not prove no events were lost upstream or that a complete,
+fresh and independently signed B2 archive exists. Provider quarantine,
+writer identity, isolated restore and explicit GO remain open.
+The stacked #371–#374 descendants must be realigned/retested before
+any integration. Issue #296 remains NO-GO.
+
+## Replay of restored application rows must also be unfiltered
+
+An SQL role can own and fully read the GDPR tombstone ledger while still
+being subject to row-level security on **restored user/application tables**.
+In that case a DELETE or UPDATE could silently see zero matching rows,
+then report a successful replay while leaving sensitive data behind.
+
+The offline `applyCurrentPrivacyState` operation therefore now performs
+an additional catalog-only `assertUnfilteredReplayTables` preflight
+**before any user-data mutation**. It conservatively rejects when any
+restored `public` application table (excluding the separately checked
+ledger and delivery-outbox bookkeeping) has RLS active for the current
+SQL role, raising `GDPR_REPLAY_DATA_VISIBILITY_INCOMPLETE`.
+This intentionally may block recovery even for an unrelated RLS-enabled
+table: a controlled offline restore must use a reviewed operator identity
+with verified global data visibility, never bypass per-user policies in a
+live HTTP process.
+
+The new disposable PG17 test creates an account and its deletion event.
+A non-superuser SQL role owns the ledger (so the tombstone is fully
+visible), but RLS hides the restored account in `public.users`.
+Replay must refuse before the DELETE; the original account remains.
+A separate privileged synthetic replay can then delete the row.
+
+These guards do not make a recovery end-to-end safe or attest external
+backup completeness. Review all other restored schemas, permissions,
+B2 receipts and independent checkpoints before any authorized restore.
+NO-GO remains in force.
