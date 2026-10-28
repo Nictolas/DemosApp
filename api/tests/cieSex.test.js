@@ -27,11 +27,16 @@ test('persistenza sesso CIE richiede valore verificato, UUID e aggiornamento di 
   assert.equal(await persistVerifiedCieSex(client, 'user-1', 'M'), true);
   assert.deepEqual(calls[0].params, ['M', 'user-1']);
   assert.match(calls[0].sql, /sesso = \$1/);
-  assert.match(calls[0].sql, /sesso IS NULL OR sesso = \$1/);
+  assert.doesNotMatch(calls[0].sql, /sesso IS NULL OR sesso = \$1/);
+  // Un valore storico difforme non deve impedire la successiva verifica CIE.
+  assert.match(calls[0].sql, /UPDATE users SET sesso = \$1/);
   assert.match(calls[0].sql, /account_type = 'PERSON'/);
+  assert.equal(await persistVerifiedCieSex(client, 'user-1', 'F'), true);
+  assert.deepEqual(calls[1].params, ['F', 'user-1']);
+  assert.doesNotMatch(calls[1].sql, /sesso IS NULL/);
   await assert.rejects(
     persistVerifiedCieSex({ query: async () => ({ rowCount: 0 }) }, 'user-1', 'F'),
-    /Conflitto/
+    /Account inesistente o non PERSON/
   );
 });
 
