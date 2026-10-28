@@ -194,7 +194,8 @@ router.get('/cie/callback', async (req, res) => {
         : completeOAuthRegistrationAfterCie;
       const completed = await completeRegistration({
         registration: transaction.registration,
-        fiscalNumber: userInfo.fiscalNumber
+        fiscalNumber: userInfo.fiscalNumber,
+        verifiedCieSex: userInfo.sesso ?? null
       });
       const registrationTicket = await createRegistrationTicket({ userId: completed.userId });
 
@@ -208,7 +209,7 @@ router.get('/cie/callback', async (req, res) => {
 
     await completeCieVerificationFromVerifiedClaims({
       userId: transaction.userId,
-      claims: { fiscal_number: userInfo.fiscalNumber }
+      claims: { fiscal_number: userInfo.fiscalNumber, sesso: userInfo.sesso ?? null }
     });
 
     return res.redirect(303, buildCieCallbackRedirect('success'));
