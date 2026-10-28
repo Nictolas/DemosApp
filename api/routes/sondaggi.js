@@ -71,9 +71,9 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// Statistiche per sesso anagrafico CIE (M/F), non per identita' di genere.
+// Statistiche M/F registrate, inclusi dati storici o inferiti: non necessariamente CIE.
 // Gli endpoint legacy /genere restano temporaneamente raggiungibili, ma non
-// ripubblicano attributi non certificati e non etichettano M/F come genere.
+// ripubblicano il genere legacy e non etichettano M/F come identita' di genere.
 const sexStatsPaths = [
   '/sesso',
   '/sesso/:regione',
@@ -125,7 +125,7 @@ async function serveCanonicalSexStats(req, res) {
       stats: protectedStats.data
     });
   } catch (error) {
-    console.error('Errore statistiche sesso CIE aggregate:', error);
+    console.error('Errore statistiche sesso aggregate:', error);
     return res.status(500).json({ success: false, error: 'Statistiche non disponibili' });
   }
 }
@@ -133,7 +133,7 @@ async function serveCanonicalSexStats(req, res) {
 sexStatsPaths.forEach(route => router.get(route, serveCanonicalSexStats));
 
 // Compatibilita' per client storici: manteniamo la forma {stats: []} ma
-// non forniamo dati di genere legacy o sesso CIE sotto etichetta errata.
+// non forniamo dati di genere legacy o sesso sotto etichetta errata.
 [
   '/genere',
   '/genere/:regione',
