@@ -149,7 +149,7 @@ export function useBrowserNavigation() {
     };
     const prev = pathMap[currentPath];
     if (currentPath === '/registrazione-cittadinanza' && typeof window !== 'undefined') {
-      if (window.localStorage.getItem('registrazione_passkey_flow')) return '/registrazione-consensi';
+      if (window.localStorage.getItem('registrazione_passkey_flow')) return '/registrazione-consensi?step=3';
       if (window.localStorage.getItem('webauthn_user_id')) return '/auth';
     }
     if (currentPath === '/registrazione-genere' && typeof window !== 'undefined' && window.localStorage.getItem('webauthn_user_id'))
