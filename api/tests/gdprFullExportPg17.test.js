@@ -214,13 +214,13 @@ test('full GDPR HTTP JSON/CSV uses real PG17 sources, authenticates and fails cl
     assert.equal(csv.status,200);
     assert.match(csv.headers.get('content-type'),/text\/csv/);
     const disposition=csv.headers.get('content-disposition');
-    assert.match(disposition,/^attachment; filename="dati-personali-\\d{4}-\\d{2}-\\d{2}\\.csv"$/);
+    assert.match(disposition,/^attachment; filename="dati-personali-\d{4}-\d{2}-\d{2}\.csv"$/);
     assert.doesNotMatch(disposition,new RegExp(A));
 
     const csvText=await csv.text();
     assert.match(csvText,/synthetic-new/);
     assert.match(csvText,/audit_log_coverage/);
-    assert.match(csvText,/data_retention_info\\.status/);
+    assert.match(csvText,/data_retention_info\.status/);
     assert.match(csvText,/verifica_necessaria/);
     assert.doesNotMatch(csvText,/Conservato in forma anonima per 5 anni|Conservato per 3 anni|Conservato per 12 mesi/);
 
