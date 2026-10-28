@@ -27,16 +27,16 @@ function createQaApp() {
     if (/\bopinioni_domande\b/i.test(sql)) throw Error('Legacy catalog SQL is forbidden');
     if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK')
       return { rows: [], rowCount: 0 };
-    if (sql.startsWith('SELECT id, status, ruolo FROM users')) {
-      return { rows: validUser(params) ? [{ id: USER_ID, status: 'a', ruolo: 'E' }] : [] };
+    if (sql.includes('FROM users u LEFT JOIN opinioni_risposte r ON r.user_id = u.id')) {
+      return { rows: validUser(params) ? [{
+        id: USER_ID, status: 'a', ruolo: 'E',
+        opinion_answers: state.hasRow ? { user_id: USER_ID, ...state.answers } : null
+      }] : [] };
     }
     if (sql.includes('AS granted') && sql.includes('user_consents')) {
       return { rows: validUser(params) ? [{ granted: state.consent }] : [], rowCount: 1 };
     }
     if (sql.includes('information_schema.columns')) throw Error('No schema lookup in QA save');
-    if (sql.startsWith('SELECT * FROM opinioni_risposte WHERE user_id')) {
-      return { rows: state.hasRow && validUser(params) ? [{ user_id: USER_ID, ...state.answers }] : [] };
-    }
     if (sql.includes('FROM opinioni_risposte') && sql.includes('FOR UPDATE')) {
       return { rows: state.hasRow && validUser(params) ? [{ user_id: USER_ID, ...state.answers }] : [], rowCount: state.hasRow ? 1 : 0 };
     }

@@ -53,11 +53,15 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
 
-    // La colonna email può non esistere più nella tabella users: qui servono solo id/status/ruolo
-    const userResult = await pool.query(
-      'SELECT id, status, ruolo FROM users WHERE id = $1',
-      [userIdFromToken]
-    );
+    // Read account status and the optional answers row in ONE SQL request.
+    // The LEFT JOIN preserves active users who have not answered anything.
+    // row_to_json gives pg a plain JS object (or null for no answer row).
+    const userResult = await pool.query(`
+      SELECT u.id, u.status, u.ruolo, row_to_json(r) AS opinion_answers
+      FROM users u
+      LEFT JOIN opinioni_risposte r ON r.user_id = u.id
+      WHERE u.id = $1
+    `, [userIdFromToken]);
     
     if (userResult.rows.length === 0) {
       return res.status(401).json({
@@ -103,17 +107,11 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
     
-    // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
-    // Recupera direttamente la riga dell'utente e poi accedi alle colonne per ID
-    const userAnswersQuery = `
-      SELECT * FROM opinioni_risposte WHERE user_id = $1
-    `;
-    const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
-    
+    // Answers already arrived with the account status (including null
+    // for a newly registered user who has no response row yet).
     const userAnswers = {};
-    
-    if (userAnswersResult.rows.length > 0) {
-      const userRow = userAnswersResult.rows[0];
+    const userRow = user.opinion_answers;
+    if (userRow && typeof userRow === 'object' && !Array.isArray(userRow)) {
       opinionResult.rows.forEach(opinion => {
         const opinionId = opinion.id;
         if (userRow.hasOwnProperty(opinionId)) {

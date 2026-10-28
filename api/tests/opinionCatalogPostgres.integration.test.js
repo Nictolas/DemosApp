@@ -39,9 +39,11 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
     await database.query('INSERT INTO users (id,status,ruolo,political_opinions_consent) VALUES ($1,$2,$3,$4)',
       [userId,'a','E',true]);
 
+    const observedSql=[];
     const guardedPool={
       query: async(sql,values=[])=>{
         if(String(sql).includes('information_schema.columns')) throw Error('Save must not query schema metadata');
+        observedSql.push(String(sql));
         const data=await database.query(sql,values);
         if(holdConsentCheck && String(sql).includes('AS granted') && !String(sql).includes('FOR UPDATE OF u')){
           const latch=holdConsentCheck;holdConsentCheck=null;
@@ -78,8 +80,12 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
     // Keep the local test transport separate from the browser's mocked fetch.
     const localFetch=globalThis.fetch.bind(globalThis);
     const apiGet=async(grade)=>{
+      const before=observedSql.length;
       const response=await localFetch(base+'/api/opinioni-list?grado='+grade,{headers:auth});
       assert.equal(response.status,200,'GET '+grade);
+      const statements=observedSql.slice(before);
+      assert.equal(statements.length,1,'GET must perform exactly one DB request');
+      assert.match(statements[0],/LEFT JOIN opinioni_risposte r ON r\.user_id = u\.id/);
       return response.json();
     };
     assert.equal((await fetch(base+'/api/opinioni-list?grado=N')).status,401);
@@ -91,6 +97,11 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
       assert.ok(payload.data.every(row=>row.userAnswer===null));
       chosen[payload.data[0].id]='f';
     }
+    // Also preserve 401 for inactive accounts with an existing answers row.
+    await database.query("UPDATE users SET status='x' WHERE id=$1",[userId]);
+    const inactive=await localFetch(base+'/api/opinioni-list?grado=N',{headers:auth});
+    assert.equal(inactive.status,401);
+    await database.query("UPDATE users SET status='a' WHERE id=$1",[userId]);
     const answers=Object.keys(chosen);
     assert.ok(answers.length>=2);
     const post=()=>fetch(base+'/api/opinioni/salva',{

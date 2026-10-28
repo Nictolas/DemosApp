@@ -24,13 +24,10 @@ async function withAndroid110Contract(callback) {
     const sql=String(statement).replace(/\s+/g,' ').trim();
     state.sql.push(sql);
     if(/\bopinioni_domande\b/i.test(sql)) throw Error('Legacy catalog table read/write is forbidden: '+sql);
-    if(sql.startsWith('SELECT id, status, ruolo FROM users')) {
+    if(sql.includes('FROM users u LEFT JOIN opinioni_risposte r ON r.user_id = u.id')) {
       assert.deepEqual(params,[emailFreeFakeUser]);
-      return {rows:[{id:emailFreeFakeUser,status:'a',ruolo:'E'}]};
-    }
-    if(sql.startsWith('SELECT * FROM opinioni_risposte WHERE user_id = $1')) {
-      assert.deepEqual(params,[emailFreeFakeUser]);
-      return {rows:state.hasRow?[{user_id:emailFreeFakeUser,[fixtureId]:state.answer}]:[]};
+      return {rows:[{id:emailFreeFakeUser,status:'a',ruolo:'E',
+        opinion_answers:state.hasRow?{user_id:emailFreeFakeUser,[fixtureId]:state.answer}:null}]};
     }
     if(sql.includes('AS granted') && sql.includes('user_consents')) {
       return {rows:[{granted:true}],rowCount:1};
@@ -97,6 +94,8 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
       assert.equal(body.grado,grade);
       assert.equal(body.total,getOpinionsForGrade(grade).length);
       assert.equal(body.data.length,body.total);
+      assert.equal(state.sql.length, ['N','R','CO','E'].indexOf(grade)+1,
+        'Exactly one joined SQL query per grade, even before an answer row exists');
       for(const row of body.data){
         assert.equal(typeof row.id,'string');
         assert.equal(typeof row.text,'string');

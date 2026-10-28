@@ -20,7 +20,7 @@ test('synthetic Render QA app uses actual candidate API and requires a nonproduc
     assert.equal((await fetch(root + '/healthz')).status, 200);
     assert.equal((await fetch(root + '/api/opinioni-list?grado=N')).status, 401);
     assert.equal((await fetch(root + '/api/opinioni', {headers: {authorization: 'Bearer invalid'}})).status, 401);
-    const gradeData = {};
+    const gradeData = {}; // Each GET uses one joined SQL request; no DB connection.
     for (const grade of ['N','R','CO','E']) {
       const response = await fetch(root + '/api/opinioni-list?grado=' + grade, {headers: auth});
       assert.equal(response.status, 200);
