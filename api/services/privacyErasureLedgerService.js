@@ -510,6 +510,7 @@ class PrivacyErasureLedgerService {
       'voti_capo_stato',
       'voti_ice',
       'voti_referendum_abrogativi',
+      'civic_ballot_positions',
       'voti_amnistia',
       'voti_grazia',
       'voti_iniziative_popolari',
