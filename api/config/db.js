@@ -1,26 +1,23 @@
-// File: api/config/db.js
-const { Pool } = require('pg');
+'use strict';
+// Compatibility for legacy routes. This MUST NOT create a second PostgreSQL
+// pool or disable TLS certificate verification for Supabase connections.
+// Production connection settings live in the canonical api/config/database.js.
 require('dotenv').config();
+const { getPool } = require('./database');
 
-// Usa DATABASE_URL se disponibile, altrimenti usa le variabili separate
-const config = process.env.DATABASE_URL 
-  ? {
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    }
-  : {
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_DATABASE,
-      password: process.env.DB_PASSWORD,
-      port: process.env.DB_PORT || 5432,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    };
+const pool = Object.freeze({
+  query(...args) {
+    return getPool().query(...args);
+  },
+  connect(...args) {
+    return getPool().connect(...args);
+  }
+});
 
-const pool = new Pool(config);
-
-module.exports = { pool };
+// Historical import styles use either { pool } or db.query(...) directly.
+module.exports = {
+  pool,
+  query(...args) {
+    return pool.query(...args);
+  }
+};
