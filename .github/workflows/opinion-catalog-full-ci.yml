@@ -51,6 +51,8 @@ jobs:
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Android 1.0.10 legacy Opinions HTTP contract (no real accounts)
         run: node --test api/tests/opinionCatalogAndroid110.contract.test.js api/tests/opinionCatalogConsentRace.contract.test.js
+      - name: Render QA synthetic service security and candidate HTTP smoke
+        run: node --test api/tests/opinionCatalogQaServer.smoke.test.js
       - name: Install frontend without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Exercise real PostgreSQL API and production client save/readback (synthetic DB only)
