@@ -54,3 +54,18 @@ Nessun DDL o aggiornamento dei dati di produzione, nessuna replica di dati perso
 - La suite `api/tests/userProfileStagingFixture.integration.test.js` verifica fixture, rollback e isolamento su PostgreSQL 17 in GitHub Actions, senza utilizzare credenziali di Supabase.
 
 **NO-GO invariato:** per rilasciare la migrazione resta da predisporre una replica *completa* dello schema produzione in ambiente isolato, senza dati reali, con il trigger politico, GDPR, elezioni, frontend/backend e flussi E2E; verificare rollback effettivo in quello staging e solo dopo considerare un cutover. Non promuovere lo schema QA sintetico a produzione e non cancellarlo mentre test in corso.
+
+## QA territoriale e semantica dei NULL espliciti — 28/10/2026
+
+Il trigger reale `public.users_sync_political_territories` è stato ricostruito tramite `pg_get_triggerdef`/`pg_get_functiondef` in sola lettura: cancella e reinserisce soltanto le righe `source='legacy_profile'` dopo aggiornamenti di residenza in `users`. Non reagisce ad aggiornamenti in `user_profile`.
+
+Nel SOLO schema privato `qa_user_profile_20261028` di Demos-Staging:
+
+- `api/database/qa-user-profile-territory-trigger-fixture.sql` replica vincoli, indici e un trigger territoriale legacy; include una funzione candidata per futura sincronizzazione da `user_profile`, ma non la attiva.
+- `api/database/qa-user-profile-territory-cutover-rollback-test.sql` riproduce la mancata sincronizzazione da profile, sostituisce il trigger soltanto in una sotto-transazione, verifica il nuovo aggiornamento, preserva le righe VERIFIED/OFFICIAL e annulla tutte le scritture e il DDL di prova.
+- Il backfill avatar sintetico recupera i valori soltanto se il JSONB canonico è NULL, senza sovrascrivere quello già valorizzato; test di idempotenza 1 aggiornamento alla prima esecuzione, 0 alla seconda.
+- La lettura attuale `COALESCE(p.comune_residenza,u.comune_residenza)` ripristina erroneamente da `users` un valore cancellato esplicitamente dal profilo. La PR aggiunge l'opzione `strictProfileOwner` (SPENTA di default): per profili esistenti usa il valore profile anche se NULL, per profili assenti usa il legacy e, se manca lo schema canonical, fallisce senza fallback silenzioso.
+
+La modalità strict si attiverà solo DOPO la riconciliazione completa dei profili, il trasferimento di ownership del trigger e test end-to-end. Non attivare due trigger territoriali concorrenti in produzione e non equiparare residenza dichiarata e collegio elettorale verificato.
+
+Staging QA e PostgreSQL17 sintetico non sono un ambiente E2E dell'app: nello staging operativo continuano a mancare `public.user_profile` e `public.user_political_territories`. Nessuna modifica di dati o struttura su Supabase produzione.
