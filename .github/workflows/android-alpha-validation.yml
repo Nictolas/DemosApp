@@ -8,6 +8,11 @@ on:
       - 'api/services/oauthRegistrationService.js'
       - 'api/tests/oauthRegistrationService.test.js'
       - 'api/tests/androidAuthNativePushIntegration.test.js'
+      - 'api/catalog/**'
+      - 'api/services/opinionCatalog.js'
+      - 'api/routes/compatibility.js'
+      - 'api/routes/opinioni/**'
+      - 'api/tests/opinionCatalogAndroid110.contract.test.js'
       - 'client/android/app/build.gradle'
       - 'client/src/css/android-navbar-fix.css'
       - 'api/tests/navbarResponsiveContract.test.js'
@@ -51,6 +56,9 @@ jobs:
 
       - name: Check responsive Android navbar contract
         run: node --test api/tests/navbarResponsiveContract.test.js
+
+      - name: Verify Android 1.0.10 Opinions API compatibility against isolated backend
+        run: node --test api/tests/opinionCatalogAndroid110.contract.test.js
 
       - name: Install client dependencies
         working-directory: client
