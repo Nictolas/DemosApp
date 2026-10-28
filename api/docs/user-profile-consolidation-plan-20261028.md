@@ -105,3 +105,9 @@ Il preflight read-only `api/database/user-profile-preflight-readonly.sql` espone
 Il file `api/database/qa-user-profile-deletion-rollback-test.sql` prova soltanto la cancellazione in cascata via FK fra le tre tabelle sintetiche `qa_user_profile_20261028.users`, `user_profile` e `user_political_territories`. Inserisce due membership inventate con livelli SELF_DECLARED e VERIFIED, elimina un account finto, verifica l'eliminazione delle due membership e del suo profilo, mantiene intatto il profilo di un altro utente e poi annulla tutte le modifiche.
 
 Test eseguito con esito positivo nello schema privato dello staging, versionato anche nella suite PostgreSQL 17 della PR. **Non è un test GDPR completo**: consenso/revoca, opinioni, voti, selezioni, token, archivi, backup e eventuali copie in altri sistemi non sono inclusi; la produzione e gli utenti reali non sono stati toccati.
+
+## Parità strutturale del profilo nella QA privata
+
+Confronto INFORMATION_SCHEMA read-only: `public.user_profile` di produzione e `qa_user_profile_20261028.user_profile` su Demos-Staging hanno **29 colonne ciascuno**, con 0 nomi mancanti, 0 nomi extra e **0 differenze di tipo SQL o nullabilità**. Anche PK su user_id e FK ON DELETE CASCADE sono state verificate.
+
+Questo consente un test più fedele del backfill di profili e avatar, **non** prova la parità di `users`, `user_political_territories`, trigger, indici, autorizzazioni, API o applicazione. Lo staging `public` continua a non contenere quelle due tabelle e non va usato come E2E certificato.
