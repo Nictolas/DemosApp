@@ -79,3 +79,23 @@ Il test PostgreSQL 17 sintetico copre risposta perduta, retry dopo una scelta su
 Anche `POST /api/user/object` supporta `Idempotency-Key` UUID v4 facoltativa, riusata soltanto per il medesimo tentativo. Una `INSERT ... ON CONFLICT (id) DO NOTHING` sfrutta la PK esistente, senza DDL. Un conflitto viene riconosciuto con una seconda SELECT nello snapshot successivo, vincolata a **ID, utente, tipo di richiesta e contenuto JSONB** (esclusa la data tecnica). Un duplicato verificato restituisce HTTP 200, `replayed:true` e la ricevuta originale; collisioni diverse producono 409 senza rivelare altri utenti. Errori del database non producono falsi successi. Un replay non produce un secondo audit log.
 
 La prova PostgreSQL 17 sintetica include tre richieste simultanee con una sola ricevuta persistita, retry dopo risposta HTTP incerta, rifiuto di UUID malformati e collisioni tra utente/payload diversi. La gestione DPO effettiva e le policy SQL reali rimangono NO-GO senza attestazioni.
+# HTTP privacy and export failure regression — 28 October 2026
+
+`data-export`, both request-history endpoints and rights-operation receipts
+now send `Cache-Control: private, no-store, max-age=0` before authentication.
+The legacy rights router authenticates `/api/user` before the history alias
+router, so it also protects `/gdpr-requests` from cached authentication errors.
+Unrelated user routes keep their existing cache policy. The documented CDN
+bypass for `/api/user/` was already present; no provider settings were changed.
+
+Export failures no longer write raw SQL errors or a user identifier to console.
+The failure audit records a fixed error code, and failure of that secondary
+audit cannot prevent the HTTP 500 response. This does not certify delivery of
+the audit or operation of the real SQL writer.
+
+`gdprRightsHttpPrivacy.test.js` mounts the real Express routers in application
+order, substitutes synthetic database/auth/audit services and exercises JSON/CSV
+exports, both histories, a persisted receipt, 401/400/410/503 responses, and a
+database failure followed by audit rejection. It uses only loopback HTTP.
+Provider cache/Android behavior and real-user/DPO end-to-end verification remain
+release gates. PR #376 remains Draft; issue #296 remains OPEN / NO-GO.

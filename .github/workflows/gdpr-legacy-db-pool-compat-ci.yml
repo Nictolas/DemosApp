@@ -14,6 +14,8 @@ on:
       - 'client/src/pages/GDPRRights.tsx'
       - 'api/tests/gdprLegacyDbPoolCompat.test.js'
       - 'api/tests/gdprLegacyRequestsRoute.test.js'
+      - 'api/tests/gdprRightsHttpPrivacy.test.js'
+      - 'api/services/gdprCsvExport.js'
       - 'api/tests/gdprLegacyRequestsPg17.test.js'
       - 'api/docs/gdpr-legacy-db-rights-hardening-20261028.md'
       - 'api/docs/gdpr-rights-idempotent-retries-20261028.md'
@@ -60,7 +62,7 @@ jobs:
           node --check api/routes/user/gdpr-rights.js
           node --check api/tests/gdprLegacyDbPoolCompat.test.js
           node --check api/tests/gdprLegacyRequestsRoute.test.js
-          node --test --test-concurrency=1 api/tests/gdprLegacyDbPoolCompat.test.js api/tests/gdprLegacyRequestsRoute.test.js api/tests/databaseTlsPolicy.test.js
+          node --test --test-concurrency=1 api/tests/gdprLegacyDbPoolCompat.test.js api/tests/gdprLegacyRequestsRoute.test.js api/tests/gdprRightsHttpPrivacy.test.js api/tests/databaseTlsPolicy.test.js
       - name: Verify real persisted requests and RLS fail-closed in PostgreSQL 17
         env:
           GDPR_LEGACY_PG_CI: isolated

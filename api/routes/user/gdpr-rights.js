@@ -11,6 +11,17 @@ const {parseRightsHistoryQuery, readRightsHistory} = require('../../services/gdp
 
 const router = express.Router();
 
+// This router is mounted before the other /api/user routers. Protect the
+// request-history alias here too: authentication may reject it before its
+// own router is reached. Do not alter cache policy for unrelated user APIs.
+router.use([
+  '/data-export', '/account', '/limit-processing', '/object',
+  '/rights-requests', '/gdpr-requests'
+], (_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
+
 // Middleware per tutti gli endpoint
 router.use(verifyToken);
 
@@ -36,8 +47,6 @@ router.get('/data-export', async (req, res) => {
         error: 'Formato non valido. Utilizzare "json" o "csv"'
       });
     }
-
-    console.log(`📤 Richiesta esportazione dati per utente: ${userId}, formato: ${format}`);
 
     // Log dell'accesso ai dati
     await AuditService.logAction({
@@ -267,19 +276,25 @@ router.get('/data-export', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Errore nell\'esportazione dati:', error);
+    console.error('GDPR_DATA_EXPORT_FAILED', error?.code || 'QUERY_FAILED');
     
     // Log dell'errore
-    await AuditService.logAction({
-      userId: req.userId,
-      action: 'DATA_ACCESS',
-      resource: 'user_data_export',
-      details: { request_type: 'data_export' },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
-      success: false,
-      errorMessage: error.message
-    });
+    try {
+      await AuditService.logAction({
+        userId: req.userId,
+        action: 'DATA_ACCESS',
+        resource: 'user_data_export',
+        details: { request_type: 'data_export' },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        success: false,
+        errorMessage: 'GDPR_DATA_EXPORT_FAILED'
+      });
+    } catch (_) {
+      // Secondary audit delivery must not prevent the error response or
+      // turn an export failure into an unhandled rejected route promise.
+      console.error('GDPR_DATA_EXPORT_SECONDARY_AUDIT_UNAVAILABLE');
+    }
 
     res.status(500).json({
       success: false,

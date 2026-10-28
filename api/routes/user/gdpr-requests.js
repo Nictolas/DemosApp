@@ -8,6 +8,12 @@ const {parseRightsHistoryQuery, readRightsHistory} = require('../../services/gdp
 
 const currentUserId = req => req.userId || req.user?.id;
 
+// Receipts/history are personal, including authentication and DB errors.
+router.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
+
 // GET /api/user/gdpr-requests — return REAL saved rights requests only.
 // Never return a fabricated empty history after a database failure.
 router.get('/', verifyToken, async (req, res) => {
