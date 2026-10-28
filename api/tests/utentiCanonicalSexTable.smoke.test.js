@@ -43,7 +43,8 @@ test('GET /api/users and GET /api/users/:userId expose canonical sex alongside a
   const source=read('api/routes/users/search.js');
   const list=source.slice(source.indexOf("// GET /api/users/ - "),source.indexOf("// GET /api/users/:userId"));
   const get=source.slice(source.indexOf("// GET /api/users/:userId"),source.indexOf("// PUT /api/users/:userId"));
-  assert.match(source,/avatar_config, sesso, account_type, genere, cittadinanza/);
+  assert.match(list,/u\.avatar_config, u\.sesso, u\.account_type, u\.genere/);
+  assert.match(list,/COALESCE\(NULLIF\(TRIM\(up\.cittadinanza\), ''\), u\.cittadinanza\) AS cittadinanza/);
   assert.match(source,/sesso, account_type, genere, data_nascita/);
   assert.match(list, /sesso: \['M', 'F'\]\.includes\(user\.sesso\) \? user\.sesso : null/);
   assert.match(get, /sesso: \['M', 'F'\]\.includes\(user\.sesso\) \? user\.sesso : null/);
