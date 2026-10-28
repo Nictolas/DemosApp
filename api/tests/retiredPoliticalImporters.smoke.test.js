@@ -29,5 +29,10 @@ test('political duplicate audit only reads users and mandates', () => {
   assert.match(sql, /FROM\s+public\.political_mandates/i);
   assert.match(sql, /auth_sensitive_groups/);
   assert.match(sql, /conflicting_birthdate_groups/);
+  assert.match(sql, /simultaneous_legacy_chamber_senate_by_name/);
+  assert.match(sql, /politician_unauthed_same_dob_for_review/);
+  assert.match(sql, /with_authenticated_accounts/);
+  // Only authorized review may decide an identity: never introduce a merge in audit SQL.
+  assert.doesNotMatch(sql, /\b(?:MERGE\s+INTO|DO\s+\$|CREATE\s+FUNCTION|EXECUTE\s+)\b/i);
   assert.doesNotMatch(sql, /\b(?:INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM|TRUNCATE\s+|ALTER\s+TABLE|DROP\s+TABLE)\b/i);
 });
