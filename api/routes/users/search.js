@@ -219,7 +219,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     // Query per gli utenti con paginazione - solo dati essenziali per la tabella
     let usersQuery = `
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
-             grado_elezione, grado_candidatura, avatar_config, genere, cittadinanza,
+             grado_elezione, grado_candidatura, avatar_config, sesso, account_type, genere, cittadinanza,
              paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
              data_nascita
       FROM users 
@@ -239,6 +239,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     // Trasforma i dati per il frontend (solo dati essenziali)
     const users = usersResult.rows.map(user => ({
       ...user,
+      sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
       genere: decompressGender(user.genere),
       data_nascita: user.data_nascita ? new Date(user.data_nascita).toISOString().split('T')[0] : null
     }));
@@ -320,7 +321,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     console.log('🔍 DEBUG - Eseguendo query per userId:', userId);
     const result = await pool.query(`
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
-             genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
+             sesso, account_type, genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
              provincia_residenza, comune_residenza, avatar_config, grado_elezione, grado_candidatura,
              paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
              paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
@@ -391,6 +392,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       user: {
         ...decompressedUser,
         data_nascita: dataNascitaFormattata,
+        sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
         genere: decompressGender(user.genere),
         ruolo: ruoloDecompressionMapping[user.ruolo] || user.ruolo,
         avatar_config: avatarConfig
@@ -478,7 +480,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
-      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza',
+      'nome', 'cognome', 'data_nascita', 'cittadinanza',
       'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
       'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
       'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
@@ -511,17 +513,6 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
         }
       }
     });
-    
-    // Applica compressione per genere e dati geografici prima di salvare
-    if (filteredData.genere) {
-      const compressedGenere = compressGender(filteredData.genere);
-      if (compressedGenere) {
-        filteredData.genere = compressedGenere;
-        // Do not log the user's gender.
-      } else {
-        console.warn('⚠️ Genere non riconosciuto nel payload amministrativo');
-      }
-    }
     
     // Applica compressione per i dati geografici
     const compressedLocation = compressUserLocation(filteredData);
@@ -587,6 +578,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       user: {
         ...decompressedUser,
         data_nascita: dataNascitaFormattata,
+        sesso: ['M', 'F'].includes(updatedUser.sesso) ? updatedUser.sesso : null,
         genere: decompressGender(updatedUser.genere),
         ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
       }
