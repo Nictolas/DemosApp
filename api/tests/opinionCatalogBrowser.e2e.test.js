@@ -101,7 +101,28 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     for (const [grade, route, heading] of grades) {
       await page.goto(HEADLESS_ORIGIN + route, { waitUntil: 'domcontentloaded', timeout: 35000 });
       await page.getByText(heading, { exact: true }).first().waitFor({ timeout: 25000 });
-      await page.getByText(/Opinion da Inserire/).first().waitFor({ timeout: 25000 });
+      try {
+        await page.getByText(/Opinion da Inserire/).first().waitFor({ timeout: 25000 });
+      } catch (error) {
+        // The browser uses ONLY synthetic tokens, IDs and local hosts.
+        // Never print authorization headers, cookies or answer payloads.
+        const screen = (await page.locator('body').innerText()).slice(0, 1100);
+        const direct = await page.evaluate(async ({ grade, token }) => {
+          try {
+            const res = await fetch('/api/opinioni-list?grado=' + grade, {
+              headers: { authorization: 'Bearer ' + token }
+            });
+            const data = await res.json().catch(() => ({}));
+            return { status: res.status, count: data?.data?.length || 0,
+              error: data?.error || null };
+          } catch (cause) {
+            return { failure: String(cause?.message || cause) };
+          }
+        }, {grade, token});
+        throw new Error('Browser page missing Opinions list; grade=' + grade +
+          ', screen=' + JSON.stringify(screen) + ', synthetic_API=' + JSON.stringify(direct) +
+          ', original=' + error.message);
+      }
       const expectedCount = getOpinionsForGrade(grade).length;
       assert.ok(expectedCount > 0, grade + ': published questions needed for UI');
       const cards = page.locator('div.bg-blue-50').filter({
