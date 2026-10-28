@@ -45,6 +45,10 @@ export const getDisplayColumns = (users: any[]) => {
 
 // Funzione per formattare il valore di una colonna
 export const formatColumnValue = (value: any, columnName: string, user?: User) => {
+  if (columnName === 'sesso') {
+    if (user?.account_type === 'ORGANIZATION' || user?.account_type === 'INSTITUTION') return 'Non applicabile';
+    return value === 'M' ? 'Maschile' : value === 'F' ? 'Femminile' : 'Non disponibile';
+  }
   if (value === null || value === undefined) {
     return '';
   }
@@ -76,11 +80,6 @@ export const formatColumnValue = (value: any, columnName: string, user?: User) =
   // Formatta URL social media
   if (columnName.includes('_url') && typeof value === 'string' && value.length > 0) {
     return value.length > 30 ? value.substring(0, 30) + '...' : value;
-  }
-  
-  // Solo il dato canonico CIE M/F è rappresentabile come sesso anagrafico.
-  if (columnName === 'sesso') {
-    return value === 'M' ? 'Maschile' : value === 'F' ? 'Femminile' : 'Non disponibile';
   }
   
   // Formatta auth_method
