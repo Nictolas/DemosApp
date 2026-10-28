@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
 const { pool } = require('../../config/db');
+const {parseRightsHistoryQuery, readRightsHistory} = require('../../services/gdprRightsHistoryService');
 
 const currentUserId = req => req.userId || req.user?.id;
 
@@ -12,45 +13,35 @@ const currentUserId = req => req.userId || req.user?.id;
 router.get('/', verifyToken, async (req, res) => {
   const userId = currentUserId(req);
   if (!userId) {
-    return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+    return res.status(401).json({success:false,error:'Autenticazione richiesta'});
+  }
+  const options = parseRightsHistoryQuery(req.query || {});
+  if (!options) {
+    return res.status(400).json({
+      success:false,error:'Parametri di paginazione non validi'
+    });
   }
   try {
-    // Row security can apply a USING predicate which hides some or ALL
-    // historical requests, even when a SELECT policy nominally exists.
-    // Until a separately reviewed backend read-all role/view is available,
-    // never advertise an incomplete list as the user's complete history.
-    const scope = await pool.query(
-      "SELECT NOT pg_catalog.row_security_active(" +
-      "'public.user_rights_requests'::regclass) AS complete_visibility"
-    );
-    if (scope.rows?.[0]?.complete_visibility !== true) {
-      throw Error('GDPR_RIGHTS_HISTORY_RLS_UNVERIFIABLE');
-    }
-    const result = await pool.query(
-      'SELECT id, request_type, status, created_at, processed_at ' +
-      'FROM public.user_rights_requests ' +
-      'WHERE user_id = $1 ' +
-      'ORDER BY created_at DESC NULLS LAST, id DESC LIMIT 50',
-      [userId]
-    );
+    const history = await readRightsHistory(pool, userId, options);
     return res.json({
-      success: true,
-      data: result.rows.map(row => ({
-        id: row.id,
-        tipo: row.request_type,
-        stato: row.status,
-        data_richiesta: row.created_at,
-        data_elaborazione: row.processed_at
-      }))
+      success:true,
+      data:history.data.map(row=>({
+        id:row.id,
+        tipo:row.request_type,
+        stato:row.status,
+        data_richiesta:row.created_at,
+        data_elaborazione:row.processed_at
+      })),
+      pagination:history.pagination
     });
-  } catch (error) {
-    console.error('Errore nel recupero richieste GDPR:', error?.code || 'QUERY_FAILED');
+  } catch(error) {
+    console.error('Errore nel recupero richieste GDPR:',error?.code||'QUERY_FAILED');
     return res.status(503).json({
-      success: false,
-      error: 'Impossibile recuperare lo storico delle richieste in questo momento'
+      success:false,error:'Impossibile verificare lo storico delle richieste in questo momento'
     });
   }
 });
+
 
 // POST /api/user/gdpr-requests — acknowledge only after PostgreSQL INSERT.
 // Uses the existing DPO-visible public.user_rights_requests relation;
