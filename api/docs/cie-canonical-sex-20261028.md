@@ -19,12 +19,15 @@
 - Opinioni: nuove route `/api/opinioni/stats/:opinionId/sesso` (nazionale/regione), con consenso politico, filtro PERSON e soppressione completa di celle inferiori a 10; le vecchie route `/genere` non restituiscono più dati.
 - Modifica profili: rimossi i campi legacy `genere` dai moduli attivi e dagli elenchi API di scrittura; le API di lettura storiche rimangono per compatibilità temporanea. Non esporre il dato CIE sui profili pubblici.
 - Export dati GDPR: `sesso` incluso sia nel servizio canonico sia nell'endpoint di portabilità legacy, senza cancellare `genere` dagli export storici.
-- Test mapping, firma, feature gate, transazione/rollback, privacy small-cell, assenza di origine browser, export GDPR e build.
+- Sostenitori: sette endpoint (rappresentanti, candidati, attivisti, organizzazioni, totale e due route /sostenitori) non restituiscono più `genere` individuale né deducono "Altro" dal NULL. Il nuovo `sexDistribution` include M/F per sole PERSON, deduplica i sostenitori per ID e nasconde tutti i dati se un gruppo ha meno di 10 persone; `genderDistribution` è una mappa vuota per i vecchi client.
+- Directory Attivisti/Organizzazioni e l'endpoint candidati duplicato: smettono di pubblicare il campo legacy `genere`.
+- Test mapping, firma, feature gate, transazione/rollback, privacy small-cell e sette endpoint Sostenitori, assenza di origine browser, export GDPR e build.
 
 ## Non incluso / gate prima del rollout
 - Non c'è alcuna modifica ai dati reali o una copia `genere` → `sesso`.
 - Non c'è alcuna attivazione CIE/claim in Render. Per abilitarla sono necessari finalità/base giuridica/informativa documentate, gestione accessi/retention e validazione dell'attributo con OP ufficiale.
 - I vecchi endpoint `genere` di Sondaggi/Opinioni rimangono raggiungibili ma restituiscono un array vuoto: ciò evita di pubblicare dati non verificati, pur mantenendo in vita l'URL per i client Android vecchi. I grafici dei vecchi client potrebbero apparire vuoti finché non viene distribuita una nuova build.
+- I sette endpoint Sostenitori sono ora migrati, ma occorre ancora QA delle visualizzazioni Android già distribuite. La sezione Sostenitori mostrerà esplicitamente «dato mancante» o «dato nascosto» invece di inventare il genere di una persona.
 - Consumatori legacy ancora da verificare/ritirare: pagine Sostenitori, dettagli specifici Opinioni, form e asset di registrazione obsoleti, tabelle storiche `user_profile.genere`, altri endpoint di lettura e compatibilità di versioni Android precedenti. Non rimuovere subito la colonna legacy prima della verifica completa delle dipendenze.
 - Valutare `CHECK (sesso IN ('M','F'))` sul DB dopo la ricognizione degli ambienti; lo schema corrente è `varchar` nullable senza popolazione.
 - Nella schermata /utenti restano da trattare separatamente i dati fittizi preesistenti sulle età.
