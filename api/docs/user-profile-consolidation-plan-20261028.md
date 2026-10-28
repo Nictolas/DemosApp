@@ -77,3 +77,15 @@ Su Supabase produzione (1.857 utenti, 1.717 profili), la query di ricerca per co
 Il piano non misura latenza reale e non può essere estrapolato a un milione di account. Prima di migrare le query a molti destinatari (notifiche, sondaggi, avvistamenti), occorre costruire dataset sintetici realistici, misurare EXPLAIN ANALYZE fuori da produzione, valutare indici e query alternative (es. filtri distinti sui profili presenti e sui legacy assenti), e mantenere la semantica di fallback o strict owner per il corretto stato della migrazione.
 
 Non creare indici in produzione in questa PR Draft, non riscrivere ancora le query di broadcast e non affermare benefici prestazionali non misurati.
+
+## Verifica HTTP, minimizzazione log e benchmark sintetico (28/10/2026)
+
+- In PR #382, le route di modifica profilo e avatar eseguono `upsertUserProfileFields` **solo se** `UPDATE users` ha effettivamente modificato un account. Se manca l'account, restituiscono HTTP 404 senza tentare un inserimento orfano. La modifica amministrativa aveva già lo stesso controllo.
+- L'endpoint admin evita di registrare il payload con dati sensibili, il genere, l'e-mail di risposta e i valori delle modifiche; gli errori interni non vengono riportati al client. La revisione più ampia di tutti gli altri log dell'app resta fuori da questa PR.
+- I test HTTP `api/tests/userProfileMissingAccount.smoke.test.js` coprono PUT profilo, POST avatar, PUT admin su account inesistente e payload admin di tipo non valido. Non equivalgono a E2E con sessioni reali e consenso GDPR.
+- Sincronizzate nella PR le modifiche recenti di `main`: il sesso certificato CIE (`sesso`) resta campo di sola lettura e non viene sostituito dal vecchio `genere` nei form/admin PUT. GitHub indica la PR nuovamente integrabile, ma è ancora Draft e non distribuita.
+- Test sintetico `api/tests/userProfileTerritoryPerformance.integration.test.js` su PostgreSQL 17: **100.000 utenti inventati**, 90.000 `user_profile`, indici sintetici sui comuni. Query legacy con `COALESCE` e query alternativa con rami disgiunti `UNION ALL` restituiscono esattamente **6.123** utenti per il comune scelto, 0 differenze in entrambe le direzioni.
+- **Una sola esecuzione CI**: query COALESCE 43,273 ms, UNION ALL 35,200 ms. Sono misurazioni diagnostiche su hardware CI condiviso, non un benchmark affidabile, non SLA, non prova di scalabilità a un milione di utenti; prima di scegliere un piano occorrono ripetizioni e test distribuzioni reali/sintetiche diverse.
+- Quattro workflow CI dopo il riallineamento: [profili](https://github.com/Nictolas/DemosApp/actions/runs/40733994487) 38 unit/smoke + 12 PG17; [identità civica](https://github.com/Nictolas/DemosApp/actions/runs/40733994453) 21; [CIE](https://github.com/Nictolas/DemosApp/actions/runs/40733994388) 2; [tabella sesso CIE](https://github.com/Nictolas/DemosApp/actions/runs/40733994342) 4. **77/77 test superati, 0 falliti.**
+
+NO-GO invariato: nessun merge, rilascio, DROP o migrazione di dati produttivi. Lo staging Supabase `public` non replica ancora lo schema e i 140 profili/12 avatar reali restano intatti.
