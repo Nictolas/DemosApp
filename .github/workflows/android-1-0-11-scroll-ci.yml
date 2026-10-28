@@ -1,0 +1,36 @@
+name: Android 1.0.11 page scroll (synthetic; no release)
+on:
+  push:
+    branches:
+      - release/android-1.0.11-scroll-20261028
+  pull_request:
+    paths:
+      - 'client/src/lib/androidPageScrollPolicy.ts'
+      - 'client/src/components/RobustAppLayout.tsx'
+      - 'client/src/index.css'
+      - 'client/src/pages/Opinioni*.tsx'
+      - 'client/src/pages/Candidati/index.tsx'
+      - 'client/src/pages/ScegliRappresentante/index.tsx'
+      - 'client/tests/androidPageScrollPolicy.test.mjs'
+      - '.github/workflows/android-1-0-11-scroll-ci.yml'
+permissions:
+  contents: read
+jobs:
+  android-scroll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Assert 19 Android routes and unaffected inner scrollers
+        run: node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
+      - name: Install frontend without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend without AAB, secrets or deployment
+        run: npm run build --prefix client

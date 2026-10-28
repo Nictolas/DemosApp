@@ -6,6 +6,7 @@ import Navbar from './Navbar';
 import { DesktopSidebar } from './DesktopSidebar';
 import { DesktopAppHeader } from './DesktopAppHeader';
 import { ErrorBoundary } from './ErrorBoundary';
+import { getAndroidPageScrollPolicy } from '@/lib/androidPageScrollPolicy';
 
 interface RobustAppLayoutProps {
   children: React.ReactNode;
@@ -35,6 +36,10 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   const isMobileLayout = useMobileLayout();
   const showAppNav = shouldShowAppNav(location);
   const showMobileNavbar = isMobileLayout && showAppNav;
+  const pageScrollPolicy = getAndroidPageScrollPolicy(location);
+  const scrollClass = pageScrollPolicy === 'fixed'
+    ? 'android-page-scroll-fixed'
+    : pageScrollPolicy === 'scroll' ? 'android-page-scroll-enabled' : '';
   // Su PC nessuna sidebar: Preferiti è l'hub. Navbar solo su cellulare.
   const showDesktopSidebar = false;
   const showDesktopHeader = !isMobileLayout && showAppNav;
@@ -55,7 +60,7 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
         {showDesktopHeader && <DesktopAppHeader />}
 
-        <main className="app-main">
+        <main className={`app-main ${scrollClass}`}>
           <ErrorBoundary>
             <div className="app-main__inner">{children}</div>
           </ErrorBoundary>

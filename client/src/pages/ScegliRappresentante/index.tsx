@@ -73,8 +73,8 @@ export default function ScegliRappresentante() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col page-with-navbar">
-        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
+      <div className="h-full min-h-0 overflow-hidden flex flex-col page-with-navbar">
+        <div className="container mx-auto px-4 py-4 flex-1 min-h-0 overflow-hidden flex flex-col">
           <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
           
           {opinioniDialogData && (
@@ -92,8 +92,8 @@ export default function ScegliRappresentante() {
           {rappresentanti.length === 0 ? (
             <EmptyState isCandidate={location === "/candidati" || location.startsWith("/candidati/")} />
           ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
+            <div className="flex-1 min-h-0 overflow-y-auto app-page-scroll flex items-start justify-center">
+              <div className="grid grid-cols-2 gap-4 w-full max-w-2xl my-auto py-2">
                 {rappresentanti.map((rappresentante) => (
                   <RappresentanteCard
                     key={rappresentante.id}
