@@ -103,13 +103,13 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       return route.abort('blockedbyclient');
     });
     const grades = [
-      ['N','/opinioni-nazionali','Opinioni Nazionali'],
-      ['R','/opinioni-regionali','Opinioni Regionali'],
-      ['CO','/opinioni-comunali','Opinioni Comunali'],
-      ['E','/opinioni-europee','Opinioni Europee']
+      ['N', '/opinioni-nazionali', 'Opinioni Nazionali', 'Favorevole', 'f'],
+      ['R', '/opinioni-regionali', 'Opinioni Regionali', 'Contrario', 'c'],
+      ['CO', '/opinioni-comunali', 'Opinioni Comunali', 'Indeciso', 'i'],
+      ['E', '/opinioni-europee', 'Opinioni Europee', 'Favorevole', 'f']
     ];
-    let selectedId = null;
-    for (const [grade, route, heading] of grades) {
+    const savedByGrade = new Map();
+    for (const [grade, route, heading, answerLabel, answerCode] of grades) {
       await page.goto(HEADLESS_ORIGIN + route, { waitUntil: 'domcontentloaded', timeout: 35000 });
       await page.getByText(heading, { exact: true }).first().waitFor({ timeout: 25000 });
       try {
@@ -138,17 +138,22 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       }
       const expectedCount = getOpinionsForGrade(grade).length;
       assert.ok(expectedCount > 0, grade + ': published questions needed for UI');
-      const cards = page.locator('div.bg-blue-50').filter({
+      // Some questions belong to multiple grades and may already have answers.
+      const unanswered = page.locator('div.bg-blue-50').filter({
         has: page.getByRole('button', { name: 'Favorevole', exact: true })
       });
-      assert.equal(await cards.count(), expectedCount, grade + ': visible question cards');
-      if (grade !== 'N') continue;
-      const first = cards.first();
+      const answered = page.locator('div.bg-green-50').filter({
+        has: page.getByRole('button', { name: 'Favorevole', exact: true })
+      });
+      assert.equal(await unanswered.count() + await answered.count(), expectedCount,
+        grade + ': all official question cards must be rendered');
+      assert.ok(await unanswered.count() > 0, grade + ': requires an unanswered synthetic question');
+      const first = unanswered.first();
       const questionText = await first.locator('h3').first().innerText();
       const candidate = getOpinionsForGrade(grade).find(x => x.text === questionText);
-      assert.ok(candidate, 'First rendered question must match the official catalog');
-      selectedId = candidate.id;
-      await first.getByRole('button', { name: 'Favorevole', exact: true }).click();
+      assert.ok(candidate, grade + ': rendered question must match the official catalog');
+      const selectedId = candidate.id;
+      await first.getByRole('button', { name: answerLabel, exact: true }).click();
       const savedResponse = page.waitForResponse(response =>
         response.url().includes('/api/opinioni/salva') &&
         response.request().method() === 'POST',
@@ -156,21 +161,24 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       );
       await page.getByRole('button', { name: 'Salva le mie opinioni' }).click();
       const saved = await savedResponse;
-      assert.equal(saved.status(), 200, 'Real UI must POST successfully');
+      assert.equal(saved.status(), 200, grade + ': real UI must POST successfully');
       const posted = saved.request().postDataJSON();
-      assert.equal(posted.opinioni[selectedId], 'f');
-      assert.equal((await saved.json()).savedCount, 1);
-      const readback = await page.evaluate(async accessToken => {
-        const result = await fetch('/api/opinioni-list?grado=N', {
+      assert.equal(posted.opinioni[selectedId], answerCode,
+        grade + ': UI must serialize the selected answer');
+      assert.equal((await saved.json()).savedCount, 1,
+        grade + ': exactly one synthetic answer must be saved');
+      const readback = await page.evaluate(async ({ accessToken, grade }) => {
+        const result = await fetch('/api/opinioni-list?grado=' + grade, {
           headers: { Authorization: 'Bearer ' + accessToken }
         });
         if (!result.ok) throw Error('Synthetic browser GET readback failed');
         return result.json();
-      }, token);
-      assert.equal(readback.data.find(x => x.id === selectedId)?.userAnswer, 'f',
-        'Browser must read back the saved political answer from synthetic backend');
+      }, { accessToken: token, grade });
+      assert.equal(readback.data.find(x => x.id === selectedId)?.userAnswer, answerCode,
+        grade + ': browser must read back the saved answer');
+      savedByGrade.set(grade, { id: selectedId, answer: answerCode });
     }
-    assert.ok(selectedId);
+    assert.equal(savedByGrade.size, 4, 'Four real UI save/readback cycles must succeed');
     assert.equal(outside.filter(x => x !== 'http://localhost:3000').length, outside.length);
     assert.ok(outside.every(x => !/demos\.community|onrender\.com/.test(x)),
       'No request may escape to DEMOS production');
