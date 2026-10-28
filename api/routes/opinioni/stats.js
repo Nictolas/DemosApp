@@ -9,6 +9,8 @@ const {
   suppressSmallCells
 } = require('../../utils/politicalAggregatePrivacy');
 
+const { getAllOpinions, getOpinionById } = require('../../services/opinionCatalog');
+
 const router = express.Router();
 const { resolvePublishedOpinionColumn } = require('../../utils/opinionStatsColumns');
 
@@ -128,15 +130,7 @@ router.get('/stats/:opinionId', async (req, res) => {
     console.log('🔍 DEBUG /api/opinioni/stats/:opinionId - Query eseguita con successo, righe:', statsResult.rows.length);
     const stats = statsResult.rows[0];
     
-    // Query per ottenere il testo dell'opinione
-    const questionQuery = `
-      SELECT text
-      FROM opinioni_domande
-      WHERE id = $1
-    `;
-    
-    const questionResult = await pool.query(questionQuery, [opinionId]);
-    const questionText = questionResult.rows[0]?.text || opinionId;
+    const questionText = getOpinionById(opinionId)?.text || opinionId;
     
     const totaleUtenti = parseInt(stats.totale_utenti) || 0;
     const favorevole = parseInt(stats.favorevole) || 0;
@@ -353,15 +347,7 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
     const statsResult = await pool.query(statsQuery, [regionCode]);
     const stats = statsResult.rows[0];
     
-    // Query per ottenere il testo dell'opinione
-    const questionQuery = `
-      SELECT text
-      FROM opinioni_domande
-      WHERE id = $1
-    `;
-    
-    const questionResult = await pool.query(questionQuery, [opinionId]);
-    const questionText = questionResult.rows[0]?.text || opinionId;
+    const questionText = getOpinionById(opinionId)?.text || opinionId;
     
     const totaleUtenti = parseInt(stats.totale_utenti) || 0;
     const favorevole = parseInt(stats.favorevole) || 0;

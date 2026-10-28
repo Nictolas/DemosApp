@@ -6,21 +6,14 @@ const { decompressGender } = require('../utils/genderUtils');
 const { MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE: minimumCellSize, cellThresholdMet } = require('../utils/politicalAggregatePrivacy');
 const { getNationalSurveyStats, getTerritorialSurveyStats } = require('../utils/sondaggiTextBulk');
 
+const { getAllOpinions, sortOpinionsByText } = require('../services/opinionCatalog');
+
 const router = express.Router();
 
 // GET /api/sondaggi - Ottieni tutti i sondaggi (opinioni aggregate)
 router.get('/', async (req, res) => {
   try {
-    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
-    const questionsQuery = `
-      SELECT id, text
-      FROM opinioni_domande 
-      WHERE NOT ('da approvare' = ANY(gradi_opinione))
-      ORDER BY text
-    `;
-    
-    const questionsResult = await pool.query(questionsQuery);
-    const opinioni = questionsResult.rows;
+    const opinioni = sortOpinionsByText(getAllOpinions()).map(({ id, text }) => ({ id, text }));
     
     // Aggregate the published, schema-validated TEXT opinion columns in one
     // query. Preserve the legacy {stats, questions} payload, explicit
@@ -263,16 +256,7 @@ router.get('/:regione', async (req, res) => {
       });
     }
     
-    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
-    const questionsQuery = `
-      SELECT id, text
-      FROM opinioni_domande 
-      WHERE NOT ('da approvare' = ANY(gradi_opinione))
-      ORDER BY text
-    `;
-    
-    const questionsResult = await pool.query(questionsQuery);
-    const opinioni = questionsResult.rows;
+    const opinioni = sortOpinionsByText(getAllOpinions()).map(({ id, text }) => ({ id, text }));
     
     // One published-question catalog query, one schema whitelist query and
     // one grouped TEXT query. Preserve consent, PERSON and privacy >=10.
@@ -322,16 +306,7 @@ router.get('/:regione/:provincia', async (req, res) => {
       });
     }
     
-    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
-    const questionsQuery = `
-      SELECT id, text
-      FROM opinioni_domande 
-      WHERE NOT ('da approvare' = ANY(gradi_opinione))
-      ORDER BY text
-    `;
-    
-    const questionsResult = await pool.query(questionsQuery);
-    const opinioni = questionsResult.rows;
+    const opinioni = sortOpinionsByText(getAllOpinions()).map(({ id, text }) => ({ id, text }));
     
     // One published-question catalog query, one schema whitelist query and
     // one grouped TEXT query. Preserve consent, PERSON and privacy >=10.
@@ -384,16 +359,7 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
       });
     }
     
-    // 1. Prima recupera le domande dalla tabella opinioni (escludendo quelle "da approvare")
-    const questionsQuery = `
-      SELECT id, text
-      FROM opinioni_domande 
-      WHERE NOT ('da approvare' = ANY(gradi_opinione))
-      ORDER BY text
-    `;
-    
-    const questionsResult = await pool.query(questionsQuery);
-    const opinioni = questionsResult.rows;
+    const opinioni = sortOpinionsByText(getAllOpinions()).map(({ id, text }) => ({ id, text }));
     
     // One published-question catalog query, one schema whitelist query and
     // one grouped TEXT query. Preserve consent, PERSON and privacy >=10.
