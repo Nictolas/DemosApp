@@ -191,13 +191,202 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
 
       // Both actual HTTP routes keep event recording and preceding mutations
       // within one SQL transaction. Model those steps against real PG17.
-      for (const failureMode of ['ledger_missing','rls_disabled','api_role_grant']) {
+      for (const failureMode of ['ledger_missing','rls_disabled','api_role_grant',
+        'ledger_insert_suppressed','ledger_subject_rewritten','ledger_details_rewritten']) {
         if (failureMode==='ledger_missing') {
           await pool.query('DROP TABLE public.privacy_erasure_ledger');
         } else if (failureMode==='rls_disabled') {
           await pool.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
-        } else {
+        } else if (failureMode==='api_role_grant') {
           await pool.query('GRANT INSERT ON public.privacy_erasure_ledger TO anon');
+        } else {
+          // PG17-only adversarial trigger: a successful INSERT command may
+          // return zero rows or a modified GDPR event without throwing.
+          const action = failureMode==='ledger_insert_suppressed'
+            ? 'RETURN NULL;'
+            : failureMode==='ledger_subject_rewritten'
+              ? "NEW.subject_user_id := 'synthetic-wrong-subject'; RETURN NEW;"
+              : "NEW.details := '{\"altered\":true}'::jsonb; RETURN NEW;";
+          await pool.query(`CREATE FUNCTION public.gdpr_ci_mutate_event()
+            RETURNS trigger LANGUAGE plpgsql AS $trigger$
+            BEGIN ${action} END $trigger'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {Pool}=require('pg');
+const Ledger=require('../services/privacyErasureLedgerService');
+
+// Never let this test target any non-disposable database, even if accidentally
+// supplied with an environment variable in a developer or CI environment.
+const uri=process.env.TEST_DATABASE_URL||'';
+if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
+  test('GDPR secure bootstrap requires named synthetic localhost DB',{skip:true},()=>{});
+} else {
+  test('ledger first commit is RLS-protected; API grants remain revoked; event writes never do DDL',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    try{
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      const fixture={userId:'synthetic-test-user',eventType:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,details:{source:'CI synthetic'}};
+      await assert.rejects(Ledger.recordEvent(pool,fixture),e=>e?.code==='42P01');
+      const absent=await pool.query("SELECT to_regclass('public.privacy_erasure_ledger') AS ledger");
+      assert.equal(absent.rows[0].ledger,null,'a GDPR write cannot silently create schema');
+
+      // Model the Supabase Data API roles on ephemeral PostgreSQL 17 only.
+      for(const name of ['anon','authenticated','service_role']){
+        await pool.query('CREATE ROLE '+name+' NOLOGIN NOBYPASSRLS');
+      }
+      await Ledger.ensureTable(pool);
+      const protectedTable=await pool.query(`
+        SELECT c.relrowsecurity AS rls, c.relforcerowsecurity AS forced,
+          pg_get_userbyid(c.relowner)=current_user AS caller_is_owner
+        FROM pg_catalog.pg_class c
+        WHERE c.oid='public.privacy_erasure_ledger'::regclass
+      `);
+      assert.deepEqual(protectedTable.rows[0],{rls:true,forced:false,caller_is_owner:true});
+      const queryPrivileges=async()=>{
+        const r=await pool.query(`
+          SELECT COUNT(*)::int AS n FROM pg_catalog.pg_roles
+          WHERE rolname IN ('anon','authenticated','service_role')
+            AND (has_table_privilege(rolname,'public.privacy_erasure_ledger','SELECT')
+              OR has_table_privilege(rolname,'public.privacy_erasure_ledger','INSERT')
+              OR has_table_privilege(rolname,'public.privacy_erasure_ledger','UPDATE')
+              OR has_table_privilege(rolname,'public.privacy_erasure_ledger','DELETE'))
+        `);
+        return r.rows[0].n;
+      };
+      assert.equal(await queryPrivileges(),0,'no API role grants after initial provisioning');
+
+      // Simulate an old table with excessive grants and re-run maintenance.
+      await pool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON
+        public.privacy_erasure_ledger TO anon, authenticated, service_role`);
+      assert.equal(await queryPrivileges(),3);
+      await Ledger.ensureTable(pool);
+      assert.equal(await queryPrivileges(),0,'idempotent bootstrap must strip inappropriate grants');
+
+      // A table-level-only ACL check misses PostgreSQL column grants. Such
+      // grants must fail closed even while a zero-policy RLS currently masks
+      // reads, because a future restored policy could permit access.
+      await pool.query('GRANT SELECT (subject_user_id) ON public.privacy_erasure_ledger TO anon');
+      const columnGrant=await pool.query(`
+        SELECT
+          has_table_privilege('anon','public.privacy_erasure_ledger','SELECT') AS table_select,
+          has_any_column_privilege('anon','public.privacy_erasure_ledger','SELECT') AS column_select
+      `);
+      assert.deepEqual(columnGrant.rows[0],{table_select:false,column_select:true});
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'a column-only anon grant must fail closed');
+      await Ledger.ensureTable(pool);
+      assert.equal(await queryPrivileges(),0,'reprovisioning must revoke column-level anon grants');
+      await pool.query('GRANT SELECT (details) ON public.privacy_erasure_ledger TO PUBLIC');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'PUBLIC column-level grants must fail closed');
+      await Ledger.ensureTable(pool);
+      await pool.query('GRANT UPDATE (details) ON public.privacy_erasure_ledger TO authenticated');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'authenticated column-only UPDATE must fail closed');
+      await Ledger.ensureTable(pool);
+
+      // A restored or manually altered table may exist but lack the
+      // protection needed to accept fresh consent/deletion history.
+      await pool.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'an existing unprotected restored table must reject GDPR events');
+      assert.equal((await pool.query('SELECT COUNT(*)::integer AS n FROM public.privacy_erasure_ledger')).rows[0].n,0);
+      await Ledger.ensureTable(pool);
+
+      await pool.query('GRANT SELECT ON public.privacy_erasure_ledger TO PUBLIC');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'PUBLIC table grants cannot be permitted even if RLS is on');
+      await Ledger.ensureTable(pool);
+
+      await pool.query('GRANT INSERT ON public.privacy_erasure_ledger TO anon');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED',
+        'Supabase API-role INSERT grant must be rejected before a write');
+      await Ledger.ensureTable(pool);
+      assert.equal(await queryPrivileges(),0);
+
+      const recorded=await Ledger.recordEvent(pool,fixture);
+      assert.equal(recorded.event_type,Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED);
+      const one=await pool.query('SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger');
+      assert.equal(one.rows[0].n,1,'secure re-provisioning must preserve GDPR history');
+      const owner=await pool.query(`
+        SELECT relrowsecurity AS rls FROM pg_catalog.pg_class
+        WHERE oid='public.privacy_erasure_ledger'::regclass
+      `);
+      assert.equal(owner.rows[0].rls,true);
+      // Model an independent backend SQL role on the same disposable PG17.
+      // A table grant is insufficient if RLS has zero policies; no production
+      // role identity or permission can be inferred from owner-only CI.
+      await pool.query('CREATE ROLE gdpr_nonowner_ci NOLOGIN NOBYPASSRLS');
+      await pool.query('GRANT USAGE ON SCHEMA public TO gdpr_nonowner_ci');
+      await pool.query('GRANT SELECT, INSERT ON public.privacy_erasure_ledger TO gdpr_nonowner_ci');
+      const nonowner=await pool.connect();
+      try {
+        await nonowner.query('SET ROLE gdpr_nonowner_ci');
+        const identity=await nonowner.query('SELECT current_user AS current_role');
+        assert.equal(identity.rows[0].current_role,'gdpr_nonowner_ci');
+        await assert.rejects(Ledger.recordEvent(nonowner,fixture),
+          error=>error?.code==='42501',
+          'non-owner with INSERT grant but no RLS policy must be denied');
+      } finally {
+        await nonowner.query('RESET ROLE');
+        nonowner.release();
+      }
+      assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger')).rows[0].n,1,
+        'non-owner rejection must not create another event');
+
+      // Prove the constrained non-owner path works on disposable PG17 too.
+      // INSERT ... RETURNING needs both INSERT and SELECT RLS policies. This
+      // is NOT a grant/policy recommendation for Render or production: the
+      // actual backend SQL identity and provider isolation remain unknown.
+      await pool.query(`CREATE POLICY gdpr_ci_backend_insert
+        ON public.privacy_erasure_ledger FOR INSERT TO gdpr_nonowner_ci
+        WITH CHECK (true)`);
+      await pool.query(`CREATE POLICY gdpr_ci_backend_select
+        ON public.privacy_erasure_ledger FOR SELECT TO gdpr_nonowner_ci
+        USING (true)`);
+      const allowed=await pool.connect();
+      try {
+        await allowed.query('BEGIN');
+        await allowed.query('SET LOCAL ROLE gdpr_nonowner_ci');
+        const identity=await allowed.query('SELECT current_user AS current_role');
+        assert.equal(identity.rows[0].current_role,'gdpr_nonowner_ci');
+        const inserted=await Ledger.recordEvent(allowed,{
+          ...fixture, userId:'synthetic-nonowner-rls-authorized'
+        });
+        assert.equal(inserted.subject_user_id,'synthetic-nonowner-rls-authorized');
+        assert.equal((await allowed.query(
+          'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+        )).rows[0].n,2,'RLS-authorized non-owner sees the synthetic event');
+      } finally {
+        await allowed.query('ROLLBACK');
+        allowed.release();
+      }
+      assert.equal((await pool.query(
+        'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+      )).rows[0].n,1,'non-owner synthetic insert must roll back completely');
+      assert.equal(await queryPrivileges(),0,
+        'non-owner RLS policies must not grant Supabase API roles access');
+      await pool.query('DROP POLICY gdpr_ci_backend_insert ON public.privacy_erasure_ledger');
+      await pool.query('DROP POLICY gdpr_ci_backend_select ON public.privacy_erasure_ledger');
+      await pool.query('REVOKE ALL ON public.privacy_erasure_ledger FROM gdpr_nonowner_ci');
+      await pool.query('REVOKE USAGE ON SCHEMA public FROM gdpr_nonowner_ci');
+      await pool.query('DROP ROLE gdpr_nonowner_ci');
+    } finally {
+      await pool.end();
+    }
+  });
+
+);
+          await pool.query(`CREATE TRIGGER gdpr_ci_mutate_event
+            BEFORE INSERT ON public.privacy_erasure_ledger
+            FOR EACH ROW EXECUTE FUNCTION public.gdpr_ci_mutate_event()`);
         }
 
         for (const operation of ['political_consent_revoked','account_deleted']) {
@@ -220,7 +409,8 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
                 details:{source:'transactional-ci-fixture'}
               }),
               error=>error?.code===(failureMode==='ledger_missing'?
-                '42P01':'GDPR_LEDGER_SCHEMA_NOT_PROTECTED'),
+                '42P01':failureMode==='rls_disabled'||failureMode==='api_role_grant'
+                  ? 'GDPR_LEDGER_SCHEMA_NOT_PROTECTED':'GDPR_LEDGER_INSERT_NOT_CONFIRMED'),
               'ledger defect must prevent commit after earlier user changes'
             );
           } finally {
@@ -234,6 +424,10 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
           `,[userId]);
           assert.deepEqual(snapshot.rows,[{consent:true,choices:1}],
             failureMode+' / '+operation+' must roll back every user mutation');
+        }
+        if (failureMode.startsWith('ledger_') && failureMode!=='ledger_missing') {
+          await pool.query('DROP TRIGGER gdpr_ci_mutate_event ON public.privacy_erasure_ledger');
+          await pool.query('DROP FUNCTION public.gdpr_ci_mutate_event()');
         }
         // Reinstall/protect schema ONLY between fixture phases, never in a
         // user-facing request: also preserves the subsequent phases' safety.
@@ -512,6 +706,76 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         assert.equal(snapshot.rows[0].occurred_at.toISOString(),fixed.occurred_at);
         assert.deepEqual(snapshot.rows[0].details,fixed.details);
       }
+    } finally {
+      await pool.end();
+    }
+  });
+
+  test('GDPR import rejects trigger-mutated rows and rolls back earlier writes',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const event={
+      event_key:'synthetic-import-verified',
+      subject_user_id:'synthetic-import-person',
+      event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+      occurred_at:'2026-01-02T03:04:05.123456Z',
+      details:{source:'synthetic-recovery'}
+    };
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await Ledger.ensureTable(pool);
+      await pool.query('CREATE TABLE public.gdpr_ci_import_marker(n integer NOT NULL)');
+      await pool.query('INSERT INTO public.gdpr_ci_import_marker(n) VALUES (0)');
+      await pool.query(`
+        CREATE FUNCTION public.gdpr_ci_rewrite_import()
+        RETURNS trigger LANGUAGE plpgsql AS $gdpr_ci$
+        BEGIN
+          CASE current_setting('gdpr_ci.import_mode',true)
+            WHEN 'subject' THEN
+              NEW.subject_user_id := 'synthetic-forged-person';
+            WHEN 'details' THEN
+              NEW.details := '{"rewritten":true}'::jsonb;
+            WHEN 'time' THEN
+              NEW.occurred_at := NEW.occurred_at + INTERVAL '1 microsecond';
+            WHEN 'key' THEN
+              NEW.event_key := NEW.event_key || '-rewritten';
+            WHEN 'suppressed' THEN
+              RETURN NULL;
+          END CASE;
+          RETURN NEW;
+        END $gdpr_ci$;
+        CREATE TRIGGER gdpr_ci_rewrite_import
+        BEFORE INSERT ON public.privacy_erasure_ledger
+        FOR EACH ROW EXECUTE FUNCTION public.gdpr_ci_rewrite_import()
+      `);
+      for (const mode of ['subject','details','time','key','suppressed']) {
+        const client=await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query("SELECT set_config('gdpr_ci.import_mode',$1,true)",[mode]);
+          await client.query('UPDATE public.gdpr_ci_import_marker SET n=n+1');
+          await assert.rejects(
+            Ledger.mergeCaptured(client,[event]),
+            error=>error?.code===(mode==='suppressed'
+              ? 'GDPR_LEDGER_EVENT_KEY_CONFLICT':'GDPR_LEDGER_IMPORT_NOT_CONFIRMED'),
+            mode+' must never be reported as a successful GDPR import'
+          );
+        } finally {
+          await client.query('ROLLBACK');
+          client.release();
+        }
+        assert.equal((await pool.query('SELECT n FROM public.gdpr_ci_import_marker')).rows[0].n,0,
+          'failed import must roll back earlier synthetic transaction writes');
+        assert.equal((await pool.query(
+          'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+        )).rows[0].n,0,'failed import must leave no forged GDPR event');
+      }
+      await pool.query('DROP TRIGGER gdpr_ci_rewrite_import ON public.privacy_erasure_ledger');
+      await pool.query('DROP FUNCTION public.gdpr_ci_rewrite_import()');
+      assert.equal(await Ledger.mergeCaptured(pool,[event]),1,
+        'unchanged event must import after removing adversarial trigger');
+      assert.equal(await Ledger.mergeCaptured(pool,[event]),0,
+        'an identical replay must remain idempotent');
     } finally {
       await pool.end();
     }
