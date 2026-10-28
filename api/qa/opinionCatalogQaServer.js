@@ -27,10 +27,11 @@ function createQaApp() {
     if (/\bopinioni_domande\b/i.test(sql)) throw Error('Legacy catalog SQL is forbidden');
     if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK')
       return { rows: [], rowCount: 0 };
-    if (sql.includes('FROM users u LEFT JOIN opinioni_risposte r ON r.user_id = u.id')) {
+    if (sql.includes('FROM users u LEFT JOIN LATERAL') && sql.includes('FROM opinioni_risposte a WHERE a.user_id = u.id')) {
+      if (sql.includes('fonti_opinioni') || sql.includes('SELECT *')) throw Error('QA GET must project only published answer columns');
       return { rows: validUser(params) ? [{
         id: USER_ID, status: 'a', ruolo: 'E',
-        opinion_answers: state.hasRow ? { user_id: USER_ID, ...state.answers } : null
+        opinion_answers: state.hasRow ? { ...state.answers } : null
       }] : [] };
     }
     if (sql.includes('AS granted') && sql.includes('user_consents')) {

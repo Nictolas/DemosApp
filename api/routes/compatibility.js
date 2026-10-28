@@ -53,15 +53,26 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
 
-    // Read account status and the optional answers row in ONE SQL request.
-    // The LEFT JOIN preserves active users who have not answered anything.
-    // row_to_json gives pg a plain JS object (or null for no answer row).
-    const userResult = await pool.query(`
-      SELECT u.id, u.status, u.ruolo, row_to_json(r) AS opinion_answers
-      FROM users u
-      LEFT JOIN opinioni_risposte r ON r.user_id = u.id
-      WHERE u.id = $1
-    `, [userIdFromToken]);
+    // Select ONLY the published opinion columns for this electoral grade.
+    // This avoids transferring all 94 answers or the fonti_opinioni JSONB
+    // service field while preserving the existing single SQL round trip.
+    const { grado } = req.query;
+    const normalizedGrade = grado ? (normalizeOpinionScope(String(grado)) || String(grado)) : '';
+    const opinionResult = { rows: sortOpinionsByText(getOpinionsForGrade(normalizedGrade)) };
+    // opinionCatalog.js enforces stable, safe [a-z0-9_] identifiers at load time.
+    const projection = opinionResult.rows.map(op => `a."${op.id}"`).join(', ');
+    const userSql = projection
+      ? `SELECT u.id, u.status, u.ruolo, row_to_json(selected) AS opinion_answers
+         FROM users u
+         LEFT JOIN LATERAL (
+           SELECT ${projection}
+           FROM opinioni_risposte a
+           WHERE a.user_id = u.id
+         ) selected ON true
+         WHERE u.id = $1`
+      : `SELECT u.id, u.status, u.ruolo, NULL::json AS opinion_answers
+         FROM users u WHERE u.id = $1`;
+    const userResult = await pool.query(userSql, [userIdFromToken]);
     
     if (userResult.rows.length === 0) {
       return res.status(401).json({
@@ -81,9 +92,6 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
     
-    const { grado } = req.query;
-    const userId = user.id;
-    
     if (isDev) console.log('🔍 GET /api/opinioni-list - grado:', grado);
 
     if (!grado) {
@@ -94,9 +102,7 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
     
-    const normalizedGrade = normalizeOpinionScope(String(grado)) || String(grado);
     const gradiColumn = 'gradi_opinione';
-    const opinionResult = { rows: sortOpinionsByText(getOpinionsForGrade(normalizedGrade)) };
 
     if (opinionResult.rows.length === 0) {
       if (isDev) console.log(`⚠️ Nessuna opinione per grado: ${grado}`);

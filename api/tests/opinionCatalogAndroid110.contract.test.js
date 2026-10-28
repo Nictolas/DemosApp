@@ -24,10 +24,11 @@ async function withAndroid110Contract(callback) {
     const sql=String(statement).replace(/\s+/g,' ').trim();
     state.sql.push(sql);
     if(/\bopinioni_domande\b/i.test(sql)) throw Error('Legacy catalog table read/write is forbidden: '+sql);
-    if(sql.includes('FROM users u LEFT JOIN opinioni_risposte r ON r.user_id = u.id')) {
+    if(sql.includes('FROM users u LEFT JOIN LATERAL') && sql.includes('FROM opinioni_risposte a WHERE a.user_id = u.id')) {
       assert.deepEqual(params,[emailFreeFakeUser]);
+      assert.ok(!sql.includes('fonti_opinioni') && !sql.includes('SELECT *'));
       return {rows:[{id:emailFreeFakeUser,status:'a',ruolo:'E',
-        opinion_answers:state.hasRow?{user_id:emailFreeFakeUser,[fixtureId]:state.answer}:null}]};
+        opinion_answers:state.hasRow?{[fixtureId]:state.answer}:null}]};
     }
     if(sql.includes('AS granted') && sql.includes('user_consents')) {
       return {rows:[{granted:true}],rowCount:1};

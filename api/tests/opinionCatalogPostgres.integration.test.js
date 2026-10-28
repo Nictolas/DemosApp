@@ -85,7 +85,12 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
       assert.equal(response.status,200,'GET '+grade);
       const statements=observedSql.slice(before);
       assert.equal(statements.length,1,'GET must perform exactly one DB request');
-      assert.match(statements[0],/LEFT JOIN opinioni_risposte r ON r\.user_id = u\.id/);
+      assert.match(statements[0],/LEFT JOIN LATERAL/);
+      assert.match(statements[0],/FROM opinioni_risposte a/);
+      assert.doesNotMatch(statements[0],/fonti_opinioni|SELECT \*/i);
+      const selectedColumns=[...statements[0].matchAll(/a\."([a-z0-9_]+)"/g)].map(x=>x[1]).sort();
+      assert.deepEqual(selectedColumns,getOpinionsForGrade(grade).map(op=>op.id).sort(),
+        'GET must select only the answer columns published at this grade');
       return response.json();
     };
     assert.equal((await fetch(base+'/api/opinioni-list?grado=N')).status,401);
