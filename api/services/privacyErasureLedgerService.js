@@ -118,9 +118,25 @@ class PrivacyErasureLedgerService {
     return result.rows[0];
   }
 
-  static async captureCurrent(client) {
-    // Never manufacture an empty history while trying to capture evidence.
+  // Recovery/export MUST run with SQL visibility of the complete ledger.
+  // A correctly protected relation can return only a subset (or zero rows)
+  // to a subject-scoped RLS role, which is never a complete archive.
+  static async assertUnfilteredLedger(client) {
     await this.assertProtectedLedger(client);
+    const result = await client.query(
+      "SELECT NOT pg_catalog.row_security_active(" +
+      "'public.privacy_erasure_ledger'::regclass) AS complete_visibility"
+    );
+    if (result.rows?.[0]?.complete_visibility !== true) {
+      const error = new Error('GDPR_LEDGER_VISIBILITY_INCOMPLETE');
+      error.code = 'GDPR_LEDGER_VISIBILITY_INCOMPLETE';
+      throw error;
+    }
+  }
+
+  static async captureCurrent(client) {
+    // Never manufacture an incomplete/empty history during export.
+    await this.assertUnfilteredLedger(client);
     const result = await client.query(`
       SELECT event_key, subject_user_id, event_type,
         -- node-postgres TIMESTAMPTZ -> Date truncates PostgreSQL microseconds.
@@ -139,7 +155,7 @@ class PrivacyErasureLedgerService {
     // transaction. Preflight every captured value nevertheless: a late bad
     // timestamp, duplicate event key or JSON serialization failure must not
     // leave earlier rows inserted by a caller that forgot BEGIN.
-    await this.assertProtectedLedger(client);
+    await this.assertUnfilteredLedger(client);
     const invalid = () => {
       const error = new Error('GDPR_LEDGER_INVALID_CAPTURED_EVENT');
       error.code = 'GDPR_LEDGER_INVALID_CAPTURED_EVENT';
@@ -504,8 +520,8 @@ class PrivacyErasureLedgerService {
   }
 
   static async applyCurrentPrivacyState(client) {
-    // Missing tombstones must block replay, not look like a clean restore.
-    await this.assertProtectedLedger(client);
+    // Missing or RLS-filtered tombstones must block replay before any DML.
+    await this.assertUnfilteredLedger(client);
     // Schema-aware cleanup is intentionally tolerant of optional legacy tables,
     // but these core relations/columns must exist before any replay mutation.
     await this.assertReplayCoreSchema(client);
