@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - 'api/services/userProfileReadService.js'
+      - 'api/services/userProfileWriteService.js'
+      - 'api/routes/users/profile.js'
+      - 'api/routes/users/search.js'
+      - 'api/tests/userProfileWriteService.test.js'
+      - 'api/tests/userProfileWriteService.integration.test.js'
       - 'api/services/politicalTerritoryMembershipService.js'
       - 'api/services/eventFeedService.js'
       - 'api/tests/userProfileReadService.test.js'
@@ -47,7 +52,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Run compatibility regression tests
         working-directory: api
-        run: node --test tests/userProfileReadService.test.js tests/politicalTerritoryMembershipService.test.js tests/eventFeedService.test.js
+        run: node --test tests/userProfileReadService.test.js tests/userProfileWriteService.test.js tests/politicalTerritoryMembershipService.test.js tests/eventFeedService.test.js
       - name: Run PostgreSQL 17 synthetic profile and preflight checks
         working-directory: api
         env:
@@ -57,4 +62,4 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic_profile_tests
           PGDATABASE: profile_synthetic
-        run: node --test tests/userProfileReadService.integration.test.js
+        run: node --test tests/userProfileReadService.integration.test.js tests/userProfileWriteService.integration.test.js
