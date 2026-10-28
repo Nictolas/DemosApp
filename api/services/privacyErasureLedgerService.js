@@ -235,6 +235,11 @@ class PrivacyErasureLedgerService {
     const directLinks = [
       // Production candidati.user_id uses a restrictive FK (no ON DELETE CASCADE).
       ['candidati', 'user_id'],
+      // These production tables have user_id columns but no FK to users;
+      // they would otherwise outlive account deletion or session revocation.
+      ['active_sessions', 'user_id'],
+      ['data_processing_limits', 'user_id'],
+      ['political_programs', 'user_id'],
       ['notifiche_demos', 'id_utente'],
       ['notifiche_comunali', 'id_utente'],
       ['programmi', 'utente_id'],
