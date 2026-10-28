@@ -4,6 +4,7 @@ const { pool } = require('../middleware/auth');
 const { compressRegione, compressProvince, decompressRegione, decompressProvince } = require('../utils/locationUtils');
 const { MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE: minimumCellSize, cellThresholdMet } = require('../utils/politicalAggregatePrivacy');
 const { getNationalSurveyStats, getTerritorialSurveyStats } = require('../utils/sondaggiTextBulk');
+const { protectSexCountRows } = require('../utils/canonicalSexAggregate');
 
 const router = express.Router();
 
@@ -116,13 +117,12 @@ async function serveCanonicalSexStats(req, res) {
     );
     // Fail closed: se un sesso ha 1-9 persone, il dettaglio e' completamente
     // nascosto anche per evitare ricostruzioni per sottrazione.
-    const rows = result.rows.map(row => ({ sesso: row.sesso, totale: Number(row.totale) || 0 }));
-    const suppressed = rows.some(row => row.totale > 0 && row.totale < minimumCellSize);
+    const protectedStats = protectSexCountRows(result.rows, minimumCellSize);
     return res.json({
       success: true,
       minimumCellSize,
-      suppressed,
-      stats: suppressed ? [] : rows
+      suppressed: protectedStats.suppressed,
+      stats: protectedStats.data
     });
   } catch (error) {
     console.error('Errore statistiche sesso CIE aggregate:', error);
