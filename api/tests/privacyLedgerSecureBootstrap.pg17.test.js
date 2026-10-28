@@ -548,7 +548,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         CREATE FUNCTION public.gdpr_ci_rewrite_import()
         RETURNS trigger LANGUAGE plpgsql AS $gdpr_ci$
         BEGIN
-          CASE current_setting('gdpr_ci_import_mode',true)
+          CASE current_setting('gdpr_ci.import_mode',true)
             WHEN 'subject' THEN
               NEW.subject_user_id := 'synthetic-forged-person';
             WHEN 'details' THEN
@@ -570,7 +570,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         const client=await pool.connect();
         try {
           await client.query('BEGIN');
-          await client.query("SELECT set_config('gdpr_ci_import_mode',$1,true)",[mode]);
+          await client.query("SELECT set_config('gdpr_ci.import_mode',$1,true)",[mode]);
           await client.query('UPDATE public.gdpr_ci_import_marker SET n=n+1');
           await assert.rejects(
             Ledger.mergeCaptured(client,[event]),
