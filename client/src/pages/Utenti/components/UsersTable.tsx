@@ -49,7 +49,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-gray-700 capitalize">
-                    {column.replace(/_/g, ' ')}
+                    {column === 'sesso' ? 'Sesso anagrafico (CIE)' : column.replace(/_/g, ' ')}
                   </span>
                   {column !== 'avatar' && sortState.sortField === column && (
                     <span className="text-blue-600 ml-2">
