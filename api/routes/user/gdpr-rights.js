@@ -5,6 +5,7 @@ const { pool } = require('../../middleware/auth');
 const AuditService = require('../../services/auditService');
 const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
 const { decrypt: decryptEmail } = require('../../utils/emailCrypto');
+const { convertToCSV } = require('../../utils/gdprCsv');
 // Usa crypto nativo invece di uuid
 const crypto = require('crypto');
 
@@ -12,49 +13,6 @@ const router = express.Router();
 
 // Middleware per tutti gli endpoint
 router.use(verifyToken);
-
-/**
- * Funzione helper per convertire oggetto in CSV
- */
-function convertToCSV(data) {
-  const lines = [];
-  
-  // Funzione ricorsiva per appiattire oggetti annidati
-  function flatten(obj, prefix = '') {
-    const result = [];
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        const newKey = prefix ? `${prefix}.${key}` : key;
-        if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && !(obj[key] instanceof Date)) {
-          result.push(...flatten(obj[key], newKey));
-        } else {
-          let value = obj[key];
-          if (value instanceof Date) {
-            value = value.toISOString();
-          } else if (Array.isArray(value)) {
-            value = JSON.stringify(value);
-          } else if (typeof value === 'object' && value !== null) {
-            value = JSON.stringify(value);
-          }
-          result.push({ key: newKey, value: String(value || '') });
-        }
-      }
-    }
-    return result;
-  }
-  
-  // Header
-  lines.push('Campo,Valore');
-  
-  // Dati appiattiti
-  const flattened = flatten(data);
-  flattened.forEach(item => {
-    const escapedValue = String(item.value).replace(/"/g, '""');
-    lines.push(`"${item.key}","${escapedValue}"`);
-  });
-  
-  return lines.join('\n');
-}
 
 /**
  * GET /api/user/data-export
@@ -79,7 +37,7 @@ router.get('/data-export', async (req, res) => {
       });
     }
 
-    console.log(`📤 Richiesta esportazione dati per utente: ${userId}, formato: ${format}`);
+    // No user identifier in operational logs; the audit service logs access separately.
 
     // Log dell'accesso ai dati
     await AuditService.logAction({
@@ -95,9 +53,12 @@ router.get('/data-export', async (req, res) => {
     // 1. Recupera dati utente principali (incl. OAuth: google_sub, apple_user_id)
     const userQuery = `
       SELECT
-        u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.premium, u.created_at, u.updated_at,
+        u.id, u.email, u.nome, u.cognome, u.sesso, u.account_type, u.ruolo, u.status, u.premium, u.created_at, u.updated_at,
         COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
         COALESCE(up.genere, u.genere) AS genere,
+        CASE WHEN up.avatar_config IS NOT NULL THEN up.avatar_config
+             WHEN pg_input_is_valid(u.avatar_config, 'jsonb') THEN u.avatar_config::jsonb
+             ELSE NULL END AS avatar_config,
         COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
         COALESCE(up.paese_residenza, u.paese_residenza) AS paese_residenza,
         COALESCE(up.regione_residenza, u.regione_residenza) AS regione_residenza,
@@ -137,15 +98,15 @@ router.get('/data-export', async (req, res) => {
     if (userData.email != null) userData.email = decryptEmail(userData.email);
 
     // 2. Recupera opinioni politiche
-    const opinionsQuery = `
-      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-             eutanasia, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
-      FROM users 
-      WHERE id = $1
-    `;
-    
-    const opinionsResult = await pool.query(opinionsQuery, [userId]);
-    const opinions = opinionsResult.rows[0] || {};
+    // Opinions are stored in opinioni_risposte, NOT legacy users columns.
+    // Include every answer column (including new questions) without exporting
+    // another user's data or duplicating the account identifier.
+    const opinionsResult = await pool.query(
+      `SELECT to_jsonb(o) - 'user_id' AS opinion_data
+       FROM opinioni_risposte o WHERE o.user_id = $1`,
+      [userId]
+    );
+    const opinions = opinionsResult.rows[0]?.opinion_data || {};
 
     // 3. Recupera voti (anonimizzati per privacy)
     const votesQuery = `
@@ -159,7 +120,7 @@ router.get('/data-export', async (req, res) => {
       FROM voti_iniziative_popolari WHERE userid = $1
       UNION ALL
       SELECT 'ice' as vote_type, COUNT(*) as vote_count
-      FROM voti_ice WHERE userid = $1
+      FROM voti_ice WHERE utente_id = $1
     `;
     
     const votesResult = await pool.query(votesQuery, [userId]);
@@ -204,7 +165,7 @@ router.get('/data-export', async (req, res) => {
       export_info: {
         export_date: new Date().toISOString(),
         user_id: userId,
-        format_version: '1.0',
+        format_version: '1.1',
         format_schema: 'https://schema.org/Person',
         gdpr_article: 'Art. 20 - Diritto di portabilità dei dati',
         data_categories: [
@@ -217,7 +178,7 @@ router.get('/data-export', async (req, res) => {
           'consent_history',
           'audit_logs'
         ],
-        note: 'I dati sono esportati in formato strutturato, comunemente usato e leggibile automaticamente, conforme al GDPR Art. 20.1'
+        note: 'Esportazione delle categorie elencate. La verifica di completezza e portabilità GDPR è ancora in corso.'
       },
       personal_data: {
         basic_info: {
@@ -227,8 +188,11 @@ router.get('/data-export', async (req, res) => {
           cognome: userData.cognome,
           data_nascita: userData.data_nascita,
           genere: userData.genere,
+          sesso: userData.sesso,
           cittadinanza: userData.cittadinanza,
-          ruolo: userData.ruolo
+          ruolo: userData.ruolo,
+          account_type: userData.account_type,
+          avatar_config: userData.avatar_config
         },
         residence_info: {
           paese_residenza: userData.paese_residenza,
@@ -270,14 +234,12 @@ router.get('/data-export', async (req, res) => {
         terms_of_service_consent: userData.terms_of_service_consent,
         consent_timestamp: userData.consent_timestamp,
         consent_ip_address: userData.consent_ip_address,
-        consent_user_agent: userData.consent_user_agent
+        consent_user_agent: userData.consent_user_agent,
+        political_opinions_consent: userData.political_opinions_consent
       },
       audit_logs: auditLogs,
       data_retention_info: {
-        account_data: 'Conservato fino alla cancellazione dell\'account',
-        voting_data: 'Conservato in forma anonima per 5 anni',
-        communication_data: 'Conservato per 3 anni dall\'ultima interazione',
-        technical_data: 'Conservato per 12 mesi per sicurezza e debugging'
+        note: 'Le tempistiche di conservazione dipendono dalla policy vigente; verificare il registro GDPR ufficiale.'
       }
     };
 
@@ -298,7 +260,7 @@ router.get('/data-export', async (req, res) => {
     if (format === 'csv') {
       const csv = convertToCSV(dataExport);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${userId}-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${new Date().toISOString().split('T')[0]}.csv"`);
       res.send('\ufeff' + csv); // BOM UTF-8 per Excel
     } else {
       res.json({
