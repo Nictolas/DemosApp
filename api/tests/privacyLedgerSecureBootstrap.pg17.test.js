@@ -699,6 +699,83 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+  test('replay rejects SQL role with complete ledger but RLS-hidden restored users',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const role='gdpr_ci_unfiltered_ledger_hidden_users';
+    const deletedAccount='synthetic-restored-hidden-user';
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await Ledger.ensureTable(pool);
+      await pool.query(`
+        CREATE TABLE public.users (
+          id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+        CREATE TABLE public.user_consents (
+          user_id text PRIMARY KEY,
+          political_opinions_consent boolean,
+          political_opinions_consent_timestamp timestamptz,
+          political_opinions_consent_ip_address text,
+          political_opinions_consent_user_agent text,
+          updated_at timestamptz
+        );
+        CREATE TABLE public.opinioni_risposte (user_id text);
+      `);
+      await pool.query('INSERT INTO public.users(id) VALUES ($1)',[deletedAccount]);
+      await Ledger.recordEvent(pool,{
+        userId:deletedAccount,
+        eventType:Ledger.EVENT_TYPES.ACCOUNT_DELETED,
+        details:{source:'synthetic-account-recovery'}
+      });
+      await pool.query('CREATE ROLE '+role+' NOLOGIN NOBYPASSRLS NOSUPERUSER');
+      await pool.query('GRANT USAGE ON SCHEMA public TO '+role);
+      // Ledger owner bypasses its RLS, but remains constrained by RLS on
+      // the independent restored users table. This is a real PG17 role,
+      // not a mock of a 0-row DELETE.
+      await pool.query('ALTER TABLE public.privacy_erasure_ledger OWNER TO '+role);
+      await pool.query('GRANT SELECT,DELETE ON public.users TO '+role);
+      await pool.query('ALTER TABLE public.users ENABLE ROW LEVEL SECURITY');
+      const client=await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SET LOCAL ROLE '+role);
+        assert.equal((await client.query(
+          "SELECT NOT pg_catalog.row_security_active("+
+          "'public.privacy_erasure_ledger'::regclass) AS complete"
+        )).rows[0].complete,true);
+        assert.equal((await client.query(
+          'SELECT COUNT(*)::int AS n FROM public.users'
+        )).rows[0].n,0,'user row is hidden by the separate RLS policy');
+        await assert.rejects(
+          Ledger.applyCurrentPrivacyState(client),
+          error=>error?.code==='GDPR_REPLAY_DATA_VISIBILITY_INCOMPLETE',
+          'visible tombstones must never certify deletions in filtered app tables'
+        );
+      } finally {
+        await client.query('ROLLBACK');
+        client.release();
+      }
+      assert.equal((await pool.query(
+        'SELECT COUNT(*)::int AS n FROM public.users WHERE id=$1',
+        [deletedAccount]
+      )).rows[0].n,1,
+        'refused replay must leave source data unchanged');
+      await pool.query('ALTER TABLE public.privacy_erasure_ledger OWNER TO postgres');
+      await pool.query('REVOKE ALL ON public.users FROM '+role);
+      await pool.query('REVOKE USAGE ON SCHEMA public FROM '+role);
+      await pool.query('DROP ROLE '+role);
+      assert.equal((await Ledger.applyCurrentPrivacyState(pool)).accountsRemoved,1,
+        'privileged synthetic replay can delete the restored account');
+    } finally {
+      await pool.end();
+    }
+  });
+
   test('missing or unprotected ledger must block capture, import and replay without auto-provisioning',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const synthetic=[{
