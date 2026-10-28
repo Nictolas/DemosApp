@@ -15,7 +15,10 @@ const stripSqlComments = sql => sql
 
 for (const file of [
   'api/insert-senatori-da-voti-nominali.sql',
-  'api/insert-parlamentari-senato-nuovi.sql'
+  'api/insert-parlamentari-senato-nuovi.sql',
+  'api/insert-parlamentari-senato.sql',
+  'api/insert-parlamentari-camera.sql',
+  'api/insert-parlamentari-camera-nuovi.sql'
 ]) {
   test(`${file}: obsolete importer fails closed instead of creating users`, () => {
     const sql = stripSqlComments(read(file));
