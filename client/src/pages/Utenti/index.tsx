@@ -1,13 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EditUserDialog } from "@/components/EditUserDialog";
-import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
-import { EditUserAvatarDialog } from "@/components/EditUserAvatarDialog";
 import { Loader2, Users, AlertCircle, BarChart3 } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
 import { useUserManagement } from "./hooks/useUserManagement";
@@ -17,13 +12,8 @@ import { SearchBar } from "./components/SearchBar";
 import { FiltersBar } from "./components/FiltersBar";
 import { UsersTable } from "./components/UsersTable";
 import { MobileUsersTable } from "./components/MobileUsersTable";
-import { MobilePendingUsersTable } from "./components/MobilePendingUsersTable";
-import { PendingUsersTable } from "./components/PendingUsersTable";
-import { usePendingUserActions } from "./hooks/usePendingUserActions";
 import { Pagination } from "./components/Pagination";
 import { USERS_PER_PAGE } from "./constants";
-import { User } from "./types";
-import { apiRequest } from "@/lib/queryClient";
 import { clearAllTokens, forceTokenRefresh } from "@/utils/tokenUtils";
 import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -43,22 +33,17 @@ type StatisticheUtenti = {
 // Colori per i grafici - più colori per evitare duplicati
 const COLORS = ['#87CEEB', '#FFB6C1', '#FFD700', '#98FB98', '#DDA0DD', '#F0E68C', '#FFA07A', '#20B2AA', '#FF6347', '#40E0D0', '#EE82EE', '#90EE90', '#F4A460', '#87CEFA', '#D8BFD8', '#F5DEB3'];
 
-// Colori del sesso anagrafico verificato; NULL non e' una terza categoria.
-const getSexColor = (sesso: string) => {
-  if (sesso === 'M') return '#3b82f6';
-  if (sesso === 'F') return '#ec4899';
-  return '#6b7280';
-};
+// Colori delle categorie M/F salvate; la CIE potrà correggerle dopo la verifica.
+const getSexColor = (sesso: string) =>
+  sesso === 'M' ? '#3b82f6' : sesso === 'F' ? '#ec4899' : '#9ca3af';
 
 export default function Utenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { toast } = useToast();
   
   const {
     responseData,
     isLoadingUsers,
     isError,
-    deleteMutation,
     queryClient
   } = useUsers(user);
 
@@ -67,14 +52,6 @@ export default function Utenti() {
     setSearchTerm,
     selectedRuolo,
     selectedGradoElezione,
-    userToDelete,
-    setUserToDelete,
-    showEditDialog,
-    setShowEditDialog,
-    showEditOpinioniDialog,
-    setShowEditOpinioniDialog,
-    selectedUser,
-    setSelectedUser,
     sortState,
     paginationState,
     lastUpdateTime,
@@ -86,21 +63,6 @@ export default function Utenti() {
     handleGradoElezioneChange
   } = useUserManagement();
 
-  // Stato per il dialog di modifica avatar
-  const [showEditAvatarDialog, setShowEditAvatarDialog] = useState(false);
-  const [userForAvatarEdit, setUserForAvatarEdit] = useState<User | null>(null);
-
-  // Hook per le azioni sugli utenti pending
-  const {
-    approveUser,
-    rejectUser,
-    isProcessing
-  } = usePendingUserActions();
-
-  // Stato per gestire le modifiche inline
-  const [userChanges, setUserChanges] = useState<Record<string, { grado_elezione?: string | null; grado_candidatura?: string | null }>>({});
-  const [hasChanges, setHasChanges] = useState(false);
-  
   // Hook per rilevare se siamo su mobile
   const [isMobile, setIsMobile] = useState(false);
 
@@ -119,10 +81,12 @@ export default function Utenti() {
       return acc;
     }, {} as Record<string, number>);
     
-    // Solo persone: non inferire il sesso dai valori legacy del genere.
     const usersBySesso = utenti.reduce((acc, user) => {
+      // Solo persone: usa il campo M/F già salvato, anche se proveniente da dati storici.
       if (user.account_type !== 'PERSON') return acc;
-      const sesso = user.sesso === 'M' || user.sesso === 'F' ? user.sesso : 'Non disponibile';
+      const sesso = user.sesso === 'M' || user.sesso === 'F'
+        ? user.sesso
+        : 'Non disponibile';
       acc[sesso] = (acc[sesso] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -227,7 +191,6 @@ export default function Utenti() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Funzione per pulire token vecchi e forzare nuovo login
   const clearInvalidToken = async () => {
     try {
       await forceTokenRefresh();
@@ -290,7 +253,6 @@ export default function Utenti() {
 
   // Preparazione dati
   const allUsers = responseData?.utenti || [];
-  const pendingUsers = responseData?.pendingUsers || [];
   const displayColumns = getDisplayColumns(allUsers);
 
   // Calcola i valori disponibili per i filtri
@@ -374,87 +336,8 @@ export default function Utenti() {
     updateLastUpdateTime();
   };
 
-  const handleEdit = (user: any) => {
-    setSelectedUser(user);
-    setShowEditDialog(true);
-  };
-
-  const handleEditOpinioni = (user: any) => {
-    setSelectedUser(user);
-    setShowEditOpinioniDialog(true);
-  };
-
-  const handleDelete = (user: any) => {
-    setUserToDelete(user);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-  };
-
-  const handleApproveUser = (user: any) => {
-    approveUser(user.id);
-  };
-
-  const handleRejectUser = (user: any) => {
-    rejectUser({ userId: user.id });
-  };
-
-  const handleEditAvatar = (user: User) => {
-    setUserForAvatarEdit(user);
-    setShowEditAvatarDialog(true);
-  };
-
-  // Funzioni per gestire le modifiche inline
-  const handleFieldChange = (userId: string, field: 'grado_elezione' | 'grado_candidatura', value: string | null) => {
-    setUserChanges(prev => {
-      const newChanges = {
-        ...prev,
-        [userId]: {
-          ...prev[userId],
-          [field]: value
-        }
-      };
-      
-      // Controlla se ci sono modifiche
-      const hasAnyChanges = Object.values(newChanges).some(change => 
-        change.grado_elezione !== undefined || change.grado_candidatura !== undefined
-      );
-      setHasChanges(hasAnyChanges);
-      
-      return newChanges;
-    });
-  };
-
-  const handleSaveChanges = async () => {
-    try {
-      const updates = Object.entries(userChanges).map(([userId, changes]) => ({
-        userId,
-        ...changes
-      }));
-
-      for (const update of updates) {
-        await apiRequest("PUT", `/api/users/${update.userId}`, update);
-      }
-
-      // Reset delle modifiche
-      setUserChanges({});
-      setHasChanges(false);
-      
-      // Refresh dei dati
-      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-      
-      toast({
-        title: "Successo",
-        description: "Modifiche salvate con successo!",
-      });
-    } catch {
-      toast({
-        title: "Errore",
-        description: "Errore nel salvataggio delle modifiche",
-        variant: "destructive",
-      });
-    }
   };
 
   return (
@@ -527,115 +410,21 @@ export default function Utenti() {
               </div>
             ) : (
               <>
-                {/* Statistiche */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-blue-500 rounded-lg">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-blue-600">Totale Utenti</p>
-                          <p className="text-2xl font-bold text-blue-900">{allUsers.length}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-green-500 rounded-lg">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-green-600">Tutti gli Utenti</p>
-                          <p className="text-2xl font-bold text-green-900">{allUsers.length}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-yellow-500 rounded-lg">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-yellow-600">In Attesa</p>
-                          <p className="text-2xl font-bold text-yellow-900">{pendingUsers.length}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Sezione Utenti in Attesa */}
-                {pendingUsers.length > 0 && (
-                  <Card className="bg-white border-0 shadow-lg mb-6 w-full">
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center text-2xl text-gray-800">
-                        <Users className="h-6 w-6 mr-3 text-yellow-600" />
-                        Utenti in Attesa
-                      </CardTitle>
-                      <CardDescription className="text-gray-600">
-                        Utenti in attesa di approvazione ({pendingUsers.length})
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {isMobile ? (
-                        <MobilePendingUsersTable 
-                          users={pendingUsers}
-                          onApprove={handleApproveUser}
-                          onReject={handleRejectUser}
-                          isProcessing={isProcessing}
-                        />
-                      ) : (
-                        <PendingUsersTable 
-                          users={pendingUsers}
-                          onApprove={handleApproveUser}
-                          onReject={handleRejectUser}
-                          isProcessing={isProcessing}
-                        />
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-
                 {/* Tabella utenti attivi */}
                 <Card className="bg-white border-0 shadow-lg w-full">
                   <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="flex items-center text-2xl text-gray-800">
-                          <Users className="h-6 w-6 mr-3 text-blue-600" />
-                          Tutti gli Utenti
-                        </CardTitle>
-                        <CardDescription className="text-gray-600">
-                          Visualizza e gestisci tutti gli utenti della piattaforma (attivi, pending, ecc.)
-                        </CardDescription>
-                      </div>
-                      <Button 
-                        onClick={handleSaveChanges}
-                        disabled={!hasChanges}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        Salva Modifiche
-                      </Button>
-                    </div>
+                    <CardTitle className="flex items-center text-2xl text-gray-800">
+                      <Users className="h-6 w-6 mr-3 text-blue-600" />
+                      Tutti gli Utenti
+                    </CardTitle>
+                    <CardDescription className="text-gray-600">
+                      Consulta gli utenti della piattaforma. Le modifiche ai dati non sono disponibili in questa pagina.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {isMobile ? (
                       <MobileUsersTable 
                         users={paginatedUsers}
-                        onEdit={handleEdit}
-                        onEditOpinioni={handleEditOpinioni}
-                        onDelete={handleDelete}
-                        onEditAvatar={handleEditAvatar}
-                        userChanges={userChanges}
-                        onFieldChange={handleFieldChange}
                       />
                     ) : (
                       <UsersTable 
@@ -643,12 +432,6 @@ export default function Utenti() {
                         displayColumns={displayColumns}
                         sortState={sortState}
                         onSort={updateSort}
-                        onEdit={handleEdit}
-                        onEditOpinioni={handleEditOpinioni}
-                        onDelete={handleDelete}
-                        onEditAvatar={handleEditAvatar}
-                        userChanges={userChanges}
-                        onFieldChange={handleFieldChange}
                       />
                     )}
                     
@@ -730,8 +513,8 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>Distribuzione per sesso anagrafico (CIE)</CardTitle>
-                      <CardDescription>Solo persone. I dati storici non certificati non vengono considerati: “Non disponibile” non significa “Altro”.</CardDescription>
+                      <CardTitle>Distribuzione per sesso</CardTitle>
+                      <CardDescription>Valori M/F delle persone, anche storici: non sono necessariamente tutti verificati tramite CIE.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
@@ -899,65 +682,6 @@ export default function Utenti() {
           </TabsContent>
         </Tabs>
 
-        {/* Dialog di conferma eliminazione */}
-        <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                Conferma eliminazione
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Sei sicuro di voler eliminare l'utente <strong>{userToDelete?.nome} {userToDelete?.cognome}</strong>? 
-                L'operazione non è reversibile.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annulla</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={() => userToDelete && deleteMutation.mutate(userToDelete.id)} 
-                className="bg-red-500 hover:bg-red-600 text-white" 
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : "Elimina"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Dialog di modifica utente */}
-        {selectedUser && (
-          <>
-            <EditUserDialog 
-              userEmail={selectedUser.email}
-              userUid={selectedUser.id} 
-              open={showEditDialog} 
-              onOpenChange={setShowEditDialog} 
-              onUserUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} 
-            />
-            <EditOpinioniDialog 
-              utenteId={selectedUser.id} 
-              open={showEditOpinioniDialog} 
-              onOpenChange={setShowEditOpinioniDialog} 
-              onOpinioniUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} 
-            />
-          </>
-        )}
-
-        {/* Dialog per modifica avatar */}
-        {userForAvatarEdit && (
-          <EditUserAvatarDialog
-            open={showEditAvatarDialog}
-            onOpenChange={setShowEditAvatarDialog}
-            userId={userForAvatarEdit.id}
-            userName={userForAvatarEdit.nome_completo || `${userForAvatarEdit.nome || ''} ${userForAvatarEdit.cognome || ''}`.trim() || userForAvatarEdit.name || 'N/A'}
-            currentAvatarConfig={userForAvatarEdit.avatar_config}
-            onAvatarUpdated={() => {
-              queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-              setUserForAvatarEdit(null);
-            }}
-          />
-        )}
       </div>
     </div>
   );

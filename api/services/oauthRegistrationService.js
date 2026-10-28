@@ -32,9 +32,6 @@ function normalizeRegistration(registration) {
     provider,
     providerSub,
     email: registration.email || null,
-    givenName: registration.givenName || null,
-    familyName: registration.familyName || null,
-    name: registration.name || null,
     location: registration.location || {},
     privacyPolicyConsent: true,
     termsOfServiceConsent: true,
@@ -151,12 +148,7 @@ async function upsertRegistrationData(client, userId, registration, compressedLo
       userId,
       registration.provider,
       registration.providerSub,
-      JSON.stringify({
-        email: registration.email,
-        given_name: registration.givenName,
-        family_name: registration.familyName,
-        name: registration.name,
-      }),
+      JSON.stringify({}), // Nessun attributo duplicato nei metadati.
     ]
   );
 
@@ -231,27 +223,23 @@ async function completeOAuthRegistration(
     const userId = randomUUID();
     const role = 'E';
     const legacyColumn = normalized.provider === 'google' ? 'google_sub' : 'apple_user_id';
-    const displayName = normalized.givenName || normalized.name || 'Utente';
-    const familyName = normalized.familyName || 'OAuth';
     const emailPlain = normalized.email || `oauth-${normalized.provider}-${normalized.providerSub.replace(/[^a-zA-Z0-9._-]/g, '_')}@demos.oauth`;
     const email = encryptEmail(emailPlain) ?? emailPlain;
 
     await client.query(
       `INSERT INTO users (
-        id, ruolo, status, nome, cognome, email, ${legacyColumn},
+        id, ruolo, status, email, ${legacyColumn},
         paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
         privacy_policy_consent, terms_of_service_consent, consent_timestamp,
         created_at, updated_at
       ) VALUES (
-        $1, $2, 'a', $3, $4, $5, $6,
-        $7, $8, $9, $10,
+        $1, $2, 'a', $3, $4,
+        $5, $6, $7, $8,
         true, true, NOW(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       )`,
       [
         userId,
         role,
-        displayName,
-        familyName,
         email,
         normalized.providerSub,
         compressedLocation.paese_residenza ?? null,

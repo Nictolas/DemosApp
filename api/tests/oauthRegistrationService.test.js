@@ -133,6 +133,57 @@ test('una doppia finalizzazione Google concorrente recupera l account gia creato
   assert.equal(calls.some(call => call.sql.startsWith('INSERT INTO user_auth_providers')), true);
 });
 
+
+test('Google: registrazione elettore non salva nome/cognome neanche se inviati dal provider', async () => {
+  const { calls, pool } = makePool();
+  const input = registration();
+  input.givenName = 'SensitiveGivenNameUnique';
+  input.familyName = 'SensitiveFamilyNameUnique';
+  input.name = 'SensitiveFullNameUnique';
+
+  const result = await completeOAuthRegistrationWithoutCie({ registration: input }, pool);
+  assert.equal(result.created, true);
+  const insert = calls.find(call => call.sql.startsWith('INSERT INTO users'));
+  assert.ok(insert);
+  assert.doesNotMatch(insert.sql, /\b(?:nome|cognome|name)\b/i);
+  assert.ok(!insert.params.some(p => typeof p === 'string' && p.includes('Sensitive')));
+  const providerInsert = calls.find(call => call.sql.startsWith('INSERT INTO user_auth_providers'));
+  assert.ok(providerInsert);
+  assert.equal(providerInsert.params[3], '{}');
+  assert.ok(calls.every(call => !JSON.stringify(call.params).includes('Sensitive')));
+});
+
+test('Apple: nessun segnaposto OAuth in nome/cognome e nessuna PII nei metadati', async () => {
+  const { calls, pool } = makePool();
+  const input = { ...registration(), provider:'apple', providerSub:'apple-user-stub',
+    givenName: 'SensitiveGivenNameUnique', familyName:'SensitiveFamilyNameUnique' };
+  const result = await completeOAuthRegistrationWithoutCie({ registration: input }, pool);
+  assert.equal(result.created,true);
+  const insert = calls.find(call => call.sql.startsWith('INSERT INTO users'));
+  assert.ok(insert.sql.includes('apple_user_id'));
+  assert.doesNotMatch(insert.sql, /\b(?:nome|cognome|name)\b/i);
+  assert.equal(calls.find(call => call.sql.startsWith('INSERT INTO user_auth_providers')).params[3], '{}');
+  assert.ok(calls.every(call => !JSON.stringify(call.params).includes('Sensitive')));
+});
+
+test('Google e Apple non richiedono più scopes nome/profilo né propagano dati nominali nei JWT pending', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const read = rel => fs.readFileSync(path.resolve(__dirname,'../..',rel),'utf8');
+  const frontend=read('client/src/lib/oauth.ts');
+  const oauth=read('api/routes/auth/oauth.js');
+  const service=read('api/services/oauthRegistrationService.js');
+  assert.match(frontend,/const scope = "openid email";/);
+  assert.match(frontend,/scope: "email",/);
+  assert.doesNotMatch(frontend,/openid email profile|scope: "name email"/);
+  for (const source of [oauth,service]) {
+    assert.doesNotMatch(source,/payload\.name|payload\.given_name|payload\.family_name/);
+    assert.doesNotMatch(source,/registration\.givenName|registration\.familyName|registration\.name/);
+  }
+  assert.doesNotMatch(oauth,/profile\.(?:given_name|family_name|name)/);
+  assert.match(service,/JSON\.stringify\(\{\}\)/);
+});
+
 test('OAuth: sesso CIE certificato viene salvato prima di COMMIT', async () => {
   const { calls, pool } = makePool();
   await completeOAuthRegistrationAfterCie({

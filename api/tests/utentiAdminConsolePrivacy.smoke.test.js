@@ -19,3 +19,10 @@ test('admin users page never writes personal data to browser console', () => {
   assert.match(source, /clearAllTokens\(\)/);
   assert.match(source, /description: \"Errore nel salvataggio delle modifiche\"/);
 });
+
+test('admin directory remains read-only without pending approvals', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../../client/src/pages/Utenti/index.tsx'), 'utf8');
+  assert.doesNotMatch(source, /deleteMutation|usePendingUserActions|setUserToDelete|EditUserDialog|EditOpinioniDialog|EditUserAvatarDialog/);
+  assert.doesNotMatch(source, /Utenti in Attesa|in attesa di approvazione/i);
+  assert.match(source, /Le modifiche ai dati non sono disponibili in questa pagina/);
+});
