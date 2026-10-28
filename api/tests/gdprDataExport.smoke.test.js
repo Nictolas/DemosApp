@@ -62,6 +62,16 @@ async function serve({ missing = false, fails = false } = {}, fn) {
     }
     if (normalized.includes('FROM user_notifications')) return { rows: [{id:1, read:false, message:'=HYPERLINK("test")'}] };
     if (normalized.includes('FROM user_auth_providers')) return { rows: [{provider:'google',provider_user_id:'synthetic-oauth'}] };
+    if (normalized.includes('FROM political_selections')) return { rows: [
+      {selection_kind:'preferred_candidate', selected_user_id:'synthetic-candidate', political_office_id:'municipal'}
+    ] };
+    if (normalized.includes('FROM user_political_territories')) return { rows: [
+      {territory_type:'MUNICIPALITY', territory_code:'Pisa', verification_level:'SELF_DECLARED'}
+    ] };
+    if (normalized.includes('FROM user_electoral_unit_memberships')) return { rows: [
+      {electoral_unit_id:'synthetic-unit', verification_level:'VERIFIED'}
+    ] };
+    if (normalized.includes('FROM user_representatives')) return { rows: [{rappresentante_comune:'synthetic-representative'}] };
     if (normalized.includes('INSERT INTO user_rights_requests')) return { rows: [{id:'synthetic-request'}], rowCount:1 };
     if (fails) throw new Error('synthetic private database error 123');
     throw new Error('Unexpected SQL query: ' + normalized.slice(0,90));
@@ -109,6 +119,10 @@ test('GDPR JSON export uses current opinion and ICE schema and correct personal 
     assert.equal(data.notifications[0].read,false);
     assert.equal(data.voting_activity.vote_counts[0].vote_count,'0');
     assert.equal(data.personal_data.auth_providers[0].provider,'google');
+    assert.equal(data.political_selections[0].selected_user_id,'synthetic-candidate');
+    assert.equal(data.political_territories[0].verification_level,'SELF_DECLARED');
+    assert.equal(data.electoral_memberships[0].verification_level,'VERIFIED');
+    assert.equal(data.legacy_representatives.rappresentante_comune,'synthetic-representative');
     assert.equal(statements.filter(x=>x.sql.includes('INSERT INTO user_rights_requests')).length,1);
     assert.equal(auditActions.some(x=>x.resource==='user_data_export'),true);
   });
