@@ -312,13 +312,14 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
     // Regression: the old handler committed processing_limited via a
     // standalone pool.query and only then tried to persist the GDPR receipt.
     // A failed INSERT could leave a real restriction changed despite HTTP 500.
+    const pgDollarQuote = String.fromCharCode(36, 36);
     await admin.query(
       "CREATE FUNCTION public.gdpr_ci_reject_processing_receipt() " +
-      "RETURNS trigger LANGUAGE plpgsql AS $ BEGIN " +
+      "RETURNS trigger LANGUAGE plpgsql AS " + pgDollarQuote + " BEGIN " +
       "IF NEW.request_type='limit_processing' AND " +
       "NEW.request_data->>'reason'='synthetic-force-fail' THEN " +
       "RAISE EXCEPTION 'synthetic receipt failure'; END IF; " +
-      "RETURN NEW; END $"
+      "RETURN NEW; END " + pgDollarQuote
     );
     await admin.query(
       'CREATE TRIGGER gdpr_ci_reject_processing_receipt ' +
