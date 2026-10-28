@@ -74,8 +74,10 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const base='http://127.0.0.1:'+server.address().port;
     const auth={authorization:'Bearer synthetic-ci-token'};
+    // Keep the local test transport separate from the browser's mocked fetch.
+    const localFetch=globalThis.fetch.bind(globalThis);
     const apiGet=async(grade)=>{
-      const response=await fetch(base+'/api/opinioni-list?grado='+grade,{headers:auth});
+      const response=await localFetch(base+'/api/opinioni-list?grado='+grade,{headers:auth});
       assert.equal(response.status,200,'GET '+grade);
       return response.json();
     };
