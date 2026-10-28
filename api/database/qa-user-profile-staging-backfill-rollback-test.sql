@@ -6,6 +6,8 @@ DECLARE
   first_backfill integer;
   second_backfill integer;
   profile_count integer;
+  avatar_first integer;
+  avatar_second integer;
   resolved_comune text;
   avatar_before jsonb;
   avatar_after jsonb;
@@ -37,6 +39,44 @@ BEGIN
 
     SELECT count(*) INTO profile_count FROM qa_user_profile_20261028.user_profile;
     IF profile_count <> 8 THEN RAISE EXCEPTION 'QA expected eight profiles in subtransaction: %', profile_count; END IF;
+
+    -- Avatar repair must not overwrite non-null canonical avatar and must be repeatable.
+    UPDATE qa_user_profile_20261028.user_profile p
+       SET avatar_config=CASE WHEN pg_input_is_valid(u.avatar_config,'jsonb')
+                              THEN u.avatar_config::jsonb ELSE NULL END,
+           updated_at=now()
+      FROM qa_user_profile_20261028.users u
+     WHERE p.user_id=u.id
+       AND p.avatar_config IS NULL
+       AND u.avatar_config IS NOT NULL
+       AND pg_input_is_valid(u.avatar_config,'jsonb');
+    GET DIAGNOSTICS avatar_first = ROW_COUNT;
+    UPDATE qa_user_profile_20261028.user_profile p
+       SET avatar_config=CASE WHEN pg_input_is_valid(u.avatar_config,'jsonb')
+                              THEN u.avatar_config::jsonb ELSE NULL END,
+           updated_at=now()
+      FROM qa_user_profile_20261028.users u
+     WHERE p.user_id=u.id
+       AND p.avatar_config IS NULL
+       AND u.avatar_config IS NOT NULL
+       AND pg_input_is_valid(u.avatar_config,'jsonb');
+    GET DIAGNOSTICS avatar_second = ROW_COUNT;
+    IF avatar_first <> 1 OR avatar_second <> 0 THEN
+      RAISE EXCEPTION 'Avatar backfill not idempotent: %, %',avatar_first,avatar_second;
+    END IF;
+    SELECT avatar_config INTO avatar_after
+      FROM qa_user_profile_20261028.user_profile
+     WHERE user_id='00000000-0000-4000-8000-000000000107';
+    IF avatar_after IS DISTINCT FROM '{"cat":"pixel"}'::jsonb THEN
+      RAISE EXCEPTION 'Legacy-only avatar not preserved';
+    END IF;
+    SELECT avatar_config INTO avatar_after
+      FROM qa_user_profile_20261028.user_profile
+     WHERE user_id='00000000-0000-4000-8000-000000000108';
+    IF avatar_after IS DISTINCT FROM '{"emoji":"cat"}'::jsonb THEN
+      RAISE EXCEPTION 'Existing canonical avatar was overwritten';
+    END IF;
+
 
     -- An admin-style edit must atomically update both tables.
     UPDATE qa_user_profile_20261028.users
