@@ -63,3 +63,14 @@ jobs:
         run: node --test api/tests/opinionCatalogPostgres.integration.test.js
       - name: TypeScript and Vite frontend build (no release)
         run: npm run build --prefix client
+      - name: Install isolated Chromium browser test dependency
+        run: |
+          command -v google-chrome
+          mkdir -p /tmp/demos-opinion-browser
+          npm install --prefix /tmp/demos-opinion-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+      - name: Real browser Opinions UI, save and readback against localhost synthetic API
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-opinion-browser/node_modules/playwright
+          CI: 'true'
+          NODE_ENV: production
+        run: node --test api/tests/opinionCatalogBrowser.e2e.test.js
