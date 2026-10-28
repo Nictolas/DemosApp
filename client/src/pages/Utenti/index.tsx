@@ -227,24 +227,11 @@ export default function Utenti() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Debug logging per capire il ruolo dell'utente
-  useEffect(() => {
-    console.log('🔍 DEBUG Utenti - Auth state:', {
-      user: user ? { id: user.id, email: user.email, ruolo: user.ruolo } : null,
-      isAuthLoading,
-      userRole: user?.ruolo,
-      userRuolo: user?.ruolo,
-      isAdmin: hasAdminCapability(user)
-    });
-  }, [user, isAuthLoading]);
-
   // Funzione per pulire token vecchi e forzare nuovo login
   const clearInvalidToken = async () => {
-    console.log('🔍 DEBUG Utenti - Pulizia token non valido');
     try {
       await forceTokenRefresh();
-    } catch (error) {
-      console.error('❌ Errore nella pulizia token:', error);
+    } catch {
       clearAllTokens();
     }
   };
@@ -253,7 +240,6 @@ export default function Utenti() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && hasAdminCapability(user)) {
-        console.log('🔄 Pagina diventata visibile, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
         updateLastUpdateTime();
       }
@@ -261,7 +247,6 @@ export default function Utenti() {
 
     const handleFocus = () => {
       if (hasAdminCapability(user)) {
-        console.log('🔄 Finestra riprende focus, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
         updateLastUpdateTime();
       }
@@ -390,9 +375,6 @@ export default function Utenti() {
   };
 
   const handleEdit = (user: any) => {
-    console.log('🔍 DEBUG handleEdit - user ricevuto:', user);
-    console.log('🔍 DEBUG handleEdit - user.id:', user.id);
-    console.log('🔍 DEBUG handleEdit - user.email:', user.email);
     setSelectedUser(user);
     setShowEditDialog(true);
   };
@@ -466,8 +448,7 @@ export default function Utenti() {
         title: "Successo",
         description: "Modifiche salvate con successo!",
       });
-    } catch (error) {
-      console.error('Errore nel salvataggio:', error);
+    } catch {
       toast({
         title: "Errore",
         description: "Errore nel salvataggio delle modifiche",
