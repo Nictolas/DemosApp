@@ -447,6 +447,14 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         {...valid,event_key:'synthetic-bigint',details:{value:1n}},
         {...valid,event_key:'synthetic-circular',details:circular},
         {...valid,event_key:'synthetic-undefined-json',details:Symbol('invalid')},
+        // Malformed archives must not silently replace details with {}.
+        {...valid,event_key:'synthetic-null-details',details:null},
+        {...valid,event_key:'synthetic-undefined-details',details:undefined},
+        {...valid,event_key:'synthetic-false-details',details:false},
+        {...valid,event_key:'synthetic-zero-details',details:0},
+        {...valid,event_key:'synthetic-array-details',details:[]},
+        {...valid,event_key:'synthetic-string-details',details:'legacy-raw-json'},
+        {...valid,event_key:'synthetic-date-details',details:new Date('2026-01-02T03:04:05Z')},
         valid // A duplicate within one captured batch must never be replayed.
       ];
       for (const row of invalid) {
