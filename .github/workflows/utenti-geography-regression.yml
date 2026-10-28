@@ -1,0 +1,57 @@
+name: Utenti geography estimated statistics regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/pages/Utenti/**'
+      - 'api/routes/users/search.js'
+      - 'api/tests/utentiElectionTerritory.smoke.test.js'
+      - 'api/tests/utentiCanonicalSexTable.smoke.test.js'
+      - '.github/workflows/utenti-geography-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  geography:
+    name: Regression tests and frontend production build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Verify residence and territorial estimate contracts
+        run: node --test api/tests/utentiElectionTerritory.smoke.test.js api/tests/utentiCanonicalSexTable.smoke.test.js
+      - name: Install exact client dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build actual admin UI with Vite
+        run: npm run build --prefix client
+
+      - name: Install isolated browser dependencies
+        run: |
+          npm install --prefix /tmp/demos-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          node /tmp/demos-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Test real /utenti UI against synthetic API fixtures
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-vite-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/utenti >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:4173/utenti >/dev/null
+          NODE_PATH=/tmp/demos-browser/node_modules node scripts/test-utenti-geography-browser.cjs
+      - name: Preserve synthetic screenshot on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: utenti-geography-synthetic-screenshot
+          path: /tmp/demos-utenti-geography-synthetic.png
+          if-no-files-found: ignore

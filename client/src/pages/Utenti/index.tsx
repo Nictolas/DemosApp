@@ -108,6 +108,63 @@ export default function Utenti() {
       acc[city] = (acc[city] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
+
+    // La residenza e il territorio elettorale sono informazioni distinte.
+    // I profili politici importati possono avere un mandato ma non una residenza documentata.
+    const hasDocumentedPlace = (value: unknown): value is string =>
+      typeof value === 'string' && value.trim() !== '' && value.trim().toUpperCase() !== 'N/A';
+    const usersWithKnownResidence = utenti.filter(user => hasDocumentedPlace(user.comune_residenza)).length;
+    const politicians = utenti.filter(user => user.ruolo === 'P');
+
+    // Per le statistiche indicative, usa il territorio elettorale solo se la
+    // residenza non è disponibile. Non scrivere la stima nei campi personali.
+    // Un'eventuale residenza dichiarata in futuro ha sempre precedenza.
+    const usersByRegionWithEstimates = utenti.reduce((acc, user) => {
+      const region = hasDocumentedPlace(user.regione_residenza)
+        ? user.regione_residenza.trim()
+        : user.ruolo === 'P' && hasDocumentedPlace(user.regione_elezione)
+          ? user.regione_elezione.trim()
+          : 'N/A';
+      acc[region] = (acc[region] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const usersWithKnownRegion = utenti.filter(user => hasDocumentedPlace(user.regione_residenza)).length;
+    const usersWithProvisionalRegion = politicians.filter(user =>
+      !hasDocumentedPlace(user.regione_residenza) && hasDocumentedPlace(user.regione_elezione)
+    ).length;
+
+    // Il comune elettorale può essere indicativo soltanto per un incarico CO.
+    // Non attribuire ai parlamentari un comune usando la circoscrizione.
+    const usersByCityWithEstimates = utenti.reduce((acc, user) => {
+      const city = hasDocumentedPlace(user.comune_residenza)
+        ? user.comune_residenza.trim()
+        : user.ruolo === 'P' && user.grado_elezione === 'CO' && hasDocumentedPlace(user.comune_elezione)
+          ? user.comune_elezione.trim()
+          : 'N/A';
+      acc[city] = (acc[city] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const usersWithProvisionalMunicipality = politicians.filter(user =>
+      !hasDocumentedPlace(user.comune_residenza) &&
+      user.grado_elezione === 'CO' &&
+      hasDocumentedPlace(user.comune_elezione)
+    ).length;
+    const politiciansByElectionRegion = politicians.reduce((acc, user) => {
+      if (hasDocumentedPlace(user.regione_elezione)) {
+        const region = user.regione_elezione.trim();
+        acc[region] = (acc[region] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    const politiciansByElectionMunicipality = politicians.reduce((acc, user) => {
+      if (hasDocumentedPlace(user.comune_elezione)) {
+        const municipality = user.comune_elezione.trim();
+        acc[municipality] = (acc[municipality] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    const politiciansWithElectionRegion = Object.values(politiciansByElectionRegion).reduce((sum, count) => sum + count, 0);
+    const politiciansWithElectionMunicipality = Object.values(politiciansByElectionMunicipality).reduce((sum, count) => sum + count, 0);
     
     // Età: esclusivamente le date di nascita realmente registrate delle persone.
     // Niente dati fittizi o inferenze dai nomi dei politici / account importati.
@@ -158,6 +215,17 @@ export default function Utenti() {
       usersByCitizenship,
       usersByRegion,
       usersByCity,
+      usersByRegionWithEstimates,
+      usersWithKnownRegion,
+      usersWithProvisionalRegion,
+      usersByCityWithEstimates,
+      usersWithProvisionalMunicipality,
+      usersWithKnownResidence,
+      politiciansCount: politicians.length,
+      politiciansByElectionRegion,
+      politiciansByElectionMunicipality,
+      politiciansWithElectionRegion,
+      politiciansWithElectionMunicipality,
       usersByAge
     };
   }, [responseData?.utenti]);
@@ -604,13 +672,19 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>Distribuzione per Regione</CardTitle>
+                      <CardTitle>Distribuzione geografica indicativa per regione</CardTitle>
+                      <CardDescription>Residenza registrata; se mancante per un politico, regione elettorale usata come riferimento provvisorio, non come residenza certificata.</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-80">
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Residenza registrata: {stats.usersWithKnownRegion}. Regione elettorale stimata: {stats.usersWithProvisionalRegion}.
+                        Le stime non vengono salvate nel profilo e sono superate dalla residenza indicata dal politico.
+                      </p>
+                      <div className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie 
-                            data={preparePieData(stats.usersByRegion)} 
+                            data={preparePieData(stats.usersByRegionWithEstimates)} 
                             dataKey="value" 
                             nameKey="name" 
                             cx="50%" 
@@ -619,7 +693,7 @@ export default function Utenti() {
                             fill="#8884d8" 
                             label
                           >
-                            {preparePieData(stats.usersByRegion).map((entry, index) => (
+                            {preparePieData(stats.usersByRegionWithEstimates).map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
@@ -627,10 +701,69 @@ export default function Utenti() {
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
-                
+
+                {/* Territori dei politici: mai usarli come sostituti della residenza. */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="bg-white">
+                    <CardHeader>
+                      <CardTitle>Politici per regione di elezione</CardTitle>
+                      <CardDescription>Territorio degli incarichi politici, non regione di residenza. Un mandato attivo ha precedenza sui dati elettorali storici.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">Regione indicata per {stats.politiciansWithElectionRegion} di {stats.politiciansCount} politici.</p>
+                      {stats.politiciansWithElectionRegion > 0 ? (
+                        <div className="h-72">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={preparePieData(stats.politiciansByElectionRegion)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                {preparePieData(stats.politiciansByElectionRegion).map((entry, index) => (
+                                  <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                              <Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : <p className="text-sm text-muted-foreground">Nessuna regione di elezione disponibile.</p>}
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white">
+                    <CardHeader>
+                      <CardTitle>Comuni indicati per l'elezione dei politici</CardTitle>
+                      <CardDescription>Solo comuni espressamente riportati nei dati elettorali; per incarichi non comunali il campo può non essere applicabile.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">Comune indicato per {stats.politiciansWithElectionMunicipality} di {stats.politiciansCount} politici.</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr><th className="p-2 text-left">Comune</th><th className="p-2 text-right">Politici</th></tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(stats.politiciansByElectionMunicipality)
+                              .sort(([, a], [, b]) => b - a)
+                              .slice(0, 10)
+                              .map(([municipality, count]) => (
+                                <tr key={municipality}>
+                                  <td className="p-2">{municipality}</td>
+                                  <td className="p-2 text-right">{count}</td>
+                                </tr>
+                              ))}
+                            {stats.politiciansWithElectionMunicipality === 0 && (
+                              <tr><td className="p-2 text-sm text-muted-foreground" colSpan={2}>Nessun comune elettorale disponibile.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card className="bg-white">
                     <CardHeader>
@@ -666,19 +799,22 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>Le 10 città con più utenti</CardTitle>
+                      <CardTitle>I 10 comuni di residenza o riferimento comunale</CardTitle>
+                      <CardDescription>Residenza registrata; in sua assenza, solo per politici comunali (CO), il comune di elezione viene contato come stima provvisoria.</CardDescription>
                     </CardHeader>
                     <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">Residenza comunale disponibile per {stats.usersWithKnownResidence} di {stats.totalUsers} utenti; riferimenti comunali stimati: {stats.usersWithProvisionalMunicipality}.</p>
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead>
                             <tr>
-                              <th className="p-2 text-left">Città</th>
+                              <th className="p-2 text-left">Comune</th>
                               <th className="p-2 text-left">Numero Utenti</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {stats.usersByCity && Object.entries(stats.usersByCity)
+                            {stats.usersByCityWithEstimates && Object.entries(stats.usersByCityWithEstimates)
+                              .filter(([city]) => city !== 'N/A' && city.trim() !== '')
                               .sort(([,a], [,b]) => b - a)
                               .slice(0, 10)
                               .map(([city, count]) => (
