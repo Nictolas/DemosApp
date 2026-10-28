@@ -13,13 +13,25 @@ test('admin list reads residence independently of political mandates', () => {
   const list = route.slice(route.indexOf('// GET /api/users/ - '), route.indexOf('// GET /api/users/:userId'));
   assert.match(list, /LEFT JOIN user_profile up ON up.user_id = u.id/);
   assert.match(list, /TRIM\(up\.comune_residenza\).*u\.comune_residenza\) AS comune_residenza/);
-  assert.match(list, /location\.mandate_municipality.*AS comune_elezione/);
+  assert.match(list, /CASE WHEN location\.mandate_is_municipal THEN location\.mandate_municipality/);
+  assert.match(list, /WHEN location\.has_active_mandate THEN NULL/);
+  assert.match(list, /ELSE NULL END AS comune_elezione/);
   assert.match(list, /location\.mandate_region.*AS regione_elezione/);
   assert.match(list, /pm\.status = 'ACTIVE'/);
+  assert.match(list, /pm\.office_code = 'CO'/);
+  assert.match(list, /LIMIT 1/);
+  assert.match(list, /ORDER BY pm\.starts_at DESC NULLS LAST, pm\.created_at DESC, pm\.id DESC/);
+  assert.match(list, /FROM users u/);
+  assert.match(list, /u\.nome ILIKE/);
+  assert.match(list, /u\.cognome ILIKE/);
+  assert.match(list, /u\.email ILIKE/);
+  assert.match(list, /u\.ruolo =/);
+  assert.match(list, /u\.status =/);
   assert.match(list, /pm\.starts_at IS NULL OR pm\.starts_at <= NOW\(\)/);
   assert.match(list, /pm\.ends_at IS NULL OR pm\.ends_at > NOW\(\)/);
   assert.match(list, /decompressUserLocation\(user\)/);
   assert.doesNotMatch(list, /location\.mandate_municipality.*AS comune_residenza/);
+  assert.doesNotMatch(list, /WHERE \(nome ILIKE|WHERE status =|AND ruolo =/);
 });
 
 test('admin statistics keep residence and election-territory visualizations separate', () => {
