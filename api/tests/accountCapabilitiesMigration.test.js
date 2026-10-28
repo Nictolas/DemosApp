@@ -57,6 +57,9 @@ test('capability migration rejects unverifiable legacy politicians before invent
   assert.match(uncommented, /RAISE EXCEPTION/);
   assert.match(uncommented, /NOT EXISTS \(\s*SELECT 1 FROM political_mandates pm/);
   assert.match(uncommented, /pm\.user_id = u\.id AND pm\.status = 'ACTIVE'/);
+  assert.match(uncommented, /pm\.source <> 'LEGACY_BACKFILL'/);
+  assert.match(uncommented, /pm\.starts_at IS NULL OR pm\.starts_at <= NOW\(\)/);
+  assert.match(uncommented, /pm\.ends_at IS NULL OR pm\.ends_at > NOW\(\)/);
   assert.doesNotMatch(uncommented, /INSERT INTO political_mandates\s*\(/i);
   assert.match(uncommented, /BEGIN;/);
   assert.match(uncommented, /COMMIT;/);
