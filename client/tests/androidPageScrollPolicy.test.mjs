@@ -13,10 +13,14 @@ const scroll = [
   '/sondaggi/toscana', '/sondaggi/toscana/pisa',
   '/sondaggi/toscana/pisa/cascina', '/statistiche-utenti',
   '/statistiche-opinione', '/statistiche-opinione/123',
-  '/statistiche-opinione/123/regione/toscana'
+  '/statistiche-opinione/123/regione/toscana',
+  '/legal-documents', '/data-retention', '/gdpr-rights',
+  '/security-measures', '/registro-trattamenti', '/accessibilita',
+  '/standard-sicurezza-minori', '/cookie-policy',
+  '/terms-of-service', '/privacy-policy'
 ];
-test('19 explicitly selected Android routes get the intended PAGE scroll policy',()=>{
-  assert.equal(fixed.length,9); assert.equal(scroll.length,10);
+test('29 explicitly selected Android routes get the intended PAGE scroll policy',()=>{
+  assert.equal(fixed.length,9); assert.equal(scroll.length,20);
   for(const path of fixed) assert.equal(getAndroidPageScrollPolicy(path),'fixed',path);
   for(const path of scroll) assert.equal(getAndroidPageScrollPolicy(path),'scroll',path);
 });
@@ -47,4 +51,26 @@ test('Android-only scroll classes and internal scrolling lists exist',()=>{
   }
   // Even an empty representatives/candidates list must not clip its call to action.
   assert.match(read('pages/ScegliRappresentante/index.tsx'),/overflow-y-auto app-page-scroll[^>]*>\s*<EmptyState/);
+});
+
+test('all 10 approved legal URLs are real routes; public policies keep their own fixed footer',()=>{
+  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
+  for(const route of scroll.slice(-10)) {
+    assert.equal(getAndroidPageScrollPolicy(route),'scroll');
+    assert.ok(app.includes('<Route path="'+route+'">'),'missing routed legal page: '+route);
+    assert.equal(getAndroidPageScrollPolicy(route+'/?from=registration#section'),'scroll',route);
+    assert.equal(getAndroidPageScrollPolicy(route+'/other'),'inherit',route);
+  }
+  const root=new URL('../src/pages/',import.meta.url);
+  for(const name of ['PrivacyPolicy','TermsOfService']) {
+    const page=readFileSync(new URL(name+'.tsx',root),'utf8');
+    assert.match(page,/className="fixed bottom-0/);
+    assert.match(page,/pb-28/);
+  }
+  // Public pages deliberately omit the bottom app navbar; body must stay
+  // stationary while the main container remains scrollable.
+  const shell=readFileSync(new URL('../src/components/RobustAppLayout.tsx',import.meta.url),'utf8');
+  for(const publicRoute of ['/privacy-policy','/terms-of-service','/cookie-policy']) {
+    assert.ok(shell.includes("'"+publicRoute+"'"));
+  }
 });

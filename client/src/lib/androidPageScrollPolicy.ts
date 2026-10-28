@@ -11,7 +11,12 @@ const FIXED_PAGES = new Set([
 ]);
 const SCROLL_PAGES = new Set([
   '/approfondimento', '/proponi-opinione', '/sondaggi',
-  '/statistiche-utenti', '/statistiche-opinione'
+  '/statistiche-utenti', '/statistiche-opinione',
+  // Public policies and legal records must always remain readable on Android.
+  '/legal-documents', '/data-retention', '/gdpr-rights',
+  '/security-measures', '/registro-trattamenti', '/accessibilita',
+  '/standard-sicurezza-minori', '/cookie-policy',
+  '/terms-of-service', '/privacy-policy'
 ]);
 
 export function getAndroidPageScrollPolicy(url: string): AndroidPageScrollPolicy {
