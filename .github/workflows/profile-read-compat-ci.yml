@@ -16,6 +16,8 @@ on:
       - 'api/database/user-profile-preflight-readonly.sql'
       - 'api/database/qa-user-profile-staging-isolated.sql'
       - 'api/database/qa-user-profile-staging-backfill-rollback-test.sql'
+      - 'api/database/qa-user-profile-territory-trigger-fixture.sql'
+      - 'api/database/qa-user-profile-territory-cutover-rollback-test.sql'
       - 'api/tests/userProfileStagingFixture.integration.test.js'
       - 'api/tests/politicalTerritoryMembershipService.test.js'
       - 'api/tests/eventFeedService.test.js'
