@@ -195,6 +195,26 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:synthetic-only@localhost:5432/privacy_synthetic
         run: |
           node --test --test-concurrency=1 api/tests/privacyLedgerSecureBootstrap.pg17.test.js
+      - name: Recycle global synthetic API roles after secure-ledger tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const {Client}=require('./api/node_modules/pg');
+          const client=new Client({
+            connectionString:'postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_legacy_rights_ci',ssl:false
+          });
+          (async()=>{
+            await client.connect();
+            try{
+              // PostgreSQL roles are cluster-global even when test databases differ.
+              await client.query('DROP DATABASE privacy_synthetic WITH (FORCE)');
+              for(const role of ['anon','authenticated','service_role']){
+                await client.query('DROP ROLE IF EXISTS '+role);
+              }
+            }finally{await client.end();}
+          })().catch(error=>{console.error(error.code||'SYNTHETIC_ROLE_RESET_FAILED');process.exitCode=1;});
+          NODE
       - name: Check synthetic outbox atomic rollback and protected worker receipts
         shell: bash
         run: |
@@ -202,6 +222,25 @@ jobs:
           GDPR_OUTBOX_CI=isolated \
             TEST_DATABASE_URL=postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_contract_ci \
             node --test --test-concurrency=1 api/tests/gdprOutboxAtomicIsolated.pg17.test.js
+          # The previous test creates cluster-global API roles and a writer.
+          # Drop its disposable database and roles before the next isolated
+          # test. None of these operations target any external database.
+          node <<'NODE'
+          const {Client}=require('./api/node_modules/pg');
+          const c=new Client({
+            connectionString:'postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_legacy_rights_ci',
+            ssl:false
+          });
+          (async()=>{
+            await c.connect();
+            try{
+              await c.query('DROP DATABASE gdpr_outbox_contract_ci WITH (FORCE)');
+              for(const role of ['anon','authenticated','service_role','gdpr_outbox_ci_writer']){
+                await c.query('DROP ROLE IF EXISTS '+role);
+              }
+            }finally{await c.end();}
+          })().catch(error=>{console.error(error.code||'SYNTHETIC_ATOMIC_RESET_FAILED');process.exitCode=1;});
+          NODE
           GDPR_OUTBOX_WORKER_CI=isolated \
             TEST_DATABASE_URL=postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_worker_ci \
             node --test --test-concurrency=1 api/tests/gdprOutboxWorkerIsolated.pg17.test.js
