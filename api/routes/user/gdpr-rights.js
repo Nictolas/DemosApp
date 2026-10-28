@@ -3,7 +3,9 @@ const { verifyToken } = require('../../middleware/auth');
 const { validateInput } = require('../../middleware/validation');
 const { pool } = require('../../middleware/auth');
 const AuditService = require('../../services/auditService');
+const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
 const { decrypt: decryptEmail } = require('../../utils/emailCrypto');
+const { convertToCSV } = require('../../utils/gdprCsv');
 // Usa crypto nativo invece di uuid
 const crypto = require('crypto');
 
@@ -11,49 +13,6 @@ const router = express.Router();
 
 // Middleware per tutti gli endpoint
 router.use(verifyToken);
-
-/**
- * Funzione helper per convertire oggetto in CSV
- */
-function convertToCSV(data) {
-  const lines = [];
-  
-  // Funzione ricorsiva per appiattire oggetti annidati
-  function flatten(obj, prefix = '') {
-    const result = [];
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        const newKey = prefix ? `${prefix}.${key}` : key;
-        if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && !(obj[key] instanceof Date)) {
-          result.push(...flatten(obj[key], newKey));
-        } else {
-          let value = obj[key];
-          if (value instanceof Date) {
-            value = value.toISOString();
-          } else if (Array.isArray(value)) {
-            value = JSON.stringify(value);
-          } else if (typeof value === 'object' && value !== null) {
-            value = JSON.stringify(value);
-          }
-          result.push({ key: newKey, value: String(value || '') });
-        }
-      }
-    }
-    return result;
-  }
-  
-  // Header
-  lines.push('Campo,Valore');
-  
-  // Dati appiattiti
-  const flattened = flatten(data);
-  flattened.forEach(item => {
-    const escapedValue = String(item.value).replace(/"/g, '""');
-    lines.push(`"${item.key}","${escapedValue}"`);
-  });
-  
-  return lines.join('\n');
-}
 
 /**
  * GET /api/user/data-export
@@ -78,7 +37,7 @@ router.get('/data-export', async (req, res) => {
       });
     }
 
-    console.log(`📤 Richiesta esportazione dati per utente: ${userId}, formato: ${format}`);
+    // No user identifier in operational logs; the audit service logs access separately.
 
     // Log dell'accesso ai dati
     await AuditService.logAction({
@@ -94,9 +53,12 @@ router.get('/data-export', async (req, res) => {
     // 1. Recupera dati utente principali (incl. OAuth: google_sub, apple_user_id)
     const userQuery = `
       SELECT
-        u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.premium, u.created_at, u.updated_at,
+        u.id, u.email, u.nome, u.cognome, u.sesso, u.account_type, u.ruolo, u.status, u.premium, u.created_at, u.updated_at,
         COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
         COALESCE(up.genere, u.genere) AS genere,
+        CASE WHEN up.avatar_config IS NOT NULL THEN up.avatar_config
+             WHEN pg_input_is_valid(u.avatar_config, 'jsonb') THEN u.avatar_config::jsonb
+             ELSE NULL END AS avatar_config,
         COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
         COALESCE(up.paese_residenza, u.paese_residenza) AS paese_residenza,
         COALESCE(up.regione_residenza, u.regione_residenza) AS regione_residenza,
@@ -136,15 +98,15 @@ router.get('/data-export', async (req, res) => {
     if (userData.email != null) userData.email = decryptEmail(userData.email);
 
     // 2. Recupera opinioni politiche
-    const opinionsQuery = `
-      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-             eutanasia, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
-      FROM users 
-      WHERE id = $1
-    `;
-    
-    const opinionsResult = await pool.query(opinionsQuery, [userId]);
-    const opinions = opinionsResult.rows[0] || {};
+    // Opinions are stored in opinioni_risposte, NOT legacy users columns.
+    // Include every answer column (including new questions) without exporting
+    // another user's data or duplicating the account identifier.
+    const opinionsResult = await pool.query(
+      `SELECT to_jsonb(o) - 'user_id' AS opinion_data
+       FROM opinioni_risposte o WHERE o.user_id = $1`,
+      [userId]
+    );
+    const opinions = opinionsResult.rows[0]?.opinion_data || {};
 
     // 3. Recupera voti (anonimizzati per privacy)
     const votesQuery = `
@@ -158,7 +120,7 @@ router.get('/data-export', async (req, res) => {
       FROM voti_iniziative_popolari WHERE userid = $1
       UNION ALL
       SELECT 'ice' as vote_type, COUNT(*) as vote_count
-      FROM voti_ice WHERE userid = $1
+      FROM voti_ice WHERE utente_id = $1
     `;
     
     const votesResult = await pool.query(votesQuery, [userId]);
@@ -198,17 +160,54 @@ router.get('/data-export', async (req, res) => {
     );
     const authProviders = authProvidersResult.rows || [];
 
+    // 6c. User-owned choices and memberships, distinct from self-declared residence.
+    const [politicalSelectionsResult, politicalTerritoriesResult,
+      electoralUnitsResult, legacyRepresentativesResult] = await Promise.all([
+      pool.query(
+        `SELECT selection_kind, jurisdiction_id, political_office_id,
+                selected_user_id, selected_candidacy_id, selected_mandate_id,
+                source, context, created_at, updated_at
+         FROM political_selections WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT jurisdiction_id, territory_type, territory_code,
+                political_office_id, source, verification_level, valid_from,
+                valid_to, context
+         FROM user_political_territories WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT election_event_id, electoral_unit_id, political_office_id,
+                source, verification_level, valid_from, valid_to, context
+         FROM user_electoral_unit_memberships WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT rappresentante_europeo, rappresentante_camera,
+                rappresentante_senato, rappresentante_regionale,
+                rappresentante_comune, candidato_europeo, candidato_camera,
+                candidato_senato, candidato_regionale, candidato_comune,
+                attivisti, organizzazioni
+         FROM user_representatives WHERE user_id = $1`,
+        [userId]
+      )
+    ]);
     // 7. Compila il report completo
     const dataExport = {
       export_info: {
         export_date: new Date().toISOString(),
         user_id: userId,
-        format_version: '1.0',
+        format_version: '1.1',
         format_schema: 'https://schema.org/Person',
         gdpr_article: 'Art. 20 - Diritto di portabilità dei dati',
         data_categories: [
           'personal_data',
           'auth_providers',
+          'political_selections',
+          'political_territories',
+          'electoral_memberships',
+          'legacy_representatives',
           'political_opinions',
           'voting_activity',
           'communications',
@@ -216,7 +215,7 @@ router.get('/data-export', async (req, res) => {
           'consent_history',
           'audit_logs'
         ],
-        note: 'I dati sono esportati in formato strutturato, comunemente usato e leggibile automaticamente, conforme al GDPR Art. 20.1'
+        note: 'Esportazione delle categorie elencate. La verifica di completezza e portabilità GDPR è ancora in corso.'
       },
       personal_data: {
         basic_info: {
@@ -226,8 +225,11 @@ router.get('/data-export', async (req, res) => {
           cognome: userData.cognome,
           data_nascita: userData.data_nascita,
           genere: userData.genere,
+          sesso: userData.sesso,
           cittadinanza: userData.cittadinanza,
-          ruolo: userData.ruolo
+          ruolo: userData.ruolo,
+          account_type: userData.account_type,
+          avatar_config: userData.avatar_config
         },
         residence_info: {
           paese_residenza: userData.paese_residenza,
@@ -257,6 +259,10 @@ router.get('/data-export', async (req, res) => {
         },
         auth_providers: authProviders.length > 0 ? authProviders : undefined
       },
+      political_selections: politicalSelectionsResult.rows,
+      political_territories: politicalTerritoriesResult.rows,
+      electoral_memberships: electoralUnitsResult.rows,
+      legacy_representatives: legacyRepresentativesResult.rows[0] || {},
       political_opinions: opinions,
       voting_activity: {
         vote_counts: votes,
@@ -269,14 +275,12 @@ router.get('/data-export', async (req, res) => {
         terms_of_service_consent: userData.terms_of_service_consent,
         consent_timestamp: userData.consent_timestamp,
         consent_ip_address: userData.consent_ip_address,
-        consent_user_agent: userData.consent_user_agent
+        consent_user_agent: userData.consent_user_agent,
+        political_opinions_consent: userData.political_opinions_consent
       },
       audit_logs: auditLogs,
       data_retention_info: {
-        account_data: 'Conservato fino alla cancellazione dell\'account',
-        voting_data: 'Conservato in forma anonima per 5 anni',
-        communication_data: 'Conservato per 3 anni dall\'ultima interazione',
-        technical_data: 'Conservato per 12 mesi per sicurezza e debugging'
+        note: 'Le tempistiche di conservazione dipendono dalla policy vigente; verificare il registro GDPR ufficiale.'
       }
     };
 
@@ -297,7 +301,7 @@ router.get('/data-export', async (req, res) => {
     if (format === 'csv') {
       const csv = convertToCSV(dataExport);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${userId}-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${new Date().toISOString().split('T')[0]}.csv"`);
       res.send('\ufeff' + csv); // BOM UTF-8 per Excel
     } else {
       res.json({
@@ -335,148 +339,98 @@ router.get('/data-export', async (req, res) => {
  * Cancella l'account e tutti i dati associati
  */
 router.delete('/account', validateInput(['confirmation']), async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { confirmation } = req.body;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
-
-    if (confirmation !== 'CONFERMO_CANCELLAZIONE_ACCOUNT') {
-      return res.status(400).json({
-        success: false,
-        error: 'Conferma di cancellazione non valida'
-      });
-    }
-
-    console.log(`🗑️ Richiesta cancellazione account per utente: ${userId}`);
-
-    // Log dell'inizio cancellazione
-    await AuditService.logAction({
-      userId,
-      action: 'DATA_DELETE_REQUEST',
-      resource: 'user_account',
-      details: { request_type: 'account_deletion' },
-      ipAddress,
-      userAgent,
-      success: true
-    });
-
-    // 1. Registra la richiesta di cancellazione
-    const requestQuery = `
-      INSERT INTO user_rights_requests (user_id, request_type, request_data, status)
-      VALUES ($1, $2, $3, 'processing')
-      RETURNING id
-    `;
-    
-    const requestResult = await pool.query(requestQuery, [
-      userId,
-      'data_erasure',
-      JSON.stringify({ 
-        deletion_date: new Date().toISOString(),
-        confirmation: true 
-      })
-    ]);
-
-    const requestId = requestResult.rows[0].id;
-
-    // 2. Inizia transazione per cancellazione completa
-    await pool.query('BEGIN');
-
-    try {
-      // 3. Anonimizza i voti (mantieni per statistiche)
-      await pool.query(`
-        UPDATE voti_capo_stato 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      await pool.query(`
-        UPDATE voti_referendum_abrogativi 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      await pool.query(`
-        UPDATE voti_iniziative_popolari 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      await pool.query(`
-        UPDATE voti_ice 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      // 4. Cancella comunicazioni
-      await pool.query('DELETE FROM comunicazioni WHERE id_utente = $1', [userId]);
-
-      // 5. Cancella notifiche
-      await pool.query('DELETE FROM user_notifications WHERE user_id = $1', [userId]);
-
-      // 6. Cancella limitazioni trattamento
-      await pool.query('DELETE FROM data_processing_limits WHERE user_id = $1', [userId]);
-
-      // 7. Cancella richieste diritti
-      await pool.query('DELETE FROM user_rights_requests WHERE user_id = $1', [userId]);
-
-      // 8. Cancella log di audit
-      // NOTA: Con Axiom abilitato, i log vengono conservati su Axiom per conformità GDPR
-      // Axiom non supporta DELETE diretto di record, quindi i log vengono mantenuti
-      // Questo è conforme al GDPR che richiede conservazione dei log per sicurezza
-      if (process.env.AXIOM_ENABLED !== 'true') {
-        await pool.query('DELETE FROM audit_logs WHERE user_id = $1', [userId]);
-      } else {
-        console.log(`ℹ️  Log audit per utente ${userId} conservati su Axiom per conformità GDPR`);
-      }
-
-      // 9. Cancella account utente (google_sub, apple_user_id sono in users, eliminati con la riga)
-      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-
-      // 10. Conferma transazione
-      await pool.query('COMMIT');
-
-      // 11. Aggiorna stato richiesta
-      await pool.query(`
-        UPDATE user_rights_requests 
-        SET status = 'completed', processed_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-      `, [requestId]);
-
-      console.log(`✅ Account ${userId} cancellato con successo`);
-
-      res.json({
-        success: true,
-        message: 'Account e tutti i dati associati sono stati cancellati con successo',
-        deletion_date: new Date().toISOString()
-      });
-
-    } catch (error) {
-      // Rollback in caso di errore
-      await pool.query('ROLLBACK');
-      throw error;
-    }
-
-  } catch (error) {
-    console.error('❌ Errore nella cancellazione account:', error);
-    
-    // Log dell'errore
-    await AuditService.logAction({
-      userId: req.userId,
-      action: 'DATA_DELETE_REQUEST',
-      resource: 'user_account',
-      details: { request_type: 'account_deletion' },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
+  if (req.body?.confirmation !== 'CONFERMO_CANCELLAZIONE_ACCOUNT') {
+    return res.status(400).json({
       success: false,
-      errorMessage: error.message
+      error: 'Conferma di cancellazione non valida'
+    });
+  }
+
+  const userId = req.userId;
+  let client;
+  let committed = false;
+  try {
+    // A transaction must use ONE checked-out client. Calling pool.query('BEGIN')
+    // does not reserve the same connection for subsequent pool.query calls.
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const existing = await client.query(
+      'SELECT id FROM users WHERE id::text = $1 FOR UPDATE',
+      [String(userId)]
+    );
+    if (existing.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+
+    // Preserve the existing rights-request receipt for DPO/legal retention
+    // review; never erase it here as part of account erasure.
+    const request = await client.query(
+      `INSERT INTO user_rights_requests (user_id, request_type, request_data, status)
+       VALUES ($1, 'data_erasure', $2::jsonb, 'processing')
+       RETURNING id`,
+      [String(userId), JSON.stringify({ confirmation: true })]
+    );
+
+    await PrivacyErasureLedgerService.recordEvent(client, {
+      userId,
+      eventType: PrivacyErasureLedgerService.EVENT_TYPES.ACCOUNT_DELETED,
+      details: { source: 'gdpr_rights_account_deletion' }
     });
 
-    res.status(500).json({
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      await PrivacyErasureLedgerService.deleteByAnyColumn(
+        client, 'audit_logs', ['user_id', 'userid', 'userId'], userId
+      );
+    }
+
+    const result = await PrivacyErasureLedgerService.enforceAccountDeletion(client, userId);
+    if (result.userDeleted !== 1) {
+      throw new Error('Account deletion did not remove exactly one account');
+    }
+
+    await client.query(
+      `UPDATE user_rights_requests
+       SET status = 'completed', processed_at = NOW(), updated_at = NOW()
+       WHERE id = $1`,
+      [request.rows[0].id]
+    );
+    await client.query('COMMIT');
+    committed = true;
+  } catch (error) {
+    if (client && !committed) {
+      try { await client.query('ROLLBACK'); } catch (rollbackError) {
+        console.error('Rollback cancellazione GDPR non riuscito');
+      }
+    }
+    console.error('Cancellazione GDPR fallita');
+    return res.status(500).json({
       success: false,
       error: 'Errore interno del server durante la cancellazione dell\'account'
     });
+  } finally {
+    if (client) client.release();
   }
+
+  // External audit is best-effort AFTER the transaction; its availability must
+  // not turn a successfully committed erasure into a 500 response.
+  try {
+    await AuditService.logAction({
+      userId: null,
+      action: 'DATA_DELETE_REQUEST',
+      resource: 'user_account',
+      details: { request_type: 'account_deletion', completed: true },
+      success: true
+    });
+  } catch (auditError) {
+    console.error('Audit cancellazione GDPR non disponibile');
+  }
+
+  return res.json({
+    success: true,
+    message: 'Account e dati associati cancellati con successo',
+    deletion_date: new Date().toISOString()
+  });
 });
 
 /**

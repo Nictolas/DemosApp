@@ -1,0 +1,81 @@
+name: Profile residence compatibility
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/userProfileReadService.js'
+      - 'api/services/userProfileWriteService.js'
+      - 'api/routes/users/profile.js'
+      - 'api/routes/users/search.js'
+      - 'api/tests/userProfileWriteService.test.js'
+      - 'api/tests/userProfileMissingAccount.smoke.test.js'
+      - 'api/tests/userProfileWriteService.integration.test.js'
+      - 'api/tests/userProfileTerritoryPerformance.integration.test.js'
+      - 'api/services/politicalTerritoryMembershipService.js'
+      - 'api/services/eventFeedService.js'
+      - 'api/tests/userProfileReadService.test.js'
+      - 'api/tests/userProfileReadService.integration.test.js'
+      - 'api/database/user-profile-preflight-readonly.sql'
+      - 'api/database/qa-user-profile-staging-isolated.sql'
+      - 'api/database/qa-user-profile-staging-backfill-rollback-test.sql'
+      - 'api/database/qa-user-profile-full-backfill-rehearsal.sql'
+      - 'api/database/qa-user-profile-deletion-rollback-test.sql'
+      - 'api/database/qa-user-profile-territory-trigger-fixture.sql'
+      - 'api/database/qa-user-profile-territory-cutover-rollback-test.sql'
+      - 'api/tests/userProfileStagingFixture.integration.test.js'
+      - 'api/tests/politicalTerritoryMembershipService.test.js'
+      - 'api/tests/eventFeedService.test.js'
+      - 'api/tests/politicalRepresentativeSelection.smoke.test.js'
+      - '.github/workflows/profile-read-compat-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile-read-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_profile_tests
+          POSTGRES_DB: profile_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d profile_synthetic"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run compatibility regression tests
+        working-directory: api
+        # Run HTTP smoke tests as direct Node processes: the Node 22 test-runner
+        # child-process IPC occasionally fails to deserialize high-output test files.
+        # Direct execution still runs node:test and propagates non-zero exits.
+        run: |
+          node --test --test-concurrency=1 tests/userProfileReadService.test.js tests/userProfileWriteService.test.js tests/politicalTerritoryMembershipService.test.js tests/eventFeedService.test.js
+          node tests/politicalRepresentativeSelection.smoke.test.js
+          node tests/userProfileMissingAccount.smoke.test.js
+      - name: Run PostgreSQL 17 synthetic profile and preflight checks
+        working-directory: api
+        env:
+          PROFILE_READ_PG_INTEGRATION: '1'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: synthetic_profile_tests
+          PGDATABASE: profile_synthetic
+        run: node --test --test-concurrency=1 tests/userProfileReadService.integration.test.js tests/userProfileWriteService.integration.test.js tests/userProfileStagingFixture.integration.test.js tests/userProfileTerritoryPerformance.integration.test.js

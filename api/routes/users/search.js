@@ -4,6 +4,8 @@ const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { decompressGender, compressGender } = require('../../utils/genderUtils');
 const { decompressUserLocation, compressUserLocation } = require('../../utils/locationUtils');
 const { queryWithAccountModelFallback } = require('../../services/accountCapabilitiesService');
+const { upsertUserProfileFields } = require('../../services/userProfileWriteService');
+const { loadUserResidence } = require('../../services/userProfileReadService');
 
 const router = express.Router();
 
@@ -94,19 +96,16 @@ router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
     const userId = req.user.id;
     
     // Recupera comune_residenza dell'utente operante
-    const userResult = await pool.query(
-      'SELECT comune_residenza FROM users WHERE id = $1',
-      [userId]
-    );
+    const userResidence = await loadUserResidence(pool, userId);
     
-    if (userResult.rows.length === 0) {
+    if (!userResidence) {
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
       });
     }
-    
-    const comuneResidenza = userResult.rows[0].comune_residenza;
+
+    const comuneResidenza = userResidence.comune_residenza;
     
     if (!comuneResidenza) {
       return res.json({
@@ -435,6 +434,9 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     const { userId } = req.params;
     const updateData = req.body;
+    if (!updateData || typeof updateData !== 'object' || Array.isArray(updateData)) {
+      return res.status(400).json({ success: false, error: 'Dati di modifica non validi' });
+    }
 
     if (Object.prototype.hasOwnProperty.call(updateData || {}, 'ruolo')) {
       return res.status(410).json({
@@ -445,7 +447,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     }
     
     console.log('🔍 DEBUG - userId:', userId);
-    console.log('🔍 DEBUG - updateData:', updateData);
+    // Do not log the payload: it may contain birth dates, gender or avatar data.
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
@@ -475,7 +477,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
         if (key === 'grado_elezione' || key === 'grado_candidatura') {
           filteredData[key] = normalizeGrado(updateData[key]);
-          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
+          // Profile fields may be sensitive; do not log their values.
         } 
         else {
           filteredData[key] = updateData[key];
@@ -503,8 +505,24 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     const values = Object.values(filteredData);
     const query = `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $${values.length + 1} RETURNING *`;
     
-    const result = await pool.query(query, [...values, userId]);
-    
+    // Account and profile must become visible atomically. Otherwise the
+    // profile-first readers can silently hide edits made by the administrator.
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+      if (result.rows.length > 0) {
+        await upsertUserProfileFields(client, userId, filteredData);
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -513,7 +531,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     }
     
     const updatedUser = result.rows[0];
-    console.log('✅ Utente aggiornato:', updatedUser.email);
+    console.log('✅ Utente aggiornato');
     
     // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
     let dataNascitaFormattata = null;
@@ -537,18 +555,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       }
     };
     
-    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
-      id: responseData.user.id,
-      nome: responseData.user.nome,
-      cognome: responseData.user.cognome,
-      email: responseData.user.email,
-      genere: responseData.user.genere,
-      ruolo: responseData.user.ruolo,
-      paese_residenza: responseData.user.paese_residenza,
-      regione_residenza: responseData.user.regione_residenza,
-      paese_elezione: responseData.user.paese_elezione,
-      regione_elezione: responseData.user.regione_elezione
-    });
+    // Avoid logging the response data: personal data is returned only to the authorized admin.
     
     res.json(responseData);
     
@@ -557,8 +564,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: 'Errore interno del server'
     });
   }
 });

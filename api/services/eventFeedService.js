@@ -4,6 +4,7 @@ const { listRelevantElectionEvents } = require('./electionEventService');
 const { regionAliases } = require('./politicalEligibilityService');
 const { isApprovalSchemaError } = require('./eventApprovalService');
 const { loadPoliticalSelections } = require('./politicalSelectionService');
+const { loadUserResidence } = require('./userProfileReadService');
 
 function normalize(value) {
   return value == null ? '' : String(value).trim().toLocaleLowerCase('it-IT');
@@ -34,14 +35,7 @@ function selectedSubjectIds(user) {
 }
 
 async function getFeedUser(pool, userId) {
-  const result = await pool.query(
-    `SELECT id, paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
-            attivisti, organizzazioni
-     FROM users
-     WHERE id = $1`,
-    [userId]
-  );
-  return result.rows[0] || null;
+  return loadUserResidence(pool, userId, { includeFeedSelections: true });
 }
 
 async function getSelectedSubjects(pool, user) {

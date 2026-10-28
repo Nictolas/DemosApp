@@ -233,6 +233,13 @@ class PrivacyErasureLedgerService {
 
     // Altri record applicativi direttamente riconducibili all'account.
     const directLinks = [
+      // Production candidati.user_id uses a restrictive FK (no ON DELETE CASCADE).
+      ['candidati', 'user_id'],
+      // These production tables have user_id columns but no FK to users;
+      // they would otherwise outlive account deletion or session revocation.
+      ['active_sessions', 'user_id'],
+      ['data_processing_limits', 'user_id'],
+      ['political_programs', 'user_id'],
       ['notifiche_demos', 'id_utente'],
       ['notifiche_comunali', 'id_utente'],
       ['programmi', 'utente_id'],
@@ -280,7 +287,12 @@ class PrivacyErasureLedgerService {
   }
 
   static async enforcePoliticalRevocation(client, userId) {
-    let opinionsDeleted = await this.deleteByUserId(client, 'opinioni_risposte', userId);
+    // Use the SAME scope as the live consent-revocation route. Otherwise
+    // backup replay can resurrect legacy votes and political preferences.
+    // Load lazily to avoid politicalConsentService <-> erasure service cycle.
+    const { cleanupConsentScopedPoliticalData } = require('./politicalConsentService');
+    const cleanup = await cleanupConsentScopedPoliticalData(client, userId);
+    const opinionsDeleted = cleanup.totalDeleted;
 
     const userConsentColumns = [
       'political_opinions_consent',

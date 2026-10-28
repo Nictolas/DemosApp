@@ -131,6 +131,87 @@ if (!isLocalTestDatabase) {
     assert.deepEqual(recreated.rows[0], { user_id: 'u3', person_key: 'same-person-key' });
   });
 
+  test('backup replay reapplies the full political-consent revocation scope and leaves unrelated users untouched', async () => {
+    await resetSchema();
+    // The prior backup may contain a consent still granted and political votes.
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN political_opinions_consent boolean DEFAULT true;
+      ALTER TABLE users ADD COLUMN political_opinions_consent_timestamp timestamptz;
+      ALTER TABLE users ADD COLUMN political_opinions_consent_ip_address text;
+      ALTER TABLE users ADD COLUMN political_opinions_consent_user_agent text;
+      ALTER TABLE users ADD COLUMN updated_at timestamptz DEFAULT now();
+    `);
+    await pool.query(`
+      CREATE TABLE user_consents (
+        user_id text PRIMARY KEY,
+        political_opinions_consent boolean DEFAULT true,
+        political_opinions_consent_timestamp timestamptz,
+        political_opinions_consent_ip_address text,
+        political_opinions_consent_user_agent text,
+        updated_at timestamptz DEFAULT now()
+      )
+    `);
+    await pool.query("INSERT INTO user_consents(user_id, political_opinions_consent) VALUES ('u1',true),('u2',true)");
+    await pool.query("CREATE TABLE civic_ballot_positions (id serial PRIMARY KEY, user_id text)");
+    await pool.query("INSERT INTO civic_ballot_positions(user_id) VALUES ('u1'),('u2')");
+
+    const client = await pool.connect();
+    let replay;
+    try {
+      await client.query('BEGIN');
+      await PrivacyErasureLedgerService.recordEvent(client, {
+        userId: 'u1',
+        eventType: PrivacyErasureLedgerService.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+        details: { source: 'synthetic_backup_replay' }
+      });
+      replay = await PrivacyErasureLedgerService.applyCurrentPrivacyState(client);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    assert.equal(replay.revocationsReapplied, 1);
+    assert.ok(replay.opinionsRemoved > 0);
+    for (const [table, column] of [...linkedTables, ['civic_ballot_positions','user_id']]) {
+      if (![
+        'opinioni_risposte', 'voti_elezioni', 'voti_capo_stato', 'voti_ice',
+        'voti_referendum_abrogativi', 'voti_amnistia', 'voti_grazia', 'voti_iniziative_popolari',
+        'voti_ministri', 'voti_opinioni_proposte', 'voti_primo_ministro', 'voti_difesa',
+        'voti_economia', 'voti_esteri', 'voti_giustizia', 'voti_interno', 'voti_istruzione',
+        'voti_lavoro', 'voti_salute', 'voti_trasporti', 'voti_ambiente',
+        'voti_ambiente_sicurezza_energetica', 'voti_cultura', 'voti_sport',
+        'consenso_governo', 'consenso_capo_stato', 'civic_ballot_positions'
+      ].includes(table)) continue;
+      const leftover = await pool.query(`SELECT COUNT(*)::int AS n FROM "${table}" WHERE ${column} = 'u1'`);
+      const survivor = await pool.query(`SELECT COUNT(*)::int AS n FROM "${table}" WHERE ${column} = 'u2'`);
+      assert.equal(leftover.rows[0].n, 0, `${table} contains restored revoked data`);
+      assert.equal(survivor.rows[0].n, 1, `${table} lost data for non-revoked user`);
+    }
+    const flags = await pool.query(`
+      SELECT u.id, u.political_opinions_consent AS legacy, c.political_opinions_consent AS canonical
+      FROM users u JOIN user_consents c ON c.user_id=u.id ORDER BY u.id
+    `);
+    assert.deepEqual(flags.rows, [
+      {id:'u1',legacy:false,canonical:false},
+      {id:'u2',legacy:true,canonical:true}
+    ]);
+    // Replaying the same ledger is idempotent: no additional political data removed.
+    const clientAgain = await pool.connect();
+    try {
+      await clientAgain.query('BEGIN');
+      const repeated = await PrivacyErasureLedgerService.applyCurrentPrivacyState(clientAgain);
+      await clientAgain.query('COMMIT');
+      assert.equal(repeated.opinionsRemoved, 0);
+    } catch (error) {
+      await clientAgain.query('ROLLBACK');
+      throw error;
+    } finally {
+      clientAgain.release();
+    }
+  });
+
   test('canonical delete-account route delegates to schema-aware enforcement instead of hardcoded vote columns', () => {
     const route = fs.readFileSync(path.join(__dirname, '../routes/user/delete-account.js'), 'utf8');
     assert.match(route, /PrivacyErasureLedgerService\.enforceAccountDeletion\(client, userId\)/);
