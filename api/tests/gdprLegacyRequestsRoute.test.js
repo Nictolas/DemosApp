@@ -47,14 +47,16 @@ test('GDPR POST persists a real request ID via parameterized DPO table before 20
       calls.push({sql, args});
       return {rows:[{
         id:'00000000-0000-4000-8000-000000000351',
-        request_type:'erasure', status:'pending', created_at:'2026-10-28T00:00:00Z'
+        user_id:'synthetic-user', request_type:'erasure', status:'pending', created_at:'2026-10-28T00:00:00Z'
       }]};
     }
   };
   await withMockedRoute(pool, async ({post}) => {
     const res=response();
     await post({
-      userId:'synthetic-user', body:{tipo:'erasure',dettagli:'synthetic private message'}
+      userId:'synthetic-user',
+      headers:{'idempotency-key':'00000000-0000-4000-8000-000000000351'},
+      body:{tipo:'erasure',dettagli:'synthetic private message'}
     },res);
     assert.equal(res.statusCode,201);
     assert.equal(res.body.success,true);
@@ -66,11 +68,48 @@ test('GDPR POST persists a real request ID via parameterized DPO table before 20
   assert.equal(calls.length,1);
   assert.match(calls[0].sql,/INSERT INTO public\.user_rights_requests/);
   assert.match(calls[0].sql,/ON CONFLICT \(id\) DO NOTHING/);
-  assert.match(calls[0].sql,/RETURNING id, request_type, status, created_at/);
+  assert.match(calls[0].sql,/RETURNING id, user_id, request_type, status, created_at/);
   assert.match(calls[0].args[0],/^[0-9a-f]{8}-[0-9a-f-]{27,}$/);
   assert.deepEqual(calls[0].args.slice(1,3),['synthetic-user','erasure']);
   assert.deepEqual(JSON.parse(calls[0].args[3]),
     {source:'gdpr_requests_api',details:'synthetic private message'});
+});
+
+test('GDPR POST refuses a database receipt with mismatched ID, owner, type or extra rows',async()=>{
+  const key='6d6f7c42-5470-4960-a643-f3be05b57e98';
+  const good={id:key,user_id:'synthetic-user',request_type:'access',
+    status:'pending',created_at:'2026-10-28T00:00:00Z'};
+  let returned=[];
+  const pool={async query(sql){
+    assert.match(sql,/RETURNING id, user_id, request_type, status, created_at/);
+    return {rows:returned};
+  }};
+  const previousError=console.error;
+  console.error=()=>{};
+  try{
+    await withMockedRoute(pool,async({post})=>{
+      for(const rows of [
+        [{...good,id:'8c09bdfa-ad1b-4770-9940-02d1e7cacb25'}],
+        [{...good,user_id:'another-account'}],
+        [{...good,request_type:'erasure'}],
+        [good,good]
+      ]){
+        returned=rows;
+        const res=response();
+        await post({userId:'synthetic-user',headers:{'idempotency-key':key},
+          body:{tipo:'access',dettagli:'synthetic confidential request'}},res);
+        assert.equal(res.statusCode,503);
+        assert.equal(res.body.success,false);
+        assert.ok(!JSON.stringify(res.body).includes('synthetic confidential request'));
+      }
+      returned=[good];
+      const correct=response();
+      await post({userId:'synthetic-user',headers:{'idempotency-key':key},
+        body:{tipo:'access',dettagli:'synthetic confidential request'}},correct);
+      assert.equal(correct.statusCode,201);
+      assert.equal(correct.body.data.id,key);
+    });
+  }finally{console.error=previousError;}
 });
 
 test('GDPR Idempotency-Key retry returns same saved receipt without duplicate INSERT', async () => {
@@ -80,7 +119,7 @@ test('GDPR Idempotency-Key retry returns same saved receipt without duplicate IN
     calls++;
     assert.equal(params[0],key);
     if(sql.startsWith('INSERT')) {
-      return {rows:calls===1?[{id:key,request_type:'access',status:'pending',created_at:'2026-10-28T00:00:00Z'}]:[]};
+      return {rows:calls===1?[{id:key,user_id:'user-1',request_type:'access',status:'pending',created_at:'2026-10-28T00:00:00Z'}]:[]};
     }
     assert.match(sql,/WHERE id=\$1::uuid AND user_id=\$2/);
     assert.deepEqual(params.slice(1,3),['user-1','access']);
