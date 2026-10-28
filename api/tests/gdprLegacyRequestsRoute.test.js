@@ -368,3 +368,61 @@ test('history UI is keyed by authenticated user, preventing cross-session stale 
   assert.match(file, /function AuthenticatedRightsHistory\(\)/);
   assert.match(file, /Accedi per consultare le tue richieste/);
 });
+
+
+test('legacy DELETE /api/user/account cannot bypass canonical password and ledger deletion', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const appSource = fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8');
+  assert.match(appSource, /app\.use\('\/api\/user', userLimiter, gdprRightsRoutes\)/);
+  assert.match(appSource, /app\.use\('\/api\/user\/delete-account', userLimiter, deleteAccountRoutes\)/);
+  const modules = [
+    require.resolve('../middleware/auth'),
+    require.resolve('../middleware/validation'),
+    require.resolve('../services/auditService'),
+    require.resolve('../utils/emailCrypto'),
+    require.resolve('../routes/user/gdpr-rights')
+  ];
+  const prior = modules.map(module => require.cache[module]);
+  let sqlCalls = 0;
+  let auditCalls = 0;
+  try {
+    const fakePool = {
+      query() { sqlCalls++; throw Error('legacy deletion must never query SQL'); },
+      connect() { sqlCalls++; throw Error('legacy deletion must never acquire SQL client'); }
+    };
+    const mocks = [
+      { verifyToken(_req, _res, next) { next(); }, pool: fakePool },
+      { validateInput() { return (_req, _res, next) => next(); } },
+      { async logAction() { auditCalls++; }, async getUserAuditLogs() { return []; } },
+      { decrypt(value) { return value; } }
+    ];
+    for (let i = 0; i < mocks.length; i++) {
+      require.cache[modules[i]] = {
+        id: modules[i], filename: modules[i], loaded: true, exports: mocks[i]
+      };
+    }
+    delete require.cache[modules[4]];
+    const router = require('../routes/user/gdpr-rights');
+    const layer = router.stack.find(item =>
+      item.route?.path === '/account' && item.route?.methods.delete
+    );
+    assert.ok(layer, 'legacy path must remain an explicit fail-closed response');
+    assert.equal(layer.route.stack.length, 1, 'no legacy deletion middleware can mutate data');
+    const res = response();
+    await layer.route.stack[0].handle({
+      userId: 'synthetic-subject',
+      body: { confirmation: 'CONFERMO_CANCELLAZIONE_ACCOUNT' }
+    }, res);
+    assert.equal(res.statusCode, 410);
+    assert.equal(res.body.success, false);
+    assert.equal(res.body.canonical_path, '/api/user/delete-account');
+    assert.equal(sqlCalls, 0);
+    assert.equal(auditCalls, 0);
+  } finally {
+    for (let i = 0; i < modules.length; i++) {
+      delete require.cache[modules[i]];
+      if (prior[i]) require.cache[modules[i]] = prior[i];
+    }
+  }
+});
