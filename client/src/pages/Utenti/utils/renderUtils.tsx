@@ -72,6 +72,9 @@ export const renderColumnValue = (value: any, columnName: string, user?: User, o
   }
   
   if (columnName === 'sesso') {
+    if (user?.account_type === 'ORGANIZATION' || user?.account_type === 'INSTITUTION') {
+      return <span className="text-sm text-gray-500">Non applicabile</span>;
+    }
     const verified = value === 'M' || value === 'F';
     const color = value === 'M'
       ? 'bg-sky-100 text-sky-800 border-sky-200'
