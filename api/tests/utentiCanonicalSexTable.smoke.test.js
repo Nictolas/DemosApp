@@ -8,7 +8,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '../..');
 const read = relative => fs.readFileSync(path.join(root,relative),'utf8');
 
-test('admin desktop table shows canonical CIE sex, never legacy Genere', () => {
+test('admin desktop table shows saved M/F sex, never legacy Genere', () => {
   const constants=read('client/src/pages/Utenti/constants/index.ts');
   const table=read('client/src/pages/Utenti/components/UsersTable.tsx');
   const renderer=read('client/src/pages/Utenti/utils/renderUtils.tsx');
@@ -17,7 +17,7 @@ test('admin desktop table shows canonical CIE sex, never legacy Genere', () => {
   assert.match(constants, /'genere', 'account_type'/);
   assert.match(constants, /'grado_candidatura', 'grado_elezione', 'sesso'/);
   assert.match(constants, /'data_nascita', 'sesso', 'paese_residenza'/);
-  assert.match(table, /column === 'sesso' \? 'Sesso anagrafico \(CIE\)'/);
+  assert.match(table, /column === 'sesso' \? 'Sesso'/);
   assert.match(renderer, /columnName === 'sesso'/);
   assert.match(renderer, /Non disponibile/);
   assert.match(renderer, /Non applicabile/);
@@ -35,7 +35,7 @@ test('admin statistics count only PERSON and M/F with NULL as not available', ()
   assert.match(source, /user.sesso === 'M' \|\| user.sesso === 'F'/);
   assert.match(source, /'Non disponibile'/);
   assert.match(source, /stats.usersBySesso/);
-  assert.match(source, /Distribuzione per sesso anagrafico \(CIE\)/);
+  assert.match(source, /Distribuzione per sesso/);
   assert.doesNotMatch(source, /usersByGender|Distribuzione per Genere|user\.genere/);
 });
 
