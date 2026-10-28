@@ -452,7 +452,8 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
         await put({userId:USER,body},invalid);
         assert.equal(invalid.statusCode,400);
       }
-      assert.equal(await receiptCount(),2);
+      assert.equal(await receiptCount(),5,
+        'new idempotent PUT scenarios intentionally add three distinct receipts');
     });
 
     console.log('GDPR_LEGACY_RIGHTS_REAL_PG17_PASS ' + JSON.stringify({
