@@ -14,7 +14,7 @@ export const GenereChart: React.FC<GenereChartProps> = ({ generePieData }) => {
   return (
     <Card className="bg-white shadow-lg">
       <CardHeader>
-        <CardTitle className="text-xl">Distribuzione per sesso anagrafico (CIE)</CardTitle>
+        <CardTitle className="text-xl">Distribuzione per sesso</CardTitle>
       </CardHeader>
       <CardContent className="h-80">
         <ResponsiveContainer width="100%" height="100%">
