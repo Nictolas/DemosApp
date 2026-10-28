@@ -26,7 +26,7 @@ export const useGenereStats = (opinionId: string) => {
       });
       if (!response.ok) throw new Error("Errore nel caricamento statistiche per sesso anagrafico.");
       const result = await response.json();
-      console.log('🔍 DEBUG StatisticheOpinione - Dati sesso CIE ricevuti:', result.data);
+      console.log('🔍 DEBUG StatisticheOpinione - Dati sesso aggregati ricevuti:', result.data);
       return result.data;
     },
     enabled: !!opinionId,
