@@ -208,9 +208,8 @@ class PrivacyErasureLedgerService {
       if (!Number.isFinite(parsed.getTime()) ||
           parsed.toISOString() !== milliseconds) throw invalid();
 
-      // Ledger details are JSONB objects in actual PostgreSQL captures.
-      // Do not silently turn absent/null/false/0 details into '{}' during restore.
-      // A malformed archive must fail before the first INSERT in the batch.
+      // Captured PostgreSQL JSONB details must be an object. A missing,
+      // null or scalar payload must not silently become '{}' on replay.
       if (!row.details || typeof row.details !== 'object' ||
           Array.isArray(row.details)) throw invalid();
       // Serialize once in the preflight. Objects with circular references,

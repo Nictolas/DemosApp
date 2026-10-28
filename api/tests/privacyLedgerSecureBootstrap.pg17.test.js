@@ -447,7 +447,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         {...valid,event_key:'synthetic-bigint',details:{value:1n}},
         {...valid,event_key:'synthetic-circular',details:circular},
         {...valid,event_key:'synthetic-undefined-json',details:Symbol('invalid')},
-        // A missing or non-object JSONB payload must never become '{}' silently.
+        // Malformed archives must not silently replace details with {}.
         {...valid,event_key:'synthetic-null-details',details:null},
         {...valid,event_key:'synthetic-undefined-details',details:undefined},
         {...valid,event_key:'synthetic-false-details',details:false},
