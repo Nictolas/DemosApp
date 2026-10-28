@@ -156,3 +156,12 @@ test('la UI mostra dati mancanti/soppressi senza usare il genere legacy o invent
     assert.doesNotMatch(source, /genderDistribution\.Altro/);
   }
 });
+
+test('le directory Attivisti e Organizzazioni e il vecchio endpoint Candidati non pubblicano il genere legacy', () => {
+  const paths = ['api/routes/attivisti.js', 'api/routes/organizzazioni.js', 'api/routes/candidati.js'];
+  paths.forEach(file => {
+    const src = read(file);
+    assert.doesNotMatch(src, /(?:u\.)?genere\s*,/);
+    assert.doesNotMatch(src, /(?:u\.)?sesso\s*,/);
+  });
+});
