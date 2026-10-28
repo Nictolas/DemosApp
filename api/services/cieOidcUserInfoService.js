@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const { FISCAL_NUMBER_CLAIM, getCieOidcConfig } = require('./cieOidcAuthorizationService');
 const { getTrustedJwks } = require('./cieOidcIdTokenService');
+const { sexFromVerifiedCieGender } = require('../utils/cieSex');
 
 const SUPPORTED_JWE_ALGS = new Set(['RSA-OAEP', 'RSA-OAEP-256']);
 const CBC_ENC = {
@@ -213,8 +214,14 @@ function validateCieUserInfoJws(
     throw new Error('fiscal_number UserInfo CIE mancante');
   }
 
+  // Il claim viene letto esclusivamente dopo la verifica crittografica JWS.
+  // Se non richiesto/autorizzato, non entra neppure nel payload interno.
+  const sesso = process.env.CIE_SEX_COLLECTION_ENABLED === 'true'
+    ? sexFromVerifiedCieGender(claims.gender)
+    : null;
   return {
-    fiscalNumber: fiscalNumber.trim()
+    fiscalNumber: fiscalNumber.trim(),
+    ...(sesso ? { sesso } : {})
   };
 }
 
