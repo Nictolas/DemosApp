@@ -1,0 +1,34 @@
+name: Profile residence compatibility
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/userProfileReadService.js'
+      - 'api/services/politicalTerritoryMembershipService.js'
+      - 'api/services/eventFeedService.js'
+      - 'api/tests/userProfileReadService.test.js'
+      - 'api/tests/politicalTerritoryMembershipService.test.js'
+      - 'api/tests/eventFeedService.test.js'
+      - '.github/workflows/profile-read-compat-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile-read-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run compatibility regression tests
+        working-directory: api
+        run: node --test tests/userProfileReadService.test.js tests/politicalTerritoryMembershipService.test.js tests/eventFeedService.test.js
