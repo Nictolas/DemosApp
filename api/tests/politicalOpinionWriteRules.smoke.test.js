@@ -63,8 +63,8 @@ function makeUserAnswersPool({ granted = true } = {}) {
     if (s.includes('political_opinions_consent') && s.includes('AS granted')) {
       return { rows: [{ granted }] };
     }
-    if (s.includes('information_schema.columns') && s.includes('opinioni_risposte')) {
-      return { rows: [{ column_name: 'q1' }] };
+    if (s.includes('information_schema.columns')) {
+      throw new Error('Saving an opinion must not read SQL schema metadata');
     }
     if (s.includes('FROM opinioni_risposte') && s.includes('FOR UPDATE')) {
       return { rows: [] };
@@ -90,7 +90,7 @@ test('salvataggio utente senza consenso politico attivo è fail-closed e non scr
     const res = await fetch(`${base}/api/salva`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ opinioni: { q1: 'Favorevole' } })
+      body: JSON.stringify({ opinioni: { energia_nucleare: 'Favorevole' } })
     });
     assert.equal(res.status, 403);
     const body = await res.json();
@@ -106,7 +106,7 @@ test('salvataggio utente rifiuta NULL/Astenuto e non scrive nel database', async
       const res = await fetch(`${base}/api/salva`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ opinioni: { q1: invalidValue } })
+        body: JSON.stringify({ opinioni: { energia_nucleare: invalidValue } })
       });
       assert.equal(res.status, 400);
       assert.equal(pool.writes.length, 0);
@@ -120,7 +120,7 @@ test('salvataggio utente accetta Non lo so e lo salva come i', async () => {
     const res = await fetch(`${base}/api/salva`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ opinioni: { q1: 'Non lo so' } })
+      body: JSON.stringify({ opinioni: { energia_nucleare: 'Non lo so' } })
     });
     assert.equal(res.status, 200);
     assert.equal(pool.writes.length, 1);
