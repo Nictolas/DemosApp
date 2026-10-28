@@ -25,7 +25,7 @@ router.get('/candidati', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Errore endpoint test:', error);
+    console.error('❌ Errore endpoint test:');
     res.status(500).json({
       success: false,
       error: 'Errore endpoint test'
@@ -67,11 +67,11 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel debug opinioni:', error);
+    console.error('❌ Errore nel debug opinioni:');
     res.status(500).json({
       success: false,
       error: 'Errore nel debug opinioni',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -140,18 +140,11 @@ router.get('/stats/:opinionId', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche opinione:', error);
-    console.error('❌ Stack trace:', error.stack);
-    console.error('❌ Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint
-    });
+    console.error('❌ Errore nel recuperare statistiche opinione:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche opinione',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -220,11 +213,11 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
       data: suppressSmallCells(etaResult.rows)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche età opinione:', error);
+    console.error('❌ Errore nel recuperare statistiche età opinione:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche età opinione',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -276,11 +269,11 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
       data: suppressSmallCells(decompressedData)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere opinione:', error);
+    console.error('❌ Errore nel recuperare statistiche genere opinione:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche genere opinione',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -358,11 +351,11 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche opinione regionale:', error);
+    console.error('❌ Errore nel recuperare statistiche opinione regionale:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche opinione regionale',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -445,11 +438,11 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
       data: suppressSmallCells(etaResult.rows)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche età opinione regionale:', error);
+    console.error('❌ Errore nel recuperare statistiche età opinione regionale:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche età opinione regionale',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -509,11 +502,11 @@ router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
       data: suppressSmallCells(genereResult.rows)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere opinione regionale:', error);
+    console.error('❌ Errore nel recuperare statistiche genere opinione regionale:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche genere opinione regionale',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
