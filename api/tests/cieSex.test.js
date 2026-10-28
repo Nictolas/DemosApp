@@ -31,6 +31,11 @@ test('persistenza sesso CIE richiede valore verificato, UUID e aggiornamento di 
   // Un valore storico difforme non deve impedire la successiva verifica CIE.
   assert.match(calls[0].sql, /UPDATE users SET sesso = \$1/);
   assert.match(calls[0].sql, /account_type = 'PERSON'/);
+  assert.match(calls[0].sql, /sesso_fonte = 'C'/);
+  assert.match(calls[0].sql, /FROM identity_verifications iv/);
+  assert.match(calls[0].sql, /iv.provider = 'CIE'/);
+  assert.match(calls[0].sql, /iv.status = 'verified'/);
+  assert.match(calls[0].sql, /iv.detached_at IS NULL/);
   assert.equal(await persistVerifiedCieSex(client, 'user-1', 'F'), true);
   assert.deepEqual(calls[1].params, ['F', 'user-1']);
   assert.doesNotMatch(calls[1].sql, /sesso IS NULL/);
@@ -104,4 +109,20 @@ test('le statistiche M/F storiche non vengono presentate come CIE certificate', 
   const cie = read('api/utils/cieSex.js');
   assert.match(cie, /sexFromVerifiedCieGender/);
   assert.match(cie, /account_type = 'PERSON'/);
+});
+
+
+test('metadato provenienza: migrazione non effettua backfill e CIE richiede verifica attiva', () => {
+  const read = relative => fs.readFileSync(path.resolve(__dirname, '../..', relative), 'utf8');
+  const migration = read('api/migrations/20261028_cie_sex_provenance.sql');
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS sesso_fonte VARCHAR\(1\)/);
+  assert.match(migration, /sesso_fonte IN \('L', 'N', 'O', 'C'\)/);
+  assert.match(migration, /sesso IN \('M', 'F'\)/);
+  assert.match(migration, /account_type = 'PERSON'/);
+  assert.doesNotMatch(migration, /UPDATE\s+(?:public\.)?users\s+SET/i);
+  const cie = read('api/utils/cieSex.js');
+  assert.match(cie, /sesso_fonte = 'C'/);
+  assert.match(cie, /identity_verifications iv/);
+  assert.match(cie, /iv.provider = 'CIE'/);
+  assert.match(cie, /iv.detached_at IS NULL/);
 });
