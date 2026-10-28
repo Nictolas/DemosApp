@@ -26,3 +26,16 @@ test('web startup clears only legacy DEMOS caches and preserves FCM worker', () 
   assert.doesNotMatch(main, /navigator\.serviceWorker\.register\(['"]\/sw\.js/);
   assert.match(fcmWorker, /firebase/i);
 });
+
+
+test('Render blueprints do not cache the HTML entry and SPA paths as immutable', () => {
+  for (const relative of ['render.yaml', 'client/render.yaml']) {
+    const yaml = fs.readFileSync(path.join(root, relative), 'utf8');
+    const frontend = yaml.slice(yaml.indexOf('name: demos-frontend'));
+    assert.ok(frontend.length > 100, relative + ' has frontend configuration');
+    assert.match(frontend, /- path: \/\*\s+name: Cache-Control\s+value: no-cache, max-age=0, must-revalidate/);
+    assert.match(frontend, /- path: \/index\.html\s+name: Cache-Control\s+value: no-cache, no-store, must-revalidate/);
+    assert.match(frontend, /- path: \/assets\/\*\s+name: Cache-Control\s+value: public, max-age=31536000, immutable/);
+    assert.doesNotMatch(frontend, /- path: \/\*\s+name: Cache-Control\s+value: public, max-age=31536000, immutable/);
+  }
+});
