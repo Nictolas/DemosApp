@@ -31,10 +31,11 @@ test('il back dalla cittadinanza non torna al passaggio inutile e rispetta passk
     assert.match(source, /'\/registrazione-cittadinanza': '\/registrazione-nome'/);
     assert.doesNotMatch(source, /'\/registrazione-cittadinanza': '\/registrazione-genere'/);
     assert.match(source, /registrazione_passkey_flow/);
+    assert.match(source, /registrazione-consensi\?step=3/);
     assert.match(source, /webauthn_user_id/);
   }
   assert.match(citizenship, /registrazione_passkey_flow/);
-  assert.match(citizenship, /"\/registrazione-consensi"/);
+  assert.match(citizenship, /"\/registrazione-consensi\?step=3"/);
   assert.match(citizenship, /webauthn_user_id/);
   assert.match(citizenship, /"\/registrazione-nome"/);
   assert.doesNotMatch(citizenship, /navigate\("\/registrazione-genere"\)/);
