@@ -21,7 +21,8 @@
 - Export dati GDPR: `sesso` incluso sia nel servizio canonico sia nell'endpoint di portabilità legacy, senza cancellare `genere` dagli export storici.
 - Sostenitori: sette endpoint (rappresentanti, candidati, attivisti, organizzazioni, totale e due route /sostenitori) non restituiscono più `genere` individuale né deducono "Altro" dal NULL. Il nuovo `sexDistribution` include M/F per sole PERSON, deduplica i sostenitori per ID e nasconde tutti i dati se un gruppo ha meno di 10 persone; `genderDistribution` è una mappa vuota per i vecchi client.
 - Directory Attivisti/Organizzazioni e l'endpoint candidati duplicato: smettono di pubblicare il campo legacy `genere`.
-- Test mapping, firma, feature gate, transazione/rollback, privacy small-cell e sette endpoint Sostenitori, assenza di origine browser, export GDPR e build.
+- Registrazione: il passaggio informativo `/registrazione-genere` è stato ritirato dal percorso normale; nome e consensi vanno direttamente a cittadinanza, la vecchia URL reindirizza e la navigazione indietro resta compatibile con passkey. Il componente non più usato è stato eliminato; il form `registrazione-2-dati` risulta separato/non montato nel router attuale, lasciato intatto in attesa di inventario più ampio.
+- Test mapping, firma, feature gate, transazione/rollback, privacy small-cell e sette endpoint Sostenitori, navigazione senza genere, assenza di origine browser, export GDPR e build.
 
 ## Non incluso / gate prima del rollout
 - Non c'è alcuna modifica ai dati reali o una copia `genere` → `sesso`.
