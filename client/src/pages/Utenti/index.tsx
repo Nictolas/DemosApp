@@ -976,9 +976,12 @@ export default function Utenti() {
                       setUserToDelete(null);
                     },
                     onError: () => {
+                      // Network failures may occur after the backend COMMIT:
+                      // do not claim the user still exists without readback.
+                      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
                       toast({
-                        title: "Cancellazione non riuscita",
-                        description: "Il database non ha confermato la cancellazione. L'account non è stato rimosso.",
+                        title: "Esito della cancellazione non verificato",
+                        description: "Controlla l'elenco aggiornato prima di riprovare. Il server potrebbe aver completato la cancellazione.",
                         variant: "destructive"
                       });
                     }
