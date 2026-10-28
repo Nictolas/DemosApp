@@ -53,3 +53,11 @@ Questo comportamento **non fornisce una policy RLS nuova** né autorizza un bypa
 **Verifiche CI:** sul commit `72d8b3f`, [workflow #40604819354](https://github.com/Nictolas/DemosApp/actions/runs/40604819354) **SUCCESS**, **16/16 test backend unitari, 1/1 integrazione PostgreSQL 17**, build Vite `client` **SUCCESS**; [Legacy Menu #40604819292](https://github.com/Nictolas/DemosApp/actions/runs/40604819292) **SUCCESS**; Snyk **SUCCESS**. Nessuna chiamata a database o storage di produzione.
 
 **Rimane da validare prima del rilascio** la navigazione/login Android/iOS, il contratto del frontend di invio delle richieste con `Idempotency-Key` stabile, il ruolo SQL reale usato da Render, le policy approvate per storico e INSERT, la presa in carico DPO e l'archivio/recovery B2 indipendente. Issue #296 resta **NO-GO**.
+
+## CORS e retry browser (correzione su ramo Draft)
+
+Il contratto `POST /api/user/gdpr-requests` accetta `Idempotency-Key`, ma il server usa una lista CORS esplicita degli header autorizzati. Senza l'header nella risposta al preflight `OPTIONS`, un browser cross-origin blocca la richiesta prima di raggiungere la route (anche con un UUID valido).
+
+Su questa PR Draft, `api/app.js` ammette `Idempotency-Key` nella configurazione `cors()` e in entrambi i percorsi espliciti `Access-Control-Allow-Headers`. La lista delle **origini** consentite e la politica `credentials` restano invariate; non è introdotto alcun wildcard. La regressione riusa `api/tests/corsRenderFrontend.test.js` e viene richiamata dal workflow GDPR, che si attiva anche quando il target della PR stacked è diverso da `main`.
+
+Questa correzione **non** equivale a implementare un client di invio delle richieste: quello richiede ancora la generazione e il riutilizzo affidabile del medesimo UUID per lo stesso tentativo.

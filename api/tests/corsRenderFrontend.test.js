@@ -23,3 +23,25 @@ test('unknown Render domains are not implicitly trusted', () => {
     assert.doesNotMatch(entries, /'https:\/\/\.onrender\.com'/);
   }
 });
+
+test('Idempotency-Key is permitted by CORS middleware and both preflight/header paths', () => {
+  const configured = appSource.match(/allowedHeaders:\s*\[([^\]]+)\]/);
+  assert.ok(configured, 'cors middleware must explicitly name request headers');
+  assert.match(configured[1], /'Idempotency-Key'/);
+  assert.match(configured[1], /'Authorization'/);
+  assert.doesNotMatch(configured[1], /['"]\*['"]/);
+
+  const headerResponses = [...appSource.matchAll(
+    /res\.header\('Access-Control-Allow-Headers',\s*'([^']+)'\)/g
+  )].map(match => match[1]);
+  assert.equal(headerResponses.length, 2,
+    'keep regular response and OPTIONS preflight allow-header policies aligned');
+  for (const headers of headerResponses) {
+    const entries = headers.split(',').map(value => value.trim().toLowerCase());
+    assert.ok(entries.includes('idempotency-key'),
+      'credentialed browser retries need an explicitly permitted Idempotency-Key');
+    assert.ok(entries.includes('authorization'));
+    assert.ok(entries.includes('content-type'));
+    assert.ok(!entries.includes('*'), 'no wildcard headers with credentials');
+  }
+});

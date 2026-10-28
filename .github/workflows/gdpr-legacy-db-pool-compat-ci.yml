@@ -7,6 +7,8 @@ on:
       - 'api/config/database.js'
       - 'api/utils/databaseTlsPolicy.js'
       - 'api/routes/user/gdpr-requests.js'
+      - 'api/app.js'
+      - 'api/tests/corsRenderFrontend.test.js'
       - 'api/routes/user/gdpr-rights.js'
       - 'api/services/gdprRightsHistoryService.js'
       - 'client/src/pages/GDPRRights.tsx'
@@ -50,6 +52,9 @@ jobs:
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Verify legacy DB alias, TLS and persistent GDPR requests (offline)
         run: |
+          node --check api/app.js
+          node --check api/tests/corsRenderFrontend.test.js
+          node --test api/tests/corsRenderFrontend.test.js
           node --check api/config/db.js
           node --check api/routes/user/gdpr-requests.js
           node --check api/routes/user/gdpr-rights.js
