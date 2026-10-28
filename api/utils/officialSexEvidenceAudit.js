@@ -132,7 +132,14 @@ function auditOfficialSexEvidence(users, officialRecords) {
       seenSourceIds.set(id, key);
     }
     const list = evidenceByKey.get(key) || [];
-    list.push({ id, sesso: record.sesso, source_url: record.source_url });
+    // Un endpoint parlamentare può ripetere la stessa risorsa in più righe.
+    // Deduplichiamo solo record identici; disaccordi rimangono ambigui.
+    if (!list.some(candidate =>
+      candidate.id === id &&
+      candidate.sesso === record.sesso &&
+      candidate.source_url === record.source_url)) {
+      list.push({ id, sesso: record.sesso, source_url: record.source_url });
+    }
     evidenceByKey.set(key, list);
   }
 
