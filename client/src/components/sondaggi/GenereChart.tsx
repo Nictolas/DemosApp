@@ -8,20 +8,22 @@ interface GenereChartProps {
 }
 
 export function GenereChart({ genereData, colors }: GenereChartProps) {
-  if (!genereData) return null;
+  if (!Array.isArray(genereData)) return null;
 
-  const generePieData = [
-    { name: 'Uomo', value: parseInt(genereData.uomo) || 0 },
-    { name: 'Donna', value: parseInt(genereData.donna) || 0 },
-    { name: 'Altro', value: parseInt(genereData.altro) || 0 },
-  ].filter(item => item.value > 0);
+  const generePieData = genereData
+    .filter(item => item?.sesso === 'M' || item?.sesso === 'F')
+    .map(item => ({
+      name: item.sesso === 'M' ? 'Maschile' : 'Femminile',
+      value: Math.max(0, Number(item.totale) || 0)
+    }))
+    .filter(item => item.value > 0);
 
   if (generePieData.length === 0) return null;
 
   return (
     <Card className="bg-white shadow-lg">
       <CardHeader>
-        <CardTitle className="text-xl">Distribuzione per Genere</CardTitle>
+        <CardTitle className="text-xl">Distribuzione per sesso anagrafico (CIE)</CardTitle>
       </CardHeader>
       <CardContent className="h-80">
         <ResponsiveContainer width="100%" height="100%">
