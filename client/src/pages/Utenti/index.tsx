@@ -33,7 +33,7 @@ import { hasAdminCapability } from "@/lib/admin-access";
 type StatisticheUtenti = {
   totalUsers: number;
   usersByRole: Record<string, number>;
-  usersByGender: Record<string, number>;
+  usersBySesso: Record<string, number>;
   usersByCitizenship: Record<string, number>;
   usersByRegion: Record<string, number>;
   usersByCity: Record<string, number>;
@@ -43,21 +43,9 @@ type StatisticheUtenti = {
 // Colori per i grafici - più colori per evitare duplicati
 const COLORS = ['#87CEEB', '#FFB6C1', '#FFD700', '#98FB98', '#DDA0DD', '#F0E68C', '#FFA07A', '#20B2AA', '#FF6347', '#40E0D0', '#EE82EE', '#90EE90', '#F4A460', '#87CEFA', '#D8BFD8', '#F5DEB3'];
 
-// Funzione per assegnare colori specifici per genere (stessi colori di statistiche-opinione)
-const getGenderColor = (gender: string, index: number) => {
-  switch (gender.toLowerCase()) {
-    case 'uomo':
-    case 'maschio':
-      return '#3b82f6'; // Blu
-    case 'donna':
-    case 'femmina':
-      return '#ec4899'; // Rosa
-    case 'altro':
-      return '#eab308'; // Giallo
-    default:
-      return '#6b7280'; // Grigio per N/A
-  }
-};
+// Colori delle sole categorie CIE certificate; NULL non è una terza categoria di sesso.
+const getSexColor = (sesso: string) =>
+  sesso === 'M' ? '#3b82f6' : sesso === 'F' ? '#ec4899' : '#9ca3af';
 
 export default function Utenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -128,9 +116,13 @@ export default function Utenti() {
       return acc;
     }, {} as Record<string, number>);
     
-    const usersByGender = utenti.reduce((acc, user) => {
-      const gender = user.genere || 'N/A';
-      acc[gender] = (acc[gender] || 0) + 1;
+    const usersBySesso = utenti.reduce((acc, user) => {
+      // Solo persone: non convertire la vecchia colonna "genere" in un dato CIE.
+      if (user.account_type !== 'PERSON') return acc;
+      const sesso = user.sesso === 'M' || user.sesso === 'F'
+        ? user.sesso
+        : 'Non disponibile';
+      acc[sesso] = (acc[sesso] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     
@@ -197,7 +189,7 @@ export default function Utenti() {
     return {
       totalUsers: utenti.length,
       usersByRole,
-      usersByGender,
+      usersBySesso,
       usersByCitizenship,
       usersByRegion,
       usersByCity,
@@ -756,13 +748,14 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>Distribuzione per Genere</CardTitle>
+                      <CardTitle>Distribuzione per sesso anagrafico (CIE)</CardTitle>
+                      <CardDescription>Solo persone. I valori storici di «genere» non sono considerati certificati.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie 
-                            data={preparePieData(stats.usersByGender)} 
+                            data={preparePieData(stats.usersBySesso)} 
                             dataKey="value" 
                             nameKey="name" 
                             cx="50%" 
@@ -771,8 +764,8 @@ export default function Utenti() {
                             fill="#8884d8" 
                             label
                           >
-                            {preparePieData(stats.usersByGender).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={getGenderColor(entry.name, index)} />
+                            {preparePieData(stats.usersBySesso).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={getSexColor(entry.name)} />
                             ))}
                           </Pie>
                           <Tooltip />
