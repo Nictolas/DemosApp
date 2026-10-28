@@ -41,3 +41,16 @@ Il trigger SQL `users_sync_political_territories` si attiva dopo INSERT/UPDATE d
 ## Divieti in questo ramo
 
 Nessun DDL o aggiornamento dei dati di produzione, nessuna replica di dati personali sul Sheet, nessun cambiamento di sesso/genere, nessuna fusione o deploy automatico. Lo staging Supabase corrente non contiene ancora `user_profile` e `user_political_territories`: non equivale alla produzione e blocca le verifiche E2E della migrazione. Questa PR rimane Draft fino ai gate.
+
+## Test isolati nello staging Supabase — 28/10/2026
+
+È stato creato **solo su Demos-Staging** lo schema privato `qa_user_profile_20261028`: 8 account inventati, 7 profili, un caso senza profilo, una divergenza di residenza, un fallback `NULL`, un avatar legacy, un profilo organizzazione e un conflitto nel grado elettorale. La struttura replica le **colonne di profilo pertinenti** e i vincoli `user_id` PK/FK con `ON DELETE CASCADE`, ma **non è un clone dello schema completo produzione**. Le tabelle `public.users` e `public.user_consents` dello staging non sono state modificate e `public.user_profile` continua a mancare.
+
+- Fixture versionato: `api/database/qa-user-profile-staging-isolated.sql`.
+- Test non persistenti: `api/database/qa-user-profile-staging-backfill-rollback-test.sql`.
+- Risultati SQL: 8 utenti sintetici, 7 profili; accesso allo schema negato ad `anon`, `authenticated` e `service_role`, RLS abilitata. Letture con precedenza profilo, fallback e tipi account superate.
+- Backfill sintetico con protezione `ON CONFLICT`: prima esecuzione 1 nuovo profilo, seconda 0; modifica amministrativa di coppia di tabelle verificata; avatar JSONB invalido causa rollback del sottoblocco; **tutte le scritture di test sono annullate**.
+- Verifica dopo test: 8/7 profili sintetici invariati, comune originario mantenuto; 2 utenti preesistenti in `public.users` staging invariati.
+- La suite `api/tests/userProfileStagingFixture.integration.test.js` verifica fixture, rollback e isolamento su PostgreSQL 17 in GitHub Actions, senza utilizzare credenziali di Supabase.
+
+**NO-GO invariato:** per rilasciare la migrazione resta da predisporre una replica *completa* dello schema produzione in ambiente isolato, senza dati reali, con il trigger politico, GDPR, elezioni, frontend/backend e flussi E2E; verificare rollback effettivo in quello staging e solo dopo considerare un cutover. Non promuovere lo schema QA sintetico a produzione e non cancellarlo mentre test in corso.
