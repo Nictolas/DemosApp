@@ -200,14 +200,30 @@ test('full GDPR HTTP JSON/CSV uses real PG17 sources, authenticates and fails cl
     assert.equal(exportData.audit_log_coverage.complete_history_verified,false);
     assert.equal(exportData.audit_log_coverage.per_request_limit,100);
     assert.equal(exportData.audit_log_coverage.returned_rows,100);
+    // F5-17 is NOT approved: no invented retention period may be exported.
+    assert.equal(exportData.data_retention_info.status,'verifica_necessaria');
+    for (const category of ['account_data','voting_data','communication_data','technical_data']) {
+      assert.equal(exportData.data_retention_info[category],null,category);
+    }
+    assert.match(exportData.data_retention_info.note,/non sono ancora verificati/);
+    assert.doesNotMatch(JSON.stringify(exportData.data_retention_info),/5 anni|3 anni|12 mesi/);
+
     assert.doesNotMatch(JSON.stringify(body),/private-other/);
 
     const csv=await req(A,'/api/user/data-export?format=csv');
     assert.equal(csv.status,200);
     assert.match(csv.headers.get('content-type'),/text\/csv/);
+    const disposition=csv.headers.get('content-disposition');
+    assert.match(disposition,/^attachment; filename="dati-personali-\\d{4}-\\d{2}-\\d{2}\\.csv"$/);
+    assert.doesNotMatch(disposition,new RegExp(A));
+
     const csvText=await csv.text();
     assert.match(csvText,/synthetic-new/);
     assert.match(csvText,/audit_log_coverage/);
+    assert.match(csvText,/data_retention_info\\.status/);
+    assert.match(csvText,/verifica_necessaria/);
+    assert.doesNotMatch(csvText,/Conservato in forma anonima per 5 anni|Conservato per 3 anni|Conservato per 12 mesi/);
+
     assert.doesNotMatch(csvText,/private-other/);
     const receipts=await pool.query(
       "SELECT COUNT(*)::int AS n FROM public.user_rights_requests WHERE user_id=$1 AND request_type='data_export'",

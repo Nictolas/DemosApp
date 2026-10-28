@@ -108,3 +108,11 @@ Il controller per modulo mantiene solo in memoria la chiave per un retry esplici
 L'export JSON/CSV usa i resolver comuni di API e token, `no-store`, timeout, verifica del formato/ricevuta e ricontrollo della sessione prima del download. JSON estrae i dati dall'envelope corretto; CSV usa il contenuto server, senza un secondo serializzatore. URL temporaneo e link sono rimossi anche in caso di errore. L'interfaccia dichiara l'avvio del download, non il salvataggio effettivo su Android.
 
 Regressioni locali: **7/7 controller retry/contratto**, **6/6 export**, **8/8 rendering e isolamento account**, build frontend PASS. La CI esegue questi test dopo l'installazione client e ripete le regressioni backend/PG17 esistenti sullo stesso HEAD. Rendering SSR e trasporto simulato non sostituiscono il collaudo browser/Android e il ciclo DPO su staging isolato. Le prove provider e la retention approvata restano aperte; issue #296 OPEN / recovery NO-GO.
+
+## Export GDPR: periodi di conservazione non attestati e minimizzazione filename (28/10)
+
+La CHECKLIST MASTER, voce F5-17, mantiene aperta l'approvazione dei periodi di conservazione per categoria. Il codice export mostrava come certi «5 anni» per i voti, «3 anni» per le comunicazioni e «12 mesi» per i dati tecnici, senza una matrice retention approvata. Questa è una dichiarazione non supportata nel report consegnato all'utente, indipendentemente dalla bontà dei test di trasporto.
+
+Sul ramo Draft #376 l'export JSON/CSV conserva i quattro nomi delle categorie, ma imposta i relativi periodi a `null`, con stato `verifica_necessaria` e avviso esplicito. Non modifica la retention effettiva, il database, le politiche o la privacy policy; il DPO deve approvare la matrice F5-17 prima di pubblicare periodi concreti. Il `Content-Disposition` CSV ora usa solo la data, non l'UUID dell'utente nel nome del file; l'ID resta nel contenuto del report per l'interessato autenticato.
+
+La prova end-to-end PostgreSQL 17 sintetica verifica il JSON, il CSV, l'assenza dei tre periodi non attestati e del soggetto nel filename, senza righe reali. La release rimane NO-GO, nessun merge/deploy.

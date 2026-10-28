@@ -224,11 +224,15 @@ router.get('/data-export', async (req, res) => {
       },
       audit_logs: auditLogs,
       audit_log_coverage: auditLogCoverage,
+      // F5-17 (CHECKLIST MASTER) remains an unapproved retention gate.
+      // Never invent legal retention periods in an authenticated export.
       data_retention_info: {
-        account_data: 'Conservato fino alla cancellazione dell\'account',
-        voting_data: 'Conservato in forma anonima per 5 anni',
-        communication_data: 'Conservato per 3 anni dall\'ultima interazione',
-        technical_data: 'Conservato per 12 mesi per sicurezza e debugging'
+        status: 'verifica_necessaria',
+        account_data: null,
+        voting_data: null,
+        communication_data: null,
+        technical_data: null,
+        note: 'I tempi di conservazione per categoria non sono ancora verificati e approvati. Consultare l’informativa privacy aggiornata quando disponibile.'
       }
     };
 
@@ -249,7 +253,7 @@ router.get('/data-export', async (req, res) => {
     if (format === 'csv') {
       const csv = convertToCSV(dataExport);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${userId}-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${new Date().toISOString().split('T')[0]}.csv"`);
       res.send('\ufeff' + csv); // BOM UTF-8 per Excel
     } else {
       res.json({
