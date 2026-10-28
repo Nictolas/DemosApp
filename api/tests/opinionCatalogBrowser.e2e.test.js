@@ -67,6 +67,17 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     vite.stderr.on('data', chunk => { viteErrors += String(chunk).slice(0, 4000); });
     await waitForLocal(HEADLESS_ORIGIN + '/');
     await waitForLocal('http://localhost:10000/healthz');
+    // Validate reverse proxy separately, before booting the browser.
+    const viaProxy = await fetch(HEADLESS_ORIGIN + '/api/opinioni-list?grado=N', {
+      headers: { authorization: 'Bearer ' + token }
+    });
+    const viaProxyText = await viaProxy.text();
+    assert.equal(viaProxy.status, 200, 'Vite proxy must route local synthetic API');
+    assert.match(viaProxy.headers.get('content-type') || '', /application\/json/,
+      'Unexpected Vite proxy response type: ' + viaProxyText.slice(0, 180));
+    const viaProxyData = JSON.parse(viaProxyText);
+    assert.equal(viaProxyData.data?.length, getOpinionsForGrade('N').length,
+      'Vite proxy must return candidate published questions, not an HTML fallback');
     browser = await chromium.launch({
       channel: 'chrome', headless: true,
       args: ['--no-sandbox', '--disable-dev-shm-usage']
@@ -113,7 +124,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
               headers: { authorization: 'Bearer ' + token }
             });
             const data = await res.json().catch(() => ({}));
-            return { status: res.status, count: data?.data?.length || 0,
+            return { status: res.status, contentType: res.headers.get('content-type'),
+              count: data?.data?.length || 0,
+              grado: data?.grado || null, message: data?.message || null,
               error: data?.error || null };
           } catch (cause) {
             return { failure: String(cause?.message || cause) };
