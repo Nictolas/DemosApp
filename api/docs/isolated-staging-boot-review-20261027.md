@@ -205,10 +205,24 @@ della produzione per superare il controllo.
 Prima della futura fase 2 serviranno:
 
 - Approvazione di un database staging durevole, indipendente e popolato
-  **soltanto con dati inventati**. Attualmente `Demos-Staging` contiene
-  zero tabelle `public` e quattro tabelle private `op37_sondaggi_ci`.
-- Migrazioni mirate e ledger `privacy_erasure_ledger` con protezione RLS,
-  ACL e ruoli dedicati; piano di DDL/GRANT separatamente autorizzato.
+  **soltanto con dati inventati**. **Catalogo verificato nuovamente il
+  28/10/2026 (letture solo metadata):** `Demos-Staging` presenta **sette
+  tabelle `public`**, incluse `privacy_erasure_ledger` e
+  `privacy_erasure_delivery_outbox`; tutte hanno `RLS=true` e
+  `FORCE RLS=true`. Esistono i ruoli `demos_staging_runtime` e
+  `demos_staging_b2_worker` (entrambi senza `BYPASSRLS` e senza
+  `SUPERUSER`). Il precedente inventario «zero tabelle public» è
+  **superato**; la presenza di strutture e policy non attesta né la
+  provenienza di ogni riga né l'isolamento del processo applicativo.
+- **Non rieseguire automaticamente bootstrap, migrazioni, DDL o GRANT**
+  sulla base della checklist storica: ledger e outbox sono già presenti.
+  Prima di qualsiasi modifica futura verificare separatamente la storia
+  delle migrazioni, la corrispondenza esatta di schema/colonne/indici,
+  policy e privilegi rispetto al codice da testare, l'origine sintetica
+  dei dati, e un piano di rollback **senza perdita del ledger**. Le prove
+  precedenti con `SET ROLE` e `ROLLBACK` non attestano il vero runtime
+  Render né un login riuscito del processo tramite credenziali dedicate.
+  DDL, login, network e test con il runtime richiedono approvazioni distinte.
 - Attestazione effettiva, tramite il pool del backend staging, di
   `current_user`, `session_user`, `current_database()`, RLS/ACL
   dai soli cataloghi, senza leggere eventi GDPR o righe degli utenti.
