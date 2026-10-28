@@ -1,0 +1,61 @@
+name: GDPR atomic outbox on protected ledger (synthetic PG17)
+
+on:
+  # The workflow is first introduced in this stacked Draft. Its parent
+  # branch does not contain this workflow, so PR checks may not start.
+  # Restrict push verification to this isolated Draft branch only.
+  push:
+    branches:
+      - 'fix/gdpr-outbox-atomic-on-b2-contract-20261027'
+    paths:
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/tests/gdprOutboxAtomicIsolated.pg17.test.js'
+      - '.github/workflows/gdpr-atomic-outbox-on-ledger-ci.yml'
+  pull_request:
+    paths:
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/services/privacyErasureB2Journal.js'
+      - 'api/services/privacyLedgerTimestamp.js'
+      - 'api/tests/gdprOutboxAtomicIsolated.pg17.test.js'
+      - '.github/workflows/gdpr-atomic-outbox-on-ledger-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  gdpr-atomic-outbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: gdpr_outbox_contract_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gdpr_outbox_contract_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install offline synthetic dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Verify schema/atomics syntax and PostgreSQL 17 behavior
+        env:
+          GITHUB_ACTIONS: 'true'
+          GDPR_OUTBOX_CI: isolated
+          TEST_DATABASE_URL: postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_contract_ci
+        run: |
+          node --check api/services/privacyErasureLedgerService.js
+          node --check api/services/privacyErasureB2Journal.js
+          node --check api/tests/gdprOutboxAtomicIsolated.pg17.test.js
+          node --test --test-concurrency=1 api/tests/gdprOutboxAtomicIsolated.pg17.test.js
