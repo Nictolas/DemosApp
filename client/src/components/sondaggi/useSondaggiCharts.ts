@@ -75,13 +75,14 @@ export function useSondaggiCharts(stats: OpinionStats | undefined, questions: Qu
 
   // Prepara dati per il grafico a torta del genere
   const prepareGenerePieData = useMemo(() => (genereData: any) => {
-    if (!genereData) return [];
-    
-    return [
-      { name: 'Uomo', value: parseInt(genereData.uomo) || 0 },
-      { name: 'Donna', value: parseInt(genereData.donna) || 0 },
-      { name: 'Altro', value: parseInt(genereData.altro) || 0 },
-    ].filter(item => item.value > 0);
+    if (!Array.isArray(genereData)) return [];
+    return genereData
+      .filter(item => item?.sesso === 'M' || item?.sesso === 'F')
+      .map(item => ({
+        name: item.sesso === 'M' ? 'Maschile' : 'Femminile',
+        value: Math.max(0, Number(item.totale) || 0)
+      }))
+      .filter(item => item.value > 0);
   }, []);
 
   // Calcola statistiche aggregate
