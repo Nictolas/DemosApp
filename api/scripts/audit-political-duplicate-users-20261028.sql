@@ -31,6 +31,32 @@ SELECT count(*)::int AS suspected_groups,
        count(*) FILTER (WHERE accounts_with_identity_providers>0)::int AS auth_sensitive_groups
 FROM duplicates;
 
+-- Risk segmentation. SAME NAME + SAME DOB is NOT an identity assertion.
+-- Existing legacy import dates were sometimes fabricated; review official IDs.
+-- The simultaneous chambers count flags suspicious imports only.
+WITH suspected AS (
+ SELECT lower(btrim(u.nome)) first_name,lower(btrim(u.cognome)) last_name,
+ COUNT(DISTINCT u.id) profiles,
+ COUNT(DISTINCT u.id) FILTER(WHERE u.ruolo='P') politicians,
+ COUNT(DISTINCT u.id) FILTER(WHERE pm.office_code='C' AND pm.status='ACTIVE' AND pm.source='LEGACY_BACKFILL') chamber_legacy_active,
+ COUNT(DISTINCT u.id) FILTER(WHERE pm.office_code='S' AND pm.status='ACTIVE' AND pm.source='LEGACY_BACKFILL') senate_legacy_active,
+ COUNT(DISTINCT u.data_nascita) different_birthdates,
+ COUNT(DISTINCT u.id) FILTER(WHERE u.data_nascita IS NULL) missing_birthdates,
+ COUNT(DISTINCT u.id) FILTER(WHERE u.email IS NOT NULL OR u.google_sub IS NOT NULL OR u.apple_user_id IS NOT NULL OR u.webauthn_credential_id IS NOT NULL OR u.firestore_uid IS NOT NULL) with_auth
+ FROM public.users u LEFT JOIN public.political_mandates pm ON pm.user_id=u.id
+ WHERE u.account_type='PERSON' AND nullif(btrim(u.nome),'') IS NOT NULL AND nullif(btrim(u.cognome),'') IS NOT NULL
+ GROUP BY 1,2 HAVING COUNT(DISTINCT u.id)>1
+)
+SELECT COUNT(*)::int AS groups,
+ COUNT(*) FILTER(WHERE politicians=profiles)::int AS only_p,
+ COUNT(*) FILTER(WHERE politicians<>profiles)::int AS nonpolitician_or_mixed,
+ COUNT(*) FILTER(WHERE politicians=profiles AND with_auth=0 AND missing_birthdates=0 AND different_birthdates=1)::int AS politician_unauthed_same_dob_for_review,
+ COUNT(*) FILTER(WHERE with_auth>0)::int AS with_authenticated_accounts,
+ COUNT(*) FILTER(WHERE different_birthdates>1)::int AS conflicting_dob,
+ COUNT(*) FILTER(WHERE missing_birthdates>0)::int AS missing_dob,
+ COUNT(*) FILTER(WHERE chamber_legacy_active>0 AND senate_legacy_active>0)::int AS simultaneous_legacy_chamber_senate_by_name
+FROM suspected;
+
 -- Individually review any group before linking institutional IDs or editing.
 -- Do not use DOB alone for matching: some legacy imported DOBs were incorrect.
 WITH duplicate_keys AS (
