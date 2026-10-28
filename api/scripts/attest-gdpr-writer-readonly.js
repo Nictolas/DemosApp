@@ -16,16 +16,34 @@ function assertStagingTarget(env) {
   try { url = new URL(env.DATABASE_URL); } catch (_) {
     throw new Error('GDPR_WRITER_ATTESTATION_INVALID_TARGET');
   }
-  if (!['postgres:', 'postgresql:'].includes(url.protocol) || url.pathname !== '/postgres') {
+  if (!['postgres:', 'postgresql:'].includes(url.protocol) ||
+      url.pathname !== '/postgres' || url.hash || !url.hostname ||
+      !url.username || !url.password) {
     throw new Error('GDPR_WRITER_ATTESTATION_INVALID_TARGET');
   }
-  // Supabase direct database uses its project-specific hostname.
-  // Supavisor uses a shared hostname with the project ref in the username.
-  const direct = url.hostname === `db.${STAGING_REF}.supabase.co`;
-  const pooler = url.hostname.endsWith('.pooler.supabase.com') &&
-    url.username.endsWith(`.${STAGING_REF}`);
+  // This operator-only identity probe accepts the actual staging SQL role
+  // (not assumed in advance), but NEVER a different project/region or
+  // arbitrary port. A missing/downgraded TLS declaration is an unsafe
+  // candidate even though the canonical backend pool separately enforces CA.
+  const direct = url.hostname === `db.${STAGING_REF}.supabase.co` &&
+    (!url.port || url.port === '5432');
+  const pooler = /^aws-\d+-eu-central-1\.pooler\.supabase\.com$/.test(url.hostname) &&
+    url.username.endsWith(`.${STAGING_REF}`) &&
+    ['5432','6543'].includes(url.port);
   if (!direct && !pooler) {
     throw new Error('GDPR_WRITER_ATTESTATION_INVALID_TARGET');
+  }
+  if (url.searchParams.getAll('sslmode').length !== 1 ||
+      url.searchParams.get('sslmode') !== 'require') {
+    throw new Error('GDPR_WRITER_ATTESTATION_INVALID_TARGET');
+  }
+  const allowedParams = new Set(['sslmode', 'pgbouncer']);
+  for (const [key,value] of url.searchParams) {
+    if (!allowedParams.has(key) ||
+        url.searchParams.getAll(key).length !== 1 ||
+        (key === 'pgbouncer' && (!pooler || value !== 'true'))) {
+      throw new Error('GDPR_WRITER_ATTESTATION_INVALID_TARGET');
+    }
   }
   // Do not return, print or log any portion of the connection string.
   return { project: 'Demos-Staging', target_checked: true };
