@@ -43,10 +43,10 @@ test('profile and OAuth routes never log account identifiers, political answers 
     path.resolve(__dirname, '../routes/auth/oauth.js'), 'utf8'
   );
   for (const source of [profile, oauth]) {
-    assert.doesNotMatch(source, /\\bconsole\\.(?:log|debug|info|warn|error)\\s*\\(/);
+    assert.doesNotMatch(source, /\bconsole\.(?:log|debug|info|warn|error)\s*\(/);
   }
-  assert.doesNotMatch(profile, /details:\\s*process\\.env\\.NODE_ENV\\s*\\?\\s*error\\.message/);
-  assert.doesNotMatch(oauth, /error:\\s*err\\.message/);
-  assert.match(profile, /router\\.put\\('\\/:userId\\/opinioni'/);
+  assert.doesNotMatch(profile, /details:\s*process\.env\.NODE_ENV\s*\?\s*error\.message/);
+  assert.doesNotMatch(oauth, /error:\s*err\.message/);
+  assert.match(profile, /router\.put\('\/:userId\/opinioni'/);
   assert.match(oauth, /generateOAuthPendingToken/);
 });
