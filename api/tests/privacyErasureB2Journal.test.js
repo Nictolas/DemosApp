@@ -330,8 +330,8 @@ test('cursor advances only when every object in bounded batch is verified',async
   const queries=[];
   const db={async query(sql,params){
     queries.push({sql,params});return {rows:[
-      {...a,cursor_occurred_at:'2026-10-26T03:00:00.000000Z'},
-      {...c,cursor_occurred_at:'2026-10-26T03:30:00.000000Z'}
+      {...a,complete_visibility:true,cursor_occurred_at:'2026-10-26T03:00:00.000000Z'},
+      {...c,complete_visibility:true,cursor_occurred_at:'2026-10-26T03:30:00.000000Z'}
     ]};
   }};
   const result=await service(b2).archiveBatch(db,{limit:2});
@@ -347,6 +347,30 @@ test('cursor advances only when every object in bounded batch is verified',async
   await assert.rejects(disabled.archiveBatch(db),/disabled/);
   assert.equal(queries.length,1);
 });
+test('manual archive refuses a filtered, unverifiable or empty SQL snapshot before B2',async()=>{
+  const b2=new FakeB2(),journal=service(b2);
+  const valid={...EVT(),cursor_occurred_at:'2026-10-26T03:00:00.000000Z'};
+  let sqlCount=0;
+  for(const rows of [
+    [{complete_visibility:false,event_key:null}],
+    [{...valid,complete_visibility:false}],
+    [],
+    [{complete_visibility:null,event_key:null}]
+  ]) {
+    const db={async query(sql){
+      sqlCount++;
+      assert.match(sql,/WITH visibility AS MATERIALIZED/);
+      assert.match(sql,/row_security_active/);
+      assert.match(sql,/LEFT JOIN LATERAL/);
+      return {rows};
+    }};
+    await assert.rejects(journal.archiveBatch(db,{limit:1}),
+      /GDPR_B2_ARCHIVE_INCOMPLETE_VISIBILITY/);
+  }
+  assert.equal(sqlCount,4,'one verified page SQL statement per attempt');
+  assert.equal(b2.calls.length,0,'never touch B2 after an incomplete SQL view');
+});
+
 test('manual B2 exporter cannot read a pg_temp ledger shadow',async()=>{
   const b2=new FakeB2(),journal=service(b2);
   const official=EVT();
@@ -355,9 +379,9 @@ test('manual B2 exporter cannot read a pg_temp ledger shadow',async()=>{
     // A borrowed PostgreSQL session could carry an earlier temporary relation
     // named privacy_erasure_ledger. An unqualified FROM would read it instead.
     if (sql.includes('FROM public.privacy_erasure_ledger ')) {
-      return {rows:[{...official,cursor_occurred_at:'2026-10-26T03:00:00.000000Z'}]};
+      return {rows:[{...official,complete_visibility:true,cursor_occurred_at:'2026-10-26T03:00:00.000000Z'}]};
     }
-    return {rows:[{...tempShadow,cursor_occurred_at:'2026-10-26T03:00:00.000000Z'}]};
+    return {rows:[{...tempShadow,complete_visibility:true,cursor_occurred_at:'2026-10-26T03:00:00.000000Z'}]};
   }};
   const result=await journal.archiveBatch(db,{limit:1});
   assert.equal(result.exported,1);
@@ -381,11 +405,11 @@ test('manual B2 batch cursor preserves PostgreSQL microseconds across pages',asy
   const db={async query(sql,params){
     queries.push(params);
     assert.ok(sql.includes('to_char(occurred_at AT TIME ZONE'));
-    if(params[0]===null) return {rows:[{...a,cursor_occurred_at:first}]};
+    if(params[0]===null) return {rows:[{...a,complete_visibility:true,cursor_occurred_at:first}]};
     if(params[0]===first && params[1]===a.event_key) {
-      return {rows:[{...b,cursor_occurred_at:second}]};
+      return {rows:[{...b,complete_visibility:true,cursor_occurred_at:second}]};
     }
-    if(params[0]===second && params[1]===b.event_key) return {rows:[]};
+    if(params[0]===second && params[1]===b.event_key) return {rows:[{complete_visibility:true,event_key:null}]};
     throw Error('Repeated or truncated PostgreSQL timestamp cursor');
   }};
   const one=await journal.archiveBatch(db,{limit:1});
@@ -402,10 +426,10 @@ test('manual B2 batch cursor preserves PostgreSQL microseconds across pages',asy
 test('manual B2 archive refuses missing exact timestamp before remote I/O',async()=>{
   const b2=new FakeB2(),journal=service(b2);
   await assert.rejects(journal.archiveBatch({
-    async query(){return {rows:[EVT()]};}
+    async query(){return {rows:[{...EVT(),complete_visibility:true}]};}
   },{limit:1}),/requires exact PostgreSQL timestamp cursor/);
   assert.equal(b2.calls.length,0);
-  await assert.rejects(journal.archiveBatch({query:async()=>({rows:[]})},{
+  await assert.rejects(journal.archiveBatch({query:async()=>({rows:[{complete_visibility:true,event_key:null}]})},{
     after:{occurred_at:'2026-10-26T03:00:00.00012INVALIDZ',
       event_key:'ffffffff-ffff-4fff-8fff-ffffffffffff'},
     limit:1
@@ -415,7 +439,7 @@ test('manual B2 archive refuses missing exact timestamp before remote I/O',async
 test('manual B2 archive rejects lossy or invalid resume cursor before SQL and B2',async()=>{
   const b2=new FakeB2(),journal=service(b2);
   let sql=0;
-  const db={async query(){sql++;return {rows:[]};}};
+  const db={async query(){sql++;return {rows:[{complete_visibility:true,event_key:null}]};}};
   const key='ffffffff-ffff-4fff-8fff-ffffffffffff';
   const invalid=[
     {occurred_at:new Date('2026-10-26T03:00:00.000Z'),event_key:key},
@@ -439,7 +463,7 @@ test('manual B2 archive rejects lossy or invalid resume cursor before SQL and B2
 
 test('invalid batch size and invalid UUID or oversized details reject before PUT',async()=>{
   const b2=new FakeB2(),s=service(b2),event=EVT();
-  await assert.rejects(s.archiveBatch({query:async()=>({rows:[]})},{limit:999}),/bounded/);
+  await assert.rejects(s.archiveBatch({query:async()=>({rows:[{complete_visibility:true,event_key:null}]})},{limit:999}),/bounded/);
   await assert.rejects(s.archiveEvent({...event,event_key:'no'}),/Invalid GDPR/);
   await assert.rejects(s.archiveEvent({...event,details:{info:'X'.repeat(9000)}}),/minimization limit/);
   assert.equal(b2.calls.some(x=>x.name==='PutObjectCommand'),false);
@@ -460,7 +484,7 @@ test('archiveBatch writes exact SQL cursor instead of lossy pg Date',async()=>{
   const b2=new FakeB2(),journal=service(b2);
   const event=EVT(),exact='2026-10-26T03:00:00.123456Z';
   const db={async query(){return {rows:[{
-    ...event,occurred_at:new Date('2026-10-26T03:00:00.123Z'),
+    ...event,complete_visibility:true,occurred_at:new Date('2026-10-26T03:00:00.123Z'),
     cursor_occurred_at:exact
   }]};}};
   const result=await journal.archiveBatch(db,{limit:1});

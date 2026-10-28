@@ -28,3 +28,25 @@ Prima di aggiungere l'outbox occorre integrare, sulla stessa base #371, i seguen
 - Che il piano recovery #296 possa passare a GO.
 
 **Decisione invariata:** issue #296 **NO-GO**. Portare in review questa tranche di contratto soltanto dopo CI verde; ulteriori moduli devono restare isolati finché non sia possibile verificarli con regressioni sintetiche complete.
+
+## 28 October 2026 — B2 manual exporter must not mistake RLS-filtered history for complete backup
+
+The manual `archiveBatch` used a bounded `SELECT` but could return an apparently
+complete or empty batch if the SQL operator had only partial RLS visibility.
+The updated code runs the `row_security_active` check and ledger page in
+**one PostgreSQL SQL statement and snapshot**, using a materialized visibility
+CTE and a LEFT JOIN LATERAL that returns an explicit empty-page sentinel.
+A restricted role fails closed with `GDPR_B2_ARCHIVE_INCOMPLETE_VISIBILITY`
+*before contacting B2*; an actually empty page remains distinguishable.
+The cursor still advances only after each immutable object's readback.
+
+Offline unit regressions cover hidden rows, missing visibility metadata,
+a zero-row SQL anomaly, and a valid empty page. A separate synthetic
+PostgreSQL 17 job creates two invented events and a non-owner role whose
+SELECT RLS policy hides one. The restricted role must fail without any
+B2 writes, while a privileged synthetic operator can export both.
+
+This validates only a **necessary** SQL-visibility property. It does not
+prove the completeness of the source ledger, the independent B2 checkpoint,
+provider quarantine or Render's effective writer identity. Do not deploy
+or use this operator-only exporter until separate approvals. #296 stays NO-GO.
