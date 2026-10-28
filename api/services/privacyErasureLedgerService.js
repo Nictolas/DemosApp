@@ -210,12 +210,20 @@ class PrivacyErasureLedgerService {
     // including its subject and JSONB payload. A trigger may suppress or
     // rewrite a successful INSERT without causing PostgreSQL to throw.
     const outboxEnabled = this.outboxEnabled();
+    // A ledger event must remain recoverable even while the external outbox
+    // is OFF. A JSONB null/array/scalar is not an archival event document.
+    if (!details || typeof details !== 'object' || Array.isArray(details)) {
+      const error = new Error('Invalid GDPR ledger details: JSON object required');
+      error.code = 'GDPR_LEDGER_INVALID_EVENT_DETAILS';
+      throw error;
+    }
     const eventKey = crypto.randomUUID();
     const subjectUserId = String(userId);
     const detailsJson = JSON.stringify(details);
-    if (typeof detailsJson !== 'string') {
-      const error = new Error('GDPR_LEDGER_INSERT_NOT_CONFIRMED');
-      error.code = 'GDPR_LEDGER_INSERT_NOT_CONFIRMED';
+    if (typeof detailsJson !== 'string' || detailsJson[0] !== '{') {
+      // Includes non-object custom toJSON() results. Fail before touching SQL.
+      const error = new Error('Invalid GDPR ledger details: JSON object required');
+      error.code = 'GDPR_LEDGER_INVALID_EVENT_DETAILS';
       throw error;
     }
     if (outboxEnabled) {
