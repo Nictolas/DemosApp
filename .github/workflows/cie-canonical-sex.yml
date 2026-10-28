@@ -23,6 +23,8 @@ on:
       - 'api/routes/attivisti-sostenitori.js'
       - 'api/routes/organizzazioni-sostenitori.js'
       - 'api/routes/candidati.js'
+      - 'api/routes/attivisti.js'
+      - 'api/routes/organizzazioni.js'
       - 'client/src/pages/Sostenitori.tsx'
       - 'api/tests/opinionStatsAccountPopulation.test.js'
       - 'client/src/components/profile/PersonalDataSection.tsx'
