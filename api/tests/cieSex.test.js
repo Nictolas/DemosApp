@@ -28,6 +28,7 @@ test('persistenza sesso CIE richiede valore verificato, UUID e aggiornamento di 
   assert.deepEqual(calls[0].params, ['M', 'user-1']);
   assert.match(calls[0].sql, /sesso = \$1/);
   assert.match(calls[0].sql, /sesso IS NULL OR sesso = \$1/);
+  assert.match(calls[0].sql, /account_type = 'PERSON'/);
   await assert.rejects(
     persistVerifiedCieSex({ query: async () => ({ rowCount: 0 }) }, 'user-1', 'F'),
     /Conflitto/
