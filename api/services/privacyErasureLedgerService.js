@@ -206,38 +206,37 @@ class PrivacyErasureLedgerService {
       throw new Error('Privacy ledger event requires userId');
     }
 
-    // Serialize details ONCE, use the same JSON bytes for preflight and SQL.
-    // A malformed body must never cause partial ledger/outbox writes.
+    // Both the normal and opt-in outbox paths must verify the SQL row,
+    // including its subject and JSONB payload. A trigger may suppress or
+    // rewrite a successful INSERT without causing PostgreSQL to throw.
     const outboxEnabled = this.outboxEnabled();
     const eventKey = crypto.randomUUID();
     const subjectUserId = String(userId);
     const detailsJson = JSON.stringify(details);
+    if (typeof detailsJson !== 'string') {
+      const error = new Error('GDPR_LEDGER_INSERT_NOT_CONFIRMED');
+      error.code = 'GDPR_LEDGER_INSERT_NOT_CONFIRMED';
+      throw error;
+    }
     if (outboxEnabled) {
-      if (typeof detailsJson !== 'string') {
-        throw Error('Invalid GDPR outbox JSON details');
-      }
       const { normalizeEvent } = require('./privacyErasureB2Journal');
       normalizeEvent({
         event_key: eventKey,
         subject_user_id: subjectUserId,
         event_type: eventType,
-        // SQL's NOW() will provide the real UTC timestamp later.
         occurred_at: '2000-01-01T00:00:00.000Z',
         details: JSON.parse(detailsJson)
       });
     }
 
-    // Both tables must be preinstalled explicitly by an operator. NO DDL
-    // in consent, deletion or normal user-facing request transactions.
+    // The caller must use a single explicit SQL transaction for all account/
+    // consent changes, this event and the outbox. No implicit DDL here.
     await this.assertProtectedLedger(client);
     if (outboxEnabled) await this.assertProtectedOutbox(client);
-
     const params = [eventKey, subjectUserId, eventType, detailsJson];
+    let result;
     if (outboxEnabled) {
-      // PostgreSQL executes both data-modifying CTEs as ONE SQL statement:
-      // either the privacy event and its delivery receipt queue both exist,
-      // or NEITHER does. They also join the caller's outer transaction.
-      const result = await client.query(`
+      result = await client.query(`
         WITH event_insert AS (
           INSERT INTO public.privacy_erasure_ledger
             (event_key, subject_user_id, event_type, occurred_at, details)
@@ -248,22 +247,32 @@ class PrivacyErasureLedgerService {
           SELECT event_key FROM event_insert
           RETURNING event_key
         )
-        SELECT e.* FROM event_insert e
-        JOIN delivery_insert d ON d.event_key = e.event_key
+        SELECT e.*, e.details = $4::jsonb AS details_match
+        FROM event_insert e JOIN delivery_insert d ON d.event_key = e.event_key
       `, params);
-      if (result.rows?.length !== 1) {
-        throw Error('GDPR ledger event was not queued atomically');
-      }
-      return result.rows[0];
+    } else {
+      result = await client.query(
+        `INSERT INTO public.privacy_erasure_ledger
+          (event_key, subject_user_id, event_type, occurred_at, details)
+         VALUES ($1, $2, $3, NOW(), $4::jsonb)
+         RETURNING event_key, subject_user_id, event_type, occurred_at, details,
+           details = $4::jsonb AS details_match`,
+        params
+      );
     }
-    const result = await client.query(
-      `INSERT INTO public.privacy_erasure_ledger
-        (event_key, subject_user_id, event_type, occurred_at, details)
-       VALUES ($1, $2, $3, NOW(), $4::jsonb)
-       RETURNING event_key, subject_user_id, event_type, occurred_at, details`,
-      params
-    );
-    return result.rows[0];
+    const row = result.rows?.[0];
+    if (result.rowCount !== 1 || result.rows?.length !== 1 ||
+        row?.event_key !== eventKey ||
+        row.subject_user_id !== subjectUserId ||
+        row.event_type !== eventType ||
+        row.details_match !== true ||
+        !row.occurred_at) {
+      const error = new Error('GDPR_LEDGER_INSERT_NOT_CONFIRMED');
+      error.code = 'GDPR_LEDGER_INSERT_NOT_CONFIRMED';
+      throw error;
+    }
+    const { details_match: _verified, ...event } = row;
+    return event;
   }
 
   // Recovery/export MUST run with SQL visibility of the complete ledger.
@@ -353,10 +362,24 @@ class PrivacyErasureLedgerService {
         `INSERT INTO public.privacy_erasure_ledger
           (event_key, subject_user_id, event_type, occurred_at, details)
          VALUES ($1, $2, $3, $4, $5::jsonb)
-         ON CONFLICT (event_key) DO NOTHING`,
+         ON CONFLICT (event_key) DO NOTHING
+         RETURNING (
+           event_key = $1::text AND subject_user_id = $2::text
+           AND event_type = $3::text AND occurred_at = $4::timestamptz
+           AND details = $5::jsonb
+         ) AS identical`,
         event
       );
-      if (result.rowCount === 0) {
+      // A BEFORE INSERT trigger can rewrite any imported field and still
+      // produce rowCount=1. Verify the exact persisted SQL values, including
+      // microseconds, rather than trusting successful execution alone.
+      if (result.rowCount === 1) {
+        if (result.rows?.length !== 1 || result.rows[0]?.identical !== true) {
+          const error = new Error('GDPR_LEDGER_IMPORT_NOT_CONFIRMED');
+          error.code = 'GDPR_LEDGER_IMPORT_NOT_CONFIRMED';
+          throw error;
+        }
+      } else if (result.rowCount === 0) {
         // Idempotent replay is safe only when the previously stored event
         // matches in full. A reused event_key with different content must
         // stop recovery, not silently discard a later erasure/revocation.
