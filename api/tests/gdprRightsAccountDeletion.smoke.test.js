@@ -149,3 +149,7 @@ test('post-commit audit outage does not falsely report failure to erase', async 
     assert.equal(operations.filter(x => x === 'COMMIT').length, 1);
   });
 });
+
+// Run the complementary JSON/CSV data export tests in the existing GDPR CI suite.
+// This file is already a privacy-erasure workflow trigger and test entrypoint.
+require('./gdprDataExport.smoke.test.js');
