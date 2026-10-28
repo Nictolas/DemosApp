@@ -61,7 +61,7 @@ test('personalized feed combines canonical selected subjects, territory and cano
       if (s.includes('FROM user_political_territories') || s.includes('FROM user_electoral_unit_memberships')) {
         const err = new Error('territory membership schema missing'); err.code = '42P01'; throw err;
       }
-      if (s.includes('attivisti, organizzazioni') && s.includes('FROM users')) {
+      if (s.includes('u.attivisti, u.organizzazioni') && s.includes('FROM users u')) {
         return { rows: [{
           id: 'u1', paese_residenza: 'IT', regione_residenza: 'TO', provincia_residenza: 'PI', comune_residenza: 'Pisa',
           attivisti: null, organizzazioni: null
@@ -78,7 +78,7 @@ test('personalized feed combines canonical selected subjects, territory and cano
         assert.deepEqual(params[0], ['p1']);
         return { rows: [{ id: 'p1', nome: 'Mario', cognome: 'Rossi' }] };
       }
-      if (s.startsWith('SELECT id, paese_residenza, regione_residenza') && !s.includes('attivisti, organizzazioni')) {
+      if ((s.startsWith('SELECT id, paese_residenza, regione_residenza') && !s.includes('attivisti, organizzazioni')) || (s.includes('LEFT JOIN user_profile p') && !s.includes('u.attivisti'))) {
         return { rows: [{ id: 'u1', paese_residenza: 'IT', regione_residenza: 'TO', provincia_residenza: 'PI', comune_residenza: 'Pisa' }] };
       }
       if (s.includes("WHERE LOWER(TRIM(tipologia_evento)) = 'elezioni'")) {
