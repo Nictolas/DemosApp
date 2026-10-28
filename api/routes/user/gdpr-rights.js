@@ -160,6 +160,39 @@ router.get('/data-export', async (req, res) => {
     );
     const authProviders = authProvidersResult.rows || [];
 
+    // 6c. User-owned choices and memberships, distinct from self-declared residence.
+    const [politicalSelectionsResult, politicalTerritoriesResult,
+      electoralUnitsResult, legacyRepresentativesResult] = await Promise.all([
+      pool.query(
+        `SELECT selection_kind, jurisdiction_id, political_office_id,
+                selected_user_id, selected_candidacy_id, selected_mandate_id,
+                source, context, created_at, updated_at
+         FROM political_selections WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT jurisdiction_id, territory_type, territory_code,
+                political_office_id, source, verification_level, valid_from,
+                valid_to, context
+         FROM user_political_territories WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT election_event_id, electoral_unit_id, political_office_id,
+                source, verification_level, valid_from, valid_to, context
+         FROM user_electoral_unit_memberships WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      ),
+      pool.query(
+        `SELECT rappresentante_europeo, rappresentante_camera,
+                rappresentante_senato, rappresentante_regionale,
+                rappresentante_comune, candidato_europeo, candidato_camera,
+                candidato_senato, candidato_regionale, candidato_comune,
+                attivisti, organizzazioni
+         FROM user_representatives WHERE user_id = $1`,
+        [userId]
+      )
+    ]);
     // 7. Compila il report completo
     const dataExport = {
       export_info: {
@@ -171,6 +204,10 @@ router.get('/data-export', async (req, res) => {
         data_categories: [
           'personal_data',
           'auth_providers',
+          'political_selections',
+          'political_territories',
+          'electoral_memberships',
+          'legacy_representatives',
           'political_opinions',
           'voting_activity',
           'communications',
@@ -222,6 +259,10 @@ router.get('/data-export', async (req, res) => {
         },
         auth_providers: authProviders.length > 0 ? authProviders : undefined
       },
+      political_selections: politicalSelectionsResult.rows,
+      political_territories: politicalTerritoriesResult.rows,
+      electoral_memberships: electoralUnitsResult.rows,
+      legacy_representatives: legacyRepresentativesResult.rows[0] || {},
       political_opinions: opinions,
       voting_activity: {
         vote_counts: votes,
