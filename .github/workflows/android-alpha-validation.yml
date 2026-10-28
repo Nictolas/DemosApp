@@ -134,8 +134,7 @@ jobs:
           script: |
             adb shell svc wifi disable
             adb shell svc data disable
-            cd client/android
-            ./gradlew :app:connectedDebugAndroidTest --no-daemon --stacktrace
+            bash client/android/gradlew -p client/android :app:connectedDebugAndroidTest --no-daemon --stacktrace
 
       - name: Archive native emulator report
         if: always() && github.head_ref == 'performance/opinion-catalog-in-code-20261028'
