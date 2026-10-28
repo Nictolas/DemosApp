@@ -15,6 +15,8 @@ on:
       - 'client/public/icona.png'
       - 'client/package.json'
       - 'client/package-lock.json'
+      - 'scripts/android-release-metadata.cjs'
+      - 'scripts/android-release-metadata.test.cjs'
       - '.github/workflows/android-alpha-validation.yml'
   workflow_dispatch:
 
@@ -49,6 +51,9 @@ jobs:
       - name: Run OAuth registration and Android auth regression tests
         run: node --test api/tests/oauthRegistrationService.test.js api/tests/androidAuthNativePushIntegration.test.js
 
+      - name: Verify release artifact identity guard
+        run: node --test scripts/android-release-metadata.test.cjs
+
       - name: Check responsive Android navbar contract
         run: node --test api/tests/navbarResponsiveContract.test.js
 
@@ -76,8 +81,6 @@ jobs:
               test "$actual" = "$expected"
             done
           done
-          grep -q 'versionCode 11' client/android/app/build.gradle
-          grep -q 'versionName "1.0.9"' client/android/app/build.gradle
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -92,10 +95,14 @@ jobs:
           ./gradlew :app:assembleDebug :app:bundleRelease --no-daemon --stacktrace
           test -f app/build/outputs/bundle/release/app-release.aab
 
+      - name: Validate compiled Android identity against Gradle
+        id: android_metadata
+        run: node scripts/android-release-metadata.cjs
+
       - name: Archive UNSIGNED release candidate for authorized signing
         uses: actions/upload-artifact@v4
         with:
-          name: demos-android-1.0.9-v11-UNSIGNED-aab
+          name: ${{ steps.android_metadata.outputs.artifact_name }}
           path: client/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 7
