@@ -66,3 +66,24 @@ Questa sezione **sostituisce come fotografia attuale** i conteggi delle verifich
 **Gate obbligatorio prima del merge:** mantenere un solo campo valore `sesso`, ma modellare separatamente **provenienza e stato di verifica** (senza duplicare M/F) e usare un'attestazione server-side valida per mostrare la dicitura «CIE verificata». Il solo `users.sesso IN ('M','F')` non prova la certificazione. La futura scrittura con UserInfo CIE validato può prevalere sul valore storico, ma serve una traccia verificabile e una revisione GDPR/DPO. Non attivare `CIE_SEX_COLLECTION_ENABLED` e non pubblicare la PR finché non sono soddisfatti QA Android, test CIE reale e verifiche privacy.
 
 Riferimento operativo: commento di audit alla PR #380 del 28/10/2026; checklist unica GH-260. Nessuna modifica ai dati di produzione, al sistema di autenticazione o alle regole RLS è stata introdotta da questa correzione di etichette.
+
+
+## Fase B proposta — provenienza minima `sesso_fonte` (solo PR Draft, non applicata al database)
+
+Migratore **da applicare esplicitamente prima di attivare CIE**: `api/migrations/20261028_cie_sex_provenance.sql`.
+Introduce un solo metadato `public.users.sesso_fonte VARCHAR(1) NULL`, **non** una seconda colonna M/F e senza alcun backfill:
+- `NULL`: provenienza non registrata. Tutti gli M/F già presenti restano `NULL` fino a una prova tracciabile; nessuno è promosso automaticamente a CIE.
+- `L`: dato legacy dichiarato (solo con provenienza documentata).
+- `N`: attribuzione per nome, esplicitamente indicata come inferita.
+- `O`: confronto con fonte istituzionale (non CIE).
+- `C`: UserInfo CIE verificata server-side nella transazione di riconoscimento.
+
+Un vincolo DB ammette una fonte non nulla solo per persone con `sesso M/F`. Nessun indice nuovo e nessun documento anagrafico conservato. Le etichette `L/N/O` **non vengono applicate automaticamente retroattivamente**, poiché la provenienza dei record storici non è attestata individualmente.
+
+Il helper `persistVerifiedCieSex` scrive `sesso` e `sesso_fonte='C'` nella stessa UPDATE, dopo la registrazione dell'identità verificata e **solo se** esiste una riga attiva `identity_verifications` con `provider='CIE'`, `status='verified'`, `detached_at IS NULL` per l'utente. L'UPDATE è nella stessa transazione delle registrazioni OAuth/passkey/CIE: se la riga di verifica manca, l'operazione fallisce e causa rollback dell'identità in fase di registrazione. `claims.sesso=NULL` non genera alcuna etichetta CIE.
+
+**Importante:** `sesso_fonte='C'` è un indicatore di origine, ma le future interfacce «CIE verificata» devono controllare anche lo stato verificabile della riga `identity_verifications`, non solo il codice né il campo M/F. Se l'identità è staccata, l'affidabilità/retention va riconciliata con la policy privacy prima di mostrare certificazioni. Il nuovo metadato non deve essere modificabile da browser o pannelli admin.
+
+**Piano di rollout:** (1) revisione DPO, informativa e retention della provenienza; (2) migrazione applicata e verificata su staging rappresentativo, test rollback; (3) test E2E OIDC con OP reale per verifica e rinnovo/riconciliazione; (4) smoke delle statistiche e delle vecchie build Android; (5) migrazione controllata di produzione con flag CIE ancora OFF; (6) merge/deploy solo dopo CI verde e gate autorizzati. Non confondere una PR Draft con codice live.
+
+Le date di nascita divergenti dei profili politici restano una ricognizione separata, non cambiare dati anagrafici senza ID parlamentare verificato e prova univoca.
