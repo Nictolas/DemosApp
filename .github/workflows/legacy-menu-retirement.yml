@@ -40,3 +40,11 @@ jobs:
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend
         run: npm run build --prefix client
+      - name: Inspect deployed SPA HTML cache headers (diagnostic only)
+        continue-on-error: true
+        run: |
+          for url in "https://www.demos.community/utenti" "https://demos-frontend-r3so.onrender.com/utenti"; do
+            echo "PUBLIC_URL: $url"
+            curl --location --silent --show-error --head --max-time 15 "$url" \
+              | grep -iE '^(HTTP/|cache-control:|age:|etag:|last-modified:|x-render-)' || true
+          done
