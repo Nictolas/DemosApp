@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '../..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
@@ -22,6 +23,20 @@ for (const file of [
     assert.doesNotMatch(sql, /\b(?:INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM|TRUNCATE\s+)\b/i);
   });
 }
+
+test('legacy execution wrapper refuses to run before opening a database connection', () => {
+  const runner = read('api/esegui-insert-senatori.js');
+  assert.doesNotMatch(runner, /require\\(['\"](?:pg|dotenv)['\"]\\)/);
+  assert.doesNotMatch(runner, /\\bnew\\s+Pool\\s*\\(/);
+  const invoked = spawnSync(process.execPath, ['api/esegui-insert-senatori.js'], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 5000,
+    env: { ...process.env, DATABASE_URL: 'postgres://invalid:invalid@127.0.0.1:1/nodb' }
+  });
+  assert.equal(invoked.status, 1);
+  assert.match(invoked.stderr, /legacy importer disabled/i);
+});
 
 test('political duplicate audit only reads users and mandates', () => {
   const sql = stripSqlComments(read('api/scripts/audit-political-duplicate-users-20261028.sql'));
