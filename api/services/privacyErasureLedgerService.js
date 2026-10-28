@@ -287,7 +287,12 @@ class PrivacyErasureLedgerService {
   }
 
   static async enforcePoliticalRevocation(client, userId) {
-    let opinionsDeleted = await this.deleteByUserId(client, 'opinioni_risposte', userId);
+    // Use the SAME scope as the live consent-revocation route. Otherwise
+    // backup replay can resurrect legacy votes and political preferences.
+    // Load lazily to avoid politicalConsentService <-> erasure service cycle.
+    const { cleanupConsentScopedPoliticalData } = require('./politicalConsentService');
+    const cleanup = await cleanupConsentScopedPoliticalData(client, userId);
+    const opinionsDeleted = cleanup.totalDeleted;
 
     const userConsentColumns = [
       'political_opinions_consent',
