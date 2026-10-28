@@ -136,66 +136,68 @@ test('invalid Idempotency-Key is refused before SQL',async()=>{
   assert.equal(count,0);
 });
 
-test('GDPR GET reads only the authenticated user history and excludes request details', async () => {
-  const calls = [];
-  const pool = {async query(sql,args) {
+test('both GDPR history endpoints share one bounded RLS-aware SQL statement and no payload', async () => {
+  const calls=[];
+  const db={async query(sql,args){
     calls.push({sql,args});
-    if (sql.includes('row_security_active(')) {
-      return {rows:[{complete_visibility:true}]};
-    }
+    assert.match(sql,/WITH visibility AS MATERIALIZED/);
+    assert.match(sql,/LEFT JOIN LATERAL/);
+    assert.doesNotMatch(sql,/request_data|response_data|processed_by/);
     return {rows:[{
-      id:'synthetic-id',request_type:'access',status:'pending',
-      created_at:'2026-10-28T00:00:00Z',processed_at:null,
-      request_data:{details:'must-never-be-returned'}
+      complete_visibility:true,id:'synthetic-id',request_type:'access',
+      status:'pending',created_at:'2026-10-28T00:00:00Z',
+      processed_at:null,request_data:{details:'private'}
     }]};
   }};
-  await withMockedRoute(pool, async ({get}) => {
+  await withMockedRoute(db,async ({get})=>{
     const res=response();
-    await get({user:{id:'synthetic-user'}},res);
+    await get({user:{id:'synthetic-user'},query:{}},res);
     assert.equal(res.statusCode,200);
     assert.equal(res.body.success,true);
     assert.deepEqual(res.body.data,[{
       id:'synthetic-id',tipo:'access',stato:'pending',
       data_richiesta:'2026-10-28T00:00:00Z',data_elaborazione:null
     }]);
-    assert.equal(JSON.stringify(res.body).includes('must-never-be-returned'),false);
+    assert.deepEqual(res.body.pagination,{
+      limit:50,offset:0,has_more:false,next_offset:null
+    });
+    assert.doesNotMatch(JSON.stringify(res.body),/private/);
+    assert.equal(calls.length,1);
+    assert.deepEqual(calls[0].args,['synthetic-user',51,0]);
   });
-  assert.equal(calls.length,2);
-  assert.ok(calls[0].sql.includes('row_security_active('));
-  assert.deepEqual(calls[1].args,['synthetic-user']);
-  assert.match(calls[1].sql,/WHERE user_id = \$1/);
-  assert.ok(!calls[1].sql.includes('request_data'));
 });
 
-test('GDPR GET refuses incomplete RLS-scoped history even when a policy exists', async () => {
-  let rlsActive = true;
-  let queryCount = 0;
-  const pool = { async query(sql) {
-    queryCount++;
-    if (sql.includes('row_security_active(')) {
-      return {rows:[{complete_visibility:!rlsActive}]};
-    }
-    if (sql.includes('FROM public.user_rights_requests')) return {rows:[]};
-    throw Error('unexpected query');
+test('legacy GDPR GET refuses RLS-filtered history and bad pagination before SQL',async()=>{
+  let filtered=true;
+  let calls=0;
+  const db={async query(sql){
+    calls++;
+    assert.match(sql,/row_security_active/);
+    return {rows:[{complete_visibility:!filtered,id:null}]};
   }};
-  const origLog = console.error;
-  console.error = () => {};
-  try {
-    await withMockedRoute(pool, async ({get}) => {
-      const hidden = response();
-      await get({userId:'synthetic-user'},hidden);
-      assert.equal(hidden.statusCode,503);
-      assert.equal(hidden.body.success,false);
-      assert.ok(!JSON.stringify(hidden.body).includes('"data":[]'));
-      assert.equal(queryCount,1,'do not query incomplete RLS-scoped history');
-      rlsActive = false;
-      const legitimatelyEmpty = response();
-      await get({userId:'synthetic-user'},legitimatelyEmpty);
-      assert.equal(legitimatelyEmpty.statusCode,200);
-      assert.deepEqual(legitimatelyEmpty.body.data,[]);
+  const oldLog=console.error;
+  console.error=()=>{};
+  try{
+    await withMockedRoute(db,async ({get})=>{
+      const denied=response();
+      await get({userId:'synthetic-user',query:{}},denied);
+      assert.equal(denied.statusCode,503);
+      assert.equal(denied.body.success,false);
+      assert.equal(calls,1);
+      filtered=false;
+      const empty=response();
+      await get({userId:'synthetic-user',query:{}},empty);
+      assert.equal(empty.statusCode,200);
+      assert.deepEqual(empty.body.data,[]);
+      assert.equal(calls,2);
+      for(const query of [{limit:'9999'},{offset:'-1'},{status:'../../etc'},{limit:['1','2']}]) {
+        const invalid=response();
+        await get({userId:'synthetic-user',query},invalid);
+        assert.equal(invalid.statusCode,400);
+      }
+      assert.equal(calls,2,'invalid page parameters must never query PostgreSQL');
     });
-    assert.equal(queryCount,3);
-  } finally {console.error=origLog;}
+  }finally{console.error=oldLog;}
 });
 
 test('GDPR route rejects unauthenticated and invalid inputs before SQL', async () => {
