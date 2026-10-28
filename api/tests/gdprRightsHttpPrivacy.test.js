@@ -18,7 +18,7 @@ async function withServer({pool, audit} = {}, run) {
     }]};
     if (sql.includes('INSERT INTO public.user_rights_requests')) {
       return {rowCount:1,rows:[{
-        id:args[0],request_type:args[2],status:'pending',
+        id:args[0],user_id:args[1],request_type:args[2],status:'pending',
         created_at:'2026-10-28T00:00:00Z'
       }]};
     }
