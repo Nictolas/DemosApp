@@ -112,7 +112,7 @@ test('salvataggio sesso CIE avviene nella stessa transazione del legame identita
     claims: { fiscal_number: 'TINIT-ABCDEF12G34H567I', sesso: 'F' }
   }, pool);
   assert.equal(result.verified, true);
-  assert.deepEqual(calls.map(x => x.sql.trim().split(/\\s+/)[0]), [
+  assert.deepEqual(calls.map(x => x.sql.trim().split(/\s+/)[0]), [
     'BEGIN', 'SELECT', 'INSERT', 'UPDATE', 'COMMIT'
   ]);
   assert.deepEqual(calls[3].params, ['F', 'user-1']);
