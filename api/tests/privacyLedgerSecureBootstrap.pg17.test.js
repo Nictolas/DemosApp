@@ -529,6 +529,76 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+  test('GDPR import rejects trigger-mutated rows and rolls back earlier writes',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const event={
+      event_key:'synthetic-import-verified',
+      subject_user_id:'synthetic-import-person',
+      event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+      occurred_at:'2026-01-02T03:04:05.123456Z',
+      details:{source:'synthetic-recovery'}
+    };
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await Ledger.ensureTable(pool);
+      await pool.query('CREATE TABLE public.gdpr_ci_import_marker(n integer NOT NULL)');
+      await pool.query('INSERT INTO public.gdpr_ci_import_marker(n) VALUES (0)');
+      await pool.query(`
+        CREATE FUNCTION public.gdpr_ci_rewrite_import()
+        RETURNS trigger LANGUAGE plpgsql AS $gdpr_ci$
+        BEGIN
+          CASE current_setting('gdpr_ci_import_mode',true)
+            WHEN 'subject' THEN
+              NEW.subject_user_id := 'synthetic-forged-person';
+            WHEN 'details' THEN
+              NEW.details := '{"rewritten":true}'::jsonb;
+            WHEN 'time' THEN
+              NEW.occurred_at := NEW.occurred_at + INTERVAL '1 microsecond';
+            WHEN 'key' THEN
+              NEW.event_key := NEW.event_key || '-rewritten';
+            WHEN 'suppressed' THEN
+              RETURN NULL;
+          END CASE;
+          RETURN NEW;
+        END $gdpr_ci$;
+        CREATE TRIGGER gdpr_ci_rewrite_import
+        BEFORE INSERT ON public.privacy_erasure_ledger
+        FOR EACH ROW EXECUTE FUNCTION public.gdpr_ci_rewrite_import()
+      `);
+      for (const mode of ['subject','details','time','key','suppressed']) {
+        const client=await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query("SELECT set_config('gdpr_ci_import_mode',$1,true)",[mode]);
+          await client.query('UPDATE public.gdpr_ci_import_marker SET n=n+1');
+          await assert.rejects(
+            Ledger.mergeCaptured(client,[event]),
+            error=>error?.code===(mode==='suppressed'
+              ? 'GDPR_LEDGER_EVENT_KEY_CONFLICT':'GDPR_LEDGER_IMPORT_NOT_CONFIRMED'),
+            mode+' must never be reported as a successful GDPR import'
+          );
+        } finally {
+          await client.query('ROLLBACK');
+          client.release();
+        }
+        assert.equal((await pool.query('SELECT n FROM public.gdpr_ci_import_marker')).rows[0].n,0,
+          'failed import must roll back earlier synthetic transaction writes');
+        assert.equal((await pool.query(
+          'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+        )).rows[0].n,0,'failed import must leave no forged GDPR event');
+      }
+      await pool.query('DROP TRIGGER gdpr_ci_rewrite_import ON public.privacy_erasure_ledger');
+      await pool.query('DROP FUNCTION public.gdpr_ci_rewrite_import()');
+      assert.equal(await Ledger.mergeCaptured(pool,[event]),1,
+        'unchanged event must import after removing adversarial trigger');
+      assert.equal(await Ledger.mergeCaptured(pool,[event]),0,
+        'an identical replay must remain idempotent');
+    } finally {
+      await pool.end();
+    }
+  });
+
   test('GDPR replay targets public account and opinion tables despite temp shadows',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const eraseId='synthetic-delete-public';
