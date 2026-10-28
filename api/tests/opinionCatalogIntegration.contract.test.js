@@ -19,6 +19,7 @@ const migrated=[
   "routes/opinioni-proposte.js",
   "routes/test-opinioni-endpoints.js",
   "routes/test-opinioni-proposte.js",
+  "routes/dpo/overview.js",
   "services/politicalMatchingService.js",
   "services/politicalOpinionNotificationService.js",
   "services/opinioniCheckMissing.js",
@@ -51,6 +52,9 @@ test('published catalog is not writable by Admin or draft proposal routes',()=>{
   const diagnostics=source('routes/test-opinioni-proposte.js');
   assert.doesNotMatch(diagnostics,/CREATE TABLE|INSERT INTO|FROM opinioni_domande/);
   assert.match(diagnostics,/verifyToken,requireAdmin/);
+  const addDev = source('routes/test-add-opinione.js');
+  assert.doesNotMatch(addDev,/INSERT INTO|UPDATE|DELETE FROM/);
+  assert.match(addDev,/CATALOG_RELEASE_REQUIRED/);
 });
 
 test('personal answers and consent remain DB-owned and protected',()=>{

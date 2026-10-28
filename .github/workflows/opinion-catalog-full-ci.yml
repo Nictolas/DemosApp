@@ -33,6 +33,8 @@ jobs:
           done
       - name: Catalog integrity and zero-DB-metadata contract
         run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js
+      - name: Android 1.0.10 legacy Opinions HTTP contract (no real accounts)
+        run: node api/tests/opinionCatalogAndroid110.contract.test.js
       - name: Install frontend without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: TypeScript and Vite frontend build (no release)
