@@ -6,55 +6,13 @@ const AuditService = require('../../services/auditService');
 const { decrypt: decryptEmail } = require('../../utils/emailCrypto');
 // Usa crypto nativo invece di uuid
 const crypto = require('crypto');
+const { convertToCSV } = require('../../services/gdprCsvExport');
 const {parseRightsHistoryQuery, readRightsHistory} = require('../../services/gdprRightsHistoryService');
 
 const router = express.Router();
 
 // Middleware per tutti gli endpoint
 router.use(verifyToken);
-
-/**
- * Funzione helper per convertire oggetto in CSV
- */
-function convertToCSV(data) {
-  const lines = [];
-  
-  // Funzione ricorsiva per appiattire oggetti annidati
-  function flatten(obj, prefix = '') {
-    const result = [];
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        const newKey = prefix ? `${prefix}.${key}` : key;
-        if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && !(obj[key] instanceof Date)) {
-          result.push(...flatten(obj[key], newKey));
-        } else {
-          let value = obj[key];
-          if (value instanceof Date) {
-            value = value.toISOString();
-          } else if (Array.isArray(value)) {
-            value = JSON.stringify(value);
-          } else if (typeof value === 'object' && value !== null) {
-            value = JSON.stringify(value);
-          }
-          result.push({ key: newKey, value: String(value || '') });
-        }
-      }
-    }
-    return result;
-  }
-  
-  // Header
-  lines.push('Campo,Valore');
-  
-  // Dati appiattiti
-  const flattened = flatten(data);
-  flattened.forEach(item => {
-    const escapedValue = String(item.value).replace(/"/g, '""');
-    lines.push(`"${item.key}","${escapedValue}"`);
-  });
-  
-  return lines.join('\n');
-}
 
 /**
  * GET /api/user/data-export

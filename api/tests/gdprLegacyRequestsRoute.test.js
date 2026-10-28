@@ -555,3 +555,31 @@ test('GDPR objection validates input, verifies an idempotent receipt and ignores
     }
   }
 });
+
+
+// GDPR data portability: prevent formula execution in spreadsheet applications
+// and preserve falsy personal-data fields instead of empty CSV cells.
+test('GDPR CSV export preserves false, zero and negative numbers while neutralizing formulas', () => {
+  const { convertToCSV } = require('../services/gdprCsvExport');
+  const csv = convertToCSV({
+    consent: false, vote_count: 0, delta: -3,
+    title: '=HYPERLINK("https://example.invalid/?x=1","open")',
+    nested: { text: ' \t@SUM(1,1)', note: 'safe, "quoted"' },
+    date: new Date('2026-10-28T00:00:00.000Z'),
+    nullable: null, array: [false, 0]
+  });
+  assert.ok(csv.startsWith('Campo,Valore\n'));
+  assert.ok(csv.includes('"consent","false"'));
+  assert.ok(csv.includes('"vote_count","0"'));
+  assert.ok(csv.includes('"delta","-3"'));
+  assert.ok(csv.includes('"title","\'=HYPERLINK(""https://example.invalid/?x=1"",""open"")"'));
+  assert.ok(csv.includes('"nested.text","\' \t@SUM(1,1)"'));
+  assert.ok(csv.includes('"nested.note","safe, ""quoted"""'));
+  assert.ok(csv.includes('"date","2026-10-28T00:00:00.000Z"'));
+  assert.ok(csv.includes('"nullable",""'));
+  assert.ok(csv.includes('"array","[false,0]"'));
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const route = fs.readFileSync(path.join(__dirname, '../routes/user/gdpr-rights.js'), 'utf8');
+  assert.match(route, /require\('\.\.\/\.\.\/services\/gdprCsvExport'\)/);
+});
