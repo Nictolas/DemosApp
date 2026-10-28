@@ -171,7 +171,8 @@ export default function Utenti() {
           let age = today.getFullYear() - year;
           if (today.getMonth() + 1 < month ||
             (today.getMonth() + 1 === month && today.getDate() < day)) age -= 1;
-          if (age >= 0) {
+          // Esclude anche placeholder implausibili (es. 1111-11-11).
+          if (age >= 0 && age <= 125) {
             if (age < 18) ageGroup = 'Under 18';
             else if (age <= 25) ageGroup = '18-25';
             else if (age <= 35) ageGroup = '26-35';
