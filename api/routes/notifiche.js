@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { politicalVotingSubject } = require('../utils/politicalVotingSubject');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 require('dotenv').config();
 
@@ -58,7 +59,7 @@ router.get('/', verifyToken, async (req, res) => {
               u.nome as politico_nome,
               u.cognome as politico_cognome,
               u.avatar_config as politico_avatar_config,
-              u.genere as politico_genere,
+              u.sesso as politico_sesso,
               p.uri as uri_votazione
             FROM notifiche_voti_parlamento nvp
             LEFT JOIN users u ON nvp.id_utente = u.id
@@ -126,7 +127,7 @@ router.get('/', verifyToken, async (req, res) => {
         if (politicoIds.length > 0) {
           try {
             const byId = await pool.query(
-              'SELECT id, nome, cognome, avatar_config, genere FROM users WHERE id = ANY($1::uuid[])',
+              'SELECT id, nome, cognome, avatar_config, sesso FROM users WHERE id = ANY($1::uuid[])',
               [politicoIds]
             );
             for (const row of byId.rows) {
@@ -139,7 +140,7 @@ router.get('/', verifyToken, async (req, res) => {
         if (politicoNames.length > 0) {
           try {
             const byName = await pool.query(
-              `SELECT id, nome, cognome, avatar_config, genere FROM users 
+              `SELECT id, nome, cognome, avatar_config, sesso FROM users 
                WHERE (nome || ' ' || cognome) = ANY($1::text[]) OR nome = ANY($1::text[]) OR cognome = ANY($1::text[])`,
               [politicoNames]
             );
@@ -160,7 +161,7 @@ router.get('/', verifyToken, async (req, res) => {
             notifica.politico_avatar_config = politico.avatar_config;
             notifica.politico_nome = politico.nome;
             notifica.politico_cognome = politico.cognome;
-            notifica.politico_genere = politico.genere;
+            notifica.politico_sesso = politico.sesso;
           }
         }
       } else {
@@ -238,7 +239,7 @@ router.get('/', verifyToken, async (req, res) => {
            subject.nome AS politico_nome,
            subject.cognome AS politico_cognome,
            subject.avatar_config AS politico_avatar_config,
-           subject.genere AS politico_genere,
+           subject.sesso AS politico_sesso,
            pon.opinion_id,
            pon.opinion_text
          FROM political_opinion_notifications pon
@@ -470,46 +471,15 @@ router.get('/', verifyToken, async (req, res) => {
           }
         }
         
-        // Determina l'articolo e il titolo in base al genere e alla camera
-        let articoloETitolo = '';
-        if (c.tipo_notifica === 'voto_parlamento') {
-          const camera = c.camera || 'Parlamento';
-          const genere = c.politico_genere; // "d" = donna, "u" = uomo, "a" = altro/null
-          
-          if (camera === 'Senato' || camera === 'Senato della Repubblica') {
-            if (genere === 'd') {
-              articoloETitolo = 'La senatrice';
-            } else if (genere === 'u') {
-              articoloETitolo = 'Il senatore';
-            } else {
-              articoloETitolo = 'Il senatore'; // Default
-            }
-          } else if (camera === 'Camera' || camera === 'Camera dei Deputati') {
-            if (genere === 'd') {
-              articoloETitolo = 'La deputata';
-            } else if (genere === 'u') {
-              articoloETitolo = 'Il deputato';
-            } else {
-              articoloETitolo = 'Il deputato'; // Default
-            }
-          } else {
-            // Fallback generico
-            if (genere === 'd') {
-              articoloETitolo = 'La parlamentare';
-            } else {
-              articoloETitolo = 'Il parlamentare';
-            }
-          }
-        } else {
-          // Per voto_comune: "Il consigliere comunale" / "La consigliera comunale" in base al genere
-          const genere = c.politico_genere; // "d" = donna, "u" = uomo, "a" = altro/null
-          if (genere === 'd') {
-            articoloETitolo = 'La consigliera comunale';
-          } else {
-            articoloETitolo = 'Il consigliere comunale';
-          }
-        }
-        
+        // Per i titoli delle notifiche, usa solo M/F CIE verificato.
+        // Quando manca il sesso non attribuire un genere in modo arbitrario:
+        // conserva una formulazione istituzionale neutra.
+        const articoloETitolo = politicalVotingSubject({
+          tipoNotifica: c.tipo_notifica,
+          camera: c.camera,
+          sesso: c.politico_sesso
+        });
+
         // Abbrevia il titolo della votazione (es: "Disegno di legge n. 1718..." -> "DDL 1718")
         let titoloVotazioneAbbreviato = titoloVotazione;
         if (c.tipo_notifica === 'voto_parlamento') {
