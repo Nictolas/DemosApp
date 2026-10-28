@@ -16,11 +16,8 @@ interface RightsRequest {
   id: string;
   request_type: string;
   status: string;
-  request_data: any;
-  response_data: any;
   created_at: string;
   processed_at?: string;
-  processed_by?: string;
 }
 
 export default function GDPRRights() {
@@ -172,9 +169,6 @@ export default function GDPRRights() {
                     <p>Data richiesta: {new Date(request.created_at).toLocaleString('it-IT')}</p>
                     {request.processed_at && (
                       <p>Data elaborazione: {new Date(request.processed_at).toLocaleString('it-IT')}</p>
-                    )}
-                    {request.processed_by && (
-                      <p>Elaborato da: {request.processed_by}</p>
                     )}
                   </div>
                 </div>
