@@ -250,7 +250,7 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
   }
 });
 
-// Breakdowns CIE su sesso anagrafico, senza conversione dei dati legacy.
+// Breakdowns sui valori M/F registrati, che possono includere fonti storiche o inferenze.
 async function serveOpinionSexBreakdown(req, res) {
   try {
     const { opinionId, regione } = req.params;
@@ -298,12 +298,12 @@ async function serveOpinionSexBreakdown(req, res) {
       data: protectedStats.data
     });
   } catch (error) {
-    console.error('Errore statistiche sesso CIE per opinione:', error);
+    console.error('Errore statistiche sesso per opinione:', error);
     return res.status(500).json({ success: false, error: 'Statistiche non disponibili' });
   }
 }
 
-// Solo questi due endpoint forniscono il nuovo attributo CIE.
+// Gli endpoint restituiscono M/F registrati, non la loro provenienza CIE.
 router.get('/stats/:opinionId/sesso', serveOpinionSexBreakdown);
 router.get('/stats/:opinionId/sesso/regione/:regione', serveOpinionSexBreakdown);
 
