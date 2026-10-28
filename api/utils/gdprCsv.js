@@ -14,7 +14,12 @@ function csvCellValue(value) {
 function convertToCSV(data) {
   const rows = [['Campo', 'Valore']];
   function flatten(value, prefix = '') {
-    if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+    if (Array.isArray(value)) {
+      if (value.length === 0) { rows.push([prefix, '[]']); return; }
+      for (let i = 0; i < value.length; i++) flatten(value[i], prefix ? `${prefix}.${i}` : String(i));
+      return;
+    }
+    if (value && typeof value === 'object' && !(value instanceof Date)) {
       for (const [key, child] of Object.entries(value)) {
         // Reject prototype pollution paths in a flat CSV export.
         if (['__proto__', 'constructor', 'prototype'].includes(key)) continue;
