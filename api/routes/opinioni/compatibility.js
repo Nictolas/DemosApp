@@ -14,7 +14,6 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     const userId = req.userId;
     
     console.log('🔍 GET /api/opinioni/opinioni-list - Richiesta opinioni per grado:', grado);
-    console.log('👤 User ID:', userId);
     
     if (!grado) {
       return res.status(400).json({
@@ -50,12 +49,6 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       // Usa il testo dell'opinione per ottenere la risposta dell'utente
       const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
       const userAnswer = userAnswers[opinionKey];
-      
-      console.log(`🔍 DEBUG - Mappatura opinione:`, {
-        text: opinion.text,
-        opinionKey: opinionKey,
-        userAnswer: userAnswer
-      });
       
       // Restituisci direttamente i valori compressi dal database
       let frontendAnswer = null;

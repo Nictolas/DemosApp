@@ -34,3 +34,9 @@ test('catalog is server-owned, never imports votes, users or secrets',()=>{
   const parts = Array.from({length:6},(_,i)=>source('catalog/opinions-part-0'+i+'.json')).join('\n');
   assert.doesNotMatch(parts,/(password|jwt_secret|user_id|political_opinions_consent)"\s*:/i);
 });
+
+test('catalog growth/shrink is managed by release; runtime has no fixed question count',()=>{
+  const source=readFileSync(resolve(__dirname,'../services/opinionCatalog.js'),'utf8');
+  assert.doesNotMatch(source,/opinions\.length\s*!==\s*94/);
+  assert.match(source,/const VALID_GRADES=new Set/);
+});

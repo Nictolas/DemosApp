@@ -9,8 +9,14 @@ const opinions = Object.freeze(parts.flat().map((op) => Object.freeze({
   gradi_opinione: Object.freeze([...op.gradi_opinione])
 })));
 const byId = new Map(opinions.map(op => [op.id, op]));
-if (opinions.length !== 94 || byId.size !== opinions.length) {
-  throw new Error('Invalid versioned opinion catalog: 94 distinct IDs expected');
+const VALID_GRADES=new Set(['N','R','C','CO','E']);
+if(!opinions.length || byId.size!==opinions.length || opinions.some(op=>
+  !/^[a-z][a-z0-9_]{0,62}$/.test(op.id) ||
+  typeof op.text!=='string' || !op.text.trim() ||
+  typeof op.approfondimento!=='string' || !op.approfondimento.trim() ||
+  op.gradi_opinione.length===0 || !op.gradi_opinione.every(g=>VALID_GRADES.has(g))
+)){
+  throw new Error('Invalid versioned opinion catalog: unique stable IDs and valid published metadata required');
 }
 function getAllOpinions() { return opinions; }
 function getOpinionById(id) { return byId.get(String(id)) || null; }
