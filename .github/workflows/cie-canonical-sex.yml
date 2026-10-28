@@ -17,6 +17,8 @@ on:
       - 'api/tests/cieOidcAuthorizationService.test.js'
       - 'api/tests/cieOidcUserInfoService.test.js'
       - 'api/tests/cieVerificationService.test.js'
+      - 'api/tests/oauthRegistrationService.test.js'
+      - 'api/tests/passkeyRegistrationService.test.js'
       - 'client/src/pages/Utenti/index.tsx'
       - '.github/workflows/cie-canonical-sex.yml'
 
