@@ -60,6 +60,40 @@ async function withPoolRoute(pool, callback) {
   }
 }
 
+async function withRightsHistoryRoute(pool, callback) {
+  const paths=[
+    require.resolve('../middleware/auth'),
+    require.resolve('../middleware/validation'),
+    require.resolve('../services/auditService'),
+    require.resolve('../utils/emailCrypto'),
+    require.resolve('../routes/user/gdpr-rights')
+  ];
+  const old=paths.map(path=>require.cache[path]);
+  try {
+    const mocked=[
+      {verifyToken(req,res,next){next();},pool},
+      {validateInput(){return (req,res,next)=>next();}},
+      {logAction:async()=>{},getUserAuditLogs:async()=>[]},
+      {decrypt(value){return value;}}
+    ];
+    for(let i=0;i<4;i++)require.cache[paths[i]]={
+      id:paths[i],filename:paths[i],loaded:true,exports:mocked[i]
+    };
+    delete require.cache[paths[4]];
+    const router=require('../routes/user/gdpr-rights');
+    const handler=router.stack.find(layer=>
+      layer.route?.path==='/rights-requests' && layer.route?.methods.get
+    )?.route.stack.at(-1)?.handle;
+    assert.equal(typeof handler,'function');
+    await callback(handler);
+  } finally {
+    for(let i=0;i<paths.length;i++){
+      delete require.cache[paths[i]];
+      if(old[i])require.cache[paths[i]]=old[i];
+    }
+  }
+}
+
 test('real PG17 rights request persists, history respects user scope, and RLS failures are honest', async () => {
   guard();
   const admin = new Pool({connectionString:DATABASE_URL, ssl:false,max:2});
@@ -215,6 +249,51 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
       'SELECT COUNT(*)::int AS n FROM public.user_rights_requests'
     )).rows[0].n;
     assert.equal(final,3,'only the first request and two distinct idempotent keys exist');
+
+    // Real SQL regression for the user-visible GDPR history. Insert 54
+    // synthetic requests after the idempotency count assertions: 57 total
+    // for USER. Verify bounded pages, no DPO payload and an RLS fail-closed.
+    await admin.query(
+      "INSERT INTO public.user_rights_requests " +
+      "(user_id,request_type,request_data,status) " +
+      "SELECT $1,'access'," +
+      "jsonb_build_object('secret','synthetic-never-return')," +
+      "'pending' FROM generate_series(1,54)",
+      [USER]
+    );
+    await withRightsHistoryRoute(admin,async get=>{
+      const first=response();
+      await get({userId:USER,query:{limit:'50',offset:'0'}},first);
+      assert.equal(first.statusCode,200);
+      assert.equal(first.body.data.length,50);
+      assert.equal(first.body.pagination.has_more,true);
+      assert.equal(first.body.pagination.next_offset,50);
+      assert.doesNotMatch(JSON.stringify(first.body),/synthetic-never-return/);
+      const next=response();
+      await get({userId:USER,query:{limit:'50',offset:'50'}},next);
+      assert.equal(next.statusCode,200);
+      assert.equal(next.body.data.length,7);
+      assert.equal(next.body.pagination.has_more,false);
+      assert.equal(next.body.pagination.next_offset,null);
+      const firstSet=new Set(first.body.data.map(row=>row.id));
+      assert.ok(next.body.data.every(row=>!firstSet.has(row.id)),
+        'stable tie-break ID must prevent duplicate rows');
+      const other=response();
+      await get({userId:OTHER,query:{}},other);
+      assert.equal(other.statusCode,200);
+      assert.deepEqual(other.body.data,[]);
+    });
+    const oldLog=console.error;
+    console.error=()=>{};
+    try {
+      await withRightsHistoryRoute(restricted,async get=>{
+        const denied=response();
+        await get({userId:USER,query:{}},denied);
+        assert.equal(denied.statusCode,503,
+          'real RLS-restricted role must never report empty/full history');
+        assert.equal(denied.body.success,false);
+      });
+    }finally{console.error=oldLog;}
 
     console.log('GDPR_LEGACY_RIGHTS_REAL_PG17_PASS ' + JSON.stringify({
       onlySyntheticData:true,persistedReceiptUsesDatabaseId:true,
