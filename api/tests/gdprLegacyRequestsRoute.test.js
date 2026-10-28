@@ -478,7 +478,7 @@ test('removing all processing restrictions accepts empty categories, but active 
   assert.equal(result.statusCode, 200);
 });
 
-test('GDPR objection validates categories and acknowledges committed receipt despite audit outage',async()=>{
+test('GDPR objection validates input, verifies an idempotent receipt and ignores audit outage',async()=>{
   const paths=[
     require.resolve('../middleware/auth'),
     require.resolve('../middleware/validation'),
@@ -487,14 +487,19 @@ test('GDPR objection validates categories and acknowledges committed receipt des
     require.resolve('../routes/user/gdpr-rights')
   ];
   const prior=paths.map(path=>require.cache[path]);
-  let sqlCalls=0,auditCalls=0,missingReceipt=false;
+  const key='e5c87f4a-6c6e-47c0-9151-8d2a4f4ff2b7';
+  let sqlCalls=0,auditCalls=0,failSql=false;
   const fakePool={async query(sql,params){
     sqlCalls++;
+    if(failSql)throw Error('synthetic-insert-failure');
     assert.ok(sql.includes('INSERT INTO public.user_rights_requests'));
-    assert.deepEqual(params[0],'synthetic-objection-user');
-    assert.equal(JSON.parse(params[1]).reason,'synthetic-private-reason');
-    return missingReceipt?{rowCount:0,rows:[]}:
-      {rowCount:1,rows:[{id:'synthetic-objection-receipt'}]};
+    assert.equal(params[0],key);
+    assert.equal(params[1],'synthetic-objection-user');
+    assert.equal(JSON.parse(params[2]).reason,'synthetic-private-reason');
+    return {rowCount:1,rows:[{
+      id:key,user_id:'synthetic-objection-user',
+      request_type:'object_processing',status:'pending'
+    }]};
   }};
   const mocks=[
     {verifyToken(_req,_res,next){next();},pool:fakePool},
@@ -515,28 +520,33 @@ test('GDPR objection validates categories and acknowledges committed receipt des
     const layer=router.stack.find(item=>item.route?.path==='/object'&&item.route?.methods.post);
     assert.ok(layer);
     const handler=layer.route.stack.at(-1).handle;
-    const req=(categories,reason='synthetic-private-reason')=>({
-      userId:'synthetic-objection-user',body:{reason,categories},
+    const req=(categories,reason='synthetic-private-reason',uuid=key)=>({
+      userId:'synthetic-objection-user',
+      headers:{'idempotency-key':uuid},body:{reason,categories},
       ip:'127.0.0.1',get:()=> 'synthetic-test-agent'
     });
     for(const categories of [undefined,'political_opinions',[],['invalid'],['personal_data','personal_data']]){
       const bad=response();await handler(req(categories),bad);
       assert.equal(bad.statusCode,400);
     }
+    const invalidKey=response();
+    await handler(req(['political_opinions'],'synthetic-private-reason','not-a-uuid'),invalidKey);
+    assert.equal(invalidKey.statusCode,400);
     assert.equal(sqlCalls,0,'invalid objection must not query PostgreSQL');
     const saved=response();
     await handler(req(['political_opinions']),saved);
     assert.equal(saved.statusCode,200);
     assert.equal(saved.body.success,true);
-    assert.equal(saved.body.request_id,'synthetic-objection-receipt');
+    assert.equal(saved.body.request_id,key);
     assert.equal(sqlCalls,1);assert.equal(auditCalls,1);
     assert.equal(JSON.stringify(saved.body).includes('synthetic-private-reason'),false);
-    missingReceipt=true;
+    failSql=true;
     const uncertain=response();await handler(req(['political_opinions']),uncertain);
     assert.equal(uncertain.statusCode,503);
     assert.equal(uncertain.body.success,false);
     assert.equal(auditCalls,1,'no audit success after unconfirmed INSERT');
     assert.equal(logs.join(' ').includes('synthetic-private-reason'),false);
+    assert.equal(logs.join(' ').includes('synthetic-insert-failure'),false);
   }finally{
     console.log=oldLog;console.error=oldError;
     for(let i=0;i<paths.length;i++){
