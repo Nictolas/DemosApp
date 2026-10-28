@@ -10,6 +10,7 @@ on:
       - 'api/tests/userProfileWriteService.test.js'
       - 'api/tests/userProfileMissingAccount.smoke.test.js'
       - 'api/tests/userProfileWriteService.integration.test.js'
+      - 'api/tests/userProfileTerritoryPerformance.integration.test.js'
       - 'api/services/politicalTerritoryMembershipService.js'
       - 'api/services/eventFeedService.js'
       - 'api/tests/userProfileReadService.test.js'
@@ -69,4 +70,4 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic_profile_tests
           PGDATABASE: profile_synthetic
-        run: node --test tests/userProfileReadService.integration.test.js tests/userProfileWriteService.integration.test.js tests/userProfileStagingFixture.integration.test.js
+        run: node --test tests/userProfileReadService.integration.test.js tests/userProfileWriteService.integration.test.js tests/userProfileStagingFixture.integration.test.js tests/userProfileTerritoryPerformance.integration.test.js
