@@ -163,6 +163,13 @@ class PrivacyErasureOutboxWorker {
         oldestPendingAt: null, completeVisibility: false };
     }
 
+    // Local queue readiness must never be asserted over a ledger/outbox
+    // restored with disabled RLS or unexpected API/public grants. Even a
+    // superuser's complete row visibility cannot certify an unsafe schema.
+    // These helpers inspect only PostgreSQL catalogs (no GDPR event rows).
+    await Ledger.assertProtectedLedger(client);
+    await Ledger.assertProtectedOutbox(client);
+
     // RLS-filtered SELECTs can show zero pending events despite real pending
     // rows belonging to other subjects. A status intended for an operator
     // must refuse a positive result without unrestricted SQL visibility.
