@@ -41,7 +41,7 @@ test('admin statistics count only PERSON and M/F with NULL as not available', ()
 
 test('GET /api/users and GET /api/users/:userId expose canonical sex alongside account_type', () => {
   const source=read('api/routes/users/search.js');
-  const list=source.slice(source.indexOf("// GET /api/users/ - "),source.indexOf("// GET /api/users/pending"));
+  const list=source.slice(source.indexOf("// GET /api/users/ - "),source.indexOf("// GET /api/users/:userId"));
   const get=source.slice(source.indexOf("// GET /api/users/:userId"),source.indexOf("// PUT /api/users/:userId"));
   assert.match(source,/avatar_config, sesso, account_type, genere, cittadinanza/);
   assert.match(source,/sesso, account_type, genere, data_nascita/);

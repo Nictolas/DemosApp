@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { auditOfficialSexEvidence, isOfficialSourceUrl, matchKey } =
+const { auditOfficialSexEvidence, isOfficialSourceUrl, matchKey, parseCameraSparqlBindings } =
   require('../utils/officialSexEvidenceAudit');
 
 const UUIDS = [
@@ -109,4 +109,48 @@ test('date non reali e dati mancanti vengono sempre scartati', () => {
   }
   assert.throws(() => auditOfficialSexEvidence({},[]),TypeError);
   assert.throws(() => auditOfficialSexEvidence([],{}),TypeError);
+});
+
+
+test('Camera dei deputati: importa solo foaf:gender male/female e data anagrafica valida', () => {
+  const binding = (value, type = 'literal') => ({ type, value });
+  const row = (deputato, nome, cognome, dataNascita, genere) => ({
+    deputato: binding(deputato, 'uri'), nome: binding(nome),
+    cognome: binding(cognome), dataNascita: binding(dataNascita), genere: binding(genere)
+  });
+  const input = [
+    row('http://dati.camera.it/ocd/deputato.rdf/d305960_18','GIULIA','SARTI','19860813','female'),
+    row('http://dati.camera.it/ocd/deputato.rdf/d305960_18','GIULIA','SARTI','19860813','female'),
+    row('https://dati.camera.it/ocd/deputato.rdf/d305946_18','MICHELE','ANZALDI','19600804','male'),
+    row('http://dati.camera.it/ocd/deputato.rdf/d305999_18','ANNA','BIANCHI','19900230','female'),
+    row('http://dati.camera.it/ocd/deputato.rdf/d305999_18','ANNA','BIANCHI','19900101','unknown'),
+    row('http://attacker.example/ocd/deputato.rdf/d305999_18','ANNA','BIANCHI','19900101','female')
+  ];
+  const parsed = parseCameraSparqlBindings(input);
+  assert.equal(parsed.length, 3);
+  assert.equal(parsed[0].sesso, 'F');
+  assert.equal(parsed[1].sesso, 'F');
+  assert.equal(parsed[2].sesso, 'M');
+  assert.equal(parsed[0].data_nascita, '1986-08-13');
+  assert.equal(parsed[0].source_url, 'https://dati.camera.it/ocd/deputato.rdf/d305960_18');
+  assert.equal(parsed[2].data_nascita, '1960-08-04');
+
+  const demoUser=user(UUIDS[0],'Giulia','Sarti','1986-08-13');
+  const audit=auditOfficialSexEvidence([demoUser],parsed);
+  assert.equal(audit.review_required_count,1,'multiple identical source rows must not block review');
+  assert.equal(audit.review_required[0].official_declared_sex,'F');
+  assert.equal(audit.review_required[0].cie_verified,false);
+  assert.equal(demoUser.sesso,null);
+  assert.throws(() => parseCameraSparqlBindings({}),TypeError);
+});
+
+test('Camera: only official deputy resource links can support demographic evidence', () => {
+  assert.equal(isOfficialSourceUrl('https://dati.camera.it/ocd/deputato.rdf/d305960_18'),true);
+  for (const spoof of [
+    'http://dati.camera.it/ocd/deputato.rdf/d305960_18',
+    'https://dati.camera.it.evil.test/ocd/deputato.rdf/d305960_18',
+    'https://dati.camera.it/member',
+    'https://dati.camera.it/ocd/deputato.rdf/d305960_18?x=1',
+    'https://evil@dati.camera.it/ocd/deputato.rdf/d305960_18'
+  ]) assert.equal(isOfficialSourceUrl(spoof),false,spoof);
 });

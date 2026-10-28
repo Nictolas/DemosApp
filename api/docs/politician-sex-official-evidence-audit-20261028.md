@@ -13,6 +13,20 @@ Non attribuire `M/F` in base al suffisso -o/-a, a fotografie, titoli professiona
 - **Camera dei deputati**: offre il catalogo istituzionale e un endpoint SPARQL di dati parlamentari/anagrafici. **Verificare che l'attributo sesso sia effettivamente pubblicato nella specifica fonte prima di abilitarla nell'auditor.** https://dati.camera.it/ e https://dati.camera.it/sparql
 - **Parlamento europeo**: Open Data API dei deputati, copertura anagrafica da verificare prima di usare qualsiasi attributo sesso. https://data.europarl.europa.eu/en/developer-corner/opendata-api
 
+## Camera dei deputati: supporto ai dati ufficiali (28/10/2026)
+
+Il portale [Dati Camera](https://dati.camera.it/sparql) pubblica nella propria ontologia parlamentare l'attributo `foaf:gender` (letterali `male`/`female`) e i dati anagrafici degli eletti, tra cui data di nascita espressa spesso come `YYYYMMDD`. Le URI parlamentari hanno forma `http://dati.camera.it/ocd/deputato.rdf/d..._...`.
+
+L'auditor supporta ora anche l'importazione **locale e in sola lettura** di una risposta JSON SPARQL:
+
+```bash
+node api/scripts/audit-official-sex.js --users=utenti-autorizzati.json --camera-sparql=risposta-camera.json
+```
+
+Il parser ammette soltanto le variabili `deputato`, `nome`, `cognome`, `dataNascita`, `genere`, accetta solo URI istituzionali riconosciute, converte esclusivamente `male` → `M` e `female` → `F`, verifica la validità della data e deduplica le righe ufficiali identiche. Resta sempre necessario l'abbinamento **univoco su nome, cognome e data** e la **revisione manuale**; non modifica Supabase.
+
+Fonte primaria: https://dati.camera.it/sparql e https://dati.camera.it/ocd-rappresentazione-semantica-e-documentazione
+
 ## Stato attuale Supabase (solo lettura, 28 ottobre 2026)
 
 - `users.sesso` è **NULL per tutti i 1.857 utenti**.

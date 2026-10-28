@@ -18,10 +18,8 @@ test('/utenti does not expose Admin profile, opinions, avatar or deletion mutati
   }
   assert.match(page, /<UsersTable/);
   assert.match(page, /<MobileUsersTable/);
-  assert.match(page, /<PendingUsersTable/);
-  assert.match(page, /<MobilePendingUsersTable/);
-  assert.match(page, /onApprove={handleApproveUser}/);
-  assert.match(page, /onReject={handleRejectUser}/);
+  assert.doesNotMatch(page, /PendingUsersTable|MobilePendingUsersTable|handleApproveUser|handleRejectUser/);
+  assert.doesNotMatch(page, /Utenti in Attesa|In Attesa|pendingUsers/);
   assert.match(page, /<SearchBar/);
   assert.match(page, /<FiltersBar/);
   assert.match(page, /<Pagination/);
@@ -54,4 +52,17 @@ test('canonical deletion services stay available for GDPR and account self-servi
   assert.match(admin, /PrivacyErasureLedgerService\.enforceAccountDeletion\(client, userId\)/);
   assert.match(self, /PrivacyErasureLedgerService\.enforceAccountDeletion\(client, userId\)/);
   assert.match(service, /static async enforceAccountDeletion/);
+});
+
+test('user totals appear only under Statistiche, not as redundant cards in Gestisci', () => {
+  const page = read('client/src/pages/Utenti/index.tsx');
+  const gestisci = page.slice(page.indexOf('<TabsContent value="gestisci"'), page.indexOf('<TabsContent value="statistiche"'));
+  const statistiche = page.slice(page.indexOf('<TabsContent value="statistiche"'));
+  assert.ok(gestisci.length > 100, 'Gestisci tab is present');
+  assert.doesNotMatch(gestisci, /Totale Utenti|text-green-900|text-blue-900/);
+  assert.doesNotMatch(gestisci, /\{allUsers\.length\}/);
+  assert.match(gestisci, /Tutti gli Utenti/);
+  assert.match(gestisci, /<UsersTable/);
+  assert.match(gestisci, /<MobileUsersTable/);
+  assert.match(statistiche, /stats\.totalUsers/);
 });
