@@ -31,6 +31,12 @@ pgTest('PostgreSQL 17: private synthetic staging fixture has parity, isolation, 
     const rollbackTest = fs.readFileSync(path.join(databasePath, 'qa-user-profile-staging-backfill-rollback-test.sql'), 'utf8');
     await db.query(fixture);
     await db.query(fixture); // Reapplying must not create duplicate rows.
+    const territoryFixture = fs.readFileSync(path.join(databasePath, 'qa-user-profile-territory-trigger-fixture.sql'), 'utf8');
+    const territoryCutoverTest = fs.readFileSync(path.join(databasePath, 'qa-user-profile-territory-cutover-rollback-test.sql'), 'utf8');
+    await db.query(territoryFixture);
+    await db.query(territoryCutoverTest); // Test trigger ownership switch, NULL, authority and DDL rollback.
+    const territoryState = (await db.query(`SELECT COUNT(*)::integer AS rows FROM qa_user_profile_20261028.user_political_territories`)).rows[0];
+    assert.equal(territoryState.rows, 0, 'all synthetic territory writes were rolled back');
     const before = (await db.query(`SELECT
       (SELECT COUNT(*)::integer FROM qa_user_profile_20261028.users) AS users,
       (SELECT COUNT(*)::integer FROM qa_user_profile_20261028.user_profile) AS profiles,
