@@ -85,7 +85,11 @@ async function withRightsHistoryRoute(pool, callback) {
       layer.route?.path==='/rights-requests' && layer.route?.methods.get
     )?.route.stack.at(-1)?.handle;
     assert.equal(typeof handler,'function');
-    await callback(handler);
+    const put=router.stack.find(layer=>
+      layer.route?.path==='/limit-processing' && layer.route?.methods.put
+    )?.route.stack.at(-1)?.handle;
+    assert.equal(typeof put,'function');
+    await callback(handler,put);
   } finally {
     for(let i=0;i<paths.length;i++){
       delete require.cache[paths[i]];
@@ -116,6 +120,16 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
       "request_data jsonb DEFAULT '{}'::jsonb, " +
       'created_at timestamptz DEFAULT CURRENT_TIMESTAMP, ' +
       'processed_at timestamptz)'
+    );
+    // Synthetic mirror of the existing processing-limit columns. The
+    // fixture exists only in this disposable PostgreSQL 17 CI container.
+    await admin.query(
+      'CREATE TABLE public.data_processing_limits (' +
+      'id uuid PRIMARY KEY DEFAULT gen_random_uuid(), ' +
+      'user_id varchar(255) NOT NULL UNIQUE, ' +
+      'processing_limited boolean NOT NULL, ' +
+      'limited_categories text[] NOT NULL, reason text, ' +
+      'updated_at timestamptz DEFAULT CURRENT_TIMESTAMP)'
     );
     await admin.query('ALTER TABLE public.user_rights_requests ENABLE ROW LEVEL SECURITY');
     await admin.query('REVOKE ALL ON public.user_rights_requests FROM PUBLIC');
@@ -294,6 +308,70 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
         assert.equal(denied.body.success,false);
       });
     }finally{console.error=oldLog;}
+
+    // Regression: the old handler committed processing_limited via a
+    // standalone pool.query and only then tried to persist the GDPR receipt.
+    // A failed INSERT could leave a real restriction changed despite HTTP 500.
+    await admin.query(
+      "CREATE FUNCTION public.gdpr_ci_reject_processing_receipt() " +
+      "RETURNS trigger LANGUAGE plpgsql AS $ BEGIN " +
+      "IF NEW.request_type='limit_processing' AND " +
+      "NEW.request_data->>'reason'='synthetic-force-fail' THEN " +
+      "RAISE EXCEPTION 'synthetic receipt failure'; END IF; " +
+      "RETURN NEW; END $"
+    );
+    await admin.query(
+      'CREATE TRIGGER gdpr_ci_reject_processing_receipt ' +
+      'BEFORE INSERT ON public.user_rights_requests ' +
+      'FOR EACH ROW EXECUTE FUNCTION public.gdpr_ci_reject_processing_receipt()'
+    );
+    await withRightsHistoryRoute(admin, async (_get, put) => {
+      const request = (limited,reason,categories=['personal_data'])=>({
+        userId:USER, body:{limited,categories,reason},
+        ip:'127.0.0.1', connection:{remoteAddress:'127.0.0.1'},
+        get:()=> 'synthetic-pg17-ci'
+      });
+      const accepted=response();
+      await put(request(true,'synthetic-approved'),accepted);
+      assert.equal(accepted.statusCode,200);
+      assert.equal(accepted.body.success,true);
+      assert.ok(accepted.body.request_id);
+      assert.equal((await admin.query(
+        'SELECT processing_limited FROM public.data_processing_limits WHERE user_id=$1',
+        [USER]
+      )).rows[0].processing_limited,true);
+      const receiptCount=async()=>(await admin.query(
+        "SELECT COUNT(*)::int AS n FROM public.user_rights_requests " +
+        "WHERE user_id=$1 AND request_type='limit_processing'",[USER]
+      )).rows[0].n;
+      assert.equal(await receiptCount(),1);
+
+      const oldLog=console.error;console.error=()=>{};
+      try {
+        const denied=response();
+        await put(request(false,'synthetic-force-fail'),denied);
+        assert.equal(denied.statusCode,503);
+        assert.equal(denied.body.success,false);
+      } finally {console.error=oldLog;}
+      assert.equal((await admin.query(
+        'SELECT processing_limited FROM public.data_processing_limits WHERE user_id=$1',
+        [USER]
+      )).rows[0].processing_limited,true,
+      'a failed rights receipt MUST roll back the preceding processing-limit update');
+      assert.equal(await receiptCount(),1,
+      'no unconfirmed or duplicated rights receipt may survive rollback');
+
+      for(const body of [
+        {limited:'true',categories:['personal_data']},
+        {limited:true,categories:{not:'an-array'}},
+        {limited:true,categories:['personal_data','personal_data']}
+      ]) {
+        const invalid=response();
+        await put({userId:USER,body},invalid);
+        assert.equal(invalid.statusCode,400);
+      }
+      assert.equal(await receiptCount(),1);
+    });
 
     console.log('GDPR_LEGACY_RIGHTS_REAL_PG17_PASS ' + JSON.stringify({
       onlySyntheticData:true,persistedReceiptUsesDatabaseId:true,
