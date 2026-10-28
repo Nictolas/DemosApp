@@ -56,3 +56,23 @@ test('gli endpoint nazionali e regionali leggono solo users.sesso e mantengono a
   assert.match(read('client/src/components/sondaggi/useSondaggiData.ts'), /\/api\/sondaggi\/sesso/);
   assert.match(read('client/src/pages/StatisticheOpinione/hooks/useGenereStats.ts'), /\/stats\/\$\{opinionId\}\/sesso/);
 });
+
+test('i form di modifica non scrivono piu genere legacy e non permettono sesso CIE client-side', () => {
+  const read = rel => fs.readFileSync(path.resolve(__dirname, '../..', rel), 'utf8');
+  const routes = [
+    read('api/routes/users/search.js'),
+    read('api/routes/users/profile.js')
+  ];
+  routes.forEach(source => {
+    const start = source.indexOf('const allowedFields = [');
+    const end = source.indexOf('];', start);
+    assert.ok(start >= 0 && end > start);
+    const permitted = source.slice(start, end);
+    assert.doesNotMatch(permitted, /'genere'/);
+    assert.doesNotMatch(permitted, /'sesso'/);
+  });
+  const form = read('client/src/components/profile/PersonalDataSection.tsx');
+  assert.doesNotMatch(form, /onFieldChange\("genere"/);
+  assert.doesNotMatch(form, /onFieldChange\("sesso"/);
+  assert.doesNotMatch(read('client/src/pages/Profilo/components/ProfileInfo.tsx'), /userInfo\.genere/);
+});
