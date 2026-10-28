@@ -70,7 +70,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                   key={column} 
                   className={column === 'avatar' ? "text-center w-16" : "min-w-[150px] max-w-[300px]"}
                 >
-                  <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column)}>
+                  <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column, user)}>
                     {renderColumnValue(user[column], column, user, onEditAvatar)}
                   </div>
                 </TableCell>
