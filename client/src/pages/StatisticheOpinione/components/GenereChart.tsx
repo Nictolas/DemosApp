@@ -4,7 +4,7 @@ import { Users } from "lucide-react";
 import type { SessoDataItem } from "../types";
 
 // Il nome del componente rimane per compatibilita' con la pagina legacy;
-// i dati mostrati sono SOLO sesso anagrafico verificato CIE.
+// i dati includono M/F registrati, anche storici o inferiti, senza attestazione CIE.
 interface GenereChartProps {
   genereData: SessoDataItem[] | undefined;
 }
@@ -37,10 +37,10 @@ export function GenereChart({ genereData }: GenereChartProps) {
       <CardHeader>
         <CardTitle className="text-2xl text-gray-800 flex items-center">
           <Users className="mr-2 h-6 w-6 text-blue-600" />
-          Distribuzione per sesso anagrafico (CIE)
+          Distribuzione per sesso
         </CardTitle>
         <CardDescription>
-          Dati verificati e aggregati. I piccoli gruppi vengono nascosti per proteggere la privacy.
+          Valori M/F registrati, anche storici o inferiti: non necessariamente certificati CIE. I piccoli gruppi vengono nascosti per la privacy.
         </CardDescription>
       </CardHeader>
       <CardContent className="p-6">
