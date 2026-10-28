@@ -76,3 +76,9 @@ test('i form di modifica non scrivono piu genere legacy e non permettono sesso C
   assert.doesNotMatch(form, /onFieldChange\("sesso"/);
   assert.doesNotMatch(read('client/src/pages/Profilo/components/ProfileInfo.tsx'), /userInfo\.genere/);
 });
+
+test('portabilita GDPR include sesso CIE senza rimuovere le informazioni storiche dell interessato', () => {
+  const read = rel => fs.readFileSync(path.resolve(__dirname, '../..', rel), 'utf8');
+  assert.match(read('api/services/privacyDataExportService.js'), /'data_nascita', 'sesso', 'genere', 'cittadinanza'/);
+  assert.match(read('api/routes/user/gdpr-rights.js'), /u\.sesso AS sesso/);
+});
