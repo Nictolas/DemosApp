@@ -7,15 +7,20 @@
  * spacciato per un attributo verificato tramite CIE OIDC. Questa funzione
  * produce solo possibili corrispondenze che richiedono revisione umana.
  */
-const OFFICIAL_HOSTS = new Set(['dati.senato.it']);
+const OFFICIAL_HOSTS = new Set(['dati.senato.it', 'dati.camera.it']);
 
 function isOfficialSourceUrl(raw) {
   if (typeof raw !== 'string') return false;
   try {
     const url = new URL(raw);
-    return url.protocol === 'https:' &&
-      url.username === '' && url.password === '' &&
-      url.port === '' && OFFICIAL_HOSTS.has(url.hostname.toLowerCase());
+    if (url.protocol !== 'https:' || url.username || url.password || url.port ||
+        !OFFICIAL_HOSTS.has(url.hostname.toLowerCase())) return false;
+    if (url.hostname.toLowerCase() === 'dati.camera.it') {
+      // Camera: link a una risorsa anagrafica parlamentare, non a una pagina arbitraria.
+      return /^\/ocd\/deputato\.rdf\/d\d+_\d+\/?$/.test(url.pathname) &&
+        url.search === '' && url.hash === '';
+    }
+    return true;
   } catch {
     return false;
   }
@@ -47,6 +52,47 @@ function matchKey(row) {
   return firstName && familyName && birthDate
     ? JSON.stringify([firstName, familyName, birthDate])
     : null;
+}
+
+/**
+ * Camera dei deputati, output SPARQL JSON con variabili
+ * deputato/nome/cognome/dataNascita/genere. Fonte: foaf:gender.
+ * Le date della Camera sono spesso YYYYMMDD, diverse dal formato ISO dei profili DEMOS.
+ * Solo i valori ufficiali letterali 'male'/'female' vengono convertiti in M/F.
+ * Qualsiasi dato incompleto, anomalo o con URL non istituzionale viene scartato.
+ */
+function parseCameraSparqlBindings(rows) {
+  if (!Array.isArray(rows)) throw new TypeError('Atteso un array di bindings SPARQL');
+  const result = [];
+  for (const row of rows) {
+    const value = key => row?.[key]?.type === 'uri' || row?.[key]?.type === 'literal'
+      ? row[key].value : null;
+    const deputyUri = value('deputato');
+    const nome = value('nome');
+    const cognome = value('cognome');
+    const born = value('dataNascita');
+    const gender = value('genere');
+    if (typeof deputyUri !== 'string' || typeof nome !== 'string' ||
+        typeof cognome !== 'string' || typeof born !== 'string') continue;
+    const match = /^https?:\\/\\/dati\\.camera\\.it\\/ocd\\/deputato\\.rdf\\/(d\\d+_\\d+)\\/?$/.exec(deputyUri);
+    if (!match) continue;
+    const date = /^\\d{8}$/.test(born)
+      ? `\\${born.slice(0, 4)}-\\${born.slice(4, 6)}-\\${born.slice(6, 8)}`
+      : born;
+    if (!validIsoDate(date)) continue;
+    const sesso = gender === 'male' ? 'M' : gender === 'female' ? 'F' : null;
+    if (!sesso) continue;
+    const record = {
+      external_id: deputyUri,
+      nome,
+      cognome,
+      data_nascita: date,
+      sesso,
+      source_url: `https://dati.camera.it/ocd/deputato.rdf/\\${match[1]}`
+    };
+    if (isOfficialSourceUrl(record.source_url)) result.push(record);
+  }
+  return result;
 }
 
 function auditOfficialSexEvidence(users, officialRecords) {
@@ -126,4 +172,4 @@ function auditOfficialSexEvidence(users, officialRecords) {
   };
 }
 
-module.exports = { auditOfficialSexEvidence, isOfficialSourceUrl, matchKey };
+module.exports = { auditOfficialSexEvidence, isOfficialSourceUrl, matchKey, parseCameraSparqlBindings };
