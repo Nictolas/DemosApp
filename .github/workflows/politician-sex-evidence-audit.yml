@@ -1,0 +1,26 @@
+name: Official politician sex evidence — safe audit
+
+on:
+  pull_request:
+    paths:
+      - 'api/utils/officialSexEvidenceAudit.js'
+      - 'api/tests/officialSexEvidenceAudit.test.js'
+      - 'api/docs/politician-sex-official-evidence-audit-20261028.md'
+      - '.github/workflows/politician-sex-evidence-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-read-only-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate only official evidence and no inferred or automatic M/F writes
+        run: |
+          node --test api/tests/officialSexEvidenceAudit.test.js
+          node --check api/utils/officialSexEvidenceAudit.js
