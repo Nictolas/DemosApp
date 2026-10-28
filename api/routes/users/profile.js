@@ -36,7 +36,6 @@ const REPRESENTATIVE_FIELDS = new Set(getLegacySelectionFields('both'));
 // GET /api/users/me - Ottieni profilo utente autenticato
 router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
-    console.log('🔍 GET /api/users/me - Richiesta profilo utente');
     
     const userId = req.user.id;
     
@@ -93,7 +92,6 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         throw queryError;
       }
 
-      console.warn('⚠️ Fallback query /users/me su users (schema nuovo non disponibile):', queryError.message);
       result = await pool.query(
         `SELECT * FROM users WHERE id = $1`,
         [userId]
@@ -108,7 +106,6 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const user = result.rows[0];
-    console.log('✅ Profilo utente recuperato:', user.email);
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR), altrimenti DD/MM/YYYY
     let dataNascitaFormattata = null;
@@ -136,7 +133,6 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
           avatarConfig = user.avatar_config;
         }
       } catch (e) {
-        console.warn('⚠️ Errore nella gestione avatar_config:', e);
         // Se non è JSON valido, imposta null
         avatarConfig = null;
       }
@@ -197,7 +193,6 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero profilo:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -211,7 +206,6 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
     const userId = req.user.id;
     const { avatar_config } = req.body;
     
-    console.log('🎨 POST /api/users/me/avatar - Aggiornamento avatar per utente:', userId);
     
     if (!avatar_config) {
       return res.status(400).json({
@@ -252,7 +246,6 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
       });
     }
     
-    console.log('✅ Avatar aggiornato per utente:', userId);
     
     res.json({
       success: true,
@@ -261,7 +254,6 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento avatar:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -272,7 +264,6 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
 // PUT /api/users/me - Aggiorna profilo utente autenticato
 router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
-    console.log('✏️ PUT /api/users/me - Aggiornamento profilo utente');
     
     const userId = req.user.id;
     const updateData = req.body;
@@ -306,7 +297,6 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         // Normalizza i gradi di elezione e candidatura
         if (key === 'grado_elezione' || key === 'grado_candidatura') {
           filteredData[key] = normalizeGrado(updateData[key]);
-          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
         }
         // Applica compressione per i campi paese
         else if (key === 'paese_residenza' || key === 'paese_elezione' || key === 'paese_candidatura') {
@@ -392,7 +382,6 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const updatedUser = result.rows[0];
-    console.log('✅ Profilo utente aggiornato:', updatedUser.email);
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
     let dataNascitaFormattata = null;
@@ -439,7 +428,6 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento profilo:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -450,16 +438,11 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
 // PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
 router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   try {
-    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
     
     const { userId } = req.params;
     const { campo, rappresentanteId, source = 'matching' } = req.body;
     const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
     
-    console.log('🔍 DEBUG - userId dal parametro:', userId);
-    console.log('🔍 DEBUG - authenticatedUserId dal token:', authenticatedUserId);
-    console.log('🔍 DEBUG - campo:', campo);
-    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
     
     // Verifica che l'utente autenticato possa modificare questo profilo
     if (authenticatedUserId !== userId) {
@@ -559,7 +542,6 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivi
     const isCandidato = campo.startsWith('candidato_');
     const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
     
-    console.log(`✅ ${entityType} selezionato con successo`);
     
     res.json({
       success: true,
@@ -568,7 +550,6 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivi
     });
     
   } catch (error) {
-    console.error('❌ Errore nella selezione:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -641,7 +622,6 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
     if (client) {
       try { await client.query('ROLLBACK'); } catch (_) {}
     }
-    console.error('Errore selezione politica canonica:', error);
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   } finally {
     if (client) client.release();
@@ -652,7 +632,6 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
 // GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
 router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
-    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
     
     const { userId } = req.params;
     const { grado } = req.query; // Parametro opzionale per filtrare per grado
@@ -709,9 +688,7 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     );
     const userAnswers = userAnswersResult.rows[0] || {};
     
-    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
     if (grado) {
-      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
     }
 
     const fontiOpinioni = userAnswers.fonti_opinioni || {};
@@ -738,7 +715,6 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
       };
     });
     
-    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
     
     res.json({
       success: true,
@@ -751,7 +727,6 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare opinioni utente:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -763,13 +738,10 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
 // PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
 router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
   try {
-    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
     
     const { userId } = req.params;
     const { opinioni, fonti } = req.body;
     
-    console.log('👤 User ID:', userId);
-    console.log('📋 Aggiornamento opinioni politiche ricevuto (valori non registrati nei log)');
     
     if (!opinioni || typeof opinioni !== 'object') {
       return res.status(400).json({
@@ -835,12 +807,10 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
       if (!validOpinionIds.has(opinionId)) {
-        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
         continue;
       }
       
       if (!validColumns.has(opinionId)) {
-        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
         continue;
       }
       
@@ -916,8 +886,6 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       `;
       const allValues = [userId, ...updateValues];
       
-      console.log('📝 Query SQL INSERT:', insertQuery);
-      console.log('📝 INSERT opinioni: valori sensibili omessi dai log');
       
       result = await pool.query(insertQuery, allValues);
     } else {
@@ -929,8 +897,6 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
         WHERE user_id = $${updateValues.length}
       `;
       
-      console.log('📝 Query SQL UPDATE:', updateQuery);
-      console.log('📝 UPDATE opinioni: valori sensibili omessi dai log');
       
       result = await pool.query(updateQuery, updateValues);
     }
@@ -943,7 +909,6 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    console.log('✅ Opinioni politiche salvate con successo');
     
     res.json({
       success: true,
@@ -953,19 +918,10 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel salvare opinioni utente:', error);
-    console.error('❌ Stack trace:', error.stack);
-    console.error('❌ Dettagli errore:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      constraint: error.constraint
-    });
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile salvare le opinioni',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Impossibile salvare le opinioni'
     });
   }
 });

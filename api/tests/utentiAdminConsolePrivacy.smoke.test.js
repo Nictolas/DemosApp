@@ -34,3 +34,19 @@ test('admin directory remains read-only without pending approvals', () => {
   assert.match(source, /Le modifiche ai dati non sono disponibili in questa pagina/);
   assert.match(search, /sesso: \['M', 'F'\]\.includes\(user\.sesso\)/);
 });
+
+test('profile and OAuth routes never log account identifiers, political answers or raw errors', () => {
+  const profile = fs.readFileSync(
+    path.resolve(__dirname, '../routes/users/profile.js'), 'utf8'
+  );
+  const oauth = fs.readFileSync(
+    path.resolve(__dirname, '../routes/auth/oauth.js'), 'utf8'
+  );
+  for (const source of [profile, oauth]) {
+    assert.doesNotMatch(source, /\\bconsole\\.(?:log|debug|info|warn|error)\\s*\\(/);
+  }
+  assert.doesNotMatch(profile, /details:\\s*process\\.env\\.NODE_ENV\\s*\\?\\s*error\\.message/);
+  assert.doesNotMatch(oauth, /error:\\s*err\\.message/);
+  assert.match(profile, /router\\.put\\('\\/:userId\\/opinioni'/);
+  assert.match(oauth, /generateOAuthPendingToken/);
+});
