@@ -19,6 +19,7 @@ Non attribuire `M/F` in base al suffisso -o/-a, a fotografie, titoli professiona
 - I politici legacy (`ruolo='P'`): **1.675**, tutti senza `sesso`.
 - 812 nomi terminano in -o, 609 in -a. **Questi numeri non sono dati sul sesso e non vanno usati per il popolamento.**
 - La tabella `users` non dispone attualmente di un ID istituzionale canonico di Senato/Camera: servirà un collegamento identificativo affidabile.
+- Verifica aggregata, senza esportare PII: **1.502** politici P hanno nome+cognome+data di nascita utili; **173** sono incompleti/non validi; **1.421** hanno una terna univoca nel DB; **81** ricadono in **40 gruppi duplicati** e sono scartati dall'abbinamento automatico. Ciò **non** significa che 1.421 siano già verificati sul sito del Senato: manca la corrispondenza con i dati ufficiali.
 
 ## Funzionamento dell'auditor
 
@@ -36,6 +37,22 @@ Un abbinamento viene considerato solo quando:
 - la fonte è HTTPS di `dati.senato.it`, con un valore ufficiale M/F riconoscibile.
 
 Ogni possibile corrispondenza è `REQUIRES_MANUAL_VERIFICATION` e `cie_verified=false`. Non produce mai un aggiornamento in `users.sesso`: questo campo, nella PR #380, è riservato al claim CIE firmato e verificato.
+
+## Uso offline dell'audit (solo operatore autorizzato)
+
+I file di input non vanno committati, caricati in CI o inclusi nei log. Su una postazione controllata:
+
+```bash
+node api/scripts/audit-official-sex.js --users=utenti-autorizzati.json --official=senato-verificato.json
+```
+
+Senza `--out`, l'output contiene **solo conteggi**, nessun nome o data di nascita e nessun file viene scritto. Solo dopo aver predisposto una cartella privata, per ottenere la lista degli abbinamenti da rivedere:
+
+```bash
+node api/scripts/audit-official-sex.js --users=utenti-autorizzati.json --official=senato-verificato.json --out=proposte-riservate.json
+```
+
+Il programma crea un file nuovo (su Unix con permessi `0600`) e rifiuta la sovrascrittura. L'output contiene ID DEMOS, ID record istituzionale, URL della fonte e sesso pubblicato con `REQUIRES_MANUAL_VERIFICATION`; nessuna password, query SQL o update Supabase.
 
 ## Passaggi successivi non automatici
 
