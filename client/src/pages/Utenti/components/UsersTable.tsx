@@ -49,7 +49,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-gray-700 capitalize">
-                    {column.replace(/_/g, ' ')}
+                    {column === 'sesso' ? 'Sesso anagrafico (CIE)' : column.replace(/_/g, ' ')}
                   </span>
                   {column !== 'avatar' && sortState.sortField === column && (
                     <span className="text-blue-600 ml-2">
@@ -70,7 +70,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                   key={column} 
                   className={column === 'avatar' ? "text-center w-16" : "min-w-[150px] max-w-[300px]"}
                 >
-                  <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column)}>
+                  <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column, user)}>
                     {renderColumnValue(user[column], column, user, onEditAvatar)}
                   </div>
                 </TableCell>
