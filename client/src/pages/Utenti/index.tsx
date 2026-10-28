@@ -779,7 +779,7 @@ export default function Utenti() {
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Età</CardTitle>
-                      <CardDescription>Solo persone: dati reali disponibili. Le date mancanti o non valide sono indicate come N/A.</CardDescription>
+                      <CardDescription>Solo persone, inclusi profili politici importati. Date presenti nel database, non necessariamente certificate; N/A se mancanti o implausibili.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
@@ -855,7 +855,7 @@ export default function Utenti() {
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Età (Dettaglio)</CardTitle>
-                      <CardDescription>Conteggi effettivi, senza dati di esempio. N/A indica una data mancante o non valida.</CardDescription>
+                      <CardDescription>Conteggi calcolati, senza dati inventati. N/A indica date mancanti, impossibili o implausibili.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
