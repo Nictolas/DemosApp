@@ -366,18 +366,11 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
         const id = require('crypto').randomUUID();
         console.log('🔍 ID generato per nuova opinione:', id);
         
-        const gradiOpinione = ['da approvare'];
         const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
         
-        // Sceglie la sorgente proposta senza provocare un errore 42P01 dentro la transazione:
-        // in PostgreSQL una query fallita abortisce l'intera transazione e rende inutilizzabile il fallback.
-        const proposalSourceResult = await client.query(
-          `SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS has_separate_proposals`
-        );
-        const hasSeparateProposals = proposalSourceResult.rows[0]?.has_separate_proposals === true;
-        const checkDuplicateQuery = hasSeparateProposals
-          ? `SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) FOR UPDATE SKIP LOCKED LIMIT 1`
-          : `SELECT id FROM opinioni_domande WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) AND 'da approvare' = ANY(gradi_opinione) FOR UPDATE SKIP LOCKED LIMIT 1`;
+        // All proposals remain dynamic in their dedicated table.
+        const checkDuplicateQuery = `SELECT id FROM opinioni_proposte
+          WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) FOR UPDATE SKIP LOCKED LIMIT 1`;
         const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
         console.log('🔍 Controllo duplicati per testo:', testoNormalizzato);
         console.log('🔍 Lock key utilizzato:', lockKey);
@@ -395,15 +388,9 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
           });
         }
         
-        // Inserisce in opinioni_proposte se esiste, altrimenti in opinioni_domande
         const insertQueryProposte = `
           INSERT INTO opinioni_proposte (id, text, approfondimento)
           VALUES ($1, $2, $3)
-          RETURNING id, text
-        `;
-        const insertQueryDomande = `
-          INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
-          VALUES ($1, $2, $3::text[], $4)
           RETURNING id, text
         `;
         console.log('🔍 Tentativo inserimento con parametri:', {
@@ -414,9 +401,7 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
 
         let insertResult;
         try {
-          insertResult = hasSeparateProposals
-            ? await client.query(insertQueryProposte, [id, testoNormalizzato, approfondimento])
-            : await client.query(insertQueryDomande, [id, testoNormalizzato, gradiOpinione, approfondimento]);
+          insertResult = await client.query(insertQueryProposte, [id, testoNormalizzato, approfondimento]);
         } catch (error) {
           if (error.code === '23505') {
             await client.query('ROLLBACK');
@@ -457,9 +442,7 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
         console.log('🔓 Lock rilasciato dopo commit');
         
         // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
-        const checkDuplicateQueryFinal = hasSeparateProposals
-          ? `SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))`
-          : `SELECT id FROM opinioni_domande WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) AND 'da approvare' = ANY(gradi_opinione)`;
+        const checkDuplicateQueryFinal = `SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))`;
         const finalCheck = await client.query(checkDuplicateQueryFinal, [testoNormalizzato]);
         if (finalCheck.rows.length > 1) {
           console.error('❌ ERRORE CRITICO: Trovati duplicati dopo l\'inserimento!', finalCheck.rows);
@@ -722,17 +705,7 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     console.log('🗑️ DELETE /api/opinioni-proposte/:id - Cancellazione opinione proposta');
     console.log('🔍 ID opinione:', id);
     
-    // Sceglie la sorgente proposta in modo schema-aware: opinioni_proposte è opzionale.
-    const proposalSourceResult = await pool.query(
-      `SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS has_separate_proposals`
-    );
-    const hasSeparateProposals = proposalSourceResult.rows[0]?.has_separate_proposals === true;
-    const checkResult = hasSeparateProposals
-      ? await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id])
-      : await pool.query(
-          `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
-          [id]
-        );
+    const checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -750,9 +723,7 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     } catch (e) {
       if (e.code !== '42703') console.error('Errore reset opinione_proposta_id:', e);
     }
-    const deleteResult = hasSeparateProposals
-      ? await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id])
-      : await pool.query('DELETE FROM opinioni_domande WHERE id = $1', [id]);
+    const deleteResult = await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id]);
     
     console.log('✅ Opinione cancellata con successo:', id);
     
