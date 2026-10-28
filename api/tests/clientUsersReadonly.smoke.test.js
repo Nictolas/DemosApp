@@ -18,10 +18,8 @@ test('/utenti does not expose Admin profile, opinions, avatar or deletion mutati
   }
   assert.match(page, /<UsersTable/);
   assert.match(page, /<MobileUsersTable/);
-  assert.match(page, /<PendingUsersTable/);
-  assert.match(page, /<MobilePendingUsersTable/);
-  assert.match(page, /onApprove={handleApproveUser}/);
-  assert.match(page, /onReject={handleRejectUser}/);
+  assert.doesNotMatch(page, /PendingUsersTable|MobilePendingUsersTable|handleApproveUser|handleRejectUser/);
+  assert.doesNotMatch(page, /Utenti in Attesa|In Attesa|pendingUsers/);
   assert.match(page, /<SearchBar/);
   assert.match(page, /<FiltersBar/);
   assert.match(page, /<Pagination/);

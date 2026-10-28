@@ -267,35 +267,6 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/users/pending - Lista utenti in attesa di approvazione (solo admin)
-router.get('/pending', verifyToken, requireAdmin, async (req, res) => {
-  try {
-    console.log('⏳ GET /api/users/pending - Lista utenti in attesa richiesta da admin');
-    
-    const result = await pool.query(`
-      SELECT id, nome, cognome, email, ruolo, created_at, avatar_config
-      FROM users 
-      WHERE (status = 'P' OR status = 'p')
-      ORDER BY created_at ASC
-    `);
-    
-    console.log(`✅ Utenti in attesa recuperati: ${result.rows.length}`);
-    
-    res.json({
-      success: true,
-      pendingUsers: result.rows,
-      count: result.rows.length
-    });
-    
-  } catch (error) {
-    console.error('❌ Errore nel recupero utenti in attesa:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
-});
-
 // GET /api/users/:userId - Ottieni un utente specifico (solo admin)
 router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
   try {

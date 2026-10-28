@@ -113,17 +113,9 @@ export function EditUserAvatarDialog({
             : user
         ) || [];
         
-        // Aggiorna l'utente nella lista degli utenti pending se presente
-        const updatedPendingUsers = oldData.pendingUsers?.map((user: any) => 
-          user.id === userId 
-            ? addFullName({ ...user, avatar_config: avatarConfigString })
-            : user
-        ) || [];
-        
         return {
           ...oldData,
-          utenti: updatedUtenti,
-          pendingUsers: updatedPendingUsers
+          utenti: updatedUtenti
         };
       });
       
