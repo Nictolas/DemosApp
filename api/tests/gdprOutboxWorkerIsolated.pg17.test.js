@@ -109,6 +109,14 @@ test('operator status obtains all four counters from one SQL snapshot', async ()
       if (sql.includes("to_regclass('public.privacy_erasure_ledger')")) {
         return { rows: [{ledger: true, outbox: true}] };
       }
+      if (sql.includes("WHERE c.oid = 'public.privacy_erasure_ledger'::regclass")) {
+        return {rows:[{rls_enabled:true,public_grants_exist:false,
+          public_column_grants_exist:false,api_roles_with_dml_grants:0}]};
+      }
+      if (sql.includes("WHERE c.oid = 'public.privacy_erasure_delivery_outbox'::regclass")) {
+        return {rows:[{rls_enabled:true,force_rls:true,public_grants_exist:false,
+          public_column_grants_exist:false,api_roles_with_dml_grants:0}]};
+      }
       if (sql.includes('AS complete_visibility')) {
         return { rows: [{complete_visibility: true}] };
       }
@@ -126,8 +134,8 @@ test('operator status obtains all four counters from one SQL snapshot', async ()
   assert.equal(result.pending, 1);
   assert.equal(result.unqueued, 0);
   assert.equal(result.completeVisibility, true);
-  assert.equal(seen.length, 3, 'one joined SQL snapshot after schema and role preflight');
-  assert.ok(seen[2].includes('FULL JOIN public.privacy_erasure_delivery_outbox'));
+  assert.equal(seen.length, 5, 'secure schema preflight, role check and joined snapshot');
+  assert.ok(seen[4].includes('FULL JOIN public.privacy_erasure_delivery_outbox'));
 });
 
 test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and drift checks', async () => {
@@ -198,6 +206,25 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     assert.equal(ready.ready, true);
     assert.equal(ready.completeVisibility, true);
     assert.equal(ready.unqueued, 0);
+
+    // Reproduce the false-positive readiness after a damaged restore:
+    // privileged SQL can still read every row despite disabled RLS or
+    // accidental API grants. The operator check must reject that state.
+    await admin.query('ALTER TABLE public.privacy_erasure_delivery_outbox DISABLE ROW LEVEL SECURITY');
+    await assert.rejects(PrivacyErasureOutboxWorker.status(admin),
+      /GDPR_OUTBOX_SCHEMA_NOT_PROTECTED/);
+    await admin.query('ALTER TABLE public.privacy_erasure_delivery_outbox ENABLE ROW LEVEL SECURITY');
+    await admin.query('GRANT SELECT ON public.privacy_erasure_delivery_outbox TO anon');
+    await assert.rejects(PrivacyErasureOutboxWorker.status(admin),
+      /GDPR_OUTBOX_SCHEMA_NOT_PROTECTED/);
+    await admin.query('REVOKE SELECT ON public.privacy_erasure_delivery_outbox FROM anon');
+    await admin.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
+    await assert.rejects(PrivacyErasureOutboxWorker.status(admin),
+      /GDPR_LEDGER_SCHEMA_NOT_PROTECTED/);
+    await admin.query('ALTER TABLE public.privacy_erasure_ledger ENABLE ROW LEVEL SECURITY');
+    assert.equal((await PrivacyErasureOutboxWorker.status(admin)).ready, true,
+      'catalog protections restored and queue still complete');
+
     // A worker restricted by subject-level RLS cannot certify COMPLETE
     // outbox health, even when all rows currently visible to it are delivered.
     const partial = await PrivacyErasureOutboxWorker.status(workerPool);
