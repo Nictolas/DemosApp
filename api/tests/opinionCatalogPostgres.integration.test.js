@@ -111,7 +111,7 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
     // candidate Express routes and disposable PostgreSQL, not an HTTP
     // implementation re-created in this test.
     const clientRoot=path.resolve(__dirname,'../../client');
-    const {build}=require(path.join(clientRoot,'node_modules/esbuild'));
+    const {build}=require(require.resolve('esbuild', {paths:[path.join(clientRoot,'node_modules/vite'),clientRoot]}));
     const compiled=await build({
       entryPoints:[path.join(clientRoot,'src/lib/saveAndVerifyOpinions.ts')],
       tsconfig:path.join(clientRoot,'tsconfig.json'),
