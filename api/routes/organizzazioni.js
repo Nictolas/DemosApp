@@ -98,7 +98,6 @@ router.get('/', async (req, res) => {
         u.created_at,
         u.updated_at,
         u.avatar_config,
-        u.genere,
         u.data_nascita,
         u.cittadinanza,
         u.paese_residenza,
