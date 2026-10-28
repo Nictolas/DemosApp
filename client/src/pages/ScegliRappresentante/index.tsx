@@ -90,7 +90,9 @@ export default function ScegliRappresentante() {
           )}
           
           {rappresentanti.length === 0 ? (
-            <EmptyState isCandidate={location === "/candidati" || location.startsWith("/candidati/")} />
+            <div className="flex-1 min-h-0 overflow-y-auto app-page-scroll">
+              <EmptyState isCandidate={location === "/candidati" || location.startsWith("/candidati/")} />
+            </div>
           ) : (
             <div className="flex-1 min-h-0 overflow-y-auto app-page-scroll flex items-start justify-center">
               <div className="grid grid-cols-2 gap-4 w-full max-w-2xl my-auto py-2">

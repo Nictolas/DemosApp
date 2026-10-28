@@ -45,4 +45,6 @@ test('Android-only scroll classes and internal scrolling lists exist',()=>{
   for(const page of ['Candidati','ScegliRappresentante']) {
     assert.match(read('pages/'+page+'/index.tsx'),/flex-1 min-h-0 overflow-y-auto app-page-scroll/);
   }
+  // Even an empty representatives/candidates list must not clip its call to action.
+  assert.match(read('pages/ScegliRappresentante/index.tsx'),/overflow-y-auto app-page-scroll[^>]*>\s*<EmptyState/);
 });
