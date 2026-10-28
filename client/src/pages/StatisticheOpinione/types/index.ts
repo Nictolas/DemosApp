@@ -31,3 +31,11 @@ export interface BarDataItem {
   Contrario: number;
   Astenuto: number;
 }
+
+
+export interface SessoDataItem {
+  sesso: 'M' | 'F';
+  favorevole: number;
+  contrario: number;
+  indeciso: number;
+}
