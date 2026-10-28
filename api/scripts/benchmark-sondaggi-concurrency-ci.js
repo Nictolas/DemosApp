@@ -102,7 +102,14 @@ function stats(values){
 async function openApp(pool,fn){
  const auth=require.resolve('../middleware/auth');
  const route=require.resolve('../routes/sondaggi');
- const prevAuth=require.cache[auth],prevRoute=require.cache[route];
+ const catalogPath=require.resolve('../services/opinionCatalog.js');
+ const prevAuth=require.cache[auth],prevRoute=require.cache[route],prevCatalog=require.cache[catalogPath];
+ // Isolated 93-item synthetic published catalog; this benchmarks the real
+ // route/aggregation SQL under load, not the database catalog lookup.
+ const published=COLUMNS.map((id,i)=>({id,text:'Synthetic survey '+String(i).padStart(3,'0')}))
+   .filter(({id})=>id!==COLUMNS[92]);
+ require.cache[catalogPath]={id:catalogPath,filename:catalogPath,loaded:true,
+  exports:{getAllOpinions:()=>published,sortOpinionsByText:xs=>xs}};
  let queryCount=0,activeQueries=0,maxActiveQueries=0,server;
  const monitored={
   async query(sql,params){
@@ -133,6 +140,7 @@ async function openApp(pool,fn){
   if(server)await new Promise((resolve,reject)=>server.close(e=>e?reject(e):resolve()));
   if(prevAuth)require.cache[auth]=prevAuth;else delete require.cache[auth];
   if(prevRoute)require.cache[route]=prevRoute;else delete require.cache[route];
+  if(prevCatalog)require.cache[catalogPath]=prevCatalog;else delete require.cache[catalogPath];
  }
 }
 async function get(base,route,timeout=14000){
@@ -222,9 +230,9 @@ async function main(){
      for(const setting of SETTINGS){
       const queriesBefore=metrics.count();
       const sample=await batch(setting,metrics.base,reference,pool,mode,metrics);
-      assert.equal(metrics.count()-queriesBefore,3*setting.requests,
-       'Every GET must execute exactly 3 SELECT statements');
-      sample.sqlQueries=3*setting.requests;
+      assert.equal(metrics.count()-queriesBefore,2*setting.requests,
+       'Every GET must execute exactly 2 SELECTs: schema whitelist and grouped aggregation');
+      sample.sqlQueries=2*setting.requests;
       modes.push(sample);
      }
      result.push({mode,loads:modes});
@@ -245,7 +253,7 @@ async function main(){
       assert.ok(!Object.hasOwn(item.payload.data.stats,COLUMNS[93]),
        'Post-revocation request must not reveal a nine-voter cell');
      }
-     assert.equal(metrics.count()-queriesBefore,48);
+     assert.equal(metrics.count()-queriesBefore,32);
      after.push({mode,requests:16,allFourScopes:true,
       consentRevocationTenToNineHidesAll:true});
     }
