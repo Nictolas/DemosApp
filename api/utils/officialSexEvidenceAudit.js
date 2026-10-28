@@ -65,19 +65,21 @@ function parseCameraSparqlBindings(rows) {
   if (!Array.isArray(rows)) throw new TypeError('Atteso un array di bindings SPARQL');
   const result = [];
   for (const row of rows) {
-    const value = key => row?.[key]?.type === 'uri' || row?.[key]?.type === 'literal'
-      ? row[key].value : null;
-    const deputyUri = value('deputato');
-    const nome = value('nome');
-    const cognome = value('cognome');
-    const born = value('dataNascita');
-    const gender = value('genere');
-    if (typeof deputyUri !== 'string' || typeof nome !== 'string' ||
-        typeof cognome !== 'string' || typeof born !== 'string') continue;
-    const match = /^https?:\\/\\/dati\\.camera\\.it\\/ocd\\/deputato\\.rdf\\/(d\\d+_\\d+)\\/?$/.exec(deputyUri);
+    const get = key => {
+      const binding = row?.[key];
+      return (binding?.type === 'uri' || binding?.type === 'literal') &&
+        typeof binding.value === 'string' ? binding.value : null;
+    };
+    const deputyUri = get('deputato');
+    const nome = get('nome');
+    const cognome = get('cognome');
+    const born = get('dataNascita');
+    const gender = get('genere');
+    if (!deputyUri || !nome || !cognome || !born) continue;
+    const match = /^https?:\/\/dati\.camera\.it\/ocd\/deputato\.rdf\/(d\d+_\d+)\/?$/.exec(deputyUri);
     if (!match) continue;
-    const date = /^\\d{8}$/.test(born)
-      ? `\\${born.slice(0, 4)}-\\${born.slice(4, 6)}-\\${born.slice(6, 8)}`
+    const date = /^\d{8}$/.test(born)
+      ? born.slice(0,4) + '-' + born.slice(4,6) + '-' + born.slice(6,8)
       : born;
     if (!validIsoDate(date)) continue;
     const sesso = gender === 'male' ? 'M' : gender === 'female' ? 'F' : null;
@@ -88,7 +90,7 @@ function parseCameraSparqlBindings(rows) {
       cognome,
       data_nascita: date,
       sesso,
-      source_url: `https://dati.camera.it/ocd/deputato.rdf/\\${match[1]}`
+      source_url: 'https://dati.camera.it/ocd/deputato.rdf/' + match[1]
     };
     if (isOfficialSourceUrl(record.source_url)) result.push(record);
   }
