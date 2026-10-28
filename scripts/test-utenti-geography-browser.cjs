@@ -30,6 +30,8 @@ async function main() {
       window.localStorage.setItem('auth_token', authToken);
     }, token);
     const page = await context.newPage();
+    const pageErrors = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
     let authHits = 0;
     let userHits = 0;
     const offsite = [];
@@ -60,7 +62,22 @@ async function main() {
       return route.continue();
     });
     await page.goto(BASE + '/utenti', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('tab', { name: /Statistiche/i }).click({ timeout: 30000 });
+    try {
+      await page.getByRole('tab', { name: /Statistiche/i }).click({ timeout: 15000 });
+    } catch (error) {
+      console.error(JSON.stringify({
+        failedStep: 'Open statistics tab',
+        url: page.url(),
+        bodyExcerpt: (await page.locator('body').innerText()).slice(0, 5000),
+        htmlExcerpt: (await page.locator('body').innerHTML()).slice(0, 1500),
+        authHits,
+        userHits,
+        offsite,
+        pageErrors,
+      }));
+      await page.screenshot({ path: '/tmp/demos-utenti-geography-synthetic.png', fullPage: true });
+      throw error;
+    }
     await page.getByText('Distribuzione geografica indicativa per regione').waitFor({ timeout: 30000 });
     await page.getByText(/Residenza registrata:\s*2\.\s*Regione elettorale stimata:\s*2\./).waitFor({ timeout: 10000 });
     await page.getByText(/Residenza comunale disponibile per 2 di 5 utenti; riferimenti comunali stimati: 1\./).waitFor({ timeout: 10000 });
