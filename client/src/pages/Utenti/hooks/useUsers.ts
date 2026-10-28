@@ -1,6 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { UsersResponse } from "../types";
 
 export const useUsers = (user: any) => {
   const queryClient = useQueryClient();
@@ -43,21 +42,10 @@ export const useUsers = (user: any) => {
     refetchIntervalInBackground: false // Non ricaricare in background (solo quando visibile)
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      // apiRequest restituisce già il JSON parsato, non un Response
-      return await apiRequest("DELETE", `/api/users/${userId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-    },
-  });
-
   return {
     responseData,
     isLoadingUsers,
     isError,
-    deleteMutation,
     queryClient
   };
 };

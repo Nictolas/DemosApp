@@ -6,7 +6,7 @@ import { getRoleColor, getCandidaturaStatusColor, getGradoColor } from "./styleU
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 // Funzione per renderizzare il valore con targhette colorate
-export const renderColumnValue = (value: any, columnName: string, user?: User, onEditAvatar?: (user: User) => void) => {
+export const renderColumnValue = (value: any, columnName: string, user?: User) => {
   // Gestione speciale per la colonna "avatar"
   if (columnName === 'avatar' && user) {
     if (user.avatar_config) {
@@ -26,9 +26,7 @@ export const renderColumnValue = (value: any, columnName: string, user?: User, o
         return (
           <div className="flex justify-center">
             <div 
-              className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => onEditAvatar?.(user)}
-              title="Clicca per modificare l'avatar"
+              className="w-10 h-10"
             >
               <CustomAvatar config={config} size={40} className="w-full h-full" />
             </div>
@@ -39,9 +37,7 @@ export const renderColumnValue = (value: any, columnName: string, user?: User, o
         return (
           <div className="flex justify-center">
             <div 
-              className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => onEditAvatar?.(user)}
-              title="Clicca per modificare l'avatar"
+              className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center"
             >
               <span className="text-gray-500 text-xs">N/A</span>
             </div>
@@ -52,9 +48,7 @@ export const renderColumnValue = (value: any, columnName: string, user?: User, o
       return (
         <div className="flex justify-center">
           <div 
-            className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => onEditAvatar?.(user)}
-            title="Clicca per modificare l'avatar"
+            className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center"
           >
             <span className="text-gray-500 text-xs">N/A</span>
           </div>
