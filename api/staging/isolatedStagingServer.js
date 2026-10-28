@@ -3,6 +3,10 @@
 const http = require('node:http');
 const { assertIsolatedStagingEnvironment } = require('./isolatedStagingGuard');
 
+// CI-only/free staging must not accept connections on public interfaces.
+// Future Render ingress requires an EXPLICIT code review and authorization.
+const STAGING_LISTEN_ADDRESS = '127.0.0.1';
+
 // Readiness-only: no app, database pool, Firebase, route or worker import.
 // Until provider quarantine is independently attested, NEVER import ../server.
 function createReadinessHandler() {
@@ -32,7 +36,7 @@ function startIsolatedStaging({
       console.error('DEMOS_STAGING_HTTP_START_FAILED');
       process.exitCode = 1;
     })
-    .listen(Number(runtimeEnv.PORT), '0.0.0.0')
+    .listen(Number(runtimeEnv.PORT), STAGING_LISTEN_ADDRESS)
 } = {}) {
   // Complete this offline check BEFORE opening even a local HTTP socket.
   const attestation = assertIsolatedStagingEnvironment(env);
@@ -50,4 +54,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { startIsolatedStaging, createReadinessHandler };
+module.exports = { startIsolatedStaging, createReadinessHandler, STAGING_LISTEN_ADDRESS };

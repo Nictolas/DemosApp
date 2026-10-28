@@ -11,7 +11,7 @@ const {
   assertStagingDatabaseTarget,
   STAGING_PROJECT_ID
 } = require('../staging/isolatedStagingGuard');
-const { startIsolatedStaging, createReadinessHandler } =
+const { startIsolatedStaging, createReadinessHandler, STAGING_LISTEN_ADDRESS } =
   require('../staging/isolatedStagingServer');
 
 const STAGING_USERNAME = 'demos_staging_runtime.' + STAGING_PROJECT_ID;
@@ -148,6 +148,29 @@ test('failed startup does not even create the local HTTP service', () => {
     profile:'readiness-only',databaseConnected:false
   });
   assert.equal(launches,1);
+});
+
+test('free CI readiness can only bind loopback; no public listener may be started', () => {
+  const original = http.createServer;
+  const recorded = [];
+  http.createServer = () => ({
+    on(event) {
+      assert.equal(event,'error');
+      return this;
+    },
+    listen(port,host) {
+      recorded.push({port,host});
+      return this;
+    }
+  });
+  try {
+    assert.equal(STAGING_LISTEN_ADDRESS, '127.0.0.1');
+    const attestation = startIsolatedStaging({env:baseEnv()});
+    assert.equal(attestation.databaseConnected,false);
+    assert.deepEqual(recorded,[{port:10000,host:'127.0.0.1'}]);
+  } finally {
+    http.createServer = original;
+  }
 });
 
 test('real CLI denies credential-bearing staging before boot with no secret disclosure', () => {

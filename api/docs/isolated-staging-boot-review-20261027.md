@@ -114,9 +114,12 @@ comando `cd api && node index.js`, ramo configurato
 `staging/functional-integration-v0`, `autoDeploy=no`.
 **Rischio concreto:** Render espone attualmente il servizio con
 `ipAllowList=0.0.0.0/0`, `maintenanceMode=false` e nessun
-`healthCheckPath` configurato. Il processo readiness-only della PR
-risponde intenzionalmente su `0.0.0.0`: senza una restrizione **esterna**
-dell'ingress, il suo endpoint health sarebbe raggiungibile pubblicamente.
+`healthCheckPath` configurato. Il processo readiness-only **nella fase originaria** ascoltava su
+`0.0.0.0`. Dopo la decisione gratuita del 28/10/2026 il solo processo
+di prova è stato vincolato esplicitamente a `127.0.0.1`: un futuro
+deploy Render del nuovo codice non è ora raggiungibile dall'esterno, ed
+è **intenzionalmente non supportato** senza nuova review/autorizzazione.
+Il binding locale non sostituisce un firewall né attesta egress.
 Nessuno di questi metadata prova l'isolamento delle connessioni in uscita,
 delle variabili ereditate o l'assenza di consumer esterni.
 
@@ -340,3 +343,5 @@ una nuova autorizzazione specifica e prove effettive di: isolamento
 ingress/egress, identità ACL/RLS del writer reale, integrità e freschezza
 B2, quarantine/restore, matrice conservazione approvata. Nessun GO
 automatico; issue #296 OPEN/NO-GO.
+
+**Hardening successivo:** l'entrypoint di readiness della #369 si lega ora soltanto a `127.0.0.1`; test dedicato intercetta la chiamata reale a `listen()` e rifiuta un bind pubblico. Questa modifica resta solo su PR Draft e rende esplicita l'incompatibilità con un futuro deploy Render Free senza nuova autorizzazione.
