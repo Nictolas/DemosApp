@@ -236,6 +236,8 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
                NULLIF(TRIM(pm.jurisdiction->>'municipality'), '') AS mandate_municipality
         FROM political_mandates pm
         WHERE pm.user_id = u.id AND pm.status = 'ACTIVE'
+          AND (pm.starts_at IS NULL OR pm.starts_at <= NOW())
+          AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
         ORDER BY pm.starts_at DESC NULLS LAST, pm.created_at DESC
         LIMIT 1
       ) location ON true
@@ -253,12 +255,20 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     const usersResult = await pool.query(usersQuery, queryParamsWithPagination);
     
     // Trasforma i dati per il frontend (solo dati essenziali)
-    const users = usersResult.rows.map(user => ({
-      ...user,
-      sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
-      genere: decompressGender(user.genere),
-      data_nascita: user.data_nascita ? new Date(user.data_nascita).toISOString().split('T')[0] : null
-    }));
+    const users = usersResult.rows.map(user => {
+      const decoded = decompressUserLocation(user);
+      return {
+        ...user,
+        // Supporta sia i codici geografici DEMOS sia i nomi completi legacy.
+        cittadinanza: decoded.cittadinanza || user.cittadinanza,
+        paese_residenza: decoded.paese_residenza || user.paese_residenza,
+        regione_residenza: decoded.regione_residenza || user.regione_residenza,
+        regione_elezione: decoded.regione_elezione || user.regione_elezione,
+        sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
+        genere: decompressGender(user.genere),
+        data_nascita: user.data_nascita ? new Date(user.data_nascita).toISOString().split('T')[0] : null
+      };
+    });
     
     console.log(`✅ Lista utenti recuperata: ${users.length} su ${totalUsers} totali`);
     
