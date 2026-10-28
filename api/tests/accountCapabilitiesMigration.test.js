@@ -71,3 +71,13 @@ test('legacy role refresh remains explicit and migration does not erase existing
   assert.doesNotMatch(uncommented, /\bDELETE\s+FROM\s+political_mandates\b/i);
   assert.doesNotMatch(uncommented, /\bUPDATE\s+political_mandates\s+SET\b/i);
 });
+
+test('role projection does not treat legacy backfill ACTIVE as current verified politician', () => {
+  const projection = sql.match(/CREATE OR REPLACE FUNCTION refresh_users_legacy_role\([\s\S]*?END;\s*\$\$;/);
+  assert.ok(projection, 'canonical role-projection function must exist');
+  const mandateCheck = projection[0].match(/SELECT EXISTS \(\s*SELECT 1 FROM political_mandates pm[\s\S]*?\) INTO v_is_politician/);
+  assert.ok(mandateCheck, 'must derive P from real mandate relation');
+  assert.match(mandateCheck[0], /pm\.source <> 'LEGACY_BACKFILL'/);
+  assert.match(mandateCheck[0], /pm\.starts_at <= NOW\(\)/);
+  assert.match(mandateCheck[0], /pm\.ends_at IS NULL OR pm\.ends_at > NOW\(\)/);
+});
