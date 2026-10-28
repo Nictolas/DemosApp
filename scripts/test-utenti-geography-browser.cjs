@@ -1,0 +1,87 @@
+'use strict';
+
+// Browser regression for the real compiled /utenti page, with entirely synthetic
+// users and a synthetic token. No DEMOS credential or live API is ever used.
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+
+const BASE = 'http://localhost:4173';
+const ADMIN = '00000000-0000-4000-8000-000000000001';
+const token = [
+  'eyJhbGciOiJub25lIn0',
+  Buffer.from(JSON.stringify({ userId: ADMIN, role: 'AD', exp: 4102444800 })).toString('base64url'),
+  'synthetic-signature',
+].join('.');
+
+// Only fictional fixtures. S and C are national-office profiles, CO is municipal.
+const users = [
+  { id: '00000000-0000-4000-8000-000000000011', nome: 'Finta', cognome: 'Residenza', ruolo: 'P', account_type: 'PERSON', grado_elezione: 'S', regione_residenza: 'Lombardia', comune_residenza: 'Milano', regione_elezione: 'Sicilia', comune_elezione: 'Palermo' },
+  { id: '00000000-0000-4000-8000-000000000012', nome: 'Finto', cognome: 'Senatore', ruolo: 'P', account_type: 'PERSON', grado_elezione: 'S', regione_residenza: null, comune_residenza: null, regione_elezione: 'Toscana', comune_elezione: 'Firenze' },
+  { id: '00000000-0000-4000-8000-000000000013', nome: 'Finto', cognome: 'Sindaco', ruolo: 'P', account_type: 'PERSON', grado_elezione: 'CO', regione_residenza: null, comune_residenza: null, regione_elezione: 'Piemonte', comune_elezione: 'Torino' },
+  { id: '00000000-0000-4000-8000-000000000014', nome: 'Finta', cognome: 'Elettrice', ruolo: 'E', account_type: 'PERSON', regione_residenza: null, comune_residenza: null, regione_elezione: null, comune_elezione: null },
+  { id: '00000000-0000-4000-8000-000000000015', nome: 'Finto', cognome: 'SecondaResidenza', ruolo: 'P', account_type: 'PERSON', grado_elezione: 'C', regione_residenza: 'Emilia-Romagna', comune_residenza: 'Bologna', regione_elezione: 'Toscana', comune_elezione: 'Firenze' },
+];
+
+async function main() {
+  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  try {
+    const context = await browser.newContext({ viewport: { width: 1365, height: 1000 }, serviceWorkers: 'block' });
+    await context.addInitScript(authToken => {
+      window.localStorage.setItem('auth_token', authToken);
+    }, token);
+    const page = await context.newPage();
+    let authHits = 0;
+    let userHits = 0;
+    const offsite = [];
+    // Route every request through a local-only gate, preventing external I/O.
+    await page.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== 'localhost' || url.port !== '4173') {
+        offsite.push(url.origin);
+        return route.abort();
+      }
+      if (url.pathname === '/api/auth/me') {
+        authHits++;
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, user: { id: ADMIN, email: 'admin@synthetic.invalid', ruolo: 'AD', role: 'AD', status: 'a' } }),
+        });
+      }
+      if (url.pathname === '/api/users') {
+        userHits++;
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, users, pagination: { page: 1, limit: users.length, total: users.length, pages: 1 } }),
+        });
+      }
+      if (url.pathname.startsWith('/api/')) {
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true }) });
+      }
+      return route.continue();
+    });
+    await page.goto(BASE + '/utenti', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('tab', { name: /Statistiche/i }).click({ timeout: 30000 });
+    await page.getByText('Distribuzione geografica indicativa per regione').waitFor({ timeout: 30000 });
+    await page.getByText(/Residenza registrata:\s*2\.\s*Regione elettorale stimata:\s*2\./).waitFor({ timeout: 10000 });
+    await page.getByText(/Residenza comunale disponibile per 2 di 5 utenti; riferimenti comunali stimati: 1\./).waitFor({ timeout: 10000 });
+
+    const municipalCard = page.locator('div.bg-white').filter({ has: page.getByText('I 10 comuni di residenza o riferimento comunale') }).last();
+    const table = municipalCard.locator('table');
+    const entries = await table.locator('tbody tr').allTextContents();
+    for (const city of ['Milano', 'Torino', 'Bologna']) {
+      assert.ok(entries.some(e => e.includes(city)), 'Missing expected city ' + city + ': ' + entries.join('; '));
+    }
+    for (const city of ['Firenze', 'Palermo', 'N/A']) {
+      assert.ok(entries.every(e => !e.includes(city)), 'Electoral city or N/A incorrectly listed: ' + city);
+    }
+
+    assert.ok(authHits >= 1, 'Synthetic auth endpoint was not checked');
+    assert.ok(userHits >= 1, 'Synthetic user endpoint was not read');
+    await page.screenshot({ path: '/tmp/demos-utenti-geography-synthetic.png', fullPage: true });
+    console.log(JSON.stringify({ test: 'real-built-UI', status: 'passed', users: users.length, authenticatedWithFixture: authHits, usersQuery: userHits, cities: entries, offsiteRequestsBlocked: offsite.length }));
+    await context.close();
+  } finally {
+    await browser.close();
+  }
+}
+main().catch(err => { console.error(err); process.exitCode = 1; });
