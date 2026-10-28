@@ -94,7 +94,7 @@ export default function ScegliRappresentante() {
             <div className={isCandidateRoute
               ? "flex-1 min-h-0 overflow-y-auto app-page-scroll"
               : "flex-1 min-h-0 overflow-hidden flex items-center justify-center"}>
-              <EmptyState isCandidate={isCandidateRoute} />
+              <EmptyState isCandidate={location === "/candidati" || location.startsWith("/candidati/")} />
             </div>
           ) : (
             <div className={isCandidateRoute
