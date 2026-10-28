@@ -118,8 +118,10 @@ test('CSV export escapes formulas, preserves zero and false, and omits user id f
   await serve({},async({url})=>{
     const r=await fetch(url+'/api/user/data-export?format=csv');
     assert.equal(r.status,200);
-    const txt=await r.text();
-    assert.ok(txt.startsWith('\ufeff'));
+    // Response.text() strips the UTF-8 BOM; inspect raw HTTP bytes instead.
+    const bytes=Buffer.from(await r.arrayBuffer());
+    assert.equal(bytes.subarray(0,3).toString('hex'),'efbbbf');
+    const txt=bytes.toString('utf8');
     assert.ok(txt.includes('"communications.0.titolo","\'=SUM(1,1)"'));
     assert.ok(txt.includes('"notifications.0.read","false"'));
     assert.match(txt, /"'=SUM\(1,1\)"/);
