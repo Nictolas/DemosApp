@@ -8,6 +8,7 @@ on:
       - 'api/utils/databaseTlsPolicy.js'
       - 'api/routes/user/gdpr-requests.js'
       - 'api/routes/user/gdpr-rights.js'
+      - 'api/services/gdprRightsHistoryService.js'
       - 'client/src/pages/GDPRRights.tsx'
       - 'api/tests/gdprLegacyDbPoolCompat.test.js'
       - 'api/tests/gdprLegacyRequestsRoute.test.js'
