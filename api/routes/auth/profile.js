@@ -61,6 +61,7 @@ router.get('/me', async (req, res) => {
       result = await pool.query(
         `SELECT
            u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.is_dpo, u.created_at, u.updated_at,
+           u.sesso AS sesso,
            COALESCE(up.genere, u.genere) AS genere,
            COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
            COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
@@ -145,6 +146,7 @@ router.get('/me', async (req, res) => {
         email: emailDecrypted ?? user.email,
         nome: user.nome,
         cognome: user.cognome,
+        sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
         genere: decompressGender(user.genere),
         data_nascita: dataNascitaFormattata,
         cittadinanza: decompressUserLocation(user).cittadinanza,
