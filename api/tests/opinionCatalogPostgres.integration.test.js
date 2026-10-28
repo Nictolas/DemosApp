@@ -107,6 +107,78 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
       }
     }
 
+    // Run the actual frontend save/readback implementation against the
+    // candidate Express routes and disposable PostgreSQL, not an HTTP
+    // implementation re-created in this test.
+    const clientRoot=path.resolve(__dirname,'../../client');
+    const {build}=require(path.join(clientRoot,'node_modules/esbuild'));
+    const compiled=await build({
+      entryPoints:[path.join(clientRoot,'src/lib/saveAndVerifyOpinions.ts')],
+      tsconfig:path.join(clientRoot,'tsconfig.json'),
+      bundle:true,platform:'node',format:'cjs',write:false,logLevel:'silent'
+    });
+    assert.equal(compiled.outputFiles.length,1);
+    const Module=require('node:module');
+    const clientModule=new Module(path.join(clientRoot,'__synthetic_opinions_client.cjs'),module);
+    clientModule.filename=path.join(clientRoot,'__synthetic_opinions_client.cjs');
+    clientModule.paths=module.paths;
+    clientModule._compile(compiled.outputFiles[0].text,clientModule.filename);
+    const {saveAndVerifyOpinions}=clientModule.exports;
+    assert.equal(typeof saveAndVerifyOpinions,'function');
+    const priorWindow=globalThis.window;
+    const priorStorage=globalThis.localStorage;
+    const actualFetch=globalThis.fetch;
+    let frontendRequests=0;
+    const store=new Map([['auth_token','synthetic-ci-token']]);
+    try {
+      globalThis.window={location:{hostname:'synthetic-ci.invalid'}};
+      globalThis.localStorage={getItem:k=>store.get(k)||null};
+      globalThis.fetch=async(input,options)=>{
+        const target=new URL(String(input));
+        if(target.origin!=='https://api.demos.community' ||
+           !target.pathname.startsWith('/api/opinioni')){
+          throw new Error('Blocked non-synthetic browser request: '+target.origin+target.pathname);
+        }
+        frontendRequests++;
+        return actualFetch(base+target.pathname+target.search,options);
+      };
+      const national=chosen[ (await apiGet('N')).data[0].id ]!==undefined
+        ? (await apiGet('N')).data[0].id
+        : (await apiGet('N')).data.find(x=>Object.hasOwn(chosen,x.id)).id;
+      assert.ok(national);
+      await saveAndVerifyOpinions('N',{[national]:'c'});
+      assert.equal((await apiGet('N')).data.find(x=>x.id===national).userAnswer,'c');
+      assert.ok(frontendRequests>=2,'Client must submit and re-read the server');
+
+      // The client must NOT report success merely because POST returned 200
+      // if the subsequent GET is stale or differs from the submitted answer.
+      const normalBrowserFetch=globalThis.fetch;
+      globalThis.fetch=async(input,options)=>{
+        const response=await normalBrowserFetch(input,options);
+        const target=new URL(String(input));
+        if(target.pathname==='/api/opinioni-list'&&target.searchParams.get('grado')==='N'){
+          const payload=await response.json();
+          const answer=payload.data.find(x=>x.id===national);
+          assert.ok(answer);
+          answer.userAnswer=null;
+          return new Response(JSON.stringify(payload),{
+            status:response.status,headers:{'content-type':'application/json'}
+          });
+        }
+        return response;
+      };
+      await assert.rejects(
+        saveAndVerifyOpinions('N',{[national]:'i'}),
+        /Alcune risposte non risultano salvate/
+      );
+      globalThis.fetch=normalBrowserFetch;
+      assert.equal((await apiGet('N')).data.find(x=>x.id===national).userAnswer,'i');
+    }finally{
+      globalThis.fetch=actualFetch;
+      if(priorWindow===undefined)delete globalThis.window;else globalThis.window=priorWindow;
+      if(priorStorage===undefined)delete globalThis.localStorage;else globalThis.localStorage=priorStorage;
+    }
+
     // Simulate a concurrent revoke after the first read but before the
     // writer acquires a lock. The real PostgreSQL row lock must reject it.
     await database.query('DELETE FROM opinioni_risposte WHERE user_id=$1',[userId]);
