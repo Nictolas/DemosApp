@@ -3,8 +3,8 @@
 ## Decisione e formato
 - Unico campo canonico `users.sesso`: `M`, `F` oppure `NULL`.
 - M/F **non** rappresentano l'identità di genere.
-- Il campo `users.sesso` esiste già nel DB Supabase produzione (28/10/2026), ma risulta vuoto per tutti i 1.857 account. **Nessun backfill** da `genere` (`u/d/a`) o `user_profile.genere`.
-- Il dato M/F è derivato solo da `gender` = `male` / `female` nel UserInfo CIE dopo firma JWS, issuer, audience e sub validati.
+- Il campo `users.sesso` contiene ora anche **144 valori storici dichiarati** (95 M da `genere=u`, 49 F da `genere=d`), recuperati il 28/10/2026 su esplicita richiesta dell'amministratore; l'eventuale attributo CIE verificato potrà sovrascriverli.
+- La fonte può essere storica (`genere=u/d`) oppure CIE. Quando il valore arriva da CIE, viene derivato soltanto da `gender=male/female` nel UserInfo verificato (firma JWS, issuer, audience, sub). Il dato storico **non** deve essere presentato come CIE verificato.
 - Il claim mancante o non riconosciuto significa `NULL`, **non** "Altro", `0` o `1`.
 - La richiesta del claim gender è sotto `CIE_SEX_COLLECTION_ENABLED=true` (default false); CIE OIDC resta disabilitata per default.
 - Le route browser di aggiornamento profilo non accettano `sesso` come input certificato.
@@ -12,9 +12,9 @@
 ## Implementato in questa PR (fase A)
 - Richiesta e verifica opzionale del claim `gender` dal solo UserInfo CIE attendibile.
 - Scrittura `users.sesso` contestuale alla registrazione CIE (OAuth e passkey) o alla verifica CIE, nello stesso commit transazionale.
-- Scrittura idempotente **soltanto per `account_type='PERSON'`**: un sesso già valorizzato diversamente, un'istituzione o un'organizzazione bloccano l'operazione; nessun overwrite silenzioso.
+- Scrittura **soltanto per `account_type='PERSON'`**: una successiva verifica CIE valida prevale anche se il valore storico era diverso. Account inesistenti, istituzioni e organizzazioni restano esclusi. La scrittura CIE avviene server-side e nella transazione di verifica.
 - API autenticata `/auth/me`, `/users/me` e amministrativa `/users` espongono il nuovo sesso, `NULL` per valori non disponibili.
-- Statistiche Admin di `/utenti`: sesso anagrafico CIE M/F/non disponibile; esclude organizzazioni/istituzioni e non legge il legacy `genere`.
+- Statistiche Admin di `/utenti`: M/F/non disponibile dai valori presenti in `users.sesso`; non distingue implicitamente CIE da dato storico, esclude organizzazioni/istituzioni e non legge direttamente `genere`.
 - Sondaggi: nuove route `/api/sondaggi/sesso` con filtri territorio; i grafici leggono M/F dal campo canonico. Le quattro route legacy `/genere` rispondono con lista vuota e header di deprecazione, senza presentare un vecchio genere come sesso.
 - Opinioni: nuove route `/api/opinioni/stats/:opinionId/sesso` (nazionale/regione), con consenso politico, filtro PERSON e soppressione completa di celle inferiori a 10; le vecchie route `/genere` non restituiscono più dati.
 - Modifica profili: rimossi i campi legacy `genere` dai moduli attivi e dagli elenchi API di scrittura; le API di lettura storiche rimangono per compatibilità temporanea. Non esporre il dato CIE sui profili pubblici.
@@ -26,20 +26,17 @@
 - Test mapping, firma JWS, cifratura JWE, manomissione di `gender`, feature gate, transazione/rollback, limitazione agli account PERSON, privacy small-cell e sette endpoint Sostenitori, titoli notifiche senza inferenze, navigazione senza genere, assenza di origine browser, export GDPR e build.
 
 ## Non incluso / gate prima del rollout
-- Non c'è alcuna modifica ai dati reali o una copia `genere` → `sesso`.
+- Su richiesta dell'amministratore sono già stati copiati **solo** 144 valori dei campi storici `u/d` su account `PERSON` con `sesso IS NULL`. Gli altri account sono invariati. Non è stata modificata la struttura del database.
 - Non c'è alcuna attivazione CIE/claim in Render. Per abilitarla sono necessari finalità/base giuridica/informativa documentate, gestione accessi/retention e validazione dell'attributo con OP ufficiale.
 - I vecchi endpoint `genere` di Sondaggi/Opinioni rimangono raggiungibili ma restituiscono un array vuoto: ciò evita di pubblicare dati non verificati, pur mantenendo in vita l'URL per i client Android vecchi. I grafici dei vecchi client potrebbero apparire vuoti finché non viene distribuita una nuova build.
 - I sette endpoint Sostenitori sono ora migrati, ma occorre ancora QA delle visualizzazioni Android già distribuite. La sezione Sostenitori mostrerà esplicitamente «dato mancante» o «dato nascosto» invece di inventare il genere di una persona.
 - Consumatori legacy ancora da verificare/ritirare: dettagli specifici Opinioni, form e asset di registrazione obsoleti, tabelle storiche `user_profile.genere`, altri endpoint di lettura e compatibilità di versioni Android precedenti. Non rimuovere subito la colonna legacy prima della verifica completa delle dipendenze.
-- Valutare `CHECK (sesso IN ('M','F'))` sul DB dopo la ricognizione degli ambienti; lo schema corrente è `varchar` nullable senza popolazione.
+- Valutare `CHECK (sesso IN ('M','F'))` sul DB dopo la ricognizione degli ambienti; lo schema corrente è `varchar` nullable già popolato parzialmente.
 - Il problema dei dati fittizi sulle età è stato corretto e pubblicato separatamente tramite PR #383 (non dipende dal rollout CIE).
 
 ## Verifica produzione in sola lettura (28 ottobre 2026)
 `SELECT sesso, genere, count(*) FROM users GROUP BY 1, 2;` restituisce:
-- sesso NULL / genere NULL: 1.709
-- sesso NULL / genere u: 96
-- sesso NULL / genere d: 49
-- sesso NULL / genere a: 3
+- **Dopo il backfill**: persone `sesso=M`: 95; `sesso=F`: 49; `sesso=NULL`: 1.700. Solo per `PERSON`, `genere=a` rimane invariato (3 profili). Un record `INSTITUTION` con `genere=u` non è stato toccato.
 
 Nessuna classificazione M/F automatica viene fatta dai nomi dei 1.592 politici senza genere.
 
