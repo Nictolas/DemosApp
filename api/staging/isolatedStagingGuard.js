@@ -89,6 +89,15 @@ function assertStagingDatabaseTarget(value) {
     reject('DEMOS_STAGING_DATABASE_TARGET_REJECTED');
   }
 
+  // The offline target guard previously accepted a URI with no sslmode at
+  // all. Do not let an accidentally unencrypted future connection string
+  // pass this preliminary check. TLS certificate verification and effective
+  // server identity remain separate runtime/provider gates.
+  if (url.searchParams.getAll('sslmode').length !== 1 ||
+      url.searchParams.get('sslmode') !== 'require') {
+    reject('DEMOS_STAGING_DATABASE_TARGET_REJECTED');
+  }
+
   const acceptedQuery = new Set(['sslmode', 'pgbouncer']);
   for (const [key, val] of url.searchParams) {
     if (!acceptedQuery.has(key) ||
