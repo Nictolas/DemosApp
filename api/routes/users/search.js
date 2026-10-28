@@ -322,7 +322,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     console.log('🔍 DEBUG - Eseguendo query per userId:', userId);
     const result = await pool.query(`
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
-             genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
+             sesso, account_type, genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
              provincia_residenza, comune_residenza, avatar_config, grado_elezione, grado_candidatura,
              paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
              paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
@@ -393,6 +393,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       user: {
         ...decompressedUser,
         data_nascita: dataNascitaFormattata,
+        sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
         genere: decompressGender(user.genere),
         ruolo: ruoloDecompressionMapping[user.ruolo] || user.ruolo,
         avatar_config: avatarConfig
@@ -559,6 +560,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       user: {
         ...decompressedUser,
         data_nascita: dataNascitaFormattata,
+        sesso: ['M', 'F'].includes(updatedUser.sesso) ? updatedUser.sesso : null,
         genere: decompressGender(updatedUser.genere),
         ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
       }
