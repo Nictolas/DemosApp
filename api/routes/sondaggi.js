@@ -2,7 +2,6 @@ const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { pool } = require('../middleware/auth');
 const { compressRegione, compressProvince, decompressRegione, decompressProvince } = require('../utils/locationUtils');
-const { decompressGender } = require('../utils/genderUtils');
 const { MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE: minimumCellSize, cellThresholdMet } = require('../utils/politicalAggregatePrivacy');
 const { getNationalSurveyStats, getTerritorialSurveyStats } = require('../utils/sondaggiTextBulk');
 
@@ -71,179 +70,79 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// GET /api/sondaggi/genere - Statistiche per genere
-router.get('/genere', async (req, res) => {
-  try {
-    const query = `
-      SELECT 
-        genere,
-        COUNT(*) as totale
-      FROM users 
-      WHERE genere IS NOT NULL
-      GROUP BY genere
-      ORDER BY totale DESC
-    `;
-    
-    const result = await pool.query(query);
-    
-    // Decomprimi i generi per il frontend
-    const decompressedStats = result.rows.map(row => ({
-      ...row,
-      genere: decompressGender(row.genere) || row.genere
-    }));
-    
-    res.json({
-      success: true,
-      stats: decompressedStats
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare statistiche genere'
-    });
-  }
-});
+// Statistiche per sesso anagrafico CIE (M/F), non per identita' di genere.
+// Gli endpoint legacy /genere restano temporaneamente raggiungibili, ma non
+// ripubblicano attributi non certificati e non etichettano M/F come genere.
+const sexStatsPaths = [
+  '/sesso',
+  '/sesso/:regione',
+  '/sesso/:regione/:provincia',
+  '/sesso/:regione/:provincia/:comune'
+];
 
-// GET /api/sondaggi/genere/:regione - Statistiche per genere per regione
-router.get('/genere/:regione', async (req, res) => {
-  try {
-    const { regione } = req.params;
-    
-    // Converte slug in nome regione (es. "toscana" -> "Toscana")
-    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
-    
-    // Converte nome regione in codice per la query database
-    const regionCode = compressRegione(regionName);
-    
-    if (!regionCode) {
-      return res.status(400).json({
-        success: false,
-        error: 'Regione non valida'
-      });
-    }
-    
-    const query = `
-      SELECT 
-        genere,
-        COUNT(*) as totale
-      FROM users 
-      WHERE genere IS NOT NULL 
-      AND regione_residenza = $1
-      GROUP BY genere
-      ORDER BY totale DESC
-    `;
-    
-    const result = await pool.query(query, [regionCode]);
-    
-    res.json({
-      success: true,
-      stats: result.rows
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere per regione:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare statistiche genere per regione'
-    });
-  }
-});
-
-// GET /api/sondaggi/genere/:regione/:provincia - Statistiche per genere per provincia
-router.get('/genere/:regione/:provincia', async (req, res) => {
-  try {
-    const { regione, provincia } = req.params;
-    
-    // Converte slug in nome regione e provincia
-    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
-    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
-    
-    // Converte nomi in codici per la query database
-    const regionCode = compressRegione(regionName);
-    const provinciaCode = compressProvince(provinciaName);
-    
-    if (!regionCode || !provinciaCode) {
-      return res.status(400).json({
-        success: false,
-        error: 'Regione o provincia non valida'
-      });
-    }
-    
-    const query = `
-      SELECT 
-        genere,
-        COUNT(*) as totale
-      FROM users 
-      WHERE genere IS NOT NULL 
-      AND regione_residenza = $1
-      AND provincia_residenza = $2
-      GROUP BY genere
-      ORDER BY totale DESC
-    `;
-    
-    const result = await pool.query(query, [regionCode, provinciaCode]);
-    
-    res.json({
-      success: true,
-      stats: result.rows
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere per provincia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare statistiche genere per provincia'
-    });
-  }
-});
-
-// GET /api/sondaggi/genere/:regione/:provincia/:comune - Statistiche per genere per comune
-router.get('/genere/:regione/:provincia/:comune', async (req, res) => {
+async function serveCanonicalSexStats(req, res) {
   try {
     const { regione, provincia, comune } = req.params;
-    
-    // Converte slug in nome regione, provincia e comune
-    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
-    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
-    const comuneName = comune.charAt(0).toUpperCase() + comune.slice(1).replace(/-/g, ' ');
-    
-    // Converte nomi in codici per la query database
-    const regionCode = compressRegione(regionName);
-    const provinciaCode = compressProvince(provinciaName);
-    
-    if (!regionCode || !provinciaCode) {
-      return res.status(400).json({
-        success: false,
-        error: 'Regione o provincia non valida'
-      });
+    const where = [
+      "account_type = 'PERSON'",
+      "sesso IN ('M','F')"
+    ];
+    const params = [];
+    if (regione) {
+      const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+      const regionCode = compressRegione(regionName);
+      if (!regionCode) return res.status(400).json({ success: false, error: 'Regione non valida' });
+      params.push(regionCode);
+      where.push(`regione_residenza = $${params.length}`);
     }
-    
-    const query = `
-      SELECT 
-        genere,
-        COUNT(*) as totale
-      FROM users 
-      WHERE genere IS NOT NULL 
-      AND regione_residenza = $1
-      AND provincia_residenza = $2
-      AND comune_residenza = $3
-      GROUP BY genere
-      ORDER BY totale DESC
-    `;
-    
-    const result = await pool.query(query, [regionCode, provinciaCode, comuneName]);
-    
-    res.json({
+    if (provincia) {
+      const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+      const provinciaCode = compressProvince(provinciaName);
+      if (!provinciaCode) return res.status(400).json({ success: false, error: 'Provincia non valida' });
+      params.push(provinciaCode);
+      where.push(`provincia_residenza = $${params.length}`);
+    }
+    if (comune) {
+      const comuneName = comune.charAt(0).toUpperCase() + comune.slice(1).replace(/-/g, ' ');
+      params.push(comuneName);
+      where.push(`comune_residenza = $${params.length}`);
+    }
+
+    const result = await pool.query(
+      `SELECT sesso, COUNT(*)::int AS totale FROM users
+       WHERE ${where.join(' AND ')}
+       GROUP BY sesso ORDER BY sesso`,
+      params
+    );
+    // Fail closed: se un sesso ha 1-9 persone, il dettaglio e' completamente
+    // nascosto anche per evitare ricostruzioni per sottrazione.
+    const rows = result.rows.map(row => ({ sesso: row.sesso, totale: Number(row.totale) || 0 }));
+    const suppressed = rows.some(row => row.totale > 0 && row.totale < minimumCellSize);
+    return res.json({
       success: true,
-      stats: result.rows
+      minimumCellSize,
+      suppressed,
+      stats: suppressed ? [] : rows
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere per comune:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare statistiche genere per comune'
-    });
+    console.error('Errore statistiche sesso CIE aggregate:', error);
+    return res.status(500).json({ success: false, error: 'Statistiche non disponibili' });
   }
-});
+}
+
+sexStatsPaths.forEach(route => router.get(route, serveCanonicalSexStats));
+
+// Compatibilita' per client storici: manteniamo la forma {stats: []} ma
+// non forniamo dati di genere legacy o sesso CIE sotto etichetta errata.
+[
+  '/genere',
+  '/genere/:regione',
+  '/genere/:regione/:provincia',
+  '/genere/:regione/:provincia/:comune'
+].forEach(route => router.get(route, (_req, res) => {
+  res.set('Deprecation', 'true');
+  res.json({ success: true, deprecated: true, stats: [] });
+}));
 
 // GET /api/sondaggi/:regione - Statistiche per regione
 router.get('/:regione', async (req, res) => {
