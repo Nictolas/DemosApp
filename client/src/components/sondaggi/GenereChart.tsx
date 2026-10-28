@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface GenereChartProps {
@@ -23,7 +23,8 @@ export function GenereChart({ genereData, colors }: GenereChartProps) {
   return (
     <Card className="bg-white shadow-lg">
       <CardHeader>
-        <CardTitle className="text-xl">Distribuzione per sesso anagrafico (CIE)</CardTitle>
+        <CardTitle className="text-xl">Distribuzione per sesso</CardTitle>
+        <CardDescription>Valori M/F registrati, anche storici o inferiti: non necessariamente verificati con CIE.</CardDescription>
       </CardHeader>
       <CardContent className="h-80">
         <ResponsiveContainer width="100%" height="100%">
