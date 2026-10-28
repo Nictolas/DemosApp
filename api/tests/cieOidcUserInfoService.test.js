@@ -25,6 +25,7 @@ const OP_KID = 'op-userinfo-signing';
 const RP_DECRYPT_KID = 'rp-userinfo-encryption';
 
 function configure() {
+  process.env.CIE_SEX_COLLECTION_ENABLED = 'false';
   process.env.CIE_OIDC_ENABLED = 'true';
   process.env.CIE_RP_ENTITY_ID = 'https://demos.example/rp';
   process.env.CIE_OP_ISSUER = 'https://cie-op.example';
@@ -53,7 +54,7 @@ function configure() {
   process.env.CIE_OP_JWKS_B64 = Buffer.from(JSON.stringify({ keys: [jwk] })).toString('base64');
 }
 
-function makeSignedUserInfo({ sub = 'pairwise-subject', fiscalNumber = 'RSSMRA80A01H501U' } = {}) {
+function makeSignedUserInfo({ sub = 'pairwise-subject', fiscalNumber = 'RSSMRA80A01H501U', gender } = {}) {
   const now = Math.floor(Date.now() / 1000);
   return jwt.sign(
     {
@@ -64,6 +65,7 @@ function makeSignedUserInfo({ sub = 'pairwise-subject', fiscalNumber = 'RSSMRA80
       nbf: now,
       exp: now + 300,
       [FISCAL_NUMBER_CLAIM]: fiscalNumber,
+      ...(gender === undefined ? {} : { gender }),
       ignored_claim: 'non deve uscire'
     },
     opPrivateKey,
@@ -184,5 +186,32 @@ test('rifiuta UserInfo con Content-Type diverso da application/jwt', async () =>
       httpClient
     ),
     /Content-Type/
+  );
+});
+
+test('firma UserInfo CIE gender=male/female autorizzata produce soltanto M/F', () => {
+  process.env.CIE_SEX_COLLECTION_ENABLED = 'true';
+  for (const [gender, expected] of [['male', 'M'], ['female', 'F']]) {
+    const jws = makeSignedUserInfo({ gender });
+    const result = validateCieUserInfoJws({ jws, expectedSub: 'pairwise-subject' });
+    assert.deepEqual(result, { fiscalNumber: 'RSSMRA80A01H501U', sesso: expected });
+    assert.equal(result.gender, undefined);
+  }
+});
+
+test('gender mancante o sconosciuto non viene convertito in altro, 0 o 1', () => {
+  process.env.CIE_SEX_COLLECTION_ENABLED = 'true';
+  for (const gender of [undefined, null, 'other', 'M', 'F', '0', '1', 'Male']) {
+    const jws = makeSignedUserInfo({ gender });
+    const result = validateCieUserInfoJws({ jws, expectedSub: 'pairwise-subject' });
+    assert.deepEqual(result, { fiscalNumber: 'RSSMRA80A01H501U' });
+  }
+});
+
+test('senza abilitazione sesso non viene estratto nemmeno da UserInfo firmata', () => {
+  const jws = makeSignedUserInfo({ gender: 'female' });
+  assert.deepEqual(
+    validateCieUserInfoJws({ jws, expectedSub: 'pairwise-subject' }),
+    { fiscalNumber: 'RSSMRA80A01H501U' }
   );
 });
