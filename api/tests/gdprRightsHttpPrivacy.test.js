@@ -16,6 +16,15 @@ async function withServer({pool, audit} = {}, run) {
     if (sql.includes('complete_visibility')) return {rows:[{
       complete_visibility:true, id:null
     }]};
+    if (sql.includes('FROM public.voti_capo_stato') &&
+        sql.includes('FROM public.voti_ice')) {
+      return {rows:[
+        {vote_type:'capo_stato',vote_count:0},
+        {vote_type:'referendum',vote_count:0},
+        {vote_type:'iniziative',vote_count:0},
+        {vote_type:'ice',vote_count:0}
+      ]};
+    }
     if (sql.includes('INSERT INTO public.user_rights_requests')) {
       return {rowCount:1,rows:[{
         id:args[0],user_id:args[1],request_type:args[2],status:'pending',
