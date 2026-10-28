@@ -48,3 +48,26 @@ test('le API utente non accettano sesso CIE dal browser', () => {
   assert.match(admin, /user\.sesso === 'M' \|\| user\.sesso === 'F'/);
   assert.doesNotMatch(admin, /user\.genere \|\| 'N\/A'/);
 });
+
+
+test('single-user admin read contains canonical sex but profile updates cannot overwrite it', () => {
+  const read = relative => fs.readFileSync(path.resolve(__dirname, '../..', relative), 'utf8');
+  const source = read('api/routes/users/search.js');
+  const start = source.indexOf('// GET /api/users/:userId');
+  const end = source.indexOf('// PUT /api/users/:userId', start);
+  assert.ok(start >= 0 && end > start, 'admin single-user route not found');
+  const get = source.slice(start, end);
+  assert.match(get, /SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,\s*sesso, account_type, genere,/);
+  assert.match(get, /sesso: \['M', 'F'\]\.includes\(user\.sesso\) \? user\.sesso : null/);
+  const update = source.slice(end);
+  assert.match(update, /sesso: \['M', 'F'\]\.includes\(updatedUser\.sesso\)/);
+  const listStart = source.indexOf("router.get('/',");
+  assert.match(source, /avatar_config, sesso, account_type, genere, cittadinanza/);
+  const list = source.slice(listStart, start);
+  assert.match(list, /sesso: \['M', 'F'\]\.includes\(user\.sesso\)/);
+  for (const block of [source.slice(end), read('api/routes/users/profile.js')]) {
+    const permitted = block.match(/const allowedFields = \[([\s\S]*?)\];/);
+    assert.ok(permitted, 'missing explicit editable field whitelist');
+    assert.doesNotMatch(permitted[1], /'sesso'|'genere'/);
+  }
+});
