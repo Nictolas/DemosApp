@@ -15,6 +15,15 @@ on:
       - 'api/utils/cieSex.js'
       - 'api/tests/cieSex.test.js'
       - 'api/tests/canonicalSexAggregate.test.js'
+      - 'api/tests/supporterSexPrivacy.test.js'
+      - 'api/routes/sostenitori.js'
+      - 'api/routes/sostenitori-totale.js'
+      - 'api/routes/rappresentanti-sostenitori.js'
+      - 'api/routes/candidati-sostenitori.js'
+      - 'api/routes/attivisti-sostenitori.js'
+      - 'api/routes/organizzazioni-sostenitori.js'
+      - 'api/routes/candidati.js'
+      - 'client/src/pages/Sostenitori.tsx'
       - 'api/tests/opinionStatsAccountPopulation.test.js'
       - 'client/src/components/profile/PersonalDataSection.tsx'
       - 'client/src/pages/Profilo/**'
@@ -51,7 +60,7 @@ jobs:
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Test CIE identity, verified M/F and registration
         run: |
-          node --test api/tests/opinionStatsAccountPopulation.test.js api/tests/canonicalSexAggregate.test.js api/tests/cieSex.test.js api/tests/cieOidcAuthorizationService.test.js api/tests/cieOidcUserInfoService.test.js api/tests/cieVerificationService.test.js api/tests/cieRequiredRegistration.smoke.test.js api/tests/oauthRegistrationService.test.js api/tests/passkeyRegistrationService.test.js
+          node --test api/tests/supporterSexPrivacy.test.js api/tests/opinionStatsAccountPopulation.test.js api/tests/canonicalSexAggregate.test.js api/tests/cieSex.test.js api/tests/cieOidcAuthorizationService.test.js api/tests/cieOidcUserInfoService.test.js api/tests/cieVerificationService.test.js api/tests/cieRequiredRegistration.smoke.test.js api/tests/oauthRegistrationService.test.js api/tests/passkeyRegistrationService.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build web frontend
