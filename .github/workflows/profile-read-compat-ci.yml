@@ -14,6 +14,9 @@ on:
       - 'api/tests/userProfileReadService.test.js'
       - 'api/tests/userProfileReadService.integration.test.js'
       - 'api/database/user-profile-preflight-readonly.sql'
+      - 'api/database/qa-user-profile-staging-isolated.sql'
+      - 'api/database/qa-user-profile-staging-backfill-rollback-test.sql'
+      - 'api/tests/userProfileStagingFixture.integration.test.js'
       - 'api/tests/politicalTerritoryMembershipService.test.js'
       - 'api/tests/eventFeedService.test.js'
       - 'api/tests/politicalRepresentativeSelection.smoke.test.js'
@@ -63,4 +66,4 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: synthetic_profile_tests
           PGDATABASE: profile_synthetic
-        run: node --test tests/userProfileReadService.integration.test.js tests/userProfileWriteService.integration.test.js
+        run: node --test tests/userProfileReadService.integration.test.js tests/userProfileWriteService.integration.test.js tests/userProfileStagingFixture.integration.test.js
