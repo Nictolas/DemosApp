@@ -45,6 +45,8 @@ pgTest('PostgreSQL 17: private synthetic staging fixture has parity, isolation, 
         WHERE p.user_id IS NULL) AS missing`)).rows[0];
     assert.deepEqual(before, { users: 8, profiles: 7, missing: 1 });
     await db.query(rollbackTest); // All write paths run within rollback-only subtransaction.
+    const fullBackfillRehearsal = fs.readFileSync(path.join(databasePath, 'qa-user-profile-full-backfill-rehearsal.sql'), 'utf8');
+    await db.query(fullBackfillRehearsal); // All 26 duplicated fields; preserves existing canonical data and rolls back.
     const after = (await db.query(`SELECT
       (SELECT COUNT(*)::integer FROM qa_user_profile_20261028.users) AS users,
       (SELECT COUNT(*)::integer FROM qa_user_profile_20261028.user_profile) AS profiles,
