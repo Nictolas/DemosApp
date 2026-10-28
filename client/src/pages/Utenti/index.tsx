@@ -1,13 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EditUserDialog } from "@/components/EditUserDialog";
-import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
-import { EditUserAvatarDialog } from "@/components/EditUserAvatarDialog";
 import { Loader2, Users, AlertCircle, BarChart3 } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
 import { useUserManagement } from "./hooks/useUserManagement";
@@ -22,8 +17,6 @@ import { PendingUsersTable } from "./components/PendingUsersTable";
 import { usePendingUserActions } from "./hooks/usePendingUserActions";
 import { Pagination } from "./components/Pagination";
 import { USERS_PER_PAGE } from "./constants";
-import { User } from "./types";
-import { apiRequest } from "@/lib/queryClient";
 import { clearAllTokens, forceTokenRefresh } from "@/utils/tokenUtils";
 import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -49,13 +42,11 @@ const getSexColor = (sesso: string) =>
 
 export default function Utenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { toast } = useToast();
   
   const {
     responseData,
     isLoadingUsers,
     isError,
-    deleteMutation,
     queryClient
   } = useUsers(user);
 
@@ -64,14 +55,6 @@ export default function Utenti() {
     setSearchTerm,
     selectedRuolo,
     selectedGradoElezione,
-    userToDelete,
-    setUserToDelete,
-    showEditDialog,
-    setShowEditDialog,
-    showEditOpinioniDialog,
-    setShowEditOpinioniDialog,
-    selectedUser,
-    setSelectedUser,
     sortState,
     paginationState,
     lastUpdateTime,
@@ -83,10 +66,6 @@ export default function Utenti() {
     handleGradoElezioneChange
   } = useUserManagement();
 
-  // Stato per il dialog di modifica avatar
-  const [showEditAvatarDialog, setShowEditAvatarDialog] = useState(false);
-  const [userForAvatarEdit, setUserForAvatarEdit] = useState<User | null>(null);
-
   // Hook per le azioni sugli utenti pending
   const {
     approveUser,
@@ -94,10 +73,6 @@ export default function Utenti() {
     isProcessing
   } = usePendingUserActions();
 
-  // Stato per gestire le modifiche inline
-  const [userChanges, setUserChanges] = useState<Record<string, { grado_elezione?: string | null; grado_candidatura?: string | null }>>({});
-  const [hasChanges, setHasChanges] = useState(false);
-  
   // Hook per rilevare se siamo su mobile
   const [isMobile, setIsMobile] = useState(false);
 
@@ -388,23 +363,6 @@ export default function Utenti() {
     updateLastUpdateTime();
   };
 
-  const handleEdit = (user: any) => {
-    console.log('🔍 DEBUG handleEdit - user ricevuto:', user);
-    console.log('🔍 DEBUG handleEdit - user.id:', user.id);
-    console.log('🔍 DEBUG handleEdit - user.email:', user.email);
-    setSelectedUser(user);
-    setShowEditDialog(true);
-  };
-
-  const handleEditOpinioni = (user: any) => {
-    setSelectedUser(user);
-    setShowEditOpinioniDialog(true);
-  };
-
-  const handleDelete = (user: any) => {
-    setUserToDelete(user);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -415,64 +373,6 @@ export default function Utenti() {
 
   const handleRejectUser = (user: any) => {
     rejectUser({ userId: user.id });
-  };
-
-  const handleEditAvatar = (user: User) => {
-    setUserForAvatarEdit(user);
-    setShowEditAvatarDialog(true);
-  };
-
-  // Funzioni per gestire le modifiche inline
-  const handleFieldChange = (userId: string, field: 'grado_elezione' | 'grado_candidatura', value: string | null) => {
-    setUserChanges(prev => {
-      const newChanges = {
-        ...prev,
-        [userId]: {
-          ...prev[userId],
-          [field]: value
-        }
-      };
-      
-      // Controlla se ci sono modifiche
-      const hasAnyChanges = Object.values(newChanges).some(change => 
-        change.grado_elezione !== undefined || change.grado_candidatura !== undefined
-      );
-      setHasChanges(hasAnyChanges);
-      
-      return newChanges;
-    });
-  };
-
-  const handleSaveChanges = async () => {
-    try {
-      const updates = Object.entries(userChanges).map(([userId, changes]) => ({
-        userId,
-        ...changes
-      }));
-
-      for (const update of updates) {
-        await apiRequest("PUT", `/api/users/${update.userId}`, update);
-      }
-
-      // Reset delle modifiche
-      setUserChanges({});
-      setHasChanges(false);
-      
-      // Refresh dei dati
-      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-      
-      toast({
-        title: "Successo",
-        description: "Modifiche salvate con successo!",
-      });
-    } catch (error) {
-      console.error('Errore nel salvataggio:', error);
-      toast({
-        title: "Errore",
-        description: "Errore nel salvataggio delle modifiche",
-        variant: "destructive",
-      });
-    }
   };
 
   return (
@@ -625,35 +525,18 @@ export default function Utenti() {
                 {/* Tabella utenti attivi */}
                 <Card className="bg-white border-0 shadow-lg w-full">
                   <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="flex items-center text-2xl text-gray-800">
-                          <Users className="h-6 w-6 mr-3 text-blue-600" />
-                          Tutti gli Utenti
-                        </CardTitle>
-                        <CardDescription className="text-gray-600">
-                          Visualizza e gestisci tutti gli utenti della piattaforma (attivi, pending, ecc.)
-                        </CardDescription>
-                      </div>
-                      <Button 
-                        onClick={handleSaveChanges}
-                        disabled={!hasChanges}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        Salva Modifiche
-                      </Button>
-                    </div>
+                    <CardTitle className="flex items-center text-2xl text-gray-800">
+                      <Users className="h-6 w-6 mr-3 text-blue-600" />
+                      Tutti gli Utenti
+                    </CardTitle>
+                    <CardDescription className="text-gray-600">
+                      Consulta gli utenti della piattaforma. Le modifiche ai dati non sono disponibili in questa pagina.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {isMobile ? (
                       <MobileUsersTable 
                         users={paginatedUsers}
-                        onEdit={handleEdit}
-                        onEditOpinioni={handleEditOpinioni}
-                        onDelete={handleDelete}
-                        onEditAvatar={handleEditAvatar}
-                        userChanges={userChanges}
-                        onFieldChange={handleFieldChange}
                       />
                     ) : (
                       <UsersTable 
@@ -661,12 +544,6 @@ export default function Utenti() {
                         displayColumns={displayColumns}
                         sortState={sortState}
                         onSort={updateSort}
-                        onEdit={handleEdit}
-                        onEditOpinioni={handleEditOpinioni}
-                        onDelete={handleDelete}
-                        onEditAvatar={handleEditAvatar}
-                        userChanges={userChanges}
-                        onFieldChange={handleFieldChange}
                       />
                     )}
                     
@@ -917,65 +794,6 @@ export default function Utenti() {
           </TabsContent>
         </Tabs>
 
-        {/* Dialog di conferma eliminazione */}
-        <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                Conferma eliminazione
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Sei sicuro di voler eliminare l'utente <strong>{userToDelete?.nome} {userToDelete?.cognome}</strong>? 
-                L'operazione non è reversibile.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annulla</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={() => userToDelete && deleteMutation.mutate(userToDelete.id)} 
-                className="bg-red-500 hover:bg-red-600 text-white" 
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : "Elimina"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Dialog di modifica utente */}
-        {selectedUser && (
-          <>
-            <EditUserDialog 
-              userEmail={selectedUser.email}
-              userUid={selectedUser.id} 
-              open={showEditDialog} 
-              onOpenChange={setShowEditDialog} 
-              onUserUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} 
-            />
-            <EditOpinioniDialog 
-              utenteId={selectedUser.id} 
-              open={showEditOpinioniDialog} 
-              onOpenChange={setShowEditOpinioniDialog} 
-              onOpinioniUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} 
-            />
-          </>
-        )}
-
-        {/* Dialog per modifica avatar */}
-        {userForAvatarEdit && (
-          <EditUserAvatarDialog
-            open={showEditAvatarDialog}
-            onOpenChange={setShowEditAvatarDialog}
-            userId={userForAvatarEdit.id}
-            userName={userForAvatarEdit.nome_completo || `${userForAvatarEdit.nome || ''} ${userForAvatarEdit.cognome || ''}`.trim() || userForAvatarEdit.name || 'N/A'}
-            currentAvatarConfig={userForAvatarEdit.avatar_config}
-            onAvatarUpdated={() => {
-              queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-              setUserForAvatarEdit(null);
-            }}
-          />
-        )}
       </div>
     </div>
   );
