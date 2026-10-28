@@ -115,6 +115,40 @@ export default function Utenti() {
       typeof value === 'string' && value.trim() !== '' && value.trim().toUpperCase() !== 'N/A';
     const usersWithKnownResidence = utenti.filter(user => hasDocumentedPlace(user.comune_residenza)).length;
     const politicians = utenti.filter(user => user.ruolo === 'P');
+
+    // Per le statistiche indicative, usa il territorio elettorale solo se la
+    // residenza non è disponibile. Non scrivere la stima nei campi personali.
+    // Un'eventuale residenza dichiarata in futuro ha sempre precedenza.
+    const usersByRegionWithEstimates = utenti.reduce((acc, user) => {
+      const region = hasDocumentedPlace(user.regione_residenza)
+        ? user.regione_residenza.trim()
+        : user.ruolo === 'P' && hasDocumentedPlace(user.regione_elezione)
+          ? user.regione_elezione.trim()
+          : 'N/A';
+      acc[region] = (acc[region] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const usersWithKnownRegion = utenti.filter(user => hasDocumentedPlace(user.regione_residenza)).length;
+    const usersWithProvisionalRegion = politicians.filter(user =>
+      !hasDocumentedPlace(user.regione_residenza) && hasDocumentedPlace(user.regione_elezione)
+    ).length;
+
+    // Il comune elettorale può essere indicativo soltanto per un incarico CO.
+    // Non attribuire ai parlamentari un comune usando la circoscrizione.
+    const usersByCityWithEstimates = utenti.reduce((acc, user) => {
+      const city = hasDocumentedPlace(user.comune_residenza)
+        ? user.comune_residenza.trim()
+        : user.ruolo === 'P' && user.grado_elezione === 'CO' && hasDocumentedPlace(user.comune_elezione)
+          ? user.comune_elezione.trim()
+          : 'N/A';
+      acc[city] = (acc[city] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const usersWithProvisionalMunicipality = politicians.filter(user =>
+      !hasDocumentedPlace(user.comune_residenza) &&
+      user.grado_elezione === 'CO' &&
+      hasDocumentedPlace(user.comune_elezione)
+    ).length;
     const politiciansByElectionRegion = politicians.reduce((acc, user) => {
       if (hasDocumentedPlace(user.regione_elezione)) {
         const region = user.regione_elezione.trim();
@@ -181,6 +215,11 @@ export default function Utenti() {
       usersByCitizenship,
       usersByRegion,
       usersByCity,
+      usersByRegionWithEstimates,
+      usersWithKnownRegion,
+      usersWithProvisionalRegion,
+      usersByCityWithEstimates,
+      usersWithProvisionalMunicipality,
       usersWithKnownResidence,
       politiciansCount: politicians.length,
       politiciansByElectionRegion,
@@ -633,14 +672,19 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>Distribuzione per regione di residenza</CardTitle>
-                      <CardDescription>Residenza effettivamente registrata, non territorio di elezione.</CardDescription>
+                      <CardTitle>Distribuzione geografica indicativa per regione</CardTitle>
+                      <CardDescription>Residenza registrata; se mancante per un politico, regione elettorale usata come riferimento provvisorio, non come residenza certificata.</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-80">
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Residenza registrata: {stats.usersWithKnownRegion}. Regione elettorale stimata: {stats.usersWithProvisionalRegion}.
+                        Le stime non vengono salvate nel profilo e sono superate dalla residenza indicata dal politico.
+                      </p>
+                      <div className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie 
-                            data={preparePieData(stats.usersByRegion)} 
+                            data={preparePieData(stats.usersByRegionWithEstimates)} 
                             dataKey="value" 
                             nameKey="name" 
                             cx="50%" 
@@ -649,7 +693,7 @@ export default function Utenti() {
                             fill="#8884d8" 
                             label
                           >
-                            {preparePieData(stats.usersByRegion).map((entry, index) => (
+                            {preparePieData(stats.usersByRegionWithEstimates).map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
@@ -657,6 +701,7 @@ export default function Utenti() {
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -754,11 +799,11 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>I 10 comuni di residenza con più utenti</CardTitle>
-                      <CardDescription>Solo comuni registrati; gli utenti senza residenza non rientrano nella classifica.</CardDescription>
+                      <CardTitle>I 10 comuni di residenza o riferimento comunale</CardTitle>
+                      <CardDescription>Residenza registrata; in sua assenza, solo per politici comunali (CO), il comune di elezione viene contato come stima provvisoria.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">Residenza comunale disponibile per {stats.usersWithKnownResidence} di {stats.totalUsers} utenti.</p>
+                      <p className="text-sm text-muted-foreground mb-3">Residenza comunale registrata: {stats.usersWithKnownResidence} di {stats.totalUsers} utenti; riferimenti comunali stimati: {stats.usersWithProvisionalMunicipality}.</p>
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead>
@@ -768,7 +813,7 @@ export default function Utenti() {
                             </tr>
                           </thead>
                           <tbody>
-                            {stats.usersByCity && Object.entries(stats.usersByCity)
+                            {stats.usersByCityWithEstimates && Object.entries(stats.usersByCityWithEstimates)
                               .filter(([city]) => city !== 'N/A' && city.trim() !== '')
                               .sort(([,a], [,b]) => b - a)
                               .slice(0, 10)
