@@ -11,11 +11,11 @@ test('admin users page never writes personal data to browser console', () => {
   const source = fs.readFileSync(
     path.resolve(__dirname, '../../client/src/pages/Utenti/index.tsx'), 'utf8'
   );
-  assert.doesNotMatch(source, /\\bconsole\\.(?:log|debug|info|warn|error)\\s*\\(/,
+  assert.doesNotMatch(source, /\bconsole\.(?:log|debug|info|warn|error)\s*\(/,
     'admin users page must not print user objects or raw errors');
-  assert.match(source, /const handleEdit = \\(user: any\\) => \\{/);
-  assert.match(source, /setSelectedUser\\(user\\)/);
-  assert.match(source, /await forceTokenRefresh\\(\\)/);
-  assert.match(source, /clearAllTokens\\(\\)/);
+  assert.match(source, /const handleEdit = \(user: any\) => \{/);
+  assert.match(source, /setSelectedUser\(user\)/);
+  assert.match(source, /await forceTokenRefresh\(\)/);
+  assert.match(source, /clearAllTokens\(\)/);
   assert.match(source, /description: \"Errore nel salvataggio delle modifiche\"/);
 });
