@@ -120,8 +120,8 @@ test('CSV export escapes formulas, preserves zero and false, and omits user id f
     assert.equal(r.status,200);
     const txt=await r.text();
     assert.ok(txt.startsWith('\ufeff'));
-    assert.ok(txt.includes('"communications","')===false);
-    assert.ok(txt.includes('"communications.0')===false);
+    assert.ok(txt.includes('"communications.0.titolo","\'=SUM(1,1)"'));
+    assert.ok(txt.includes('"notifications.0.read","false"'));
     assert.match(txt, /"'=SUM\(1,1\)"/);
     assert.match(txt, /"0"/);
     assert.match(txt, /"false"/);
