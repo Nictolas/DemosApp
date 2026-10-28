@@ -33,6 +33,6 @@ export function ProtectedRoute({
     return <Redirect to="/auth" />;
   }
 
-  // Controlla   // Renderizza il componente se autenticato e verificato
+  // Il middleware auth continua a impedire l'accesso agli account non attivi.
   return <Component />;
 }
