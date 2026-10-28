@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { GENERE_COLORS } from "../constants/colors";
 import { PieDataItem } from "../types";
@@ -15,6 +15,7 @@ export const GenereChart: React.FC<GenereChartProps> = ({ generePieData }) => {
     <Card className="bg-white shadow-lg">
       <CardHeader>
         <CardTitle className="text-xl">Distribuzione per sesso</CardTitle>
+        <CardDescription>Valori M/F registrati, anche storici o inferiti: non necessariamente verificati con CIE.</CardDescription>
       </CardHeader>
       <CardContent className="h-80">
         <ResponsiveContainer width="100%" height="100%">
