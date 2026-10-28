@@ -7,4 +7,4 @@ export const COLORS = {
 };
 
 // Colori per il grafico del genere
-export const GENERE_COLORS = ['#3B82F6', '#EC4899', '#FCD34D']; // Blu, Rosa, Giallo
+export const GENERE_COLORS = ['#3B82F6', '#EC4899']; // Maschile, Femminile
