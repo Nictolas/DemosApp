@@ -20,6 +20,7 @@ function makePool({ duplicatePerson = false } = {}) {
       if (normalized.startsWith('INSERT INTO user_profile')) return { rows: [] };
       if (normalized.startsWith('INSERT INTO user_consents')) return { rows: [] };
       if (normalized.startsWith('SELECT person_key, provider, status')) return { rows: [] };
+      if (normalized.startsWith('UPDATE users SET sesso = $1')) return { rowCount: 1 };
       if (normalized.startsWith('INSERT INTO identity_verifications')) {
         if (duplicatePerson) {
           const error = new Error('duplicate');
@@ -120,4 +121,19 @@ test('passkey: consensi obbligatori mancanti bloccano prima di aprire il DB', as
   );
   assert.equal(state.connects, 0);
   assert.equal(state.calls.length, 0);
+});
+
+test('Passkey: sesso CIE certificato viene salvato prima di COMMIT', async () => {
+  const { calls, pool } = makePool();
+  await completePasskeyRegistrationAfterCie({
+    registration: registration(),
+    fiscalNumber: 'TINIT-ABCDEF12G34H567I',
+    verifiedCieSex: 'F'
+  }, pool);
+  const identity = calls.findIndex(c => c.sql.startsWith('INSERT INTO identity_verifications'));
+  const sex = calls.findIndex(c => c.sql.startsWith('UPDATE users SET sesso = $1'));
+  const commit = calls.findIndex(c => c.sql === 'COMMIT');
+  assert.ok(identity >= 0 && sex > identity && commit > sex);
+  assert.deepEqual(calls[sex].params, ['F', calls[sex].params[1]]);
+  assert.equal(calls.some(c => c.sql === 'ROLLBACK'), false);
 });
