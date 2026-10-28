@@ -70,3 +70,17 @@ test('provisional geographic charts do not persist electoral territory as reside
   assert.doesNotMatch(residenceReducer[1], /regione_elezione/);
   assert.match(route, /up\.regione_residenza[\s\S]*?AS regione_residenza/);
 });
+
+test('legacy backfill is never accepted as evidence of a current political office', () => {
+  const route = read('api/routes/users/search.js');
+  const admin = route.slice(route.indexOf('// GET /api/users/ - '), route.indexOf('// GET /api/users/:userId'));
+  const municipal = route.slice(route.indexOf('// GET /api/users/consiglieri-comunali'));
+  // Active alone is insufficient: migrated legacy rows carry fake 2026 start dates.
+  assert.match(admin, /pm\.status = 'ACTIVE'\s+AND pm\.source <> 'LEGACY_BACKFILL'/);
+  assert.match(municipal, /pm\.status = 'ACTIVE'\s+AND pm\.source <> 'LEGACY_BACKFILL'/);
+  // An electoral territory can still serve as an explicitly approximate fallback.
+  assert.match(admin, /NULLIF\(TRIM\(up\.regione_elezione\), ''\)/);
+  assert.match(admin, /NULLIF\(TRIM\(u\.regione_elezione\), ''\)/);
+  // The provenance correction must not overwrite residential data.
+  assert.doesNotMatch(admin, /(?:UPDATE|INSERT INTO)\s+(?:users|user_profile)/i);
+});

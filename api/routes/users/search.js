@@ -125,6 +125,7 @@ router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
          FROM users u
          JOIN political_mandates pm ON pm.user_id = u.id
           AND pm.status = 'ACTIVE'
+          AND pm.source <> 'LEGACY_BACKFILL' -- Only verified non-backfill sources can establish a current council mandate.
           AND pm.starts_at <= NOW()
           AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
           AND pm.office_code = 'CO'
@@ -242,6 +243,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
                NULLIF(TRIM(pm.jurisdiction->>'municipality'), '') AS mandate_municipality
         FROM political_mandates pm
         WHERE pm.user_id = u.id AND u.ruolo IN ('P', 'Politico') AND pm.status = 'ACTIVE'
+          AND pm.source <> 'LEGACY_BACKFILL' -- Migration artifacts are not evidence of current office.
           AND (pm.starts_at IS NULL OR pm.starts_at <= NOW())
           AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
         ORDER BY pm.starts_at DESC NULLS LAST, pm.created_at DESC, pm.id DESC
