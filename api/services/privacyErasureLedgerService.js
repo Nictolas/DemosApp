@@ -118,9 +118,25 @@ class PrivacyErasureLedgerService {
     return result.rows[0];
   }
 
-  static async captureCurrent(client) {
-    // Never manufacture an empty history while trying to capture evidence.
+  // Recovery/export MUST run with SQL visibility of the complete ledger.
+  // A correctly protected relation can return only a subset (or zero rows)
+  // to a subject-scoped RLS role, which is never a complete archive.
+  static async assertUnfilteredLedger(client) {
     await this.assertProtectedLedger(client);
+    const result = await client.query(
+      "SELECT NOT pg_catalog.row_security_active(" +
+      "'public.privacy_erasure_ledger'::regclass) AS complete_visibility"
+    );
+    if (result.rows?.[0]?.complete_visibility !== true) {
+      const error = new Error('GDPR_LEDGER_VISIBILITY_INCOMPLETE');
+      error.code = 'GDPR_LEDGER_VISIBILITY_INCOMPLETE';
+      throw error;
+    }
+  }
+
+  static async captureCurrent(client) {
+    // Never manufacture an incomplete/empty history during export.
+    await this.assertUnfilteredLedger(client);
     const result = await client.query(`
       SELECT event_key, subject_user_id, event_type,
         -- node-postgres TIMESTAMPTZ -> Date truncates PostgreSQL microseconds.
@@ -139,7 +155,7 @@ class PrivacyErasureLedgerService {
     // transaction. Preflight every captured value nevertheless: a late bad
     // timestamp, duplicate event key or JSON serialization failure must not
     // leave earlier rows inserted by a caller that forgot BEGIN.
-    await this.assertProtectedLedger(client);
+    await this.assertUnfilteredLedger(client);
     const invalid = () => {
       const error = new Error('GDPR_LEDGER_INVALID_CAPTURED_EVENT');
       error.code = 'GDPR_LEDGER_INVALID_CAPTURED_EVENT';
@@ -512,12 +528,43 @@ class PrivacyErasureLedgerService {
     }
   }
 
+  // An operator can own/read the ledger but still have RLS-filtered access
+  // to restored application tables. DELETE/UPDATE on those tables could then
+  // silently touch zero rows and falsely report a successful replay.
+  // Conservatively refuse replay when ANY restored public application table
+  // applies RLS to the executing role. This is an offline operator gate only.
+  static async assertUnfilteredReplayTables(client) {
+    const result = await client.query(`
+      SELECT COALESCE(
+        bool_and(NOT pg_catalog.row_security_active(c.oid::regclass)),
+        true
+      ) AS complete_visibility
+      FROM pg_catalog.pg_class c
+      JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public'
+        AND c.relkind IN ('r','p')
+        AND c.relname NOT IN (
+          'privacy_erasure_ledger',
+          'privacy_erasure_delivery_outbox'
+        )
+    `);
+    if (result.rows?.[0]?.complete_visibility !== true) {
+      const error = new Error('GDPR_REPLAY_DATA_VISIBILITY_INCOMPLETE');
+      error.code = 'GDPR_REPLAY_DATA_VISIBILITY_INCOMPLETE';
+      throw error;
+    }
+  }
+
   static async applyCurrentPrivacyState(client) {
-    // Missing tombstones must block replay, not look like a clean restore.
-    await this.assertProtectedLedger(client);
+    // Missing or RLS-filtered tombstones must block replay before any DML.
+    await this.assertUnfilteredLedger(client);
     // Schema-aware cleanup is intentionally tolerant of optional legacy tables,
     // but these core relations/columns must exist before any replay mutation.
     await this.assertReplayCoreSchema(client);
+    // A full tombstone SELECT is insufficient if application tables hide
+    // deletable records behind a different RLS policy. Check catalog-only
+    // visibility before the first user-data mutation.
+    await this.assertUnfilteredReplayTables(client);
 
     // Two opposite consent events with the same PostgreSQL timestamp have no
     // trustworthy causal order: event_key is a random UUID, not a sequence.

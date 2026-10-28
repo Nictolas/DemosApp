@@ -12,13 +12,13 @@ const env = (url, marker = MARKER) => ({
 
 test('only the explicit Demos-Staging Supabase direct target is accepted', () => {
   assert.deepEqual(assertStagingTarget(env(
-    `postgresql://staging_writer:SECRET@db.${REF}.supabase.co:5432/postgres`
+    `postgresql://staging_writer:SECRET@db.${REF}.supabase.co:5432/postgres?sslmode=require`
   )), { project: 'Demos-Staging', target_checked: true });
 });
 
 test('staging Supavisor pooler role is accepted, production Supavisor is refused', () => {
   assert.equal(assertStagingTarget(env(
-    `postgresql://postgres.${REF}:SECRET@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`
+    `postgresql://postgres.${REF}:SECRET@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require`
   )).target_checked, true);
   assert.throws(() => assertStagingTarget(env(
     'postgresql://postgres.wxnblcqoyjqxktwkcqok:SECRET@aws-0-eu-central-1.pooler.supabase.com:6543/postgres'
@@ -38,6 +38,30 @@ test('refuses production direct target, arbitrary endpoint, incorrect database a
     `postgresql://postgres:SECRET@db.${REF}.supabase.co/postgres`, ''
   )), /NOT_ENABLED/);
   assert.throws(() => assertStagingTarget(env(undefined)), /INVALID_TARGET/);
+});
+
+test('writer probe URL guard rejects wrong ports, region, overrides and downgraded TLS', () => {
+  const base = `postgresql://demos_staging_runtime.${REF}:not-a-real-password@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require`;
+  const direct = `postgresql://demos_staging_runtime:not-a-real-password@db.${REF}.supabase.co:5432/postgres?sslmode=require`;
+  assert.equal(assertStagingTarget(env(base)).target_checked,true);
+  assert.equal(assertStagingTarget(env(direct)).target_checked,true);
+  for (const bad of [
+    base.replace('?sslmode=require',''),
+    base.replace('sslmode=require','sslmode=disable'),
+    base.replace('sslmode=require','sslmode=prefer'),
+    base.replace(':5432/',':9999/'),
+    base.replace('eu-central-1','us-east-1'),
+    base.replace('.pooler.supabase.com','.pooler.attacker.invalid'),
+    base + '&sslmode=require',
+    base + '&options=-csearch_path%3Dpublic',
+    direct + '&pgbouncer=true',
+    direct.replace(':5432/',':443/'),
+    direct.replace('demos_staging_runtime:','demos_staging_runtime@'),
+    base + '#fragment'
+  ]) {
+    assert.throws(() => assertStagingTarget(env(bad)), /INVALID_TARGET/,
+      'unexpected target must fail closed');
+  }
 });
 
 test('empty catalog is always NO-GO, not interpreted as missing user data', () => {
