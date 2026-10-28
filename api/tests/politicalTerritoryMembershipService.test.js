@@ -40,7 +40,8 @@ test('missing canonical territory table falls back to legacy residence only', as
   const db = { query: async (sql) => {
     calls += 1;
     if (calls === 1) { const error = new Error('missing'); error.code = '42P01'; throw error; }
-    assert.match(String(sql), /FROM users WHERE id = \$1/);
+    assert.match(String(sql), /FROM users u\s+LEFT JOIN user_profile p ON p\.user_id = u\.id/);
+    assert.match(String(sql), /COALESCE\(p\.comune_residenza, u\.comune_residenza\)/);
     return { rows: [{ paese_residenza: 'IT', regione_residenza: 'TO', provincia_residenza: 'PI', comune_residenza: 'Pisa' }] };
   } };
   const state = await loadUserPoliticalTerritoryState(db, { userId: 'u1' });
