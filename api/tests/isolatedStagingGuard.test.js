@@ -124,7 +124,13 @@ test('future SQL target validator rejects other projects, roles, ports and overr
     'postgresql://'+STAGING_USERNAME+':fake@aws-1-eu-central-1.pooler.supabase.com:5432/postgres#override',
     'postgresql://'+STAGING_USERNAME+'@aws-1-eu-central-1.pooler.supabase.com:5432/postgres',
     testDbUrl+'&options=-csearch_path%3Dpublic',
+    testDbUrl.replace('?sslmode=require',''),
+    testDbUrl.replace('?sslmode=require','?pgbouncer=true'),
+    'postgresql://demos_staging_runtime:fake-only@db.' +
+      STAGING_PROJECT_ID + '.supabase.co:5432/postgres',
+    testDbUrl.replace('sslmode=require','sslmode=prefer'),
     testDbUrl.replace('sslmode=require','sslmode=disable'),
+    testDbUrl+'&sslmode=require',
     testDbUrl+'&pgbouncer=true&pgbouncer=true'
   ]) rejectedUri(url);
 });
