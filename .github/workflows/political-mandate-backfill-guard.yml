@@ -1,0 +1,34 @@
+name: Political mandate backfill integrity
+
+on:
+  pull_request:
+    paths:
+      - "api/database/create-account-capabilities-model.sql"
+      - "api/tests/accountCapabilitiesMigration.test.js"
+      - ".github/workflows/political-mandate-backfill-guard.yml"
+  push:
+    branches:
+      - "fix/prevent-unverified-mandate-backfill-20261028"
+    paths:
+      - "api/database/create-account-capabilities-model.sql"
+      - "api/tests/accountCapabilitiesMigration.test.js"
+      - ".github/workflows/political-mandate-backfill-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mandate-backfill-integrity:
+    name: Reject unverified legacy ACTIVE mandate backfills
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate fail-closed capability migration
+        run: node --test api/tests/accountCapabilitiesMigration.test.js
