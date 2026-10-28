@@ -252,7 +252,7 @@ test('failed PostgreSQL INSERT or missing RETURNING ID never fabricates success'
   }finally{console.error=originalLog;}
 });
 
-test('actual GDPRRights history route rejects RLS-filtered responses before reading requests', async () => {
+test('actual rights history is bounded, same-snapshot, payload-free and honestly paginated', async () => {
   const paths = [
     require.resolve('../middleware/auth'),
     require.resolve('../middleware/validation'),
@@ -260,25 +260,32 @@ test('actual GDPRRights history route rejects RLS-filtered responses before read
     require.resolve('../utils/emailCrypto'),
     require.resolve('../routes/user/gdpr-rights')
   ];
-  const old = paths.map(path=>require.cache[path]);
-  let filtered=true;
-  let historyReads=0;
-  const mockedPool={
-    async query(sql,params){
-      if(sql.includes('row_security_active(')){
-        return {rows:[{complete_visibility:!filtered}]};
-      }
-      if(sql.includes('FROM user_rights_requests')){
-        historyReads++;
-        assert.deepEqual(params,['synthetic-subject',50,0]);
-        return {rows:[{
-          id:'synthetic-request',request_type:'access',
-          status:'pending',created_at:'2026-10-28T00:00:00Z'
-        }]};
-      }
-      throw Error('Unrecognized SQL in test');
-    }
-  };
+  const previous = paths.map(path => require.cache[path]);
+  let filtered = true;
+  let reads = 0;
+  const fakeRows = Array.from({length: 51}, (_, i) => ({
+    complete_visibility: true,
+    id: 'synthetic-' + i, request_type: 'access', status: 'pending',
+    created_at: '2026-10-28T00:00:00Z', processed_at: null,
+    request_data: { secret: 'must-not-escape' },
+    response_data: { secret: 'DPO-internal' },
+    processed_by: 'synthetic-internal-operator'
+  }));
+  const mockedPool = {async query(sql, params) {
+    reads++;
+    assert.match(sql,/WITH visibility AS MATERIALIZED/);
+    assert.match(sql,/row_security_active/);
+    assert.match(sql,/LEFT JOIN LATERAL/);
+    assert.match(sql,/ORDER BY created_at DESC NULLS LAST, id DESC/);
+    assert.doesNotMatch(sql,/request_data|response_data|processed_by/);
+    assert.equal(params[0],'synthetic-subject');
+    if (filtered) return {rows:[{complete_visibility:false,id:null}]};
+    const offset = params.at(-1);
+    assert.equal(params.at(-2),51,'fetch one extra row for honest has_more');
+    return {rows:fakeRows.slice(offset,offset+51)};
+  }};
+  const originalLog = console.error;
+  console.error = () => {};
   try {
     const modules = [
       {verifyToken(req,res,next){next();},pool:mockedPool},
@@ -295,22 +302,51 @@ test('actual GDPRRights history route rejects RLS-filtered responses before read
     const layer=router.stack.find(x=>x.route?.path==='/rights-requests'&&x.route?.methods.get);
     assert.ok(layer);
     const get=layer.route.stack.at(-1).handle;
-    const blocked=response();
-    await get({userId:'synthetic-subject',query:{}},blocked);
-    assert.equal(blocked.statusCode,503);
-    assert.equal(blocked.body.success,false);
-    assert.equal(historyReads,0,'RLS-filtered history must not be fetched');
+    const denied=response();
+    await get({userId:'synthetic-subject',query:{}},denied);
+    assert.equal(denied.statusCode,503);
+    assert.equal(denied.body.success,false);
+    assert.equal(reads,1);
 
     filtered=false;
-    const visible=response();
-    await get({userId:'synthetic-subject',query:{}},visible);
-    assert.equal(visible.statusCode,200);
-    assert.equal(visible.body.data.length,1);
-    assert.equal(historyReads,1);
+    const page1=response();
+    await get({userId:'synthetic-subject',query:{}},page1);
+    assert.equal(page1.statusCode,200);
+    assert.equal(page1.body.data.length,50);
+    assert.deepEqual(page1.body.pagination,{
+      limit:50,offset:0,has_more:true,next_offset:50
+    });
+    assert.doesNotMatch(JSON.stringify(page1.body),/must-not-escape|DPO-internal|synthetic-internal-operator/);
+    assert.equal(page1.body.pagination.total,undefined,
+      'page size must never be presented as total history');
+
+    const page2=response();
+    await get({userId:'synthetic-subject',query:{limit:'50',offset:'50'}},page2);
+    assert.equal(page2.statusCode,200);
+    assert.equal(page2.body.data.length,1);
+    assert.deepEqual(page2.body.pagination,{
+      limit:50,offset:50,has_more:false,next_offset:null
+    });
+
+    for(const query of [
+      {limit:'0'},{limit:'51'},{limit:'1e3'},{limit:'2oops'},
+      {limit:['1','2']},{offset:'-1'},{offset:'99999999'},
+      {status:{bad:'input'}},{status:'../../etc'},{offset:'1.2'}
+    ]) {
+      const invalid=response();
+      await get({userId:'synthetic-subject',query},invalid);
+      assert.equal(invalid.statusCode,400);
+    }
+    assert.equal(reads,3,'invalid pagination must never query PostgreSQL');
+    const unauthenticated=response();
+    await get({query:{}},unauthenticated);
+    assert.equal(unauthenticated.statusCode,401);
+    assert.equal(reads,3);
   } finally {
+    console.error=originalLog;
     for(let i=0;i<paths.length;i++){
       delete require.cache[paths[i]];
-      if(old[i])require.cache[paths[i]]=old[i];
+      if(previous[i])require.cache[paths[i]]=previous[i];
     }
   }
 });
