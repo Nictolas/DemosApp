@@ -182,16 +182,16 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     let paramIndex = 1;
     
     if (search) {
-      whereClause += `WHERE (nome ILIKE $${paramIndex} OR cognome ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
+      whereClause += `WHERE (u.nome ILIKE $${paramIndex} OR u.cognome ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`;
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
     
     if (status) {
       if (whereClause) {
-        whereClause += ` AND status = $${paramIndex}`;
+        whereClause += ` AND u.status = $${paramIndex}`;
       } else {
-        whereClause = `WHERE status = $${paramIndex}`;
+        whereClause = `WHERE u.status = $${paramIndex}`;
       }
       queryParams.push(status);
       paramIndex++;
@@ -199,9 +199,9 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     
     if (ruolo) {
       if (whereClause) {
-        whereClause += ` AND ruolo = $${paramIndex}`;
+        whereClause += ` AND u.ruolo = $${paramIndex}`;
       } else {
-        whereClause = `WHERE ruolo = $${paramIndex}`;
+        whereClause = `WHERE u.ruolo = $${paramIndex}`;
       }
       queryParams.push(ruolo);
       paramIndex++;
@@ -210,7 +210,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     // Query per contare il totale
     const countQuery = `
       SELECT COUNT(*) as total 
-      FROM users 
+      FROM users u
       ${whereClause}
     `;
     
@@ -226,19 +226,25 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
              COALESCE(NULLIF(TRIM(up.regione_residenza), ''), u.regione_residenza) AS regione_residenza,
              COALESCE(NULLIF(TRIM(up.provincia_residenza), ''), u.provincia_residenza) AS provincia_residenza,
              COALESCE(NULLIF(TRIM(up.comune_residenza), ''), u.comune_residenza) AS comune_residenza,
-             COALESCE(NULLIF(location.mandate_region, ''), NULLIF(up.regione_elezione, ''), NULLIF(u.regione_elezione, '')) AS regione_elezione,
-             COALESCE(NULLIF(location.mandate_municipality, ''), NULLIF(up.comune_elezione, ''), NULLIF(u.comune_elezione, '')) AS comune_elezione,
+             COALESCE(NULLIF(location.mandate_region, ''), NULLIF(TRIM(up.regione_elezione), ''), NULLIF(TRIM(u.regione_elezione), '')) AS regione_elezione,
+             CASE WHEN location.mandate_is_municipal THEN location.mandate_municipality
+                  WHEN location.has_active_mandate THEN NULL
+                  WHEN COALESCE(NULLIF(TRIM(up.grado_elezione), ''), NULLIF(TRIM(u.grado_elezione), '')) = 'CO'
+                  THEN COALESCE(NULLIF(TRIM(up.comune_elezione), ''), NULLIF(TRIM(u.comune_elezione), ''))
+                  ELSE NULL END AS comune_elezione,
              COALESCE(up.data_nascita, u.data_nascita) AS data_nascita
       FROM users u
       LEFT JOIN user_profile up ON up.user_id = u.id
       LEFT JOIN LATERAL (
-        SELECT NULLIF(TRIM(pm.jurisdiction->>'region'), '') AS mandate_region,
+        SELECT TRUE AS has_active_mandate,
+               (pm.office_code = 'CO' OR pm.jurisdiction->>'level' = 'CO') AS mandate_is_municipal,
+               NULLIF(TRIM(pm.jurisdiction->>'region'), '') AS mandate_region,
                NULLIF(TRIM(pm.jurisdiction->>'municipality'), '') AS mandate_municipality
         FROM political_mandates pm
-        WHERE pm.user_id = u.id AND pm.status = 'ACTIVE'
+        WHERE pm.user_id = u.id AND u.ruolo IN ('P', 'Politico') AND pm.status = 'ACTIVE'
           AND (pm.starts_at IS NULL OR pm.starts_at <= NOW())
           AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
-        ORDER BY pm.starts_at DESC NULLS LAST, pm.created_at DESC
+        ORDER BY pm.starts_at DESC NULLS LAST, pm.created_at DESC, pm.id DESC
         LIMIT 1
       ) location ON true
       ${whereClause}
