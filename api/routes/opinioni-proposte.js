@@ -54,15 +54,11 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
     console.log('✅ Database connesso:', testQuery.rows[0].current_time);
     
     // Test tabella opinioni
-    const opinioniCount = await pool.query('SELECT COUNT(*) as count FROM opinioni_domande');
+    const opinioniCount = {rows:[{count:String(require('../services/opinionCatalog').getAllOpinions().length)}]};
     console.log('✅ Righe in opinioni:', opinioniCount.rows[0].count);
     
     // Test opinioni da approvare
-    const daApprovareQuery = `
-      SELECT COUNT(*) as count FROM opinioni_domande 
-      WHERE 'da approvare' = ANY(gradi_opinione)
-    `;
-    const daApprovareCount = await pool.query(daApprovareQuery);
+    const daApprovareCount = {rows:[{count:'0'}]}; // Official catalog has no draft questions.
     console.log('✅ Righe da approvare:', daApprovareCount.rows[0].count);
     
     // Test tabella voti_opinioni_proposte
@@ -182,43 +178,10 @@ router.get('/', async (req, res) => {
       WHERE ${whereGradi(col)}
       ORDER BY o.text`;
 
-    let result;
-    try {
-      result = await pool.query(fromProposte);
-    } catch (err) {
-      if (err.code === '42P01' && err.message && err.message.includes('opinioni_proposte')) {
-        // Fallback: leggi da opinioni_domande. Prova prima gradi_opinioni, poi gradi_opinione
-        const cols = ['gradi_opinioni', 'gradi_opinione'];
-        for (const col of cols) {
-          try {
-            result = await pool.query(queryDomandeWithVoti(col));
-            break;
-          } catch (e2) {
-            if (e2.code === '42703') continue; // colonna inesistente, prova l'altra
-            try {
-              result = await pool.query(queryBaseDomande(col));
-              result.rows = (result.rows || []).map(r => ({ ...r, voti: 0 }));
-              break;
-            } catch (e3) {
-              if (e3.code === '42703') continue;
-              throw e3;
-            }
-          }
-        }
-        if (!result) {
-          for (const col of cols) {
-            try {
-              result = await pool.query(queryBaseDomande(col));
-              result.rows = (result.rows || []).map(r => ({ ...r, voti: 0 }));
-              break;
-            } catch (_) { continue; }
-          }
-        }
-        if (!result) throw err;
-      } else {
-        throw err;
-      }
-    }
+    // Dynamic proposals are separate from the immutable official catalog.
+    // Fail closed if that table is absent; never read drafts from the
+    // published catalog's legacy database table.
+    const result = await pool.query(fromProposte);
     console.log(`✅ Trovate ${result.rows.length} opinioni da approvare`);
     
     // Chi ha proposto ogni opinione (users.opinione_proposta_id)
@@ -297,14 +260,12 @@ router.get('/', async (req, res) => {
 
 // POST /api/opinioni-proposte - Crea una nuova opinione proposta (max 1 per utente, richiede auth)
 router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
-  // Official metadata is release-managed. Pending proposals MUST live in their
-  // own table; never insert fallback rows into opinioni_domande.
-  const proposalTable = await pool.query("SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS ok");
-  if (proposalTable.rows[0]?.ok !== true) {
-    return res.status(503).json({success:false,error:'PROPOSALS_TABLE_REQUIRED'});
-  }
-
   try {
+    // Pending proposals require their dedicated dynamic table. No fallbacks.
+    const proposalTable = await pool.query("SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS ok");
+    if (proposalTable.rows[0]?.ok !== true) {
+      return res.status(503).json({success:false,error:'PROPOSALS_TABLE_REQUIRED'});
+    }
     const userId = req.userId;
     console.log('📝 POST /api/opinioni-proposte - Creazione nuova opinione proposta');
     console.log('🔍 Body ricevuto:', req.body);
@@ -615,12 +576,6 @@ router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePolit
     await assertVotiTableExists();
     let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
-      checkResult = await pool.query(
-        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
-        [id]
-      );
-    }
-    if (checkResult.rows.length === 0) {
       console.log('❌ Opinione non trovata o non in stato da approvare');
       return res.status(404).json({
         success: false,
@@ -671,12 +626,6 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
     
     await assertVotiTableExists();
     let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
-    if (checkResult.rows.length === 0) {
-      checkResult = await pool.query(
-        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
-        [id]
-      );
-    }
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -762,13 +711,12 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
 
 // DELETE /api/opinioni-proposte/:id - Cancella un'opinione proposta (solo admin)
 router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
-  // Do not fall back to deleting rows from the versioned official catalog.
-  const proposalTable = await pool.query("SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS ok");
-  if (proposalTable.rows[0]?.ok !== true) {
-    return res.status(503).json({success:false,error:'PROPOSALS_TABLE_REQUIRED'});
-  }
-
   try {
+    // Only dynamic proposals may be rejected/deleted, not official questions.
+    const proposalTable = await pool.query("SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS ok");
+    if (proposalTable.rows[0]?.ok !== true) {
+      return res.status(503).json({success:false,error:'PROPOSALS_TABLE_REQUIRED'});
+    }
     const { id } = req.params;
     
     console.log('🗑️ DELETE /api/opinioni-proposte/:id - Cancellazione opinione proposta');
