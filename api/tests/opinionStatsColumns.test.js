@@ -29,8 +29,13 @@ test('new official opinions work without hard-coded mappings', async () => {
 test('missing, unpublished or schema-incomplete opinions are refused', async () => {
   const pool = createPool(false);
   assert.equal(await resolvePublishedOpinionColumn(pool, 'inesistente'), null);
+  // An unknown ID is rejected from the code catalog without ANY SQL.
+  assert.equal(pool.calls.length, 0);
+  // Known catalog ID without a matching answer column is also rejected.
+  assert.equal(await resolvePublishedOpinionColumn(pool,'energia_nucleare'), null);
+  assert.equal(pool.calls.length, 1);
   assert.match(pool.calls[0].sql, /information_schema\.columns/);
-  assert.match(pool.calls[0].sql, /'da approvare'/);
+  assert.doesNotMatch(pool.calls[0].sql, /opinioni_domande/);
 });
 
 test('SQL injection and invalid column identifiers are refused before a query', async () => {

@@ -162,22 +162,6 @@ router.get('/', async (req, res) => {
         SELECT opinione_id, COUNT(*) as voti_count FROM voti_opinioni_proposte GROUP BY opinione_id
       ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
       ORDER BY o.text`;
-    // Supporto sia gradi_opinione che gradi_opinioni (il DB può avere l'uno o l'altro)
-    const whereGradi = (col) => `((o.${col}::text LIKE '%da approvare%'))`;
-    const queryBaseDomande = (col) => `
-      SELECT o.id, o.text as testo, o.approfondimento
-      FROM opinioni_domande o
-      WHERE ${whereGradi(col)}
-      ORDER BY o.text`;
-    const queryDomandeWithVoti = (col) => `
-      SELECT o.id, o.text as testo, o.approfondimento, COALESCE(v.voti_count, 0)::int as voti
-      FROM opinioni_domande o
-      LEFT JOIN (
-        SELECT opinione_id, COUNT(*) as voti_count FROM voti_opinioni_proposte GROUP BY opinione_id
-      ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
-      WHERE ${whereGradi(col)}
-      ORDER BY o.text`;
-
     // Dynamic proposals are separate from the immutable official catalog.
     // Fail closed if that table is absent; never read drafts from the
     // published catalog's legacy database table.

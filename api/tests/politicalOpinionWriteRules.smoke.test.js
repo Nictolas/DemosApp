@@ -137,9 +137,9 @@ function makeAdminPool({ granted = true } = {}) {
       if (s.includes('FROM users u') && s.includes('political_opinions_consent')) {
         return { rows: [{ id: params[0], political_opinions_consent: granted }] };
       }
-      if (s === 'SELECT id FROM opinioni_domande') return { rows: [{ id: 'q1' }] };
+      if (s === 'SELECT id FROM opinioni_domande') return { rows: [{ id: 'energia_nucleare' }] };
       if (s.includes('information_schema.columns') && s.includes("table_name = 'opinioni_risposte'")) {
-        return { rows: [{ column_name: 'q1' }] };
+        return { rows: [{ column_name: 'energia_nucleare' }] };
       }
       if (s.includes('UPDATE opinioni_risposte') || s.includes('INSERT INTO opinioni_risposte')) {
         writes.push({ sql: s, params });
@@ -156,7 +156,7 @@ test('modifica admin senza consenso politico del soggetto è fail-closed e non s
     const res = await fetch(`${base}/api/target/opinioni`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ opinioni: { q1: 'Favorevole' } })
+      body: JSON.stringify({ opinioni: { energia_nucleare: 'Favorevole' } })
     });
     assert.equal(res.status, 403);
     const body = await res.json();
@@ -171,7 +171,7 @@ test('modifica admin rifiuta la cancellazione di una risposta verso NULL', async
     const res = await fetch(`${base}/api/target/opinioni`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ opinioni: { q1: null } })
+      body: JSON.stringify({ opinioni: { energia_nucleare: null } })
     });
     assert.equal(res.status, 400);
     const body = await res.json();
