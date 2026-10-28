@@ -1,0 +1,43 @@
+name: CIE canonical sex regression
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/cieOidcAuthorizationService.js'
+      - 'api/services/cieOidcUserInfoService.js'
+      - 'api/services/cieVerificationService.js'
+      - 'api/services/oauthRegistrationService.js'
+      - 'api/services/passkeyRegistrationService.js'
+      - 'api/routes/auth/identity.js'
+      - 'api/routes/auth/profile.js'
+      - 'api/routes/users/profile.js'
+      - 'api/routes/users/search.js'
+      - 'api/utils/cieSex.js'
+      - 'api/tests/cieSex.test.js'
+      - 'api/tests/cieOidcAuthorizationService.test.js'
+      - 'api/tests/cieOidcUserInfoService.test.js'
+      - 'api/tests/cieVerificationService.test.js'
+      - 'client/src/pages/Utenti/index.tsx'
+      - '.github/workflows/cie-canonical-sex.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-sex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install API dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Test CIE identity, verified M/F and registration
+        run: |
+          node --test api/tests/cieSex.test.js api/tests/cieOidcAuthorizationService.test.js api/tests/cieOidcUserInfoService.test.js api/tests/cieVerificationService.test.js api/tests/cieRequiredRegistration.smoke.test.js api/tests/oauthRegistrationService.test.js api/tests/passkeyRegistrationService.test.js
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build web frontend
+        run: npm run build --prefix client
