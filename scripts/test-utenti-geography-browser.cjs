@@ -46,7 +46,7 @@ async function main() {
         authHits++;
         return route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify({ success: true, user: { id: ADMIN, email: 'admin@synthetic.invalid', ruolo: 'AD', role: 'AD', status: 'a' } }),
+          body: JSON.stringify({ success: true, user: { id: ADMIN, email: 'admin@synthetic.invalid', ruolo: 'AD', role: 'AD', is_admin: true, status: 'a' } }),
         });
       }
       if (url.pathname === '/api/users') {
