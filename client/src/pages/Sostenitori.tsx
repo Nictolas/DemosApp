@@ -152,7 +152,7 @@ export default function Sostenitori() {
     queryKey: ['totaleData', user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
-      const response = await apiRequest("GET", `/api/sostenitori/totale?sostenuto_id=${user.id}`);
+      const response = await apiRequest("GET", `/api/sostenitori/totale-privato?sostenuto_id=${user.id}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData?.error || "Errore nel caricamento dei dati totali");
@@ -244,6 +244,7 @@ export default function Sostenitori() {
 
   // Funzione per contare quante tab sono disponibili per l'utente
   const getTabCount = () => {
+    if (!user) return 0;
     let tabCount = 0;
     // Tab Politico
     if (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
