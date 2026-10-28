@@ -153,7 +153,7 @@ export default function Utenti() {
       const dateText = typeof user.data_nascita === 'string'
         ? user.data_nascita
         : '';
-      const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(dateText);
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText);
       let ageGroup = 'N/A';
 
       if (match) {
