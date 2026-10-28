@@ -7,6 +7,7 @@ const { decrypt: decryptEmail } = require('../../utils/emailCrypto');
 // Usa crypto nativo invece di uuid
 const crypto = require('crypto');
 const { convertToCSV } = require('../../services/gdprCsvExport');
+const {readGdprPersonalDatasets} = require('../../services/gdprPersonalExportDatasets');
 const {parseRightsHistoryQuery, readRightsHistory} = require('../../services/gdprRightsHistoryService');
 
 const router = express.Router();
@@ -103,34 +104,9 @@ router.get('/data-export', async (req, res) => {
     const userData = userResult.rows[0];
     if (userData.email != null) userData.email = decryptEmail(userData.email);
 
-    // 2. Recupera opinioni politiche
-    const opinionsQuery = `
-      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-             eutanasia, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
-      FROM users 
-      WHERE id = $1
-    `;
-    
-    const opinionsResult = await pool.query(opinionsQuery, [userId]);
-    const opinions = opinionsResult.rows[0] || {};
-
-    // 3. Recupera voti (anonimizzati per privacy)
-    const votesQuery = `
-      SELECT 'capo_stato' as vote_type, COUNT(*) as vote_count
-      FROM voti_capo_stato WHERE userid = $1
-      UNION ALL
-      SELECT 'referendum' as vote_type, COUNT(*) as vote_count
-      FROM voti_referendum_abrogativi WHERE userid = $1
-      UNION ALL
-      SELECT 'iniziative' as vote_type, COUNT(*) as vote_count
-      FROM voti_iniziative_popolari WHERE userid = $1
-      UNION ALL
-      SELECT 'ice' as vote_type, COUNT(*) as vote_count
-      FROM voti_ice WHERE userid = $1
-    `;
-    
-    const votesResult = await pool.query(votesQuery, [userId]);
-    const votes = votesResult.rows;
+    // Canonical, user-scoped sources; missing schema must fail the export.
+    const {opinions, votes, notifications, notificationPreferences} =
+      await readGdprPersonalDatasets(pool, userId);
 
     // 4. Recupera comunicazioni
     const communicationsQuery = `
@@ -142,17 +118,6 @@ router.get('/data-export', async (req, res) => {
     
     const communicationsResult = await pool.query(communicationsQuery, [userId]);
     const communications = communicationsResult.rows;
-
-    // 5. Recupera notifiche
-    const notificationsQuery = `
-      SELECT id, type, title, message, read, created_at
-      FROM user_notifications 
-      WHERE user_id = $1
-      ORDER BY created_at DESC
-    `;
-    
-    const notificationsResult = await pool.query(notificationsQuery, [userId]);
-    const notifications = notificationsResult.rows;
 
     // 6. Recupera log di audit dell'utente
     const auditLogs = await AuditService.getUserAuditLogs(userId, { limit: 100 });
@@ -181,6 +146,7 @@ router.get('/data-export', async (req, res) => {
           'voting_activity',
           'communications',
           'notifications',
+          'notification_preferences',
           'consent_history',
           'audit_logs'
         ],
@@ -232,6 +198,7 @@ router.get('/data-export', async (req, res) => {
       },
       communications: communications,
       notifications: notifications,
+      notification_preferences: notificationPreferences,
       consent_history: {
         privacy_policy_consent: userData.privacy_policy_consent,
         terms_of_service_consent: userData.terms_of_service_consent,

@@ -25,6 +25,8 @@ on:
       - 'api/tests/gdprRightsHttpPrivacy.test.js'
       - 'api/services/gdprCsvExport.js'
       - 'api/tests/gdprLegacyRequestsPg17.test.js'
+      - 'api/tests/gdprPersonalExportPg17.test.js'
+      - 'api/services/gdprPersonalExportDatasets.js'
       - 'api/docs/gdpr-legacy-db-rights-hardening-20261028.md'
       - 'api/docs/gdpr-rights-idempotent-retries-20261028.md'
       - 'api/tests/databaseTlsPolicy.test.js'
@@ -78,6 +80,9 @@ jobs:
         run: |
           node --check api/tests/gdprLegacyRequestsPg17.test.js
           node --test --test-concurrency=1 api/tests/gdprLegacyRequestsPg17.test.js
+          node --check api/services/gdprPersonalExportDatasets.js
+          node --check api/tests/gdprPersonalExportPg17.test.js
+          node --test --test-concurrency=1 api/tests/gdprPersonalExportPg17.test.js
 
   gdpr-history-frontend:
     runs-on: ubuntu-latest
