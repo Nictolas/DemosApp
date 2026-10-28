@@ -220,7 +220,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     // Query per gli utenti con paginazione - solo dati essenziali per la tabella
     let usersQuery = `
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
-             grado_elezione, grado_candidatura, avatar_config, genere, cittadinanza,
+             grado_elezione, grado_candidatura, avatar_config, sesso, account_type, genere, cittadinanza,
              paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
              data_nascita
       FROM users 
@@ -240,6 +240,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     // Trasforma i dati per il frontend (solo dati essenziali)
     const users = usersResult.rows.map(user => ({
       ...user,
+      sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
       genere: decompressGender(user.genere),
       data_nascita: user.data_nascita ? new Date(user.data_nascita).toISOString().split('T')[0] : null
     }));
