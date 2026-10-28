@@ -220,14 +220,7 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
         'UPDATE users SET avatar_config = $1, updated_at = NOW() WHERE id = $2 RETURNING avatar_config',
         [avatar_config, userId]
       );
-      await client.query(
-        `INSERT INTO user_profile (user_id, avatar_config)
-         VALUES ($1, $2)
-         ON CONFLICT (user_id) DO UPDATE SET
-           avatar_config = EXCLUDED.avatar_config,
-           updated_at = NOW()`,
-        [userId, avatar_config]
-      );
+      await upsertUserProfileFields(client, userId, { avatar_config });
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK');
