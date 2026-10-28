@@ -51,6 +51,35 @@ test('outbox feature is strictly opt-in and an invalid flag fails before SQL', a
   }
 });
 
+test('ledger rejects non-object details before SQL even with outbox OFF', async () => {
+  const prior = process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+  let queries = 0;
+  const deniedClient = { query() {
+    queries++;
+    throw Error('unexpected SQL for malformed GDPR event');
+  }};
+  try {
+    process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'false';
+    for (const invalid of [
+      null, false, [], 'raw-json', 42,
+      new Date('2026-10-28T00:00:00Z'),
+      {toJSON() { return null; }},
+      {toJSON() { return ['not-an-object']; }},
+      {toJSON() { return 'not-an-object'; }}
+    ]) {
+      await assert.rejects(
+        Ledger.recordEvent(deniedClient, event(USER, invalid)),
+        error => error.code === 'GDPR_LEDGER_INVALID_EVENT_DETAILS'
+      );
+    }
+    assert.equal(queries, 0,
+      'invalid legacy payload must fail before any PostgreSQL I/O');
+  } finally {
+    if (prior === undefined) delete process.env.GDPR_ERASURE_OUTBOX_ENABLED;
+    else process.env.GDPR_ERASURE_OUTBOX_ENABLED = prior;
+  }
+});
+
 test('PG17 transactional event + outbox never loses #371 null-details protections', async () => {
   guard();
   process.env.GDPR_ERASURE_OUTBOX_ENABLED = 'true';

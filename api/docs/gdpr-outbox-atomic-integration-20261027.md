@@ -40,3 +40,11 @@ La PR **non** abilita outbox né esportazione B2 in alcuna istanza reale, **non*
 **Sequenza sicura successiva**: estrarre worker+retry B2 in un'altra tranche sulla medesima catena; testare retry/ack con B2 finto e PostgreSQL effimero; progettare e approvare separatamente migrazione outbox di staging con policy minime per writer+worker, senza apertura HTTP; solo dopo attestare bucket/versioning/retention/backup esterno e fare recovery quarantinato. Tutti i passaggi provider richiedono autorizzazione operativa specifica e non conseguono dalla CI verde.
 
 **Recovery GDPR issue #296: NO-GO**; PR Draft #373 non deve essere unita direttamente a `main` con auto-deploy.
+
+## Riconciliazione della base #372 e validazione in modalità OFF (28/10/2026)
+
+Il ramo mantiene il contratto di `recordEvent()` introdotto nella base #372: ogni evento realmente inserito deve confermare `event_key`, utente, tipo, payload JSONB (`details_match`) e timestamp. Con `GDPR_ERASURE_OUTBOX_ENABLED=true` la stessa verifica si applica all'inserimento atomico ledger+outbox; con flag assente o `false` resta una singola scrittura nel ledger, senza outbox.
+
+Correzione aggiuntiva: anche con flag OFF, `details` deve essere un oggetto JSON non nullo; gli array, scalari, Date serializzate e `toJSON()` che restituisce un tipo non-oggetto vengono respinti **prima di interrogare PostgreSQL**. Il campo opzionale assente mantiene il default `{}`; la modalità ON continua a imporre anche il limite di minimizzazione B2 già testato.
+
+La riconciliazione è limitata al ramo Draft, mantenendo invariato `main`; eseguire suite PG17 di sicurezza ledger, outbox e recovery sintetico sull'HEAD. Ciò non certifica né B2 reale, né writer SQL Render, né un recovery autorizzato. Issue #296 NO-GO.
