@@ -19,11 +19,13 @@ async function persistVerifiedCieSex(client, userId, sesso) {
   }
   const result = await client.query(
     `UPDATE users SET sesso = $1, updated_at = NOW()
-     WHERE id = $2 AND (sesso IS NULL OR sesso = $1)`,
+     WHERE id = $2
+       AND account_type = 'PERSON'
+       AND (sesso IS NULL OR sesso = $1)`,
     [sesso, userId]
   );
   if (result.rowCount !== 1) {
-    throw new Error('Conflitto con sesso anagrafico esistente o account inesistente');
+    throw new Error('Conflitto sesso anagrafico, account inesistente o non PERSON');
   }
   return true;
 }
