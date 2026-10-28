@@ -62,7 +62,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
         const localProfile = JSON.parse(localProfileRaw);
         const merged: UserInfo = { ...userInfo };
         const fields: (keyof UserInfo | string)[] = [
-          "genere",
           "cittadinanza",
           "paese_residenza",
           "regione_residenza",
