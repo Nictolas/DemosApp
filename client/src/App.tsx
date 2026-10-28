@@ -70,7 +70,6 @@ import IniziativePopolari from "./pages/IniziativePopolari";
 import GestisciOpinioni from "./pages/GestisciOpinioni";
 import TestMinistero from "./pages/TestMinistero";
 import ModificaImmagine from "./pages/ModificaImmagine";
-import StatisticheUtenti from "./pages/StatisticheUtenti";
 import Utenti from "./pages/Utenti";
 import StatisticheOpinione from "./pages/StatisticheOpinione";
 import SondaggiRegione from "./pages/SondaggiRegione";
@@ -994,11 +993,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route statistiche utenti */}
+              {/* Compatibilità: la scheda Statistiche è ora integrata in /utenti */}
               <Route path="/statistiche-utenti">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/statistiche-utenti" component={StatisticheUtenti} />
-                </PageTransition>
+                <Redirect to="/utenti" />
               </Route>
 
               {/* Route statistiche opinione */}
