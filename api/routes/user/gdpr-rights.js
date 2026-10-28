@@ -29,7 +29,7 @@ router.use(verifyToken);
 /**
  * GET /api/user/data-export
  * Diritto di portabilità dei dati (GDPR Art. 20)
- * Esporta tutti i dati personali dell'utente in formato JSON o CSV
+ * Esporta i dati disponibili dalle sorgenti personali verificate in JSON o CSV
  * 
  * Query parameters:
  * - format: 'json' (default) o 'csv'
@@ -39,7 +39,10 @@ router.get('/data-export', async (req, res) => {
     const userId = req.userId;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
-    const format = (req.query.format || 'json').toLowerCase(); // json o csv
+    // Express query params may be arrays/objects: reject rather than 500.
+    const requestedFormat = req.query?.format;
+    const format = requestedFormat === undefined ? 'json' :
+      (typeof requestedFormat === 'string' ? requestedFormat.toLowerCase() : null);
     
     // Valida il formato
     if (format !== 'json' && format !== 'csv') {
@@ -119,8 +122,20 @@ router.get('/data-export', async (req, res) => {
     const communicationsResult = await pool.query(communicationsQuery, [userId]);
     const communications = communicationsResult.rows;
 
-    // 6. Recupera log di audit dell'utente
+    // 6. This API returns at most 100 audit entries. Axiom's default
+    // query window is the last 30 days, and the external archive is not
+    // independently attested here. Never label this as complete history.
     const auditLogs = await AuditService.getUserAuditLogs(userId, { limit: 100 });
+    if (!Array.isArray(auditLogs)) {
+      throw Error('GDPR_EXPORT_AUDIT_SOURCE_UNVERIFIABLE');
+    }
+    const auditLogCoverage = {
+      returned_rows: auditLogs.length,
+      per_request_limit: 100,
+      provider_window_days: process.env.AXIOM_ENABLED === 'true' ? 30 : null,
+      complete_history_verified: false,
+      note: 'Lo storico audit restituito può essere parziale; l’archivio esterno e le durate di conservazione non sono verificati da questa esportazione.'
+    };
 
     // 6b. Provider OAuth: nuovo schema user_auth_providers + fallback legacy
     const authProvidersResult = await pool.query(
@@ -148,9 +163,10 @@ router.get('/data-export', async (req, res) => {
           'notifications',
           'notification_preferences',
           'consent_history',
-          'audit_logs'
+          'audit_logs',
+          'audit_log_coverage'
         ],
-        note: 'I dati sono esportati in formato strutturato, comunemente usato e leggibile automaticamente, conforme al GDPR Art. 20.1'
+        note: 'Esportazione strutturata dei dati disponibili; i log audit possono essere parziali e le durate di conservazione richiedono verifica separata.'
       },
       personal_data: {
         basic_info: {
@@ -207,6 +223,7 @@ router.get('/data-export', async (req, res) => {
         consent_user_agent: userData.consent_user_agent
       },
       audit_logs: auditLogs,
+      audit_log_coverage: auditLogCoverage,
       data_retention_info: {
         account_data: 'Conservato fino alla cancellazione dell\'account',
         voting_data: 'Conservato in forma anonima per 5 anni',

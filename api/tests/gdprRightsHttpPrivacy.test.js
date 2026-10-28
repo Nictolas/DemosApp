@@ -109,6 +109,21 @@ test('GDPR exports and both histories forbid HTTP caching on success',async()=>{
   });
 });
 
+test('GDPR audit export reports incomplete provider scope without claiming a complete archive',async()=>{
+  const audit={logAction:async()=>{},getUserAuditLogs:async()=>
+    Array.from({length:100},(_,i)=>({id:'synthetic-'+i,action:'READ'}))};
+  await withServer({audit},async request=>{
+    const response=await request('/api/user/data-export');
+    noStore(response,200);
+    const report=(await response.json()).data;
+    assert.equal(report.audit_logs.length,100);
+    assert.equal(report.audit_log_coverage.returned_rows,100);
+    assert.equal(report.audit_log_coverage.per_request_limit,100);
+    assert.equal(report.audit_log_coverage.complete_history_verified,false);
+    assert.match(report.audit_log_coverage.note,/parziale/);
+  });
+});
+
 test('GDPR authentication, validation and retired deletion responses forbid caching',async()=>{
   await withServer({},async request=>{
     for (const path of [
@@ -119,6 +134,8 @@ test('GDPR authentication, validation and retired deletion responses forbid cach
     }
     for (const [path,options] of [
       ['/api/user/data-export?format=invalid',{}],
+      ['/api/user/data-export?format[]=csv',{}],
+      ['/api/user/data-export?format=csv&format=json',{}],
       ['/api/user/rights-requests?limit=0',{}],
       ['/api/user/gdpr-requests?offset=-1',{}],
       ['/api/user/limit-processing',{method:'PUT',headers:{'content-type':'application/json'},body:'{}'}],
