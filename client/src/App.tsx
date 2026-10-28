@@ -16,7 +16,6 @@ import ScopriDemos from "./pages/ScopriDemos";
 import AuthPage from "./pages/auth-page";
 
 // Import delle pagine di registrazione separate
-import RegistrazioneNome from "./pages/registrazione-nome";
 import RegistrazioneGenere from "./pages/registrazione-genere";
 import RegistrazioneCittadinanza from "./pages/registrazione-cittadinanza";
 import RegistrazioneDataNascita from "./pages/registrazione-data-nascita";
@@ -231,7 +230,7 @@ function useTouchNavigation() {
         '/registrazione-consensi-termini': '/registrazione-consensi-privacy',
         '/registrazione-consensi-opinioni': '/registrazione-consensi-termini',
         '/registrazione-crea-passkey': '/registrazione-3-residenza',
-        '/registrazione-genere': '/registrazione-nome',
+        '/registrazione-genere': '/auth',
         '/registrazione-cittadinanza': '/registrazione-genere',
         '/registrazione-2-dati': '/registrazione-cittadinanza',
         '/registrazione-3-residenza': '/registrazione-2-dati',
@@ -494,9 +493,7 @@ export default function App() {
 
               {/* Route per le pagine di registrazione separate */}
               <Route path="/registrazione-nome">
-                <PageTransition location={location} type="fade-up">
-                  <RegistrazioneNome />
-                </PageTransition>
+                <Redirect to="/auth" />
               </Route>
 
               <Route path="/registrazione-genere">
