@@ -83,7 +83,7 @@ async function schema(pool) {
     'zona text,data_creazione timestamptz,likes int,dislikes int,punti_trasparenza int)');
   await pool.query('CREATE TABLE public.user_auth_providers (' +
     'user_id uuid,provider text,provider_user_id text)');
-  await pool.query('CREATE TABLE public.user_rights_requests (' +
+  await pool.query('CREATE TABLE IF NOT EXISTS public.user_rights_requests (' +
     'id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,' +
     'request_type text,request_data jsonb,status text)');
 }
