@@ -7,6 +7,8 @@ on:
       - 'api/services/politicalTerritoryMembershipService.js'
       - 'api/services/eventFeedService.js'
       - 'api/tests/userProfileReadService.test.js'
+      - 'api/tests/userProfileReadService.integration.test.js'
+      - 'api/database/user-profile-preflight-readonly.sql'
       - 'api/tests/politicalTerritoryMembershipService.test.js'
       - 'api/tests/eventFeedService.test.js'
       - '.github/workflows/profile-read-compat-ci.yml'
@@ -18,7 +20,21 @@ permissions:
 jobs:
   profile-read-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_profile_tests
+          POSTGRES_DB: profile_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d profile_synthetic"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,3 +48,13 @@ jobs:
       - name: Run compatibility regression tests
         working-directory: api
         run: node --test tests/userProfileReadService.test.js tests/politicalTerritoryMembershipService.test.js tests/eventFeedService.test.js
+      - name: Run PostgreSQL 17 synthetic profile and preflight checks
+        working-directory: api
+        env:
+          PROFILE_READ_PG_INTEGRATION: '1'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: synthetic_profile_tests
+          PGDATABASE: profile_synthetic
+        run: node --test tests/userProfileReadService.integration.test.js
