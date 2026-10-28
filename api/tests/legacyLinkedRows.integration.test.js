@@ -20,6 +20,14 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       for (const [table,col] of [['candidati','user_id'],['notifiche_demos','id_utente'],['notifiche_comunali','id_utente'],['programmi','utente_id'],['political_selections','user_id']]) {
         await pool.query(`INSERT INTO "${table}"("${col}") VALUES('fixture1'),('fixture2')`);
       }
+      // Real production equivalents are NOT foreign keys to users.
+      // They must be deleted explicitly, not left to ON DELETE CASCADE.
+      for (const table of ['active_sessions', 'data_processing_limits', 'political_programs']) {
+        await pool.query(`CREATE TABLE "${table}"(id serial primary key, user_id text NOT NULL)`);
+      }
+      for (const table of ['active_sessions', 'data_processing_limits', 'political_programs']) {
+        await pool.query(`INSERT INTO "${table}"(user_id) VALUES('fixture1'),('fixture2')`);
+      }
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
@@ -28,6 +36,10 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         assert.equal(result.userDeleted,1);
         await client.query('COMMIT');
       } catch(e) {await client.query('ROLLBACK');throw e;} finally {client.release();}
+      for (const table of ['active_sessions', 'data_processing_limits', 'political_programs']) {
+        const rows = await pool.query(`SELECT user_id FROM "${table}"`);
+        assert.deepEqual(rows.rows, [{user_id:'fixture2'}], `${table} left account-linked data behind`);
+      }
       const users = await pool.query('SELECT id FROM users');
       assert.deepEqual(users.rows,[{id:'fixture2'}]);
       for (const [table,col] of [['candidati','user_id'],['notifiche_demos','id_utente'],['notifiche_comunali','id_utente'],['programmi','utente_id'],['political_selections','user_id']]) {
