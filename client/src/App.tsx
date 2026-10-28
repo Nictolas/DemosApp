@@ -243,7 +243,7 @@ function useTouchNavigation() {
         // Il passaggio 'genere' è ritirato: da cittadinanza il back
         // rispetta ancora il flusso passkey, senza tornare alla pagina legacy.
         if (currentPath === '/registrazione-cittadinanza' && window.localStorage.getItem('registrazione_passkey_flow'))
-          prev = '/registrazione-consensi';
+          prev = '/registrazione-consensi?step=3';
         else if (currentPath === '/registrazione-cittadinanza' && window.localStorage.getItem('webauthn_user_id'))
           prev = '/auth';
         if (currentPath === '/registrazione-genere')
