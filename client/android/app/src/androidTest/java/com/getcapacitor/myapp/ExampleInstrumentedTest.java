@@ -60,11 +60,14 @@ public class ExampleInstrumentedTest {
         try {
             instrumentation.waitForIdleSync();
             assertTrue("DEMOS MainActivity should open", activity instanceof MainActivity);
-            View content = activity.findViewById(android.R.id.content);
-            assertNotNull("Native activity must contain its content view", content);
-            WebView webView = findWebView(content);
-            assertNotNull("Capacitor should mount a WebView", webView);
-            assertTrue("DEMOS frontend needs JavaScript enabled", webView.getSettings().getJavaScriptEnabled());
+            // Android WebView can only be queried from its owning UI thread.
+            instrumentation.runOnMainSync(() -> {
+                View content = activity.findViewById(android.R.id.content);
+                assertNotNull("Native activity must contain its content view", content);
+                WebView webView = findWebView(content);
+                assertNotNull("Capacitor should mount a WebView", webView);
+                assertTrue("DEMOS frontend needs JavaScript enabled", webView.getSettings().getJavaScriptEnabled());
+            });
         } finally {
             if (activity != null) {
                 activity.runOnUiThread(activity::finish);
