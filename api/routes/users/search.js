@@ -219,12 +219,16 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     
     // Query per gli utenti con paginazione - solo dati essenziali per la tabella
     let usersQuery = `
-      SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
-             grado_elezione, grado_candidatura, avatar_config, sesso, account_type, genere, cittadinanza,
-             paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+      SELECT u.id, u.name, u.nome, u.cognome, u.email, u.ruolo, u.status, u.created_at, u.updated_at,
+             u.grado_elezione, u.grado_candidatura, u.avatar_config, u.sesso, u.account_type, u.genere,
+             COALESCE(NULLIF(TRIM(up.cittadinanza), ''), u.cittadinanza) AS cittadinanza,
+             COALESCE(NULLIF(TRIM(up.paese_residenza), ''), u.paese_residenza) AS paese_residenza,
+             COALESCE(NULLIF(TRIM(up.regione_residenza), ''), u.regione_residenza) AS regione_residenza,
+             COALESCE(NULLIF(TRIM(up.provincia_residenza), ''), u.provincia_residenza) AS provincia_residenza,
+             COALESCE(NULLIF(TRIM(up.comune_residenza), ''), u.comune_residenza) AS comune_residenza,
              COALESCE(NULLIF(location.mandate_region, ''), NULLIF(up.regione_elezione, ''), NULLIF(u.regione_elezione, '')) AS regione_elezione,
              COALESCE(NULLIF(location.mandate_municipality, ''), NULLIF(up.comune_elezione, ''), NULLIF(u.comune_elezione, '')) AS comune_elezione,
-             data_nascita
+             COALESCE(up.data_nascita, u.data_nascita) AS data_nascita
       FROM users u
       LEFT JOIN user_profile up ON up.user_id = u.id
       LEFT JOIN LATERAL (
