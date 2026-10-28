@@ -215,3 +215,53 @@ test('senza abilitazione sesso non viene estratto nemmeno da UserInfo firmata', 
     { fiscalNumber: 'RSSMRA80A01H501U' }
   );
 });
+
+
+test('JWE + JWS autentici propagano M/F soltanto dopo la verifica completa', async () => {
+  process.env.CIE_SEX_COLLECTION_ENABLED = 'true';
+  for (const [gender, sesso] of [['male', 'M'], ['female', 'F']]) {
+    const encrypted = makeEncryptedUserInfo(makeSignedUserInfo({ gender }));
+    const calls = [];
+    const http = {
+      async get(url, options) {
+        calls.push({ url, options });
+        return { data: encrypted, headers: { 'content-type': 'application/jwt' } };
+      }
+    };
+    const result = await fetchAndValidateCieUserInfo(
+      { accessToken: 'fake-verified-bearer', expectedSub: 'pairwise-subject' }, http
+    );
+    assert.deepEqual(result, { fiscalNumber: 'RSSMRA80A01H501U', sesso });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].options.headers.Authorization, 'Bearer fake-verified-bearer');
+  }
+});
+
+test('un attaccante non puo modificare gender nel payload JWS senza invalidare la firma', () => {
+  process.env.CIE_SEX_COLLECTION_ENABLED = 'true';
+  const valid = makeSignedUserInfo({ gender: 'male' });
+  const parts = valid.split('.');
+  const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+  payload.gender = 'female';
+  parts[1] = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const tampered = parts.join('.');
+  const encrypted = makeEncryptedUserInfo(tampered);
+  assert.throws(
+    () => validateCieUserInfoJws({ jws: tampered, expectedSub: 'pairwise-subject' }),
+    /signature|invalid|firma/i
+  );
+  assert.notEqual(tampered, valid);
+});
+
+test('UserInfo CIE cifrata e firmata non autorizza sex se il flag resta spento', async () => {
+  const encrypted = makeEncryptedUserInfo(makeSignedUserInfo({ gender: 'female' }));
+  const result = await fetchAndValidateCieUserInfo(
+    { accessToken: 'test-bearer', expectedSub: 'pairwise-subject' },
+    {
+      async get() {
+        return { data: encrypted, headers: { 'content-type': 'application/jose' } };
+      }
+    }
+  );
+  assert.deepEqual(result, { fiscalNumber: 'RSSMRA80A01H501U' });
+});
