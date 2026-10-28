@@ -90,3 +90,58 @@ test('blocca avvio CIE se account e gia verificato', async () => {
     error => error?.code === 'ACCOUNT_ALREADY_VERIFIED'
   );
 });
+
+test('salvataggio sesso CIE avviene nella stessa transazione del legame identita', async () => {
+  const calls = [];
+  let released = false;
+  const client = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      if (sql.includes('SELECT person_key')) return { rows: [] };
+      if (sql.includes('INSERT INTO identity_verifications')) {
+        return { rows: [{ provider: 'CIE', status: 'verified' }] };
+      }
+      if (sql.includes('UPDATE users SET sesso')) return { rowCount: 1 };
+      return { rows: [] };
+    },
+    release() { released = true; }
+  };
+  const pool = { async connect() { return client; } };
+  const result = await completeCieVerificationFromVerifiedClaims({
+    userId: 'user-1',
+    claims: { fiscal_number: 'TINIT-ABCDEF12G34H567I', sesso: 'F' }
+  }, pool);
+  assert.equal(result.verified, true);
+  assert.deepEqual(calls.map(x => x.sql.trim().split(/\\s+/)[0]), [
+    'BEGIN', 'SELECT', 'INSERT', 'UPDATE', 'COMMIT'
+  ]);
+  assert.deepEqual(calls[3].params, ['F', 'user-1']);
+  assert.equal(released, true);
+});
+
+test('errore sul sesso CIE fa rollback anche della verifica identita', async () => {
+  const queries = [];
+  let released = false;
+  const client = {
+    async query(sql) {
+      queries.push(sql);
+      if (sql.includes('SELECT person_key')) return { rows: [] };
+      if (sql.includes('INSERT INTO identity_verifications')) {
+        return { rows: [{ provider: 'CIE', status: 'verified' }] };
+      }
+      if (sql.includes('UPDATE users SET sesso')) return { rowCount: 0 };
+      return { rows: [] };
+    },
+    release() { released = true; }
+  };
+  await assert.rejects(
+    completeCieVerificationFromVerifiedClaims({
+      userId: 'user-1',
+      claims: { fiscal_number: 'TINIT-ABCDEF12G34H567I', sesso: 'M' }
+    }, { connect: async () => client }),
+    /Conflitto/
+  );
+  assert.equal(queries[queries.length - 1], 'ROLLBACK');
+  assert.equal(queries.includes('COMMIT'), false);
+  assert.equal(released, true);
+});
