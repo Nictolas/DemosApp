@@ -27,6 +27,9 @@ export default function GDPRRights() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<RightsRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -35,29 +38,48 @@ export default function GDPRRights() {
     loadRightsRequests();
   }, []);
 
-  const loadRightsRequests = async () => {
-    setLoading(true);
+  const loadRightsRequests = async (offset: number = 0) => {
+    if (offset === 0) setLoading(true);
+    else setLoadingMore(true);
     setError(null);
     try {
-      const response = await apiRequest('GET', '/api/user/rights-requests');
-      if (!response.ok) {
-        throw new Error('GDPR_HISTORY_HTTP_ERROR');
-      }
+      const response = await apiRequest('GET',
+        '/api/user/rights-requests?limit=50&offset=' + offset);
+      if (!response.ok) throw new Error('GDPR_HISTORY_HTTP_ERROR');
       const payload = await response.json();
-      if (payload?.success !== true || !Array.isArray(payload.data)) {
+      const pagination = payload?.pagination;
+      if (payload?.success !== true || !Array.isArray(payload.data) ||
+          typeof pagination?.has_more !== 'boolean' ||
+          pagination.offset !== offset ||
+          (pagination.has_more &&
+            (!Number.isSafeInteger(pagination.next_offset) ||
+             pagination.next_offset <= offset)) ||
+          (!pagination.has_more && pagination.next_offset !== null)) {
         throw new Error('GDPR_HISTORY_INVALID_RESPONSE');
       }
-      setRequests(payload.data);
+      const page = payload.data as RightsRequest[];
+      setRequests(previous => {
+        if (offset === 0) return page;
+        const existing = new Set(previous.map(request => request.id));
+        return [...previous, ...page.filter(request => !existing.has(request.id))];
+      });
+      setHasMore(pagination.has_more);
+      setNextOffset(pagination.next_offset);
     } catch {
-      // A failed or RLS-filtered query must not appear as an empty history.
-      // Do not log HTTP errors or private request details to the console.
-      setRequests([]);
+      // Never transform an unverified or RLS-filtered response into an
+      // apparently genuine empty history. Preserve earlier verified pages
+      // on a later pagination failure and permit a retry.
+      if (offset === 0) {
+        setRequests([]);
+        setHasMore(false);
+        setNextOffset(null);
+      }
       setError('Non è stato possibile verificare lo storico delle richieste. Riprova più tardi o contatta il DPO.');
     } finally {
-      setLoading(false);
+      if (offset === 0) setLoading(false);
+      else setLoadingMore(false);
     }
   };
-
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -128,14 +150,16 @@ export default function GDPRRights() {
         <CardContent>
           {loading ? (
             <div className="text-center py-4">Caricamento...</div>
-          ) : error ? (
-            <div className="text-center py-4 text-gray-500" role="status">
-              Storico non disponibile: impossibile verificare le richieste.
-            </div>
           ) : requests.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">
-              Nessuna richiesta presente
-            </div>
+            error ? (
+              <div className="text-center py-4 text-gray-500" role="status">
+                Storico non disponibile: impossibile verificare le richieste.
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                Nessuna richiesta presente
+              </div>
+            )
           ) : (
             <div className="space-y-4">
               {requests.map((request) => (
@@ -155,6 +179,16 @@ export default function GDPRRights() {
                   </div>
                 </div>
               ))}
+              {hasMore && nextOffset !== null && (
+                <button
+                  type="button"
+                  disabled={loadingMore}
+                  onClick={() => loadRightsRequests(nextOffset)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium disabled:opacity-50"
+                >
+                  {loadingMore ? 'Caricamento altre richieste...' : 'Carica altre richieste'}
+                </button>
+              )}
             </div>
           )}
         </CardContent>
