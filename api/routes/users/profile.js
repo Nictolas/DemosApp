@@ -23,14 +23,7 @@ const isSchemaMigrationError = (error) => (
   error &&
   (error.code === '42P01' || error.code === '42703')
 );
-const PROFILE_FIELDS = new Set([
-  'genere', 'data_nascita', 'cittadinanza',
-  'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
-  'grado_elezione', 'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
-  'grado_candidatura', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura', 'comune_candidatura',
-  'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url', 'twitch_url', 'youtube_url',
-  'avatar_config'
-]);
+const { upsertUserProfileFields } = require('../../services/userProfileWriteService');
 const REPRESENTATIVE_FIELDS = new Set(getLegacySelectionFields('both'));
 
 // GET /api/users/me - Ottieni profilo utente autenticato
@@ -353,26 +346,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       await client.query('BEGIN');
       result = await client.query(query, [...values, userId]);
 
-      const profileData = {};
-      for (const [k, v] of Object.entries(filteredData)) {
-        if (PROFILE_FIELDS.has(k)) profileData[k] = v;
-      }
-
-      if (Object.keys(profileData).length > 0) {
-        const profileKeys = Object.keys(profileData);
-        const profileValues = Object.values(profileData);
-        const profileColumns = profileKeys.join(', ');
-        const profileParams = profileKeys.map((_, idx) => `$${idx + 2}`).join(', ');
-        const profileSet = profileKeys.map((k, idx) => `${k} = $${idx + 2}`).join(', ');
-        await client.query(
-          `INSERT INTO user_profile (user_id, ${profileColumns})
-           VALUES ($1, ${profileParams})
-           ON CONFLICT (user_id) DO UPDATE SET
-             ${profileSet},
-             updated_at = NOW()`,
-          [userId, ...profileValues]
-        );
-      }
+      await upsertUserProfileFields(client, userId, filteredData);
 
       await client.query('COMMIT');
     } catch (e) {
