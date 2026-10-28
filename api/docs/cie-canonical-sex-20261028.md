@@ -42,5 +42,12 @@
 
 Nessuna classificazione M/F automatica viene fatta dai nomi dei 1.592 politici senza genere.
 
+## Ripulitura dati statistici non certificati (28/10/2026)
+- In `/utenti` rimosso il **fallback sintetico** delle età (`15,25,20,18,12,8`), che sostituiva intere distribuzioni quando quasi tutte le date mancavano.
+- Considerare solo account `PERSON` e date `YYYY-MM-DD` realmente registrate; invalidità del calendario, nascita futura ed età oltre 125 anni producono `N/A`.
+- Le date presenti **non equivalgono a CIE verificata**. I profili dei politici importati contano nel totale e sono dichiarati in schermata.
+- Lettura aggregata di Supabase produzione: 1.844 PERSON, 1.614 date di nascita valorizzate, 230 mancanti e 5 implausibili (>125 anni). Nessun record modificato.
+- Test anti-regressione `api/tests/userAgeStatistics.smoke.test.js` incluso nella CI. Questa attività non modifica le regole di conservazione dei dati.
+
 ## Fonte tecnica CIE
 La specifica ufficiale SPID/CIE OIDC definisce `gender` come attributo anagrafico con valori `male` e `female`: https://docs.italia.it/italia/spid/spid-cie-oidc-docs/it/versione-corrente/attributi_utente.html
