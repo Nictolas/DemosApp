@@ -233,6 +233,8 @@ class PrivacyErasureLedgerService {
 
     // Altri record applicativi direttamente riconducibili all'account.
     const directLinks = [
+      // Production candidati.user_id uses a restrictive FK (no ON DELETE CASCADE).
+      ['candidati', 'user_id'],
       ['notifiche_demos', 'id_utente'],
       ['notifiche_comunali', 'id_utente'],
       ['programmi', 'utente_id'],
