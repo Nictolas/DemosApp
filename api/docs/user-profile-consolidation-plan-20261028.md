@@ -69,3 +69,11 @@ Nel SOLO schema privato `qa_user_profile_20261028` di Demos-Staging:
 La modalità strict si attiverà solo DOPO la riconciliazione completa dei profili, il trasferimento di ownership del trigger e test end-to-end. Non attivare due trigger territoriali concorrenti in produzione e non equiparare residenza dichiarata e collegio elettorale verificato.
 
 Staging QA e PostgreSQL17 sintetico non sono un ambiente E2E dell'app: nello staging operativo continuano a mancare `public.user_profile` e `public.user_political_territories`. Nessuna modifica di dati o struttura su Supabase produzione.
+
+## Prestazioni dei filtri territoriali — verifica EXPLAIN di sola lettura
+
+Su Supabase produzione (1.857 utenti, 1.717 profili), la query di ricerca per comune che usa `COALESCE(p.comune_residenza,u.comune_residenza)` presenta nel piano stimato `Hash Left Join` e `Seq Scan` su entrambe le tabelle; non è stato eseguito EXPLAIN ANALYZE. `user_profile` ha soltanto l'indice PK `user_id`; non c'è un indice su `comune_residenza` (né su altri campi di residenza) in questa tabella.
+
+Il piano non misura latenza reale e non può essere estrapolato a un milione di account. Prima di migrare le query a molti destinatari (notifiche, sondaggi, avvistamenti), occorre costruire dataset sintetici realistici, misurare EXPLAIN ANALYZE fuori da produzione, valutare indici e query alternative (es. filtri distinti sui profili presenti e sui legacy assenti), e mantenere la semantica di fallback o strict owner per il corretto stato della migrazione.
+
+Non creare indici in produzione in questa PR Draft, non riscrivere ancora le query di broadcast e non affermare benefici prestazionali non misurati.
