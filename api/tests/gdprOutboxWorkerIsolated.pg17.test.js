@@ -207,6 +207,35 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     assert.equal(ready.completeVisibility, true);
     assert.equal(ready.unqueued, 0);
 
+    // The local status must not report READY for a delivered row whose
+    // B2 receipt contains an empty, whitespace-only or oversized version ID.
+    // Schema CHECK rejects NULL only, so simulate malformed rows explicitly.
+    const receipt=(await admin.query(
+      'SELECT event_key,b2_version_id FROM public.privacy_erasure_delivery_outbox ' +
+      'WHERE delivered_at IS NOT NULL ORDER BY queued_at LIMIT 1'
+    )).rows[0];
+    assert.ok(receipt?.event_key && receipt?.b2_version_id);
+    for (const invalidId of ['', '   ', 'v'.repeat(257)]) {
+      await admin.query(
+        'UPDATE public.privacy_erasure_delivery_outbox ' +
+        'SET b2_version_id=$1 WHERE event_key=$2',
+        [invalidId,receipt.event_key]
+      );
+      const damaged=await PrivacyErasureOutboxWorker.status(admin);
+      assert.equal(damaged.pending,0);
+      assert.equal(damaged.unqueued,0);
+      assert.equal(damaged.invalidReceipts,1);
+      assert.equal(damaged.ready,false,
+        'missing or malformed B2 version ID cannot qualify as local ready');
+    }
+    await admin.query(
+      'UPDATE public.privacy_erasure_delivery_outbox ' +
+      'SET b2_version_id=$1 WHERE event_key=$2',
+      [receipt.b2_version_id,receipt.event_key]
+    );
+    assert.equal((await PrivacyErasureOutboxWorker.status(admin)).ready,true,
+      'restoring the synthetic receipt recovers local-only readiness');
+
     // Reproduce the false-positive readiness after a damaged restore:
     // privileged SQL can still read every row despite disabled RLS or
     // accidental API grants. The operator check must reject that state.

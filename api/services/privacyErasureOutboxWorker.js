@@ -114,7 +114,7 @@ class PrivacyErasureOutboxWorker {
             archived?.key !== keyFor(canonical) ||
             archived?.sha256 !== expectedSha ||
             typeof archived?.versionId !== 'string' ||
-            archived.versionId.length === 0 ||
+            archived.versionId.trim().length === 0 ||
             archived.versionId.length > 256 ||
             !expiry || !Number.isFinite(expiry.getTime()) ||
             expiry.toISOString() !== until || expiry <= new Date()) {
@@ -195,7 +195,10 @@ class PrivacyErasureOutboxWorker {
           AND o.delivered_at IS NULL)::integer AS pending,
         COUNT(*) FILTER (WHERE o.event_key IS NOT NULL
           AND o.delivered_at IS NOT NULL AND (
-          o.b2_version_id IS NULL OR o.b2_sha256 IS NULL OR
+          o.b2_version_id IS NULL OR
+          char_length(btrim(o.b2_version_id)) = 0 OR
+          char_length(o.b2_version_id) > 256 OR
+          o.b2_sha256 IS NULL OR
           o.b2_sha256 !~ '^[0-9a-f]{64}$'))::integer AS invalid_receipts,
         MIN(o.queued_at) FILTER (WHERE o.event_key IS NOT NULL
           AND o.delivered_at IS NULL) AS oldest_pending_at,

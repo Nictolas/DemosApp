@@ -70,3 +70,9 @@ Questa verifica rappresenta un ulteriore passo rispetto alle precedenti prove Po
 - Testato su [workflow GitHub #40600229878](https://github.com/Nictolas/DemosApp/actions/runs/40600229878), commit `44b78e6`: **3/3** test worker PG17 e **2/2** test backend pool PG17, **0 errori**, marker `GDPR_BACKEND_REAL_POOL_PG17_PASS`. Snyk: SUCCESS. La suite non avvia alcun server HTTP né effettua richieste esterne.
 
 **Gate NON superati:** il test verifica `buildDatabaseSsl` solo nel caso *locale*; non verifica la CA/TLS e l'autenticazione contro un server Supabase vero, il pool effettivamente usato dal processo Render, il comportamento della piattaforma Render, una vera identità SQL verificata dal deployment, un bucket/versione B2 reale o completezza dell'archivio esterno indipendente. Per queste prove servono un runtime isolato e credenziali autorizzate. Il recovery #296 continua in **NO-GO**.
+
+## Version ID anomali: lettura locale fail-closed
+
+La relazione outbox contiene una CHECK che impone `b2_version_id IS NOT NULL` a consegna avvenuta, ma non ne impedisce la stringa vuota o un identificativo oltre i 256 caratteri. La verifica locale `PrivacyErasureOutboxWorker.status()` ora classifica come `invalidReceipts` anche le versioni vuote, composte soltanto da spazi o troppo lunghe; in tali casi `ready=false`. Anche il worker rifiuta tali ricevute prima dell'ACK.
+
+Una prova PostgreSQL 17 **interamente sintetica** modifica temporaneamente una ricevuta consegnata in tutte e tre le forme invalide, verifica `invalidReceipts=1` e `ready=false`, quindi ripristina la versione fittizia valida. Questa verifica non dimostra alcuna proprietà di B2 reale né la completezza del journal esterno: recovery #296 resta NO-GO.
