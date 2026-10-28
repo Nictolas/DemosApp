@@ -143,3 +143,18 @@ I **sei test HTTP** `api/tests/gdprRightsAccountDeletion.smoke.test.js` verifica
 La pipeline [Privacy erasure regression](https://github.com/Nictolas/DemosApp/actions/runs/40738638316) ha verificato **12/12 test** (5 nel primo gruppo, 6 HTTP, 1 linked FK), senza errori. Anche gli altri cinque workflow del commit risultano SUCCESS.
 
 **Ambiti aperti:** portabilità/esportazione GDPR e completezza delle categorie esportate, backup esterni, retention del ledger e delle richieste diritti, test di cancellazione/revoca su staging full-stack equivalente alla produzione, concurrency/security con sessioni autentiche. Nessun merge, deploy o modifica a dati di produzione in questa fase.
+
+## Esportazione GDPR JSON/CSV — correzioni e perimetro (28/10/2026)
+
+Ricognizione su schema Supabase di produzione **esclusivamente in lettura** e correzioni in PR #382 Draft:
+
+- La vecchia route `GET /api/user/data-export` leggeva nove opinioni dalla tabella `users`: in produzione quelle colonne si trovano in `opinioni_risposte` con `user_id` PK. Ora usa `SELECT to_jsonb(o)-'user_id'` dalla fonte corretta, conservando tutti i campi di risposta disponibili e senza copiare altri account.
+- I conteggi dei voti ICE interrogavano erroneamente `voti_ice.userid`; la colonna esistente è `voti_ice.utente_id`. Corretto SQL, mantenendo conteggi e non singoli voti.
+- Il report include ora il sesso `users.sesso` (distinto da `genere` legacy), `account_type`, avatar canonico JSONB oppure fallback legacy JSON valido, e `political_opinions_consent` effettivo.
+- Aggiunte quattro categorie che prima erano omesse: `political_selections`, `user_political_territories`, `user_electoral_unit_memberships`, `user_representatives`, ognuna filtrata sul `user_id` autenticato. L'appartenenza elettorale verificata rimane distinta dalla residenza dichiarata.
+- `api/utils/gdprCsv.js`: serializzatore CSV RFC 4180 con valori booleani `false`, numeri `0`, arrays indicizzati e protezione dai caratteri iniziali di formula per Excel/LibreOffice. Il nome file CSV non include più l'UUID utente. Rimosso il log operativo del suo ID dalla route export.
+- Il report non dichiara più conformità totale all'articolo 20 né impone durate hardcoded di conservazione non necessariamente verificate.
+
+Verifiche: `EXPLAIN` SQL sullo schema reale della produzione per proiezione profilo/consenso/avatar, risposta `opinioni_risposte`, voti ICE e quattro query elettorali, tutte senza modifiche e senza accedere a dati personali di utenti. Test HTTP sintetici `api/tests/gdprDataExport.smoke.test.js` collegati al già esistente `gdprRightsAccountDeletion.smoke.test.js` nel workflow privacy. Coperti JSON, CSV, scoping all'utente autenticato, 0/false, formula injection, valore dei territori, errori 400/404.
+
+**NON è ancora la portabilità completa**: l'elenco di categorie personali deve essere riconciliato con DPIA/inventario dati, l'audit è attualmente limitato a 100 eventi e i log/backup esterni, le notifiche/avvistamenti/sondaggi e i diritti di accesso GDPR art. 15 richiedono una valutazione separata. La route non è stata provata con autenticazione reale su staging full-stack; `public.user_profile` manca ancora nello staging corrente. Non rilasciare fino a quei gate.
