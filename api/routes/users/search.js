@@ -222,10 +222,21 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
              grado_elezione, grado_candidatura, avatar_config, sesso, account_type, genere, cittadinanza,
              paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+             COALESCE(NULLIF(location.mandate_region, ''), NULLIF(up.regione_elezione, ''), NULLIF(u.regione_elezione, '')) AS regione_elezione,
+             COALESCE(NULLIF(location.mandate_municipality, ''), NULLIF(up.comune_elezione, ''), NULLIF(u.comune_elezione, '')) AS comune_elezione,
              data_nascita
-      FROM users 
+      FROM users u
+      LEFT JOIN user_profile up ON up.user_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT NULLIF(TRIM(pm.jurisdiction->>'region'), '') AS mandate_region,
+               NULLIF(TRIM(pm.jurisdiction->>'municipality'), '') AS mandate_municipality
+        FROM political_mandates pm
+        WHERE pm.user_id = u.id AND pm.status = 'ACTIVE'
+        ORDER BY pm.starts_at DESC NULLS LAST, pm.created_at DESC
+        LIMIT 1
+      ) location ON true
       ${whereClause}
-      ORDER BY created_at DESC
+      ORDER BY u.created_at DESC
     `;
     
     let queryParamsWithPagination = [...queryParams];
