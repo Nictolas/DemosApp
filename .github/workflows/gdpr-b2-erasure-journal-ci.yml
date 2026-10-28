@@ -6,6 +6,7 @@ on:
       - 'api/services/privacyErasureB2Journal.js'
       - 'api/services/privacyLedgerTimestamp.js'
       - 'api/tests/privacyErasureB2Journal.test.js'
+      - 'api/tests/privacyErasureB2BatchPg17.test.js'
       - '.github/workflows/gdpr-b2-erasure-journal-ci.yml'
       - 'api/docs/gdpr-b2-contract-extracted-20261027.md'
 
@@ -30,3 +31,40 @@ jobs:
           node --check api/services/privacyLedgerTimestamp.js
           node --check api/services/privacyErasureB2Journal.js
           node --test --test-concurrency=1 api/tests/privacyErasureB2Journal.test.js
+
+  immutable-b2-batch-pg17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: gdpr_b2_export_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gdpr_b2_export_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install synthetic-only API dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Verify unfiltered B2 manual export on disposable PG17
+        env:
+          GITHUB_ACTIONS: 'true'
+          GDPR_B2_BATCH_PG17_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+          PGDATABASE: gdpr_b2_export_ci
+        run: node --test api/tests/privacyErasureB2BatchPg17.test.js
