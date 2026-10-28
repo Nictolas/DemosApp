@@ -96,6 +96,7 @@ router.get('/data-export', async (req, res) => {
       SELECT
         u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.premium, u.created_at, u.updated_at,
         COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
+        u.sesso AS sesso,
         COALESCE(up.genere, u.genere) AS genere,
         COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
         COALESCE(up.paese_residenza, u.paese_residenza) AS paese_residenza,
