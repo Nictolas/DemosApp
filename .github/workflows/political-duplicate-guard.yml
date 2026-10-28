@@ -5,6 +5,7 @@ on:
     paths:
       - "api/insert-senatori-da-voti-nominali.sql"
       - "api/insert-parlamentari-senato-nuovi.sql"
+      - "api/esegui-insert-senatori.js"
       - "api/scripts/audit-political-duplicate-users-20261028.sql"
       - "api/tests/retiredPoliticalImporters.smoke.test.js"
       - ".github/workflows/political-duplicate-guard.yml"
@@ -14,6 +15,7 @@ on:
     paths:
       - "api/insert-senatori-da-voti-nominali.sql"
       - "api/insert-parlamentari-senato-nuovi.sql"
+      - "api/esegui-insert-senatori.js"
       - "api/scripts/audit-political-duplicate-users-20261028.sql"
       - "api/tests/retiredPoliticalImporters.smoke.test.js"
       - ".github/workflows/political-duplicate-guard.yml"
