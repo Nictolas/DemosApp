@@ -426,38 +426,6 @@ export default function Utenti() {
               </div>
             ) : (
               <>
-                {/* Statistiche */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
-                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-blue-500 rounded-lg">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-blue-600">Totale Utenti</p>
-                          <p className="text-2xl font-bold text-blue-900">{allUsers.length}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-green-500 rounded-lg">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-green-600">Tutti gli Utenti</p>
-                          <p className="text-2xl font-bold text-green-900">{allUsers.length}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                </div>
-
                 {/* Tabella utenti attivi */}
                 <Card className="bg-white border-0 shadow-lg w-full">
                   <CardHeader className="pb-4">
