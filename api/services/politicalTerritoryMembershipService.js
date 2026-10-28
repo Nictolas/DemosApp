@@ -1,6 +1,7 @@
 'use strict';
 
 const { compressRegione, decompressRegione } = require('../utils/regioniUtils');
+const { loadUserResidence } = require('./userProfileReadService');
 const { TERRITORY_SCOPES, resolvePoliticalOffice } = require('./politicalJurisdictionRegistryService');
 const {
   createTerritoryContext,
@@ -111,12 +112,8 @@ function territoryContextFromMemberships(rows = []) {
 }
 
 async function loadLegacyResidence(db, userId) {
-  const result = await db.query(
-    `SELECT id, paese_residenza, regione_residenza, provincia_residenza, comune_residenza
-     FROM users WHERE id = $1`,
-    [userId],
-  );
-  return result.rows[0] || null;
+  // A pre-canonical fallback, NOT a substitute for verified electoral memberships.
+  return loadUserResidence(db, userId);
 }
 
 async function loadUserPoliticalTerritoryState(db, { userId, officeId = null } = {}) {
