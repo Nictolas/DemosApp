@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
+const { protectSexCountRows } = require('../utils/canonicalSexAggregate');
 const { decompressProvince } = require('../utils/provinceUtils');
 require('dotenv').config();
 
@@ -38,7 +39,8 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
         email,
         ruolo,
         data_nascita,
-        genere,
+        sesso,
+        account_type,
         regione_residenza,
         provincia_residenza,
         comune_residenza,
@@ -51,8 +53,11 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
     const supportersMap = new Map();
+    const verifiedSexById = new Map();
     result.rows.forEach(row => {
       if (!supportersMap.has(row.id)) {
+        // Solo aggregazioni: mai sesso individuale nel payload dei sostenitori.
+        verifiedSexById.set(row.id, row.account_type === 'PERSON' && (row.sesso === 'M' || row.sesso === 'F') ? row.sesso : null);
         supportersMap.set(row.id, {
           uid: row.id,
           nome: row.nome,
@@ -60,7 +65,6 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
           email: row.email,
           ruolo: row.ruolo,
           data_nascita: row.data_nascita,
-          genere: row.genere,
           regione_residenza: row.regione_residenza,
           provincia_residenza: row.provincia_residenza,
           comune_residenza: row.comune_residenza,
@@ -77,7 +81,13 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
 
     // Calcola statistiche
     const totalSupporters = supporters.length;
-    const genderDistribution = { Uomo: 0, Donna: 0, Altro: 0 };
+    const sexCounts = { M: 0, F: 0 };
+    for (const sesso of verifiedSexById.values()) {
+      if (sesso === 'M' || sesso === 'F') sexCounts[sesso] += 1;
+    }
+    const verifiedSexStats = protectSexCountRows(
+      Object.entries(sexCounts).map(([sesso, totale]) => ({ sesso, totale }))
+    );
     const locationDistribution = {};
     const provinceDistribution = {};
     let ageSum = 0;
@@ -98,12 +108,6 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
     };
 
     supporters.forEach(supporter => {
-      // Distribuzione per genere
-      const genere = supporter.genere || supporter.sesso || 'Altro';
-      if (genere === 'Maschio' || genere === 'M' || genere === 'uomo') genderDistribution.Uomo++;
-      else if (genere === 'Femmina' || genere === 'F' || genere === 'donna') genderDistribution.Donna++;
-      else genderDistribution.Altro++;
-
       // Distribuzione per località
       const location = supporter.regione_residenza || supporter.regione || 'Non specificato';
       locationDistribution[location] = (locationDistribution[location] || 0) + 1;
@@ -133,7 +137,9 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
       supporters: req.user?.isAdmin ? supporters : [],
       stats: {
         totalSupporters,
-        genderDistribution,
+        genderDistribution: {}, // Compatibilita' API legacy senza inventare un 'Altro'.
+        sexDistribution: verifiedSexStats.data,
+        sexSuppressed: verifiedSexStats.suppressed,
         locationDistribution,
         provinceDistribution,
         averageAge,
