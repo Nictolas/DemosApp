@@ -6,6 +6,7 @@ on:
       - 'api/routes/opinioni/**'
       - 'api/utils/opinionStatsColumns.js'
       - 'api/tests/opinionStatsColumns.test.js'
+      - 'api/tests/opinionAnswerLoggingPrivacy.test.js'
       - 'api/tests/ordinaryUserOpinionSave.test.js'
       - 'client/src/components/OpinionStatsBar.tsx'
       - 'client/src/components/ui/toast.tsx'
@@ -50,3 +51,4 @@ jobs:
           node api/tests/ordinaryUserOpinionSave.test.js
           node api/tests/politicalOpinionWriteRules.smoke.test.js
           node api/tests/opinionPrivacy.test.js
+          node api/tests/opinionAnswerLoggingPrivacy.test.js

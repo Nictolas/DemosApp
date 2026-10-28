@@ -65,11 +65,8 @@ router.post('/salva', verifyToken, async (req, res) => {
     // Il frontend invia le opinioni direttamente nel body
     const opinioni = req.body.opinioni || req.body; // Accetta sia req.body.opinioni che req.body
     
-    console.log('💾 POST /api/opinioni/salva - Salvataggio opinioni utente');
-    console.log('👤 User ID:', userId);
     
     if (!opinioni || typeof opinioni !== 'object' || Object.keys(opinioni).length === 0) {
-      console.error('❌ ERRORE: Dati mancanti o non validi');
       return res.status(400).json({
         success: false,
         error: 'Dati mancanti',
@@ -103,7 +100,6 @@ router.post('/salva', verifyToken, async (req, res) => {
       // catalog-to-answer-column parity is a mandatory pre-release check.
       const dbField = getOpinionById(opinionId)?.id;
       if (!dbField) {
-        console.warn('⚠️ Campo opinione non riconosciuto');
         unmappedOpinions.push(opinionId);
         errorCount++;
         continue;
@@ -112,7 +108,6 @@ router.post('/salva', verifyToken, async (req, res) => {
       // Una volta espressa, un'Opinione può soltanto cambiare tra f/c/i: NULL non è una risposta.
       const dbValue = normalizeOpinionAnswer(risposta);
       if (!dbValue) {
-        console.warn('⚠️ Valore opinione non valido: sono ammesse solo Favorevole, Contrario o Non lo so');
         unmappedOpinions.push(opinionId);
         errorCount++;
         continue;
@@ -126,11 +121,9 @@ router.post('/salva', verifyToken, async (req, res) => {
     }
     
     if (unmappedOpinions.length > 0) {
-      console.error(`❌ ${unmappedOpinions.length} opinioni non mappate`);
     }
     
     if (updateFields.length === 0) {
-      console.error('❌ Nessun campo valido da aggiornare');
       return res.status(400).json({
         success: false,
         error: 'Nessuna opinione valida da salvare',
@@ -189,7 +182,6 @@ router.post('/salva', verifyToken, async (req, res) => {
         const allValues = [userId, ...insertValues];
         const result = await client.query(insertQuery, allValues);
         savedCount = insertFields.length;
-        console.log(`✅ Prima risposta salvata. Righe inserite: ${result.rowCount}`);
       } else {
         const previous = checkResult.rows[0];
         const changes = insertFields
@@ -227,7 +219,6 @@ router.post('/salva', verifyToken, async (req, res) => {
       }
 
       await client.query('COMMIT');
-      console.log(`✅ Salvate ${savedCount} opinioni per utente ${userId}`);
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -254,14 +245,11 @@ router.post('/salva', verifyToken, async (req, res) => {
           }
         });
       } catch (pushError) {
-        console.warn('Push cambio Opinione non disponibile:', pushError?.message || pushError);
       }
     }
 
-    console.log(`📊 Risultato salvataggio: ${savedCount} salvate, ${errorCount} errori`);
     
     if (savedCount === 0) {
-      console.error('❌ ERRORE: Nessuna opinione salvata');
       return res.status(400).json({
         success: false,
         error: 'Nessuna opinione valida da salvare',
@@ -269,7 +257,6 @@ router.post('/salva', verifyToken, async (req, res) => {
       });
     }
     
-    console.log('✅ Opinion salvate con successo per utente:', userId);
     
     res.json({
       success: true,
@@ -281,7 +268,8 @@ router.post('/salva', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel salvare opinioni:', error);
+    // Keep an actionable error class without logging user IDs, answers or SQL values.
+    console.error('Opinion save failed', error?.code || error?.name || 'UNKNOWN');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
