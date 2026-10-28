@@ -6,7 +6,7 @@
 
 Mantenere `users` per account, autenticazione e autorizzazioni; `user_profile` per dati personali. Mandati, candidature e appartenenze territoriali ufficiali/certificate hanno registri canonici separati. Residenza autodichiarata e collegio di voto **non sono intercambiabili**.
 
-Questo ramo modifica solo la **lettura** dei quattro campi di residenza in due servizi. Prevale `user_profile`, con fallback a `users` quando il valore manca. In caso di vecchio schema privo di `user_profile`, l'adapter utilizza la query legacy. Nessun dato è riscritto e il contratto del payload resta invariato.
+Il ramo introduce la **lettura** centralizzata dei quattro campi di residenza in due servizi e nel lookup dei consiglieri comunali: prevale `user_profile`, con fallback a `users` quando il valore manca. Per uno schema privo di `user_profile`, l'adapter usa la query legacy. Introduce inoltre un helper **di scrittura transazionale**, riutilizzato da modifiche al profilo, avatar e amministrazione, per mantenere allineate entrambe le tabelle finché il dual-write è necessario. Il codice rimane Draft: non è stato distribuito né ha riscritto dati di produzione.
 
 ## Baseline aggregata verificata (Supabase produzione, 28/10/2026)
 
@@ -25,7 +25,9 @@ Il trigger SQL `users_sync_political_territories` si attiva dopo INSERT/UPDATE d
 - `api/services/userProfileReadService.js`: reader centralizzato, query parametrizzata, campo per campo COALESCE(user_profile, users), fallback di compatibilità solo per errori di schema.
 - `api/services/politicalTerritoryMembershipService.js`: fallback della residenza per territori self-declared; gli ambiti VERIFIED/OFFICIAL continuano ad avere priorità.
 - `api/services/eventFeedService.js`: lettura residenza per eventi mediante lo stesso adapter, mantenendo le selezioni di attivisti/organizzazioni in users.
-- Test nuovi e adattamenti dei mock precedenti.
+- `api/services/userProfileWriteService.js`: upsert profilato con allowlist e parametri vincolati, eseguito nelle transazioni già presenti per utente/avatar e nella nuova transazione delle modifiche amministrative.
+- `api/routes/users/search.js`: legge il comune del richiedente con il reader centralizzato e aggiorna `users`/`user_profile` atomici per la modifica amministrativa.
+- Test unitari e PostgreSQL 17 sintetici per scritture/rollback/avatar JSONB; suite smoke di eleggibilità politica allineata al nuovo SQL.
 
 ## Gate prima di qualunque pulizia schema
 
@@ -38,4 +40,4 @@ Il trigger SQL `users_sync_political_territories` si attiva dopo INSERT/UPDATE d
 
 ## Divieti in questo ramo
 
-Nessun DDL o aggiornamento di produzione, nessuna replica di dati personali sul Sheet, nessun cambiamento di sesso/genere, nessuna fusione o deploy automatico. Questa PR rimane Draft fino ai gate.
+Nessun DDL o aggiornamento dei dati di produzione, nessuna replica di dati personali sul Sheet, nessun cambiamento di sesso/genere, nessuna fusione o deploy automatico. Lo staging Supabase corrente non contiene ancora `user_profile` e `user_political_territories`: non equivale alla produzione e blocca le verifiche E2E della migrazione. Questa PR rimane Draft fino ai gate.
