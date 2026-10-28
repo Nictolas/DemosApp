@@ -12,7 +12,7 @@
 ## Implementato in questa PR (fase A)
 - Richiesta e verifica opzionale del claim `gender` dal solo UserInfo CIE attendibile.
 - Scrittura `users.sesso` contestuale alla registrazione CIE (OAuth e passkey) o alla verifica CIE, nello stesso commit transazionale.
-- Scrittura idempotente: un sesso già valorizzato diversamente blocca l'operazione; nessun overwrite silenzioso.
+- Scrittura idempotente **soltanto per `account_type='PERSON'`**: un sesso già valorizzato diversamente, un'istituzione o un'organizzazione bloccano l'operazione; nessun overwrite silenzioso.
 - API autenticata `/auth/me`, `/users/me` e amministrativa `/users` espongono il nuovo sesso, `NULL` per valori non disponibili.
 - Statistiche Admin di `/utenti`: sesso anagrafico CIE M/F/non disponibile; esclude organizzazioni/istituzioni e non legge il legacy `genere`.
 - Sondaggi: nuove route `/api/sondaggi/sesso` con filtri territorio; i grafici leggono M/F dal campo canonico. Le quattro route legacy `/genere` rispondono con lista vuota e header di deprecazione, senza presentare un vecchio genere come sesso.
@@ -22,16 +22,17 @@
 - Sostenitori: sette endpoint (rappresentanti, candidati, attivisti, organizzazioni, totale e due route /sostenitori) non restituiscono più `genere` individuale né deducono "Altro" dal NULL. Il nuovo `sexDistribution` include M/F per sole PERSON, deduplica i sostenitori per ID e nasconde tutti i dati se un gruppo ha meno di 10 persone; `genderDistribution` è una mappa vuota per i vecchi client.
 - Directory Attivisti/Organizzazioni e l'endpoint candidati duplicato: smettono di pubblicare il campo legacy `genere`.
 - Registrazione: il passaggio informativo `/registrazione-genere` è stato ritirato dal percorso normale; nome e consensi vanno direttamente a cittadinanza, la vecchia URL reindirizza e la navigazione indietro resta compatibile con passkey. Il componente non più usato è stato eliminato; il form `registrazione-2-dati` risulta separato/non montato nel router attuale, lasciato intatto in attesa di inventario più ampio.
-- Test mapping, firma, feature gate, transazione/rollback, privacy small-cell e sette endpoint Sostenitori, navigazione senza genere, assenza di origine browser, export GDPR e build.
+- Notifiche voti politici: lettura `users.sesso` al posto di `genere`; i titoli di Camera, Senato e consigli comunali sono femminili/maschili solo con M/F canonici. Senza dato anagrafico usano formule neutrali («In Senato,», «Alla Camera,», «Nel consiglio comunale,»), mai un maschile attribuito arbitrariamente.
+- Test mapping, firma JWS, cifratura JWE, manomissione di `gender`, feature gate, transazione/rollback, limitazione agli account PERSON, privacy small-cell e sette endpoint Sostenitori, titoli notifiche senza inferenze, navigazione senza genere, assenza di origine browser, export GDPR e build.
 
 ## Non incluso / gate prima del rollout
 - Non c'è alcuna modifica ai dati reali o una copia `genere` → `sesso`.
 - Non c'è alcuna attivazione CIE/claim in Render. Per abilitarla sono necessari finalità/base giuridica/informativa documentate, gestione accessi/retention e validazione dell'attributo con OP ufficiale.
 - I vecchi endpoint `genere` di Sondaggi/Opinioni rimangono raggiungibili ma restituiscono un array vuoto: ciò evita di pubblicare dati non verificati, pur mantenendo in vita l'URL per i client Android vecchi. I grafici dei vecchi client potrebbero apparire vuoti finché non viene distribuita una nuova build.
 - I sette endpoint Sostenitori sono ora migrati, ma occorre ancora QA delle visualizzazioni Android già distribuite. La sezione Sostenitori mostrerà esplicitamente «dato mancante» o «dato nascosto» invece di inventare il genere di una persona.
-- Consumatori legacy ancora da verificare/ritirare: pagine Sostenitori, dettagli specifici Opinioni, form e asset di registrazione obsoleti, tabelle storiche `user_profile.genere`, altri endpoint di lettura e compatibilità di versioni Android precedenti. Non rimuovere subito la colonna legacy prima della verifica completa delle dipendenze.
+- Consumatori legacy ancora da verificare/ritirare: dettagli specifici Opinioni, form e asset di registrazione obsoleti, tabelle storiche `user_profile.genere`, altri endpoint di lettura e compatibilità di versioni Android precedenti. Non rimuovere subito la colonna legacy prima della verifica completa delle dipendenze.
 - Valutare `CHECK (sesso IN ('M','F'))` sul DB dopo la ricognizione degli ambienti; lo schema corrente è `varchar` nullable senza popolazione.
-- Nella schermata /utenti restano da trattare separatamente i dati fittizi preesistenti sulle età.
+- Il problema dei dati fittizi sulle età è stato corretto e pubblicato separatamente tramite PR #383 (non dipende dal rollout CIE).
 
 ## Verifica produzione in sola lettura (28 ottobre 2026)
 `SELECT sesso, genere, count(*) FROM users GROUP BY 1, 2;` restituisce:
