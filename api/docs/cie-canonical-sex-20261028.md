@@ -49,3 +49,20 @@ Nessuna classificazione M/F automatica viene fatta dai nomi dei 1.592 politici s
 
 ## Fonte tecnica CIE
 La specifica ufficiale SPID/CIE OIDC definisce `gender` come attributo anagrafico con valori `male` e `female`: https://docs.italia.it/italia/spid/spid-cie-oidc-docs/it/versione-corrente/attributi_utente.html
+
+
+## Riconciliazione successiva: dati storici/inferiti e falsi claim CIE (28/10/2026)
+
+Questa sezione **sostituisce come fotografia attuale** i conteggi delle verifiche storiche sopra, che restano documentati come tappe precedenti. Query aggregata in sola lettura sulla produzione Supabase:
+
+- `users` totale **1.838**: **1.825 PERSON**, 11 ORGANIZATION, 2 INSTITUTION.
+- PERSON: `users.sesso` **M=1.007**, **F=419**, **NULL=399**; tra i politici P, **355 NULL**. Organizzazioni e istituzioni hanno tutte sesso NULL (non applicabile).
+- **1.426** persone hanno M/F registrato, ma **nessuna delle 1.426** ha `users.verified=true`, e `identity_verifications` contiene **zero righe**. Questi valori non costituiscono quindi evidenza di certificazione CIE. Provengono da precedenti backfill storici, attribuzioni esplicitamente autorizzate dal nome e verifiche manuali di fonti istituzionali: non equipararli a un claim CIE.
+- Il lotto `Andrea` include **45 profili** con sesso compilato, anche laddove la provenienza è nominativa/istituzionale: il completamento del campo non dimostra una verifica CIE. Rimangono discrepanze fra alcune DOB dei politici legacy e fonti parlamentari; nessuna DOB è stata rettificata in questo intervento.
+- Per la diagnostica: **1.440** profili politici P risultano creati in DB il 9 gennaio 2026. Ciò segnala un gruppo da auditare, **non dimostra** da solo quale processo abbia generato le DOB.
+
+**Correzione in questa PR Draft:** le schede Sondaggi (entrambe le varianti), Opinioni e Sostenitori non usano più «CIE» o «certificato» nei titoli degli aggregati derivati dalla sola colonna `users.sesso`. Mostrano l'avvertenza che M/F può essere storico o inferito. Anche commenti e messaggi diagnostici backend sono allineati. Aggiunto test anti-regressione.
+
+**Gate obbligatorio prima del merge:** mantenere un solo campo valore `sesso`, ma modellare separatamente **provenienza e stato di verifica** (senza duplicare M/F) e usare un'attestazione server-side valida per mostrare la dicitura «CIE verificata». Il solo `users.sesso IN ('M','F')` non prova la certificazione. La futura scrittura con UserInfo CIE validato può prevalere sul valore storico, ma serve una traccia verificabile e una revisione GDPR/DPO. Non attivare `CIE_SEX_COLLECTION_ENABLED` e non pubblicare la PR finché non sono soddisfatti QA Android, test CIE reale e verifiche privacy.
+
+Riferimento operativo: commento di audit alla PR #380 del 28/10/2026; checklist unica GH-260. Nessuna modifica ai dati di produzione, al sistema di autenticazione o alle regole RLS è stata introdotta da questa correzione di etichette.
