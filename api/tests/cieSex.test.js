@@ -126,3 +126,13 @@ test('metadato provenienza: migrazione non effettua backfill e CIE richiede veri
   assert.match(cie, /iv.provider = 'CIE'/);
   assert.match(cie, /iv.detached_at IS NULL/);
 });
+
+test('opinion statistics never return raw SQL errors or log exception objects', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.resolve(__dirname, '../routes/opinioni/stats.js'), 'utf8');
+  assert.doesNotMatch(source, /message:\s*error\.message|error:\s*error\.message/);
+  assert.doesNotMatch(source, /console\.error\([^;\n]*,\s*error(?:\.stack)?\s*\)/);
+  assert.doesNotMatch(source, /Error details:/);
+  assert.match(source, /message:\s*'Errore interno del server'/);
+});
