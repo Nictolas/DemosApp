@@ -224,10 +224,24 @@ class PrivacyErasureLedgerService {
         `INSERT INTO public.privacy_erasure_ledger
           (event_key, subject_user_id, event_type, occurred_at, details)
          VALUES ($1, $2, $3, $4, $5::jsonb)
-         ON CONFLICT (event_key) DO NOTHING`,
+         ON CONFLICT (event_key) DO NOTHING
+         RETURNING (
+           event_key = $1::text AND subject_user_id = $2::text
+           AND event_type = $3::text AND occurred_at = $4::timestamptz
+           AND details = $5::jsonb
+         ) AS identical`,
         event
       );
-      if (result.rowCount === 0) {
+      // A BEFORE INSERT trigger can rewrite any imported field and still
+      // produce rowCount=1. Verify the exact persisted SQL values, including
+      // microseconds, rather than trusting successful execution alone.
+      if (result.rowCount === 1) {
+        if (result.rows?.length !== 1 || result.rows[0]?.identical !== true) {
+          const error = new Error('GDPR_LEDGER_IMPORT_NOT_CONFIRMED');
+          error.code = 'GDPR_LEDGER_IMPORT_NOT_CONFIRMED';
+          throw error;
+        }
+      } else if (result.rowCount === 0) {
         // Idempotent replay is safe only when the previously stored event
         // matches in full. A reused event_key with different content must
         // stop recovery, not silently discard a later erasure/revocation.
