@@ -15,12 +15,17 @@
 - Scrittura idempotente: un sesso già valorizzato diversamente blocca l'operazione; nessun overwrite silenzioso.
 - API autenticata `/auth/me`, `/users/me` e amministrativa `/users` espongono il nuovo sesso, `NULL` per valori non disponibili.
 - Statistiche Admin di `/utenti`: sesso anagrafico CIE M/F/non disponibile; esclude organizzazioni/istituzioni e non legge il legacy `genere`.
-- Test mapping, firma, feature gate, transazione/rollback, assenza di origine browser e build.
+- Sondaggi: nuove route `/api/sondaggi/sesso` con filtri territorio; i grafici leggono M/F dal campo canonico. Le quattro route legacy `/genere` rispondono con lista vuota e header di deprecazione, senza presentare un vecchio genere come sesso.
+- Opinioni: nuove route `/api/opinioni/stats/:opinionId/sesso` (nazionale/regione), con consenso politico, filtro PERSON e soppressione completa di celle inferiori a 10; le vecchie route `/genere` non restituiscono più dati.
+- Modifica profili: rimossi i campi legacy `genere` dai moduli attivi e dagli elenchi API di scrittura; le API di lettura storiche rimangono per compatibilità temporanea. Non esporre il dato CIE sui profili pubblici.
+- Export dati GDPR: `sesso` incluso sia nel servizio canonico sia nell'endpoint di portabilità legacy, senza cancellare `genere` dagli export storici.
+- Test mapping, firma, feature gate, transazione/rollback, privacy small-cell, assenza di origine browser, export GDPR e build.
 
 ## Non incluso / gate prima del rollout
 - Non c'è alcuna modifica ai dati reali o una copia `genere` → `sesso`.
 - Non c'è alcuna attivazione CIE/claim in Render. Per abilitarla sono necessari finalità/base giuridica/informativa documentate, gestione accessi/retention e validazione dell'attributo con OP ufficiale.
-- I vecchi endpoint/consumer `genere` (sondaggi, profili, opinioni, versioni Android preesistenti) rimangono temporaneamente compatibili. **Non** considerarli statistiche CIE: una fase successiva deve deprecarli/migrarli con test e soglia small-cell. Non rimuovere subito la colonna legacy fino a compatibilità verificata.
+- I vecchi endpoint `genere` di Sondaggi/Opinioni rimangono raggiungibili ma restituiscono un array vuoto: ciò evita di pubblicare dati non verificati, pur mantenendo in vita l'URL per i client Android vecchi. I grafici dei vecchi client potrebbero apparire vuoti finché non viene distribuita una nuova build.
+- Consumatori legacy ancora da verificare/ritirare: pagine Sostenitori, dettagli specifici Opinioni, form e asset di registrazione obsoleti, tabelle storiche `user_profile.genere`, altri endpoint di lettura e compatibilità di versioni Android precedenti. Non rimuovere subito la colonna legacy prima della verifica completa delle dipendenze.
 - Valutare `CHECK (sesso IN ('M','F'))` sul DB dopo la ricognizione degli ambienti; lo schema corrente è `varchar` nullable senza popolazione.
 - Nella schermata /utenti restano da trattare separatamente i dati fittizi preesistenti sulle età.
 
@@ -32,3 +37,6 @@
 - sesso NULL / genere a: 3
 
 Nessuna classificazione M/F automatica viene fatta dai nomi dei 1.592 politici senza genere.
+
+## Fonte tecnica CIE
+La specifica ufficiale SPID/CIE OIDC definisce `gender` come attributo anagrafico con valori `male` e `female`: https://docs.italia.it/italia/spid/spid-cie-oidc-docs/it/versione-corrente/attributi_utente.html
