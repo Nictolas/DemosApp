@@ -70,7 +70,7 @@ export default function RegistrazioneCittadinanza() {
             variant="ghost"
             onClick={() => navigate(
               typeof window !== "undefined" && window.localStorage.getItem("registrazione_passkey_flow")
-                ? "/registrazione-consensi"
+                ? "/registrazione-consensi?step=3"
                 : typeof window !== "undefined" && window.localStorage.getItem("webauthn_user_id")
                 ? "/auth"
                 : "/registrazione-nome"
