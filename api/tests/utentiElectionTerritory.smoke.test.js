@@ -12,7 +12,7 @@ test('admin list reads residence independently of political mandates', () => {
   const route = read('api/routes/users/search.js');
   const list = route.slice(route.indexOf('// GET /api/users/ - '), route.indexOf('// GET /api/users/:userId'));
   assert.match(list, /LEFT JOIN user_profile up ON up.user_id = u.id/);
-  assert.match(list, /up\.comune_residenza\), u\.comune_residenza\) AS comune_residenza/);
+  assert.match(list, /TRIM\(up\.comune_residenza\).*u\.comune_residenza\) AS comune_residenza/);
   assert.match(list, /location\.mandate_municipality.*AS comune_elezione/);
   assert.match(list, /location\.mandate_region.*AS regione_elezione/);
   assert.match(list, /pm\.status = 'ACTIVE'/);
