@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { Redirect } from "wouter";
@@ -33,18 +33,6 @@ export function ProtectedRoute({
     return <Redirect to="/auth" />;
   }
 
-  // Controlla lo status dell'utente (solo se user è definito)
-  if (user && user.status === 'pending') {
-    // Salva l'email per la verifica
-    localStorage.setItem('user_email', user.email);
-    localStorage.setItem('user_status', 'pending');
-    localStorage.setItem('user_id', user.id);
-    
-    // Reindirizza alla verifica email
-    window.location.href = `/verifica-email?email=${encodeURIComponent(user.email)}`;
-    return null;
-  }
-
-  // Renderizza il componente se autenticato e verificato
+  // Controlla   // Renderizza il componente se autenticato e verificato
   return <Component />;
 }
