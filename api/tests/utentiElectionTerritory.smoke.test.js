@@ -65,6 +65,8 @@ test('provisional geographic charts do not persist electoral territory as reside
   assert.match(page, /riferimenti comunali stimati: \{stats\.usersWithProvisionalMunicipality\}/);
   assert.match(page, /data=\{preparePieData\(stats\.usersByRegionWithEstimates\)\}/);
   assert.match(page, /Object\.entries\(stats\.usersByCityWithEstimates\)/);
-  assert.doesNotMatch(page, /const usersByRegion = utenti\.reduce[\s\S]*?acc\[region\][\s\S]*?user\.regione_elezione/);
+  const residenceReducer = page.match(/const usersByRegion = utenti\.reduce\(([\s\S]*?)\n    \}, \{\} as Record<string, number>\);/);
+  assert.ok(residenceReducer);
+  assert.doesNotMatch(residenceReducer[1], /regione_elezione/);
   assert.match(route, /up\.regione_residenza[\s\S]*?AS regione_residenza/);
 });
