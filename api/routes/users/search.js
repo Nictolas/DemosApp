@@ -4,6 +4,8 @@ const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { decompressGender, compressGender } = require('../../utils/genderUtils');
 const { decompressUserLocation, compressUserLocation } = require('../../utils/locationUtils');
 const { queryWithAccountModelFallback } = require('../../services/accountCapabilitiesService');
+const { upsertUserProfileFields } = require('../../services/userProfileWriteService');
+const { loadUserResidence } = require('../../services/userProfileReadService');
 
 const router = express.Router();
 
@@ -94,19 +96,16 @@ router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
     const userId = req.user.id;
     
     // Recupera comune_residenza dell'utente operante
-    const userResult = await pool.query(
-      'SELECT comune_residenza FROM users WHERE id = $1',
-      [userId]
-    );
+    const userResidence = await loadUserResidence(pool, userId);
     
-    if (userResult.rows.length === 0) {
+    if (!userResidence) {
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
       });
     }
-    
-    const comuneResidenza = userResult.rows[0].comune_residenza;
+
+    const comuneResidenza = userResidence.comune_residenza;
     
     if (!comuneResidenza) {
       return res.json({
@@ -541,8 +540,24 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     const values = Object.values(filteredData);
     const query = `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $${values.length + 1} RETURNING *`;
     
-    const result = await pool.query(query, [...values, userId]);
-    
+    // Account and profile must become visible atomically. Otherwise the
+    // profile-first readers can silently hide edits made by the administrator.
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(query, [...values, userId]);
+      if (result.rows.length > 0) {
+        await upsertUserProfileFields(client, userId, filteredData);
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
