@@ -43,4 +43,10 @@ jobs:
       - name: Install API dependencies
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Verify opinion regressions
-        run: node --test --test-concurrency=1 api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js
+        run: |
+          # Run each node:test suite directly to avoid intermittent Node 22
+          # worker IPC deserialization failures (no tests are skipped).
+          node api/tests/opinionStatsColumns.test.js
+          node api/tests/ordinaryUserOpinionSave.test.js
+          node api/tests/politicalOpinionWriteRules.smoke.test.js
+          node api/tests/opinionPrivacy.test.js
