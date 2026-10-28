@@ -1,7 +1,7 @@
 const express = require('express');
 const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
-const { decompressGender, compressGender } = require('../../utils/genderUtils');
+const { decompressGender } = require('../../utils/genderUtils');
 const { decompressUserLocation, compressUserLocation } = require('../../utils/locationUtils');
 const { queryWithAccountModelFallback } = require('../../services/accountCapabilitiesService');
 
@@ -477,7 +477,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
-      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza',
+      'nome', 'cognome', 'data_nascita', 'cittadinanza',
       'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
       'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
       'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
@@ -510,17 +510,6 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
         }
       }
     });
-    
-    // Applica compressione per genere e dati geografici prima di salvare
-    if (filteredData.genere) {
-      const compressedGenere = compressGender(filteredData.genere);
-      if (compressedGenere) {
-        filteredData.genere = compressedGenere;
-        console.log(`🔧 Genere compresso:`, updateData.genere, '→', compressedGenere);
-      } else {
-        console.warn(`⚠️ Genere non riconosciuto, non compresso:`, filteredData.genere);
-      }
-    }
     
     // Applica compressione per i dati geografici
     const compressedLocation = compressUserLocation(filteredData);
