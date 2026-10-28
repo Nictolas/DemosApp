@@ -20,8 +20,25 @@ interface RightsRequest {
   processed_at?: string;
 }
 
+// Key the entire history view by the authenticated subject. Changing
+// accounts unmounts the previous state (including pending pagination), so a
+// late response from user A cannot render under user B's session.
 export default function GDPRRights() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl bg-white min-h-screen">
+        <h1 className="text-3xl font-bold mb-4">Storico Richieste GDPR</h1>
+        <div role="status">
+          {isLoading ? 'Verifica della sessione...' : 'Accedi per consultare le tue richieste.'}
+        </div>
+      </div>
+    );
+  }
+  return <AuthenticatedRightsHistory key={user.id} />;
+}
+
+function AuthenticatedRightsHistory() {
   const [requests, setRequests] = useState<RightsRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
