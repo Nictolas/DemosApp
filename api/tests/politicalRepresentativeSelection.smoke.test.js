@@ -18,7 +18,7 @@ function makePool({ complete, canonicalBlocked = false }) {
       }
     if (s.includes('SELECT id FROM opinioni_domande')) return { rows: ids.map((id) => ({ id })) };
     if (s.includes('FROM opinioni_risposte') && s.includes('user_id = ANY($1)')) return { rows: [userRow] };
-    if (s.startsWith('SELECT id, paese_residenza, regione_residenza, provincia_residenza, comune_residenza FROM users')) {
+    if (s.startsWith('SELECT id, paese_residenza, regione_residenza, provincia_residenza, comune_residenza FROM users') || (s.includes('FROM users u LEFT JOIN user_profile p ON p.user_id = u.id') && s.includes('COALESCE(p.comune_residenza, u.comune_residenza)'))) {
       return { rows: [{ id: 'u1', paese_residenza: 'IT', regione_residenza: 'TO', provincia_residenza: 'PI', comune_residenza: 'Pisa' }] };
     }
     if (s.includes('FROM political_mandates')) {
