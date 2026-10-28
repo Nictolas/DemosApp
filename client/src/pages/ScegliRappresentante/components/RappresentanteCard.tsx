@@ -60,7 +60,7 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   };
 
   return (
-    <div className={`relative w-full h-full min-h-72 rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${isSelected ? 'border-4 border-green-500' : 'border-2 border-transparent'}`}>
+    <div className={`relative representative-choice-card w-full h-full min-h-72 rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${isSelected ? 'border-4 border-green-500' : 'border-2 border-transparent'}`}>
       
       {/* SVG con forme geometriche colorate come nella pagina opinioni */}
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">

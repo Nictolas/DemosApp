@@ -58,11 +58,19 @@ test('Android-only scroll classes and internal scrolling lists exist',()=>{
   for(const page of ['OpinioniNazionali','OpinioniRegionali','OpinioniComunali','OpinioniEuropee']) {
     assert.match(read('pages/'+page+'.tsx'),/flex-1 min-h-0 overflow-y-auto app-page-scroll/);
   }
-  for(const page of ['Candidati','ScegliRappresentante']) {
-    assert.match(read('pages/'+page+'/index.tsx'),/flex-1 min-h-0 overflow-y-auto app-page-scroll/);
-  }
-  // Even an empty representatives/candidates list must not clip its call to action.
-  assert.match(read('pages/ScegliRappresentante/index.tsx'),/overflow-y-auto app-page-scroll[^>]*>\s*<EmptyState/);
+  assert.match(read('pages/Candidati/index.tsx'),/flex-1 min-h-0 overflow-y-auto app-page-scroll/);
+  // Candidate lists preserve their old independent scrolling, not the top-4
+  // representative chooser which must have NO scroll at either level.
+  const chooser=read('pages/ScegliRappresentante/index.tsx');
+  assert.match(chooser,/representative-choice-no-scroll/);
+  assert.match(chooser,/representative-choice-grid grid grid-cols-2 grid-rows-2/);
+  assert.match(chooser,/flex-1 min-h-0 overflow-hidden flex items-center justify-center/);
+  assert.match(chooser,/isCandidateRoute\s*\?\s*"flex-1 min-h-0 overflow-y-auto app-page-scroll"/);
+  assert.match(read('pages/ScegliRappresentante/components/RappresentanteCard.tsx'),/representative-choice-card/);
+  const back=readFileSync(new URL('../../api/routes/rappresentanti.js',import.meta.url),'utf8');
+  assert.match(back,/\.filter\(\(candidato\) => candidato\.copertura_posizioni > 0\)\s*\.slice\(0, 4\)/);
+  assert.match(css,/\.representative-choice-grid\s*\{/);
+  assert.match(css,/\.representative-choice-grid\s*\.representative-choice-card\s*\{/);
 });
 
 test('all 10 approved legal URLs are real routes; public policies keep their own fixed footer',()=>{
@@ -135,4 +143,17 @@ test('fixed registration screens protect the action buttons with an inner scroll
   assert.match(landing,/\.landing-mobile\s*\{[\s\S]*?overflow-y:\s*auto;/);
   assert.equal(getAndroidPageScrollPolicy('/'),'fixed');
   assert.equal(getAndroidPageScrollPolicy('/auth'),'fixed');
+});
+
+test('representative chooser has no page/grid scroll; candidates and dialogs are separate',()=>{
+  const root=new URL('../src/',import.meta.url);
+  const read=p=>readFileSync(new URL(p,root),'utf8');
+  const chooser=read('pages/ScegliRappresentante/index.tsx');
+  assert.equal(getAndroidPageScrollPolicy('/scegli-rappresentante/camera'),'fixed');
+  assert.match(chooser,/isCandidateRoute\s*\?[^:]+:\s*"flex-1 min-h-0 overflow-hidden flex items-center justify-center"/);
+  assert.match(chooser,/representative-choice-grid grid grid-cols-2 grid-rows-2/);
+  assert.match(chooser,/<ViewOpinioniDialog/);
+  const css=read('index.css');
+  assert.match(css,/\.representative-choice-grid\s*\{[\s\S]*?overflow:\s*hidden/);
+  assert.match(css,/\.representative-choice-card\s*\{[\s\S]*?min-height:\s*0\s*!important/);
 });
