@@ -626,61 +626,96 @@ router.post('/object', validateInput(['reason', 'categories']), async (req, res)
  * GET /api/user/rights-requests
  * Ottiene lo stato delle richieste diritti GDPR dell'utente
  */
+function parseRightsPageNumber(raw, fallback, minimum, maximum) {
+  if (raw === undefined) return fallback;
+  if (typeof raw !== 'string' || !/^(0|[1-9][0-9]*)$/.test(raw)) return null;
+  const number = Number(raw);
+  return Number.isSafeInteger(number) && number >= minimum &&
+    number <= maximum ? number : null;
+}
+
+// GET /api/user/rights-requests — only the authenticated subject's history.
+// Keep the RLS-visibility check and page lookup in ONE SQL statement: a
+// standalone pool.query preflight could use a different backend session.
 router.get('/rights-requests', async (req, res) => {
+  const userId = req.userId || req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+  }
+
+  const options = req.query || {};
+  const limit = parseRightsPageNumber(options.limit, 50, 1, 50);
+  const offset = parseRightsPageNumber(options.offset, 0, 0, 100000);
+  const status = options.status;
+  if (limit === null || offset === null ||
+      (status !== undefined &&
+       (typeof status !== 'string' || !/^[a-z][a-z0-9_]{0,19}$/.test(status)))) {
+    return res.status(400).json({
+      success: false, error: 'Parametri di paginazione non validi'
+    });
+  }
+
   try {
-    const userId = req.userId;
-    // This is the actual endpoint consumed by client/src/pages/GDPRRights.tsx.
-    // A policy-filtered SQL SELECT may silently return an incomplete list.
-    // Until a reviewed read-all role/view is deployed, refuse to claim it
-    // is a complete history. The query contains no request payload.
-    const visibility = await pool.query(
+    const params = [userId];
+    let filter = '';
+    if (status !== undefined) {
+      params.push(status);
+      filter = ' AND status = $' + params.length;
+    }
+    params.push(limit + 1, offset);
+    const limitParameter = '$' + (params.length - 1);
+    const offsetParameter = '$' + params.length;
+
+    // An RLS policy can silently hide historical requests. The same SQL
+    // statement checks the executing role's visibility and fetches a bounded
+    // page, avoiding a role/session switch between separate pool queries.
+    // Deliberately exclude private request_data, DPO response_data and
+    // processed_by from both SQL and the public JSON response.
+    const result = await pool.query(
+      'WITH visibility AS MATERIALIZED (' +
       "SELECT NOT pg_catalog.row_security_active(" +
-      "'public.user_rights_requests'::regclass) AS complete_visibility"
+      "'public.user_rights_requests'::regclass) AS complete_visibility) " +
+      'SELECT visibility.complete_visibility, history.id, ' +
+      'history.request_type, history.status, history.created_at, ' +
+      'history.processed_at FROM visibility LEFT JOIN LATERAL (' +
+      'SELECT id, request_type, status, created_at, processed_at ' +
+      'FROM public.user_rights_requests WHERE user_id = $1' + filter +
+      ' ORDER BY created_at DESC NULLS LAST, id DESC ' +
+      'LIMIT ' + limitParameter + ' OFFSET ' + offsetParameter +
+      ') AS history ON visibility.complete_visibility',
+      params
     );
-    if (visibility.rows?.[0]?.complete_visibility !== true) {
+    if (result.rows?.[0]?.complete_visibility !== true) {
       return res.status(503).json({
         success: false,
         error: 'Impossibile verificare lo storico delle richieste in questo momento'
       });
     }
-    const { status, limit = 50, offset = 0 } = req.query;
-
-    let query = `
-      SELECT id, request_type, status, request_data, response_data, 
-             created_at, processed_at, processed_by
-      FROM user_rights_requests 
-      WHERE user_id = $1
-    `;
-    
-    const values = [userId];
-    let paramCount = 1;
-
-    if (status) {
-      paramCount++;
-      query += ` AND status = $${paramCount}`;
-      values.push(status);
-    }
-
-    query += ` ORDER BY created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-    values.push(parseInt(limit), parseInt(offset));
-
-    const result = await pool.query(query, values);
-
-    res.json({
+    // The LEFT JOIN returns one row with null id for a genuinely empty page.
+    const rows = result.rows.filter(row => row.id != null).map(row => ({
+      id: row.id,
+      request_type: row.request_type,
+      status: row.status,
+      created_at: row.created_at,
+      processed_at: row.processed_at
+    }));
+    const hasMore = rows.length > limit;
+    return res.json({
       success: true,
-      data: result.rows,
+      data: rows.slice(0, limit),
       pagination: {
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        total: result.rows.length
+        limit,
+        offset,
+        has_more: hasMore,
+        next_offset: hasMore ? offset + limit : null
       }
     });
-
   } catch (error) {
+    // Never log GDPR payloads, individual request IDs or raw SQL details.
     console.error('Errore recupero storico diritti GDPR:', error?.code || 'QUERY_FAILED');
-    res.status(500).json({
+    return res.status(503).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Impossibile verificare lo storico delle richieste in questo momento'
     });
   }
 });
