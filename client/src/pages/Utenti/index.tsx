@@ -955,39 +955,15 @@ export default function Utenti() {
                 Conferma eliminazione
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Vuoi eliminare definitivamente l'account di <strong>{userToDelete?.nome} {userToDelete?.cognome}</strong>?
-                Verranno cancellati dal database applicativo il profilo, le Opinioni, i voti, le sessioni
-                e gli altri dati personali collegati. I contenuti civici pubblici che possono essere
-                conservati resteranno senza riferimento all'account. Registri tecnici protetti,
-                backup e log esterni seguono regole di conservazione distinte.
+                Sei sicuro di voler eliminare l'utente <strong>{userToDelete?.nome} {userToDelete?.cognome}</strong>? 
                 L'operazione non è reversibile.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleteMutation.isPending}>Annulla</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={(event) => {
-                  // Do not close the dialog before the server confirms COMMIT.
-                  event.preventDefault();
-                  if (!userToDelete || deleteMutation.isPending) return;
-                  deleteMutation.mutate(userToDelete.id, {
-                    onSuccess: () => {
-                      toast({ title: "Account eliminato", description: "Il database ha confermato la cancellazione." });
-                      setUserToDelete(null);
-                    },
-                    onError: () => {
-                      // Network failures may occur after the backend COMMIT:
-                      // do not claim the user still exists without readback.
-                      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-                      toast({
-                        title: "Esito della cancellazione non verificato",
-                        description: "Controlla l'elenco aggiornato prima di riprovare. Il server potrebbe aver completato la cancellazione.",
-                        variant: "destructive"
-                      });
-                    }
-                  });
-                }}
-                className="bg-red-500 hover:bg-red-600 text-white"
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => userToDelete && deleteMutation.mutate(userToDelete.id)} 
+                className="bg-red-500 hover:bg-red-600 text-white" 
                 disabled={deleteMutation.isPending}
               >
                 {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : "Elimina"}
