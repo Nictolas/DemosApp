@@ -145,72 +145,47 @@ export default function Utenti() {
       return acc;
     }, {} as Record<string, number>);
     
-    // Calcola distribuzione per età
+    // Età: esclusivamente le date di nascita realmente registrate delle persone.
+    // Niente dati fittizi o inferenze dai nomi dei politici / account importati.
     const usersByAge = utenti.reduce((acc, user) => {
-      // Prova diversi campi possibili per la data di nascita
-      const birthDateField = user.data_nascita || user.birth_date || user.date_of_birth;
-      
-      if (birthDateField) {
-        let birthDate;
-        
-        // Gestisci diversi formati di data
-        if (typeof birthDateField === 'string') {
-          // Se è una stringa, prova a convertirla
-          birthDate = new Date(birthDateField);
-        } else if (birthDateField instanceof Date) {
-          birthDate = birthDateField;
-        } else if (birthDateField.timestamp) {
-          // Se è un oggetto con timestamp (Firebase)
-          birthDate = new Date(birthDateField.timestamp);
-        } else if (birthDateField.seconds) {
-          // Se è un oggetto con seconds (Firebase)
-          birthDate = new Date(birthDateField.seconds * 1000);
-        } else {
-          birthDate = new Date(birthDateField);
+      if (user.account_type !== 'PERSON') return acc;
+
+      const dateText = typeof user.data_nascita === 'string'
+        ? user.data_nascita
+        : '';
+      const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(dateText);
+      let ageGroup = 'N/A';
+
+      if (match) {
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        const valid = year >= 1 &&
+          date.getUTCFullYear() === year &&
+          date.getUTCMonth() === month - 1 &&
+          date.getUTCDate() === day;
+
+        if (valid) {
+          const today = new Date();
+          let age = today.getFullYear() - year;
+          if (today.getMonth() + 1 < month ||
+            (today.getMonth() + 1 === month && today.getDate() < day)) age -= 1;
+          if (age >= 0) {
+            if (age < 18) ageGroup = 'Under 18';
+            else if (age <= 25) ageGroup = '18-25';
+            else if (age <= 35) ageGroup = '26-35';
+            else if (age <= 45) ageGroup = '36-45';
+            else if (age <= 55) ageGroup = '46-55';
+            else if (age <= 65) ageGroup = '56-65';
+            else ageGroup = '65+';
+          }
         }
-        
-        // Controlla se la data è valida
-        if (isNaN(birthDate.getTime())) {
-          acc['N/A'] = (acc['N/A'] || 0) + 1;
-          return acc;
-        }
-        
-        const today = new Date();
-        const age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        
-        // Aggiusta l'età se il compleanno non è ancora arrivato quest'anno
-        const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) 
-          ? age - 1 
-          : age;
-        
-        let ageGroup = 'N/A';
-        if (actualAge < 18) ageGroup = 'Under 18';
-        else if (actualAge >= 18 && actualAge <= 25) ageGroup = '18-25';
-        else if (actualAge >= 26 && actualAge <= 35) ageGroup = '26-35';
-        else if (actualAge >= 36 && actualAge <= 45) ageGroup = '36-45';
-        else if (actualAge >= 46 && actualAge <= 55) ageGroup = '46-55';
-        else if (actualAge >= 56 && actualAge <= 65) ageGroup = '56-65';
-        else if (actualAge > 65) ageGroup = '65+';
-        
-        acc[ageGroup] = (acc[ageGroup] || 0) + 1;
-      } else {
-        acc['N/A'] = (acc['N/A'] || 0) + 1;
       }
+      acc[ageGroup] = (acc[ageGroup] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
-    // Se non ci sono dati di età, crea dati di esempio per il test
-    const finalUsersByAge = Object.keys(usersByAge).length > 1 ? usersByAge : {
-      '18-25': 15,
-      '26-35': 25,
-      '36-45': 20,
-      '46-55': 18,
-      '56-65': 12,
-      '65+': 8,
-      'N/A': 2
-    };
-    
+
     return {
       totalUsers: utenti.length,
       usersByRole,
@@ -218,7 +193,7 @@ export default function Utenti() {
       usersByCitizenship,
       usersByRegion,
       usersByCity,
-      usersByAge: finalUsersByAge
+      usersByAge
     };
   }, [responseData?.utenti]);
   
@@ -803,6 +778,7 @@ export default function Utenti() {
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Età</CardTitle>
+                      <CardDescription>Solo persone: dati reali disponibili. Le date mancanti o non valide sono indicate come N/A.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
@@ -878,6 +854,7 @@ export default function Utenti() {
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Età (Dettaglio)</CardTitle>
+                      <CardDescription>Conteggi effettivi, senza dati di esempio. N/A indica una data mancante o non valida.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
