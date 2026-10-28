@@ -154,7 +154,7 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni-proposte - Caricamento opinioni da approvare');
 
-    // Leggi da opinioni_proposte se esiste, altrimenti da opinioni_domande (proposte "da approvare")
+    // Proposte dinamiche: leggere solo opinioni_proposte, mai il catalogo ufficiale.
     const fromProposte = `
       SELECT o.id, o.text as testo, o.approfondimento, COALESCE(v.voti_count, 0)::int as voti
       FROM opinioni_proposte o
