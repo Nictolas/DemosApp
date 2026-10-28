@@ -4,17 +4,17 @@
 // Offline audit: no database, network, SQL or automatic demographic writes.
 // Use only with explicitly authorized local snapshots.
 const fs = require('node:fs');
-const { auditOfficialSexEvidence } = require('../utils/officialSexEvidenceAudit');
+const { auditOfficialSexEvidence, parseCameraSparqlBindings } = require('../utils/officialSexEvidenceAudit');
 
 function parseArgs(argv) {
   const args = {};
   for (const arg of argv) {
-    const match = /^--(users|official|out)=(.+)$/.exec(arg);
+    const match = /^--(users|official|camera-sparql|out)=(.+)$/.exec(arg);
     if (!match || args[match[1]]) throw new Error('Parametro non valido o ripetuto');
     args[match[1]] = match[2];
   }
-  if (!args.users || !args.official) {
-    throw new Error('Uso: node api/scripts/audit-official-sex.js --users=utenti.json --official=senato.json [--out=revisione.json]');
+  if (!args.users || Boolean(args.official) === Boolean(args['camera-sparql'])) {
+    throw new Error('Uso: node api/scripts/audit-official-sex.js --users=utenti.json (--official=senato.json | --camera-sparql=camera.json) [--out=revisione.json]');
   }
   return args;
 }
@@ -28,7 +28,13 @@ function readLocalArray(filename) {
 function main(argv) {
   const args = parseArgs(argv);
   const users = readLocalArray(args.users);
-  const official = readLocalArray(args.official);
+  // La Camera restituisce SPARQL JSON results.bindings; il parser controlla
+  // genere foaf:gender, URI e data di nascita prima di proporre il match.
+  const official = args['camera-sparql']
+    ? parseCameraSparqlBindings(
+      JSON.parse(fs.readFileSync(args['camera-sparql'], 'utf8'))?.results?.bindings
+    )
+    : readLocalArray(args.official);
   const result = auditOfficialSexEvidence(users, official);
 
   if (args.out) {
