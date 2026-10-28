@@ -5,7 +5,7 @@ export const HIDDEN_COLUMNS = [
   'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
   'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia',
   // Colonne tecniche da nascondere
-  'id', 'password_hash', 'avatar_config', 'fonti_opinioni',
+  'id', 'password_hash', 'avatar_config', 'fonti_opinioni', 'genere', 'account_type',
   'created_at', 'updated_at', 'reset_token', 'reset_token_expires', 'email_verification_token',
   // Colonne specifiche da rimuovere dalla tabella
   'cittadinanza', 'regione_residenza', 'comune_residenza', 'name', 'nome', 'cognome',
@@ -31,13 +31,13 @@ export const HIDDEN_COLUMNS = [
 
 // Colonne forzate per candidatura ed elezione
 export const FORCED_COLUMNS = [
-  'grado_candidatura', 'grado_elezione'
+  'grado_candidatura', 'grado_elezione', 'sesso'
 ];
 
 // Colonne con priorità di ordinamento
 export const PRIORITY_COLUMNS = [
   'avatar', 'nome_completo', 'email', 'ruolo', 'status', 
-  'data_nascita', 'genere', 'paese_residenza', 'provincia_residenza',
+  'data_nascita', 'sesso', 'paese_residenza', 'provincia_residenza',
   'verified', 'auth_method', 'premium', 'is_premium', 'is_admin',
   'privacy_policy_consent', 'terms_of_service_consent',
   'profile_visibility', 'opinions_public', 'email_notifications', 'push_notifications',

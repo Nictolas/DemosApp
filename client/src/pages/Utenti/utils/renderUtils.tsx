@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "wouter";
 import { User } from "../types";
 import { formatColumnValue } from "./columnUtils";
-import { getRoleColor, getGenderColor, getCandidaturaStatusColor, getGradoColor } from "./styleUtils";
+import { getRoleColor, getCandidaturaStatusColor, getGradoColor } from "./styleUtils";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 // Funzione per renderizzare il valore con targhette colorate
@@ -71,10 +71,19 @@ export const renderColumnValue = (value: any, columnName: string, user?: User, o
     );
   }
   
-  if (columnName === 'genere' && value) {
+  if (columnName === 'sesso') {
+    if (user?.account_type === 'ORGANIZATION' || user?.account_type === 'INSTITUTION') {
+      return <span className="text-sm text-gray-500">Non applicabile</span>;
+    }
+    const verified = value === 'M' || value === 'F';
+    const color = value === 'M'
+      ? 'bg-sky-100 text-sky-800 border-sky-200'
+      : value === 'F'
+        ? 'bg-pink-100 text-pink-800 border-pink-200'
+        : 'bg-gray-100 text-gray-600 border-gray-200';
     return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getGenderColor(value)}`}>
-        {value}
+      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${color}`}>
+        {verified ? (value === 'M' ? 'Maschile' : 'Femminile') : 'Non disponibile'}
       </span>
     );
   }

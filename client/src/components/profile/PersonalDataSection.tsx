@@ -10,44 +10,12 @@ interface PersonalDataSectionProps {
   isAdmin?: boolean;
 }
 
-// Genere visibile solo per P, C, CP (stessa logica della vista profilo)
-function showGenereForRole(ruolo: string | undefined): boolean {
-  if (!ruolo) return false;
-  return (
-    ruolo === "P" || ruolo === "Politico" ||
-    ruolo === "C" || ruolo === "Candidato" ||
-    ruolo === "CP" || ruolo === "Candidato Politico"
-  );
-}
-
 export function PersonalDataSection({ formData, onFieldChange, isAdmin = false }: PersonalDataSectionProps) {
-  const showGenere = showGenereForRole(formData.ruolo);
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-gray-900 border-b pb-2">Dati Personali</h3>
       
-      {showGenere && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="genere">Genere *</Label>
-            <Select
-              value={getGenereValue(formData.genere)}
-              onValueChange={(value) => onFieldChange("genere", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona il genere" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="uomo">Uomo</SelectItem>
-                <SelectItem value="donna">Donna</SelectItem>
-                <SelectItem value="altro">Altro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Campo Ruolo - visibile solo per Admin */}
         {isAdmin && (
@@ -93,28 +61,6 @@ export function PersonalDataSection({ formData, onFieldChange, isAdmin = false }
       </div>
     </div>
   );
-}
-
-// Funzione per mappare i valori del genere
-function getGenereValue(genere: string): string {
-  if (!genere) return "";
-  
-  // Mappa i valori dal database ai valori del form
-  const mapping: Record<string, string> = {
-    'uomo': 'uomo',
-    'donna': 'donna', 
-    'altro': 'altro',
-    'M': 'uomo',
-    'F': 'donna',
-    'A': 'altro',
-    'Maschio': 'uomo',
-    'Femmina': 'donna',
-    'Uomo': 'uomo',
-    'Donna': 'donna',
-    'Altro': 'altro'
-  };
-  
-  return mapping[genere] || genere;
 }
 
 // Funzione per mappare i valori della cittadinanza
