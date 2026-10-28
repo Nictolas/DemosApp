@@ -1,0 +1,39 @@
+name: Versioned opinion catalog — contracts and frontend build
+on:
+  push:
+    branches: [performance/opinion-catalog-in-code-20261028]
+  pull_request:
+    paths:
+      - 'api/catalog/**'
+      - 'api/services/opinionCatalog.js'
+      - 'api/routes/**'
+      - 'api/services/**'
+      - 'api/tests/opinionCatalog*.test.js'
+      - 'client/src/pages/GestisciOpinioni/**'
+      - '.github/workflows/opinion-catalog-full-ci.yml'
+permissions:
+  contents: read
+jobs:
+  catalog-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Validate all migrated backend files parse
+        run: |
+          for file in api/services/opinionCatalog.js api/routes/compatibility.js api/routes/opinioni/management.js api/routes/opinioni/user-answers.js api/routes/opinioni/stats.js api/routes/sondaggi.js api/routes/opinioni-proposte.js api/routes/users/profile.js api/routes/statistiche.js api/routes/bacheca.js; do
+            node --check "$file"
+          done
+      - name: Catalog integrity and zero-DB-metadata contract
+        run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js
+      - name: Install frontend without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: TypeScript and Vite frontend build (no release)
+        run: npm run build --prefix client
