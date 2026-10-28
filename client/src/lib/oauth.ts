@@ -239,7 +239,7 @@ function buildGoogleRedirectUrl(): string {
   if (!clientId) return "";
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const redirectUri = `${origin}/auth`;
-  const scope = "openid email profile";
+  const scope = "openid email";
   const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
   if (typeof sessionStorage !== "undefined") {
     sessionStorage.setItem("google_oauth_nonce", nonce);
@@ -321,7 +321,7 @@ export async function loginWithApple(): Promise<{ success: boolean; message?: st
 
     window.AppleID.auth.init({
       clientId,
-      scope: "name email",
+      scope: "email",
       redirectURI: `${origin}/auth`,
       usePopup: true,
     });
