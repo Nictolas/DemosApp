@@ -473,7 +473,7 @@ test('GDPR objection validates categories and acknowledges committed receipt des
   let sqlCalls=0,auditCalls=0,missingReceipt=false;
   const fakePool={async query(sql,params){
     sqlCalls++;
-    assert.match(sql,/INSERT INTO public\\.user_rights_requests/);
+    assert.ok(sql.includes('INSERT INTO public.user_rights_requests'));
     assert.deepEqual(params[0],'synthetic-objection-user');
     assert.equal(JSON.parse(params[1]).reason,'synthetic-private-reason');
     return missingReceipt?{rowCount:0,rows:[]}:
