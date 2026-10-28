@@ -88,7 +88,7 @@ Non creare indici in produzione in questa PR Draft, non riscrivere ancora le que
 - **Una sola esecuzione CI**: query COALESCE 43,273 ms, UNION ALL 35,200 ms. Sono misurazioni diagnostiche su hardware CI condiviso, non un benchmark affidabile, non SLA, non prova di scalabilità a un milione di utenti; prima di scegliere un piano occorrono ripetizioni e test distribuzioni reali/sintetiche diverse.
 - Quattro workflow CI dopo il riallineamento: [profili](https://github.com/Nictolas/DemosApp/actions/runs/40733994487) 38 unit/smoke + 12 PG17; [identità civica](https://github.com/Nictolas/DemosApp/actions/runs/40733994453) 21; [CIE](https://github.com/Nictolas/DemosApp/actions/runs/40733994388) 2; [tabella sesso CIE](https://github.com/Nictolas/DemosApp/actions/runs/40733994342) 4. **77/77 test superati, 0 falliti.**
 
-NO-GO invariato: nessun merge, rilascio, DROP o migrazione di dati produttivi. Lo staging Supabase `public` non replica ancora lo schema e i 140 profili/12 avatar reali restano intatti.
+NO-GO invariato: nessun merge, rilascio, DROP o migrazione di dati produttivi. Lo staging Supabase `public` non replica ancora lo schema e i 140 profili mancanti e i 1.614 avatar legacy recuperabili restano invariati.
 
 ## Ricognizione integrale dei 26 campi e nuovo test di backfill (28/10/2026)
 
