@@ -114,3 +114,25 @@ test('all newly approved entry and dashboard routes exist; only their page scrol
   assert.match(css,/\.app-main\.android-page-scroll-enabled/);
   assert.match(css,/\.app-main\.android-page-scroll-fixed > \.app-main__inner/);
 });
+
+test('fixed registration screens protect the action buttons with an inner scroll area',()=>{
+  const src=new URL('../src/',import.meta.url);
+  const css=readFileSync(new URL('index.css',src),'utf8');
+  assert.match(css,/\.android-fixed-registration > \.android-fixed-registration__panel/);
+  assert.match(css,/\.android-fixed-registration__panel \{[\s\S]*?overflow-y:\s*auto/);
+  for(const name of [
+    'registrazione-nome','registrazione-genere','registrazione-cittadinanza',
+    'registrazione-data-nascita','registrazione-consensi',
+    'registrazione-crea-passkey'
+  ]){
+    const file=readFileSync(new URL('pages/'+name+'.tsx',src),'utf8');
+    assert.match(file,/android-fixed-registration/);
+    assert.match(file,/android-fixed-registration__panel/);
+  }
+  // The mobile login/landing has its existing dedicated internal
+  // short-viewport fallback; do not globally disable its auth controls.
+  const landing=readFileSync(new URL('pages/landing-mobile.css',src),'utf8');
+  assert.match(landing,/\.landing-mobile\s*\{[\s\S]*?overflow-y:\s*auto;/);
+  assert.equal(getAndroidPageScrollPolicy('/'),'fixed');
+  assert.equal(getAndroidPageScrollPolicy('/auth'),'fixed');
+});

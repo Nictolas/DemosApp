@@ -2029,3 +2029,32 @@ html.demos-mobile-layout body.android-device .app-main.android-page-scroll-enabl
 html.demos-mobile-layout body.android-device .app-main.android-page-scroll-enabled .page-with-navbar.overflow-y-auto {
   overflow-y: visible !important;
 }
+
+
+/* Android 1.0.11: on fixed registration ROUTES the shell and card are
+   distinct. The page does not scroll; only its card can scroll internally
+   when the viewport shrinks (keyboard, accessibility fonts, small phones).
+   Never lock the body, dialogs, or other routes. */
+html.demos-mobile-layout body.android-device .app-main.android-page-scroll-fixed
+:is(.fade-up-transition, .fade-side-transition):has(> .android-fixed-registration) {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+html.demos-mobile-layout body.android-device .app-main.android-page-scroll-fixed
+.android-fixed-registration {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100%;
+  overflow-y: hidden !important;
+}
+html.demos-mobile-layout body.android-device .app-main.android-page-scroll-fixed
+.android-fixed-registration > .android-fixed-registration__panel {
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}

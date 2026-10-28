@@ -572,9 +572,9 @@ export default function RegistrazioneConsensiWizard() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 overflow-x-hidden overflow-y-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 android-fixed-registration overflow-x-hidden overflow-x-hidden overflow-y-auto">
       {/* Contenitore orizzontale: ogni step è un intero riquadro che scorre */}
-      <div className="w-full max-w-md overflow-x-hidden min-h-0">
+      <div className="w-full max-w-md overflow-x-hidden min-h-0 android-fixed-registration__panel">
         <div
           className="flex transition-transform duration-300 ease-out"
           style={{ transform: `translateX(-${(step - 1) * 100}%)` }}
