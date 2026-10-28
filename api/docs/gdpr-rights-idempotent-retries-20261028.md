@@ -99,3 +99,12 @@ exports, both histories, a persisted receipt, 401/400/410/503 responses, and a
 database failure followed by audit rejection. It uses only loopback HTTP.
 Provider cache/Android behavior and real-user/DPO end-to-end verification remain
 release gates. PR #376 remains Draft; issue #296 remains OPEN / NO-GO.
+# Moduli GDPR ed export effettivamente montati — follow-up 28 ottobre
+
+I moduli Impostazioni di limitazione e opposizione erano incompatibili con il server: POST invece di PUT per la limitazione, assenza di `limited:true`, ID delle categorie non canonici e lettura di `response.success` invece del JSON del wrapper. Ora inviano il contratto attuale e verificano una ricevuta con ID uguale alla chiave UUIDv4 della richiesta. Nessun nuovo modulo o modifica delle basi giuridiche.
+
+Il controller per modulo mantiene solo in memoria la chiave per un retry esplicito dello stesso payload dopo una risposta incerta; blocca doppi invii, assegna una nuova chiave a un'azione diversa e viene ricreato al cambio account. Nessun retry automatico o persistenza nel browser. Uscire dalla pagina perde la chiave: il messaggio invita a controllare lo storico prima di inviare di nuovo. Un replay della limitazione non viene presentato come attestazione dello stato corrente.
+
+L'export JSON/CSV usa i resolver comuni di API e token, `no-store`, timeout, verifica del formato/ricevuta e ricontrollo della sessione prima del download. JSON estrae i dati dall'envelope corretto; CSV usa il contenuto server, senza un secondo serializzatore. URL temporaneo e link sono rimossi anche in caso di errore. L'interfaccia dichiara l'avvio del download, non il salvataggio effettivo su Android.
+
+Regressioni locali: **7/7 controller retry/contratto**, **6/6 export**, **8/8 rendering e isolamento account**, build frontend PASS. La CI esegue questi test dopo l'installazione client e ripete le regressioni backend/PG17 esistenti sullo stesso HEAD. Rendering SSR e trasporto simulato non sostituiscono il collaudo browser/Android e il ciclo DPO su staging isolato. Le prove provider e la retention approvata restano aperte; issue #296 OPEN / recovery NO-GO.

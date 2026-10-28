@@ -12,6 +12,14 @@ on:
       - 'api/routes/user/gdpr-rights.js'
       - 'api/services/gdprRightsHistoryService.js'
       - 'client/src/pages/GDPRRights.tsx'
+      - 'client/src/pages/GDPR/index.tsx'
+      - 'client/src/pages/Impostazioni/LimitazioneTrattamento/index.tsx'
+      - 'client/src/pages/Impostazioni/OpposizioneTrattamento/index.tsx'
+      - 'client/src/lib/gdprRightsSubmission.ts'
+      - 'client/src/lib/gdprDataExport.ts'
+      - 'client/tests/gdprDataExport.test.mjs'
+      - 'client/tests/gdprRightsForms.test.mjs'
+      - 'api/tests/gdprRightsClientSubmission.test.js'
       - 'api/tests/gdprLegacyDbPoolCompat.test.js'
       - 'api/tests/gdprLegacyRequestsRoute.test.js'
       - 'api/tests/gdprRightsHttpPrivacy.test.js'
@@ -83,5 +91,10 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - name: Install client dependencies without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
-      - name: Build client to verify actual GDPR history screen
+      - name: Verify real client retry and personal-export contracts without providers
+        run: |
+          node api/tests/gdprRightsClientSubmission.test.js
+          node client/tests/gdprDataExport.test.mjs
+          node client/tests/gdprRightsForms.test.mjs
+      - name: Build client to verify mounted GDPR screens
         run: npm run build --prefix client

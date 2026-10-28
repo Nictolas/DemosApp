@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
+import { createGdprRightsSubmission } from "@/lib/gdprRightsSubmission";
 
 interface DataCategory {
   id: string;
@@ -17,27 +18,27 @@ interface DataCategory {
 
 const dataCategories: DataCategory[] = [
   { 
-    id: 'personal', 
+    id: 'personal_data',
     label: 'Dati Personali', 
     description: 'Nome, cognome, anno di nascita, indirizzo, ecc.' 
   },
   { 
-    id: 'voting', 
+    id: 'voting_data',
     label: 'Dati di Voto', 
     description: 'Opinioni politiche, voti espressi, preferenze elettorali' 
   },
   { 
-    id: 'technical', 
+    id: 'technical_data',
     label: 'Dati Tecnici', 
     description: 'IP, cookie, dati di navigazione, dispositivi utilizzati' 
   },
   { 
-    id: 'political', 
+    id: 'political_opinions',
     label: 'Opinioni Politiche', 
     description: 'Posizioni su temi politici, affiliazioni, ideologie' 
   },
   { 
-    id: 'communication', 
+    id: 'communication_data',
     label: 'Dati di Comunicazione', 
     description: 'Email, notifiche, messaggi, preferenze di comunicazione' 
   }
@@ -46,48 +47,6 @@ const dataCategories: DataCategory[] = [
 export default function LimitazioneTrattamento() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [limitationCategories, setLimitationCategories] = useState<string[]>([]);
-
-  const toggleCategory = (categoryId: string) => {
-    setLimitationCategories(prev => 
-      prev.includes(categoryId) 
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
-
-  const handleProcessingLimitation = async () => {
-    if (limitationCategories.length === 0) {
-      setError('Seleziona almeno una categoria di dati da limitare');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
-
-      const response = await apiRequest.post('/user/limit-processing', {
-        categories: limitationCategories
-      });
-      
-      if (response.success) {
-        setSuccess('Limitazioni di trattamento applicate con successo');
-        setLimitationCategories([]);
-      } else {
-        setError(response.error || 'Errore nell\'applicazione delle limitazioni');
-      }
-    } catch (err) {
-      setError('Errore nella comunicazione con il server');
-      console.error('Errore limitazione trattamento:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
@@ -113,6 +72,52 @@ export default function LimitazioneTrattamento() {
       </div>
     );
   }
+  return <LimitazioneTrattamentoForm key={user.id} />;
+}
+
+function LimitazioneTrattamentoForm() {
+  const [, setLocation] = useLocation();
+  const [submission] = useState(() => createGdprRightsSubmission(apiRequest));
+  const busy = useRef(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [limitationCategories, setLimitationCategories] = useState<string[]>([]);
+
+  const toggleCategory = (categoryId: string) => {
+    setLimitationCategories(prev => 
+      prev.includes(categoryId) 
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
+  const handleProcessingLimitation = async () => {
+    if (busy.current) return;
+    if (limitationCategories.length === 0) {
+      setError('Seleziona almeno una categoria di dati da limitare');
+      return;
+    }
+
+    busy.current = true;
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      const receipt = await submission.limit(limitationCategories);
+      setSuccess(receipt.replayed
+        ? 'Richiesta già registrata. La ricevuta non conferma lo stato attuale delle limitazioni: consulta lo storico o contatta il DPO.'
+        : 'Richiesta di limitazione registrata. Consulta lo stato nello storico delle richieste.');
+      setLimitationCategories([]);
+    } catch {
+      setError('Registrazione non confermata. Puoi riprovare con gli stessi dati in questa pagina. Prima di uscire o inviare una nuova richiesta, controlla lo storico.');
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
@@ -168,6 +173,12 @@ export default function LimitazioneTrattamento() {
           </Alert>
         )}
 
+        {(error || success) && (
+          <Button type="button" variant="outline" className="mb-6" onClick={() => setLocation('/gdpr-rights')}>
+            Controlla lo storico delle richieste
+          </Button>
+        )}
+
         {/* Form Limitazione */}
         <Card className="mb-8 bg-white">
           <CardHeader>
@@ -187,6 +198,7 @@ export default function LimitazioneTrattamento() {
                     id={`limitation-${category.id}`}
                     checked={limitationCategories.includes(category.id)}
                     onCheckedChange={() => toggleCategory(category.id)}
+                    disabled={loading}
                     className="mt-1"
                   />
                   <div className="flex-1">
