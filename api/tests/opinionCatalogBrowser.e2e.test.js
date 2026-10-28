@@ -58,7 +58,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     });
     assert.equal(server.address().port, 10000);
     const viteBin = path.join(repoRoot, 'client/node_modules/vite/bin/vite.js');
-    vite = spawn(process.execPath, [viteBin, '--host', 'localhost', '--port', '3000', '--strictPort'], {
+    vite = spawn(process.execPath, [viteBin, '--config', 'vite.config.js', '--host', 'localhost', '--port', '3000', '--strictPort'], {
       cwd: path.join(repoRoot, 'client'),
       env: { ...process.env, NODE_ENV: 'development' },
       stdio: ['ignore', 'pipe', 'pipe']
