@@ -13,16 +13,21 @@ test('admin users page never writes personal data to browser console', () => {
   );
   assert.doesNotMatch(source, /\bconsole\.(?:log|debug|info|warn|error)\s*\(/,
     'admin users page must not print user objects or raw errors');
-  assert.match(source, /const handleEdit = \(user: any\) => \{/);
-  assert.match(source, /setSelectedUser\(user\)/);
   assert.match(source, /await forceTokenRefresh\(\)/);
   assert.match(source, /clearAllTokens\(\)/);
-  assert.match(source, /description: \"Errore nel salvataggio delle modifiche\"/);
+  assert.match(source, /Le modifiche ai dati non sono disponibili in questa pagina/);
 });
 
 test('admin directory remains read-only without pending approvals', () => {
-  const source = fs.readFileSync(path.resolve(__dirname, '../../client/src/pages/Utenti/index.tsx'), 'utf8');
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../../client/src/pages/Utenti/index.tsx'), 'utf8'
+  );
+  const search = fs.readFileSync(
+    path.resolve(__dirname, '../routes/users/search.js'), 'utf8'
+  );
   assert.doesNotMatch(source, /deleteMutation|usePendingUserActions|setUserToDelete|EditUserDialog|EditOpinioniDialog|EditUserAvatarDialog/);
-  assert.doesNotMatch(source, /Utenti in Attesa|in attesa di approvazione/i);
+  assert.doesNotMatch(source, /Utenti in Attesa|in attesa di approvazione|pendingUsers|PendingUsersTable/i);
+  assert.doesNotMatch(search, /router\.get\('\/pending'/);
   assert.match(source, /Le modifiche ai dati non sono disponibili in questa pagina/);
+  assert.match(search, /sesso: \['M', 'F'\]\.includes\(user\.sesso\)/);
 });
