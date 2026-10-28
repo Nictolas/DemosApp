@@ -21,9 +21,9 @@ async function withAndroid110Contract(callback) {
   const state = {answer:null,hasRow:false,sql:[]};
   const fixtureId = 'energia_nucleare';
   const query = async (statement,params=[]) => {
-    const sql=String(statement).replace(/\\s+/g,' ').trim();
+    const sql=String(statement).replace(/\s+/g,' ').trim();
     state.sql.push(sql);
-    if(/\\bopinioni_domande\\b/i.test(sql)) throw Error('Legacy catalog table read/write is forbidden: '+sql);
+    if(/\bopinioni_domande\b/i.test(sql)) throw Error('Legacy catalog table read/write is forbidden: '+sql);
     if(sql.startsWith('SELECT id, status, ruolo FROM users')) {
       assert.deepEqual(params,[emailFreeFakeUser]);
       return {rows:[{id:emailFreeFakeUser,status:'a',ruolo:'E'}]};
@@ -141,6 +141,6 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
       assert.equal(response.status,409,method+' '+url);
       assert.equal((await response.json()).error,'CATALOG_RELEASE_REQUIRED');
     }
-    assert.equal(state.sql.some(sql=>/\\bopinioni_domande\\b/i.test(sql)),false);
+    assert.equal(state.sql.some(sql=>/\bopinioni_domande\b/i.test(sql)),false);
   });
 });
