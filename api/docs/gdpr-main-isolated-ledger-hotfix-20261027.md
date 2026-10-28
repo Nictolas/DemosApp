@@ -180,3 +180,32 @@ fresh and independently signed B2 archive exists. Provider quarantine,
 writer identity, isolated restore and explicit GO remain open.
 The stacked #371–#374 descendants must be realigned/retested before
 any integration. Issue #296 remains NO-GO.
+
+## Replay of restored application rows must also be unfiltered
+
+An SQL role can own and fully read the GDPR tombstone ledger while still
+being subject to row-level security on **restored user/application tables**.
+In that case a DELETE or UPDATE could silently see zero matching rows,
+then report a successful replay while leaving sensitive data behind.
+
+The offline `applyCurrentPrivacyState` operation therefore now performs
+an additional catalog-only `assertUnfilteredReplayTables` preflight
+**before any user-data mutation**. It conservatively rejects when any
+restored `public` application table (excluding the separately checked
+ledger and delivery-outbox bookkeeping) has RLS active for the current
+SQL role, raising `GDPR_REPLAY_DATA_VISIBILITY_INCOMPLETE`.
+This intentionally may block recovery even for an unrelated RLS-enabled
+table: a controlled offline restore must use a reviewed operator identity
+with verified global data visibility, never bypass per-user policies in a
+live HTTP process.
+
+The new disposable PG17 test creates an account and its deletion event.
+A non-superuser SQL role owns the ledger (so the tombstone is fully
+visible), but RLS hides the restored account in `public.users`.
+Replay must refuse before the DELETE; the original account remains.
+A separate privileged synthetic replay can then delete the row.
+
+These guards do not make a recovery end-to-end safe or attest external
+backup completeness. Review all other restored schemas, permissions,
+B2 receipts and independent checkpoints before any authorized restore.
+NO-GO remains in force.
