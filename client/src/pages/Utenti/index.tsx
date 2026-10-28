@@ -803,7 +803,7 @@ export default function Utenti() {
                       <CardDescription>Residenza registrata; in sua assenza, solo per politici comunali (CO), il comune di elezione viene contato come stima provvisoria.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground mb-3">Residenza comunale registrata: {stats.usersWithKnownResidence} di {stats.totalUsers} utenti; riferimenti comunali stimati: {stats.usersWithProvisionalMunicipality}.</p>
+                      <p className="text-sm text-muted-foreground mb-3">Residenza comunale disponibile per {stats.usersWithKnownResidence} di {stats.totalUsers} utenti; riferimenti comunali stimati: {stats.usersWithProvisionalMunicipality}.</p>
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead>
