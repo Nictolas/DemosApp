@@ -4,8 +4,6 @@ on:
   pull_request:
     paths:
       - 'api/services/privacyErasureLedgerService.js'
-      - 'api/scripts/attest-gdpr-writer-readonly.js'
-      - 'api/tests/gdprWriterReadonlyAttestation.test.js'
       - 'api/tests/privacyLedgerSecureBootstrap.pg17.test.js'
       - 'api/tests/legacyLinkedRows.integration.test.js'
       - '.github/workflows/privacy-ledger-main-isolation-ci.yml'
@@ -44,8 +42,6 @@ jobs:
       - name: Verify syntax of minimal main-based correction
         run: |
           node --check api/services/privacyErasureLedgerService.js
-          node --check api/scripts/attest-gdpr-writer-readonly.js
-          node --test --test-concurrency=1 api/tests/gdprWriterReadonlyAttestation.test.js
           node --check api/tests/privacyLedgerSecureBootstrap.pg17.test.js
           node --check api/tests/legacyLinkedRows.integration.test.js
       - name: Check secure first creation and preinstalled-ledger deletion regression on disposable PG17

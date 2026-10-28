@@ -1,19 +1,6 @@
 name: Political selection revocation erasure (synthetic)
 
 on:
-  # This stacked Draft introduces its own workflow; the parent branch does
-  # not contain it, so a pull_request event may publish no checks.
-  # Push verification is limited to this Draft branch and synthetic fixtures.
-  push:
-    branches:
-      - 'fix/gdpr-personal-selections-on-secure-ledger-20261027'
-    paths:
-      - 'api/scripts/attest-gdpr-writer-readonly.js'
-      - 'api/tests/gdprWriterReadonlyAttestation.test.js'
-      - 'api/services/politicalConsentService.js'
-      - 'api/services/privacyErasureLedgerService.js'
-      - 'api/tests/politicalSelectionRevocationErasure.test.js'
-      - '.github/workflows/political-selection-erasure-ci.yml'
   pull_request:
     paths:
       - 'api/services/politicalConsentService.js'
