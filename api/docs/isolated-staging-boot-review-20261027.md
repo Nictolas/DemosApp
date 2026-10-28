@@ -254,3 +254,89 @@ non il progetto Supabase effettivo.
 
 Nessun merge, deploy, modifica infrastrutturale, DDL/GRANT, accesso a segreti,
 copia di dati reali, restore o dismissione di staging autorizzati da questa PR.
+
+---
+
+## Decisione 28/10/2026: staging gratuito, solo CI sintetica (autorizzata come piano)
+
+**Scelta del titolare:** nessun costo nuovo, provisioning, merge, deploy,
+modifica Render/Supabase, DDL/GRANT, credenziale, evento o oggetto B2 reale.
+Il piano permette i test sintetici già autorizzati, non abilita provider.
+
+### Evidenze indipendenti (read-only)
+
+- Repository `Nictolas/DemosApp` **pubblico**: GitHub Actions con runner
+  standard GitHub-hosted è gratuito per repository pubblici secondo
+  https://docs.github.com/en/actions/concepts/billing-and-usage .
+  Non usare larger runners o servizi a pagamento; rivalutare il costo se
+  il repository diventasse privato.
+- I nove web service Render di staging restano Free con ingress pubblico
+  `0.0.0.0/0`. Render consente inbound-IP rules sui web service solo ai
+  workspace Scale/Enterprise (https://render.com/docs/inbound-ip-rules).
+  Quindi un web service Free, anche con password, 404, CORS o RLS, NON
+  soddisfa la richiesta di staging GDPR non raggiungibile da Internet.
+- Il progetto Supabase `Demos-Staging` è attivo su PG17; sette tabelle
+  `public` con RLS e FORCE RLS true. Questo prova soltanto metadati di
+  schema: nessun login runtime Render, isolamento egress, provenienza
+  delle righe o attestazione B2 sono stati dimostrati.
+- PR Draft #369, HEAD di riferimento `01844bc`: i test del readiness-only
+  sono già 3/3 workflow verdi; non integra la full app.
+- PR Draft #376, HEAD `d50c2f3`: GitHub Actions run
+  https://github.com/Nictolas/DemosApp/actions/runs/40705138350
+  ha composto #374 e #376 SOLO nel worktree effimero, con 3/3 job
+  riusciti e 53/53 regressioni PG17 sintetiche riuscite.
+  Il provider B2 dei test è un mock. Non è un restore.
+
+### Soluzione zero costo, eseguibile dal cellulare senza accendere il PC
+
+1. **Unico staging di test attivo: GitHub Actions effimero** con PG17
+   locale al job, utenti/UUID/credenziali SQL interamente inventati,
+   FakeB2 e nessuna chiave Render/Supabase/Axiom/B2.
+2. **Readiness:** usare la suite esistente #369, comando
+   `node --test api/tests/isolatedStagingGuard.test.js` nel workflow.
+   Il 200 di `GET /__staging/health` certifica solo il piccolo processo
+   (`gdprReady=false`, `databaseConnected=false`). Tutte le API vere 404.
+   Nessun deploy Render richiesto o approvato.
+3. **Backend GDPR e integrazione:** usare il job già verde
+   `gdpr-composed-draft-synthetic` della #376 che monta #374 senza
+   creare un commit; verificare SHA e CI ad ogni nuovo HEAD.
+   PostgreSQL, ruoli, revoca, idempotenza, export, outbox, rollback
+   e ricevute simulano solo dati inventati.
+4. **Interfaccia Android:** build o prove con API finte in CI, oppure
+   in seguito test locali facoltativi sul PC con Docker/Supabase CLI
+   e loopback `127.0.0.1`; non esporre mai lo stack locale su Internet.
+   Supabase docs: https://supabase.com/docs/guides/local-development .
+5. **Demos-Staging e Render Free:** restano in sola lettura metadati;
+   non collegare fra loro servizi o provider, non eseguire migrazioni,
+   bootstrap, modifiche env, deploy o prove con righe personali reali.
+6. **Provider/ripristino reale:** segnare `VERIFICA NECESSARIA` o NO-GO
+   per identità e privilegi effettivi del writer Render, attestazione
+   esterna B2, quarantena indipendente dei provider e restore.
+   Nessuna deduzione da smoke-test HTTP, metadati o prove FakeB2.
+
+### Minacce residue e criteri di arresto
+
+- I runner GitHub Actions possono avere rete in uscita: l'assenza di
+  credenziali e i mock mitigano il rischio, ma non provano un blocco
+  indipendente dell'egress. Non affermare `isolamento di rete verificato`.
+- Nessun dato reale e nessun accesso a URL, secret, bucket o credential
+  di provider è ammesso nei test di questa fase.
+- I runner standard sono gratuiti qui perché il repo è pubblico;
+  evitare upgrade, runner specializzati, asset extra e nuove risorse.
+- La fase funzionale con i provider reali non è attestabile tramite i
+  soli test gratuiti correnti: non declassare un gate per dichiarare GO.
+- I nove staging Render non vanno sospesi o eliminati senza inventario
+  delle dipendenze esterne e consenso specifico; risparmio non provato.
+- Non spostare la vecchia configurazione `functional-integration-v0`
+  sul database Supabase-Staging, non rieseguire DDL/bootstrap storico.
+- Tutti i report devono riportare: ID canonico CHECKLIST MASTER, HEAD,
+  run CI, limite della prova, azione successiva e data; i sotto-task
+  PR/GH/REL non aggiungono peso ai 240 task della roadmap.
+
+### Gate per avanzare oltre i test sintetici
+
+Prima di qualunque staged runtime/RC Android con dati o provider occorrono
+una nuova autorizzazione specifica e prove effettive di: isolamento
+ingress/egress, identità ACL/RLS del writer reale, integrità e freschezza
+B2, quarantine/restore, matrice conservazione approvata. Nessun GO
+automatico; issue #296 OPEN/NO-GO.
