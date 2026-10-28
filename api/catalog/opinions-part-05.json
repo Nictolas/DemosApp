@@ -1,0 +1,34 @@
+[
+  {
+    "id": "trasporto_pubblico_gratuito",
+    "text": "Trasporto pubblico gratuito",
+    "gradi_opinione": [
+      "CO"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Gratuità del trasporto pubblico urbano locale, finanziata con risorse pubbliche e coordinata con l'ente affidante e i contratti di servizio.\n\n**Dove e risultati.** Tallinn ha introdotto nel 2013 il trasporto pubblico gratuito per i residenti. Studi sui primi anni indicano un incremento dell'utilizzo, ma non un corrispondente abbandono massiccio dell'auto privata. I risultati di una città non sono automaticamente trasferibili ad altri Comuni.\n\n✔️ Possibili benefici: accessibilità economica e possibile aumento dei passeggeri.\n❌ Criticità: copertura del mancato introito e necessità di più corse se cresce la domanda.\n\n**Fonte:** [Studio sui trasporti gratuiti di Tallinn](https://link.springer.com/article/10.1007/s11116-016-9695-5)."
+  },
+  {
+    "id": "treni_regionali_gratuiti",
+    "text": "Treni regionali gratuiti",
+    "gradi_opinione": [
+      "R"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Azzeramento del prezzo dei biglietti per i servizi ferroviari regionali, finanziando con risorse pubbliche i ricavi tariffari mancanti, nei limiti dei contratti e delle competenze.\n\n**Dove e risultati.** Non si deve equiparare automaticamente la gratuità ferroviaria a quella dei trasporti urbani. Come confronto parziale, Tallinn (Estonia) ha introdotto nel 2013 il trasporto pubblico urbano gratuito per residenti; uno studio ha rilevato un aumento d'uso del 14% dopo circa un anno, ma effetti limitati sul passaggio dall'automobile ai mezzi. Non costituisce una valutazione delle ferrovie regionali italiane.\n\n✔️ **Possibili vantaggi:** accessibilità economica e possibile aumento della domanda.\n❌ **Possibili svantaggi:** costo per la Regione, possibile sovraffollamento e necessità di potenziare le corse.\n\n**Fonte:** [Studio su Tallinn – Transportation](https://link.springer.com/article/10.1007/s11116-016-9695-5)."
+  },
+  {
+    "id": "verde_pubblico_e_giardini",
+    "text": "Verde pubblico e giardini",
+    "gradi_opinione": [
+      "CO"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Creazione e cura di giardini, alberature, parchi e altre aree verdi fruibili pubblicamente. La quantità di verde non basta: contano accessibilità, distribuzione nei quartieri, biodiversità e manutenzione.\n\n**Dove e risultati.** L'ISTAT rileva nei capoluoghi italiani disponibilità di verde, forestazione urbana e aree accessibili. Nell'indagine sull'ambiente urbano 2023 registra un aumento delle aree verdi fruibili e della forestazione urbana, pur con grandi differenze territoriali. La semplice piantumazione non garantisce sopravvivenza degli alberi senza irrigazione e cure.\n\n✔️ **Possibili vantaggi:** ombreggiamento, miglioramento del comfort urbano, spazio ricreativo e sostegno alla biodiversità.\n❌ **Possibili svantaggi:** costi permanenti di cura, consumo idrico per specie inadatte, competizione per lo spazio urbano.\n\n**Fonte:** [ISTAT – Ambiente urbano 2023](https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2023/)."
+  },
+  {
+    "id": "videosorveglianza_in_spazi_pubblici",
+    "text": "Videosorveglianza in spazi pubblici",
+    "gradi_opinione": [
+      "CO"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Installazione di telecamere su strade, piazze e altri luoghi aperti al pubblico per finalità lecite e specifiche. Non equivale al riconoscimento facciale generalizzato o alla registrazione indiscriminata di persone.\n\n**Dove e risultati.** Il Garante Privacy richiede basi giuridiche adeguate, informazione, proporzionalità, sicurezza dei dati e valutazione dei rischi. Per impianti comunali a fini di sicurezza urbana possono essere necessari i presupposti di settore e specifici accordi con la Prefettura. La mera installazione non dimostra automaticamente una diminuzione dei reati.\n\n✔️ **Possibili vantaggi:** documentazione di episodi e supporto alle indagini nei limiti consentiti.\n❌ **Possibili svantaggi:** sorveglianza eccessiva, violazioni della riservatezza, costi e rischi di accessi abusivi.\n\n**Fonti:** [Garante – FAQ videosorveglianza](https://www.garanteprivacy.it/faq/videosorveglianza); [Provvedimento su telecamere comunali](https://www.garanteprivacy.it/home/docweb/-/docweb-display/docweb/10196164)."
+  }
+]
