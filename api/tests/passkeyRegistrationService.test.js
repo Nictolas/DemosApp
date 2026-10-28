@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 process.env.IDENTITY_HMAC_SECRET = 'test-secret-for-demos-identity-key-1234567890';
 
-const { completePasskeyRegistrationAfterCie } = require('../services/passkeyRegistrationService');
+const { completePasskeyRegistrationAfterCie, completePasskeyRegistrationWithoutCie } = require('../services/passkeyRegistrationService');
 
 function makePool({ duplicatePerson = false } = {}) {
   const calls = [];
@@ -136,4 +136,14 @@ test('Passkey: sesso CIE certificato viene salvato prima di COMMIT', async () =>
   assert.ok(identity >= 0 && sex > identity && commit > sex);
   assert.deepEqual(calls[sex].params, ['F', calls[sex].params[1]]);
   assert.equal(calls.some(c => c.sql === 'ROLLBACK'), false);
+});
+
+test('passkey progressiva: attributi M/F e fiscalNumber forgiati dal browser non diventano CIE', async () => {
+  const { calls, pool } = makePool();
+  const input = { ...registration(), sesso: 'F', genere: 'd', verifiedCieSex: 'M', fiscalNumber: 'TINIT-FORGERY' };
+  const result = await completePasskeyRegistrationWithoutCie({ registration: input }, pool);
+  assert.equal(result.created, true);
+  assert.equal(calls.some(c => c.sql.startsWith('UPDATE users SET sesso')), false);
+  assert.equal(calls.some(c => c.sql.startsWith('INSERT INTO identity_verifications')), false);
+  assert.equal(calls.some(c => c.sql === 'COMMIT'), true);
 });
