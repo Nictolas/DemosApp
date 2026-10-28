@@ -461,6 +461,9 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     const { userId } = req.params;
     const updateData = req.body;
+    if (!updateData || typeof updateData !== 'object' || Array.isArray(updateData)) {
+      return res.status(400).json({ success: false, error: 'Dati di modifica non validi' });
+    }
 
     if (Object.prototype.hasOwnProperty.call(updateData || {}, 'ruolo')) {
       return res.status(410).json({
@@ -471,7 +474,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     }
     
     console.log('🔍 DEBUG - userId:', userId);
-    console.log('🔍 DEBUG - updateData:', updateData);
+    // Do not log the payload: it may contain birth dates, gender or avatar data.
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
@@ -501,7 +504,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
         if (key === 'grado_elezione' || key === 'grado_candidatura') {
           filteredData[key] = normalizeGrado(updateData[key]);
-          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
+          // Profile fields may be sensitive; do not log their values.
         } 
         else {
           filteredData[key] = updateData[key];
@@ -514,9 +517,9 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       const compressedGenere = compressGender(filteredData.genere);
       if (compressedGenere) {
         filteredData.genere = compressedGenere;
-        console.log(`🔧 Genere compresso:`, updateData.genere, '→', compressedGenere);
+        // Do not log the user's gender.
       } else {
-        console.warn(`⚠️ Genere non riconosciuto, non compresso:`, filteredData.genere);
+        console.warn('⚠️ Genere non riconosciuto nel payload amministrativo');
       }
     }
     
@@ -566,7 +569,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     }
     
     const updatedUser = result.rows[0];
-    console.log('✅ Utente aggiornato:', updatedUser.email);
+    console.log('✅ Utente aggiornato');
     
     // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
     let dataNascitaFormattata = null;
@@ -589,18 +592,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       }
     };
     
-    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
-      id: responseData.user.id,
-      nome: responseData.user.nome,
-      cognome: responseData.user.cognome,
-      email: responseData.user.email,
-      genere: responseData.user.genere,
-      ruolo: responseData.user.ruolo,
-      paese_residenza: responseData.user.paese_residenza,
-      regione_residenza: responseData.user.regione_residenza,
-      paese_elezione: responseData.user.paese_elezione,
-      regione_elezione: responseData.user.regione_elezione
-    });
+    // Avoid logging the response data: personal data is returned only to the authorized admin.
     
     res.json(responseData);
     
@@ -609,8 +601,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: 'Errore interno del server'
     });
   }
 });
