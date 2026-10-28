@@ -58,8 +58,8 @@ test('cleanup revoca è schema-aware e cancella tutte le superfici utente presen
         const column = presentColumns.get(table);
         return { rows: column ? [{ column_name: column }] : [], rowCount: column ? 1 : 0 };
       }
-      if (s.startsWith('DELETE FROM "')) {
-        const match = s.match(/^DELETE FROM "([^"]+)"/);
+      if (s.startsWith('DELETE FROM public."')) {
+        const match = s.match(/^DELETE FROM public\."([^"]+)"/);
         const table = match?.[1];
         deletedTables.push(table);
         return { rows: [], rowCount: deleteCounts.get(table) || 0 };
@@ -67,7 +67,7 @@ test('cleanup revoca è schema-aware e cancella tutte le superfici utente presen
       if (s.includes('FROM information_schema.columns response_cols')) {
         return { rows: [{ column_name: 'legacy_opinion' }], rowCount: 1 };
       }
-      if (s.startsWith('UPDATE users SET "legacy_opinion" = NULL')) {
+      if (s.startsWith('UPDATE public.users SET "legacy_opinion" = NULL')) {
         return { rows: [], rowCount: 1 };
       }
       if (s.startsWith('SELECT EXISTS') && params[0] === 'users' && params[1] === 'opinione_proposta_id') {

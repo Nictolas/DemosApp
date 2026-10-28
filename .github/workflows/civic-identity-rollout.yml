@@ -45,10 +45,17 @@ jobs:
         run: |
           node --check middleware/civicIdentity.js
           node --check services/civicIdentityPolicy.js
-          node --test \
+          # Execute node:test files directly, one per process. Node 22's
+          # --test parent/worker IPC intermittently fails to deserialize the
+          # politicalRepresentativeSelection smoke test even at concurrency=1.
+          # Direct node execution still emits TAP and exits nonzero on failures,
+          # without the extra test runner IPC transport.
+          for suite in \
             tests/civicIdentityRollout.test.js \
             tests/civicIdentityAdminException.test.js \
             tests/civicIdentityScope.smoke.test.js \
             tests/politicalRepresentativeSelection.smoke.test.js \
             tests/politicalSelectionRoute.test.js \
-            tests/politicalConsentScope.smoke.test.js
+            tests/politicalConsentScope.smoke.test.js; do
+            node "$suite" || exit 1
+          done

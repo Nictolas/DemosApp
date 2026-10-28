@@ -158,6 +158,9 @@ test('revocation deletes political opinions and records revocation before commit
       sequence.push('UPSERT_CONSENT_REVOKED');
       return { rows: [], rowCount: 1 };
     }
+    if (s.includes('FROM information_schema.columns') && s.includes("table_name = 'users'") && s.includes('column_name = ANY')) {
+      return { rows: [], rowCount: 0 };
+    }
     if (s.includes('FROM information_schema.columns response_cols')) {
       return { rows: [], rowCount: 0 };
     }
@@ -203,6 +206,9 @@ test('opinion deletion failure rolls back revocation and never records a durable
     if (s.startsWith('INSERT INTO user_consents')) {
       sequence.push('UPSERT_CONSENT_REVOKED');
       return { rows: [], rowCount: 1 };
+    }
+    if (s.includes('FROM information_schema.columns') && s.includes("table_name = 'users'") && s.includes('column_name = ANY')) {
+      return { rows: [], rowCount: 0 };
     }
     if (s.includes('FROM information_schema.columns response_cols')) {
       return { rows: [], rowCount: 0 };
