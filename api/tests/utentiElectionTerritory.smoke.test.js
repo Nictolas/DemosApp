@@ -49,3 +49,22 @@ test('admin statistics keep residence and election-territory visualizations sepa
   assert.match(page, /\.filter\(\(\[city\]\) => city !== 'N\/A'/);
   assert.doesNotMatch(page, /user\.comune_residenza\s*\|\|\s*user\.comune_elezione/);
 });
+
+test('provisional geographic charts do not persist electoral territory as residence', () => {
+  const page = read('client/src/pages/Utenti/index.tsx');
+  const route = read('api/routes/users/search.js');
+
+  assert.match(page, /const usersByRegionWithEstimates = utenti\.reduce/);
+  assert.match(page, /const usersByCityWithEstimates = utenti\.reduce/);
+  assert.match(page, /const usersWithProvisionalRegion = politicians\.filter/);
+  assert.match(page, /const usersWithProvisionalMunicipality = politicians\.filter/);
+  assert.match(page, /user\.ruolo === 'P' && hasDocumentedPlace\(user\.regione_elezione\)/);
+  assert.match(page, /user\.ruolo === 'P' && user\.grado_elezione === 'CO' && hasDocumentedPlace\(user\.comune_elezione\)/);
+  assert.match(page, /Residenza registrata: \{stats\.usersWithKnownRegion\}/);
+  assert.match(page, /Regione elettorale stimata: \{stats\.usersWithProvisionalRegion\}/);
+  assert.match(page, /riferimenti comunali stimati: \{stats\.usersWithProvisionalMunicipality\}/);
+  assert.match(page, /data=\{preparePieData\(stats\.usersByRegionWithEstimates\)\}/);
+  assert.match(page, /Object\.entries\(stats\.usersByCityWithEstimates\)/);
+  assert.doesNotMatch(page, /const usersByRegion = utenti\.reduce[\s\S]*?acc\[region\][\s\S]*?user\.regione_elezione/);
+  assert.match(route, /up\.regione_residenza[\s\S]*?AS regione_residenza/);
+});
