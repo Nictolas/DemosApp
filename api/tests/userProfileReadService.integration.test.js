@@ -105,3 +105,14 @@ pgTest('PostgreSQL 17: aggregate preflight reports counts without identifiers', 
     assert.equal(Object.hasOwn(report, 'user_id'), false);
   });
 });
+
+pgTest('PostgreSQL 17: strict owner mode respects a profile NULL, while compatibility mode still falls back', async () => {
+  await withSyntheticDatabase({}, async (db) => {
+    await db.query('INSERT INTO users(id, comune_residenza) VALUES ($1,$2)', [USER_A, 'Pisa']);
+    await db.query('INSERT INTO user_profile(user_id, comune_residenza) VALUES ($1,$2)', [USER_A, null]);
+    const compatible = await loadUserResidence(db, USER_A);
+    const canonical = await loadUserResidence(db, USER_A, { strictProfileOwner: true });
+    assert.equal(compatible.comune_residenza, 'Pisa');
+    assert.equal(canonical.comune_residenza, null);
+  });
+});
