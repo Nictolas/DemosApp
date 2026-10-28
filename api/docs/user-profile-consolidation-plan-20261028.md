@@ -12,7 +12,7 @@ Il ramo introduce la **lettura** centralizzata dei quattro campi di residenza in
 
 - 1.857 record `users`, 1.717 `user_profile`, 140 account senza profilo; tutti PERSON.
 - 26 colonne condivise escluse le colonne temporali.
-- Avatar: 86 differenze di testo equivalenti come JSON; 4 avatar solo in users con profilo esistente e 8 avatar in account senza profilo.
+- Avatar: 86 avatar presenti in entrambe le tabelle e uguali semanticamente come JSON; **1.476 avatar validi solo in users con profilo già esistente**, più **138 avatar validi in account senza profilo**. Totale **1.614 da preservare**. Nessun avatar divergente quando valorizzato in entrambe, nessun JSON non valido. La vecchia stima 4+8=12 era errata.
 - Elezioni: 37 `grado_elezione` solo nel profilo e 7 contrasti non null; due `grado_candidatura` solo nel profilo.
 - Date di nascita: 2 contrasti, di cui uno con anno differente.
 - Il precedente aggiornamento massivo di cittadinanza `it` ha alterato `users.updated_at` sugli utenti toccati: **non usarlo** per stabilire quale fonte sia corretta.
@@ -32,7 +32,7 @@ Il trigger SQL `users_sync_political_territories` si attiva dopo INSERT/UPDATE d
 ## Gate prima di qualunque pulizia schema
 
 1. Completare inventario **globale** delle letture/scritture SQL, query dinamiche, trigger, funzioni e job; i 41 riferimenti precedenti non sono esaustivi.
-2. Progettare ed esercitare su staging un backfill transazionale idempotente dei 140 profili e 12 avatar, senza introdurre falsi dati di sesso/cittadinanza.
+2. Progettare ed esercitare su staging un backfill transazionale idempotente dei 140 profili e 1.614 avatar, senza introdurre falsi dati di sesso/cittadinanza.
 3. Riconciliare 7 contrasti di grado_elezione e 2 date, con fonte autorevole, senza dati personali nel Google Sheet.
 4. Testare le risposte per E, P, organizzazioni, account senza profilo e CIE; testare GDPR export, revoca, cancellazione e autorizzazioni.
 5. Migrare tutti i restanti lettori/scrittori, il trigger, e la sincronizzazione dei territori in una **migrazione versionata e revisionata**.
@@ -89,3 +89,13 @@ Non creare indici in produzione in questa PR Draft, non riscrivere ancora le que
 - Quattro workflow CI dopo il riallineamento: [profili](https://github.com/Nictolas/DemosApp/actions/runs/40733994487) 38 unit/smoke + 12 PG17; [identità civica](https://github.com/Nictolas/DemosApp/actions/runs/40733994453) 21; [CIE](https://github.com/Nictolas/DemosApp/actions/runs/40733994388) 2; [tabella sesso CIE](https://github.com/Nictolas/DemosApp/actions/runs/40733994342) 4. **77/77 test superati, 0 falliti.**
 
 NO-GO invariato: nessun merge, rilascio, DROP o migrazione di dati produttivi. Lo staging Supabase `public` non replica ancora lo schema e i 140 profili/12 avatar reali restano intatti.
+
+## Ricognizione integrale dei 26 campi e nuovo test di backfill (28/10/2026)
+
+Il nuovo controllo aggregato, eseguito con le sole SELECT autorizzate su produzione, ha corretto una sottostima degli avatar: `user_profile.avatar_config` è ancora NULL in **1.476 profili esistenti** mentre `users.avatar_config` contiene JSON valido; **138 utenti senza profilo** possiedono un avatar valido nel record users. Sono quindi **1.614 avatar recuperabili**, non 12. Ci sono 86 coppie con avatar JSON semanticamente uguali, 0 conflitti JSON semantici, 0 legacy JSON invalidi.
+
+La verifica aggregata degli altri 25 campi duplicati mostra: 0 discrepanze di cittadinanza/residenza; `grado_elezione` ha 37 valori solo nel profilo e 7 conflitti quando non nulli; `grado_candidatura` ha 2 valori solo nel profilo; `data_nascita` ha 2 conflitti non nulli. Non modificare automaticamente dati politici o anagrafici discordanti.
+
+Il file `api/database/qa-user-profile-full-backfill-rehearsal.sql`, versionato nella PR, simula in una sotto-transazione **tutti i 26 campi** soltanto per profili mancanti; poi recupera avatar JSON validi per i profili esistenti **solo se il loro avatar è NULL**, in modo ripetibile. Controlla un grado elettorale conflittuale, la residenza canonica, l'avatar già presente, il profilo nuovo, la salvaguardia dei territori non legacy e l'assenza di effetti al termine (rollback). Test passato in QA privata di staging e in CI PostgreSQL 17; nessuna tabella `public` modificata.
+
+Il preflight read-only `api/database/user-profile-preflight-readonly.sql` espone ora conteggi aggregati distinti dei profili senza avatar e dei profili assenti con avatar, più il totale recuperabile. Questa è la fonte ripetibile per un nuovo controllo appena prima di qualsiasi migrazione reale: **non hardcodare 1.614 o 140 in una migrazione di produzione**. La PR non è una migrazione produttiva, e lo staging operativo `public` non replica ancora l'intero schema.
