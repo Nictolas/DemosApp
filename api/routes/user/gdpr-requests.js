@@ -97,11 +97,14 @@ router.post('/', verifyToken, async (req, res) => {
       '(id, user_id, request_type, request_data, status) ' +
       "VALUES ($1::uuid, $2, $3, $4::jsonb, 'pending') " +
       'ON CONFLICT (id) DO NOTHING ' +
-      'RETURNING id, request_type, status, created_at',
+      'RETURNING id, user_id, request_type, status, created_at',
       [requestId, userId, tipo, data]
     );
     let stored = result.rows?.[0];
-    if (stored && (!stored.id || stored.status !== 'pending')) {
+    if (stored && (result.rows.length !== 1 ||
+        String(stored.id).toLowerCase() !== requestId ||
+        String(stored.user_id) !== String(userId) ||
+        stored.request_type !== tipo || stored.status !== 'pending')) {
       throw Error('GDPR_RIGHTS_REQUEST_NOT_PERSISTED');
     }
     const replay = !stored;
@@ -123,7 +126,8 @@ router.post('/', verifyToken, async (req, res) => {
         });
       }
     }
-    if (!stored?.id || (!replay && stored.status !== 'pending')) {
+    if (!stored?.id || String(stored.id).toLowerCase() !== requestId ||
+        stored.request_type !== tipo || (!replay && stored.status !== 'pending')) {
       throw Error('GDPR_RIGHTS_REQUEST_NOT_PERSISTED');
     }
     return res.status(replay ? 200 : 201).json({
