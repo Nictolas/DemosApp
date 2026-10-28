@@ -36,7 +36,7 @@ test('catalog is server-owned, never imports votes, users or secrets',()=>{
 });
 
 test('catalog growth/shrink is managed by release; runtime has no fixed question count',()=>{
-  const source=readFileSync(resolve(__dirname,'../services/opinionCatalog.js'),'utf8');
+  const source=readFileSync(path.resolve(__dirname,'../services/opinionCatalog.js'),'utf8');
   assert.doesNotMatch(source,/opinions\.length\s*!==\s*94/);
   assert.match(source,/const VALID_GRADES=new Set/);
 });
