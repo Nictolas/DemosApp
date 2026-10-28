@@ -38,9 +38,12 @@ SELECT
   COUNT(*) FILTER (WHERE NOT has_profile AND legacy_birth IS NOT NULL) AS missing_profiles_with_birth,
   COUNT(*) FILTER (WHERE NOT has_profile AND legacy_avatar IS NOT NULL) AS missing_profiles_with_avatar,
   COUNT(*) FILTER (WHERE has_profile AND legacy_avatar IS NOT NULL AND profile_avatar IS NULL) AS legacy_only_avatars_with_profile,
+  COUNT(*) FILTER (WHERE NOT has_profile AND legacy_avatar IS NOT NULL AND pg_input_is_valid(legacy_avatar, 'jsonb')) AS missing_profile_recoverable_avatars,
+  COUNT(*) FILTER (WHERE has_profile AND legacy_avatar IS NOT NULL AND profile_avatar IS NULL AND pg_input_is_valid(legacy_avatar, 'jsonb')) AS existing_profile_recoverable_avatars,
+  COUNT(*) FILTER (WHERE (NOT has_profile OR profile_avatar IS NULL) AND legacy_avatar IS NOT NULL AND pg_input_is_valid(legacy_avatar, 'jsonb')) AS total_recoverable_avatars,
   COUNT(*) FILTER (WHERE has_profile AND legacy_avatar IS NOT NULL AND profile_avatar IS NOT NULL
                   AND legacy_avatar_jsonb IS DISTINCT FROM profile_avatar) AS avatar_semantic_conflicts,
-  COUNT(*) FILTER (WHERE has_profile AND legacy_avatar IS NOT NULL AND legacy_avatar_jsonb IS NULL) AS invalid_legacy_avatar_json,
+  COUNT(*) FILTER (WHERE legacy_avatar IS NOT NULL AND NOT pg_input_is_valid(legacy_avatar, 'jsonb')) AS invalid_legacy_avatar_json,
   COUNT(*) FILTER (WHERE has_profile AND legacy_grade IS NULL AND profile_grade IS NOT NULL) AS grades_only_profile,
   COUNT(*) FILTER (WHERE has_profile AND legacy_grade IS NOT NULL AND profile_grade IS NOT NULL
                   AND legacy_grade IS DISTINCT FROM profile_grade) AS grades_conflicting,
