@@ -26,8 +26,8 @@ for (const file of [
 
 test('legacy execution wrapper refuses to run before opening a database connection', () => {
   const runner = read('api/esegui-insert-senatori.js');
-  assert.doesNotMatch(runner, /require\\(['\"](?:pg|dotenv)['\"]\\)/);
-  assert.doesNotMatch(runner, /\\bnew\\s+Pool\\s*\\(/);
+  assert.doesNotMatch(runner, /require\(['"](?:pg|dotenv)['"]\)/);
+  assert.doesNotMatch(runner, /\bnew\s+Pool\s*\(/);
   const invoked = spawnSync(process.execPath, ['api/esegui-insert-senatori.js'], {
     cwd: root,
     encoding: 'utf8',
