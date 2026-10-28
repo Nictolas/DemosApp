@@ -47,6 +47,8 @@ pgTest('PostgreSQL 17: private synthetic staging fixture has parity, isolation, 
     await db.query(rollbackTest); // All write paths run within rollback-only subtransaction.
     const fullBackfillRehearsal = fs.readFileSync(path.join(databasePath, 'qa-user-profile-full-backfill-rehearsal.sql'), 'utf8');
     await db.query(fullBackfillRehearsal); // All 26 duplicated fields; preserves existing canonical data and rolls back.
+    const accountDeletionTest = fs.readFileSync(path.join(databasePath, 'qa-user-profile-deletion-rollback-test.sql'), 'utf8');
+    await db.query(accountDeletionTest); // FK cascade for three synthetic tables ONLY; NOT complete GDPR erasure.
     const after = (await db.query(`SELECT
       (SELECT COUNT(*)::integer FROM qa_user_profile_20261028.users) AS users,
       (SELECT COUNT(*)::integer FROM qa_user_profile_20261028.user_profile) AS profiles,
