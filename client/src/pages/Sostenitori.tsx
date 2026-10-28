@@ -63,7 +63,7 @@ interface TotaleCounts {
   totale: number;
 }
 
-const SEX_COLORS = { M: '#3b82f6', F: '#ec4899' } as const; // Sesso anagrafico certificato
+const SEX_COLORS = { M: '#3b82f6', F: '#ec4899' } as const; // Valori M/F registrati; provenienza e verifica CIE non attestate da questo campo
 
 export default function Sostenitori() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -438,12 +438,12 @@ const SostenitoriContent = ({
 
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* === INIZIO MODIFICHE GRAFICI === */}
-      <Card className="bg-white"><CardHeader><CardTitle>Sesso anagrafico certificato (CIE)</CardTitle></CardHeader><CardContent className="h-80">
+      <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per sesso</CardTitle><CardDescription>M/F registrati, anche storici o inferiti: non necessariamente certificati CIE.</CardDescription></CardHeader><CardContent className="h-80">
         {sexChartData.length === 0 ? (
           <p className="flex h-full items-center justify-center text-center text-muted-foreground">
             {stats.sexSuppressed
               ? 'Dati nascosti: gruppo troppo piccolo per tutelare la privacy.'
-              : 'Nessun sesso anagrafico certificato disponibile.'}
+              : 'Nessun dato sul sesso disponibile.'}
           </p>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
