@@ -47,3 +47,24 @@ test('PostgreSQL function blocks keep valid dollar-quote delimiters', () => {
   assert.equal(closings, openings);
   assert.doesNotMatch(sql, /AS \$\n/);
 });
+
+
+test('capability migration rejects unverifiable legacy politicians before inventing ACTIVE mandates', () => {
+  const uncommented = sql.split('\n').filter(x => !x.trimStart().startsWith('--')).join('\n');
+  // Legacy P/CP is not evidence of a currently held office; fail-closed.
+  assert.match(uncommented, /DO \$unverified_mandate_guard\$/);
+  assert.match(uncommented, /unresolved_count > 0/);
+  assert.match(uncommented, /RAISE EXCEPTION/);
+  assert.match(uncommented, /NOT EXISTS \(\s*SELECT 1 FROM political_mandates pm/);
+  assert.match(uncommented, /pm\.user_id = u\.id AND pm\.status = 'ACTIVE'/);
+  assert.doesNotMatch(uncommented, /INSERT INTO political_mandates\s*\(/i);
+  assert.match(uncommented, /BEGIN;/);
+  assert.match(uncommented, /COMMIT;/);
+});
+
+test('legacy role refresh remains explicit and migration does not erase existing mandates', () => {
+  const uncommented = sql.split('\n').filter(x => !x.trimStart().startsWith('--')).join('\n');
+  assert.match(uncommented, /refresh_users_legacy_role/);
+  assert.doesNotMatch(uncommented, /\bDELETE\s+FROM\s+political_mandates\b/i);
+  assert.doesNotMatch(uncommented, /\bUPDATE\s+political_mandates\s+SET\b/i);
+});
