@@ -76,3 +76,32 @@ test('single-user admin read contains canonical sex but profile updates cannot o
     assert.doesNotMatch(permitted[1], /'sesso'|'genere'/);
   }
 });
+
+
+test('le statistiche M/F storiche non vengono presentate come CIE certificate', () => {
+  const read = relative => fs.readFileSync(path.resolve(__dirname, '../..', relative), 'utf8');
+  const charts = [
+    'client/src/components/sondaggi/GenereChart.tsx',
+    'client/src/pages/Sondaggi/components/GenereChart.tsx',
+    'client/src/pages/StatisticheOpinione/components/GenereChart.tsx',
+    'client/src/pages/Sostenitori.tsx'
+  ];
+  for (const file of charts) {
+    const source = read(file);
+    assert.match(source, /Distribuzione per sesso/);
+    assert.match(source, /storici o inferiti/);
+    assert.match(source, /non necessariamente/);
+    assert.doesNotMatch(source, /Distribuzione per sesso anagrafico \(CIE\)/);
+    assert.doesNotMatch(source, /Sesso anagrafico certificato \(CIE\)/);
+  }
+  const polls = read('api/routes/sondaggi.js');
+  const opinions = read('api/routes/opinioni/stats.js');
+  for (const route of [polls, opinions]) {
+    assert.match(route, /sesso IN \('M','F'\)/);
+    assert.doesNotMatch(route, /Statistiche per sesso anagrafico CIE|Breakdowns CIE/);
+  }
+  // La fonte CIE si dimostra nella verifica dell'identita', non dalla presenza di M/F.
+  const cie = read('api/utils/cieSex.js');
+  assert.match(cie, /sexFromVerifiedCieGender/);
+  assert.match(cie, /account_type = 'PERSON'/);
+});
