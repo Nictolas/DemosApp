@@ -108,14 +108,38 @@ class PrivacyErasureLedgerService {
     // unexpected table/column PUBLIC grants or exposed API-role permissions.
     await this.assertProtectedLedger(client);
     const eventKey = crypto.randomUUID();
+    const subjectUserId = String(userId);
+    const detailsJson = JSON.stringify(details);
+    if (typeof detailsJson !== 'string') {
+      const error = new Error('GDPR_LEDGER_INSERT_NOT_CONFIRMED');
+      error.code = 'GDPR_LEDGER_INSERT_NOT_CONFIRMED';
+      throw error;
+    }
     const result = await client.query(
       `INSERT INTO public.privacy_erasure_ledger
         (event_key, subject_user_id, event_type, occurred_at, details)
        VALUES ($1, $2, $3, NOW(), $4::jsonb)
-       RETURNING event_key, subject_user_id, event_type, occurred_at, details`,
-      [eventKey, String(userId), eventType, JSON.stringify(details)]
+       RETURNING event_key, subject_user_id, event_type, occurred_at, details,
+         details = $4::jsonb AS details_match`,
+      [eventKey, subjectUserId, eventType, detailsJson]
     );
-    return result.rows[0];
+    // PostgreSQL BEFORE INSERT triggers may silently suppress a row
+    // (RETURN NULL) or rewrite its subject/payload. A successful SQL query
+    // alone is NOT proof that the privacy event was durably recorded.
+    // Throw inside the caller's transaction so consent/deletion rolls back.
+    const row = result.rows?.[0];
+    if (result.rowCount !== 1 || result.rows?.length !== 1 ||
+        row?.event_key !== eventKey ||
+        row.subject_user_id !== subjectUserId ||
+        row.event_type !== eventType ||
+        row.details_match !== true ||
+        !row.occurred_at) {
+      const error = new Error('GDPR_LEDGER_INSERT_NOT_CONFIRMED');
+      error.code = 'GDPR_LEDGER_INSERT_NOT_CONFIRMED';
+      throw error;
+    }
+    const { details_match: _verified, ...event } = row;
+    return event;
   }
 
   // Recovery/export MUST run with SQL visibility of the complete ledger.

@@ -191,13 +191,28 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
 
       // Both actual HTTP routes keep event recording and preceding mutations
       // within one SQL transaction. Model those steps against real PG17.
-      for (const failureMode of ['ledger_missing','rls_disabled','api_role_grant']) {
+      for (const failureMode of ['ledger_missing','rls_disabled','api_role_grant',
+        'ledger_insert_suppressed','ledger_subject_rewritten','ledger_details_rewritten']) {
         if (failureMode==='ledger_missing') {
           await pool.query('DROP TABLE public.privacy_erasure_ledger');
         } else if (failureMode==='rls_disabled') {
           await pool.query('ALTER TABLE public.privacy_erasure_ledger DISABLE ROW LEVEL SECURITY');
-        } else {
+        } else if (failureMode==='api_role_grant') {
           await pool.query('GRANT INSERT ON public.privacy_erasure_ledger TO anon');
+        } else {
+          // PG17-only adversarial trigger: a successful INSERT command may
+          // return zero rows or a modified GDPR event without throwing.
+          const action = failureMode==='ledger_insert_suppressed'
+            ? 'RETURN NULL;'
+            : failureMode==='ledger_subject_rewritten'
+              ? "NEW.subject_user_id := 'synthetic-wrong-subject'; RETURN NEW;"
+              : "NEW.details := '{\"altered\":true}'::jsonb; RETURN NEW;";
+          await pool.query(`CREATE FUNCTION public.gdpr_ci_mutate_event()
+            RETURNS trigger LANGUAGE plpgsql AS $trigger$
+            BEGIN ${action} END $trigger$`);
+          await pool.query(`CREATE TRIGGER gdpr_ci_mutate_event
+            BEFORE INSERT ON public.privacy_erasure_ledger
+            FOR EACH ROW EXECUTE FUNCTION public.gdpr_ci_mutate_event()`);
         }
 
         for (const operation of ['political_consent_revoked','account_deleted']) {
@@ -220,7 +235,8 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
                 details:{source:'transactional-ci-fixture'}
               }),
               error=>error?.code===(failureMode==='ledger_missing'?
-                '42P01':'GDPR_LEDGER_SCHEMA_NOT_PROTECTED'),
+                '42P01':failureMode==='rls_disabled'||failureMode==='api_role_grant'
+                  ? 'GDPR_LEDGER_SCHEMA_NOT_PROTECTED':'GDPR_LEDGER_INSERT_NOT_CONFIRMED'),
               'ledger defect must prevent commit after earlier user changes'
             );
           } finally {
@@ -234,6 +250,10 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
           `,[userId]);
           assert.deepEqual(snapshot.rows,[{consent:true,choices:1}],
             failureMode+' / '+operation+' must roll back every user mutation');
+        }
+        if (failureMode.startsWith('ledger_') && failureMode!=='ledger_missing') {
+          await pool.query('DROP TRIGGER gdpr_ci_mutate_event ON public.privacy_erasure_ledger');
+          await pool.query('DROP FUNCTION public.gdpr_ci_mutate_event()');
         }
         // Reinstall/protect schema ONLY between fixture phases, never in a
         // user-facing request: also preserves the subsequent phases' safety.
