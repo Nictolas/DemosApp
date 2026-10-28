@@ -78,14 +78,9 @@ export const formatColumnValue = (value: any, columnName: string, user?: User) =
     return value.length > 30 ? value.substring(0, 30) + '...' : value;
   }
   
-  // Formatta genere
-  if (columnName === 'genere') {
-    const genderMap: Record<string, string> = {
-      'u': 'Uomo',
-      'd': 'Donna',
-      'a': 'Altro'
-    };
-    return genderMap[value] || value;
+  // Solo il dato canonico CIE M/F è rappresentabile come sesso anagrafico.
+  if (columnName === 'sesso') {
+    return value === 'M' ? 'Maschile' : value === 'F' ? 'Femminile' : 'Non disponibile';
   }
   
   // Formatta auth_method
