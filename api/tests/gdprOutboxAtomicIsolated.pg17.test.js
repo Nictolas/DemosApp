@@ -117,6 +117,63 @@ test('PG17 transactional event + outbox never loses #371 null-details protection
     await admin.query('REVOKE SELECT ON public.privacy_erasure_delivery_outbox FROM anon');
     assert.deepEqual(await counts(admin), {ledger: 0, outbox: 0});
 
+    // A BEFORE INSERT trigger can silently suppress/rewrite an event or its
+    // queue row. The outer transaction MUST roll back prior user mutations.
+    await admin.query(`
+      CREATE FUNCTION public.gdpr_ci_mutate_outbox_event()
+      RETURNS trigger LANGUAGE plpgsql AS $gdpr_ci$
+      BEGIN
+        CASE current_setting('gdpr_ci.event_mode', true)
+          WHEN 'suppressed' THEN RETURN NULL;
+          WHEN 'subject' THEN NEW.subject_user_id := 'synthetic-wrong-subject';
+          WHEN 'details' THEN NEW.details := '{"rewritten":true}'::jsonb;
+          WHEN 'key' THEN NEW.event_key := NEW.event_key || '-forged';
+        END CASE;
+        RETURN NEW;
+      END $gdpr_ci$;
+      CREATE TRIGGER gdpr_ci_mutate_outbox_event
+      BEFORE INSERT ON public.privacy_erasure_ledger
+      FOR EACH ROW EXECUTE FUNCTION public.gdpr_ci_mutate_outbox_event()
+    `);
+    for (const mode of ['suppressed', 'subject', 'details', 'key']) {
+      const client = await admin.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query("SELECT set_config('gdpr_ci.event_mode',$1,true)",[mode]);
+        await assert.rejects(Ledger.recordEvent(client,event()),
+          error => error?.code === 'GDPR_LEDGER_INSERT_NOT_CONFIRMED');
+      } finally {
+        await client.query('ROLLBACK');
+        client.release();
+      }
+      assert.deepEqual(await counts(admin),{ledger:0,outbox:0},
+        mode+' must roll back both synthetic tables');
+    }
+    await admin.query('DROP TRIGGER gdpr_ci_mutate_outbox_event ON public.privacy_erasure_ledger');
+    await admin.query('DROP FUNCTION public.gdpr_ci_mutate_outbox_event()');
+
+    await admin.query(`
+      CREATE FUNCTION public.gdpr_ci_suppress_outbox()
+      RETURNS trigger LANGUAGE plpgsql AS $gdpr_ci$
+      BEGIN RETURN NULL; END $gdpr_ci$;
+      CREATE TRIGGER gdpr_ci_suppress_outbox
+      BEFORE INSERT ON public.privacy_erasure_delivery_outbox
+      FOR EACH ROW EXECUTE FUNCTION public.gdpr_ci_suppress_outbox()
+    `);
+    const suppressed = await admin.connect();
+    try {
+      await suppressed.query('BEGIN');
+      await assert.rejects(Ledger.recordEvent(suppressed,event()),
+        error => error?.code === 'GDPR_LEDGER_INSERT_NOT_CONFIRMED');
+    } finally {
+      await suppressed.query('ROLLBACK');
+      suppressed.release();
+    }
+    await admin.query('DROP TRIGGER gdpr_ci_suppress_outbox ON public.privacy_erasure_delivery_outbox');
+    await admin.query('DROP FUNCTION public.gdpr_ci_suppress_outbox()');
+    assert.deepEqual(await counts(admin),{ledger:0,outbox:0},
+      'suppressed outbox insert must roll back the ledger too');
+
     // App failure/cancellation rolls back both tables, never just one.
     const tx = await admin.connect();
     try {
