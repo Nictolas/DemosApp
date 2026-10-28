@@ -3,6 +3,7 @@ const { verifyToken } = require('../../middleware/auth');
 const { validateInput } = require('../../middleware/validation');
 const { pool } = require('../../middleware/auth');
 const AuditService = require('../../services/auditService');
+const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
 const { decrypt: decryptEmail } = require('../../utils/emailCrypto');
 // Usa crypto nativo invece di uuid
 const crypto = require('crypto');
@@ -335,148 +336,98 @@ router.get('/data-export', async (req, res) => {
  * Cancella l'account e tutti i dati associati
  */
 router.delete('/account', validateInput(['confirmation']), async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { confirmation } = req.body;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
-
-    if (confirmation !== 'CONFERMO_CANCELLAZIONE_ACCOUNT') {
-      return res.status(400).json({
-        success: false,
-        error: 'Conferma di cancellazione non valida'
-      });
-    }
-
-    console.log(`🗑️ Richiesta cancellazione account per utente: ${userId}`);
-
-    // Log dell'inizio cancellazione
-    await AuditService.logAction({
-      userId,
-      action: 'DATA_DELETE_REQUEST',
-      resource: 'user_account',
-      details: { request_type: 'account_deletion' },
-      ipAddress,
-      userAgent,
-      success: true
-    });
-
-    // 1. Registra la richiesta di cancellazione
-    const requestQuery = `
-      INSERT INTO user_rights_requests (user_id, request_type, request_data, status)
-      VALUES ($1, $2, $3, 'processing')
-      RETURNING id
-    `;
-    
-    const requestResult = await pool.query(requestQuery, [
-      userId,
-      'data_erasure',
-      JSON.stringify({ 
-        deletion_date: new Date().toISOString(),
-        confirmation: true 
-      })
-    ]);
-
-    const requestId = requestResult.rows[0].id;
-
-    // 2. Inizia transazione per cancellazione completa
-    await pool.query('BEGIN');
-
-    try {
-      // 3. Anonimizza i voti (mantieni per statistiche)
-      await pool.query(`
-        UPDATE voti_capo_stato 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      await pool.query(`
-        UPDATE voti_referendum_abrogativi 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      await pool.query(`
-        UPDATE voti_iniziative_popolari 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      await pool.query(`
-        UPDATE voti_ice 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      // 4. Cancella comunicazioni
-      await pool.query('DELETE FROM comunicazioni WHERE id_utente = $1', [userId]);
-
-      // 5. Cancella notifiche
-      await pool.query('DELETE FROM user_notifications WHERE user_id = $1', [userId]);
-
-      // 6. Cancella limitazioni trattamento
-      await pool.query('DELETE FROM data_processing_limits WHERE user_id = $1', [userId]);
-
-      // 7. Cancella richieste diritti
-      await pool.query('DELETE FROM user_rights_requests WHERE user_id = $1', [userId]);
-
-      // 8. Cancella log di audit
-      // NOTA: Con Axiom abilitato, i log vengono conservati su Axiom per conformità GDPR
-      // Axiom non supporta DELETE diretto di record, quindi i log vengono mantenuti
-      // Questo è conforme al GDPR che richiede conservazione dei log per sicurezza
-      if (process.env.AXIOM_ENABLED !== 'true') {
-        await pool.query('DELETE FROM audit_logs WHERE user_id = $1', [userId]);
-      } else {
-        console.log(`ℹ️  Log audit per utente ${userId} conservati su Axiom per conformità GDPR`);
-      }
-
-      // 9. Cancella account utente (google_sub, apple_user_id sono in users, eliminati con la riga)
-      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-
-      // 10. Conferma transazione
-      await pool.query('COMMIT');
-
-      // 11. Aggiorna stato richiesta
-      await pool.query(`
-        UPDATE user_rights_requests 
-        SET status = 'completed', processed_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-      `, [requestId]);
-
-      console.log(`✅ Account ${userId} cancellato con successo`);
-
-      res.json({
-        success: true,
-        message: 'Account e tutti i dati associati sono stati cancellati con successo',
-        deletion_date: new Date().toISOString()
-      });
-
-    } catch (error) {
-      // Rollback in caso di errore
-      await pool.query('ROLLBACK');
-      throw error;
-    }
-
-  } catch (error) {
-    console.error('❌ Errore nella cancellazione account:', error);
-    
-    // Log dell'errore
-    await AuditService.logAction({
-      userId: req.userId,
-      action: 'DATA_DELETE_REQUEST',
-      resource: 'user_account',
-      details: { request_type: 'account_deletion' },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
+  if (req.body?.confirmation !== 'CONFERMO_CANCELLAZIONE_ACCOUNT') {
+    return res.status(400).json({
       success: false,
-      errorMessage: error.message
+      error: 'Conferma di cancellazione non valida'
+    });
+  }
+
+  const userId = req.userId;
+  let client;
+  let committed = false;
+  try {
+    // A transaction must use ONE checked-out client. Calling pool.query('BEGIN')
+    // does not reserve the same connection for subsequent pool.query calls.
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const existing = await client.query(
+      'SELECT id FROM users WHERE id::text = $1 FOR UPDATE',
+      [String(userId)]
+    );
+    if (existing.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+
+    // Preserve the existing rights-request receipt for DPO/legal retention
+    // review; never erase it here as part of account erasure.
+    const request = await client.query(
+      `INSERT INTO user_rights_requests (user_id, request_type, request_data, status)
+       VALUES ($1, 'data_erasure', $2::jsonb, 'processing')
+       RETURNING id`,
+      [String(userId), JSON.stringify({ confirmation: true })]
+    );
+
+    await PrivacyErasureLedgerService.recordEvent(client, {
+      userId,
+      eventType: PrivacyErasureLedgerService.EVENT_TYPES.ACCOUNT_DELETED,
+      details: { source: 'gdpr_rights_account_deletion' }
     });
 
-    res.status(500).json({
+    if (process.env.AXIOM_ENABLED !== 'true') {
+      await PrivacyErasureLedgerService.deleteByAnyColumn(
+        client, 'audit_logs', ['user_id', 'userid', 'userId'], userId
+      );
+    }
+
+    const result = await PrivacyErasureLedgerService.enforceAccountDeletion(client, userId);
+    if (result.userDeleted !== 1) {
+      throw new Error('Account deletion did not remove exactly one account');
+    }
+
+    await client.query(
+      `UPDATE user_rights_requests
+       SET status = 'completed', processed_at = NOW(), updated_at = NOW()
+       WHERE id = $1`,
+      [request.rows[0].id]
+    );
+    await client.query('COMMIT');
+    committed = true;
+  } catch (error) {
+    if (client && !committed) {
+      try { await client.query('ROLLBACK'); } catch (rollbackError) {
+        console.error('Rollback cancellazione GDPR non riuscito');
+      }
+    }
+    console.error('Cancellazione GDPR fallita');
+    return res.status(500).json({
       success: false,
       error: 'Errore interno del server durante la cancellazione dell\'account'
     });
+  } finally {
+    if (client) client.release();
   }
+
+  // External audit is best-effort AFTER the transaction; its availability must
+  // not turn a successfully committed erasure into a 500 response.
+  try {
+    await AuditService.logAction({
+      userId: null,
+      action: 'DATA_DELETE_REQUEST',
+      resource: 'user_account',
+      details: { request_type: 'account_deletion', completed: true },
+      success: true
+    });
+  } catch (auditError) {
+    console.error('Audit cancellazione GDPR non disponibile');
+  }
+
+  return res.json({
+    success: true,
+    message: 'Account e dati associati cancellati con successo',
+    deletion_date: new Date().toISOString()
+  });
 });
 
 /**
