@@ -236,6 +236,10 @@ BEGIN
     AND NOT EXISTS (
       SELECT 1 FROM political_mandates pm
       WHERE pm.user_id = u.id AND pm.status = 'ACTIVE'
+        -- A migration-created ACTIVE row is not evidence that the office exists.
+        AND pm.source <> 'LEGACY_BACKFILL'
+        AND (pm.starts_at IS NULL OR pm.starts_at <= NOW())
+        AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
     );
 
   IF unresolved_count > 0 THEN
