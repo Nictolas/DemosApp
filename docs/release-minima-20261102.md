@@ -43,6 +43,14 @@ La CI Android verificava ancora `versionCode 11` / `versionName 1.0.9`, mentre l
 
 Verifiche locali: **3/3** regressioni del guard di identità, **4/4** contratti Android auth/push, **5/5** contratti navbar; **15/15** asset launcher coincidono con l'icona attesa. Syntax e `git diff --check` PASS. JDK 21 disponibile, SDK Android locale assente: la compilazione APK/AAB deve essere verificata dalla CI sull'HEAD finale. Il controllo del metadata debug non è un'attestazione crittografica del manifest AAB firmato o del pacchetto distribuito da Play.
 
+## Follow-up Sostenitori — stessa PR di preparazione
+
+La pagina personale richiedeva il totale pubblico, che sopprime intenzionalmente i conteggi Politico/Candidato. Ora richiede `/api/sostenitori/totale-privato` tramite il client autenticato esistente. Nessun cambiamento ai ruoli abilitati o alla visibilità pubblica. Il percorso privato invia `private, no-store, max-age=0` prima dell'autenticazione, anche su 400/401/403/500; un errore DB non stampa più il dettaglio grezzo nei log. La lettura di `user.ruolo` durante il primo render senza sessione è protetta, preservando l'ordine degli hook.
+
+Regressioni: HTTP con router Express reale, DB/auth sintetici, proprietari, Admin effettivo, utenti diversi (anche con sola etichetta legacy AD), soppressione pubblica e errori senza conteggi fittizi. Test frontend di rendering e contratto della query, più regressione esistente del percorso privato. Tutte le nuove prove sono incluse nel workflow Android, insieme alla build APK/AAB.
+
+Collegamento canonico F12-20 e gate REL-08/09: miglioramento tecnico, nessuna nuova chiusura canonica. Le query aggregate ereditate usano ancora le selezioni legacy: questo intervento non sostituisce i Draft già esistenti per filtro consenso/selezioni canoniche e non attesta il comportamento integrato dopo revoca. Provider, firma e prove fisiche restano fuori da queste regressioni.
+
 ## Blocchi che i test locali non chiudono
 
 - Issue [#296](https://github.com/Nictolas/DemosApp/issues/296) **OPEN / recovery NO-GO**: identità e ACL del writer SQL effettivo, staging isolato, B2 indipendente (versioni/Object Lock/checkpoint fresco), replay prima del traffico e drill di recovery autorizzato.

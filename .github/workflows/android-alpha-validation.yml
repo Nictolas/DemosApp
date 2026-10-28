@@ -17,6 +17,11 @@ on:
       - 'client/package-lock.json'
       - 'scripts/android-release-metadata.cjs'
       - 'scripts/android-release-metadata.test.cjs'
+      - 'client/src/pages/Sostenitori.tsx'
+      - 'client/tests/supportersPage.test.mjs'
+      - 'api/routes/sostenitori.js'
+      - 'api/tests/supporterCountPrivacy.smoke.test.js'
+      - 'api/tests/supporterCountHttpPrivacy.test.js'
       - '.github/workflows/android-alpha-validation.yml'
   workflow_dispatch:
 
@@ -57,6 +62,9 @@ jobs:
       - name: Check responsive Android navbar contract
         run: node --test api/tests/navbarResponsiveContract.test.js
 
+      - name: Verify supporters private aggregates and access boundaries
+        run: node --test api/tests/supporterCountPrivacy.smoke.test.js api/tests/supporterCountHttpPrivacy.test.js
+
       - name: Install client dependencies
         working-directory: client
         run: npm ci --ignore-scripts
@@ -64,6 +72,9 @@ jobs:
       - name: Build frontend
         working-directory: client
         run: npm run build
+
+      - name: Verify supporters session loading and private count request
+        run: node client/tests/supportersPage.test.mjs
 
       - name: Generate Capacitor Android project files
         working-directory: client

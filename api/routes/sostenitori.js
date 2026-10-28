@@ -706,6 +706,11 @@ router.get('/totale', async (req, res) => {
 });
 
 // GET /api/sostenitori/totale-privato - Conteggi P/C solo al soggetto o ad Admin.
+// Prevent intermediary/browser storage, including authentication failures.
+router.use('/totale-privato', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
 router.get('/totale-privato', verifyToken, async (req, res) => {
   try {
     const { sostenuto_id } = req.query;
@@ -734,7 +739,7 @@ router.get('/totale-privato', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel calcolo conteggi privati sostenitori:', error);
+    console.error('SUPPORTER_PRIVATE_COUNTS_FAILED');
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
