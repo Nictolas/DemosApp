@@ -220,7 +220,9 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
         'UPDATE users SET avatar_config = $1, updated_at = NOW() WHERE id = $2 RETURNING avatar_config',
         [avatar_config, userId]
       );
-      await upsertUserProfileFields(client, userId, { avatar_config });
+      if (result.rowCount > 0) {
+        await upsertUserProfileFields(client, userId, { avatar_config });
+      }
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK');
@@ -339,7 +341,9 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       await client.query('BEGIN');
       result = await client.query(query, [...values, userId]);
 
-      await upsertUserProfileFields(client, userId, filteredData);
+      if (result.rowCount > 0) {
+        await upsertUserProfileFields(client, userId, filteredData);
+      }
 
       await client.query('COMMIT');
     } catch (e) {
@@ -357,7 +361,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const updatedUser = result.rows[0];
-    console.log('✅ Profilo utente aggiornato:', updatedUser.email);
+    console.log('✅ Profilo utente aggiornato');
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
     let dataNascitaFormattata = null;
