@@ -49,6 +49,8 @@ jobs:
         run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js
       - name: Install backend dependencies for isolated HTTP regression
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Validate read-only cutover parity and answer-column schema regression
+        run: node --test api/tests/opinionCatalogPreflight.test.js
       - name: Android 1.0.10 legacy Opinions HTTP contract (no real accounts)
         run: node --test api/tests/opinionCatalogAndroid110.contract.test.js api/tests/opinionCatalogConsentRace.contract.test.js
       - name: Render QA synthetic service security and candidate HTTP smoke

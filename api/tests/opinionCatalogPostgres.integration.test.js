@@ -6,6 +6,7 @@ const path = require('node:path');
 const express = require('express');
 const {Pool} = require('pg');
 const {getAllOpinions, getOpinionsForGrade} = require('../services/opinionCatalog');
+const {checkOpinionCatalogParity}=require('../scripts/checkOpinionCatalogParity');
 
 // This test MUST NOT connect to a personal account, staging or production.
 // The database is a disposable PostgreSQL service started inside GitHub Actions.
@@ -39,6 +40,9 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
     await database.query('INSERT INTO users (id,status,ruolo,political_opinions_consent) VALUES ($1,$2,$3,$4)',
       [userId,'a','E',true]);
 
+    // Exercise schema-only preflight against actual ephemeral PostgreSQL 17.
+    assert.deepEqual(await checkOpinionCatalogParity(database,{schemaOnly:true}),
+      {published:94,checkedColumns:94,mode:'schema-only'});
     const observedSql=[];
     const guardedPool={
       query: async(sql,values=[])=>{
