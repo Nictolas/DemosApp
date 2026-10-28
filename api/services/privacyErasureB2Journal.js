@@ -285,20 +285,37 @@ class PrivacyErasureB2Journal {
           cursor.occurred_at.slice(0, -4) + 'Z')) {
       throw Error('Invalid archive cursor: exact six-digit PostgreSQL timestamp required');
     }
-    // This query intentionally does not create or mutate database tables.
-    // Newly committed events after this snapshot need subsequent batches.
+    // An RLS-filtered operator previously received a valid-looking partial
+    // batch (or 0 rows) and could mistake it for the complete immutable
+    // journal. Prove the SQL role has UNFILTERED ledger access in the SAME
+    // statement/snapshot as the page. Two separate pool.query calls can
+    // borrow different SQL sessions, so a standalone preflight is insufficient.
+    // The LEFT JOIN returns a sentinel row for an actually empty page.
     const result = await db.query(
+      'WITH visibility AS MATERIALIZED (' +
+      "SELECT NOT pg_catalog.row_security_active(" +
+      "'public.privacy_erasure_ledger'::regclass) AS complete_visibility) " +
+      'SELECT visibility.complete_visibility, page.event_key, ' +
+      'page.subject_user_id,page.event_type,page.occurred_at,page.details, ' +
+      'page.cursor_occurred_at FROM visibility LEFT JOIN LATERAL (' +
       'SELECT event_key,subject_user_id,event_type,occurred_at,details, ' +
       "to_char(occurred_at AT TIME ZONE 'UTC', " +
       `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_occurred_at ` +
-      // Explicit schema prevents pg_temp/search_path shadowing during manual B2 export.
+      // Explicit schema prevents pg_temp/search_path shadowing during export.
       'FROM public.privacy_erasure_ledger ' +
       'WHERE ($1::timestamptz IS NULL OR (occurred_at,event_key) > ($1::timestamptz,$2::text)) ' +
-      'ORDER BY occurred_at ASC,event_key ASC LIMIT $3',
+      'ORDER BY occurred_at ASC,event_key ASC LIMIT $3' +
+      ') AS page ON visibility.complete_visibility',
       [cursor?.occurred_at || null,cursor?.event_key || null,limit]
     );
+    if (result.rows?.[0]?.complete_visibility !== true ||
+        result.rows.some(row => row.complete_visibility !== true)) {
+      throw Error('GDPR_B2_ARCHIVE_INCOMPLETE_VISIBILITY');
+    }
+    const page = result.rows.filter(row => row.event_key != null);
+    if (page.length > limit) throw Error('GDPR_B2_ARCHIVE_INVALID_PAGE');
     let last = cursor;
-    for (const raw of result.rows) {
+    for (const raw of page) {
       // pg Date loses microseconds. Use exact SQL text for B2 and cursor.
       const exactTimestamp = raw.cursor_occurred_at;
       if (typeof exactTimestamp !== 'string' ||
@@ -312,7 +329,7 @@ class PrivacyErasureB2Journal {
       await this.archiveEvent(event);
       last = {occurred_at:exactTimestamp,event_key:event.event_key};
     }
-    return {exported:result.rows.length, cursor:last};
+    return {exported:page.length, cursor:last};
   }
 }
 module.exports = {PrivacyErasureB2Journal, normalizeEvent, validatedConfig, keyFor};
