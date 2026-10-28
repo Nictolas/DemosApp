@@ -61,3 +61,15 @@ Il contratto `POST /api/user/gdpr-requests` accetta `Idempotency-Key`, ma il ser
 Su questa PR Draft, `api/app.js` ammette `Idempotency-Key` nella configurazione `cors()` e in entrambi i percorsi espliciti `Access-Control-Allow-Headers`. La lista delle **origini** consentite e la politica `credentials` restano invariate; non è introdotto alcun wildcard. La regressione riusa `api/tests/corsRenderFrontend.test.js` e viene richiamata dal workflow GDPR, che si attiva anche quando il target della PR stacked è diverso da `main`.
 
 Questa correzione **non** equivale a implementare un client di invio delle richieste: quello richiede ancora la generazione e il riutilizzo affidabile del medesimo UUID per lo stesso tentativo.
+
+## Retry della limitazione del trattamento (PUT)
+
+Per `PUT /api/user/limit-processing` vale ora lo stesso header facoltativo `Idempotency-Key` UUID v4. Il server esegue modifica e ricevuta nella **stessa transazione**; se la PK della ricevuta esiste già, annulla **tutta** la modifica prima di verificare la ricevuta originale dello stesso utente e identico payload (escludendo la sola data tecnica della richiesta).
+
+- Richiesta nuova confermata: HTTP 200 e ricevuta persistita.
+- Retry con stessa chiave e stesso payload: HTTP 200, `replayed:true`, stesso `request_id` e `data:null`. La risposta **non** afferma che la vecchia limitazione sia ancora lo stato attuale dopo eventuali modifiche successive.
+- Chiave già utilizzata per altro utente/payload: HTTP 409, rollback, nessuna ricevuta nuova né modifica allo stato.
+- Errore SQL o ricevuta non verificabile: HTTP 503 senza falsa conferma; chiave non valida: HTTP 400 prima del DB.
+- Client legacy senza header: comportamento precedente, ogni PUT è una nuova richiesta.
+
+Il test PostgreSQL 17 sintetico copre risposta perduta, retry dopo una scelta successiva opposta, conflitto fra utenti/payload, tre chiamate concorrenti con una sola ricevuta e rifiuto di UUID malformati. Non è una verifica di ACL/RLS del vero writer Render.

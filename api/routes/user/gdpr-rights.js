@@ -368,13 +368,26 @@ router.put('/limit-processing', validateInput(['limited']), async (req, res) => 
     });
   }
 
-  // A successful update followed by a failed rights-request INSERT previously
-  // returned HTTP 500 while leaving the processing restriction changed.
-  // Both changes must use the SAME borrowed PostgreSQL client and transaction.
+  // A retry with the SAME Idempotency-Key must never apply an old
+  // restriction again after a newer user action. A conflicting receipt is
+  // resolved ONLY after rolling back the whole processing-limit update.
+  // Legacy clients without this header retain their existing semantics.
+  const header = req.headers?.['idempotency-key'];
+  if (header !== undefined && (
+    typeof header !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(header)
+  )) {
+    return res.status(400).json({
+      success: false, error: 'Idempotency-Key non valida: serve un UUID v4'
+    });
+  }
+  const requestId = header === undefined ? crypto.randomUUID() : header.toLowerCase();
+  const receiptPayload = { limited, categories, reason };
   let client;
   let inTransaction = false;
   let applied;
   let receipt;
+  let replay = false;
   try {
     client = await pool.connect();
     await client.query('BEGIN');
@@ -397,26 +410,36 @@ router.put('/limit-processing', validateInput(['limited']), async (req, res) => 
     }
     const recorded = await client.query(
       'INSERT INTO public.user_rights_requests ' +
-      '(user_id, request_type, request_data, status) ' +
-      "VALUES ($1, 'limit_processing', $2::jsonb, 'completed') " +
+      '(id, user_id, request_type, request_data, status) ' +
+      "VALUES ($1::uuid, $2, 'limit_processing', $3::jsonb, 'completed') " +
+      'ON CONFLICT (id) DO NOTHING ' +
       'RETURNING id, user_id, request_type, status',
-      [userId, JSON.stringify({
-        limited, categories, reason, request_date: new Date().toISOString()
+      [requestId, userId, JSON.stringify({
+        ...receiptPayload, request_date: new Date().toISOString()
       })]
     );
-    receipt = recorded.rows?.[0];
-    if (recorded.rowCount !== 1 || !receipt?.id ||
-        String(receipt.user_id) !== String(userId) ||
-        receipt.request_type !== 'limit_processing' ||
-        receipt.status !== 'completed') {
-      throw Error('GDPR_PROCESSING_RIGHTS_RECEIPT_NOT_CONFIRMED');
+    if (recorded.rowCount === 0 && recorded.rows?.length === 0) {
+      // The UPDATE above MUST NOT survive a repeated or colliding key.
+      // PostgreSQL's unique constraint waits for an in-flight winner.
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      replay = true;
+    } else {
+      receipt = recorded.rows?.[0];
+      if (recorded.rowCount !== 1 || !receipt?.id ||
+          String(receipt.user_id) !== String(userId) ||
+          receipt.request_type !== 'limit_processing' ||
+          receipt.status !== 'completed' ||
+          String(receipt.id).toLowerCase() !== requestId) {
+        throw Error('GDPR_PROCESSING_RIGHTS_RECEIPT_NOT_CONFIRMED');
+      }
+      await client.query('COMMIT');
+      inTransaction = false;
     }
-    await client.query('COMMIT');
-    inTransaction = false;
   } catch (error) {
     if (inTransaction && client) {
       try { await client.query('ROLLBACK'); }
-      catch (_) { /* SQL failure remains unconfirmed; never claim success. */ }
+      catch (_) { /* The operation remains unconfirmed. */ }
     }
     console.error('Errore nella limitazione trattamento:',
       error?.code || 'QUERY_FAILED');
@@ -428,9 +451,39 @@ router.put('/limit-processing', validateInput(['limited']), async (req, res) => 
     if (client) client.release();
   }
 
-  // The durable rights receipt is the authoritative audit trail for this
-  // operation. A separate Axiom/legacy audit delivery must never turn a
-  // committed change into a false HTTP failure and cause an unsafe retry.
+  if (replay) {
+    // A previous receipt proves that a particular request was committed,
+    // not that its restriction remains the CURRENT setting. Never return
+    // the rolled-back "applied" row as if it were the current state.
+    try {
+      const previous = await pool.query(
+        'SELECT id, status FROM public.user_rights_requests ' +
+        "WHERE id=$1::uuid AND user_id=$2 AND request_type='limit_processing' " +
+        "AND request_data - 'request_date' = $3::jsonb LIMIT 1",
+        [requestId, userId, JSON.stringify(receiptPayload)]
+      );
+      const stored = previous.rows?.[0];
+      if (!stored?.id) {
+        return res.status(409).json({
+          success: false, error: 'Chiave già utilizzata o richiesta non verificabile'
+        });
+      }
+      return res.json({
+        success: true, replayed: true,
+        message: 'Richiesta già registrata. Verifica lo stato attuale delle limitazioni.',
+        request_id: stored.id, request_status: stored.status, data: null
+      });
+    } catch (error) {
+      console.error('GDPR_PROCESSING_LIMIT_RETRY_LOOKUP_FAILED',
+        error?.code || 'QUERY_FAILED');
+      return res.status(503).json({
+        success: false, error: 'Ricevuta non verificabile. Controlla lo storico prima di riprovare.'
+      });
+    }
+  }
+
+  // Delivering secondary audit logs cannot turn a committed receipt into
+  // a false HTTP failure that could cause an unsafe retry.
   try {
     await AuditService.logAction({
       userId,
@@ -449,8 +502,7 @@ router.put('/limit-processing', validateInput(['limited']), async (req, res) => 
     success: true,
     message: limited ? 'Limitazioni di trattamento applicate' :
       'Limitazioni di trattamento rimosse',
-    request_id: receipt.id,
-    data: applied
+    request_id: receipt.id, data: applied
   });
 });
 

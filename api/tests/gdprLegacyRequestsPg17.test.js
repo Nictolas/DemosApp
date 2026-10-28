@@ -327,8 +327,8 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
       'FOR EACH ROW EXECUTE FUNCTION public.gdpr_ci_reject_processing_receipt()'
     );
     await withRightsHistoryRoute(admin, async (_get, put) => {
-      const request = (limited,reason,categories=['personal_data'])=>({
-        userId:USER, body:{limited,categories,reason},
+      const request = (limited,reason,categories=['personal_data'],headers={})=>({
+        userId:USER, body:{limited,categories,reason}, headers,
         ip:'127.0.0.1', connection:{remoteAddress:'127.0.0.1'},
         get:()=> 'synthetic-pg17-ci'
       });
@@ -374,6 +374,73 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
       assert.deepEqual(clearedState,{processing_limited:false,limited_categories:[]});
       assert.equal(await receiptCount(),2,
         'successful removal must persist its own real receipt');
+
+      // A lost HTTP receipt can be safely retried with the SAME UUID.
+      // A later opposite choice must not be reverted by an old retry.
+      const idempotentKey='c691fcd2-80fa-4cea-8f5e-642f4441149a';
+      const firstKeyed=response();
+      await put(request(true,'synthetic-retry-choice',
+        ['political_opinions'],{'idempotency-key':idempotentKey}),firstKeyed);
+      assert.equal(firstKeyed.statusCode,200);
+      assert.equal(firstKeyed.body.request_id,idempotentKey);
+      assert.equal(await receiptCount(),3);
+      const newerChoice=response();
+      await put(request(false,'synthetic-newer-choice',[]),newerChoice);
+      assert.equal(newerChoice.statusCode,200);
+      assert.equal(await receiptCount(),4);
+
+      const oldRetry=response();
+      await put(request(true,'synthetic-retry-choice',
+        ['political_opinions'],{'idempotency-key':idempotentKey}),oldRetry);
+      assert.equal(oldRetry.statusCode,200);
+      assert.equal(oldRetry.body.replayed,true);
+      assert.equal(oldRetry.body.request_id,idempotentKey);
+      assert.equal(oldRetry.body.data,null,
+        'a replay must not misrepresent the rolled-back choice as current');
+      assert.equal(await receiptCount(),4,'a retry must not add a new receipt');
+      assert.equal((await admin.query(
+        'SELECT processing_limited FROM public.data_processing_limits WHERE user_id=$1',
+        [USER]
+      )).rows[0].processing_limited,false,
+      'a retry of the older restriction must not undo the newer removal');
+
+      for(const change of [
+        {userId:OTHER,body:{limited:true,categories:['political_opinions'],
+          reason:'synthetic-retry-choice'}},
+        {userId:USER,body:{limited:true,categories:['political_opinions'],
+          reason:'synthetic-changed-payload'}}
+      ]) {
+        const conflict=response();
+        await put({...request(true,change.body.reason,change.body.categories,
+          {'idempotency-key':idempotentKey}),userId:change.userId},conflict);
+        assert.equal(conflict.statusCode,409,
+          'a different owner or payload must not reuse the receipt');
+      }
+      assert.equal(await receiptCount(),4);
+
+      // Concurrent same-key calls serialize on the processing-limit row and
+      // the receipt PK; precisely one update + receipt must survive.
+      const parallelKey='ffdd4cba-7315-47dd-a35f-06b1e735ea01';
+      const simultaneous=await Promise.all(Array.from({length:3},async()=>{
+        const result=response();
+        await put(request(true,'synthetic-parallel-choice',
+          ['personal_data'],{'idempotency-key':parallelKey}),result);
+        return result;
+      }));
+      assert.ok(simultaneous.every(result=>result.statusCode===200));
+      assert.equal(simultaneous.filter(result=>result.body.replayed).length,2);
+      assert.equal(await receiptCount(),5,
+        'three concurrent retries must persist only one receipt');
+      assert.equal((await admin.query(
+        'SELECT processing_limited FROM public.data_processing_limits WHERE user_id=$1',
+        [USER]
+      )).rows[0].processing_limited,true);
+
+      const invalidKey=response();
+      await put(request(false,'synthetic-invalid-key',[],
+        {'idempotency-key':'not-a-uuid'}),invalidKey);
+      assert.equal(invalidKey.statusCode,400);
+      assert.equal(await receiptCount(),5);
 
       for(const body of [
         {limited:true,categories:[]},
