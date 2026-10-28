@@ -46,6 +46,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       result = await pool.query(`
         SELECT
           u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.created_at, u.updated_at,
+          u.sesso AS sesso,
           COALESCE(up.genere, u.genere) AS genere,
           COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
           COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
@@ -151,6 +152,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         email: decompressedUser.email,
         nome: decompressedUser.nome,
         cognome: decompressedUser.cognome,
+        sesso: ['M', 'F'].includes(decompressedUser.sesso) ? decompressedUser.sesso : null,
         genere: decompressGender(decompressedUser.genere),
         data_nascita: dataNascitaFormattata,
         cittadinanza: decompressedUser.cittadinanza,
