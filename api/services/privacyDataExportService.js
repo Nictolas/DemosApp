@@ -120,7 +120,7 @@ async function getUserCore(userId) {
   const safeColumns = [
     'id', 'email', 'nome', 'cognome', 'ruolo', 'status', 'premium',
     'account_type', 'is_admin', 'is_activist',
-    'data_nascita', 'genere', 'cittadinanza',
+    'data_nascita', 'sesso', 'genere', 'cittadinanza',
     'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
     'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione', 'grado_elezione',
     'paese_candidatura', 'regione_candidatura', 'provincia_candidatura', 'comune_candidatura', 'grado_candidatura',
