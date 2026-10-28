@@ -638,6 +638,67 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+  test('offline capture, import and replay reject partially visible RLS event journal',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const role='gdpr_partial_recovery_ci';
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      await Ledger.ensureTable(pool);
+      for(const userId of ['synthetic-visible','synthetic-hidden']){
+        await Ledger.recordEvent(pool,{
+          userId,
+          eventType:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+          details:{source:'synthetic-partial-visibility'}
+        });
+      }
+      await pool.query('CREATE ROLE '+role+' NOLOGIN NOBYPASSRLS');
+      await pool.query('GRANT USAGE ON SCHEMA public TO '+role);
+      await pool.query('GRANT SELECT,INSERT ON public.privacy_erasure_ledger TO '+role);
+      await pool.query('CREATE POLICY gdpr_ci_partial_export '+
+        'ON public.privacy_erasure_ledger FOR SELECT TO '+role+
+        " USING (subject_user_id='synthetic-visible')");
+      const client=await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SET LOCAL ROLE '+role);
+        assert.equal((await client.query(
+          'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+        )).rows[0].n,1,'restricted role can see only 1/2 synthetic events');
+        const partial=[{
+          event_key:'synthetic-import',
+          subject_user_id:'synthetic-visible',
+          event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
+          occurred_at:'2026-01-02T03:04:05.000000Z',
+          details:{source:'synthetic'}
+        }];
+        for (const [name,run] of [
+          ['capture',()=>Ledger.captureCurrent(client)],
+          ['import',()=>Ledger.mergeCaptured(client,partial)],
+          ['replay',()=>Ledger.applyCurrentPrivacyState(client)]
+        ]) {
+          await assert.rejects(run(),
+            error=>error?.code==='GDPR_LEDGER_VISIBILITY_INCOMPLETE',
+            name+' must not treat a filtered ledger as complete');
+        }
+      } finally {
+        await client.query('ROLLBACK');
+        client.release();
+      }
+      assert.equal((await pool.query(
+        'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+      )).rows[0].n,2,'rejected operations must preserve the full journal');
+      await pool.query('DROP POLICY gdpr_ci_partial_export ON public.privacy_erasure_ledger');
+      await pool.query('REVOKE ALL ON public.privacy_erasure_ledger FROM '+role);
+      await pool.query('REVOKE USAGE ON SCHEMA public FROM '+role);
+      await pool.query('DROP ROLE '+role);
+      assert.equal((await Ledger.captureCurrent(pool)).length,2,
+        'owner role may capture the complete synthetic journal');
+    } finally {
+      await pool.end();
+    }
+  });
+
   test('missing or unprotected ledger must block capture, import and replay without auto-provisioning',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const synthetic=[{
