@@ -297,6 +297,13 @@ router.get('/', async (req, res) => {
 
 // POST /api/opinioni-proposte - Crea una nuova opinione proposta (max 1 per utente, richiede auth)
 router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+  // Official metadata is release-managed. Pending proposals MUST live in their
+  // own table; never insert fallback rows into opinioni_domande.
+  const proposalTable = await pool.query("SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS ok");
+  if (proposalTable.rows[0]?.ok !== true) {
+    return res.status(503).json({success:false,error:'PROPOSALS_TABLE_REQUIRED'});
+  }
+
   try {
     const userId = req.userId;
     console.log('📝 POST /api/opinioni-proposte - Creazione nuova opinione proposta');
@@ -755,6 +762,12 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
 
 // DELETE /api/opinioni-proposte/:id - Cancella un'opinione proposta (solo admin)
 router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
+  // Do not fall back to deleting rows from the versioned official catalog.
+  const proposalTable = await pool.query("SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS ok");
+  if (proposalTable.rows[0]?.ok !== true) {
+    return res.status(503).json({success:false,error:'PROPOSALS_TABLE_REQUIRED'});
+  }
+
   try {
     const { id } = req.params;
     

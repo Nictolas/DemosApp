@@ -79,7 +79,6 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
         ))}
       </ul>
       
-      {/* Dialog per approvare opinione proposta */}
     </div>
   );
 };

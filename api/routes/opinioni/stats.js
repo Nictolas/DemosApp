@@ -48,28 +48,13 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
     
     const structureResult = await pool.query(structureQuery);
     
-    // 2. Conta opinioni totali
-    const countQuery = 'SELECT COUNT(*) as total FROM opinioni_domande';
-    const countResult = await pool.query(countQuery);
-    
-    // 3. Verifica gradi opinioni
-    const degreesQuery = `
-      SELECT DISTINCT unnest(gradi_opinione) as grado
-      FROM opinioni_domande
-      ORDER BY grado
-    `;
-    
-    const degreesResult = await pool.query(degreesQuery);
-    
-    // 4. Esempio opinioni
-    const sampleQuery = `
-      SELECT id, text, gradi_opinione, created_at, updated_at
-      FROM opinioni_domande
-      LIMIT 5
-    `;
-    
-    const sampleResult = await pool.query(sampleQuery);
-    
+    // The official catalog no longer comes from PostgreSQL.
+    const official = getAllOpinions();
+    const countResult = {rows:[{total:String(official.length)}]};
+    const grades = [...new Set(official.flatMap(op=>op.gradi_opinione))].sort();
+    const degreesResult = {rows:grades.map(grado=>({grado}))};
+    const sampleResult = {rows:official.slice(0,5).map(({id,text,gradi_opinione})=>({id,text,gradi_opinione}))};
+
     res.json({
       success: true,
       debug: {

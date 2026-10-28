@@ -91,13 +91,9 @@ export const useOpinioniMutations = () => {
 
   // Mutazioni per le opinioni proposte
   const processPropostaMutation = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'accetta' | 'rifiuta' }) => {
-      const url = action === 'accetta' ? `/api/opinioni-proposte/${id}/accetta` : `/api/opinioni-proposte/${id}`;
-      const method = action === 'accetta' ? 'POST' : 'DELETE';
-      return apiRequest(method, url);
-    },
-    onSuccess: (_, {action}) => { 
-      toast({ title: "Successo", description: `Proposta ${action === 'accetta' ? 'accettata' : 'rifiutata'}.` }); 
+    mutationFn: ({ id }: { id: string; action: 'rifiuta' }) => apiRequest('DELETE', `/api/opinioni-proposte/${id}`),
+    onSuccess: () => { 
+      toast({ title: "Successo", description: 'Proposta rifiutata.' }); 
       invalidateAll(); 
     },
     onError: () => toast({ title: "Errore", description: "Impossibile processare la proposta.", variant: "destructive" }),
