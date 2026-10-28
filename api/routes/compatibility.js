@@ -1,5 +1,8 @@
 const express = require('express');
 
+const { getOpinionsForGrade, sortOpinionsByText } = require('../services/opinionCatalog');
+const { normalizeOpinionScope } = require('../services/politicalJurisdictionRegistryService');
+
 const router = express.Router();
 
 // Endpoint diretto per opinioni-list (compatibilità frontend)
@@ -87,26 +90,9 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
     
-    // Query per ottenere le opinioni del grado specificato
-    // Supporto sia gradi_opinione che gradi_opinioni (il DB può avere l'uno o l'altro)
-    const opinionQuery = (colGradi) => `
-      SELECT o.id, o.text, o.${colGradi}
-      FROM opinioni_domande o
-      WHERE $1 = ANY(o.${colGradi})
-      ORDER BY o.text
-    `;
-    let opinionResult;
-    let gradiColumn = 'gradi_opinione';
-    try {
-      opinionResult = await pool.query(opinionQuery(gradiColumn), [grado]);
-    } catch (err) {
-      if (err.code === '42703' && err.message && err.message.includes('gradi_opinione')) {
-        gradiColumn = 'gradi_opinioni';
-        opinionResult = await pool.query(opinionQuery(gradiColumn), [grado]);
-      } else {
-        throw err;
-      }
-    }
+    const normalizedGrade = normalizeOpinionScope(String(grado)) || String(grado);
+    const gradiColumn = 'gradi_opinione';
+    const opinionResult = { rows: sortOpinionsByText(getOpinionsForGrade(normalizedGrade)) };
 
     if (opinionResult.rows.length === 0) {
       if (isDev) console.log(`⚠️ Nessuna opinione per grado: ${grado}`);
