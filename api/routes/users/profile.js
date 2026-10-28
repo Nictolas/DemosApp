@@ -265,7 +265,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
-      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza',
+      'nome', 'cognome', 'data_nascita', 'cittadinanza',
       'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
       'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
       'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
