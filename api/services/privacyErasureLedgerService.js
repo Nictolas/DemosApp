@@ -570,6 +570,8 @@ class PrivacyErasureLedgerService {
       ['notifiche_demos', 'id_utente'],
       ['notifiche_comunali', 'id_utente'],
       ['programmi', 'utente_id'],
+      ['user_profile', 'user_id'],
+      ['active_sessions', 'user_id'],
       ['user_devices', 'user_id'],
       ['user_notifications', 'user_id'],
       ['notifiche_preferenze', 'user_id'],
