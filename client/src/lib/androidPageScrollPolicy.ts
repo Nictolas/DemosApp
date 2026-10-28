@@ -7,7 +7,13 @@ export type AndroidPageScrollPolicy = 'fixed' | 'scroll' | 'inherit';
 const FIXED_PAGES = new Set([
   '/opinioni', '/opinioni-nazionali', '/opinioni-regionali',
   '/opinioni-comunali', '/opinioni-europee', '/rappresentanti',
-  '/candidati'
+  '/candidati',
+  // Registration and entry screens: main stays fixed; card/list scrollers
+  // remain independent and must not be clipped on narrow screens.
+  '/registrazione-genere', '/registrazione-nome',
+  '/registrazione-cittadinanza', '/registrazione-data-nascita',
+  '/registrazione-consensi', '/registrazione-crea-passkey',
+  '/auth', '/'
 ]);
 const SCROLL_PAGES = new Set([
   '/approfondimento', '/proponi-opinione', '/sondaggi',
@@ -16,7 +22,16 @@ const SCROLL_PAGES = new Set([
   '/legal-documents', '/data-retention', '/gdpr-rights',
   '/security-measures', '/registro-trattamenti', '/accessibilita',
   '/standard-sicurezza-minori', '/cookie-policy',
-  '/terms-of-service', '/privacy-policy'
+  '/terms-of-service', '/privacy-policy',
+  // Monitoring, audit and other read-only dashboards, plus the public intro.
+  '/audit-dashboard',
+  '/monitoring-dashboard/services', '/monitoring-dashboard/security',
+  '/monitoring-dashboard/memory', '/monitoring-dashboard/database',
+  '/monitoring-dashboard/disk', '/monitoring-dashboard/performance',
+  '/monitoring-dashboard/health', '/monitoring-dashboard/overview',
+  '/violations-dashboard', '/security-dashboard', '/backup-dashboard',
+  '/rate-limiting-dashboard', '/validation-dashboard', '/logging-dashboard',
+  '/scopri-demos'
 ]);
 
 export function getAndroidPageScrollPolicy(url: string): AndroidPageScrollPolicy {

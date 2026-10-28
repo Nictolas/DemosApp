@@ -6,7 +6,11 @@ import { getAndroidPageScrollPolicy } from '../src/lib/androidPageScrollPolicy.t
 const fixed = [
   '/opinioni', '/opinioni-nazionali', '/opinioni-comunali',
   '/opinioni-regionali', '/opinioni-europee', '/rappresentanti',
-  '/scegli-rappresentante/presidente', '/candidati', '/candidati/sindaco'
+  '/scegli-rappresentante/presidente', '/candidati', '/candidati/sindaco',
+  '/registrazione-genere', '/registrazione-nome',
+  '/registrazione-cittadinanza', '/registrazione-data-nascita',
+  '/registrazione-consensi', '/registrazione-crea-passkey',
+  '/auth', '/'
 ];
 const scroll = [
   '/approfondimento', '/proponi-opinione', '/sondaggi',
@@ -17,15 +21,23 @@ const scroll = [
   '/legal-documents', '/data-retention', '/gdpr-rights',
   '/security-measures', '/registro-trattamenti', '/accessibilita',
   '/standard-sicurezza-minori', '/cookie-policy',
-  '/terms-of-service', '/privacy-policy'
+  '/terms-of-service', '/privacy-policy',
+  '/audit-dashboard',
+  '/monitoring-dashboard/services', '/monitoring-dashboard/security',
+  '/monitoring-dashboard/memory', '/monitoring-dashboard/database',
+  '/monitoring-dashboard/disk', '/monitoring-dashboard/performance',
+  '/monitoring-dashboard/health', '/monitoring-dashboard/overview',
+  '/violations-dashboard', '/security-dashboard', '/backup-dashboard',
+  '/rate-limiting-dashboard', '/validation-dashboard', '/logging-dashboard',
+  '/scopri-demos'
 ];
-test('29 explicitly selected Android routes get the intended PAGE scroll policy',()=>{
-  assert.equal(fixed.length,9); assert.equal(scroll.length,20);
+test('53 explicitly selected Android routes get the intended PAGE scroll policy',()=>{
+  assert.equal(fixed.length,17); assert.equal(scroll.length,36);
   for(const path of fixed) assert.equal(getAndroidPageScrollPolicy(path),'fixed',path);
   for(const path of scroll) assert.equal(getAndroidPageScrollPolicy(path),'scroll',path);
 });
 test('unselected routes are untouched; patterns do not capture descendants',()=>{
-  for(const path of ['/', '/preferiti','/notifiche','/impostazioni','/gdpr',
+  for(const path of ['/preferiti','/notifiche','/impostazioni','/gdpr',
     '/scegli-rappresentante','/candidati/a/b','/sondaggi/a/b/c/d',
     '/statistiche-opinione/12/regione/a/other','/statistiche-opinioni']) {
     assert.equal(getAndroidPageScrollPolicy(path),'inherit',path);
@@ -73,4 +85,32 @@ test('all 10 approved legal URLs are real routes; public policies keep their own
   for(const publicRoute of ['/privacy-policy','/terms-of-service','/cookie-policy']) {
     assert.ok(shell.includes("'"+publicRoute+"'"));
   }
+});
+
+test('all newly approved entry and dashboard routes exist; only their page scroll changes',()=>{
+  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
+  const scrollAdditions=["/audit-dashboard","/monitoring-dashboard/services","/monitoring-dashboard/security","/monitoring-dashboard/memory","/monitoring-dashboard/database","/monitoring-dashboard/disk","/monitoring-dashboard/performance","/monitoring-dashboard/health","/violations-dashboard","/security-dashboard","/backup-dashboard","/rate-limiting-dashboard","/validation-dashboard","/logging-dashboard","/monitoring-dashboard/overview","/scopri-demos"];
+  const fixedAdditions=["/registrazione-genere","/registrazione-nome","/registrazione-cittadinanza","/registrazione-data-nascita","/registrazione-consensi","/registrazione-crea-passkey","/auth","/"];
+  assert.equal(scrollAdditions.length,16);
+  assert.equal(fixedAdditions.length,8);
+  for(const route of scrollAdditions){
+    assert.ok(app.includes('<Route path="'+route+'">'),'missing dashboard/public route: '+route);
+    assert.equal(getAndroidPageScrollPolicy(route),'scroll',route);
+    assert.equal(getAndroidPageScrollPolicy(route+'?view=active#overview'),'scroll',route);
+    assert.equal(getAndroidPageScrollPolicy(route+'/extra'),'inherit',route);
+  }
+  for(const route of fixedAdditions){
+    assert.ok(app.includes('<Route path="'+route+'">'),'missing entry/registration route: '+route);
+    assert.equal(getAndroidPageScrollPolicy(route),'fixed',route);
+    assert.equal(getAndroidPageScrollPolicy(route==='/'?'/auth?mode=login':route+'?source=onboarding'),'fixed',route);
+  }
+  assert.equal(getAndroidPageScrollPolicy('/registrazione-3-residenza'),'inherit');
+  assert.equal(getAndroidPageScrollPolicy('/monitoring-dashboard'),'inherit');
+  assert.equal(getAndroidPageScrollPolicy('/reset-password'),'inherit');
+  // A fixed page is not allowed to lock the body globally. Dialogs/lists
+  // continue using independent scrollable containers, outside this policy.
+  const css=readFileSync(new URL('../src/index.css',import.meta.url),'utf8');
+  assert.match(css,/\.app-main\.android-page-scroll-fixed/);
+  assert.match(css,/\.app-main\.android-page-scroll-enabled/);
+  assert.match(css,/\.app-main\.android-page-scroll-fixed > \.app-main__inner/);
 });
