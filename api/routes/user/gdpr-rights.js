@@ -351,67 +351,106 @@ router.delete('/account', (_req, res) => res.status(410).json({
  * Limita il trattamento di specifiche categorie di dati
  */
 router.put('/limit-processing', validateInput(['limited', 'categories']), async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { limited, categories, reason } = req.body;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
-
-    console.log(`🔒 Richiesta limitazione trattamento per utente: ${userId}`);
-
-    // Valida le categorie
-    const validCategories = [
-      'personal_data', 'political_opinions', 'voting_data', 
-      'communication_data', 'technical_data', 'marketing_data'
-    ];
-    
-    const invalidCategories = categories.filter(cat => !validCategories.includes(cat));
-    if (invalidCategories.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: `Categorie non valide: ${invalidCategories.join(', ')}`
-      });
-    }
-
-    // Imposta le limitazioni
-    const result = await AuditService.setProcessingLimits(
-      userId, 
-      limited, 
-      categories, 
-      reason
-    );
-
-    // Registra la richiesta
-    const requestQuery = `
-      INSERT INTO user_rights_requests (user_id, request_type, request_data, status)
-      VALUES ($1, $2, $3, 'completed')
-      RETURNING id
-    `;
-    
-    await pool.query(requestQuery, [
-      userId,
-      'limit_processing',
-      JSON.stringify({ 
-        limited, 
-        categories, 
-        reason,
-        request_date: new Date().toISOString()
-      })
-    ]);
-
-    res.json({
-      success: true,
-      message: limited ? 'Limitazioni di trattamento applicate' : 'Limitazioni di trattamento rimosse',
-      data: result
-    });
-
-  } catch (error) {
-    console.error('❌ Errore nella limitazione trattamento:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server durante la limitazione del trattamento'
+  const userId = req.userId || req.user?.id;
+  const { limited, categories, reason = null } = req.body || {};
+  const validCategories = new Set([
+    'personal_data', 'political_opinions', 'voting_data',
+    'communication_data', 'technical_data', 'marketing_data'
+  ]);
+  if (!userId || typeof limited !== 'boolean' ||
+      !Array.isArray(categories) || categories.length > validCategories.size ||
+      categories.some(cat => typeof cat !== 'string' || !validCategories.has(cat)) ||
+      new Set(categories).size !== categories.length ||
+      (reason !== null && (typeof reason !== 'string' || reason.length > 1000))) {
+    return res.status(400).json({
+      success: false, error: 'Parametri della limitazione non validi'
     });
   }
+
+  // A successful update followed by a failed rights-request INSERT previously
+  // returned HTTP 500 while leaving the processing restriction changed.
+  // Both changes must use the SAME borrowed PostgreSQL client and transaction.
+  let client;
+  let inTransaction = false;
+  let applied;
+  let receipt;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    inTransaction = true;
+    const updated = await client.query(
+      'INSERT INTO public.data_processing_limits ' +
+      '(user_id, processing_limited, limited_categories, reason) ' +
+      'VALUES ($1, $2, $3, $4) ' +
+      'ON CONFLICT (user_id) DO UPDATE SET ' +
+      'processing_limited = EXCLUDED.processing_limited, ' +
+      'limited_categories = EXCLUDED.limited_categories, ' +
+      'reason = EXCLUDED.reason, updated_at = CURRENT_TIMESTAMP ' +
+      'RETURNING *',
+      [userId, limited, categories, reason]
+    );
+    applied = updated.rows?.[0];
+    if (updated.rowCount !== 1 || !applied?.id ||
+        applied.processing_limited !== limited) {
+      throw Error('GDPR_PROCESSING_LIMIT_NOT_CONFIRMED');
+    }
+    const recorded = await client.query(
+      'INSERT INTO public.user_rights_requests ' +
+      '(user_id, request_type, request_data, status) ' +
+      "VALUES ($1, 'limit_processing', $2::jsonb, 'completed') " +
+      'RETURNING id, user_id, request_type, status',
+      [userId, JSON.stringify({
+        limited, categories, reason, request_date: new Date().toISOString()
+      })]
+    );
+    receipt = recorded.rows?.[0];
+    if (recorded.rowCount !== 1 || !receipt?.id ||
+        String(receipt.user_id) !== String(userId) ||
+        receipt.request_type !== 'limit_processing' ||
+        receipt.status !== 'completed') {
+      throw Error('GDPR_PROCESSING_RIGHTS_RECEIPT_NOT_CONFIRMED');
+    }
+    await client.query('COMMIT');
+    inTransaction = false;
+  } catch (error) {
+    if (inTransaction && client) {
+      try { await client.query('ROLLBACK'); }
+      catch (_) { /* SQL failure remains unconfirmed; never claim success. */ }
+    }
+    console.error('Errore nella limitazione trattamento:',
+      error?.code || 'QUERY_FAILED');
+    return res.status(503).json({
+      success: false,
+      error: 'Modifica non confermata. Controlla lo stato delle richieste prima di riprovare.'
+    });
+  } finally {
+    if (client) client.release();
+  }
+
+  // The durable rights receipt is the authoritative audit trail for this
+  // operation. A separate Axiom/legacy audit delivery must never turn a
+  // committed change into a false HTTP failure and cause an unsafe retry.
+  try {
+    await AuditService.logAction({
+      userId,
+      action: limited ? 'PROCESSING_LIMITED' : 'PROCESSING_UNLIMITED',
+      resource: 'data_processing_limits',
+      resourceId: applied.id,
+      details: { limited, categories },
+      ipAddress: req.ip || req.connection?.remoteAddress,
+      userAgent: req.get?.('User-Agent'),
+      success: true
+    });
+  } catch (_) {
+    console.error('GDPR_PROCESSING_LIMIT_SECONDARY_AUDIT_UNAVAILABLE');
+  }
+  return res.json({
+    success: true,
+    message: limited ? 'Limitazioni di trattamento applicate' :
+      'Limitazioni di trattamento rimosse',
+    request_id: receipt.id,
+    data: applied
+  });
 });
 
 /**
