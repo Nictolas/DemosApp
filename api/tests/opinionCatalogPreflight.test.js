@@ -14,7 +14,7 @@ function fakePool({missing=null,wrongType=null,extra=null,legacyDrift=false}={})
   columns.push({column_name:'fonti_opinioni',data_type:'jsonb'});
   if(extra)columns.push({column_name:extra,data_type:'text'});
   const legacy=questions.map(q=>({
-    id:q.id,text:q.id===legacyDrift?'CHANGED TEXT':q.text,
+    id:q.id,text:legacyDrift && q.id===questions[0].id?'CHANGED TEXT':q.text,
     gradi_opinione:[...q.gradi_opinione],approfondimento:q.approfondimento
   }));
   return {calls,async query(sql){
