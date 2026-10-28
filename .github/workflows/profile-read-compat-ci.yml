@@ -16,6 +16,7 @@ on:
       - 'api/database/user-profile-preflight-readonly.sql'
       - 'api/tests/politicalTerritoryMembershipService.test.js'
       - 'api/tests/eventFeedService.test.js'
+      - 'api/tests/politicalRepresentativeSelection.smoke.test.js'
       - '.github/workflows/profile-read-compat-ci.yml'
   workflow_dispatch:
 
@@ -52,7 +53,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Run compatibility regression tests
         working-directory: api
-        run: node --test tests/userProfileReadService.test.js tests/userProfileWriteService.test.js tests/politicalTerritoryMembershipService.test.js tests/eventFeedService.test.js
+        run: node --test tests/userProfileReadService.test.js tests/userProfileWriteService.test.js tests/politicalTerritoryMembershipService.test.js tests/eventFeedService.test.js tests/politicalRepresentativeSelection.smoke.test.js
       - name: Run PostgreSQL 17 synthetic profile and preflight checks
         working-directory: api
         env:
