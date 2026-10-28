@@ -20,7 +20,7 @@ for (const file of [
   test(`${file}: obsolete importer fails closed instead of creating users`, () => {
     const sql = stripSqlComments(read(file));
     assert.match(sql, /RAISE\s+EXCEPTION/);
-    assert.doesNotMatch(sql, /\b(?:INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM|TRUNCATE\s+)\b/i);
+    assert.doesNotMatch(sql, /\b(?:INSERT|UPDATE|DELETE|MERGE|TRUNCATE|CREATE|ALTER|DROP|GRANT|REVOKE|COPY|CALL|EXECUTE)\b/i);
   });
 }
 
@@ -48,6 +48,6 @@ test('political duplicate audit only reads users and mandates', () => {
   assert.match(sql, /politician_unauthed_same_dob_for_review/);
   assert.match(sql, /with_authenticated_accounts/);
   // Only authorized review may decide an identity: never introduce a merge in audit SQL.
-  assert.doesNotMatch(sql, /\b(?:MERGE\s+INTO|DO\s+\$|CREATE\s+FUNCTION|EXECUTE\s+)\b/i);
-  assert.doesNotMatch(sql, /\b(?:INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM|TRUNCATE\s+|ALTER\s+TABLE|DROP\s+TABLE)\b/i);
+  assert.doesNotMatch(sql, /\b(?:INSERT|UPDATE|DELETE|MERGE|TRUNCATE|CREATE|ALTER|DROP|GRANT|REVOKE|COPY|CALL|EXECUTE)\b/i);
+  
 });
