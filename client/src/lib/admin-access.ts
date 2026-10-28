@@ -10,7 +10,6 @@ const ADMIN_ONLY_EXACT_PATHS = new Set([
   "/notifiche-totali",
   "/utenti",
   "/test-ministero",
-  "/statistiche-utenti",
 ]);
 
 function normalizePath(path: string): string {
