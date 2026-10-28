@@ -4,6 +4,8 @@ const {
   registerVerifiedIdentity
 } = require('./identityVerificationStore');
 const { IDENTITY_PROVIDERS, IDENTITY_ERROR_CODES } = require('../constants/identityVerification');
+const { getPool } = require('../config/database');
+const { persistVerifiedCieSex } = require('../utils/cieSex');
 
 function getFiscalNumberFromVerifiedClaims(claims) {
   if (!claims || typeof claims !== 'object') {
@@ -43,14 +45,36 @@ async function completeCieVerificationFromVerifiedClaims(
 ) {
   const fiscalNumber = getFiscalNumberFromVerifiedClaims(claims);
 
-  return registerVerifiedIdentity(
-    {
-      userId,
-      fiscalNumber,
-      provider: IDENTITY_PROVIDERS.CIE
-    },
-    db
-  );
+  const sesso = claims.sesso ?? null;
+  if (sesso == null) {
+    return registerVerifiedIdentity(
+      { userId, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
+      db
+    );
+  }
+  if (sesso !== 'M' && sesso !== 'F') {
+    throw new Error('Sesso CIE non valido');
+  }
+
+  // La verifica CIE e l'attributo anagrafico devono essere atomici.
+  const connection = db || getPool();
+  const ownsTransaction = typeof connection.connect === 'function';
+  const client = ownsTransaction ? await connection.connect() : connection;
+  try {
+    if (ownsTransaction) await client.query('BEGIN');
+    const verified = await registerVerifiedIdentity(
+      { userId, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
+      client
+    );
+    await persistVerifiedCieSex(client, userId, sesso);
+    if (ownsTransaction) await client.query('COMMIT');
+    return verified;
+  } catch (error) {
+    if (ownsTransaction) await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    if (ownsTransaction) client.release();
+  }
 }
 
 module.exports = {
