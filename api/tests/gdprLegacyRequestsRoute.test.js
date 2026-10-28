@@ -352,3 +352,19 @@ test('actual rights history is bounded, same-snapshot, payload-free and honestly
     }
   }
 });
+
+test('history UI is keyed by authenticated user, preventing cross-session stale results', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const file = fs.readFileSync(
+    path.join(__dirname,'..','..','client','src','pages','GDPRRights.tsx'),
+    'utf8'
+  );
+  // This is a static boundary contract; the separate Vite workflow
+  // typechecks/transforms the actual TSX. No users, browser or provider I/O.
+  assert.match(file, /const \{ user, isLoading \} = useAuth\(\)/);
+  assert.match(file, /if \(!user\)\s*\{/);
+  assert.match(file, /return <AuthenticatedRightsHistory key=\{user\.id\} \/>/);
+  assert.match(file, /function AuthenticatedRightsHistory\(\)/);
+  assert.match(file, /Accedi per consultare le tue richieste/);
+});
