@@ -17,15 +17,16 @@ async function persistVerifiedCieSex(client, userId, sesso) {
   if (sesso !== 'M' && sesso !== 'F') {
     throw new Error('Valore sesso CIE non valido');
   }
+  // Una verifica CIE firmata prevale sempre sull'eventuale valore storico.
+  // La chiamata avviene nella transazione di verifica identita', lato server.
   const result = await client.query(
     `UPDATE users SET sesso = $1, updated_at = NOW()
      WHERE id = $2
-       AND account_type = 'PERSON'
-       AND (sesso IS NULL OR sesso = $1)`,
+       AND account_type = 'PERSON'`,
     [sesso, userId]
   );
   if (result.rowCount !== 1) {
-    throw new Error('Conflitto sesso anagrafico, account inesistente o non PERSON');
+    throw new Error('Account inesistente o non PERSON');
   }
   return true;
 }
