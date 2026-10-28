@@ -12,9 +12,6 @@ import { SearchBar } from "./components/SearchBar";
 import { FiltersBar } from "./components/FiltersBar";
 import { UsersTable } from "./components/UsersTable";
 import { MobileUsersTable } from "./components/MobileUsersTable";
-import { MobilePendingUsersTable } from "./components/MobilePendingUsersTable";
-import { PendingUsersTable } from "./components/PendingUsersTable";
-import { usePendingUserActions } from "./hooks/usePendingUserActions";
 import { Pagination } from "./components/Pagination";
 import { USERS_PER_PAGE } from "./constants";
 import { clearAllTokens, forceTokenRefresh } from "@/utils/tokenUtils";
@@ -65,13 +62,6 @@ export default function Utenti() {
     handleRuoloChange,
     handleGradoElezioneChange
   } = useUserManagement();
-
-  // Hook per le azioni sugli utenti pending
-  const {
-    approveUser,
-    rejectUser,
-    isProcessing
-  } = usePendingUserActions();
 
   // Hook per rilevare se siamo su mobile
   const [isMobile, setIsMobile] = useState(false);
@@ -279,7 +269,6 @@ export default function Utenti() {
 
   // Preparazione dati
   const allUsers = responseData?.utenti || [];
-  const pendingUsers = responseData?.pendingUsers || [];
   const displayColumns = getDisplayColumns(allUsers);
 
   // Calcola i valori disponibili per i filtri
@@ -367,14 +356,6 @@ export default function Utenti() {
     setCurrentPage(page);
   };
 
-  const handleApproveUser = (user: any) => {
-    approveUser(user.id);
-  };
-
-  const handleRejectUser = (user: any) => {
-    rejectUser({ userId: user.id });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-full px-4 py-4 md:px-6 md:py-6">
@@ -446,7 +427,7 @@ export default function Utenti() {
             ) : (
               <>
                 {/* Statistiche */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
                   <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-3">
@@ -475,52 +456,7 @@ export default function Utenti() {
                     </CardContent>
                   </Card>
                   
-                  <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-yellow-500 rounded-lg">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-yellow-600">In Attesa</p>
-                          <p className="text-2xl font-bold text-yellow-900">{pendingUsers.length}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
                 </div>
-
-                {/* Sezione Utenti in Attesa */}
-                {pendingUsers.length > 0 && (
-                  <Card className="bg-white border-0 shadow-lg mb-6 w-full">
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center text-2xl text-gray-800">
-                        <Users className="h-6 w-6 mr-3 text-yellow-600" />
-                        Utenti in Attesa
-                      </CardTitle>
-                      <CardDescription className="text-gray-600">
-                        Utenti in attesa di approvazione ({pendingUsers.length})
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {isMobile ? (
-                        <MobilePendingUsersTable 
-                          users={pendingUsers}
-                          onApprove={handleApproveUser}
-                          onReject={handleRejectUser}
-                          isProcessing={isProcessing}
-                        />
-                      ) : (
-                        <PendingUsersTable 
-                          users={pendingUsers}
-                          onApprove={handleApproveUser}
-                          onReject={handleRejectUser}
-                          isProcessing={isProcessing}
-                        />
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
 
                 {/* Tabella utenti attivi */}
                 <Card className="bg-white border-0 shadow-lg w-full">
