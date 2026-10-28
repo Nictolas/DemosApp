@@ -287,6 +287,8 @@ BEGIN
     SELECT 1 FROM political_mandates pm
     WHERE pm.user_id = p_user_id
       AND pm.status = 'ACTIVE'
+      -- Legacy imports do not establish a presently held office.
+      AND pm.source <> 'LEGACY_BACKFILL'
       AND pm.starts_at <= NOW()
       AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
   ) INTO v_is_politician;
