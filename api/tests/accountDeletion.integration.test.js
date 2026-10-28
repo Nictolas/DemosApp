@@ -45,7 +45,26 @@ if (!isLocalTestDatabase) {
     ['consenso_governo', 'userid'],
     ['consenso_capo_stato', 'userid'],
     ['candidature_elezioni', 'user_id'],
-    ['notifiche', 'user_id']
+    ['notifiche', 'user_id'],
+    ['active_sessions', 'user_id'],
+    ['user_rights_requests', 'user_id'],
+    ['data_processing_limits', 'user_id'],
+    ['rate_limit_violations', 'user_id'],
+    ['premium_requests', 'userid'],
+    ['richieste_premium', 'utente_id'],
+    ['richieste_grazia', 'utente_id'],
+    ['segnalazioni', 'utente_id'],
+    ['notifiche_avvistamenti', 'id_utente'],
+    ['notifiche_voti_comuni', 'id_utente'],
+    ['notifiche_voti_parlamento', 'id_utente'],
+    ['grazia_requests', 'userid'],
+    ['candidati', 'user_id'],
+    ['mandate_program_snapshots', 'user_id'],
+    ['political_programs', 'user_id'],
+    ['political_candidacies', 'user_id'],
+    ['political_mandates', 'user_id'],
+    ['user_providers', 'user_id'],
+    ['sessions', 'user_id']
   ];
 
   const resetSchema = async () => {
@@ -104,6 +123,107 @@ if (!isLocalTestDatabase) {
       assert.equal(owned.rows[0].count, 0, `${table} still contains u1 data`);
       assert.equal(other.rows[0].count, 1, `${table} removed another user's data`);
     }
+  });
+
+  test('strict candidate FK and linked GDPR receipts do not block account deletion', async () => {
+    await resetSchema();
+    // Matches the production FK default NO ACTION on candidates.
+    await pool.query(`ALTER TABLE candidati
+      ADD CONSTRAINT candidates_user_fk FOREIGN KEY (user_id)
+      REFERENCES users(id) ON DELETE NO ACTION`);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await PrivacyErasureLedgerService.enforceAccountDeletion(client, 'u1');
+      assert.equal(result.userDeleted, 1);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM users WHERE id='u1'")).rows[0].n, 0);
+    for (const table of ['candidati', 'political_programs', 'user_rights_requests', 'active_sessions']) {
+      assert.equal((await pool.query(`SELECT count(*)::int AS n FROM "${table}" WHERE payload='owned'`)).rows[0].n, 0, table);
+      assert.equal((await pool.query(`SELECT count(*)::int AS n FROM "${table}" WHERE payload='other'`)).rows[0].n, 1, table);
+    }
+  });
+
+  test('public civic items survive with author references cleared; other users are retained', async () => {
+    await resetSchema();
+    const nullableColumns = [
+      ['eventi', 'creator_user_id'],
+      ['eventi', 'approved_by_user_id'],
+      ['eventi', 'election_lifecycle_closed_by_user_id'],
+      ['referendum_abrogativi', 'userid'],
+      ['iniziative_popolari', 'userid'],
+      ['governo_attuale', 'user_id'],
+      ['programmi', 'user_id_backup'],
+      ['civic_process_reconciliation_candidates', 'reviewed_by_user_id'],
+      ['civic_processes', 'realized_verified_by_user_id']
+    ];
+    const tables = new Map();
+    for (const [table, column] of nullableColumns) {
+      if (!tables.has(table)) tables.set(table, []);
+      tables.get(table).push(column);
+    }
+    for (const [table, columns] of tables) {
+      await pool.query(`CREATE TABLE "${table}" (
+        id BIGSERIAL PRIMARY KEY,
+        ${columns.map(col => `"${col}" TEXT NULL`).join(',')}
+      )`);
+      for (const col of columns) {
+        await pool.query(`INSERT INTO "${table}" ("${col}") VALUES ('u1'), ('u2')`);
+      }
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const erased = await PrivacyErasureLedgerService.enforceAccountDeletion(client, 'u1');
+      assert.equal(erased.userDeleted, 1);
+      assert.equal(erased.rowsUnlinked >= nullableColumns.length, true);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    for (const [table, column] of nullableColumns) {
+      const result = await pool.query(`SELECT
+        count(*) FILTER (WHERE "${column}"='u1')::int AS old_refs,
+        count(*) FILTER (WHERE "${column}"='u2')::int AS other_refs,
+        count(*)::int AS kept_rows
+        FROM "${table}"`);
+      assert.equal(result.rows[0].old_refs, 0, `${table}.${column} leaked account id`);
+      assert.equal(result.rows[0].other_refs, 1, `${table}.${column} changed another user`);
+      assert.equal(result.rows[0].kept_rows, tables.get(table).length * 2);
+    }
+  });
+
+  test('non-nullable public references fail closed and rollback all preceding deletions', async () => {
+    await resetSchema();
+    await pool.query(`CREATE TABLE eventi (
+      id BIGSERIAL PRIMARY KEY, creator_user_id TEXT NOT NULL
+    )`);
+    await pool.query("INSERT INTO eventi(creator_user_id) VALUES ('u1'), ('u2')");
+    const client = await pool.connect();
+    await client.query('BEGIN');
+    try {
+      await assert.rejects(
+        PrivacyErasureLedgerService.enforceAccountDeletion(client, 'u1'),
+        (error) => error.code === 'GDPR_ERASURE_REFERENCE_NOT_NULLABLE'
+      );
+    } finally {
+      await client.query('ROLLBACK');
+      client.release();
+    }
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM users WHERE id='u1'")).rows[0].n, 1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM opinioni_risposte WHERE user_id='u1'")).rows[0].n, 1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM eventi WHERE creator_user_id='u1'")).rows[0].n, 1);
   });
 
   test('RP-05 deletes the detached CIE anti-duplication key so the same person may register again', async () => {
