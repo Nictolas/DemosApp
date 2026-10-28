@@ -3,6 +3,7 @@ const { getPool } = require('../config/database');
 const { encrypt: encryptEmail } = require('../utils/emailCrypto');
 const { compressUserLocation } = require('../utils/locationUtils');
 const { registerVerifiedIdentity } = require('./identityVerificationStore');
+const { persistVerifiedCieSex } = require('../utils/cieSex');
 const { IDENTITY_PROVIDERS } = require('../constants/identityVerification');
 
 const SUPPORTED_OAUTH_PROVIDERS = new Set(['google', 'apple']);
@@ -178,7 +179,8 @@ async function finalizeExistingAccount(
   existing,
   normalized,
   compressedLocation,
-  fiscalNumber
+  fiscalNumber,
+  verifiedCieSex
 ) {
   const { userId, role } = await updateExistingUserCore(client, existing, compressedLocation);
   await upsertRegistrationData(client, userId, normalized, compressedLocation);
@@ -187,12 +189,13 @@ async function finalizeExistingAccount(
       { userId, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
       client
     );
+    await persistVerifiedCieSex(client, userId, verifiedCieSex);
   }
   return { userId, role, created: false };
 }
 
 async function completeOAuthRegistration(
-  { registration, fiscalNumber = null, requireVerifiedIdentity = false },
+  { registration, fiscalNumber = null, verifiedCieSex = null, requireVerifiedIdentity = false },
   pool = getPool()
 ) {
   const normalized = normalizeRegistration(registration);
@@ -218,7 +221,8 @@ async function completeOAuthRegistration(
         existing,
         normalized,
         compressedLocation,
-        fiscalNumber
+        fiscalNumber,
+        verifiedCieSex
       );
       await client.query('COMMIT');
       return completed;
@@ -263,6 +267,7 @@ async function completeOAuthRegistration(
         { userId, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
         client
       );
+      await persistVerifiedCieSex(client, userId, verifiedCieSex);
     }
 
     await client.query('COMMIT');
@@ -288,7 +293,8 @@ async function completeOAuthRegistration(
           existing,
           normalized,
           compressedLocation,
-          fiscalNumber
+          fiscalNumber,
+          verifiedCieSex
         );
         await client.query('COMMIT');
         return completed;
@@ -309,11 +315,11 @@ async function completeOAuthRegistrationWithoutCie({ registration }, pool = getP
 }
 
 async function completeOAuthRegistrationAfterCie(
-  { registration, fiscalNumber },
+  { registration, fiscalNumber, verifiedCieSex = null },
   pool = getPool()
 ) {
   return completeOAuthRegistration(
-    { registration, fiscalNumber, requireVerifiedIdentity: true },
+    { registration, fiscalNumber, verifiedCieSex, requireVerifiedIdentity: true },
     pool
   );
 }
