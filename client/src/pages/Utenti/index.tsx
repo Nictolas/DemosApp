@@ -43,7 +43,7 @@ type StatisticheUtenti = {
 // Colori per i grafici - più colori per evitare duplicati
 const COLORS = ['#87CEEB', '#FFB6C1', '#FFD700', '#98FB98', '#DDA0DD', '#F0E68C', '#FFA07A', '#20B2AA', '#FF6347', '#40E0D0', '#EE82EE', '#90EE90', '#F4A460', '#87CEFA', '#D8BFD8', '#F5DEB3'];
 
-// Colori delle sole categorie CIE certificate; NULL non è una terza categoria di sesso.
+// Colori delle categorie M/F salvate; la CIE potrà correggerle dopo la verifica.
 const getSexColor = (sesso: string) =>
   sesso === 'M' ? '#3b82f6' : sesso === 'F' ? '#ec4899' : '#9ca3af';
 
@@ -117,7 +117,7 @@ export default function Utenti() {
     }, {} as Record<string, number>);
     
     const usersBySesso = utenti.reduce((acc, user) => {
-      // Solo persone: non convertire la vecchia colonna "genere" in un dato CIE.
+      // Solo persone: usa il campo M/F già salvato, anche se proveniente da dati storici.
       if (user.account_type !== 'PERSON') return acc;
       const sesso = user.sesso === 'M' || user.sesso === 'F'
         ? user.sesso
@@ -748,8 +748,8 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>Distribuzione per sesso anagrafico (CIE)</CardTitle>
-                      <CardDescription>Solo persone. I valori storici di «genere» non sono considerati certificati.</CardDescription>
+                      <CardTitle>Distribuzione per sesso</CardTitle>
+                      <CardDescription>Maschile e Femminile dai valori M/F presenti; la verifica CIE potrà aggiornarli.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
