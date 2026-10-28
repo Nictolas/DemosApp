@@ -447,7 +447,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         {...valid,event_key:'synthetic-bigint',details:{value:1n}},
         {...valid,event_key:'synthetic-circular',details:circular},
         {...valid,event_key:'synthetic-undefined-json',details:Symbol('invalid')},
-        // A missing or non-object JSONB payload must never become '{}' silently.
+        // Malformed archives must not silently replace details with {}.
         {...valid,event_key:'synthetic-null-details',details:null},
         {...valid,event_key:'synthetic-undefined-details',details:undefined},
         {...valid,event_key:'synthetic-false-details',details:false},
@@ -1093,4 +1093,85 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
+
+  test('GDPR account replay deletes FK-less restored legacy selections and consents without affecting other accounts',async()=>{
+    const pool=new Pool({connectionString:uri,max:2});
+    const deleted='synthetic-erased-account-without-foreign-keys';
+    const keeper='synthetic-unrelated-account-without-foreign-keys';
+    try {
+      await pool.query('DROP SCHEMA public CASCADE');
+      await pool.query('CREATE SCHEMA public');
+      // Disposable PostgreSQL 17 fixtures only; restored legacy tables may
+      // omit FK cascades while preserving the original user-owned rows.
+      await pool.query([
+        'CREATE TABLE public.users (id text PRIMARY KEY, political_opinions_consent boolean,',
+        'political_opinions_consent_timestamp timestamptz,',
+        'political_opinions_consent_ip_address text, political_opinions_consent_user_agent text,',
+        'updated_at timestamptz)',
+        '; CREATE TABLE public.opinioni_risposte (user_id text, answer text)',
+        '; CREATE TABLE public.user_consents (user_id text PRIMARY KEY,',
+        'political_opinions_consent boolean, political_opinions_consent_timestamp timestamptz,',
+        'political_opinions_consent_ip_address text, political_opinions_consent_user_agent text,',
+        'updated_at timestamptz)',
+        '; CREATE TABLE public.user_representatives (user_id text, representative text)',
+        '; CREATE TABLE public.political_selections (user_id text, selected_user_id text)'
+      ].join(' '));
+      await pool.query(
+        'INSERT INTO public.users(id,political_opinions_consent) VALUES ($1,true),($2,true)',
+        [deleted,keeper]
+      );
+      await pool.query(
+        'INSERT INTO public.user_consents(user_id,political_opinions_consent) VALUES ($1,true),($2,true)',
+        [deleted,keeper]
+      );
+      await pool.query(
+        'INSERT INTO public.user_representatives(user_id,representative) VALUES ($1,$3),($2,$4)',
+        [deleted,keeper,'synthetic-erased-representative','synthetic-kept-representative']
+      );
+      await pool.query(
+        'INSERT INTO public.political_selections(user_id,selected_user_id) ' +
+        'VALUES ($1,$2),($2,$1),($2,$2)',
+        [deleted,keeper]
+      );
+      await Ledger.ensureTable(pool);
+      await Ledger.recordEvent(pool,{
+        userId:deleted,eventType:Ledger.EVENT_TYPES.ACCOUNT_DELETED,
+        details:{source:'synthetic-account-erasure-missing-fk'}
+      });
+      const replay=await Ledger.applyCurrentPrivacyState(pool);
+      assert.equal(replay.accountsRemoved,1);
+      assert.equal(replay.dependentRowsRemoved,4,
+        'delete consent, representative and selections in both directions');
+      for (const [table,column] of [
+        ['users','id'],['user_consents','user_id'],
+        ['user_representatives','user_id'],
+        ['political_selections','user_id']
+      ]) {
+        const rows=(await pool.query(
+          'SELECT COUNT(*)::int AS n FROM public.'+table+
+          ' WHERE '+column+'=$1',[deleted]
+        )).rows[0].n;
+        assert.equal(rows,0,'erased identity must not survive in '+table);
+      }
+      assert.deepEqual((await pool.query(
+        'SELECT user_id,selected_user_id FROM public.political_selections'
+      )).rows,[{user_id:keeper,selected_user_id:keeper}],
+      'selections pointing TO the erased account must also disappear');
+      assert.equal((await pool.query(
+        'SELECT COUNT(*)::int AS n FROM public.user_consents WHERE user_id=$1',
+        [keeper]
+      )).rows[0].n,1,
+      'unrelated consent must be preserved');
+      assert.equal((await pool.query(
+        'SELECT representative FROM public.user_representatives WHERE user_id=$1',
+        [keeper]
+      )).rows[0].representative,'synthetic-kept-representative');
+      const repeated=await Ledger.applyCurrentPrivacyState(pool);
+      assert.equal(repeated.accountsRemoved,0);
+      assert.equal(repeated.dependentRowsRemoved,0,
+        'replaying identical erasure must not touch surviving users');
+    } finally {
+      await pool.end();
+    }
+  });
 }
