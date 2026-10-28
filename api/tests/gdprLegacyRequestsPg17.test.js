@@ -362,7 +362,21 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
       assert.equal(await receiptCount(),1,
       'no unconfirmed or duplicated rights receipt may survive rollback');
 
+      const cleared=response();
+      await put(request(false,'synthetic-clear-all',[]),cleared);
+      assert.equal(cleared.statusCode,200,
+        'an empty list must be accepted when removing all restrictions');
+      assert.equal(cleared.body.success,true);
+      const clearedState=(await admin.query(
+        'SELECT processing_limited, limited_categories FROM public.data_processing_limits WHERE user_id=$1',
+        [USER]
+      )).rows[0];
+      assert.deepEqual(clearedState,{processing_limited:false,limited_categories:[]});
+      assert.equal(await receiptCount(),2,
+        'successful removal must persist its own real receipt');
+
       for(const body of [
+        {limited:true,categories:[]},
         {limited:'true',categories:['personal_data']},
         {limited:true,categories:{not:'an-array'}},
         {limited:true,categories:['personal_data','personal_data']}
@@ -371,7 +385,7 @@ test('real PG17 rights request persists, history respects user scope, and RLS fa
         await put({userId:USER,body},invalid);
         assert.equal(invalid.statusCode,400);
       }
-      assert.equal(await receiptCount(),1);
+      assert.equal(await receiptCount(),2);
     });
 
     console.log('GDPR_LEGACY_RIGHTS_REAL_PG17_PASS ' + JSON.stringify({

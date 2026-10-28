@@ -461,6 +461,23 @@ test('shared validation never logs GDPR bodies or emails and rejects long input 
   }
 });
 
+test('removing all processing restrictions accepts empty categories, but active limits require categories', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '../routes/user/gdpr-rights.js'), 'utf8');
+  assert.ok(source.includes("router.put('/limit-processing', validateInput(['limited'])"),
+    'middleware must not reject an empty list before the route handles it');
+  assert.ok(source.includes('(limited && categories.length === 0)'),
+    'enabling a restriction without categories must remain invalid');
+  const { validateInput } = require('../middleware/validation');
+  const result = response();
+  let forwarded = 0;
+  validateInput(['limited'])({body:{limited:false,categories:[]}}, result,
+    () => { forwarded++; });
+  assert.equal(forwarded, 1);
+  assert.equal(result.statusCode, 200);
+});
+
 test('GDPR objection validates categories and acknowledges committed receipt despite audit outage',async()=>{
   const paths=[
     require.resolve('../middleware/auth'),

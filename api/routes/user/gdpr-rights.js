@@ -350,7 +350,7 @@ router.delete('/account', (_req, res) => res.status(410).json({
  * Diritto di limitazione del trattamento (GDPR Art. 18)
  * Limita il trattamento di specifiche categorie di dati
  */
-router.put('/limit-processing', validateInput(['limited', 'categories']), async (req, res) => {
+router.put('/limit-processing', validateInput(['limited']), async (req, res) => {
   const userId = req.userId || req.user?.id;
   const { limited, categories, reason = null } = req.body || {};
   const validCategories = new Set([
@@ -358,7 +358,8 @@ router.put('/limit-processing', validateInput(['limited', 'categories']), async 
     'communication_data', 'technical_data', 'marketing_data'
   ]);
   if (!userId || typeof limited !== 'boolean' ||
-      !Array.isArray(categories) || categories.length > validCategories.size ||
+      !Array.isArray(categories) || (limited && categories.length === 0) ||
+      categories.length > validCategories.size ||
       categories.some(cat => typeof cat !== 'string' || !validCategories.has(cat)) ||
       new Set(categories).size !== categories.length ||
       (reason !== null && (typeof reason !== 'string' || reason.length > 1000))) {
