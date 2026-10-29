@@ -258,6 +258,15 @@ if (!isLocalTestDatabase) {
     assert.doesNotMatch(route, /UPDATE identity_verifications[\s\S]*detached_at/i);
   });
 
+  test('account deletion diagnostics omit raw errors and post-erasure identifiers', () => {
+    const route = fs.readFileSync(path.join(__dirname, '../routes/user/delete-account.js'), 'utf8');
+    assert.match(route, /ACCOUNT_DELETION_COMPLETED/);
+    assert.match(route, /errorCode:\s*'ACCOUNT_DELETION_FAILED'/);
+    assert.doesNotMatch(route, /deletedUserId\s*:/);
+    assert.doesNotMatch(route, /error\s*:\s*error\.message/);
+    assert.doesNotMatch(route, /console\.error\([^;\n]*,\s*error\s*\)/);
+  });
+
   test.after(async () => {
     await pool.query('DROP SCHEMA IF EXISTS public CASCADE');
     await pool.query('CREATE SCHEMA public');
