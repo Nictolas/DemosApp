@@ -6,6 +6,8 @@ on:
       - 'api/services/chronocolEventFeedService.js'
       - 'api/routes/eventi.js'
       - 'api/tests/chronocolEventFeedService.test.js'
+      - 'api/tests/eventTerritoryViews.integration.test.js'
+      - 'client/src/utils/eventTerritoryView.ts'
       - 'client/src/pages/Eventi.tsx'
       - '.github/workflows/chronocol-eventi.yml'
   push:
@@ -14,6 +16,8 @@ on:
       - 'api/services/chronocolEventFeedService.js'
       - 'api/routes/eventi.js'
       - 'api/tests/chronocolEventFeedService.test.js'
+      - 'api/tests/eventTerritoryViews.integration.test.js'
+      - 'client/src/utils/eventTerritoryView.ts'
       - 'client/src/pages/Eventi.tsx'
 
 jobs:
@@ -33,5 +37,7 @@ jobs:
         run: node --test api/tests/chronocolEventFeedService.test.js api/tests/eventFeedService.test.js
       - name: Install client dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Test geographical mapping and territorial feed views
+        run: node --test api/tests/eventTerritoryViews.integration.test.js
       - name: Build frontend
         run: npm run build --prefix client
