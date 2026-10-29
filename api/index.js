@@ -1,16 +1,12 @@
 'use strict';
 
-// Render entrypoint: a staging identity probe MUST validate the service ID,
-// database project and TLS before any app module, worker, timer or SQL pool
-// can be imported. This does not attest other external provider credentials.
-if (process.env.GDPR_RENDER_INPROCESS_ATTESTATION !== undefined) {
-  try {
-    require('./services/gdprRenderInProcessStagingAttestation')
-      .assertProcessTarget(process.env);
-  } catch (_) {
-    // Never print DATABASE_URL or the original error.
-    throw Error('GDPR_RENDER_STAGING_PREFLIGHT_REFUSED');
-  }
+// The Render WEB entrypoint must never execute SQL identity diagnostics:
+// loading the backend also initializes Firebase, audit, monitoring and workers.
+// The operator's isolated probe is a separate one-shot CLI command; never use
+// its markers to redeploy or restart this web service.
+if (process.env.GDPR_RENDER_INPROCESS_ATTESTATION !== undefined ||
+    process.env.GDPR_RENDER_SQL_CLI_ONLY !== undefined) {
+  throw Error('GDPR_RENDER_STAGING_WEB_PROBE_FORBIDDEN');
 }
 
 require('./server');
