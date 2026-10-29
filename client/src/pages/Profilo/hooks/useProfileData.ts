@@ -21,6 +21,8 @@ import {
 // These values remain in RAM as well for fast panel toggling.
 const PROFILE_CACHE_FRESH = Infinity;
 const PROFILE_CACHE_GC = Infinity;
+// Invalidate pre-fix locally encrypted labels exactly once, not on every visit.
+const PROFILE_PREFERENCES_VERSION = 2;
 
 export type ProfilePanels = {
   personal: boolean;
@@ -125,7 +127,8 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
           ["representatives", snapshot.representatives],
           ["candidates", snapshot.candidates],
           ["opinions", snapshot.opinions],
-          ["preferences", snapshot.preferences || null],
+          ["preferences", snapshot.preferencesVersion === PROFILE_PREFERENCES_VERSION
+            ? (snapshot.preferences || null) : null],
         ] as const;
         for (const [section, payload] of sections) {
           if (payload !== null) client.setQueryData(
@@ -205,7 +208,10 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     queryFn: async () => {
       const payload = await getPayload("/api/user/profile-selections");
       const value = payload.data as ProfileChosenVotes;
-      await patchEncryptedProfile(ownerId, { preferences: value });
+      await patchEncryptedProfile(ownerId, {
+        preferences: value,
+        preferencesVersion: PROFILE_PREFERENCES_VERSION,
+      });
       return value;
     },
     staleTime: PROFILE_CACHE_FRESH,
