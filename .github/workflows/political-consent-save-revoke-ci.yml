@@ -136,7 +136,38 @@ jobs:
         # Both commands still exit nonzero for any failed assertion.
         run: |
           node api/tests/politicalOpinionWriteRules.smoke.test.js
-          node --test --test-concurrency=1 api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/politicalAggregatePrivacy.test.js api/tests/politicalOpinionReadCachePolicy.test.js api/tests/politicalProfileReadConsent.test.js api/tests/politicalMatchingService.test.js api/tests/politicalMatchingRoutes.smoke.test.js api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js api/tests/politicalConsentHttpNoStore.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/legacyReferendumConsentRace.smoke.test.js api/tests/amnestyConsentRevokeRace.smoke.test.js api/tests/headOfStateConsentPrivacy.smoke.test.js api/tests/headOfStateVoteReadPrivacy.test.js api/tests/headOfStateVoteWritePrivacy.test.js api/tests/graceReadPrivacy.test.js api/tests/graceVoteWritePrivacy.test.js api/tests/proposalVoteConsentRace.test.js api/tests/governmentConfidenceConsentRace.test.js api/tests/governmentMinisterVoteConsentRace.test.js api/tests/governmentConfidenceReadPrivacy.test.js api/tests/governmentMinistryReadsPrivacy.test.js api/tests/publicProfileGovernmentConsent.test.js api/tests/publicPoliticalProfile.smoke.test.js
+          for test_file in \
+            api/tests/ordinaryUserOpinionSave.test.js \
+            api/tests/politicalConsentAtomic.smoke.test.js \
+            api/tests/politicalConsentScope.smoke.test.js \
+            api/tests/opinionPrivacy.test.js \
+            api/tests/politicalAggregatePrivacy.test.js \
+            api/tests/politicalOpinionReadCachePolicy.test.js \
+            api/tests/politicalProfileReadConsent.test.js \
+            api/tests/politicalMatchingService.test.js \
+            api/tests/politicalMatchingRoutes.smoke.test.js \
+            api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js \
+            api/tests/politicalConsentHttpNoStore.smoke.test.js \
+            api/tests/referendumRealVote.smoke.test.js \
+            api/tests/legacyReferendumConsentRace.smoke.test.js \
+            api/tests/amnestyConsentRevokeRace.smoke.test.js \
+            api/tests/headOfStateConsentPrivacy.smoke.test.js \
+            api/tests/headOfStateVoteReadPrivacy.test.js \
+            api/tests/headOfStateVoteWritePrivacy.test.js \
+            api/tests/graceReadPrivacy.test.js \
+            api/tests/graceVoteWritePrivacy.test.js \
+            api/tests/proposalVoteConsentRace.test.js \
+            api/tests/governmentConfidenceConsentRace.test.js \
+            api/tests/governmentMinisterVoteConsentRace.test.js \
+            api/tests/governmentConfidenceReadPrivacy.test.js \
+            api/tests/governmentMinistryReadsPrivacy.test.js \
+            api/tests/publicProfileGovernmentConsent.test.js \
+            api/tests/publicPoliticalProfile.smoke.test.js
+          do
+            # node:test runs in-process, so there is no unstable worker IPC
+            # serialization; all tests still execute and any failure stops CI.
+            node "$test_file"
+          done
       - name: Confirm real HTTP save-vs-revoke serialization on synthetic PostgreSQL 17
         env:
           GITHUB_ACTIONS: 'true'
