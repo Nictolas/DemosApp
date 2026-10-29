@@ -1,0 +1,42 @@
+name: One-off Pisa Chrono import production smoke
+on:
+  pull_request:
+    paths: ['.github/workflows/pisa-chrono-prod-check-once.yml']
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Read public DEMOS Eventi feed and validate exact Pisa record
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          (async()=>{
+            let found = null;
+            for (let attempt=1;attempt<=7;attempt++){
+              const url='https://api.demos.community/api/eventi/pubblici?__pisa_verify='+Date.now();
+              const r=await fetch(url,{headers:{Accept:'application/json','Cache-Control':'no-cache'},
+                signal:AbortSignal.timeout(20000)});
+              const body=await r.json();
+              const rows=Array.isArray(body.data)?body.data:[];
+              const matches=rows.filter(x=>x.external_import===true &&
+                String(x.comune_evento).toLocaleLowerCase('it-IT')==='pisa' &&
+                x.giorno_inizio==='2026-10-30' &&
+                x.orario_inizio==='09:00');
+              console.log(JSON.stringify({check:'PISA_LIVE',attempt,status:r.status,
+                total:rows.length,pisaMatches:matches.length,
+                preview:matches.map(x=>({name:x.nome_evento,city:x.comune_evento,
+                  when:x.giorno_inizio,at:x.orario_inizio,address:x.indirizzo_evento,
+                  source:x.fonte,external:x.external_import}))}));
+              assert.equal(r.status,200);
+              if(matches.length){found=matches[0];break;}
+              await new Promise(resolve=>setTimeout(resolve,6000));
+            }
+            assert.ok(found,'Pisa Chrono verified event is missing from public DEMOS catalog');
+            assert.equal(found.fonte,'Chrono Collective');
+            assert.equal(found.external_import,true);
+          })().catch(e=>{console.error('PISA_SMOKE_ERROR',e.message);process.exitCode=1;});
+          NODE
