@@ -4,6 +4,7 @@ const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { decompressUserLocation } = require('../utils/locationUtils');
 const { getPool } = require('../config/database');
 const { listPersonalizedEvents } = require('../services/eventFeedService');
+const { retrieve: retrieveChronocol, mergeEvents: mergeChronocol } = require('../services/chronocolEventFeedService');
 const { closeElectionLifecycle } = require('../services/electionLifecycleService');
 const {
   EventApprovalSchemaRequiredError,
@@ -50,7 +51,8 @@ router.get('/', verifyToken, async (req, res) => {
            ORDER BY giorno_inizio ASC NULLS LAST, orario_inizio ASC NULLS LAST, created_at ASC`
         );
       }
-      return res.json({ success: true, data: result.rows });
+      const imported = await retrieveChronocol();
+      return res.json({ success: true, data: mergeChronocol(result.rows, imported, { global: true }) });
     }
 
     const feed = await listPersonalizedEvents(pool, req.userId);
@@ -60,7 +62,7 @@ router.get('/', verifyToken, async (req, res) => {
 
     return res.json({
       success: true,
-      data: feed.events,
+      data: mergeChronocol(feed.events, await retrieveChronocol(), { user: feed.user }),
       ranking: ['SELECTED_SUBJECT', 'TERRITORY', 'RELEVANT_ELECTION']
     });
   } catch (error) {
@@ -173,7 +175,9 @@ router.get('/prossimo', verifyToken, async (req, res) => {
          ORDER BY giorno_inizio ASC, orario_inizio ASC NULLS LAST, created_at ASC
          LIMIT 1`
       );
-      return res.json({ success: true, data: result.rows[0] || null });
+      const imported = await retrieveChronocol();
+      const merged = mergeChronocol(result.rows, imported, { global: true });
+      return res.json({ success: true, data: merged[0] || null });
     }
 
     const feed = await listPersonalizedEvents(pool, req.userId, { futureOnly: true });
@@ -182,7 +186,7 @@ router.get('/prossimo', verifyToken, async (req, res) => {
     }
     return res.json({
       success: true,
-      data: feed.events[0] || null,
+      data: mergeChronocol(feed.events, await retrieveChronocol(), { user: feed.user })[0] || null,
       ranking: ['SELECTED_SUBJECT', 'TERRITORY', 'RELEVANT_ELECTION']
     });
   } catch (error) {
