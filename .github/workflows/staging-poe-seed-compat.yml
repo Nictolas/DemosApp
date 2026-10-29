@@ -1,0 +1,30 @@
+name: Staging P O E seed compatibility
+
+on:
+  pull_request:
+    branches: [staging/functional-integration-v0]
+    paths:
+      - 'api/scripts/stagingMigrate.js'
+      - 'api/tests/stagingMigrate.test.js'
+      - '.github/workflows/staging-poe-seed-compat.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-seed:
+    name: Check staging E2E seed in both account_type formats
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies without running install scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Run staging DB guards and synthetic long/short seed tests
+        run: node --test api/tests/stagingMigrate.test.js
