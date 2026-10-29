@@ -137,7 +137,7 @@ jobs:
       - name: Compose review-only PR 374 and PR 376 in an ephemeral worktree
         shell: bash
         env:
-          PINNED_LEDGER_HEAD: a85f079724606a7f15086e89e01b83eb9efbd7b5
+          PINNED_LEDGER_HEAD: 19476f3d68a4b2203d341f0668205f290078da37
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
@@ -182,6 +182,8 @@ jobs:
             api/tests/gdprLegacyRequestsRoute.test.js \
             api/tests/gdprRightsHttpPrivacy.test.js \
             api/tests/databaseTlsPolicy.test.js
+      - name: Verify composed account-deletion HTTP failure handling with synthetic mocks
+        run: node --test api/tests/accountDeletion.integration.test.js
       - name: Check rights/export JSON and CSV against isolated PostgreSQL 17
         env:
           GDPR_LEGACY_PG_CI: isolated
