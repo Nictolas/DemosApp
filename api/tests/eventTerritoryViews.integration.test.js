@@ -132,3 +132,14 @@ test('single-day Eventi cards show a time range once, without duplicate clock ro
   assert.ok(dates.includes('evento.giorno_fine && evento.giorno_fine !== evento.giorno_inizio'),
     'Multi-day events retain their separate end date');
 });
+
+test('Chrono strike events use Sciopero badge without redundant description', () => {
+  const page = fs.readFileSync(path.join(root, 'client/src/pages/Eventi.tsx'), 'utf8');
+  const fromCards = page.indexOf('eventi.map((evento: any)');
+  const toDialogs = page.indexOf('/* Modal per modificare evento */', fromCards);
+  assert.ok(fromCards !== -1 && toDialogs > fromCards);
+  const cards = page.slice(fromCards, toDialogs);
+  assert.match(cards, /evento\.sciopero === true \? 'Sciopero' : 'Mobilitazione'/);
+  assert.doesNotMatch(cards, /Evento collegato a uno sciopero/);
+  assert.match(cards, /evento\.external_import && \(/);
+});
