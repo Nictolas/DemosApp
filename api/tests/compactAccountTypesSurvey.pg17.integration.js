@@ -42,6 +42,13 @@ async function run(){
     const small=await getTerritorialSurveyStats(pool,questions,{scope:'regione',params:['Lazio']});
     assert.deepEqual(small,{},'Groups of 2 must not be published');
     console.log('COMPACT_ACCOUNT_TYPES_SURVEY_PG17_PASS',JSON.stringify({mode,national,regional:region}));
-  }finally{await pool.end()}
+  }finally{
+    // This runner is a disposable GitHub postgres:17 fixture; leave the
+    // original migration dataset available to the subsequent rollback tests.
+    try{
+      await pool.query("DROP TABLE IF EXISTS public.opinioni_risposte,public.user_consents");
+      await pool.query("DELETE FROM public.users WHERE id IN (SELECT md5('compact-person-'||g)::uuid FROM generate_series(1,12) g) OR id IN (SELECT md5('compact-org-'||g)::uuid FROM generate_series(1,2) g) OR id=md5('compact-revoked')::uuid");
+    }finally{await pool.end()}
+  }
 }
 run().catch(e=>{console.error(e);process.exitCode=1});
