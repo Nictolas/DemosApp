@@ -1,4 +1,5 @@
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
+import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
@@ -37,7 +38,7 @@ const normalizeAnswer = (answer: string | undefined) => {
 };
 
 export default function OpinioniRegionali() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, isSessionVerified, verifiedPoliticalConsent } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -50,7 +51,7 @@ export default function OpinioniRegionali() {
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
-    queryKey: ['opinioniQuestions', 'Regionale'],
+    queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Regionale'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=R");
       if (response.ok && response.data) {
@@ -58,7 +59,7 @@ export default function OpinioniRegionali() {
       }
       return { success: false, data: [] };
     },
-    enabled: !!user
+    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true
   });
 
   // Combina i dati
@@ -124,10 +125,19 @@ export default function OpinioniRegionali() {
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("R", newOpinions),
-    onSuccess: (data) => {
+    onSuccess: (_data, savedOpinions) => {
       console.log('🔍 DEBUG saveMutation.onSuccess:', data);
       toast({ title: "Successo", description: "Le tue opinioni regionali sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Regionale'] });
+      queryClient.setQueryData(
+        ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Regionale'],
+        (previous: any) => previous && Array.isArray(previous.data) ? ({
+          ...previous,
+          data: previous.data.map((question: any) =>
+            Object.prototype.hasOwnProperty.call(savedOpinions, question.id)
+              ? { ...question, userAnswer: savedOpinions[question.id] }
+              : question),
+        }) : previous,
+      );
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
       queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
       const nextPage = exitGuard.onSaveSuccess();
@@ -156,35 +166,12 @@ export default function OpinioniRegionali() {
     console.log('  questions:', questions);
     console.log('  opinions:', opinions);
     
-    // Mappa le opinioni usando l'ID corretto per l'API
-    const opinionsToSave: Record<string, string> = {};
-    questions.forEach(question => {
-      console.log(`🔍 DEBUG question:`, {
-        id: question.id,
-        text: question.text,
-        userAnswer: question.userAnswer,
-        opinionValue: opinions[question.id]
-      });
-      
-      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
-        // Usa l'ID dell'opinione direttamente dal database
-        opinionsToSave[question.id] = opinions[question.id];
-        console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
-      } else {
-        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: ${!opinions[question.id] ? 'non selezionata' : opinions[question.id] === 'Astenuto' ? 'Astenuto' : 'altro'})`);
-      }
-    });
-    
-    console.log('  opinionsToSave:', opinionsToSave);
-    console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
-    console.log('  DETTAGLIO opinioni da salvare:');
-    Object.entries(opinionsToSave).forEach(([key, value]) => {
-      console.log(`    ${key} = ${value}`);
-    });
-    
+    // Only changed IDs: never overwrite positions from another device.
+    const opinionsToSave = collectChangedOpinionAnswers(questions, opinions);
+
     if (Object.keys(opinionsToSave).length === 0) {
       console.log('❌ DEBUG: Nessuna opinione da salvare');
-      toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
+      toast({ title: "Attenzione", description: "Non ci sono nuove opinioni da salvare.", variant: "destructive" });
       return;
     }
     
