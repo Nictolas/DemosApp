@@ -21,6 +21,24 @@ const pool = getPool();
 
 // ===== ENDPOINTS PER EVENTI =====
 
+// GET /api/eventi/mobilitazioni - Solo dati pubblici, nessun token o SELECT utenti.
+// Gli eventi importati non contengono preferenze individuali o dati identificativi.
+router.get('/mobilitazioni', async (_req, res) => {
+  try {
+    const imported = await retrieveChronocol();
+    // Cache breve: la rimozione temporale avviene a ogni risposta origin.
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=120, stale-while-revalidate=120');
+    return res.json({
+      success: true,
+      data: mergeChronocol([], imported, { global: true }),
+      source: 'Chrono Collective'
+    });
+  } catch (error) {
+    console.error('[chronocol] Errore endpoint mobilitazioni:', error?.message);
+    return res.status(503).json({ success: false, error: 'EVENT_SOURCE_UNAVAILABLE' });
+  }
+});
+
 // GET /api/eventi - Feed personalizzato: soggetti selezionati > territorio > elezioni rilevanti.
 router.get('/', verifyToken, async (req, res) => {
   try {
