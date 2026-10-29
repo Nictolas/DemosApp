@@ -57,7 +57,9 @@ export async function loadOpinionCategory(
   if (signal?.aborted || revision !== profileSectionRevision(owner, section)) {
     throw new Error("Caricamento opinioni annullato");
   }
-  const cached = snapshot?.consent?.granted === true &&
+  // Accounts without a server-supplied consent epoch cannot safely retain a
+  // persistent snapshot across revocation/regrant; use network as fallback.
+  const cached = consentEpoch !== null && snapshot?.consent?.granted === true &&
     snapshot.consent.timestamp === consentEpoch ? snapshot[section] : null;
   if (cached?.version === OPINION_CATEGORY_CACHE_VERSION && cached.grade === grade) {
     return { success: true, data: cached.questions, grado: grade, total: cached.questions.length };
@@ -71,8 +73,10 @@ export async function loadOpinionCategory(
   if (signal?.aborted || revision !== profileSectionRevision(owner, section)) {
     throw new Error("Caricamento opinioni annullato");
   }
-  await persistEncryptedOpinionCategory(owner, consentEpoch, section,
-    { version: OPINION_CATEGORY_CACHE_VERSION, grade, questions }, revision);
+  if (consentEpoch !== null) {
+    await persistEncryptedOpinionCategory(owner, consentEpoch, section,
+      { version: OPINION_CATEGORY_CACHE_VERSION, grade, questions }, revision);
+  }
   return { success: true, data: questions, grado: grade, total: questions.length };
 }
 
