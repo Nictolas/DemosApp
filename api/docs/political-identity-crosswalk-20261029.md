@@ -7,11 +7,34 @@ Issue: https://github.com/Nictolas/DemosApp/issues/396
 
 La PR #397 ha disattivato cinque importatori Camera/Senato che potevano generare una riga users per ogni grado. La PR #398 ha eliminato il backfill automatico che attribuiva mandati ACTIVE senza prova istituzionale. La PR #399 esclude tali mandati dalle query Admin che attestano incarichi correnti. Le PR fuse non bonificano i dati già esistenti.
 
-Ultima ricognizione documentata, **non ricalcolata da questo strumento**:
+Ricognizione precedente (28/10/2026), da non confondere con il controllo live successivo:
 - 58 gruppi sospetti (NON 58 duplicati certi).
 - 1.529 mandati LEGACY_BACKFILL ancora ACTIVE, 1.528 con data di importazione 13/10/2026.
 - 7 coppie Camera/Senato già valutate e NON fuse, descritte nel file parliament-duplicate-review-20261028.md.
 - Claudio Borghi richiede procedura separata perché un profilo contiene autenticazione, opinioni e selezioni.
+
+## Verifica in sola lettura della produzione (29 ottobre 2026)
+
+Usando esclusivamente SELECT sul database Supabase DEMOS attivo (PostgreSQL 17), senza esportare UUID, nomi o dati di autenticazione, ho ricontrollato le definizioni dei trigger e i soli conteggi aggregati:
+
+- **1.524** mandati `LEGACY_BACKFILL` con stato `ACTIVE` (in precedenza 1.529, quindi il conteggio del 28/10 è superato); 39 `CANCELLED`, 6 `ENDED`.
+- **1.674** utenti con `users.ruolo` in `P` o `CP`; di questi **1.524** hanno un mandato ACTIVE che deriva solo da `LEGACY_BACKFILL` e nessun ACTIVE di origine diversa. **150** utenti hanno almeno un mandato ACTIVE non legacy.
+- La funzione **attualmente installata** `public.refresh_users_legacy_role` esamina `political_mandates` con `status='ACTIVE'` **senza escludere** `source='LEGACY_BACKFILL'`. Il file del repository `api/database/create-account-capabilities-model.sql` è stato modificato nella PR #398 per escludere il backfill, ma quella migrazione manuale **non è stata applicata alla funzione live**.
+- Il trigger reale `political_mandates_refresh_legacy_role` richiama la funzione dopo INSERT/UPDATE/DELETE di mandati. L'importatore non esegue UPDATE `users` direttamente, **ma il trigger può modificare indirettamente `users.ruolo` e `users.updated_at`**. Il collaudo ora riproduce la logica live su dati fittizi.
+- Aggiornare direttamente la funzione di proiezione, prima del ripristino di mandati attestati per tutte le persone, può modificare la visibilità e le statistiche politiche di oltre un migliaio di utenti. Si richiede piano di transizione, controllo degli endpoint, confronto pre/post e rollback.
+
+Query aggregata ripetibile (sola SELECT, senza identificativi personali):
+`api/scripts/audit-political-legacy-role-impact-20261029.sql`.
+
+## Rafforzamento del collaudo
+
+Il test PostgreSQL 17 in GitHub Actions ora usa una fixture sintetica che ricostruisce i trigger effettivamente rilevati sulla produzione il 29/10 (pur senza copiare righe reali). Copre anche:
+- sovrapposizione di mandati ufficiali della **stessa** Camera;
+- date di fine futuro non attestate: respinte; non si ipotizza la fine delle legislature;
+- verifica che `account_type`, i flag admin/attivista e i ruoli istituzionali fittizi non cambino inattesi;
+- la query statistica aggregata e la serializzazione concorrente.
+
+GitHub Actions del commit `d043f374`: [run 40795067814](https://github.com/Nictolas/DemosApp/actions/runs/40795067814) SUCCESS per i job di audit offline e prova PostgreSQL 17. Non è una prova su un clone completo della produzione.
 
 ## Contratto d'ingresso
 
@@ -61,7 +84,7 @@ Il parametro review_reference serve a documentare una verifica manuale esterna; 
 
 Le date ufficiali sono trattate come giorni di calendario: starts_at è 00:00 UTC del primo giorno; ends_on è inclusivo e diventa ends_at esclusivo alle 00:00 UTC del giorno successivo. I mandati con termine nel passato diventano ENDED. Gli attuali LEGACY_BACKFILL non sono riscritti.
 
-Collaudo preparato su PostgreSQL 17 effimero: fixture SQL esclusivamente sintetiche, test idempotenza, collisioni, ACL, overlap, transazione ROLLBACK e due sessioni concorrenti. Non dimostra ancora la compatibilità dei trigger di proiezione del ruolo su database reale, il comportamento completo di registrazioni e opinioni, o la validità delle fonti.
+Collaudo preparato su PostgreSQL 17 effimero: fixture SQL esclusivamente sintetiche, test idempotenza, collisioni, ACL, overlap, transazione ROLLBACK e due sessioni concorrenti. Riproduce il trigger di proiezione rilevato il 29/10, ma non dimostra ancora la compatibilità con l'intero database di produzione, le registrazioni, le opinioni o la validità delle fonti.
 
 **Non eseguire questo file SQL su produzione o staging condiviso.** La PR resta Draft. Per un uso reale occorrono revisione manuale degli identificativi, test schema compatibile e rollback, permessi minimi controllati e autorizzazione specifica al rilascio.
 
