@@ -51,6 +51,99 @@ INSERT INTO public.political_candidacies(user_id,status,starts_at,ends_at) VALUE
 ('00000000-0000-4000-8000-000000000005','ACTIVE',NOW() - INTERVAL '1 year',NULL);
 SQL
 
+# Build the REAL /auth/me canonical read-model schema. Without these
+# companion tables the prior HTTP tests only exercised its legacy SELECT *
+# fallback, masking bugs in the production three-way read path.
+psql -X -v ON_ERROR_STOP=1 <<'SQL'
+ALTER TABLE public.users ADD COLUMN email TEXT;
+ALTER TABLE public.users ADD COLUMN nome TEXT;
+ALTER TABLE public.users ADD COLUMN cognome TEXT;
+ALTER TABLE public.users ADD COLUMN is_dpo BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.users ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE public.users ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE public.users ADD COLUMN genere TEXT;
+ALTER TABLE public.users ADD COLUMN data_nascita DATE;
+ALTER TABLE public.users ADD COLUMN cittadinanza TEXT;
+ALTER TABLE public.users ADD COLUMN paese_residenza TEXT;
+ALTER TABLE public.users ADD COLUMN regione_residenza TEXT;
+ALTER TABLE public.users ADD COLUMN provincia_residenza TEXT;
+ALTER TABLE public.users ADD COLUMN comune_residenza TEXT;
+ALTER TABLE public.users ADD COLUMN paese_elezione TEXT;
+ALTER TABLE public.users ADD COLUMN regione_elezione TEXT;
+ALTER TABLE public.users ADD COLUMN provincia_elezione TEXT;
+ALTER TABLE public.users ADD COLUMN comune_elezione TEXT;
+ALTER TABLE public.users ADD COLUMN paese_candidatura TEXT;
+ALTER TABLE public.users ADD COLUMN regione_candidatura TEXT;
+ALTER TABLE public.users ADD COLUMN provincia_candidatura TEXT;
+ALTER TABLE public.users ADD COLUMN comune_candidatura TEXT;
+ALTER TABLE public.users ADD COLUMN grado_elezione TEXT;
+ALTER TABLE public.users ADD COLUMN grado_candidatura TEXT;
+ALTER TABLE public.users ADD COLUMN rappresentante_europeo TEXT;
+ALTER TABLE public.users ADD COLUMN rappresentante_camera TEXT;
+ALTER TABLE public.users ADD COLUMN rappresentante_senato TEXT;
+ALTER TABLE public.users ADD COLUMN rappresentante_regionale TEXT;
+ALTER TABLE public.users ADD COLUMN rappresentante_comune TEXT;
+ALTER TABLE public.users ADD COLUMN candidato_europeo TEXT;
+ALTER TABLE public.users ADD COLUMN candidato_camera TEXT;
+ALTER TABLE public.users ADD COLUMN candidato_senato TEXT;
+ALTER TABLE public.users ADD COLUMN candidato_regionale TEXT;
+ALTER TABLE public.users ADD COLUMN candidato_comune TEXT;
+ALTER TABLE public.users ADD COLUMN facebook_url TEXT;
+ALTER TABLE public.users ADD COLUMN twitter_url TEXT;
+ALTER TABLE public.users ADD COLUMN instagram_url TEXT;
+ALTER TABLE public.users ADD COLUMN linkedin_url TEXT;
+ALTER TABLE public.users ADD COLUMN telegram_url TEXT;
+ALTER TABLE public.users ADD COLUMN website_url TEXT;
+ALTER TABLE public.users ADD COLUMN twitch_url TEXT;
+ALTER TABLE public.users ADD COLUMN youtube_url TEXT;
+CREATE TABLE public.user_profile (
+  user_id UUID PRIMARY KEY REFERENCES public.users(id),
+  genere TEXT,
+  data_nascita DATE,
+  cittadinanza TEXT,
+  paese_residenza TEXT,
+  regione_residenza TEXT,
+  provincia_residenza TEXT,
+  comune_residenza TEXT,
+  paese_elezione TEXT,
+  regione_elezione TEXT,
+  provincia_elezione TEXT,
+  comune_elezione TEXT,
+  paese_candidatura TEXT,
+  regione_candidatura TEXT,
+  provincia_candidatura TEXT,
+  comune_candidatura TEXT,
+  grado_elezione TEXT,
+  grado_candidatura TEXT,
+  facebook_url TEXT,
+  twitter_url TEXT,
+  instagram_url TEXT,
+  linkedin_url TEXT,
+  telegram_url TEXT,
+  website_url TEXT,
+  twitch_url TEXT,
+  youtube_url TEXT
+);
+CREATE TABLE public.user_representatives (
+  user_id UUID PRIMARY KEY REFERENCES public.users(id),
+  rappresentante_europeo TEXT,
+  rappresentante_camera TEXT,
+  rappresentante_senato TEXT,
+  rappresentante_regionale TEXT,
+  rappresentante_comune TEXT,
+  candidato_europeo TEXT,
+  candidato_camera TEXT,
+  candidato_senato TEXT,
+  candidato_regionale TEXT,
+  candidato_comune TEXT
+);
+-- Synthetic override from profile table must win over nullable users field.
+INSERT INTO public.user_profile (user_id,genere,regione_residenza)
+VALUES ('00000000-0000-4000-8000-000000000004','M','Toscana');
+INSERT INTO public.user_representatives (user_id,rappresentante_camera)
+VALUES ('00000000-0000-4000-8000-000000000004','synthetic-choice');
+SQL
+
 psql -X -v ON_ERROR_STOP=1 -f api/database/users-role-default-e-20261029.sql
 psql -X -v ON_ERROR_STOP=1 -f api/database/users-account-type-poe-20261029.sql
 
