@@ -55,7 +55,7 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
         {showDesktopHeader && <DesktopAppHeader />}
 
-        <main className="app-main">
+        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : ''}`}>
           <ErrorBoundary>
             <div className="app-main__inner">{children}</div>
           </ErrorBoundary>
