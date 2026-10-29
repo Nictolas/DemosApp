@@ -12,6 +12,7 @@ import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
 import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
 import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCache";
+import { clearAllEncryptedProfiles } from "@/pages/Profilo/utils/encryptedProfileVault";
 
 interface User {
   id: string;
@@ -157,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearStoredNativePushToken();
       clearSessionTokens();
       clearAllProfileSummaries();
+      void clearAllEncryptedProfiles();
       setToken(null);
 
       try {
