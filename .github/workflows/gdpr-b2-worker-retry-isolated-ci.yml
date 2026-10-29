@@ -4,6 +4,13 @@ on:
   pull_request:
     paths:
       - 'api/services/privacyErasureOutboxWorker.js'
+      - 'api/app.js'
+      - 'api/routes/database.js'
+      - 'api/routes/cleanup.js'
+      - 'api/routes/migrations.js'
+      - 'api/routes/categorie.js'
+      - 'api/config/db.js'
+      - 'api/tests/gdprDataPlaneRouteSurface.test.js'
       - 'api/scripts/attest-gdpr-writer-readonly.js'
       - 'api/tests/gdprWriterReadonlyAttestation.test.js'
       - 'api/services/privacyErasureB2Journal.js'
@@ -58,6 +65,7 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_worker_ci
         run: |
           node --check api/services/privacyErasureOutboxWorker.js
+          node --test --test-concurrency=1 api/tests/gdprDataPlaneRouteSurface.test.js
           node --check api/tests/fixtures/gdprDurableRecoveryPrototype.js
           node --test --test-concurrency=1 api/tests/gdprDurableRecoveryProtocolSynthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprRecoveryConcurrencySynthetic.test.js
