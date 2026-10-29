@@ -5,6 +5,8 @@ on:
     paths:
       - 'client/src/**'
       - 'api/tests/retiredMenuNavigation.smoke.test.js'
+      - 'api/tests/profileSelections.smoke.test.js'
+      - 'api/routes/user/profile-selections.js'
       - 'api/tests/clientAdminCapability.smoke.test.js'
       - 'api/tests/clientUsersReadonly.smoke.test.js'
       - 'api/tests/legacyManualApprovalRetirement.smoke.test.js'
@@ -35,6 +37,8 @@ jobs:
           node --test api/tests/retiredMenuNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientUsersReadonly.smoke.test.js api/tests/legacyManualApprovalRetirement.smoke.test.js api/tests/adminAccountDeletion.smoke.test.js api/tests/utentiCanonicalSexTable.smoke.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Initiative title lookup and encrypted preferences cache regression
+        run: node --test api/tests/profileSelections.smoke.test.js
       - name: Profile tab, persistent summary and privacy regression
         run: node --test client/tests/profileNavLocalCache.test.mjs
       - name: Build frontend
