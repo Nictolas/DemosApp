@@ -194,9 +194,22 @@ function mergeEvents(nativeEvents, importedEvents, { user = null, global = false
     if (key) existing.add(key);
     return true;
   });
-  if (!global) return [...nativeEvents, ...additions];
-  return [...nativeEvents, ...additions].sort((a, b) =>
-    clean(a.giorno_inizio).localeCompare(clean(b.giorno_inizio)));
+  const dateKey = (event) => {
+    const rawDate = event.giorno_inizio;
+    const day = rawDate instanceof Date ? rawDate.toISOString().slice(0, 10) :
+      clean(rawDate, 30).slice(0, 10);
+    return day + 'T' + (clean(event.orario_inizio, 8) || '00:00');
+  };
+  return [...nativeEvents, ...additions.map((event) =>
+    global ? event : { ...event, feed_priority: 1, feed_reason: 'TERRITORY' })]
+    .sort((a, b) => {
+      if (!global) {
+        const priority = (a.feed_priority ?? 99) - (b.feed_priority ?? 99);
+        if (priority) return priority;
+      }
+      return dateKey(a).localeCompare(dateKey(b)) ||
+        String(a.id).localeCompare(String(b.id));
+    });
 }
 
 module.exports = {
