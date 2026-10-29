@@ -28,7 +28,7 @@ export const useReferendumData = (user: any) => {
       console.log('🔍 DEBUG useReferendumData - result.richieste:', result?.richieste);
       console.log('🔍 DEBUG useReferendumData - result.richieste length:', result?.richieste?.length);
       
-      if (!result || !result.success) {
+      if (!result || !result.success || !Array.isArray(result.richieste)) {
         const errorMsg = result?.error || "Errore nel caricamento dei referendum abrogativi";
         console.error('🔍 DEBUG useReferendumData - Errore result:', errorMsg);
         throw new Error(errorMsg);
