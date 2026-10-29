@@ -36,7 +36,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
   if (isError) {
     return (
       <div className="text-center text-red-500 p-4">
-        Errore nel caricamento dei referendum abrogativi.
+        Impossibile caricare le raccolte firme. Riprova più tardi.
       </div>
     );
   }
@@ -44,7 +44,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
   if (listaReferendum.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        Nessun referendum abrogativo disponibile.
+        Al momento non ci sono raccolte firme per referendum abrogativi in corso. Riprova più tardi.
       </div>
     );
   }
