@@ -14,7 +14,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
+const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>, externalSignal?: AbortSignal) => {
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -51,10 +51,16 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     };
     
     const controller = new AbortController();
+    const abortFromQuery = () => controller.abort();
+    if (externalSignal?.aborted) abortFromQuery();
+    else externalSignal?.addEventListener("abort", abortFromQuery, { once: true });
     const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
-    const response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal }).finally(() => {
+    try {
+      var response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal });
+    } finally {
       clearTimeout(timeoutId);
-    });
+      externalSignal?.removeEventListener("abort", abortFromQuery);
+    }
     
     // Leggi il body come testo prima di parsarlo
     const text = await response.text();
@@ -172,6 +178,7 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     } as any;
   } catch (error: any) {
     if (error?.name === 'AbortError') {
+      if (externalSignal?.aborted) throw error;
       throw new Error(`Timeout richiesta API (${DEFAULT_REQUEST_TIMEOUT_MS}ms): ${url}`);
     }
     // Se l'errore ha già status, rilancialo così com'è
