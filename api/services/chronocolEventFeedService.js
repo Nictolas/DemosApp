@@ -1,19 +1,28 @@
 'use strict';
 
-// Feed pubblico, disabilitato finché endpoint e diritti di riuso non sono verificati.
-// Mai interrogare Chrono per singolo utente, né scrivere i dati importati in Supabase.
+// Importatore OPZIONALE e in sola lettura: non scrive eventi in Supabase.
+// Chrono pubblica come open data i dati fattuali degli eventi citandone la fonte.
+// Il servizio interroga unicamente i campi pubblici necessari, mai CONTATTI.
 const crypto = require('node:crypto');
 const fetch = require('node-fetch');
 const { regionAliases } = require('./politicalEligibilityService');
 
 const SOURCE = 'Chrono Collective';
 const BASE = 'https://mobilitazioni.chronocol.com/';
+const API = new URL('/api/w-mobs', BASE);
+const FIELDS = Object.freeze([
+  'TIPO', 'CITTA', 'DATA_ORARIO', 'DATA_FINE', 'FINE_EFFETTIVA',
+  'INDIRIZZO', 'RITROVO_LUOGO', 'VERIFICATA', 'ANNULLATA', 'LATITUDE',
+  'LONGITUDE', 'SCIOPERO', 'PIATTAFORMA'
+]);
+const PAGE_SIZE = 100;
+const MAX_EVENTS = 3000;
+const MAX_PAGES = Math.ceil(MAX_EVENTS / PAGE_SIZE);
 const REFRESH_MS = 12 * 60 * 60 * 1000;
 const MAX_STALE_MS = 24 * 60 * 60 * 1000;
-const MAX_EVENTS = 3000;
-const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES_PER_PAGE = 2 * 1024 * 1024;
 
-let cached = [];
+let cache = [];
 let lastSuccess = 0;
 let nextAttempt = 0;
 let pending = null;
@@ -22,156 +31,156 @@ const clean = (value, max = 180) => value == null ? '' : String(value).trim().sl
 const normalize = (value) => clean(value).toLocaleLowerCase('it-IT').replace(/\s+/g, ' ');
 
 function italianDay(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Rome', day: '2-digit', month: '2-digit', year: 'numeric'
-  }).formatToParts(date);
-  const get = (type) => parts.find((part) => part.type === type).value;
-  return get('year') + '-' + get('month') + '-' + get('day');
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(date);
 }
 
 function italianTime(date) {
-  return new Intl.DateTimeFormat('it-IT', {
+  return new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
   }).format(date);
 }
 
 function dateParts(value) {
-  const str = clean(value, 70);
-  if (!str) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return { day: str, time: '' };
-  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?$/.test(str)) {
-    return { day: str.slice(0, 10), time: str.slice(11, 16) };
-  }
-  const date = new Date(str);
+  if (!value) return null;
+  const raw = clean(value, 80);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { day: raw, time: '' };
+  const date = new Date(raw);
   if (!Number.isFinite(date.getTime())) return null;
   return { day: italianDay(date), time: italianTime(date) };
 }
 
-function sourceUrl(value) {
-  if (!value) return BASE;
-  try {
-    const url = new URL(value, BASE);
-    if (url.protocol !== 'https:' ||
-        !['mobilitazioni.chronocol.com', 'chronocol.com'].includes(url.hostname) ||
-        url.username || url.password) return BASE;
-    return url.href;
-  } catch {
-    return BASE;
-  }
+function buildPageUrl(page = 1) {
+  if (!Number.isInteger(page) || page < 1 || page > MAX_PAGES) throw new Error('Invalid Chrono page');
+  const url = new URL(API);
+  FIELDS.forEach((field, index) => url.searchParams.set('fields[' + index + ']', field));
+  url.searchParams.set('pagination[page]', String(page));
+  url.searchParams.set('pagination[pageSize]', String(PAGE_SIZE));
+  url.searchParams.set('filters[VERIFICATA][$eq]', 'true');
+  url.searchParams.set('filters[ANNULLATA][$eq]', 'false');
+  url.searchParams.set('sort[0]', 'DATA_ORARIO:asc');
+  return url.href;
 }
 
 function mapEvent(record) {
   if (!record || typeof record !== 'object') return null;
-  const row = record.properties && typeof record.properties === 'object' ? record.properties : record;
-  const name = clean(row.title ?? row.name ?? row.nome ?? row.nome_evento, 200);
-  const start = dateParts(row.start_at ?? row.starts_at ?? row.startsAt ??
-    row.start_date ?? row.startDate ?? row.giorno_inizio ?? row.date ?? row.start);
-  if (!name || !start || !Number.isFinite(Date.parse(start.day + 'T12:00:00Z'))) return null;
-
-  const end = dateParts(row.end_at ?? row.ends_at ?? row.endsAt ??
-    row.end_date ?? row.endDate ?? row.giorno_fine ?? row.end);
-  const city = clean(row.city ?? row.comune ?? row.comune_evento, 100);
-  const province = clean(row.province ?? row.provincia ?? row.provincia_evento, 100);
-  const region = clean(row.region ?? row.regione ?? row.regione_evento, 100);
-  const rawKey = clean(row.id ?? record.id ?? row.slug ?? row.url ?? row.link ??
-    [name, start.day, city].join('|'), 350);
-  const id = 'chronocol:' + crypto.createHash('sha256').update(rawKey).digest('hex').slice(0, 24);
-  const startTime = clean(row.orario_inizio ?? row.time ?? start.time, 8);
-  const endTime = clean(row.orario_fine ?? end?.time, 8);
-
+  // Strapi v5: i soli eventi verificati dalla redazione sono pubblicabili.
+  if (record.VERIFICATA !== true || record.ANNULLATA === true) return null;
+  const city = clean(record.CITTA, 100);
+  const type = clean(record.TIPO, 60);
+  const start = dateParts(record.DATA_ORARIO);
+  if (!city || !type || !start) return null;
+  const end = dateParts(record.FINE_EFFETTIVA || record.DATA_FINE);
+  const rawId = clean(record.documentId || record.id, 140);
+  if (!rawId) return null;
+  const id = 'chronocol:' + crypto.createHash('sha256').update(rawId).digest('hex').slice(0, 24);
+  const slug = encodeURIComponent(rawId);
+  // Titolo composto solo da dati fattuali presenti nell'export open data.
   return {
     id,
-    nome_evento: name,
-    // Le tipologie esterne non devono assumere semantica speciale (es. Elezioni) in DEMOS.
+    nome_evento: type + ' a ' + city,
     tipologia_evento: 'Mobilitazione',
-    categoria_mobilitazione: clean(row.type ?? row.category ?? row.tipo ?? row.tipologia_evento, 60),
-    paese_evento: clean(row.country ?? row.paese ?? row.paese_evento, 100),
-    regione_evento: region,
-    provincia_evento: province,
+    categoria_mobilitazione: type,
+    paese_evento: null,
+    regione_evento: null,
+    provincia_evento: null,
     comune_evento: city,
-    indirizzo_evento: clean(row.address ?? row.indirizzo ?? row.indirizzo_evento ?? row.location, 200),
+    indirizzo_evento: clean(record.INDIRIZZO || record.RITROVO_LUOGO, 200) || null,
     giorno_inizio: start.day,
     giorno_fine: end?.day || null,
-    orario_inizio: /^\d{2}:\d{2}/.test(startTime) ? startTime.slice(0, 5) : null,
-    orario_fine: /^\d{2}:\d{2}/.test(endTime) ? endTime.slice(0, 5) : null,
-    organizzatore: clean(row.organizer ?? row.organizzatore, 120) || SOURCE,
-    descrizione: clean(row.description ?? row.descrizione, 1000),
+    orario_inizio: start.time || null,
+    orario_fine: end?.time || null,
+    sciopero: record.SCIOPERO === true,
+    latitude: Number.isFinite(record.LATITUDE) ? record.LATITUDE : null,
+    longitude: Number.isFinite(record.LONGITUDE) ? record.LONGITUDE : null,
     fonte: SOURCE,
-    fonte_url: sourceUrl(row.url ?? row.link ?? row.source_url),
+    fonte_url: BASE + 'e/' + slug,
     external_import: true
   };
 }
 
 function normalizePayload(payload) {
-  const rows = Array.isArray(payload) ? payload :
-    (payload?.events ?? payload?.items ?? payload?.features ?? payload?.data?.events ?? payload?.data);
-  if (!Array.isArray(rows)) throw new Error('Formato feed non supportato');
-  if (rows.length > MAX_EVENTS) throw new Error('Feed oltre il limite di eventi');
-  const seen = new Set();
-  return rows.map(mapEvent).filter((event) => {
-    if (!event || seen.has(event.id)) return false;
-    seen.add(event.id);
-    return true;
-  });
+  const rows = payload?.data;
+  if (!Array.isArray(rows) || !payload?.meta?.pagination) {
+    throw new Error('Unexpected Chrono API format');
+  }
+  if (rows.length > PAGE_SIZE) throw new Error('Unexpected Chrono page length');
+  return rows.map(mapEvent).filter(Boolean);
 }
 
 function notExpired(event, now = new Date()) {
   const today = italianDay(now);
   const lastDay = event.giorno_fine || event.giorno_inizio;
-  if (lastDay < today) return false;
+  if (!lastDay || lastDay < today) return false;
   if (lastDay > today) return true;
-  if (!event.orario_fine) return true;
+  if (!event.orario_fine) return true; // senza fine nota: fino a mezzanotte italiana
   return event.orario_fine > italianTime(now);
 }
 
-function approvedFeedUrl(raw) {
-  if (!raw) return null;
-  try {
-    const url = new URL(raw);
-    if (url.protocol !== 'https:' || url.hostname !== 'mobilitazioni.chronocol.com' ||
-        url.username || url.password || url.port) return null;
-    return url.href;
-  } catch { return null; }
+async function loadAllPages(fetchImpl) {
+  const all = [];
+  let page = 1;
+  let pages = 1;
+  while (page <= pages) {
+    const response = await fetchImpl(buildPageUrl(page), {
+      timeout: 8000,
+      size: MAX_BYTES_PER_PAGE,
+      redirect: 'error',
+      headers: { Accept: 'application/json' }
+    });
+    if (!response.ok) throw new Error('Chrono HTTP ' + response.status);
+    const body = await response.json();
+    const incoming = normalizePayload(body);
+    const pagination = body.meta.pagination;
+    if (!Number.isInteger(pagination.pageCount) || pagination.pageCount < 1 ||
+        pagination.pageCount > MAX_PAGES ||
+        (Number.isInteger(pagination.page) && pagination.page !== page)) {
+      throw new Error('Unexpected Chrono pagination');
+    }
+    pages = pagination.pageCount;
+    all.push(...incoming);
+    if (all.length > MAX_EVENTS) throw new Error('Too many Chrono events');
+    page++;
+  }
+  return [...new Map(all.map((event) => [event.id, event])).values()];
 }
 
 async function retrieve(fetchImpl = fetch, now = new Date()) {
   if (process.env.CHRONOCOL_IMPORT_ENABLED !== 'true') return [];
-  const url = approvedFeedUrl(process.env.CHRONOCOL_EVENTS_JSON_URL);
-  if (!url) return [];
-  const time = now.getTime();
+  const ms = now.getTime();
   if (pending) return pending;
-  if (time < nextAttempt) return lastSuccess && time - lastSuccess < MAX_STALE_MS
-    ? cached.filter((item) => notExpired(item, now)) : [];
-  nextAttempt = time + REFRESH_MS;
+  if (ms < nextAttempt) {
+    return lastSuccess && ms - lastSuccess < MAX_STALE_MS
+      ? cache.filter((event) => notExpired(event, now)) : [];
+  }
+  nextAttempt = ms + REFRESH_MS;
   pending = (async () => {
     try {
-      const response = await fetchImpl(url, {
-        timeout: 8000, size: MAX_BYTES, redirect: 'error',
-        headers: { Accept: 'application/json' }
-      });
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const body = await response.json();
-      cached = normalizePayload(body);
-      lastSuccess = time;
-    } catch {
-      // Non propagare al feed DEMOS errori o dati da un servizio esterno.
-      console.warn('[chronocol] Importazione non disponibile: mantenuto ultimo snapshot valido');
+      const all = await loadAllPages(fetchImpl);
+      cache = all;
+      lastSuccess = ms;
+    } catch (error) {
+      console.warn('[chronocol] Sorgente temporaneamente indisponibile:', error?.message);
     } finally {
       pending = null;
     }
-    return lastSuccess && time - lastSuccess < MAX_STALE_MS
-      ? cached.filter((item) => notExpired(item, now)) : [];
+    return lastSuccess && ms - lastSuccess < MAX_STALE_MS
+      ? cache.filter((event) => notExpired(event, now)) : [];
   })();
   return pending;
+}
+
+function eventDateKey(event) {
+  const raw = event.giorno_inizio;
+  const day = raw instanceof Date ? raw.toISOString().slice(0, 10) : clean(raw, 30).slice(0, 10);
+  return day + 'T' + (clean(event.orario_inizio, 8) || '00:00');
 }
 
 function signature(event) {
   const city = normalize(event.comune_evento);
   if (!city) return '';
-  const rawDay = event.giorno_inizio;
-  const day = rawDay instanceof Date ? rawDay.toISOString().slice(0, 10) :
-    clean(rawDay, 30).slice(0, 10);
-  return [normalize(event.nome_evento), day, city].join('|');
+  return [normalize(event.nome_evento), eventDateKey(event).slice(0, 10), city].join('|');
 }
 
 function visibleInTerritory(event, user) {
@@ -193,26 +202,18 @@ function mergeEvents(nativeEvents, importedEvents, { user = null, global = false
     if (key && existing.has(key)) return false;
     if (key) existing.add(key);
     return true;
+  }).map((event) => global ? event : { ...event, feed_priority: 1, feed_reason: 'TERRITORY' });
+  return [...nativeEvents, ...additions].sort((a, b) => {
+    if (!global) {
+      const priorityDiff = (a.feed_priority ?? 99) - (b.feed_priority ?? 99);
+      if (priorityDiff) return priorityDiff;
+    }
+    return eventDateKey(a).localeCompare(eventDateKey(b)) ||
+      String(a.id).localeCompare(String(b.id));
   });
-  const dateKey = (event) => {
-    const rawDate = event.giorno_inizio;
-    const day = rawDate instanceof Date ? rawDate.toISOString().slice(0, 10) :
-      clean(rawDate, 30).slice(0, 10);
-    return day + 'T' + (clean(event.orario_inizio, 8) || '00:00');
-  };
-  return [...nativeEvents, ...additions.map((event) =>
-    global ? event : { ...event, feed_priority: 1, feed_reason: 'TERRITORY' })]
-    .sort((a, b) => {
-      if (!global) {
-        const priority = (a.feed_priority ?? 99) - (b.feed_priority ?? 99);
-        if (priority) return priority;
-      }
-      return dateKey(a).localeCompare(dateKey(b)) ||
-        String(a.id).localeCompare(String(b.id));
-    });
 }
 
 module.exports = {
-  approvedFeedUrl, mapEvent, normalizePayload, notExpired,
-  retrieve, visibleInTerritory, mergeEvents
+  SOURCE, FIELDS, buildPageUrl, mapEvent, normalizePayload, notExpired,
+  loadAllPages, retrieve, visibleInTerritory, mergeEvents
 };
