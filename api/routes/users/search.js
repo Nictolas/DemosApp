@@ -397,6 +397,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       success: true,
       user: {
         ...decompressedUser,
+        account_type: normalizeAccountType(user.account_type) || user.account_type,
         data_nascita: dataNascitaFormattata,
         sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
         genere: decompressGender(user.genere),
