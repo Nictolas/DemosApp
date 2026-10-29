@@ -190,6 +190,16 @@
   overflow: hidden;
 }
 
+/* PageTransition normally sizes to content; make this route fill the available
+   area so iOS can scroll the list rather than the entire app shell. */
+.app-main.app-main--notifiche .fade-up-transition {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .app-main__inner {
   flex: 1 1 auto;
   min-height: 0;
