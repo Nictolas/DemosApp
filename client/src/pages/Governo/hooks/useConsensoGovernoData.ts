@@ -25,14 +25,14 @@ export const useConsensoGovernoData = (user: any) => {
 
   // Query per ottenere i dati di consenso
   const { data, isLoading } = useQuery<ConsensoGovernoData>({
-    queryKey: ['consensoGovernoData'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/governo/consenso");
+    queryKey: ['consensoGovernoData', user?.id],
+    queryFn: async ({ signal }) => {
+      const response = await apiRequest("GET", "/api/governo/consenso", undefined, undefined, signal);
       if (!response.ok) throw new Error("Errore nel caricamento dei dati di consenso del governo.");
       const result = await response.json();
       return result.data;
     },
-    enabled: !!user,
+    enabled: !!user?.id,
     refetchInterval: 30000, // Aggiorna ogni 30 secondi
   });
 
