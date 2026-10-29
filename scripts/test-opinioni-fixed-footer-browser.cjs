@@ -53,6 +53,7 @@ async function run() {
       let politicalGrant = true;
       let politicalEpoch = '2026-10-01T00:00:00Z';
       let catalogRevision = 'a'.repeat(64);
+      let catalogEndpointAvailable = true;
       const catalogChecks = [];
       page.on('pageerror', error => errors.push(error.message));
       const fulfill = (route, value) => route.fulfill({
@@ -78,6 +79,10 @@ async function run() {
         }
         if (u.pathname === '/api/opinioni-catalog-revision') {
           catalogChecks.push(catalogRevision);
+          if (!catalogEndpointAvailable) {
+            return route.fulfill({ status: 404, contentType: 'application/json',
+              body: JSON.stringify({ success: false, error: 'NOT_FOUND' }) });
+          }
           return fulfill(route, { success: true, revision: catalogRevision });
         }
         if (u.pathname === '/api/opinioni-list') {
@@ -215,6 +220,15 @@ async function run() {
       assert.equal(answerReads.length, readsBeforeCatalogChange + 1,
         'Catalog revision change must refresh this category exactly once');
       assert.ok(catalogChecks.length > 0, 'Metadata-only catalog revision endpoint must be consulted');
+      // Older backend versions do not yet expose a catalog checksum.
+      // Such responses must not trust a persistent snapshot of unknown age.
+      catalogEndpointAvailable = false;
+      const readsBeforeLegacyBackend = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, readsBeforeLegacyBackend + 1,
+        'Legacy backend without revision must fall back to a fresh authenticated GET');
+      catalogEndpointAvailable = true;
       // Consent revoked in a verified session: cached personal answers stay hidden.
       politicalGrant = false;
       await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
