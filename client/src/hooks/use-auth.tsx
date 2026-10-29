@@ -137,15 +137,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const owner = userData?.id;
     if (!owner || !isSessionVerified || userData.political_consent?.granted !== false) return;
-    void queryClient.cancelQueries({
-      predicate: query => query.queryKey[0] === "opinioniQuestions" &&
-        query.queryKey[1] === owner,
-    });
-    queryClient.removeQueries({
-      predicate: query => query.queryKey[0] === "opinioniQuestions" &&
-        query.queryKey[1] === owner,
-    });
-    void clearEncryptedProfile(owner);
+    // A revocation observed in /auth/me can arrive from a second device.
+    // Cancel both editors AND the statistics selector before dropping RAM and
+    // persistent snapshots. Disabling useQuery alone would leave old data.
+    const personalToCancel = (query: { queryKey: readonly unknown[] }) =>
+      ["opinioniQuestions", "statsOpinionQuestions", "profilePolitical", "profileFull"]
+        .includes(String(query.queryKey[0])) && query.queryKey[1] === owner;
+    void (async () => {
+      await queryClient.cancelQueries({ predicate: personalToCancel });
+      queryClient.removeQueries({ predicate: personalToCancel });
+      await clearEncryptedProfile(owner);
+    })();
   }, [userData?.id, userData?.political_consent?.granted, isSessionVerified, queryClient]);
 
   let user: User | null = userData ?? null;
