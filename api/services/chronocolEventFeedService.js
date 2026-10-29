@@ -184,8 +184,14 @@ function eventDateKey(event) {
 
 function signature(event) {
   const city = normalize(event.comune_evento);
-  if (!city) return '';
-  return [normalize(event.nome_evento), eventDateKey(event).slice(0, 10), city].join('|');
+  const address = normalize(event.indirizzo_evento);
+  const time = clean(event.orario_inizio, 8).slice(0, 5);
+  // Titoli sintetici come "Presidio a Roma" non identificano univocamente
+  // più appuntamenti nella stessa città/data. Deduplica cross-source solo
+  // quando coincidono anche luogo preciso e orario.
+  if (!city || !address || !time) return '';
+  return [normalize(event.nome_evento), eventDateKey(event).slice(0, 10),
+    city, address, time].join('|');
 }
 
 function visibleInTerritory(event, user) {
