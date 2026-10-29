@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { clearSessionTokens } from "@/lib/auth-token";
+import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCache";
 
 interface DeletionStep {
   id: string;
@@ -104,6 +105,7 @@ export default function CancellaAccount() {
 
       // L'account non esiste più: rimuovi subito le credenziali locali e forza un reload pulito.
       clearSessionTokens();
+      clearAllProfileSummaries();
       window.location.assign("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore durante la cancellazione");

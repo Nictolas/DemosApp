@@ -41,7 +41,7 @@ export function useAuthLogin() {
     if (result.isNew === false) {
       toast({ title: "Login effettuato", description: `Accesso con ${provider} completato.` });
       setTimeout(() => {
-        window.location.href = "/preferiti";
+        window.location.href = "/profilo";
       }, 200);
       return;
     }
@@ -136,7 +136,7 @@ export function useAuthLogin() {
       if (result.success) {
         toast({ title: "Login effettuato", description: "Accesso con passkey completato." });
         setTimeout(() => {
-          window.location.href = "/preferiti";
+          window.location.href = "/profilo";
         }, 200);
       } else if (result.code !== "CANCELLED") {
         toast({

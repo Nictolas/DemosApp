@@ -16,6 +16,7 @@ interface ProfileInfoProps {
   canEdit?: boolean;
   isOwnProfile?: boolean;
   avatarConfig?: any;
+  onPersonalDetailsToggle?: (expanded: boolean) => void;
 }
 
 export const ProfileInfo = ({
@@ -26,6 +27,7 @@ export const ProfileInfo = ({
   canEdit = true,
   isOwnProfile = true,
   avatarConfig,
+  onPersonalDetailsToggle,
 }: ProfileInfoProps) => {
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
 
@@ -127,7 +129,7 @@ export const ProfileInfo = ({
         </div>
 
         {isOwnProfile && (
-          <details className="group mt-3 border-t border-slate-100 pt-3">
+          <details onToggle={(event) => onPersonalDetailsToggle?.(event.currentTarget.open)} className="group mt-3 border-t border-slate-100 pt-3">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md py-1 text-sm font-medium text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 [&::-webkit-details-marker]:hidden">
               Dati personali completi
               <ChevronDown aria-hidden="true" className="h-4 w-4 transition-transform group-open:rotate-180" />
