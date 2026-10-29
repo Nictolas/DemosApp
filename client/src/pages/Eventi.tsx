@@ -73,15 +73,17 @@ export default function Eventi() {
   const isAdmin = user?.ruolo === "AD";
   
   // State for admin tabs
-  const [activeTab, setActiveTab] = useState<'personal' | 'global'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal' | 'global' | 'mobilitazioni'>('personal');
 
   // Fetch eventi data from API
   const { data: eventiResponse, isLoading: eventiLoading, refetch } = useQuery<any>({
-    queryKey: ["/api/eventi", isAdmin ? activeTab : 'personal'],
+    queryKey: ["/api/eventi", activeTab],
     queryFn: async () => {
-      const url = isAdmin && activeTab === 'global' 
-        ? "/api/eventi?view=global" 
-        : "/api/eventi?view=personal";
+      const url = activeTab === 'mobilitazioni'
+        ? "/api/eventi?view=mobilitazioni"
+        : isAdmin && activeTab === 'global'
+          ? "/api/eventi?view=global"
+          : "/api/eventi?view=personal";
       const response = await apiRequest("GET", url);
       if (!response?.ok || !response?.data) {
         const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento degli eventi";
@@ -132,6 +134,8 @@ export default function Eventi() {
 
   // Function to check if user can edit/delete event
   const canEditEvent = (evento: any) => {
+    // Le fonti esterne sono in sola lettura: non esistono righe da modificare in DEMOS.
+    if (evento.external_import) return false;
     // Admin can edit/delete all events
     if (isAdmin) {
       return true;
@@ -278,33 +282,37 @@ export default function Eventi() {
           )}
         </div>
 
-        {/* Admin Tabs */}
-        {isAdmin && (
-          <div className="flex justify-center mb-8">
-            <div className="bg-white rounded-lg p-1 shadow-sm border">
-              <button
-                onClick={() => setActiveTab('personal')}
-                className={`px-6 py-2 rounded-md font-medium transition-colors ${
-                  activeTab === 'personal'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Personali
-              </button>
+        {/* Filtri nella pagina Eventi esistente: nessuna nuova sezione navbar */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-white rounded-lg p-1 shadow-sm border flex flex-wrap justify-center gap-1">
+            <button
+              onClick={() => setActiveTab('personal')}
+              className={`px-4 sm:px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'personal' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Personali
+            </button>
+            {isAdmin && (
               <button
                 onClick={() => setActiveTab('global')}
-                className={`px-6 py-2 rounded-md font-medium transition-colors ${
-                  activeTab === 'global'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900'
+                className={`px-4 sm:px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Globale
               </button>
-            </div>
+            )}
+            <button
+              onClick={() => setActiveTab('mobilitazioni')}
+              className={`px-4 sm:px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'mobilitazioni' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Mobilitazioni
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Schede Eventi */}
         <div className="space-y-4">
@@ -334,6 +342,11 @@ export default function Eventi() {
                                 {evento.nome_evento}
                               </h3>
                               <div className="flex items-center gap-2">
+                                {evento.external_import && (
+                                  <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded-full">
+                                    Mobilitazione
+                                  </span>
+                                )}
                                 {evento.tipologia_evento === 'Elezioni' && (
                                   <span className="bg-yellow-200 text-yellow-800 text-xs font-semibold px-2 py-1 rounded-full">
                                     {evento.tipo_elezione
@@ -366,14 +379,31 @@ export default function Eventi() {
                             </div>
                             
                             {/* Organizzatore - Solo per eventi non "Elezioni" */}
-                            {evento.tipologia_evento !== 'Elezioni' && (
+                            {evento.tipologia_evento !== 'Elezioni' && !evento.external_import && (
                               <div className="mb-3">
                                 <span className="text-gray-700 font-medium">
                                   {evento.organizzatore || 'Organizzatore non specificato'}
                                 </span>
                               </div>
                             )}
+                            {evento.external_import && evento.sciopero && (
+                              <p className="mb-2 text-sm font-medium text-purple-700">Evento collegato a uno sciopero</p>
+                            )}
                             
+                            {evento.external_import && (
+                              <div className="mb-3 space-y-2 text-sm text-gray-600">
+                                {evento.descrizione && <p className="whitespace-pre-line">{evento.descrizione}</p>}
+                                <a
+                                  href={evento.fonte_url || 'https://mobilitazioni.chronocol.com/'}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-700 underline underline-offset-2"
+                                >
+                                  Fonte: Chrono Collective
+                                </a>
+                              </div>
+                            )}
+
                             {/* Luogo - Solo per eventi non "Elezioni" */}
                             {evento.tipologia_evento !== 'Elezioni' && (
                               <div className="mb-3 flex items-center">
