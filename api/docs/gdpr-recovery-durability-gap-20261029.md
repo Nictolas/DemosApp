@@ -72,3 +72,21 @@ La strategia di intenzione esterna è una **proposta da validare**, non un fix g
 5. La matrice completa delle tabelle e dei processi che possono riscrivere consensi/account, la compatibilità con i permessi RLS e la DPIA/retention RP-10 restano gate non approvati.
 
 **Risultato:** controllo concorrenza e procedura di riconciliazione modellati e testati; protocollo reale ancora non sviluppato/attestato. **GH-296 OPEN / recovery NO-GO.**
+
+## Fase D — dimostrazione SQL del blocco transazionale (29 ottobre 2026)
+
+**Solo PostgreSQL 17 USA-E-GETTA in GitHub Actions; non è una migrazione, non è importato dal runtime.**
+
+- Nuovo test `api/tests/gdprDistributedFencePg17Synthetic.test.js`, eseguito dal workflow di regressione esistente. Guard vincolante su `GITHUB_ACTIONS=true`, `GDPR_OUTBOX_WORKER_CI=isolated`, `TEST_DATABASE_URL` esatto su `127.0.0.1:5432/gdpr_outbox_worker_ci`; nessun endpoint esterno, nessuna credenziale di produzione.
+- Lo schema `gdpr_fence_ci` contiene due identità fittizie, un gate `open/epoch`, una tabella di revisioni e un registro minimo di scritture. Il ruolo di applicazione `gdpr_fence_runtime_ci` non ha privilegi DML diretti e possiede soltanto `EXECUTE` su una funzione gateway `SECURITY DEFINER` con search_path fissato. Proprietario dedicato `gdpr_fence_owner_ci` è NOLOGIN, NOBYPASSRLS, NOSUPERUSER (non il superuser postgres).
+- La funzione prende un lock transazionale condiviso di manutenzione `pg_advisory_xact_lock_shared` e un lock transazionale esclusivo derivato dal soggetto; entrambi restano fino a COMMIT/ROLLBACK. Soggetti distinti non sono serializzati globalmente. Ogni scrittura valida richiede epoch corrente, gate aperto, revision attesa e ID evento coerente per l'idempotenza.
+- Una sessione di manutenzione **nel solo test** prende il lock esclusivo di gate, attende le transazioni correnti e chiude il gate incrementando l'epoch. Le sessioni runtime non possono modificarlo direttamente. Una volta chiuso il gate, perfino una nuova richiesta con epoch corrente viene respinta.
+- Risultati su [run GitHub Actions 40918053894](https://github.com/Nictolas/DemosApp/actions/runs/40918053894): **5/5 PASS, zero skip**. Prove: least privilege del writer/owner, scritture utenti diversi in parallelo, attesa del lock per stesso soggetto, rifiuto di revision obsoleta, attesa della manutenzione e chiusura del gate, divieto di accessi DML diretti. Gli altri test della PR non vengono sostituiti.
+
+**Cosa NON dimostra (gate indispensabili):**
+1. Il gate `open/epoch` risiede nello stesso DB: uno snapshot vecchio può ripristinarlo in stato aperto insieme ai dati cancellati. **Serve una barriera esterna indipendente, durevole e non aggirabile** prima di riattivare ingress e writer. Advisory lock non sopravvive a PITR/restore e non vincola una connessione con DML privilegiato.
+2. La verifica temporanea delle revisioni non implementa ancora la transazione applicativa completa (tabelle reali, RLS, consenso, cancellazione, ledger/outbox), né dimostra un ordine globale tra provider. Il proprietario fittizio è isolato, ma i ruoli, grant, search_path e audit reali richiedono revisione e attestazione separata.
+3. Non sono stati implementati token/lease distribuiti o fencing su più database, failover, Render e Supabase reali. Il modello non include l'invio di B2 né prova l'atomicità PostgreSQL↔B2.
+4. La matrice della retention RP-10/F5-17, DPIA e la validazione DPO/titolare rimangono prerequisiti. **Non utilizzare il test per trasformare `recoveryReady:false` in `true`.**
+
+**Esito Fase D: schema di prova SQL verificato; enforcement reale ancora assente. GH-296 rimane APERTA / NO-GO.**
