@@ -42,6 +42,28 @@ La suite è richiamata dal workflow già esistente `.github/workflows/gdpr-b2-wo
 
 La suite `api/tests/gdprRenderInProcessStagingAttestation.test.js` esegue anche il contenuto reale di `api/index.js` in una sandbox VM con `require('./server')` sostituito da uno stub, verificando che in caso di marker errato, Render production, target SQL production o `NODE_ENV=staging` **il server non venga mai importato/avviato**. Il test non costruisce pool, non chiama provider e non tocca dati reali.
 
+## Fase O — audit statico del ramo staging e disabilitazione modalità attive (29/10/2026)
+
+Un audit di sola lettura del ramo Render `staging/functional-integration-v0` ha rilevato che lo staging NON è una semplice copia della PR Draft:
+
+- `api/index.js` carica `stagingBoot` **prima** di `server`. Il flag `DEMOS_STAGING_MIGRATION_MODE` abilita `baseline`, `preflight`, `apply` e `e2e-seed`, con gate `NODE_ENV=staging`. `api/scripts/stagingMigrate.js` impone un database **`demos_civic_staging_db`**, mentre il progetto Supabase Demos-Staging già verificato con SELECT ha database **`postgres`** e il probe accetta `/postgres` e `NODE_ENV=production`. I due percorsi **non sono intercambiabili**. Qualunque prova reale deve evitare di attivare la migrazione.
+- Nel `server.js` staging esistono nove variabili `DEMOS_STAGING_*_E2E` che possono avviare test attivi dopo il listener.
+- Nel `app.js` staging esistono dieci switch di job `ENABLE_*` e `AXIOM_ARCHIVE_ENABLED`: retention, violazioni, backup legacy, sincronizzazioni Ministero/civic process/territori/unità elettorali/voti/Openpolis, archiviazione Axiom->B2. Alcuni job possono eseguire scritture o chiamare provider esterni.
+- Lo staging esegue anche `initializeFirebaseAdmin` da `server.js` e avvia `auditManager` e `performanceOptimizer` all'import di `app.js`, senza un'unica guardia per il solo probe. **Né l'identità Firebase né i provider esterni né ogni SQL client sono certificati come isolati** dalla sola lettura dei sorgenti.
+
+Nel servizio Draft `gdprRenderInProcessStagingAttestation.js` sono state aggiunte guardie fail-closed: prima di caricare app/server, il probe rifiuta `DEMOS_STAGING_MIGRATION_MODE` quando non vuoto, ciascuna delle nove modalità E2E a `true` e ciascuno dei dieci job/archivi a `true`. Queste guardie **non disabilitano** automaticamente Firebase, auditManager, performanceOptimizer o funzioni non conosciute e **non sono un cut-off del data-plane**.
+
+### Audit di drift nella CI
+
+La PR Draft include `api/tests/gdprStagingBootSourceAudit.test.js`. Il workflow `gdpr-b2-worker-retry-isolated-ci.yml` esegue un `git fetch` **read-only** del branch esistente `staging/functional-integration-v0` e usa `git show` per ispezionarne `index.js`, `stagingBoot.js`, `stagingMigrate.js`, `server.js` e `app.js`, senza eseguirli. Le verifiche assicurano che:
+
+1. Il percorso delle migrazioni sia ancora riconoscibile, separato, con `NODE_ENV=staging` e database `demos_civic_staging_db`.
+2. **Tutti** i nove flag E2E e i dieci switch dei job nel ramo staging siano rappresentati nelle deny-list del probe Draft; nuovi flag su quel ramo rendono il test rosso e richiedono una nuova revisione.
+3. L'entrypoint di staging non contenga ancora il nuovo probe, per impedire di dichiararlo installato quando è solo nel Draft.
+4. La verifica scriva esclusivamente un risultato di **NO-GO**: non legge segreti e non prova l'effettivo isolamento sul provider.
+
+**Attenzione:** l'audit rileva la deriva di questi percorsi espliciti, non può inventariare tutti i processi remoti o dimostrare che il deploy live coincida con il ramo corrente. Il servizio Render non è stato modificato. Per ottenere una vera prova isolata occorre prima una progettazione di staging che separi *tutti* i side-effect d'avvio e verifichi esternamente ogni destinazione/credenziale.
+
 ## Decisione successiva, non autorizzata da questa PR
 
 Se si vorrà produrre una **prova reale** su `demos-functional-staging`, occorrerà autorizzare **separatamente**: verifica dell'effettivo avvio da branch/commit isolato e dell'assenza di connessioni/worker di produzione, un deploy controllato soltanto dello staging già esistente, configurazione fuori banda dei due marker e dell'URL di connessione staging con credenziali minime, lettura di un unico output sanitario e successiva rimozione dei marker. La PR Draft non introduce né effettua questi passi e non fa uso delle credenziali di alcun provider.
