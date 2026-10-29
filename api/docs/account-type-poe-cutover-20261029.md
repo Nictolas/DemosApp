@@ -8,7 +8,7 @@ Decision: account_type uses P = person, O = organization, E = institution in DAT
 - No public view or RLS policy references account_type.
 - The only public SQL function referring to account_type is refresh_users_legacy_role.
 - The trigger users_capabilities_refresh_legacy_role is enabled (O).
-- All 1,838 users have status a. Existing role default remains Elettore.
+- All 1,838 users have status a. On 29 October 2026, the production users.ruolo DEFAULT was independently changed from Elettore to E via Supabase migration users_role_default_e_20261029. Read-after-write confirmed DEFAULT E, 1,838 unchanged account rows, 138 electorate accounts, 1,674 P/CP role accounts. Account types are still descriptive labels.
 - 1,524 legacy politician accounts lack independently sourced current mandates: do NOT recalculate their legacy roles during a bulk account-type migration.
 
 ## Release gates and ordering
@@ -16,7 +16,7 @@ Decision: account_type uses P = person, O = organization, E = institution in DAT
 1. Review the entire Draft PR #402. Ensure all active runtime API, app and batch paths accept BOTH descriptions and P/O/E codes. Check Render autoDeploy and supported Android clients.
 2. Run CI, including auth, DPO/Admin, Sondaggi, Opinioni, organization and statistic tests; verify the synthetic PostgreSQL 17 forward AND rollback scripts. CI does not replace real E2E staging checks.
 3. DEPLOY COMPATIBILITY CODE FIRST while the DB still has long labels. Test Google/Apple/passkey registration, login, /auth/me, user list/detail/admin update, political and organization listings, GDPR export, and poll/opinion statistics.
-4. With authorized DDL access and a fresh DB backup, apply api/database/users-role-default-e-20261029.sql. Verify role default E, no existing roles modified.
+4. COMPLETED: role DEFAULT E was applied independently with an idempotent, guarded Supabase DDL migration users_role_default_e_20261029. No need to reapply this step; confirm the live default by read-only preflight. Remaining type cutover still requires a fresh backup and a separate approved deployment.
 5. In a controlled migration window, after all deployed readers accept short codes, apply api/database/users-account-type-poe-20261029.sql. The migration snapshots historical roles, disables ONLY the legacy-role projection trigger transactionally, rewrites codes, updates the function and check/default, reenables the trigger and verifies role parity before commit.
 6. Verify aggregate counts, current roles and statuses, authenticated API responses, Render logs and Android app screens. Never infer current office from LEGACY_BACKFILL.
 7. If needed, use the separately tested api/database/users-account-type-poe-rollback-20261029.sql, with rollback authorization. It restores long type labels and preserves roles; role DEFAULT E remains a deliberate separate change.
@@ -28,6 +28,19 @@ The compact-migration role-projection function now reads the existing `users.ruo
 This safeguards existing user data, but it does **not** certify that those profiles currently hold political office. Canonical verified mandates remain a separate ongoing reconciliation task.
 
 The dedicated CI additionally runs the Google/Apple OAuth registration tests and the passkey login-session policy tests after installing API dependencies. Those are isolated automated tests, not real identity-provider login sessions.
+
+## Actual local HTTP authentication regression
+
+The PR adds api/tests/compactAccountTypesHttp.pg17.integration.js, executed
+during the isolated PostgreSQL 17 CI migration in both short and rollback/long
+states. It starts a real Express HTTP server on 127.0.0.1, mounts the real
+/api/auth/me route and real verifyToken/requireAdmin middleware, mints
+ephemeral signed JWTs for invented fixture users, and checks accountType
+remains descriptive, missing/invalid tokens are rejected, forged Admin JWT
+claims cannot grant authorization, and inactive accounts cannot read their
+profile. This runs the real route logic against a real local database,
+but **not** actual OAuth providers or Android devices. No secret or production
+identity is used.
 
 ## Why the order matters
 
@@ -66,7 +79,7 @@ Created dedicated private schema f12_poe_ci on Demos-Staging PostgreSQL 17.11, u
 
 Reproducible files: api/staging/f12_poe_isolated_synthetic_20261029.sql, api/staging/f12_poe_isolated_synthetic_index_20261029.sql, api/staging/f12_poe_readonly_smoke_20261029.sql.
 
-Remaining gate: This private schema is not connected to a running DEMOS backend. Existing public staging tables are incomplete for auth, so the tests are real Supabase/PostgreSQL integration but NOT live Google/Apple/passkey or Android E2E. No production DDL or deploy until the separate application compatibility gate passes.
+Remaining gate: This private schema is not connected to a running DEMOS backend. Existing public staging tables are incomplete for auth, so the tests are real Supabase/PostgreSQL integration but NOT live Google/Apple/passkey or Android E2E. Production role DEFAULT E was already changed independently; NO account_type P/O/E DDL, merge or deploy is allowed until separate application compatibility gates pass.
 ## Read-only postflight
 
 SELECT account_type, count(*)::int FROM public.users GROUP BY 1 ORDER BY 1;
@@ -77,4 +90,4 @@ SELECT tgname,tgenabled FROM pg_trigger WHERE tgrelid='public.users'::regclass A
 
 ## Status
 
-PR #402 remains DRAFT; no live DDL, merge or deployment. Current direct DDL operation was blocked by tool safety controls. The canonical status and remaining gates belong in Google Sheet DEMOS – Roadmap – Tabella di Marcia, CHECKLIST MASTER F12-12I.
+PR #402 remains DRAFT; no account_type DDL, merge or deployment. The separately approved role DEFAULT E production DDL has now succeeded through the supported Supabase migration path and was verified read-only. The canonical status and remaining gates belong in Google Sheet DEMOS – Roadmap – Tabella di Marcia, CHECKLIST MASTER F12-12I.
