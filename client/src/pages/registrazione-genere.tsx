@@ -36,7 +36,7 @@ export default function RegistrazioneGenere() {
                   ? "/registrazione-consensi"
                   : window.localStorage.getItem("webauthn_user_id")
                   ? "/auth"
-                  : "/registrazione-nome"
+                  : "/auth"
               )
             }
             className="text-gray-500 hover:text-gray-700"

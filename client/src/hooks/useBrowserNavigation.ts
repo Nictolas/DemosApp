@@ -139,7 +139,7 @@ export function useBrowserNavigation() {
       '/notifiche': '/preferiti',
       '/auth': '/',
       '/registrazione-nome': '/auth',
-      '/registrazione-genere': '/registrazione-nome',
+      '/registrazione-genere': '/auth',
       '/registrazione-cittadinanza': '/registrazione-genere',
       '/registrazione-2-dati': '/registrazione-cittadinanza',
       '/registrazione-3-residenza': '/registrazione-2-dati',
