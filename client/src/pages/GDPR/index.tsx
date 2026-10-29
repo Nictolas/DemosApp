@@ -41,7 +41,24 @@ export default function GDPR() {
       const response = await apiRequest('PUT', '/api/user/political-opinions-consent/revoke');
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Both opinion-entry and statistics-selector queries may hold personal
+      // political answers. Cancel in-flight reads before purging both caches,
+      // so a response started before revocation cannot re-populate them.
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['opinioniQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['statsOpinionQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['graziaData'] }),
+        queryClient.cancelQueries({ queryKey: ['capoStatoData'] }),
+        queryClient.cancelQueries({ queryKey: ['consensoGovernoData'] }),
+        queryClient.cancelQueries({ queryKey: ['governoVoti'] }),
+      ]);
+      queryClient.removeQueries({ queryKey: ['opinioniQuestions'] });
+      queryClient.removeQueries({ queryKey: ['statsOpinionQuestions'] });
+      queryClient.removeQueries({ queryKey: ['graziaData'] });
+      queryClient.removeQueries({ queryKey: ['capoStatoData'] });
+      queryClient.removeQueries({ queryKey: ['consensoGovernoData'] });
+      queryClient.removeQueries({ queryKey: ['governoVoti'] });
       queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       toast({
