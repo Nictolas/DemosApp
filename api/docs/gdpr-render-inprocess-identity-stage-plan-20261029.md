@@ -10,7 +10,8 @@ Il probe **non è una chiusura del data-plane**: non impedisce l'accesso a Postg
 
 ## Implementazione, disabilitata per impostazione predefinita
 
-- `api/server.js`: attiva il codice soltanto se `GDPR_RENDER_INPROCESS_ATTESTATION` è **presente** e lo richiama **una sola volta, dopo l'evento `listening`**. Senza variabile, nessun import del servizio e nessuna query di attestazione; non esiste un endpoint HTTP.
+- `api/index.js` (**nuova barriera pre-avvio**): se `GDPR_RENDER_INPROCESS_ATTESTATION` è presente, esegue `assertProcessTarget(process.env)` **prima** di importare `api/server.js` e quindi prima di inizializzare app, route, job e pool. Su servizio/DB/marker errati il processo abortisce con il solo codice `GDPR_RENDER_STAGING_PREFLIGHT_REFUSED`, senza stampare URI o password. Senza marker, avvio normale senza nuova verifica.
+- `api/server.js`: dopo l'avvio consentito, richiama il probe una sola volta, dopo l'evento `listening`. Non pubblica endpoint HTTP.
 - `api/services/gdprRenderInProcessStagingAttestation.js`: controlla il contesto **prima** di ottenere un pool o effettuare una connessione. Per un'esecuzione valida esige `RENDER=true`, `NODE_ENV=production`, `RENDER_SERVICE_ID=srv-db52l1g473hc739ld250` (servizio esistente `demos-functional-staging`), `GDPR_RENDER_INPROCESS_ATTESTATION=demos-staging-inprocess-readonly-20261029` e `GDPR_WRITER_ATTESTATION=demos-staging-readonly-20261027`.
 - `api/scripts/attest-gdpr-writer-readonly.js` fornisce l'ulteriore guardia già testata del **target Demos-Staging**, ref `fkeayjzvtuvzesljhjbc`, con URI PostgreSQL diretto o Supavisor in `eu-central-1`, porta e `sslmode=require` obbligatori; target diverso, downgrade TLS, URI con parametri non previsti o configurazione errata: **nessuna connessione viene effettuata**.
 - Una volta ammessa l'operazione, il probe acquisisce **una sola** sessione dal `getPool()` usato dal processo, esegue la sola SELECT di identità e catalogo RLS/privilegi esistente nella CLI staging, rilascia il client in `finally` e produce **una sola riga JSON di audit** con prefisso `GDPR_RENDER_STAGING_POOL_IDENTITY`. Errori SQL, stack, URI, password e token **non vengono riportati**. I campi di esito includono `in_process_staging_session_observed`, `live_production_pool_verified:false`, `scope:ONE_CANONICAL_POOL_SESSION_NOT_ALL_CONNECTIONS` e `recoveryReady:false`.
@@ -27,6 +28,19 @@ Il probe **non è una chiusura del data-plane**: non impedisce l'accesso a Postg
 5. `api/server.js` usa `getPool()` del processo e non pubblica nuovi endpoint diagnostici.
 
 La suite è richiamata dal workflow già esistente `.github/workflows/gdpr-b2-worker-retry-isolated-ci.yml`, **senza contatto con Supabase, Render o B2**.
+
+## Evidenze di preflight connesso, read-only (29 ottobre 2026)
+
+- Il servizio Render esistente **demos-functional-staging** (ID `srv-db52l1g473hc739ld250`) è su branch **`staging/functional-integration-v0`**, `autoDeploy=no`, comando `cd api && node index.js`; ultimo deploy **live** visibile su commit **`645d72d37b9178233b7f66c7433cb90e51bf585c`**, datato 15 ottobre 2026. **Non è il branch né il codice della PR Draft #374.** Il solo trigger redeploy non potrebbe eseguire il probe nuovo.
+- Il ramo staging carica **`api/scripts/stagingBoot.js`** prima di `api/server.js`, con un proprio gate `DEMOS_STAGING_MIGRATION_MODE`. La precondizione ambientale `NODE_ENV=production` per il probe **non è stata verificata** nell'istanza Render e non deve essere cambiata ciecamente: un mismatch blocca il test.
+- I tool Render disponibili permettono di leggere metadati, log e deploy, ma **non** elencano/verificano in modo sicuro gli effettivi `DATABASE_URL` e tutti i segreti esterni di uno staging. Non possiamo attestare che tutti i job, i servizi Firebase, le API e gli altri ingressi siano separati da produzione. **Il fatto che il servizio si chiami staging non prova il corretto isolamento.**
+- Una query **solo catalogo** sulla Supabase Management API del progetto **Demos-Staging** ha rilevato `public.privacy_erasure_ledger` esistente con `relrowsecurity=true`. Il ruolo `postgres` restituito per `current_user` è il ruolo della connessione **Management SQL**, **non** il writer Render staging. Non sono stati letti record dell'utente né eseguite DML/DDL.
+
+**Esito preflight:** `NO_GO_STAGING_PROBE_NOT_DEPLOYABLE_YET`. Prima di una prova reale serve una derivazione di codice e configurazione di staging controllata, conservando e rivedendo il suo `stagingBoot` e verificando **tutte** le destinazioni esterne, non soltanto il database. Non aggiornare il ramo di staging o rilanciare il servizio solo per vedere se il probe parte: senza questa verifica si rischiano processi di staging collegati a produzione.
+
+## Verifiche offline aggiunte
+
+La suite `api/tests/gdprRenderInProcessStagingAttestation.test.js` esegue anche il contenuto reale di `api/index.js` in una sandbox VM con `require('./server')` sostituito da uno stub, verificando che in caso di marker errato, Render production, target SQL production o `NODE_ENV=staging` **il server non venga mai importato/avviato**. Il test non costruisce pool, non chiama provider e non tocca dati reali.
 
 ## Decisione successiva, non autorizzata da questa PR
 
