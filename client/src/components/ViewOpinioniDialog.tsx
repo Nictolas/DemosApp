@@ -301,8 +301,8 @@ export function ViewOpinioniDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl max-w-full w-full h-full sm:h-auto sm:rounded-2xl p-0 sm:p-6 flex flex-col bg-white" style={{ maxHeight: '100dvh', minHeight: '100dvh', minWidth: '100vw', maxWidth: '100vw' }}>
-        <DialogHeader>
+      <DialogContent className="!top-0 !left-0 !flex !h-[100dvh] !w-screen !max-w-none !translate-x-0 !translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-white p-0" style={{ maxHeight: '100dvh' }}>
+        <DialogHeader className="shrink-0 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
           <DialogTitle className="text-center text-xl font-bold">
             {nome && cognome ? `${nome} ${cognome}` : "Utente"}
           </DialogTitle>
@@ -313,14 +313,14 @@ export function ViewOpinioniDialog({
         
         {/* Avatar centrato separato dal DialogTitle */}
         {avatarConfig && (
-          <div className="flex justify-center mb-4">
+          <div className="flex shrink-0 justify-center mb-4">
             <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm" style={{ width: 64, height: 64 }}>
               <CustomAvatar config={JSON.parse(avatarConfig)} size={64} className="w-full h-full" />
             </div>
           </div>
         )}
         {/* Tabs contenuto */}
-        <div className="flex-1 overflow-y-auto px-4" style={{ paddingBottom: 120 }}>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
           {isLoadingOpinions || isLoadingQuestions ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -487,8 +487,8 @@ export function ViewOpinioniDialog({
             </>
           )}
         </div>
-        {/* Barra pulsanti fissa in basso */}
-        <div className="w-full bg-white shadow-[0_-2px_8px_-2px_rgba(0,0,0,0.08),0_2px_8px_-2px_rgba(0,0,0,0.08)] border-t border-gray-200 border-b border-gray-200 flex flex-col items-center justify-center gap-2 p-4 fixed left-0 right-0 bottom-0 sm:static sm:shadow-none sm:border-0" style={{ zIndex: 50, marginBottom: 80 }}>
+        {/* Barra pulsanti nel layout del dialogo: resta al fondo senza sovrapporsi allo scroll */}
+        <div className="z-10 flex w-full shrink-0 flex-col items-center justify-center gap-2 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_-2px_rgba(0,0,0,0.08)]" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           {/* Prima riga: filtri opinioni — mobile: 3 tab; desktop: solo Opinioni */}
           <div className="flex sm:hidden justify-center gap-2 w-full mb-2">
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'favorevole' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('favorevole')}>Favorevole</button>
