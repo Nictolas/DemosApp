@@ -60,6 +60,9 @@ function makeUserAnswersPool({ granted = true } = {}) {
   const query = async (sql, params = []) => {
     const s = String(sql).replace(/\s+/g, ' ').trim();
     if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(s)) return { rows: [], rowCount: 0 };
+    if (s === 'SELECT id FROM users WHERE id = $1 FOR UPDATE') {
+      return { rows: [{ id: params[0] }], rowCount: 1 };
+    }
     if (s.includes('political_opinions_consent') && s.includes('AS granted')) {
       return { rows: [{ granted }] };
     }
