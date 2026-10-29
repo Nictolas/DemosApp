@@ -1,0 +1,37 @@
+name: Chrono mobilizations adapter regression
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/chronocolEventFeedService.js'
+      - 'api/routes/eventi.js'
+      - 'api/tests/chronocolEventFeedService.test.js'
+      - 'client/src/pages/Eventi.tsx'
+      - '.github/workflows/chronocol-eventi.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'api/services/chronocolEventFeedService.js'
+      - 'api/routes/eventi.js'
+      - 'api/tests/chronocolEventFeedService.test.js'
+      - 'client/src/pages/Eventi.tsx'
+
+jobs:
+  chrono-eventi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Run Chrono and existing Eventi feed tests
+        run: node --test api/tests/chronocolEventFeedService.test.js api/tests/eventFeedService.test.js
+      - name: Install client dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend
+        run: npm run build --prefix client
