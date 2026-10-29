@@ -9,6 +9,8 @@ on:
       - 'api/app.js'
       - 'api/tests/profileSelections.smoke.test.js'
       - 'client/src/lib/queryClient.ts'
+      - 'client/src/lib/profileMutationPolicy.ts'
+      - 'client/tests/profileSelectiveInvalidation.test.mjs'
       - 'scripts/test-profile-persistent-browser.cjs'
       - '.github/workflows/profile-persistent-browser-regression.yml'
   workflow_dispatch:
@@ -28,6 +30,8 @@ jobs:
           node-version: '22'
       - name: Install frontend
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Verify profile cache mutation policy and existing local-cache regressions
+        run: node --test client/tests/profileSelectiveInvalidation.test.mjs client/tests/profileNavLocalCache.test.mjs
       - name: Verify private selected-preferences API contract
         run: node --test api/tests/profileSelections.smoke.test.js
       - name: Build production frontend
