@@ -291,3 +291,100 @@ if (!isLocalTestDatabase) {
     await pool.end();
   });
 }
+
+
+test('account deletion handles pool acquisition and rollback failures', async () => {
+  const routeSource = fs.readFileSync(path.join(__dirname, '../routes/user/delete-account.js'), 'utf8');
+  for (const scenario of ['pool_init', 'connect', 'begin_and_rollback', 'success']) {
+    let deleteHandler;
+    let released = 0;
+    const sql = [];
+    const audit = [];
+    const diagnostics = [];
+    const client = {
+      async query(statement) {
+        sql.push(statement);
+        if (scenario === 'begin_and_rollback' && (statement === 'BEGIN' || statement === 'ROLLBACK')) {
+          throw new Error('synthetic database failure: do not disclose');
+        }
+        if (statement.startsWith('SELECT password_hash')) return { rows: [{ password_hash: null }] };
+        return { rows: [], rowCount: 1 };
+      },
+      release() { released += 1; }
+    };
+    const router = {
+      get() {},
+      delete(_path, _auth, handler) { deleteHandler = handler; }
+    };
+    const mockedRequire = (name) => {
+      if (name === 'express') return { Router: () => router };
+      if (name === '../../middleware/auth') return { verifyToken() {} };
+      if (name === '../../services/auditService') {
+        return { logAction: async (entry) => { audit.push(entry); return null; } };
+      }
+      if (name === '../../config/database') {
+        return {
+          getPool() {
+            if (scenario === 'pool_init') throw new Error('synthetic pool init failure: do not disclose');
+            return {
+              async connect() {
+                if (scenario === 'connect') throw new Error('synthetic connect failure: do not disclose');
+                return client;
+              }
+            };
+          }
+        };
+      }
+      if (name === 'bcryptjs') return { compare: async () => true };
+      if (name === '../../services/privacyErasureLedgerService') {
+        return {
+          EVENT_TYPES: { ACCOUNT_DELETED: 'account_deleted' },
+          recordEvent: async () => {},
+          deleteByAnyColumn: async () => {},
+          enforceAccountDeletion: async () => ({ userDeleted: 1 })
+        };
+      }
+      throw new Error('Unexpected dependency in isolated deletion test: ' + name);
+    };
+    const isolatedModule = { exports: {} };
+    new Function('require', 'module', 'console', 'process', routeSource)(
+      mockedRequire,
+      isolatedModule,
+      { error: (...args) => diagnostics.push(args.join(' ')) },
+      { env: { AXIOM_ENABLED: 'false' } }
+    );
+    assert.equal(typeof deleteHandler, 'function');
+    const response = {
+      code: 200,
+      status(value) { this.code = value; return this; },
+      json(value) { this.body = value; return this; }
+    };
+    await deleteHandler(
+      { user: { id: 'synthetic-only-user' }, body: { confirmText: 'CANCELLA' } },
+      response
+    );
+    if (scenario === 'success') {
+      assert.equal(response.code, 200);
+      assert.equal(response.body.success, true);
+      assert.equal(released, 1);
+      assert.ok(sql.includes('COMMIT'));
+      assert.deepEqual(
+        audit.filter(entry => entry.action !== 'ACCOUNT_DELETION_ERROR').map(entry => entry.userId),
+        [null, null]
+      );
+    } else {
+      assert.equal(response.code, 500, scenario);
+      assert.equal(response.body.success, false);
+      assert.equal(audit.length, 1);
+      assert.equal(audit[0].action, 'ACCOUNT_DELETION_ERROR');
+      assert.equal(audit[0].details.errorCode, 'ACCOUNT_DELETION_FAILED');
+      assert.equal(released, scenario === 'begin_and_rollback' ? 1 : 0);
+      if (scenario === 'begin_and_rollback') {
+        assert.ok(sql.includes('ROLLBACK'));
+        assert.ok(diagnostics.includes('ACCOUNT_DELETION_ROLLBACK_FAILED'));
+      }
+      assert.doesNotMatch(JSON.stringify(response.body) + diagnostics.join(' '), /do not disclose/);
+      assert.ok(diagnostics.includes('ACCOUNT_DELETION_FAILED'));
+    }
+  }
+});
