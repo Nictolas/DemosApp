@@ -14,6 +14,8 @@ on:
       - 'api/tests/compactAccountTypesApiContract.test.js'
       - 'api/tests/accountCapabilitiesMigration.test.js'
       - 'api/tests/accountCapabilityAuthorization.smoke.test.js'
+      - 'api/tests/oauthRegistrationService.test.js'
+      - 'api/tests/webauthnLoginSessionPolicy.test.js'
       - 'api/database/users-role-default-e-20261029.sql'
       - 'api/database/users-account-type-poe-20261029.sql'
       - 'api/database/users-account-type-poe-rollback-20261029.sql'
@@ -59,6 +61,11 @@ jobs:
       - name: Account-type semantics and legacy role regression
         run: |
           node --test api/tests/shortAccountTypeCodes.test.js api/tests/accountCapabilitiesService.test.js api/tests/accountCapabilitiesMigration.test.js api/tests/accountCapabilityAuthorization.smoke.test.js api/tests/compactAccountTypesApiContract.test.js
+      - name: Install API dependencies for OAuth and passkey regression
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: OAuth registration and passkey status policy
+        run: |
+          node --test api/tests/oauthRegistrationService.test.js api/tests/webauthnLoginSessionPolicy.test.js
       - name: PostgreSQL 17 isolated migration test
         run: |
           sudo apt-get update -qq
