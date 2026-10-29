@@ -8,6 +8,7 @@ on:
       - 'client/src/components/RobustAppLayout.tsx'
       - 'client/src/robust-layout.css'
       - 'api/tests/directoryFixedHeaderScroll.smoke.test.js'
+      - 'api/tests/directorySearchFocus.smoke.test.js'
       - '.github/workflows/directory-fixed-scroll.yml'
   push:
     branches: [main]
@@ -29,7 +30,7 @@ jobs:
           cache: npm
           cache-dependency-path: client/package-lock.json
       - name: Validate directory scroll contract and existing Eventi / Notifiche behavior
-        run: node --test api/tests/directoryFixedHeaderScroll.smoke.test.js api/tests/eventiScrollContract.test.js api/tests/notificheScrollContract.test.js
+        run: node --test api/tests/directoryFixedHeaderScroll.smoke.test.js api/tests/directorySearchFocus.smoke.test.js api/tests/eventiScrollContract.test.js api/tests/notificheScrollContract.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend

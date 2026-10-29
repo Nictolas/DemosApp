@@ -27,7 +27,7 @@ for (const [name, file] of [
   test(name + ' keeps title, search and filters fixed and only scrolls cards/results', () => {
     const page = read(file);
     const header = page.indexOf('{/* Header */}');
-    const search = page.indexOf('{/* Barra di Ricerca e Filtri */}');
+    const search = page.indexOf('{/* Barra di Ricerca e Filtri');
     const filters = page.indexOf('{/* Pannello Filtri Avanzati */}');
     const scroll = page.indexOf('className="app-page-scroll min-h-0 flex-1 overflow-y-auto');
     const loading = page.indexOf('{/* Loading State */}');
