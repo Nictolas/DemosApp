@@ -41,6 +41,8 @@ async function main() {
     const page = await context.newPage();
     const errors = [];
     const calls = new Map();
+    let consentGranted = true;
+    let consentTimestamp = '2026-10-29T09:00:00Z';
     const blockedOffsite = new Set();
     page.on('pageerror', error => errors.push(error.message));
 
@@ -65,13 +67,16 @@ async function main() {
         return reply(route, { success: true, user: { id: OWNER, role: 'AD', ruolo: 'AD', status: 'A', is_admin: true } });
       }
       if (p === '/api/users/me') return reply(route, { success: true, user: ownerProfile });
+      if (p === '/api/user/political-opinions-consent') return reply(route, {
+        success: true, consent: { granted: consentGranted, timestamp: consentTimestamp },
+      });
       if (p === '/api/opinioni/profile') return reply(route, {
         success: true, data: {
           questions: [{ id: 'synthetic_opinion', text: 'Domanda inventata?' }],
-          userAnswers: { synthetic_opinion: 'f' },
+          userAnswers: consentGranted ? { synthetic_opinion: 'f' } : {},
         },
       });
-      if (p === '/api/governo/ideale') return reply(route, { success: true, data: { Primo_Ministro: 'Ministra Fittizia' } });
+      if (p === '/api/governo/ideale') return reply(route, { success: true, data: consentGranted ? { Primo_Ministro: 'Ministra Fittizia' } : {} });
       if (p === '/api/rappresentanti') return reply(route, { success: true, data: { rappresentanti: {} } });
       if (p === '/api/candidati/selezioni') return reply(route, { success: true, data: { candidati: {} } });
       if (p === `/api/users/${OTHER}/public-profile`) return reply(route, {
@@ -121,6 +126,7 @@ async function main() {
       '/api/users/me', '/api/opinioni/profile', '/api/governo/ideale',
       '/api/rappresentanti', '/api/candidati/selezioni',
     ];
+    const consentPath = '/api/user/political-opinions-consent';
     for (const p of ownEndpoints) {
       assert.ok((calls.get(p) || 0) >= 1, 'First opening missing ' + p);
     }
@@ -137,7 +143,9 @@ async function main() {
     await page.waitForURL('**/profilo');
     await page.getByText('Comune Inventato', { exact: false }).first().waitFor();
     assert.deepEqual(ownEndpoints.map(p => calls.get(p) || 0), countsBeforeReturn,
-      'Reopening the profile must not refetch its five endpoints while cache is fresh');
+      'Reopening profile with fresh cache must not refetch the five full profile endpoints');
+    assert.equal(calls.get(consentPath), 2,
+      'Cached reopen must validate consent version with one cheap GET');
 
     // Screenshot only after the fade-up page transition is fully opaque.
     // Capturing mid-animation produces misleading low-contrast screenshots.
@@ -147,6 +155,45 @@ async function main() {
     }, null, { timeout: 10000 });
     await awaitFullyVisible();
     await page.screenshot({ path: '/tmp/demos-profile-own-synthetic-mobile.png', fullPage: true });
+    // A different browser context is a separate device with no shared
+    // in-memory query cache. Its revocation affects the same synthetic server.
+    await page.locator('nav.app-bottom-nav a[href="/preferiti"]').click();
+    await page.waitForURL('**/preferiti');
+    const otherDevice = await browser.newContext({ serviceWorkers: 'block' });
+    const otherPage = await otherDevice.newPage();
+    await otherPage.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== 'localhost' || url.port !== '4173') return route.abort();
+      if (url.pathname === consentPath && route.request().method() === 'PUT') {
+        consentGranted = false;
+        consentTimestamp = null;
+        return reply(route, { success: true, consent: { granted: false, timestamp: null } });
+      }
+      if (url.pathname.startsWith('/api/')) return reply(route, { success: true, data: {} });
+      return route.continue();
+    });
+    await otherPage.goto(BASE + '/auth', { waitUntil: 'domcontentloaded' });
+    await otherPage.evaluate(async path => {
+      const response = await fetch(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' } });
+      if (!response.ok) throw new Error('Synthetic revocation failed');
+    }, consentPath);
+    await otherDevice.close();
+    const beforeRevocationReturn = ownEndpoints.map(p => calls.get(p) || 0);
+    await page.locator('nav.app-bottom-nav a[href="/profilo"]').click();
+    await page.waitForURL('**/profilo');
+    await page.getByText('Comune Inventato').first().waitFor({ timeout: 15000 });
+    await page.waitForFunction(() => !document.body.innerText.includes('synthetic_opinion'), null, { timeout: 12000 });
+    assert.equal(await page.getByText('Opinioni politiche', { exact: false }).count(), 0,
+      'Revoked choices must not reappear from the RAM cache');
+    assert.equal(await page.getByText('Ministra Fittizia').count(), 0,
+      'Revoked political choices must not reappear in the government section');
+    for (let i = 0; i < ownEndpoints.length; i++) {
+      assert.equal((calls.get(ownEndpoints[i]) || 0), beforeRevocationReturn[i] + 1,
+        'After cross-device revocation, reload server-gated endpoint ' + ownEndpoints[i]);
+    }
+    assert.equal(calls.get(consentPath), 4,
+      'First fetch, cached reentry and revoked reentry each validate consent; refetch obtains version');
+
 
     // Public view must use the public projection only, not visitor's selections.
     const ownCountsBeforePublic = ownEndpoints.map(p => calls.get(p));
@@ -177,6 +224,8 @@ async function main() {
       status: 'pass', viewport: '390x844', summaryHeight,
       firstOpeningObservedApiReads: originalCounts.reduce((a, b) => a + b, 0),
       secondOpeningAdditionalProfileReads: 0,
+      crossDeviceRevocationDetected: true,
+      postRevocationFullProfileRefetches: ownEndpoints.length,
       unrelatedOwnUserReadsOnReload,
       externalRequestsAllowed: 0,
       externalOriginsBlocked: blockedOffsite.size,
