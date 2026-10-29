@@ -2,7 +2,7 @@ name: Profile persistent zero-read browser regression
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, integration/opinioni-catalog-privacy-20261029]
     paths:
       - 'client/src/pages/Profilo/**'
       - 'api/routes/user/profile-selections.js'
