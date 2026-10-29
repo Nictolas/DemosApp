@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { apiRequest } from "@/lib/queryClient";
@@ -139,16 +139,18 @@ async function loadOtherProfile(targetUserId: string, signal: AbortSignal): Prom
 }
 
 export const useProfileData = (userId?: string) => {
+  const queryClient = useQueryClient();
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
   const ownerId = user?.id;
   const targetId = userId || ownerId;
   const ownProfile = !!ownerId && targetId === ownerId;
+  const profileKey = ["profileSnapshot", ownerId ?? null, targetId ?? null] as const;
 
   // Cache SOLO in memoria React Query: nessuna opinione/scelta politica in localStorage.
   // Le chiavi includono il visitatore e il soggetto: mai riusare dati tra account.
   const query = useQuery<ProfileSnapshot>({
-    queryKey: ["profileSnapshot", ownerId ?? null, targetId ?? null],
+    queryKey: profileKey,
     enabled: Boolean(authReady && !isLoading && ownerId && targetId),
     queryFn: ({ signal }) => ownProfile ? loadOwnProfile(signal) : loadOtherProfile(targetId!, signal),
     staleTime: ownProfile ? 10 * 60 * 1000 : 0,
@@ -211,8 +213,27 @@ export const useProfileData = (userId?: string) => {
         if (controller.signal.aborted) return;
         const observed = consentFingerprint(payload);
         if (observed !== expectedFingerprint) {
-          // A different device revoked/regranted consent. Keep the cached
-          // snapshot hidden until fresh server-gated values replace it.
+          // Remove stale political data from RAM immediately, including the
+          // old legacy opinion and selection fields embedded in userInfo.
+          // The profile remains masked until a fresh server read completes.
+          queryClient.setQueryData<ProfileSnapshot>(profileKey, previous => {
+            if (!previous) return previous;
+            const safeUserInfo = { ...previous.userInfo };
+            for (const field of Object.keys(safeUserInfo)) {
+              if (/^(energia_nucleare|sperimentazione_animale|legalizzazione_canapa|caccia|rappresentante_|candidato_)/.test(field)) {
+                delete safeUserInfo[field];
+              }
+            }
+            return {
+              ...previous,
+              userInfo: safeUserInfo,
+              userOpinions: {},
+              opinionQuestions: [],
+              governoIdeale: {},
+              rappresentantiDetails: {},
+              candidatiDetails: {},
+            };
+          });
           const fresh = await query.refetch();
           if (fresh.isError) throw fresh.error;
         }
