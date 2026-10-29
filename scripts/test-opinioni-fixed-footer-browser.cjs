@@ -52,6 +52,8 @@ async function run() {
       let sessionOwner = ID;
       let politicalGrant = true;
       let politicalEpoch = '2026-10-01T00:00:00Z';
+      let catalogRevision = 'a'.repeat(64);
+      const catalogChecks = [];
       page.on('pageerror', error => errors.push(error.message));
       const fulfill = (route, value) => route.fulfill({
         status: 200, contentType: 'application/json',
@@ -73,6 +75,10 @@ async function run() {
         }
         if (u.pathname === '/api/user/political-opinions-consent') {
           return fulfill(route, { success: true, consent: { granted: politicalGrant, timestamp: politicalEpoch } });
+        }
+        if (u.pathname === '/api/opinioni-catalog-revision') {
+          catalogChecks.push(catalogRevision);
+          return fulfill(route, { success: true, revision: catalogRevision });
         }
         if (u.pathname === '/api/opinioni-list') {
           const grade = u.searchParams.get('grado');
@@ -200,6 +206,15 @@ async function run() {
       await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
       assert.equal(answerReads.length, beforeSaveReads,
         'Warm cache after ACK must not repeat an answer GET');
+      // New official question release changes public metadata, not the auth
+      // epoch: the encrypted answer snapshot must be rejected on next visit.
+      catalogRevision = 'b'.repeat(64);
+      const readsBeforeCatalogChange = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, readsBeforeCatalogChange + 1,
+        'Catalog revision change must refresh this category exactly once');
+      assert.ok(catalogChecks.length > 0, 'Metadata-only catalog revision endpoint must be consulted');
       // Consent revoked in a verified session: cached personal answers stay hidden.
       politicalGrant = false;
       await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
