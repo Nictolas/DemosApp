@@ -137,7 +137,7 @@ jobs:
       - name: Compose review-only PR 374 and PR 376 in an ephemeral worktree
         shell: bash
         env:
-          PINNED_LEDGER_HEAD: eb0732e85611781a26a7d930c8a5a75f337fa38a
+          PINNED_LEDGER_HEAD: 8006b36b5f88e56383a4d29a94d581af5c64def2
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
@@ -195,6 +195,10 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:synthetic-only@localhost:5432/privacy_synthetic
         run: |
           node --test --test-concurrency=1 api/tests/privacyLedgerSecureBootstrap.pg17.test.js
+      - name: Check production-shaped account deletion on latest ledger (synthetic PG17)
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:synthetic-only@localhost:5432/privacy_synthetic
+        run: node --test --test-concurrency=1 api/tests/accountDeletionProductionShape.pg17.test.js
       - name: Recycle global synthetic API roles after secure-ledger tests
         shell: bash
         run: |
