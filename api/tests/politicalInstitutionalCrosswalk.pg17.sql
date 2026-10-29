@@ -15,9 +15,9 @@ BEGIN
   -- independently inserted, exact-match row in the private approval table.
   BEGIN
     PERFORM demos_internal.import_official_political_mandate(
-      '22222222-2222-4222-8222-222222222222','SENATO','not-approved',19,
+      '22222222-2222-4222-8222-222222222222','SENATO','90007',19,
       DATE '2022-10-13',NULL,
-      'https://www.senato.it/composizione/senatori/scheda?did=not-approved',
+      'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=90007',
       'POL-015-unapproved','reviewer-fixture'
     );
     RAISE EXCEPTION 'EXPECTED_APPROVAL_REQUIRED_NOT_RAISED';
@@ -58,9 +58,9 @@ BEGIN
   THEN RAISE EXCEPTION 'retry not idempotent'; END IF;
 
   SELECT demos_internal.import_official_political_mandate(
-    '11111111-1111-4111-8111-111111111111','SENATO','sen-456',19,
+    '11111111-1111-4111-8111-111111111111','SENATO','456',19,
     DATE '2022-10-13',NULL,
-    'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=456',
+    'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=000456',
     'POL-015-review-002','reviewer-fixture'
   ) INTO second;
   IF second->>'outcome' <> 'inserted' THEN RAISE EXCEPTION 'senate insert failed'; END IF;
@@ -103,7 +103,7 @@ BEGIN
     PERFORM demos_internal.import_official_political_mandate(
       '11111111-1111-4111-8111-111111111111','CAMERA','d456_19',19,
       DATE '2023-01-01',NULL,
-      'https://www.camera.it/deputati/elenco/19-456',
+      'https://dati.camera.it/ocd/deputato.rdf/d456_19',
       'POL-015-review-003','reviewer-fixture'
     );
     RAISE EXCEPTION 'EXPECTED_OVERLAP_NOT_RAISED';
@@ -129,9 +129,9 @@ BEGIN
   -- Past institutional mandates must not use invented future end dates.
   BEGIN
     PERFORM demos_internal.import_official_political_mandate(
-      '22222222-2222-4222-8222-222222222222','SENATO','future-end',19,
+      '22222222-2222-4222-8222-222222222222','SENATO','90006',19,
       DATE '2022-10-13',CURRENT_DATE + 1,
-      'https://www.senato.it/composizione/senatori/scheda?did=future-end',
+      'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=90006',
       'POL-015-review-003c','reviewer-fixture'
     );
     RAISE EXCEPTION 'EXPECTED_FUTURE_END_NOT_RAISED';
@@ -163,7 +163,7 @@ BEGIN
   -- Block malicious source look-alikes, wrong account types and future starts.
   BEGIN
     PERFORM demos_internal.import_official_political_mandate(
-      '22222222-2222-4222-8222-222222222222','SENATO','fake',19,
+      '22222222-2222-4222-8222-222222222222','SENATO','90003',19,
       DATE '2022-10-13',NULL,
       'https://www.senato.it.attacker.example/scheda',
       'POL-015-review-004','reviewer-fixture'
@@ -171,14 +171,14 @@ BEGIN
     RAISE EXCEPTION 'EXPECTED_SPOOF_NOT_RAISED';
   EXCEPTION WHEN OTHERS THEN
     GET STACKED DIAGNOSTICS err = MESSAGE_TEXT;
-    IF err <> 'INVALID_INSTITUTIONAL_SOURCE' THEN RAISE; END IF;
+    IF err <> 'OFFICIAL_ID_SOURCE_MISMATCH' THEN RAISE; END IF;
   END;
 
   BEGIN
     PERFORM demos_internal.import_official_political_mandate(
-      '33333333-3333-4333-8333-333333333333','SENATO','org-123',19,
+      '33333333-3333-4333-8333-333333333333','SENATO','90004',19,
       DATE '2022-10-13',NULL,
-      'https://www.senato.it/composizione/senatori/scheda?did=123',
+      'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=90004',
       'POL-015-review-005','reviewer-fixture'
     );
     RAISE EXCEPTION 'EXPECTED_ORGANIZATION_NOT_RAISED';
@@ -189,9 +189,9 @@ BEGIN
 
   BEGIN
     PERFORM demos_internal.import_official_political_mandate(
-      '22222222-2222-4222-8222-222222222222','SENATO','future',19,
+      '22222222-2222-4222-8222-222222222222','SENATO','90005',19,
       CURRENT_DATE+1,NULL,
-      'https://www.senato.it/composizione/senatori/scheda?did=123',
+      'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=90004',
       'POL-015-review-006','reviewer-fixture'
     );
     RAISE EXCEPTION 'EXPECTED_FUTURE_NOT_RAISED';
@@ -240,9 +240,9 @@ $test$;
 -- Prove rollback of a successful insertion, not only caught exceptions.
 BEGIN;
 SELECT demos_internal.import_official_political_mandate(
-  '22222222-2222-4222-8222-222222222222','SENATO','rollback-fixture',19,
+  '22222222-2222-4222-8222-222222222222','SENATO','90001',19,
   DATE '2022-10-13',NULL,
-  'https://www.senato.it/composizione/senatori/scheda?did=rollback',
+  'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=90001',
   'POL-015-review-rb01','reviewer-fixture'
 );
 ROLLBACK;
@@ -250,9 +250,9 @@ ROLLBACK;
 DO $rollback$
 BEGIN
   IF EXISTS (SELECT 1 FROM demos_internal.official_political_identities
-             WHERE official_id='rollback-fixture')
+             WHERE official_id='90001')
      OR EXISTS (SELECT 1 FROM public.political_mandates
-                WHERE legacy_context->>'official_id'='rollback-fixture')
+                WHERE legacy_context->>'official_id'='90001')
   THEN RAISE EXCEPTION 'transaction rollback failed'; END IF;
   RAISE NOTICE 'PASS: explicit transaction rollback';
 END;
