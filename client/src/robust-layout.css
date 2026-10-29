@@ -181,6 +181,15 @@
   contain: layout paint;
 }
 
+/* On the notifications route only the list should scroll, never the page header. */
+.app-main.app-main--notifiche {
+  overflow-y: hidden !important;
+}
+
+.app-main.app-main--notifiche > .app-main__inner {
+  overflow: hidden;
+}
+
 .app-main__inner {
   flex: 1 1 auto;
   min-height: 0;
