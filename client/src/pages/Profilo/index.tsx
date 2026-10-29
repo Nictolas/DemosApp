@@ -52,7 +52,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
 
   // Determina se l'utente sta visualizzando il proprio profilo o quello di un altro
   const isViewingOwnProfile = !userId || userId === user?.id;
-  const isViewingOtherProfile = userId && userId !== user?.id;
+  const isViewingOtherProfile = Boolean(userId && userId !== user?.id);
 
   // Il dato arriva dalla cache React Query legata all'account, non dal vecchio
   // profilo_locale globale (che poteva inserire dati di un altro account).
@@ -170,6 +170,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                     onEditClick={() => setIsEditing(true)}
                     onModificaImmagine={handleModificaImmagine}
                     canEdit={isViewingOwnProfile}
+                    isOwnProfile={isViewingOwnProfile}
                     avatarConfig={avatarConfig}
                   />
                 </div>
@@ -184,6 +185,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                         <ProfileRepresentatives 
                           userInfo={userInfo} 
                           rappresentantiDetails={rappresentantiDetails}
+                          canEditSelections={isViewingOwnProfile}
                         />
                       </div>
                     </div>
@@ -197,6 +199,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                         <ProfileCandidates 
                           userInfo={userInfo} 
                           candidatiDetails={candidatiDetails}
+                          canEditSelections={isViewingOwnProfile}
                         />
                       </div>
                     </div>
