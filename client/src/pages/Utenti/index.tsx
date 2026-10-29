@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Users, AlertCircle, BarChart3 } from "lucide-react";
+import { Loader2, Users, AlertCircle, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
 import { useUserManagement } from "./hooks/useUserManagement";
 import { getDisplayColumns } from "./utils/columnUtils";
@@ -258,6 +258,14 @@ export default function Utenti() {
       .map(([name, value]) => ({ name, value }));
   };
   const regionBarData = prepareRegionBarData(stats?.usersByRegionWithEstimates);
+  const regionChartScrollRef = useRef<HTMLDivElement>(null);
+
+  // I pulsanti spostano solo il grafico, senza far scorrere la pagina.
+  const scrollRegionChart = (direction: -1 | 1) => {
+    const element = regionChartScrollRef.current;
+    if (!element) return;
+    element.scrollBy({ left: direction * Math.max(240, element.clientWidth * 0.85), behavior: 'smooth' });
+  };
 
   useEffect(() => {
     const checkMobile = () => {
@@ -694,7 +702,40 @@ export default function Utenti() {
                       <p className="text-sm text-muted-foreground mb-3">
                         Regione non disponibile per {stats.usersByRegionWithEstimates['N/A'] ?? 0} {(stats.usersByRegionWithEstimates['N/A'] ?? 0) === 1 ? 'utente' : 'utenti'}.
                       </p>
-                      <div className="w-full overflow-x-auto pb-2" aria-label="Grafico delle regioni ordinato per numero di utenti">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          Scorri il grafico a destra e sinistra per vedere tutte le regioni.
+                        </p>
+                        <div className="flex shrink-0 gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-label="Mostra le regioni precedenti"
+                            onClick={() => scrollRegionChart(-1)}
+                          >
+                            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-label="Mostra le regioni successive"
+                            onClick={() => scrollRegionChart(1)}
+                          >
+                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div
+                        ref={regionChartScrollRef}
+                        data-testid="utenti-region-chart-scroll"
+                        className="w-full max-w-full overflow-x-auto pb-2"
+                        style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
+                        role="region"
+                        aria-label="Grafico delle regioni ordinato per numero di utenti: scorri orizzontalmente"
+                        tabIndex={0}
+                      >
                         <div className="h-[380px] w-full" style={{ minWidth: `${Math.max(640, regionBarData.length * 72)}px` }}>
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={regionBarData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }}>
