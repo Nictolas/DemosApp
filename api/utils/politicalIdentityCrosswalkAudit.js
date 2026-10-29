@@ -9,18 +9,48 @@ const HOSTS = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const OFFICIAL_ID = /^[a-z0-9][a-z0-9:._/-]{0,127}$/i;
 
+// A valid government HOST alone is not evidence of a particular identity.
+// Senate profile IDs are in the URL query (?did=...) or its official export path.
+const SENATO_PROFILE_PATH = /^\/(?:legislature\/[0-9]{1,2}\/)?composizione\/senatori\/elenco-alfabetico\/scheda-attivita$/;
+const SENATO_EXPORT_PATH = /^\/export\/senator\/full\/[0-9]{1,2}\/[0-9]{1,10}$/;
+
 function officialUrl(raw, chamber) {
   if (typeof raw !== 'string' || !HOSTS[chamber]) return false;
   try {
     const url = new URL(raw);
-    return url.protocol === 'https:' &&
-      !url.username && !url.password && !url.port &&
-      !url.search && !url.hash &&
-      HOSTS[chamber].has(url.hostname.toLowerCase()) &&
-      url.pathname.length > 1;
+    if (url.protocol !== 'https:' || url.username || url.password ||
+        url.port || url.hash || !HOSTS[chamber].has(url.hostname.toLowerCase())) return false;
+    if (chamber === 'CAMERA') return url.pathname.length > 1 && !url.search;
+    if (SENATO_EXPORT_PATH.test(url.pathname) && !url.search) return true;
+    if (!SENATO_PROFILE_PATH.test(url.pathname)) return false;
+    const params = url.searchParams;
+    const did = params.get('did');
+    return params.size === 1 && /^[0-9]{1,10}$/.test(did || '') &&
+      Number(did) > 0;
   } catch {
     return false;
   }
+}
+
+function officialIdMatchesSource(row) {
+  if (!officialUrl(row?.source_url, row?.chamber)) return false;
+  if (row.chamber !== 'SENATO') {
+    // The Camera has multiple URL shapes; only check those with a distinct
+    // stable RDF resource key, not arbitrary official page paths.
+    const url = new URL(row.source_url);
+    if (url.hostname === 'dati.camera.it' &&
+        url.pathname.startsWith('/ocd/deputato.rdf/')) {
+      return url.pathname.slice('/ocd/deputato.rdf/'.length) === row.official_id;
+    }
+    return true;
+  }
+  if (typeof row.official_id !== 'string' || !/^[1-9][0-9]{0,9}$/.test(row.official_id)) {
+    return false; // canonical decimal Senate IDs have no leading zero padding
+  }
+  const url = new URL(row.source_url);
+  const value = SENATO_EXPORT_PATH.test(url.pathname)
+    ? url.pathname.split('/').at(-1) : url.searchParams.get('did');
+  return /^[0-9]{1,10}$/.test(value || '') && String(Number(value)) === row.official_id;
 }
 
 function validDate(raw) {
@@ -112,6 +142,7 @@ function auditPoliticalIdentityCrosswalk(cases) {
       } else {
         idOwners.set(institutionalKey, { index: result.length, user_id: row.user_id });
       }
+      if (!officialIdMatchesSource(row)) errors.add('OFFICIAL_ID_SOURCE_MISMATCH');
       parsed.push(row);
     }
 
@@ -148,4 +179,4 @@ function auditPoliticalIdentityCrosswalk(cases) {
   };
 }
 
-module.exports = { auditPoliticalIdentityCrosswalk, officialUrl, validDate };
+module.exports = { auditPoliticalIdentityCrosswalk, officialUrl, officialIdMatchesSource, validDate };
