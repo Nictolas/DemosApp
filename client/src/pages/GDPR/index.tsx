@@ -43,6 +43,11 @@ export default function GDPR() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
+      // Invalidate the short-lived profile consent snapshot immediately.
+      // Consent epoch changes must never reuse the prior political answers.
+      queryClient.removeQueries({ queryKey: ['profilePolitical'] });
+      queryClient.removeQueries({ queryKey: ['profileFull'] });
+      queryClient.invalidateQueries({ queryKey: ['profileConsent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       toast({
         title: "Consenso revocato",
