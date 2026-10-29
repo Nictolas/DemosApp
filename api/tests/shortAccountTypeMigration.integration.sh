@@ -57,10 +57,10 @@ psql -X -v ON_ERROR_STOP=1 -f api/database/users-account-type-poe-20261029.sql
 psql -X -v ON_ERROR_STOP=1 <<'SQL'
 DO $verify$
 BEGIN
-  IF NOT ('search_path=public, pg_temp' = ANY(
-     (SELECT proconfig FROM pg_proc
-      WHERE oid='public.refresh_users_legacy_role(uuid)'::regprocedure)
-   )) THEN RAISE EXCEPTION 'Forward migration lost function search_path'; END IF;
+  IF NOT (EXISTS (SELECT 1
+     FROM pg_proc p CROSS JOIN LATERAL unnest(p.proconfig) AS cfg(setting)
+     WHERE p.oid='public.refresh_users_legacy_role(uuid)'::regprocedure
+       AND cfg.setting='search_path=public, pg_temp')) THEN RAISE EXCEPTION 'Forward migration lost function search_path'; END IF;
   IF (SELECT COUNT(*) FROM public.users) <> 5
     OR (SELECT COUNT(*) FROM public.users WHERE account_type='P') <> 3
     OR (SELECT COUNT(*) FROM public.users WHERE account_type='O') <> 1
@@ -121,10 +121,10 @@ psql -X -v ON_ERROR_STOP=1 -f api/database/users-account-type-poe-rollback-20261
 psql -X -v ON_ERROR_STOP=1 <<'SQL'
 DO $verify$
 BEGIN
-  IF NOT ('search_path=public, pg_temp' = ANY(
-     (SELECT proconfig FROM pg_proc
-      WHERE oid='public.refresh_users_legacy_role(uuid)'::regprocedure)
-   )) THEN RAISE EXCEPTION 'Rollback lost function search_path'; END IF;
+  IF NOT (EXISTS (SELECT 1
+     FROM pg_proc p CROSS JOIN LATERAL unnest(p.proconfig) AS cfg(setting)
+     WHERE p.oid='public.refresh_users_legacy_role(uuid)'::regprocedure
+       AND cfg.setting='search_path=public, pg_temp')) THEN RAISE EXCEPTION 'Rollback lost function search_path'; END IF;
   IF POSITION('LEGACY_BACKFILL' IN
     pg_get_functiondef('public.refresh_users_legacy_role(uuid)'::regprocedure)) <> 0
   THEN RAISE EXCEPTION 'Rollback restored filtered mandates, not production historical semantics'; END IF;
