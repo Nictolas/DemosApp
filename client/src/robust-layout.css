@@ -218,6 +218,24 @@
   overflow: hidden;
 }
 
+/* Attivisti e Organizzazioni: come Eventi/Notifiche, scroll limitato
+   all'elenco sotto l'intestazione e i filtri, sopra la navbar mobile. */
+.app-main.app-main--directory {
+  overflow-y: hidden !important;
+}
+
+.app-main.app-main--directory > .app-main__inner {
+  overflow: hidden;
+}
+
+.app-main.app-main--directory .fade-up-transition {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .app-main__inner {
   flex: 1 1 auto;
   min-height: 0;

@@ -461,16 +461,16 @@ export default function Attivisti() {
   console.log('🎨 Attivisti render - RENDERING PAGE NOW!');
   
   return (
-    <PageContainer className="overflow-x-hidden">
-      <div className="min-h-screen bg-gray-50 py-8 overflow-x-hidden" style={{ touchAction: 'pan-y' }}>
+    <PageContainer className="directory-attivisti-page overflow-hidden bg-gray-50">
+      <div className="shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3 sm:px-6 sm:pt-4">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
             {/* Header */}
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center mb-4">
-                <Users className="h-12 w-12 text-blue-600 mr-3" />
-                <h1 className="text-3xl font-bold text-gray-900">Attivisti</h1>
+            <div className="text-center mb-3">
+              <div className="flex items-center justify-center mb-2">
+                <Users className="h-8 w-8 text-blue-600 mr-2" />
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Attivisti</h1>
               </div>
-              <p className="text-lg text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600">
                 Scegli il tuo Attivista preferito.
                 <br />
                 <span className="text-sm text-gray-500">(In futuro sarà possibile scegliere più attivisti.)</span>
@@ -479,10 +479,10 @@ export default function Attivisti() {
 
             {/* Barra di Ricerca e Filtri */}
             {!isLoading && !isError && (
-              <div className="mb-6">
+              <div className="mt-3">
                 <div className="max-w-4xl mx-auto w-full max-w-full">
                   {/* Ricerca Testuale */}
-                  <div className="relative mb-4 w-full max-w-full">
+                  <div className="relative mb-2 w-full max-w-full">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       type="text"
@@ -504,7 +504,7 @@ export default function Attivisti() {
                   </div>
 
                   {/* Filtri Avanzati */}
-                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+                  <div className="flex flex-wrap gap-2 items-center justify-center">
                     <Button
                       variant="outline"
                       onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -529,7 +529,7 @@ export default function Attivisti() {
 
                   {/* Pannello Filtri Avanzati */}
                   {showAdvancedFilters && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border overflow-x-hidden">
+                    <div className="mt-2 max-h-[25dvh] overflow-y-auto overscroll-contain rounded-lg border bg-gray-50 p-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                         {/* Filtro Regione */}
                         <div>
@@ -595,6 +595,17 @@ export default function Attivisti() {
               </div>
             )}
 
+          </div>
+        </div>
+
+        {/* Intestazione e controlli rimangono fissi; scorre solo la lista. */}
+        <section
+          className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-4 sm:px-6 sm:pb-6"
+          role="region"
+          aria-label="Elenco attivisti"
+          tabIndex={0}
+        >
+          <div className="mx-auto w-full max-w-6xl">
             {/* Loading State */}
             {isLoading && (
               <div className="flex items-center justify-center py-16">
@@ -774,7 +785,7 @@ export default function Attivisti() {
               </div>
             )}
           </div>
-        </div>
+        </section>
 
         {/* Modale Attivista */}
         <AttivistaModal
