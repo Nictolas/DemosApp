@@ -80,7 +80,7 @@ async function main() {
       throw error;
     }
     await page.getByText('Distribuzione geografica indicativa per regione').waitFor({ timeout: 30000 });
-    await page.getByText(/Residenza registrata:\s*2\.\s*Regione elettorale stimata:\s*2\./).waitFor({ timeout: 10000 });
+    await page.getByText(/Residenza registrata:\s*3\.\s*Regione elettorale stimata:\s*2\./).waitFor({ timeout: 10000 });
     await page.getByText(/Residenza comunale disponibile per 2 di 6 utenti; riferimenti comunali stimati: 1\./).waitFor({ timeout: 10000 });
 
     // Le barre sono ordinate per utenti decrescenti e i dati mancanti non
