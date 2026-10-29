@@ -44,9 +44,15 @@ async function listPublicApprovedEvents() {
          ORDER BY giorno_inizio ASC, orario_inizio ASC NULLS LAST, id ASC
          LIMIT 2000`
       );
-      publicEventsSnapshot = rows;
+      // Il campo storico organizzatore può contenere l'email del creatore:
+      // non trasformare un dato interno in un recapito pubblico.
+      const safeRows = rows.map((row) => ({
+        ...row,
+        organizzatore: /@/.test(String(row.organizzatore || '')) ? null : row.organizzatore
+      }));
+      publicEventsSnapshot = safeRows;
       publicEventsExpiresAt = Date.now() + 3 * 60 * 1000;
-      return rows;
+      return safeRows;
     } finally {
       publicEventsPending = null;
     }
