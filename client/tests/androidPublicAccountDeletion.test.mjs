@@ -15,5 +15,12 @@ test('public deletion instructions remain usable without a registered email', ()
   assert.match(page, /verificat[oa] la titolarit[aà] dell.account/i);
   assert.match(page, /Non inviare password, codici di accesso, passkey/i);
   assert.match(page, /mailto:privacy@demos\.community/);
+  // Keep both the visible email and mailto usable when Cloudflare is enabled.
+  const opening = page.indexOf('<!--email_off-->');
+  const closing = page.indexOf('<!--/email_off-->');
+  assert.ok(opening >= 0 && closing > opening, 'Cloudflare opt-out must surround public contact');
+  const unmodifiedContact = page.slice(opening, closing);
+  assert.ok(unmodifiedContact.includes('privacy@demos.community'));
+  assert.ok(unmodifiedContact.includes('href="mailto:privacy@demos.community'));
   assert.match(page, /href="\/privacy-policy"/);
 });
