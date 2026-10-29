@@ -19,6 +19,7 @@ BEGIN
     WHERE tgrelid = 'public.users'::regclass
       AND tgname = 'users_capabilities_refresh_legacy_role'
       AND NOT tgisinternal
+      AND tgenabled = 'O'
   ) THEN RAISE EXCEPTION 'Expected legacy role projection trigger missing'; END IF;
 END $guard$;
 
@@ -55,9 +56,10 @@ DECLARE
   v_is_candidate BOOLEAN;
   v_is_politician BOOLEAN;
   v_legacy_role VARCHAR(3);
+  v_existing_legacy_role VARCHAR(50);
 BEGIN
-  SELECT account_type, is_admin, is_activist
-  INTO v_account_type, v_is_admin, v_is_activist
+  SELECT account_type, is_admin, is_activist, ruolo
+  INTO v_account_type, v_is_admin, v_is_activist, v_existing_legacy_role
   FROM public.users WHERE id = p_user_id;
 
   IF NOT FOUND THEN RETURN; END IF;
@@ -83,6 +85,10 @@ BEGIN
     WHEN v_account_type IN ('E','INSTITUTION') THEN 'I'
     WHEN v_account_type IN ('O','ORGANIZATION') THEN 'O'
     WHEN v_is_admin THEN 'AD'
+    -- Provenance is not complete: never silently convert P/CP legacy profiles
+    -- to E/C/A solely because a capability flag changes.
+    WHEN v_existing_legacy_role = 'CP' AND NOT (v_is_politician AND v_is_candidate) THEN 'CP'
+    WHEN v_existing_legacy_role = 'P' AND NOT v_is_politician THEN 'P'
     WHEN v_is_politician AND v_is_candidate THEN 'CP'
     WHEN v_is_politician THEN 'P'
     WHEN v_is_candidate THEN 'C'
