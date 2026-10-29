@@ -95,7 +95,7 @@ test('one CLI SQL SELECT observes role but never claims a running backend identi
                 queries++;
                 assert.match(config.text,/current_user AS current_role/);
                 assert.match(config.text,/session_user AS session_role/);
-                assert.doesNotMatch(config.text,/FROM public\\.privacy_erasure_ledger/);
+                assert.doesNotMatch(config.text,/FROM public\.privacy_erasure_ledger/);
                 assert.equal(config.query_timeout,5000);
                 return {rows:[row]};
               },
@@ -120,7 +120,7 @@ test('one CLI SQL SELECT observes role but never claims a running backend identi
   assert.equal(report.execution,'ISOLATED_CLI_NOT_RUNNING_BACKEND');
   assert.equal(report.status,'READONLY_ISOLATED_CLI_ROLE_ONLY_NOT_RUNTIME');
   assert.equal(emitted.length,1);
-  assert.doesNotMatch(emitted[0],/FAKE_SECRET|postgresql:\\/\\/|pooler.supabase.com/);
+  assert.doesNotMatch(emitted[0],/FAKE_SECRET|postgresql:\/\/|pooler.supabase.com/);
 });
 
 test('missing ledger never produces a positive eligibility/readiness status',async()=>{
@@ -173,8 +173,8 @@ test('one-shot CLI source never starts HTTP, app, Firebase, jobs, or staging mig
     '../scripts/attest-gdpr-render-staging-isolated.js'),'utf8');
   const entry=fs.readFileSync(path.resolve(__dirname,'../index.js'),'utf8');
   const server=fs.readFileSync(path.resolve(__dirname,'../server.js'),'utf8');
-  assert.doesNotMatch(cli,/require\\(['"]\\.\\.\\/app|require\\(['"]\\.\\.\\/server|require\\(['"]\\.\\.\\/services\\/firebaseAdmin/);
-  assert.doesNotMatch(cli,/\\.listen\\(|createServer\\(|stagingMigrate|runStagingBootGate/);
+  assert.doesNotMatch(cli,/require\(['"]\.\.\/app|require\(['"]\.\.\/server|require\(['"]\.\.\/services\/firebaseAdmin/);
+  assert.doesNotMatch(cli,/\.listen\(|createServer\(|stagingMigrate|runStagingBootGate/);
   assert.match(cli,/loadDatabase:\(\)=>require\('\.\.\/config\/database'\)/);
   assert.match(cli,/if\(require\.main===module\)/);
   assert.match(entry,/GDPR_RENDER_STAGING_WEB_PROBE_FORBIDDEN/);
