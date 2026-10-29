@@ -29,7 +29,8 @@ export const ProfileInfo = ({
 }: ProfileInfoProps) => {
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
 
-  const canShowAvatar = ["P", "Politico", "C", "Candidato", "CP", "Candidato Politico", "AD", "Admin"].includes(userInfo.ruolo);
+  // Tutti gli account possono riconoscere e modificare il proprio avatar.
+  const canShowAvatar = true;
   const canShowFullName = ["P", "Politico", "C", "Candidato", "CP", "Candidato Politico"].includes(userInfo.ruolo);
 
   const fullName = userInfo.nome_completo ||
@@ -40,8 +41,12 @@ export const ProfileInfo = ({
     if (!userInfo.data_nascita) return "Non specificato";
     const value = String(userInfo.data_nascita).trim();
     if (/^\d{4}$/.test(value)) return value;
-    const year = new Date(value).getFullYear();
-    return Number.isFinite(year) ? String(year) : "Non specificato";
+    // L'API /users/me usa DD/MM/YYYY per le date complete: Date.parse non lo supporta.
+    const italianDate = value.match(/^\d{1,2}\/\d{1,2}\/(\d{4})$/);
+    if (italianDate) return italianDate[1];
+    const isoDate = value.match(/^(\d{4})-\d{2}-\d{2}/);
+    if (isoDate) return isoDate[1];
+    return "Non specificato";
   })();
 
   const parsedAvatar = (() => {
@@ -97,12 +102,12 @@ export const ProfileInfo = ({
           )}
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold leading-tight text-slate-900">
-              {isOwnProfile ? (canShowFullName ? fullName : "Il mio profilo") : fullName}
+              {isOwnProfile ? (canShowFullName ? fullName : "Il mio profilo") : (canShowFullName ? fullName : "Profilo pubblico")}
             </h2>
             {isOwnProfile ? (
               <>
                 <p className="mt-1 text-sm text-slate-600">
-                  {birthYear !== "Non specificato" ? `Nato nel ${birthYear}` : "Anno di nascita non specificato"}
+                  {birthYear !== "Non specificato" ? `Nascita: ${birthYear}` : "Anno di nascita non specificato"}
                   {userInfo.cittadinanza ? ` · ${userInfo.cittadinanza}` : ""}
                 </p>
                 {locationSummary && (
