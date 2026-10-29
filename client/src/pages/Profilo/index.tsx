@@ -178,6 +178,9 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                         <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
                       </summary>
                       <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                        <Link href="/rappresentanti" className="mb-3 inline-flex text-sm font-semibold text-blue-700 hover:underline">
+                          Scegli Rappresentanti
+                        </Link>
                         {sectionsLoading.representatives ? (
                           <p role="status" className="text-sm text-slate-500">Caricamento rappresentanti…</p>
                         ) : !consentGranted ? (
@@ -186,7 +189,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                           <ProfileRepresentatives
                             userInfo={userInfo}
                             rappresentantiDetails={rappresentantiDetails}
-                            canEditSelections={isViewingOwnProfile}
+                            canEditSelections={false}
                             showHeading={false}
                           />
                         )}
@@ -201,6 +204,9 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                         <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
                       </summary>
                       <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                        <Link href="/candidati" className="mb-3 inline-flex text-sm font-semibold text-blue-700 hover:underline">
+                          Scegli Candidati
+                        </Link>
                         {sectionsLoading.candidates ? (
                           <p role="status" className="text-sm text-slate-500">Caricamento candidati…</p>
                         ) : !consentGranted ? (
@@ -209,7 +215,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                           <ProfileCandidates
                             userInfo={userInfo}
                             candidatiDetails={candidatiDetails}
-                            canEditSelections={isViewingOwnProfile}
+                            canEditSelections={false}
                             showHeading={false}
                           />
                         )}
