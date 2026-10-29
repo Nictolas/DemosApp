@@ -120,12 +120,18 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
       } else if (snapshot) {
         client.setQueryData(["profileFull", ownerId, currentEpoch], snapshot.full || undefined);
         client.setQueryData(["profileFull", ownerId, "personal"], snapshot.full || undefined);
+        // Older encrypted snapshots may contain the initiative UUID instead of
+        // its title. Migrate that ONE cached section once; all valid cached
+        // choices remain available without any profile API request.
+        const legacyInitiativeId = snapshot.preferences?.iniziativaPopolare?.some(
+          value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim())
+        ) === true;
         const sections = [
           ["government", snapshot.government],
           ["representatives", snapshot.representatives],
           ["candidates", snapshot.candidates],
           ["opinions", snapshot.opinions],
-          ["preferences", snapshot.preferences || null],
+          ["preferences", legacyInitiativeId ? null : snapshot.preferences || null],
         ] as const;
         for (const [section, payload] of sections) {
           if (payload !== null) client.setQueryData(
