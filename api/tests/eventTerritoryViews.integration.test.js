@@ -4,27 +4,38 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const Module = require('node:module');
-
 const root = path.resolve(__dirname, '..', '..');
-const compile = require(path.join(root, 'client', 'node_modules', 'esbuild')).buildSync;
-const file = path.join(root, 'client/src/utils/eventTerritoryView.ts');
-const bundle = compile({
-  entryPoints: [file],
-  bundle: true,
-  platform: 'node',
-  format: 'cjs',
-  write: false,
-  logLevel: 'silent',
-  tsconfig: path.join(root, 'client/tsconfig.json'),
-}).outputFiles[0].text;
-const compiled = new Module(file, module);
-compiled.filename = file;
-compiled.paths = Module._nodeModulePaths(path.dirname(file));
-compiled._compile(bundle, file);
+const ts = require(path.join(root, 'client/node_modules/typescript'));
+
+function compileFile(relativePath, imports = {}) {
+  const filename = path.join(root, relativePath);
+  const js = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022
+    },
+    fileName: filename
+  }).outputText;
+  const moduleLike = { exports: {} };
+  const localRequire = (name) => {
+    if (!Object.hasOwn(imports, name)) throw new Error('Unexpected import: ' + name);
+    return imports[name];
+  };
+  // L'esecuzione riguarda soltanto codice locale già presente nel repository.
+  new Function('require', 'module', 'exports', js)(
+    localRequire, moduleLike, moduleLike.exports
+  );
+  return moduleLike.exports;
+}
+
+const italy = compileFile('client/src/data/italyData.ts');
+const geo = compileFile('client/src/utils/eventiGeographicUtils.ts');
 const {
   territoryOfEvent, isInEventProvince, isInEventRegion, composeTerritorialEvents
-} = compiled.exports;
+} = compileFile('client/src/utils/eventTerritoryView.ts', {
+  '@/data/italyData': italy,
+  '@/utils/eventiGeographicUtils': geo
+});
 
 const person = { provincia: 'PI', regione: 'TO' };
 
