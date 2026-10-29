@@ -92,10 +92,24 @@ export const ProfileInfo = ({
             </h2>
             {isOwnProfile ? (
               <>
-                <p className="mt-1 text-sm text-slate-600">
-                  {birthYear !== "Non specificato" ? `Nascita: ${birthYear}` : "Anno di nascita non specificato"}
-                  {userInfo.cittadinanza ? ` · ${userInfo.cittadinanza}` : ""}
-                </p>
+                <div className="mt-1 flex min-w-0 items-center gap-1">
+                  <p className="min-w-0 flex-1 break-words text-sm text-slate-600">
+                    {birthYear !== "Non specificato" ? `Nascita: ${birthYear}` : "Anno di nascita non specificato"}
+                    {userInfo.cittadinanza ? ` · ${userInfo.cittadinanza}` : ""}
+                  </p>
+                  {canEdit && !isEditing && (
+                    <button
+                      type="button"
+                      onClick={onEditClick}
+                      aria-label="Modifica profilo"
+                      title="Modifica profilo"
+                      data-testid="profilo-modifica-icon"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-indigo-100 text-indigo-700 transition-colors hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                    >
+                      <Edit aria-hidden="true" className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
                 {locationSummary && (
                   <p className="mt-1 flex items-start gap-1 text-sm text-slate-600">
                     <MapPin aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -112,18 +126,6 @@ export const ProfileInfo = ({
           </div>
         </div>
 
-
-        {canEdit && !isEditing && (
-          <Button
-            type="button"
-            onClick={onEditClick}
-            variant="outline"
-            className="mt-3 h-9 w-full gap-2 rounded-lg border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-          >
-            <Edit aria-hidden="true" className="h-4 w-4" />
-            Modifica profilo
-          </Button>
-        )}
       </CardContent>
 
       <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
