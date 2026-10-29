@@ -629,11 +629,11 @@ export default function App() {
                 <ProtectedRoute path="/preferiti" component={Preferiti} />
               </Route>
 
-              {/* Route candidati */}
+              {/* Come Rappresentanti: la griglia occupa direttamente l'altezza
+                  della shell, già al netto della navbar. Il wrapper PageTransition
+                  non ha altezza esplicita e comprimeva Candidati verso l'alto. */}
               <Route path="/candidati">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/candidati" component={Candidati} />
-                </PageTransition>
+                <ProtectedRoute path="/candidati" component={Candidati} />
               </Route>
 
               {/* Route attivisti - PAGINA PUBBLICA */}
