@@ -1,79 +1,56 @@
-# DEMOS — importazione mobilitazioni Chrono Collective (staging)
+# DEMOS — Mobilitazioni Chrono Collective nella pagina Eventi
 
-## Stato e fonte
+## Fonte verificata il 29 ottobre 2026
 
-Integrazione predisposta **ma disattivata per impostazione predefinita**.
-Sito: https://mobilitazioni.chronocol.com/
+- Sito: https://mobilitazioni.chronocol.com/
+- API REST effettivamente raggiungibile: https://mobilitazioni.chronocol.com/api/w-mobs (risposta Strapi JSON).
+- Il sito Statistiche e dati aperti dichiara per il CSV: «Liberi da usare citando Chrono». Non è stata verificata una licenza standard nominata, quindi importiamo solo informazioni fattuali con attribuzione, senza testi completi, recapiti e altre informazioni personali.
+- La prima verifica ha restituito 400 record totali e, dopo i filtri, 73 verificati non annullati, 63 in corso o futuri.
+- Test live senza scritture e build: https://github.com/Nictolas/DemosApp/actions/runs/40904151526
 
-Non è stato verificato un endpoint machine-readable stabile né una licenza che autorizzi
-la ripubblicazione integrale di eventi, descrizioni e altri contenuti. **Non abilitare
-l'import in produzione** finché Chrono Collective non conferma formato,
-licenza/permessi, attribuzione, aggiornamento e condizioni d'accesso.
+## Minimizzazione e sicurezza
 
-Nessuna chiamata a un endpoint non verificato è effettuata con la configurazione
-standard. I test usano soltanto un feed simulato.
+La richiesta seleziona esclusivamente i campi TIPO, CITTA, DATA_ORARIO,
+DATA_FINE, FINE_EFFETTIVA, INDIRIZZO, RITROVO_LUOGO, VERIFICATA,
+ANNULLATA, LATITUDE, LONGITUDE, SCIOPERO e PIATTAFORMA.
 
-## Comportamento
+NON vengono richiesti i campi CONTATTI, DESCRIZIONE, ACCESSIBILITA e MEZZI.
+L'importatore richiede VERIFICATA=true e ANNULLATA=false e ricontrolla
+entrambi lato DEMOS. I nomi delle schede sono derivati dai soli dati fattuali;
+la descrizione integrale rimane sul sito originale.
 
-- API e navbar esistenti: `GET /api/eventi`, `GET /api/eventi/prossimo`.
-- Evento originale nel DB PostgreSQL: non viene modificato, cancellato o duplicato
-  da questo componente. Si mantiene il ranking personalizzato già esistente.
-- Eventi esterni: cache **solo in memoria Render** per istanza; nessuna tabella,
-  migrazione, INSERT o SELECT aggiuntiva su Supabase.
-- Una richiesta al feed esterno ogni **12 ore per istanza**, non una per utente.
-  Timeout 8 secondi, massimo 2 MiB/3000 eventi, nessun redirect,
-  sorgente HTTPS limitata a mobilitazioni.chronocol.com.
-- Se l'origine non risponde, ultimo snapshot per massimo 24 ore; altrimenti
-  la parte esterna del feed è vuota senza interrompere la pagina Eventi.
-- Gli eventi esterni scaduti sono **esclusi dalla risposta** dopo il termine:
-  non vengono salvati nel DB e non occorre una DELETE. Gli eventi senza
-  ora finale sono visibili fino alla fine del giorno finale.
-- Vista personale: filtraggio per comune/provincia/regione sui dati utente
-  già recuperati dal feed normale, nessuna nuova lettura profilo.
-- Vista globale Admin: tutti gli eventi importati non scaduti.
-- La pagina mostra **Fonte: Chrono Collective** con collegamento al sito;
-  questi eventi sono in sola lettura anche per Admin.
-- Deduplicazione conservativa su titolo, data e comune; senza coordinate
-  e identificatori canonici incrociati, non è garantita la deduplicazione
-  di eventi nominati in modo differente.
+- Paginazione: 100 record, al massimo 30 pagine e 3000 eventi.
+- Timeout 8 secondi per pagina, massimo 2 MiB ciascuna, redirect bloccati.
+- Source e URL sono fissi per evitare SSRF.
+- Cache in memoria per istanza Render: aggiornamento ogni 12 ore; retry
+  dopo 30 minuti in caso di errore; snapshot fino a 24 ore.
+- Niente nuove tabelle, migrazioni o scritture PostgreSQL/Supabase.
 
-## Attivazione dopo verifica
+## Integrazione nella pagina Eventi esistente
 
-Su backend Render, configurare **solo dopo autorizzazione**:
+- Tab Personali: feed nativo e mobilitazioni nella città dell'utente,
+  rispettando le priorità correnti.
+- Tab Mobilitazioni: tutti gli eventi esterni non scaduti; non interroga
+  la tabella degli eventi nel database.
+- Tab Globale Admin: resta disponibile e comprende anche eventi importati.
+- Ogni scheda esterna è di sola lettura, ha la fonte dichiarata e link
+  diretto alla scheda originale.
+- Gli eventi esterni conclusi sono rimossi dalla risposta in base all'ora
+  finale nel fuso Europe/Rome; nessuna cancellazione dei dati DEMOS.
+- Deduplica conservativa per nome, data e comune.
+- Il middleware autenticazione può mantenere proprie letture DB, separate
+  dal catalogo eventi esterno.
 
-```env
-CHRONOCOL_IMPORT_ENABLED=true
-CHRONOCOL_EVENTS_JSON_URL=https://mobilitazioni.chronocol.com/PERCORSO_VERIFICATO.json
-```
+## Attivazione dopo il merge
 
-L'URL mostrato è un **segnaposto**, NON un endpoint esistente confermato.
-L'importatore accetta JSON come array oppure oggetto con `events`, `items`,
-`data` o `features` (GeoJSON). Ogni record deve avere titolo e data,
-con campi testuali tipo `title`/`name`, `start_at`/`date`, `city`,
-`region`, `link`; la mappatura va verificata **su un export reale**,
-perché non abbiamo ancora lo schema ufficiale.
+Impostazione backend Render: CHRONOCOL_IMPORT_ENABLED=true
 
-Se il sito offre CSV, RSS o GraphQL anziché JSON, occorre prima adattare
-l'importatore e testare su un campione reale autorizzato. **Non puntare
-l'importatore alla home page HTML.**
+L'API sorgente è già fissata nel codice e non richiede alcuna password.
+Dopo il rilascio verificare Eventi > Mobilitazioni su dispositivi diversi,
+date, link, assenza di dati non verificati e consumi effettivi.
+Per disattivare: CHRONOCOL_IMPORT_ENABLED=false.
 
 ## Test
 
-```bash
-npm ci --prefix api
-node --test api/tests/chronocolEventFeedService.test.js api/tests/eventFeedService.test.js
-```
-
-La CI `chronocol-eventi.yml` controlla anche la build del client.
-
-## Impatto e limiti
-
-Con importazione attiva, nessuna **nuova query PostgreSQL** viene effettuata
-per l'import; restano le letture già presenti nell'endpoint personalizzato
-`/api/eventi`. Il JSON finale contiene più eventi, quindi aumentano di poco
-CPU e traffico API per utente. La cache è per istanza (quindi con più worker
-si moltiplicano i fetch). Restart di Render svuota la cache; il primo utente
-dopo un restart può attendere il fetch (max 8 s).
-
-Non tracciare la partecipazione o i click a mobilitazioni: possono rivelare
-preferenze politiche. Nessun profilo personale è trasmesso a Chrono.
+- Test di import/paginazione e feed nativo: api/tests/chronocolEventFeedService.test.js e api/tests/eventFeedService.test.js
+- Workflow: .github/workflows/chronocol-eventi.yml
