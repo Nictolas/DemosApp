@@ -19,6 +19,8 @@ on:
       - 'api/config/db.js'
       - 'api/tests/gdprDataPlaneRouteSurface.test.js'
       - 'api/scripts/attest-gdpr-writer-readonly.js'
+      - 'api/scripts/attest-gdpr-render-staging-isolated.js'
+      - 'api/tests/gdprRenderIsolatedStagingCli.test.js'
       - 'api/server.js'
       - 'api/index.js'
       - 'api/services/gdprRenderInProcessStagingAttestation.js'
@@ -103,6 +105,8 @@ jobs:
           node --check api/scripts/attest-gdpr-writer-readonly.js
           node --test --test-concurrency=1 api/tests/gdprWriterReadonlyAttestation.test.js
           node api/tests/gdprRenderInProcessStagingAttestation.test.js
+          node --check api/scripts/attest-gdpr-render-staging-isolated.js
+          node api/tests/gdprRenderIsolatedStagingCli.test.js
           node --check api/tests/gdprOutboxWorkerIsolated.pg17.test.js
           node --test --test-concurrency=1 api/tests/gdprOutboxWorkerIsolated.pg17.test.js
           node --check api/tests/gdprBackendPoolIsolated.pg17.test.js
