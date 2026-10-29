@@ -8,7 +8,7 @@ WITH duplicates AS (
  SELECT lower(btrim(nome)) AS normalized_first,
         lower(btrim(cognome)) AS normalized_last,
         count(*)::int AS profiles,
-        count(*) FILTER (WHERE account_type='PERSON' AND ruolo='P')::int AS politicians,
+        count(*) FILTER (WHERE account_type IN ('PERSON','P') AND ruolo='P')::int AS politicians,
         count(distinct data_nascita)::int AS different_birthdates,
         count(*) FILTER (WHERE data_nascita IS NULL)::int AS missing_birthdates,
         count(*) FILTER (
@@ -18,7 +18,7 @@ WITH duplicates AS (
         )::int AS accounts_with_identity_providers,
         count(distinct grado_elezione)::int AS electoral_levels
  FROM public.users
- WHERE account_type='PERSON'
+ WHERE account_type IN ('PERSON','P')
    AND nullif(btrim(nome),'') IS NOT NULL
    AND nullif(btrim(cognome),'') IS NOT NULL
  GROUP BY 1,2 HAVING count(*) > 1
@@ -44,7 +44,7 @@ WITH suspected AS (
  COUNT(DISTINCT u.id) FILTER(WHERE u.data_nascita IS NULL) missing_birthdates,
  COUNT(DISTINCT u.id) FILTER(WHERE u.email IS NOT NULL OR u.google_sub IS NOT NULL OR u.apple_user_id IS NOT NULL OR u.webauthn_credential_id IS NOT NULL OR u.firestore_uid IS NOT NULL) with_auth
  FROM public.users u LEFT JOIN public.political_mandates pm ON pm.user_id=u.id
- WHERE u.account_type='PERSON' AND nullif(btrim(u.nome),'') IS NOT NULL AND nullif(btrim(u.cognome),'') IS NOT NULL
+ WHERE u.account_type IN ('PERSON','P') AND nullif(btrim(u.nome),'') IS NOT NULL AND nullif(btrim(u.cognome),'') IS NOT NULL
  GROUP BY 1,2 HAVING COUNT(DISTINCT u.id)>1
 )
 SELECT COUNT(*)::int AS groups,
@@ -62,7 +62,7 @@ FROM suspected;
 WITH duplicate_keys AS (
  SELECT lower(btrim(nome)) n,lower(btrim(cognome)) c
  FROM public.users
- WHERE account_type='PERSON' AND nullif(btrim(nome),'') IS NOT NULL
+ WHERE account_type IN ('PERSON','P') AND nullif(btrim(nome),'') IS NOT NULL
    AND nullif(btrim(cognome),'') IS NOT NULL
  GROUP BY 1,2 HAVING count(*)>1
 )
