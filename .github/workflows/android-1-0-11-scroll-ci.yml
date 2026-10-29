@@ -116,14 +116,21 @@ jobs:
             elif ! grep -Fq '<title>Eliminazione account DEMOS</title>' "$page"; then
               echo "::error::HTTP 200 served non-deletion content (possibly SPA fallback) at $url"
               failed=1
-            elif ! grep -Fq 'privacy@demos.community' "$page"; then
-              echo "::error::Public deletion page lacks a contact address at $url"
-              failed=1
-            else
-              echo "Validated live public deletion page at $url (HTTP 200, correct title and contact)"
+            elif grep -Fq 'privacy@demos.community' "$page"; then
+              echo "Validated live public deletion page at $url (HTTP 200, title and plain-text contact)"
               if ! grep -Fqi 'soltanto con passkey' "$page"; then
-                echo "::notice::Live site does not yet contain the Draft passkey-only clarification; its release remains unapproved."
+                echo "::notice::Live site still uses pre-Draft account-deletion instructions."
               fi
+            elif grep -Eq 'data-cfemail=|/cdn-cgi/l/email-protection' "$page"; then
+              echo "::warning::Cloudflare email obfuscation detected at $url. HTML contact is transformed; verify browser click and accessibility separately."
+              if grep -Fq 'email-decode.min.js' "$page"; then
+                echo "Cloudflare email decoder script is present."
+              else
+                echo "::warning::No Cloudflare decoder script identified by filename; browser behavior remains unverified."
+              fi
+            else
+              echo "::error::Public deletion page lacks a recognizable email contact at $url"
+              failed=1
             fi
             rm -f "$page"
           done
