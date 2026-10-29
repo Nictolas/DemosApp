@@ -1,0 +1,31 @@
+name: Web PWA frontend release freshness
+on:
+  pull_request:
+    paths:
+      - 'client/src/components/WebAppUpdateNotice.tsx'
+      - 'client/src/App.tsx'
+      - 'api/tests/webAppUpdateNotice.smoke.test.js'
+      - '.github/workflows/web-pwa-release-freshness.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'client/src/components/WebAppUpdateNotice.tsx'
+      - 'client/src/App.tsx'
+      - 'api/tests/webAppUpdateNotice.smoke.test.js'
+jobs:
+  verify-update-notice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Check version-change and privacy regressions
+        run: node --test api/tests/webAppUpdateNotice.smoke.test.js api/tests/pwaServiceWorkerRetirement.smoke.test.js
+      - name: Install frontend
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Verify production frontend build
+        run: npm run build --prefix client
