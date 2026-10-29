@@ -1,0 +1,60 @@
+name: Profilo mobile — synthetic browser and cache regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/pages/Profilo/**'
+      - 'client/src/components/ProfileCandidates.tsx'
+      - 'client/src/components/ProfileRepresentatives.tsx'
+      - 'client/src/lib/queryClient.ts'
+      - 'client/src/lib/nav-items.ts'
+      - 'client/src/components/Navbar.tsx'
+      - 'scripts/test-profile-mobile-browser.cjs'
+      - '.github/workflows/profile-mobile-browser-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile-mobile-browser:
+    name: Compiled mobile profile with synthetic API fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install exact app dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build real frontend
+        run: npm run build --prefix client
+      - name: Install Playwright without adding app dependencies
+        run: |
+          npm install --prefix /tmp/demos-profile-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          node /tmp/demos-profile-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Test 390px profile, navigation, in-memory cache and public isolation
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-profile-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/profilo >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:4173/profilo >/dev/null
+          NODE_PATH=/tmp/demos-profile-browser/node_modules node scripts/test-profile-mobile-browser.cjs
+      - name: Upload synthetic screenshots on failure only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: profile-synthetic-browser-debug
+          path: |
+            /tmp/demos-profile-own-synthetic-mobile.png
+            /tmp/demos-profile-public-synthetic-mobile.png
+            /tmp/demos-profile-preview.log
+          if-no-files-found: ignore
