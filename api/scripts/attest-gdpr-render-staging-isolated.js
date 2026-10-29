@@ -12,6 +12,27 @@ const CLI_MARKER = 'demos-staging-isolated-cli-readonly-20261029';
 const LOG_PREFIX = 'GDPR_RENDER_STAGING_ISOLATED_SQL_IDENTITY ';
 const BAD_CONFIG = 'NO_GO_ISOLATED_CLI_GUARD_FAILED';
 
+const EXPECTED_SQL_ROLE = 'demos_staging_runtime';
+
+// Catalog-only gate: a privileged postgres/BYPASSRLS identity must never
+// be described as an expected staging application writer. Policy outcomes,
+// external connections and the running Render web pool remain UNATTESTED.
+function catalogMatchesStagingRuntime(state) {
+  return state?.current_role === EXPECTED_SQL_ROLE &&
+    state.session_role === EXPECTED_SQL_ROLE &&
+    state.database_name === 'postgres' &&
+    state.bypass_rls === false &&
+    state.ledger_owner === false &&
+    state.ledger_present === true &&
+    state.ledger_rls === true &&
+    state.ledger_force_rls === true &&
+    state.ledger_insert_grant === true &&
+    state.ledger_select_grant === true &&
+    state.public_grants_exist === false &&
+    state.public_column_grants_exist === false &&
+    state.api_roles_with_dml_grants === 0;
+}
+
 function assertIsolatedTarget(env) {
   if (env?.GDPR_RENDER_SQL_CLI_ONLY !== CLI_MARKER ||
       env.GDPR_RENDER_INPROCESS_ATTESTATION !==
@@ -29,6 +50,7 @@ function failedReport() {
   return Object.freeze({
     service:'demos-functional-staging', project:'Demos-Staging',
     execution:'ISOLATED_CLI_NOT_RUNNING_BACKEND',
+    least_privilege_catalog_match:false,
     isolated_cli_staging_session_observed:false,
     in_process_staging_session_observed:false,
     sql_writer_attested:false,
@@ -57,10 +79,12 @@ async function runIsolatedProbe({env, loadDatabase, emit}) {
       text:SQL, rowMode:'object', query_timeout:5000
     });
     const catalog=publicReport(result.rows);
+    const roleExpected=catalogMatchesStagingRuntime(result.rows?.[0]);
     const report={
       ...catalog,
       service:'demos-functional-staging',
       execution:'ISOLATED_CLI_NOT_RUNNING_BACKEND',
+      least_privilege_catalog_match:roleExpected,
       isolated_cli_staging_session_observed:
         catalog.sql_writer_attested===true,
       // A standalone CLI cannot attest the currently RUNNING Render
@@ -70,9 +94,11 @@ async function runIsolatedProbe({env, loadDatabase, emit}) {
       live_production_pool_verified:false,
       live_render_pool_verified:false,
       recoveryReady:false,
-      status:catalog.ledger_present && catalog.sql_writer_attested
-        ? 'READONLY_ISOLATED_CLI_ROLE_ONLY_NOT_RUNTIME'
-        : 'NO_GO_ISOLATED_CLI_SQL_NOT_ATTESTED'
+      status:!catalog.ledger_present || !catalog.sql_writer_attested
+        ? 'NO_GO_ISOLATED_CLI_SQL_NOT_ATTESTED'
+        : roleExpected
+          ? 'READONLY_EXPECTED_STAGING_ROLE_NOT_RUNTIME'
+          : 'NO_GO_STAGING_SQL_ROLE_OR_LEDGER_PRIVILEGES_MISMATCH'
     };
     emit?.(LOG_PREFIX+JSON.stringify(report));
     return report;
@@ -103,5 +129,6 @@ if(require.main===module){
 }
 
 module.exports={
-  assertIsolatedTarget,runIsolatedProbe,CLI_MARKER,LOG_PREFIX
+  assertIsolatedTarget,runIsolatedProbe,CLI_MARKER,LOG_PREFIX,
+  catalogMatchesStagingRuntime,EXPECTED_SQL_ROLE
 };
