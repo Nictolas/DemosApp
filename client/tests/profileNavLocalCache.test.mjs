@@ -46,8 +46,24 @@ test("the first bottom nav item is Profile, with no Favorites or Settings tab", 
   assert.match(items, /\[\s*\{\s*path: "\/profilo",\s*label: "Profilo"/);
   assert.doesNotMatch(items, /path: "\/preferiti"/);
   assert.doesNotMatch(items, /path: "\/impostazioni"/);
-  assert.match(profile, /<Link href="\/preferiti"/);
-  assert.match(profile, /<Link href="\/impostazioni"/);
+  assert.doesNotMatch(profile, /<Link href="\/preferiti"/);
+  assert.match(profile, /href="\/impostazioni"/);
+  assert.doesNotMatch(profile, /Collegamenti del profilo/);
+});
+
+test("owner Profile places a compact icon-only Settings shortcut before Demos logo", () => {
+  const settings = profile.indexOf('data-testid="profilo-impostazioni-icon"');
+  const logo = profile.indexOf('data-testid="profilo-logo-gestisci"');
+  const heading = profile.indexOf('Profilo Utente');
+  assert.ok(settings > 0 && settings < logo && logo < heading,
+    "Settings shortcut must precede the Demos logo in the header");
+  assert.match(profile, /aria-label="Apri impostazioni"/);
+  assert.match(profile, /title="Impostazioni"/);
+  assert.match(profile, /<Settings aria-hidden="true" className="h-5 w-5" \/>/);
+  assert.match(profile, /h-11 w-11 shrink-0 items-center justify-center rounded-full/);
+  assert.match(profile, /\{isViewingOwnProfile && \(\s*<Link\s+href="\/impostazioni"/);
+  assert.doesNotMatch(profile, /<\/Settings>\s*Impostazioni/);
+  assert.doesNotMatch(profile, /<Star\b/);
 });
 
 test("all selection actions remain visible in open profile panels", () => {
@@ -178,7 +194,7 @@ test("authenticated app startup consistently opens Profile and not Favorites", (
   assert.ok(!landing.includes('return <Redirect to="/preferiti" />;'));
   assert.ok(!auth.includes('return <Redirect to="/preferiti" />;'));
   assert.ok(read("hooks/useAuthLogin.ts").includes('window.location.href = "/profilo"'));
-  // Intentional Favorites navigation and admin guard remain untouched.
-  assert.ok(profile.includes('<Link href="/preferiti"'));
+  // The old Favorites route survives for other flows but not as a Profile shortcut.
+  assert.ok(!profile.includes('<Link href="/preferiti"'));
   assert.ok(wrapper.includes('return <Redirect to="/preferiti" />;'));
 });
