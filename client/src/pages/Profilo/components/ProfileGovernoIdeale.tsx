@@ -1,5 +1,27 @@
-import { Briefcase, ChevronDown, Crown } from "lucide-react";
+import { ChevronDown, Crown } from "lucide-react";
 import { Link } from "wouter";
+
+// A recognizable emoji for each government portfolio. Keep the mapping in
+// one place so labels and visuals remain consistent in the profile.
+const emojiPerMinistero: Record<string, string> = {
+  primo_ministro: "👑",
+  difesa: "🛡️",
+  economia: "💶",
+  esteri: "🌍",
+  giustizia: "⚖️",
+  interno: "🏛️",
+  istruzione: "📚",
+  lavoro: "💼",
+  salute: "🩺",
+  trasporti: "🚆",
+  ambiente: "🌱",
+  ambiente_sicurezza_energetica: "⚡",
+  cultura: "🎭",
+  sport: "🏅",
+};
+
+const emojiMinistero = (categoria: string): string =>
+  emojiPerMinistero[categoria.trim().toLowerCase().replace(/[\\s-]+/g, "_")] ?? "📋";
 
 interface ProfileGovernoIdealeProps {
   governoIdeale: Record<string, string>;
@@ -27,7 +49,12 @@ export const ProfileGovernoIdeale = ({ governoIdeale, canEdit = true }: ProfileG
             {entries.map(([categoria, nome]) => (
               <div key={categoria} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-2 py-2 text-sm">
                 <dt className="flex min-w-0 items-center gap-1.5 font-medium text-indigo-700">
-                  <Briefcase aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none"
+                  >
+                    {emojiMinistero(categoria)}
+                  </span>
                   <span className="break-words">{readableRole(categoria)}</span>
                 </dt>
                 <dd className="min-w-0 break-words font-semibold text-slate-900">{nome}</dd>
