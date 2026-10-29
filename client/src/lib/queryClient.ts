@@ -90,6 +90,30 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       throw error;
     }
     
+    // Invalida gli snapshot in memoria dopo scritture che cambiano profilo,
+    // selezioni o consensi. Le chiamate GET non causano altre letture.
+    const profileWriteRoots = [
+      "users", "user", "opinioni", "governo", "rappresentanti",
+      "candidati", "attivismo-tipologie", "consenso", "consensi", "privacy",
+    ];
+    const apiPath = url.startsWith("/api/") ? url.slice(5).split("?")[0] : "";
+    if (
+      method.toUpperCase() !== "GET" &&
+      data?.success !== false &&
+      profileWriteRoots.some((root) => apiPath === root || apiPath.startsWith(root + "/"))
+    ) {
+      // Dopo revoca/cancellazione non conservare una snapshot politica obsoleta
+      // neppure durante il refetch: reset immediato invece di sola invalidazione.
+      if (
+        apiPath === "user/political-opinions-consent/revoke" ||
+        apiPath === "user/delete-account"
+      ) {
+        void queryClient.resetQueries({ queryKey: ["profileSnapshot"] });
+      } else {
+        void queryClient.invalidateQueries({ queryKey: ["profileSnapshot"] });
+      }
+    }
+
     // Restituisci un oggetto Response-like per compatibilità
     return {
       ok: true,

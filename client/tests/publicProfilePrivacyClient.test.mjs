@@ -2,59 +2,70 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const read = path => readFileSync(new URL('../src/' + path, import.meta.url), 'utf8');
+const read = (file) => readFileSync(new URL('../src/' + file, import.meta.url), 'utf8');
 const hook = read('pages/Profilo/hooks/useProfileData.ts');
 const page = read('pages/Profilo/index.tsx');
 const info = read('pages/Profilo/components/ProfileInfo.tsx');
 const reps = read('components/ProfileRepresentatives.tsx');
 const candidates = read('components/ProfileCandidates.tsx');
+const client = read('lib/queryClient.ts');
 
-test('external profile uses public projection, never the private Admin user lookup', () => {
-  assert.match(hook, /isOwnProfile \? '\/api\/users\/me' : '\/api\/users\/' \+ targetUserId \+ '\/public-profile'/);
-  assert.doesNotMatch(hook, /apiRequest\(['"]GET['"],\s*['"]\/api\/users\/['"]\s*\+\s*targetUserId\s*\)/);
-  assert.match(hook, /payload\.public\?\.governoIdeale \|\| \{\}/);
-  assert.match(hook, /payload\.public\?\.rappresentanti \|\| \{\}/);
-  assert.match(hook, /payload\.public\?\.candidati \|\| \{\}/);
+function segment(start, end) {
+  const a = hook.indexOf(start);
+  const b = hook.indexOf(end, a + start.length);
+  assert.ok(a >= 0 && b > a, 'Profile hook boundaries missing: ' + start);
+  return hook.slice(a, b);
+}
+
+test('external profile uses only the public API and target identity', () => {
+  const publicBlock = segment('async function loadOtherProfile(', 'export const useProfileData');
+  assert.match(publicBlock, /\`\/api\/users\/\$\{encodeURIComponent\(targetUserId\)\}\/public-profile\`/);
+  assert.match(publicBlock, /payload\.public\?\.governoIdeale/);
+  assert.match(publicBlock, /payload\.public\?\.rappresentanti/);
+  assert.match(publicBlock, /payload\.public\?\.candidati/);
+  assert.doesNotMatch(publicBlock, /\/api\/governo\/ideale|\/api\/rappresentanti|\/api\/candidati\/selezioni/);
+  assert.doesNotMatch(publicBlock, /\/api\/users\/\$\{targetUserId\}\`/);
 });
 
-test('the viewer own government/representative/candidate queries are gated to own profile', () => {
-  const start = hook.indexOf('if (isOwnProfile) {\n        const requests =');
-  const end = hook.indexOf('\n      if (!isCurrent()) return;', start);
-  assert.ok(start > 0 && end > start);
-  const block = hook.slice(start, end);
-  for (const ownRoute of ['/api/governo/ideale', '/api/rappresentanti', '/api/candidati/selezioni']) {
-    assert.ok(block.includes(ownRoute), ownRoute);
+test('own-only profile reads never populate the view of another user', () => {
+  const ownBlock = segment('async function loadOwnProfile(', 'async function loadOtherProfile(');
+  for (const endpoint of ['/api/users/me', '/api/governo/ideale', '/api/rappresentanti', '/api/candidati/selezioni']) {
+    assert.ok(ownBlock.includes(endpoint), endpoint);
   }
-  assert.match(hook, /'\/api\/users\/' \+ targetUserId \+ '\/opinioni'/);
-  assert.match(hook, /normalizeOpinionValue\(item\.userAnswer\)/);
+  assert.match(hook, /ownProfile \? loadOwnProfile\(signal\) : loadOtherProfile\(targetId!, signal\)/);
+  assert.match(hook, /\["profileSnapshot", ownerId \?\? null, targetId \?\? null\]/);
 });
 
-test('switching account/profile invalidates old requests and clears last rendered political selections', () => {
-  assert.match(hook, /currentRequest\.current\?\.abort\(\)/);
-  assert.match(hook, /new AbortController\(\)/);
-  assert.match(hook, /requestVersion\.current === version/);
-  assert.match(hook, /undefined, undefined, controller\.signal/);
-  for (const statement of [
-    'setUserInfo(null)', 'setUserOpinions({})', 'setGovernoIdeale({})',
-    'setRappresentantiDetails({})', 'setCandidatiDetails({})'
-  ]) assert.ok(hook.includes(statement), statement);
-  assert.match(hook, /if \(!isCurrent\(\)\) return;\s*setUserInfo\(profile as UserInfo\)/);
+test('profile data requests are cancelled when no longer relevant', () => {
+  assert.match(hook, /queryFn: \(\{ signal \}\)/);
+  assert.match(hook, /getProfilePayload\(path: string, signal: AbortSignal\)/);
+  assert.match(client, /externalSignal\?\.addEventListener\(['"]abort['"]/);
+  assert.match(client, /externalSignal\?\.removeEventListener\(['"]abort['"]/);
+  assert.doesNotMatch(hook, /localStorage\.(?:getItem|setItem)/);
 });
 
-test('public users cannot access selection edit buttons or own-profile demographic sections', () => {
-  assert.match(page, /canEditSelections=\{isViewingOwnProfile\}/);
+test('public profiles cannot display private demographics or selection edit buttons', () => {
   assert.match(page, /isOwnProfile=\{isViewingOwnProfile\}/);
+  assert.match(page, /canEditSelections=\{isViewingOwnProfile\}/);
+  assert.match(info, /\{isOwnProfile && \(\s*<details/);
+  assert.match(info, /canEdit && !isEditing/);
   for (const component of [reps, candidates]) {
     assert.match(component, /\{canEditSelections && \(/);
     assert.doesNotMatch(component, /console\.log\(/);
   }
-  assert.match(info, /\{isOwnProfile && \(/);
-  assert.match(info, /Informazioni pubbliche del profilo politico/);
-  assert.match(info, /isOwnProfile && \(userInfo\.professione/);
 });
 
-test('profile client does not print fetched political preferences or public profile payloads', () => {
+test('political responses and public profile payloads never get logged on client', () => {
   assert.doesNotMatch(hook, /console\.(?:log|warn|error)\(/);
   assert.doesNotMatch(reps, /console\.log\(/);
   assert.doesNotMatch(candidates, /console\.log\(/);
+  assert.doesNotMatch(client, /Text preview|Parsed data|JSON\.stringify\(data, null, 2\)/);
+});
+
+test('target opinion values use the target endpoint and conservative interpretation', () => {
+  const publicBlock = segment('async function loadOtherProfile(', 'export const useProfileData');
+  assert.match(publicBlock, /\/opinioni/);
+  assert.match(publicBlock, /opinionData\?\.opinioni/);
+  assert.match(publicBlock, /normalizeOpinionValue\(item\.userAnswer\)/);
+  assert.match(publicBlock, /if \(!normalized\) continue/);
 });

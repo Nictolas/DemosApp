@@ -1,202 +1,166 @@
-import { useEffect, useRef, useState } from 'react';
-import { useAuth } from '@/hooks/use-auth';
-import { useAuthReady } from '@/hooks/use-auth-ready';
-import { apiRequest } from '@/lib/queryClient';
-import { UserInfo } from '@/types/profile';
-import { OpinionQuestion } from '../types';
-import { extractBaseOpinions } from '../utils/opinionUtils';
+import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { useAuthReady } from "@/hooks/use-auth-ready";
+import { apiRequest } from "@/lib/queryClient";
+import type { UserInfo } from "@/types/profile";
+import type { OpinionQuestion } from "../types";
+import { extractBaseOpinions } from "../utils/opinionUtils";
 
-// Legacy opinion payloads use compact values; the profile UI uses labels.
-const normalizeOpinionValue = (value: unknown): string | null => {
-  if (value === 'f' || value === 'Sì' || value === 'Favorevole') return 'Favorevole';
-  if (value === 'c' || value === 'No' || value === 'Contrario') return 'Contrario';
-  if (value === 'i' || value === 'Indeciso' || value === 'Non lo so') return 'Indeciso';
-  return null;
+type ProfileSnapshot = {
+  userInfo: UserInfo;
+  userOpinions: Record<string, string>;
+  avatarConfig: unknown;
+  governoIdeale: Record<string, string>;
+  opinionQuestions: OpinionQuestion[];
+  rappresentantiDetails: Record<string, any>;
+  candidatiDetails: Record<string, any>;
 };
 
-const parseAvatarConfig = (value: unknown): any => {
-  if (typeof value === 'object') return value;
-  if (typeof value !== 'string') return null;
+function normalizeOpinionValue(value: unknown): string | null {
+  if (value === "f" || value === "Sì" || value === "Favorevole") return "Favorevole";
+  if (value === "c" || value === "No" || value === "Contrario") return "Contrario";
+  if (value === "i" || value === "Indeciso" || value === "Non lo so") return "Indeciso";
+  return null;
+}
+
+function normalizeOpinionAnswers(raw: Record<string, unknown>): Record<string, string> {
+  const output: Record<string, string> = {};
+  for (const [id, answer] of Object.entries(raw)) {
+    const normalized = normalizeOpinionValue(answer);
+    if (normalized) output[id] = normalized;
+  }
+  return output;
+}
+
+function parseAvatar(value: unknown): unknown {
+  if (!value) return null;
   try {
-    const parsed = JSON.parse(value);
-    return typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
+    let parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
+    if (typeof parsed === "string") parsed = JSON.parse(parsed);
+    return parsed && typeof parsed === "object" ? parsed : null;
   } catch {
     return null;
   }
-};
+}
+
+async function getProfilePayload(path: string, signal: AbortSignal): Promise<any> {
+  const response = await apiRequest("GET", path, undefined, undefined, signal);
+  if (!response?.ok || !response?.data || response.data.success === false) {
+    throw new Error("Impossibile caricare il profilo");
+  }
+  return response.data;
+}
+
+async function getOptionalPayload(path: string, signal: AbortSignal): Promise<any | null> {
+  try {
+    return await getProfilePayload(path, signal);
+  } catch (error: any) {
+    // In una richiesta annullata non salvare uno snapshot parziale in cache.
+    if (signal.aborted || error?.name === "AbortError") throw error;
+    // Accesso non consentito o sezione non trovata: non mostrare i dati.
+    if (error?.status === 403 || error?.status === 404) return null;
+    // Guasti transitori non devono diventare uno snapshot vuoto valido 10 minuti.
+    throw error;
+  }
+}
+
+async function loadOwnProfile(signal: AbortSignal): Promise<ProfileSnapshot> {
+  const payload = await getProfilePayload("/api/users/me", signal);
+  const userInfo = (payload.user || payload.data || payload) as UserInfo;
+
+  // Queste letture non devono essere ripetute ad ogni montaggio della pagina.
+  // In caso di salvataggio le mutation invalidano il gruppo profileSnapshot.
+  const [opinions, government, representatives, candidates] = await Promise.all([
+    getOptionalPayload("/api/opinioni/profile", signal),
+    getOptionalPayload("/api/governo/ideale", signal),
+    getOptionalPayload("/api/rappresentanti", signal),
+    getOptionalPayload("/api/candidati/selezioni", signal),
+  ]);
+
+  const opinionData = opinions?.data;
+  return {
+    userInfo,
+    avatarConfig: parseAvatar(userInfo.avatar_config),
+    userOpinions: normalizeOpinionAnswers({
+      ...extractBaseOpinions(userInfo),
+      ...(opinionData?.userAnswers || {}),
+    }),
+    opinionQuestions: Array.isArray(opinionData?.questions) ? opinionData.questions : [],
+    governoIdeale: government?.data?.success === false ? {} : (government?.data || {}),
+    rappresentantiDetails: representatives?.data?.rappresentanti || {},
+    candidatiDetails: candidates?.data?.candidati || {},
+  };
+}
+
+async function loadOtherProfile(targetUserId: string, signal: AbortSignal): Promise<ProfileSnapshot> {
+  // I dati di un altro utente NON sono quelli dell'account visitatore.
+  // Usare esclusivamente la proiezione pubblica server-side; non /api/users/:id admin.
+  const payload = await getProfilePayload(
+    `/api/users/${encodeURIComponent(targetUserId)}/public-profile`, signal,
+  );
+  const userInfo = payload.user as UserInfo;
+  const opinions = await getOptionalPayload(
+    `/api/users/${encodeURIComponent(targetUserId)}/opinioni`, signal,
+  );
+  const opinionData = opinions?.data;
+  const publicOpinions = Array.isArray(opinionData?.opinioni) ? opinionData.opinioni : [];
+  const answers: Record<string, string> = {};
+  const questions: OpinionQuestion[] = [];
+  for (const item of publicOpinions) {
+    if (typeof item?.id !== "string") continue;
+    const normalized = normalizeOpinionValue(item.userAnswer);
+    if (!normalized) continue;
+    answers[item.id] = normalized;
+    questions.push({ id: item.id, text: String(item.text || "") });
+  }
+  return {
+    userInfo,
+    avatarConfig: parseAvatar(userInfo.avatar_config),
+    userOpinions: answers,
+    opinionQuestions: questions,
+    governoIdeale: payload.public?.governoIdeale || {},
+    rappresentantiDetails: payload.public?.rappresentanti || {},
+    candidatiDetails: payload.public?.candidati || {},
+  };
+}
 
 export const useProfileData = (userId?: string) => {
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
+  const ownerId = user?.id;
+  const targetId = userId || ownerId;
+  const ownProfile = !!ownerId && targetId === ownerId;
 
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [isLoadingInfo, setIsLoadingInfo] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userOpinions, setUserOpinions] = useState<Record<string, string>>({});
-  const [avatarConfig, setAvatarConfig] = useState<any>(null);
-  const [governoIdeale, setGovernoIdeale] = useState<Record<string, string>>({});
-  const [opinionQuestions, setOpinionQuestions] = useState<OpinionQuestion[]>([]);
-  const [rappresentantiDetails, setRappresentantiDetails] = useState<Record<string, any>>({});
-  const [candidatiDetails, setCandidatiDetails] = useState<Record<string, any>>({});
+  // Cache SOLO in memoria React Query: nessuna opinione/scelta politica in localStorage.
+  // Le chiavi includono il visitatore e il soggetto: mai riusare dati tra account.
+  const query = useQuery<ProfileSnapshot>({
+    queryKey: ["profileSnapshot", ownerId ?? null, targetId ?? null],
+    enabled: Boolean(authReady && !isLoading && ownerId && targetId),
+    queryFn: ({ signal }) => ownProfile ? loadOwnProfile(signal) : loadOtherProfile(targetId!, signal),
+    staleTime: ownProfile ? 10 * 60 * 1000 : 0,
+    gcTime: ownProfile ? 30 * 60 * 1000 : 0,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: false,
+  });
 
-  // A navigation, auth change or retry must not render stale political
-  // preferences from an earlier profile request or another signed-in account.
-  const currentRequest = useRef<AbortController | null>(null);
-  const requestVersion = useRef(0);
-
-  const fetchAllProfileData = async () => {
-    if (!user?.id) return;
-
-    currentRequest.current?.abort();
-    const controller = new AbortController();
-    currentRequest.current = controller;
-    const version = ++requestVersion.current;
-    const isCurrent = () => !controller.signal.aborted && requestVersion.current === version;
-
-    setIsLoadingInfo(true);
-    setError(null);
-    setUserInfo(null);
-    setUserOpinions({});
-    setAvatarConfig(null);
-    setGovernoIdeale({});
-    setOpinionQuestions([]);
-    setRappresentantiDetails({});
-    setCandidatiDetails({});
-
-    try {
-      const targetUserId = userId || user.id;
-      const isOwnProfile = String(targetUserId) === String(user.id);
-
-      // Admin's /api/users/:userId is NOT the public-profile API.
-      // Never request an external user's private or Admin profile.
-      const response = await apiRequest(
-        'GET',
-        isOwnProfile ? '/api/users/me' : '/api/users/' + targetUserId + '/public-profile',
-        undefined, undefined, controller.signal
-      );
-      if (!isCurrent()) return;
-      if (!response.ok || !response.data) {
-        throw new Error('Profilo non disponibile');
-      }
-
-      const payload = response.data;
-      if (!isOwnProfile && payload.success !== true) {
-        throw new Error('Profilo pubblico non disponibile');
-      }
-      const profile = payload.user || payload.data || payload;
-      if (!profile || typeof profile !== 'object' || !profile.id) {
-        throw new Error('Profilo non disponibile');
-      }
-
-      let opinions: Record<string, string> = isOwnProfile ? extractBaseOpinions(profile) : {};
-      let questions: OpinionQuestion[] = [];
-      let publicGovernment: Record<string, string> = {};
-      let representatives: Record<string, any> = {};
-      let candidates: Record<string, any> = {};
-
-      if (!isOwnProfile) {
-        // Only the server's minimized target projection is used for public
-        // political selections; never fall back to the viewer's own endpoints.
-        publicGovernment = payload.public?.governoIdeale || {};
-        representatives = payload.public?.rappresentanti || {};
-        candidates = payload.public?.candidati || {};
-      }
-
-      try {
-        const opinionsResponse = await apiRequest(
-          'GET',
-          isOwnProfile
-            ? '/api/opinioni/profile'
-            : '/api/users/' + targetUserId + '/opinioni',
-          undefined, undefined, controller.signal
-        );
-        if (!isCurrent()) return;
-        if (opinionsResponse.ok && opinionsResponse.data?.success) {
-          const data = opinionsResponse.data.data;
-          if (isOwnProfile) {
-            questions = Array.isArray(data?.questions) ? data.questions : [];
-            if (data?.userAnswers && typeof data.userAnswers === 'object') {
-              opinions = { ...opinions, ...data.userAnswers };
-            }
-          } else if (Array.isArray(data?.opinioni)) {
-            questions = data.opinioni.map((item: any) => ({
-              id: String(item.id), text: String(item.text || '')
-            }));
-            for (const item of data.opinioni) {
-              const value = normalizeOpinionValue(item.userAnswer);
-              if (value) opinions[String(item.id)] = value;
-            }
-          }
-        }
-      } catch {
-        if (!isCurrent()) return;
-        // Opinions are optional. The server still enforces target visibility.
-      }
-
-      if (isOwnProfile) {
-        const requests = await Promise.allSettled([
-          apiRequest('GET', '/api/governo/ideale', undefined, undefined, controller.signal),
-          apiRequest('GET', '/api/rappresentanti', undefined, undefined, controller.signal),
-          apiRequest('GET', '/api/candidati/selezioni', undefined, undefined, controller.signal)
-        ]);
-        if (!isCurrent()) return;
-        const governmentResponse = requests[0];
-        if (governmentResponse.status === 'fulfilled'
-            && governmentResponse.value.ok && governmentResponse.value.data?.success) {
-          publicGovernment = governmentResponse.value.data.data || {};
-        }
-        const representativeResponse = requests[1];
-        if (representativeResponse.status === 'fulfilled'
-            && representativeResponse.value.ok && representativeResponse.value.data?.success) {
-          representatives = representativeResponse.value.data.data?.rappresentanti || {};
-        }
-        const candidateResponse = requests[2];
-        if (candidateResponse.status === 'fulfilled'
-            && candidateResponse.value.ok && candidateResponse.value.data?.success) {
-          candidates = candidateResponse.value.data.data?.candidati || {};
-        }
-      }
-
-      if (!isCurrent()) return;
-      setUserInfo(profile as UserInfo);
-      setAvatarConfig(parseAvatarConfig(profile.avatar_config));
-      setUserOpinions(opinions);
-      setOpinionQuestions(questions);
-      setGovernoIdeale(publicGovernment);
-      setRappresentantiDetails(representatives);
-      setCandidatiDetails(candidates);
-    } catch {
-      if (isCurrent()) setError('Impossibile caricare il profilo');
-    } finally {
-      if (isCurrent()) setIsLoadingInfo(false);
-    }
-  };
-
-  useEffect(() => {
-    if (authReady && user?.id && !isLoading) {
-      void fetchAllProfileData();
-    } else {
-      currentRequest.current?.abort();
-      requestVersion.current++;
-      setUserInfo(null);
-      setUserOpinions({});
-      setGovernoIdeale({});
-      setRappresentantiDetails({});
-      setCandidatiDetails({});
-    }
-
-    return () => {
-      currentRequest.current?.abort();
-      requestVersion.current++;
-    };
-  }, [authReady, user?.id, isLoading, userId]);
+  const fetchAllProfileData = useCallback(async () => {
+    if (ownerId && targetId) await query.refetch();
+  }, [ownerId, targetId, query.refetch]);
 
   return {
-    userInfo, isLoadingInfo, error, userOpinions, avatarConfig,
-    governoIdeale, opinionQuestions, rappresentantiDetails, candidatiDetails,
-    setUserInfo, setIsLoadingInfo, setError, setUserOpinions,
-    setAvatarConfig, setGovernoIdeale, setOpinionQuestions,
-    setRappresentantiDetails, setCandidatiDetails, fetchAllProfileData,
-    isLoading, authReady
+    userInfo: query.data?.userInfo || null,
+    isLoadingInfo: !authReady || (Boolean(ownerId && targetId) && query.isPending),
+    error: query.error instanceof Error ? query.error.message : null,
+    userOpinions: query.data?.userOpinions || {},
+    avatarConfig: query.data?.avatarConfig || null,
+    governoIdeale: query.data?.governoIdeale || {},
+    opinionQuestions: query.data?.opinionQuestions || [],
+    rappresentantiDetails: query.data?.rappresentantiDetails || {},
+    candidatiDetails: query.data?.candidatiDetails || {},
+    fetchAllProfileData,
+    isLoading,
+    authReady,
   };
 };

@@ -45,28 +45,32 @@ test('public projection omits private demographics and reads ministry votes only
   assert.ok(route.includes('user[field] = null;'));
 });
 
-test('other-person profile uses only the minimized target projection, never the Admin route', () => {
-  assert.ok(hook.includes("isOwnProfile ? '/api/users/me' : '/api/users/' + targetUserId + '/public-profile'"));
-  assert.doesNotMatch(hook, /apiRequest\(['"]GET['"],\s*['"]\/api\/users\/['"]\s*\+\s*targetUserId\s*\)/);
-  for (const part of [
-    'payload.public?.rappresentanti',
-    'payload.public?.candidati',
-    'payload.public?.governoIdeale'
-  ]) assert.ok(hook.includes(part), part);
+test('other-person profile uses the dedicated public endpoint without privileged account reads', () => {
+  const publicStart = hook.indexOf('async function loadOtherProfile(');
+  const publicEnd = hook.indexOf('export const useProfileData', publicStart);
+  assert.ok(publicStart >= 0 && publicEnd > publicStart);
+  const publicLoad = hook.slice(publicStart, publicEnd);
+  assert.match(publicLoad, /\/public-profile/);
+  assert.match(publicLoad, /encodeURIComponent\(targetUserId\)/);
+  assert.doesNotMatch(publicLoad, /\/api\/governo\/ideale|\/api\/rappresentanti|\/api\/candidati\/selezioni/);
+  for (const part of ['payload.public?.rappresentanti','payload.public?.candidati','payload.public?.governoIdeale']) {
+    assert.ok(publicLoad.includes(part), part);
+  }
 });
 
-test('own political selections and target opinions cannot be accidentally mixed', () => {
-  const start = hook.indexOf('if (isOwnProfile) {\n        const requests =');
-  assert.ok(start > 0);
-  const end = hook.indexOf('\n      if (!isCurrent()) return;', start);
-  assert.ok(end > start);
-  const own = hook.slice(start, end);
-  for (const endpoint of ['/api/governo/ideale','/api/rappresentanti','/api/candidati/selezioni']) {
+test('own political choices and target opinions are separately loaded and normalized', () => {
+  const ownStart = hook.indexOf('async function loadOwnProfile(');
+  const publicStart = hook.indexOf('async function loadOtherProfile(', ownStart);
+  assert.ok(ownStart >= 0 && publicStart > ownStart);
+  const own = hook.slice(ownStart, publicStart);
+  for (const endpoint of ['/api/users/me','/api/governo/ideale','/api/rappresentanti','/api/candidati/selezioni']) {
     assert.ok(own.includes(endpoint), endpoint);
   }
-  assert.ok(hook.includes("'/api/users/' + targetUserId + '/opinioni'"));
-  assert.ok(hook.includes('Array.isArray(data?.opinioni)'));
-  assert.ok(hook.includes('normalizeOpinionValue(item.userAnswer)'));
+  const publicLoad = hook.slice(publicStart, hook.indexOf('export const useProfileData', publicStart));
+  assert.ok(publicLoad.includes('/opinioni'));
+  assert.ok(publicLoad.includes('Array.isArray(opinionData?.opinioni)'));
+  assert.ok(publicLoad.includes('normalizeOpinionValue(item.userAnswer)'));
+  assert.match(hook, /ownProfile \? loadOwnProfile\(signal\) : loadOtherProfile\(targetId!, signal\)/);
 });
 
 test('public-profile UI hides edit controls and private demographic blocks', () => {
@@ -75,15 +79,13 @@ test('public-profile UI hides edit controls and private demographic blocks', () 
   for (const component of [representatives, candidates]) {
     assert.ok(component.includes('{canEditSelections && ('));
   }
-  assert.ok(profileInfo.includes('{isOwnProfile && ('));
-  assert.ok(profileInfo.includes('Informazioni pubbliche del profilo politico'));
+  assert.match(profileInfo, /\{isOwnProfile && \(\s*<details/);
 });
 
-test('profile client cancels stale requests and avoids logging personal choices', () => {
-  assert.ok(hook.includes('currentRequest.current?.abort()'));
-  assert.ok(hook.includes('requestVersion.current === version'));
-  assert.ok(hook.includes('setUserOpinions({})'));
-  assert.ok(hook.includes('setGovernoIdeale({})'));
+test('profile client aborts stale requests and avoids logging political choices', () => {
+  assert.match(hook, /queryFn: \(\{ signal \}\)/);
+  assert.match(hook, /getProfilePayload\(path: string, signal: AbortSignal\)/);
+  assert.match(hook, /\["profileSnapshot", ownerId \?\? null, targetId \?\? null\]/);
   assert.doesNotMatch(hook, /console\.(?:log|error|warn)\(/);
   assert.doesNotMatch(representatives, /console\.log\(/);
   assert.doesNotMatch(candidates, /console\.log\(/);

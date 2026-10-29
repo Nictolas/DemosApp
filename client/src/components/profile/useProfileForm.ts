@@ -85,10 +85,6 @@ export function useProfileForm(
         }
       });
       
-      console.log('🔍 DEBUG useProfileForm - Dati da inviare:', dataToSend);
-      console.log('🔍 DEBUG useProfileForm - formData completo:', formData);
-      console.log('🔍 DEBUG useProfileForm - currentInitialData completo:', currentInitialData);
-      
       // Se non ci sono modifiche, non inviare nulla
       if (Object.keys(dataToSend).length === 0) {
         toast({
@@ -102,9 +98,10 @@ export function useProfileForm(
       // Prima aggiorna il profilo normale
       // apiRequest restituisce già i dati JSON parsati, non un oggetto Response
       const endpoint = isAdmin ? `/api/users/${userData.uid}` : "/api/users/me";
-      const data = await apiRequest("PUT", endpoint, dataToSend);
-      
-      if (!data.success) {
+      const response = await apiRequest("PUT", endpoint, dataToSend);
+      const data = response.data;
+
+      if (!response.ok || data?.success === false) {
         throw new Error(data.error || data.message || "Errore durante l'aggiornamento del profilo");
       }
 
@@ -112,12 +109,12 @@ export function useProfileForm(
       if (formData.tipologie_attivismo && formData.tipologie_attivismo.length > 0) {
         const activismEndpoint = `/api/attivismo-tipologie/${userData.uid}`;
         try {
-          const activismData = await apiRequest("PUT", activismEndpoint, {
+          const activismResponse = await apiRequest("PUT", activismEndpoint, {
             tipologie: formData.tipologie_attivismo
           });
           
-          if (!activismData.success) {
-            console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", activismData.error || activismData.message);
+          if (activismResponse.data?.success === false) {
+            console.warn("Errore nell'aggiornamento delle tipologie di attivismo");
             // Non bloccare il salvataggio del profilo per questo errore
           }
         } catch (activismError) {
