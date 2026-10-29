@@ -75,7 +75,8 @@ function createAuthorizationRequest(nowSeconds = Math.floor(Date.now() / 1000)) 
 
   const claims = {
     userinfo: {
-      [FISCAL_NUMBER_CLAIM]: null
+      [FISCAL_NUMBER_CLAIM]: null,
+      ...(process.env.CIE_SEX_COLLECTION_ENABLED === 'true' ? { gender: null } : {})
     }
   };
 

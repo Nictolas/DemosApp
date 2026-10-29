@@ -13,7 +13,9 @@ import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, Cart
 
 interface SupporterStats {
   totalSupporters: number;
-  genderDistribution: { Uomo: number; Donna: number; Altro: number; };
+  genderDistribution?: Record<string, never>; // API legacy vuota, non usare nei grafici
+  sexDistribution?: Array<{ sesso: 'M' | 'F'; totale: number }>;
+  sexSuppressed?: boolean;
   locationDistribution: Record<string, number>;
   provinceDistribution?: Record<string, number>;
   averageAge: number;
@@ -61,7 +63,7 @@ interface TotaleCounts {
   totale: number;
 }
 
-const COLORS = ['#3b82f6', '#ec4899', '#eab308']; // Blu per Uomo, Rosa per Donna, Giallo per Altro
+const SEX_COLORS = { M: '#3b82f6', F: '#ec4899' } as const; // Valori M/F registrati; provenienza e verifica CIE non attestate da questo campo
 
 export default function Sostenitori() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -185,9 +187,15 @@ export default function Sostenitori() {
   const { stats, supporters = [] } = (currentData as any) || {};
   
   // === INIZIO MODIFICHE LOGICA GRAFICI ===
-  const genderChartData = useMemo(() => {
-    if (!stats) return [];
-    return Object.entries(stats.genderDistribution).map(([name, value]) => ({ name, value }));
+  const sexChartData = useMemo(() => {
+    if (!Array.isArray(stats?.sexDistribution)) return [];
+    return stats.sexDistribution
+      .filter(row => row && (row.sesso === 'M' || row.sesso === 'F') && Number(row.totale) > 0)
+      .map(row => ({
+        name: row.sesso === 'M' ? 'Maschile' : 'Femminile',
+        value: Number(row.totale),
+        sesso: row.sesso
+      }));
   }, [stats]);
 
   const ageChartData = useMemo(() => {
@@ -338,7 +346,7 @@ export default function Sostenitori() {
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} sexChartData={sexChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
                 </TabsContent>
               )}
               {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
@@ -346,7 +354,7 @@ export default function Sostenitori() {
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} sexChartData={sexChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
                 </TabsContent>
               )}
 
@@ -355,7 +363,7 @@ export default function Sostenitori() {
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} sexChartData={sexChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
                 </TabsContent>
               )}
 
@@ -364,7 +372,7 @@ export default function Sostenitori() {
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
                   {!isLoading && !isError && !stats && <div className="text-center text-gray-500 p-8">Nessun sostenitore trovato.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} sexChartData={sexChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} userRole={user.ruolo} />}
                 </TabsContent>
               )}
 
@@ -397,7 +405,7 @@ const SostenitoriContent = ({
   supporters, 
   showSupportersList, 
   setShowSupportersList,
-  genderChartData, 
+  sexChartData, 
   ageChartData,
   provinceChartData,
   userRole
@@ -406,7 +414,7 @@ const SostenitoriContent = ({
   supporters: Supporter[];
   showSupportersList: boolean;
   setShowSupportersList: (value: boolean) => void;
-  genderChartData: any[];
+  sexChartData: any[];
   ageChartData: any[];
   provinceChartData: any[];
   userRole?: string;
@@ -430,16 +438,24 @@ const SostenitoriContent = ({
 
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* === INIZIO MODIFICHE GRAFICI === */}
-      <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per Genere</CardTitle></CardHeader><CardContent className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={genderChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
-              {genderChartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
+      <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per sesso</CardTitle><CardDescription>M/F registrati, anche storici o inferiti: non necessariamente certificati CIE.</CardDescription></CardHeader><CardContent className="h-80">
+        {sexChartData.length === 0 ? (
+          <p className="flex h-full items-center justify-center text-center text-muted-foreground">
+            {stats.sexSuppressed
+              ? 'Dati nascosti: gruppo troppo piccolo per tutelare la privacy.'
+              : 'Nessun dato sul sesso disponibile.'}
+          </p>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={sexChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                {sexChartData.map(entry => (<Cell key={entry.sesso} fill={SEX_COLORS[entry.sesso]} />))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
       </CardContent></Card>
       
       <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per Età</CardTitle></CardHeader><CardContent className="h-80">

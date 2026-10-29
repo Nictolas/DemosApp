@@ -120,7 +120,7 @@ async function getUserCore(userId) {
   const safeColumns = [
     'id', 'email', 'nome', 'cognome', 'ruolo', 'status', 'premium',
     'account_type', 'is_admin', 'is_activist',
-    'data_nascita', 'genere', 'cittadinanza',
+    'data_nascita', 'sesso', 'genere', 'cittadinanza',
     'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
     'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione', 'grado_elezione',
     'paese_candidatura', 'regione_candidatura', 'provincia_candidatura', 'comune_candidatura', 'grado_candidatura',
@@ -144,12 +144,36 @@ async function getUserCore(userId) {
   return row;
 }
 
+/**
+ * Export GDPR: informazioni comprensibili sulla verifica d'identita', senza
+ * esportare la person_key HMAC, il codice fiscale o documenti identificativi.
+ * Compatibile con database legacy dove la tabella non esiste ancora.
+ */
+async function getIdentityVerificationSummary(userId) {
+  const columns = await getColumns('identity_verifications');
+  if (!columns.includes('user_id')) return null;
+
+  const allowlist = [
+    'provider', 'status', 'verified_at', 'detached_at', 'retention_until'
+  ].filter((column) => columns.includes(column));
+  if (allowlist.length === 0) return null;
+  const result = await pool.query(
+    `SELECT ${allowlist.map(quoteIdentifier).join(', ')}
+     FROM identity_verifications
+     WHERE user_id::text = $1
+     LIMIT 1`,
+    [String(userId)]
+  );
+  return result.rows[0] || null;
+}
+
 async function getProfile(userId) {
-  const [account, profile, consents, authProviders] = await Promise.all([
+  const [account, profile, consents, authProviders, identityVerification] = await Promise.all([
     getUserCore(userId),
     selectSingleUserRow('user_profile', userId),
     selectSingleUserRow('user_consents', userId),
     selectRowsForUser('user_auth_providers', userId),
+    getIdentityVerificationSummary(userId),
   ]);
 
   return {
@@ -157,6 +181,7 @@ async function getProfile(userId) {
     profile,
     consents,
     auth_providers: authProviders || [],
+    identity_verification: identityVerification,
   };
 }
 

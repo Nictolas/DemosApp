@@ -68,7 +68,13 @@ export default function RegistrazioneCittadinanza() {
         <div className="text-center mt-8">
           <Button
             variant="ghost"
-            onClick={() => navigate("/registrazione-genere")}
+            onClick={() => navigate(
+              typeof window !== "undefined" && window.localStorage.getItem("registrazione_passkey_flow")
+                ? "/registrazione-consensi?step=3"
+                : typeof window !== "undefined" && window.localStorage.getItem("webauthn_user_id")
+                ? "/auth"
+                : "/registrazione-nome"
+            )}
             className="text-gray-500 hover:text-gray-700"
           >
             ← Indietro

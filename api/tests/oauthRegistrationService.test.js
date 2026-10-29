@@ -40,13 +40,10 @@ function makePool({ duplicatePerson = false, duplicateProviderRace = false } = {
       if (normalized.startsWith('INSERT INTO user_consents')) return { rows: [] };
       if (normalized.startsWith('INSERT INTO user_auth_providers')) return { rows: [] };
       if (normalized.startsWith('SELECT person_key, provider, status')) return { rows: [] };
+      if (normalized.startsWith('SELECT 1 FROM identity_verifications WHERE person_key')) return { rows: duplicatePerson ? [{ exists: 1 }] : [] };
+      if (normalized.startsWith('UPDATE users SET sesso = $1')) return { rowCount: 1 };
       if (normalized.startsWith('INSERT INTO identity_verifications')) {
-        if (duplicatePerson) {
-          const error = new Error('duplicate');
-          error.code = '23505';
-          error.constraint = 'identity_verifications_person_key_key';
-          throw error;
-        }
+        if (duplicatePerson) return { rows: [] }; // ON CONFLICT DO NOTHING in real PostgreSQL
         return {
           rows: [{ provider: 'CIE', status: 'verified', verified_at: new Date().toISOString(), detached_at: null, retention_until: null }]
         };
@@ -181,4 +178,29 @@ test('Google e Apple non richiedono più scopes nome/profilo né propagano dati 
   }
   assert.doesNotMatch(oauth,/profile\.(?:given_name|family_name|name)/);
   assert.match(service,/JSON\.stringify\(\{\}\)/);
+});
+
+test('OAuth: sesso CIE certificato viene salvato prima di COMMIT', async () => {
+  const { calls, pool } = makePool();
+  await completeOAuthRegistrationAfterCie({
+    registration: registration(),
+    fiscalNumber: 'TINIT-ABCDEF12G34H567I',
+    verifiedCieSex: 'F'
+  }, pool);
+  const identity = calls.findIndex(c => c.sql.startsWith('INSERT INTO identity_verifications'));
+  const sex = calls.findIndex(c => c.sql.startsWith('UPDATE users SET sesso = $1'));
+  const commit = calls.findIndex(c => c.sql === 'COMMIT');
+  assert.ok(identity >= 0 && sex > identity && commit > sex);
+  assert.deepEqual(calls[sex].params, ['F', calls[sex].params[1]]);
+  assert.equal(calls.some(c => c.sql === 'ROLLBACK'), false);
+});
+
+test('OAuth progressivo: attributi M/F e fiscalNumber forgiati dal browser non diventano CIE', async () => {
+  const { calls, pool } = makePool();
+  const input = { ...registration(), sesso: 'F', genere: 'd', verifiedCieSex: 'M', fiscalNumber: 'TINIT-FORGERY' };
+  const result = await completeOAuthRegistrationWithoutCie({ registration: input }, pool);
+  assert.equal(result.created, true);
+  assert.equal(calls.some(c => c.sql.startsWith('UPDATE users SET sesso')), false);
+  assert.equal(calls.some(c => c.sql.startsWith('INSERT INTO identity_verifications')), false);
+  assert.equal(calls.some(c => c.sql === 'COMMIT'), true);
 });

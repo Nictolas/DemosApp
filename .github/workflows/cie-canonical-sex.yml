@@ -1,0 +1,109 @@
+name: CIE canonical sex regression
+
+on:
+  # The PR source branch may receive automation-authored commits that do not
+  # receive a new pull_request workflow event. Validate those branch heads too.
+  push:
+    branches:
+      - feature/cie-canonical-sex-mf-20261028
+    paths:
+      - 'api/**'
+      - 'client/**'
+      - '.github/workflows/cie-canonical-sex.yml'
+  pull_request:
+    paths:
+      - 'api/services/cieOidcAuthorizationService.js'
+      - 'api/services/cieOidcUserInfoService.js'
+      - 'api/services/cieVerificationService.js'
+      - 'api/services/oauthRegistrationService.js'
+      - 'api/services/passkeyRegistrationService.js'
+      - 'api/routes/auth/identity.js'
+      - 'api/routes/auth/profile.js'
+      - 'api/routes/users/profile.js'
+      - 'api/routes/users/search.js'
+      - 'api/utils/cieSex.js'
+      - 'api/tests/cieSex.test.js'
+      - 'api/utils/politicalVotingSubject.js'
+      - 'api/routes/notifiche.js'
+      - 'api/tests/politicalVotingSubject.test.js'
+      - 'api/tests/canonicalSexAggregate.test.js'
+      - 'api/tests/userAgeStatistics.smoke.test.js'
+      - 'api/tests/utentiAdminConsolePrivacy.smoke.test.js'
+      - 'client/src/pages/Utenti/index.tsx'
+      - 'api/tests/registrationGenderRetirement.smoke.test.js'
+      - 'client/src/pages/registrazione-genere.tsx'
+      - 'client/src/pages/registrazione-nome.tsx'
+      - 'client/src/pages/registrazione-cittadinanza.tsx'
+      - 'client/src/pages/registrazione-consensi-opinioni.tsx'
+      - 'client/src/hooks/useBrowserNavigation.ts'
+      - 'client/src/App.tsx'
+      - 'api/tests/supporterSexPrivacy.test.js'
+      - 'api/routes/sostenitori.js'
+      - 'api/routes/sostenitori-totale.js'
+      - 'api/routes/rappresentanti-sostenitori.js'
+      - 'api/routes/candidati-sostenitori.js'
+      - 'api/routes/attivisti-sostenitori.js'
+      - 'api/routes/organizzazioni-sostenitori.js'
+      - 'api/routes/candidati.js'
+      - 'api/routes/attivisti.js'
+      - 'api/routes/organizzazioni.js'
+      - 'client/src/pages/Sostenitori.tsx'
+      - 'api/tests/opinionStatsAccountPopulation.test.js'
+      - 'client/src/components/profile/PersonalDataSection.tsx'
+      - 'client/src/pages/Profilo/**'
+      - 'api/utils/canonicalSexAggregate.js'
+      - 'api/routes/opinioni/stats.js'
+      - 'api/routes/sondaggi.js'
+      - 'api/routes/user/gdpr-rights.js'
+      - 'api/services/privacyDataExportService.js'
+      - 'api/tests/opinionStatsAccountPopulation.test.js'
+      - 'client/src/components/sondaggi/**'
+      - 'client/src/pages/Sondaggi/**'
+      - 'client/src/pages/StatisticheOpinione/**'
+      - 'api/tests/cieOidcAuthorizationService.test.js'
+      - 'api/tests/cieOidcUserInfoService.test.js'
+      - 'api/tests/cieVerificationService.test.js'
+      - 'api/tests/oauthRegistrationService.test.js'
+      - 'api/tests/passkeyRegistrationService.test.js'
+      - 'client/src/pages/Utenti/index.tsx'
+      - '.github/workflows/cie-canonical-sex.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-sex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: demos-ci-synthetic-only
+          POSTGRES_DB: demos_cie_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d demos_cie_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install API dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Test CIE identity, verified M/F and registration
+        run: |
+          node --test api/tests/politicalVotingSubject.test.js api/tests/userAgeStatistics.smoke.test.js api/tests/utentiAdminConsolePrivacy.smoke.test.js api/tests/registrationGenderRetirement.smoke.test.js api/tests/supporterSexPrivacy.test.js api/tests/opinionStatsAccountPopulation.test.js api/tests/canonicalSexAggregate.test.js api/tests/cieSex.test.js api/tests/cieOidcAuthorizationService.test.js api/tests/cieOidcUserInfoService.test.js api/tests/cieVerificationService.test.js api/tests/identityVerificationStore.test.js api/tests/privacyIdentityExport.smoke.test.js api/tests/cieRequiredRegistration.smoke.test.js api/tests/oauthRegistrationService.test.js api/tests/passkeyRegistrationService.test.js
+      - name: PostgreSQL 17 transactional CIE integration (synthetic only)
+        env:
+          DEMOS_CIE_TEST_DATABASE_URL: postgresql://postgres:demos-ci-synthetic-only@127.0.0.1:5432/demos_cie_test
+        run: node --test api/tests/ciePostgres.integration.test.js
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build web frontend
+        run: npm run build --prefix client

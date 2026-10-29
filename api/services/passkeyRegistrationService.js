@@ -1,6 +1,7 @@
 const { getPool } = require('../config/database');
 const { compressUserLocation } = require('../utils/locationUtils');
 const { registerVerifiedIdentity } = require('./identityVerificationStore');
+const { persistVerifiedCieSex } = require('../utils/cieSex');
 const { ensureWebAuthnCredentialAvailable } = require('./webauthnCredentialRegistrationService');
 const { IDENTITY_PROVIDERS } = require('../constants/identityVerification');
 
@@ -42,7 +43,7 @@ function normalizePasskeyRegistration(registration) {
 }
 
 async function completePasskeyRegistration(
-  { registration, fiscalNumber = null, requireVerifiedIdentity = false },
+  { registration, fiscalNumber = null, verifiedCieSex = null, requireVerifiedIdentity = false },
   pool = getPool()
 ) {
   const normalized = normalizePasskeyRegistration(registration);
@@ -162,6 +163,7 @@ async function completePasskeyRegistration(
         { userId: p.registrationKey, fiscalNumber, provider: IDENTITY_PROVIDERS.CIE },
         client
       );
+      await persistVerifiedCieSex(client, p.registrationKey, verifiedCieSex);
     }
 
     await client.query('COMMIT');
@@ -179,11 +181,11 @@ async function completePasskeyRegistrationWithoutCie({ registration }, pool = ge
 }
 
 async function completePasskeyRegistrationAfterCie(
-  { registration, fiscalNumber },
+  { registration, fiscalNumber, verifiedCieSex = null },
   pool = getPool()
 ) {
   return completePasskeyRegistration(
-    { registration, fiscalNumber, requireVerifiedIdentity: true },
+    { registration, fiscalNumber, verifiedCieSex, requireVerifiedIdentity: true },
     pool
   );
 }

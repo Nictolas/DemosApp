@@ -42,7 +42,7 @@ router.get('/identity/status', verifyToken, async (req, res) => {
       identity: status
     });
   } catch (error) {
-    console.error('Errore lettura stato verifica identita:', error?.message || error);
+    console.error('IDENTITY_STATUS_FAILED');
     return res.status(500).json({
       success: false,
       error: 'Impossibile leggere lo stato della verifica identita'
@@ -63,7 +63,7 @@ router.post('/identity/cie/mock/start', verifyToken, async (req, res) => {
     const transaction = startMockTransaction(req.userId);
     return res.json({ success: true, transaction });
   } catch (error) {
-    console.error('Errore avvio mock CIE:', error?.message || error);
+    console.error('CIE_MOCK_START_FAILED');
     const publicError = getMockCieStartErrorResponse(error);
     return res.status(publicError.status).json({
       success: false,
@@ -91,7 +91,7 @@ router.post('/identity/cie/mock/complete', verifyToken, async (req, res) => {
       verified: true
     });
   } catch (error) {
-    console.error('Errore completamento mock CIE:', error?.message || error);
+    console.error('CIE_MOCK_COMPLETE_FAILED');
     const publicError = getMockCieCompleteErrorResponse(error);
     return res.status(publicError.status).json({
       success: false,
@@ -156,7 +156,7 @@ router.get('/cie/callback', async (req, res) => {
     try {
       return res.redirect(303, buildCieCallbackRedirect('error'));
     } catch (redirectError) {
-      console.error('Errore redirect callback CIE:', redirectError?.message || redirectError);
+      console.error('CIE_CALLBACK_REDIRECT_FAILED');
       return res.status(500).json({ success: false, error: 'Callback CIE non disponibile' });
     }
   }
@@ -194,7 +194,8 @@ router.get('/cie/callback', async (req, res) => {
         : completeOAuthRegistrationAfterCie;
       const completed = await completeRegistration({
         registration: transaction.registration,
-        fiscalNumber: userInfo.fiscalNumber
+        fiscalNumber: userInfo.fiscalNumber,
+        verifiedCieSex: userInfo.sesso ?? null
       });
       const registrationTicket = await createRegistrationTicket({ userId: completed.userId });
 
@@ -208,12 +209,12 @@ router.get('/cie/callback', async (req, res) => {
 
     await completeCieVerificationFromVerifiedClaims({
       userId: transaction.userId,
-      claims: { fiscal_number: userInfo.fiscalNumber }
+      claims: { fiscal_number: userInfo.fiscalNumber, sesso: userInfo.sesso ?? null }
     });
 
     return res.redirect(303, buildCieCallbackRedirect('success'));
   } catch (error) {
-    console.error('Errore callback CIE:', error?.message || error);
+    console.error('CIE_CALLBACK_FAILED');
     try {
       const outcome = error?.code === IDENTITY_ERROR_CODES.PERSON_ALREADY_LINKED
         ? 'already-linked'
@@ -222,7 +223,7 @@ router.get('/cie/callback', async (req, res) => {
           : 'error';
       return res.redirect(303, redirectForCieTransaction(transaction, outcome));
     } catch (redirectError) {
-      console.error('Errore redirect callback CIE:', redirectError?.message || redirectError);
+      console.error('CIE_CALLBACK_REDIRECT_FAILED');
       return res.status(500).json({ success: false, error: 'Callback CIE non disponibile' });
     }
   }

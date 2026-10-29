@@ -48,23 +48,23 @@ export function useSondaggiData(filterPath?: string) {
 
   // Query per statistiche del genere
   const { data: genereData } = useQuery({
-    queryKey: ['sondaggiGenere', filterPath],
+    queryKey: ['sondaggiSesso', filterPath],
     queryFn: async () => {
-      let endpoint = "/api/sondaggi/genere";
+      let endpoint = "/api/sondaggi/sesso";
       
       if (filterPath) {
         const pathParts = filterPath.split('/');
         if (pathParts.length === 1) {
-          endpoint = `/api/sondaggi/genere/${pathParts[0]}`;
+          endpoint = `/api/sondaggi/sesso/${pathParts[0]}`;
         } else if (pathParts.length === 2) {
-          endpoint = `/api/sondaggi/genere/${pathParts[0]}/${pathParts[1]}`;
+          endpoint = `/api/sondaggi/sesso/${pathParts[0]}/${pathParts[1]}`;
         } else if (pathParts.length === 3) {
-          endpoint = `/api/sondaggi/genere/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}`;
+          endpoint = `/api/sondaggi/sesso/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}`;
         }
       }
       
       const response = await apiRequest("GET", endpoint);
-      if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
+      if (!response.ok) throw new Error("Errore nel caricamento statistiche per sesso anagrafico.");
       const result = await response.json();
       return result.stats; // Cambiato da result.data a result.stats per coerenza con l'API
     },

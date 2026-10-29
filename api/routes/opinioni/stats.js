@@ -2,7 +2,6 @@ const express = require('express');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { pool } = require('../../middleware/auth');
 const { compressRegione, decompressRegione } = require('../../utils/locationUtils');
-const { decompressGender } = require('../../utils/genderUtils');
 const {
   MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE: minimumCellSize,
   cellThresholdMet,
@@ -11,6 +10,7 @@ const {
 
 const router = express.Router();
 const { resolvePublishedOpinionColumn } = require('../../utils/opinionStatsColumns');
+const { protectSexOpinionRows } = require('../../utils/canonicalSexAggregate');
 
 // GET /api/opinioni/candidati - Endpoint di test senza autenticazione
 router.get('/candidati', async (req, res) => {
@@ -23,7 +23,7 @@ router.get('/candidati', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Errore endpoint test:', error);
+    console.error('❌ Errore endpoint test:');
     res.status(500).json({
       success: false,
       error: 'Errore endpoint test'
@@ -80,11 +80,11 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel debug opinioni:', error);
+    console.error('❌ Errore nel debug opinioni:');
     res.status(500).json({
       success: false,
       error: 'Errore nel debug opinioni',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -161,18 +161,11 @@ router.get('/stats/:opinionId', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche opinione:', error);
-    console.error('❌ Stack trace:', error.stack);
-    console.error('❌ Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint
-    });
+    console.error('❌ Errore nel recuperare statistiche opinione:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche opinione',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -241,70 +234,80 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
       data: suppressSmallCells(etaResult.rows)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche età opinione:', error);
+    console.error('❌ Errore nel recuperare statistiche età opinione:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche età opinione',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
 
-// GET /api/opinioni/stats/:opinionId/genere - Ottieni statistiche per genere per opinione
-router.get('/stats/:opinionId/genere', async (req, res) => {
+// Breakdowns sui valori M/F registrati, che possono includere fonti storiche o inferenze.
+async function serveOpinionSexBreakdown(req, res) {
   try {
-    const { opinionId } = req.params;
-    
-    // Accetta tutte e sole le opinioni ufficiali che hanno una colonna di risposta.
+    const { opinionId, regione } = req.params;
     const columnName = await resolvePublishedOpinionColumn(pool, opinionId);
-    if (!columnName) {
-      return res.status(404).json({
+    if (!columnName) return res.status(404).json({
+      success: false,
+      error: 'Opinione non trovata'
+    });
+
+    const params = [];
+    let regionCondition = '';
+    if (regione) {
+      const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+      const regionCode = compressRegione(regionName);
+      if (!regionCode) return res.status(400).json({
         success: false,
-        error: 'Opinione non trovata',
-        message: `L'opinione con ID '${opinionId}' non è supportata`
+        error: 'Regione non valida'
       });
+      params.push(regionCode);
+      regionCondition = ` AND u.regione_residenza = $${params.length}`;
     }
 
-    // Query per ottenere le statistiche per genere dalla tabella opinioni_risposte
-    const genereQuery = `
-      SELECT 
-        u.genere,
-        COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso
-      FROM opinioni_risposte orr
-      JOIN users u ON u.id = orr.user_id
-      LEFT JOIN user_consents uc ON uc.user_id = u.id
-      WHERE orr.${columnName} IS NOT NULL
-      AND u.account_type = 'PERSON'
-      AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
-      AND u.genere IS NOT NULL
-      GROUP BY u.genere
-      ORDER BY u.genere
-    `;
-    
-    const genereResult = await pool.query(genereQuery);
-    
-    // Decomprimi i generi per il frontend
-    const decompressedData = genereResult.rows.map(row => ({
-      ...row,
-      genere: decompressGender(row.genere) || row.genere
-    }));
-    
-    res.json({
+    const result = await pool.query(
+      `SELECT
+         u.sesso,
+         COUNT(*) FILTER (WHERE orr.${columnName} = 'f')::int AS favorevole,
+         COUNT(*) FILTER (WHERE orr.${columnName} = 'c')::int AS contrario,
+         COUNT(*) FILTER (WHERE orr.${columnName} = 'i')::int AS indeciso
+       FROM opinioni_risposte orr
+       JOIN users u ON u.id = orr.user_id
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
+       WHERE orr.${columnName} IS NOT NULL
+         AND u.account_type = 'PERSON'
+         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
+         AND u.sesso IN ('M','F')${regionCondition}
+       GROUP BY u.sesso ORDER BY u.sesso`,
+      params
+    );
+
+    const protectedStats = protectSexOpinionRows(result.rows, minimumCellSize);
+    return res.json({
       success: true,
       minimumCellSize,
-      data: suppressSmallCells(decompressedData)
+      suppressed: protectedStats.suppressed,
+      data: protectedStats.data
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere opinione:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare statistiche genere opinione',
-      message: error.message
-    });
+    console.error('Errore statistiche sesso per opinione:');
+    return res.status(500).json({ success: false, error: 'Statistiche non disponibili' });
   }
-});
+}
+
+// Gli endpoint restituiscono M/F registrati, non la loro provenienza CIE.
+router.get('/stats/:opinionId/sesso', serveOpinionSexBreakdown);
+router.get('/stats/:opinionId/sesso/regione/:regione', serveOpinionSexBreakdown);
+
+// Le vecchie URL restano disponibili per gli Android già installati ma
+// non leggono piu' dati di genere storici, ne' presentano il sesso come genere.
+function deprecatedOpinionGender(_req, res) {
+  res.set('Deprecation', 'true');
+  return res.json({ success: true, deprecated: true, minimumCellSize, data: [] });
+}
+router.get('/stats/:opinionId/genere', deprecatedOpinionGender);
+router.get('/stats/:opinionId/genere/regione/:regione', deprecatedOpinionGender);
 
 // GET /api/opinioni/stats/:opinionId/regione/:regione - Ottieni statistiche per regione per opinione
 router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
@@ -387,11 +390,11 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche opinione regionale:', error);
+    console.error('❌ Errore nel recuperare statistiche opinione regionale:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche opinione regionale',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -474,75 +477,11 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
       data: suppressSmallCells(etaResult.rows)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche età opinione regionale:', error);
+    console.error('❌ Errore nel recuperare statistiche età opinione regionale:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche età opinione regionale',
-      message: error.message
-    });
-  }
-});
-
-// GET /api/opinioni/stats/:opinionId/genere/regione/:regione - Ottieni statistiche per genere per regione per opinione
-router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
-  try {
-    const { opinionId, regione } = req.params;
-    
-    // Converte slug in nome regione (es. "toscana" -> "Toscana")
-    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
-    
-    // Converte nome regione in codice per la query database
-    const regionCode = compressRegione(regionName);
-    
-    if (!regionCode) {
-      return res.status(400).json({
-        success: false,
-        error: 'Regione non valida'
-      });
-    }
-    
-    // Accetta tutte e sole le opinioni ufficiali che hanno una colonna di risposta.
-    const columnName = await resolvePublishedOpinionColumn(pool, opinionId);
-    if (!columnName) {
-      return res.status(404).json({
-        success: false,
-        error: 'Opinione non trovata',
-        message: `L'opinione con ID '${opinionId}' non è supportata`
-      });
-    }
-
-    // Query per ottenere le statistiche per genere dalla tabella opinioni_risposte per la regione specifica
-    const genereQuery = `
-      SELECT 
-        u.genere,
-        COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
-        COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso
-      FROM opinioni_risposte orr
-      JOIN users u ON u.id = orr.user_id
-      LEFT JOIN user_consents uc ON uc.user_id = u.id
-      WHERE orr.${columnName} IS NOT NULL
-      AND u.account_type = 'PERSON'
-      AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
-      AND u.genere IS NOT NULL
-      AND u.regione_residenza = $1
-      GROUP BY u.genere
-      ORDER BY u.genere
-    `;
-    
-    const genereResult = await pool.query(genereQuery, [regionCode]);
-    
-    res.json({
-      success: true,
-      minimumCellSize,
-      data: suppressSmallCells(genereResult.rows)
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere opinione regionale:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare statistiche genere opinione regionale',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });

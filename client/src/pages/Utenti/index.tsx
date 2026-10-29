@@ -108,9 +108,7 @@ export default function Utenti() {
       acc[city] = (acc[city] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-
-    // La residenza e il territorio elettorale sono informazioni distinte.
-    // I profili politici importati possono avere un mandato ma non una residenza documentata.
+    
     const hasDocumentedPlace = (value: unknown): value is string =>
       typeof value === 'string' && value.trim() !== '' && value.trim().toUpperCase() !== 'N/A';
     const usersWithKnownResidence = utenti.filter(user => hasDocumentedPlace(user.comune_residenza)).length;
@@ -259,24 +257,10 @@ export default function Utenti() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Debug logging per capire il ruolo dell'utente
-  useEffect(() => {
-    console.log('🔍 DEBUG Utenti - Auth state:', {
-      user: user ? { id: user.id, email: user.email, ruolo: user.ruolo } : null,
-      isAuthLoading,
-      userRole: user?.ruolo,
-      userRuolo: user?.ruolo,
-      isAdmin: hasAdminCapability(user)
-    });
-  }, [user, isAuthLoading]);
-
-  // Funzione per pulire token vecchi e forzare nuovo login
   const clearInvalidToken = async () => {
-    console.log('🔍 DEBUG Utenti - Pulizia token non valido');
     try {
       await forceTokenRefresh();
-    } catch (error) {
-      console.error('❌ Errore nella pulizia token:', error);
+    } catch {
       clearAllTokens();
     }
   };
@@ -285,7 +269,6 @@ export default function Utenti() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && hasAdminCapability(user)) {
-        console.log('🔄 Pagina diventata visibile, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
         updateLastUpdateTime();
       }
@@ -293,7 +276,6 @@ export default function Utenti() {
 
     const handleFocus = () => {
       if (hasAdminCapability(user)) {
-        console.log('🔄 Finestra riprende focus, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
         updateLastUpdateTime();
       }
@@ -598,7 +580,7 @@ export default function Utenti() {
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per sesso</CardTitle>
-                      <CardDescription>Maschile e Femminile dai valori M/F presenti; la verifica CIE potrà aggiornarli.</CardDescription>
+                      <CardDescription>Valori M/F delle persone, anche storici: non sono necessariamente tutti verificati tramite CIE.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">

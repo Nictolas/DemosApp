@@ -17,7 +17,6 @@ import AuthPage from "./pages/auth-page";
 
 // Import delle pagine di registrazione separate
 import RegistrazioneNome from "./pages/registrazione-nome";
-import RegistrazioneGenere from "./pages/registrazione-genere";
 import RegistrazioneCittadinanza from "./pages/registrazione-cittadinanza";
 import RegistrazioneDataNascita from "./pages/registrazione-data-nascita";
 import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
@@ -232,7 +231,7 @@ function useTouchNavigation() {
         '/registrazione-consensi-opinioni': '/registrazione-consensi-termini',
         '/registrazione-crea-passkey': '/registrazione-3-residenza',
         '/registrazione-genere': '/registrazione-nome',
-        '/registrazione-cittadinanza': '/registrazione-genere',
+        '/registrazione-cittadinanza': '/registrazione-nome',
         '/registrazione-2-dati': '/registrazione-cittadinanza',
         '/registrazione-3-residenza': '/registrazione-2-dati',
         '/registrazione-3-opinioni': '/registrazione-2-dati',
@@ -241,12 +240,14 @@ function useTouchNavigation() {
       };
       let prev = pathMap[currentPath];
       if (typeof window !== 'undefined') {
-        // Flusso passkey: da genere si torna ai consensi (non a nome)
-        if (currentPath === '/registrazione-genere' && window.localStorage.getItem('registrazione_passkey_flow'))
-          prev = '/registrazione-consensi-opinioni';
-        // Utente già con passkey: da genere si torna ad /auth
-        else if (currentPath === '/registrazione-genere' && window.localStorage.getItem('webauthn_user_id'))
+        // Il passaggio 'genere' è ritirato: da cittadinanza il back
+        // rispetta ancora il flusso passkey, senza tornare alla pagina legacy.
+        if (currentPath === '/registrazione-cittadinanza' && window.localStorage.getItem('registrazione_passkey_flow'))
+          prev = '/registrazione-consensi?step=3';
+        else if (currentPath === '/registrazione-cittadinanza' && window.localStorage.getItem('webauthn_user_id'))
           prev = '/auth';
+        if (currentPath === '/registrazione-genere')
+          prev = '/registrazione-nome';
       }
       return prev ?? null;
     };
@@ -499,10 +500,9 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* URL storico: non raccogliere il genere e non aggiungere tap alla registrazione. */}
               <Route path="/registrazione-genere">
-                <PageTransition location={location} type="fade-up">
-                  <RegistrazioneGenere />
-                </PageTransition>
+                <Redirect to="/registrazione-cittadinanza" />
               </Route>
 
               <Route path="/registrazione-cittadinanza">

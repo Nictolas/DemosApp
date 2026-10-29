@@ -16,12 +16,10 @@ const isSchemaMigrationError = (error) => (
 router.get('/me', async (req, res) => {
   res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
-    console.log('🔍 GET /api/auth/me - Richiesta profilo utente (route modulare)');
     
     // Verifica token JWT
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('❌ Token JWT mancante o malformato');
       return res.status(401).json({
         success: false,
         error: 'Token mancante',
@@ -36,7 +34,6 @@ router.get('/me', async (req, res) => {
     let decoded;
     try {
       decoded = verifyAccessToken(token);
-      console.log('✅ Verifica accesso riuscita');
     } catch (accessError) {
       try {
         decoded = verifyOAuthPendingToken(token);
@@ -46,7 +43,6 @@ router.get('/me', async (req, res) => {
           pendingRegistration: true,
         });
       } catch (pendingError) {
-        console.log('❌ Token JWT non valido:', pendingError.message);
         return res.status(401).json({
           success: false,
           error: 'Token non valido',
@@ -61,6 +57,7 @@ router.get('/me', async (req, res) => {
       result = await pool.query(
         `SELECT
            u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.is_dpo, u.created_at, u.updated_at,
+           u.sesso AS sesso,
            COALESCE(up.genere, u.genere) AS genere,
            COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
            COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
@@ -107,7 +104,7 @@ router.get('/me', async (req, res) => {
         throw queryError;
       }
 
-      console.warn('⚠️ Fallback query /auth/me su users (schema nuovo non disponibile):', queryError.message);
+      console.warn('AUTH_ME_SCHEMA_FALLBACK');
       result = await pool.query(
         `SELECT * FROM users WHERE id = $1`,
         [decoded.userId]
@@ -115,7 +112,6 @@ router.get('/me', async (req, res) => {
     }
 
     if (result.rows.length === 0) {
-      console.log('❌ Utente non trovato nel database');
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato',
@@ -127,7 +123,6 @@ router.get('/me', async (req, res) => {
     const accountSubject = await getAccountSubject(pool, user.id);
     const emailDecrypted = decryptEmail(user.email);
     if (user.email != null) user.email = emailDecrypted;
-    console.log('✅ Profilo utente recuperato:', emailDecrypted ? '(email presente)' : '(nessuna email)');
 
     // Formatta la data di nascita per il frontend (formato europeo DD/MM/YYYY)
     let dataNascitaFormattata = null;
@@ -136,7 +131,6 @@ router.get('/me', async (req, res) => {
       dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
     }
 
-    console.log('📤 Invio profilo utente completo');
 
     res.json({
       success: true,
@@ -145,6 +139,7 @@ router.get('/me', async (req, res) => {
         email: emailDecrypted ?? user.email,
         nome: user.nome,
         cognome: user.cognome,
+        sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
         genere: decompressGender(user.genere),
         data_nascita: dataNascitaFormattata,
         cittadinanza: decompressUserLocation(user).cittadinanza,
@@ -189,14 +184,12 @@ router.get('/me', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('💥 Errore durante il recupero profilo:', error);
-    console.error('📋 Stack trace completo:', error.stack);
+    console.error('AUTH_ME_FAILED');
     
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile recuperare il profilo utente',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Impossibile recuperare il profilo utente'
     });
   }
 });

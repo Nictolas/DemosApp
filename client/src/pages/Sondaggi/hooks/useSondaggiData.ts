@@ -23,10 +23,10 @@ export const useSondaggiData = (): SondaggiState & {
   });
 
   const { data: genereData } = useQuery<GenereData>({
-    queryKey: ['sondaggiGenere'],
+    queryKey: ['sondaggiSesso'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/sondaggi/genere");
-      if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
+      const response = await apiRequest("GET", "/api/sondaggi/sesso");
+      if (!response.ok) throw new Error("Errore nel caricamento statistiche per sesso anagrafico.");
       const result = await response.json();
       return result.stats; // Cambiato da result.data a result.stats per coerenza con l'API
     },

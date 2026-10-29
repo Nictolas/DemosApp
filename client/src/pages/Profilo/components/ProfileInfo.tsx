@@ -181,14 +181,7 @@ export const ProfileInfo = ({
                 <p className="text-lg font-semibold text-gray-900 mt-1">{formatBirthYear(userInfo.data_nascita)}</p>
               </div>
               
-              {/* Genere visibile solo per Politico (P), Candidato (C), Candidato Politico (CP) */}
-              {canShowFullName() && (
-                <div className="p-4 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200">
-                  <label className="text-sm font-semibold text-orange-700 uppercase tracking-wider">Genere</label>
-                  <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.genere || 'Non specificato'}</p>
-                </div>
-              )}
-              
+              {/* Il sesso CIE verificato non viene esposto nei profili pubblici. */}
               {userInfo.cittadinanza && (
                 <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200">
                   <label className="text-sm font-semibold text-yellow-700 uppercase tracking-wider">Cittadinanza</label>

@@ -144,7 +144,6 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
         u.email,
         u.ruolo,
         u.data_nascita,
-        u.genere,
         u.regione_residenza,
         u.provincia_residenza,
         u.comune_residenza,

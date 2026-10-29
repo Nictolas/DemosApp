@@ -20,11 +20,10 @@ export interface SondaggiData {
   utentiUnici?: number;
 }
 
-export interface GenereData {
-  uomo: string;
-  donna: string;
-  altro: string;
-}
+export type GenereData = Array<{
+  sesso: 'M' | 'F';
+  totale: number;
+}>;
 
 export interface PieDataItem {
   name: string;

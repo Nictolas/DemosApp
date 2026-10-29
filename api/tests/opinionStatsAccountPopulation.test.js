@@ -14,7 +14,10 @@ function countMatches(text, pattern) {
 
 test('opinion statistics use canonical PERSON account population in every aggregate', () => {
   const stats = read('api/routes/opinioni/stats.js');
-  assert.equal(countMatches(stats, /AND u\.account_type = 'PERSON'/g), 6);
+  // Due URL per sesso (nazionale e regionale) condividono un handler protetto.
+  assert.equal(countMatches(stats, /AND u\.account_type = 'PERSON'/g), 5);
+  assert.match(stats, /router\.get\('\/stats\/:opinionId\/sesso', serveOpinionSexBreakdown\)/);
+  assert.match(stats, /router\.get\('\/stats\/:opinionId\/sesso\/regione\/:regione', serveOpinionSexBreakdown\)/);
   assert.doesNotMatch(stats, /u\.ruolo NOT IN \('I', 'O', 'Istituzione', 'Organizzazione'\)/);
 });
 
@@ -29,10 +32,10 @@ test('survey opinion aggregates use the canonical PERSON population across natio
 
 test('opinion statistics continue to require an explicit answer and political-opinion consent', () => {
   const stats = read('api/routes/opinioni/stats.js');
-  assert.equal(countMatches(stats, /WHERE orr\.\$\{columnName\} IS NOT NULL/g), 6);
+  assert.equal(countMatches(stats, /WHERE orr\.\$\{columnName\} IS NOT NULL/g), 5);
   assert.equal(
     countMatches(stats, /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/g),
-    6
+    5
   );
 });
 

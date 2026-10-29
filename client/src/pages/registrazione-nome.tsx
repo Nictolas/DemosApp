@@ -28,7 +28,7 @@ export default function RegistrazioneNome() {
   const onSubmit = (data: NomeValues) => {
     localStorage.setItem("registrazione_nome", data.nome);
     localStorage.setItem("registrazione_cognome", data.cognome);
-    navigate("/registrazione-genere");
+    navigate("/registrazione-cittadinanza");
   };
 
   return (

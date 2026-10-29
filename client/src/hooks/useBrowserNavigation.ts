@@ -140,7 +140,7 @@ export function useBrowserNavigation() {
       '/auth': '/',
       '/registrazione-nome': '/auth',
       '/registrazione-genere': '/registrazione-nome',
-      '/registrazione-cittadinanza': '/registrazione-genere',
+      '/registrazione-cittadinanza': '/registrazione-nome',
       '/registrazione-2-dati': '/registrazione-cittadinanza',
       '/registrazione-3-residenza': '/registrazione-2-dati',
       '/registrazione-3-opinioni': '/registrazione-2-dati',
@@ -148,6 +148,10 @@ export function useBrowserNavigation() {
       '/registrazione-5-conferma': '/registrazione-4-avatar'
     };
     const prev = pathMap[currentPath];
+    if (currentPath === '/registrazione-cittadinanza' && typeof window !== 'undefined') {
+      if (window.localStorage.getItem('registrazione_passkey_flow')) return '/registrazione-consensi?step=3';
+      if (window.localStorage.getItem('webauthn_user_id')) return '/auth';
+    }
     if (currentPath === '/registrazione-genere' && typeof window !== 'undefined' && window.localStorage.getItem('webauthn_user_id'))
       return '/auth';
     return prev ?? null;

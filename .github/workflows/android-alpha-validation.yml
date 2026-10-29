@@ -1,6 +1,15 @@
 name: Android Alpha Validation
 
 on:
+  push:
+    branches:
+      - feature/cie-canonical-sex-mf-20261028
+    paths:
+      - 'client/src/lib/oauth.ts'
+      - 'api/services/oauthRegistrationService.js'
+      - 'api/tests/oauthRegistrationService.test.js'
+      - 'client/src/lib/oauth.ts'
+      - '.github/workflows/android-alpha-validation.yml'
   pull_request:
     branches:
       - main

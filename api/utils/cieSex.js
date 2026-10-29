@@ -1,0 +1,42 @@
+'use strict';
+
+/**
+ * Il sesso anagrafico canonico deriva SOLO dal claim "gender" in una
+ * UserInfo CIE la cui firma, issuer, audience e sub sono stati verificati.
+ * Non accetta nomi, foto, payload browser o valori legacy "genere".
+ */
+function sexFromVerifiedCieGender(gender) {
+  if (gender === 'male') return 'M';
+  if (gender === 'female') return 'F';
+  return null;
+}
+
+/** Da chiamare nella stessa transazione della registrazione/verifica CIE. */
+async function persistVerifiedCieSex(client, userId, sesso) {
+  if (sesso == null) return false;
+  if (sesso !== 'M' && sesso !== 'F') {
+    throw new Error('Valore sesso CIE non valido');
+  }
+  // Il claim CIE validato prevale sul valore storico nella stessa transazione
+  // della verifica d'identita'. La fonte del valore non e' conservata in users.
+  const result = await client.query(
+    `UPDATE users SET sesso = $1, updated_at = NOW()
+     WHERE id = $2
+       AND account_type = 'PERSON'
+       AND EXISTS (
+         SELECT 1 FROM identity_verifications iv
+         WHERE iv.user_id = users.id
+           AND iv.provider = 'CIE'
+           AND iv.status = 'verified'
+           AND iv.detached_at IS NULL
+       )`,
+    [sesso, userId]
+  );
+  if (result.rowCount !== 1) {
+    throw new Error('Conflitto: Account inesistente o non PERSON oppure verifica CIE assente');
+  }
+  return true;
+}
+
+
+module.exports = { sexFromVerifiedCieGender, persistVerifiedCieSex };

@@ -23,7 +23,7 @@ test('lo stato pubblico espone solo verified e provider', async () => {
     assert.match(sql, /SELECT provider, status/);
     assert.doesNotMatch(sql, /person_key/);
     assert.doesNotMatch(sql, /verified_at/);
-    assert.doesNotMatch(sql, /detached_at/);
+    assert.match(sql, /WHERE user_id = \$1 AND detached_at IS NULL/);
     assert.doesNotMatch(sql, /retention_until/);
 
     return {
@@ -98,18 +98,21 @@ test('stessa identita sullo stesso account e idempotente', async () => {
   assert.equal(result.verified, true);
 });
 
-test('blocca person_key gia collegata a un altro account', async () => {
+
+test('una collisione sulla person_key non abortisce la transazione e segnala il conflitto', async () => {
   let call = 0;
-  const db = createFakeDb(async () => {
+  const db = createFakeDb(async (sql, params) => {
     call++;
-    if (call === 1) return { rows: [] };
+    if (call === 1) return { rows: [] }; // no user identity
     if (call === 2) {
-      const error = new Error('duplicate');
-      error.code = '23505';
-      error.constraint = 'identity_verifications_person_key_key';
-      throw error;
+      assert.match(sql, /ON CONFLICT DO NOTHING/);
+      return { rows: [] }; // concurrent insert won
     }
-    return { rows: [] };
+    if (call === 3) return { rows: [] }; // no user identity after conflict
+    assert.equal(call, 4);
+    assert.match(sql, /WHERE person_key = \$1/);
+    assert.match(params[0], /^[a-f0-9]{64}$/);
+    return { rows: [{ '?column?': 1 }] }; // same identity already linked elsewhere
   });
 
   await assert.rejects(
@@ -119,4 +122,35 @@ test('blocca person_key gia collegata a un altro account', async () => {
     }, db),
     error => error instanceof IdentityVerificationError && error.code === 'PERSON_ALREADY_LINKED'
   );
+  assert.equal(call, 4);
+});
+
+test('la finalizzazione concorrente dello stesso account resta idempotente', async () => {
+  const key = require('../services/identityVerificationService')
+    .derivePersonKey('ABCDEF12G34H567I');
+  let call = 0;
+  const db = createFakeDb(async (sql) => {
+    call++;
+    if (call === 1) return { rows: [] };
+    if (call === 2) {
+      assert.match(sql, /ON CONFLICT DO NOTHING/);
+      return { rows: [] };
+    }
+    assert.equal(call, 3);
+    return { rows: [{
+      person_key: key,
+      provider: 'CIE',
+      status: 'verified',
+      detached_at: null,
+      verified_at: '2026-10-29T00:00:00Z',
+      retention_until: null
+    }] };
+  });
+  const result = await registerVerifiedIdentity({
+    userId: 'user-1',
+    fiscalNumber: 'ABCDEF12G34H567I'
+  }, db);
+  assert.equal(result.created, false);
+  assert.equal(result.verified, true);
+  assert.equal(call, 3);
 });

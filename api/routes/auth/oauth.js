@@ -106,11 +106,9 @@ async function findUserByProvider(provider, providerUserId, profile) {
     if (u.status !== 'a') {
       throw new Error('Account non attivo');
     }
-    console.log('OAuth: utente esistente', provider, u.id, '→ isNew: false (redirect Preferiti)');
     return { found: true, id: u.id, ruolo: u.ruolo, isNew: false };
   }
 
-  console.log('OAuth: primo accesso', provider, '→ isNew: true, nessuna riga in users finché non completa il wizard');
   return { found: false, isNew: true, profile: { provider, provider_sub: providerUserId, ...profile } };
 }
 
@@ -162,11 +160,10 @@ router.post('/oauth/google', authLimiter, async (req, res) => {
       tokenType: 'Bearer',
     });
   } catch (err) {
-    console.error('OAuth Google error:', err?.message || err);
     const status = err.message?.includes('non configurato') ? 503 : 401;
     res.status(status).json({
       success: false,
-      error: err.message || 'Accesso con Google non riuscito',
+      error: status === 503 ? 'Accesso con Google temporaneamente non disponibile' : 'Accesso con Google non riuscito',
     });
   }
 });
@@ -218,11 +215,10 @@ router.post('/oauth/apple', authLimiter, async (req, res) => {
       tokenType: 'Bearer',
     });
   } catch (err) {
-    console.error('OAuth Apple error:', err?.message || err);
     const status = err.message?.includes('non configurato') ? 503 : 401;
     res.status(status).json({
       success: false,
-      error: err.message || 'Accesso con Apple non riuscito',
+      error: status === 503 ? 'Accesso con Apple temporaneamente non disponibile' : 'Accesso con Apple non riuscito',
     });
   }
 });
@@ -317,7 +313,6 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
       message: 'Verifica la tua identita con CIE per completare la registrazione',
     });
   } catch (error) {
-    console.error('OAuth complete-registration error:', error?.message || error);
     const publicError = getPublicIdentityError(error, {
       status: 503,
       error: 'Registrazione temporaneamente non disponibile',
@@ -366,7 +361,6 @@ router.post('/oauth/registration/exchange', authLimiter, async (req, res) => {
       ...tokens,
     });
   } catch (error) {
-    console.error('OAuth registration ticket exchange error:', error?.message || error);
     return res.status(401).json({
       success: false,
       error: 'Ticket registrazione non valido, scaduto o gia utilizzato',

@@ -3,6 +3,7 @@ const router = express.Router();
 const { decompressUserLocation } = require('../utils/locationUtils');
 const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { protectSexCountRows } = require('../utils/canonicalSexAggregate');
 const { getAccountSubject, hasCapability, ACCOUNT_TYPES } = require('../services/accountCapabilitiesService');
 require('dotenv').config();
 
@@ -36,7 +37,8 @@ router.get('/', verifyToken, async (req, res) => {
         u.email,
         u.ruolo,
         u.data_nascita,
-        u.genere,
+        u.sesso,
+        u.account_type,
         u.regione_residenza,
         u.provincia_residenza,
         u.comune_residenza,
@@ -61,8 +63,10 @@ router.get('/', verifyToken, async (req, res) => {
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
     const supportersMap = new Map();
+    const verifiedSexById = new Map();
     result.rows.forEach(row => {
       if (!supportersMap.has(row.id)) {
+        verifiedSexById.set(row.id, row.account_type === 'PERSON' && (row.sesso === 'M' || row.sesso === 'F') ? row.sesso : null);
         supportersMap.set(row.id, {
           uid: row.id,
           nome: row.nome,
@@ -70,7 +74,6 @@ router.get('/', verifyToken, async (req, res) => {
           email: row.email,
           ruolo: row.ruolo,
           data_nascita: row.data_nascita,
-          genere: row.genere,
           regione_residenza: decompressUserLocation({ regione_residenza: row.regione_residenza }).regione_residenza,
           provincia_residenza: decompressUserLocation({ provincia_residenza: row.provincia_residenza }).provincia_residenza,
           comune_residenza: row.comune_residenza,
@@ -87,7 +90,13 @@ router.get('/', verifyToken, async (req, res) => {
 
     // Calcola statistiche
     const totalSupporters = supporters.length;
-    const genderDistribution = { Uomo: 0, Donna: 0, Altro: 0 };
+    const sexCounts = { M: 0, F: 0 };
+    for (const sesso of verifiedSexById.values()) {
+      if (sesso === 'M' || sesso === 'F') sexCounts[sesso] += 1;
+    }
+    const verifiedSexStats = protectSexCountRows(
+      Object.entries(sexCounts).map(([sesso, totale]) => ({ sesso, totale }))
+    );
     const locationDistribution = {};
     let ageSum = 0;
     const ageDistribution = {
@@ -107,12 +116,6 @@ router.get('/', verifyToken, async (req, res) => {
     };
 
     supporters.forEach(supporter => {
-      // Distribuzione per genere
-      const genere = supporter.genere || supporter.sesso || 'Altro';
-      if (genere === 'Maschio' || genere === 'M' || genere === 'uomo') genderDistribution.Uomo++;
-      else if (genere === 'Femmina' || genere === 'F' || genere === 'donna') genderDistribution.Donna++;
-      else genderDistribution.Altro++;
-
       // Distribuzione per località
       const location = decompressUserLocation({ regione_residenza: supporter.regione_residenza }).regione_residenza || supporter.regione || 'Non specificato';
       locationDistribution[location] = (locationDistribution[location] || 0) + 1;
@@ -137,7 +140,9 @@ router.get('/', verifyToken, async (req, res) => {
       supporters: req.user?.isAdmin ? supporters : [],
       stats: {
         totalSupporters,
-        genderDistribution,
+        genderDistribution: {},
+        sexDistribution: verifiedSexStats.data,
+        sexSuppressed: verifiedSexStats.suppressed,
         locationDistribution,
         averageAge,
         ageDistribution
@@ -551,7 +556,8 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
         u.email,
         u.ruolo,
         u.data_nascita,
-        u.genere,
+        u.sesso,
+        u.account_type,
         u.regione_residenza,
         u.provincia_residenza,
         u.comune_residenza,
@@ -561,6 +567,15 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
       ORDER BY u.created_at DESC
     `, [sostenuto_id]);
 
+    // Teniamo il sesso verificato sul server, non nella lista nominativa.
+    const sexCounts = { M: 0, F: 0 };
+    for (const row of result.rows) {
+      if (row.account_type === 'PERSON' && (row.sesso === 'M' || row.sesso === 'F')) sexCounts[row.sesso] += 1;
+    }
+    const verifiedSexStats = protectSexCountRows(
+      Object.entries(sexCounts).map(([sesso, totale]) => ({ sesso, totale }))
+    );
+
     const supporters = result.rows.map(row => ({
       uid: row.id,
       nome: row.nome,
@@ -568,7 +583,6 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
       email: row.email,
       ruolo: row.ruolo,
       data_nascita: row.data_nascita,
-      genere: row.genere,
       regione_residenza: decompressUserLocation({ regione_residenza: row.regione_residenza }).regione_residenza,
       provincia_residenza: decompressUserLocation({ provincia_residenza: row.provincia_residenza }).provincia_residenza,
       comune_residenza: row.comune_residenza,
@@ -576,7 +590,6 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
     }));
 
     const totalSupporters = supporters.length;
-    const genderDistribution = { Uomo: 0, Donna: 0, Altro: 0 };
     const locationDistribution = {};
 
     const getAge = (birthDate) => {
@@ -597,11 +610,6 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
     };
 
     supporters.forEach(s => {
-      const genere = s.genere || s.sesso || 'Altro';
-      if (genere === 'Maschio' || genere === 'M' || genere === 'uomo') genderDistribution.Uomo++;
-      else if (genere === 'Femmina' || genere === 'F' || genere === 'donna') genderDistribution.Donna++;
-      else genderDistribution.Altro++;
-
       const location = decompressUserLocation({ regione_residenza: s.regione_residenza }).regione_residenza || s.regione || 'Non specificato';
       locationDistribution[location] = (locationDistribution[location] || 0) + 1;
 
@@ -624,7 +632,9 @@ router.get('/organizzazione', verifyToken, async (req, res) => {
       supporters: req.user?.isAdmin ? supporters : [],
       stats: {
         totalSupporters,
-        genderDistribution,
+        genderDistribution: {},
+        sexDistribution: verifiedSexStats.data,
+        sexSuppressed: verifiedSexStats.suppressed,
         locationDistribution,
         averageAge,
         ageDistribution
