@@ -31,9 +31,11 @@ const clean = (value, max = 180) => value == null ? '' : String(value).trim().sl
 const normalize = (value) => clean(value).toLocaleLowerCase('it-IT').replace(/\s+/g, ' ');
 
 function italianDay(date = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit'
-  }).format(date);
+  }).formatToParts(date);
+  const value = (type) => parts.find((part) => part.type === type)?.value || '';
+  return value('year') + '-' + value('month') + '-' + value('day');
 }
 
 function italianTime(date) {
