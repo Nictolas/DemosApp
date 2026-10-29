@@ -137,7 +137,7 @@ jobs:
       - name: Compose review-only PR 374 and PR 376 in an ephemeral worktree
         shell: bash
         env:
-          PINNED_LEDGER_HEAD: 32d11a62d88810da4da63058166f99e595874354
+          PINNED_LEDGER_HEAD: e30c1e2a17e8f6c0de78044565b4954ea6532c42
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
