@@ -36,7 +36,14 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
   }
   
   const finalUrl = getApiUrl(url);
-  
+
+  // Revocation cancels the real transport, not only the React Query cache.
+  const controller = new AbortController();
+  const abortFromQuery = () => controller.abort();
+  if (externalSignal?.aborted) abortFromQuery();
+  else externalSignal?.addEventListener("abort", abortFromQuery, { once: true });
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+
   try {
     // Disabilita la cache per evitare problemi con status 304
     const fetchOptions: RequestInit = {
@@ -50,17 +57,7 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       cache: 'no-store'
     };
     
-    const controller = new AbortController();
-    const abortFromQuery = () => controller.abort();
-    if (externalSignal?.aborted) abortFromQuery();
-    else externalSignal?.addEventListener("abort", abortFromQuery, { once: true });
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
-    try {
-      var response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal });
-    } finally {
-      clearTimeout(timeoutId);
-      externalSignal?.removeEventListener("abort", abortFromQuery);
-    }
+    const response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal });
     
     // Leggi il body come testo prima di parsarlo
     const text = await response.text();
@@ -187,6 +184,9 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     }
     // Altrimenti, crea un nuovo errore
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    externalSignal?.removeEventListener("abort", abortFromQuery);
   }
 };
 
