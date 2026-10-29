@@ -133,8 +133,11 @@ jobs:
         working-directory: client
         run: npm audit --omit=dev --audit-level=high
 
+      # Execute this isolated node:test module directly: Node 22's test-runner
+      # IPC can intermittently fail to deserialize a worker message in CI.
+      # node:test still reports TAP and exits nonzero on assertion failures.
       - name: Political representative eligibility
-        run: node --test api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js
+        run: node api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js
 
       - name: PWA legacy cache retirement
         run: node --test api/tests/pwaServiceWorkerRetirement.smoke.test.js
