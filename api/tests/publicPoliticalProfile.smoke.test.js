@@ -85,7 +85,7 @@ test('public-profile UI hides edit controls and private demographic blocks', () 
 test('profile client aborts stale requests and avoids logging political choices', () => {
   assert.match(hook, /queryFn: \(\{ signal \}\)/);
   assert.match(hook, /getProfilePayload\(path: string, signal: AbortSignal\)/);
-  assert.match(hook, /\["profileSnapshot", ownerId \?\? null, targetId \?\? null\]/);
+  assert.match(hook, /const profileKey = \["profileSnapshot", ownerId \?\? null, targetId \?\? null\]/);
   assert.doesNotMatch(hook, /console\.(?:log|error|warn)\(/);
   assert.doesNotMatch(representatives, /console\.log\(/);
   assert.doesNotMatch(candidates, /console\.log\(/);
