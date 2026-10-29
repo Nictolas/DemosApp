@@ -151,28 +151,32 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
         return {
           emoji: '🗳️',
           bgColor: 'bg-blue-50 border-blue-200',
-          textColor: 'text-blue-900',
+          cardAccent: 'border-l-blue-500',
+          textColor: 'text-slate-900',
           accentColor: 'text-blue-600'
         };
       case 'demos':
         return {
           emoji: '📢',
           bgColor: 'bg-pink-50 border-pink-200',
-          textColor: 'text-pink-900',
+          cardAccent: 'border-l-pink-500',
+          textColor: 'text-slate-900',
           accentColor: 'text-pink-600'
         };
       case 'comunale':
         return {
           emoji: '🏛️',
           bgColor: 'bg-green-50 border-green-200',
-          textColor: 'text-green-900',
+          cardAccent: 'border-l-emerald-500',
+          textColor: 'text-slate-900',
           accentColor: 'text-green-600'
         };
       case 'segnalazione_problema':
         return {
           emoji: '⚠️',
           bgColor: 'bg-orange-50 border-orange-200',
-          textColor: 'text-orange-900',
+          cardAccent: 'border-l-orange-500',
+          textColor: 'text-slate-900',
           accentColor: 'text-orange-600'
         };
       case 'avvistamento':
@@ -189,14 +193,16 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
         return {
           emoji: emoji,
           bgColor: 'bg-amber-50 border-amber-200',
-          textColor: 'text-amber-900',
+          cardAccent: 'border-l-amber-500',
+          textColor: 'text-slate-900',
           accentColor: 'text-amber-600'
         };
       default:
         return {
           emoji: '📬',
           bgColor: 'bg-gray-50 border-gray-200',
-          textColor: 'text-gray-900',
+          cardAccent: 'border-l-slate-400',
+          textColor: 'text-slate-900',
           accentColor: 'text-gray-600'
         };
     }
@@ -473,12 +479,12 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   return (
     <>
     <div
-      className={`p-4 rounded-lg border-2 ${style.bgColor} ${style.textColor} shadow-sm hover:shadow-md transition-shadow ${tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? 'cursor-pointer' : ''}`}
+      className={`rounded-2xl border border-l-4 border-slate-200 ${style.cardAccent} bg-white p-3.5 text-slate-900 shadow-sm transition-shadow hover:shadow-md sm:p-4 ${tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? 'cursor-pointer' : ''}`}
       onClick={tipoNotifica === 'voto_parlamento' && notifica.uri_votazione ? handleNotificaClick : undefined}
     >
       <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-start gap-3">
             {/* Mostra avatar del politico per voti comuni e parlamentari, altrimenti emoji */}
             {(tipoNotifica === 'voto_comune' || tipoNotifica === 'voto_parlamento') && notifica.politico_avatar_config ? (
               <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-blue-300">
@@ -498,7 +504,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 />
               </div>
             ) : (
-              <span className="text-2xl">{style.emoji}</span>
+              <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${style.bgColor} text-lg leading-none`} aria-hidden="true">{style.emoji}</span>
             )}
             {(() => {
               const titolo = getNotificaTitle(notifica.titolo);
@@ -508,14 +514,14 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               if (tipoNotifica === 'voto_parlamento' || tipoNotifica === 'voto_comune' || titoloContieneHtml) {
                 return (
                   <h3
-                    className={`font-semibold ${style.textColor}`}
+                    className="min-w-0 break-words text-base font-semibold leading-snug text-slate-900"
                     dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(titoloString) }}
                   />
                 );
               }
 
               return (
-                <h3 className={`font-semibold ${style.textColor}`}>
+                <h3 className="min-w-0 break-words text-base font-semibold leading-snug text-slate-900">
                   {titolo}
                 </h3>
               );
@@ -528,13 +534,13 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             if (messaggioContieneHtml) {
               return (
                 <p
-                  className={`${style.textColor} opacity-90 mb-3`}
+                  className="mb-3 break-words text-sm leading-relaxed text-slate-700"
                   dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(msg) }}
                 />
               );
             }
             return (
-              <p className={`${style.textColor} opacity-90 mb-3`}>
+              <p className="mb-3 break-words text-sm leading-relaxed text-slate-700">
                 {msg}
               </p>
             );
@@ -721,7 +727,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </div>
           )}
 
-          <div className={`flex items-center gap-4 text-sm ${style.textColor} opacity-70`}>
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
             <span>
               {formatDate(notifica.data_creazione || notifica.created_at || notifica.data || '')}
             </span>
