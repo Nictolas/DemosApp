@@ -28,6 +28,23 @@ const MUTATING_STAGING_E2E_FLAGS = Object.freeze([
   'DEMOS_STAGING_ELECTORAL_PERIMETER_E2E'
 ]);
 
+// Additional opt-in jobs in the actual staging app. Some write to SQL,
+// external archives, or remote sources. Never run one alongside a claimed
+// readonly identity-only attestation. This still cannot silence unconditional
+// performance monitoring, Firebase initialization, or other provider access.
+const STAGING_BACKGROUND_JOB_FLAGS = Object.freeze([
+  'ENABLE_DATA_RETENTION',
+  'ENABLE_VIOLATION_MONITORING',
+  'ENABLE_AUTOMATIC_BACKUP',
+  'ENABLE_MINISTERO_SYNC',
+  'ENABLE_CIVIC_PROCESS_SYNC',
+  'ENABLE_POLITICAL_TERRITORY_RESOLVER',
+  'ENABLE_ITALIAN_ELECTION_UNIT_SYNC',
+  'ENABLE_VOTI_PARLAMENTO_SYNC',
+  'ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC',
+  'AXIOM_ARCHIVE_ENABLED'
+]);
+
 function assertProcessTarget(env) {
   if (env?.GDPR_RENDER_INPROCESS_ATTESTATION !== ENV_MARKER ||
       env.RENDER !== 'true' ||
@@ -39,6 +56,9 @@ function assertProcessTarget(env) {
   // Forbid combining that boot workflow with a read-only SQL identity probe.
   if (env.DEMOS_STAGING_MIGRATION_MODE != null &&
       env.DEMOS_STAGING_MIGRATION_MODE !== '') {
+    throw Error(BAD_CONFIG);
+  }
+  if (STAGING_BACKGROUND_JOB_FLAGS.some(key => env[key] === 'true')) {
     throw Error(BAD_CONFIG);
   }
   // Staging's existing server can launch E2E writers on its listening event.
@@ -104,5 +124,5 @@ async function attestInProcess({env, getPool, emit}) {
 
 module.exports=Object.freeze({
   attestInProcess,assertProcessTarget,LOG_PREFIX,STAGING_SERVICE_ID,
-  MUTATING_STAGING_E2E_FLAGS
+  MUTATING_STAGING_E2E_FLAGS,STAGING_BACKGROUND_JOB_FLAGS
 });
