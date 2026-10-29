@@ -117,6 +117,7 @@ export default function Organizzazioni() {
 
   // Carica gli organizzazioni
   useEffect(() => {
+    const controller = new AbortController();
     console.log('🚀 Organizzazioni useEffect - Inizio');
     const fetchOrganizzazioni = async () => {
       try {
@@ -133,7 +134,7 @@ export default function Organizzazioni() {
         const url = `${API_BASE}/api/organizzazioni${params.toString() ? '?' + params.toString() : ''}`;
         console.log('📡 fetchOrganizzazioni - Chiamata API:', url);
         
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: controller.signal });
         console.log('📡 fetchOrganizzazioni - Response status:', response.status);
         
         if (!response.ok) {
@@ -142,6 +143,8 @@ export default function Organizzazioni() {
         
         console.log('📡 fetchOrganizzazioni - Parsing JSON...');
         const data: OrganizzazioniResponse = await response.json();
+        // Una ricerca precedente non deve sovrascrivere i risultati dell'ultima digitazione.
+        if (controller.signal.aborted) return;
         console.log('📊 fetchOrganizzazioni - Data ricevuta:', data);
         
               if (data.success) {
@@ -162,16 +165,25 @@ export default function Organizzazioni() {
           throw new Error(data.message || 'Errore nel caricamento degli organizzazioni');
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error('❌ fetchOrganizzazioni - Errore:', error);
         setIsError(true);
         setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
       } finally {
         console.log('🏁 fetchOrganizzazioni - Completato, setIsLoading(false)');
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
-    fetchOrganizzazioni();
+    // Non interrogare il backend per ogni singola lettera.
+    const timer = window.setTimeout(() => {
+      void fetchOrganizzazioni();
+    }, searchTerm.trim() ? 300 : 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [searchTerm, selectedRegione, selectedTipologia]);
 
   // I filtri sono ora gestiti lato server, non serve più filtrare lato client
@@ -460,8 +472,7 @@ export default function Organizzazioni() {
               </p>
             </div>
 
-            {/* Barra di Ricerca e Filtri */}
-            {!isLoading && !isError && organizzazioni.length > 0 && (
+            {/* Barra di Ricerca e Filtri: resta montata anche mentre arrivano i risultati. */}
               <div className="mt-3">
                 <div className="max-w-4xl mx-auto w-full max-w-full">
                   {/* Ricerca Testuale */}
@@ -580,7 +591,6 @@ export default function Organizzazioni() {
                   )}
                 </div>
               </div>
-            )}
 
           </div>
         </div>
