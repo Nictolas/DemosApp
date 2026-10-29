@@ -143,7 +143,8 @@ export default function Eventi() {
       
       if (response?.ok && response?.data?.success) {
         // Refresh the eventi list
-        refetch();
+        void refetch();
+        void refetchPublic();
         alert('Evento eliminato con successo!');
       } else {
         const errorMsg = response?.data?.error || response?.data?.message || 'Errore nell\'eliminazione dell\'evento';
@@ -260,7 +261,8 @@ export default function Eventi() {
       });
       setIsEditModalOpen(false);
       setEditingEvent(null);
-      refetch();
+      void refetch();
+      void refetchPublic();
     },
     onError: (error) => {
       console.error('❌ Errore aggiornamento evento:', error);
@@ -356,7 +358,7 @@ export default function Eventi() {
             eventi.map((evento: any) => (
               <div
                 key={evento.id}
-                className={`rounded-xl shadow-lg border p-6 hover:shadow-xl transition-shadow ${
+                className={`rounded-xl shadow-sm border p-4 sm:p-5 hover:shadow-md transition-shadow ${
                   evento.tipologia_evento === 'Elezioni'
                     ? (evento.tipo_elezione && evento.tipo_elezione.toLowerCase() === 'europee')
                       ? 'bg-blue-50 border-blue-200 shadow-blue-100'
@@ -365,8 +367,8 @@ export default function Eventi() {
                 }`}
               >
                                             {/* Nome Evento */}
-                            <div className="flex items-center justify-between mb-3">
-                              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+                              <h3 className="text-lg sm:text-xl font-bold leading-snug break-words text-gray-900 flex items-center gap-2">
                                 {evento.tipologia_evento === 'Elezioni' && (
                                   <span className="text-2xl">🗳️</span>
                                 )}
