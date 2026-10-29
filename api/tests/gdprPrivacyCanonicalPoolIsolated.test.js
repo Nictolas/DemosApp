@@ -125,7 +125,10 @@ test('GDPR route no longer imports independently constructed legacy pool',()=>{
   const legacy=fs.readFileSync(DB_LEGACY,'utf8');
   assert.doesNotMatch(privacy,/require\(['"]\.\.\/\.\.\/config\/db['"]\)/);
   assert.match(privacy,/const \{ getPool \} = require\(['"]\.\.\/\.\.\/config\/database['"]\)/);
-  assert.doesNotMatch(requests,/require\(['"]\.\.\/\.\.\/config\/db['"]\)/);
+  // The rights-requests route is owned by PR #376, which replaces the
+  // legacy Pool with a TLS-safe compatibility module and persists receipts.
+  // Avoid modifying the same path in PR #374: both open drafts must compose.
+  assert.match(requests,/require\(['"]\.\.\/\.\.\/config\/db['"]\)/);
   assert.match(legacy,/new Pool\(config\)/);
   // The legacy source remains for the development SQL diagnostic. The
   // production routes that process privacy settings must not depend on it.
