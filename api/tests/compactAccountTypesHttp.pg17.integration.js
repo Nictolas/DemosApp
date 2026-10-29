@@ -104,6 +104,9 @@ async function main() {
     try {
       const pending=await request('/whoami',IDS.elector);
       assert.equal(pending.status,401);
+      const inactiveProfile=await request('/auth/me',IDS.elector);
+      assert.equal(inactiveProfile.status,401,
+        'Profile route must not reveal a revoked account on a still-valid JWT');
     } finally {
       await pool.query('UPDATE public.users SET status=$1 WHERE id=$2',['a',IDS.elector]);
     }
