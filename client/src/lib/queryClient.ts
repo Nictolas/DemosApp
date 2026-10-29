@@ -122,7 +122,16 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       data?.success !== false &&
       profileWriteRoots.some((root) => apiPath === root || apiPath.startsWith(root + "/"))
     ) {
-      void queryClient.invalidateQueries({ queryKey: ["profileSnapshot"] });
+      // Dopo revoca/cancellazione non conservare una snapshot politica obsoleta
+      // neppure durante il refetch: reset immediato invece di sola invalidazione.
+      if (
+        apiPath === "user/political-opinions-consent/revoke" ||
+        apiPath === "user/delete-account"
+      ) {
+        void queryClient.resetQueries({ queryKey: ["profileSnapshot"] });
+      } else {
+        void queryClient.invalidateQueries({ queryKey: ["profileSnapshot"] });
+      }
     }
 
     // Restituisci un oggetto Response-like per compatibilità
