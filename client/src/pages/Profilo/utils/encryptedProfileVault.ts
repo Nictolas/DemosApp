@@ -41,6 +41,8 @@ export function profileSectionRevision(owner: string, section: ProfileCacheSecti
 export type EncryptedOpinionCategory = {
   version: 1;
   grade: "E" | "N" | "R" | "CO";
+  // Content hash served from the backend release catalog (never user data).
+  catalogRevision: string;
   questions: Array<{ id: string; text: string; userAnswer: "f" | "c" | "i" | null; grado?: unknown }>;
 };
 
