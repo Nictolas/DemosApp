@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Redirect, useLocation, useParams } from "wouter";
+import { Link, Redirect, useLocation, useParams } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
 import { PageContainer } from "@/components/PageContainer";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Settings, Star } from "lucide-react";
 
 // Componenti modulari
 import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
@@ -15,7 +15,7 @@ import { ProfileOpinions } from "./components/ProfileOpinions";
 import { ProfileGovernoIdeale } from "./components/ProfileGovernoIdeale";
 
 // Hook personalizzato
-import { useProfileData } from "./hooks/useProfileData";
+import { useProfileData, CLOSED_PROFILE_PANELS, type ProfilePanels } from "./hooks/useProfileData";
 
 // Types
 import { UserInfo } from "@/types/profile";
@@ -30,6 +30,9 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
   const [, setLocation] = useLocation();
   const params = useParams();
   const [isEditing, setIsEditing] = useState(false);
+  const [openPanels, setOpenPanels] = useState<ProfilePanels>(CLOSED_PROFILE_PANELS);
+  const setPanel = (key: keyof ProfilePanels, expanded: boolean) =>
+    setOpenPanels((current) => ({ ...current, [key]: expanded }));
   
   // Estrai userId dall'URL o dalla prop
   const userId = propUserId || params.userId;
@@ -45,44 +48,21 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     opinionQuestions,
     rappresentantiDetails,
     candidatiDetails,
+    sectionsLoading,
+    consentGranted,
+    consentChecked,
     fetchAllProfileData,
     isLoading,
     authReady
-  } = useProfileData(userId);
+  } = useProfileData(userId, { ...openPanels, edit: isEditing });
 
   // Determina se l'utente sta visualizzando il proprio profilo o quello di un altro
   const isViewingOwnProfile = !userId || userId === user?.id;
   const isViewingOtherProfile = Boolean(userId && userId !== user?.id);
 
-  // Per l'utente che guarda il proprio profilo, integra eventuali dati salvati solo client-side (profilo_locale)
-  let displayUserInfo: UserInfo | null = userInfo;
-  if (typeof window !== "undefined" && isViewingOwnProfile && userInfo) {
-    try {
-      const localProfileRaw = window.localStorage.getItem("profilo_locale");
-      if (localProfileRaw) {
-        const localProfile = JSON.parse(localProfileRaw);
-        const merged: UserInfo = { ...userInfo };
-        const fields: (keyof UserInfo | string)[] = [
-          "genere",
-          "cittadinanza",
-          "paese_residenza",
-          "regione_residenza",
-          "provincia_residenza",
-          "comune_residenza",
-          "data_nascita",
-        ];
-        fields.forEach((field) => {
-          const key = field as keyof UserInfo;
-          if (!merged[key] && localProfile[field] != null) {
-            (merged as any)[field] = localProfile[field];
-          }
-        });
-        displayUserInfo = merged;
-      }
-    } catch (e) {
-      console.warn("⚠️ Impossibile leggere profilo_locale dal localStorage:", e);
-    }
-  }
+  // No shared profilo_locale: the hook restores only the allowlisted per-account
+  // summary from device storage, never political answers or selection IDs.
+  const displayUserInfo: UserInfo | null = userInfo;
 
   // Gestione modifica immagine
   const handleModificaImmagine = () => {
@@ -135,6 +115,16 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
         </div>
 
         <div className="space-y-4">
+        {isViewingOwnProfile && (
+          <nav aria-label="Collegamenti del profilo" className="grid grid-cols-2 gap-3">
+            <Link href="/preferiti" className="flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-3 text-sm font-semibold text-indigo-700 shadow-sm">
+              <Star className="h-4 w-4" aria-hidden="true" /> Preferiti
+            </Link>
+            <Link href="/impostazioni" className="flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-3 text-sm font-semibold text-indigo-700 shadow-sm">
+              <Settings className="h-4 w-4" aria-hidden="true" /> Impostazioni
+            </Link>
+          </nav>
+        )}
         {/* Stati di caricamento e errore */}
         <ProfileLoadingStates
           isLoading={isLoading}
@@ -154,7 +144,9 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
           <>
             {/* Form di modifica a larghezza piena */}
             {isEditing && displayUserInfo ? (
-              <EditProfileForm
+              sectionsLoading.personal ? (
+                <p role="status" className="rounded-xl bg-white p-4 text-sm text-slate-600">Caricamento dati per la modifica…</p>
+              ) : <EditProfileForm
                 userData={{...displayUserInfo, uid: displayUserInfo.id || ''}}
                 onProfileUpdated={handleSaveProfile}
                 onCancel={() => setIsEditing(false)}
@@ -169,6 +161,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                     userInfo={displayUserInfo}
                     isEditing={isEditing}
                     onEditClick={() => setIsEditing(true)}
+                    onPersonalDetailsToggle={(expanded) => setPanel("personal", expanded)}
                     onModificaImmagine={handleModificaImmagine}
                     canEdit={isViewingOwnProfile}
                     isOwnProfile={isViewingOwnProfile}
@@ -179,35 +172,47 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 {/* Mobile: le selezioni restano consultabili ma non allungano il profilo. */}
                 <div className="min-w-0 space-y-3">
                   {isViewingOwnProfile && userInfo && userInfo.ruolo !== "I" && (
-                    <details className="group rounded-xl border border-slate-100 bg-white shadow-sm">
+                    <details onToggle={(event) => setPanel("representatives", event.currentTarget.open)} className="group rounded-xl border border-slate-100 bg-white shadow-sm">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 [&::-webkit-details-marker]:hidden">
                         Rappresentanti selezionati
                         <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
                       </summary>
                       <div className="border-t border-slate-100 px-4 pb-4 pt-3">
-                        <ProfileRepresentatives
-                          userInfo={userInfo}
-                          rappresentantiDetails={rappresentantiDetails}
-                          canEditSelections={isViewingOwnProfile}
-                          showHeading={false}
-                        />
+                        {sectionsLoading.representatives ? (
+                          <p role="status" className="text-sm text-slate-500">Caricamento rappresentanti…</p>
+                        ) : !consentGranted ? (
+                          <p className="text-sm text-slate-500">Per visualizzare le selezioni è necessario il consenso politico.</p>
+                        ) : (
+                          <ProfileRepresentatives
+                            userInfo={userInfo}
+                            rappresentantiDetails={rappresentantiDetails}
+                            canEditSelections={isViewingOwnProfile}
+                            showHeading={false}
+                          />
+                        )}
                       </div>
                     </details>
                   )}
 
-                  {userInfo && userInfo.ruolo !== "I" && (
-                    <details className="group rounded-xl border border-slate-100 bg-white shadow-sm">
+                  {isViewingOwnProfile && userInfo && userInfo.ruolo !== "I" && (
+                    <details onToggle={(event) => setPanel("candidates", event.currentTarget.open)} className="group rounded-xl border border-slate-100 bg-white shadow-sm">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 [&::-webkit-details-marker]:hidden">
                         Candidati selezionati
                         <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
                       </summary>
                       <div className="border-t border-slate-100 px-4 pb-4 pt-3">
-                        <ProfileCandidates
-                          userInfo={userInfo}
-                          candidatiDetails={candidatiDetails}
-                          canEditSelections={isViewingOwnProfile}
-                          showHeading={false}
-                        />
+                        {sectionsLoading.candidates ? (
+                          <p role="status" className="text-sm text-slate-500">Caricamento candidati…</p>
+                        ) : !consentGranted ? (
+                          <p className="text-sm text-slate-500">Per visualizzare le selezioni è necessario il consenso politico.</p>
+                        ) : (
+                          <ProfileCandidates
+                            userInfo={userInfo}
+                            candidatiDetails={candidatiDetails}
+                            canEditSelections={isViewingOwnProfile}
+                            showHeading={false}
+                          />
+                        )}
                       </div>
                     </details>
                   )}
@@ -215,23 +220,36 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
 
                 {/* Colonna 3: Il Tuo Governo Ideale */}
                 <div className="min-w-0">
-                  {isViewingOwnProfile && <ProfileGovernoIdeale governoIdeale={governoIdeale} />}
+                  {isViewingOwnProfile && (
+                    <ProfileGovernoIdeale
+                      governoIdeale={governoIdeale}
+                      onExpandedChange={(expanded) => setPanel("government", expanded)}
+                      isLoading={sectionsLoading.government}
+                      hasLoaded={openPanels.government && consentChecked}
+                    />
+                  )}
                 </div>
               </div>
             )}
 
             {/* Le opinioni restano accessibili senza un elenco lungo all'apertura. */}
-            {isViewingOwnProfile && Object.keys(userOpinions).length > 0 && (
-              <details className="group rounded-xl border border-slate-100 bg-white shadow-sm">
+            {isViewingOwnProfile && (
+              <details onToggle={(event) => setPanel("opinions", event.currentTarget.open)} className="group rounded-xl border border-slate-100 bg-white shadow-sm">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 [&::-webkit-details-marker]:hidden">
                   Opinioni politiche · {Object.keys(userOpinions).length}
                   <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
                 </summary>
                 <div className="border-t border-slate-100 p-3">
-                  <ProfileOpinions
-                    userOpinions={userOpinions}
-                    opinionQuestions={opinionQuestions}
-                  />
+                  <Link href="/opinioni" className="mb-3 inline-flex text-sm font-semibold text-blue-700 hover:underline">
+                    Esprimi opinioni
+                  </Link>
+                  {sectionsLoading.opinions ? (
+                    <p role="status" className="text-sm text-slate-500">Caricamento opinioni…</p>
+                  ) : !consentGranted ? (
+                    <p className="text-sm text-slate-500">Per visualizzare le opinioni è necessario il consenso politico.</p>
+                  ) : (
+                    <ProfileOpinions userOpinions={userOpinions} opinionQuestions={opinionQuestions} />
+                  )}
                 </div>
               </details>
             )}
