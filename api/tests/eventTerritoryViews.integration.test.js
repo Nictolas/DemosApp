@@ -114,3 +114,21 @@ test('Chrono source attribution is displayed only once, not inside each event ca
   assert.match(cardBlock, /evento\.external_import \? 'Fine: '/);
   assert.match(cardBlock, /evento\.external_import && evento\.orario_fine/);
 });
+
+
+test('single-day Eventi cards show a time range once, without duplicate clock rows', () => {
+  const page = fs.readFileSync(path.join(root, 'client/src/pages/Eventi.tsx'), 'utf8');
+  const start = page.indexOf('{/* Date e Orari - Solo per eventi non "Elezioni" */}');
+  const end = page.indexOf('{/* Per eventi "Elezioni" - Mostra date disponibili */}', start);
+  assert.ok(start >= 0 && end > start, 'Eventi date display section missing');
+  const dates = page.slice(start, end);
+
+  assert.match(dates, /\\? 'Inizio: ' : 'Quando: '/);
+  assert.match(dates, /formatDate\\(evento\\.giorno_inizio\\)/);
+  assert.match(dates, /formatTime\\(evento\\.orario_inizio\\)/);
+  assert.match(dates, /formatTime\\(evento\\.orario_fine\\)/);
+  assert.doesNotMatch(dates, /Orario inizio:|Orario fine:/);
+  assert.doesNotMatch(dates, /Orari senza secondo giorno/);
+  assert.match(dates, /evento\\.giorno_fine && evento\\.giorno_fine !== evento\\.giorno_inizio/,
+    'Multi-day events retain their separate end date');
+});
