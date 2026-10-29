@@ -13,8 +13,8 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: Prof
   const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
 
   const fetchRepresentativeNames = async (userInfo: any) => {
-    console.log('🔍 DEBUG ProfileRepresentatives - userInfo:', userInfo);
-    console.log('🔍 DEBUG ProfileRepresentatives - rappresentantiDetails:', rappresentantiDetails);
+
+
     
     const representatives = {
       rappresentante_europeo: userInfo.rappresentante_europeo,
@@ -23,7 +23,7 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: Prof
       rappresentante_regionale: userInfo.rappresentante_regionale,
       rappresentante_comune: userInfo.rappresentante_comune,
     };
-    console.log('🔍 DEBUG ProfileRepresentatives - representatives IDs:', representatives);
+
     
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
@@ -38,18 +38,18 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: Prof
     };
     
     for (const [key, value] of Object.entries(representatives)) {
-      console.log(`🔍 DEBUG ProfileRepresentatives - Processing ${key}:`, value);
+
       
       if (value && typeof value === 'string') {
         // Cerca nei dettagli completi
         const category = categoryMap[key];
-        console.log(`🔍 DEBUG ProfileRepresentatives - Category for ${key}:`, category);
-        console.log(`🔍 DEBUG ProfileRepresentatives - rappresentantiDetails[${category}]:`, rappresentantiDetails?.[category]);
+
+
         if (rappresentantiDetails && rappresentantiDetails[category] && rappresentantiDetails[category].length > 0) {
           // Cerca il rappresentante con l'ID corrispondente
           const representative = rappresentantiDetails[category].find((r: any) => r.id === value);
           if (representative) {
-            console.log(`🔍 DEBUG ProfileRepresentatives - Found representative for ${key}:`, representative);
+
             names[key] = `${representative.nome} ${representative.cognome}`;
             if (representative.avatar_config) {
               try {
@@ -67,26 +67,25 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: Prof
                 }
                 avatars[key] = config;
               } catch (e) {
-                console.log(`⚠️ DEBUG ProfileRepresentatives - Errore parsing avatar per ${key}:`, e);
+
                 avatars[key] = null;
               }
             }
           } else {
-            console.log(`🔍 DEBUG ProfileRepresentatives - Representative with ID ${value} not found in ${category}`);
+
             names[key] = "Non selezionato";
           }
         } else {
-          console.log(`🔍 DEBUG ProfileRepresentatives - No details found for ${key}, setting as not selected`);
+
           names[key] = "Non selezionato";
         }
       } else {
-        console.log(`🔍 DEBUG ProfileRepresentatives - No value for ${key}, setting as not selected`);
+
         names[key] = "Non selezionato";
       }
     }
-    
-    console.log('🔍 DEBUG ProfileRepresentatives - Final names:', names);
-    console.log('🔍 DEBUG ProfileRepresentatives - Final avatars:', avatars);
+
+
     
     setRepresentativeNames(names);
     setRepresentativeAvatars(avatars);
