@@ -54,7 +54,7 @@ test("the first bottom nav item is Profile, with no Favorites or Settings tab", 
 test("owner Profile keeps Demos logo left and the icon-only Settings shortcut on the right", () => {
   const settings = profile.indexOf('data-testid="profilo-impostazioni-icon"');
   const logo = profile.indexOf('data-testid="profilo-logo-gestisci"');
-  const heading = profile.indexOf('Profilo Utente');
+  const heading = profile.indexOf('Profilo Cittadino');
   assert.ok(logo > 0 && logo < heading && heading < settings,
     "Demos logo must precede the title; Settings must be the rightmost header item");
   assert.match(profile, /<div className="min-w-0 flex-1">/);
