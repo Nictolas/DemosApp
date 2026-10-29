@@ -6,6 +6,17 @@ const ACCOUNT_TYPES = Object.freeze({
   ORGANIZATION: 'ORGANIZATION'
 });
 
+// Transitional storage: old labels and new 1-letter database codes.
+// Keep stable descriptive API semantics while both DB encodings coexist.
+const ACCOUNT_TYPE_CODES = Object.freeze({ PERSON: 'P', ORGANIZATION: 'O', INSTITUTION: 'E' });
+function normalizeAccountType(value) {
+  const code = String(value || '').toUpperCase();
+  if (code === 'P' || code === 'PERSON') return ACCOUNT_TYPES.PERSON;
+  if (code === 'O' || code === 'ORGANIZATION') return ACCOUNT_TYPES.ORGANIZATION;
+  if (code === 'E' || code === 'INSTITUTION') return ACCOUNT_TYPES.INSTITUTION;
+  return null;
+}
+
 function normalizeLegacyRole(role) {
   const value = String(role || '').trim();
   const aliases = {
@@ -38,7 +49,7 @@ function capabilitiesFromLegacyRole(role) {
 }
 
 function deriveLegacyRole(capabilities = {}) {
-  const accountType = capabilities.accountType || ACCOUNT_TYPES.PERSON;
+  const accountType = normalizeAccountType(capabilities.accountType) || ACCOUNT_TYPES.PERSON;
   if (accountType === ACCOUNT_TYPES.INSTITUTION) return 'I';
   if (accountType === ACCOUNT_TYPES.ORGANIZATION) return 'O';
 
@@ -54,7 +65,7 @@ function deriveLegacyRole(capabilities = {}) {
 
 function normalizeNewModelRow(row) {
   const capabilities = {
-    accountType: row.account_type || ACCOUNT_TYPES.PERSON,
+    accountType: normalizeAccountType(row.account_type) || ACCOUNT_TYPES.PERSON,
     isAdmin: Boolean(row.is_admin),
     isActivist: Boolean(row.is_activist),
     isCandidate: Boolean(row.is_candidate),
@@ -141,6 +152,8 @@ function hasCapability(subject, capability) {
 
 module.exports = {
   ACCOUNT_TYPES,
+  ACCOUNT_TYPE_CODES,
+  normalizeAccountType,
   LEGACY_SCHEMA_ERROR_CODES,
   normalizeLegacyRole,
   capabilitiesFromLegacyRole,
