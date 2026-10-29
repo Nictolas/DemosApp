@@ -17,6 +17,22 @@ type ProfileSnapshot = {
   candidatiDetails: Record<string, any>;
 };
 
+function normalizeOpinionValue(value: unknown): string | null {
+  if (value === "f" || value === "Sì" || value === "Favorevole") return "Favorevole";
+  if (value === "c" || value === "No" || value === "Contrario") return "Contrario";
+  if (value === "i" || value === "Indeciso" || value === "Non lo so") return "Indeciso";
+  return null;
+}
+
+function normalizeOpinionAnswers(raw: Record<string, unknown>): Record<string, string> {
+  const output: Record<string, string> = {};
+  for (const [id, answer] of Object.entries(raw)) {
+    const normalized = normalizeOpinionValue(answer);
+    if (normalized) output[id] = normalized;
+  }
+  return output;
+}
+
 function parseAvatar(value: unknown): unknown {
   if (!value) return null;
   try {
@@ -62,10 +78,10 @@ async function loadOwnProfile(): Promise<ProfileSnapshot> {
   return {
     userInfo,
     avatarConfig: parseAvatar(userInfo.avatar_config),
-    userOpinions: {
+    userOpinions: normalizeOpinionAnswers({
       ...extractBaseOpinions(userInfo),
       ...(opinionData?.userAnswers || {}),
-    },
+    }),
     opinionQuestions: Array.isArray(opinionData?.questions) ? opinionData.questions : [],
     governoIdeale: government?.data?.success === false ? {} : (government?.data || {}),
     rappresentantiDetails: representatives?.data?.rappresentanti || {},
@@ -84,11 +100,21 @@ async function loadOtherProfile(targetUserId: string): Promise<ProfileSnapshot> 
     `/api/users/${encodeURIComponent(targetUserId)}/opinioni`,
   );
   const opinionData = opinions?.data;
+  const publicOpinions = Array.isArray(opinionData?.opinioni) ? opinionData.opinioni : [];
+  const answers: Record<string, string> = {};
+  const questions: OpinionQuestion[] = [];
+  for (const item of publicOpinions) {
+    if (typeof item?.id !== "string") continue;
+    const normalized = normalizeOpinionValue(item.userAnswer);
+    if (!normalized) continue;
+    answers[item.id] = normalized;
+    questions.push({ id: item.id, text: String(item.text || "") });
+  }
   return {
     userInfo,
     avatarConfig: parseAvatar(userInfo.avatar_config),
-    userOpinions: opinionData?.userAnswers || {},
-    opinionQuestions: Array.isArray(opinionData?.questions) ? opinionData.questions : [],
+    userOpinions: answers,
+    opinionQuestions: questions,
     governoIdeale: payload.public?.governoIdeale || {},
     rappresentantiDetails: payload.public?.rappresentanti || {},
     candidatiDetails: payload.public?.candidati || {},
