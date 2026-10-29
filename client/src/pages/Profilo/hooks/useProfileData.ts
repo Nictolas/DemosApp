@@ -7,7 +7,7 @@ import type { UserInfo } from "@/types/profile";
 import type { OpinionQuestion } from "../types";
 import { extractBaseOpinions } from "../utils/opinionUtils";
 import {
-  loadEncryptedProfile, patchEncryptedProfile, clearEncryptedProfile,
+  loadEncryptedProfile, patchEncryptedProfile, clearEncryptedProfile, profileSectionRevision,
   filterPersistedFullProfile, type ProfileChosenVotes,
 } from "../utils/encryptedProfileVault";
 import {
@@ -193,9 +193,10 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     queryKey: ["profileFull", ownerId, politicalPanelOpen ? politicalEpoch : "personal"],
     enabled: enabled && ownProfile && vaultReady && needFull,
     queryFn: async () => {
+      const revision = profileSectionRevision(ownerId, "full");
       const payload = await getPayload("/api/users/me");
       const loaded = (payload.user || payload.data || payload) as UserInfo;
-      await patchEncryptedProfile(ownerId, { full: filterPersistedFullProfile(loaded) });
+      await patchEncryptedProfile(ownerId, { full: filterPersistedFullProfile(loaded) }, { full: revision });
       return loaded;
     },
     staleTime: PROFILE_CACHE_FRESH,
@@ -207,9 +208,10 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     queryKey: ["profilePolitical", ownerId, politicalEpoch, "preferences"],
     enabled: enabled && vaultReady && politicalAllowed,
     queryFn: async () => {
+      const revision = profileSectionRevision(ownerId, "preferences");
       const payload = await getPayload("/api/user/profile-selections");
       const value = payload.data as ProfileChosenVotes;
-      await patchEncryptedProfile(ownerId, { preferences: value });
+      await patchEncryptedProfile(ownerId, { preferences: value }, { preferences: revision });
       return value;
     },
     staleTime: PROFILE_CACHE_FRESH,
@@ -221,8 +223,9 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     queryKey: ["profilePolitical", ownerId, politicalEpoch, "government"],
     enabled: enabled && vaultReady && politicalAllowed && panels.government,
     queryFn: async () => {
+      const revision = profileSectionRevision(ownerId, "government");
       const result = (await getPayload("/api/governo/ideale")).data || {};
-      await patchEncryptedProfile(ownerId, { government: result });
+      await patchEncryptedProfile(ownerId, { government: result }, { government: revision });
       return result;
     },
     staleTime: PROFILE_CACHE_FRESH,
@@ -232,8 +235,9 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     queryKey: ["profilePolitical", ownerId, politicalEpoch, "representatives"],
     enabled: enabled && vaultReady && politicalAllowed && panels.representatives,
     queryFn: async () => {
+      const revision = profileSectionRevision(ownerId, "representatives");
       const result = (await getPayload("/api/rappresentanti")).data?.rappresentanti || {};
-      await patchEncryptedProfile(ownerId, { representatives: result });
+      await patchEncryptedProfile(ownerId, { representatives: result }, { representatives: revision });
       return result;
     },
     staleTime: PROFILE_CACHE_FRESH,
@@ -243,8 +247,9 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     queryKey: ["profilePolitical", ownerId, politicalEpoch, "candidates"],
     enabled: enabled && vaultReady && politicalAllowed && panels.candidates,
     queryFn: async () => {
+      const revision = profileSectionRevision(ownerId, "candidates");
       const result = (await getPayload("/api/candidati/selezioni")).data?.candidati || {};
-      await patchEncryptedProfile(ownerId, { candidates: result });
+      await patchEncryptedProfile(ownerId, { candidates: result }, { candidates: revision });
       return result;
     },
     staleTime: PROFILE_CACHE_FRESH,
@@ -254,10 +259,11 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     queryKey: ["profilePolitical", ownerId, politicalEpoch, "opinions"],
     enabled: enabled && vaultReady && politicalAllowed && panels.opinions,
     queryFn: async () => {
+      const revision = profileSectionRevision(ownerId, "opinions");
       const payload = (await getPayload("/api/opinioni/profile")).data || {};
       const result = { questions: Array.isArray(payload.questions) ? payload.questions : [],
         userAnswers: payload.userAnswers || {} };
-      await patchEncryptedProfile(ownerId, { opinions: result });
+      await patchEncryptedProfile(ownerId, { opinions: result }, { opinions: revision });
       return result;
     },
     staleTime: PROFILE_CACHE_FRESH,
