@@ -1,0 +1,50 @@
+name: Political duplicate import guard
+
+on:
+  pull_request:
+    paths:
+      - "api/insert-senatori-da-voti-nominali.sql"
+      - "api/insert-parlamentari-senato-nuovi.sql"
+      - "api/insert-parlamentari-senato.sql"
+      - "api/insert-parlamentari-camera.sql"
+      - "api/insert-parlamentari-camera-nuovi.sql"
+      - "api/esegui-insert-senatori.js"
+      - "api/scripts/audit-political-duplicate-users-20261028.sql"
+      - "api/docs/parliament-duplicate-review-20261028.md"
+      - "api/tests/retiredPoliticalImporters.smoke.test.js"
+      - ".github/workflows/political-duplicate-guard.yml"
+  push:
+    branches:
+      - "fix/retire-duplicate-parliament-importers-20261028"
+    paths:
+      - "api/insert-senatori-da-voti-nominali.sql"
+      - "api/insert-parlamentari-senato-nuovi.sql"
+      - "api/insert-parlamentari-senato.sql"
+      - "api/insert-parlamentari-camera.sql"
+      - "api/insert-parlamentari-camera-nuovi.sql"
+      - "api/esegui-insert-senatori.js"
+      - "api/scripts/audit-political-duplicate-users-20261028.sql"
+      - "api/docs/parliament-duplicate-review-20261028.md"
+      - "api/tests/retiredPoliticalImporters.smoke.test.js"
+      - ".github/workflows/political-duplicate-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fail-closed-imports:
+    name: No legacy user creation / read-only audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Run isolated import and audit checks
+        run: node --test api/tests/retiredPoliticalImporters.smoke.test.js

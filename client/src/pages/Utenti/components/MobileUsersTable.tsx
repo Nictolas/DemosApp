@@ -1,31 +1,17 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, User, Mail, Calendar } from "lucide-react";
+import { User, Mail, Calendar } from "lucide-react";
 import { User as UserType } from "../types";
 import { formatColumnValue } from "../utils/columnUtils";
-import { EditableDropdown } from "./EditableDropdown";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 interface MobileUsersTableProps {
   users: UserType[];
-  onEdit: (user: UserType) => void;
-  onEditOpinioni: (user: UserType) => void;
-  onDelete: (user: UserType) => void;
-  onEditAvatar?: (user: UserType) => void;
-  userChanges?: Record<string, { grado_elezione?: string | null; grado_candidatura?: string | null }>;
-  onFieldChange?: (userId: string, field: 'grado_elezione' | 'grado_candidatura', value: string | null) => void;
 }
 
 export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
-  users,
-  onEdit,
-  onEditOpinioni,
-  onDelete,
-  onEditAvatar,
-  userChanges = {},
-  onFieldChange
+  users
 }) => {
   if (users.length === 0) {
     return (
@@ -67,16 +53,12 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
       {users.map((user) => (
         <Card key={user.id} className="w-full shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-4">
-            {/* Header con nome e azioni */}
+            {/* Header del profilo in sola consultazione */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-1">
                   {/* Avatar */}
-                  <div 
-                    className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => onEditAvatar?.(user)}
-                    title="Clicca per modificare l'avatar"
-                  >
+                  <div className="flex-shrink-0">
                     {user.avatar_config ? (
                       (() => {
                         try {
@@ -130,63 +112,23 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
               </div>
             </div>
             
-            {/* Campi editabili per grado_elezione e grado_candidatura */}
-            <div className="space-y-3 mb-4">
-              {user.grado_elezione !== undefined && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Grado Elezione</label>
-                  <EditableDropdown
-                    value={userChanges[user.id]?.grado_elezione !== undefined ? userChanges[user.id].grado_elezione : user.grado_elezione}
-                    onChange={(value) => onFieldChange?.(user.id, 'grado_elezione', value)}
-                    options={['E', 'N', 'C', 'S', 'R', 'CO']}
-                    placeholder="Seleziona grado elezione..."
-                    className="w-full"
-                  />
-                </div>
-              )}
-              
-              {user.grado_candidatura !== undefined && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Grado Candidatura</label>
-                  <EditableDropdown
-                    value={userChanges[user.id]?.grado_candidatura !== undefined ? userChanges[user.id].grado_candidatura : user.grado_candidatura}
-                    onChange={(value) => onFieldChange?.(user.id, 'grado_candidatura', value)}
-                    options={['E', 'N', 'C', 'S', 'R', 'CO']}
-                    placeholder="Seleziona grado candidatura..."
-                    className="w-full"
-                  />
-                </div>
-              )}
-            </div>
-            
-            {/* Azioni */}
-            <div className="flex space-x-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onEdit(user)}
-                className="flex-1 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
-              >
-                <Edit className="h-4 w-4 mr-1" />
-                Modifica
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onEditOpinioni(user)}
-                className="flex-1 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors"
-              >
-                📝 Opinioni
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => onDelete(user)}
-                className="hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+            {/* Gradi elettorali: visualizzati senza controlli di modifica. */}
+            {(user.grado_elezione || user.grado_candidatura) && (
+              <div className="grid grid-cols-2 gap-3 text-sm text-gray-700">
+                {user.grado_elezione && (
+                  <div>
+                    <span className="block text-xs text-gray-500">Grado Elezione</span>
+                    <span>{user.grado_elezione}</span>
+                  </div>
+                )}
+                {user.grado_candidatura && (
+                  <div>
+                    <span className="block text-xs text-gray-500">Grado Candidatura</span>
+                    <span>{user.grado_candidatura}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}

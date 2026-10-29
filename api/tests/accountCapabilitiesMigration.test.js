@@ -47,3 +47,37 @@ test('PostgreSQL function blocks keep valid dollar-quote delimiters', () => {
   assert.equal(closings, openings);
   assert.doesNotMatch(sql, /AS \$\n/);
 });
+
+
+test('capability migration rejects unverifiable legacy politicians before inventing ACTIVE mandates', () => {
+  const uncommented = sql.split('\n').filter(x => !x.trimStart().startsWith('--')).join('\n');
+  // Legacy P/CP is not evidence of a currently held office; fail-closed.
+  assert.match(uncommented, /DO \$unverified_mandate_guard\$/);
+  assert.match(uncommented, /unresolved_count > 0/);
+  assert.match(uncommented, /RAISE EXCEPTION/);
+  assert.match(uncommented, /NOT EXISTS \(\s*SELECT 1 FROM political_mandates pm/);
+  assert.match(uncommented, /pm\.user_id = u\.id AND pm\.status = 'ACTIVE'/);
+  assert.match(uncommented, /pm\.source <> 'LEGACY_BACKFILL'/);
+  assert.match(uncommented, /pm\.starts_at IS NULL OR pm\.starts_at <= NOW\(\)/);
+  assert.match(uncommented, /pm\.ends_at IS NULL OR pm\.ends_at > NOW\(\)/);
+  assert.doesNotMatch(uncommented, /INSERT INTO political_mandates\s*\(/i);
+  assert.match(uncommented, /BEGIN;/);
+  assert.match(uncommented, /COMMIT;/);
+});
+
+test('legacy role refresh remains explicit and migration does not erase existing mandates', () => {
+  const uncommented = sql.split('\n').filter(x => !x.trimStart().startsWith('--')).join('\n');
+  assert.match(uncommented, /refresh_users_legacy_role/);
+  assert.doesNotMatch(uncommented, /\bDELETE\s+FROM\s+political_mandates\b/i);
+  assert.doesNotMatch(uncommented, /\bUPDATE\s+political_mandates\s+SET\b/i);
+});
+
+test('role projection does not treat legacy backfill ACTIVE as current verified politician', () => {
+  const projection = sql.match(/CREATE OR REPLACE FUNCTION refresh_users_legacy_role\([\s\S]*?END;\s*\$\$;/);
+  assert.ok(projection, 'canonical role-projection function must exist');
+  const mandateCheck = projection[0].match(/SELECT EXISTS \(\s*SELECT 1 FROM political_mandates pm[\s\S]*?\) INTO v_is_politician/);
+  assert.ok(mandateCheck, 'must derive P from real mandate relation');
+  assert.match(mandateCheck[0], /pm\.source <> 'LEGACY_BACKFILL'/);
+  assert.match(mandateCheck[0], /pm\.starts_at <= NOW\(\)/);
+  assert.match(mandateCheck[0], /pm\.ends_at IS NULL OR pm\.ends_at > NOW\(\)/);
+});

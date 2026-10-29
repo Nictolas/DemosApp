@@ -1,6 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { UsersResponse } from "../types";
 
 export const useUsers = (user: any) => {
   const queryClient = useQueryClient();
@@ -8,15 +7,10 @@ export const useUsers = (user: any) => {
   const { data: responseData, isLoading: isLoadingUsers, isError } = useQuery({
     queryKey: ['allUsers'],
     queryFn: async () => {
-      // apiRequest restituisce un oggetto con proprietà 'data' che contiene il JSON parsato
-      const [allUsersResponse, pendingUsersResponse] = await Promise.all([
-        apiRequest("GET", "/api/users"),
-        apiRequest("GET", "/api/users/pending")
-      ]);
-      
-      // Estrai i dati dalla risposta
+      // La dashboard Admin carica un solo elenco: le registrazioni
+      // Google, Apple e passkey non richiedono approvazione manuale.
+      const allUsersResponse = await apiRequest("GET", "/api/users");
       const allUsersData = allUsersResponse.data || allUsersResponse;
-      const pendingUsersData = pendingUsersResponse.data || pendingUsersResponse;
       
       // Aggiungi campo nome_completo agli utenti
       const addFullName = (users: any[]) => {
@@ -27,8 +21,7 @@ export const useUsers = (user: any) => {
       };
 
       return { 
-        utenti: allUsersData.success ? addFullName(allUsersData.users || []) : [], 
-        pendingUsers: pendingUsersData.success ? addFullName(pendingUsersData.pendingUsers || []) : [] 
+        utenti: allUsersData.success ? addFullName(allUsersData.users || []) : [] 
       };
     },
     // Uso user.ruolo che è il campo restituito dall'API
@@ -43,21 +36,10 @@ export const useUsers = (user: any) => {
     refetchIntervalInBackground: false // Non ricaricare in background (solo quando visibile)
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      // apiRequest restituisce già il JSON parsato, non un Response
-      return await apiRequest("DELETE", `/api/users/${userId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-    },
-  });
-
   return {
     responseData,
     isLoadingUsers,
     isError,
-    deleteMutation,
     queryClient
   };
 };

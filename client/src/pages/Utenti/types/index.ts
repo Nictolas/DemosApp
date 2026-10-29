@@ -6,7 +6,6 @@ export type SortDirection = "asc" | "desc";
 
 export interface UsersResponse {
   utenti: User[];
-  pendingUsers: User[];
 }
 
 export interface PaginationState {
