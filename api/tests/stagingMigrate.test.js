@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assertStagingUrl, createClient } = require('../scripts/stagingMigrate');
+const { assertStagingUrl, createClient, seedE2EUser } = require('../scripts/stagingMigrate');
 
 test('staging migrations reject production and other databases', () => {
   assert.throws(() => assertStagingUrl('postgres://user:pass@localhost/demos_production'), /Refusing database/);
@@ -71,4 +71,54 @@ test('staging baseline reconciles legacy consent columns when users already exis
       `missing idempotent staging reconciliation for: ${column}`,
     );
   }
+});
+
+test('E2E user seeding uses the DB default for both PERSON and compact P', async () => {
+  for (const accountDefault of ["'PERSON'::character varying", "'P'::character varying"]) {
+    const sqlWrites = [];
+    const client = {
+      async query(sql, values) {
+        if (sql.includes('FROM information_schema.columns')) {
+          return { rows: [{ column_default: accountDefault }] };
+        }
+        if (sql.startsWith('SELECT id, account_type FROM users')) {
+          return { rows: [{ id: 'synthetic', account_type: accountDefault.includes("'P'::") ? 'P' : 'PERSON' }] };
+        }
+        sqlWrites.push({ sql, values });
+        return { rows: [] };
+      }
+    };
+    const result = await seedE2EUser(client, { log() {} });
+    assert.equal(result, '00000000-0000-4000-8000-000000000001');
+    const inserts = sqlWrites.filter(item => /INSERT INTO users\\b/.test(item.sql));
+    assert.equal(inserts.length, 3);
+    for (const {sql,values} of inserts) {
+      assert.doesNotMatch(sql, /\\baccount_type\\b/,
+        'Seed must preserve existing person type and use DB default for inserts');
+      assert.ok(!(values || []).includes('PERSON'), 'Legacy value must not be sent as a query parameter');
+    }
+  }
+});
+
+test('E2E seeding rejects an unknown account_type default before any writes', async () => {
+  let writes = 0;
+  const client = { async query(sql) {
+    if (sql.includes('information_schema.columns')) return { rows:[{column_default:"'ORGANIZATION'::character varying"}] };
+    writes++;
+    return { rows:[] };
+  }};
+  await assert.rejects(() => seedE2EUser(client), /default must be PERSON or P/);
+  assert.equal(writes,0);
+});
+
+test('E2E seeding rejects an existing non-person synthetic ID before writes', async () => {
+  let writes = 0;
+  const client = { async query(sql) {
+    if (sql.includes('information_schema.columns')) return {rows:[{column_default:"'P'::character varying"}]};
+    if (sql.startsWith('SELECT id, account_type FROM users')) return {rows:[{id:'synthetic',account_type:'O'}]};
+    writes++;
+    return {rows:[]};
+  }};
+  await assert.rejects(() => seedE2EUser(client), /non-person account/);
+  assert.equal(writes,0);
 });
