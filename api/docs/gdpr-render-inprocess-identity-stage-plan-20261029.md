@@ -1,5 +1,21 @@
 # DEMOS — GH-296 / ruolo SQL del processo Render: probe su staging (29 ottobre 2026)
 
+> **AGGIORNAMENTO FASE P — SUPERATO E DISABILITATO (29/10/2026).** Questo
+> documento descrive lo storico progetto di un probe dopo l'avvio del web
+> server. Tale approccio è stato **rimosso** dalla PR Draft #374: avviare
+> `api/server.js` inizializzava comunque Firebase Admin, audit manager,
+> performance optimizer e possibili job nonostante la deny-list. Ora
+> `api/index.js` **rifiuta entrambi i marker diagnostici**, mentre
+> `api/scripts/attest-gdpr-render-staging-isolated.js` è un programma CLI
+> separato, da invocare esclusivamente in un contesto isolato e autorizzato.
+> La CLI osserva una **nuova** sessione configurata per lo staging, **non**
+> la connessione dell'app Render già in esecuzione. Vedere
+> `api/docs/gdpr-render-isolated-cli-handoff-20261029.md`.
+> Le descrizioni in-process riportate sotto sono **storiche**, non operative.
+> Nessun deploy o probe provider eseguito; `GH-296 OPEN / NO-GO`.
+
+
+
 **Stato: SOLO CODICE IN PR DRAFT #374. Nessuna attivazione su Render, nessun nuovo deploy o credenziale, nessuna interrogazione SQL live. GH-296 OPEN / NO-GO.**
 
 ## Perché serve
