@@ -14,7 +14,7 @@ function sanitizeRow(row) {
   if (!row) return null;
 
   return {
-    verified: row.status === 'verified',
+    verified: row.status === 'verified' && row.detached_at == null,
     provider: row.provider,
     status: row.status,
     verifiedAt: row.verified_at,
@@ -39,7 +39,7 @@ async function getIdentityVerificationStatus(userId, db = getPool()) {
   const result = await db.query(
     `SELECT provider, status
      FROM identity_verifications
-     WHERE user_id = $1
+     WHERE user_id = $1 AND detached_at IS NULL
      LIMIT 1`,
     [userId]
   );
@@ -83,7 +83,8 @@ async function registerVerifiedIdentity(
     if (
       existing.person_key === personKey &&
       existing.provider === normalizedProvider &&
-      existing.status === 'verified'
+      existing.status === 'verified' &&
+      existing.detached_at == null
     ) {
       return { created: false, ...sanitizeRow(existing) };
     }
@@ -115,7 +116,8 @@ async function registerVerifiedIdentity(
       afterConflict &&
       afterConflict.person_key === personKey &&
       afterConflict.provider === normalizedProvider &&
-      afterConflict.status === 'verified'
+      afterConflict.status === 'verified' &&
+      afterConflict.detached_at == null
     ) {
       return { created: false, ...sanitizeRow(afterConflict) };
     }
