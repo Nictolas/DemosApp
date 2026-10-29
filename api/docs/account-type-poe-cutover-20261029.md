@@ -21,6 +21,14 @@ Decision: account_type uses P = person, O = organization, E = institution in DAT
 6. Verify aggregate counts, current roles and statuses, authenticated API responses, Render logs and Android app screens. Never infer current office from LEGACY_BACKFILL.
 7. If needed, use the separately tested api/database/users-account-type-poe-rollback-20261029.sql, with rollback authorization. It restores long type labels and preserves roles; role DEFAULT E remains a deliberate separate change.
 
+## Additional post-migration role safeguard
+
+The compact-migration role-projection function now reads the existing `users.ruolo` value. When a profile has an unverified historical `P` or `CP` role, changing `is_activist` or another unrelated capability must not silently downgrade the role to `E` or `C`. The PostgreSQL 17 fixture explicitly updates capability flags on synthetic P/CP profiles after the migration and checks both roles remain unchanged.
+
+This safeguards existing user data, but it does **not** certify that those profiles currently hold political office. Canonical verified mandates remain a separate ongoing reconciliation task.
+
+The dedicated CI additionally runs the Google/Apple OAuth registration tests and the passkey login-session policy tests after installing API dependencies. Those are isolated automated tests, not real identity-provider login sessions.
+
 ## Why the order matters
 
 A currently deployed query filtering account_type = PERSON will return no matching persons if the DB is prematurely converted to P. This could silently zero out charts and surveys, without an exception. Conversely, deploying an old backend against a compact DB will have the same problem.
