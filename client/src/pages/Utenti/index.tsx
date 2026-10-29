@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Users, AlertCircle, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Users, AlertCircle, BarChart3 } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
 import { useUserManagement } from "./hooks/useUserManagement";
 import { getDisplayColumns } from "./utils/columnUtils";
@@ -258,14 +258,56 @@ export default function Utenti() {
       .map(([name, value]) => ({ name, value }));
   };
   const regionBarData = prepareRegionBarData(stats?.usersByRegionWithEstimates);
-  const regionChartScrollRef = useRef<HTMLDivElement>(null);
 
-  // I pulsanti spostano solo il grafico, senza far scorrere la pagina.
-  const scrollRegionChart = (direction: -1 | 1) => {
-    const element = regionChartScrollRef.current;
+  // Gestione touch direttamente sull'area del grafico, anche quando la tab
+  // Statistiche viene aperta dopo il primo render. Il listener non passivo
+  // impedisce che lo swipe orizzontale venga interpretato come navigazione.
+  const regionChartTouchCleanupRef = useRef<(() => void) | null>(null);
+  const setRegionChartScrollRef = useCallback((element: HTMLDivElement | null) => {
+    regionChartTouchCleanupRef.current?.();
+    regionChartTouchCleanupRef.current = null;
     if (!element) return;
-    element.scrollBy({ left: direction * Math.max(240, element.clientWidth * 0.85), behavior: 'smooth' });
-  };
+
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let gesture: 'horizontal' | 'vertical' | null = null;
+
+    const handleStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        gesture = 'vertical';
+        return;
+      }
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+      startScrollLeft = element.scrollLeft;
+      gesture = null;
+    };
+    const handleMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+      const dx = event.touches[0].clientX - startX;
+      const dy = event.touches[0].clientY - startY;
+      if (!gesture && Math.max(Math.abs(dx), Math.abs(dy)) >= 7) {
+        gesture = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+      }
+      if (gesture !== 'horizontal') return;
+
+      // Non lasciare il gesto al browser (es. navigazione indietro su iOS).
+      if (event.cancelable) event.preventDefault();
+      element.scrollLeft = startScrollLeft - dx;
+    };
+    const handleEnd = () => { gesture = null; };
+    element.addEventListener('touchstart', handleStart, { passive: true });
+    element.addEventListener('touchmove', handleMove, { passive: false });
+    element.addEventListener('touchend', handleEnd, { passive: true });
+    element.addEventListener('touchcancel', handleEnd, { passive: true });
+    regionChartTouchCleanupRef.current = () => {
+      element.removeEventListener('touchstart', handleStart);
+      element.removeEventListener('touchmove', handleMove);
+      element.removeEventListener('touchend', handleEnd);
+      element.removeEventListener('touchcancel', handleEnd);
+    };
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -702,36 +744,15 @@ export default function Utenti() {
                       <p className="text-sm text-muted-foreground mb-3">
                         Regione non disponibile per {stats.usersByRegionWithEstimates['N/A'] ?? 0} {(stats.usersByRegionWithEstimates['N/A'] ?? 0) === 1 ? 'utente' : 'utenti'}.
                       </p>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-xs text-muted-foreground">
-                          Scorri il grafico a destra e sinistra per vedere tutte le regioni.
-                        </p>
-                        <div className="flex shrink-0 gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label="Mostra le regioni precedenti"
-                            onClick={() => scrollRegionChart(-1)}
-                          >
-                            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label="Mostra le regioni successive"
-                            onClick={() => scrollRegionChart(1)}
-                          >
-                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                        </div>
-                      </div>
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Trascina il grafico con il dito verso destra o sinistra per vedere tutte le regioni.
+                      </p>
                       <div
-                        ref={regionChartScrollRef}
+                        ref={setRegionChartScrollRef}
                         data-testid="utenti-region-chart-scroll"
+                        data-horizontal-swipe-region="true"
                         className="utenti-region-chart-scroll w-full max-w-full overflow-x-auto pb-2"
-                        style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
+                        style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
                         role="region"
                         aria-label="Grafico delle regioni ordinato per numero di utenti: scorri orizzontalmente"
                         tabIndex={0}
