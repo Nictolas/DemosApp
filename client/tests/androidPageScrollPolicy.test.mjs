@@ -58,7 +58,13 @@ test('Android-only scroll classes and internal scrolling lists exist',()=>{
   for(const page of ['OpinioniNazionali','OpinioniRegionali','OpinioniComunali','OpinioniEuropee']) {
     assert.match(read('pages/'+page+'.tsx'),/flex-1 min-h-0 overflow-y-auto app-page-scroll/);
   }
-  assert.match(read('pages/Candidati/index.tsx'),/flex-1 min-h-0 overflow-y-auto app-page-scroll/);
+  // Preserve main's five-card, navbar-safe, no-scroll political category grids.
+  for (const page of ['Rappresentanti', 'Candidati']) {
+    const categoryPage = read('pages/' + page + '/index.tsx');
+    assert.match(categoryPage, /selection-grid-page__grid/);
+    assert.doesNotMatch(categoryPage, /overflow-y-auto|app-page-scroll/);
+  }
+  assert.match(read('pages/SelectionGrid.css'), /grid-template-rows:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
   // Candidate lists preserve their old independent scrolling, not the top-4
   // representative chooser which must have NO scroll at either level.
   const chooser=read('pages/ScegliRappresentante/index.tsx');

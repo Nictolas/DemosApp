@@ -10,6 +10,10 @@ on:
       - 'client/src/index.css'
       - 'client/src/pages/Opinioni*.tsx'
       - 'client/src/pages/Candidati/index.tsx'
+      - 'client/src/pages/Rappresentanti/**'
+      - 'client/src/pages/Candidati/components/**'
+      - 'client/src/pages/SelectionGrid.css'
+      - 'client/tests/selectionGridNoScroll.test.mjs'
       - 'client/src/pages/ScegliRappresentante/index.tsx'
       - 'client/tests/androidPageScrollPolicy.test.mjs'
       - 'client/tests/androidPublicAccountDeletion.test.mjs'
@@ -38,6 +42,8 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - name: Assert 19 Android routes and unaffected inner scrollers
         run: node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
+      - name: Protect fixed political category grids from Android scroll regressions
+        run: node --test client/tests/selectionGridNoScroll.test.mjs
       - name: Verify passkey-only account deletion instructions (source)
         run: node --test client/tests/androidPublicAccountDeletion.test.mjs
       - name: Verify Android source permissions, app ID and backup/HTTP hardening
@@ -82,6 +88,7 @@ jobs:
       - name: Test Android scroll and prevent geography / legacy mandate regression
         run: |
           node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
+          node --test client/tests/selectionGridNoScroll.test.mjs
           node --test api/tests/utentiElectionTerritory.smoke.test.js
           node --test client/tests/androidSourcePermissions.test.mjs
       - name: Verify account deletion page after main overlay (source)

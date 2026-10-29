@@ -2,7 +2,8 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
-import { PageTransition } from "@/components/PageTransition";
+import { PageContainer } from "@/components/PageContainer";
+import "../SelectionGrid.css";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useCandidatiData } from "./hooks/useCandidatiData";
 import { useCandidatiActions } from "./hooks/useCandidatiActions";
@@ -39,60 +40,44 @@ export default function Candidati() {
   }
 
   return (
-    <PageTransition>
-      <div className="candidati-page flex h-full min-h-0 flex-col overflow-hidden select-none">
-        <div className="container mx-auto max-w-full flex-1 min-h-0 overflow-y-auto app-page-scroll px-4 pt-4 pb-4">
-          {isLoading ? (
-            <LoadingState />
-          ) : isError ? (
-            <ErrorState />
-          ) : (
-            <>
-              {/* Card Parlamento Europeo */}
-              {(() => {
-                const categoria = categorie[0];
-                console.log('🔍 DEBUG: Rendering categoria:', categoria.id, categoria.nome);
-                return (
-                  <CategoriaPrincipale
-                    key={categoria.id}
-                    categoria={categoria}
-                    data={data}
-                    onNavigate={handleNavigateToSelection}
-                    onOpenOpinioni={handleOpenOpinioniDialog}
-                  />
-                );
-              })()}
-              
-              {/* Altre card */}
-              <div className="grid grid-cols-2 gap-2">
-                {categorie.slice(1).map((categoria) => {
-                  return (
-                    <CandidatoCard
-                      key={categoria.id}
-                      categoria={categoria}
-                      data={data}
-                      onNavigate={handleNavigateToSelection}
-                      onOpenOpinioni={handleOpenOpinioniDialog}
-                    />
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-        
-        {opinioniDialogData && (
-          <ViewOpinioniDialog
-            open={!!opinioniDialogData}
-            onOpenChange={(open) => !open && handleCloseOpinioniDialog()}
-            utenteId={opinioniDialogData.utenteId}
-            nome={opinioniDialogData.nome}
-            cognome={opinioniDialogData.cognome}
-            avatarConfig={opinioniDialogData.avatarConfig}
-            categoria={opinioniDialogData.categoria as any}
-          />
+    <PageContainer className="selection-grid-page select-none">
+      <div className="selection-grid-page__content container mx-auto w-full max-w-full px-4 pt-2 pb-2">
+        {isLoading ? (
+          <LoadingState />
+        ) : isError ? (
+          <ErrorState />
+        ) : (
+          <div className="selection-grid-page__grid">
+            <CategoriaPrincipale
+              key={categorie[0].id}
+              categoria={categorie[0]}
+              data={data}
+              onNavigate={handleNavigateToSelection}
+              onOpenOpinioni={handleOpenOpinioniDialog}
+            />
+            {categorie.slice(1).map((categoria) => (
+              <CandidatoCard
+                key={categoria.id}
+                categoria={categoria}
+                data={data}
+                onNavigate={handleNavigateToSelection}
+                onOpenOpinioni={handleOpenOpinioniDialog}
+              />
+            ))}
+          </div>
         )}
       </div>
-    </PageTransition>
+      {opinioniDialogData && (
+        <ViewOpinioniDialog
+          open={!!opinioniDialogData}
+          onOpenChange={(open) => !open && handleCloseOpinioniDialog()}
+          utenteId={opinioniDialogData.utenteId}
+          nome={opinioniDialogData.nome}
+          cognome={opinioniDialogData.cognome}
+          avatarConfig={opinioniDialogData.avatarConfig}
+          categoria={opinioniDialogData.categoria as any}
+        />
+      )}
+    </PageContainer>
   );
 }

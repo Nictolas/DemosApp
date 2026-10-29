@@ -619,9 +619,7 @@ export default function App() {
 
               {/* Route candidati */}
               <Route path="/candidati">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/candidati" component={Candidati} />
-                </PageTransition>
+                <ProtectedRoute path="/candidati" component={Candidati} />
               </Route>
 
               {/* Route attivisti - PAGINA PUBBLICA */}
