@@ -1,0 +1,52 @@
+name: Profile persistent zero-read browser regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/pages/Profilo/**'
+      - 'api/routes/user/profile-selections.js'
+      - 'api/app.js'
+      - 'api/tests/profileSelections.smoke.test.js'
+      - 'client/src/lib/queryClient.ts'
+      - 'client/src/lib/profileMutationPolicy.ts'
+      - 'client/tests/profileSelectiveInvalidation.test.mjs'
+      - 'scripts/test-profile-persistent-browser.cjs'
+      - '.github/workflows/profile-persistent-browser-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  persistent-profile:
+    name: Verify zero profile GET after reload with encrypted IndexedDB
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Verify profile cache mutation policy and existing local-cache regressions
+        run: node --test client/tests/profileSelectiveInvalidation.test.mjs client/tests/profileNavLocalCache.test.mjs
+      - name: Verify private selected-preferences API contract
+        run: node --test api/tests/profileSelections.smoke.test.js
+      - name: Build production frontend
+        run: npm run build --prefix client
+      - name: Install isolated browser runner
+        run: |
+          npm install --prefix /tmp/demos-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          node /tmp/demos-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Reopen after browser reload and count profile GETs
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/profilo >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-browser/node_modules node scripts/test-profile-persistent-browser.cjs
