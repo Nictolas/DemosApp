@@ -143,3 +143,25 @@ test('Chrono strike events use Sciopero badge without redundant description', ()
   assert.doesNotMatch(cards, /Evento collegato a uno sciopero/);
   assert.match(cards, /evento\.external_import && \(/);
 });
+
+test('Eventi category badges use distinct colors and share a top-right position', () => {
+  const page = fs.readFileSync(path.join(root, 'client/src/pages/Eventi.tsx'), 'utf8');
+  const start = page.indexOf('{/* Titolo a sinistra, targhetta sempre in alto a destra.');
+  const end = page.indexOf('{/* Organizzatore - Solo per eventi non "Elezioni" */}', start);
+  assert.ok(start !== -1 && end > start, 'Event card header must exist');
+  const header = page.slice(start, end);
+
+  assert.match(header, /className="mb-3 flex items-start justify-between gap-3"/);
+  assert.match(header, /className="flex shrink-0 flex-col items-end gap-1\.5"/);
+  assert.match(header, /evento\.sciopero === true\s*\? 'border-rose-200 bg-rose-100 text-rose-800'\s*: 'border-purple-200 bg-purple-100 text-purple-800'/);
+  assert.match(header, /evento\.sciopero === true \? 'Sciopero' : 'Mobilitazione'/);
+  assert.match(header, /bg-yellow-200[^"]*">\s*Elezioni\s*<\/span>/);
+  assert.doesNotMatch(header, /Elezioni –|Politiche nazionali \(Camera e Senato\)/);
+  const badge = header.indexOf('border-yellow-300 bg-yellow-200');
+  const actionGroup = header.indexOf('role="group" aria-label="Azioni evento"');
+  assert.ok(badge !== -1 && actionGroup > badge, 'Edit/delete actions must be below election badge');
+  assert.match(header, /onClick=\{\(\) => editEvent\(evento\)\}/);
+  assert.match(header, /onClick=\{\(\) => deleteEvent\(evento\.id\)\}/);
+  assert.match(header, /aria-label="Modifica evento"/);
+  assert.match(header, /aria-label="Elimina evento"/);
+});
