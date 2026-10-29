@@ -186,7 +186,17 @@
   overflow-y: hidden !important;
 }
 
-.app-main.app-main--notifiche > .app-main__inner {
+.app-main.app-main--notifiche > .app-main.app-main--profile { overflow-y: hidden !important; }
+.app-main.app-main--profile > .app-main__inner { overflow: hidden; }
+.app-main.app-main--profile .fade-up-transition {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-main__inner {
   overflow: hidden;
 }
 
