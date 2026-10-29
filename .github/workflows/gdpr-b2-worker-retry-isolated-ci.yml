@@ -71,7 +71,8 @@ jobs:
         run: |
           node --check api/services/privacyErasureOutboxWorker.js
           node --test --test-concurrency=1 api/tests/gdprDataPlaneRouteSurface.test.js
-          node --test --test-concurrency=1 api/tests/gdprLegacyHealthDbDiagnosticIsolated.test.js
+          # Run node:test in-process to avoid intermittent Node 22 child-runner IPC deserialization.
+          node api/tests/gdprLegacyHealthDbDiagnosticIsolated.test.js
           node --check api/tests/fixtures/gdprDurableRecoveryPrototype.js
           node --test --test-concurrency=1 api/tests/gdprDurableRecoveryProtocolSynthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprRecoveryConcurrencySynthetic.test.js
