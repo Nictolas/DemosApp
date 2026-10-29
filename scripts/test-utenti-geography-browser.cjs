@@ -89,7 +89,7 @@ async function main() {
     await regionCard.locator('.recharts-xAxis .recharts-cartesian-axis-tick-value').first().waitFor({ timeout: 10000 });
     const regionLabels = await regionCard.locator('.recharts-xAxis .recharts-cartesian-axis-tick-value').allTextContents();
     assert.deepEqual(regionLabels, ['Piemonte', 'Emilia-Romagna', 'Lombardia', 'Toscana'], 'Regional bars must be descending, with alphabetical ties');
-    assert.ok(await regionCard.getByText('Regione non disponibile per 1 utenti.').count(), 'Missing region must be shown separately');
+    assert.ok(await regionCard.getByText('Regione non disponibile per 1 utente.').count(), 'Missing region must be shown separately');
 
     // Su smartphone tutte le etichette rimangono leggibili tramite scroll.
     await page.setViewportSize({ width: 390, height: 844 });
