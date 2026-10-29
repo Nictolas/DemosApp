@@ -1,0 +1,109 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
+
+const read = path => readFileSync(new URL("../src/" + path, import.meta.url), "utf8");
+const nav = read("lib/nav-items.ts");
+const profile = read("pages/Profilo/index.tsx");
+const hook = read("pages/Profilo/hooks/useProfileData.ts");
+const government = read("pages/Profilo/components/ProfileGovernoIdeale.tsx");
+
+const source = read("pages/Profilo/utils/profileSummaryCache.ts");
+const compiled = ts.transpileModule(source, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+
+function localStorageMock() {
+  const items = new Map();
+  return {
+    setItem: (key, value) => items.set(key, String(value)),
+    getItem: key => items.get(key) ?? null,
+    removeItem: key => items.delete(key),
+    get length() { return items.size; },
+    key: n => [...items.keys()][n] ?? null,
+    items,
+  };
+}
+function harness() {
+  const localStorage = localStorageMock();
+  const module = { exports: {} };
+  runInNewContext(compiled, {
+    module,
+    exports: module.exports,
+    window: { localStorage },
+    Date, JSON, Number, String,
+    encodeURIComponent,
+  });
+  return { storage: localStorage, api: module.exports };
+}
+
+test("the first bottom nav item is Profile, with no Favorites or Settings tab", () => {
+  const items = nav.slice(nav.indexOf("export const MAIN_NAV_ITEMS"));
+  assert.match(items, /\[\s*\{\s*path: "\/profilo",\s*label: "Profilo"/);
+  assert.doesNotMatch(items, /path: "\/preferiti"/);
+  assert.doesNotMatch(items, /path: "\/impostazioni"/);
+  assert.match(profile, /<Link href="\/preferiti"/);
+  assert.match(profile, /<Link href="\/impostazioni"/);
+});
+
+test("all selection actions remain visible in open profile panels", () => {
+  assert.match(profile, /<Link href="\/rappresentanti"/);
+  assert.match(profile, /Scegli Rappresentanti/);
+  assert.match(profile, /<Link href="\/candidati"/);
+  assert.match(profile, /Scegli Candidati/);
+  assert.match(government, /<Link href="\/governo"/);
+  assert.match(government, /Scegli ministri/);
+});
+
+test("only allowlisted demographic summary is persisted, scoped to account", () => {
+  const { api, storage } = harness();
+  const full = {
+    id: "account-1", nome: "Finto", cognome: "Utente",
+    email: "private@example.invalid", telefono: "99999",
+    ruolo: "E", status: "A", data_nascita: "12/01/1990",
+    cittadinanza: "Italiana", regione_residenza: "Toscana",
+    comune_residenza: "Comune Sintetico",
+    energia_nucleare: "f", rappresentante_camera: "person-id",
+    political_opinions_consent: true, password_hash: "private",
+    avatar_config: '{"shirt":"blue"}',
+  };
+  api.storeProfileSummary(full.id, full);
+  const raw = [...storage.items.values()].join("\n");
+  for (const sensitive of [
+    "private@example.invalid", "99999", "person-id", "password_hash",
+    "energia_nucleare", "political_opinions_consent", '"nome"', '"cognome"',
+  ]) assert.ok(!raw.includes(sensitive), "persisted sensitive value: " + sensitive);
+  const restored = api.readProfileSummary("account-1");
+  assert.equal(restored.user.data_nascita, "1990");
+  assert.equal(restored.user.cittadinanza, "Italiana");
+  assert.equal(restored.user.comune_residenza, "Comune Sintetico");
+  assert.equal(api.readProfileSummary("account-2"), null);
+  api.clearAllProfileSummaries();
+  assert.equal(storage.length, 0);
+});
+
+test("expired summary is discarded and cannot silently stay current forever", () => {
+  const { api, storage } = harness();
+  api.storeProfileSummary("account-1", { id:"account-1", ruolo:"E", data_nascita:"1990" });
+  const key = [...storage.items.keys()][0];
+  const cache = JSON.parse(storage.getItem(key));
+  cache.savedAt = Date.now() - api.PROFILE_SUMMARY_TTL_MS - 1;
+  storage.setItem(key, JSON.stringify(cache));
+  assert.equal(api.readProfileSummary("account-1"), null);
+  assert.equal(storage.length, 0);
+});
+
+test("opening profile loads just summary; political API requests require expansion and consent", () => {
+  assert.match(hook, /initialData: ownProfile \? saved\?\.user : undefined/);
+  assert.match(hook, /staleTime: ownProfile \? PROFILE_SUMMARY_TTL_MS : 0/);
+  assert.match(hook, /const politicalPanelOpen = panels\.representatives/);
+  assert.match(hook, /enabled: enabled && ownProfile && politicalPanelOpen/);
+  assert.match(hook, /const politicalAllowed = ownProfile && consent\.isSuccess/);
+  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.government/);
+  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.representatives/);
+  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.candidates/);
+  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.opinions/);
+  assert.doesNotMatch(source, /userOpinions|governoIdeale|candidatiDetails|rappresentantiDetails/);
+});
