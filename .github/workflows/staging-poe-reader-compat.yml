@@ -1,0 +1,37 @@
+name: Staging P O E reader compatibility
+
+on:
+  pull_request:
+    branches: [staging/functional-integration-v0]
+    paths:
+      - 'api/services/accountCapabilitiesService.js'
+      - 'api/routes/auth/profile.js'
+      - 'api/routes/organizzazioni.js'
+      - 'api/routes/opinioni/stats.js'
+      - 'api/routes/sondaggi.js'
+      - 'api/database/create-account-capabilities-model.sql'
+      - 'api/tests/opinionStatsAccountPopulation.test.js'
+      - 'api/tests/stagingPoeReaders.test.js'
+      - '.github/workflows/staging-poe-reader-compat.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compat:
+    name: Verify legacy staging backend with dual account type storage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked API dependencies without scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Run staging reader, opinion/survey population and capability regressions
+        run: |
+          node --test api/tests/stagingPoeReaders.test.js api/tests/opinionStatsAccountPopulation.test.js api/tests/accountCapabilitiesService.test.js api/tests/stagingMigrate.test.js

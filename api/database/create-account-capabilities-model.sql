@@ -5,6 +5,23 @@
 
 BEGIN;
 
+-- Staging's historical capability migration uses long PERSON labels.
+-- After an explicit P/O/E cutover, reapplying it would reset the default
+-- to PERSON and invalidate every subsequent person registration.
+DO $compact_guard$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_attrdef d
+    JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+    WHERE d.adrelid = 'public.users'::regclass
+      AND a.attname = 'account_type'
+      AND pg_get_expr(d.adbin, d.adrelid) LIKE '%''P''%'
+  ) THEN
+    RAISE EXCEPTION 'Legacy account type bootstrap cannot run after compact P/O/E cutover';
+  END IF;
+END;
+$compact_guard$;
+
 ALTER TABLE users ADD COLUMN IF NOT EXISTS account_type VARCHAR(20);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_activist BOOLEAN;

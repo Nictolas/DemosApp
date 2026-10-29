@@ -12,15 +12,15 @@ function countMatches(text, pattern) {
   return [...text.matchAll(pattern)].length;
 }
 
-test('opinion statistics use canonical PERSON account population in every aggregate', () => {
+test('opinion statistics include long and compact PERSON account population in every aggregate', () => {
   const stats = read('api/routes/opinioni/stats.js');
-  assert.equal(countMatches(stats, /AND u\.account_type = 'PERSON'/g), 6);
+  assert.equal(countMatches(stats, /AND u\.account_type IN \('PERSON', 'P'\)/g), 6);
   assert.doesNotMatch(stats, /u\.ruolo NOT IN \('I', 'O', 'Istituzione', 'Organizzazione'\)/);
 });
 
-test('survey opinion aggregates use the same canonical PERSON population', () => {
+test('survey opinion aggregates include the same dual-format PERSON population', () => {
   const surveys = read('api/routes/sondaggi.js');
-  assert.equal(countMatches(surveys, /AND u\.account_type = 'PERSON'/g), 4);
+  assert.equal(countMatches(surveys, /AND u\.account_type IN \('PERSON', 'P'\)/g), 4);
   assert.doesNotMatch(surveys, /u\.ruolo NOT IN \('I', 'O', 'Istituzione', 'Organizzazione'\)/);
 });
 

@@ -14,6 +14,7 @@ const isSchemaMigrationError = (error) => (
 
 // GET /api/auth/me - Ottieni profilo utente autenticato
 router.get('/me', async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     console.log('🔍 GET /api/auth/me - Richiesta profilo utente (route modulare)');
     
@@ -29,7 +30,7 @@ router.get('/me', async (req, res) => {
     }
 
     const token = authHeader.substring(7);
-    console.log('🔑 Token ricevuto:', token.substring(0, 20) + '...');
+    // Never log access tokens, even partially.
 
     // Verifica e decodifica token (access normale o pending OAuth)
     let decoded;
@@ -124,6 +125,15 @@ router.get('/me', async (req, res) => {
 
     const user = result.rows[0];
     const accountSubject = await getAccountSubject(pool, user.id);
+    // The signed JWT may outlive account deactivation or revocation.
+    // Reject inactive users before reading or disclosing their profile.
+    if (!accountSubject || accountSubject.status !== 'a') {
+      return res.status(401).json({
+        success: false,
+        error: 'Account non attivo',
+        message: 'Effettua nuovamente il login'
+      });
+    }
     const emailDecrypted = decryptEmail(user.email);
     if (user.email != null) user.email = emailDecrypted;
     console.log('✅ Profilo utente recuperato:', emailDecrypted ? '(email presente)' : '(nessuna email)');
