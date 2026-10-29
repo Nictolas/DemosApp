@@ -50,3 +50,31 @@ test('profile and OAuth routes never log account identifiers, political answers 
   assert.match(profile, /router\.put\('\/:userId\/opinioni'/);
   assert.match(oauth, /generateOAuthPendingToken/);
 });
+
+
+test('geografia utenti preserva residenza e mandati autentici, distinguendo le stime', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../../client/src/pages/Utenti/index.tsx'), 'utf8'
+  );
+  const api = fs.readFileSync(
+    path.resolve(__dirname, '../routes/users/search.js'), 'utf8'
+  );
+  for (const contract of [
+    /const usersByRegionWithEstimates/,
+    /const usersByCityWithEstimates/,
+    /const politiciansByElectionRegion/,
+    /Distribuzione geografica indicativa per regione/,
+    /Politici per regione di elezione/,
+    /I 10 comuni di residenza o riferimento comunale/,
+    /non come residenza certificata/,
+    /stats\.usersWithProvisionalRegion/,
+    /stats\.usersWithProvisionalMunicipality/
+  ]) assert.match(source, contract);
+  assert.match(api, /LEFT JOIN user_profile up ON up\.user_id = u\.id/);
+  assert.match(api, /LEFT JOIN LATERAL/);
+  assert.match(api, /pm\.source <> 'LEGACY_BACKFILL'/);
+  assert.match(api, /decompressUserLocation\(user\)/);
+  assert.match(api, /sesso: \['M', 'F'\]\.includes\(user\.sesso\)/);
+  assert.doesNotMatch(source, /\bconsole\.(?:log|debug|info|warn|error)\s*\(/);
+  assert.doesNotMatch(api, /\bconsole\.(?:log|debug|info|warn|error)\s*\(/);
+});
