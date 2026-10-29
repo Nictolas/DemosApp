@@ -23,7 +23,6 @@ const PROFILE_CACHE_FRESH = Infinity;
 const PROFILE_CACHE_GC = Infinity;
 
 export type ProfilePanels = {
-  personal: boolean;
   edit: boolean;
   representatives: boolean;
   candidates: boolean;
@@ -31,7 +30,6 @@ export type ProfilePanels = {
   opinions: boolean;
 };
 export const CLOSED_PROFILE_PANELS: ProfilePanels = {
-  personal: false,
   edit: false,
   representatives: false,
   candidates: false,
@@ -189,7 +187,7 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     data: verifiedPoliticalConsent,
   };
 
-  const needFull = panels.personal || panels.edit ||
+  const needFull = panels.edit ||
     ((panels.representatives || panels.candidates || panels.opinions) && politicalAllowed);
   const full = useQuery<UserInfo>({
     queryKey: ["profileFull", ownerId, politicalPanelOpen ? politicalEpoch : "personal"],
