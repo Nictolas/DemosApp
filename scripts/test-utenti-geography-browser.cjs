@@ -20,6 +20,7 @@ const users = [
   { id: '00000000-0000-4000-8000-000000000013', nome: 'Finto', cognome: 'Sindaco', ruolo: 'P', account_type: 'PERSON', grado_elezione: 'CO', regione_residenza: null, comune_residenza: null, regione_elezione: 'Piemonte', comune_elezione: 'Torino' },
   { id: '00000000-0000-4000-8000-000000000014', nome: 'Finta', cognome: 'Elettrice', ruolo: 'E', account_type: 'PERSON', regione_residenza: null, comune_residenza: null, regione_elezione: null, comune_elezione: null },
   { id: '00000000-0000-4000-8000-000000000015', nome: 'Finto', cognome: 'SecondaResidenza', ruolo: 'P', account_type: 'PERSON', grado_elezione: 'C', regione_residenza: 'Emilia-Romagna', comune_residenza: 'Bologna', regione_elezione: 'Toscana', comune_elezione: 'Firenze' },
+  { id: '00000000-0000-4000-8000-000000000016', nome: 'Finta', cognome: 'Piemontese', ruolo: 'E', account_type: 'PERSON', regione_residenza: 'Piemonte', comune_residenza: null, regione_elezione: null, comune_elezione: null },
 ];
 
 async function main() {
@@ -79,8 +80,21 @@ async function main() {
       throw error;
     }
     await page.getByText('Distribuzione geografica indicativa per regione').waitFor({ timeout: 30000 });
-    await page.getByText(/Residenza registrata:\s*2\.\s*Regione elettorale stimata:\s*2\./).waitFor({ timeout: 10000 });
-    await page.getByText(/Residenza comunale disponibile per 2 di 5 utenti; riferimenti comunali stimati: 1\./).waitFor({ timeout: 10000 });
+    await page.getByText(/Residenza registrata:\s*3\.\s*Regione elettorale stimata:\s*2\./).waitFor({ timeout: 10000 });
+    await page.getByText(/Residenza comunale disponibile per 2 di 6 utenti; riferimenti comunali stimati: 1\./).waitFor({ timeout: 10000 });
+
+    // Le barre sono ordinate per utenti decrescenti e i dati mancanti non
+    // vanno presentati come una regione. A parità, ordinamento alfabetico.
+    const regionCard = page.locator('div.bg-white').filter({ has: page.getByText('Distribuzione geografica indicativa per regione') }).last();
+    await regionCard.locator('.recharts-xAxis .recharts-cartesian-axis-tick-value').first().waitFor({ timeout: 10000 });
+    const regionLabels = await regionCard.locator('.recharts-xAxis .recharts-cartesian-axis-tick-value').allTextContents();
+    assert.deepEqual(regionLabels, ['Piemonte', 'Emilia-Romagna', 'Lombardia', 'Toscana'], 'Regional bars must be descending, with alphabetical ties');
+    assert.ok(await regionCard.getByText('Regione non disponibile per 1 utente.').count(), 'Missing region must be shown separately');
+
+    // Su smartphone tutte le etichette rimangono leggibili tramite scroll.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const regionOverflow = await regionCard.locator('.overflow-x-auto').evaluate(el => el.scrollWidth > el.clientWidth);
+    assert.equal(regionOverflow, true, 'Regional chart must scroll horizontally on mobile');
 
     const municipalCard = page.locator('div.bg-white').filter({ has: page.getByText('I 10 comuni di residenza o riferimento comunale') }).last();
     const table = municipalCard.locator('table');
