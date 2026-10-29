@@ -104,10 +104,10 @@ test("opening profile loads just summary; political API requests require expansi
   assert.match(hook, /const politicalPanelOpen = panels\.representatives/);
   assert.match(hook, /enabled: enabled && ownProfile && vaultReady && politicalPanelOpen/);
   assert.match(hook, /const politicalAllowed = ownProfile && vaultReady && consent\.isSuccess/);
-  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.government/);
-  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.representatives/);
-  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.candidates/);
-  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.opinions/);
+  assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.government/);
+  assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.representatives/);
+  assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.candidates/);
+  assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.opinions/);
   assert.doesNotMatch(source, /userOpinions|governoIdeale|candidatiDetails|rappresentantiDetails/);
 });
 
