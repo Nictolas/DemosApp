@@ -19,7 +19,8 @@ function checkOperation(operation) {
       Object.keys(operation).sort().join(',') !== 'action,id,subject') {
     reject('GDPR_MODEL_INVALID_OPERATION');
   }
-  return {...operation};
+  // Object key insertion order must not affect hash, equality or retries.
+  return {id:operation.id,subject:operation.subject,action:operation.action};
 }
 
 // Independent witness model: stores the most recently acknowledged journal head.
