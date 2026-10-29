@@ -22,11 +22,51 @@ Checklist autorevole: DEMOS – Roadmap – Tabella di Marcia, CHECKLIST MASTER,
 7. La migrazione api/database/create-account-capabilities-model.sql contiene ancora la proiezione di compatibilità legacy. NON eseguirla nuovamente alla cieca sulla produzione.
 8. Da checklist POL-014: numerosi mandati LEGACY_BACKFILL/ACTIVE restano da verificare individualmente con fonti istituzionali. La migrazione non deve degradare o cancellare profili politici o inventare mandati.
 
+## Evidenze F12-12B: aggregati live in sola lettura (29/10/2026)
+
+Query riproducibili in `api/scripts/audit-account-role-consistency-20261029.sql`.
+Produzione Supabase Demos, solo SELECT e conteggi: nessun ID/nome/email estratto.
+
+| Controllo | Risultato |
+| --- | ---: |
+| Totale users | 1.838 |
+| Contraddizioni tra account_type e ruolo I/O/persona | 0 |
+| Contraddizioni is_admin vs AD | 0 |
+| Contraddizioni is_activist vs A | 0 |
+| status = 'a' | 1.835 |
+| status = 'active' | 3 |
+| ruolo in P/CP | 1.674 |
+| P/CP senza mandato ACTIVE non-LEGACY_BACKFILL valido per periodo | 1.524 |
+| NON-P/CP con mandato ACTIVE non-legacy valido per periodo | 0 |
+
+Il fatto che 1.524 P/CP non abbiano attualmente un mandato non-legacy NON
+significa che siano 1.524 utenti fittizi, inattivi o da eliminare. Significa che
+il roster canonico deve essere completato e verificato prima del cutover. Un
+mandato di provenienza non legacy non garantisce da solo attendibilità: occorre
+sempre classificare la fonte.
+
+In produzione sono stati osservati anche 1.524 mandati LEGACY_BACKFILL/ACTIVE
+(e 7 candidature LEGACY_BACKFILL/ACTIVE): nessun dato è stato modificato.
+Per i tre account con status 'active', l'attuale codice OAuth/passkey richiede
+'a': serve una verifica del percorso di login prima di un'eventuale
+normalizzazione, SENZA cambiarli automaticamente.
+
+## Passo reale sul percorso /auth/me, solo PR Draft
+
+La risposta `api/routes/auth/profile.js` era già munita di `getAccountSubject`
+ma includeva ancora `u.ruolo` nella query canonica e lo usava come fallback
+ridondante. Nella PR il campo JSON `ruolo` rimane disponibile come proiezione
+compatibile `accountSubject.legacyRole`, mentre account type, flag admin,
+attivista, politico/candidato e DPO derivano dal modello canonico e dallo
+status (non dal vecchio ruolo). `getAccountSubject` mantiene per ora la
+compatibilità con schemi vecchi. Questo intervento NON elimina `ruolo` dal
+database e non è live.
+
 ## F12-12A — inventario statico
 
 Il comando seguente non apre connessioni né modifica il database:
 
-    node --test api/tests/userRoleMigrationAudit.test.js api/tests/accountCapabilitiesLegacyEvidence.test.js api/tests/accountCapabilitiesService.test.js
+    node --test api/tests/userRoleMigrationAudit.test.js api/tests/accountCapabilitiesLegacyEvidence.test.js api/tests/accountCapabilitiesService.test.js api/tests/accountRoleConsistencyAudit.test.js api/tests/authMeAccountModelContract.test.js
     node scripts/audit-user-role-migration.js --output artifacts/user-role-inventory.json --markdown-output artifacts/user-role-inventory.md
 
 Il report include percorso, riga, categoria e segnale per le sorgenti tracciate in Git. Cerca 'ruolo', 'account_type', flag capability e i riferimenti riconoscibili allo status dell'account. Conta anche test, script storici e ruoli diversi da users.ruolo: ogni corrispondenza va classificata prima della rimozione. Non è un elenco di dipendenze confermate.
