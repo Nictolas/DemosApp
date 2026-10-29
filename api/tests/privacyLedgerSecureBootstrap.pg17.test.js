@@ -31,7 +31,14 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         FROM pg_catalog.pg_class c
         WHERE c.oid='public.privacy_erasure_ledger'::regclass
       `);
-      assert.deepEqual(protectedTable.rows[0],{rls:true,forced:false,caller_is_owner:true});
+      assert.deepEqual(protectedTable.rows[0],{rls:true,forced:true,caller_is_owner:true});
+      // Disabling FORCE must immediately prevent GDPR event writes, and
+      // explicit operator maintenance must repair it before writes resume.
+      await pool.query('ALTER TABLE public.privacy_erasure_ledger NO FORCE ROW LEVEL SECURITY');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      await Ledger.ensureTable(pool);
+      assert.equal((await pool.query("SELECT relforcerowsecurity AS forced FROM pg_catalog.pg_class WHERE oid='public.privacy_erasure_ledger'::regclass")).rows[0].forced,true);
       const queryPrivileges=async()=>{
         const r=await pool.query(`
           SELECT COUNT(*)::int AS n FROM pg_catalog.pg_roles
@@ -797,7 +804,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
-  test('replay rejects SQL role with complete ledger but RLS-hidden restored users',async()=>{
+  test('replay refuses owner with FORCE-RLS-hidden ledger and restored users',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const role='gdpr_ci_unfiltered_ledger_hidden_users';
     const deletedAccount='synthetic-restored-hidden-user';
@@ -832,9 +839,9 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       });
       await pool.query('CREATE ROLE '+role+' NOLOGIN NOBYPASSRLS NOSUPERUSER');
       await pool.query('GRANT USAGE ON SCHEMA public TO '+role);
-      // Ledger owner bypasses its RLS, but remains constrained by RLS on
-      // the independent restored users table. This is a real PG17 role,
-      // not a mock of a 0-row DELETE.
+      // FORCE RLS means even a non-BYPASSRLS ledger owner cannot claim
+      // unconditional tombstone visibility. The restored users are also
+      // independently hidden. Both deny routes must remain fail-closed.
       await pool.query('ALTER TABLE public.privacy_erasure_ledger OWNER TO '+role);
       await pool.query('GRANT SELECT,DELETE ON public.users TO '+role);
       await pool.query('ALTER TABLE public.users ENABLE ROW LEVEL SECURITY');
@@ -843,9 +850,12 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         await client.query('BEGIN');
         await client.query('SET LOCAL ROLE '+role);
         assert.equal((await client.query(
-          "SELECT NOT pg_catalog.row_security_active("+
-          "'public.privacy_erasure_ledger'::regclass) AS complete"
-        )).rows[0].complete,true);
+          "SELECT pg_catalog.row_security_active("+
+          "'public.privacy_erasure_ledger'::regclass) AS active"
+        )).rows[0].active,true);
+        assert.equal((await client.query(
+          'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+        )).rows[0].n,0,'FORCE RLS denies ledger-owner tombstone visibility');
         assert.equal((await client.query(
           'SELECT COUNT(*)::int AS n FROM public.users'
         )).rows[0].n,0,'user row is hidden by the separate RLS policy');
