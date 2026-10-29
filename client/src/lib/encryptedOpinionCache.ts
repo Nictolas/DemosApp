@@ -96,7 +96,7 @@ export async function loadOpinionCategory(
     return { success: true, data: cached.questions, grado: grade, total: cached.questions.length };
   }
 
-  const response = await apiRequest("GET", `/api/opinioni-list?grado=${grade}`);
+  const response = await apiRequest("GET", `/api/opinioni-list?grado=${grade}`, undefined, undefined, signal);
   if (!response.ok || response.data?.success !== true) {
     throw new Error("Impossibile caricare le opinioni.");
   }
