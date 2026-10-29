@@ -9,6 +9,15 @@ const dataRetentionJob = require('../../jobs/dataRetentionJob');
 
 const router = express.Router();
 
+function respondRetentionCleanupError(res, error) {
+  if (error?.code === 'RETENTION_POLICY_NOT_APPROVED') {
+    console.warn('RETENTION_CLEANUP_POLICY_NOT_APPROVED');
+    return res.status(409).json({ success: false, error: 'RETENTION_POLICY_NOT_APPROVED' });
+  }
+  console.error('RETENTION_CLEANUP_FAILED');
+  return res.status(500).json({ success: false, error: 'Errore interno del server' });
+}
+
 // Middleware per tutti gli endpoint
 router.use(verifyToken);
 router.use(requireAdmin);
@@ -114,11 +123,7 @@ router.delete('/cleanup/:userId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella pulizia dati utente:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    return respondRetentionCleanupError(res, error);
   }
 });
 
@@ -143,11 +148,7 @@ router.post('/cleanup-all', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella pulizia completa:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    return respondRetentionCleanupError(res, error);
   }
 });
 
@@ -185,6 +186,7 @@ router.get('/notifications', async (req, res) => {
  */
 router.post('/job/start', async (req, res) => {
   try {
+    DataRetentionService.assertRetentionPolicyApproved();
     dataRetentionJob.start();
     
     res.json({
@@ -196,11 +198,7 @@ router.post('/job/start', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'avvio job retention:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    return respondRetentionCleanupError(res, error);
   }
 });
 
@@ -273,11 +271,7 @@ router.post('/cleanup/immediate', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella pulizia immediata:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    return respondRetentionCleanupError(res, error);
   }
 });
 
