@@ -158,7 +158,7 @@ class PrivacyErasureOutboxWorker {
       "to_regclass('public.privacy_erasure_delivery_outbox') IS NOT NULL AS outbox"
     );
     if (reg.rows[0]?.ledger !== true || reg.rows[0]?.outbox !== true) {
-      return { installed: false, ready: false, pending: null,
+      return { installed: false, ready: false, recoveryReady: false, pending: null,
         unqueued: null, orphaned: null, invalidReceipts: null,
         oldestPendingAt: null, completeVisibility: false };
     }
@@ -180,7 +180,7 @@ class PrivacyErasureOutboxWorker {
     `);
     const completeVisibility = access.rows?.[0]?.complete_visibility === true;
     if (!completeVisibility) {
-      return { installed: true, ready: false, pending: null,
+      return { installed: true, ready: false, recoveryReady: false, pending: null,
         unqueued: null, orphaned: null, invalidReceipts: null,
         oldestPendingAt: null, completeVisibility: false };
     }
@@ -218,6 +218,10 @@ class PrivacyErasureOutboxWorker {
     return {
       installed: true,
       // Local counts are NOT an external, independently pinned recovery proof.
+      // Even an empty restored snapshot can look drained while newer committed
+      // erasures were lost with its source database. NEVER expose recovery GO
+      // without independently witnessed, durable external completeness.
+      recoveryReady: false,
       ready: row.pending === 0 && row.invalid_receipts === 0 &&
         row.unqueued === 0 && row.orphaned === 0,
       pending: row.pending,
