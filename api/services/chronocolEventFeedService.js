@@ -135,7 +135,7 @@ async function loadAllPages(fetchImpl) {
     const body = await response.json();
     const incoming = normalizePayload(body);
     const pagination = body.meta.pagination;
-    if (!Number.isInteger(pagination.pageCount) || pagination.pageCount < 1 ||
+    if (!Number.isInteger(pagination.pageCount) || pagination.pageCount < 0 ||
         pagination.pageCount > MAX_PAGES ||
         (Number.isInteger(pagination.page) && pagination.page !== page)) {
       throw new Error('Unexpected Chrono pagination');
@@ -162,7 +162,9 @@ async function retrieve(fetchImpl = fetch, now = new Date()) {
       const all = await loadAllPages(fetchImpl);
       cache = all;
       lastSuccess = ms;
+      nextAttempt = ms + REFRESH_MS;
     } catch (error) {
+      nextAttempt = ms + 30 * 60 * 1000;
       console.warn('[chronocol] Sorgente temporaneamente indisponibile:', error?.message);
     } finally {
       pending = null;
@@ -175,7 +177,8 @@ async function retrieve(fetchImpl = fetch, now = new Date()) {
 
 function eventDateKey(event) {
   const raw = event.giorno_inizio;
-  const day = raw instanceof Date ? raw.toISOString().slice(0, 10) : clean(raw, 30).slice(0, 10);
+  const day = !raw ? '9999-12-31' :
+    raw instanceof Date ? raw.toISOString().slice(0, 10) : clean(raw, 30).slice(0, 10);
   return day + 'T' + (clean(event.orario_inizio, 8) || '00:00');
 }
 
