@@ -95,6 +95,8 @@ jobs:
         run: node --test client/tests/androidPublicAccountDeletion.test.mjs
       - name: Install frontend without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Test profile cache, consent epoch and GDPR invalidation after main overlay
+        run: node --test client/tests/profileNavLocalCache.test.mjs
       - name: Build main-integrated frontend without deploy or Android signing
         run: npm run build --prefix client
       - name: Verify public deletion page in built main-overlay assets
