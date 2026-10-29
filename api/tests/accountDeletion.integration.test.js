@@ -267,6 +267,22 @@ if (!isLocalTestDatabase) {
     assert.doesNotMatch(route, /console\.error\([^;\n]*,\s*error\s*\)/);
   });
 
+  test('deletion audit does not persist account ID on successful deletion in Axiom or SQL fallback', () => {
+    const route = fs.readFileSync(path.join(__dirname, '../routes/user/delete-account.js'), 'utf8');
+    const calls = [...route.matchAll(
+      /await AuditService\\.logAction\\(\\{\\s*userId:\\s*([^,\\n]+),[^\\n]*\\n\\s*action:\\s*'(ACCOUNT_DELETION_[A-Z]+)'/g
+    )];
+    const byAction = new Map(calls.map((match) => [match[2], match[1].trim()]));
+    assert.equal(byAction.size, 3);
+    // The start event may survive a completed deletion at either audit provider.
+    assert.equal(byAction.get('ACCOUNT_DELETION_STARTED'), 'null');
+    assert.equal(byAction.get('ACCOUNT_DELETION_COMPLETED'), 'null');
+    // An unsuccessful deletion still has a live account and can be investigated.
+    assert.equal(byAction.get('ACCOUNT_DELETION_ERROR'), 'req.user?.id');
+    const { buildAxiomAuditEvent } = require('../utils/axiomAuditEvent');
+    assert.equal(buildAxiomAuditEvent({ user_id: null, action: 'ACCOUNT_DELETION_STARTED' }).user_id, null);
+  });
+
   test.after(async () => {
     await pool.query('DROP SCHEMA IF EXISTS public CASCADE');
     await pool.query('CREATE SCHEMA public');
