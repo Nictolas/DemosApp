@@ -1,4 +1,5 @@
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
+import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
@@ -50,7 +51,7 @@ const normalizeAnswer = (answer: string | undefined) => {
 export default function OpinioniNazionali() {
   // Controllo consenso opinioni politiche (GDPR Art. 9)
   const { hasConsent } = usePoliticalOpinionsConsent();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, isSessionVerified, verifiedPoliticalConsent } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -60,7 +61,7 @@ export default function OpinioniNazionali() {
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
-    queryKey: ['opinioniQuestions', 'Nazionale'],
+    queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Nazionale'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=N");
       if (response.ok && response.data) {
@@ -68,7 +69,7 @@ export default function OpinioniNazionali() {
       }
       return { success: false, data: [] };
     },
-    enabled: !!user
+    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true
   });
 
   // Combina i dati
@@ -132,9 +133,18 @@ export default function OpinioniNazionali() {
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("N", newOpinions),
-    onSuccess: () => {
+    onSuccess: (_data, savedOpinions) => {
       toast({ title: "Successo", description: "Le tue opinioni nazionali sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Nazionale'] });
+      queryClient.setQueryData(
+        ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Nazionale'],
+        (previous: any) => previous && Array.isArray(previous.data) ? ({
+          ...previous,
+          data: previous.data.map((question: any) =>
+            Object.prototype.hasOwnProperty.call(savedOpinions, question.id)
+              ? { ...question, userAnswer: savedOpinions[question.id] }
+              : question),
+        }) : previous,
+      );
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
       queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
       const nextPage = exitGuard.onSaveSuccess();
@@ -157,21 +167,12 @@ export default function OpinioniNazionali() {
     console.log('  questions:', questions);
     console.log('  opinions:', opinions);
     
-    // Mappa le opinioni usando l'ID corretto per l'API
-    const opinionsToSave: Record<string, string> = {};
-    questions.forEach(question => {
-      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
-        // Usa l'ID dell'opinione direttamente dal database
-        opinionsToSave[question.id] = opinions[question.id];
-      }
-    });
-    
-    console.log('  opinionsToSave:', opinionsToSave);
-    console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
-    
+    // Only changed IDs: never overwrite positions from another device.
+    const opinionsToSave = collectChangedOpinionAnswers(questions, opinions);
+
     if (Object.keys(opinionsToSave).length === 0) {
       console.log('❌ DEBUG: Nessuna opinione da salvare');
-      toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
+      toast({ title: "Attenzione", description: "Non ci sono nuove opinioni da salvare.", variant: "destructive" });
       return;
     }
     
@@ -201,20 +202,11 @@ export default function OpinioniNazionali() {
       // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
       await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
       
-      // Ricostruisci le opinioni da salvare includendo tutte le opinioni correnti
-      // Questo assicura che anche le opinioni modificate dopo aver aperto il dialog vengano incluse
-      const allOpinionsToSave: Record<string, string> = {};
-      questions.forEach(question => {
-        // Usa l'opinione corrente se disponibile, altrimenti quella in attesa
-        const currentOpinion = opinions[question.id] || pendingOpinionsToSave[question.id];
-        if (currentOpinion && currentOpinion !== 'Astenuto') {
-          allOpinionsToSave[question.id] = currentOpinion;
-        }
-      });
-      
-      console.log('✅ DEBUG: Opinion finali da salvare (dopo ricostruzione):', allOpinionsToSave);
-      console.log('✅ DEBUG: Numero opinioni finali:', Object.keys(allOpinionsToSave).length);
-      
+      // Recompute only real changes after consent; no full snapshot writes.
+      const allOpinionsToSave = collectChangedOpinionAnswers(
+        questions, { ...pendingOpinionsToSave, ...opinions },
+      );
+
       // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
       setTimeout(() => {
         // Verifica che le opinioni siano ancora valide
