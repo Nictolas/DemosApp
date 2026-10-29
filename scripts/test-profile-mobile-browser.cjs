@@ -150,7 +150,15 @@ async function main() {
     assert.equal(await page.getByText('Comune Inventato').count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Modifica profilo' }).count(), 0);
     assert.equal(await page.getByRole('link', { name: 'Impostazioni' }).count(), 0);
-    assert.deepEqual(ownEndpoints.map(p => calls.get(p)), ownCountsBeforePublic, 'Public view must not refetch visitor political choices');
+    const ownPoliticalPaths = ownEndpoints.filter(p => p !== '/api/users/me');
+    assert.deepEqual(
+      ownPoliticalPaths.map(p => calls.get(p) || 0),
+      ownPoliticalPaths.map(p => ownCountsBeforePublic[ownEndpoints.indexOf(p)]),
+      'Public view must not fetch private political choices of the signed-in visitor',
+    );
+    // Global app bootstrap can independently request /api/users/me on a full
+    // reload. This is not an owner-selection leak and is recorded separately.
+    const unrelatedOwnUserReadsOnReload = (calls.get('/api/users/me') || 0) - ownCountsBeforePublic[0];
     assert.equal(calls.get(`/api/users/${OTHER}/public-profile`), 1);
     assert.equal(calls.get(`/api/users/${OTHER}/opinioni`), 1);
     await page.screenshot({ path: '/tmp/demos-profile-public-synthetic-mobile.png', fullPage: true });
@@ -161,6 +169,7 @@ async function main() {
       status: 'pass', viewport: '390x844', summaryHeight,
       firstOpeningObservedApiReads: originalCounts.reduce((a, b) => a + b, 0),
       secondOpeningAdditionalProfileReads: 0,
+      unrelatedOwnUserReadsOnReload,
       externalRequestsAllowed: 0,
       externalOriginsBlocked: blockedOffsite.size,
     }));
