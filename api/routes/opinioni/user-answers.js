@@ -95,34 +95,6 @@ router.post('/salva', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
 
-    // Le opinioni politiche possono essere salvate solo con consenso esplicito attivo.
-    const consentResult = await pool.query(`
-      SELECT COALESCE(
-        uc.political_opinions_consent,
-        u.political_opinions_consent,
-        false
-      ) AS granted
-      FROM users u
-      LEFT JOIN user_consents uc ON uc.user_id = u.id
-      WHERE u.id = $1
-    `, [userId]);
-
-    if (consentResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
-    }
-
-    if (consentResult.rows[0].granted !== true) {
-      return res.status(403).json({
-        success: false,
-        error: 'Consenso richiesto',
-        message: 'Per salvare opinioni politiche è necessario un consenso esplicito attivo.',
-        consent_required: true
-      });
-    }
-
     // Il frontend invia le opinioni direttamente nel body
     const opinioni = req.body.opinioni || req.body; // Accetta sia req.body.opinioni che req.body
     
@@ -268,6 +240,41 @@ router.post('/salva', verifyToken, async (req, res) => {
     try {
       await client.query('BEGIN');
 
+      // Coordinate opinion writes with consent revocation by locking the SAME
+      // users row that PUT /political-opinions-consent/revoke updates first.
+      // A pre-transaction consent check is insufficient: revocation could
+      // commit after that check and before the answer INSERT/UPDATE.
+      // In READ COMMITTED, FOR UPDATE waits for an in-flight revocation,
+      // then reads its new committed consent value. Hold this row lock
+      // through the opinion write and COMMIT.
+      // Lock first; read the consent override in a SEPARATE statement.
+      // This matters in READ COMMITTED: a subquery in the locking
+      // statement could otherwise observe an older user_consents snapshot
+      // while waiting for the revoked users row to become available.
+      const lockedUser = await client.query(
+        'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+      );
+      if (lockedUser.rows.length === 0) {
+        throw Object.assign(new Error('User absent at opinion save'), {
+          code: 'OPINION_USER_NOT_FOUND'
+        });
+      }
+      const consentState = await client.query(`
+        SELECT COALESCE(
+          uc.political_opinions_consent,
+          u.political_opinions_consent,
+          false
+        ) AS granted
+        FROM users u
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE u.id = $1
+      `, [userId]);
+      if (consentState.rows[0]?.granted !== true) {
+        throw Object.assign(new Error('Political consent revoked at opinion save'), {
+          code: 'OPINION_CONSENT_REQUIRED'
+        });
+      }
+
       const quotedFields = insertFields.map((field) => `"${String(field).replace(/"/g, '""')}"`);
       const checkQuery = `
         SELECT user_id${quotedFields.length ? `, ${quotedFields.join(', ')}` : ''}
@@ -378,6 +385,17 @@ router.post('/salva', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
+    if (error?.code === 'OPINION_USER_NOT_FOUND') {
+      return res.status(404).json({success:false,error:'Utente non trovato'});
+    }
+    if (error?.code === 'OPINION_CONSENT_REQUIRED') {
+      return res.status(403).json({
+        success: false,
+        error: 'Consenso richiesto',
+        message: 'Per salvare opinioni politiche è necessario un consenso esplicito attivo.',
+        consent_required: true
+      });
+    }
     console.error('❌ Errore nel salvare opinioni:', error);
     res.status(500).json({
       success: false,

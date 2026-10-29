@@ -50,9 +50,9 @@ export default function OpinioniRegionali() {
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
-    queryKey: ['opinioniQuestions', 'Regionale'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=R");
+    queryKey: ['opinioniQuestions', 'Regionale', user?.id],
+    queryFn: async ({ signal }) => {
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=R", undefined, undefined, signal);
       if (response.ok && response.data) {
         return response.data;
       }
@@ -65,12 +65,6 @@ export default function OpinioniRegionali() {
   const isLoading = isLoadingQuestions;
   const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
   
-  // Debug
-  useEffect(() => {
-    console.log('🔍 DEBUG - questionsData:', questionsData);
-    console.log('🔍 DEBUG - questions:', questions);
-    console.log('🔍 DEBUG - questions.length:', questions.length);
-  }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
     const opinioniEspresse = questions
@@ -90,26 +84,16 @@ export default function OpinioniRegionali() {
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
     if (questions && questions.length > 0) {
-      console.log('🔍 DEBUG useEffect - questions ricevute:', questions);
       // Mappa le risposte dell'utente usando userAnswer da ogni opinione
       const mappedOpinions: Record<string, string> = {};
       questions.forEach(question => {
-        console.log(`🔍 DEBUG question in useEffect:`, {
-          id: question.id,
-          text: question.text,
-          userAnswer: question.userAnswer,
-          grado: question.grado
-        });
         
         if (question.userAnswer && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
-          console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
         } else {
           // Non impostare nulla per opinioni senza risposta - rimangono undefined
-          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer}) -> non impostata`);
         }
       });
-      console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);
       setOpinions(mappedOpinions);
     }
   }, [questions]);
@@ -124,8 +108,7 @@ export default function OpinioniRegionali() {
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("R", newOpinions),
-    onSuccess: (data) => {
-      console.log('🔍 DEBUG saveMutation.onSuccess:', data);
+    onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni regionali sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Regionale'] });
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
@@ -135,55 +118,36 @@ export default function OpinioniRegionali() {
     },
     onError: (error: any) => {
       exitGuard.onSaveError();
-      console.log('🔍 DEBUG saveMutation.onError:', error);
       toast({ title: "Errore", description: error.message || "Impossibile salvare le opinioni.", variant: "destructive" });
     }
   });
 
   const handleOpinionChange = (questionId: string, value: string) => {
-    console.log(`🔍 DEBUG handleOpinionChange: ${questionId} = ${value}`);
     // Vibrazione quando si cambia opinione
     vibrateShort();
     setOpinions(prev => {
       const newOpinions = { ...prev, [questionId]: value };
-      console.log(`🔍 DEBUG setOpinions:`, newOpinions);
       return newOpinions;
     });
   };
 
   const handleSave = () => {
-    console.log('🔍 DEBUG handleSave:');
-    console.log('  questions:', questions);
-    console.log('  opinions:', opinions);
     
     // Mappa le opinioni usando l'ID corretto per l'API
     const opinionsToSave: Record<string, string> = {};
     questions.forEach(question => {
-      console.log(`🔍 DEBUG question:`, {
-        id: question.id,
-        text: question.text,
-        userAnswer: question.userAnswer,
-        opinionValue: opinions[question.id]
-      });
       
       if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
         // Usa l'ID dell'opinione direttamente dal database
         opinionsToSave[question.id] = opinions[question.id];
-        console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
       } else {
-        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: ${!opinions[question.id] ? 'non selezionata' : opinions[question.id] === 'Astenuto' ? 'Astenuto' : 'altro'})`);
       }
     });
     
-    console.log('  opinionsToSave:', opinionsToSave);
-    console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
-    console.log('  DETTAGLIO opinioni da salvare:');
     Object.entries(opinionsToSave).forEach(([key, value]) => {
-      console.log(`    ${key} = ${value}`);
     });
     
     if (Object.keys(opinionsToSave).length === 0) {
-      console.log('❌ DEBUG: Nessuna opinione da salvare');
       toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
       return;
     }
@@ -197,7 +161,6 @@ export default function OpinioniRegionali() {
       return;
     }
     
-    console.log('✅ DEBUG: Procedo con il salvataggio');
     saveMutation.mutate(opinionsToSave);
   };
 
@@ -207,7 +170,6 @@ export default function OpinioniRegionali() {
   const handleConsentGranted = async () => {
     // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
     if (pendingOpinionsToSave) {
-      console.log('✅ DEBUG: Consenso concesso, aggiorno la cache e procedo con il salvataggio delle opinioni');
       // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
       await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
       // Aspetta un breve momento per assicurarsi che la cache sia aggiornata

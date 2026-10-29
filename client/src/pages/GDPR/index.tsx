@@ -41,7 +41,16 @@ export default function GDPR() {
       const response = await apiRequest('PUT', '/api/user/political-opinions-consent/revoke');
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Both opinion-entry and statistics-selector queries may hold personal
+      // political answers. Cancel in-flight reads before purging both caches,
+      // so a response started before revocation cannot re-populate them.
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['opinioniQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['statsOpinionQuestions'] }),
+      ]);
+      queryClient.removeQueries({ queryKey: ['opinioniQuestions'] });
+      queryClient.removeQueries({ queryKey: ['statsOpinionQuestions'] });
       queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
       // Invalidate the short-lived profile consent snapshot immediately.
       // Consent epoch changes must never reuse the prior political answers.
