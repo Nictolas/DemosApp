@@ -270,7 +270,7 @@ if (!isLocalTestDatabase) {
   test('deletion audit does not persist account ID on successful deletion in Axiom or SQL fallback', () => {
     const route = fs.readFileSync(path.join(__dirname, '../routes/user/delete-account.js'), 'utf8');
     const calls = [...route.matchAll(
-      /await AuditService\\.logAction\\(\\{\\s*userId:\\s*([^,\\n]+),[^\\n]*\\n\\s*action:\\s*'(ACCOUNT_DELETION_[A-Z]+)'/g
+      /await AuditService\.logAction\(\{\s*userId:\s*([^,\n]+),[^\n]*\n\s*action:\s*'(ACCOUNT_DELETION_[A-Z]+)'/g
     )];
     const byAction = new Map(calls.map((match) => [match[2], match[1].trim()]));
     assert.equal(byAction.size, 3);
