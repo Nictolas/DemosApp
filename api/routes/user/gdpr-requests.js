@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
-// Legacy GDPR request placeholder does not execute SQL. Do not create a
-// second, insecure PostgreSQL pool merely by importing this route.
+const { pool } = require('../../config/db');
 
 // GET /api/user/gdpr-requests - Recupera le richieste GDPR dell'utente
 router.get('/', verifyToken, async (req, res) => {
