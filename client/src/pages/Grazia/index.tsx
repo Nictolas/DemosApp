@@ -55,7 +55,7 @@ export default function Grazia() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-3 sm:p-4 page-with-navbar">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-3 pb-5 sm:p-4 page-with-navbar">
       <div className="container mx-auto max-w-6xl">
         {data?.blocco.isBlocked && (
           <BlockedWarning unlockDate={data.blocco.unlockDate} />
@@ -67,9 +67,9 @@ export default function Grazia() {
             {error.message}
           </div>
         ) : (
-          <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 items-start gap-2 sm:gap-6 lg:grid-cols-2">
             {/* Colonna sinistra: Header, form e voto */}
-            <div className="space-y-3 sm:space-y-6">
+            <div className="space-y-2 sm:space-y-6">
               <Header />
 
               {isLoadingData ? (
@@ -78,18 +78,6 @@ export default function Grazia() {
                 </div>
               ) : (
                 <>
-                  <div className="flex justify-start items-center">
-                    <CreateButton onClick={showForm} />
-                  </div>
-
-                  {votingState.showForm && (
-                    <CarceratoForm
-                      onSubmit={handleCreateCarcerato}
-                      onCancel={hideForm}
-                      isLoading={false}
-                    />
-                  )}
-
                   <GraziaForm
                     nomeInput={votingState.nomeInput}
                     selectedVoti={votingState.selectedVoti}
@@ -104,6 +92,18 @@ export default function Grazia() {
                     limit={limit}
                     remainingVotes={remainingVotes}
                   />
+
+                  <div className="flex items-center">
+                    <CreateButton onClick={showForm} />
+                  </div>
+
+                  {votingState.showForm && (
+                    <CarceratoForm
+                      onSubmit={handleCreateCarcerato}
+                      onCancel={hideForm}
+                      isLoading={false}
+                    />
+                  )}
                 </>
               )}
             </div>
