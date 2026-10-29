@@ -23,6 +23,7 @@ on:
       - 'api/index.js'
       - 'api/services/gdprRenderInProcessStagingAttestation.js'
       - 'api/tests/gdprRenderInProcessStagingAttestation.test.js'
+      - 'api/tests/gdprStagingBootSourceAudit.test.js'
       - 'api/tests/gdprWriterReadonlyAttestation.test.js'
       - 'api/services/privacyErasureB2Journal.js'
       - 'api/services/privacyErasureLedgerService.js'
@@ -72,6 +73,13 @@ jobs:
           cache-dependency-path: api/package-lock.json
       - name: Install synthetic-only dependencies
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Inspect existing functional staging branch SOURCE ONLY (no deploy)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin \
+            '+refs/heads/staging/functional-integration-v0:refs/remotes/origin/gdpr-audit-functional-staging'
+          node api/tests/gdprStagingBootSourceAudit.test.js
       - name: Verify manual worker syntax, retries, receipt binding and rollback
         env:
           GITHUB_ACTIONS: 'true'
