@@ -11,7 +11,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
+const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>, externalSignal?: AbortSignal) => {
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -33,7 +33,15 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
   }
   
   const finalUrl = getApiUrl(url);
-  
+
+  // Cancelling a React Query read must abort the actual HTTP request, not
+  // just discard the cache entry. Keep timeout compatible with older WebViews.
+  const controller = new AbortController();
+  const abortFromQuery = () => controller.abort();
+  if (externalSignal?.aborted) abortFromQuery();
+  else externalSignal?.addEventListener('abort', abortFromQuery, { once: true });
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+
   try {
     // Disabilita la cache per evitare problemi con status 304
     const fetchOptions: RequestInit = {
@@ -47,23 +55,10 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       cache: 'no-store'
     };
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
-    const response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal }).finally(() => {
-      clearTimeout(timeoutId);
-    });
+    const response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal });
     
     // Leggi il body come testo prima di parsarlo
     const text = await response.text();
-    
-    // Log per debug
-    if (url.includes('referendum-abrogativi') || url.includes('voti-parlamento-europeo')) {
-      console.log('🔍 DEBUG apiRequest - URL:', url);
-      console.log('🔍 DEBUG apiRequest - Response status:', response.status);
-      console.log('🔍 DEBUG apiRequest - Response ok:', response.ok);
-      console.log('🔍 DEBUG apiRequest - Text length:', text?.length);
-      console.log('🔍 DEBUG apiRequest - Text preview (first 500 chars):', text?.substring(0, 500));
-    }
     
     // Se il body è vuoto (può succedere con 304), gestiscilo
     if (!text || text.trim() === '') {
@@ -73,33 +68,18 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       throw new Error('Risposta vuota dal server');
     }
     
-    // Prova a parsare il JSON
+    // Do not log response bodies or parsed payloads: they may contain
+    // personal data, including sensitive political opinions.
     let data;
     try {
       data = JSON.parse(text);
-      if (url.includes('referendum-abrogativi') || url.includes('voti-parlamento-europeo')) {
-        console.log('🔍 DEBUG apiRequest - Parsed data:', JSON.stringify(data, null, 2));
-        console.log('🔍 DEBUG apiRequest - data.success:', data?.success);
-        if (url.includes('referendum-abrogativi')) {
-          console.log('🔍 DEBUG apiRequest - data.referendum:', data?.referendum);
-          console.log('🔍 DEBUG apiRequest - data.richieste:', data?.richieste);
-        }
-        if (url.includes('voti-parlamento-europeo')) {
-          console.log('🔍 DEBUG apiRequest - data.data:', data?.data);
-          console.log('🔍 DEBUG apiRequest - data.count:', data?.count);
-        }
-      }
-    } catch (parseError) {
-      if (url.includes('referendum-abrogativi') || url.includes('voti-parlamento-europeo')) {
-        console.error('❌ DEBUG apiRequest - Parse error:', parseError);
-        console.error('❌ DEBUG apiRequest - Text that failed to parse:', text);
-      }
+    } catch {
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+        throw new Error(`HTTP ${response.status}: risposta non valida dal server`);
       }
       throw new Error('Errore nel parsing della risposta JSON');
     }
-    
+
     // Se la risposta non è ok, lancia un errore con il messaggio dall'API
     if (!response.ok) {
       const errorMessage = data.error || data.message || `HTTP ${response.status}`;
@@ -110,6 +90,30 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       throw error;
     }
     
+    // Invalida gli snapshot in memoria dopo scritture che cambiano profilo,
+    // selezioni o consensi. Le chiamate GET non causano altre letture.
+    const profileWriteRoots = [
+      "users", "user", "opinioni", "governo", "rappresentanti",
+      "candidati", "attivismo-tipologie", "consenso", "consensi", "privacy",
+    ];
+    const apiPath = url.startsWith("/api/") ? url.slice(5).split("?")[0] : "";
+    if (
+      method.toUpperCase() !== "GET" &&
+      data?.success !== false &&
+      profileWriteRoots.some((root) => apiPath === root || apiPath.startsWith(root + "/"))
+    ) {
+      // Dopo revoca/cancellazione non conservare una snapshot politica obsoleta
+      // neppure durante il refetch: reset immediato invece di sola invalidazione.
+      if (
+        apiPath === "user/political-opinions-consent/revoke" ||
+        apiPath === "user/delete-account"
+      ) {
+        void queryClient.resetQueries({ queryKey: ["profileSnapshot"] });
+      } else {
+        void queryClient.invalidateQueries({ queryKey: ["profileSnapshot"] });
+      }
+    }
+
     // Restituisci un oggetto Response-like per compatibilità
     return {
       ok: true,
@@ -119,6 +123,7 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     } as any;
   } catch (error: any) {
     if (error?.name === 'AbortError') {
+      if (externalSignal?.aborted) throw error;
       throw new Error(`Timeout richiesta API (${DEFAULT_REQUEST_TIMEOUT_MS}ms): ${url}`);
     }
     // Se l'errore ha già status, rilancialo così com'è
@@ -127,6 +132,9 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     }
     // Altrimenti, crea un nuovo errore
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    externalSignal?.removeEventListener('abort', abortFromQuery);
   }
 };
 
