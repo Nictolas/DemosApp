@@ -1,6 +1,8 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiUrl } from "@/lib/api-config";
 import { getAuthToken } from "@/lib/auth-token";
+import { clearAllEncryptedProfiles } from "@/pages/Profilo/utils/encryptedProfileVault";
+import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCache";
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 12000;
 
@@ -110,6 +112,19 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       throw error;
     }
     
+    // A successful local write is the explicit invalidation event.
+    // Other users' pages and reads never trigger this path.
+    if (method !== "GET" && /^\/api\/(?:users(?:\/me|\/profile)?|user\/political-opinions-consent|rappresentanti|candidati|governo|opinioni)(?:\/|$)/.test(url)) {
+      await clearAllEncryptedProfiles();
+      queryClient.removeQueries({ queryKey: ["profilePolitical"] });
+      queryClient.removeQueries({ queryKey: ["profileFull"] });
+      queryClient.removeQueries({ queryKey: ["profileConsent"] });
+      if (/^\/api\/users(?:\/|$)/.test(url)) {
+        clearAllProfileSummaries();
+        queryClient.removeQueries({ queryKey: ["profileSummary"] });
+      }
+    }
+
     // Restituisci un oggetto Response-like per compatibilità
     return {
       ok: true,
