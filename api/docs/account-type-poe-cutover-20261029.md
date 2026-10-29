@@ -50,6 +50,23 @@ In contrast, PR #402's PostgreSQL 17 CI exercises the real getAccountSubject SQL
 
 Before deployment, provision a dedicated isolated and complete staging schema/application using safe synthetic data. Reuse of production identities, credentials or user PII is neither necessary nor authorized.
 
+## Private Supabase Demos-Staging smoke: verified 29 October 2026
+
+Created dedicated private schema f12_poe_ci on Demos-Staging PostgreSQL 17.11, using migrations f12_poe_isolated_synthetic_fixture_20261029 and f12_poe_synthetic_fixture_constraints_20261029. Both succeeded.
+
+- Seven invented accounts: account_type P=5, O=1, E=1. Every status is a. No real identities, names, or emails.
+- Distinct domains: account_type E with ruolo I; account_type P with ruolo E; legacy roles P/CP/A/AD stay intact.
+- Verified defaults: account_type P; ruolo E; status pending (the latter deliberately fail-closed).
+- Two P/CP legacy politicians with only LEGACY_BACKFILL mandates are not considered independently verified, but retain their historical labels. One active legacy candidacy is separate.
+- In a ROLLED-BACK staging transaction, is_activist=true on P and CP profiles did not downgrade either legacy role. A subsequent read confirmed rollback restored both flags.
+- In a separate ROLLED-BACK staging transaction, an invented OFFICIAL mandate temporarily enabled the verified politician predicate. After rollback OFFICIAL mandate count returned to zero.
+- Schema USAGE was explicitly denied to anon, authenticated and service_role. All three tables use RLS with intentionally zero policies (deny all for unprivileged roles). Security advisor INFO notices for RLS without policies are intentional.
+- Performance advisors found no missing primary keys or unindexed foreign keys in the new schema after second migration. Public staging users and the op37 private schema are separate and unaffected.
+- Read-only smoke assertions were all true; access restriction assertions were all true.
+
+Reproducible files: api/staging/f12_poe_isolated_synthetic_20261029.sql, api/staging/f12_poe_isolated_synthetic_index_20261029.sql, api/staging/f12_poe_readonly_smoke_20261029.sql.
+
+Remaining gate: This private schema is not connected to a running DEMOS backend. Existing public staging tables are incomplete for auth, so the tests are real Supabase/PostgreSQL integration but NOT live Google/Apple/passkey or Android E2E. No production DDL or deploy until the separate application compatibility gate passes.
 ## Read-only postflight
 
 SELECT account_type, count(*)::int FROM public.users GROUP BY 1 ORDER BY 1;
