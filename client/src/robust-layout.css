@@ -457,3 +457,28 @@
     height: 100vh;
   }
 }
+
+/* Opinion editors: the header and actions stay visible; only questions scroll.
+   The shell's navbar already owns its own row (including its safe-area inset). */
+.app-main:has(.opinioni-editor-page) {
+  overflow-y: hidden !important;
+}
+
+.app-main:has(.opinioni-editor-page) > .app-main__inner {
+  overflow: hidden;
+}
+
+.app-main:has(.opinioni-editor-page) .fade-up-transition,
+.app-main:has(.opinioni-editor-page) .fade-side-transition {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.opinioni-editor-page__list {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
