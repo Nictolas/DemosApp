@@ -229,13 +229,20 @@ export const useProfileData = (userId?: string) => {
   }, [needsVerification, identityKey, query.dataUpdatedAt]);
 
   const fetchAllProfileData = useCallback(async () => {
-    if (ownerId && targetId) await query.refetch();
-  }, [ownerId, targetId, query.refetch]);
+    if (!ownerId || !targetId) return;
+    if (ownProfile && verification?.key === identityKey && verification.status === "blocked") {
+      setVerification({ key: identityKey, status: "pending" });
+      return;
+    }
+    await query.refetch();
+  }, [ownerId, targetId, ownProfile, identityKey, verification, query.refetch]);
 
   return {
     userInfo: isPoliticalSnapshotSafe ? (query.data?.userInfo || null) : null,
-    isLoadingInfo: !authReady || (Boolean(ownerId && targetId) && query.isPending) || !isPoliticalSnapshotSafe,
-    error: query.error instanceof Error ? query.error.message : null,
+    isLoadingInfo: !authReady || (Boolean(ownerId && targetId) && query.isPending) || (!isPoliticalSnapshotSafe && !explicitlyBlocked),
+    error: explicitlyBlocked
+      ? "Impossibile verificare il consenso politico. Riprova quando la connessione è disponibile."
+      : query.error instanceof Error ? query.error.message : null,
     userOpinions: isPoliticalSnapshotSafe ? (query.data?.userOpinions || {}) : {},
     avatarConfig: isPoliticalSnapshotSafe ? (query.data?.avatarConfig || null) : null,
     governoIdeale: isPoliticalSnapshotSafe ? (query.data?.governoIdeale || {}) : {},
