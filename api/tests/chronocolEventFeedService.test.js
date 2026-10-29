@@ -150,9 +150,9 @@ test('public mobilizations route skips verifyToken and preserves private Eventi 
   const publicHandler = router.slice(publicStart, router.indexOf("\n});", publicStart) + 4);
   assert.doesNotMatch(publicHandler, /verifyToken|pool\.query|getFeedUser|req\.user/);
   assert.match(publicHandler, /public, max-age=60/);
-  assert.match(client, /getApiUrl\("\/api\/eventi\/mobilitazioni"\)/);
-  assert.match(client, /credentials: 'omit'/);
-  assert.match(client, /activeTab === 'mobilitazioni' \? 60_000 : 0/);
+  assert.match(client, /getApiUrl\("\/api\/eventi\/pubblici"\)/);
+  assert.match(client, /credentials: "omit"/);
+  assert.match(client, /staleTime: 120_000/);
   assert.match(router, /router\.get\('\/', verifyToken/);
   assert.match(router, /router\.post\('\/', verifyToken/);
 });

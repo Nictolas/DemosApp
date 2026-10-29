@@ -18,6 +18,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ITALY_DATA } from "@/data/italyData";
 import DatePicker from "@/components/DatePicker";
 import { formatEventoLocation, formatEventoElezioniLocation, decompressPaeseEvento, decompressRegioneEvento, decompressProvinciaEvento, compressPaeseEvento, compressRegioneEvento, compressProvinciaEvento } from "@/utils/eventiGeographicUtils";
+import { composeTerritorialEvents, type EventRecord, type EventTerritory } from "@/utils/eventTerritoryView";
 
 // Schema di validazione per il form di modifica
 const eventoSchema = z.object({
@@ -73,43 +74,61 @@ export default function Eventi() {
   // Check if user is admin
   const isAdmin = user?.ruolo === "AD";
   
-  // State for admin tabs
-  const [activeTab, setActiveTab] = useState<'personal' | 'global' | 'mobilitazioni'>('personal');
+  // Tre viste territoriali. Il feed personale contiene già il territorio utente:
+  // non viene aggiunta alcuna lettura profilo per individuare provincia e regione.
+  const [activeTab, setActiveTab] = useState<'personal' | 'regional' | 'global'>('personal');
 
-  // Fetch eventi data from API
-  const { data: eventiResponse, isLoading: eventiLoading, refetch } = useQuery<any>({
-    queryKey: ["/api/eventi", activeTab],
+  const {
+    data: personalResponse,
+    isLoading: personalLoading,
+    isError: personalError,
+    refetch
+  } = useQuery<{ success: boolean; data: EventRecord[]; territory?: EventTerritory }>({
+    queryKey: ["/api/eventi", "personal", user?.id],
     queryFn: async () => {
-      const response = activeTab === 'mobilitazioni'
-        ? await (async () => {
-            // Catalogo pubblico: mai inviare token, cookie o parametri di profilo.
-            const result = await fetch(getApiUrl("/api/eventi/mobilitazioni"), {
-              method: 'GET',
-              credentials: 'omit',
-              headers: { Accept: 'application/json' }
-            });
-            const data = await result.json();
-            return { ok: result.ok, data };
-          })()
-        : await apiRequest("GET", isAdmin && activeTab === 'global'
-          ? "/api/eventi?view=global"
-          : "/api/eventi?view=personal");
-      if (!response?.ok || !response?.data) {
-        const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento degli eventi";
-        throw new Error(errorMsg);
-      }
-      const result = response.data;
-      if (!result.success) {
-        throw new Error(result.error || "Errore nel caricamento degli eventi");
-      }
-      return result;
+      const response = await apiRequest("GET", "/api/eventi?view=personal");
+      if (!response?.ok || !response?.data?.success) throw new Error("Errore nel caricamento degli eventi personali");
+      return response.data;
     },
     enabled: !!user,
-    staleTime: activeTab === 'mobilitazioni' ? 60_000 : 0,
+    staleTime: 60_000,
   });
 
-  // Extract eventi array from API response (filtering is now done server-side)
-  const eventi = (eventiResponse?.data && Array.isArray(eventiResponse.data)) ? eventiResponse.data : [];
+  // Un unico catalogo pubblico approvato per tutte le schede. Nessun token,
+  // cookie, ID utente, regione o preferenza passa alla rotta pubblica.
+  const {
+    data: publicResponse,
+    isLoading: publicLoading,
+    isError: publicError,
+    refetch: refetchPublic
+  } = useQuery<{ success: boolean; data: EventRecord[] }>({
+    queryKey: ["/api/eventi", "public-approved"],
+    queryFn: async () => {
+      const response = await fetch(getApiUrl("/api/eventi/pubblici"), {
+        method: "GET",
+        credentials: "omit",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("Catalogo pubblico non disponibile");
+      const payload = await response.json();
+      if (!payload?.success || !Array.isArray(payload?.data)) throw new Error("Risposta Eventi non valida");
+      return payload;
+    },
+    enabled: !!user,
+    staleTime: 120_000,
+  });
+
+  const territory: EventTerritory = personalResponse?.territory || { provincia: null, regione: null };
+  const provinciaLabel = decompressProvinciaEvento(territory.provincia) || "";
+  const regioneLabel = decompressRegioneEvento(territory.regione) || "";
+  const eventi = composeTerritorialEvents(
+    personalResponse?.data || [],
+    publicResponse?.data || [],
+    territory,
+    activeTab
+  );
+  const eventiLoading = publicLoading || (activeTab !== 'global' && personalLoading);
+  const eventiError = publicError || (activeTab !== 'global' && personalError);
 
   // Function to delete event
   const deleteEvent = async (eventId: string) => {
@@ -124,7 +143,8 @@ export default function Eventi() {
       
       if (response?.ok && response?.data?.success) {
         // Refresh the eventi list
-        refetch();
+        void refetch();
+        void refetchPublic();
         alert('Evento eliminato con successo!');
       } else {
         const errorMsg = response?.data?.error || response?.data?.message || 'Errore nell\'eliminazione dell\'evento';
@@ -241,7 +261,8 @@ export default function Eventi() {
       });
       setIsEditModalOpen(false);
       setEditingEvent(null);
-      refetch();
+      void refetch();
+      void refetchPublic();
     },
     onError: (error) => {
       console.error('❌ Errore aggiornamento evento:', error);
@@ -273,56 +294,52 @@ export default function Eventi() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 select-none page-with-navbar" style={{ paddingBottom: '280px' }}>
       <div className="container mx-auto px-4 py-8">
         
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <Calendar className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-3xl font-bold text-gray-900">Eventi</h1>
+        {/* Intestazione più compatta e navigazione leggibile da smartphone */}
+        <header className="mb-5 text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Calendar className="h-7 w-7 text-blue-600" aria-hidden="true" />
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Eventi</h1>
           </div>
-          <p className="text-lg text-gray-600">
-            {isAdmin 
-              ? "Gestisci e visualizza tutti gli eventi della piattaforma"
-              : "Calendario degli eventi organizzati dai tuoi rappresentanti e candidati"
-            }
+          <p className="text-sm sm:text-base text-gray-600">
+            Scopri gli appuntamenti e le mobilitazioni sul territorio.
           </p>
-          {!isAdmin && (
-            <p className="text-sm text-blue-600 mt-2">
-              ℹ️ Gli eventi "Elezioni" vengono mostrati solo per la tua regione
-            </p>
-          )}
-        </div>
+        </header>
 
-        {/* Filtri nella pagina Eventi esistente: nessuna nuova sezione navbar */}
-        <div className="flex justify-center mb-6">
-          <div className="bg-white rounded-lg p-1 shadow-sm border flex flex-wrap justify-center gap-1">
-            <button
-              onClick={() => setActiveTab('personal')}
-              className={`px-4 sm:px-6 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'personal' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Personali
-            </button>
-            {isAdmin && (
+        <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-sm p-1.5 mb-3">
+          <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Visualizza eventi per territorio">
+            {([
+              { value: 'personal', label: 'Personali' },
+              { value: 'regional', label: 'Regionali' },
+              { value: 'global', label: 'Globali' }
+            ] as const).map((tab) => (
               <button
-                onClick={() => setActiveTab('global')}
-                className={`px-4 sm:px-6 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`min-w-0 rounded-xl px-2 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  activeTab === tab.value
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                Globale
+                {tab.label}
               </button>
-            )}
-            <button
-              onClick={() => setActiveTab('mobilitazioni')}
-              className={`px-4 sm:px-6 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'mobilitazioni' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Mobilitazioni
-            </button>
+            ))}
           </div>
         </div>
+        <p className="mb-5 px-2 text-xs sm:text-sm text-center text-slate-500">
+          {activeTab === 'personal'
+            ? provinciaLabel
+              ? `Eventi dei soggetti seguiti e appuntamenti in provincia di ${provinciaLabel}`
+              : 'Eventi dei soggetti seguiti. Completa la provincia di residenza per quelli vicini.'
+            : activeTab === 'regional'
+              ? regioneLabel
+                ? `Eventi e mobilitazioni in ${regioneLabel}`
+                : 'Completa la regione di residenza nel profilo per vedere gli eventi regionali.'
+              : 'Tutti gli eventi pubblici e le mobilitazioni in Italia'}
+        </p>
 
         {/* Schede Eventi */}
         <div className="space-y-4">
@@ -331,11 +348,17 @@ export default function Eventi() {
               <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto" />
               <p className="text-gray-600 mt-2">Caricamento eventi...</p>
             </div>
+          ) : eventiError ? (
+            <div role="alert" className="rounded-xl bg-white border border-amber-200 p-5 text-center">
+              <p className="text-sm text-slate-700">Impossibile aggiornare tutti gli eventi in questo momento.</p>
+              <button type="button" className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+                onClick={() => { void refetch(); void refetchPublic(); }}>Riprova</button>
+            </div>
           ) : eventi.length > 0 ? (
             eventi.map((evento: any) => (
               <div
                 key={evento.id}
-                className={`rounded-xl shadow-lg border p-6 hover:shadow-xl transition-shadow ${
+                className={`rounded-xl shadow-sm border p-4 sm:p-5 hover:shadow-md transition-shadow ${
                   evento.tipologia_evento === 'Elezioni'
                     ? (evento.tipo_elezione && evento.tipo_elezione.toLowerCase() === 'europee')
                       ? 'bg-blue-50 border-blue-200 shadow-blue-100'
@@ -344,8 +367,8 @@ export default function Eventi() {
                 }`}
               >
                                             {/* Nome Evento */}
-                            <div className="flex items-center justify-between mb-3">
-                              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+                              <h3 className="text-lg sm:text-xl font-bold leading-snug break-words text-gray-900 flex items-center gap-2">
                                 {evento.tipologia_evento === 'Elezioni' && (
                                   <span className="text-2xl">🗳️</span>
                                 )}
@@ -529,11 +552,7 @@ export default function Eventi() {
             <div className="text-center py-12 text-gray-500">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Nessun evento programmato al momento.</p>
-              {!isAdmin && (
-                <p className="text-sm text-gray-400 mt-2">
-                  Gli eventi "Elezioni" vengono mostrati solo per la tua regione ({user?.regione || 'non specificata'}).
-                </p>
-              )}
+
             </div>
           )}
         </div>

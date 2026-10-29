@@ -21,6 +21,66 @@ const pool = getPool();
 
 // ===== ENDPOINTS PER EVENTI =====
 
+// Snapshot condiviso fra richieste: una SELECT sugli eventi approvati ogni 3 minuti
+// per istanza Render, non una lettura per ogni utente o cambio scheda.
+let publicEventsSnapshot = [];
+let publicEventsExpiresAt = 0;
+let publicEventsPending = null;
+
+async function listPublicApprovedEvents() {
+  if (Date.now() < publicEventsExpiresAt) return publicEventsSnapshot;
+  if (publicEventsPending) return publicEventsPending;
+  publicEventsPending = (async () => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, nome_evento, tipologia_evento, tipo_elezione,
+                paese_evento, regione_evento, provincia_evento, comune_evento,
+                indirizzo_evento, giorno_inizio, giorno_fine, orario_inizio, orario_fine,
+                organizzatore
+         FROM eventi
+         WHERE approval_status = 'APPROVED'
+           AND giorno_inizio IS NOT NULL
+           AND COALESCE(giorno_fine, giorno_inizio) >= CURRENT_DATE
+         ORDER BY giorno_inizio ASC, orario_inizio ASC NULLS LAST, id ASC
+         LIMIT 2000`
+      );
+      // Il campo storico organizzatore può contenere l'email del creatore:
+      // non trasformare un dato interno in un recapito pubblico.
+      const safeRows = rows.map((row) => ({
+        ...row,
+        organizzatore: /@/.test(String(row.organizzatore || '')) ? null : row.organizzatore
+      }));
+      publicEventsSnapshot = safeRows;
+      publicEventsExpiresAt = Date.now() + 3 * 60 * 1000;
+      return safeRows;
+    } finally {
+      publicEventsPending = null;
+    }
+  })();
+  return publicEventsPending;
+}
+
+// GET /api/eventi/pubblici - Feed nazionale anonimo, solo eventi approvati.
+// Risolve Globali/Regionali lato dispositivo con il catalogo geografico incluso nell'app.
+// Non legge il profilo, le selezioni politiche né lo stato di autenticazione.
+router.get('/pubblici', async (_req, res) => {
+  try {
+    const [approved, imported] = await Promise.all([
+      listPublicApprovedEvents(), retrieveChronocol()
+    ]);
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=120, stale-while-revalidate=60');
+    return res.json({
+      success: true,
+      data: mergeChronocol(approved, imported, { global: true })
+    });
+  } catch (error) {
+    // Un errore di schema/approval non deve MAI degradare a "mostra tutto".
+    console.error('[eventi] Catalogo pubblico non disponibile:', error?.message);
+    res.set('Cache-Control', 'no-store');
+    return res.status(503).json({ success: false, error: 'PUBLIC_EVENTS_UNAVAILABLE' });
+  }
+});
+
 // GET /api/eventi/mobilitazioni - Solo dati pubblici, nessun token o SELECT utenti.
 // Gli eventi importati non contengono preferenze individuali o dati identificativi.
 router.get('/mobilitazioni', async (_req, res) => {
@@ -91,6 +151,12 @@ router.get('/', verifyToken, async (req, res) => {
     return res.json({
       success: true,
       data: mergeChronocol(feed.events, await retrieveChronocol(), { user: feed.user }),
+      // La stessa SELECT utente del feed personale fornisce la localizzazione:
+      // nessuna query aggiuntiva per filtrare provincia/regione nel client.
+      territory: {
+        provincia: feed.user.provincia_residenza || null,
+        regione: feed.user.regione_residenza || null
+      },
       ranking: ['SELECTED_SUBJECT', 'TERRITORY', 'RELEVANT_ELECTION']
     });
   } catch (error) {
