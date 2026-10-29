@@ -107,3 +107,11 @@ test("opening profile loads just summary; political API requests require expansi
   assert.match(hook, /enabled: enabled && politicalAllowed && panels\.opinions/);
   assert.doesNotMatch(source, /userOpinions|governoIdeale|candidatiDetails|rappresentantiDetails/);
 });
+
+test("successful login and onboarding open Profile as the new home", () => {
+  assert.doesNotMatch(read("hooks/useAuthLogin.ts"), /window\.location\.href = "\/preferiti"/);
+  assert.match(read("hooks/useAuthLogin.ts"), /window\.location\.href = "\/profilo"/);
+  assert.match(read("pages/registrazione-crea-passkey.tsx"), /window\.location\.href = "\/profilo"/);
+  assert.match(read("pages/registrazione-3-residenza.tsx"), /navigate\("\/profilo"\)/);
+  assert.match(read("pages/registrazione-ruolo.tsx"), /navigate\("\/profilo"\)/);
+});
