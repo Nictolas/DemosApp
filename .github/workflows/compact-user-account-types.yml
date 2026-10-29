@@ -8,6 +8,7 @@ on:
       - 'api/utils/sondaggiTextBulk.js'
       - 'api/routes/organizzazioni.js'
       - 'api/routes/users/search.js'
+      - 'api/routes/auth/profile.js'
       - 'api/services/privacyDataExportService.js'
       - 'api/scripts/audit-political-duplicate-users-20261028.sql'
       - 'api/database/create-account-capabilities-model.sql'
