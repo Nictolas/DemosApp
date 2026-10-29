@@ -21,6 +21,13 @@ test('production app never mounts the legacy direct-pool schema diagnostic',()=>
   // have been removed from every other code path.
 });
 
+test('health SQL diagnostic is never routed when NODE_ENV is production',()=>{
+  const source=read('routes/health.js');
+  assert.match(source,/if \(process\.env\.NODE_ENV !== 'production'\) \{\s*router\.get\('\/test-db'/);
+  assert.equal((source.match(/router\.get\('\/test-db'/g)||[]).length,1);
+  // Runtime tests additionally verify 404 and zero database connection.
+});
+
 test('cleanup and migration database pools remain dev/override-only, NOT covered by production safety proof',()=>{
   const app=read('app.js');
   assert.match(app,/const mountDevApiSurface = !isProductionApp \|\| process\.env\.ALLOW_DEV_API_SURFACE === 'true';/);
