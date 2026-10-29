@@ -53,6 +53,48 @@ test('only exact Render functional-staging service with verified staging target 
   );
 });
 
+test('probe refuses staging migration and all write-capable E2E flags before SQL',async()=>{
+  // Staging's actual server and stagingBoot expose these names on the existing
+  // functional-integration branch. The list must be reviewed if it changes.
+  const keys=[
+    'DEMOS_STAGING_AUTH_E2E',
+    'DEMOS_STAGING_MUTATION_E2E',
+    'DEMOS_STAGING_OPINION_NOTIFICATION_E2E',
+    'DEMOS_STAGING_OPINION_PROPOSAL_E2E',
+    'DEMOS_STAGING_PREFERENCE_COOLDOWN_E2E',
+    'DEMOS_STAGING_POLITICAL_CONSENT_E2E',
+    'DEMOS_STAGING_TRANSPARENCY_PODIUM_E2E',
+    'DEMOS_STAGING_LOAD_E2E',
+    'DEMOS_STAGING_ELECTORAL_PERIMETER_E2E'
+  ];
+  for(const mode of ['baseline','preflight','apply','e2e-seed']){
+    const env=config({DEMOS_STAGING_MIGRATION_MODE:mode});
+    assert.throws(()=>assertProcessTarget(env),
+      /NO_GO_STAGING_ATTESTATION_GUARD_FAILED/,mode);
+    let calls=0;
+    const result=await attestInProcess({
+      env,getPool:()=>{calls++;throw Error('MUST_NOT_CONNECT');},emit:()=>{}
+    });
+    assert.equal(result.recoveryReady,false);
+    assert.equal(result.in_process_staging_session_observed,false);
+    assert.equal(calls,0,'must not initialize a pool in migration mode '+mode);
+  }
+  for(const key of keys){
+    const env=config({[key]:'true'});
+    assert.throws(()=>assertProcessTarget(env),
+      /NO_GO_STAGING_ATTESTATION_GUARD_FAILED/,key);
+    let calls=0;
+    const result=await attestInProcess({
+      env,getPool:()=>{calls++;throw Error('MUST_NOT_CONNECT');},emit:()=>{}
+    });
+    assert.equal(result.recoveryReady,false);
+    assert.equal(calls,0,'must not connect with E2E enabled '+key);
+  }
+  assert.doesNotThrow(()=>assertProcessTarget(
+    config({DEMOS_STAGING_MIGRATION_MODE:'',DEMOS_STAGING_LOAD_E2E:'false'})
+  ));
+});
+
 test('production or malformed guard does not obtain pool, connect or query',async()=>{
   const logs=[];
   for(const bad of [
