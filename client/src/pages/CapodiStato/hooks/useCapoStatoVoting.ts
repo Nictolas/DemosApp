@@ -27,15 +27,9 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
     mutationFn: async (voti: string[]) => {
-      console.log('🔍 DEBUG CLIENT - Tentativo di salvataggio voti:', voti);
-      console.log('🔍 DEBUG CLIENT - Tipo voti:', typeof voti, Array.isArray(voti));
-      console.log('🔍 DEBUG CLIENT - Token presente:', !!localStorage.getItem('auth_token'));
       
       try {
         const response = await apiRequest("POST", "/api/capo-stato/vota", { voti });
-        console.log('✅ DEBUG CLIENT - Risposta ricevuta:', response);
-        console.log('✅ DEBUG CLIENT - Response ok:', response?.ok);
-        console.log('✅ DEBUG CLIENT - Response data:', response?.data);
         
         if (!response?.ok) {
           throw new Error(response?.data?.error || 'Errore nel salvataggio');
@@ -43,10 +37,6 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
         
         return response;
       } catch (error: any) {
-        console.error('❌ DEBUG CLIENT - Errore nella richiesta:', error);
-        console.error('❌ DEBUG CLIENT - Error message:', error.message);
-        console.error('❌ DEBUG CLIENT - Error status:', error.status);
-        console.error('❌ DEBUG CLIENT - Error stack:', error.stack);
         throw error;
       }
     },
@@ -98,21 +88,15 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   };
 
   const handleRemoveLocal = (nome: string) => {
-    console.log('🔍 DEBUG CLIENT - handleRemoveLocal chiamato con nome:', nome);
-    console.log('🔍 DEBUG CLIENT - isPending:', saveVotiMutation.isPending);
-    console.log('🔍 DEBUG CLIENT - isBlocked:', data?.blocco.isBlocked);
     
     // La rimozione è sempre permessa, anche se l'utente è bloccato
     // Solo controlliamo se c'è una mutation in corso
     if (saveVotiMutation.isPending) {
-      console.log('⚠️ DEBUG CLIENT - handleRemoveLocal bloccato (isPending)');
       return;
     }
     // Apri il dialog di conferma invece di rimuovere immediatamente
-    console.log('🔍 DEBUG CLIENT - Apertura dialog di rimozione per:', nome);
     setVotoToRemove(nome);
     setShowRemoveDialog(true);
-    console.log('🔍 DEBUG CLIENT - showRemoveDialog impostato a true');
   };
 
   const confirmRemove = () => {
@@ -133,24 +117,17 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   };
   
   const toggleSelezione = (nome: string) => {
-    console.log('🔍 DEBUG CLIENT - toggleSelezione chiamato con nome:', nome);
-    console.log('🔍 DEBUG CLIENT - isPending:', saveVotiMutation.isPending);
-    console.log('🔍 DEBUG CLIENT - isBlocked:', data?.blocco.isBlocked);
     
     if (saveVotiMutation.isPending || data?.blocco.isBlocked) {
-      console.log('⚠️ DEBUG CLIENT - toggleSelezione bloccato (isPending o isBlocked)');
       return;
     }
     
     setSelectedVoti(prev => {
-      console.log('🔍 DEBUG CLIENT - selectedVoti precedente:', prev);
       
       if (prev.includes(nome)) {
         // Rimuovi il voto e salva automaticamente
         const nuoviVoti = prev.filter(n => n !== nome);
-        console.log('🔍 DEBUG CLIENT - Rimozione voto, nuovi voti:', nuoviVoti);
         setTimeout(() => {
-          console.log('🔍 DEBUG CLIENT - Chiamata saveVotiMutation.mutate per rimozione');
           saveVotiMutation.mutate(nuoviVoti);
         }, 0);
         return nuoviVoti;
@@ -161,18 +138,14 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
         if (hasReachedVotingLimit('capo_stato', prev.length)) {
           // Sostituisci il voto esistente con il nuovo e salva automaticamente
           const nuoviVoti = [nome];
-          console.log('🔍 DEBUG CLIENT - Sostituzione voto (limite raggiunto), nuovi voti:', nuoviVoti);
           setTimeout(() => {
-            console.log('🔍 DEBUG CLIENT - Chiamata saveVotiMutation.mutate per sostituzione');
             saveVotiMutation.mutate(nuoviVoti);
           }, 0);
           return nuoviVoti;
         } else {
           // Primo voto o aggiunta normale, salva automaticamente
           const nuoviVoti = [...prev, nome];
-          console.log('🔍 DEBUG CLIENT - Aggiunta voto, nuovi voti:', nuoviVoti);
           setTimeout(() => {
-            console.log('🔍 DEBUG CLIENT - Chiamata saveVotiMutation.mutate per aggiunta');
             saveVotiMutation.mutate(nuoviVoti);
           }, 0);
           return nuoviVoti;
