@@ -98,7 +98,9 @@ test('ALLOW_DEV_API_SURFACE cannot reopen production debug/migrate/fix/test endp
   for(const mount of debugMounts){
     assert.equal(app.split(mount).length,2,'Expected one legacy mount: '+mount);
     const before=app.slice(0,app.indexOf(mount));
-    assert.match(before.slice(-90),/if \\(mountDevApiSurface\\) \\{[\\s\\S]*$/);
+    const lastGuard=before.lastIndexOf('if (mountDevApiSurface) {');
+    const lastClose=before.lastIndexOf('\n}');
+    assert.ok(lastGuard>lastClose,'Developer route not guarded: '+mount);
   }
 });
 
