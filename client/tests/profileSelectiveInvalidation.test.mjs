@@ -16,7 +16,7 @@ const sections = (method, path) => [...(impact(method, path)?.sections || [])];
 
 test("unrelated preferences survive a government or opinion update", () => {
   assert.deepEqual(sections("POST", "/api/governo/vota"), ["government"]);
-  assert.deepEqual(sections("PUT", "/api/governo/attuale/ministro"), ["government"]);
+  assert.equal(impact("PUT", "/api/governo/attuale/ministro"), null);
   assert.deepEqual(sections("POST", "/api/opinioni/risposte"), ["opinions", "full"]);
 });
 test("civic favorites invalidate only the private preferences snapshot", () => {
@@ -30,7 +30,10 @@ test("civic favorites invalidate only the private preferences snapshot", () => {
 test("account edits only invalidate personal information, not political choices", () => {
   assert.deepEqual(sections("PUT", "/api/users/me"), ["full"]);
   assert.equal(impact("PUT", "/api/users/me").summary, true);
-  assert.equal(impact("POST", "/api/users/another-user/ban"), null);
+  assert.equal(impact("POST", "/api/users/another-user/ban", "owner-1"), null);
+  assert.deepEqual(
+    [...impact("PUT", "/api/users/owner-1", "owner-1").sections], ["full"]);
+  assert.equal(impact("PUT", "/api/users/owner-1", "owner-1").summary, true);
 });
 test("no invalidation on reads or unrelated writes", () => {
   assert.equal(impact("GET", "/api/capo-stato"), null);
@@ -54,5 +57,5 @@ test("profile hook records revisions before the GET and uses them on encrypted w
   assert.match(hook, /profileSectionRevision\(ownerId, "candidates"\)/);
   assert.match(hook, /profileSectionRevision\(ownerId, "opinions"\)/);
   assert.match(requester, /invalidateEncryptedProfileSections\(ownerId, impact.sections\)/);
-  assert.match(requester, /profileMutationImpact\(method, url\)/);
+  assert.match(requester, /profileMutationImpact\(method, url, ownerId\)/);
 });
