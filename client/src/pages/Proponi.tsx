@@ -1,9 +1,38 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Vote, Globe2 } from "lucide-react";
+import { ChevronRight, FileText, Globe2, Vote } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
+
+const signatureOptions = [
+  {
+    title: "Iniziativa Popolare",
+    description: "Firma qui per proporre una nuova legge.",
+    href: "/iniziative-popolari",
+    icon: FileText,
+    cardClass: "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 hover:border-emerald-300",
+    iconClass: "from-emerald-500 to-teal-600",
+    arrowClass: "text-emerald-500",
+  },
+  {
+    title: "Referendum Abrogativo",
+    description: "Firma qui per cancellare una legge ingiusta.",
+    href: "/referendum-abrogativi",
+    icon: Vote,
+    cardClass: "border-red-200 bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 hover:border-red-300",
+    iconClass: "from-red-500 to-pink-600",
+    arrowClass: "text-red-500",
+  },
+  {
+    title: "ECI",
+    description: "Firma qui per proporre una nuova legge europea.",
+    href: "/eci",
+    icon: Globe2,
+    cardClass: "border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300",
+    iconClass: "from-blue-500 to-indigo-600",
+    arrowClass: "text-blue-500",
+  },
+];
 
 export default function Proponi() {
   const { user, isLoading } = useAuth();
@@ -11,7 +40,7 @@ export default function Proponi() {
   if (isLoading) {
     return (
       <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </PageContainer>
     );
   }
@@ -21,83 +50,45 @@ export default function Proponi() {
   }
 
   return (
-    <PageContainer className="page-with-navbar bg-gradient-to-br from-purple-50 to-pink-100">
-      <div className="max-w-4xl mx-auto w-full flex flex-1 min-h-0 flex-col p-4">
-        {/* Titolo */}
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-              <FileText className="h-6 w-6 text-purple-600" />
-              Firma
-            </CardTitle>
-            <CardDescription>
+    <PageContainer className="page-with-navbar bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50">
+      <div className="app-page-scroll min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-2xl space-y-4 px-3 py-4 sm:px-4 sm:py-6">
+          <header className="relative overflow-hidden rounded-2xl border border-purple-100 bg-white/95 p-4 shadow-sm sm:p-5">
+            <div aria-hidden="true" className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-gradient-to-br from-blue-400/15 to-purple-500/15" />
+            <div className="relative flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-md">
+                <FileText className="h-6 w-6 text-white" aria-hidden="true" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900">Firma</h1>
+            </div>
+            <p className="relative mt-3 text-sm font-medium leading-relaxed text-gray-600 sm:text-base">
               Utilizza gli strumenti di Democrazia Diretta per modificare la Legge!
-            </CardDescription>
-          </CardHeader>
-        </Card>
+            </p>
+          </header>
 
-        {/* Pulsanti Proposta - Uno sopra l'altro */}
-        <div className="flex flex-col gap-6 flex-1 justify-center">
-          {/* Iniziative Popolari */}
-          <button
-            type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => window.location.href = "/iniziative-popolari"}
-            onContextMenu={e => e.preventDefault()}
-          >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#22c55e" />
-              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
-              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <FileText className="h-8 w-8 text-green-600 relative z-10" />
-              </span>
-              <div className="text-gray-700 font-semibold text-lg select-none text-center">Iniziativa<br />Popolare</div>
-              <div className="text-gray-500 text-xs mt-1 select-none text-center">Firma qui per proporre una nuova legge.</div>
-            </div>
-          </button>
-          {/* Referendum Abrogativi */}
-          <button
-            type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => window.location.href = "/referendum-abrogativi"}
-            onContextMenu={e => e.preventDefault()}
-          >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#ef4444" />
-              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
-              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <Vote className="h-8 w-8 text-red-600 relative z-10" />
-              </span>
-              <div className="text-gray-700 font-semibold text-lg select-none text-center">Referendum<br />Abrogativo</div>
-              <div className="text-gray-500 text-xs mt-1 select-none text-center">Firma qui per cancellare una legge ingiusta.</div>
-            </div>
-          </button>
-          {/* ECI */}
-          <button
-            type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => window.location.href = "/eci"}
-            onContextMenu={e => e.preventDefault()}
-          >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#3b82f6" />
-              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
-              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <Globe2 className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <Globe2 className="h-8 w-8 text-blue-600 relative z-10" />
-              </span>
-              <div className="text-gray-700 font-semibold text-lg select-none">ECI</div>
-              <div className="text-gray-500 text-xs mt-1 select-none text-center">Firma qui per proporre una nuova legge europea.</div>
-            </div>
-          </button>
+          <section aria-label="Strumenti di firma" className="space-y-3">
+            {signatureOptions.map((option) => {
+              const Icon = option.icon;
+              return (
+                <button
+                  key={option.href}
+                  type="button"
+                  className={`group flex min-h-[5.75rem] w-full items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-left shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 ${option.cardClass}`}
+                  onClick={() => { window.location.href = option.href; }}
+                  onContextMenu={(event) => event.preventDefault()}
+                >
+                  <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md transition-transform duration-200 group-hover:scale-105 ${option.iconClass}`}>
+                    <Icon className="h-6 w-6 text-white" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-base font-bold leading-tight text-gray-900 sm:text-lg">{option.title}</span>
+                    <span className="mt-1 block text-sm leading-snug text-gray-600">{option.description}</span>
+                  </span>
+                  <ChevronRight className={`h-5 w-5 shrink-0 ${option.arrowClass}`} aria-hidden="true" />
+                </button>
+              );
+            })}
+          </section>
         </div>
       </div>
     </PageContainer>
