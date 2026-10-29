@@ -87,12 +87,14 @@ export const ProfileInfo = ({
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-bold leading-tight text-slate-900">
-              {isOwnProfile ? (canShowFullName ? fullName : "Il mio profilo") : (canShowFullName ? fullName : "Profilo pubblico")}
-            </h2>
+            {(canShowFullName || !isOwnProfile) && (
+              <h2 className="text-lg font-bold leading-tight text-slate-900">
+                {canShowFullName ? fullName : "Profilo pubblico"}
+              </h2>
+            )}
             {isOwnProfile ? (
               <>
-                <div className="mt-1 flex min-w-0 items-center gap-1">
+                <div className={`flex min-w-0 items-center gap-1 ${canShowFullName ? "mt-1" : ""}`}>
                   <p className="min-w-0 flex-1 break-words text-sm text-slate-600">
                     {birthYear !== "Non specificato" ? `Nascita: ${birthYear}` : "Anno di nascita non specificato"}
                     {userInfo.cittadinanza ? ` · ${userInfo.cittadinanza}` : ""}
