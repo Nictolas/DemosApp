@@ -42,3 +42,21 @@ test('compact account type still requires distinct legacy role and account statu
   assert.match(roleSql, /ALTER COLUMN ruolo SET DEFAULT 'E'/);
   assert.doesNotMatch(roleSql, /SET DEFAULT 'a'/);
 });
+
+
+test('GDPR profile export presents stable descriptive account type semantics', () => {
+  const source = read('services/privacyDataExportService.js');
+  assert.match(source, /normalizeAccountType\(row\.account_type\)/);
+});
+
+test('historical capability migration blocks its reapplication after compact cutover', () => {
+  const bootstrap = read('database/create-account-capabilities-model.sql');
+  assert.match(bootstrap, /DO \$compact_guard\$/);
+  assert.match(bootstrap, /Legacy account type bootstrap cannot run after compact P\/O\/E cutover/);
+});
+
+test('politician duplicate audit remains dual-encoding and read-only', () => {
+  const source = read('scripts/audit-political-duplicate-users-20261028.sql');
+  assert.equal((source.match(/account_type IN \('PERSON','P'\)/g) || []).length, 4);
+  assert.doesNotMatch(source, /\b(?:UPDATE|DELETE|TRUNCATE|DROP|INSERT)\s+(?:INTO|FROM)?\s*public\.users\b/i);
+});
