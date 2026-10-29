@@ -17,6 +17,9 @@ on:
       - 'client/src/pages/Opinioni*.tsx'
       - 'client/src/lib/saveAndVerifyOpinions.ts'
       - 'client/src/lib/opinionDelta.ts'
+      - 'client/src/lib/encryptedOpinionCache.ts'
+      - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
+      - 'client/src/hooks/use-auth.tsx'
       - 'client/tests/opinionDelta.test.mjs'
       - '.github/workflows/opinioni-regression.yml'
 
