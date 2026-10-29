@@ -108,7 +108,8 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
 
   return (
     <PageContainer className="bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="w-full max-w-none px-3 sm:px-4 lg:px-8 py-4">
+      <div className="flex min-h-0 h-full w-full flex-col overflow-hidden">
+        <div className="shrink-0 border-b border-slate-200 bg-white/95 px-3 pb-3 pt-3 sm:px-4 lg:px-8">
         {/* Header decorativo */}
         <div className="relative mb-3">
           {/* Background decorative elements */}
@@ -166,6 +167,23 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
           </div>
         </div>
 
+        {!isEditing && displayUserInfo && !isLoading && !isLoadingInfo && !error && (
+          <div className="mx-auto w-full max-w-6xl">
+            <ProfileInfo
+              userInfo={displayUserInfo}
+              isEditing={false}
+              onEditClick={() => setIsEditing(true)}
+              onModificaImmagine={handleModificaImmagine}
+              canEdit={isViewingOwnProfile}
+              isOwnProfile={isViewingOwnProfile}
+              avatarConfig={avatarConfig}
+            />
+          </div>
+        )}
+        </div>
+
+        {/* Scorre soltanto il contenuto sotto l'intestazione e i dati di base. */}
+        <section className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6 pt-3 sm:px-4 lg:px-8" role="region" aria-label="Sezioni del profilo" tabIndex={0}>
         <div className="space-y-4">
         {/* Stati di caricamento e errore */}
         <ProfileLoadingStates
@@ -196,20 +214,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               />
             ) : (
               /* Desktop (lg+): 3 colonne | Mobile: stack verticale */
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-5 items-start">
-                {/* Colonna 1: Informazioni Profilo */}
-                <div className="min-w-0">
-                  <ProfileInfo
-                    userInfo={displayUserInfo}
-                    isEditing={isEditing}
-                    onEditClick={() => setIsEditing(true)}
-                    onModificaImmagine={handleModificaImmagine}
-                    canEdit={isViewingOwnProfile}
-                    isOwnProfile={isViewingOwnProfile}
-                    avatarConfig={avatarConfig}
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-5 items-start">
                 {/* Mobile: le selezioni restano consultabili ma non allungano il profilo. */}
                 <div className="min-w-0 space-y-3">
                   {isViewingOwnProfile && userInfo && userInfo.ruolo !== "I" && (
@@ -328,6 +333,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
           </div>
         )}
         </div>
+        </section>
       </div>
     </PageContainer>
   );
