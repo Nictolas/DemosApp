@@ -6,7 +6,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {execFileSync}=require('node:child_process');
-const {MUTATING_STAGING_E2E_FLAGS}=
+const {MUTATING_STAGING_E2E_FLAGS,STAGING_BACKGROUND_JOB_FLAGS}=
   require('../services/gdprRenderInProcessStagingAttestation');
 
 const AUDIT_REF='refs/remotes/origin/gdpr-audit-functional-staging';
@@ -45,6 +45,19 @@ test('existing staging server writer flags are ALL covered by probe deny-list',(
   assert.match(server,/initializeFirebaseAdmin/);
   // Presence of Firebase Admin proves a separate provider initializer exists,
   // NOT which Firebase project or credentials are live on Render.
+});
+
+test('all opt-in staging background jobs are included in the probe deny-list',()=>{
+  const app=source('api/app.js');
+  const matches=[...new Set([...app.matchAll(
+    /process\.env\.((?:ENABLE_[A-Z0-9_]+|AXIOM_ARCHIVE_ENABLED)) === 'true'/g
+  )].map(m=>m[1]))].sort();
+  assert.deepEqual(matches,[...STAGING_BACKGROUND_JOB_FLAGS].sort(),
+    'new staging job modes require fresh source-level audit');
+  assert.match(app,/auditManager\.start\(\)/);
+  assert.match(app,/performanceOptimizer\.start\(\)/);
+  // Unconditional audit/optimizers and Firebase Admin are STILL in startup:
+  // no code-level guard proves every external provider to be readonly.
 });
 
 test('source audit remains NO-GO and cannot certify provider isolation',()=>{
