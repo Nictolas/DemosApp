@@ -7,6 +7,11 @@ const { securityHeaders, securityMiddleware, securityLogger } = require('./middl
 const { requestLoggingMiddleware, errorLoggingMiddleware } = require('./middleware/loggingMiddleware');
 const logger = require('./services/centralizedLogger');
 
+// Gate evaluated before importing route modules: dev routes can create extra
+// SQL Pools as a top-level side effect, even when their routers aren't mounted.
+const isProductionApp = process.env.NODE_ENV === 'production';
+const mountDevApiSurface = !isProductionApp;
+
 // Import moduli con gestione errori
 let healthRoutes, databaseRoutes, compatibilityRoutes, testOpinioniRoutes;
 let testAddOpinioneRoutes, servicesRoutes, authRoutes, clearTokenRoutes, userRoutes;
@@ -16,10 +21,10 @@ let rappresentantiRoutes, notificheRoutes, notificheTotaliRoutes, fcmTokensRoute
 try {
   console.log('ðŸ“¦ Caricamento moduli routes...');
   healthRoutes = require('./routes/health');
-  databaseRoutes = require('./routes/database');
+  databaseRoutes = mountDevApiSurface ? require('./routes/database') : null;
   compatibilityRoutes = require('./routes/compatibility');
-  testOpinioniRoutes = require('./routes/test-opinioni-endpoints');
-  testAddOpinioneRoutes = require('./routes/test-add-opinione');
+  testOpinioniRoutes = mountDevApiSurface ? require('./routes/test-opinioni-endpoints') : null;
+  testAddOpinioneRoutes = mountDevApiSurface ? require('./routes/test-add-opinione') : null;
   servicesRoutes = require('./routes/services');
   authRoutes = require('./routes/auth/index');
   clearTokenRoutes = require('./routes/auth/clear-token');
@@ -38,7 +43,7 @@ try {
   console.error('âŒ Stack trace:', error.stack);
   throw error;
 }
-const testDbRoutes = require('./routes/test-db');
+const testDbRoutes = mountDevApiSurface ? require('./routes/test-db') : null;
 const eventiRoutes = require('./routes/eventi');
 const graziaRoutes = require('./routes/grazia');
 const amnistiaRoutes = require('./routes/amnistia');
@@ -59,12 +64,12 @@ const sostenitoriTotaleRoutes = require('./routes/sostenitori-totale');
 const rappresentantiSostenitoriRoutes = require('./routes/rappresentanti-sostenitori');
 const candidatiSostenitoriRoutes = require('./routes/candidati-sostenitori');
 const attivistiSostenitoriRoutes = require('./routes/attivisti-sostenitori');
-const migrateRoutes = require('./routes/migrate-columns');
+const migrateRoutes = mountDevApiSurface ? require('./routes/migrate-columns') : null;
 const sondaggiRoutes = require('./routes/sondaggi');
 const adminRoutes = require('./routes/admin/database');
 const candidatiRoutes = require('./routes/candidati');
-const fixDatabaseRoutes = require('./routes/fix-database');
-const debugOpinioniRoutes = require('./routes/debug-opinioni');
+const fixDatabaseRoutes = mountDevApiSurface ? require('./routes/fix-database') : null;
+const debugOpinioniRoutes = mountDevApiSurface ? require('./routes/debug-opinioni') : null;
 const attivistiRoutes = require('./routes/attivisti');
 const organizzazioniRoutes = require('./routes/organizzazioni');
 const organizzazioniSostenitoriRoutes = require('./routes/organizzazioni-sostenitori');
@@ -91,14 +96,14 @@ const civicProcessReconciliationRoutes = require('./routes/admin/civic-process-r
 const civicProcessAdminRoutes = require('./routes/admin/civic-processes');
 const axiomMigrationRoutes = require('./routes/admin/axiom-migration');
 const axiomDataRoutes = require('./routes/admin/axiom-data');
-const migrationsRoutes = require('./routes/migrations');
-const cleanupRoutes = require('./routes/cleanup');
-const cleanupRateLimitRoutes = require('./routes/cleanup-reset-rate-limit');
-const testRateLimitRoutes = require('./routes/test-rate-limit');
+const migrationsRoutes = mountDevApiSurface ? require('./routes/migrations') : null;
+const cleanupRoutes = mountDevApiSurface ? require('./routes/cleanup') : null;
+const cleanupRateLimitRoutes = mountDevApiSurface ? require('./routes/cleanup-reset-rate-limit') : null;
+const testRateLimitRoutes = mountDevApiSurface ? require('./routes/test-rate-limit') : null;
 const segnalazioniRoutes = require('./routes/segnalazioni');
 const programmaRoutes = require('./routes/programma');
 const riconoscimentiRoutes = require('./routes/riconoscimenti');
-const testPerformanceRoutes = require('./routes/test-performance');
+const testPerformanceRoutes = mountDevApiSurface ? require('./routes/test-performance') : null;
 const statisticheRoutes = require('./routes/statistiche');
 const ministeroRoutes = require('./routes/ministero');
 const votiPoliticiRoutes = require('./routes/voti-politici');
@@ -134,9 +139,6 @@ const {
 } = require('./middleware/rateLimiting');
 
 /** Non consentire route test/migrate/cleanup/debug in produzione: ALLOW_DEV_API_SURFACE non puo' riabilitarle. */
-const isProductionApp = process.env.NODE_ENV === 'production';
-const mountDevApiSurface = !isProductionApp;
-
 const app = express();
 
 // Configurazione per proxy (necessario per rate limiting in produzione)
