@@ -12,6 +12,10 @@ module.exports = {
   /** GET API che possono essere cacheate a livello HTTP se l'origine invia Cache-Control appropriati */
   cacheableApiGetPaths: [
     {
+      pattern: '/api/eventi/mobilitazioni',
+      rationale: 'Catalogo pubblico anonimo Chrono; cache breve e senza dati personali. Questa eccezione esatta precede il bypass della famiglia /api/eventi.'
+    },
+    {
       pattern: '/api/statistiche/*',
       rationale: 'Aggregati pubblici; l\'API imposta Cache-Control breve quando Redis è attivo.'
     },
@@ -34,7 +38,7 @@ module.exports = {
     '/api/opinioni/',
     '/api/notifiche',
     '/api/governo/',
-    '/api/eventi',
+    '/api/eventi', // ECCEZIONE: GET /api/eventi/mobilitazioni (pubblico e cacheabile)
     '/api/fcm-tokens',
     '/api/bacheca',
     '/api/voti-',

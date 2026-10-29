@@ -4,6 +4,7 @@ import { Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Calendar, Clock, MapPin, Trash2, Edit } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiUrl } from "@/lib/api-config";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -79,12 +80,20 @@ export default function Eventi() {
   const { data: eventiResponse, isLoading: eventiLoading, refetch } = useQuery<any>({
     queryKey: ["/api/eventi", activeTab],
     queryFn: async () => {
-      const url = activeTab === 'mobilitazioni'
-        ? "/api/eventi?view=mobilitazioni"
-        : isAdmin && activeTab === 'global'
+      const response = activeTab === 'mobilitazioni'
+        ? await (async () => {
+            // Catalogo pubblico: mai inviare token, cookie o parametri di profilo.
+            const result = await fetch(getApiUrl("/api/eventi/mobilitazioni"), {
+              method: 'GET',
+              credentials: 'omit',
+              headers: { Accept: 'application/json' }
+            });
+            const data = await result.json();
+            return { ok: result.ok, data };
+          })()
+        : await apiRequest("GET", isAdmin && activeTab === 'global'
           ? "/api/eventi?view=global"
-          : "/api/eventi?view=personal";
-      const response = await apiRequest("GET", url);
+          : "/api/eventi?view=personal");
       if (!response?.ok || !response?.data) {
         const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento degli eventi";
         throw new Error(errorMsg);
@@ -96,6 +105,7 @@ export default function Eventi() {
       return result;
     },
     enabled: !!user,
+    staleTime: activeTab === 'mobilitazioni' ? 60_000 : 0,
   });
 
   // Extract eventi array from API response (filtering is now done server-side)
