@@ -3,7 +3,7 @@ const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { decompressGender, compressGender } = require('../../utils/genderUtils');
 const { decompressUserLocation, compressUserLocation } = require('../../utils/locationUtils');
-const { queryWithAccountModelFallback } = require('../../services/accountCapabilitiesService');
+const { queryWithAccountModelFallback, normalizeAccountType } = require('../../services/accountCapabilitiesService');
 
 const router = express.Router();
 
