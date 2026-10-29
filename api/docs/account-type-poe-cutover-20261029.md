@@ -29,6 +29,31 @@ This safeguards existing user data, but it does **not** certify that those profi
 
 The dedicated CI additionally runs the Google/Apple OAuth registration tests and the passkey login-session policy tests after installing API dependencies. Those are isolated automated tests, not real identity-provider login sessions.
 
+## Rollback semantic parity and function security (verified 29 October)
+
+Read-only comparison against production PostgreSQL showed the historical
+`public.refresh_users_legacy_role(uuid)` is an invoker-security function with
+`SET search_path TO public, pg_temp`. Its legacy `P/CP` projection counts ALL
+currently `ACTIVE` mandate rows, including provenance `LEGACY_BACKFILL`;
+a legacy mandate in this projection is a historical UI label, **not** a
+verification of a present political office. Approximately 1,524 of 1,674
+current P/CP profiles have no active independently sourced mandate.
+
+The previous rollback draft incorrectly filtered `LEGACY_BACKFILL` mandates,
+so a subsequent unrelated flag update could downgrade P/CP despite a successful
+migration snapshot check. The rollback has been corrected to restore the actual
+production legacy semantics without filtering those rows. Forward migration
+continues to preserve legacy labels explicitly and uses provenance-aware
+checks for new role projections; both replacement functions now explicitly
+retain the previous `search_path` configuration.
+
+`api/tests/shortAccountTypeMigration.integration.sh` seeds an ACTIVE
+`LEGACY_BACKFILL` mandate and ACTIVE candidacy for synthetic P and CP users,
+asserts function configuration on both sides, and **after the rollback**
+updates capability flags to verify those roles are still P/CP. This addresses
+a post-rollback failure that the previous immediate row-count tests missed.
+No production account rows or account-type DDL were changed by these fixes.
+
 ## Actual local HTTP authentication regression
 
 The PR adds api/tests/compactAccountTypesHttp.pg17.integration.js, executed
