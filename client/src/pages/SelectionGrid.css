@@ -1,0 +1,131 @@
+/* Griglia condivisa: cinque scelte, tutte visibili sopra la navbar, senza scroll. */
+.selection-grid-page {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.selection-grid-page__content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.selection-grid-page__grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.selection-grid-page__grid > button:first-child {
+  grid-column: 1 / -1;
+}
+
+.selection-grid-page__grid > button {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation !important;
+}
+
+.selection-grid-page__grid > button > .relative.z-10 {
+  width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  padding: 0.5rem;
+}
+
+.selection-grid-page__grid > button > .relative.z-10 > .font-bold {
+  margin-bottom: 0.35rem;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.selection-grid-page__grid > button .space-y-2 > * + * {
+  margin-top: 0.25rem;
+}
+
+.selection-grid-page__grid > button p {
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+/* Il main normalmente scorre: queste due schermate sono volutamente fisse.
+   Nessun override globale di html/body o dei dialoghi. */
+.app-main:has(.selection-grid-page) {
+  overflow-y: hidden !important;
+}
+
+@media (max-height: 780px) {
+  .selection-grid-page__grid > button > .relative.z-10 {
+    padding: 0.25rem 0.4rem;
+  }
+
+  .selection-grid-page__grid > button > .relative.z-10 > svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .selection-grid-page__grid > button > .relative.z-10 > .font-bold {
+    font-size: 1rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .selection-grid-page__grid > button:first-child > .relative.z-10 > .font-bold {
+    font-size: 1.2rem;
+  }
+
+  .selection-grid-page__grid > button .rounded-full {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+  }
+
+  .selection-grid-page__grid > button p {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-height: 640px) {
+  .selection-grid-page__grid {
+    gap: 0.35rem;
+  }
+
+  .selection-grid-page__grid > button > .relative.z-10 > .font-bold {
+    font-size: 0.875rem;
+  }
+
+  .selection-grid-page__grid > button:first-child > .relative.z-10 > .font-bold {
+    font-size: 1rem;
+  }
+
+  .selection-grid-page__grid > button .rounded-full {
+    width: 2.3rem;
+    height: 2.3rem;
+  }
+
+  .selection-grid-page__grid > button .space-y-2 > * + * {
+    margin-top: 0.125rem;
+  }
+}
+
+/* In landscape le cinque categorie stanno su una sola riga. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .selection-grid-page__grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .selection-grid-page__grid > button:first-child {
+    grid-column: auto;
+  }
+}
