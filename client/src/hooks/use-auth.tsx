@@ -11,9 +11,14 @@ import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-to
 import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
 import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
+import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCache";
+import { clearAllEncryptedProfiles, clearEncryptedProfile } from "@/pages/Profilo/utils/encryptedProfileVault";
+
+type VerifiedPoliticalConsent = { granted: boolean; timestamp: string | null };
 
 interface User {
   id: string;
+  political_consent?: VerifiedPoliticalConsent | null;
   email: string;
   name?: string;
   nome?: string;
@@ -30,6 +35,8 @@ type AuthContextType = {
   isLoading: boolean;
   isError: boolean;
   isAuthenticated: boolean;
+  isSessionVerified: boolean;
+  verifiedPoliticalConsent: VerifiedPoliticalConsent | null;
   logoutMutation: UseMutationResult<void, Error, void>;
 };
 
@@ -54,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return wasCleaned ? null : storedToken;
   });
 
-  const { data: userData, isLoading, isError } = useQuery<User | null>({
+  const { data: userData, isLoading, isError, isFetching } = useQuery<User | null>({
     queryKey: ["user", token],
     queryFn: async () => {
       if (!token) return null;
@@ -76,6 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (response.status === 401 || response.status === 404) {
           clearSessionTokens();
+          clearAllProfileSummaries();
+          await clearAllEncryptedProfiles();
+          queryClient.removeQueries({ queryKey: ["profilePolitical"] });
+          queryClient.removeQueries({ queryKey: ["profileFull"] });
           setToken(null);
           return null;
         }
@@ -103,7 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enabled: !!token,
     retry: false,
     staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
+    // A resumed app must revalidate authorization; this is the existing
+    // session request, not an additional read of the user's profile panels.
+    refetchOnWindowFocus: "always",
     refetchOnMount: "always",
   });
 
@@ -112,6 +125,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
     }
   }, [isLoading, userData, token]);
+
+  // Fallback decoded JWT can support navigation, but never authorize local
+  // political-data decryption after a failed/unfinished session validation.
+  const isSessionVerified = !!userData && !isLoading && !isError && !isFetching &&
+    typeof userData.political_consent?.granted === "boolean";
+  const verifiedPoliticalConsent = isSessionVerified ? userData.political_consent! : null;
+
+  // A verified revocation must delete the encrypted political snapshot,
+  // not just hide it. Also reject in-flight query completions after revocation.
+  useEffect(() => {
+    const owner = userData?.id;
+    if (!owner || !isSessionVerified || userData.political_consent?.granted !== false) return;
+    void queryClient.cancelQueries({
+      predicate: query => query.queryKey[0] === "opinioniQuestions" &&
+        query.queryKey[1] === owner,
+    });
+    queryClient.removeQueries({
+      predicate: query => query.queryKey[0] === "opinioniQuestions" &&
+        query.queryKey[1] === owner,
+    });
+    void clearEncryptedProfile(owner);
+  }, [userData?.id, userData?.political_consent?.granted, isSessionVerified, queryClient]);
 
   let user: User | null = userData ?? null;
   if (!user && token) {
@@ -155,6 +190,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await unregisterNativePush();
       clearStoredNativePushToken();
       clearSessionTokens();
+      clearAllProfileSummaries();
+      // Finish IndexedDB deletion before logout can navigate/reload the app.
+      await clearAllEncryptedProfiles();
       setToken(null);
 
       try {
@@ -197,6 +235,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isError,
         isAuthenticated: !!token,
+        isSessionVerified,
+        verifiedPoliticalConsent,
         logoutMutation,
       }}
     >
