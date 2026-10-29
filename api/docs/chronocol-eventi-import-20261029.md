@@ -15,8 +15,12 @@ DATA_FINE, FINE_EFFETTIVA, INDIRIZZO, RITROVO_LUOGO, VERIFICATA,
 ANNULLATA, LATITUDE, LONGITUDE, SCIOPERO e PIATTAFORMA.
 
 NON vengono richiesti i campi CONTATTI, DESCRIZIONE, ACCESSIBILITA e MEZZI.
-L'importatore richiede VERIFICATA=true e ANNULLATA=false e ricontrolla
-entrambi lato DEMOS. I nomi delle schede sono derivati dai soli dati fattuali;
+L'importatore richiede VERIFICATA=true e non impone ANNULLATA=false
+lato Strapi, poiché alcuni eventi validi hanno ANNULLATA=null.
+In DEMOS vengono comunque eliminati i record con ANNULLATA=true.
+Il 29/10/2026 è stato verificato il corteo di Pisa del 30/10:
+VERIFICATA=true, ANNULLATA=null. Il vecchio filtro lo escludeva.
+Non sono ammesse manifestazioni non verificate o esplicitamente annullate. I nomi delle schede sono derivati dai soli dati fattuali;
 la descrizione integrale rimane sul sito originale.
 
 - Paginazione: 100 record, al massimo 30 pagine e 3000 eventi.
@@ -28,13 +32,12 @@ la descrizione integrale rimane sul sito originale.
 
 ## Integrazione nella pagina Eventi esistente
 
-- Tab Personali: feed nativo e mobilitazioni nella città dell'utente,
-  rispettando le priorità correnti.
-- Tab Mobilitazioni: tutti gli eventi esterni non scaduti; non interroga
-  la tabella degli eventi nel database.
-- Tab Globale Admin: resta disponibile e comprende anche eventi importati.
-- Ogni scheda esterna è di sola lettura, ha la fonte dichiarata e link
-  diretto alla scheda originale.
+- Tab Personali: eventi dei soggetti seguiti e mobilitazioni dell'intera
+  provincia di residenza, rispettando le priorità.
+- Tab Regionali: eventi DEMOS approvati e mobilitazioni della regione.
+- Tab Globali: tutti gli eventi pubblici approvati e mobilitazioni nazionali.
+- Ogni evento esterno è di sola lettura. L'accredito a Chrono è riportato
+  una volta a fondo elenco, anziché ripetuto su ciascuna scheda.
 - Gli eventi esterni conclusi sono rimossi dalla risposta in base all'ora
   finale nel fuso Europe/Rome; nessuna cancellazione dei dati DEMOS.
 - Deduplica conservativa per nome, data e comune.
@@ -46,7 +49,7 @@ la descrizione integrale rimane sul sito originale.
 Impostazione backend Render: CHRONOCOL_IMPORT_ENABLED=true
 
 L'API sorgente è già fissata nel codice e non richiede alcuna password.
-Dopo il rilascio verificare Eventi > Mobilitazioni su dispositivi diversi,
+Dopo il rilascio verificare Eventi > Personali, Regionali e Globali su dispositivi diversi,
 date, link, assenza di dati non verificati e consumi effettivi.
 Per disattivare: CHRONOCOL_IMPORT_ENABLED=false.
 
