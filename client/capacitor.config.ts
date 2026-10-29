@@ -19,8 +19,11 @@ const config: CapacitorConfig = {
       presentationOptions: ['alert', 'sound'],
     },
     SplashScreen: {
-      launchShowDuration: 2000,
+      // Android 12+ conserva lo splash di sistema durante l'avvio.
+      // Nessuna durata extra imposta da DEMOS, né animazioni di uscita artificiali.
+      launchShowDuration: 0,
       launchAutoHide: true,
+      launchFadeOutDuration: 0,
       backgroundColor: '#ffffff',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
