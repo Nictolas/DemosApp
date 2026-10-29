@@ -63,6 +63,10 @@ test('mounted at an authenticated, rate-limited private endpoint',()=>{
   assert.match(source,/FROM voti_grazia v/);
   assert.match(source,/FROM voti_amnistia v/);
   assert.match(source,/FROM voti_iniziative_popolari v/);
+  assert.match(source,/FROM civic_processes cp/);
+  assert.match(source,/cp\.id::text = v\.iniziativa_id/);
+  assert.match(source,/JOIN civic_processes cp ON cp\.id = csr\.civic_process_id/);
+  assert.match(source,/FROM iniziative_ministero m/);
   assert.match(source,/LEFT JOIN users a ON a\.id = u\.attivisti/);
   assert.match(source,/LEFT JOIN users o ON o\.id = u\.organizzazioni/);
 });
@@ -85,4 +89,13 @@ test('missing authorization or revoked political consent denies all reads',async
   const revoked=await execute('synthetic-owner');
   assert.equal(revoked.status,403);
   assert.equal(queryCount,0);
+});
+
+test('legacy encrypted initiative IDs are re-resolved once, then cached again', () => {
+  const hook = fs.readFileSync(path.join(__dirname, '../../client/src/pages/Profilo/hooks/useProfileData.ts'), 'utf8');
+  const vault = fs.readFileSync(path.join(__dirname, '../../client/src/pages/Profilo/utils/encryptedProfileVault.ts'), 'utf8');
+  assert.match(hook, /const PROFILE_PREFERENCES_VERSION = 2/);
+  assert.match(hook, /snapshot\.preferencesVersion === PROFILE_PREFERENCES_VERSION/);
+  assert.match(hook, /preferencesVersion: PROFILE_PREFERENCES_VERSION/);
+  assert.match(vault, /preferencesVersion\?: number/);
 });
