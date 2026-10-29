@@ -29,3 +29,25 @@ test('notification diagnostics never print FCM token prefixes', () => {
   assert.doesNotMatch(source, /(?:debugLog|console\.(?:log|debug|info))\([^\n]*(?:token|tokensToSend\[0\])\??\.substring\(0,\s*50\)/i);
   assert.match(source, /admin\.messaging\(\)/);
 });
+
+
+test('CIE identity status and callback log fixed categories, never raw exception details', () => {
+  const source = read('routes/auth/identity.js');
+  const expectedCodes = [
+    'IDENTITY_STATUS_FAILED',
+    'CIE_MOCK_START_FAILED',
+    'CIE_MOCK_COMPLETE_FAILED',
+    'CIE_CALLBACK_FAILED',
+    'CIE_CALLBACK_REDIRECT_FAILED'
+  ];
+  for (const code of expectedCodes) {
+    assert.match(source, new RegExp("console\\.error\\('"+code+"'\\)"));
+  }
+  const logCalls = [...source.matchAll(/console\\.error\\(([^;\\n]*)\\);/g)];
+  assert.equal(logCalls.length, 6);
+  assert.equal((source.match(/console\\.error\\(/g) || []).length, logCalls.length);
+  for (const [, args] of logCalls) {
+    assert.match(args, /^'[A-Z_]+'$/);
+  }
+  assert.doesNotMatch(source, /console\\.(?:error|warn|log)\\([^;\\n]*\\b(?:error|redirectError)\\b/);
+});
