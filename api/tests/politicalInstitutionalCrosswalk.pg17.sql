@@ -83,6 +83,34 @@ BEGIN
     IF err <> 'VERIFIED_CAMERA_SENATO_PERIOD_OVERLAP' THEN RAISE; END IF;
   END;
 
+  -- A different verified mandate in the same chamber may not overlap.
+  BEGIN
+    PERFORM demos_internal.import_official_political_mandate(
+      '11111111-1111-4111-8111-111111111111','CAMERA','d456_18',18,
+      DATE '2017-03-01',DATE '2018-03-22',
+      'https://dati.camera.it/ocd/deputato.rdf/d456_18',
+      'POL-015-review-003b','reviewer-fixture'
+    );
+    RAISE EXCEPTION 'EXPECTED_SAME_CHAMBER_OVERLAP_NOT_RAISED';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS err = MESSAGE_TEXT;
+    IF err <> 'VERIFIED_SAME_CHAMBER_PERIOD_OVERLAP' THEN RAISE; END IF;
+  END;
+
+  -- Past institutional mandates must not use invented future end dates.
+  BEGIN
+    PERFORM demos_internal.import_official_political_mandate(
+      '22222222-2222-4222-8222-222222222222','SENATO','future-end',19,
+      DATE '2022-10-13',CURRENT_DATE + 1,
+      'https://www.senato.it/composizione/senatori/scheda?did=future-end',
+      'POL-015-review-003c','reviewer-fixture'
+    );
+    RAISE EXCEPTION 'EXPECTED_FUTURE_END_NOT_RAISED';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS err = MESSAGE_TEXT;
+    IF err <> 'INVALID_MANDATE_DATES' THEN RAISE; END IF;
+  END;
+
   -- Reject changing an already verified official record silently.
   BEGIN
     PERFORM demos_internal.import_official_political_mandate(
@@ -140,6 +168,20 @@ BEGIN
   IF (SELECT count(*) FROM public.political_mandates) <> before_mandates
      OR (SELECT count(*) FROM demos_internal.official_political_mandate_links) <> before_links
   THEN RAISE EXCEPTION 'rejected cases changed database'; END IF;
+
+  -- The production trigger projects ruolo from ACTIVE mandates; these tests
+  -- mirror that behavior and verify no accounts/flags were silently rewritten.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id='11111111-1111-4111-8111-111111111111' AND ruolo='P'
+      AND account_type='PERSON' AND is_admin=FALSE AND is_activist=FALSE
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id='33333333-3333-4333-8333-333333333333'
+      AND ruolo='O' AND account_type='ORGANIZATION'
+  ) THEN
+    RAISE EXCEPTION 'production-like role projection unexpectedly changed users';
+  END IF;
 
   -- New schema and functions are not available to API anon/authenticated roles.
   IF has_schema_privilege('anon','demos_internal','USAGE')
