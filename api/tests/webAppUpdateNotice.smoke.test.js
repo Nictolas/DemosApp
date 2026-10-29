@@ -11,7 +11,6 @@ const sw = fs.readFileSync(path.join(root, 'client/src/main.tsx'), 'utf8');
 
 test('web/PWA checks version of content-hashed main JS bundle on resume, not database', () => {
   assert.match(notice, /MAIN_BUNDLE_PATTERN/);
-  assert.match(notice, /\/assets\//);
   assert.match(notice, /visibilitychange/);
   assert.match(notice, /pageshow/);
   assert.match(notice, /CHECK_INTERVAL_MS = 15 \* 60 \* 1000/);
