@@ -132,6 +132,8 @@ export default function Eventi() {
 
   // Function to check if user can edit/delete event
   const canEditEvent = (evento: any) => {
+    // Le fonti esterne sono in sola lettura: non esistono righe da modificare in DEMOS.
+    if (evento.external_import) return false;
     // Admin can edit/delete all events
     if (isAdmin) {
       return true;
@@ -334,6 +336,11 @@ export default function Eventi() {
                                 {evento.nome_evento}
                               </h3>
                               <div className="flex items-center gap-2">
+                                {evento.external_import && (
+                                  <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded-full">
+                                    Mobilitazione
+                                  </span>
+                                )}
                                 {evento.tipologia_evento === 'Elezioni' && (
                                   <span className="bg-yellow-200 text-yellow-800 text-xs font-semibold px-2 py-1 rounded-full">
                                     {evento.tipo_elezione
@@ -374,6 +381,20 @@ export default function Eventi() {
                               </div>
                             )}
                             
+                            {evento.external_import && (
+                              <div className="mb-3 space-y-2 text-sm text-gray-600">
+                                {evento.descrizione && <p className="whitespace-pre-line">{evento.descrizione}</p>}
+                                <a
+                                  href={evento.fonte_url || 'https://mobilitazioni.chronocol.com/'}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-700 underline underline-offset-2"
+                                >
+                                  Fonte: Chrono Collective
+                                </a>
+                              </div>
+                            )}
+
                             {/* Luogo - Solo per eventi non "Elezioni" */}
                             {evento.tipologia_evento !== 'Elezioni' && (
                               <div className="mb-3 flex items-center">
