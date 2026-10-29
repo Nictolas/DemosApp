@@ -861,8 +861,8 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         )).rows[0].n,0,'user row is hidden by the separate RLS policy');
         await assert.rejects(
           Ledger.applyCurrentPrivacyState(client),
-          error=>error?.code==='GDPR_REPLAY_DATA_VISIBILITY_INCOMPLETE',
-          'visible tombstones must never certify deletions in filtered app tables'
+          error=>error?.code==='GDPR_LEDGER_VISIBILITY_INCOMPLETE',
+          'FORCE RLS must refuse incomplete tombstones before replay ever reaches app tables'
         );
       } finally {
         await client.query('ROLLBACK');
