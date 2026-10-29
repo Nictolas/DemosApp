@@ -216,8 +216,8 @@ export default function OpinioniEuropee() {
   const unlockDate = null;
 
   return (
-    <div className="flex flex-col bg-gradient-to-b from-blue-50 to-white page-with-navbar">
-      <div className="container mx-auto px-4 py-8">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-b from-blue-50 to-white page-with-navbar">
+      <div className="container mx-auto flex-1 min-h-0 overflow-y-auto app-page-scroll px-4 py-8">
         <Card className="w-full max-w-4xl mx-auto">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold">Opinioni Europee</CardTitle>

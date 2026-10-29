@@ -1,0 +1,186 @@
+name: Android 1.0.11 page scroll (synthetic; no release)
+on:
+  push:
+    branches:
+      - release/android-1.0.11-scroll-20261028
+  pull_request:
+    paths:
+      - 'client/src/lib/androidPageScrollPolicy.ts'
+      - 'client/src/components/RobustAppLayout.tsx'
+      - 'client/src/index.css'
+      - 'client/src/pages/Opinioni*.tsx'
+      - 'client/src/pages/Candidati/index.tsx'
+      - 'client/src/pages/Rappresentanti/**'
+      - 'client/src/pages/Candidati/components/**'
+      - 'client/src/pages/SelectionGrid.css'
+      - 'client/tests/selectionGridNoScroll.test.mjs'
+      - 'client/src/pages/ScegliRappresentante/index.tsx'
+      - 'client/tests/androidPageScrollPolicy.test.mjs'
+      - 'client/tests/androidPublicAccountDeletion.test.mjs'
+      - 'client/tests/androidSourcePermissions.test.mjs'
+      - 'client/android/app/src/main/AndroidManifest.xml'
+      - 'client/android/app/src/main/res/xml/file_paths.xml'
+      - 'client/android/app/build.gradle'
+      - 'client/scripts/verify_android_release_manifest.py'
+      - 'client/src/pages/registrazione-*.tsx'
+      - 'client/public/eliminazione-account.html'
+      - '.github/workflows/android-1-0-11-scroll-ci.yml'
+permissions:
+  contents: read
+jobs:
+  android-scroll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Assert 19 Android routes and unaffected inner scrollers
+        run: node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
+      - name: Protect fixed political category grids from Android scroll regressions
+        run: node --test client/tests/selectionGridNoScroll.test.mjs
+      - name: Verify passkey-only account deletion instructions (source)
+        run: node --test client/tests/androidPublicAccountDeletion.test.mjs
+      - name: Verify Android source permissions, app ID and backup/HTTP hardening
+        run: node --test client/tests/androidSourcePermissions.test.mjs
+      - name: Install frontend without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend without AAB, secrets or deployment
+        run: npm run build --prefix client
+      - name: Verify public deletion page in built site assets
+        run: DEMOS_ASSERT_BUILT_ASSET=1 node --test client/tests/androidPublicAccountDeletion.test.mjs
+
+  # Safety-only integration rehearsal. It merges current main into the ephemeral
+  # runner checkout, never into a GitHub branch. No credentials or deployment.
+  # This ensures the Android Draft does not silently drop fixes merged since
+  # its release/android-1.0.10 base (OAuth privacy, /utenti, election statistics).
+  android-main-integration-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Rehearse main integration in runner only (no push, no merge to main)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git -c user.name='Android CI' -c user.email='android-ci@users.noreply.github.com' \
+            merge --no-commit --no-ff origin/main
+          if [[ -n "$(git ls-files -u)" ]]; then
+            echo "::error::Unresolved conflicts between Android Draft and main"
+            exit 1
+          fi
+          echo "Android Draft and current main applied together in disposable checkout."
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Test Android scroll and prevent geography / legacy mandate regression
+        run: |
+          node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
+          node --test client/tests/selectionGridNoScroll.test.mjs
+          node --test api/tests/utentiElectionTerritory.smoke.test.js
+          node --test client/tests/androidSourcePermissions.test.mjs
+      - name: Verify account deletion page after main overlay (source)
+        run: node --test client/tests/androidPublicAccountDeletion.test.mjs
+      - name: Install frontend without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Test profile cache, consent epoch and GDPR invalidation after main overlay
+        run: node --test client/tests/profileNavLocalCache.test.mjs
+      - name: Build main-integrated frontend without deploy or Android signing
+        run: npm run build --prefix client
+      - name: Verify public deletion page in built main-overlay assets
+        run: DEMOS_ASSERT_BUILT_ASSET=1 node --test client/tests/androidPublicAccountDeletion.test.mjs
+
+  # Read-only public smoke: never posts, authenticates or accesses user data.
+  # Current production may still display the older text before the Draft is
+  # released; only availability and delivery of the real static page are tested.
+  public-deletion-live-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Check public custom domain and Render origin (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          for url in \
+            "https://www.demos.community/eliminazione-account.html" \
+            "https://demos-frontend-r3so.onrender.com/eliminazione-account.html"
+          do
+            page="$(mktemp)"
+            status="$(curl --silent --show-error --location --retry 2 --retry-delay 2 --connect-timeout 10 --max-time 30 --output "$page" --write-out '%{http_code}' "$url")" || status="000"
+            if [[ "$status" != "200" ]]; then
+              echo "::error::Public deletion page returned HTTP $status at $url"
+              failed=1
+            elif ! grep -Fq '<title>Eliminazione account DEMOS</title>' "$page"; then
+              echo "::error::HTTP 200 served non-deletion content (possibly SPA fallback) at $url"
+              failed=1
+            elif grep -Fq 'privacy@demos.community' "$page"; then
+              echo "Validated live public deletion page at $url (HTTP 200, title and plain-text contact)"
+              if ! grep -Fqi 'soltanto con passkey' "$page"; then
+                echo "::notice::Live site still uses pre-Draft account-deletion instructions."
+              fi
+            elif grep -Eq 'data-cfemail=|/cdn-cgi/l/email-protection' "$page"; then
+              echo "::warning::Cloudflare email obfuscation detected at $url. HTML contact is transformed; verify browser click and accessibility separately."
+              if grep -Fq 'email-decode.min.js' "$page"; then
+                echo "Cloudflare email decoder script is present."
+              else
+                echo "::warning::No Cloudflare decoder script identified by filename; browser behavior remains unverified."
+              fi
+            else
+              echo "::error::Public deletion page lacks a recognizable email contact at $url"
+              failed=1
+            fi
+            rm -f "$page"
+          done
+          exit "$failed"
+
+  # Build only the native merged manifest, not an AAB/APK and never use
+  # signing keys. Firebase/Capacitor can add permissions absent from the
+  # checked-in source manifest. This is NOT a Play or device attestation.
+  android-merged-manifest-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install client without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build web assets and synchronize Capacitor in CI workspace only
+        run: npm run android:sync --prefix client
+      - name: Generate Gradle merged release manifest without AAB or signing
+        working-directory: client/android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:processReleaseMainManifest --no-daemon --stacktrace
+      - name: Audit merged Android permissions and hardening
+        run: python3 client/scripts/verify_android_release_manifest.py
+      - name: Retain unsigned manifest audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demos-1.0.11-merged-manifest-audit-UNSIGNED
+          path: android-merged-manifest-audit.json
+          if-no-files-found: ignore
+          retention-days: 7
