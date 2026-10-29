@@ -133,9 +133,9 @@ const {
   publicLimiter
 } = require('./middleware/rateLimiting');
 
-/** In produzione le route test/migrate/cleanup/debug non sono montate salvo ALLOW_DEV_API_SURFACE=true */
+/** Non consentire route test/migrate/cleanup/debug in produzione: ALLOW_DEV_API_SURFACE non puo' riabilitarle. */
 const isProductionApp = process.env.NODE_ENV === 'production';
-const mountDevApiSurface = !isProductionApp || process.env.ALLOW_DEV_API_SURFACE === 'true';
+const mountDevApiSurface = !isProductionApp;
 
 const app = express();
 
