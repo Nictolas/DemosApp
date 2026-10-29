@@ -1,9 +1,10 @@
 'use strict';
 
-// Opt-in, one-shot, SELECT-only evidence from a canonical pool connection in
-// an already-running Render STAGING backend process. NO HTTP route.
-// Draft-only: do not turn on any Render setting or deploy without approval.
-// This is a single pooled session, NOT an exhaustive inventory or a GO gate.
+// Shared strict staging target guard and synthetic legacy helper.
+// The earlier after-listening in-process probe is DISABLED: server.js no
+// longer imports this helper and index.js forbids all probe flags on web boot.
+// Real-world role observations, if separately authorized, must use the
+// isolated one-shot CLI. No HTTP endpoint or GO gate exists.
 const {assertStagingTarget, publicReport, SQL} =
   require('../scripts/attest-gdpr-writer-readonly');
 
