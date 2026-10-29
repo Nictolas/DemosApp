@@ -1,6 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   FIELDS, buildPageUrl, mapEvent, normalizePayload, notExpired,
   loadAllPages, retrieve, visibleInTerritory, mergeEvents
@@ -137,4 +139,20 @@ test('source disabled by default; when enabled upstream pages are shared in 12-h
     if (oldEnabled === undefined) delete process.env.CHRONOCOL_IMPORT_ENABLED;
     else process.env.CHRONOCOL_IMPORT_ENABLED = oldEnabled;
   }
+});
+
+test('public mobilizations route skips verifyToken and preserves private Eventi endpoints', () => {
+  const router = fs.readFileSync(path.resolve(__dirname, '../routes/eventi.js'), 'utf8');
+  const client = fs.readFileSync(path.resolve(__dirname, '../../client/src/pages/Eventi.tsx'), 'utf8');
+  const publicStart = router.indexOf("router.get('/mobilitazioni', async (_req, res) => {");
+  assert.ok(publicStart > -1);
+  assert.ok(publicStart < router.indexOf("router.get('/', verifyToken"));
+  const publicHandler = router.slice(publicStart, router.indexOf("\n});", publicStart) + 4);
+  assert.doesNotMatch(publicHandler, /verifyToken|pool\.query|getFeedUser|req\.user/);
+  assert.match(publicHandler, /public, max-age=60/);
+  assert.match(client, /getApiUrl\("\/api\/eventi\/mobilitazioni"\)/);
+  assert.match(client, /credentials: 'omit'/);
+  assert.match(client, /activeTab === 'mobilitazioni' \? 60_000 : 0/);
+  assert.match(router, /router\.get\('\/', verifyToken/);
+  assert.match(router, /router\.post\('\/', verifyToken/);
 });
