@@ -102,8 +102,8 @@ test("opening profile loads just summary; political API requests require expansi
   assert.match(hook, /initialData: ownProfile \? saved\?\.user : undefined/);
   assert.match(hook, /staleTime: ownProfile \? PROFILE_SUMMARY_TTL_MS : 0/);
   assert.match(hook, /const politicalPanelOpen = panels\.representatives/);
-  assert.match(hook, /enabled: enabled && ownProfile && politicalPanelOpen/);
-  assert.match(hook, /const politicalAllowed = ownProfile && consent\.isSuccess/);
+  assert.match(hook, /enabled: enabled && ownProfile && vaultReady && politicalPanelOpen/);
+  assert.match(hook, /const politicalAllowed = ownProfile && vaultReady && consent\.isSuccess/);
   assert.match(hook, /enabled: enabled && politicalAllowed && panels\.government/);
   assert.match(hook, /enabled: enabled && politicalAllowed && panels\.representatives/);
   assert.match(hook, /enabled: enabled && politicalAllowed && panels\.candidates/);
