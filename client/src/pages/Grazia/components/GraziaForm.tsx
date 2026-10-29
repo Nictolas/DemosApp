@@ -48,24 +48,24 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
   };
 
   return (
-    <Card className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-xl border-2 border-blue-100/50 overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+    <Card className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-md sm:shadow-xl border border-blue-100/50 overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white sm:p-6 sm:pb-4">
+        <div className="flex items-start justify-between gap-2 sm:items-center">
+          <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
+            <div className="hidden rounded-lg bg-white/20 p-2 backdrop-blur-sm sm:block">
               <ThumbsUp className="h-6 w-6 text-white" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">Il tuo voto</h2>
-              <CardDescription className="text-blue-100 mt-1">
-                Puoi votare solo {limit} richiesta{limit > 1 ? 'e' : ''} di grazia. Aggiungi un nome alla tua lista o selezionalo dalla classifica.
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold sm:text-2xl">Il tuo voto</h2>
+              <CardDescription className="mt-1 text-xs leading-snug text-blue-100 sm:text-sm">
+                Scegli un nome dalla classifica o aggiungilo. Massimo {limit} voto{limit !== 1 ? 'i' : ''}.
               </CardDescription>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="shrink-0">
             <Badge 
               variant={hasReachedLimit ? "destructive" : "secondary"} 
-              className={`flex items-center space-x-1.5 px-3 py-1.5 text-sm font-semibold ${
+              className={`flex items-center gap-1 px-2 py-1 text-xs font-semibold sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm ${
                 hasReachedLimit 
                   ? "bg-red-500 hover:bg-red-600 text-white" 
                   : "bg-white/20 backdrop-blur-sm text-white border-white/30"
@@ -77,18 +77,18 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
           </div>
         </div>
         {hasReachedLimit && (
-          <div className="mt-3 p-3 bg-yellow-500/20 backdrop-blur-sm rounded-lg border border-yellow-300/30">
-            <p className="text-yellow-100 font-medium flex items-center">
+          <div className="mt-2 rounded-lg border border-yellow-300/30 bg-yellow-500/20 p-2 backdrop-blur-sm sm:mt-3 sm:p-3">
+            <p className="flex items-center text-xs font-medium leading-snug text-yellow-100 sm:text-sm">
               <Info className="h-4 w-4 mr-2" />
               Hai già votato. Rimuovi il voto esistente per votarne uno diverso.
             </p>
           </div>
         )}
       </CardHeader>
-      <CardContent className="pt-6">
-        <form onSubmit={onSubmit} className="space-y-4 mb-6">
-          <div className="flex space-x-2">
-            <div className="flex-1 relative">
+      <CardContent className="px-3 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-6">
+        <form onSubmit={onSubmit} className="mb-3 space-y-3 sm:mb-6 sm:space-y-4">
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
               <Input
                 placeholder="Nome del carcerato..."
                 value={nomeInput}
@@ -98,7 +98,7 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
                 }}
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                className="w-full"
+                className="h-11 w-full min-w-0 text-base sm:text-sm"
                 disabled={isBlocked}
               />
               {showSuggestions && getSuggestions().length > 0 && (
@@ -107,7 +107,7 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
                     <button 
                       key={suggestion.nome} 
                       type="button" 
-                      className="w-full text-left px-3 py-2 hover:bg-gray-100" 
+                      className="min-h-11 w-full px-3 py-2 text-left text-sm hover:bg-gray-100" 
                       onClick={() => { 
                         onUpdateField('nomeInput', suggestion.nome); 
                         setShowSuggestions(false); 
@@ -120,41 +120,42 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
               )}
             </div>
             <Button 
-              type="submit" 
+              type="submit"
+              className="h-11 shrink-0 px-3 text-sm sm:px-4"
               disabled={!nomeInput.trim() || isBlocked || isPending || hasReachedLimit}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="mr-1 h-4 w-4 sm:mr-2" />
               Aggiungi
             </Button>
           </div>
         </form>
 
         {selectedVoti.length > 0 ? (
-          <div className="space-y-3">
-            <div className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+          <div className="space-y-2 sm:space-y-3">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700 sm:mb-3">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <span>Le tue richieste selezionate:</span>
             </div>
-            <div className="grid gap-3">
+            <div className="grid gap-2 sm:gap-3">
               {selectedVoti.map((voto) => (
                 <div
                   key={voto}
-                  className="group relative p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 hover:border-green-400 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]"
+                  className="group relative rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-3 shadow-sm transition-colors hover:border-green-400 sm:border-2 sm:p-4 sm:shadow-md"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3 flex-1">
-                      <div className="flex-shrink-0 p-2 bg-green-500 rounded-full">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                      <div className="flex-shrink-0 rounded-full bg-green-500 p-2">
                         <CheckCircle2 className="h-5 w-5 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 text-lg group-hover:text-green-700 transition-colors">
+                        <h3 className="break-words text-sm font-bold text-gray-900 transition-colors group-hover:text-green-700 sm:text-lg">
                           {voto}
                         </h3>
                       </div>
                     </div>
                     <button
                       onClick={() => onRemoveLocal(voto)}
-                      className="ml-4 flex-shrink-0 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-300 transform hover:scale-110 shadow-md hover:shadow-xl group/btn"
+                      className="group/btn ml-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-red-500 text-white transition-colors hover:bg-red-600 sm:ml-4"
                       title="Rimuovi voto"
                     >
                       <X className="h-5 w-5 group-hover/btn:rotate-90 transition-transform duration-300" />
@@ -165,12 +166,14 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
             </div>
           </div>
         ) : (
-          <div className="text-center py-8">
-            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ThumbsUp className="h-10 w-10 text-gray-400" />
+          <div className="flex items-center gap-3 rounded-lg bg-white/60 px-2 py-3 sm:flex-col sm:py-8 sm:text-center">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gray-200 to-gray-300 sm:mb-4 sm:h-20 sm:w-20">
+              <ThumbsUp className="h-5 w-5 text-gray-400 sm:h-10 sm:w-10" />
             </div>
-            <p className="text-gray-600 font-medium">Nessuna richiesta selezionata</p>
-            <p className="text-sm text-gray-500 mt-1">Scegli un carcerato dalla classifica per votare</p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-600 sm:text-base">Nessuna richiesta selezionata</p>
+              <p className="mt-0.5 text-xs leading-snug text-gray-500 sm:mt-1 sm:text-sm">Scegli un carcerato dalla classifica per votare</p>
+            </div>
           </div>
         )}
       </CardContent>
