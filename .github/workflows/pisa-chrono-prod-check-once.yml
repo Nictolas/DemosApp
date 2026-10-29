@@ -16,8 +16,8 @@ jobs:
           const assert = require('node:assert/strict');
           (async()=>{
             let found = null;
-            for (let attempt=1;attempt<=7;attempt++){
-              const url='https://api.demos.community/api/eventi/pubblici?__pisa_verify='+Date.now();
+            for (let attempt=1;attempt<=12;attempt++){
+              const url=(attempt%2===0?'https://api.demos.community':'https://demos-c7k0.onrender.com')+'/api/eventi/pubblici?__pisa_verify='+Date.now();
               const r=await fetch(url,{headers:{Accept:'application/json','Cache-Control':'no-cache'},
                 signal:AbortSignal.timeout(20000)});
               const body=await r.json();
@@ -26,7 +26,7 @@ jobs:
                 String(x.comune_evento).toLocaleLowerCase('it-IT')==='pisa' &&
                 x.giorno_inizio==='2026-10-30' &&
                 x.orario_inizio==='09:00');
-              console.log(JSON.stringify({check:'PISA_LIVE',attempt,status:r.status,
+              console.log(JSON.stringify({check:'PISA_LIVE',attempt,host:new URL(url).hostname,status:r.status,
                 total:rows.length,pisaMatches:matches.length,
                 preview:matches.map(x=>({name:x.nome_evento,city:x.comune_evento,
                   when:x.giorno_inizio,at:x.orario_inizio,address:x.indirizzo_evento,
