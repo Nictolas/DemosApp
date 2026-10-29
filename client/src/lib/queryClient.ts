@@ -52,13 +52,16 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     if (externalSignal?.aborted) controller.abort();
     else externalSignal?.addEventListener("abort", abortFromCaller, { once: true });
     const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
-    const response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal }).finally(() => {
+    let response: Response;
+    let text: string;
+    try {
+      response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal });
+      // Keep abort propagation until the whole body was consumed.
+      text = await response.text();
+    } finally {
       clearTimeout(timeoutId);
       externalSignal?.removeEventListener("abort", abortFromCaller);
-    });
-    
-    // Leggi il body come testo prima di parsarlo
-    const text = await response.text();
+    }
     
     // Log per debug
     if (url.includes('referendum-abrogativi') || url.includes('voti-parlamento-europeo')) {
