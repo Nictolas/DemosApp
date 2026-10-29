@@ -23,7 +23,7 @@ test('profile cache is private, account-scoped and does not persist political re
   assert.match(hook, /staleTime:\s*ownProfile \?/);
   assert.match(hook, /gcTime:\s*ownProfile \?/);
   assert.doesNotMatch(hook, /localStorage|sessionStorage|indexedDB/i);
-  assert.doesNotMatch(profile, /profilo_locale|localStorage\.getItem/);
+  assert.doesNotMatch(profile, /localStorage\.getItem|localStorage\.setItem/);
 });
 
 test('foreign public profiles do not reuse the visitor selections or privileged user routes', () => {
