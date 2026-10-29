@@ -69,4 +69,6 @@ jobs:
           node --check api/tests/gdprOutboxWorkerIsolated.pg17.test.js
           node --test --test-concurrency=1 api/tests/gdprOutboxWorkerIsolated.pg17.test.js
           node --check api/tests/gdprBackendPoolIsolated.pg17.test.js
-          GDPR_BACKEND_POOL_CI=isolated node --test --test-concurrency=1 api/tests/gdprBackendPoolIsolated.pg17.test.js
+          # Execute node:test in-process: preserves TAP/exit-code assertions while
+          # avoiding intermittent Node 22 child-runner IPC deserialization failures.
+          GDPR_BACKEND_POOL_CI=isolated node api/tests/gdprBackendPoolIsolated.pg17.test.js
