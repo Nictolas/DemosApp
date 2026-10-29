@@ -226,10 +226,10 @@ export default function OpinioniRegionali() {
   const unlockDate = null;
 
   return (
-    <div className="opinioni-editor-page flex h-full min-h-0 flex-col bg-gradient-to-b from-green-50 to-white ">
+    <div className="opinioni-editor-page flex h-full min-h-0 flex-col bg-gradient-to-b from-green-50 to-white">
       <div className="min-h-0 flex-1 px-3 pb-2 pt-3 sm:px-4 sm:pt-6">
         <Card className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col">
-          <CardHeader className="shrink-0 text-center">
+          <CardHeader className="opinioni-editor-page__header shrink-0 text-center">
             <CardTitle className="text-3xl font-bold">Opinioni Regionali</CardTitle>
             <CardDescription>Esprimi la tua opinione su temi di rilevanza regionale per trovare rappresentanti con idee simili alle tue.</CardDescription>
           </CardHeader>
