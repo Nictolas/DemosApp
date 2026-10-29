@@ -11,6 +11,7 @@ import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-to
 import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
 import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
+import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCache";
 
 interface User {
   id: string;
@@ -155,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await unregisterNativePush();
       clearStoredNativePushToken();
       clearSessionTokens();
+      clearAllProfileSummaries();
       setToken(null);
 
       try {
