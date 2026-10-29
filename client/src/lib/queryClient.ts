@@ -110,6 +110,16 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       throw error;
     }
     
+    // Le scritture che possono cambiare il profilo invalidano le copie in memoria
+    // dell'account. Non persistiamo i dati politici su disco né aggiriamo l'API.
+    if (
+      method.toUpperCase() !== "GET" &&
+      data?.success !== false &&
+      /^\\/api\\/(?:users(?:\\/|$)|user(?:\\/|$)|opinioni(?:\\/|$)|governo(?:\\/|$)|rappresentanti(?:\\/|$)|candidati(?:\\/|$)|attivismo-tipologie(?:\\/|$)|consens(?:[oi]\\/|\\/|$)|privacy(?:\\/|$))/.test(url)
+    ) {
+      void queryClient.invalidateQueries({ queryKey: ["profileSnapshot"] });
+    }
+
     // Restituisci un oggetto Response-like per compatibilità
     return {
       ok: true,
