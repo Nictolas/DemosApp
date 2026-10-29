@@ -139,6 +139,13 @@ async function main() {
     assert.deepEqual(ownEndpoints.map(p => calls.get(p) || 0), countsBeforeReturn,
       'Reopening the profile must not refetch its five endpoints while cache is fresh');
 
+    // Screenshot only after the fade-up page transition is fully opaque.
+    // Capturing mid-animation produces misleading low-contrast screenshots.
+    const awaitFullyVisible = () => page.waitForFunction(() => {
+      const layer = document.querySelector('.fade-up-transition');
+      return layer && Number.parseFloat(getComputedStyle(layer).opacity) >= 0.99;
+    }, null, { timeout: 10000 });
+    await awaitFullyVisible();
     await page.screenshot({ path: '/tmp/demos-profile-own-synthetic-mobile.png', fullPage: true });
 
     // Public view must use the public projection only, not visitor's selections.
@@ -161,6 +168,7 @@ async function main() {
     const unrelatedOwnUserReadsOnReload = (calls.get('/api/users/me') || 0) - ownCountsBeforePublic[0];
     assert.equal(calls.get(`/api/users/${OTHER}/public-profile`), 1);
     assert.equal(calls.get(`/api/users/${OTHER}/opinioni`), 1);
+    await awaitFullyVisible();
     await page.screenshot({ path: '/tmp/demos-profile-public-synthetic-mobile.png', fullPage: true });
 
     assert.deepEqual(errors, [], 'Uncaught browser errors');
