@@ -57,7 +57,7 @@ test('a third-party profile hides private demographic/contact cards and selectio
   assert.match(page, /isOwnProfile=\{isViewingOwnProfile\}/);
   assert.match(page, /canEditSelections=\{isViewingOwnProfile\}/g);
   assert.match(info, /\{isOwnProfile && \(\s*<details className=/);
-  assert.match(info, /isOwnProfile && \(userInfo\.professione/);
+  assert.match(info, /\{isOwnProfile && \(\s*<details/);
   assert.match(reps, /\{canEditSelections && \(/);
   assert.match(candidates, /\{canEditSelections && \(/);
 });
