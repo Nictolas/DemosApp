@@ -41,22 +41,9 @@ try {
   process.exit(1);
 }
 
-// Operator-only Render staging attestation (disabled by default).
-// Always runs in this backend's Node process through its canonical pool;
-// never mounts an endpoint, starts a service, or queries a production DB.
-if (process.env.GDPR_RENDER_INPROCESS_ATTESTATION !== undefined) {
-  // One shot AFTER the listener is ready. It reuses this process's existing
-  // canonical pool, without starting an HTTP diagnostic endpoint.
-  server.once('listening', () => {
-    const { attestInProcess } =
-      require('./services/gdprRenderInProcessStagingAttestation');
-    void attestInProcess({
-      env: process.env,
-      getPool: () => require('./config/database').getPool(),
-      emit: line => console.log(line)
-    });
-  });
-}
+// GDPR SQL identity diagnostics must NOT run through the full web server.
+// The isolated, operator-only CLI is api/scripts/attest-gdpr-render-staging-isolated.js.
+// In production and normal staging the backend starts unchanged.
 
 // Gestione errori semplificata
 server.on('error', (err) => {
