@@ -99,6 +99,25 @@ function markdown(result) {
   for (const [name, count] of Object.entries(result.signal_counts).sort()) {
     lines.push('| ' + name + ' lines | ' + count + ' |');
   }
+  const categoryStats = new Map();
+  const hotFiles = new Map();
+  for (const entry of result.entries) {
+    const current = categoryStats.get(entry.category) || { lines: 0, files: new Set() };
+    current.lines += 1;
+    current.files.add(entry.file);
+    categoryStats.set(entry.category, current);
+    if (entry.signals.includes('legacy_role')) hotFiles.set(entry.file, (hotFiles.get(entry.file) || 0) + 1);
+  }
+  lines.push('', '| Category | Files | Matched lines |', '| --- | ---: | ---: |');
+  for (const [category, row] of [...categoryStats.entries()].sort((a, b) => b[1].lines - a[1].lines)) {
+    lines.push('| ' + category + ' | ' + row.files.size + ' | ' + row.lines + ' |');
+  }
+  lines.push('', '## Highest-frequency legacy-role candidate files', '');
+  lines.push('| File | Role lines |', '| --- | ---: |');
+  [...hotFiles.entries()].filter(([file]) => kindFor(file) !== 'TEST')
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 25).forEach(([file, count]) => lines.push('| ' + file + ' | ' + count + ' |'));
+
   lines.push('', 'Download the JSON artifact for every matching path, line and category.');
   lines.push('Review AUTH_OR_AUTHORIZATION and MIGRATION_OR_SQL before any schema change.');
   if (result.skipped.length) {
