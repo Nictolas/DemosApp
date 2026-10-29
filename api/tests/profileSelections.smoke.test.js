@@ -77,6 +77,17 @@ test('returns only actual selections, with private no-store headers',async()=>{
   assert.equal(r.data.data.organizzazione,null);
   assert.equal(r.data.data.attivista.nome,'Attivista Fittizio');
 });
+test('initiative votes resolve a human title from the canonical civic-process catalog', () => {
+  assert.match(source, /FROM civic_processes cp/);
+  assert.match(source, /cp\.id::text = v\.iniziativa_id/);
+  assert.match(source, /cp\.canonical_title/);
+  assert.match(source, /FROM iniziative_popolari p/);
+  assert.match(source, /FROM iniziative_ministero m/);
+  assert.match(source, /Iniziativa non più disponibile/);
+  assert.doesNotMatch(source, /\), v\.iniziativa_id\s*\)/,
+    'Never display the raw vote UUID as the initiative title');
+});
+
 test('missing authorization or revoked political consent denies all reads',async()=>{
   queryCount=0;
   const noAuth=await execute(null);
