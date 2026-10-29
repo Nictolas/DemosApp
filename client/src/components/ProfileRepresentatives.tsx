@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "wouter";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { UserInfo } from "@/types/profile";
@@ -11,19 +11,23 @@ interface ProfileRepresentativesProps {
 }
 
 export function ProfileRepresentatives({ userInfo, rappresentantiDetails, canEditSelections = true, showHeading = true }: ProfileRepresentativesProps) {
-  const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
-  const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
-
-  const fetchRepresentativeNames = async (userInfo: any) => {
+  // I nomi e gli avatar derivano esclusivamente dai dati già ricevuti:
+  // calcolarli durante il render evita un secondo aggiornamento visivo.
+  const { names: representativeNames, avatars: representativeAvatars } = useMemo(() => {
+    if (!userInfo) return {
+      names: {} as Record<string, string>,
+      avatars: {} as Record<string, any>,
+    };
+    const profile = userInfo as any;
 
 
     
     const representatives = {
-      rappresentante_europeo: userInfo.rappresentante_europeo,
-      rappresentante_camera: userInfo.rappresentante_camera,
-      rappresentante_senato: userInfo.rappresentante_senato,
-      rappresentante_regionale: userInfo.rappresentante_regionale,
-      rappresentante_comune: userInfo.rappresentante_comune,
+      rappresentante_europeo: profile.rappresentante_europeo,
+      rappresentante_camera: profile.rappresentante_camera,
+      rappresentante_senato: profile.rappresentante_senato,
+      rappresentante_regionale: profile.rappresentante_regionale,
+      rappresentante_comune: profile.rappresentante_comune,
     };
 
     
@@ -89,14 +93,7 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails, canEdi
 
 
     
-    setRepresentativeNames(names);
-    setRepresentativeAvatars(avatars);
-  };
-
-  useEffect(() => {
-    if (userInfo) {
-      fetchRepresentativeNames(userInfo);
-    }
+    return { names, avatars };
   }, [userInfo, rappresentantiDetails]);
 
   if (!userInfo) return null;
