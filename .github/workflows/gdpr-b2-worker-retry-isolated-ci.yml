@@ -20,6 +20,7 @@ on:
       - 'api/tests/gdprDataPlaneRouteSurface.test.js'
       - 'api/scripts/attest-gdpr-writer-readonly.js'
       - 'api/server.js'
+      - 'api/index.js'
       - 'api/services/gdprRenderInProcessStagingAttestation.js'
       - 'api/tests/gdprRenderInProcessStagingAttestation.test.js'
       - 'api/tests/gdprWriterReadonlyAttestation.test.js'
