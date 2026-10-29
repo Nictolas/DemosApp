@@ -19,7 +19,7 @@ test('profile cache is private, account-scoped and does not persist political re
   const hook = read('client/src/pages/Profilo/hooks/useProfileData.ts');
   const profile = read('client/src/pages/Profilo/index.tsx');
   assert.match(hook, /useQuery<ProfileSnapshot>/);
-  assert.match(hook, /queryKey:\s*\["profileSnapshot", ownerId \?\? null, targetId \?\? null\]/);
+  assert.match(hook, /const profileKey = \["profileSnapshot", ownerId \?\? null, targetId \?\? null\]/);
   assert.match(hook, /staleTime:\s*ownProfile \?/);
   assert.match(hook, /gcTime:\s*ownProfile \?/);
   assert.doesNotMatch(hook, /(?:localStorage|sessionStorage)\.(?:getItem|setItem)|indexedDB\.open/i);
