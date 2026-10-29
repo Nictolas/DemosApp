@@ -10,6 +10,7 @@ const nav = read("lib/nav-items.ts");
 const profile = read("pages/Profilo/index.tsx");
 const hook = read("pages/Profilo/hooks/useProfileData.ts");
 const government = read("pages/Profilo/components/ProfileGovernoIdeale.tsx");
+const profileInfo = read("pages/Profilo/components/ProfileInfo.tsx");
 
 const source = read("pages/Profilo/utils/profileSummaryCache.ts");
 const compiled = ts.transpileModule(source, {
@@ -149,4 +150,17 @@ test("grant and revoke immediately invalidate all profile political caches", () 
     assert.match(code, /removeQueries\(\{ queryKey: \['profileFull'\] \}\)/);
     assert.match(code, /invalidateQueries\(\{ queryKey: \['profileConsent'\] \}\)/);
   }
+});
+
+test("profile shows the concise personal summary and edit action without duplicated detail rows or extra reads", () => {
+  assert.match(profileInfo, /Il mio profilo/);
+  assert.match(profileInfo, /birthYear/);
+  assert.match(profileInfo, /userInfo\\.cittadinanza/);
+  assert.match(profileInfo, /locationSummary/);
+  assert.match(profileInfo, /Modifica profilo/);
+  assert.match(profileInfo, /onClick=\\{onEditClick\\}/);
+  assert.doesNotMatch(profileInfo, /Dati personali completi|detailRows|onPersonalDetailsToggle/);
+  assert.doesNotMatch(profile, /onPersonalDetailsToggle|setPanel\\("personal"/);
+  assert.doesNotMatch(hook, /panels\\.personal|personal: false/);
+  assert.match(hook, /const needFull = panels\\.edit \\|\\|/);
 });
