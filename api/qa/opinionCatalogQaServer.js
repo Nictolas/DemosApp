@@ -117,11 +117,15 @@ function createQaApp() {
   // browser render the existing protected Opinions pages in local-only CI.
   // These routes exist ONLY in this isolated QA server; never in production.
   app.get('/api/auth/me', (_req, res) => res.json({
-    success: true, user: { id: USER_ID, email: '', status: 'a', ruolo: 'E' }
+    success: true, user: { id: USER_ID, email: '', status: 'a', ruolo: 'E',
+      political_consent: { granted: state.consent,
+        timestamp: state.consent ? '2026-10-01T00:00:00Z' : null } }
   }));
   app.get('/api/user/political-opinions-consent', (_req, res) => res.json({
     success: true, consent: {
-      granted: state.consent, timestamp: null, ipAddress: null, userAgent: null
+      granted: state.consent,
+      timestamp: state.consent ? '2026-10-01T00:00:00Z' : null,
+      ipAddress: null, userAgent: null
     }
   }));
   app.post('/qa/reset', (_req, res) => {
