@@ -26,6 +26,7 @@ export const ProfileInfo = ({
   avatarConfig,
 }: ProfileInfoProps) => {
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
+  const [showEditConfirmation, setShowEditConfirmation] = useState(false);
 
   // Tutti gli account possono riconoscere e modificare il proprio avatar.
   const canShowAvatar = true;
@@ -102,7 +103,7 @@ export const ProfileInfo = ({
                   {canEdit && !isEditing && (
                     <button
                       type="button"
-                      onClick={onEditClick}
+                      onClick={() => setShowEditConfirmation(true)}
                       aria-label="Modifica profilo"
                       title="Modifica profilo"
                       data-testid="profilo-modifica-icon"
@@ -129,6 +130,29 @@ export const ProfileInfo = ({
         </div>
 
       </CardContent>
+
+      <Dialog open={showEditConfirmation} onOpenChange={setShowEditConfirmation}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>Vuoi modificare il profilo?</DialogTitle>
+            <DialogDescription>
+              Potrai aggiornare i tuoi dati e scegliere se salvare le modifiche.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowEditConfirmation(false)}>Annulla</Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setShowEditConfirmation(false);
+                onEditClick();
+              }}
+            >
+              Procedi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
         <DialogContent className="bg-white">

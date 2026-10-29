@@ -188,7 +188,7 @@ test("grant and revoke immediately invalidate all profile political caches", () 
 });
 
 test("profile shows the concise personal summary and edit action without duplicated detail rows or extra reads", () => {
-  for (const content of ["birthYear", "userInfo.cittadinanza", "locationSummary", "Modifica profilo", "onClick={onEditClick}"]) {
+  for (const content of ["birthYear", "userInfo.cittadinanza", "locationSummary", "Modifica profilo", "onEditClick();"]) {
     assert.ok(profileInfo.includes(content), "missing summary or edit control: " + content);
   }
   assert.match(profile, /Profilo Cittadino/);
@@ -215,10 +215,23 @@ test("own profile shows a pencil next to demographic summary instead of a full-w
   assert.match(profileInfo, /\{canEdit && !isEditing && \(\s*<button/);
   assert.match(profileInfo, /aria-label="Modifica profilo"/);
   assert.match(profileInfo, /title="Modifica profilo"/);
-  assert.match(profileInfo, /onClick=\{onEditClick\}/);
+  assert.match(profileInfo, /onClick=\{\(\) => setShowEditConfirmation\(true\)\}/);
   assert.match(profileInfo, /h-11 w-11 shrink-0 items-center justify-center/);
   assert.match(profileInfo, /<Edit aria-hidden="true" className="h-4 w-4" \/>/);
   assert.doesNotMatch(profileInfo, /mt-3 h-9 w-full gap-2/);
+});
+
+test("pencil requires a local Annulla or Procedi confirmation before editing", () => {
+  assert.match(profileInfo, /const \[showEditConfirmation, setShowEditConfirmation\] = useState\(false\)/);
+  assert.match(profileInfo, /<Dialog open=\{showEditConfirmation\} onOpenChange=\{setShowEditConfirmation\}>/);
+  assert.match(profileInfo, /<DialogTitle>Vuoi modificare il profilo\?<\/DialogTitle>/);
+  assert.match(profileInfo, /onClick=\{\(\) => setShowEditConfirmation\(false\)\}>Annulla<\/Button>/);
+  assert.match(profileInfo, /setShowEditConfirmation\(false\);\s*onEditClick\(\);/);
+  assert.match(profileInfo, />\s*Procedi\s*<\/Button>/);
+  assert.doesNotMatch(profileInfo, /onClick=\{onEditClick\}/,
+    "The pencil must not open editing directly without confirmation");
+  assert.match(profileInfo, /<Dialog open=\{showAvatarDialog\} onOpenChange=\{setShowAvatarDialog\}>/,
+    "The pre-existing avatar confirmation must remain unchanged");
 });
 
 test("authenticated app startup consistently opens Profile and not Favorites", () => {
