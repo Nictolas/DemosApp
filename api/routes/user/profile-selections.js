@@ -30,15 +30,33 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
         ) AS amnistia,
         ARRAY(
           SELECT DISTINCT COALESCE(
-            (
-              SELECT NULLIF(BTRIM(m.titolo), '')
-              FROM iniziative_ministero m
-              WHERE m.id = v.iniziativa_id OR m.id_ministero = v.iniziativa_id
-              ORDER BY m.id LIMIT 1
-            ), v.iniziativa_id
+            NULLIF(BTRIM(resolved.titolo), ''), 'Iniziativa non più disponibile'
           )
           FROM voti_iniziative_popolari v
-          WHERE v.userid = u.id AND NULLIF(BTRIM(v.iniziativa_id), '') IS NOT NULL
+          LEFT JOIN LATERAL (
+            SELECT COALESCE(
+              (
+                SELECT NULLIF(BTRIM(cp.canonical_title), '')
+                FROM civic_processes cp
+                WHERE cp.id::text = v.iniziativa_id
+                LIMIT 1
+              ),
+              (
+                SELECT COALESCE(NULLIF(BTRIM(p.titolo), ''), NULLIF(BTRIM(p.nome), ''))
+                FROM iniziative_popolari p
+                WHERE p.id::text = v.iniziativa_id
+                LIMIT 1
+              ),
+              (
+                SELECT NULLIF(BTRIM(m.titolo), '')
+                FROM iniziative_ministero m
+                WHERE m.id = v.iniziativa_id OR m.id_ministero = v.iniziativa_id
+                ORDER BY m.id LIMIT 1
+              )
+            ) AS titolo
+          ) resolved ON true
+          WHERE v.userid = u.id
+            AND NULLIF(BTRIM(v.iniziativa_id), '') IS NOT NULL
         ) AS iniziativa_popolare,
         CASE WHEN a.id IS NOT NULL
           THEN jsonb_build_object('id', a.id, 'nome',
