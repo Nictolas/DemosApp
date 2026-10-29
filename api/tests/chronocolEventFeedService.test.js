@@ -108,8 +108,11 @@ test('personal territorial matching, deduplication and priority sorting', () => 
     ['election', external.id, 'native-city', 'selected']);
 
   const duplicate = { ...native[1], nome_evento: external.nome_evento,
-    giorno_inizio: external.giorno_inizio, comune_evento: 'Pisa' };
+    giorno_inizio: external.giorno_inizio, comune_evento: 'Pisa',
+    indirizzo_evento: external.indirizzo_evento, orario_inizio: external.orario_inizio };
   assert.equal(mergeEvents([duplicate], [external], { user, now }).length, 1);
+  const distinct = { ...external, id: 'chronocol:another', indirizzo_evento: 'Altra piazza' };
+  assert.equal(mergeEvents([], [external, distinct], { global: true, now }).length, 2);
 });
 
 test('source disabled by default; when enabled upstream pages are shared in 12-hour cache', async () => {
