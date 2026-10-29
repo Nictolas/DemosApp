@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Redirect, useLocation, useParams } from "wouter";
+import { Link, Redirect, useLocation, useParams } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
 import { PageContainer } from "@/components/PageContainer";
+import { Settings } from "lucide-react";
 
 // Componenti modulari
 import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
@@ -53,35 +54,9 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
   const isViewingOwnProfile = !userId || userId === user?.id;
   const isViewingOtherProfile = userId && userId !== user?.id;
 
-  // Per l'utente che guarda il proprio profilo, integra eventuali dati salvati solo client-side (profilo_locale)
-  let displayUserInfo: UserInfo | null = userInfo;
-  if (typeof window !== "undefined" && isViewingOwnProfile && userInfo) {
-    try {
-      const localProfileRaw = window.localStorage.getItem("profilo_locale");
-      if (localProfileRaw) {
-        const localProfile = JSON.parse(localProfileRaw);
-        const merged: UserInfo = { ...userInfo };
-        const fields: (keyof UserInfo | string)[] = [
-          "genere",
-          "cittadinanza",
-          "paese_residenza",
-          "regione_residenza",
-          "provincia_residenza",
-          "comune_residenza",
-          "data_nascita",
-        ];
-        fields.forEach((field) => {
-          const key = field as keyof UserInfo;
-          if (!merged[key] && localProfile[field] != null) {
-            (merged as any)[field] = localProfile[field];
-          }
-        });
-        displayUserInfo = merged;
-      }
-    } catch (e) {
-      console.warn("⚠️ Impossibile leggere profilo_locale dal localStorage:", e);
-    }
-  }
+  // Il dato arriva dalla cache React Query legata all'account, non dal vecchio
+  // profilo_locale globale (che poteva inserire dati di un altro account).
+  const displayUserInfo: UserInfo | null = userInfo;
 
   // Gestione modifica immagine
   const handleModificaImmagine = () => {
@@ -123,6 +98,13 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
           <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-10 blur-xl"></div>
           <div className="absolute -top-2 -right-4 w-16 h-16 bg-gradient-to-br from-pink-400 to-orange-500 rounded-full opacity-10 blur-xl"></div>
           
+          <div className="relative flex justify-end mb-2">
+            {isViewingOwnProfile && (
+              <Link href="/impostazioni" className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-indigo-50">
+                <Settings className="h-4 w-4" /> Impostazioni
+              </Link>
+            )}
+          </div>
           <div className="relative text-center">
             <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent mb-2">
               Profilo Utente
@@ -223,7 +205,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
 
                 {/* Colonna 3: Il Tuo Governo Ideale */}
                 <div className="min-w-0">
-                  <ProfileGovernoIdeale governoIdeale={governoIdeale} />
+                  <ProfileGovernoIdeale governoIdeale={governoIdeale} canEdit={isViewingOwnProfile} />
                 </div>
               </div>
             )}
