@@ -1,0 +1,35 @@
+name: Eventi fixed header and scroll regression
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/pages/Eventi.tsx'
+      - 'client/src/components/RobustAppLayout.tsx'
+      - 'client/src/robust-layout.css'
+      - 'api/tests/eventiScrollContract.test.js'
+      - '.github/workflows/eventi-fixed-scroll.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'client/src/pages/Eventi.tsx'
+      - 'client/src/components/RobustAppLayout.tsx'
+      - 'client/src/robust-layout.css'
+      - 'api/tests/eventiScrollContract.test.js'
+
+jobs:
+  event-scroll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Verify event and notification scroll contracts
+        run: node --test api/tests/eventiScrollContract.test.js api/tests/notificheScrollContract.test.js
+      - name: Install frontend
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend
+        run: npm run build --prefix client
