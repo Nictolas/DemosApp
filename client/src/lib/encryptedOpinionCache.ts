@@ -8,9 +8,37 @@ import {
   type OpinionCategorySection,
 } from "@/pages/Profilo/utils/encryptedProfileVault";
 
-// Increment when deploying an incompatible question catalogue. The opinion
-// catalogue migration must wire this to its explicit release revision.
+// Schema revision (not content revision): changes to official questions are
+// detected by the backend's SHA-256 release catalog. This lightweight HTTP
+// metadata check performs zero personal-answer / Supabase reads.
 export const OPINION_CATEGORY_CACHE_VERSION = 1;
+const CATALOG_REVISION_TTL_MS = 5 * 60 * 1000;
+let lastRevision: { value: string; at: number } | null = null;
+let pendingRevision: Promise<string | null> | null = null;
+
+async function getPublishedCatalogRevision(): Promise<string | null> {
+  if (lastRevision && Date.now() - lastRevision.at < CATALOG_REVISION_TTL_MS) {
+    return lastRevision.value;
+  }
+  if (pendingRevision) return pendingRevision;
+  pendingRevision = (async () => {
+    try {
+      const response = await apiRequest("GET", "/api/opinioni-catalog-revision");
+      const revision = response.data?.revision;
+      if (response.ok && response.data?.success === true &&
+          typeof revision === "string" && /^[a-f0-9]{64}$/.test(revision)) {
+        lastRevision = { value: revision, at: Date.now() };
+        return revision;
+      }
+    } catch {
+      // An older backend or a network failure cannot validate catalog data.
+      // Fail closed for the persistent cache; use the authenticated GET below.
+    }
+    lastRevision = null;
+    return null;
+  })();
+  try { return await pendingRevision; } finally { pendingRevision = null; }
+}
 
 export type OpinionGrade = "E" | "N" | "R" | "CO";
 export type OpinionPayload = {
@@ -53,7 +81,9 @@ export async function loadOpinionCategory(
   if (!owner || signal?.aborted) throw new Error("Sessione non valida");
   const section = sections[grade];
   const revision = profileSectionRevision(owner, section);
-  const snapshot = await loadEncryptedProfile(owner);
+  const [catalogRevision, snapshot] = await Promise.all([
+    getPublishedCatalogRevision(), loadEncryptedProfile(owner),
+  ]);
   if (signal?.aborted || revision !== profileSectionRevision(owner, section)) {
     throw new Error("Caricamento opinioni annullato");
   }
@@ -61,7 +91,8 @@ export async function loadOpinionCategory(
   // persistent snapshot across revocation/regrant; use network as fallback.
   const cached = consentEpoch !== null && snapshot?.consent?.granted === true &&
     snapshot.consent.timestamp === consentEpoch ? snapshot[section] : null;
-  if (cached?.version === OPINION_CATEGORY_CACHE_VERSION && cached.grade === grade) {
+  if (catalogRevision !== null && cached?.version === OPINION_CATEGORY_CACHE_VERSION &&
+      cached.grade === grade && cached.catalogRevision === catalogRevision) {
     return { success: true, data: cached.questions, grado: grade, total: cached.questions.length };
   }
 
@@ -73,9 +104,9 @@ export async function loadOpinionCategory(
   if (signal?.aborted || revision !== profileSectionRevision(owner, section)) {
     throw new Error("Caricamento opinioni annullato");
   }
-  if (consentEpoch !== null) {
+  if (consentEpoch !== null && catalogRevision !== null) {
     await persistEncryptedOpinionCategory(owner, consentEpoch, section,
-      { version: OPINION_CATEGORY_CACHE_VERSION, grade, questions }, revision);
+      { version: OPINION_CATEGORY_CACHE_VERSION, catalogRevision, grade, questions }, revision);
   }
   return { success: true, data: questions, grado: grade, total: questions.length };
 }
