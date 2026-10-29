@@ -54,6 +54,31 @@ jobs:
                 console.log(JSON.stringify({ path, error: error.message }));
               }
             }
+            try {
+              const response = await fetch(new URL('/static/js/main.a1d868f8.js', base), {
+                signal: AbortSignal.timeout(15000)
+              });
+              const js = await response.text();
+              const apiPaths = [...new Set(js.match(new RegExp('/api/[A-Za-z0-9_/?=&.:-]+', 'g')) || [])].slice(0, 100);
+              const excerpts = {};
+              for (const keyword of ['mobilitazioni', 'events', 'download', 'export', 'csv', 'licenza', 'dati aperti', 'api/', 'policy']) {
+                const haystack = js.toLowerCase();
+                const hits = [];
+                let offset = 0;
+                for (let i = 0; i < 6; i++) {
+                  const hit = haystack.indexOf(keyword, offset);
+                  if (hit < 0) break;
+                  hits.push(js.slice(Math.max(0, hit - 100), Math.min(js.length, hit + 180)));
+                  offset = hit + keyword.length;
+                }
+                excerpts[keyword] = hits;
+              }
+              console.log(JSON.stringify({ asset: 'main-js', status: response.status,
+                contentType: response.headers.get('content-type'), bytes: js.length,
+                apiPaths, excerpts }));
+            } catch (error) {
+              console.log(JSON.stringify({ asset: 'main-js', error: error.message }));
+            }
           })();
           NODE
       - name: Install API dependencies
