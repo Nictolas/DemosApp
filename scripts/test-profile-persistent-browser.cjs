@@ -23,6 +23,8 @@ async function test() {
     const page = await context.newPage();
     const count = new Map();
     const errors = [];
+    let granted = true;
+    let version = "2026-10-29T10:00:00Z";
     page.on('pageerror', error => errors.push(error.message));
     const fulfill = (route, body) => route.fulfill({
       status: 200, contentType: 'application/json',
@@ -38,6 +40,7 @@ async function test() {
         case '/api/auth/me':
           return fulfill(route, { success: true, user: {
             id: OWNER, role: 'AD', ruolo: 'AD', status: 'A', is_admin: true,
+            political_consent: { granted, timestamp: granted ? version : null },
           }});
         case '/api/users/me':
           return fulfill(route, { success: true, user: {
@@ -45,10 +48,6 @@ async function test() {
             cittadinanza: 'Italiana', paese_residenza: 'Italia',
             regione_residenza: 'Toscana', provincia_residenza: 'Pisa',
             comune_residenza: 'Comune Inventato',
-          }});
-        case '/api/user/political-opinions-consent':
-          return fulfill(route, { success: true, consent: {
-            granted: true, timestamp: '2026-10-29T10:00:00Z',
           }});
         case '/api/governo/ideale':
           return fulfill(route, { success: true, data: { Primo_Ministro: 'Ministra Inventata' } });
@@ -67,13 +66,12 @@ async function test() {
     });
     const endpoints = [
       '/api/users/me',
-      '/api/user/political-opinions-consent',
       '/api/governo/ideale',
       '/api/rappresentanti',
       '/api/candidati/selezioni',
       '/api/opinioni/profile',
     ];
-    const enter = async () => {
+    const enter = async (political = true) => {
       await page.goto(ORIGIN + '/profilo', { waitUntil: 'domcontentloaded' });
       await page.getByText('Comune Inventato').first().waitFor({ timeout: 30000 });
       for (const title of [
@@ -83,7 +81,8 @@ async function test() {
         const d = page.locator('details').filter({ has: page.getByText(title, { exact: false }) }).first();
         await d.locator('summary').click();
       }
-      await page.getByText('Ministra Inventata').first().waitFor({ timeout: 20000 });
+      if (political) await page.getByText('Ministra Inventata').first().waitFor({ timeout: 20000 });
+      else await page.getByText('Per visualizzare le selezioni è necessario il consenso politico.').first().waitFor({ timeout: 20000 });
       await page.waitForTimeout(500);
     };
     await enter();
@@ -94,6 +93,25 @@ async function test() {
     const after = endpoints.map(x => count.get(x) || 0);
     assert.deepEqual(after, first,
       'Reopening after page reload must not read any profile endpoint if unchanged');
+
+    // Another device revoked consent while this one was suspended.
+    // Only the existing /auth/me handshake communicates the new state.
+    granted = false;
+    await enter(false);
+    assert.equal(await page.getByText('Ministra Inventata').count(), 0,
+      'Old political selections must be hidden after cross-device revocation');
+    assert.deepEqual(endpoints.map(x => count.get(x) || 0), first,
+      'Remote revocation check cannot add profile endpoint GETs');
+    const authCallsAfterRevocation = count.get('/api/auth/me') || 0;
+    assert.ok(authCallsAfterRevocation >= 3,
+      'Every cold session must validate the current consent in auth/me');
+
+    // New authorization is a new epoch: no old answers can be restored.
+    granted = true;
+    version = '2026-10-29T11:00:00Z';
+    await enter();
+    assert.ok((count.get('/api/governo/ideale') || 0) > first[1],
+      'Regranted session must fetch a fresh political snapshot, not old cached data');
     assert.deepEqual(errors, [], 'No uncaught browser errors');
     console.log(JSON.stringify({ kind: 'persistent-local-profile', result: 'PASS', first, after,
       additionalProfileGets: after.reduce((sum, n, i) => sum + n - first[i], 0) }));
