@@ -40,3 +40,15 @@ test('catalog growth/shrink is managed by release; runtime has no fixed question
   assert.doesNotMatch(source,/opinions\.length\s*!==\s*94/);
   assert.match(source,/const VALID_GRADES=new Set/);
 });
+
+test('release revision is stable, complete and public metadata only', () => {
+  const { createHash } = require('node:crypto');
+  const all = catalog.getAllOpinions();
+  const expected = createHash('sha256').update(JSON.stringify(all)).digest('hex');
+  assert.match(catalog.getOpinionCatalogRevision(), /^[a-f0-9]{64}$/);
+  assert.equal(catalog.getOpinionCatalogRevision(), expected);
+  const route = source('routes/compatibility.js');
+  assert.match(route, /router\.get\('\/opinioni-catalog-revision'/);
+  assert.match(route, /getOpinionCatalogRevision\(\)/);
+  assert.match(route, /'public, max-age=300'/);
+});
