@@ -219,32 +219,29 @@ test('SQL failure never leaks error message or database URI; client always relea
   assert.doesNotMatch(output[0],/FAKE_SECRET|DATABASE_URL|fake-user-secret|pooler/);
 });
 
-test('server startup is opt-in and injects its OWN canonical pool, never an HTTP endpoint',()=>{
+test('web server never registers an in-process probe or exposes HTTP diagnostics',()=>{
   const server=fs.readFileSync(path.join(__dirname,'../server.js'),'utf8');
-  assert.match(server,/if \(process\.env\.GDPR_RENDER_INPROCESS_ATTESTATION !== undefined\)/);
-  assert.match(server,/require\('\.\/services\/gdprRenderInProcessStagingAttestation'\)/);
-  assert.match(server,/getPool: \(\) => require\('\.\/config\/database'\)\.getPool\(\)/);
-  assert.doesNotMatch(server,/app\.use\([^\n]*gdprRenderInProcessStagingAttestation/);
+  assert.doesNotMatch(server,/attestInProcess|GDPR_RENDER_INPROCESS_ATTESTATION/);
+  assert.doesNotMatch(server,/app\\.use\\([^\\n]*gdprRenderInProcessStagingAttestation/);
 });
 
-test('Render entrypoint refuses misconfigured staging probe BEFORE loading server or pool',()=>{
+test('web entrypoint forbids every probe marker BEFORE loading server or pool',()=>{
   const src=fs.readFileSync(path.join(__dirname,'../index.js'),'utf8');
-  assert.ok(src.indexOf('assertProcessTarget(process.env)')<src.indexOf("require('./server')"));
+  assert.ok(src.indexOf("GDPR_RENDER_SQL_CLI_ONLY")<
+    src.indexOf("require('./server')"));
   const cases=[
-    {label:'disabled normal boot',env:{},boots:1,throws:false},
-    {label:'valid staging probe',env:config(),boots:1,throws:false},
-    {label:'production service ID',env:config({
-      RENDER_SERVICE_ID:'srv-d2gt3dodl3ps73fmereg'
-    }),boots:0,throws:true},
-    {label:'production project URL',env:config({
-      DATABASE_URL:STAGING_URL.replace(REF,PROD)
-    }),boots:0,throws:true},
-    {label:'no marker in staging',env:config({
-      GDPR_WRITER_ATTESTATION:undefined
-    }),boots:0,throws:true},
-    {label:'staging process NODE_ENV mismatched',env:config({
-      NODE_ENV:'staging'
-    }),boots:0,throws:true}
+    {label:'disabled normal web boot',env:{},boots:1,throws:false},
+    {label:'normal production web boot unaffected',
+      env:{NODE_ENV:'production'},boots:1,throws:false},
+    {label:'formerly allowed staging inprocess probe',env:config(),boots:0,throws:true},
+    {label:'new isolated probe CLI marker',env:{
+      GDPR_RENDER_SQL_CLI_ONLY:'demos-staging-isolated-cli-readonly-20261029'
+    },boots:0,throws:true},
+    {label:'both markers',env:{
+      ...config(),GDPR_RENDER_SQL_CLI_ONLY:'demos-staging-isolated-cli-readonly-20261029'
+    },boots:0,throws:true},
+    {label:'empty old marker',env:{GDPR_RENDER_INPROCESS_ATTESTATION:''},
+      boots:0,throws:true}
   ];
   for(const scenario of cases){
     let boots=0;
@@ -252,14 +249,12 @@ test('Render entrypoint refuses misconfigured staging probe BEFORE loading serve
       process:{env:scenario.env},
       require(id){
         if(id==='./server'){boots++;return {};}
-        if(id==='./services/gdprRenderInProcessStagingAttestation')
-          return require('../services/gdprRenderInProcessStagingAttestation');
         throw Error('UNEXPECTED_IMPORT');
       }
     };
     if(scenario.throws){
       assert.throws(()=>vm.runInNewContext(src,context,{timeout:1000}),
-        /GDPR_RENDER_STAGING_PREFLIGHT_REFUSED/,scenario.label);
+        /GDPR_RENDER_STAGING_WEB_PROBE_FORBIDDEN/,scenario.label);
     }else{
       assert.doesNotThrow(()=>vm.runInNewContext(src,context,{timeout:1000}),
         scenario.label);
