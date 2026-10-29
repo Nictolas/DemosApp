@@ -116,24 +116,24 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
 
   return (
     <PageContainer className="bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="w-full max-w-none px-4 lg:px-8 py-8">
+      <div className="w-full max-w-none px-3 sm:px-4 lg:px-8 py-4">
         {/* Header decorativo */}
-        <div className="relative mb-12">
+        <div className="relative mb-4">
           {/* Background decorative elements */}
           <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-10 blur-xl"></div>
           <div className="absolute -top-2 -right-4 w-16 h-16 bg-gradient-to-br from-pink-400 to-orange-500 rounded-full opacity-10 blur-xl"></div>
           
           <div className="relative text-center">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent mb-2">
               Profilo Utente
             </h1>
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-600 text-sm">
               {isViewingOwnProfile ? 'Il tuo profilo personale' : `Profilo di ${userInfo?.nome || 'Utente'}`}
             </p>
           </div>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-4">
         {/* Stati di caricamento e errore */}
         <ProfileLoadingStates
           isLoading={isLoading}
@@ -179,7 +179,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               />
             ) : (
               /* Desktop (lg+): 3 colonne | Mobile: stack verticale */
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-5 items-start">
                 {/* Colonna 1: Informazioni Profilo */}
                 <div className="min-w-0">
                   <ProfileInfo
@@ -193,12 +193,12 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 </div>
 
                 {/* Colonna 2: Rappresentanti + Candidati */}
-                <div className="min-w-0 space-y-6">
+                <div className="min-w-0 space-y-3">
                   {userInfo && userInfo.ruolo !== "I" && (
-                    <div className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
+                    <div className="relative overflow-hidden border-0 shadow-md bg-white rounded-2xl">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-500/20 rounded-full -translate-y-16 translate-x-16"></div>
                       <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-blue-400/20 to-cyan-500/20 rounded-full translate-y-12 -translate-x-12"></div>
-                      <div className="relative p-6 lg:p-8">
+                      <div className="relative p-4 lg:p-5">
                         <ProfileRepresentatives 
                           userInfo={userInfo} 
                           rappresentantiDetails={rappresentantiDetails}
@@ -208,10 +208,10 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                   )}
 
                   {userInfo && userInfo.ruolo !== "I" && (
-                    <div className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
+                    <div className="relative overflow-hidden border-0 shadow-md bg-white rounded-2xl">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-500/20 rounded-full -translate-y-16 translate-x-16"></div>
                       <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-400/20 to-red-500/20 rounded-full translate-y-12 -translate-x-12"></div>
-                      <div className="relative p-6 lg:p-8">
+                      <div className="relative p-4 lg:p-5">
                         <ProfileCandidates 
                           userInfo={userInfo} 
                           candidatiDetails={candidatiDetails}
