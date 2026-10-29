@@ -12,11 +12,37 @@ const STAGING_SERVICE_ID = 'srv-db52l1g473hc739ld250';
 const LOG_PREFIX = 'GDPR_RENDER_STAGING_POOL_IDENTITY ';
 const BAD_CONFIG = 'NO_GO_STAGING_ATTESTATION_GUARD_FAILED';
 
+// Existing functional-staging branch has one migration boot path and several
+// opt-in E2E writers. The identity probe is READONLY and cannot run alongside
+// any of these write-capable modes. This is a bounded, explicit inventory;
+// other jobs and external provider identities still require separate review.
+const MUTATING_STAGING_E2E_FLAGS = Object.freeze([
+  'DEMOS_STAGING_AUTH_E2E',
+  'DEMOS_STAGING_MUTATION_E2E',
+  'DEMOS_STAGING_OPINION_NOTIFICATION_E2E',
+  'DEMOS_STAGING_OPINION_PROPOSAL_E2E',
+  'DEMOS_STAGING_PREFERENCE_COOLDOWN_E2E',
+  'DEMOS_STAGING_POLITICAL_CONSENT_E2E',
+  'DEMOS_STAGING_TRANSPARENCY_PODIUM_E2E',
+  'DEMOS_STAGING_LOAD_E2E',
+  'DEMOS_STAGING_ELECTORAL_PERIMETER_E2E'
+]);
+
 function assertProcessTarget(env) {
   if (env?.GDPR_RENDER_INPROCESS_ATTESTATION !== ENV_MARKER ||
       env.RENDER !== 'true' ||
       env.RENDER_SERVICE_ID !== STAGING_SERVICE_ID ||
       env.NODE_ENV !== 'production') {
+    throw Error(BAD_CONFIG);
+  }
+  // Staging's existing entrypoint can run DDL/seed before server import.
+  // Forbid combining that boot workflow with a read-only SQL identity probe.
+  if (env.DEMOS_STAGING_MIGRATION_MODE != null &&
+      env.DEMOS_STAGING_MIGRATION_MODE !== '') {
+    throw Error(BAD_CONFIG);
+  }
+  // Staging's existing server can launch E2E writers on its listening event.
+  if (MUTATING_STAGING_E2E_FLAGS.some(key => env[key] === 'true')) {
     throw Error(BAD_CONFIG);
   }
   // Validate the *actual* configured staging DB URL, never a user-supplied
