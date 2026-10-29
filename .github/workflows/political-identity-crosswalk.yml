@@ -7,6 +7,9 @@ on:
       - 'api/scripts/audit-political-crosswalk.js'
       - 'api/tests/politicalIdentityCrosswalkAudit.test.js'
       - 'api/docs/political-identity-crosswalk-20261029.md'
+      - 'api/docs/political-institutional-source-evidence-seven-20261029.md'
+      - 'api/docs/political-public-source-evidence-seven-20261029.json'
+      - 'api/tests/politicalPublicSourceEvidence.test.js'
       - 'api/database/political-institutional-crosswalk-v1.sql'
       - 'api/tests/politicalInstitutionalCrosswalk.pg17.sql'
       - 'api/tests/fixtures/politicalInstitutionalCrosswalk.pg17.fixture.sql'
@@ -34,7 +37,7 @@ jobs:
         run: |
           node --check api/utils/politicalIdentityCrosswalkAudit.js
           node --check api/scripts/audit-political-crosswalk.js
-          node --test api/tests/politicalIdentityCrosswalkAudit.test.js
+          node --test api/tests/politicalIdentityCrosswalkAudit.test.js api/tests/politicalPublicSourceEvidence.test.js
 
   postgres-institutional-import:
     runs-on: ubuntu-latest
