@@ -1,0 +1,47 @@
+name: One-off Pisa Chrono source audit
+on:
+  pull_request:
+    paths: ['.github/workflows/pisa-chrono-source-audit-once.yml']
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Compare tomorrow Pisa entries without personal fields
+        run: |
+          node <<'NODE'
+          const base='https://mobilitazioni.chronocol.com/api/';
+          const fields=['TIPO','CITTA','DATA_ORARIO','DATA_FINE','FINE_EFFETTIVA','INDIRIZZO','RITROVO_LUOGO','VERIFICATA','ANNULLATA','SCIOPERO','STATO','PUBBLICATA','STATUS'];
+          async function get(url) {
+            const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(15000)});
+            const raw=await r.text();
+            try {return {status:r.status,data:JSON.parse(raw)}}catch{return {status:r.status,text:raw.slice(0,140)}}
+          }
+          (async()=>{
+            for(const endpoint of ['w-mobs','w-mob-nazionales']) {
+              for(const filter of ['pisa-all','pisa-verified']) {
+                const p=new URLSearchParams();
+                fields.forEach((x,i)=>p.set('fields['+i+']',x));
+                p.set('pagination[pageSize]','100');
+                p.set('filters[CITTA][$containsi]','Pisa');
+                if(filter==='pisa-verified'){p.set('filters[VERIFICATA][$eq]','true');p.set('filters[ANNULLATA][$eq]','false')}
+                const res=await get(base+endpoint+'?'+p);
+                console.log(JSON.stringify({type:'UPSTREAM',endpoint,filter,status:res.status,
+                  total:res.data?.meta?.pagination?.total??null,error:res.data?.error??null,
+                  entries:(res.data?.data||[]).filter(x=>!x.DATA_ORARIO||x.DATA_ORARIO.startsWith('2026-10-30')||x.CITTA?.toLowerCase().includes('pisa'))
+                   .slice(0,30).map(x=>({id:x.documentId||x.id,type:x.TIPO,city:x.CITTA,
+                     at:x.DATA_ORARIO,end:x.FINE_EFFETTIVA||x.DATA_FINE,verified:x.VERIFICATA,
+                     cancelled:x.ANNULLATA,address:x.INDIRIZZO||x.RITROVO_LUOGO,strike:x.SCIOPERO}))}));
+              }
+            }
+            const site=await get('https://api.demos.community/api/eventi/pubblici');
+            const rows=site.data?.data || [];
+            console.log(JSON.stringify({type:'DEMOS',status:site.status,total:rows.length,
+              pisa:rows.filter(x=>String(x.comune_evento).toLowerCase().includes('pisa')).map(x=>({
+                title:x.nome_evento,day:x.giorno_inizio,address:x.indirizzo_evento,source:x.fonte
+              }))}));
+          })().catch(e=>{console.error('AUDIT_ERROR',e.message);process.exitCode=1;});
+          NODE
