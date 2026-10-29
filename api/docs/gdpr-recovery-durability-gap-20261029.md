@@ -90,3 +90,21 @@ La strategia di intenzione esterna è una **proposta da validare**, non un fix g
 4. La matrice della retention RP-10/F5-17, DPIA e la validazione DPO/titolare rimangono prerequisiti. **Non utilizzare il test per trasformare `recoveryReady:false` in `true`.**
 
 **Esito Fase D: schema di prova SQL verificato; enforcement reale ancora assente. GH-296 rimane APERTA / NO-GO.**
+
+## Fase E — modello di admission con epoca esterna, verificato contro vecchio snapshot (29 ottobre 2026)
+
+**Ancora SOLO codice sperimentale in api/tests; nessuna barriera implementata nel runtime o configurazione Render/Supabase/B2.**
+
+- `api/tests/fixtures/gdprIndependentAdmissionEpochSynthetic.js` implementa un'autorità separata *in memoria* dal database. Firma con HMAC uno stato a generazione (`databaseId`), epoca monotona, seriale, checkpoint ed esito `open/blocked`. Le ricevute precedenti o manomesse sono invalidate quando lo stato esterno avanza. Assenza dell'autorità = accesso negato, mai fallback al solo database.
+- `api/tests/gdprIndependentAdmissionEpochSynthetic.test.js` esegue **11 test PASS** (run [40919128648](https://github.com/Nictolas/DemosApp/actions/runs/40919128648)): snapshot vecchio apparentemente aperto dopo sospensione esterna, attestazioni scadute/falsificate, indisponibilità, prerequisiti incompleti, generazione nuova obbligatoria e blocco letture/scritture vecchie.
+- `api/tests/gdprDistributedFencePg17Synthetic.test.js` ora esegue **7 test PASS** nello stesso database PostgreSQL17 effimero; il gate locale dispone anche di `database_id` sintetico. Simula il ripristino di un gate SQL precedente `open=true,epoch=1` quando l'autorità esterna ha già sospeso l'epoca: sia le letture sia le scritture tramite l'*adapter di ammissione simulato* vengono rifiutate, e una generazione nuova richiede configurazione e ricevuta nuove.
+- **Test negativo essenziale:** nello stesso vecchio snapshot la funzione SQL `perform_synthetic_write` è ANCORA chiamabile da un client con le vecchie credenziali se il client salta il preflight esterno. Il test prova tale bypass **solo dentro una transazione effettivamente ROLLBACK**. È la dimostrazione del rischio residuo, non una garanzia di isolamento operativo.
+- Le suite sono collegate al workflow esistente della PR Draft #374, senza rete verso provider veri, dati personali, deploy o migrazioni.
+
+### Implicazione architetturale verificata
+
+**Una verifica HMAC dell'epoca in Node prima di una query non è sufficiente.** Può essere aggirata da un processo che abbia ancora credenziali SQL, e una sospensione in corsa può generare una condizione di gara tra preflight e COMMIT. La futura barriera affidabile dovrà essere *enforced* da un controllo indipendente su tutta la superficie di accesso: blocco degli ingressi, separazione delle credenziali e rotazione/revoca delle vecchie sessioni SQL, blocco di ogni writer/reader/job/worker, nuova generazione solo dopo riconciliazione, ed evidenze di isolamento verificabili; poi prova di crash/failover/snapshot e accesso diretto negato. Non è sufficiente un semplice booleano locale o un'altra tabella del medesimo DB.
+
+L'autorità HMAC è soltanto un modello e l'approvazione del ripristino usa booleani di prova: nessuna verifica di disponibilità, durata, freschezza, costi, IAM/secret management, completezza o Object Lock reale. `productionRecoveryReady` resta **sempre false**.
+
+**Esito Fase E: test logici e PostgreSQL superati; prova di bypass evidenziata; GH-296 ancora OPEN / NO-GO.** Prima di un rilascio vanno implementati e attestati il *data-plane cut-off* indipendente e il journal esterno completo, con RP-10/F5-17 e DPIA approvati.
