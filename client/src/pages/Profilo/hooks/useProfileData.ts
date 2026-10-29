@@ -146,7 +146,7 @@ export const useProfileData = (userId?: string) => {
 
   return {
     userInfo: query.data?.userInfo || null,
-    isLoadingInfo: query.isPending && query.isFetching,
+    isLoadingInfo: !authReady || (Boolean(ownerId && targetId) && query.isPending),
     error: query.error instanceof Error ? query.error.message : null,
     userOpinions: query.data?.userOpinions || {},
     avatarConfig: query.data?.avatarConfig || null,
