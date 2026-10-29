@@ -132,6 +132,7 @@ export default function Attivisti() {
 
   // Carica gli attivisti
   useEffect(() => {
+    const controller = new AbortController();
     console.log('🚀 Attivisti useEffect - Inizio');
     const fetchAttivisti = async () => {
       try {
@@ -148,7 +149,7 @@ export default function Attivisti() {
         const url = `${API_BASE}/api/attivisti${params.toString() ? '?' + params.toString() : ''}`;
         console.log('📡 fetchAttivisti - Chiamata API:', url);
         
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: controller.signal });
         console.log('📡 fetchAttivisti - Response status:', response.status);
         
         if (!response.ok) {
@@ -157,6 +158,8 @@ export default function Attivisti() {
         
         console.log('📡 fetchAttivisti - Parsing JSON...');
         const data: AttivistiResponse = await response.json();
+        // Una ricerca precedente non deve sovrascrivere i risultati dell'ultima digitazione.
+        if (controller.signal.aborted) return;
         console.log('📊 fetchAttivisti - Data ricevuta:', data);
         
               if (data.success) {
@@ -177,16 +180,25 @@ export default function Attivisti() {
           throw new Error(data.message || 'Errore nel caricamento degli attivisti');
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error('❌ fetchAttivisti - Errore:', error);
         setIsError(true);
         setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
       } finally {
         console.log('🏁 fetchAttivisti - Completato, setIsLoading(false)');
-        setIsLoading(false);
+        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
-    fetchAttivisti();
+    // Non interrogare il backend per ogni singola lettera.
+    const timer = window.setTimeout(() => {
+      void fetchAttivisti();
+    }, searchTerm.trim() ? 300 : 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [searchTerm, selectedRegione, selectedTipologia]);
 
   // I filtri sono ora gestiti lato server, non serve più filtrare lato client
@@ -477,8 +489,7 @@ export default function Attivisti() {
               </p>
             </div>
 
-            {/* Barra di Ricerca e Filtri */}
-            {!isLoading && !isError && (
+            {/* Barra di Ricerca e Filtri: resta montata anche mentre arrivano i risultati. */}
               <div className="mt-3">
                 <div className="max-w-4xl mx-auto w-full max-w-full">
                   {/* Ricerca Testuale */}
@@ -593,7 +604,6 @@ export default function Attivisti() {
                   )}
                 </div>
               </div>
-            )}
 
           </div>
         </div>
