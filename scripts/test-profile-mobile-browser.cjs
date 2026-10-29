@@ -42,6 +42,7 @@ async function main() {
     const errors = [];
     const calls = new Map();
     let consentGranted = true;
+    let consentUnavailable = false;
     let consentTimestamp = '2026-10-29T09:00:00Z';
     const blockedOffsite = new Set();
     page.on('pageerror', error => errors.push(error.message));
@@ -67,9 +68,12 @@ async function main() {
         return reply(route, { success: true, user: { id: OWNER, role: 'AD', ruolo: 'AD', status: 'A', is_admin: true } });
       }
       if (p === '/api/users/me') return reply(route, { success: true, user: ownerProfile });
-      if (p === '/api/user/political-opinions-consent') return reply(route, {
-        success: true, consent: { granted: consentGranted, timestamp: consentTimestamp },
-      });
+      if (p === '/api/user/political-opinions-consent') {
+        if (consentUnavailable) return reply(route, { success: false, error: 'Synthetic temporary outage' }, 503);
+        return reply(route, {
+          success: true, consent: { granted: consentGranted, timestamp: consentTimestamp },
+        });
+      }
       if (p === '/api/opinioni/profile') return reply(route, {
         success: true, data: {
           questions: [{ id: 'synthetic_opinion', text: 'Domanda inventata?' }],
@@ -193,6 +197,19 @@ async function main() {
     }
     assert.equal(calls.get(consentPath), 4,
       'First fetch, cached reentry and revoked reentry each validate consent; refetch obtains version');
+    // Fail closed when consent cannot be checked; never display a cached
+    // political snapshot just because the device temporarily lost connectivity.
+    await page.locator('nav.app-bottom-nav a[href="/preferiti"]').click();
+    await page.waitForURL('**/preferiti');
+    consentUnavailable = true;
+    await page.locator('nav.app-bottom-nav a[href="/profilo"]').click();
+    await page.getByText('Impossibile verificare il consenso politico.', { exact: false }).waitFor({ timeout: 15000 });
+    assert.equal(await page.getByText('Comune Inventato').count(), 0,
+      'Do not display cached sensitive snapshot on consent validation failure');
+    consentUnavailable = false;
+    await page.getByRole('button', { name: 'Riprova' }).click();
+    await page.getByText('Comune Inventato').first().waitFor({ timeout: 15000 });
+
 
 
     // Public view must use the public projection only, not visitor's selections.
