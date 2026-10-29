@@ -82,8 +82,10 @@ function mapEvent(record) {
   return {
     id,
     nome_evento: name,
-    tipologia_evento: clean(row.type ?? row.category ?? row.tipo ?? row.tipologia_evento, 60) || 'Mobilitazione',
-    paese_evento: 'Italia',
+    // Le tipologie esterne non devono assumere semantica speciale (es. Elezioni) in DEMOS.
+    tipologia_evento: 'Mobilitazione',
+    categoria_mobilitazione: clean(row.type ?? row.category ?? row.tipo ?? row.tipologia_evento, 60),
+    paese_evento: clean(row.country ?? row.paese ?? row.paese_evento, 100),
     regione_evento: region,
     provincia_evento: province,
     comune_evento: city,
