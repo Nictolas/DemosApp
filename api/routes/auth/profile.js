@@ -60,7 +60,7 @@ router.get('/me', async (req, res) => {
     try {
       result = await pool.query(
         `SELECT
-           u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.is_dpo, u.created_at, u.updated_at,
+           u.id, u.email, u.nome, u.cognome, u.status, u.is_dpo, u.created_at, u.updated_at,
            COALESCE(up.genere, u.genere) AS genere,
            COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
            COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
@@ -125,6 +125,10 @@ router.get('/me', async (req, res) => {
 
     const user = result.rows[0];
     const accountSubject = await getAccountSubject(pool, user.id);
+    if (!accountSubject) {
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const accountCapabilities = accountSubject.capabilities;
     const emailDecrypted = decryptEmail(user.email);
     if (user.email != null) user.email = emailDecrypted;
     console.log('✅ Profilo utente recuperato:', emailDecrypted ? '(email presente)' : '(nessuna email)');
@@ -152,16 +156,16 @@ router.get('/me', async (req, res) => {
         regione_residenza: user.regione_residenza,
         provincia_residenza: user.provincia_residenza,
         comune_residenza: user.comune_residenza,
-        ruolo: accountSubject?.legacyRole || user.ruolo,
-        account_type: accountSubject?.capabilities?.accountType || null,
-        is_admin: accountSubject?.capabilities?.isAdmin ?? (user.ruolo === 'AD'),
+        ruolo: accountSubject.legacyRole, // API compatibility projection; no users.ruolo read on canonical path
+        account_type: accountCapabilities.accountType,
+        is_admin: accountCapabilities.isAdmin,
         // Solo indicazione autenticata per la navigazione UI; il backend
         // ricontrolla sempre i permessi DPO su DB ad ogni richiesta sensibile.
-        is_dpo: user.status === 'a' && user.is_dpo === true && user.is_admin !== true && !(accountSubject?.capabilities?.isAdmin ?? (user.ruolo === 'AD')),
-        is_activist: accountSubject?.capabilities?.isActivist ?? (user.ruolo === 'A'),
-        is_candidate: accountSubject?.capabilities?.isCandidate ?? ['C', 'CP'].includes(user.ruolo),
-        is_politician: accountSubject?.capabilities?.isPolitician ?? ['P', 'CP'].includes(user.ruolo),
-        capabilities: accountSubject?.capabilities || null,
+        is_dpo: user.status === 'a' && user.is_dpo === true && !accountCapabilities.isAdmin,
+        is_activist: accountCapabilities.isActivist,
+        is_candidate: accountCapabilities.isCandidate,
+        is_politician: accountCapabilities.isPolitician,
+        capabilities: accountCapabilities,
         grado_elezione: user.grado_elezione,
         paese_elezione: user.paese_elezione,
         regione_elezione: user.regione_elezione,
