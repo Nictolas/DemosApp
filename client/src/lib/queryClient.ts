@@ -110,12 +110,17 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       throw error;
     }
     
-    // Le scritture che possono cambiare il profilo invalidano le copie in memoria
-    // dell'account. Non persistiamo i dati politici su disco né aggiriamo l'API.
+    // Invalida gli snapshot in memoria dopo scritture che cambiano profilo,
+    // selezioni o consensi. Le chiamate GET non causano altre letture.
+    const profileWriteRoots = [
+      "users", "user", "opinioni", "governo", "rappresentanti",
+      "candidati", "attivismo-tipologie", "consenso", "consensi", "privacy",
+    ];
+    const apiPath = url.startsWith("/api/") ? url.slice(5).split("?")[0] : "";
     if (
       method.toUpperCase() !== "GET" &&
       data?.success !== false &&
-      /^\\/api\\/(?:users(?:\\/|$)|user(?:\\/|$)|opinioni(?:\\/|$)|governo(?:\\/|$)|rappresentanti(?:\\/|$)|candidati(?:\\/|$)|attivismo-tipologie(?:\\/|$)|consens(?:[oi]\\/|\\/|$)|privacy(?:\\/|$))/.test(url)
+      profileWriteRoots.some((root) => apiPath === root || apiPath.startsWith(root + "/"))
     ) {
       void queryClient.invalidateQueries({ queryKey: ["profileSnapshot"] });
     }
