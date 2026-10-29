@@ -1,20 +1,31 @@
 /* Griglia condivisa: cinque scelte, tutte visibili sopra la navbar, senza scroll. */
 .selection-grid-page {
   height: 100%;
+  max-height: 100%;
   min-height: 0;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
-.selection-grid-page__content {
-  flex: 1 1 auto;
+/* La shell divide già lo schermo tra app-main e navbar: qui NON usiamo
+   100vh / 100dvh né una misura inventata per la barra inferiore. */
+.selection-grid-page .selection-grid-page__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
   min-height: 0;
+  box-sizing: border-box;
   overflow: hidden;
+  padding-top: 0.5rem;
+  /* Margine visibile prima della navbar, anche con safe area e font più grandi. */
+  padding-bottom: clamp(1rem, 2.5dvh, 1.75rem);
 }
 
 .selection-grid-page__grid {
   display: grid;
+  flex: 1 1 0;
   width: 100%;
-  height: 100%;
+  height: auto;
   min-height: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(3, minmax(0, 1fr));
