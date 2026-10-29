@@ -34,7 +34,7 @@ async function seed(db){
  await db.query('INSERT INTO users '+
    '(id,account_type,political_opinions_consent,regione_residenza,provincia_residenza,comune_residenza) '+
    'SELECT '+userId+','+
-   "CASE WHEN g%17=0 THEN 'ORGANIZATION' ELSE 'PERSON' END,"+
+   "CASE WHEN g%17=0 THEN CASE WHEN g%2=0 THEN 'O' ELSE 'ORGANIZATION' END ELSE CASE WHEN g%2=0 THEN 'P' ELSE 'PERSON' END END,"+
    "g%13<>0,CASE WHEN g%3=0 THEN 'TO' ELSE 'LO' END,"+
    "CASE WHEN g%3=0 THEN 'PI' ELSE 'MI' END,"+
    "CASE WHEN g%3=0 THEN 'Pisa' ELSE 'Milano' END "+
@@ -62,7 +62,7 @@ function legacyQuery(id,scope){
   'FROM opinioni_risposte orr JOIN users u ON u.id=orr.user_id '+
   'LEFT JOIN user_consents uc ON uc.user_id=u.id '+
   'WHERE orr.'+col+' IS NOT NULL '+
-  "AND u.account_type='PERSON' "+
+  "AND u.account_type IN ('PERSON','P') "+
   'AND COALESCE(uc.political_opinions_consent,u.political_opinions_consent,false) IS TRUE '+
   geo;
 }

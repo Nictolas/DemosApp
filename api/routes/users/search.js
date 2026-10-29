@@ -3,7 +3,7 @@ const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { decompressGender, compressGender } = require('../../utils/genderUtils');
 const { decompressUserLocation, compressUserLocation } = require('../../utils/locationUtils');
-const { queryWithAccountModelFallback } = require('../../services/accountCapabilitiesService');
+const { queryWithAccountModelFallback, normalizeAccountType } = require('../../services/accountCapabilitiesService');
 
 const router = express.Router();
 
@@ -267,6 +267,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       const decoded = decompressUserLocation(user);
       return {
         ...user,
+        account_type: normalizeAccountType(user.account_type) || user.account_type,
         // Supporta sia i codici geografici DEMOS sia i nomi completi legacy.
         cittadinanza: decoded.cittadinanza || user.cittadinanza,
         paese_residenza: decoded.paese_residenza || user.paese_residenza,
@@ -396,6 +397,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       success: true,
       user: {
         ...decompressedUser,
+        account_type: normalizeAccountType(user.account_type) || user.account_type,
         data_nascita: dataNascitaFormattata,
         sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
         genere: decompressGender(user.genere),
@@ -563,6 +565,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       message: 'Utente aggiornato con successo',
       user: {
         ...decompressedUser,
+        account_type: normalizeAccountType(updatedUser.account_type) || updatedUser.account_type,
         data_nascita: dataNascitaFormattata,
         sesso: ['M', 'F'].includes(updatedUser.sesso) ? updatedUser.sesso : null,
         genere: decompressGender(updatedUser.genere),

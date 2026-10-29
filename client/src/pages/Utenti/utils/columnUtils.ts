@@ -46,7 +46,7 @@ export const getDisplayColumns = (users: any[]) => {
 // Funzione per formattare il valore di una colonna
 export const formatColumnValue = (value: any, columnName: string, user?: User) => {
   if (columnName === 'sesso') {
-    if (user?.account_type === 'ORGANIZATION' || user?.account_type === 'INSTITUTION') return 'Non applicabile';
+    if (['ORGANIZATION', 'O', 'INSTITUTION', 'E'].includes(user?.account_type || '')) return 'Non applicabile';
     return value === 'M' ? 'Maschile' : value === 'F' ? 'Femminile' : 'Non disponibile';
   }
   if (value === null || value === undefined) {
