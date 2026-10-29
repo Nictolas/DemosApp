@@ -11,6 +11,8 @@ const profile = read("pages/Profilo/index.tsx");
 const hook = read("pages/Profilo/hooks/useProfileData.ts");
 const government = read("pages/Profilo/components/ProfileGovernoIdeale.tsx");
 const profileInfo = read("pages/Profilo/components/ProfileInfo.tsx");
+const profileRepresentatives = read("components/ProfileRepresentatives.tsx");
+const profileCandidates = read("components/ProfileCandidates.tsx");
 
 const source = read("pages/Profilo/utils/profileSummaryCache.ts");
 const compiled = ts.transpileModule(source, {
@@ -92,6 +94,21 @@ test("all selection actions remain visible in open profile panels", () => {
   assert.match(profile, /Scegli Candidati/);
   assert.match(government, /<Link href="\/governo"/);
   assert.match(government, /Scegli ministri/);
+});
+
+test("cached candidate and representative names and avatars render without a deferred effect or network request", () => {
+  for (const [source, label, details] of [
+    [profileRepresentatives, "rappresentanti", "rappresentantiDetails"],
+    [profileCandidates, "candidati", "candidatiDetails"],
+  ]) {
+    assert.match(source, /import \{ useMemo \} from "react"/, label + " must calculate in render");
+    assert.match(source, /useMemo\(\(\) => \{/, label + " must be computed synchronously");
+    assert.ok(source.includes("}, [userInfo, " + details + "]);"), label + " must follow cached inputs");
+    assert.match(source, /if \(!userInfo\) return \{/);
+    assert.doesNotMatch(source, /useEffect|useState|setRepresentativeNames|setCandidateNames|fetchRepresentativeNames|fetchCandidateNames/);
+    assert.doesNotMatch(source, /\bfetch\(|\bapiRequest\b|axios\.|useQuery\(/, "no additional network calls");
+    assert.match(source, /<CustomAvatar config=\{/, "avatar rendering remains");
+  }
 });
 
 test("only allowlisted demographic summary is persisted, scoped to account", () => {

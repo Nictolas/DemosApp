@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "wouter";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { UserInfo } from "@/types/profile";
@@ -11,19 +11,23 @@ interface ProfileCandidatesProps {
 }
 
 export function ProfileCandidates({ userInfo, candidatiDetails, canEditSelections = true, showHeading = true }: ProfileCandidatesProps) {
-  const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
-  const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
-
-  const fetchCandidateNames = async (userInfo: any) => {
+  // I nomi e gli avatar derivano esclusivamente dai dati già ricevuti:
+  // calcolarli durante il render evita un secondo aggiornamento visivo.
+  const { names: candidateNames, avatars: candidateAvatars } = useMemo(() => {
+    if (!userInfo) return {
+      names: {} as Record<string, string>,
+      avatars: {} as Record<string, any>,
+    };
+    const profile = userInfo as any;
 
 
     
     const candidates = {
-      candidato_europeo: userInfo.candidato_europeo,
-      candidato_camera: userInfo.candidato_camera,
-      candidato_senato: userInfo.candidato_senato,
-      candidato_regionale: userInfo.candidato_regionale,
-      candidato_comune: userInfo.candidato_comune,
+      candidato_europeo: profile.candidato_europeo,
+      candidato_camera: profile.candidato_camera,
+      candidato_senato: profile.candidato_senato,
+      candidato_regionale: profile.candidato_regionale,
+      candidato_comune: profile.candidato_comune,
     };
 
     
@@ -90,14 +94,7 @@ export function ProfileCandidates({ userInfo, candidatiDetails, canEditSelection
 
 
     
-    setCandidateNames(names);
-    setCandidateAvatars(avatars);
-  };
-
-  useEffect(() => {
-    if (userInfo) {
-      fetchCandidateNames(userInfo);
-    }
+    return { names, avatars };
   }, [userInfo, candidatiDetails]);
 
   if (!userInfo) return null;
