@@ -1,6 +1,15 @@
 name: CIE canonical sex regression
 
 on:
+  # The PR source branch may receive automation-authored commits that do not
+  # receive a new pull_request workflow event. Validate those branch heads too.
+  push:
+    branches:
+      - feature/cie-canonical-sex-mf-20261028
+    paths:
+      - 'api/**'
+      - 'client/**'
+      - '.github/workflows/cie-canonical-sex.yml'
   pull_request:
     paths:
       - 'api/services/cieOidcAuthorizationService.js'
