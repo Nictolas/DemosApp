@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
+import { readProfileSummary, storeProfileSummary } from "@/pages/Profilo/utils/profileSummaryCache";
 
 type AuthUser = {
   id?: string;
@@ -63,13 +64,19 @@ function UserMenu({ user }: { user: AuthUser }) {
   const { data: avatarConfig } = useQuery({
     queryKey: ["desktop-user-avatar", user?.id],
     queryFn: async () => {
+      // A cached avatar is sufficient: mounting the global header must not
+      // introduce a repeated /users/me GET on every profile visit/reload.
+      const saved = user?.id ? readProfileSummary(user.id) : null;
+      if (saved) return parseAvatarConfig(saved.user.avatar_config);
       const response = await apiRequest("GET", "/api/users/me");
       if (!response?.ok || !response?.data) return null;
       const userData = response.data.user || response.data.data || response.data;
+      if (user?.id && userData?.id === user.id) storeProfileSummary(user.id, userData);
       return parseAvatarConfig(userData?.avatar_config);
     },
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
+    gcTime: Infinity,
     refetchOnWindowFocus: false,
   });
 
