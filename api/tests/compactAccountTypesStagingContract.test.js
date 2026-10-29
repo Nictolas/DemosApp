@@ -8,6 +8,7 @@ const read = file => fs.readFileSync(path.join(__dirname,'..','staging',file),'u
 const fixture = read('f12_poe_isolated_synthetic_20261029.sql');
 const hardening = read('f12_poe_isolated_synthetic_index_20261029.sql');
 const smoke = read('f12_poe_readonly_smoke_20261029.sql');
+const canonicalProfile = read('f12_poe_canonical_profile_fixture_20261029.sql');
 
 test('POE staging fixture is private and synthetic, never mutates public account tables', () => {
   assert.match(fixture, /CREATE SCHEMA f12_poe_ci/);
@@ -41,4 +42,17 @@ test('staging fixtures have usable indexes and deny API access by default', () =
     assert.match(smoke,new RegExp('has_schema_privilege\\(\\x27'+role+'\\x27'));
   }
   assert.doesNotMatch(fixture, /\bGRANT\b.*\b(?:anon|authenticated|service_role)\b/i);
+});
+
+test('private staging canonical profile fixture cannot expose production tables or identities', () => {
+  assert.match(canonicalProfile,/CREATE TABLE f12_poe_ci\.user_profile/);
+  assert.match(canonicalProfile,/CREATE TABLE f12_poe_ci\.user_representatives/);
+  assert.match(canonicalProfile,/ALTER TABLE f12_poe_ci\.user_profile ENABLE ROW LEVEL SECURITY/);
+  assert.match(canonicalProfile,/ALTER TABLE f12_poe_ci\.user_representatives ENABLE ROW LEVEL SECURITY/);
+  assert.match(canonicalProfile,/REVOKE ALL ON ALL TABLES IN SCHEMA f12_poe_ci FROM PUBLIC,anon,authenticated,service_role/);
+  assert.match(canonicalProfile,/has_schema_privilege\('service_role','f12_poe_ci','USAGE'\)/);
+  assert.match(canonicalProfile,/AND is_dpo=true AND is_admin=false/);
+  assert.match(canonicalProfile,/COALESCE\(ur\.rappresentante_camera,u\.rappresentante_camera\)='synthetic-choice'/);
+  assert.doesNotMatch(canonicalProfile,/\b(?:ALTER TABLE|INSERT INTO|UPDATE|DELETE FROM|DROP TABLE|CREATE TABLE)\s+(?:public|auth|storage)\./i);
+  assert.doesNotMatch(canonicalProfile,/\bGRANT\s+\w+\s+ON\b/i);
 });
