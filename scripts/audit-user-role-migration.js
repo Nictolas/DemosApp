@@ -36,6 +36,21 @@ function inspectLine(line) {
   return SIGNALS.filter(([, regex]) => regex.test(line)).map(([name]) => name);
 }
 
+// Evidence classes are triage hints, NOT permission to delete a database column.
+// Avoid treating generic "ruolo" (e.g. a minister's job title) as users.ruolo.
+function classifyRoleEvidence(line) {
+  if (!/\bruolo\b/i.test(line)) return null;
+  if (/\b(?:users|u)\.ruolo\b/i.test(line)) return 'EXPLICIT_SQL_ACCOUNT_FIELD';
+  if (/\b(?:user|utente|currentUser|account|row|result\.rows\[\d+\])\??\.ruolo\b/i.test(line)) {
+    return 'ACCOUNT_OBJECT_PROPERTY_CANDIDATE';
+  }
+  if (/\b(?:SELECT|INSERT\s+INTO|UPDATE|WHERE|SET)\b[\s\S]*\bruolo\b/i.test(line)) {
+    return 'SQL_FIELD_UNRESOLVED';
+  }
+  if (/\bruolo\s*[:=]/i.test(line) || /\bruolo\s*,/i.test(line)) return 'PAYLOAD_OR_FIELD_UNRESOLVED';
+  return 'GENERIC_ROLE_UNRESOLVED';
+}
+
 function trackedFiles(root = ROOT) {
   const raw = cp.execFileSync('git', ['-C', root, 'ls-files', '-z'], { maxBuffer: 8 * 1024 * 1024 });
   return raw.toString('utf8').split('\0').filter(Boolean).sort();
@@ -65,6 +80,7 @@ function inventory(root = ROOT, files = trackedFiles(root)) {
         line: index + 1,
         category: kindFor(file),
         signals,
+        ...(signals.includes('legacy_role') ? { role_evidence: classifyRoleEvidence(line) } : {}),
         // No source contents: safe to attach the inventory to a public CI artifact.
       });
     });
@@ -73,7 +89,12 @@ function inventory(root = ROOT, files = trackedFiles(root)) {
   for (const match of matches) {
     for (const signal of match.signals) counts[signal] = (counts[signal] || 0) + 1;
   }
+  const role_evidence_counts = {};
+  for (const match of matches) {
+    if (match.role_evidence) role_evidence_counts[match.role_evidence] = (role_evidence_counts[match.role_evidence] || 0) + 1;
+  }
   return {
+    role_evidence_counts,
     definition: 'Candidate references only; not proof of a runtime users.ruolo dependency',
     scanned_tracked_files: considered,
     skipped,
@@ -100,6 +121,11 @@ function markdown(result) {
   ];
   for (const [name, count] of Object.entries(result.signal_counts).sort()) {
     lines.push('| ' + name + ' lines | ' + count + ' |');
+  }
+  lines.push('', '## Legacy role evidence (heuristic; unresolved MUST be reviewed)', '');
+  lines.push('| Evidence class | Lines |', '| --- | ---: |');
+  for (const [name, count] of Object.entries(result.role_evidence_counts).sort()) {
+    lines.push('| ' + name + ' | ' + count + ' |');
   }
   const categoryStats = new Map();
   const hotFiles = new Map();
@@ -151,4 +177,4 @@ function main(args = process.argv.slice(2)) {
 
 if (require.main === module) main();
 
-module.exports = { inspectLine, kindFor, inventory, markdown, trackedFiles };
+module.exports = { inspectLine, kindFor, classifyRoleEvidence, inventory, markdown, trackedFiles };
