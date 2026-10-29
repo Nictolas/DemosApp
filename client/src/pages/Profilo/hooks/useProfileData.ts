@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
@@ -9,6 +9,7 @@ import { extractBaseOpinions } from "../utils/opinionUtils";
 
 type ProfileSnapshot = {
   userInfo: UserInfo;
+  consentFingerprint?: string;
   userOpinions: Record<string, string>;
   avatarConfig: unknown;
   governoIdeale: Record<string, string>;
@@ -31,6 +32,16 @@ function normalizeOpinionAnswers(raw: Record<string, unknown>): Record<string, s
     if (normalized) output[id] = normalized;
   }
   return output;
+}
+
+function consentFingerprint(payload: any): string {
+  const state = payload?.consent;
+  // Both the boolean and the consent-grant timestamp are needed: a
+  // revoke-and-regrant on another device must not resurrect old choices.
+  if (!state || typeof state.granted !== "boolean") {
+    throw new Error("Stato del consenso non verificabile");
+  }
+  return JSON.stringify([state.granted, state.timestamp || null]);
 }
 
 function parseAvatar(value: unknown): unknown {
@@ -71,16 +82,18 @@ async function loadOwnProfile(signal: AbortSignal): Promise<ProfileSnapshot> {
 
   // Queste letture non devono essere ripetute ad ogni montaggio della pagina.
   // In caso di salvataggio le mutation invalidano il gruppo profileSnapshot.
-  const [opinions, government, representatives, candidates] = await Promise.all([
+  const [opinions, government, representatives, candidates, consent] = await Promise.all([
     getOptionalPayload("/api/opinioni/profile", signal),
     getOptionalPayload("/api/governo/ideale", signal),
     getOptionalPayload("/api/rappresentanti", signal),
     getOptionalPayload("/api/candidati/selezioni", signal),
+    getProfilePayload("/api/user/political-opinions-consent", signal),
   ]);
 
   const opinionData = opinions?.data;
   return {
     userInfo,
+    consentFingerprint: consentFingerprint(consent),
     avatarConfig: parseAvatar(userInfo.avatar_config),
     userOpinions: normalizeOpinionAnswers({
       ...extractBaseOpinions(userInfo),
@@ -145,20 +158,90 @@ export const useProfileData = (userId?: string) => {
     retry: false,
   });
 
+  // The owner snapshot may contain political choices. On re-entry from RAM
+  // or when returning from another app, validate only consent (one small GET)
+  // before showing any cached snapshot. Never persist this state on device.
+  type Verification = { key: string; status: "pending" | "approved" | "blocked" };
+  const [verification, setVerification] = useState<Verification | null>(null);
+  const inFlight = useRef(false);
+  const previousFocusAt = useRef(0);
+  const identityKey = ownProfile ? ownerId + "::" + targetId : "";
+  const hasCachedSnapshot = ownProfile && !!query.data && !query.isFetchedAfterMount;
+  const explicitlyPending = verification?.key === identityKey && verification.status === "pending";
+  const explicitlyBlocked = verification?.key === identityKey && verification.status === "blocked";
+  const verifiedForIdentity = verification?.key === identityKey && verification.status === "approved";
+  const needsVerification = Boolean(
+    ownProfile && query.data &&
+    !explicitlyBlocked &&
+    (explicitlyPending || (hasCachedSnapshot && !verifiedForIdentity))
+  );
+  const isPoliticalSnapshotSafe = !ownProfile || (
+    !explicitlyPending && !explicitlyBlocked && (!hasCachedSnapshot || verifiedForIdentity)
+  );
+
+  useEffect(() => {
+    if (!ownProfile || !ownerId || !query.data) return;
+    const onReturn = () => {
+      if (document.visibilityState === "hidden") return;
+      const now = Date.now();
+      if (now - previousFocusAt.current < 1000) return;
+      previousFocusAt.current = now;
+      setVerification({ key: identityKey, status: "pending" });
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") onReturn(); };
+    window.addEventListener("focus", onReturn);
+    window.addEventListener("online", onReturn);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      window.removeEventListener("online", onReturn);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [ownProfile, ownerId, identityKey, Boolean(query.data)]);
+
+  useEffect(() => {
+    if (!needsVerification || !query.data?.consentFingerprint || inFlight.current) return;
+    inFlight.current = true;
+    const controller = new AbortController();
+    const expectedFingerprint = query.data.consentFingerprint;
+    const key = identityKey;
+    const verify = async () => {
+      try {
+        const payload = await getProfilePayload("/api/user/political-opinions-consent", controller.signal);
+        if (controller.signal.aborted) return;
+        const observed = consentFingerprint(payload);
+        if (observed !== expectedFingerprint) {
+          // A different device revoked/regranted consent. Keep the cached
+          // snapshot hidden until fresh server-gated values replace it.
+          const fresh = await query.refetch();
+          if (fresh.isError) throw fresh.error;
+        }
+        setVerification({ key, status: "approved" });
+      } catch {
+        // Fail closed. Offline/5xx must never display old political choices.
+        if (!controller.signal.aborted) setVerification({ key, status: "blocked" });
+      } finally {
+        inFlight.current = false;
+      }
+    };
+    void verify();
+    return () => controller.abort();
+  }, [needsVerification, identityKey, query.dataUpdatedAt]);
+
   const fetchAllProfileData = useCallback(async () => {
     if (ownerId && targetId) await query.refetch();
   }, [ownerId, targetId, query.refetch]);
 
   return {
-    userInfo: query.data?.userInfo || null,
-    isLoadingInfo: !authReady || (Boolean(ownerId && targetId) && query.isPending),
+    userInfo: isPoliticalSnapshotSafe ? (query.data?.userInfo || null) : null,
+    isLoadingInfo: !authReady || (Boolean(ownerId && targetId) && query.isPending) || !isPoliticalSnapshotSafe,
     error: query.error instanceof Error ? query.error.message : null,
-    userOpinions: query.data?.userOpinions || {},
-    avatarConfig: query.data?.avatarConfig || null,
-    governoIdeale: query.data?.governoIdeale || {},
-    opinionQuestions: query.data?.opinionQuestions || [],
-    rappresentantiDetails: query.data?.rappresentantiDetails || {},
-    candidatiDetails: query.data?.candidatiDetails || {},
+    userOpinions: isPoliticalSnapshotSafe ? (query.data?.userOpinions || {}) : {},
+    avatarConfig: isPoliticalSnapshotSafe ? (query.data?.avatarConfig || null) : null,
+    governoIdeale: isPoliticalSnapshotSafe ? (query.data?.governoIdeale || {}) : {},
+    opinionQuestions: isPoliticalSnapshotSafe ? (query.data?.opinionQuestions || []) : [],
+    rappresentantiDetails: isPoliticalSnapshotSafe ? (query.data?.rappresentantiDetails || {}) : {},
+    candidatiDetails: isPoliticalSnapshotSafe ? (query.data?.candidatiDetails || {}) : {},
     fetchAllProfileData,
     isLoading,
     authReady,
