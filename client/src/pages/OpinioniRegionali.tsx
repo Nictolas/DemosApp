@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { ApprofondimentoButton } from "@/components/ApprofondimentoButton";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 import { vibrateShort } from "@/utils/vibration";
