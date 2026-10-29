@@ -6,6 +6,9 @@ const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
 
 router.get('/opinioni-list', async (req, res) => {
+  // This response includes userAnswer: never store it in browsers or shared caches.
+  // Set the policy before authentication so error responses are covered too.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     if (isDev) {
       console.log('🔍 GET /api/opinioni-list - Richiesta diretta');
@@ -117,10 +120,22 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
     
-    // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
-    // Recupera direttamente la riga dell'utente e poi accedi alle colonne per ID
+    // Do not return residual political answers if Art. 9 consent is absent
+    // or revoked. Evaluate consent and the answer row in the same SQL
+    // statement so an earlier, separate consent check cannot become stale.
+    // A concurrent revocation may still race with this read: this is a
+    // snapshot guard, not a transaction-level serialization guarantee.
     const userAnswersQuery = `
-      SELECT * FROM opinioni_risposte WHERE user_id = $1
+      SELECT r.*
+      FROM opinioni_risposte r
+      JOIN users u ON u.id = r.user_id
+      LEFT JOIN user_consents uc ON uc.user_id = u.id
+      WHERE r.user_id = $1
+        AND COALESCE(
+          uc.political_opinions_consent,
+          u.political_opinions_consent,
+          false
+        ) = true
     `;
     const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
     
