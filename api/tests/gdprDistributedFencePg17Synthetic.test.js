@@ -22,6 +22,7 @@ if (!permitted) {
 } else {
   const SCHEMA = 'gdpr_fence_ci';
   const ROLE = 'gdpr_fence_runtime_ci';
+  const OWNER = 'gdpr_fence_owner_ci';
   const ownerPool = new Pool({connectionString:URL,ssl:false,max:4});
   let writerPool;
   let installed = false;
@@ -33,9 +34,11 @@ if (!permitted) {
     )).rows[0];
     assert.equal(v.db, 'gdpr_outbox_worker_ci');
     assert.equal(Math.floor(v.version / 10000),17);
+    await ownerPool.query('CREATE ROLE '+OWNER+' NOLOGIN NOBYPASSRLS NOSUPERUSER');
     await ownerPool.query('CREATE ROLE '+ROLE+
       " LOGIN PASSWORD 'synthetic-role-no-remote-credentials' NOBYPASSRLS NOSUPERUSER");
     await ownerPool.query('CREATE SCHEMA '+SCHEMA);
+    await ownerPool.query('ALTER SCHEMA '+SCHEMA+' OWNER TO '+OWNER);
     await ownerPool.query('REVOKE ALL ON SCHEMA '+SCHEMA+' FROM PUBLIC');
     await ownerPool.query('GRANT USAGE ON SCHEMA '+SCHEMA+' TO '+ROLE);
     await ownerPool.query('CREATE TABLE '+SCHEMA+
@@ -92,6 +95,14 @@ if (!permitted) {
       '.written (id,subject,kind,expected_revision,resulting_revision)'+
       ' VALUES(p_id,p_subject,p_kind,p_expected_revision,v_next);'+
       " \nRETURN 'applied'; END; $fn$");
+    // The SECURITY DEFINER must not run as the postgres superuser.
+    // Isolated NONLOGIN/NOBYPASSRLS/NOSUPERUSER owner receives only the
+    // relevant fixture objects. Operator and runtime stay distinct.
+    for (const table of ['gate','accounts','written']) {
+      await ownerPool.query('ALTER TABLE '+SCHEMA+'.'+table+' OWNER TO '+OWNER);
+    }
+    await ownerPool.query('ALTER FUNCTION '+SCHEMA+
+      '.perform_synthetic_write(text,text,text,bigint,bigint) OWNER TO '+OWNER);
     await ownerPool.query('REVOKE ALL ON ALL TABLES IN SCHEMA '+SCHEMA+' FROM PUBLIC');
     await ownerPool.query('REVOKE EXECUTE ON FUNCTION '+SCHEMA+
       '.perform_synthetic_write(text,text,text,bigint,bigint) FROM PUBLIC');
@@ -120,6 +131,11 @@ if (!permitted) {
       'SELECT current_user AS role, (SELECT rolbypassrls FROM pg_roles WHERE rolname=current_user) AS bypass'
     )).rows[0];
     assert.deepEqual(info,{role:ROLE,bypass:false});
+    const ownerInfo=(await ownerPool.query(
+      'SELECT rolcanlogin,rolbypassrls,rolsuper FROM pg_roles WHERE rolname=$1',
+      [OWNER]
+    )).rows[0];
+    assert.deepEqual(ownerInfo,{rolcanlogin:false,rolbypassrls:false,rolsuper:false});
     for(const table of ['gate','accounts','written']) {
       const grants=(await writerPool.query(
         'SELECT has_table_privilege(current_user,$1,$2) AS allowed',
@@ -214,7 +230,10 @@ if (!permitted) {
       try{await ownerPool.query('DROP SCHEMA IF EXISTS '+SCHEMA+' CASCADE')}
       finally{
         try{await ownerPool.query('DROP ROLE IF EXISTS '+ROLE)}
-        finally{await ownerPool.end();}
+        finally{
+          try{await ownerPool.query('DROP ROLE IF EXISTS '+OWNER)}
+          finally{await ownerPool.end();}
+        }
       }
     }
   });
