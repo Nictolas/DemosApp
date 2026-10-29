@@ -482,3 +482,30 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
 }
+
+/* Compact landscape: keep the title and both actions visible while preserving
+   a useful question scrollport, even when the desktop header takes a row. */
+@media (max-height: 500px) {
+  .opinioni-editor-page > div:first-child {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .opinioni-editor-page__header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .opinioni-editor-page__header h3 {
+    font-size: 1.25rem;
+    line-height: 1.5rem;
+  }
+
+  .opinioni-editor-page__header p {
+    display: none;
+  }
+
+  .opinioni-editor-page footer[aria-label="Azioni delle opinioni"] {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+  }
+}
