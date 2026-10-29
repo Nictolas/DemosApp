@@ -8,7 +8,7 @@ import type { OpinionQuestion } from "../types";
 import { extractBaseOpinions } from "../utils/opinionUtils";
 import {
   loadEncryptedProfile, patchEncryptedProfile, clearEncryptedProfile,
-  filterPersistedFullProfile,
+  filterPersistedFullProfile, type ProfileChosenVotes,
 } from "../utils/encryptedProfileVault";
 import {
   PROFILE_SUMMARY_TTL_MS,
@@ -114,6 +114,7 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
           ["representatives", snapshot.representatives],
           ["candidates", snapshot.candidates],
           ["opinions", snapshot.opinions],
+          ["preferences", snapshot.preferences || null],
         ] as const;
         for (const [section, payload] of sections) {
           if (payload !== null) client.setQueryData(
@@ -181,6 +182,20 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
       const loaded = (payload.user || payload.data || payload) as UserInfo;
       await patchEncryptedProfile(ownerId, { full: filterPersistedFullProfile(loaded) });
       return loaded;
+    },
+    staleTime: PROFILE_CACHE_FRESH,
+    gcTime: PROFILE_CACHE_GC,
+    refetchOnWindowFocus: false,
+  });
+
+  const preferences = useQuery<ProfileChosenVotes>({
+    queryKey: ["profilePolitical", ownerId, politicalEpoch, "preferences"],
+    enabled: enabled && vaultReady && politicalAllowed,
+    queryFn: async () => {
+      const payload = await getPayload("/api/user/profile-selections");
+      const value = payload.data as ProfileChosenVotes;
+      await patchEncryptedProfile(ownerId, { preferences: value });
+      return value;
     },
     staleTime: PROFILE_CACHE_FRESH,
     gcTime: PROFILE_CACHE_GC,
@@ -266,6 +281,8 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     userInfo,
     isLoadingInfo: !authReady || isLoading || (enabled && summary.isPending),
     error: summary.error instanceof Error ? summary.error.message : null,
+    chosenVotes: politicalAllowed ? (preferences.data || null) : null,
+    chosenVotesLoading: politicalAllowed && preferences.isPending,
     userOpinions: storedOpinions,
     opinionQuestions: politicalAllowed && panels.opinions ? (opinions.data?.questions || []) : [],
     avatarConfig: avatarFrom(userInfo),
