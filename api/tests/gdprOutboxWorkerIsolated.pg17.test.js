@@ -110,7 +110,7 @@ test('operator status obtains all four counters from one SQL snapshot', async ()
         return { rows: [{ledger: true, outbox: true}] };
       }
       if (sql.includes("WHERE c.oid = 'public.privacy_erasure_ledger'::regclass")) {
-        return {rows:[{rls_enabled:true,public_grants_exist:false,
+        return {rows:[{rls_enabled:true,force_rls:true,public_grants_exist:false,
           public_column_grants_exist:false,api_roles_with_dml_grants:0}]};
       }
       if (sql.includes("WHERE c.oid = 'public.privacy_erasure_delivery_outbox'::regclass")) {
