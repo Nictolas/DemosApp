@@ -61,6 +61,8 @@ router.get('/me', async (req, res) => {
       result = await pool.query(
         `SELECT
            u.id, u.email, u.nome, u.cognome, u.ruolo, u.status, u.is_dpo, u.created_at, u.updated_at,
+           COALESCE(uc.political_opinions_consent, u.political_opinions_consent) AS political_opinions_consent,
+           COALESCE(uc.political_opinions_consent_timestamp, u.political_opinions_consent_timestamp) AS political_opinions_consent_timestamp,
            COALESCE(up.genere, u.genere) AS genere,
            COALESCE(up.data_nascita, u.data_nascita) AS data_nascita,
            COALESCE(up.cittadinanza, u.cittadinanza) AS cittadinanza,
@@ -99,6 +101,7 @@ router.get('/me', async (req, res) => {
          FROM users u
          LEFT JOIN user_profile up ON up.user_id = u.id
          LEFT JOIN user_representatives ur ON ur.user_id = u.id
+         LEFT JOIN user_consents uc ON uc.user_id = u.id
          WHERE u.id = $1`,
         [decoded.userId]
       );
@@ -142,6 +145,15 @@ router.get('/me', async (req, res) => {
       success: true,
       user: {
         id: user.id,
+        // Reuse the existing authenticated-session database SELECT to transmit
+        // a consent epoch. No new profile endpoint/read is needed.
+        // Absence of the column is unknown, not an implicit consent grant.
+        political_consent: typeof user.political_opinions_consent === 'boolean'
+          ? {
+              granted: user.political_opinions_consent,
+              timestamp: user.political_opinions_consent_timestamp || null
+            }
+          : null,
         email: emailDecrypted ?? user.email,
         nome: user.nome,
         cognome: user.cognome,

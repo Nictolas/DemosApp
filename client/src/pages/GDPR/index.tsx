@@ -9,6 +9,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { clearAllEncryptedProfiles } from "@/pages/Profilo/utils/encryptedProfileVault";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -41,8 +42,22 @@ export default function GDPR() {
       const response = await apiRequest('PUT', '/api/user/political-opinions-consent/revoke');
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // First stop network requests, then purge their in-memory and encrypted
+      // snapshots. A revoked answer must not be resurrected by a late GET.
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['opinioniQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['statsOpinionQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['profilePolitical'] }),
+        queryClient.cancelQueries({ queryKey: ['profileFull'] }),
+      ]);
+      queryClient.removeQueries({ queryKey: ['opinioniQuestions'] });
+      queryClient.removeQueries({ queryKey: ['statsOpinionQuestions'] });
+      queryClient.removeQueries({ queryKey: ['profilePolitical'] });
+      queryClient.removeQueries({ queryKey: ['profileFull'] });
+      await clearAllEncryptedProfiles();
       queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
+      queryClient.invalidateQueries({ queryKey: ['profileConsent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       toast({
         title: "Consenso revocato",

@@ -176,31 +176,30 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
       assert.ok(national);
       await saveAndVerifyOpinions('N',{[national]:'c'});
       assert.equal((await apiGet('N')).data.find(x=>x.id===national).userAnswer,'c');
-      assert.ok(frontendRequests>=2,'Client must submit and re-read the server');
+      assert.equal(frontendRequests,1,
+        'ACK-only client must submit exactly one POST without reading personal answers again');
 
-      // The client must NOT report success merely because POST returned 200
-      // if the subsequent GET is stale or differs from the submitted answer.
+      // The server's COMMIT has already been verified independently via
+      // apiGet above. An incomplete/false server ACK must be rejected without
+      // allowing another personal answer GET or mutating the actual server.
+      const previousAnswer=(await apiGet('N')).data.find(x=>x.id===national).userAnswer;
       const normalBrowserFetch=globalThis.fetch;
       globalThis.fetch=async(input,options)=>{
-        const response=await normalBrowserFetch(input,options);
         const target=new URL(String(input));
-        if(target.pathname==='/api/opinioni-list'&&target.searchParams.get('grado')==='N'){
-          const payload=await response.json();
-          const answer=payload.data.find(x=>x.id===national);
-          assert.ok(answer);
-          answer.userAnswer=null;
-          return new Response(JSON.stringify(payload),{
-            status:response.status,headers:{'content-type':'application/json'}
-          });
+        if(target.pathname==='/api/opinioni/salva'){
+          frontendRequests++;
+          return new Response(JSON.stringify({
+            success:true,savedCount:0,errorCount:0
+          }),{status:200,headers:{'content-type':'application/json'}});
         }
-        return response;
+        return normalBrowserFetch(input,options);
       };
       await assert.rejects(
         saveAndVerifyOpinions('N',{[national]:'i'}),
-        /Alcune risposte non risultano salvate/
+        /server non ha confermato/
       );
       globalThis.fetch=normalBrowserFetch;
-      assert.equal((await apiGet('N')).data.find(x=>x.id===national).userAnswer,'i');
+      assert.equal((await apiGet('N')).data.find(x=>x.id===national).userAnswer,previousAnswer);
     }finally{
       globalThis.fetch=actualFetch;
       if(priorWindow===undefined)delete globalThis.window;else globalThis.window=priorWindow;
