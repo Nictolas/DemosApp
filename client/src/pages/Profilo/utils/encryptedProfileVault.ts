@@ -34,6 +34,8 @@ export type PersistedProfile = {
   candidates: Record<string, unknown> | null;
   opinions: { questions: unknown[]; userAnswers: Record<string, string> } | null;
   preferences?: ProfileChosenVotes | null;
+  /** Schema of resolved display labels, not an expiration timestamp. */
+  preferencesVersion?: number;
 };
 
 const emptyProfile = (): PersistedProfile => ({
