@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { getPool } = require('../config/database');
 const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceChange, sendCooldownError } = require('../services/preferenceCooldownService');
-const jwt = require('jsonwebtoken');
+const { verifyAccessToken } = require('../utils/jwt');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -13,211 +14,229 @@ const pool = getPool();
 
 // ===== ENDPOINTS PER GOVERNO =====
 
-// GET /api/governo/voti - Ottieni dati per la pagina principale del governo
-router.get('/voti', verifyToken, async (req, res) => {
+// GET /api/governo/voti - consent-gated own votes, consent-only public rankings.
+router.get('/voti', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = req.userId || req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Utente non autenticato' });
 
-    // Lista dei ministeri
+    // Table identifiers come only from this fixed allowlist, never from HTTP.
     const ministeri = [
-      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
-      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 'ambiente_sicurezza_energetica',
-      'cultura', 'sport'
+      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno',
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente',
+      'ambiente_sicurezza_energetica', 'cultura', 'sport'
     ];
-
     const classifiche = {};
-    const mieiVoti = {};
-    const blocchi = {};
+    let mieiVoti = {};
+    let blocchi = {};
+    const consentState = await getPoliticalConsentState(pool, userId);
 
-    // Per ogni ministero, ottieni classifiche e voti utente
     for (const ministero of ministeri) {
-      const tableName = `voti_${ministero}`;
-      
-      console.log(`🔍 DEBUG - Processando ministero: ${ministero}, tabella: ${tableName}`);
-      
-      // Classifica per questo ministero
-      const classificaQuery = `
-        SELECT 
-          nome_display as nome,
-          COUNT(*) as voti
-        FROM ${tableName}
-        GROUP BY nome_display
-        ORDER BY voti DESC, nome_display ASC
-      `;
-
+      const tableName = 'voti_' + ministero;
+      const defaultBlock = { isBlocked: false, unlockDate: null };
+      blocchi[ministero] = defaultBlock;
+      classifiche[ministero] = [];
       try {
-        const classificaResult = await pool.query(classificaQuery);
-        console.log(`✅ DEBUG - ${ministero}: ${classificaResult.rows.length} record trovati`);
-        classifiche[ministero] = classificaResult.rows.map(row => ({
-          nome: row.nome,
-          voti: parseInt(row.voti)
+        // A vote left in a table after revocation must never inflate rankings.
+        const ranking = await pool.query(
+          'SELECT v.nome_display AS nome, COUNT(*)::integer AS voti ' +
+          'FROM ' + tableName + ' v ' +
+          'JOIN users u ON u.id::text = v.userid::text ' +
+          'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+          'WHERE COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+          'GROUP BY v.nome_display ORDER BY voti DESC, v.nome_display ASC'
+        );
+        classifiche[ministero] = ranking.rows.map(row => ({
+          nome: row.nome, voti: Number(row.voti)
         }));
+
+        if (!consentState.granted) continue;
+        // Read individual choices and Art. 9 consent in the same SQL statement.
+        const own = await pool.query(
+          'SELECT v.nome_display AS nome, v.timestamp ' +
+          'FROM ' + tableName + ' v ' +
+          'JOIN users u ON u.id::text = v.userid::text ' +
+          'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+          'WHERE v.userid::text = $1::text ' +
+          'AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+          'ORDER BY v.timestamp DESC LIMIT 1',
+          [userId]
+        );
+        const choice = own.rows[0] || null;
+        if (choice) mieiVoti[ministero] = choice.nome;
+
+        if (req.user?.isAdmin) continue;
+        const cooldown = await getPreferenceCooldown(pool, {
+          userId,
+          scope: 'governo:' + ministero,
+          fallbackChangedAt: choice?.timestamp || null
+        });
+        blocchi[ministero] = {
+          isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate
+        };
       } catch (error) {
-        console.error(`❌ DEBUG - Errore per ${ministero}:`, error.message);
-        classifiche[ministero] = [];
-      }
-
-      // Voti dell'utente per questo ministero
-      try {
-        const mieiVotiQuery = `
-          SELECT nome_display as nome
-          FROM ${tableName}
-          WHERE userid = $1
-          LIMIT 1
-        `;
-
-        const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
-        if (mieiVotiResult.rows.length > 0) {
-          mieiVoti[ministero] = mieiVotiResult.rows[0].nome;
+        // Legacy installs can lack an individual ministry table.
+        // Only undefined-table errors preserve the former empty-section behavior.
+        if (error?.code === '42P01') {
+          classifiche[ministero] = [];
+          delete mieiVoti[ministero];
+          blocchi[ministero] = defaultBlock;
+          continue;
         }
-      } catch (error) {
-        console.error(`❌ DEBUG - Errore nel recupero voti utente per ${ministero}:`, error.message);
-        // Continua senza aggiungere voti per questo ministero
-      }
-
-      // Cooldown per singolo ministero: non bloccare le altre preferenze.
-      try {
-        if (!req.user?.isAdmin) {
-          const lastChangeResult = await pool.query(
-            `SELECT MAX(timestamp) AS last_changed_at FROM ${tableName} WHERE userid = $1`,
-            [userId]
-          );
-          const cooldown = await getPreferenceCooldown(pool, {
-            userId,
-            scope: `governo:${ministero}`,
-            fallbackChangedAt: lastChangeResult.rows[0]?.last_changed_at || null
-          });
-          blocchi[ministero] = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
-        } else {
-          blocchi[ministero] = { isBlocked: false, unlockDate: null };
-        }
-      } catch (error) {
-        console.error(`Errore nel controllo cooldown per ${ministero}:`, error.message);
         throw error;
       }
     }
 
-    console.log('🔍 DEBUG - Risposta API governo/voti:');
-    console.log('📊 Classifiche:', Object.keys(classifiche).length, 'ministeri');
-    console.log('👤 Miei voti:', Object.keys(mieiVoti).length, 'voti utente');
-    const activeBlocks = Object.values(blocchi).filter((item) => item?.isBlocked);
-    const legacyUnlockDate = activeBlocks.map((item) => item.unlockDate).filter(Boolean).sort()[0] || null;
-    console.log('🔒 Cooldown per ministero:', blocchi);
+    // If revocation finished while reading preferences/cooldowns, do not
+    // serialize the earlier snapshot of personal answers or cooldown history.
+    const latestConsent = await getPoliticalConsentState(pool, userId);
+    if (!latestConsent.granted) {
+      mieiVoti = {};
+      blocchi = Object.fromEntries(ministeri.map(ministero => [
+        ministero, { isBlocked: false, unlockDate: null }
+      ]));
+    }
+    const activeBlocks = Object.values(blocchi).filter(item => item?.isBlocked);
+    const legacyUnlockDate = activeBlocks.map(item => item.unlockDate).filter(Boolean).sort()[0] || null;
 
-    res.json({
+    return res.json({
       classifiche,
       mieiVoti,
       blocchi,
-      blocco: {
-        isBlocked: activeBlocks.length > 0,
-        unlockDate: legacyUnlockDate
-      }
+      blocco: { isBlocked: activeBlocks.length > 0, unlockDate: legacyUnlockDate }
     });
-
-  } catch (error) {
-    console.error('❌ Errore nel recuperare voti governo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare i voti del governo'
-    });
+  } catch (_error) {
+    console.error('Errore interno nella lettura voti Governo');
+    return res.status(500).json({ success: false, error: 'Errore nel recuperare i voti del governo' });
   }
 });
 
-// POST /api/governo/vota - Salva voti per tutti i ministeri
-router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+// POST /api/governo/vota - Preferenze ministeriali atomiche rispetto alla revoca.
+// Prevent storage of personal political choices even on auth and error responses.
+router.post('/vota', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+  let client = null;
+  let transactionStarted = false;
   try {
-    const { voti } = req.body;
-    const userId = req.userId;
+    const userId = req.userId || req.user?.id;
+    const { voti } = req.body || {};
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Utente non autenticato' });
+    }
+    if (!voti || typeof voti !== 'object' || Array.isArray(voti)) {
+      return res.status(400).json({ success: false, error: 'I voti devono essere un oggetto' });
+    }
 
-    if (!voti || typeof voti !== 'object') {
-      return res.status(400).json({
+    // Fixed allowlist: minister keys never originate from arbitrary user-supplied SQL.
+    const ministeri = [
+      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno',
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente',
+      'ambiente_sicurezza_energetica', 'cultura', 'sport'
+    ];
+    const submitted = ministeri.filter(ministero =>
+      Object.prototype.hasOwnProperty.call(voti, ministero)
+    );
+    // Validate the whole submitted batch before opening a database connection.
+    for (const ministero of submitted) {
+      const value = voti[ministero];
+      if (value !== null && (typeof value !== 'string' || value.length > 250)) {
+        return res.status(400).json({ success: false, error: 'Preferenza ministeriale non valida' });
+      }
+    }
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    // Revocation locks the same users row before erasure. Never trust an
+    // earlier authorization decision or a pre-transaction vote/cooldown read.
+    const lockedUser = await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+    );
+    if (lockedUser.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const consentState = await getPoliticalConsentState(client, userId);
+    if (!consentState.granted) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(403).json({
         success: false,
-        error: 'I voti devono essere un oggetto'
+        error: 'Consenso richiesto',
+        code: 'POLITICAL_CONSENT_REQUIRED',
+        consent_required: true
       });
     }
 
-    // Lista dei ministeri
-    const ministeri = [
-      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
-      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 'ambiente_sicurezza_energetica',
-      'cultura', 'sport'
-    ];
-
-    const isAdmin = Boolean(req.user?.isAdmin);
-    const changes = [];
-
-    for (const ministero of ministeri) {
-      if (!Object.prototype.hasOwnProperty.call(voti, ministero)) continue;
+    let changedCount = 0;
+    for (const ministero of submitted) {
       const requestedRaw = voti[ministero];
-      const requestedName = requestedRaw && String(requestedRaw).trim() ? String(requestedRaw).trim() : null;
-      const tableName = `voti_${ministero}`;
-      const existingResult = await pool.query(
-        `SELECT nome_display AS nome, timestamp
-         FROM ${tableName}
-         WHERE userid = $1
-         ORDER BY timestamp DESC
-         LIMIT 1`,
-        [userId]
+      const requestedName = requestedRaw === null ? null : (requestedRaw.trim() || null);
+      const tableName = 'voti_' + ministero;
+      const scope = 'governo:' + ministero;
+
+      // Read, cooldown-check and replace all preferences under the user lock.
+      const previousResult = await client.query(
+        'SELECT nome_display AS nome, timestamp FROM ' + tableName +
+          ' WHERE userid = $1 ORDER BY timestamp DESC LIMIT 1', [userId]
       );
-      const current = existingResult.rows[0] || null;
-      const currentName = current?.nome ? String(current.nome).trim() : null;
+      const previous = previousResult.rows[0] || null;
+      const currentName = previous?.nome ? String(previous.nome).trim() : null;
       if (requestedName === currentName) continue;
 
-      await assertPreferenceChangeAllowed(pool, {
+      await assertPreferenceChangeAllowed(client, {
         userId,
-        scope: `governo:${ministero}`,
-        fallbackChangedAt: current?.timestamp || null,
-        isAdmin
+        scope,
+        fallbackChangedAt: previous?.timestamp || null,
+        isAdmin: Boolean(req.user?.isAdmin)
       });
-      changes.push({ ministero, requestedName });
+      await client.query('DELETE FROM ' + tableName + ' WHERE userid = $1', [userId]);
+      if (requestedName) {
+        const nomeKey = requestedName.toLowerCase();
+        const nomeDisplay = requestedName
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+        await client.query(
+          'INSERT INTO ' + tableName +
+            ' (id, userid, nome_ministro, nome_display, timestamp)' +
+            ' VALUES (gen_random_uuid(), $1, $2, $3, NOW())',
+          [userId, nomeKey, nomeDisplay]
+        );
+      }
+      await recordPreferenceChange(client, { userId, scope });
+      changedCount += 1;
     }
 
-    if (changes.length === 0) {
+    if (changedCount === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.json({ success: true, message: 'Preferenze già aggiornate' });
     }
-
-    // Inizia transazione
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
-      for (const { ministero, requestedName } of changes) {
-        const tableName = `voti_${ministero}`;
-        await client.query(`DELETE FROM ${tableName} WHERE userid = $1`, [userId]);
-
-        if (requestedName) {
-          const nomeKey = requestedName.toLowerCase();
-          const nomeDisplay = requestedName
-            .split(' ')
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-          await client.query(
-            `INSERT INTO ${tableName} (id, userid, nome_ministro, nome_display, timestamp)
-             VALUES (gen_random_uuid(), $1, $2, $3, NOW())`,
-            [userId, nomeKey, nomeDisplay]
-          );
-        }
-
-        await recordPreferenceChange(client, { userId, scope: `governo:${ministero}` });
-      }
-
-      await client.query('COMMIT');
-      res.json({ success: true, message: 'Voti salvati con successo' });
-
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
-
+    await client.query('COMMIT');
+    transactionStarted = false;
+    return res.json({ success: true, message: 'Voti salvati con successo' });
   } catch (error) {
+    if (transactionStarted && client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_rollbackError) {
+        console.error('Rollback preferenze ministeriali non riuscito');
+      }
+    }
     if (sendCooldownError(res, error)) return;
-    console.error('❌ Errore nel salvare voti governo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel salvare i voti del governo'
-    });
+    // Never emit a political choice, user identifier or database stack in logs.
+    console.error('Errore interno durante il salvataggio delle preferenze ministeriali');
+    return res.status(500).json({ success: false, error: 'Errore nel salvare i voti del governo' });
+  } finally {
+    if (client) client.release();
   }
 });
 
@@ -241,56 +260,52 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/governo/ideale - Governo ideale dell'utente
-router.get('/ideale', verifyToken, async (req, res) => {
+// GET /api/governo/ideale - never return revoked personal political votes.
+router.get('/ideale', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, async (req, res) => {
   try {
-    console.log('🔍 GET /api/governo/ideale - Richiesta governo ideale');
-    const userId = req.userId;
-    
-    const governoIdeale = {};
-    
-    // Lista dei ministeri
+    const userId = req.userId || req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Utente non autenticato' });
+    const consent = await getPoliticalConsentState(pool, userId);
+    if (!consent.granted) return res.json({ success: true, data: {} });
+
     const ministeri = [
-      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
-      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 'ambiente_sicurezza_energetica',
-      'cultura', 'sport'
+      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno',
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente',
+      'ambiente_sicurezza_energetica', 'cultura', 'sport'
     ];
-    
-    // Per ogni ministero, ottieni il voto dell'utente
+    const governoIdeale = {};
     for (const ministero of ministeri) {
-      const tableName = `voti_${ministero}`;
-      
+      const tableName = 'voti_' + ministero;
       try {
-        const votoQuery = `
-          SELECT nome_display
-          FROM ${tableName}
-          WHERE userid = $1
-          ORDER BY timestamp DESC
-          LIMIT 1
-        `;
-        
-        const votoResult = await pool.query(votoQuery, [userId]);
-        if (votoResult.rows.length > 0) {
-          governoIdeale[ministero] = votoResult.rows[0].nome_display;
-        }
+        const result = await pool.query(
+          'SELECT v.nome_display ' +
+          'FROM ' + tableName + ' v ' +
+          'JOIN users u ON u.id::text = v.userid::text ' +
+          'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+          'WHERE v.userid::text = $1::text ' +
+          'AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+          'ORDER BY v.timestamp DESC LIMIT 1',
+          [userId]
+        );
+        if (result.rows[0]) governoIdeale[ministero] = result.rows[0].nome_display;
       } catch (error) {
-        console.warn(`⚠️ Errore per ministero ${ministero}:`, error.message);
-        // Continua con gli altri ministeri
+        if (error?.code === '42P01') continue;
+        throw error;
       }
     }
-    
-    console.log('🔍 DEBUG - Governo ideale recuperato:', governoIdeale);
-    
-    res.json({
+
+    // A finished revocation cannot leave an old personalized snapshot in this response.
+    const finalConsent = await getPoliticalConsentState(pool, userId);
+    return res.json({
       success: true,
-      data: governoIdeale
+      data: finalConsent.granted ? governoIdeale : {}
     });
-  } catch (error) {
-    console.error('❌ Errore nel recupero governo ideale:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+  } catch (_error) {
+    console.error('Errore interno nella lettura Governo ideale');
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
@@ -326,177 +341,190 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
 
 // ===== ENDPOINTS PER CONSENSO GOVERNO =====
 
-// GET /api/governo/consenso - Ottieni i dati di consenso del governo
-router.get('/consenso', async (req, res) => {
+// GET /api/governo/consenso - public aggregate and consent-gated own choice.
+// Optional authentication can add personal choices: never allow caching.
+router.get('/consenso', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, async (req, res) => {
   try {
-    console.log('🔍 DEBUG /api/governo/consenso GET - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
-    
-    // Ottieni i voti di consenso dell'utente corrente se autenticato
     let mioConsenso = null;
-    let blocco = {
-      isBlocked: false,
-      unlockDate: null
-    };
-    
-    if (req.headers.authorization) {
+    let blocco = { isBlocked: false, unlockDate: null };
+    const authorization = req.headers.authorization;
+    let userId = null;
+    if (typeof authorization === 'string' && authorization.startsWith('Bearer ')) {
       try {
-        const token = req.headers.authorization.replace('Bearer ', '');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId || decoded.email;
-        
-        console.log('🔍 DEBUG - Token decodificato:', decoded);
-        console.log('🔍 DEBUG - User ID:', userId);
-
-        // Controlla se l'utente ha già votato per il consenso
-        const consensoQuery = `
-          SELECT risposta, timestamp
-          FROM consenso_governo 
-          WHERE userid = $1
-          ORDER BY timestamp DESC
-          LIMIT 1
-        `;
-        
-        const consensoResult = await pool.query(consensoQuery, [userId]);
-        
-        if (consensoResult.rows.length > 0) {
-          mioConsenso = {
-            risposta: consensoResult.rows[0].risposta,
-            timestamp: consensoResult.rows[0].timestamp
-          };
-        }
-
-        const cooldown = await getPreferenceCooldown(pool, {
-          userId,
-          scope: 'governo:consenso',
-          fallbackChangedAt: consensoResult.rows[0]?.timestamp || null
-        });
-        blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
-      } catch (error) {
-        console.log('🔍 DEBUG - Token non valido per consenso governo:', error.message);
+        // Only signed, unexpired access tokens with correct type/issuer/audience.
+        const decoded = verifyAccessToken(authorization.slice(7));
+        userId = decoded.userId || decoded.sub || decoded.id || null;
+      } catch (_invalidToken) {
+        // Public aggregates remain available without authentication.
+        // Never log headers, bearer tokens or decoded payloads.
       }
     }
 
-    // Ottieni le statistiche aggregate dei voti di consenso
-    const statsQuery = `
-      SELECT 
-        risposta,
-        COUNT(*) as conteggio
-      FROM consenso_governo
-      GROUP BY risposta
-      ORDER BY risposta
-    `;
-    
-    const statsResult = await pool.query(statsQuery);
-    
-    const statistiche = {
-      'Sì': 0,
-      'Non so': 0,
-      'No': 0,
-      totale: 0
-    };
-    
-    statsResult.rows.forEach(row => {
-      statistiche[row.risposta] = parseInt(row.conteggio);
-      statistiche.totale += parseInt(row.conteggio);
-    });
+    if (userId) {
+      // Consent and the personal vote are read by ONE SQL statement,
+      // excluding any residual vote remaining after consent revocation.
+      const ownResult = await pool.query(
+        'SELECT cg.risposta, cg.timestamp ' +
+        'FROM consenso_governo cg ' +
+        'JOIN users u ON u.id::text = cg.userid::text ' +
+        'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+        'WHERE cg.userid::text = $1::text ' +
+        'AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+        'ORDER BY cg.timestamp DESC LIMIT 1',
+        [userId]
+      );
+      const consentState = await getPoliticalConsentState(pool, userId);
+      if (consentState.granted) {
+        const choice = ownResult.rows[0];
+        if (choice) {
+          mioConsenso = { risposta: choice.risposta, timestamp: choice.timestamp };
+        }
+        const cooldown = await getPreferenceCooldown(pool, {
+          userId,
+          scope: 'governo:consenso',
+          fallbackChangedAt: choice?.timestamp || null
+        });
+        blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
 
-    res.json({
-      success: true,
-      data: {
-        mioConsenso,
-        statistiche,
-        blocco
+        // If revocation finished during the cooldown lookup, avoid leaking
+        // preference or historic change metadata.
+        const finalConsent = await getPoliticalConsentState(pool, userId);
+        if (!finalConsent.granted) {
+          mioConsenso = null;
+          blocco = { isBlocked: false, unlockDate: null };
+        }
       }
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recupero dati consenso governo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
+    }
+
+    // Public totals must not count revoked accounts' residual ballots.
+    const statsResult = await pool.query(
+      'SELECT cg.risposta, COUNT(*)::integer AS conteggio ' +
+      'FROM consenso_governo cg ' +
+      'JOIN users u ON u.id::text = cg.userid::text ' +
+      'LEFT JOIN user_consents uc ON uc.user_id = u.id ' +
+      'WHERE COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE ' +
+      'GROUP BY cg.risposta ORDER BY cg.risposta'
+    );
+
+    const statistiche = { 'Sì': 0, 'Non so': 0, 'No': 0, totale: 0 };
+    for (const row of statsResult.rows) {
+      if (!Object.prototype.hasOwnProperty.call(statistiche, row.risposta)
+          || row.risposta === 'totale') continue;
+      const count = Number(row.conteggio) || 0;
+      statistiche[row.risposta] += count;
+      statistiche.totale += count;
+    }
+    return res.json({ success: true, data: { mioConsenso, statistiche, blocco } });
+  } catch (_error) {
+    // Never emit DB error strings, user IDs or choices to logs.
+    console.error('Errore interno nella lettura consenso Governo');
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
-// POST /api/governo/consenso - Salva il voto di consenso del governo
-router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+// POST /api/governo/consenso - Scelta politica transazionale rispetto alla revoca.
+// Set no-store before auth, including error and validation responses.
+router.post('/consenso', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
+  let client = null;
+  let transactionStarted = false;
   try {
-    console.log('🔍 DEBUG /api/governo/consenso POST - Richiesta ricevuta');
-    
-    const { risposta } = req.body;
-    const userId = req.user.id;
-    
-
-    if (!risposta || !['Sì', 'Non so', 'No'].includes(risposta)) {
+    const { risposta } = req.body || {};
+    const userId = req.userId || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Utente non autenticato' });
+    }
+    if (!['Sì', 'Non so', 'No'].includes(risposta)) {
       return res.status(400).json({
         success: false,
         error: 'Risposta non valida. Deve essere "Sì", "Non so" o "No"'
       });
     }
 
-    const currentResult = await pool.query(
+    client = await pool.connect();
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    // The consent-revocation route locks the same user row before erasure.
+    // A prior middleware check does not protect in-flight political writes.
+    const lockedUser = await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+    );
+    if (lockedUser.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const consentState = await getPoliticalConsentState(client, userId);
+    if (!consentState.granted) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(403).json({
+        success: false,
+        error: 'Consenso richiesto',
+        code: 'POLITICAL_CONSENT_REQUIRED',
+        consent_required: true
+      });
+    }
+
+    // Read the old choice, enforce cooldown, and replace it under the lock.
+    const currentResult = await client.query(
       `SELECT risposta, timestamp
        FROM consenso_governo
        WHERE userid = $1
        ORDER BY timestamp DESC
-       LIMIT 1`,
-      [userId]
+       LIMIT 1`, [userId]
     );
     const current = currentResult.rows[0] || null;
     if (current?.risposta === risposta) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.json({ success: true, message: 'Consenso già aggiornato', data: current });
     }
 
-    await assertPreferenceChangeAllowed(pool, {
+    await assertPreferenceChangeAllowed(client, {
       userId,
       scope: 'governo:consenso',
       fallbackChangedAt: current?.timestamp || null,
       isAdmin: Boolean(req.user?.isAdmin)
     });
 
-    // Inizia transazione
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      // Elimina il voto precedente se esiste
-      await client.query(
-        'DELETE FROM consenso_governo WHERE userid = $1',
-        [userId]
-      );
-      
-      // Inserisce il nuovo voto
-      const votoId = `consenso_gov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      await client.query(
-        `INSERT INTO consenso_governo (
-          id, userid, risposta, timestamp, created_at, updated_at
-        ) VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
-        [votoId, userId, risposta]
-      );
-      
-      await recordPreferenceChange(client, { userId, scope: 'governo:consenso' });
-      await client.query('COMMIT');
-      
-      res.json({
-        success: true,
-        message: 'Voto di consenso del governo salvato con successo',
-        data: {
-          risposta,
-          timestamp: new Date().toISOString()
-        }
-      });
-    } catch (error) {
-      // Rollback in caso di errore
-      await pool.query('ROLLBACK');
-      throw error;
-    }
-  } catch (error) {
-    if (sendCooldownError(res, error)) return;
-    console.error('❌ Errore nel salvataggio consenso governo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
+    await client.query('DELETE FROM consenso_governo WHERE userid = $1', [userId]);
+    // Preserve the existing legacy text identifier format for this table.
+    const votoId = 'consenso_gov_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11);
+    await client.query(
+      `INSERT INTO consenso_governo (id, userid, risposta, timestamp, created_at, updated_at)
+       VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
+      [votoId, userId, risposta]
+    );
+    await recordPreferenceChange(client, { userId, scope: 'governo:consenso' });
+    await client.query('COMMIT');
+    transactionStarted = false;
+
+    return res.json({
+      success: true,
+      message: 'Voto di consenso del governo salvato con successo',
+      data: { risposta, timestamp: new Date().toISOString() }
     });
+  } catch (error) {
+    if (transactionStarted && client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_rollbackError) {
+        console.error('Rollback consenso governo non riuscito');
+      }
+    }
+    if (sendCooldownError(res, error)) return;
+    // Do not log IDs, the political choice, SQL details or stacks.
+    console.error('Errore interno durante il salvataggio consenso governo');
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  } finally {
+    if (client) client.release();
   }
 });
 
