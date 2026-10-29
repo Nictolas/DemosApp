@@ -73,11 +73,48 @@ jobs:
                 }
                 excerpts[keyword] = hits;
               }
+              const focused = {};
+              for (const keyword of ['text/csv', '.csv', 'w-mobs', 'w-mob-nazionales', '/api/w-mobs',
+                'scarica il csv', 'free to use', 'fetchmobilitazioni', 'statistics']) {
+                const low = js.toLowerCase();
+                const hits = [];
+                let offset = 0;
+                for (let i = 0; i < 7; i++) {
+                  const hit = low.indexOf(keyword, offset);
+                  if (hit < 0) break;
+                  hits.push(js.slice(Math.max(0, hit - 220), Math.min(js.length, hit + 330)));
+                  offset = hit + keyword.length;
+                }
+                focused[keyword] = hits;
+              }
               console.log(JSON.stringify({ asset: 'main-js', status: response.status,
                 contentType: response.headers.get('content-type'), bytes: js.length,
-                apiPaths, excerpts }));
+                apiPaths, focused }));
             } catch (error) {
               console.log(JSON.stringify({ asset: 'main-js', error: error.message }));
+            }
+            for (const apiUrl of [
+              'https://chronocol.com/api/w-mobs?pagination%5BpageSize%5D=1',
+              'https://chronocol.com/api/w-mob-nazionales?pagination%5BpageSize%5D=1',
+              'https://mobilitazioni.chronocol.com/api/w-mobs?pagination%5BpageSize%5D=1'
+            ]) {
+              try {
+                const response = await fetch(apiUrl, {
+                  signal: AbortSignal.timeout(8000),
+                  headers: { Accept: 'application/json' }
+                });
+                const body = (await response.text()).slice(0, 400000);
+                let json = null;
+                try { json = JSON.parse(body); } catch {}
+                const sample = json && Array.isArray(json.data) ? json.data[0] : null;
+                console.log(JSON.stringify({ apiUrl, status: response.status,
+                  contentType: response.headers.get('content-type'),
+                  dataCount: Array.isArray(json?.data) ? json.data.length : null,
+                  topKeys: json ? Object.keys(json) : [],
+                  firstKeys: sample ? Object.keys(sample) : [],
+                  attributes: sample?.attributes ? Object.keys(sample.attributes) : [],
+                  meta: json?.meta || null }));
+              } catch (error) { console.log(JSON.stringify({ apiUrl, error: error.message })); }
             }
           })();
           NODE
