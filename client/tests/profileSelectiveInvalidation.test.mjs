@@ -47,11 +47,12 @@ test("profile hook records revisions before the GET and uses them on encrypted w
   const requester = read("lib/queryClient.ts");
   assert.match(vault, /export function profileSectionRevision/);
   assert.match(vault, /export async function invalidateEncryptedProfileSections/);
+  assert.match(hook, /profileSectionRevision\(ownerId, "full"\)/);
   assert.match(hook, /profileSectionRevision\(ownerId, "preferences"\)/);
   assert.match(hook, /profileSectionRevision\(ownerId, "government"\)/);
   assert.match(hook, /profileSectionRevision\(ownerId, "representatives"\)/);
   assert.match(hook, /profileSectionRevision\(ownerId, "candidates"\)/);
   assert.match(hook, /profileSectionRevision\(ownerId, "opinions"\)/);
   assert.match(requester, /invalidateEncryptedProfileSections\(ownerId, impact.sections\)/);
-  assert.doesNotMatch(requester, /method !== "GET" && \/\^\\/api\\/\(\?:users/);
+  assert.match(requester, /profileMutationImpact\(method, url\)/);
 });
