@@ -61,7 +61,7 @@ if (!permitted) {
       '\nBEGIN'+
       '\n IF p_id IS NULL OR p_id !~ $re$^[a-zA-Z0-9_-]{1,80}$$re$ OR'+
       ' p_subject IS NULL OR p_subject !~ $re$^[a-zA-Z0-9_-]{1,80}$$re$ OR'+
-      " p_kind NOT IN ('REVOKE','GRANT','DELETE') OR"+
+      " p_kind IS NULL OR p_kind NOT IN ('REVOKE','GRANT','DELETE') OR"+
       ' p_epoch IS NULL OR p_expected_revision IS NULL THEN'+
       " RAISE EXCEPTION 'GDPR_FENCE_INVALID_INPUT'; END IF;"+
       '\n -- Shared global gate stays locked until transaction COMMIT/ROLLBACK.'+
