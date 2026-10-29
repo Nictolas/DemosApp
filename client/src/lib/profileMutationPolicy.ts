@@ -13,7 +13,9 @@ export type ProfileMutationImpact = {
   consent: boolean;
 };
 
-export function profileMutationImpact(method: string, url: string): ProfileMutationImpact | null {
+export function profileMutationImpact(
+  method: string, url: string, ownerId?: string,
+): ProfileMutationImpact | null {
   if (method.toUpperCase() === "GET") return null;
   const path = url.split(/[?#]/, 1)[0];
 
@@ -24,6 +26,16 @@ export function profileMutationImpact(method: string, url: string): ProfileMutat
   if (/^\/api\/users\/(?:me|profile)(?:\/|$)/.test(path)) {
     return { sections: ["full"], summary: true, consent: false };
   }
+  // Admin changes to another person's account must not invalidate this
+  // device owner's profile; a change to their own /users/:id must.
+  const userPath = path.match(/^\/api\/users\/([^/]+)(?:\/|$)/);
+  if (ownerId && userPath) {
+    try {
+      if (decodeURIComponent(userPath[1]) === ownerId) {
+        return { sections: ["full"], summary: true, consent: false };
+      }
+    } catch { /* Malformed URL is not an owner match. */ }
+  }
   if (/^\/api\/rappresentanti(?:\/|$)/.test(path)) {
     return { sections: ["representatives", "full"], summary: false, consent: false };
   }
@@ -31,6 +43,9 @@ export function profileMutationImpact(method: string, url: string): ProfileMutat
     return { sections: ["candidates", "full"], summary: false, consent: false };
   }
   if (/^\/api\/governo(?:\/|$)/.test(path)) {
+    // Admin editing the current government or public consensus does not
+    // change the user's personal ideal-government votes.
+    if (/^\/api\/governo\/(?:attuale|consenso)(?:\/|$)/.test(path)) return null;
     return { sections: ["government"], summary: false, consent: false };
   }
   if (/^\/api\/opinioni(?:\/|$)/.test(path)) {
