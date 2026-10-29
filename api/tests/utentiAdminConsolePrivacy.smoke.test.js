@@ -78,3 +78,18 @@ test('geografia utenti preserva residenza e mandati autentici, distinguendo le s
   assert.doesNotMatch(source, /\bconsole\.(?:log|debug|info|warn|error)\s*\(/);
   assert.doesNotMatch(api, /\bconsole\.(?:log|debug|info|warn|error)\s*\(/);
 });
+
+test('auth/me logs only fixed diagnostic codes and never exposes raw auth or SQL errors', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../routes/auth/profile.js'), 'utf8'
+  );
+  const logCalls = source.split('\n').map(line => line.trim())
+    .filter(line => line.startsWith('console.'));
+  assert.deepEqual(logCalls, [
+    "console.warn('AUTH_ME_SCHEMA_FALLBACK');",
+    "console.error('AUTH_ME_FAILED');"
+  ]);
+  assert.ok(!source.includes("details: process.env.NODE_ENV === 'development' ? error.message"));
+  assert.ok(source.includes('verifyOAuthPendingToken(token)'));
+  assert.ok(source.includes("res.set('Cache-Control', 'private, no-store, max-age=0')"));
+});
