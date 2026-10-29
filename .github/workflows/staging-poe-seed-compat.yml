@@ -6,6 +6,7 @@ on:
     paths:
       - 'api/scripts/stagingMigrate.js'
       - 'api/tests/stagingMigrate.test.js'
+      - 'api/tests/stagingSeedAccountTypes.pg17.integration.js'
       - '.github/workflows/staging-poe-seed-compat.yml'
   workflow_dispatch:
 
@@ -16,7 +17,26 @@ jobs:
   synthetic-seed:
     name: Check staging E2E seed in both account_type formats
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,3 +48,5 @@ jobs:
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Run staging DB guards and synthetic long/short seed tests
         run: node --test api/tests/stagingMigrate.test.js
+      - name: Test real PostgreSQL 17 synthetic seed before and after compact cutover
+        run: node api/tests/stagingSeedAccountTypes.pg17.integration.js
