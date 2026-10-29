@@ -1,0 +1,64 @@
+name: Verify DEMOS web frontend origin and cache
+on:
+  pull_request:
+    paths: ['.github/workflows/verify-eventi-origin-once.yml']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Compare live frontend assets without auth
+        run: |
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const origins = [
+            'https://www.demos.community',
+            'https://demos.community',
+            'https://demos-frontend-r3so.onrender.com'
+          ];
+          const headers = { Accept: 'text/html', 'Cache-Control': 'no-cache' };
+          (async () => {
+            for (const origin of origins) {
+              for (const bust of [false, true]) {
+                const url = origin + '/eventi' + (bust ? '?__demos_frontend_verification=20261029' : '');
+                try {
+                  const res = await fetch(url, {headers, signal: AbortSignal.timeout(12000)});
+                  const html = await res.text();
+                  const js = [...html.matchAll(/(?:src|href)="([^"]+\.js(?:\?[^"]+)?)"/g)].map(x=>x[1]);
+                  const css = [...html.matchAll(/(?:src|href)="([^"]+\.css(?:\?[^"]+)?)"/g)].map(x=>x[1]);
+                  console.log(JSON.stringify({
+                    probe:'HTML',origin,bust,status:res.status,finalUrl:res.url,
+                    cacheControl:res.headers.get('cache-control'),
+                    cfCacheStatus:res.headers.get('cf-cache-status'),
+                    age:res.headers.get('age'),etag:res.headers.get('etag'),
+                    htmlHash:crypto.createHash('sha256').update(html).digest('hex').slice(0,16),
+                    htmlLength:html.length,scripts:js,styles:css
+                  }));
+                  for (const asset of js.slice(0,4)) {
+                    try {
+                      const assetUrl=new URL(asset,res.url);
+                      const a=await fetch(assetUrl,{signal:AbortSignal.timeout(16000)});
+                      const s=await a.text();
+                      console.log(JSON.stringify({
+                        probe:'ASSET',origin,bust,asset:assetUrl.pathname,
+                        status:a.status,bytes:s.length,
+                        hasNewIntro:s.includes('Scopri gli appuntamenti e le mobilitazioni'),
+                        hasOldIntro:s.includes('Gestisci e visualizza tutti gli eventi della piattaforma'),
+                        hasRegional:s.includes('Regionali'),
+                        hasMobilitazioni:s.includes('Mobilitazioni'),
+                        sha:crypto.createHash('sha256').update(s).digest('hex').slice(0,16),
+                        cacheControl:a.headers.get('cache-control')
+                      }));
+                    } catch(e){console.log(JSON.stringify({probe:'ASSET_ERROR',origin,error:e.message}))}
+                  }
+                } catch(e) {
+                  console.log(JSON.stringify({probe:'ERROR',origin,bust,error:e.message}));
+                }
+              }
+            }
+          })();
+          NODE
