@@ -1,9 +1,17 @@
 const express = require('express');
 
-const { getOpinionsForGrade, sortOpinionsByText } = require('../services/opinionCatalog');
+const { getOpinionsForGrade, sortOpinionsByText, getOpinionCatalogRevision } = require('../services/opinionCatalog');
 const { normalizeOpinionScope } = require('../services/politicalJurisdictionRegistryService');
 
 const router = express.Router();
+
+// Public, metadata-only release revision. Never returns political answers,
+// does not query the users database and must not log personal data.
+// A verified session is independently required before decrypting local answers.
+router.get('/opinioni-catalog-revision', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  return res.json({ success: true, revision: getOpinionCatalogRevision() });
+});
 
 // Endpoint diretto per opinioni-list (compatibilità frontend)
 const isDev = process.env.NODE_ENV !== 'production';
