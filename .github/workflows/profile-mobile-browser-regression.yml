@@ -48,11 +48,12 @@ jobs:
           done
           curl --fail --silent http://localhost:4173/profilo >/dev/null
           NODE_PATH=/tmp/demos-profile-browser/node_modules node scripts/test-profile-mobile-browser.cjs
-      - name: Upload synthetic screenshots on failure only
-        if: failure()
+      - name: Preserve synthetic mobile screenshots for release review
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: profile-synthetic-browser-debug
+          name: profile-synthetic-browser-captures
+          retention-days: 3
           path: |
             /tmp/demos-profile-own-synthetic-mobile.png
             /tmp/demos-profile-public-synthetic-mobile.png
