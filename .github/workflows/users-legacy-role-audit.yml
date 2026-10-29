@@ -7,6 +7,8 @@ on:
       - 'api/tests/userRoleMigrationAudit.test.js'
       - 'api/tests/accountCapabilitiesLegacyEvidence.test.js'
       - 'api/tests/accountRoleConsistencyAudit.test.js'
+      - 'api/tests/authMeAccountModelContract.test.js'
+      - 'api/routes/auth/profile.js'
       - 'api/scripts/audit-account-role-consistency-20261029.sql'
       - 'api/services/accountCapabilitiesService.js'
       - 'api/docs/user-role-migration-audit-20261029.md'
@@ -30,7 +32,7 @@ jobs:
           node-version: '24'
       - name: Read-only audit and unit tests
         run: |
-          node --test api/tests/userRoleMigrationAudit.test.js api/tests/accountCapabilitiesLegacyEvidence.test.js api/tests/accountCapabilitiesService.test.js api/tests/accountRoleConsistencyAudit.test.js
+          node --test api/tests/userRoleMigrationAudit.test.js api/tests/accountCapabilitiesLegacyEvidence.test.js api/tests/accountCapabilitiesService.test.js api/tests/accountRoleConsistencyAudit.test.js api/tests/authMeAccountModelContract.test.js
           node scripts/audit-user-role-migration.js --output artifacts/user-role-inventory.json --markdown-output artifacts/user-role-inventory.md
           cat artifacts/user-role-inventory.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
