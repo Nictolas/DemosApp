@@ -49,7 +49,7 @@ CREATE OR REPLACE FUNCTION public.refresh_users_legacy_role(p_user_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
 SET search_path TO public, pg_temp
-AS $
+AS $$
 DECLARE
   v_account_type VARCHAR(20);
   v_is_admin BOOLEAN;
