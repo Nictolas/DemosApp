@@ -102,8 +102,8 @@ test("opening profile loads just summary; political API requests require expansi
   assert.match(hook, /initialData: ownProfile \? saved\?\.user : undefined/);
   assert.match(hook, /staleTime: ownProfile \? PROFILE_SUMMARY_TTL_MS : 0/);
   assert.match(hook, /const politicalPanelOpen = panels\.representatives/);
-  assert.match(hook, /enabled: enabled && ownProfile && vaultReady && politicalPanelOpen/);
-  assert.match(hook, /const politicalAllowed = ownProfile && vaultReady && consent\.isSuccess/);
+  assert.match(hook, /const consentVerified = isSessionVerified && verifiedPoliticalConsent !== null/);
+  assert.match(hook, /const politicalAllowed = ownProfile && vaultReady && consentVerified/);
   assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.government/);
   assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.representatives/);
   assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.candidates/);
@@ -127,6 +127,11 @@ test("political panels use a persistent encrypted vault and do not expire", () =
   assert.match(vault, /patchEncryptedProfile/);
   assert.match(hook, /loadEncryptedProfile\(ownerId\)/);
   assert.match(hook, /const PROFILE_CACHE_FRESH = Infinity/);
+  assert.doesNotMatch(hook, /getPayload\("\/api\/user\/political-opinions-consent"\)/);
+  const authClient = read("hooks/use-auth.tsx");
+  assert.match(authClient, /refetchOnWindowFocus: "always"/);
+  assert.match(authClient, /isSessionVerified/);
+  assert.match(authClient, /verifiedPoliticalConsent/);
   assert.doesNotMatch(hook, /refetchOnWindowFocus: "always"/);
   for (const section of ["government","representatives","candidates","opinions"]) {
     assert.ok(hook.includes("patchEncryptedProfile(ownerId, { " + section + ": result })"));
