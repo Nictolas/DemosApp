@@ -1,0 +1,38 @@
+name: Users legacy role migration audit
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit-user-role-migration.js'
+      - 'api/tests/userRoleMigrationAudit.test.js'
+      - 'api/tests/accountCapabilitiesLegacyEvidence.test.js'
+      - 'api/services/accountCapabilitiesService.js'
+      - 'api/docs/user-role-migration-audit-20261029.md'
+      - '.github/workflows/users-legacy-role-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  role-audit:
+    name: Offline legacy role dependency inventory and safe capability checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Read-only audit and unit tests
+        run: |
+          node --test api/tests/userRoleMigrationAudit.test.js api/tests/accountCapabilitiesLegacyEvidence.test.js api/tests/accountCapabilitiesService.test.js
+          node scripts/audit-user-role-migration.js --output artifacts/user-role-inventory.json --markdown-output artifacts/user-role-inventory.md
+          cat artifacts/user-role-inventory.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: user-role-migration-inventory
+          path: artifacts/user-role-inventory.*
+          retention-days: 7
