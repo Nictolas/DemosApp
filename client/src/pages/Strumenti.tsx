@@ -276,9 +276,9 @@ export default function Strumenti() {
     <PageContainer className="strumenti-page bg-gradient-to-br from-purple-50 to-pink-100">
       <div className="strumenti-page__inner flex h-full min-h-0 max-w-4xl mx-auto w-full flex-col px-2 py-2">
         <Card className="mb-1 shrink-0">
-          <CardHeader className="text-center py-3">
-            <CardTitle className="flex items-center justify-center gap-2 text-xl sm:text-2xl">
-              <Megaphone className="h-6 w-6 text-blue-600" />
+          <CardHeader className="text-center py-2">
+            <CardTitle className="flex items-center justify-center gap-2 text-lg sm:text-xl">
+              <Megaphone className="h-5 w-5 text-blue-600" />
               Strumenti
             </CardTitle>
             <CardDescription>
@@ -289,6 +289,8 @@ export default function Strumenti() {
 
         <div className="strumenti-page__scroll app-page-scroll flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-4xl mx-auto w-full flex flex-col gap-2 py-1">
+          <section className="flex flex-col gap-2" aria-labelledby="strumenti-profilo">
+            <h2 id="strumenti-profilo" className="px-1 pt-2 text-sm font-semibold tracking-wide text-slate-700">Profilo e presenza pubblica</h2>
           {/* Menu (Bacheca) - accesso alla pagina Menu */}
           <button
             type="button"
@@ -302,12 +304,57 @@ export default function Strumenti() {
                   <Home className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div className="flex flex-col items-start">
-                  <div className="text-gray-900 font-semibold text-base">Menu</div>
-                  <div className="text-gray-600 text-sm">Bacheca, eventi, iniziative e notifiche</div>
+                  <div className="text-gray-900 font-semibold text-base">Bacheca</div>
+                  <div className="text-gray-600 text-sm">Eventi, iniziative e notifiche</div>
                 </div>
               </div>
             </div>
           </button>
+          {/* Programma (solo Admin/Candidato) */}
+          {user?.ruolo === "AD" || user?.ruolo === "C" || user?.ruolo === "CP" ? (
+            <button
+              type="button"
+              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-purple-300 hover:shadow-lg"
+              onClick={() => setLocation('/programma')}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <div className="relative z-10 flex items-center justify-between h-full px-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <BookOpen className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-gray-900 font-semibold text-base">Programma</div>
+                    <div className="text-gray-600 text-sm">Il tuo programma personale</div>
+                  </div>
+                </div>
+              </div>
+            </button>
+          ) : null}
+          {/* Social (solo per Attivista e Admin) */}
+          {(user?.ruolo === "A" || user?.ruolo === "AD") && (
+            <button
+              type="button"
+              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-amber-300 hover:shadow-lg"
+              onClick={() => setLocation('/social')}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <div className="relative z-10 flex items-center justify-between h-full px-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-12 w-12 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <Share2 className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-gray-900 font-semibold text-base">Social</div>
+                    <div className="text-gray-600 text-sm">Inserisci il tuo sito e profili social</div>
+                  </div>
+                </div>
+              </div>
+            </button>
+          )}
+          </section>
+          <section className="flex flex-col gap-2" aria-labelledby="strumenti-comunicazione">
+            <h2 id="strumenti-comunicazione" className="px-1 pt-2 text-sm font-semibold tracking-wide text-slate-700">Comunicazione e iniziative</h2>
           {/* Comunica - solo per Istituzione e Admin, NON per Politico/Candidato/Candidato Politico */}
           {(user?.ruolo === "I" || user?.ruolo === "AD") && (
             <button
@@ -369,27 +416,10 @@ export default function Strumenti() {
               </div>
             </div>
           </button>
-          {/* Programma (solo Admin/Candidato) */}
-          {user?.ruolo === "AD" || user?.ruolo === "C" || user?.ruolo === "CP" ? (
-            <button
-              type="button"
-              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-purple-300 hover:shadow-lg"
-              onClick={() => setLocation('/programma')}
-              onContextMenu={e => e.preventDefault()}
-            >
-              <div className="relative z-10 flex items-center justify-between h-full px-4">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <BookOpen className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <div className="text-gray-900 font-semibold text-base">Programma</div>
-                    <div className="text-gray-600 text-sm">Il tuo programma personale</div>
-                  </div>
-                </div>
-              </div>
-            </button>
-          ) : null}
+          </section>
+          {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD" || user?.ruolo === "A" || user?.ruolo === "O") && (
+            <section className="flex flex-col gap-2" aria-labelledby="strumenti-analisi">
+            <h2 id="strumenti-analisi" className="px-1 pt-2 text-sm font-semibold tracking-wide text-slate-700">Analisi e partecipazione</h2>
           {/* Sostenitori (Politico/Candidato/Admin/Attivista/Organizzazione, NON Istituzione) */}
           {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD" || user?.ruolo === "A" || user?.ruolo === "O") && (
             <button
@@ -453,26 +483,7 @@ export default function Strumenti() {
               </div>
             </button>
           )}
-          {/* Social (solo per Attivista e Admin) */}
-          {(user?.ruolo === "A" || user?.ruolo === "AD") && (
-            <button
-              type="button"
-              className="relative w-full min-h-[5rem] shrink-0 rounded-xl shadow-md active:shadow overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-200 bg-white border border-gray-200 hover:border-amber-300 hover:shadow-lg"
-              onClick={() => setLocation('/social')}
-              onContextMenu={e => e.preventDefault()}
-            >
-              <div className="relative z-10 flex items-center justify-between h-full px-4">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="h-12 w-12 rounded-lg bg-amber-100 flex items-center justify-center">
-                    <Share2 className="h-6 w-6 text-amber-600" />
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <div className="text-gray-900 font-semibold text-base">Social</div>
-                    <div className="text-gray-600 text-sm">Inserisci il tuo sito e profili social</div>
-                  </div>
-                </div>
-              </div>
-            </button>
+            </section>
           )}
         {/* Ultima Votazione Section - Compatta */}
         {ultimaComunicazione?.comunicazione && (
