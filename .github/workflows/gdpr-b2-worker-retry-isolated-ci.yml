@@ -21,6 +21,7 @@ on:
       - 'api/tests/gdprRecoveryConcurrencySynthetic.test.js'
       - 'api/tests/gdprDurableRecoveryPg17Synthetic.test.js'
       - 'api/tests/gdprDistributedFencePg17Synthetic.test.js'
+      - 'api/tests/gdprDualPlaneQuarantinePg17Synthetic.test.js'
       - 'api/tests/fixtures/gdprIndependentAdmissionEpochSynthetic.js'
       - 'api/tests/gdprIndependentAdmissionEpochSynthetic.test.js'
       - 'api/tests/gdprBackendPoolIsolated.pg17.test.js'
@@ -71,6 +72,7 @@ jobs:
           node --test --test-concurrency=1 api/tests/gdprRecoveryConcurrencySynthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprDurableRecoveryPg17Synthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprDistributedFencePg17Synthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprDualPlaneQuarantinePg17Synthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprIndependentAdmissionEpochSynthetic.test.js
           node --check api/scripts/attest-gdpr-writer-readonly.js
           node --test --test-concurrency=1 api/tests/gdprWriterReadonlyAttestation.test.js
