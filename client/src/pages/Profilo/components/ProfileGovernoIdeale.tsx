@@ -4,9 +4,10 @@ import { Link } from "wouter";
 
 interface ProfileGovernoIdealeProps {
   governoIdeale: Record<string, string>;
+  canEdit?: boolean;
 }
 
-export const ProfileGovernoIdeale = ({ governoIdeale }: ProfileGovernoIdealeProps) => {
+export const ProfileGovernoIdeale = ({ governoIdeale, canEdit = true }: ProfileGovernoIdealeProps) => {
   const entries = Object.entries(governoIdeale || {});
   const readableRole = (role: string) =>
     role.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -19,12 +20,12 @@ export const ProfileGovernoIdeale = ({ governoIdeale }: ProfileGovernoIdealeProp
             <Crown className="h-5 w-5 shrink-0" />
             Il Tuo Governo Ideale
           </CardTitle>
-          <Link
+          {canEdit && <Link
             href="/governo"
             className="hidden lg:inline-flex shrink-0 text-sm font-semibold text-blue-600 hover:underline"
           >
             Scegli Ministri
-          </Link>
+          </Link>}
         </div>
         <CardDescription className="text-sm text-gray-600">
           {entries.length} {entries.length === 1 ? "incarico selezionato" : "incarichi selezionati"}
