@@ -134,6 +134,7 @@ async function main() {
     assert.equal(touchBehavior.reversePrevented, true, 'Reverse swipe must cancel default browser gesture');
     assert.ok(touchBehavior.afterBack < 2, 'Swipe right must return to earlier regions');
     assert.equal(touchBehavior.verticalPrevented, false, 'Vertical page scrolling must remain available');
+    assert.equal(new URL(page.url()).pathname, '/utenti', 'Chart swipes must not trigger global swipe-back navigation');
     const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     assert.equal(pageOverflow, false, 'Horizontal chart scrolling must not overflow the page');
 
