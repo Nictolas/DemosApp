@@ -89,13 +89,31 @@ async function main() {
     assert.equal(denied.status,403);
 
     const me=await request('/auth/me',IDS.institution);
-    assert.equal(me.status,200, 'Actual /auth/me must work in legacy fallback schema');
+    assert.equal(me.status,200, 'Actual /auth/me canonical profile SELECT must succeed');
     assert.equal(me.data.success,true);
     assert.equal(me.data.user.account_type,'INSTITUTION');
     assert.equal(me.data.user.ruolo,'I');
     assert.equal(me.data.user.status,'a');
+    assert.equal(me.data.user.regione_residenza,'Toscana',
+      'Canonical user_profile override must win over nullable users column');
+    assert.equal(me.data.user.rappresentante_camera,'synthetic-choice',
+      'Canonical user_representatives join must provide selection');
+    assert.equal(me.data.user.is_dpo,false);
     assert.equal(me.headers.get('cache-control'),'private, no-store, max-age=0');
 
+    // Real /auth/me must display the DPO navigation role independently
+    // from Admin, but this must never grant admin authorization.
+    await pool.query('UPDATE public.users SET is_dpo=true WHERE id=$1',[IDS.elector]);
+    try {
+      const dpoProfile=await request('/auth/me',IDS.elector);
+      assert.equal(dpoProfile.status,200);
+      assert.equal(dpoProfile.data.user.is_dpo,true);
+      assert.equal(dpoProfile.data.user.is_admin,false);
+      const dpoCannotAdmin=await request('/admin',IDS.elector);
+      assert.equal(dpoCannotAdmin.status,403);
+    } finally {
+      await pool.query('UPDATE public.users SET is_dpo=false WHERE id=$1',[IDS.elector]);
+    }
     const meMissing=await request('/auth/me');
     assert.equal(meMissing.status,401);
 
@@ -119,7 +137,7 @@ async function main() {
     }
     console.log('COMPACT_ACCOUNT_TYPES_REAL_HTTP_PASS',JSON.stringify({
       mode,missingTokenDenied:true,invalidTokenDenied:true,
-      storageReadViaHttp:true,profileRoute:true,claimEscalationDenied:true,
+      storageReadViaHttp:true,canonicalProfileJoin:true,dpoSeparatedFromAdmin:true,profileRoute:true,claimEscalationDenied:true,
       inactiveDenied:true,adminVerified:mode==='long'
     }));
   } finally {
