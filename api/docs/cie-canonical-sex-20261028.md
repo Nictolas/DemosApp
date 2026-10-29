@@ -87,3 +87,20 @@ Il helper `persistVerifiedCieSex` scrive `sesso` e `sesso_fonte='C'` nella stess
 **Piano di rollout:** (1) revisione DPO, informativa e retention della provenienza; (2) migrazione applicata e verificata su staging rappresentativo, test rollback; (3) test E2E OIDC con OP reale per verifica e rinnovo/riconciliazione; (4) smoke delle statistiche e delle vecchie build Android; (5) migrazione controllata di produzione con flag CIE ancora OFF; (6) merge/deploy solo dopo CI verde e gate autorizzati. Non confondere una PR Draft con codice live.
 
 Le date di nascita divergenti dei profili politici restano una ricognizione separata, non cambiare dati anagrafici senza ID parlamentare verificato e prova univoca.
+
+
+## Ulteriore gate di verifica CIE — 29/10/2026 (codice Draft, non produzione)
+
+Il nuovo helper `isCurrentlyVerifiedCieSex(client, userId)` esegue una verifica *corrente* basata contemporaneamente su:
+1. account `PERSON`, valore `users.sesso IN ('M','F')` e fonte `users.sesso_fonte='C'`;
+2. riga `identity_verifications` collegata all'account, `provider='CIE'`, `status='verified'`, `detached_at IS NULL`.
+
+Senza entrambe le condizioni, restituisce **false**. Quindi un valore precedentemente ricavato dalla CIE ma con identità scollegata non è **attualmente attestato**. `retention_until` riguarda la conservazione e non viene trattato come una scadenza della verifica. Non sono stati aggiunti campi anagrafici duplicati, nuovi dati personali o credenziali.
+
+Il servizio canonico di export personale `api/services/privacyDataExportService.js` include `sesso_fonte` solo **se effettivamente presente nello schema**, usando il controllo dinamico delle colonne già implementato: rimane compatibile anche prima della migrazione. Gli endpoint di modifica utente non ammettono `sesso_fonte`. L'endpoint GDPR legacy è fuori da questa modifica e deve essere riesaminato nell'audit export separato prima del rilascio.
+
+Nuovi test di regressione controllano la presenza delle clausole SQL di fonte CIE, la risposta fail-closed in assenza di verifica attiva, l'immutabilità dal browser e l'export condizionato allo schema. Una prova isolata sul codice effettivamente letto dal ramo ha superato **10/10** controlli mirati. **Non è una certificazione di CI, PostgreSQL reale o E2E CIE**.
+
+**Resta NO-GO:** la PR Draft non deve essere fusa o pubblicata finché non si completa la CI GitHub sul nuovo HEAD, la migrazione su staging PostgreSQL e relative prove di rollback, i test contro OP CIE reale, la revisione GDPR/DPO e i test di regressione Android. Il controllo `sesso_fonte='C'` è affidabile per attestazioni soltanto insieme alla riga identitaria ancora attiva. Le scritture storiche senza provenienza documentata restano `NULL`.
+
+Nessuna modifica a Supabase produzione in questo intervento.
