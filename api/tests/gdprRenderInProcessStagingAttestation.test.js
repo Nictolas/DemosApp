@@ -2,6 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const vm=require('node:vm');
 const path=require('node:path');
 const {
   attestInProcess,assertProcessTarget,LOG_PREFIX,STAGING_SERVICE_ID
@@ -153,4 +154,45 @@ test('server startup is opt-in and injects its OWN canonical pool, never an HTTP
   assert.match(server,/require\('\.\/services\/gdprRenderInProcessStagingAttestation'\)/);
   assert.match(server,/getPool: \(\) => require\('\.\/config\/database'\)\.getPool\(\)/);
   assert.doesNotMatch(server,/app\.use\([^\n]*gdprRenderInProcessStagingAttestation/);
+});
+
+test('Render entrypoint refuses misconfigured staging probe BEFORE loading server or pool',()=>{
+  const src=fs.readFileSync(path.join(__dirname,'../index.js'),'utf8');
+  assert.ok(src.indexOf('assertProcessTarget(process.env)')<src.indexOf("require('./server')"));
+  const cases=[
+    {label:'disabled normal boot',env:{},boots:1,throws:false},
+    {label:'valid staging probe',env:config(),boots:1,throws:false},
+    {label:'production service ID',env:config({
+      RENDER_SERVICE_ID:'srv-d2gt3dodl3ps73fmereg'
+    }),boots:0,throws:true},
+    {label:'production project URL',env:config({
+      DATABASE_URL:STAGING_URL.replace(REF,PROD)
+    }),boots:0,throws:true},
+    {label:'no marker in staging',env:config({
+      GDPR_WRITER_ATTESTATION:undefined
+    }),boots:0,throws:true},
+    {label:'staging process NODE_ENV mismatched',env:config({
+      NODE_ENV:'staging'
+    }),boots:0,throws:true}
+  ];
+  for(const scenario of cases){
+    let boots=0;
+    const context={
+      process:{env:scenario.env},
+      require(id){
+        if(id==='./server'){boots++;return {};}
+        if(id==='./services/gdprRenderInProcessStagingAttestation')
+          return require('../services/gdprRenderInProcessStagingAttestation');
+        throw Error('UNEXPECTED_IMPORT');
+      }
+    };
+    if(scenario.throws){
+      assert.throws(()=>vm.runInNewContext(src,context,{timeout:1000}),
+        /GDPR_RENDER_STAGING_PREFLIGHT_REFUSED/,scenario.label);
+    }else{
+      assert.doesNotThrow(()=>vm.runInNewContext(src,context,{timeout:1000}),
+        scenario.label);
+    }
+    assert.equal(boots,scenario.boots,scenario.label);
+  }
 });
