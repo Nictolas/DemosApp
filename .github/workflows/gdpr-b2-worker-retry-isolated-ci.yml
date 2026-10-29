@@ -11,6 +11,7 @@ on:
       - 'api/tests/gdprOutboxWorkerIsolated.pg17.test.js'
       - 'api/tests/fixtures/gdprDurableRecoveryPrototype.js'
       - 'api/tests/gdprDurableRecoveryProtocolSynthetic.test.js'
+      - 'api/tests/gdprRecoveryConcurrencySynthetic.test.js'
       - 'api/tests/gdprDurableRecoveryPg17Synthetic.test.js'
       - 'api/tests/gdprBackendPoolIsolated.pg17.test.js'
       - 'api/config/database.js'
@@ -56,6 +57,7 @@ jobs:
           node --check api/services/privacyErasureOutboxWorker.js
           node --check api/tests/fixtures/gdprDurableRecoveryPrototype.js
           node --test --test-concurrency=1 api/tests/gdprDurableRecoveryProtocolSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprRecoveryConcurrencySynthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprDurableRecoveryPg17Synthetic.test.js
           node --check api/scripts/attest-gdpr-writer-readonly.js
           node --test --test-concurrency=1 api/tests/gdprWriterReadonlyAttestation.test.js
