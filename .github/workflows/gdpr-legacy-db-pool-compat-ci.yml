@@ -137,7 +137,7 @@ jobs:
       - name: Compose review-only PR 374 and PR 376 in an ephemeral worktree
         shell: bash
         env:
-          PINNED_LEDGER_HEAD: b15721680b25f2e9d78c1cc19ea2a2b8b3376e1e
+          PINNED_LEDGER_HEAD: 62c849b60a515b73451cbf797c865c7c22fe981d
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
@@ -254,4 +254,4 @@ jobs:
             node --test --test-concurrency=1 api/tests/gdprOutboxWorkerIsolated.pg17.test.js
           GDPR_BACKEND_POOL_CI=isolated \
             TEST_DATABASE_URL=postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_worker_ci \
-            node --test --test-concurrency=1 api/tests/gdprBackendPoolIsolated.pg17.test.js
+            node api/tests/gdprBackendPoolIsolated.pg17.test.js
