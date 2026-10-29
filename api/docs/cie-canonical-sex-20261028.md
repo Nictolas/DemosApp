@@ -67,40 +67,16 @@ Questa sezione **sostituisce come fotografia attuale** i conteggi delle verifich
 
 Riferimento operativo: commento di audit alla PR #380 del 28/10/2026; checklist unica GH-260. Nessuna modifica ai dati di produzione, al sistema di autenticazione o alle regole RLS è stata introdotta da questa correzione di etichette.
 
+## Decisione di semplificazione (29/10/2026)
 
-## Fase B proposta — provenienza minima `sesso_fonte` (solo PR Draft, non applicata al database)
+Su richiesta dell'amministratore si mantiene **solo** `users.sesso` con M/F/NULL. La proposta `sesso_fonte` (L/N/O/C) è stata ritirata dal ramo Draft, insieme alla migrazione, alle verifiche che dipendevano dal metadato e all'aggiunta nell'export GDPR. La colonna non è mai esistita in produzione.
 
-Migratore **da applicare esplicitamente prima di attivare CIE**: `api/migrations/20261028_cie_sex_provenance.sql`.
-Introduce un solo metadato `public.users.sesso_fonte VARCHAR(1) NULL`, **non** una seconda colonna M/F e senza alcun backfill:
-- `NULL`: provenienza non registrata. Tutti gli M/F già presenti restano `NULL` fino a una prova tracciabile; nessuno è promosso automaticamente a CIE.
-- `L`: dato legacy dichiarato (solo con provenienza documentata).
-- `N`: attribuzione per nome, esplicitamente indicata come inferita.
-- `O`: confronto con fonte istituzionale (non CIE).
-- `C`: UserInfo CIE verificata server-side nella transazione di riconoscimento.
+La scrittura del sesso da UserInfo CIE verificato:
+- avviene nel contesto transazionale di registrazione/verifica identità già previsto;
+- si applica solo ad account PERSON, con `gender` CIE firmato e convertito correttamente in M/F;
+- richiede anche una riga CIE verificata, attiva e non scollegata in `identity_verifications`;
+- può sostituire M/F precedente; non crea un secondo campo né etichette di provenienza.
 
-Un vincolo DB ammette una fonte non nulla solo per persone con `sesso M/F`. Nessun indice nuovo e nessun documento anagrafico conservato. Le etichette `L/N/O` **non vengono applicate automaticamente retroattivamente**, poiché la provenienza dei record storici non è attestata individualmente.
+I grafici mostrano solo **Distribuzione per sesso**, includendo valori storici/inferiti, senza sostenere che ciascun dato sia certificato CIE. Non è possibile ricostruire retrospettivamente la provenienza dei singoli M/F dal solo campo `sesso`. In particolare, `identity_verifications` attesta il riconoscimento dell'identità ma **non** prova, da sola, che il valore M/F attualmente salvato sia derivato da una CIE: non mostrare badge o metriche "sesso CIE certificato" senza una prova autonoma.
 
-Il helper `persistVerifiedCieSex` scrive `sesso` e `sesso_fonte='C'` nella stessa UPDATE, dopo la registrazione dell'identità verificata e **solo se** esiste una riga attiva `identity_verifications` con `provider='CIE'`, `status='verified'`, `detached_at IS NULL` per l'utente. L'UPDATE è nella stessa transazione delle registrazioni OAuth/passkey/CIE: se la riga di verifica manca, l'operazione fallisce e causa rollback dell'identità in fase di registrazione. `claims.sesso=NULL` non genera alcuna etichetta CIE.
-
-**Importante:** `sesso_fonte='C'` è un indicatore di origine, ma le future interfacce «CIE verificata» devono controllare anche lo stato verificabile della riga `identity_verifications`, non solo il codice né il campo M/F. Se l'identità è staccata, l'affidabilità/retention va riconciliata con la policy privacy prima di mostrare certificazioni. Il nuovo metadato non deve essere modificabile da browser o pannelli admin.
-
-**Piano di rollout:** (1) revisione DPO, informativa e retention della provenienza; (2) migrazione applicata e verificata su staging rappresentativo, test rollback; (3) test E2E OIDC con OP reale per verifica e rinnovo/riconciliazione; (4) smoke delle statistiche e delle vecchie build Android; (5) migrazione controllata di produzione con flag CIE ancora OFF; (6) merge/deploy solo dopo CI verde e gate autorizzati. Non confondere una PR Draft con codice live.
-
-Le date di nascita divergenti dei profili politici restano una ricognizione separata, non cambiare dati anagrafici senza ID parlamentare verificato e prova univoca.
-
-
-## Ulteriore gate di verifica CIE — 29/10/2026 (codice Draft, non produzione)
-
-Il nuovo helper `isCurrentlyVerifiedCieSex(client, userId)` esegue una verifica *corrente* basata contemporaneamente su:
-1. account `PERSON`, valore `users.sesso IN ('M','F')` e fonte `users.sesso_fonte='C'`;
-2. riga `identity_verifications` collegata all'account, `provider='CIE'`, `status='verified'`, `detached_at IS NULL`.
-
-Senza entrambe le condizioni, restituisce **false**. Quindi un valore precedentemente ricavato dalla CIE ma con identità scollegata non è **attualmente attestato**. `retention_until` riguarda la conservazione e non viene trattato come una scadenza della verifica. Non sono stati aggiunti campi anagrafici duplicati, nuovi dati personali o credenziali.
-
-Il servizio canonico di export personale `api/services/privacyDataExportService.js` include `sesso_fonte` solo **se effettivamente presente nello schema**, usando il controllo dinamico delle colonne già implementato: rimane compatibile anche prima della migrazione. Gli endpoint di modifica utente non ammettono `sesso_fonte`. L'endpoint GDPR legacy è fuori da questa modifica e deve essere riesaminato nell'audit export separato prima del rilascio.
-
-Nuovi test di regressione controllano la presenza delle clausole SQL di fonte CIE, la risposta fail-closed in assenza di verifica attiva, l'immutabilità dal browser e l'export condizionato allo schema. Una prova isolata sul codice effettivamente letto dal ramo ha superato **10/10** controlli mirati. **Non è una certificazione di CI, PostgreSQL reale o E2E CIE**.
-
-**Resta NO-GO:** la PR Draft non deve essere fusa o pubblicata finché non si completa la CI GitHub sul nuovo HEAD, la migrazione su staging PostgreSQL e relative prove di rollback, i test contro OP CIE reale, la revisione GDPR/DPO e i test di regressione Android. Il controllo `sesso_fonte='C'` è affidabile per attestazioni soltanto insieme alla riga identitaria ancora attiva. Le scritture storiche senza provenienza documentata restano `NULL`.
-
-Nessuna modifica a Supabase produzione in questo intervento.
+Restano gate aperti la CI completa del ramo, i test su database di prova (transazione e rollback), l'OP CIE reale, la revisione GDPR/DPO, la QA Android e il rollout controllato. Nessun backfill, schema update, merge o deploy produttivo è stato eseguito per questa semplificazione.
