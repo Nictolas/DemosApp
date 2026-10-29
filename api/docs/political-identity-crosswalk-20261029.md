@@ -97,3 +97,15 @@ Collaudo preparato su PostgreSQL 17 effimero: fixture SQL esclusivamente sinteti
 5. Confrontare liste rappresentanti, Sondaggi, Opinioni, statistiche e richieste GDPR prima e dopo; non nascondere tutti i politici legacy senza un roster attuale sostitutivo.
 
 La PR prepara sia il preflight sia un prototipo SQL NON distribuito; **nessuna modifica a Supabase, Render, al frontend o ai mandati reali**.
+
+## Gate di approvazione separata (29/10/2026)
+
+Il prototipo SQL è stato reso **fail closed**: prima di eseguire una funzione di importazione occorre un record esatto in `demos_internal.approved_political_mandate_imports`. Inserire soltanto `review_reference` e `reviewed_by` nei parametri della funzione **non è più sufficiente**.
+
+La tabella approvazioni è in uno schema privato, con RLS abilitata e privilegi `PUBLIC` revocati, senza endpoint né policy per i ruoli dell'app. Il record deve corrispondere a **istituzione, ID ufficiale, legislatura, inizio, fine, UUID canonico, URL della fonte, riferimento di revisione e revisore**. La corrispondenza è controllata `FOR SHARE` nella transazione. L'approvazione deve essere registrata separatamente da un amministratore autorizzato **dopo verifica sostanziale** della fonte e della relazione tra identità parlamentare e persona: la tabella non prova, da sola, che tale controllo sia avvenuto.
+
+Per i soli test PostgreSQL 17, i dati fittizi delle approvazioni sono in `api/tests/fixtures/politicalInstitutionalCrosswalk.approvals.pg17.sql` e vengono caricati in un passaggio separato. Il test SQL include i rifiuti per import senza approvazione, revisore non corrispondente, collisione dello stesso ID attribuito a due utenti e variazioni di mandato non approvate.
+
+Limiti: lo script continua ad accettare informazioni pre-verificate e non scarica né certifica automaticamente i roster della Camera o del Senato; non verifica una firma indipendente del revisore. In un ambiente futuro separare il ruolo che approva dai privilegi che eseguono l'importazione, mantenere audit append-only e una procedura di revoca. Nessun accesso applicativo alla tabella approvazioni.
+
+**Nessuna approvazione di una persona reale è stata creata e nessun mandato di produzione è stato importato.**
