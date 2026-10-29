@@ -457,3 +457,55 @@
     height: 100vh;
   }
 }
+
+/* Opinion editors: the header and actions stay visible; only questions scroll.
+   The shell's navbar already owns its own row (including its safe-area inset). */
+.app-main:has(.opinioni-editor-page) {
+  overflow-y: hidden !important;
+}
+
+.app-main:has(.opinioni-editor-page) > .app-main__inner {
+  overflow: hidden;
+}
+
+.app-main:has(.opinioni-editor-page) .fade-up-transition,
+.app-main:has(.opinioni-editor-page) .fade-side-transition {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.opinioni-editor-page__list {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Compact landscape: keep the title and both actions visible while preserving
+   a useful question scrollport, even when the desktop header takes a row. */
+@media (max-height: 500px) {
+  .opinioni-editor-page > div:first-child {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .opinioni-editor-page .opinioni-editor-page__header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .opinioni-editor-page__header h3 {
+    font-size: 1.25rem;
+    line-height: 1.5rem;
+  }
+
+  .opinioni-editor-page__header p {
+    display: none;
+  }
+
+  .opinioni-editor-page footer[aria-label="Azioni delle opinioni"] {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+  }
+}
