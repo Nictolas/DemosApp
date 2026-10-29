@@ -26,6 +26,49 @@ BEGIN
     IF err <> 'MANUAL_APPROVAL_NOT_FOUND_OR_MISMATCHED' THEN RAISE; END IF;
   END;
 
+  -- A legitimate Senate URL with padded did is accepted only with the
+  -- CANONICAL numeric ID. Never create parallel IDs 000456 and 456.
+  BEGIN
+    PERFORM demos_internal.import_official_political_mandate(
+      '11111111-1111-4111-8111-111111111111','SENATO','000456',19,
+      DATE '2022-10-13',NULL,
+      'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=000456',
+      'POL-015-review-002','reviewer-fixture'
+    );
+    RAISE EXCEPTION 'EXPECTED_CANONICAL_SENATE_ID_NOT_RAISED';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS err = MESSAGE_TEXT;
+    IF err <> 'SENATO_ID_NOT_CANONICAL' THEN RAISE; END IF;
+  END;
+
+  -- A syntactically official Senate URL is not sufficient if did differs.
+  BEGIN
+    PERFORM demos_internal.import_official_political_mandate(
+      '11111111-1111-4111-8111-111111111111','SENATO','456',19,
+      DATE '2022-10-13',NULL,
+      'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=000457',
+      'POL-015-review-002','reviewer-fixture'
+    );
+    RAISE EXCEPTION 'EXPECTED_SENATE_DID_MISMATCH_NOT_RAISED';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS err = MESSAGE_TEXT;
+    IF err <> 'OFFICIAL_ID_SOURCE_MISMATCH' THEN RAISE; END IF;
+  END;
+
+  -- Same protection for the Camera's official RDF identifier.
+  BEGIN
+    PERFORM demos_internal.import_official_political_mandate(
+      '11111111-1111-4111-8111-111111111111','CAMERA','d456_17',17,
+      DATE '2013-03-15',DATE '2018-03-22',
+      'https://dati.camera.it/ocd/deputato.rdf/d456_18',
+      'POL-015-review-001','reviewer-fixture'
+    );
+    RAISE EXCEPTION 'EXPECTED_CAMERA_RDF_ID_MISMATCH_NOT_RAISED';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS err = MESSAGE_TEXT;
+    IF err <> 'OFFICIAL_ID_SOURCE_MISMATCH' THEN RAISE; END IF;
+  END;
+
   -- An approved ID still cannot be used with another reviewer's declaration.
   BEGIN
     PERFORM demos_internal.import_official_political_mandate(
