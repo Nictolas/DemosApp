@@ -565,6 +565,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       message: 'Utente aggiornato con successo',
       user: {
         ...decompressedUser,
+        account_type: normalizeAccountType(updatedUser.account_type) || updatedUser.account_type,
         data_nascita: dataNascitaFormattata,
         sesso: ['M', 'F'].includes(updatedUser.sesso) ? updatedUser.sesso : null,
         genere: decompressGender(updatedUser.genere),
