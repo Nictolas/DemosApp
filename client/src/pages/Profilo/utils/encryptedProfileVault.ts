@@ -16,6 +16,15 @@ let activeEpoch = 0;
 let openedDb: Promise<IDBDatabase> | undefined;
 let vaultKey: Promise<CryptoKey> | undefined;
 
+export type ProfileChosenVotes = {
+  capoStato: string[];
+  grazia: string[];
+  amnistia: string[];
+  iniziativaPopolare: string[];
+  attivista: { id: string; nome: string } | null;
+  organizzazione: { id: string; nome: string } | null;
+};
+
 export type PersistedProfile = {
   version: 1;
   consent: { granted: boolean; timestamp: string | null } | null;
@@ -24,11 +33,13 @@ export type PersistedProfile = {
   representatives: Record<string, unknown> | null;
   candidates: Record<string, unknown> | null;
   opinions: { questions: unknown[]; userAnswers: Record<string, string> } | null;
+  preferences?: ProfileChosenVotes | null;
 };
 
 const emptyProfile = (): PersistedProfile => ({
   version: 1, consent: null, full: null, government: null,
   representatives: null, candidates: null, opinions: null,
+  preferences: null,
 });
 
 const available = () => typeof window !== "undefined" &&
