@@ -123,12 +123,12 @@ test('single-day Eventi cards show a time range once, without duplicate clock ro
   assert.ok(start >= 0 && end > start, 'Eventi date display section missing');
   const dates = page.slice(start, end);
 
-  assert.match(dates, /\\? 'Inizio: ' : 'Quando: '/);
-  assert.match(dates, /formatDate\\(evento\\.giorno_inizio\\)/);
-  assert.match(dates, /formatTime\\(evento\\.orario_inizio\\)/);
-  assert.match(dates, /formatTime\\(evento\\.orario_fine\\)/);
+  assert.ok(dates.includes("? 'Inizio: ' : 'Quando: '"));
+  assert.ok(dates.includes('formatDate(evento.giorno_inizio)'));
+  assert.ok(dates.includes('formatTime(evento.orario_inizio)'));
+  assert.ok(dates.includes('formatTime(evento.orario_fine)'));
   assert.doesNotMatch(dates, /Orario inizio:|Orario fine:/);
   assert.doesNotMatch(dates, /Orari senza secondo giorno/);
-  assert.match(dates, /evento\\.giorno_fine && evento\\.giorno_fine !== evento\\.giorno_inizio/,
+  assert.ok(dates.includes('evento.giorno_fine && evento.giorno_fine !== evento.giorno_inizio'),
     'Multi-day events retain their separate end date');
 });
