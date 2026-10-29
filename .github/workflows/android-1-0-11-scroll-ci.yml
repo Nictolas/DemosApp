@@ -13,6 +13,10 @@ on:
       - 'client/src/pages/ScegliRappresentante/index.tsx'
       - 'client/tests/androidPageScrollPolicy.test.mjs'
       - 'client/tests/androidPublicAccountDeletion.test.mjs'
+      - 'client/tests/androidSourcePermissions.test.mjs'
+      - 'client/android/app/src/main/AndroidManifest.xml'
+      - 'client/android/app/src/main/res/xml/file_paths.xml'
+      - 'client/android/app/build.gradle'
       - 'client/src/pages/registrazione-*.tsx'
       - 'client/public/eliminazione-account.html'
       - '.github/workflows/android-1-0-11-scroll-ci.yml'
@@ -35,6 +39,8 @@ jobs:
         run: node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
       - name: Verify passkey-only account deletion instructions (source)
         run: node --test client/tests/androidPublicAccountDeletion.test.mjs
+      - name: Verify Android source permissions, app ID and backup/HTTP hardening
+        run: node --test client/tests/androidSourcePermissions.test.mjs
       - name: Install frontend without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend without AAB, secrets or deployment
@@ -76,6 +82,7 @@ jobs:
         run: |
           node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
           node --test api/tests/utentiElectionTerritory.smoke.test.js
+          node --test client/tests/androidSourcePermissions.test.mjs
       - name: Verify account deletion page after main overlay (source)
         run: node --test client/tests/androidPublicAccountDeletion.test.mjs
       - name: Install frontend without lifecycle scripts
@@ -84,3 +91,40 @@ jobs:
         run: npm run build --prefix client
       - name: Verify public deletion page in built main-overlay assets
         run: DEMOS_ASSERT_BUILT_ASSET=1 node --test client/tests/androidPublicAccountDeletion.test.mjs
+
+  # Read-only public smoke: never posts, authenticates or accesses user data.
+  # Current production may still display the older text before the Draft is
+  # released; only availability and delivery of the real static page are tested.
+  public-deletion-live-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Check public custom domain and Render origin (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          for url in \
+            "https://www.demos.community/eliminazione-account.html" \
+            "https://demos-frontend-r3so.onrender.com/eliminazione-account.html"
+          do
+            page="$(mktemp)"
+            status="$(curl --silent --show-error --location --retry 2 --retry-delay 2 --connect-timeout 10 --max-time 30 --output "$page" --write-out '%{http_code}' "$url")" || status="000"
+            if [[ "$status" != "200" ]]; then
+              echo "::error::Public deletion page returned HTTP $status at $url"
+              failed=1
+            elif ! grep -Fq '<title>Eliminazione account DEMOS</title>' "$page"; then
+              echo "::error::HTTP 200 served non-deletion content (possibly SPA fallback) at $url"
+              failed=1
+            elif ! grep -Fq 'privacy@demos.community' "$page"; then
+              echo "::error::Public deletion page lacks a contact address at $url"
+              failed=1
+            else
+              echo "Validated live public deletion page at $url (HTTP 200, correct title and contact)"
+              if ! grep -Fqi 'soltanto con passkey' "$page"; then
+                echo "::notice::Live site does not yet contain the Draft passkey-only clarification; its release remains unapproved."
+              fi
+            fi
+            rm -f "$page"
+          done
+          exit "$failed"
