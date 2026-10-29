@@ -15,6 +15,7 @@ interface ProfileInfoProps {
   onEditClick: () => void;
   onModificaImmagine: () => void;
   canEdit?: boolean;
+  isOwnProfile?: boolean;
   avatarConfig?: any;
 }
 
@@ -24,6 +25,7 @@ export const ProfileInfo = ({
   onEditClick, 
   onModificaImmagine,
   canEdit = true,
+  isOwnProfile = true,
   avatarConfig
 }: ProfileInfoProps) => {
   const [, setLocation] = useLocation();
@@ -164,6 +166,7 @@ export const ProfileInfo = ({
               </div>
             </div>
           )}
+          {isOwnProfile && (
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-3">
               {canShowFullName() && (
@@ -217,7 +220,8 @@ export const ProfileInfo = ({
             </div>
           </div>
           
-          {(userInfo.professione || userInfo.istruzione || userInfo.telefono) && (
+          )}
+          {isOwnProfile && (userInfo.professione || userInfo.istruzione || userInfo.telefono) && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
                 <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center">
@@ -253,7 +257,7 @@ export const ProfileInfo = ({
           )}
           
           {/* Sezione Tipologie di Attivismo - Solo per Attivisti e Admin */}
-          {(userInfo.ruolo === "A" || userInfo.ruolo === "AD") && userInfo.tipologie_attivismo && userInfo.tipologie_attivismo.length > 0 && (
+          {isOwnProfile && (userInfo.ruolo === "A" || userInfo.ruolo === "AD") && userInfo.tipologie_attivismo && userInfo.tipologie_attivismo.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
                 <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
