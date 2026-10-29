@@ -6,7 +6,7 @@ import { EditProfileForm } from "@/components/EditProfileForm";
 import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
 import { PageContainer } from "@/components/PageContainer";
-import { ChevronDown, Settings, Star } from "lucide-react";
+import { ChevronDown, Settings, Star, RefreshCcw } from "lucide-react";
 
 // Componenti modulari
 import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
@@ -124,6 +124,14 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               <Settings className="h-4 w-4" aria-hidden="true" /> Impostazioni
             </Link>
           </nav>
+        )}
+        {isViewingOwnProfile && (
+          <button type="button" onClick={() => void fetchAllProfileData()}
+            className="flex items-center gap-1.5 text-xs font-medium text-indigo-700"
+            aria-label="Sincronizza manualmente il profilo e le sue sezioni">
+            <RefreshCcw className="h-3.5 w-3.5" aria-hidden="true" />
+            Sincronizza profilo
+          </button>
         )}
         {/* Stati di caricamento e errore */}
         <ProfileLoadingStates
