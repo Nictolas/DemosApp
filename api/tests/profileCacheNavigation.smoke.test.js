@@ -48,3 +48,39 @@ test('the profile form unpacks the response envelope and does not leak user data
   assert.match(form, /if \(!response\.ok \|\| data\?\.success === false\)/);
   assert.doesNotMatch(editor, /DEBUG EditProfileForm/);
 });
+
+test('a third-party profile hides private demographic/contact cards and selection actions', () => {
+  const page = read('client/src/pages/Profilo/index.tsx');
+  const info = read('client/src/pages/Profilo/components/ProfileInfo.tsx');
+  const reps = read('client/src/components/ProfileRepresentatives.tsx');
+  const candidates = read('client/src/components/ProfileCandidates.tsx');
+  assert.match(page, /isOwnProfile=\{isViewingOwnProfile\}/);
+  assert.match(page, /canEditSelections=\{isViewingOwnProfile\}/g);
+  assert.match(info, /\{isOwnProfile && \(\s*<div className="grid grid-cols-2 gap-3">/);
+  assert.match(info, /isOwnProfile && \(userInfo\.professione/);
+  assert.match(reps, /\{canEditSelections && \(/);
+  assert.match(candidates, /\{canEditSelections && \(/);
+});
+
+test('public opinions are mapped from the public endpoint and compact values are normalized', () => {
+  const hook = read('client/src/pages/Profilo/hooks/useProfileData.ts');
+  assert.match(hook, /Array\.isArray\(opinionData\?\.opinioni\)/);
+  assert.match(hook, /normalizeOpinionValue\(item\.userAnswer\)/);
+  assert.match(hook, /answers\[item\.id\] = normalized/);
+  assert.match(hook, /value === "f".*?"Favorevole"/);
+  assert.match(hook, /value === "c".*?"Contrario"/);
+  assert.match(hook, /value === "i".*?"Indeciso"/);
+});
+
+test('consent revocation resets, rather than retaining, cached political selections', () => {
+  const client = read('client/src/lib/queryClient.ts');
+  assert.match(client, /apiPath === "user\/political-opinions-consent\/revoke"/);
+  assert.match(client, /queryClient\.resetQueries\(\{ queryKey: \["profileSnapshot"\] \}\)/);
+});
+
+test('successful profile edits avoid a second redundant full GET', () => {
+  const page = read('client/src/pages/Profilo/index.tsx');
+  const saveHandler = page.match(/const handleSaveProfile = \(\) => \{[\s\S]*?\n  \};/);
+  assert.ok(saveHandler);
+  assert.doesNotMatch(saveHandler[0], /fetchAllProfileData|apiRequest/);
+});
