@@ -31,11 +31,28 @@ router.get('/', verifyToken, requirePoliticalConsent, async (req, res) => {
         ARRAY(
           SELECT DISTINCT COALESCE(
             (
+              -- Priority votes now reference the canonical civic process UUID.
+              SELECT NULLIF(REGEXP_REPLACE(BTRIM(cp.canonical_title), '[[:space:]]+', ' ', 'g'), '')
+              FROM civic_processes cp
+              WHERE cp.id::text = v.iniziativa_id
+              LIMIT 1
+            ),
+            (
+              -- Older votes may use the official source's external ID.
+              SELECT NULLIF(REGEXP_REPLACE(BTRIM(cp.canonical_title), '[[:space:]]+', ' ', 'g'), '')
+              FROM civic_process_source_records csr
+              JOIN civic_processes cp ON cp.id = csr.civic_process_id
+              WHERE csr.external_id = v.iniziativa_id
+              ORDER BY cp.id LIMIT 1
+            ),
+            (
+              -- Preserve compatibility with the pre-registry ministero records.
               SELECT NULLIF(BTRIM(m.titolo), '')
               FROM iniziative_ministero m
               WHERE m.id = v.iniziativa_id OR m.id_ministero = v.iniziativa_id
               ORDER BY m.id LIMIT 1
-            ), v.iniziativa_id
+            ),
+            v.iniziativa_id
           )
           FROM voti_iniziative_popolari v
           WHERE v.userid = u.id AND NULLIF(BTRIM(v.iniziativa_id), '') IS NOT NULL
