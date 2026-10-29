@@ -40,14 +40,10 @@ function makePool({ duplicatePerson = false, duplicateProviderRace = false } = {
       if (normalized.startsWith('INSERT INTO user_consents')) return { rows: [] };
       if (normalized.startsWith('INSERT INTO user_auth_providers')) return { rows: [] };
       if (normalized.startsWith('SELECT person_key, provider, status')) return { rows: [] };
+      if (normalized.startsWith('SELECT 1 FROM identity_verifications WHERE person_key')) return { rows: duplicatePerson ? [{ exists: 1 }] : [] };
       if (normalized.startsWith('UPDATE users SET sesso = $1')) return { rowCount: 1 };
       if (normalized.startsWith('INSERT INTO identity_verifications')) {
-        if (duplicatePerson) {
-          const error = new Error('duplicate');
-          error.code = '23505';
-          error.constraint = 'identity_verifications_person_key_key';
-          throw error;
-        }
+        if (duplicatePerson) return { rows: [] }; // ON CONFLICT DO NOTHING in real PostgreSQL
         return {
           rows: [{ provider: 'CIE', status: 'verified', verified_at: new Date().toISOString(), detached_at: null, retention_until: null }]
         };
