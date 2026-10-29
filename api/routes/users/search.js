@@ -267,6 +267,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       const decoded = decompressUserLocation(user);
       return {
         ...user,
+        account_type: normalizeAccountType(user.account_type) || user.account_type,
         // Supporta sia i codici geografici DEMOS sia i nomi completi legacy.
         cittadinanza: decoded.cittadinanza || user.cittadinanza,
         paese_residenza: decoded.paese_residenza || user.paese_residenza,
