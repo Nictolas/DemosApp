@@ -113,8 +113,8 @@ export function useProfileForm(
             tipologie: formData.tipologie_attivismo
           });
           
-          if (!activismData.success) {
-            console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", activismData.error || activismData.message);
+          if (activismResponse.data?.success === false) {
+            console.warn("Errore nell'aggiornamento delle tipologie di attivismo");
             // Non bloccare il salvataggio del profilo per questo errore
           }
         } catch (activismError) {
