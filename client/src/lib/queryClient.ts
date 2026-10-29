@@ -11,7 +11,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
+const apiRequestFunction = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>, externalSignal?: AbortSignal) => {
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -48,9 +48,13 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     };
     
     const controller = new AbortController();
+    const abortFromCaller = () => controller.abort();
+    if (externalSignal?.aborted) controller.abort();
+    else externalSignal?.addEventListener("abort", abortFromCaller, { once: true });
     const timeoutId = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
     const response = await fetch(finalUrl, { ...fetchOptions, signal: controller.signal }).finally(() => {
       clearTimeout(timeoutId);
+      externalSignal?.removeEventListener("abort", abortFromCaller);
     });
     
     // Leggi il body come testo prima di parsarlo
@@ -143,6 +147,8 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     } as any;
   } catch (error: any) {
     if (error?.name === 'AbortError') {
+      // La cancellazione di React Query non è un timeout e non va ritentata.
+      if (externalSignal?.aborted) throw error;
       throw new Error(`Timeout richiesta API (${DEFAULT_REQUEST_TIMEOUT_MS}ms): ${url}`);
     }
     // Se l'errore ha già status, rilancialo così com'è
