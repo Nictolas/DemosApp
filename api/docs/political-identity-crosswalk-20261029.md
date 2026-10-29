@@ -98,6 +98,35 @@ Collaudo preparato su PostgreSQL 17 effimero: fixture SQL esclusivamente sinteti
 
 La PR prepara sia il preflight sia un prototipo SQL NON distribuito; **nessuna modifica a Supabase, Render, al frontend o ai mandati reali**.
 
+## Verifica fonti istituzionali e ID canonici (29 ottobre 2026)
+
+Ricognizione pubblica di sette schede ufficiali documentata in
+`api/docs/political-institutional-source-evidence-seven-20261029.md` con dati
+strutturati e privi di UUID DEMOS in
+`api/docs/political-public-source-evidence-seven-20261029.json`.
+Tutte mostrano una carriera pubblica tra Camera e Senato; nessun account
+DEMOS è stato mappato, nessun `starts_at`/`ends_at` è stato ricostruito e
+nessuna approvazione di importazione è stata creata.
+
+Correzione di una incongruenza del preflight: le schede del Senato reali
+usano un URL `https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=00018055`
+o, per l'export, `/export/senator/full/19/18055`.
+L'auditor precedente rifiutava TUTTE le query string, quindi respingeva
+le schede reali. Ora consente esclusivamente il `did` numerico su percorsi
+di scheda riconosciuti (oppure il percorso export) e confronta
+l'identificativo canonico **senza zeri iniziali** con l'URL. I percorsi
+RDF `dati.camera.it/ocd/deputato.rdf/<id>` sono confrontati con il proprio
+ID dichiarato. Il solo host istituzionale senza corrispondenza di ID non
+basta.
+
+L'importatore SQL PostgreSQL nel ramo Draft applica lo stesso controllo
+per Camera RDF e Senato scheda/export, prima ancora di consultare il
+registro privato delle approvazioni. I test isolati coprono URL manipolati,
+ID discordanti, zeri iniziali, collisioni, date sovrapposte, rollback e
+concorrenza. Restano obbligatorie fonti per **ogni** legislatura e
+l'attribuzione verificata di un profilo DEMOS reale: il registro pubblico
+non è l'approvazione privata e non deve essere importato automaticamente.
+
 ## Gate di approvazione separata (29/10/2026)
 
 Il prototipo SQL è stato reso **fail closed**: prima di eseguire una funzione di importazione occorre un record esatto in `demos_internal.approved_political_mandate_imports`. Inserire soltanto `review_reference` e `reviewed_by` nei parametri della funzione **non è più sufficiente**.
