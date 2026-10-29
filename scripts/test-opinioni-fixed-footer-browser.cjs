@@ -48,6 +48,7 @@ async function run() {
       const errors = [];
       const writes = [];
       const saved = new Map();
+      const answerReads = [];
       page.on('pageerror', error => errors.push(error.message));
       const fulfill = (route, value) => route.fulfill({
         status: 200, contentType: 'application/json',
@@ -72,6 +73,7 @@ async function run() {
         }
         if (u.pathname === '/api/opinioni-list') {
           const grade = u.searchParams.get('grado');
+          answerReads.push(grade);
           const answers = saved.get(grade) || {};
           return fulfill(route, { success: true, total: Q.length, data: Q.map(q => ({
             ...q, userAnswer: answers[q.id] || null,
@@ -174,8 +176,11 @@ async function run() {
       await page.getByText('Opinioni non salvate').waitFor();
       await page.getByRole('button', { name: 'Annulla' }).click();
       assert.ok(page.url().endsWith('/opinioni-comunali'), 'Cancel must keep the current opinion page');
+      const beforeSaveReads = answerReads.length;
       await page.locator('footer[aria-label="Azioni delle opinioni"]').getByRole('button', { name: 'Salva le mie opinioni' }).click();
       await page.getByText('Le tue opinioni comunali sono state salvate.').waitFor({ timeout: 15000 });
+      assert.equal(answerReads.length, beforeSaveReads,
+        'Saving a delta must not refetch the full personal answer list');
       assert.ok(writes.length > 0, 'Save button must post the selected opinion');
       assert.equal(writes.at(-1)['synthetic-opinion-01'], 'f');
       assert.deepEqual(errors, [], 'No uncaught errors at ' + viewport.width + 'x' + viewport.height);
