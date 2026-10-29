@@ -1,5 +1,6 @@
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
 import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
+import { loadOpinionCategory, cacheConfirmedOpinionAnswers } from "@/lib/encryptedOpinionCache";
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -45,14 +46,11 @@ export default function OpinioniComunali() {
   // 1. Query per caricare le domande
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
     queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Comunale'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=CO");
-      if (response.ok && response.data) {
-        return response.data;
-      }
-      return { success: false, data: [] };
-    },
-    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true
+    queryFn: ({ signal }) => loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp, "CO", signal) as any,
+    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false
   });
 
   // Combina i dati
@@ -103,6 +101,8 @@ export default function OpinioniComunali() {
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("CO", newOpinions),
     onSuccess: async (_data, savedOpinions) => {
+      // ACK commit has completed: persist all shared encrypted grade caches.
+      await cacheConfirmedOpinionAnswers(user!.id, verifiedPoliticalConsent!.timestamp, savedOpinions);
       // An older in-flight GET must not restore the pre-save snapshot.
       await queryClient.cancelQueries({
         queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Comunale'],
