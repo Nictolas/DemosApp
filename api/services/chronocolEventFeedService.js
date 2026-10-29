@@ -60,7 +60,10 @@ function buildPageUrl(page = 1) {
   url.searchParams.set('pagination[page]', String(page));
   url.searchParams.set('pagination[pageSize]', String(PAGE_SIZE));
   url.searchParams.set('filters[VERIFICATA][$eq]', 'true');
-  url.searchParams.set('filters[ANNULLATA][$eq]', 'false');
+  // Chrono usa ANNULLATA=null per alcuni eventi attivi (es. Pisa 30/10/2026).
+  // Il filtro $eq=false in Strapi li esclude. La validazione sul record
+  // esclude soltanto ANNULLATA === true: annullamenti espliciti.
+
   url.searchParams.set('sort[0]', 'DATA_ORARIO:asc');
   return url.href;
 }
