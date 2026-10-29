@@ -51,12 +51,13 @@ test("the first bottom nav item is Profile, with no Favorites or Settings tab", 
   assert.doesNotMatch(profile, /Collegamenti del profilo/);
 });
 
-test("owner Profile places a compact icon-only Settings shortcut before Demos logo", () => {
+test("owner Profile keeps Demos logo left and the icon-only Settings shortcut on the right", () => {
   const settings = profile.indexOf('data-testid="profilo-impostazioni-icon"');
   const logo = profile.indexOf('data-testid="profilo-logo-gestisci"');
   const heading = profile.indexOf('Profilo Utente');
-  assert.ok(settings > 0 && settings < logo && logo < heading,
-    "Settings shortcut must precede the Demos logo in the header");
+  assert.ok(logo > 0 && logo < heading && heading < settings,
+    "Demos logo must precede the title; Settings must be the rightmost header item");
+  assert.match(profile, /<div className="min-w-0 flex-1">/);
   assert.match(profile, /aria-label="Apri impostazioni"/);
   assert.match(profile, /title="Impostazioni"/);
   assert.match(profile, /<Settings aria-hidden="true" className="h-5 w-5" \/>/);
