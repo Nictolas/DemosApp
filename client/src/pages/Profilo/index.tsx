@@ -7,7 +7,7 @@ import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
 import { PageContainer } from "@/components/PageContainer";
 import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
-import { ChevronDown, Settings, Star, RefreshCcw } from "lucide-react";
+import { ChevronDown, Settings, RefreshCcw } from "lucide-react";
 
 // Componenti modulari
 import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
@@ -115,7 +115,18 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
           <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-10 blur-xl"></div>
           <div className="absolute -top-2 -right-4 w-16 h-16 bg-gradient-to-br from-pink-400 to-orange-500 rounded-full opacity-10 blur-xl"></div>
           
-          <div className="relative flex items-center gap-3 text-left">
+          <div className="relative flex items-center gap-2 sm:gap-3 text-left">
+            {isViewingOwnProfile && (
+              <Link
+                href="/impostazioni"
+                aria-label="Apri impostazioni"
+                title="Impostazioni"
+                data-testid="profilo-impostazioni-icon"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-indigo-100 bg-white text-indigo-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+              >
+                <Settings aria-hidden="true" className="h-5 w-5" />
+              </Link>
+            )}
             {isViewingOwnProfile && (
               (hasAdminCapability(user) || hasDpoCapability(user)) ? (
                 <button
@@ -144,16 +155,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
         </div>
 
         <div className="space-y-4">
-        {isViewingOwnProfile && (
-          <nav aria-label="Collegamenti del profilo" className="grid grid-cols-2 gap-3">
-            <Link href="/preferiti" className="flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-3 text-sm font-semibold text-indigo-700 shadow-sm">
-              <Star className="h-4 w-4" aria-hidden="true" /> Preferiti
-            </Link>
-            <Link href="/impostazioni" className="flex items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-3 text-sm font-semibold text-indigo-700 shadow-sm">
-              <Settings className="h-4 w-4" aria-hidden="true" /> Impostazioni
-            </Link>
-          </nav>
-        )}
         {isViewingOwnProfile && (
           <button type="button" onClick={() => void fetchAllProfileData()}
             className="flex items-center gap-1.5 text-xs font-medium text-indigo-700"
