@@ -326,8 +326,12 @@ if (process.env.NODE_ENV !== 'production') {
 // Route di base
 app.use('/api', healthRoutes);
 
-// Route per database
-app.use('/api', databaseRoutes);
+// Endpoint legacy di introspezione schema: mai esporlo in produzione,
+// neppure con ALLOW_DEV_API_SURFACE=true. Non protegge il restore: riduce
+// soltanto una connessione diretta/diagnostica fuori dal pool canonico.
+if (!isProductionApp) {
+  app.use('/api', databaseRoutes);
+}
 
 // Route per compatibilitÃ  frontend
 app.use('/api', compatibilityRoutes);
