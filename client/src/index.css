@@ -171,12 +171,11 @@ th[class*="overflow"] {
   }
 }
 
-/* Il grafico delle regioni gestisce il trascinamento orizzontale con
-   touchmove non-passivo e preventDefault. pan-y lascia intatto lo scroll
-   verticale della pagina e non abilita lo swipe-back orizzontale nativo. */
+/* I grafici a barre scorrevoli in Statistiche Utenti gestiscono
+   orizzontalmente touchmove, lasciando nativo soltanto lo scroll verticale. */
 @media (max-width: 768px) {
-  .utenti-region-chart-scroll,
-  .utenti-region-chart-scroll * {
+  .utenti-horizontal-chart-scroll,
+  .utenti-horizontal-chart-scroll * {
     touch-action: pan-y !important;
   }
 }
