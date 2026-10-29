@@ -69,7 +69,7 @@ function auditPoliticalIdentityCrosswalk(cases) {
     for (const id of ids) {
       if (userOwners.has(id)) {
         errors.add('USER_IN_MULTIPLE_CASES');
-        result[userOwners.get(id)].errors.add('USER_IN_MULTIPLE_CASES');
+        if (userOwners.get(id) < result.length) result[userOwners.get(id)].errors.add('USER_IN_MULTIPLE_CASES');
       } else userOwners.set(id, result.length);
     }
 
