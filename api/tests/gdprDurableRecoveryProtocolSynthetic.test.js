@@ -65,8 +65,8 @@ test('NO-GO after PostgreSQL commit but BEFORE witnessed commit acknowledgment',
 test('NO-GO if external witness or checkpoint is missing/stale/forged',()=>{
   const {journal,db,witness}=setup();
   const old=db.snapshot();
-  const stale=witness.current();
   submitSyntheticOperation(db,journal,op('delete-1'));
+  const stale=witness.current();
   journal.seal();
   assert.throws(()=>restoreSyntheticSnapshot(old,journal,
     quarantine(journal,{independentWitness:null})),{code:'GDPR_MODEL_WITNESS_MISSING'});
