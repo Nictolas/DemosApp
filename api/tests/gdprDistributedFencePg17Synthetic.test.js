@@ -46,7 +46,7 @@ if (!permitted) {
     await ownerPool.query('CREATE TABLE '+SCHEMA+
       '.gate (singleton boolean PRIMARY KEY DEFAULT true, open boolean NOT NULL,'+
       ' epoch bigint NOT NULL CHECK (epoch > 0),'+
-      " database_id text NOT NULL CHECK(length(database_id)>0), CHECK(singleton=true))');"
+      ' database_id text NOT NULL CHECK(length(database_id)>0), CHECK(singleton=true))');
     await ownerPool.query('INSERT INTO '+SCHEMA+'.gate (singleton,open,epoch,database_id) VALUES (true,true,1,\'original-primary\')');
     await ownerPool.query('CREATE TABLE '+SCHEMA+
       '.accounts (id text PRIMARY KEY, consent boolean NOT NULL,'+
