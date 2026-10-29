@@ -73,15 +73,17 @@ export default function Eventi() {
   const isAdmin = user?.ruolo === "AD";
   
   // State for admin tabs
-  const [activeTab, setActiveTab] = useState<'personal' | 'global'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal' | 'global' | 'mobilitazioni'>('personal');
 
   // Fetch eventi data from API
   const { data: eventiResponse, isLoading: eventiLoading, refetch } = useQuery<any>({
-    queryKey: ["/api/eventi", isAdmin ? activeTab : 'personal'],
+    queryKey: ["/api/eventi", activeTab],
     queryFn: async () => {
-      const url = isAdmin && activeTab === 'global' 
-        ? "/api/eventi?view=global" 
-        : "/api/eventi?view=personal";
+      const url = activeTab === 'mobilitazioni'
+        ? "/api/eventi?view=mobilitazioni"
+        : isAdmin && activeTab === 'global'
+          ? "/api/eventi?view=global"
+          : "/api/eventi?view=personal";
       const response = await apiRequest("GET", url);
       if (!response?.ok || !response?.data) {
         const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento degli eventi";
@@ -280,33 +282,37 @@ export default function Eventi() {
           )}
         </div>
 
-        {/* Admin Tabs */}
-        {isAdmin && (
-          <div className="flex justify-center mb-8">
-            <div className="bg-white rounded-lg p-1 shadow-sm border">
-              <button
-                onClick={() => setActiveTab('personal')}
-                className={`px-6 py-2 rounded-md font-medium transition-colors ${
-                  activeTab === 'personal'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Personali
-              </button>
+        {/* Filtri nella pagina Eventi esistente: nessuna nuova sezione navbar */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-white rounded-lg p-1 shadow-sm border flex flex-wrap justify-center gap-1">
+            <button
+              onClick={() => setActiveTab('personal')}
+              className={`px-4 sm:px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'personal' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Personali
+            </button>
+            {isAdmin && (
               <button
                 onClick={() => setActiveTab('global')}
-                className={`px-6 py-2 rounded-md font-medium transition-colors ${
-                  activeTab === 'global'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900'
+                className={`px-4 sm:px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Globale
               </button>
-            </div>
+            )}
+            <button
+              onClick={() => setActiveTab('mobilitazioni')}
+              className={`px-4 sm:px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'mobilitazioni' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Mobilitazioni
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Schede Eventi */}
         <div className="space-y-4">
