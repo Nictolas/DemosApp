@@ -144,7 +144,7 @@ router.get('/', verifyToken, async (req, res) => {
 
     return res.json({
       success: true,
-      data: feed.events,
+      data: mergeChronocol(feed.events, await retrieveChronocol(), { user: feed.user }),
       // La stessa SELECT utente del feed personale fornisce la localizzazione:
       // nessuna query aggiuntiva per filtrare provincia/regione nel client.
       territory: {
