@@ -82,9 +82,6 @@ export default function OpinioniNazionali() {
   
   // Debug
   useEffect(() => {
-    console.log('🔍 DEBUG - questionsData:', questionsData);
-    console.log('🔍 DEBUG - questions:', questions);
-    console.log('🔍 DEBUG - questions.length:', questions.length);
   }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
@@ -104,10 +101,6 @@ export default function OpinioniNazionali() {
 
   // Debug per vedere le sezioni
   useEffect(() => {
-    console.log('🔍 DEBUG - opinioniEspresse:', opinioniEspresse);
-    console.log('🔍 DEBUG - opinioniDaInserire:', opinioniDaInserire);
-    console.log('🔍 DEBUG - opinioniEspresse.length:', opinioniEspresse.length);
-    console.log('🔍 DEBUG - opinioniDaInserire.length:', opinioniDaInserire.length);
   }, [opinioniEspresse, opinioniDaInserire]);
 
   // Sincronizza le opinioni quando le domande vengono caricate
@@ -170,15 +163,11 @@ export default function OpinioniNazionali() {
   };
 
   const handleSave = () => {
-    console.log('🔍 DEBUG handleSave:');
-    console.log('  questions:', questions);
-    console.log('  opinions:', opinions);
     
     // Only changed IDs: never overwrite positions from another device.
     const opinionsToSave = collectChangedOpinionAnswers(questions, opinions);
 
     if (Object.keys(opinionsToSave).length === 0) {
-      console.log('❌ DEBUG: Nessuna opinione da salvare');
       toast({ title: "Attenzione", description: "Non ci sono nuove opinioni da salvare.", variant: "destructive" });
       return;
     }
@@ -192,7 +181,6 @@ export default function OpinioniNazionali() {
       return;
     }
     
-    console.log('✅ DEBUG: Procedo con il salvataggio');
     saveMutation.mutate(opinionsToSave);
   };
 
@@ -202,9 +190,6 @@ export default function OpinioniNazionali() {
   const handleConsentGranted = async () => {
     // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
     if (pendingOpinionsToSave) {
-      console.log('✅ DEBUG: Consenso concesso, aggiorno la cache e procedo con il salvataggio delle opinioni');
-      console.log('✅ DEBUG: Opinion in attesa da salvare:', pendingOpinionsToSave);
-      console.log('✅ DEBUG: Numero opinioni in attesa:', Object.keys(pendingOpinionsToSave).length);
       
       // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
       await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
@@ -218,7 +203,6 @@ export default function OpinioniNazionali() {
       setTimeout(() => {
         // Verifica che le opinioni siano ancora valide
         if (allOpinionsToSave && Object.keys(allOpinionsToSave).length > 0) {
-          console.log('✅ DEBUG: Invio opinioni al backend:', allOpinionsToSave);
           saveMutation.mutate(allOpinionsToSave);
         } else {
           console.error('❌ DEBUG: Nessuna opinione valida da salvare dopo il consenso');
