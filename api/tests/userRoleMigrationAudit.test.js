@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { inspectLine, kindFor, inventory, markdown } = require('../../scripts/audit-user-role-migration');
+const { inspectLine, kindFor, classifyRoleEvidence, inventory, markdown } = require('../../scripts/audit-user-role-migration');
 
 test('inventory finds role references in SQL and JS without confusing status across all services', () => {
   assert.deepEqual(inspectLine("SELECT u.ruolo, u.account_type, u.status FROM users u"),
@@ -45,6 +45,30 @@ test('inventory scans explicit test fixture safely and reports paths and lines, 
     assert.equal(result.entries[0].line, 2);
     assert.doesNotMatch(JSON.stringify(result), /test-synthetic-secret/);
     assert.match(markdown(result), /Read-only static inventory/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+
+test('classifies role candidates conservatively without treating ministers as users', () => {
+  assert.equal(classifyRoleEvidence("WHERE u.ruolo = 'P'"), 'EXPLICIT_SQL_ACCOUNT_FIELD');
+  assert.equal(classifyRoleEvidence('user?.ruolo'), 'ACCOUNT_OBJECT_PROPERTY_CANDIDATE');
+  assert.equal(classifyRoleEvidence('const role = ministro.ruolo;'), 'GENERIC_ROLE_UNRESOLVED');
+  assert.equal(classifyRoleEvidence("SELECT ruolo FROM users"), 'SQL_FIELD_UNRESOLVED');
+  assert.equal(classifyRoleEvidence('ruolo: accountSubject.legacyRole'), 'PAYLOAD_OR_FIELD_UNRESOLVED');
+  assert.equal(classifyRoleEvidence('account_type: row.account_type'), null);
+});
+
+test('inventory aggregates evidence classes without exposing source content', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'demos-role-audit-evidence-'));
+  try {
+    fs.writeFileSync(path.join(root, 'fake.js'), "u.ruolo\nuser.ruolo\nminister.ruolo\n");
+    const result = inventory(root, ['fake.js']);
+    assert.equal(result.role_evidence_counts.EXPLICIT_SQL_ACCOUNT_FIELD, 1);
+    assert.equal(result.role_evidence_counts.ACCOUNT_OBJECT_PROPERTY_CANDIDATE, 1);
+    assert.equal(result.role_evidence_counts.GENERIC_ROLE_UNRESOLVED, 1);
+    assert.match(markdown(result), /Legacy role evidence/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
