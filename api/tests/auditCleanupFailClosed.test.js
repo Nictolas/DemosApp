@@ -274,3 +274,106 @@ test('RP-10 blocks direct rate-limit service cleanup before querying SQL', async
   );
   assert.equal(dbCalls, 0);
 });
+
+
+test('RP-10: monitoring and logging cleanup routes never succeed without approved retention', async () => {
+  for (const file of ['monitoring', 'logging']) {
+    for (const enabled of [false, true]) {
+      let calls = 0;
+      const handlers = new Map();
+      const router = {
+        use() {}, get() {}, put() {}, delete() {}, patch() {},
+        post(route, ...fn) { handlers.set(route, fn[fn.length - 1]); }
+      };
+      const dependencies = {
+        express: { Router: () => router },
+        '../../middleware/auth': { verifyToken() {}, requireAdmin() {}, pool: {} },
+        '../../middleware/auditMiddleware': { auditMiddleware() {} },
+        '../../services/performanceMonitor': { cleanupOldMetrics: async () => { calls++; return 2; } },
+        '../../services/performanceOptimizer': { stop() {} },
+        '../../services/healthCheckService': { cleanupHealthHistory: async () => { calls++; return 3; } },
+        '../../services/centralizedLogger': { cleanupOldLogs: async () => { calls++; return 0; } },
+        '../../utils/axiomQueryHelper': { queryAxiom() {}, getCentralizedLogs() {} },
+        '../../services/redisCache': {},
+        '../../services/requestMetrics': {},
+        child_process: { execFile() {} },
+        util: { promisify: () => async () => {} },
+        path: require('node:path')
+      };
+      const src = fs.readFileSync(path.join(__dirname, '../routes/admin/' + file + '.js'), 'utf8');
+      new Function('require', 'module', 'console', 'process', src)(name => {
+        if (Object.hasOwn(dependencies, name)) return dependencies[name];
+        throw new Error('Unexpected dependency: ' + name);
+      }, { exports: {} }, { error() {}, warn() {}, log() {} },
+      { env: { AXIOM_ENABLED: enabled ? 'true' : 'false' } });
+      const handler = handlers.get('/cleanup');
+      assert.equal(typeof handler, 'function', file);
+      for (const days of [30, -1, 'unapproved']) {
+        const res = {
+          statusCode: 200,
+          status(code) { this.statusCode = code; return this; },
+          json(body) { this.body = body; return this; }
+        };
+        await handler({ body: { retentionDays: days } }, res);
+        assert.equal(res.statusCode, 409, file);
+        assert.deepEqual(res.body, {
+          success: false,
+          error: file === 'monitoring'
+            ? 'RETENTION_POLICY_NOT_APPROVED' : 'LOG_RETENTION_POLICY_NOT_APPROVED'
+        }, file);
+      }
+      assert.equal(calls, 0, file);
+    }
+  }
+});
+
+test('RP-10: direct metrics, health and logging cleanup methods reject before SQL', async () => {
+  for (const [filename, method] of [
+    ['performanceMonitor', 'cleanupOldMetrics'],
+    ['healthCheckService', 'cleanupHealthHistory'],
+    ['centralizedLogger', 'cleanupOldLogs']
+  ]) {
+    const src = fs.readFileSync(path.join(__dirname, '../services/' + filename + '.js'), 'utf8');
+    for (const axiom of [false, true]) {
+      let queries = 0;
+      const fakeProcess = { env: {
+        AXIOM_ENABLED: axiom ? 'true' : 'false',
+        LOG_TO_FILE: 'false', LOG_TO_DATABASE: 'false'
+      } };
+      const dependencies = {
+        '../middleware/auth': { pool: { query: async () => { queries++; throw new Error('UNEXPECTED_SQL'); } } },
+        './performanceMonitor': {},
+        './centralizedLogger': {},
+        '../utils/logPrivacy': {
+          sanitizeLogMeta: value => value,
+          minimizeOperationalPath: value => value,
+          safeDiagnosticCode: value => value
+        },
+        '../utils/logEventPolicy': { normalizeLevel: () => 2, shouldWriteLogEvent: () => true },
+        '../utils/logDeliveryFailureReporter': { createFailureReporter: () => () => {} },
+        '@axiomhq/axiom-node': {}
+      };
+      const wrapped = filename === 'performanceMonitor'
+        ? src : 'const process = __mockProcess;\n' + src;
+      const mod = { exports: {} };
+      new Function('require', 'module', 'console', '__dirname', '__mockProcess', wrapped)(name => {
+        if (Object.hasOwn(dependencies, name)) return dependencies[name];
+        if (name === 'process') return fakeProcess;
+        if (['os','fs','path','child_process','util'].includes(name)) return require(name);
+        throw new Error('Unexpected dependency: ' + name);
+      }, mod, { error() {}, warn() {}, log() {} },
+      path.join(__dirname, '../services'), fakeProcess);
+      assert.equal(typeof mod.exports[method], 'function', filename);
+      for (const days of [30, -1, 'unapproved']) {
+        await assert.rejects(
+          () => mod.exports[method](days),
+          error => error?.code === (filename === 'centralizedLogger'
+            ? 'LOG_RETENTION_POLICY_NOT_APPROVED' : 'RETENTION_POLICY_NOT_APPROVED')
+            && error?.statusCode === 409,
+          filename
+        );
+      }
+      assert.equal(queries, 0, filename);
+    }
+  }
+});
