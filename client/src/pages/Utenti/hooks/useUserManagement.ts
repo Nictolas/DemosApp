@@ -6,10 +6,6 @@ export const useUserManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRuolo, setSelectedRuolo] = useState<string>("all");
   const [selectedGradoElezione, setSelectedGradoElezione] = useState<string>("all");
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showEditOpinioniDialog, setShowEditOpinioniDialog] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [sortField, setSortField] = useState<keyof User>('nome_completo');
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -56,14 +52,6 @@ export const useUserManagement = () => {
     setSearchTerm,
     selectedRuolo,
     selectedGradoElezione,
-    userToDelete,
-    setUserToDelete,
-    showEditDialog,
-    setShowEditDialog,
-    showEditOpinioniDialog,
-    setShowEditOpinioniDialog,
-    selectedUser,
-    setSelectedUser,
     sortState,
     paginationState,
     lastUpdateTime,

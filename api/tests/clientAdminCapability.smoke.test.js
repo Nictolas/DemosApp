@@ -27,12 +27,24 @@ test('Admin route classifier covers operational and management surfaces', () => 
     '/notifiche-totali',
     '/utenti',
     '/test-ministero',
-    '/statistiche-utenti',
   ]) {
     assert.match(src, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
   assert.match(src, /startsWith\(\"\/gestisci-\"\)/);
   assert.match(src, /startsWith\(\"\/admin\/\"\)/);
+});
+
+test('legacy statistics URL redirects to the unified Admin Users page', () => {
+  const app = read('client/src/App.tsx');
+  const users = read('client/src/pages/Utenti/index.tsx');
+  const adminRoutes = read('client/src/lib/admin-access.ts');
+
+  assert.match(app, /<Route path="\/statistiche-utenti">\s*<Redirect to="\/utenti" \/>\s*<\/Route>/);
+  assert.doesNotMatch(app, /import StatisticheUtenti from/);
+  assert.equal(fs.existsSync(path.join(ROOT, 'client/src/pages/StatisticheUtenti.tsx')), false);
+  assert.doesNotMatch(adminRoutes, /["']\/statistiche-utenti["']/);
+  assert.match(users, /<TabsTrigger value="statistiche"/);
+  assert.match(users, /hasAdminCapability\(user\)/);
 });
 
 test('AppWrapper blocks direct Admin routes before rendering the route tree', () => {

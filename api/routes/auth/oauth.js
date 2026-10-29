@@ -26,7 +26,7 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID || ''; // Service ID (bundle ID per app native)
 
 /**
- * Verifica id_token Google e restituisce payload (sub, email, name).
+ * Verifica id_token Google e trattiene soltanto sub ed email per DEMOS.
  */
 async function verifyGoogleIdToken(idToken) {
   if (!GOOGLE_CLIENT_ID) {
@@ -41,9 +41,6 @@ async function verifyGoogleIdToken(idToken) {
   return {
     sub: payload.sub,
     email: payload.email || null,
-    name: payload.name || null,
-    given_name: payload.given_name || null,
-    family_name: payload.family_name || null,
   };
 }
 
@@ -73,9 +70,6 @@ async function verifyAppleIdToken(identityToken) {
     sub: payload.sub,
     email: payload.email || null,
     email_verified: payload.email_verified === true || payload.email_verified === 'true',
-    name: null,
-    given_name: null,
-    family_name: null,
   };
 }
 
@@ -156,9 +150,6 @@ router.post('/oauth/google', authLimiter, async (req, res) => {
       provider: 'google',
       provider_sub: profile.sub,
       email: profile.email || null,
-      given_name: profile.given_name || null,
-      family_name: profile.family_name || null,
-      name: profile.name || null,
     });
 
     res.json({
@@ -215,9 +206,6 @@ router.post('/oauth/apple', authLimiter, async (req, res) => {
       provider: 'apple',
       provider_sub: profile.sub,
       email: profile.email || null,
-      given_name: profile.given_name || null,
-      family_name: profile.family_name || null,
-      name: profile.name || null,
     });
 
     res.json({
@@ -289,9 +277,6 @@ router.post('/oauth/complete-registration', authLimiter, async (req, res) => {
       provider,
       providerSub,
       email: payload.email || null,
-      givenName: payload.given_name || null,
-      familyName: payload.family_name || null,
-      name: payload.name || null,
       location: {
         paese_residenza: paese_residenza || null,
         regione_residenza: regione_residenza || null,

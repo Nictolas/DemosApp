@@ -1,0 +1,27 @@
+name: Utenti age statistics — real data regression
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/pages/Utenti/index.tsx'
+      - 'api/tests/userAgeStatistics.smoke.test.js'
+      - '.github/workflows/utenti-age-statistics.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  age-stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reject fabricated age data
+        run: node --test api/tests/userAgeStatistics.smoke.test.js
+      - name: Install client dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend
+        run: npm run build --prefix client

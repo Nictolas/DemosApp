@@ -1,5 +1,5 @@
 -- Tabella per le richieste di riconoscimento ruolo politico/candidato
--- Ogni riga rappresenta una richiesta pendente da parte di un utente.
+-- Ogni riga rappresenta una richiesta, inclusi esito e riferimenti pubblici.
 
 CREATE TABLE IF NOT EXISTS riconoscimenti (
   id VARCHAR(255) PRIMARY KEY,
@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS riconoscimenti (
   provincia_candidatura VARCHAR(100),
   comune_candidatura VARCHAR(100),
   grado_candidatura VARCHAR(100),
+  fonte_elezione_url TEXT,
+  fonte_candidatura_url TEXT,
+  status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  decision_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

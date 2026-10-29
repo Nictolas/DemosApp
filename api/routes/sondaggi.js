@@ -4,6 +4,7 @@ const { pool } = require('../middleware/auth');
 const { compressRegione, compressProvince, decompressRegione, decompressProvince } = require('../utils/locationUtils');
 const { decompressGender } = require('../utils/genderUtils');
 const { MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE: minimumCellSize, cellThresholdMet } = require('../utils/politicalAggregatePrivacy');
+const { getNationalSurveyStats, getTerritorialSurveyStats } = require('../utils/sondaggiTextBulk');
 
 const router = express.Router();
 
@@ -21,94 +22,13 @@ router.get('/', async (req, res) => {
     const questionsResult = await pool.query(questionsQuery);
     const opinioni = questionsResult.rows;
     
-    // 2. Poi genera statistiche aggregate dalle risposte degli utenti
-    const stats = {};
-    // Elenca tutte le opinioni pubblicate, indipendentemente dai conteggi visibili.
-    // Le statistiche sotto la soglia di privacy restano escluse da stats.
+    // Aggregate the published, schema-validated TEXT opinion columns in one
+    // query. Preserve the legacy {stats, questions} payload, explicit
+    // consent/PERSON filters and minimum 10-person disclosure threshold.
+    // The helper falls back to per-opinion reads if aggregation is unavailable.
     const questions = opinioni.map(({ id, text }) => ({ id, text }));
-    
-    for (const opinione of opinioni) {
-      const questionId = opinione.id;
-      const questionText = opinione.text;
-      
-      // Log per debug: verifica se l'opinione "Leva obbligatoria" viene trovata
-      if (questionText && questionText.toLowerCase().includes('leva')) {
-        console.log(`🔍 DEBUG - Trovata opinione "Leva": ID=${questionId}, Text="${questionText}"`);
-      }
-      
-      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
-      // Verifica che la colonna esista prima di usarla
-      let columnName = questionId;
-      
-      // Verifica che la colonna esista nella tabella opinioni_risposte
-      const columnCheckQuery = `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'opinioni_risposte' 
-        AND column_name = $1
-      `;
-      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
-      
-      if (columnCheck.rows.length === 0) {
-        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId} (text: "${questionText}"), salto`);
-        continue; // Salta questa opinione se la colonna non esiste
-      }
-      
-      // Log per debug: verifica se la colonna viene trovata per "Leva obbligatoria"
-      if (questionText && questionText.toLowerCase().includes('leva')) {
-        console.log(`✅ DEBUG: Colonna trovata per opinione "Leva": ${columnName}`);
-      }
-      
-      // Query per contare le risposte per questa opinione dalla tabella opinioni_risposte
-      // Usa virgolette doppie per quotare correttamente il nome della colonna
-      const statsQuery = `
-        SELECT 
-          COUNT(*) as totale_voti,
-          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso
-        FROM opinioni_risposte orr
-        JOIN users u ON u.id = orr.user_id
-        LEFT JOIN user_consents uc ON uc.user_id = u.id
-        WHERE orr."${columnName}" IS NOT NULL
-        AND u.account_type = 'PERSON'
-        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
-      `;
-      
-      try {
-        const statsResult = await pool.query(statsQuery);
-        const row = statsResult.rows[0];
-        
-        // Log per debug: verifica i risultati per "Leva obbligatoria"
-        if (questionText && questionText.toLowerCase().includes('leva')) {
-          console.log(`📊 DEBUG: Statistiche per "Leva obbligatoria":`, {
-            totale_voti: row.totale_voti,
-            favorevole: row.favorevole,
-            contrario: row.contrario,
-            indeciso: row.indeciso
-          });
-        }
-        
-        const aggregate = {
-          favorevole: parseInt(row.favorevole) || 0,
-          contrario: parseInt(row.contrario) || 0,
-          indeciso: parseInt(row.indeciso) || 0
-        };
-        if (!cellThresholdMet(aggregate)) {
-          continue;
-        }
-        stats[questionId] = aggregate;
-// Log per debug: verifica se l'opinione viene aggiunta alla lista
-        if (questionText && questionText.toLowerCase().includes('leva')) {
-          console.log(`✅ DEBUG: Opinione "Leva obbligatoria" con aggregato pubblicabile`);
-        }
-      } catch (statsError) {
-        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} (text: "${questionText}"):`, statsError.message);
-        // Se la colonna non esiste, salta questa opinione
-        continue;
-      }
-    }
-    
+    const stats = await getNationalSurveyStats(pool, opinioni);
+
     res.json({
       success: true,
       data: {
@@ -354,71 +274,14 @@ router.get('/:regione', async (req, res) => {
     const questionsResult = await pool.query(questionsQuery);
     const opinioni = questionsResult.rows;
     
-    // 2. Poi genera statistiche aggregate dalle risposte degli utenti per la regione
-    const stats = {};
-    // Elenca tutte le opinioni pubblicate, indipendentemente dai conteggi visibili.
-    // Le statistiche sotto la soglia di privacy restano escluse da stats.
+    // One published-question catalog query, one schema whitelist query and
+    // one grouped TEXT query. Preserve consent, PERSON and privacy >=10.
+    // A grouped-query failure falls back to the prior per-opinion semantics.
     const questions = opinioni.map(({ id, text }) => ({ id, text }));
-    
-    for (const opinione of opinioni) {
-      const questionId = opinione.id;
-      const questionText = opinione.text;
-      
-      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
-      // Verifica che la colonna esista prima di usarla
-      let columnName = questionId;
-      
-      // Verifica che la colonna esista nella tabella opinioni_risposte
-      const columnCheckQuery = `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'opinioni_risposte' 
-        AND column_name = $1
-      `;
-      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
-      
-      if (columnCheck.rows.length === 0) {
-        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId}, salto`);
-        continue; // Salta questa opinione se la colonna non esiste
-      }
-      
-      // Query per contare le risposte per questa opinione nella regione specifica
-      // Usa quote_ident per quotare correttamente il nome della colonna
-      const statsQuery = `
-        SELECT 
-          COUNT(*) as totale_voti,
-          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso
-        FROM opinioni_risposte orr
-        JOIN users u ON u.id = orr.user_id
-        LEFT JOIN user_consents uc ON uc.user_id = u.id
-        WHERE orr."${columnName}" IS NOT NULL
-        AND u.account_type = 'PERSON'
-        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
-        AND u.regione_residenza = $1
-      `;
-      
-      try {
-        const statsResult = await pool.query(statsQuery, [regionCode]);
-        const row = statsResult.rows[0];
-        
-        const aggregate = {
-          favorevole: parseInt(row.favorevole) || 0,
-          contrario: parseInt(row.contrario) || 0,
-          indeciso: parseInt(row.indeciso) || 0
-        };
-        if (!cellThresholdMet(aggregate)) {
-          continue;
-        }
-        stats[questionId] = aggregate;
-} catch (statsError) {
-        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in regione ${regionName}:`, statsError.message);
-        // Se la colonna non esiste, salta questa opinione
-        continue;
-      }
-    }
-    
+    const stats = await getTerritorialSurveyStats(pool, opinioni, {
+      scope: 'regione', params: [regionCode]
+    });
+
     res.json({
       success: true,
       data: {
@@ -470,70 +333,14 @@ router.get('/:regione/:provincia', async (req, res) => {
     const questionsResult = await pool.query(questionsQuery);
     const opinioni = questionsResult.rows;
     
-    // 2. Poi genera statistiche aggregate dalle risposte degli utenti per la provincia
-    const stats = {};
-    // Elenca tutte le opinioni pubblicate, indipendentemente dai conteggi visibili.
-    // Le statistiche sotto la soglia di privacy restano escluse da stats.
+    // One published-question catalog query, one schema whitelist query and
+    // one grouped TEXT query. Preserve consent, PERSON and privacy >=10.
+    // A grouped-query failure falls back to the prior per-opinion semantics.
     const questions = opinioni.map(({ id, text }) => ({ id, text }));
-    
-    for (const opinione of opinioni) {
-      const questionId = opinione.id;
-      const questionText = opinione.text;
-      
-      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
-      // Verifica che la colonna esista prima di usarla
-      let columnName = questionId;
-      
-      // Verifica che la colonna esista nella tabella opinioni_risposte
-      const columnCheckQuery = `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'opinioni_risposte' 
-        AND column_name = $1
-      `;
-      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
-      
-      if (columnCheck.rows.length === 0) {
-        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId}, salto`);
-        continue; // Salta questa opinione se la colonna non esiste
-      }
+    const stats = await getTerritorialSurveyStats(pool, opinioni, {
+      scope: 'provincia', params: [regionCode, provinciaCode]
+    });
 
-      // Usa quote_ident per quotare correttamente il nome della colonna
-      const statsQuery = `
-        SELECT 
-          COUNT(*) as totale_utenti,
-          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso
-        FROM opinioni_risposte orr
-        JOIN users u ON u.id = orr.user_id
-        LEFT JOIN user_consents uc ON uc.user_id = u.id
-        WHERE orr."${columnName}" IS NOT NULL
-        AND u.account_type = 'PERSON'
-        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
-        AND u.regione_residenza = $1
-        AND u.provincia_residenza = $2
-      `;
-      
-      try {
-        const statsResult = await pool.query(statsQuery, [regionCode, provinciaCode]);
-        const row = statsResult.rows[0];
-        
-        const aggregate = {
-          favorevole: parseInt(row.favorevole) || 0,
-          contrario: parseInt(row.contrario) || 0,
-          indeciso: parseInt(row.indeciso) || 0
-        };
-        if (!cellThresholdMet(aggregate)) {
-          continue;
-        }
-        stats[questionId] = aggregate;
-} catch (statsError) {
-        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in provincia ${provinciaName}:`, statsError.message);
-        continue;
-      }
-    }
-    
     res.json({
       success: true,
       data: {
@@ -588,71 +395,14 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
     const questionsResult = await pool.query(questionsQuery);
     const opinioni = questionsResult.rows;
     
-    // 2. Poi genera statistiche aggregate dalle risposte degli utenti per il comune
-    const stats = {};
-    // Elenca tutte le opinioni pubblicate, indipendentemente dai conteggi visibili.
-    // Le statistiche sotto la soglia di privacy restano escluse da stats.
+    // One published-question catalog query, one schema whitelist query and
+    // one grouped TEXT query. Preserve consent, PERSON and privacy >=10.
+    // A grouped-query failure falls back to the prior per-opinion semantics.
     const questions = opinioni.map(({ id, text }) => ({ id, text }));
-    
-    for (const opinione of opinioni) {
-      const questionId = opinione.id;
-      const questionText = opinione.text;
-      
-      // Usa direttamente l'ID dell'opinione come nome colonna (le colonne hanno lo stesso nome degli ID)
-      // Verifica che la colonna esista prima di usarla
-      let columnName = questionId;
-      
-      // Verifica che la colonna esista nella tabella opinioni_risposte
-      const columnCheckQuery = `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'opinioni_risposte' 
-        AND column_name = $1
-      `;
-      const columnCheck = await pool.query(columnCheckQuery, [columnName]);
-      
-      if (columnCheck.rows.length === 0) {
-        console.log(`⚠️ DEBUG: Colonna non trovata per opinione ${questionId}, salto`);
-        continue; // Salta questa opinione se la colonna non esiste
-      }
+    const stats = await getTerritorialSurveyStats(pool, opinioni, {
+      scope: 'comune', params: [regionCode, provinciaCode, comuneName]
+    });
 
-      // Usa quote_ident per quotare correttamente il nome della colonna
-      const statsQuery = `
-        SELECT 
-          COUNT(*) as totale_utenti,
-          COUNT(CASE WHEN orr."${columnName}" = 'f' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN orr."${columnName}" = 'c' THEN 1 END) as contrario,
-          COUNT(CASE WHEN orr."${columnName}" = 'i' THEN 1 END) as indeciso
-        FROM opinioni_risposte orr
-        JOIN users u ON u.id = orr.user_id
-        LEFT JOIN user_consents uc ON uc.user_id = u.id
-        WHERE orr."${columnName}" IS NOT NULL
-        AND u.account_type = 'PERSON'
-        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
-        AND u.regione_residenza = $1
-        AND u.provincia_residenza = $2
-        AND u.comune_residenza = $3
-      `;
-      
-      try {
-        const statsResult = await pool.query(statsQuery, [regionCode, provinciaCode, comuneName]);
-        const row = statsResult.rows[0];
-        
-        const aggregate = {
-          favorevole: parseInt(row.favorevole) || 0,
-          contrario: parseInt(row.contrario) || 0,
-          indeciso: parseInt(row.indeciso) || 0
-        };
-        if (!cellThresholdMet(aggregate)) {
-          continue;
-        }
-        stats[questionId] = aggregate;
-} catch (statsError) {
-        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in comune ${comuneName}:`, statsError.message);
-        continue;
-      }
-    }
-    
     res.json({
       success: true,
       data: {

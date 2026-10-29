@@ -125,6 +125,7 @@ router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
          FROM users u
          JOIN political_mandates pm ON pm.user_id = u.id
           AND pm.status = 'ACTIVE'
+          AND pm.source <> 'LEGACY_BACKFILL' -- Only verified non-backfill sources can establish a current council mandate.
           AND pm.starts_at <= NOW()
           AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
           AND pm.office_code = 'CO'
@@ -182,16 +183,16 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     let paramIndex = 1;
     
     if (search) {
-      whereClause += `WHERE (nome ILIKE $${paramIndex} OR cognome ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
+      whereClause += `WHERE (u.nome ILIKE $${paramIndex} OR u.cognome ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`;
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
     
     if (status) {
       if (whereClause) {
-        whereClause += ` AND status = $${paramIndex}`;
+        whereClause += ` AND u.status = $${paramIndex}`;
       } else {
-        whereClause = `WHERE status = $${paramIndex}`;
+        whereClause = `WHERE u.status = $${paramIndex}`;
       }
       queryParams.push(status);
       paramIndex++;
@@ -199,9 +200,9 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     
     if (ruolo) {
       if (whereClause) {
-        whereClause += ` AND ruolo = $${paramIndex}`;
+        whereClause += ` AND u.ruolo = $${paramIndex}`;
       } else {
-        whereClause = `WHERE ruolo = $${paramIndex}`;
+        whereClause = `WHERE u.ruolo = $${paramIndex}`;
       }
       queryParams.push(ruolo);
       paramIndex++;
@@ -210,7 +211,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     // Query per contare il totale
     const countQuery = `
       SELECT COUNT(*) as total 
-      FROM users 
+      FROM users u
       ${whereClause}
     `;
     
@@ -219,13 +220,37 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     
     // Query per gli utenti con paginazione - solo dati essenziali per la tabella
     let usersQuery = `
-      SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
-             grado_elezione, grado_candidatura, avatar_config, genere, cittadinanza,
-             paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
-             data_nascita
-      FROM users 
+      SELECT u.id, u.name, u.nome, u.cognome, u.email, u.ruolo, u.status, u.created_at, u.updated_at,
+             u.grado_elezione, u.grado_candidatura, u.avatar_config, u.sesso, u.account_type, u.genere,
+             COALESCE(NULLIF(TRIM(up.cittadinanza), ''), u.cittadinanza) AS cittadinanza,
+             COALESCE(NULLIF(TRIM(up.paese_residenza), ''), u.paese_residenza) AS paese_residenza,
+             COALESCE(NULLIF(TRIM(up.regione_residenza), ''), u.regione_residenza) AS regione_residenza,
+             COALESCE(NULLIF(TRIM(up.provincia_residenza), ''), u.provincia_residenza) AS provincia_residenza,
+             COALESCE(NULLIF(TRIM(up.comune_residenza), ''), u.comune_residenza) AS comune_residenza,
+             COALESCE(NULLIF(location.mandate_region, ''), NULLIF(TRIM(up.regione_elezione), ''), NULLIF(TRIM(u.regione_elezione), '')) AS regione_elezione,
+             CASE WHEN location.mandate_is_municipal THEN location.mandate_municipality
+                  WHEN location.has_active_mandate THEN NULL
+                  WHEN COALESCE(NULLIF(TRIM(up.grado_elezione), ''), NULLIF(TRIM(u.grado_elezione), '')) = 'CO'
+                  THEN COALESCE(NULLIF(TRIM(up.comune_elezione), ''), NULLIF(TRIM(u.comune_elezione), ''))
+                  ELSE NULL END AS comune_elezione,
+             COALESCE(up.data_nascita, u.data_nascita) AS data_nascita
+      FROM users u
+      LEFT JOIN user_profile up ON up.user_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT TRUE AS has_active_mandate,
+               (pm.office_code = 'CO' OR pm.jurisdiction->>'level' = 'CO') AS mandate_is_municipal,
+               NULLIF(TRIM(pm.jurisdiction->>'region'), '') AS mandate_region,
+               NULLIF(TRIM(pm.jurisdiction->>'municipality'), '') AS mandate_municipality
+        FROM political_mandates pm
+        WHERE pm.user_id = u.id AND u.ruolo IN ('P', 'Politico') AND pm.status = 'ACTIVE'
+          AND pm.source <> 'LEGACY_BACKFILL' -- Migration artifacts are not evidence of current office.
+          AND (pm.starts_at IS NULL OR pm.starts_at <= NOW())
+          AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
+        ORDER BY pm.starts_at DESC NULLS LAST, pm.created_at DESC, pm.id DESC
+        LIMIT 1
+      ) location ON true
       ${whereClause}
-      ORDER BY created_at DESC
+      ORDER BY u.created_at DESC
     `;
     
     let queryParamsWithPagination = [...queryParams];
@@ -238,11 +263,20 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     const usersResult = await pool.query(usersQuery, queryParamsWithPagination);
     
     // Trasforma i dati per il frontend (solo dati essenziali)
-    const users = usersResult.rows.map(user => ({
-      ...user,
-      genere: decompressGender(user.genere),
-      data_nascita: user.data_nascita ? new Date(user.data_nascita).toISOString().split('T')[0] : null
-    }));
+    const users = usersResult.rows.map(user => {
+      const decoded = decompressUserLocation(user);
+      return {
+        ...user,
+        // Supporta sia i codici geografici DEMOS sia i nomi completi legacy.
+        cittadinanza: decoded.cittadinanza || user.cittadinanza,
+        paese_residenza: decoded.paese_residenza || user.paese_residenza,
+        regione_residenza: decoded.regione_residenza || user.regione_residenza,
+        regione_elezione: decoded.regione_elezione || user.regione_elezione,
+        sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
+        genere: decompressGender(user.genere),
+        data_nascita: user.data_nascita ? new Date(user.data_nascita).toISOString().split('T')[0] : null
+      };
+    });
     
     console.log(`✅ Lista utenti recuperata: ${users.length} su ${totalUsers} totali`);
     
@@ -259,35 +293,6 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nel recupero lista utenti:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
-});
-
-// GET /api/users/pending - Lista utenti in attesa di approvazione (solo admin)
-router.get('/pending', verifyToken, requireAdmin, async (req, res) => {
-  try {
-    console.log('⏳ GET /api/users/pending - Lista utenti in attesa richiesta da admin');
-    
-    const result = await pool.query(`
-      SELECT id, nome, cognome, email, ruolo, created_at, avatar_config
-      FROM users 
-      WHERE (status = 'P' OR status = 'p')
-      ORDER BY created_at ASC
-    `);
-    
-    console.log(`✅ Utenti in attesa recuperati: ${result.rows.length}`);
-    
-    res.json({
-      success: true,
-      pendingUsers: result.rows,
-      count: result.rows.length
-    });
-    
-  } catch (error) {
-    console.error('❌ Errore nel recupero utenti in attesa:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -321,7 +326,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     console.log('🔍 DEBUG - Eseguendo query per userId:', userId);
     const result = await pool.query(`
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
-             genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
+             sesso, account_type, genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
              provincia_residenza, comune_residenza, avatar_config, grado_elezione, grado_candidatura,
              paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
              paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
@@ -392,6 +397,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       user: {
         ...decompressedUser,
         data_nascita: dataNascitaFormattata,
+        sesso: ['M', 'F'].includes(user.sesso) ? user.sesso : null,
         genere: decompressGender(user.genere),
         ruolo: ruoloDecompressionMapping[user.ruolo] || user.ruolo,
         avatar_config: avatarConfig
@@ -476,7 +482,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
-      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza',
+      'nome', 'cognome', 'data_nascita', 'cittadinanza',
       'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
       'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
       'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
@@ -509,17 +515,6 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
         }
       }
     });
-    
-    // Applica compressione per genere e dati geografici prima di salvare
-    if (filteredData.genere) {
-      const compressedGenere = compressGender(filteredData.genere);
-      if (compressedGenere) {
-        filteredData.genere = compressedGenere;
-        console.log(`🔧 Genere compresso:`, updateData.genere, '→', compressedGenere);
-      } else {
-        console.warn(`⚠️ Genere non riconosciuto, non compresso:`, filteredData.genere);
-      }
-    }
     
     // Applica compressione per i dati geografici
     const compressedLocation = compressUserLocation(filteredData);
@@ -569,6 +564,7 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       user: {
         ...decompressedUser,
         data_nascita: dataNascitaFormattata,
+        sesso: ['M', 'F'].includes(updatedUser.sesso) ? updatedUser.sesso : null,
         genere: decompressGender(updatedUser.genere),
         ruolo: ruoloDecompressionMapping[updatedUser.ruolo] || updatedUser.ruolo
       }

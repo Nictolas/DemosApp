@@ -1,13 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EditUserDialog } from "@/components/EditUserDialog";
-import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
-import { EditUserAvatarDialog } from "@/components/EditUserAvatarDialog";
 import { Loader2, Users, AlertCircle, BarChart3 } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
 import { useUserManagement } from "./hooks/useUserManagement";
@@ -17,13 +12,8 @@ import { SearchBar } from "./components/SearchBar";
 import { FiltersBar } from "./components/FiltersBar";
 import { UsersTable } from "./components/UsersTable";
 import { MobileUsersTable } from "./components/MobileUsersTable";
-import { MobilePendingUsersTable } from "./components/MobilePendingUsersTable";
-import { PendingUsersTable } from "./components/PendingUsersTable";
-import { usePendingUserActions } from "./hooks/usePendingUserActions";
 import { Pagination } from "./components/Pagination";
 import { USERS_PER_PAGE } from "./constants";
-import { User } from "./types";
-import { apiRequest } from "@/lib/queryClient";
 import { clearAllTokens, forceTokenRefresh } from "@/utils/tokenUtils";
 import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -33,7 +23,7 @@ import { hasAdminCapability } from "@/lib/admin-access";
 type StatisticheUtenti = {
   totalUsers: number;
   usersByRole: Record<string, number>;
-  usersByGender: Record<string, number>;
+  usersBySesso: Record<string, number>;
   usersByCitizenship: Record<string, number>;
   usersByRegion: Record<string, number>;
   usersByCity: Record<string, number>;
@@ -43,31 +33,17 @@ type StatisticheUtenti = {
 // Colori per i grafici - più colori per evitare duplicati
 const COLORS = ['#87CEEB', '#FFB6C1', '#FFD700', '#98FB98', '#DDA0DD', '#F0E68C', '#FFA07A', '#20B2AA', '#FF6347', '#40E0D0', '#EE82EE', '#90EE90', '#F4A460', '#87CEFA', '#D8BFD8', '#F5DEB3'];
 
-// Funzione per assegnare colori specifici per genere (stessi colori di statistiche-opinione)
-const getGenderColor = (gender: string, index: number) => {
-  switch (gender.toLowerCase()) {
-    case 'uomo':
-    case 'maschio':
-      return '#3b82f6'; // Blu
-    case 'donna':
-    case 'femmina':
-      return '#ec4899'; // Rosa
-    case 'altro':
-      return '#eab308'; // Giallo
-    default:
-      return '#6b7280'; // Grigio per N/A
-  }
-};
+// Colori delle categorie M/F salvate; la CIE potrà correggerle dopo la verifica.
+const getSexColor = (sesso: string) =>
+  sesso === 'M' ? '#3b82f6' : sesso === 'F' ? '#ec4899' : '#9ca3af';
 
 export default function Utenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { toast } = useToast();
   
   const {
     responseData,
     isLoadingUsers,
     isError,
-    deleteMutation,
     queryClient
   } = useUsers(user);
 
@@ -76,14 +52,6 @@ export default function Utenti() {
     setSearchTerm,
     selectedRuolo,
     selectedGradoElezione,
-    userToDelete,
-    setUserToDelete,
-    showEditDialog,
-    setShowEditDialog,
-    showEditOpinioniDialog,
-    setShowEditOpinioniDialog,
-    selectedUser,
-    setSelectedUser,
     sortState,
     paginationState,
     lastUpdateTime,
@@ -95,21 +63,6 @@ export default function Utenti() {
     handleGradoElezioneChange
   } = useUserManagement();
 
-  // Stato per il dialog di modifica avatar
-  const [showEditAvatarDialog, setShowEditAvatarDialog] = useState(false);
-  const [userForAvatarEdit, setUserForAvatarEdit] = useState<User | null>(null);
-
-  // Hook per le azioni sugli utenti pending
-  const {
-    approveUser,
-    rejectUser,
-    isProcessing
-  } = usePendingUserActions();
-
-  // Stato per gestire le modifiche inline
-  const [userChanges, setUserChanges] = useState<Record<string, { grado_elezione?: string | null; grado_candidatura?: string | null }>>({});
-  const [hasChanges, setHasChanges] = useState(false);
-  
   // Hook per rilevare se siamo su mobile
   const [isMobile, setIsMobile] = useState(false);
 
@@ -128,9 +81,13 @@ export default function Utenti() {
       return acc;
     }, {} as Record<string, number>);
     
-    const usersByGender = utenti.reduce((acc, user) => {
-      const gender = user.genere || 'N/A';
-      acc[gender] = (acc[gender] || 0) + 1;
+    const usersBySesso = utenti.reduce((acc, user) => {
+      // Solo persone: usa il campo M/F già salvato, anche se proveniente da dati storici.
+      if (user.account_type !== 'PERSON') return acc;
+      const sesso = user.sesso === 'M' || user.sesso === 'F'
+        ? user.sesso
+        : 'Non disponibile';
+      acc[sesso] = (acc[sesso] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     
@@ -151,81 +108,125 @@ export default function Utenti() {
       acc[city] = (acc[city] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
-    // Calcola distribuzione per età
-    const usersByAge = utenti.reduce((acc, user) => {
-      // Prova diversi campi possibili per la data di nascita
-      const birthDateField = user.data_nascita || user.birth_date || user.date_of_birth;
-      
-      if (birthDateField) {
-        let birthDate;
-        
-        // Gestisci diversi formati di data
-        if (typeof birthDateField === 'string') {
-          // Se è una stringa, prova a convertirla
-          birthDate = new Date(birthDateField);
-        } else if (birthDateField instanceof Date) {
-          birthDate = birthDateField;
-        } else if (birthDateField.timestamp) {
-          // Se è un oggetto con timestamp (Firebase)
-          birthDate = new Date(birthDateField.timestamp);
-        } else if (birthDateField.seconds) {
-          // Se è un oggetto con seconds (Firebase)
-          birthDate = new Date(birthDateField.seconds * 1000);
-        } else {
-          birthDate = new Date(birthDateField);
-        }
-        
-        // Controlla se la data è valida
-        if (isNaN(birthDate.getTime())) {
-          acc['N/A'] = (acc['N/A'] || 0) + 1;
-          return acc;
-        }
-        
-        const today = new Date();
-        const age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        
-        // Aggiusta l'età se il compleanno non è ancora arrivato quest'anno
-        const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) 
-          ? age - 1 
-          : age;
-        
-        let ageGroup = 'N/A';
-        if (actualAge < 18) ageGroup = 'Under 18';
-        else if (actualAge >= 18 && actualAge <= 25) ageGroup = '18-25';
-        else if (actualAge >= 26 && actualAge <= 35) ageGroup = '26-35';
-        else if (actualAge >= 36 && actualAge <= 45) ageGroup = '36-45';
-        else if (actualAge >= 46 && actualAge <= 55) ageGroup = '46-55';
-        else if (actualAge >= 56 && actualAge <= 65) ageGroup = '56-65';
-        else if (actualAge > 65) ageGroup = '65+';
-        
-        acc[ageGroup] = (acc[ageGroup] || 0) + 1;
-      } else {
-        acc['N/A'] = (acc['N/A'] || 0) + 1;
+
+    // La residenza e il territorio elettorale sono informazioni distinte.
+    // I profili politici importati possono avere un mandato ma non una residenza documentata.
+    const hasDocumentedPlace = (value: unknown): value is string =>
+      typeof value === 'string' && value.trim() !== '' && value.trim().toUpperCase() !== 'N/A';
+    const usersWithKnownResidence = utenti.filter(user => hasDocumentedPlace(user.comune_residenza)).length;
+    const politicians = utenti.filter(user => user.ruolo === 'P');
+
+    // Per le statistiche indicative, usa il territorio elettorale solo se la
+    // residenza non è disponibile. Non scrivere la stima nei campi personali.
+    // Un'eventuale residenza dichiarata in futuro ha sempre precedenza.
+    const usersByRegionWithEstimates = utenti.reduce((acc, user) => {
+      const region = hasDocumentedPlace(user.regione_residenza)
+        ? user.regione_residenza.trim()
+        : user.ruolo === 'P' && hasDocumentedPlace(user.regione_elezione)
+          ? user.regione_elezione.trim()
+          : 'N/A';
+      acc[region] = (acc[region] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const usersWithKnownRegion = utenti.filter(user => hasDocumentedPlace(user.regione_residenza)).length;
+    const usersWithProvisionalRegion = politicians.filter(user =>
+      !hasDocumentedPlace(user.regione_residenza) && hasDocumentedPlace(user.regione_elezione)
+    ).length;
+
+    // Il comune elettorale può essere indicativo soltanto per un incarico CO.
+    // Non attribuire ai parlamentari un comune usando la circoscrizione.
+    const usersByCityWithEstimates = utenti.reduce((acc, user) => {
+      const city = hasDocumentedPlace(user.comune_residenza)
+        ? user.comune_residenza.trim()
+        : user.ruolo === 'P' && user.grado_elezione === 'CO' && hasDocumentedPlace(user.comune_elezione)
+          ? user.comune_elezione.trim()
+          : 'N/A';
+      acc[city] = (acc[city] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const usersWithProvisionalMunicipality = politicians.filter(user =>
+      !hasDocumentedPlace(user.comune_residenza) &&
+      user.grado_elezione === 'CO' &&
+      hasDocumentedPlace(user.comune_elezione)
+    ).length;
+    const politiciansByElectionRegion = politicians.reduce((acc, user) => {
+      if (hasDocumentedPlace(user.regione_elezione)) {
+        const region = user.regione_elezione.trim();
+        acc[region] = (acc[region] || 0) + 1;
       }
       return acc;
     }, {} as Record<string, number>);
+    const politiciansByElectionMunicipality = politicians.reduce((acc, user) => {
+      if (hasDocumentedPlace(user.comune_elezione)) {
+        const municipality = user.comune_elezione.trim();
+        acc[municipality] = (acc[municipality] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    const politiciansWithElectionRegion = Object.values(politiciansByElectionRegion).reduce((sum, count) => sum + count, 0);
+    const politiciansWithElectionMunicipality = Object.values(politiciansByElectionMunicipality).reduce((sum, count) => sum + count, 0);
     
-    // Se non ci sono dati di età, crea dati di esempio per il test
-    const finalUsersByAge = Object.keys(usersByAge).length > 1 ? usersByAge : {
-      '18-25': 15,
-      '26-35': 25,
-      '36-45': 20,
-      '46-55': 18,
-      '56-65': 12,
-      '65+': 8,
-      'N/A': 2
-    };
-    
+    // Età: esclusivamente le date di nascita realmente registrate delle persone.
+    // Niente dati fittizi o inferenze dai nomi dei politici / account importati.
+    const usersByAge = utenti.reduce((acc, user) => {
+      if (user.account_type !== 'PERSON') return acc;
+
+      const dateText = typeof user.data_nascita === 'string'
+        ? user.data_nascita
+        : '';
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText);
+      let ageGroup = 'N/A';
+
+      if (match) {
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        const valid = year >= 1 &&
+          date.getUTCFullYear() === year &&
+          date.getUTCMonth() === month - 1 &&
+          date.getUTCDate() === day;
+
+        if (valid) {
+          const today = new Date();
+          let age = today.getFullYear() - year;
+          if (today.getMonth() + 1 < month ||
+            (today.getMonth() + 1 === month && today.getDate() < day)) age -= 1;
+          // Esclude anche placeholder implausibili (es. 1111-11-11).
+          if (age >= 0 && age <= 125) {
+            if (age < 18) ageGroup = 'Under 18';
+            else if (age <= 25) ageGroup = '18-25';
+            else if (age <= 35) ageGroup = '26-35';
+            else if (age <= 45) ageGroup = '36-45';
+            else if (age <= 55) ageGroup = '46-55';
+            else if (age <= 65) ageGroup = '56-65';
+            else ageGroup = '65+';
+          }
+        }
+      }
+      acc[ageGroup] = (acc[ageGroup] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
     return {
       totalUsers: utenti.length,
       usersByRole,
-      usersByGender,
+      usersBySesso,
       usersByCitizenship,
       usersByRegion,
       usersByCity,
-      usersByAge: finalUsersByAge
+      usersByRegionWithEstimates,
+      usersWithKnownRegion,
+      usersWithProvisionalRegion,
+      usersByCityWithEstimates,
+      usersWithProvisionalMunicipality,
+      usersWithKnownResidence,
+      politiciansCount: politicians.length,
+      politiciansByElectionRegion,
+      politiciansByElectionMunicipality,
+      politiciansWithElectionRegion,
+      politiciansWithElectionMunicipality,
+      usersByAge
     };
   }, [responseData?.utenti]);
   
@@ -247,6 +248,17 @@ export default function Utenti() {
       .map(([name, value]) => ({ name, value }));
   };
   
+  // Le regioni sono ordinate per numero di utenti; N/A non è una regione.
+  const prepareRegionBarData = (data: Record<string, number> | null | undefined) => {
+    if (!data) return [];
+    return Object.entries(data)
+      .filter(([name]) => name.trim() !== '' && name.trim().toUpperCase() !== 'N/A')
+      .sort(([nameA, countA], [nameB, countB]) =>
+        countB - countA || nameA.localeCompare(nameB, 'it'))
+      .map(([name, value]) => ({ name, value }));
+  };
+  const regionBarData = prepareRegionBarData(stats?.usersByRegionWithEstimates);
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768); // md breakpoint
@@ -336,7 +348,6 @@ export default function Utenti() {
 
   // Preparazione dati
   const allUsers = responseData?.utenti || [];
-  const pendingUsers = responseData?.pendingUsers || [];
   const displayColumns = getDisplayColumns(allUsers);
 
   // Calcola i valori disponibili per i filtri
@@ -420,91 +431,8 @@ export default function Utenti() {
     updateLastUpdateTime();
   };
 
-  const handleEdit = (user: any) => {
-    console.log('🔍 DEBUG handleEdit - user ricevuto:', user);
-    console.log('🔍 DEBUG handleEdit - user.id:', user.id);
-    console.log('🔍 DEBUG handleEdit - user.email:', user.email);
-    setSelectedUser(user);
-    setShowEditDialog(true);
-  };
-
-  const handleEditOpinioni = (user: any) => {
-    setSelectedUser(user);
-    setShowEditOpinioniDialog(true);
-  };
-
-  const handleDelete = (user: any) => {
-    setUserToDelete(user);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-  };
-
-  const handleApproveUser = (user: any) => {
-    approveUser(user.id);
-  };
-
-  const handleRejectUser = (user: any) => {
-    rejectUser({ userId: user.id });
-  };
-
-  const handleEditAvatar = (user: User) => {
-    setUserForAvatarEdit(user);
-    setShowEditAvatarDialog(true);
-  };
-
-  // Funzioni per gestire le modifiche inline
-  const handleFieldChange = (userId: string, field: 'grado_elezione' | 'grado_candidatura', value: string | null) => {
-    setUserChanges(prev => {
-      const newChanges = {
-        ...prev,
-        [userId]: {
-          ...prev[userId],
-          [field]: value
-        }
-      };
-      
-      // Controlla se ci sono modifiche
-      const hasAnyChanges = Object.values(newChanges).some(change => 
-        change.grado_elezione !== undefined || change.grado_candidatura !== undefined
-      );
-      setHasChanges(hasAnyChanges);
-      
-      return newChanges;
-    });
-  };
-
-  const handleSaveChanges = async () => {
-    try {
-      const updates = Object.entries(userChanges).map(([userId, changes]) => ({
-        userId,
-        ...changes
-      }));
-
-      for (const update of updates) {
-        await apiRequest("PUT", `/api/users/${update.userId}`, update);
-      }
-
-      // Reset delle modifiche
-      setUserChanges({});
-      setHasChanges(false);
-      
-      // Refresh dei dati
-      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-      
-      toast({
-        title: "Successo",
-        description: "Modifiche salvate con successo!",
-      });
-    } catch (error) {
-      console.error('Errore nel salvataggio:', error);
-      toast({
-        title: "Errore",
-        description: "Errore nel salvataggio delle modifiche",
-        variant: "destructive",
-      });
-    }
   };
 
   return (
@@ -577,115 +505,21 @@ export default function Utenti() {
               </div>
             ) : (
               <>
-                {/* Statistiche */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-blue-500 rounded-lg">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-blue-600">Totale Utenti</p>
-                          <p className="text-2xl font-bold text-blue-900">{allUsers.length}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-green-500 rounded-lg">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-green-600">Tutti gli Utenti</p>
-                          <p className="text-2xl font-bold text-green-900">{allUsers.length}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-yellow-500 rounded-lg">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-yellow-600">In Attesa</p>
-                          <p className="text-2xl font-bold text-yellow-900">{pendingUsers.length}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Sezione Utenti in Attesa */}
-                {pendingUsers.length > 0 && (
-                  <Card className="bg-white border-0 shadow-lg mb-6 w-full">
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center text-2xl text-gray-800">
-                        <Users className="h-6 w-6 mr-3 text-yellow-600" />
-                        Utenti in Attesa
-                      </CardTitle>
-                      <CardDescription className="text-gray-600">
-                        Utenti in attesa di approvazione ({pendingUsers.length})
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {isMobile ? (
-                        <MobilePendingUsersTable 
-                          users={pendingUsers}
-                          onApprove={handleApproveUser}
-                          onReject={handleRejectUser}
-                          isProcessing={isProcessing}
-                        />
-                      ) : (
-                        <PendingUsersTable 
-                          users={pendingUsers}
-                          onApprove={handleApproveUser}
-                          onReject={handleRejectUser}
-                          isProcessing={isProcessing}
-                        />
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-
                 {/* Tabella utenti attivi */}
                 <Card className="bg-white border-0 shadow-lg w-full">
                   <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="flex items-center text-2xl text-gray-800">
-                          <Users className="h-6 w-6 mr-3 text-blue-600" />
-                          Tutti gli Utenti
-                        </CardTitle>
-                        <CardDescription className="text-gray-600">
-                          Visualizza e gestisci tutti gli utenti della piattaforma (attivi, pending, ecc.)
-                        </CardDescription>
-                      </div>
-                      <Button 
-                        onClick={handleSaveChanges}
-                        disabled={!hasChanges}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        Salva Modifiche
-                      </Button>
-                    </div>
+                    <CardTitle className="flex items-center text-2xl text-gray-800">
+                      <Users className="h-6 w-6 mr-3 text-blue-600" />
+                      Tutti gli Utenti
+                    </CardTitle>
+                    <CardDescription className="text-gray-600">
+                      Consulta gli utenti della piattaforma. Le modifiche ai dati non sono disponibili in questa pagina.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {isMobile ? (
                       <MobileUsersTable 
                         users={paginatedUsers}
-                        onEdit={handleEdit}
-                        onEditOpinioni={handleEditOpinioni}
-                        onDelete={handleDelete}
-                        onEditAvatar={handleEditAvatar}
-                        userChanges={userChanges}
-                        onFieldChange={handleFieldChange}
                       />
                     ) : (
                       <UsersTable 
@@ -693,12 +527,6 @@ export default function Utenti() {
                         displayColumns={displayColumns}
                         sortState={sortState}
                         onSort={updateSort}
-                        onEdit={handleEdit}
-                        onEditOpinioni={handleEditOpinioni}
-                        onDelete={handleDelete}
-                        onEditAvatar={handleEditAvatar}
-                        userChanges={userChanges}
-                        onFieldChange={handleFieldChange}
                       />
                     )}
                     
@@ -780,13 +608,14 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>Distribuzione per Genere</CardTitle>
+                      <CardTitle>Distribuzione per sesso</CardTitle>
+                      <CardDescription>Maschile e Femminile dai valori M/F presenti; la verifica CIE potrà aggiornarli.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie 
-                            data={preparePieData(stats.usersByGender)} 
+                            data={preparePieData(stats.usersBySesso)} 
                             dataKey="value" 
                             nameKey="name" 
                             cx="50%" 
@@ -795,8 +624,8 @@ export default function Utenti() {
                             fill="#8884d8" 
                             label
                           >
-                            {preparePieData(stats.usersByGender).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={getGenderColor(entry.name, index)} />
+                            {preparePieData(stats.usersBySesso).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={getSexColor(entry.name)} />
                             ))}
                           </Pie>
                           <Tooltip />
@@ -809,6 +638,7 @@ export default function Utenti() {
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Età</CardTitle>
+                      <CardDescription>Solo persone, inclusi profili politici importati. Date presenti nel database, non necessariamente certificate; N/A se mancanti o implausibili.</CardDescription>
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
@@ -853,37 +683,97 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>Distribuzione per Regione</CardTitle>
+                      <CardTitle>Distribuzione geografica indicativa per regione</CardTitle>
+                      <CardDescription>Residenza registrata; se mancante per un politico, regione elettorale usata come riferimento provvisorio, non come residenza certificata.</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie 
-                            data={preparePieData(stats.usersByRegion)} 
-                            dataKey="value" 
-                            nameKey="name" 
-                            cx="50%" 
-                            cy="50%" 
-                            outerRadius={80} 
-                            fill="#8884d8" 
-                            label
-                          >
-                            {preparePieData(stats.usersByRegion).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Residenza registrata: {stats.usersWithKnownRegion}. Regione elettorale stimata: {stats.usersWithProvisionalRegion}.
+                        Le stime non vengono salvate nel profilo e sono superate dalla residenza indicata dal politico.
+                      </p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Regione non disponibile per {stats.usersByRegionWithEstimates['N/A'] ?? 0} {(stats.usersByRegionWithEstimates['N/A'] ?? 0) === 1 ? 'utente' : 'utenti'}.
+                      </p>
+                      <div className="w-full overflow-x-auto pb-2" aria-label="Grafico delle regioni ordinato per numero di utenti">
+                        <div className="h-[380px] w-full" style={{ minWidth: `${Math.max(640, regionBarData.length * 72)}px` }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={regionBarData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                              <XAxis dataKey="name" interval={0} angle={-48} textAnchor="end" height={125} tick={{ fontSize: 12 }} />
+                              <YAxis allowDecimals={false} />
+                              <Tooltip />
+                              <Bar dataKey="value" name="Utenti" fill="#3b82f6" maxBarSize={46} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
-                
+
+                {/* Territori dei politici: mai usarli come sostituti della residenza. */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="bg-white">
+                    <CardHeader>
+                      <CardTitle>Politici per regione di elezione</CardTitle>
+                      <CardDescription>Territorio degli incarichi politici, non regione di residenza. Un mandato attivo ha precedenza sui dati elettorali storici.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">Regione indicata per {stats.politiciansWithElectionRegion} di {stats.politiciansCount} politici.</p>
+                      {stats.politiciansWithElectionRegion > 0 ? (
+                        <div className="h-72">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={preparePieData(stats.politiciansByElectionRegion)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                {preparePieData(stats.politiciansByElectionRegion).map((entry, index) => (
+                                  <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                              <Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : <p className="text-sm text-muted-foreground">Nessuna regione di elezione disponibile.</p>}
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white">
+                    <CardHeader>
+                      <CardTitle>Comuni indicati per l'elezione dei politici</CardTitle>
+                      <CardDescription>Solo comuni espressamente riportati nei dati elettorali; per incarichi non comunali il campo può non essere applicabile.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">Comune indicato per {stats.politiciansWithElectionMunicipality} di {stats.politiciansCount} politici.</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr><th className="p-2 text-left">Comune</th><th className="p-2 text-right">Politici</th></tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(stats.politiciansByElectionMunicipality)
+                              .sort(([, a], [, b]) => b - a)
+                              .slice(0, 10)
+                              .map(([municipality, count]) => (
+                                <tr key={municipality}>
+                                  <td className="p-2">{municipality}</td>
+                                  <td className="p-2 text-right">{count}</td>
+                                </tr>
+                              ))}
+                            {stats.politiciansWithElectionMunicipality === 0 && (
+                              <tr><td className="p-2 text-sm text-muted-foreground" colSpan={2}>Nessun comune elettorale disponibile.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Età (Dettaglio)</CardTitle>
+                      <CardDescription>Conteggi calcolati, senza dati inventati. N/A indica date mancanti, impossibili o implausibili.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
@@ -914,19 +804,22 @@ export default function Utenti() {
                   
                   <Card className="bg-white">
                     <CardHeader>
-                      <CardTitle>Le 10 città con più utenti</CardTitle>
+                      <CardTitle>I 10 comuni di residenza o riferimento comunale</CardTitle>
+                      <CardDescription>Residenza registrata; in sua assenza, solo per politici comunali (CO), il comune di elezione viene contato come stima provvisoria.</CardDescription>
                     </CardHeader>
                     <CardContent>
+                      <p className="text-sm text-muted-foreground mb-3">Residenza comunale disponibile per {stats.usersWithKnownResidence} di {stats.totalUsers} utenti; riferimenti comunali stimati: {stats.usersWithProvisionalMunicipality}.</p>
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead>
                             <tr>
-                              <th className="p-2 text-left">Città</th>
+                              <th className="p-2 text-left">Comune</th>
                               <th className="p-2 text-left">Numero Utenti</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {stats.usersByCity && Object.entries(stats.usersByCity)
+                            {stats.usersByCityWithEstimates && Object.entries(stats.usersByCityWithEstimates)
+                              .filter(([city]) => city !== 'N/A' && city.trim() !== '')
                               .sort(([,a], [,b]) => b - a)
                               .slice(0, 10)
                               .map(([city, count]) => (
@@ -946,65 +839,6 @@ export default function Utenti() {
           </TabsContent>
         </Tabs>
 
-        {/* Dialog di conferma eliminazione */}
-        <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                Conferma eliminazione
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Sei sicuro di voler eliminare l'utente <strong>{userToDelete?.nome} {userToDelete?.cognome}</strong>? 
-                L'operazione non è reversibile.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annulla</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={() => userToDelete && deleteMutation.mutate(userToDelete.id)} 
-                className="bg-red-500 hover:bg-red-600 text-white" 
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : "Elimina"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Dialog di modifica utente */}
-        {selectedUser && (
-          <>
-            <EditUserDialog 
-              userEmail={selectedUser.email}
-              userUid={selectedUser.id} 
-              open={showEditDialog} 
-              onOpenChange={setShowEditDialog} 
-              onUserUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} 
-            />
-            <EditOpinioniDialog 
-              utenteId={selectedUser.id} 
-              open={showEditOpinioniDialog} 
-              onOpenChange={setShowEditOpinioniDialog} 
-              onOpinioniUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} 
-            />
-          </>
-        )}
-
-        {/* Dialog per modifica avatar */}
-        {userForAvatarEdit && (
-          <EditUserAvatarDialog
-            open={showEditAvatarDialog}
-            onOpenChange={setShowEditAvatarDialog}
-            userId={userForAvatarEdit.id}
-            userName={userForAvatarEdit.nome_completo || `${userForAvatarEdit.nome || ''} ${userForAvatarEdit.cognome || ''}`.trim() || userForAvatarEdit.name || 'N/A'}
-            currentAvatarConfig={userForAvatarEdit.avatar_config}
-            onAvatarUpdated={() => {
-              queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-              setUserForAvatarEdit(null);
-            }}
-          />
-        )}
       </div>
     </div>
   );

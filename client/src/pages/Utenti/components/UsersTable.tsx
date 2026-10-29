@@ -1,7 +1,5 @@
 import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Edit, Trash2 } from "lucide-react";
 import { User, SortState } from "../types";
 import { formatColumnValue } from "../utils/columnUtils";
 import { renderColumnValue } from "../utils/renderUtils";
@@ -11,21 +9,13 @@ interface UsersTableProps {
   displayColumns: string[];
   sortState: SortState;
   onSort: (field: keyof User) => void;
-  onEdit: (user: User) => void;
-  onEditOpinioni: (user: User) => void;
-  onDelete: (user: User) => void;
-  onEditAvatar?: (user: User) => void;
 }
 
 export const UsersTable: React.FC<UsersTableProps> = ({
   users,
   displayColumns,
   sortState,
-  onSort,
-  onEdit,
-  onEditOpinioni,
-  onDelete,
-  onEditAvatar
+  onSort
 }) => {
   if (users.length === 0) {
     return (
@@ -49,7 +39,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-gray-700 capitalize">
-                    {column.replace(/_/g, ' ')}
+                    {column === 'sesso' ? 'Sesso' : column.replace(/_/g, ' ')}
                   </span>
                   {column !== 'avatar' && sortState.sortField === column && (
                     <span className="text-blue-600 ml-2">
@@ -59,7 +49,6 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                 </div>
               </TableHead>
             ))}
-            <TableHead className="text-center">Azioni</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -70,41 +59,11 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                   key={column} 
                   className={column === 'avatar' ? "text-center w-16" : "min-w-[150px] max-w-[300px]"}
                 >
-                  <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column)}>
-                    {renderColumnValue(user[column], column, user, onEditAvatar)}
+                  <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column, user)}>
+                    {renderColumnValue(user[column], column, user)}
                   </div>
                 </TableCell>
               ))}
-              <TableCell className="text-center">
-                <div className="flex space-x-2 justify-center">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => onEdit(user)}
-                    className="hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Modifica
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => onEditOpinioni(user)}
-                    className="hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors"
-                  >
-                    📝 Opinioni
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => onDelete(user)}
-                    className="hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Elimina
-                  </Button>
-                </div>
-              </TableCell>
             </TableRow>
           ))}
         </TableBody>

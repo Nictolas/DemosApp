@@ -13,12 +13,12 @@ test('voluntary account deletion uses the qualified schema-aware service', () =>
   assert.doesNotMatch(src, /DELETE FROM voti_[a-z0-9_]+ WHERE user_id = \$1/i);
 });
 
-test('Admin reject and delete both use canonical account erasure', () => {
+test('Admin account deletion retains GDPR erasure without approval/rejection routes', () => {
   const src = read(path.join('routes', 'users', 'admin.js'));
-  assert.match(src, /source: 'admin_reject_pending'/);
+  assert.doesNotMatch(src, /admin_reject_pending|router\.post\('\/(approve|reject)'/);
   assert.match(src, /source: 'admin_account_deletion'/);
   const calls = src.match(/PrivacyErasureLedgerService\.enforceAccountDeletion\(client, userId\)/g) || [];
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1);
   assert.doesNotMatch(src, /DELETE FROM users WHERE id = \$1/);
   assert.match(src, /String\(userId\) === String\(req\.userId\)/);
 });

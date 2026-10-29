@@ -6,6 +6,12 @@ on:
       - 'client/src/**'
       - 'api/tests/retiredMenuNavigation.smoke.test.js'
       - 'api/tests/clientAdminCapability.smoke.test.js'
+      - 'api/tests/clientUsersReadonly.smoke.test.js'
+      - 'api/tests/legacyManualApprovalRetirement.smoke.test.js'
+      - 'api/tests/adminAccountDeletion.smoke.test.js'
+      - 'api/tests/utentiCanonicalSexTable.smoke.test.js'
+      - 'api/routes/users/admin.js'
+      - 'api/routes/users/search.js'
       - '.github/workflows/legacy-menu-retirement.yml'
   push:
     branches: [main]
@@ -26,7 +32,7 @@ jobs:
           node-version: '22'
       - name: Confirm retired Menu route and return links
         run: |
-          node --test api/tests/retiredMenuNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/dpoGestisciNavigation.smoke.test.js
+          node --test api/tests/retiredMenuNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientUsersReadonly.smoke.test.js api/tests/legacyManualApprovalRetirement.smoke.test.js api/tests/adminAccountDeletion.smoke.test.js api/tests/utentiCanonicalSexTable.smoke.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend

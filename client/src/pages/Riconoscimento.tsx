@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ interface FormState {
   nome: string;
   cognome: string;
   email: string;
+  fonte_elezione_url: string;
+  fonte_candidatura_url: string;
   // Paesi salvati come codici (it, sm, ch, ...)
   paese_elezione: string;
   regione_elezione: string;
@@ -34,6 +36,8 @@ const initialState: FormState = {
   nome: "",
   cognome: "",
   email: "",
+  fonte_elezione_url: "",
+  fonte_candidatura_url: "",
   paese_elezione: "",       // scelto esplicitamente dall'utente
   regione_elezione: "",
   provincia_elezione: "",
@@ -108,6 +112,66 @@ export default function Riconoscimento() {
     email: user?.email || ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [identity, setIdentity] = useState<"loading" | "verified" | "unverified" | "error">("loading");
+  const [isStartingCie, setIsStartingCie] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<null | {
+    tipo_ruolo: string; status: "pending" | "approved" | "rejected"; created_at: string;
+  }>(null);
+
+  useEffect(() => {
+    setForm(prev => ({
+      ...prev, nome: user?.nome || "", cognome: user?.cognome || "", email: user?.email || ""
+    }));
+  }, [user?.nome, user?.cognome, user?.email]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) { setIdentity("unverified"); return; }
+    let active = true;
+    const headers = { Authorization: `Bearer ${token}` };
+    Promise.all([
+      fetch(getApiUrl("/auth/identity/status"), { headers }).then(async res => {
+        if (!res.ok) throw new Error("Stato CIE non disponibile");
+        return res.json();
+      }),
+      fetch(getApiUrl("/riconoscimenti/mine"), { headers }).then(async res => {
+        if (!res.ok) throw new Error("Stato richiesta non disponibile");
+        return res.json();
+      })
+    ]).then(([verification, recognition]) => {
+      if (!active) return;
+      setIdentity(verification?.identity?.verified === true &&
+        String(verification.identity?.provider || "").toUpperCase() === "CIE"
+        ? "verified" : "unverified");
+      setRequestStatus(recognition?.data || null);
+    }).catch(() => { if (active) setIdentity("error"); });
+    return () => { active = false; };
+  }, []);
+
+  const handleStartCie = async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      toast({ title: "Accesso richiesto", description: "Accedi a DEMOS prima di verificare la CIE.", variant: "destructive" });
+      return;
+    }
+    setIsStartingCie(true);
+    try {
+      const res = await fetch(getApiUrl("/auth/identity/cie/start"), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = await res.json();
+      if (!res.ok || typeof payload?.authorizationUrl !== "string") {
+        throw new Error(payload?.error || "Verifica CIE non disponibile");
+      }
+      const authorizationUrl = new URL(payload.authorizationUrl);
+      if (authorizationUrl.protocol !== "https:") throw new Error("Indirizzo CIE non sicuro");
+      window.location.assign(authorizationUrl.toString());
+    } catch (error: any) {
+      toast({ title: "Impossibile avviare CIE", description: error?.message || "Riprova più tardi.", variant: "destructive" });
+      setIsStartingCie(false);
+    }
+  };
 
   const regioniElezione = getRegioniByPaese(form.paese_elezione);
   const provinceElezione = getProvince(form.paese_elezione, form.regione_elezione);
@@ -201,10 +265,15 @@ export default function Riconoscimento() {
       return;
     }
 
-    if (!form.nome || !form.cognome || !form.email) {
+    if (identity !== "verified") {
+      toast({ title: "Verifica CIE necessaria", description: "Completa prima la verifica dell'identità.", variant: "destructive" });
+      return;
+    }
+
+    if (!form.nome || !form.cognome) {
       toast({
         title: "Campi obbligatori mancanti",
-        description: "Nome, cognome ed email sono obbligatori.",
+        description: "Completa nome e cognome nel tuo profilo.",
         variant: "destructive"
       });
       return;
@@ -226,6 +295,19 @@ export default function Riconoscimento() {
         description: "Per Candidato o Candidato Politico inserisci almeno il grado di candidatura.",
         variant: "destructive"
       });
+      return;
+    }
+
+    const officialSource = (url: string) => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === "https:" && Boolean(parsed.hostname) &&
+          !parsed.username && !parsed.password;
+      } catch (_error) { return false; }
+    };
+    if ((mostraElezione && !officialSource(form.fonte_elezione_url)) ||
+        (mostraCandidatura && !officialSource(form.fonte_candidatura_url))) {
+      toast({ title: "Fonte ufficiale mancante", description: "Inserisci un collegamento HTTPS valido per ogni ruolo richiesto.", variant: "destructive" });
       return;
     }
 
@@ -255,6 +337,7 @@ export default function Riconoscimento() {
         throw new Error(errorBody?.message || errorBody?.error || "Impossibile inviare la richiesta di riconoscimento.");
       }
 
+      setRequestStatus({ tipo_ruolo: form.tipo_ruolo, status: "pending", created_at: new Date().toISOString() });
       toast({
         title: "Richiesta inviata",
         description: "La tua richiesta di riconoscimento è stata inviata agli amministratori.",
@@ -280,14 +363,48 @@ export default function Riconoscimento() {
         <Card className="w-full max-w-2xl shadow-xl border-0">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">
-              Riconoscimento - Sono un politico / candidato
+              Riconoscimento del profilo politico
             </CardTitle>
             <CardDescription>
-              Invia una richiesta di riconoscimento del tuo ruolo. Un amministratore verificherà i dati e, se approvata, il tuo ruolo sarà aggiornato in Demos.
+              Verifica la tua identità con CIE e indica una fonte ufficiale che dimostri la candidatura o la carica. La richiesta sarà esaminata prima dell’approvazione.
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {requestStatus && (
+              <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4" role="status">
+                <div className="font-semibold text-slate-900">
+                  {requestStatus.status === "approved" ? "Riconoscimento approvato"
+                    : requestStatus.status === "rejected" ? "Richiesta respinta"
+                    : "Richiesta in verifica"}
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  {requestStatus.status === "approved"
+                    ? "Il tuo ruolo è stato riconosciuto. Puoi presentare una nuova richiesta se è cambiato."
+                    : requestStatus.status === "rejected"
+                      ? "Puoi correggere le informazioni e inviare nuovamente la richiesta."
+                      : "La richiesta è stata ricevuta e attende la verifica amministrativa."}
+                </p>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                <div className="font-semibold text-slate-900">1. Verifica dell'identità</div>
+                <p className="text-sm text-slate-700" role="status">
+                  {identity === "loading" ? "Controllo della verifica CIE..."
+                    : identity === "verified" ? "Identità verificata con CIE"
+                    : identity === "error" ? "Impossibile controllare lo stato della verifica. Ricarica la pagina."
+                    : "Per inviare la richiesta devi prima verificare la tua identità con CIE."}
+                </p>
+                {identity === "unverified" && (
+                  <Button type="button" variant="outline" onClick={handleStartCie} disabled={isStartingCie}>
+                    {isStartingCie ? "Avvio verifica..." : "Verifica con CIE"}
+                  </Button>
+                )}
+                <p className="text-xs text-slate-500">
+                  Dopo la verifica potrai tornare a questa pagina dalle impostazioni.
+                </p>
+              </div>
+              <div className="font-semibold text-slate-900">2. Ruolo e territorio</div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
                 Ruolo richiesto
@@ -300,9 +417,9 @@ export default function Riconoscimento() {
                   <SelectValue placeholder="Seleziona il ruolo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="P">Politico</SelectItem>
+                  <SelectItem value="P">Politico eletto</SelectItem>
                   <SelectItem value="C">Candidato</SelectItem>
-                  <SelectItem value="CP">Candidato Politico</SelectItem>
+                  <SelectItem value="CP">Politico eletto e candidato</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -312,7 +429,7 @@ export default function Riconoscimento() {
                 <label className="text-sm font-medium text-gray-700">Nome</label>
                 <Input
                   value={form.nome}
-                  onChange={e => handleChange("nome", e.target.value)}
+                  readOnly
                   placeholder="Nome"
                   required
                 />
@@ -321,7 +438,7 @@ export default function Riconoscimento() {
                 <label className="text-sm font-medium text-gray-700">Cognome</label>
                 <Input
                   value={form.cognome}
-                  onChange={e => handleChange("cognome", e.target.value)}
+                  readOnly
                   placeholder="Cognome"
                   required
                 />
@@ -333,9 +450,8 @@ export default function Riconoscimento() {
               <Input
                 type="email"
                 value={form.email}
-                onChange={e => handleChange("email", e.target.value)}
-                placeholder="la-tua-email@example.com"
-                required
+                readOnly
+                placeholder="Email dal profilo"
               />
             </div>
 
@@ -585,13 +701,37 @@ export default function Riconoscimento() {
               </div>
             )}
 
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">3. Fonti ufficiali</div>
+                <p className="text-sm text-slate-600">
+                  Indica una pagina o un documento istituzionale che riporti il tuo nome.
+                  Non bastano social network, articoli giornalistici o siti di partito.
+                </p>
+                {mostraElezione && (
+                  <div className="space-y-2">
+                    <label htmlFor="fonte-elezione" className="text-sm font-medium text-gray-700">URL ufficiale della carica ricoperta *</label>
+                    <Input id="fonte-elezione" type="url" maxLength={2048}
+                      placeholder="https://..." value={form.fonte_elezione_url}
+                      onChange={e => handleChange("fonte_elezione_url", e.target.value)} required />
+                  </div>
+                )}
+                {mostraCandidatura && (
+                  <div className="space-y-2">
+                    <label htmlFor="fonte-candidatura" className="text-sm font-medium text-gray-700">URL ufficiale della candidatura *</label>
+                    <Input id="fonte-candidatura" type="url" maxLength={2048}
+                      placeholder="https://..." value={form.fonte_candidatura_url}
+                      onChange={e => handleChange("fonte_candidatura_url", e.target.value)} required />
+                  </div>
+                )}
+                <p className="text-xs text-slate-500">Non è necessario allegare documenti d'identità.</p>
+              </div>
               <div className="pt-2 flex justify-end">
                 <Button
                   type="submit"
                   className="min-w-[180px]"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || identity !== "verified" || !form.tipo_ruolo}
                 >
-                  {isSubmitting ? "Invio in corso..." : "Invia richiesta"}
+                  {isSubmitting ? "Invio in corso..." : "Invia richiesta di riconoscimento"}
                 </Button>
               </div>
             </form>
