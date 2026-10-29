@@ -45,7 +45,7 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
 
   useEffect(() => {
     if (!isAuthLoading && user && location === '/') {
-      setLocation('/preferiti');
+      setLocation('/profilo');
     }
   }, [isAuthLoading, user, location, setLocation]);
 
