@@ -95,6 +95,35 @@ test('probe refuses staging migration and all write-capable E2E flags before SQL
   ));
 });
 
+test('probe refuses all known staging background jobs before SQL',async()=>{
+  const flags=[
+    'ENABLE_DATA_RETENTION',
+    'ENABLE_VIOLATION_MONITORING',
+    'ENABLE_AUTOMATIC_BACKUP',
+    'ENABLE_MINISTERO_SYNC',
+    'ENABLE_CIVIC_PROCESS_SYNC',
+    'ENABLE_POLITICAL_TERRITORY_RESOLVER',
+    'ENABLE_ITALIAN_ELECTION_UNIT_SYNC',
+    'ENABLE_VOTI_PARLAMENTO_SYNC',
+    'ENABLE_OPENPOLIS_COSA_SUCCEDE_SYNC',
+    'AXIOM_ARCHIVE_ENABLED'
+  ];
+  for(const key of flags) {
+    const env=config({[key]:'true'});
+    assert.throws(()=>assertProcessTarget(env),
+      /NO_GO_STAGING_ATTESTATION_GUARD_FAILED/,key);
+    let calls=0;
+    const result=await attestInProcess({
+      env,getPool:()=>{calls++;throw Error('MUST_NOT_CONNECT');},emit:()=>{}
+    });
+    assert.equal(calls,0,'no SQL while '+key+' is enabled');
+    assert.equal(result.recoveryReady,false);
+  }
+  assert.doesNotThrow(()=>assertProcessTarget(
+    config({ENABLE_DATA_RETENTION:'false',AXIOM_ARCHIVE_ENABLED:'false'})
+  ));
+});
+
 test('production or malformed guard does not obtain pool, connect or query',async()=>{
   const logs=[];
   for(const bad of [
