@@ -108,3 +108,27 @@ La strategia di intenzione esterna è una **proposta da validare**, non un fix g
 L'autorità HMAC è soltanto un modello e l'approvazione del ripristino usa booleani di prova: nessuna verifica di disponibilità, durata, freschezza, costi, IAM/secret management, completezza o Object Lock reale. `productionRecoveryReady` resta **sempre false**.
 
 **Esito Fase E: test logici e PostgreSQL superati; prova di bypass evidenziata; GH-296 ancora OPEN / NO-GO.** Prima di un rilascio vanno implementati e attestati il *data-plane cut-off* indipendente e il journal esterno completo, con RP-10/F5-17 e DPIA approvati.
+
+## Fase F — prova del cut-off SQL locale e limite del backup di cluster (29 ottobre 2026)
+
+**Eseguibile esclusivamente sul PostgreSQL 17 temporaneo di GitHub Actions. Nessun comando di questa sezione è autorizzato sulla produzione.**
+
+Il test `api/tests/gdprDistributedFencePg17Synthetic.test.js` dimostra un passaggio ulteriore oltre al preflight HMAC in memoria: disabilitare `LOGIN` e cancellare la password del ruolo di test **impedisce nuove sessioni**, ma **non termina** quelle già esistenti. Una connessione preesistente può ancora invocare la funzione gateway su un backup che ha ripristinato `open=true`. Per il rehearsal il cambiamento è effettuato all'interno di una transazione ROLLBACK, senza persistere dati.
+
+Un operatore di prova con privilegi separati termina poi la sessione con `pg_terminate_backend`; PostgreSQL esegue rollback di una transazione di cancellazione ancora aperta. Una nuova lettura/scrittura tramite le credenziali precedenti è negata. Si verifica la chiusura di tutte le sessioni appartenenti al ruolo fittizio e si rimuove il ruolo al termine. Non si usa B2, Render, Supabase o alcun utente reale.
+
+**Le prove SQL locali non rappresentano un cut-off esterno sufficiente:**
+- Una sessione SQL già autenticata sopravvive a `ALTER ROLE NOLOGIN` finché non è terminata; password rotate/revoke non equivalgono a drenaggio di sessioni, pool e worker.
+- In un *restore completo dell'intero cluster PostgreSQL* anche i cataloghi globali dei ruoli potrebbero essere ripristinati. Nel restore di un singolo database i ruoli globali invece restano esterni a quel dump: il tipo effettivo di recupero deve essere attestato, senza supposizioni.
+- Un processo con credenziali di owner/superuser, una connessione diretta alternativa, un pooler, un processo batch o un secondo accesso applicativo può aggirare la sola funzione di ammissione Node. Il test di un unico ruolo non costituisce censimento di tutti i writer/reader.
+- Avere un authority HMAC fuori da PostgreSQL **non evita la gara** fra l'ultimo controllo e la successiva query. Serve un vincolo tecnicamente enforceable alla rete/identità/connessione che prevalga anche sulle credenziali ripristinate.
+
+### Contratto operativo esterno da approvare prima di uno staging reale
+
+1. Identificare e attestare da fonti effettive tutti i punti di ingresso al database, inclusi backend Render, pooler, worker, job, importatori, account amministrativi, API provider e connessioni dirette. Non estrarre o pubblicare password/token.
+2. Attivare *prima* del ripristino un blocco di rete e/o IAM **indipendente dal backup SQL** che neghi ai client qualsiasi nuova connessione, lettura o scrittura. Se il provider non permette un blocco esaustivo, il gate resta NO-GO.
+3. Congelare gli ingressi HTTP e sospendere job/processi/queue; revocare/ruotare credenziali precedenti **senza divulgare segreti** e terminare ogni sessione preesistente. Attestare il numero zero di sessioni live e connessioni rifiutate per ogni percorso censito; i privilegi amministrativi sono separati dal ruolo runtime.
+4. Creare una nuova generazione/epoca esterna non retrocedibile. Ricostruire il database soltanto nella quarantena; verificare la completezza dell'intero journal GDPR e il checkpoint B2 esterno più recente, risolvere ogni operazione incerta secondo protocollo approvato e riprodurre idempotentemente le cancellazioni/revoche.
+5. Consentire nuove connessioni **solo per una nuova generazione e nuove identità** dopo controlli end-to-end di assenza dei dati cancellati, credenziali vecchie effettivamente respinte (anche dopo restore), outbox completa, read/write fail-closed e autorizzazioni DPO/titolare. Se manca anche una sola attestazione, non servire traffico.
+
+La decisione su credenziali, network isolation, retention RP-10/F5-17, IAM/B2 Object Lock e DPIA richiede autorizzazione separata. Non attivare nulla in produzione in base ai risultati sintetici. GH-296 resta **OPEN / NO-GO**.
