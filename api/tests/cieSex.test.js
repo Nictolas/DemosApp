@@ -136,3 +136,46 @@ test('opinion statistics never return raw SQL errors or log exception objects', 
   assert.doesNotMatch(source, /Error details:/);
   assert.match(source, /message:\s*'Errore interno del server'/);
 });
+
+
+test('la certificazione CIE corrente richiede fonte C e verifica attiva', async () => {
+  let sqlText = '';
+  const active = {
+    async query(sql, params) {
+      sqlText = sql;
+      assert.deepEqual(params, ['user-cie']);
+      return { rows: [{ verified_cie_sex: true }] };
+    }
+  };
+  assert.equal(await isCurrentlyVerifiedCieSex(active, 'user-cie'), true);
+  for (const guard of [
+    /u\.sesso IN \('M','F'\)/,
+    /u\.sesso_fonte = 'C'/,
+    /iv\.provider = 'CIE'/,
+    /iv\.status = 'verified'/,
+    /iv\.detached_at IS NULL/,
+    /u\.account_type = 'PERSON'/
+  ]) assert.match(sqlText, guard);
+  assert.equal(await isCurrentlyVerifiedCieSex({
+    async query() { return { rows: [{ verified_cie_sex: false }] }; }
+  }, 'user-cie'), false);
+  assert.equal(await isCurrentlyVerifiedCieSex({
+    async query() { return { rows: [] }; }
+  }, 'user-cie'), false);
+  assert.equal(await isCurrentlyVerifiedCieSex({
+    async query() { throw new Error('must not query'); }
+  }, null), false);
+});
+
+test('sesso_fonte non e modificabile dal browser e compare nell export GDPR canonico', () => {
+  const read = relative => fs.readFileSync(path.resolve(__dirname, '../..', relative), 'utf8');
+  for (const file of ['api/routes/users/search.js', 'api/routes/users/profile.js']) {
+    const source = read(file);
+    for (const fields of source.matchAll(/const allowedFields = \[([\s\S]*?)\];/g)) {
+      assert.doesNotMatch(fields[1], /'sesso_fonte'/);
+    }
+  }
+  const exportService = read('api/services/privacyDataExportService.js');
+  assert.match(exportService, /'data_nascita', 'sesso', 'sesso_fonte', 'genere'/);
+  assert.match(exportService, /filter\(\(column\) => columns\.includes\(column\)\)/);
+});
