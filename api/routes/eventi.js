@@ -26,6 +26,16 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const viewType = req.query.view || 'personal';
 
+    // Catalogo pubblico delle mobilitazioni: nessuna query PostgreSQL per richiesta.
+    if (viewType === 'mobilitazioni') {
+      const imported = await retrieveChronocol();
+      return res.json({
+        success: true,
+        data: mergeChronocol([], imported, { global: true }),
+        source: 'Chrono Collective'
+      });
+    }
+
     if (req.user?.isAdmin && viewType === 'global') {
       let result;
       try {
