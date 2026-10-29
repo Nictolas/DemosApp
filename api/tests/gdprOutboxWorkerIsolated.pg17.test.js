@@ -186,6 +186,14 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     const fake = new FakeB2();
     const worker = new PrivacyErasureOutboxWorker({ env: config, exporter: fake });
 
+    // A restored old snapshot with an EMPTY ledger/outbox looks drained locally,
+    // even if the destroyed database had later acknowledged an erasure.
+    // Never misclassify SQL-local readiness as recoverability after DB loss.
+    const emptySnapshot = await PrivacyErasureOutboxWorker.status(admin);
+    assert.equal(emptySnapshot.ready, true, 'local queue is empty');
+    assert.equal(emptySnapshot.recoveryReady, false,
+      'an empty local queue cannot attest independently durable recovery history');
+
     const first = await Ledger.recordEvent(admin, event(1));
     assert.equal(first.subject_user_id, USER);
     assert.deepEqual(await counts(admin), {ledger:1,outbox:1,pending:1,delivered:0});
@@ -204,6 +212,7 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     assert.equal(fake.calls, 1);
     const ready = await PrivacyErasureOutboxWorker.status(admin);
     assert.equal(ready.ready, true);
+    assert.equal(ready.recoveryReady, false, 'delivery alone cannot attest external completeness');
     assert.equal(ready.completeVisibility, true);
     assert.equal(ready.unqueued, 0);
 
@@ -259,6 +268,7 @@ test('PG17 mock B2 archive, least-privilege worker, retry, ack, quarantine and d
     const partial = await PrivacyErasureOutboxWorker.status(workerPool);
     assert.equal(partial.installed, true);
     assert.equal(partial.ready, false);
+    assert.equal(partial.recoveryReady, false);
     assert.equal(partial.completeVisibility, false);
     assert.equal(partial.pending, null, 'do not show RLS-filtered counts as global');
     assert.equal(partial.unqueued, null);
