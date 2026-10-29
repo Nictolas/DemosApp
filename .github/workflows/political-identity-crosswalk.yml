@@ -10,6 +10,7 @@ on:
       - 'api/database/political-institutional-crosswalk-v1.sql'
       - 'api/tests/politicalInstitutionalCrosswalk.pg17.sql'
       - 'api/tests/fixtures/politicalInstitutionalCrosswalk.pg17.fixture.sql'
+      - 'api/tests/fixtures/politicalInstitutionalCrosswalk.approvals.pg17.sql'
       - 'api/tests/politicalInstitutionalCrosswalk.concurrent.sh'
       - 'api/scripts/audit-political-legacy-role-impact-20261029.sql'
       - '.github/workflows/political-identity-crosswalk.yml'
@@ -68,6 +69,8 @@ jobs:
         run: |
           psql -X -v ON_ERROR_STOP=1 -f api/tests/fixtures/politicalInstitutionalCrosswalk.pg17.fixture.sql
           psql -X -v ON_ERROR_STOP=1 -f api/database/political-institutional-crosswalk-v1.sql
+      - name: Load separately curated synthetic approvals (test DB only)
+        run: psql -X -v ON_ERROR_STOP=1 -f api/tests/fixtures/politicalInstitutionalCrosswalk.approvals.pg17.sql
       - name: Idempotence, conflict, access control and rollback
         run: psql -X -v ON_ERROR_STOP=1 -f api/tests/politicalInstitutionalCrosswalk.pg17.sql
       - name: Two concurrent attempts to import same official ID
