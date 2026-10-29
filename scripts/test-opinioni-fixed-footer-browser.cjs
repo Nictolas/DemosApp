@@ -165,6 +165,14 @@ async function run() {
         cases += 1;
       }
 
+      // All four category snapshots have been encrypted in IndexedDB.
+      // A full page navigation must not repeat a personal-answer GET.
+      const readsBeforeWarmReturn = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, readsBeforeWarmReturn,
+        'Encrypted warm cache must survive browser navigation without a GET');
+
       // Real save and unsaved navigation guard using only synthetic API responses.
       await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
       await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
@@ -183,6 +191,12 @@ async function run() {
         'Saving a delta must not refetch the full personal answer list');
       assert.ok(writes.length > 0, 'Save button must post the selected opinion');
       assert.equal(writes.at(-1)['synthetic-opinion-01'], 'f');
+      assert.deepEqual(Object.keys(writes.at(-1)), ['synthetic-opinion-01'],
+        'An unchanged answer must never be included in the delta payload');
+      await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, beforeSaveReads,
+        'Warm cache after ACK must not repeat an answer GET');
       assert.deepEqual(errors, [], 'No uncaught errors at ' + viewport.width + 'x' + viewport.height);
       await context.close();
     }
