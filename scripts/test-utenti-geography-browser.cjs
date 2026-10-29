@@ -139,6 +139,7 @@ async function main() {
 
     const municipalCard = page.locator('div.bg-white').filter({ has: page.getByText('I 10 comuni di residenza o riferimento comunale') }).last();
     const table = municipalCard.locator('table');
+    await table.locator('tbody tr').first().waitFor({ state: 'visible', timeout: 10000 });
     const entries = await table.locator('tbody tr').allTextContents();
     for (const city of ['Milano', 'Torino', 'Bologna']) {
       assert.ok(entries.some(e => e.includes(city)), 'Missing expected city ' + city + ': ' + entries.join('; '));
