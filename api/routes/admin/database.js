@@ -5,6 +5,10 @@ const router = express.Router();
 
 // POST /api/admin/database/add-opinioni-columns - Aggiungi colonne mancanti alla tabella opinioni
 // Mutazione di schema: accesso esclusivamente Admin autenticato.
+// Legacy schema mutation is available only in non-production; never re-enable
+// with ALLOW_DEV_API_SURFACE or a valid admin token. Use approved SQL migration
+// tooling for production changes outside the HTTP request path.
+if (process.env.NODE_ENV !== 'production') {
 router.post('/add-opinioni-columns', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔧 POST /api/admin/database/add-opinioni-columns - Aggiunta colonne opinioni');
@@ -95,6 +99,8 @@ router.post('/add-opinioni-columns', verifyToken, requireAdmin, async (req, res)
     });
   }
 });
+
+}
 
 // GET /api/admin/database/opinioni-structure - Verifica struttura tabella opinioni
 router.get('/opinioni-structure', verifyToken, requireAdmin, async (req, res) => {
