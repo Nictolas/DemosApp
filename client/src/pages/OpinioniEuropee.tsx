@@ -64,9 +64,6 @@ export default function OpinioniEuropee() {
   
   // Debug
   useEffect(() => {
-    console.log('🔍 DEBUG - questionsData:', questionsData);
-    console.log('🔍 DEBUG - questions:', questions);
-    console.log('🔍 DEBUG - questions.length:', questions.length);
   }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
@@ -86,35 +83,22 @@ export default function OpinioniEuropee() {
 
   // Debug per vedere le sezioni
   useEffect(() => {
-    console.log('🔍 DEBUG - opinioniEspresse:', opinioniEspresse);
-    console.log('🔍 DEBUG - opinioniDaInserire:', opinioniDaInserire);
-    console.log('🔍 DEBUG - opinioniEspresse.length:', opinioniEspresse.length);
-    console.log('🔍 DEBUG - opinioniDaInserire.length:', opinioniDaInserire.length);
   }, [opinioniEspresse, opinioniDaInserire]);
 
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
     if (questions && questions.length > 0) {
-      console.log('🔍 DEBUG useEffect - questions ricevute:', questions);
       const mappedOpinions: Record<string, string> = {};
       
       questions.forEach(question => {
-        console.log(`🔍 DEBUG question:`, {
-          id: question.id,
-          text: question.text,
-          userAnswer: question.userAnswer
-        });
         
         if (question.userAnswer && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
-          console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
         } else {
           // Non impostare nulla per opinioni senza risposta - rimangono undefined
-          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer}) -> non impostata`);
         }
       });
       
-      console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);
       setOpinions(mappedOpinions);
     }
   }, [questions]);
@@ -163,15 +147,11 @@ export default function OpinioniEuropee() {
   };
 
   const handleSave = () => {
-    console.log('🔍 DEBUG handleSave:');
-    console.log('  questions:', questions);
-    console.log('  opinions:', opinions);
     
     // Only changed IDs: never overwrite positions from another device.
     const opinionsToSave = collectChangedOpinionAnswers(questions, opinions);
 
     if (Object.keys(opinionsToSave).length === 0) {
-      console.log('❌ DEBUG: Nessuna opinione da salvare');
       toast({ title: "Attenzione", description: "Non ci sono nuove opinioni da salvare.", variant: "destructive" });
       return;
     }
@@ -185,7 +165,6 @@ export default function OpinioniEuropee() {
       return;
     }
     
-    console.log('✅ DEBUG: Procedo con il salvataggio');
     saveMutation.mutate(opinionsToSave);
   };
 
@@ -195,7 +174,6 @@ export default function OpinioniEuropee() {
   const handleConsentGranted = async () => {
     // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
     if (pendingOpinionsToSave) {
-      console.log('✅ DEBUG: Consenso concesso, aggiorno la cache e procedo con il salvataggio delle opinioni');
       // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
       await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
       // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
