@@ -37,6 +37,55 @@ const COLORS = ['#87CEEB', '#FFB6C1', '#FFD700', '#98FB98', '#DDA0DD', '#F0E68C'
 const getSexColor = (sesso: string) =>
   sesso === 'M' ? '#3b82f6' : sesso === 'F' ? '#ec4899' : '#9ca3af';
 
+// Condivide lo swipe touch locale tra i grafici delle statistiche.
+function useHorizontalChartTouchScroll() {
+  const cleanupRef = useRef<(() => void) | null>(null);
+  return useCallback((element: HTMLDivElement | null) => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    if (!element) return;
+
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let gesture: 'horizontal' | 'vertical' | null = null;
+    const handleStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        gesture = 'vertical';
+        return;
+      }
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+      startScrollLeft = element.scrollLeft;
+      gesture = null;
+    };
+    const handleMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+      const dx = event.touches[0].clientX - startX;
+      const dy = event.touches[0].clientY - startY;
+      if (!gesture && Math.max(Math.abs(dx), Math.abs(dy)) >= 7) {
+        gesture = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+      }
+      if (gesture !== 'horizontal') return;
+
+      // I gesti orizzontali restano nel grafico; il verticale rimane nativo.
+      if (event.cancelable) event.preventDefault();
+      element.scrollLeft = startScrollLeft - dx;
+    };
+    const handleEnd = () => { gesture = null; };
+    element.addEventListener('touchstart', handleStart, { passive: true });
+    element.addEventListener('touchmove', handleMove, { passive: false });
+    element.addEventListener('touchend', handleEnd, { passive: true });
+    element.addEventListener('touchcancel', handleEnd, { passive: true });
+    cleanupRef.current = () => {
+      element.removeEventListener('touchstart', handleStart);
+      element.removeEventListener('touchmove', handleMove);
+      element.removeEventListener('touchend', handleEnd);
+      element.removeEventListener('touchcancel', handleEnd);
+    };
+  }, []);
+}
+
 export default function Utenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   
@@ -259,55 +308,12 @@ export default function Utenti() {
   };
   const regionBarData = prepareRegionBarData(stats?.usersByRegionWithEstimates);
 
-  // Gestione touch direttamente sull'area del grafico, anche quando la tab
-  // Statistiche viene aperta dopo il primo render. Il listener non passivo
-  // impedisce che lo swipe orizzontale venga interpretato come navigazione.
-  const regionChartTouchCleanupRef = useRef<(() => void) | null>(null);
-  const setRegionChartScrollRef = useCallback((element: HTMLDivElement | null) => {
-    regionChartTouchCleanupRef.current?.();
-    regionChartTouchCleanupRef.current = null;
-    if (!element) return;
-
-    let startX = 0;
-    let startY = 0;
-    let startScrollLeft = 0;
-    let gesture: 'horizontal' | 'vertical' | null = null;
-
-    const handleStart = (event: TouchEvent) => {
-      if (event.touches.length !== 1) {
-        gesture = 'vertical';
-        return;
-      }
-      startX = event.touches[0].clientX;
-      startY = event.touches[0].clientY;
-      startScrollLeft = element.scrollLeft;
-      gesture = null;
-    };
-    const handleMove = (event: TouchEvent) => {
-      if (event.touches.length !== 1) return;
-      const dx = event.touches[0].clientX - startX;
-      const dy = event.touches[0].clientY - startY;
-      if (!gesture && Math.max(Math.abs(dx), Math.abs(dy)) >= 7) {
-        gesture = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
-      }
-      if (gesture !== 'horizontal') return;
-
-      // Non lasciare il gesto al browser (es. navigazione indietro su iOS).
-      if (event.cancelable) event.preventDefault();
-      element.scrollLeft = startScrollLeft - dx;
-    };
-    const handleEnd = () => { gesture = null; };
-    element.addEventListener('touchstart', handleStart, { passive: true });
-    element.addEventListener('touchmove', handleMove, { passive: false });
-    element.addEventListener('touchend', handleEnd, { passive: true });
-    element.addEventListener('touchcancel', handleEnd, { passive: true });
-    regionChartTouchCleanupRef.current = () => {
-      element.removeEventListener('touchstart', handleStart);
-      element.removeEventListener('touchmove', handleMove);
-      element.removeEventListener('touchend', handleEnd);
-      element.removeEventListener('touchcancel', handleEnd);
-    };
-  }, []);
+  const setRegionChartScrollRef = useHorizontalChartTouchScroll();
+  const setRoleChartScrollRef = useHorizontalChartTouchScroll();
+  const roleBarData = Object.entries(stats?.usersByRole ?? {})
+    .sort(([nameA, countA], [nameB, countB]) =>
+      countB - countA || nameA.localeCompare(nameB, 'it'))
+    .map(([name, value]) => ({ name, value }));
 
   useEffect(() => {
     const checkMobile = () => {
@@ -631,28 +637,34 @@ export default function Utenti() {
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Ruolo</CardTitle>
+                      <CardDescription>Dal ruolo più numeroso al meno numeroso.</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie 
-                            data={preparePieData(stats.usersByRole)} 
-                            dataKey="value" 
-                            nameKey="name" 
-                            cx="50%" 
-                            cy="50%" 
-                            outerRadius={80} 
-                            fill="#8884d8" 
-                            label
-                          >
-                            {preparePieData(stats.usersByRole).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                    <CardContent>
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Trascina il grafico con il dito verso destra o sinistra per vedere tutti i ruoli.
+                      </p>
+                      <div
+                        ref={setRoleChartScrollRef}
+                        data-testid="utenti-role-chart-scroll"
+                        data-horizontal-swipe-region="true"
+                        className="utenti-horizontal-chart-scroll w-full max-w-full overflow-x-auto pb-2"
+                        style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
+                        role="region"
+                        aria-label="Grafico dei ruoli ordinato per numero di utenti: scorri orizzontalmente"
+                        tabIndex={0}
+                      >
+                        <div className="h-[380px] w-full" style={{ minWidth: `${Math.max(640, roleBarData.length * 80)}px` }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={roleBarData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                              <XAxis dataKey="name" interval={0} height={52} tick={{ fontSize: 12 }} />
+                              <YAxis allowDecimals={false} />
+                              <Tooltip />
+                              <Bar dataKey="value" name="Utenti" fill="#3b82f6" maxBarSize={46} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                   
@@ -751,7 +763,7 @@ export default function Utenti() {
                         ref={setRegionChartScrollRef}
                         data-testid="utenti-region-chart-scroll"
                         data-horizontal-swipe-region="true"
-                        className="utenti-region-chart-scroll w-full max-w-full overflow-x-auto pb-2"
+                        className="utenti-horizontal-chart-scroll w-full max-w-full overflow-x-auto pb-2"
                         style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
                         role="region"
                         aria-label="Grafico delle regioni ordinato per numero di utenti: scorri orizzontalmente"
