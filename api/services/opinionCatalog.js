@@ -1,4 +1,5 @@
 'use strict';
+const { createHash } = require('node:crypto');
 
 // The official published catalog lives in this release, not in a DB table.
 // Only PUBLIC opinion metadata is included. Personal answers, draft proposals
@@ -9,6 +10,13 @@ const opinions = Object.freeze(parts.flat().map((op) => Object.freeze({
   gradi_opinione: Object.freeze([...op.gradi_opinione])
 })));
 const byId = new Map(opinions.map(op => [op.id, op]));
+// Derived from public immutable metadata only: changes automatically on each
+// release whenever an ID, wording, scope or explanation changes. No SQL.
+const catalogRevision = createHash('sha256')
+  .update(JSON.stringify(opinions))
+  .digest('hex');
+function getOpinionCatalogRevision() { return catalogRevision; }
+
 const VALID_GRADES=new Set(['N','R','C','CO','E']);
 if(!opinions.length || byId.size!==opinions.length || opinions.some(op=>
   !/^[a-z][a-z0-9_]{0,62}$/.test(op.id) ||
@@ -44,5 +52,5 @@ function findOpinionIdByText(input) {
 module.exports = {
   getAllOpinions, getOpinionById, isPublishedOpinionId,
   getOpinionsForGrade, getOpinionIdsForGrade,
-  sortOpinionsByText, findOpinionIdByText
+  sortOpinionsByText, findOpinionIdByText, getOpinionCatalogRevision
 };
