@@ -248,6 +248,17 @@ export default function Utenti() {
       .map(([name, value]) => ({ name, value }));
   };
   
+  // Le regioni sono ordinate per numero di utenti; N/A non è una regione.
+  const prepareRegionBarData = (data: Record<string, number> | null | undefined) => {
+    if (!data) return [];
+    return Object.entries(data)
+      .filter(([name]) => name.trim() !== '' && name.trim().toUpperCase() !== 'N/A')
+      .sort(([nameA, countA], [nameB, countB]) =>
+        countB - countA || nameA.localeCompare(nameB, 'it'))
+      .map(([name, value]) => ({ name, value }));
+  };
+  const regionBarData = prepareRegionBarData(stats?.usersByRegionWithEstimates);
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768); // md breakpoint
@@ -680,27 +691,21 @@ export default function Utenti() {
                         Residenza registrata: {stats.usersWithKnownRegion}. Regione elettorale stimata: {stats.usersWithProvisionalRegion}.
                         Le stime non vengono salvate nel profilo e sono superate dalla residenza indicata dal politico.
                       </p>
-                      <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie 
-                            data={preparePieData(stats.usersByRegionWithEstimates)} 
-                            dataKey="value" 
-                            nameKey="name" 
-                            cx="50%" 
-                            cy="50%" 
-                            outerRadius={80} 
-                            fill="#8884d8" 
-                            label
-                          >
-                            {preparePieData(stats.usersByRegionWithEstimates).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Regione non disponibile per {stats.usersByRegionWithEstimates['N/A'] ?? 0} {(stats.usersByRegionWithEstimates['N/A'] ?? 0) === 1 ? 'utente' : 'utenti'}.
+                      </p>
+                      <div className="w-full overflow-x-auto pb-2" aria-label="Grafico delle regioni ordinato per numero di utenti">
+                        <div className="h-[380px] w-full" style={{ minWidth: `${Math.max(640, regionBarData.length * 72)}px` }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={regionBarData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                              <XAxis dataKey="name" interval={0} angle={-48} textAnchor="end" height={125} tick={{ fontSize: 12 }} />
+                              <YAxis allowDecimals={false} />
+                              <Tooltip />
+                              <Bar dataKey="value" name="Utenti" fill="#3b82f6" maxBarSize={46} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
