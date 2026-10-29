@@ -4,7 +4,7 @@
 // No Backblaze, Render, Supabase, production SQL, users or credentials.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Pool } = require('pg');
+const { Pool, Client } = require('pg');
 const {SyntheticIndependentAdmissionAuthority}=
   require('./fixtures/gdprIndependentAdmissionEpochSynthetic');
 
@@ -302,6 +302,73 @@ if (!permitted) {
       localEpoch:Number(fresh.epoch),localOpen:fresh.open,operation:'read'
     }),{code:'GDPR_EPOCH_STALE_OR_FORGED'});
     // No production admission is ever returned by this fixture.
+  });
+
+  test('operator denies new logins, drains active SQL sessions and rolls back uncommitted privacy write',async()=>{
+    // THIS IS A DISPOSABLE PG17 REHEARSAL, not real external network isolation.
+    // It intentionally proves NOLOGIN alone does NOT terminate old sessions.
+    const session=await writerPool.connect();
+    session.on('error',()=>{}); // Expected when the operator terminates backend.
+    let released=false;
+    try {
+      const who=(await session.query(
+        'SELECT current_user AS role, pg_backend_pid() AS pid'
+      )).rows[0];
+      assert.equal(who.role,ROLE);
+
+      await ownerPool.query('ALTER ROLE '+ROLE+' NOLOGIN PASSWORD NULL');
+      const newClient=new Client({
+        host:'127.0.0.1',port:5432,database:'gdpr_outbox_worker_ci',
+        user:ROLE,password:'synthetic-role-no-remote-credentials',ssl:false,
+        connectionTimeoutMillis:1500
+      });
+      try {
+        await assert.rejects(newClient.connect(),
+          /not permitted to log in|password authentication failed/i);
+      } finally {
+        await newClient.end().catch(()=>{});
+      }
+
+      // A connection established before NOLOGIN remains usable: proof that
+      // credential revocation alone does not close the old SQL data plane.
+      assert.equal((await session.query('SELECT 1 AS x')).rows[0].x,1);
+      await session.query('BEGIN');
+      assert.equal(outcome(await submit(session,'unsafe-before-drain',
+        'alice','GRANT',3,3)),'applied');
+      await session.query('ROLLBACK');
+
+      // Simulate a privacy write mid-transaction and sever the live backend.
+      await session.query('BEGIN');
+      assert.equal(outcome(await submit(session,'uncommitted-before-kill',
+        'alice','DELETE',3,3)),'applied');
+      const terminated=await ownerPool.query(
+        'SELECT pg_terminate_backend($1::integer) AS killed',[who.pid]
+      );
+      assert.equal(terminated.rows[0].killed,true);
+      await assert.rejects(session.query('SELECT 1'),
+        /terminating connection|connection terminated|Client has encountered a connection error|Connection terminated|not queryable/i);
+      session.release(true);
+      released=true;
+
+      // Prevent any other pooled, pre-existing runtime sessions from surviving.
+      await ownerPool.query('SELECT pg_terminate_backend(pid) FROM pg_stat_activity'+
+        ' WHERE usename=$1 AND pid<>pg_backend_pid()',[ROLE]);
+      const active=await ownerPool.query(
+        'SELECT count(*)::int AS n FROM pg_stat_activity WHERE usename=$1',[ROLE]);
+      assert.equal(active.rows[0].n,0);
+      const row=(await ownerPool.query('SELECT revision,consent,deleted FROM '+
+        SCHEMA+".accounts WHERE id='alice'")).rows[0];
+      assert.deepEqual(row,{revision:'3',consent:false,deleted:false});
+      const count=(await ownerPool.query('SELECT count(*)::int AS n FROM '+
+        SCHEMA+".written WHERE id IN ('unsafe-before-drain','uncommitted-before-kill')")).rows[0].n;
+      assert.equal(count,0,'all in-flight/rolled-back synthetic writes absent');
+      const role=(await ownerPool.query(
+        'SELECT rolcanlogin,rolpassword IS NULL AS password_erased'+
+        ' FROM pg_authid WHERE rolname=$1',[ROLE])).rows[0];
+      assert.deepEqual(role,{rolcanlogin:false,password_erased:true});
+    } finally {
+      if(!released) session.release(true);
+    }
   });
 
   test.after(async()=>{
