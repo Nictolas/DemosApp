@@ -144,6 +144,29 @@ export async function storeEncryptedProfile(
   }
 }
 
+const pendingWrites = new Map<string, Promise<void>>();
+
+/** Serialize section updates so concurrent first-load GETs cannot overwrite
+ * one another in the encrypted per-account record. */
+export async function patchEncryptedProfile(
+  owner: string,
+  patch: Partial<PersistedProfile>,
+): Promise<void> {
+  if (!owner || !available()) return;
+  const epoch = activeEpoch;
+  const prior = pendingWrites.get(owner) || Promise.resolve();
+  const next = prior.catch(() => {}).then(async () => {
+    if (epoch !== activeEpoch) return;
+    const existing = await loadEncryptedProfile(owner);
+    if (epoch !== activeEpoch) return;
+    await storeEncryptedProfile(owner, { ...emptyProfile(), ...existing, ...patch });
+  });
+  pendingWrites.set(owner, next);
+  try { await next; } finally {
+    if (pendingWrites.get(owner) === next) pendingWrites.delete(owner);
+  }
+}
+
 export async function clearEncryptedProfile(owner: string): Promise<void> {
   activeEpoch += 1;
   if (!owner || !available()) return;
