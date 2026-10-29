@@ -45,12 +45,16 @@ try {
 // Always runs in this backend's Node process through its canonical pool;
 // never mounts an endpoint, starts a service, or queries a production DB.
 if (process.env.GDPR_RENDER_INPROCESS_ATTESTATION !== undefined) {
-  const { attestInProcess } =
-    require('./services/gdprRenderInProcessStagingAttestation');
-  void attestInProcess({
-    env: process.env,
-    getPool: () => require('./config/database').getPool(),
-    emit: line => console.log(line)
+  // One shot AFTER the listener is ready. It reuses this process's existing
+  // canonical pool, without starting an HTTP diagnostic endpoint.
+  server.once('listening', () => {
+    const { attestInProcess } =
+      require('./services/gdprRenderInProcessStagingAttestation');
+    void attestInProcess({
+      env: process.env,
+      getPool: () => require('./config/database').getPool(),
+      emit: line => console.log(line)
+    });
   });
 }
 
