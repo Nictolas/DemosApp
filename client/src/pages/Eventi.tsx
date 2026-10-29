@@ -378,51 +378,55 @@ export default function Eventi() {
                     : 'bg-white border-gray-100'
                 }`}
               >
-                                            {/* Nome Evento */}
-                            <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
-                              <h3 className="text-lg sm:text-xl font-bold leading-snug break-words text-gray-900 flex items-center gap-2">
+                            {/* Titolo a sinistra, targhetta sempre in alto a destra.
+                                Le azioni (quando consentite) sono sotto la targhetta. */}
+                            <div className="mb-3 flex items-start justify-between gap-3">
+                              <h3 className="flex min-w-0 flex-1 items-start gap-2 text-lg sm:text-xl font-bold leading-snug text-gray-900">
                                 {evento.tipologia_evento === 'Elezioni' && (
-                                  <span className="text-2xl">🗳️</span>
+                                  <span className="shrink-0 text-2xl" aria-hidden="true">🗳️</span>
                                 )}
-                                {evento.nome_evento}
+                                <span className="min-w-0 break-words">{evento.nome_evento}</span>
                               </h3>
-                              <div className="flex items-center gap-2">
+                              <div className="flex shrink-0 flex-col items-end gap-1.5">
                                 {evento.external_import && (
-                                  <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded-full">
+                                  <span className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold leading-tight ${
+                                    evento.sciopero === true
+                                      ? 'border-rose-200 bg-rose-100 text-rose-800'
+                                      : 'border-purple-200 bg-purple-100 text-purple-800'
+                                  }`}>
                                     {evento.sciopero === true ? 'Sciopero' : 'Mobilitazione'}
                                   </span>
                                 )}
                                 {evento.tipologia_evento === 'Elezioni' && (
-                                  <span className="bg-yellow-200 text-yellow-800 text-xs font-semibold px-2 py-1 rounded-full">
-                                    {evento.tipo_elezione
-                                      ? `Elezioni – ${evento.tipo_elezione === 'Politiche_nazionali'
-                                          ? 'Politiche nazionali (Camera e Senato)'
-                                          : evento.tipo_elezione
-                                        }`
-                                      : 'Elezioni'}
+                                  <span className="whitespace-nowrap rounded-full border border-yellow-300 bg-yellow-200 px-2.5 py-1 text-xs font-semibold leading-tight text-yellow-900">
+                                    Elezioni
                                   </span>
                                 )}
                                 {canEditEvent(evento) && (
-                                  <>
+                                  <div className="flex items-center justify-end gap-1" role="group" aria-label="Azioni evento">
                                     <button
+                                      type="button"
                                       onClick={() => editEvent(evento)}
-                                      className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
+                                      className="flex h-9 w-9 items-center justify-center rounded-lg text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                                       title="Modifica evento"
+                                      aria-label="Modifica evento"
                                     >
                                       <Edit className="h-4 w-4" />
                                     </button>
                                     <button
+                                      type="button"
                                       onClick={() => deleteEvent(evento.id)}
-                                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
+                                      className="flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                                       title="Elimina evento"
+                                      aria-label="Elimina evento"
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </button>
-                                  </>
+                                  </div>
                                 )}
                               </div>
                             </div>
-                            
+
                             {/* Organizzatore - Solo per eventi non "Elezioni" */}
                             {evento.tipologia_evento !== 'Elezioni' && !evento.external_import && (
                               <div className="mb-3">
