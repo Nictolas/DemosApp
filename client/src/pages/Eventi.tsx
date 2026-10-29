@@ -389,7 +389,7 @@ export default function Eventi() {
                               <div className="flex items-center gap-2">
                                 {evento.external_import && (
                                   <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded-full">
-                                    Mobilitazione
+                                    {evento.sciopero === true ? 'Sciopero' : 'Mobilitazione'}
                                   </span>
                                 )}
                                 {evento.tipologia_evento === 'Elezioni' && (
@@ -430,9 +430,6 @@ export default function Eventi() {
                                   {evento.organizzatore || 'Organizzatore non specificato'}
                                 </span>
                               </div>
-                            )}
-                            {evento.external_import && evento.sciopero && (
-                              <p className="mb-2 text-sm font-medium text-purple-700">Evento collegato a uno sciopero</p>
                             )}
                             
                             {/* Luogo - Solo per eventi non "Elezioni" */}
