@@ -141,6 +141,18 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               </p>
             </div>
             {isViewingOwnProfile && (
+              <button
+                type="button"
+                onClick={() => void fetchAllProfileData()}
+                aria-label="Sincronizza manualmente il profilo e le sue sezioni"
+                title="Sincronizza profilo"
+                data-testid="profilo-sincronizza-icon"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-indigo-100 bg-white text-indigo-700 shadow-sm transition-colors hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+              >
+                <RefreshCcw aria-hidden="true" className="h-5 w-5" />
+              </button>
+            )}
+            {isViewingOwnProfile && (
               <Link
                 href="/impostazioni"
                 aria-label="Apri impostazioni"
@@ -155,14 +167,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
         </div>
 
         <div className="space-y-4">
-        {isViewingOwnProfile && (
-          <button type="button" onClick={() => void fetchAllProfileData()}
-            className="flex items-center gap-1.5 text-xs font-medium text-indigo-700"
-            aria-label="Sincronizza manualmente il profilo e le sue sezioni">
-            <RefreshCcw className="h-3.5 w-3.5" aria-hidden="true" />
-            Sincronizza profilo
-          </button>
-        )}
         {/* Stati di caricamento e errore */}
         <ProfileLoadingStates
           isLoading={isLoading}

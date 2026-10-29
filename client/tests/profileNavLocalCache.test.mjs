@@ -67,6 +67,24 @@ test("owner Profile keeps Demos logo left and the icon-only Settings shortcut on
   assert.doesNotMatch(profile, /<Star\b/);
 });
 
+test("Profile sync is icon-only next to Settings and never fetches automatically", () => {
+  const logo = profile.indexOf('data-testid="profilo-logo-gestisci"');
+  const heading = profile.indexOf('Profilo Cittadino');
+  const sync = profile.indexOf('data-testid="profilo-sincronizza-icon"');
+  const settings = profile.indexOf('data-testid="profilo-impostazioni-icon"');
+  const headerEnd = profile.indexOf('<div className="space-y-4">');
+  assert.ok(logo > 0 && logo < heading && heading < sync && sync < settings && settings < headerEnd,
+    "Sync icon belongs right before Settings, while the logo remains on the left");
+  assert.match(profile, /aria-label="Sincronizza manualmente il profilo e le sue sezioni"/);
+  assert.match(profile, /title="Sincronizza profilo"/);
+  assert.match(profile, /<RefreshCcw aria-hidden="true" className="h-5 w-5" \/>/);
+  assert.match(profile, /onClick=\{\(\) => void fetchAllProfileData\(\)\}/);
+  assert.equal(profile.match(/onClick=\{\(\) => void fetchAllProfileData\(\)\}/g)?.length, 1,
+    "Manual sync must have exactly one click trigger");
+  assert.match(profile, /data-testid="profilo-sincronizza-icon"[\s\S]*?h-11 w-11 shrink-0/);
+  assert.doesNotMatch(profile, /<RefreshCcw[^>]*\/>\s*Sincronizza profilo/);
+});
+
 test("all selection actions remain visible in open profile panels", () => {
   assert.match(profile, /<Link href="\/rappresentanti"/);
   assert.match(profile, /Scegli Rappresentanti/);
