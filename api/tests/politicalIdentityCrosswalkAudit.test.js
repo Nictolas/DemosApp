@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { auditPoliticalIdentityCrosswalk, officialUrl, validDate } =
+const { auditPoliticalIdentityCrosswalk, officialUrl, officialIdMatchesSource, validDate } =
   require('../utils/politicalIdentityCrosswalkAudit');
 
 const A = '11111111-1111-4111-8111-111111111111';
@@ -18,7 +18,7 @@ function caseFor(id = 'synthetic-01', userIds = [A, B]) {
     case_id: id,
     user_ids: userIds,
     accounts: userIds.map(user_id => ({ user_id, has_auth: false })),
-    cross_chamber_evidence_url: 'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita',
+    cross_chamber_evidence_url: 'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=000500',
     institutional_records: [
       {
         user_id: userIds[0], chamber: 'CAMERA', official_id: 'd1234_17',
@@ -26,8 +26,8 @@ function caseFor(id = 'synthetic-01', userIds = [A, B]) {
         legislature: 17, starts_at: '2013-03-15', ends_at: '2018-03-22'
       },
       {
-        user_id: userIds[1], chamber: 'SENATO', official_id: 'senatore-500',
-        source_url: 'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita',
+        user_id: userIds[1], chamber: 'SENATO', official_id: '500',
+        source_url: 'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=000500',
         legislature: 19, starts_at: '2022-10-13', ends_at: null
       }
     ]
@@ -88,7 +88,19 @@ test('missing source, invalid dates, spoofed official hosts and user preflight o
     'https://www.senato.it:8443/scheda',
     'https://www.camera.it/scheda'
   ]) assert.equal(officialUrl(url, 'SENATO'), false, url);
-  assert.equal(officialUrl('https://www.senato.it/scheda', 'SENATO'), true);
+  assert.equal(officialUrl('https://www.senato.it/scheda', 'SENATO'), false);
+  assert.equal(officialUrl(
+    'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=00018055',
+    'SENATO'), true);
+  assert.equal(officialUrl(
+    'https://www.senato.it/export/senator/full/19/18055',
+    'SENATO'), true);
+  assert.equal(officialUrl(
+    'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=500&tab=other',
+    'SENATO'), false);
+  assert.equal(officialUrl(
+    'https://www.senato.it/composizione/senatori/elenco-alfabetico/scheda-attivita?did=500&did=500',
+    'SENATO'), false);
   for (const date of ['2018-02-30', '2022-2-01', '2050-13-01', null]) {
     assert.equal(validDate(date), false);
   }
@@ -100,6 +112,25 @@ test('missing source, invalid dates, spoofed official hosts and user preflight o
   assert.ok(report.cases[0].problems.includes('AUTH_PREFLIGHT_INCOMPLETE'));
   assert.ok(report.cases[0].problems.includes('UNMATCHED_LOCAL_USER'));
   assert.throws(() => auditPoliticalIdentityCrosswalk({}), TypeError);
+});
+
+test('official source ID must match the Senato did despite leading zeros', () => {
+  const candidate = caseFor();
+  assert.equal(officialIdMatchesSource(candidate.institutional_records[1]), true);
+  candidate.institutional_records[1].official_id = '501';
+  const report = auditPoliticalIdentityCrosswalk([candidate]);
+  assert.ok(report.cases[0].problems.includes('OFFICIAL_ID_SOURCE_MISMATCH'));
+  candidate.institutional_records[1].official_id = '0500';
+  const padded = auditPoliticalIdentityCrosswalk([candidate]);
+  assert.ok(padded.cases[0].problems.includes('OFFICIAL_ID_SOURCE_MISMATCH'),
+    'Canonical IDs are unpadded so identical Senate IDs cannot fragment');
+});
+
+test('official source ID must match the Camera RDF resource when available', () => {
+  const candidate = caseFor();
+  candidate.institutional_records[0].official_id = 'd9999_17';
+  const report = auditPoliticalIdentityCrosswalk([candidate]);
+  assert.ok(report.cases[0].problems.includes('OFFICIAL_ID_SOURCE_MISMATCH'));
 });
 
 test('CLI emits aggregates only, creates no personal report by default, returns nonzero on blockers', () => {
