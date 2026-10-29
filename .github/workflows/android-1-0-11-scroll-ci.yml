@@ -17,6 +17,7 @@ on:
       - 'client/android/app/src/main/AndroidManifest.xml'
       - 'client/android/app/src/main/res/xml/file_paths.xml'
       - 'client/android/app/build.gradle'
+      - 'client/scripts/verify_android_release_manifest.py'
       - 'client/src/pages/registrazione-*.tsx'
       - 'client/public/eliminazione-account.html'
       - '.github/workflows/android-1-0-11-scroll-ci.yml'
@@ -135,3 +136,42 @@ jobs:
             rm -f "$page"
           done
           exit "$failed"
+
+  # Build only the native merged manifest, not an AAB/APK and never use
+  # signing keys. Firebase/Capacitor can add permissions absent from the
+  # checked-in source manifest. This is NOT a Play or device attestation.
+  android-merged-manifest-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install client without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build web assets and synchronize Capacitor in CI workspace only
+        run: npm run android:sync --prefix client
+      - name: Generate Gradle merged release manifest without AAB or signing
+        working-directory: client/android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:processReleaseMainManifest --no-daemon --stacktrace
+      - name: Audit merged Android permissions and hardening
+        run: python3 client/scripts/verify_android_release_manifest.py
+      - name: Retain unsigned manifest audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demos-1.0.11-merged-manifest-audit-UNSIGNED
+          path: android-merged-manifest-audit.json
+          if-no-files-found: ignore
+          retention-days: 7

@@ -33,11 +33,8 @@ test('file provider remains private and limited to app cache', () => {
 test('Android package and version remain explicit; no accidental downgrade', () => {
   assert.match(gradle, /applicationId\s+"community\.demos"/);
   const versionCode = Number(gradle.match(/\bversionCode\s+(\d+)/)?.[1]);
-  assert.ok(Number.isInteger(versionCode) && versionCode >= 12);
+  assert.equal(versionCode, 13, 'Draft 1.0.11 must not reuse Play Alpha versionCode 12');
   const versionName = gradle.match(/\bversionName\s+"([^"]+)"/)?.[1];
-  assert.ok(versionName, 'missing versionName');
-  if (versionCode === 12) {
-    console.log('Pre-release warning: versionCode 12 is the existing Play Alpha; a new Play upload needs >12.');
-  }
+  assert.equal(versionName, '1.0.11');
   console.log('Source manifest only: merged AAB manifest, Play Data Safety and device permissions still require separate checks.');
 });
