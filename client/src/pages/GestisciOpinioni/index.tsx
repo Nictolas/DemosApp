@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useOpinioniData } from "./hooks";
-import { OpinioniProposte, FormAggiungiOpinione, ListaOpinioni } from "./components";
+import { OpinioniProposte, ListaOpinioni } from "./components";
 
 export default function GestisciOpinioni() {
   const [, setLocation] = useLocation();
@@ -25,7 +25,7 @@ export default function GestisciOpinioni() {
         <div className="mb-4">
           <h1 className="text-3xl font-bold text-center mb-2">Gestisci Opinioni</h1>
           <p className="text-center text-muted-foreground">
-            Aggiungi, modifica o elimina le opinioni ufficiali e gestisci le proposte degli utenti.
+            Le Opinioni ufficiali si modificano tramite codice e release. Qui puoi consultarle e gestire le proposte degli utenti.
           </p>
         </div>
         
@@ -51,8 +51,6 @@ export default function GestisciOpinioni() {
               <CardTitle className="text-xl font-bold">Opinioni ufficiali</CardTitle>
             </CardHeader>
             <CardContent>
-              <FormAggiungiOpinione />
-              
               <ListaOpinioni 
                 opinioni={opinioni} 
                 isLoading={isLoading} 

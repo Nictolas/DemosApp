@@ -2,6 +2,9 @@ const express = require('express');
 const { verifyToken } = require('../../middleware/auth');
 const { pool } = require('../../middleware/auth');
 
+const { getOpinionsForGrade, getAllOpinions, sortOpinionsByText } = require('../../services/opinionCatalog');
+const { normalizeOpinionScope } = require('../../services/politicalJurisdictionRegistryService');
+
 const router = express.Router();
 
 // GET /api/opinioni/opinioni-list - Endpoint per frontend (compatibilità)
@@ -11,7 +14,6 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     const userId = req.userId;
     
     console.log('🔍 GET /api/opinioni/opinioni-list - Richiesta opinioni per grado:', grado);
-    console.log('👤 User ID:', userId);
     
     if (!grado) {
       return res.status(400).json({
@@ -21,24 +23,9 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       });
     }
     
-    // Query per ottenere le opinioni del grado specificato
-    // I gradi nel database sono già compressi, quindi usiamo direttamente il grado ricevuto
-    const gradoCompleto = grado;
-    
-    const opinionQuery = `
-      SELECT o.id, o.text, o.gradi_opinione
-      FROM opinioni_domande o
-      WHERE $1 = ANY(o.gradi_opinione)
-      ORDER BY o.text
-    `;
-    
-    const opinionResult = await pool.query(opinionQuery, [gradoCompleto]);
-    
-    console.log(`🔍 DEBUG - Query per grado ${grado} (${gradoCompleto}):`, opinionQuery);
-    console.log(`🔍 DEBUG - Parametri query:`, [gradoCompleto]);
-    console.log(`🔍 DEBUG - Risultati trovati:`, opinionResult.rows.length);
-    console.log(`🔍 DEBUG - Prime 3 opinioni:`, opinionResult.rows.slice(0, 3).map(o => ({ text: o.text, gradi: o.gradi_opinione })));
-    
+    const gradoCompleto = normalizeOpinionScope(String(grado)) || String(grado);
+    const opinionResult = { rows: sortOpinionsByText(getOpinionsForGrade(gradoCompleto)) };
+
     if (opinionResult.rows.length === 0) {
       console.log(`⚠️ Nessuna opinione trovata per il grado: ${grado}`);
       return res.json({
@@ -48,35 +35,20 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       });
     }
     
-    // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
-    const userQuery = `
-      SELECT o.text, or.risposta
-      FROM opinioni_domande o
-      LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
-      WHERE $2 = ANY(o.gradi_opinione)
-    `;
-    
-    const userResult = await pool.query(userQuery, [userId, gradoCompleto]);
+    // Only per-user answers require PostgreSQL. Do not join a catalog table.
+    const answersResult = await pool.query('SELECT * FROM opinioni_risposte WHERE user_id = $1',[userId]);
+    const answers = answersResult.rows[0] || {};
     const userAnswers = {};
-    userResult.rows.forEach(row => {
-      const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
-      userAnswers[opinionKey] = row.risposta;
-    });
-    
-    console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
-    console.log('🔍 DEBUG - User answers sample:', Object.keys(userAnswers).slice(0, 5).map(key => `${key}: ${userAnswers[key]}`));
-    
+    for (const op of opinionResult.rows) {
+      const key = op.text.replace(/\s+/g,'_').toLowerCase();
+      userAnswers[key] = answers[op.id] ?? null;
+    }
+
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
       // Usa il testo dell'opinione per ottenere la risposta dell'utente
       const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
       const userAnswer = userAnswers[opinionKey];
-      
-      console.log(`🔍 DEBUG - Mappatura opinione:`, {
-        text: opinion.text,
-        opinionKey: opinionKey,
-        userAnswer: userAnswer
-      });
       
       // Restituisci direttamente i valori compressi dal database
       let frontendAnswer = null;
@@ -120,16 +92,7 @@ router.get('/proposte', verifyToken, async (req, res) => {
     console.log('🔍 Headers:', req.headers);
     console.log('🔍 Query params:', req.query);
     
-    const query = `
-      SELECT id, text, gradi_opinione, approfondimento
-      FROM opinioni_domande
-      ORDER BY text
-    `;
-    
-    console.log('🔍 Esecuzione query:', query);
-    const result = await pool.query(query);
-    console.log('🔍 Query result:', result.rows.length, 'rows');
-    
+    const result = {rows: sortOpinionsByText(getAllOpinions())};
     // Debug: log dei primi 3 risultati per vedere la struttura
     console.log('🔍 DEBUG - Prime 3 opinioni con gradi_opinione:', result.rows.slice(0, 3).map(row => ({
       id: row.id,

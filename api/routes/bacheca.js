@@ -54,18 +54,10 @@ router.get('/', verifyToken, async (req, res) => {
     `;
     const eventiResult = await pool.query(eventiQuery);
     
-    // Recupera attività recenti dell'utente (ultime 5)
-    const attivitaQuery = `
-      SELECT 
-        'opinione' as tipo,
-        categoria || ': ' || domanda as descrizione,
-        created_at as data
-      FROM opinioni_domande
-      WHERE user_id = $1
-      ORDER BY created_at DESC
-      LIMIT 5
-    `;
-    const attivitaResult = await pool.query(attivitaQuery, [userId]);
+    // The former activity query referenced non-existent columns
+    // (categoria, domanda, user_id, created_at) in opinioni_domande.
+    // A future activity feed needs a proper event source, never the catalog.
+    const attivitaResult = { rows: [] };
     
     // Formatta i dati
     const dati = {

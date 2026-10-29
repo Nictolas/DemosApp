@@ -18,6 +18,8 @@ const {
   setPoliticalSelection,
 } = require('../../services/politicalSelectionService');
 
+const { getAllOpinions, getOpinionsForGrade, sortOpinionsByText } = require('../../services/opinionCatalog');
+
 const router = express.Router();
 const isSchemaMigrationError = (error) => (
   error &&
@@ -681,26 +683,10 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
       });
     }
     
-    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
-    let opinioniQuery = `
-      SELECT id, text, gradi_opinione, approfondimento
-      FROM opinioni_domande
-    `;
-    
-    if (grado) {
-      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
-    }
-    
-    opinioniQuery += ` ORDER BY text`;
-    
-    let opinioniResult;
-    if (grado) {
-      opinioniResult = await pool.query(opinioniQuery, [grado]);
-    } else {
-      opinioniResult = await pool.query(opinioniQuery);
-    }
-    const opinioni = opinioniResult.rows;
-    
+    // The catalog contains public question metadata only. Access checks above
+    // and personal answer retrieval below remain intact.
+    const opinioni = sortOpinionsByText(grado ? getOpinionsForGrade(grado) : getAllOpinions());
+
     const userAnswersResult = await pool.query(
       'SELECT * FROM opinioni_risposte WHERE user_id = $1',
       [userId]
@@ -812,8 +798,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
 
     // Verifica che gli ID delle opinioni esistano in opinioni_domande
     // e ottieni la lista delle colonne valide in opinioni_risposte
-    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
-    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    const validOpinionIds = new Set(getAllOpinions().map(op => op.id));
     
     // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
     const columnsResult = await pool.query(`

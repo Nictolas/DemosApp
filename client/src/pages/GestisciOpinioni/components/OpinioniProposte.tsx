@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { OpinioneProposta } from "../types";
 import { useOpinioniMutations } from "../hooks";
-import { ApprofondimentoDialog } from "./ApprofondimentoDialog";
 
 interface OpinioniProposteProps {
   proposte: OpinioneProposta[];
@@ -17,8 +16,6 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
   isError 
 }) => {
   const { processPropostaMutation } = useOpinioniMutations();
-  const [selectedProposta, setSelectedProposta] = useState<OpinioneProposta | null>(null);
-  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -55,6 +52,7 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
 
   return (
     <div>
+      <p className="text-sm text-muted-foreground mb-3">Le proposte possono essere esaminate o rifiutate qui. Per trasformarne una in Opinione ufficiale bisogna aggiornare il catalogo nel codice e pubblicare una release.</p>
       <ul className="space-y-2">
         {proposte.map((op) => (
           <li key={op.id} className="flex items-center justify-between border rounded px-3 py-2 bg-fuchsia-50">
@@ -70,17 +68,6 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
             <div className="flex gap-2">
               <Button 
                 size="sm" 
-                variant="default" 
-                onClick={() => {
-                  setSelectedProposta(op);
-                  setApproveDialogOpen(true);
-                }}
-                disabled={processPropostaMutation.isPending}
-              >
-                <Check className="h-4 w-4" />
-              </Button>
-              <Button 
-                size="sm" 
                 variant="destructive" 
                 onClick={() => processPropostaMutation.mutate({id: op.id, action: 'rifiuta'})} 
                 disabled={processPropostaMutation.isPending}
@@ -92,22 +79,6 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
         ))}
       </ul>
       
-      {/* Dialog per approvare opinione proposta */}
-      {selectedProposta && (
-        <ApprofondimentoDialog
-          opinionId={selectedProposta.id}
-          opinionText={selectedProposta.testo}
-          open={approveDialogOpen}
-          onOpenChange={setApproveDialogOpen}
-          opinione={{
-            id: selectedProposta.id,
-            text: selectedProposta.testo,
-            categoria: '',
-            gradi_opinione: ['da approvare']
-          }}
-          readOnly={false}
-        />
-      )}
     </div>
   );
 };
