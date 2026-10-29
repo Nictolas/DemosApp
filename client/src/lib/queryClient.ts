@@ -115,7 +115,10 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     
     // Only successful writes invalidate the section they changed; independent
     // sections remain available offline without new GETs after a reload.
-    const impact = data?.success === false ? null : profileMutationImpact(method, url);
+    const ownerId = token
+      ? queryClient.getQueryData<{ id?: string }>(["user", token])?.id
+      : undefined;
+    const impact = data?.success === false ? null : profileMutationImpact(method, url, ownerId);
     if (impact?.consent) {
       // Consent boundaries remain strict: never resurrect political answers.
       await clearAllEncryptedProfiles();
@@ -123,9 +126,6 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       queryClient.removeQueries({ queryKey: ["profileFull"] });
       queryClient.removeQueries({ queryKey: ["profileConsent"] });
     } else if (impact) {
-      const ownerId = token
-        ? queryClient.getQueryData<{ id?: string }>(["user", token])?.id
-        : undefined;
       if (!ownerId) {
         // No verified account identity in RAM: fail closed, not cross-account.
         await clearAllEncryptedProfiles();
