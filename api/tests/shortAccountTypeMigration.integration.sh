@@ -83,3 +83,42 @@ BEGIN
  THEN RAISE EXCEPTION 'Updated capability trigger failed'; END IF;
 END $verify$;
 SQL
+
+
+# Verify the complete rollback AFTER the compact schema has accepted a new user.
+psql -X -v ON_ERROR_STOP=1 -f api/database/users-account-type-poe-rollback-20261029.sql
+
+psql -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $verify$
+BEGIN
+  IF (SELECT COUNT(*) FROM public.users) <> 6
+    OR (SELECT COUNT(*) FROM public.users WHERE account_type='PERSON') <> 4
+    OR (SELECT COUNT(*) FROM public.users WHERE account_type='ORGANIZATION') <> 1
+    OR (SELECT COUNT(*) FROM public.users WHERE account_type='INSTITUTION') <> 1 THEN
+    RAISE EXCEPTION 'Rollback failed to restore descriptive values';
+  END IF;
+  IF (SELECT ruolo FROM public.users WHERE id='00000000-0000-4000-8000-000000000001') <> 'P'
+    OR (SELECT ruolo FROM public.users WHERE id='00000000-0000-4000-8000-000000000005') <> 'CP'
+    OR (SELECT ruolo FROM public.users WHERE id='00000000-0000-4000-8000-000000000006') <> 'A'
+  THEN RAISE EXCEPTION 'Rollback altered user roles'; END IF;
+END $verify$;
+
+-- An insert after rollback must use descriptive account_type but role E.
+INSERT INTO public.users(id,status) VALUES
+('00000000-0000-4000-8000-000000000007','a');
+DO $verify$
+BEGIN
+  IF (SELECT ruolo FROM public.users WHERE id='00000000-0000-4000-8000-000000000007') <> 'E'
+    OR (SELECT account_type FROM public.users WHERE id='00000000-0000-4000-8000-000000000007') <> 'PERSON'
+    OR (SELECT status FROM public.users WHERE id='00000000-0000-4000-8000-000000000007') <> 'a'
+  THEN RAISE EXCEPTION 'Rollback default failed'; END IF;
+END $verify$;
+
+UPDATE public.users SET is_admin=true
+WHERE id='00000000-0000-4000-8000-000000000006';
+DO $verify$
+BEGIN
+  IF (SELECT ruolo FROM public.users WHERE id='00000000-0000-4000-8000-000000000006') <> 'AD'
+  THEN RAISE EXCEPTION 'Restored legacy projection trigger failed'; END IF;
+END $verify$;
+SQL
