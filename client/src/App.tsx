@@ -3,6 +3,7 @@ import { Route, Switch, useLocation, Redirect, useParams } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
+import { WebAppUpdateNotice } from "@/components/WebAppUpdateNotice";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RegistrationProvider } from "@/hooks/use-registration";
 import { useSyncFcmToken } from "@/hooks/useSyncFcmToken";
@@ -288,6 +289,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <WebAppUpdateNotice />
       <ViewModeProvider>
         <MobilePreviewShell>
           <div className="App">
