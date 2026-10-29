@@ -20,15 +20,16 @@ async function serveWriteRoute({lockedConsent}, callback) {
     if(sql==='BEGIN')return {rows:[],rowCount:0};
     if(sql==='ROLLBACK'){state.rollbacks++;return {rows:[],rowCount:0};}
     if(sql==='COMMIT'){state.commits++;return {rows:[],rowCount:0};}
-    if(sql.includes('FOR UPDATE OF u')){
+    if(sql==='SELECT id FROM users WHERE id = $1 FOR UPDATE'){
       assert.deepEqual(params,[userId]);
-      return {rows:lockedConsent===null?[]:[{granted:lockedConsent}],rowCount:lockedConsent===null?0:1};
+      return {rows:lockedConsent===null?[]:[{id:userId}],rowCount:lockedConsent===null?0:1};
     }
     if(sql.includes('AS granted') && sql.includes('user_consents')){
       assert.deepEqual(params,[userId]);
-      // Fast precheck sees consent=TRUE, but the concurrent revoke may
-      // commit before the transactional row lock is acquired.
-      return {rows:[{granted:true}],rowCount:1};
+      // Precheck before BEGIN sees consent=true; a new READ COMMITTED
+      // statement after the users row lock must see a concurrent revocation.
+      const afterLock = state.queries.some(q=>q==='SELECT id FROM users WHERE id = $1 FOR UPDATE');
+      return {rows:[{granted:afterLock?lockedConsent:true}],rowCount:1};
     }
     if(sql.includes('information_schema.columns')) throw Error('No DB schema lookup on save');
     if(sql.startsWith('SELECT user_id') && sql.includes('FROM opinioni_risposte') && sql.includes('FOR UPDATE')){
@@ -77,8 +78,10 @@ test('revocation between precheck and row lock returns 403 and writes nothing',a
     assert.equal(state.commits,0);
     assert.equal(state.rollbacks,1);
     const begin=state.queries.indexOf('BEGIN');
-    const lock=state.queries.findIndex(s=>s.includes('FOR UPDATE OF u'));
-    assert.ok(begin>=0&&lock>begin);
+    const lock=state.queries.findIndex(s=>s==='SELECT id FROM users WHERE id = $1 FOR UPDATE');
+    const consent = state.queries.findIndex((sql,i) => i>lock && sql.includes('AS granted'));
+    assert.ok(begin>=0&&lock>begin&&consent>lock);
+    assert.equal(state.queries[lock].includes('user_consents'),false, 'Lock query cannot snapshot consent before waiting');
     assert.equal(state.queries.some(s=>s.includes('SELECT user_id')&&s.includes('FOR UPDATE')),false);
   });
 });
@@ -104,8 +107,9 @@ test('active consent locked inside transaction allows the existing save contract
     assert.equal(state.commits,1);
     assert.equal(state.rollbacks,0);
     const begin=state.queries.indexOf('BEGIN');
-    const lock=state.queries.findIndex(s=>s.includes('FOR UPDATE OF u'));
+    const lock=state.queries.findIndex(s=>s==='SELECT id FROM users WHERE id = $1 FOR UPDATE');
     const write=state.queries.findIndex(s=>s.startsWith('INSERT INTO opinioni_risposte'));
-    assert.ok(begin>=0 && lock>begin && write>lock);
+    const afterLockConsent = state.queries.findIndex((sql,i) => i>lock && sql.includes('AS granted'));
+    assert.ok(begin>=0 && lock>begin && afterLockConsent>lock && write>afterLockConsent);
   });
 });

@@ -1,7 +1,7 @@
 name: Versioned opinion catalog — contracts and frontend build
 on:
   push:
-    branches: [performance/opinion-catalog-in-code-20261028]
+    branches: [performance/opinion-catalog-in-code-20261028, integration/opinioni-catalog-privacy-20261029]
   pull_request:
     paths:
       - 'api/catalog/**'
@@ -9,6 +9,7 @@ on:
       - 'api/routes/**'
       - 'api/services/**'
       - 'api/tests/opinionCatalog*.test.js'
+      - 'api/config/publicCachePolicy.js'
       - 'client/src/pages/GestisciOpinioni/**'
       - '.github/workflows/opinion-catalog-full-ci.yml'
 permissions:
@@ -52,7 +53,7 @@ jobs:
       - name: Validate read-only cutover parity and answer-column schema regression
         run: node --test api/tests/opinionCatalogPreflight.test.js
       - name: Android 1.0.10 legacy Opinions HTTP contract (no real accounts)
-        run: node --test api/tests/opinionCatalogAndroid110.contract.test.js api/tests/opinionCatalogConsentRace.contract.test.js
+        run: node --test api/tests/opinionCatalogAndroid110.contract.test.js api/tests/opinionCatalogConsentRace.contract.test.js api/tests/opinionCatalogReadCachePolicy.test.js
       - name: Render QA synthetic service security and candidate HTTP smoke
         run: node --test api/tests/opinionCatalogQaServer.smoke.test.js
       - name: Install frontend without lifecycle scripts

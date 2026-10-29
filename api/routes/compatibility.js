@@ -17,6 +17,8 @@ router.get('/opinioni-catalog-revision', (_req, res) => {
 const isDev = process.env.NODE_ENV !== 'production';
 
 router.get('/opinioni-list', async (req, res) => {
+  // Personalized political answers: forbid browser/edge storage, including errors.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     if (isDev) {
       console.log('🔍 GET /api/opinioni-list - Richiesta diretta');

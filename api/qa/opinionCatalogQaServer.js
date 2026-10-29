@@ -34,6 +34,9 @@ function createQaApp() {
         opinion_answers: state.hasRow ? { ...state.answers } : null
       }] : [] };
     }
+    if (sql === 'SELECT id FROM users WHERE id = $1 FOR UPDATE') {
+      return { rows: validUser(params) ? [{ id: USER_ID }] : [], rowCount: validUser(params) ? 1 : 0 };
+    }
     if (sql.includes('AS granted') && sql.includes('user_consents')) {
       return { rows: validUser(params) ? [{ granted: state.consent }] : [], rowCount: 1 };
     }
