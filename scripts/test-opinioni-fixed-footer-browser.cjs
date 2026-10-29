@@ -49,6 +49,9 @@ async function run() {
       const writes = [];
       const saved = new Map();
       const answerReads = [];
+      let sessionOwner = ID;
+      let politicalGrant = true;
+      let politicalEpoch = '2026-10-01T00:00:00Z';
       page.on('pageerror', error => errors.push(error.message));
       const fulfill = (route, value) => route.fulfill({
         status: 200, contentType: 'application/json',
@@ -63,13 +66,13 @@ async function run() {
 
         if (u.pathname === '/api/auth/me') {
           return fulfill(route, { success: true, user: {
-            id: ID, email: 'test.invalid@example.invalid', role: 'E',
+            id: sessionOwner, email: 'test.invalid@example.invalid', role: 'E',
             ruolo: 'E', status: 'A',
-            political_consent: { granted: true, timestamp: '2026-10-01T00:00:00Z' },
+            political_consent: { granted: politicalGrant, timestamp: politicalEpoch },
           }});
         }
         if (u.pathname === '/api/user/political-opinions-consent') {
-          return fulfill(route, { success: true, consent: { granted: true, timestamp: '2026-10-01T00:00:00Z' } });
+          return fulfill(route, { success: true, consent: { granted: politicalGrant, timestamp: politicalEpoch } });
         }
         if (u.pathname === '/api/opinioni-list') {
           const grade = u.searchParams.get('grado');
@@ -197,6 +200,26 @@ async function run() {
       await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
       assert.equal(answerReads.length, beforeSaveReads,
         'Warm cache after ACK must not repeat an answer GET');
+      // Consent revoked in a verified session: cached personal answers stay hidden.
+      politicalGrant = false;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Nessuna domanda disponibile.').waitFor();
+      assert.equal(await page.getByText('Opinione sintetica numero 24', { exact: true }).count(), 0);
+      // Regrant with a new authorization epoch cannot reuse old cached answers.
+      politicalGrant = true;
+      politicalEpoch = '2026-10-02T00:00:00Z';
+      const beforeRegrantReads = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, beforeRegrantReads + 1,
+        'New consent epoch must require a fresh personal snapshot');
+      // A different verified account must never read the previous account's vault.
+      sessionOwner = '00000000-0000-4000-8000-000000008888';
+      const beforeAccountChangeReads = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, beforeAccountChangeReads + 1,
+        'Different account must fetch its own answer snapshot');
       assert.deepEqual(errors, [], 'No uncaught errors at ' + viewport.width + 'x' + viewport.height);
       await context.close();
     }
