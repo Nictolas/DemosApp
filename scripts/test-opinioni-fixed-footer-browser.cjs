@@ -97,7 +97,7 @@ async function run() {
         await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
         const list = page.locator('.opinioni-editor-page__list');
         const header = page.getByRole('heading', { name: title, exact: true });
-        const footer = page.getByRole('contentinfo', { name: 'Azioni delle opinioni' });
+        const footer = page.locator('footer[aria-label="Azioni delle opinioni"]');
         const save = footer.getByRole('button', { name: 'Salva le mie opinioni' });
         const back = footer.getByRole('button', { name: 'Indietro' });
         const nav = page.locator('.app-navbar');
@@ -169,11 +169,11 @@ async function run() {
         has: page.getByRole('heading', { name: 'Opinione sintetica numero 01' }),
       }).first();
       await firstQuestion.getByRole('button', { name: 'Favorevole' }).click();
-      await page.getByRole('contentinfo', { name: 'Azioni delle opinioni' }).getByRole('button', { name: 'Indietro' }).click();
+      await page.locator('footer[aria-label="Azioni delle opinioni"]').getByRole('button', { name: 'Indietro' }).click();
       await page.getByText('Opinioni non salvate').waitFor();
       await page.getByRole('button', { name: 'Annulla' }).click();
       assert.ok(page.url().endsWith('/opinioni-comunali'), 'Cancel must keep the current opinion page');
-      await page.getByRole('contentinfo', { name: 'Azioni delle opinioni' }).getByRole('button', { name: 'Salva le mie opinioni' }).click();
+      await page.locator('footer[aria-label="Azioni delle opinioni"]').getByRole('button', { name: 'Salva le mie opinioni' }).click();
       await page.getByText('Le tue opinioni comunali sono state salvate.').waitFor({ timeout: 15000 });
       assert.ok(writes.length > 0, 'Save button must post the selected opinion');
       assert.equal(writes.at(-1)['synthetic-opinion-01'], 'f');
