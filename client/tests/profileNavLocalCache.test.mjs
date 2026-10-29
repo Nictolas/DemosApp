@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
@@ -218,5 +218,5 @@ test("startup shows no timed React splash and Android has no artificial launch d
   assert.ok(capacitor.includes("launchShowDuration: 0"), "no fixed native launch duration");
   assert.ok(capacitor.includes("launchAutoHide: true"), "native splash must not remain indefinitely");
   assert.ok(capacitor.includes("launchFadeOutDuration: 0"), "no additional native fade delay");
-  assert.equal(readFileSync(new URL("../src/components/AppWrapper.tsx", import.meta.url), "utf8"), wrapper);
+  assert.equal(existsSync(new URL("../src/components/SplashScreen.tsx", import.meta.url)), false, "the obsolete component must be deleted");
 });
