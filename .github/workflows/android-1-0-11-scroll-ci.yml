@@ -12,6 +12,8 @@ on:
       - 'client/src/pages/Candidati/index.tsx'
       - 'client/src/pages/ScegliRappresentante/index.tsx'
       - 'client/tests/androidPageScrollPolicy.test.mjs'
+      - 'client/src/pages/registrazione-*.tsx'
+      - 'client/public/eliminazione-account.html'
       - '.github/workflows/android-1-0-11-scroll-ci.yml'
 permissions:
   contents: read
@@ -33,4 +35,43 @@ jobs:
       - name: Install frontend without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend without AAB, secrets or deployment
+        run: npm run build --prefix client
+
+  # Safety-only integration rehearsal. It merges current main into the ephemeral
+  # runner checkout, never into a GitHub branch. No credentials or deployment.
+  # This ensures the Android Draft does not silently drop fixes merged since
+  # its release/android-1.0.10 base (OAuth privacy, /utenti, election statistics).
+  android-main-integration-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Rehearse main integration in runner only (no push, no merge to main)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git -c user.name='Android CI' -c user.email='android-ci@users.noreply.github.com' \
+            merge --no-commit --no-ff origin/main
+          if [[ -n "$(git ls-files -u)" ]]; then
+            echo "::error::Unresolved conflicts between Android Draft and main"
+            exit 1
+          fi
+          echo "Android Draft and current main applied together in disposable checkout."
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Test Android scroll and prevent geography / legacy mandate regression
+        run: |
+          node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
+          node --test api/tests/utentiElectionTerritory.smoke.test.js
+      - name: Install frontend without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build main-integrated frontend without deploy or Android signing
         run: npm run build --prefix client
