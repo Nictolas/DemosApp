@@ -137,7 +137,7 @@ jobs:
       - name: Compose review-only PR 374 and PR 376 in an ephemeral worktree
         shell: bash
         env:
-          PINNED_LEDGER_HEAD: 19476f3d68a4b2203d341f0668205f290078da37
+          PINNED_LEDGER_HEAD: ef216f91cbe89f35c8bc88010972ebbc876b26c2
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
@@ -197,6 +197,8 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:synthetic-only@localhost:5432/privacy_synthetic
         run: |
           node --test --test-concurrency=1 api/tests/privacyLedgerSecureBootstrap.pg17.test.js
+      - name: Check audit cleanup provider fail-closed in composed drafts (synthetic)
+        run: node --test api/tests/auditCleanupFailClosed.test.js
       - name: Check production-shaped account deletion on latest ledger (synthetic PG17)
         env:
           TEST_DATABASE_URL: postgresql://postgres:synthetic-only@localhost:5432/privacy_synthetic
