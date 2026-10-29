@@ -30,6 +30,10 @@ async function withAndroid110Contract(callback) {
       return {rows:[{id:emailFreeFakeUser,status:'a',ruolo:'E',
         opinion_answers:state.hasRow?{[fixtureId]:state.answer}:null}]};
     }
+    if(sql==='SELECT id FROM users WHERE id = $1 FOR UPDATE'){
+      assert.deepEqual(params,[emailFreeFakeUser]);
+      return {rows:[{id:emailFreeFakeUser}],rowCount:1};
+    }
     if(sql.includes('AS granted') && sql.includes('user_consents')) {
       return {rows:[{granted:true}],rowCount:1};
     }
@@ -119,10 +123,12 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
     assert.equal(result.errorCount,0);
     assert.equal(state.sql.some(sql=>sql.includes('information_schema')),false,'Save must use catalog IDs, not DB metadata');
     const beginPosition=state.sql.findIndex(sql=>sql==='BEGIN');
-    const lockedConsentPosition=state.sql.findIndex(sql=>sql.includes('FOR UPDATE OF u'));
+    const lockedConsentPosition=state.sql.findIndex(sql=>sql==='SELECT id FROM users WHERE id = $1 FOR UPDATE');
+    const freshConsentPosition=state.sql.findIndex((sql,i)=>i>lockedConsentPosition && sql.includes('AS granted'));
     const insertPosition=state.sql.findIndex(sql=>sql.startsWith('INSERT INTO opinioni_risposte'));
     assert.ok(beginPosition>=0 && lockedConsentPosition>beginPosition, 'Consent must be locked inside the write transaction');
-    assert.ok(insertPosition>lockedConsentPosition, 'No opinion writes before locking consent');
+    assert.ok(freshConsentPosition>lockedConsentPosition, 'Fresh consent must be read after lock acquisition');
+    assert.ok(insertPosition>freshConsentPosition, 'No opinion writes before fresh consent verification');
 
     // The published Android 1.0.10 saveAndVerifyOpinions() requires an
     // authenticated fresh GET returning the same ID and compressed value.
