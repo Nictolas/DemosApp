@@ -14,14 +14,14 @@ jobs:
         run: |
           node <<'NODE'
           const base='https://mobilitazioni.chronocol.com/api/';
-          const fields=['TIPO','CITTA','DATA_ORARIO','DATA_FINE','FINE_EFFETTIVA','INDIRIZZO','RITROVO_LUOGO','VERIFICATA','ANNULLATA','SCIOPERO','STATO','PUBBLICATA','STATUS'];
+          const fields=['TIPO','CITTA','DATA_ORARIO','DATA_FINE','FINE_EFFETTIVA','INDIRIZZO','RITROVO_LUOGO','VERIFICATA','ANNULLATA','SCIOPERO'];
           async function get(url) {
             const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(15000)});
             const raw=await r.text();
             try {return {status:r.status,data:JSON.parse(raw)}}catch{return {status:r.status,text:raw.slice(0,140)}}
           }
           (async()=>{
-            for(const endpoint of ['w-mobs','w-mob-nazionales']) {
+            for(const endpoint of ['w-mobs']) {
               for(const filter of ['pisa-all','pisa-verified']) {
                 const p=new URLSearchParams();
                 fields.forEach((x,i)=>p.set('fields['+i+']',x));
