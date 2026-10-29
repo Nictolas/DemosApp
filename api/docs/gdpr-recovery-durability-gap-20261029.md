@@ -52,3 +52,23 @@ La strategia di intenzione esterna è una **proposta da validare**, non un fix g
 **Limiti fondamentali:** l'HMAC in memoria NON è prova B2/Object Lock, completezza o freschezza; il modello serializza globalmente le intenzioni e NON è pronto alla concorrenza/scalabilità; non include autentificazione/API/RLS reale né tutte le tabelle dati di DEMOS. Nessuna prova su provider reale o backup autentico. Lo stato restituito è sempre productionRecoveryReady=false, anche dopo test positivi. Non cambiare il recoveryReady=false del worker Draft in base a questo prototipo. Prima di integrare nel runtime sono necessari design di concorrenza e ordering, enforcement di un unico writer, durabilità realmente indipendente, trattamento delle intenzioni ambigue, verifica di tutti i restore/writer, RP-10/DPIA e approvazioni separate.
 
 **Risultato: Fase B sintetica superata. Issue GH-296 ancora APERTA / NO-GO.**
+
+## Fase C — concorrenza per soggetto e intenzioni ambigue (29 ottobre 2026)
+
+**Ancora SOLO fixture e test; nessuna route DEMOS modifica il proprio comportamento.**
+
+- `api/tests/fixtures/gdprDurableRecoveryPrototype.js`: operazioni con ID e payload canonici; intenzioni pendenti bloccano soltanto lo stesso soggetto, consentendo altri utenti in parallelo. Journal, hash-chain e testimone di sequenza restano globali. Il recupero globale continua a fallire se anche una sola intenzione è irrisolta.
+- Le prove di commit sintetiche ora conservano *ID + hash del payload*, non soltanto un ID; una chiave riciclata su soggetto/azione diversi è respinta. L'ordine delle revoche e successive concessioni viene ricostruito in base agli eventi `commit` testimoniati, non all'orologio del dispositivo.
+- Un operatore **simulato** può finalizzare un'intenzione interrotta soltanto con tutte queste precondizioni: database **originale** ancora disponibile e attestato, tutti i writer fermati, testimone indipendente aggiornato e marker SQL originario corrispondente a ID e payload. Uno snapshot ripristinato, un marker errato o una semplice intenzione non bastano. In assenza di questi elementi: NO-GO.
+- `api/tests/gdprRecoveryConcurrencySynthetic.test.js`: 12 test di interleaving, blocco per soggetto, retry, confronto del payload e negazione di falsa conferma. `api/tests/gdprDurableRecoveryPg17Synthetic.test.js`: ora 5 test PG17, due dei quali con due transazioni contemporanee su utenti distinti e finalizzazione simulata basata su lettura della riga SQL nel database di test.
+- **CI verificata** sul commit `9b4964d5b4cd2beeff3779dbdd5653b25470d5c4`: [worker PG17 e modello](https://github.com/Nictolas/DemosApp/actions/runs/40916575273) SUCCESS (12/12 nuovi test concorrenza, 5/5 PG17; la precedente suite 14/14 resta superata); tutti i 5 workflow della PR #374 SUCCESS.
+
+**Confini e rischi ancora aperti prima di qualunque integrazione:**
+
+1. Il blocco per soggetto è **solo logica in memoria**: deve diventare un vero fencing distribuito, con lease/epoch non riutilizzabili e verifica lato database per impedire writer concorrenti non cooperativi. Le prove SQL non attestano questo fencing.
+2. `originalPrimaryVerified`, `writersFenced`, `ingressBlocked` e `providersQuarantined` sono booleani di test, **non certificazioni ottenute dalla piattaforma**. Nessun operatore può trasformarli in `true` su un sistema reale senza attestazione esterna specifica.
+3. Il testimone HMAC risiede in memoria e simula durabilità/indipendenza; manca ancora la specifica concreta di checkpoint immutabili, periodo di conservazione, clock/ordine e prevenzione di ritardi o perdite dell'ultima ricevuta. Il commit tra PostgreSQL e B2 continua a non essere atomico.
+4. La finalizzazione di un'operazione interrotta con database originale mancante **non è risolta**: blocco e intervento di incident response, mai completamento dedotto da snapshot vecchio.
+5. La matrice completa delle tabelle e dei processi che possono riscrivere consensi/account, la compatibilità con i permessi RLS e la DPIA/retention RP-10 restano gate non approvati.
+
+**Risultato:** controllo concorrenza e procedura di riconciliazione modellati e testati; protocollo reale ancora non sviluppato/attestato. **GH-296 OPEN / recovery NO-GO.**
