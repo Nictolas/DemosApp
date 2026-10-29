@@ -5,6 +5,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Pool } = require('pg');
+const {SyntheticIndependentAdmissionAuthority}=
+  require('./fixtures/gdprIndependentAdmissionEpochSynthetic');
 
 const URL = 'postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_worker_ci';
 const permitted = process.env.GITHUB_ACTIONS === 'true' &&
@@ -43,8 +45,9 @@ if (!permitted) {
     await ownerPool.query('GRANT USAGE ON SCHEMA '+SCHEMA+' TO '+ROLE);
     await ownerPool.query('CREATE TABLE '+SCHEMA+
       '.gate (singleton boolean PRIMARY KEY DEFAULT true, open boolean NOT NULL,'+
-      ' epoch bigint NOT NULL CHECK (epoch > 0), CHECK(singleton=true))');
-    await ownerPool.query('INSERT INTO '+SCHEMA+'.gate (singleton,open,epoch) VALUES (true,true,1)');
+      ' epoch bigint NOT NULL CHECK (epoch > 0),'+
+      " database_id text NOT NULL CHECK(length(database_id)>0), CHECK(singleton=true))');"
+    await ownerPool.query('INSERT INTO '+SCHEMA+'.gate (singleton,open,epoch,database_id) VALUES (true,true,1,\'original-primary\')');
     await ownerPool.query('CREATE TABLE '+SCHEMA+
       '.accounts (id text PRIMARY KEY, consent boolean NOT NULL,'+
       ' deleted boolean NOT NULL DEFAULT false, revision bigint NOT NULL DEFAULT 0)');
@@ -222,6 +225,83 @@ if (!permitted) {
     const count=(await ownerPool.query('SELECT count(*)::int AS n FROM '+SCHEMA+
       '.written')).rows[0].n;
     assert.equal(count,5,'only verified writes reached the fixture journal');
+  });
+
+  test('old PostgreSQL backup can reopen SQL gate but external epoch still refuses admission',async()=>{
+    const authority=new SyntheticIndependentAdmissionAuthority();
+    const original=authority.bootstrap({
+      databaseId:'original-primary',checkpointHead:'a'.repeat(64)
+    });
+    // Simulate recovery from an old, locally "open" gate *after* authority
+    // has been independently suspended. The DB itself has no memory of freeze.
+    const suspended=authority.suspend(original);
+    await ownerPool.query('UPDATE '+SCHEMA+
+      ".gate SET open=true,epoch=1,database_id='original-primary'");
+    const local=(await ownerPool.query('SELECT open,epoch,database_id FROM '+
+      SCHEMA+'.gate')).rows[0];
+    assert.deepEqual(local,{open:true,epoch:'1',database_id:'original-primary'});
+    for (const operation of ['read','write']) {
+      assert.throws(()=>authority.assertAdmission({
+        receipt:original,localDatabaseId:local.database_id,
+        localEpoch:Number(local.epoch),localOpen:local.open,operation
+      }),{code:'GDPR_EPOCH_STALE_OR_FORGED'});
+      assert.throws(()=>authority.assertAdmission({
+        receipt:suspended,localDatabaseId:local.database_id,
+        localEpoch:Number(local.epoch),localOpen:local.open,operation
+      }),{code:'GDPR_EPOCH_ADMISSION_BLOCKED'});
+    }
+    // This is the decisive *negative proof*: raw DB gateway credentials
+    // can STILL write in the restored old snapshot if they bypass the
+    // synthetic external admission path. Do NOT claim operational safety.
+    const attacker=await writerPool.connect();
+    try {
+      await attacker.query('BEGIN');
+      const raw=await submit(attacker,'unsafe-raw-after-restore',
+        'alice','GRANT',1,3);
+      assert.equal(outcome(raw),'applied');
+      await attacker.query('ROLLBACK');
+    } finally {
+      try{await attacker.query('ROLLBACK')}catch{}
+      attacker.release();
+    }
+    const count=(await ownerPool.query('SELECT count(*)::int AS n FROM '+
+      SCHEMA+'.written')).rows[0].n;
+    assert.equal(count,5,'negative control never persists its synthetic bypass');
+  });
+
+  test('admitted recovered generation needs new SQL identity and fresh independent ticket',async()=>{
+    const authority=new SyntheticIndependentAdmissionAuthority();
+    const old=authority.bootstrap({
+      databaseId:'original-primary',checkpointHead:'a'.repeat(64)
+    });
+    const blocked=authority.suspend(old);
+    const resumed=authority.admitRestoredGeneration({
+      receipt:blocked,newDatabaseId:'restored-primary',
+      newCheckpointHead:'b'.repeat(64),
+      // All of these are test booleans, NOT external provider proof.
+      writersFenced:true,ingressBlocked:true,providersQuarantined:true,
+      journalComplete:true,replayVerified:true
+    });
+    const stale=(await ownerPool.query('SELECT open,epoch,database_id FROM '+
+      SCHEMA+'.gate')).rows[0];
+    assert.throws(()=>authority.assertAdmission({
+      receipt:resumed,localDatabaseId:stale.database_id,
+      localEpoch:Number(stale.epoch),localOpen:stale.open,operation:'read'
+    }),{code:'GDPR_EPOCH_ADMISSION_BLOCKED'});
+    // Synthetic operator creates a NEW database generation configuration.
+    await ownerPool.query('UPDATE '+SCHEMA+
+      ".gate SET open=true,epoch=3,database_id='restored-primary'");
+    const fresh=(await ownerPool.query('SELECT open,epoch,database_id FROM '+
+      SCHEMA+'.gate')).rows[0];
+    assert.deepEqual(authority.assertAdmission({
+      receipt:resumed,localDatabaseId:fresh.database_id,
+      localEpoch:Number(fresh.epoch),localOpen:fresh.open,operation:'read'
+    }),{syntheticAdmission:true,productionRecoveryReady:false,epoch:3});
+    assert.throws(()=>authority.assertAdmission({
+      receipt:old,localDatabaseId:fresh.database_id,
+      localEpoch:Number(fresh.epoch),localOpen:fresh.open,operation:'read'
+    }),{code:'GDPR_EPOCH_STALE_OR_FORGED'});
+    // No production admission is ever returned by this fixture.
   });
 
   test.after(async()=>{
