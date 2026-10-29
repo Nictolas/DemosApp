@@ -189,7 +189,7 @@ async function run() {
       assert.ok(page.url().endsWith('/opinioni-comunali'), 'Cancel must keep the current opinion page');
       const beforeSaveReads = answerReads.length;
       await page.locator('footer[aria-label="Azioni delle opinioni"]').getByRole('button', { name: 'Salva le mie opinioni' }).click();
-      await page.getByText('Le tue opinioni comunali sono state salvate.').waitFor({ timeout: 15000 });
+      await page.getByText('Le tue opinioni comunali sono state salvate.', { exact: true }).waitFor({ timeout: 15000 });
       assert.equal(answerReads.length, beforeSaveReads,
         'Saving a delta must not refetch the full personal answer list');
       assert.ok(writes.length > 0, 'Save button must post the selected opinion');
