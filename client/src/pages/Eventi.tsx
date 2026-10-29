@@ -373,12 +373,15 @@ export default function Eventi() {
                             </div>
                             
                             {/* Organizzatore - Solo per eventi non "Elezioni" */}
-                            {evento.tipologia_evento !== 'Elezioni' && (
+                            {evento.tipologia_evento !== 'Elezioni' && !evento.external_import && (
                               <div className="mb-3">
                                 <span className="text-gray-700 font-medium">
                                   {evento.organizzatore || 'Organizzatore non specificato'}
                                 </span>
                               </div>
+                            )}
+                            {evento.external_import && evento.sciopero && (
+                              <p className="mb-2 text-sm font-medium text-purple-700">Evento collegato a uno sciopero</p>
                             )}
                             
                             {evento.external_import && (
