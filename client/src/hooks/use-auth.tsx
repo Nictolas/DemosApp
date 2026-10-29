@@ -83,6 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (response.status === 401 || response.status === 404) {
           clearSessionTokens();
+          clearAllProfileSummaries();
+          await clearAllEncryptedProfiles();
+          queryClient.removeQueries({ queryKey: ["profilePolitical"] });
+          queryClient.removeQueries({ queryKey: ["profileFull"] });
           setToken(null);
           return null;
         }
