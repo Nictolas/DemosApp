@@ -2,7 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
 const AuditService = require('../../services/auditService');
-const db = require('../../config/db');
+// Reuse the canonical verified-TLS pool; the former config/db module exported
+// only { pool } and db.query was undefined.
+const { getPool } = require('../../config/database');
+const db = getPool();
 
 /**
  * @route GET /api/user/privacy-settings
