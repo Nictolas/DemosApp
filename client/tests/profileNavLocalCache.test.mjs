@@ -135,7 +135,7 @@ test("political panels use a persistent encrypted vault and do not expire", () =
   assert.match(authClient, /verifiedPoliticalConsent/);
   assert.doesNotMatch(hook, /refetchOnWindowFocus: "always"/);
   for (const section of ["government","representatives","candidates","opinions"]) {
-    assert.ok(hook.includes("patchEncryptedProfile(ownerId, { " + section + ": result })"));
+    assert.ok(hook.includes("patchEncryptedProfile(ownerId, { " + section + ": result }, { " + section + ": revision })"));
     assert.ok(hook.includes('["profilePolitical", ownerId, politicalEpoch, "' + section + '"]'));
   }
 });

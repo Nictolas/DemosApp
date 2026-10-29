@@ -1,8 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiUrl } from "@/lib/api-config";
 import { getAuthToken } from "@/lib/auth-token";
-import { clearAllEncryptedProfiles } from "@/pages/Profilo/utils/encryptedProfileVault";
-import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCache";
+import { clearAllEncryptedProfiles, invalidateEncryptedProfileSections } from "@/pages/Profilo/utils/encryptedProfileVault";
+import { clearAllProfileSummaries, clearProfileSummary } from "@/pages/Profilo/utils/profileSummaryCache";
+import { profileMutationImpact, type ProfileCacheSection } from "@/lib/profileMutationPolicy";
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 12000;
 
@@ -112,16 +113,53 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
       throw error;
     }
     
-    // A successful local write is the explicit invalidation event.
-    // Other users' pages and reads never trigger this path.
-    if (method !== "GET" && /^\/api\/(?:users(?:\/me|\/profile)?|user\/political-opinions-consent|rappresentanti|candidati|governo|opinioni|capo-stato|grazia|amnistia|iniziative-popolari|sostenitori)(?:\/|$)/.test(url)) {
+    // Only successful writes invalidate the section they changed; independent
+    // sections remain available offline without new GETs after a reload.
+    const ownerId = token
+      ? queryClient.getQueryData<{ id?: string }>(["user", token])?.id
+      : undefined;
+    const impact = data?.success === false ? null : profileMutationImpact(method, url, ownerId);
+    if (impact?.consent) {
+      // Consent boundaries remain strict: never resurrect political answers.
       await clearAllEncryptedProfiles();
       queryClient.removeQueries({ queryKey: ["profilePolitical"] });
       queryClient.removeQueries({ queryKey: ["profileFull"] });
       queryClient.removeQueries({ queryKey: ["profileConsent"] });
-      if (/^\/api\/users(?:\/|$)/.test(url)) {
-        clearAllProfileSummaries();
-        queryClient.removeQueries({ queryKey: ["profileSummary"] });
+    } else if (impact) {
+      if (!ownerId) {
+        // No verified account identity in RAM: fail closed, not cross-account.
+        await clearAllEncryptedProfiles();
+        queryClient.removeQueries({ queryKey: ["profilePolitical"] });
+        queryClient.removeQueries({ queryKey: ["profileFull"] });
+        if (impact.summary) {
+          clearAllProfileSummaries();
+          queryClient.removeQueries({ queryKey: ["profileSummary"] });
+        }
+      } else {
+        // Revision guards stop a GET started before this write from putting
+        // stale values back into the encrypted vault after invalidation.
+        await invalidateEncryptedProfileSections(ownerId, impact.sections);
+        const sections = new Set<ProfileCacheSection>(impact.sections);
+        await queryClient.cancelQueries({
+          predicate: query =>
+            (query.queryKey[0] === "profilePolitical" &&
+              query.queryKey[1] === ownerId &&
+              sections.has(query.queryKey[3] as ProfileCacheSection)) ||
+            (sections.has("full") && query.queryKey[0] === "profileFull" &&
+              query.queryKey[1] === ownerId),
+        });
+        queryClient.removeQueries({
+          queryKey: ["profilePolitical", ownerId],
+          predicate: query => sections.has(query.queryKey[3] as ProfileCacheSection),
+        });
+        if (sections.has("full")) {
+          queryClient.removeQueries({ queryKey: ["profileFull", ownerId] });
+        }
+        if (impact.summary) {
+          clearProfileSummary(ownerId);
+          queryClient.removeQueries({ queryKey: ["profileSummary", ownerId] });
+          queryClient.removeQueries({ queryKey: ["desktop-user-avatar", ownerId] });
+        }
       }
     }
 

@@ -25,6 +25,17 @@ export type ProfileChosenVotes = {
   organizzazione: { id: string; nome: string } | null;
 };
 
+export type ProfileCacheSection =
+  | "full" | "government" | "representatives" | "candidates"
+  | "opinions" | "preferences";
+
+// The generation advances on writes AND on account/consent resets. A GET
+// started before a successful write must not put its stale result back on disk.
+const sectionRevisions = new Map<string, number>();
+export function profileSectionRevision(owner: string, section: ProfileCacheSection): string {
+  return `${activeEpoch}:${sectionRevisions.get(owner + ":" + section) || 0}`;
+}
+
 export type PersistedProfile = {
   version: 1;
   consent: { granted: boolean; timestamp: string | null } | null;
@@ -162,6 +173,7 @@ const pendingWrites = new Map<string, Promise<void>>();
 export async function patchEncryptedProfile(
   owner: string,
   patch: Partial<PersistedProfile>,
+  expectedRevisions?: Partial<Record<ProfileCacheSection, string>>,
 ): Promise<void> {
   if (!owner || !available()) return;
   const epoch = activeEpoch;
@@ -170,12 +182,34 @@ export async function patchEncryptedProfile(
     if (epoch !== activeEpoch) return;
     const existing = await loadEncryptedProfile(owner);
     if (epoch !== activeEpoch) return;
-    await storeEncryptedProfile(owner, { ...emptyProfile(), ...existing, ...patch });
+    const safePatch = Object.fromEntries(Object.entries(patch).filter(([key]) => {
+      const section = key as ProfileCacheSection;
+      const expected = expectedRevisions?.[section];
+      return expected === undefined || expected === profileSectionRevision(owner, section);
+    })) as Partial<PersistedProfile>;
+    if (Object.keys(safePatch).length === 0) return;
+    await storeEncryptedProfile(owner, { ...emptyProfile(), ...existing, ...safePatch });
   });
   pendingWrites.set(owner, next);
   try { await next; } finally {
     if (pendingWrites.get(owner) === next) pendingWrites.delete(owner);
   }
+}
+
+/** Drop only changed profile sections, preserving all unrelated encrypted data.
+ * Invalidations share the same serialized writer as the normal GET snapshots. */
+export async function invalidateEncryptedProfileSections(
+  owner: string,
+  sections: readonly ProfileCacheSection[],
+): Promise<void> {
+  if (!owner || sections.length === 0) return;
+  const unique = [...new Set(sections)];
+  for (const section of unique) {
+    const key = owner + ":" + section;
+    sectionRevisions.set(key, (sectionRevisions.get(key) || 0) + 1);
+  }
+  await patchEncryptedProfile(owner,
+    Object.fromEntries(unique.map(section => [section, null])) as Partial<PersistedProfile>);
 }
 
 export async function clearEncryptedProfile(owner: string): Promise<void> {
@@ -195,6 +229,7 @@ export async function clearEncryptedProfile(owner: string): Promise<void> {
 
 export async function clearAllEncryptedProfiles(): Promise<void> {
   activeEpoch += 1;
+  sectionRevisions.clear();
   if (!available()) return;
   try {
     const db = await openDb();
