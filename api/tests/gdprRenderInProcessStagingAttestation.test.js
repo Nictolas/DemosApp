@@ -222,7 +222,7 @@ test('SQL failure never leaks error message or database URI; client always relea
 test('web server never registers an in-process probe or exposes HTTP diagnostics',()=>{
   const server=fs.readFileSync(path.join(__dirname,'../server.js'),'utf8');
   assert.doesNotMatch(server,/attestInProcess|GDPR_RENDER_INPROCESS_ATTESTATION/);
-  assert.doesNotMatch(server,/app\\.use\\([^\\n]*gdprRenderInProcessStagingAttestation/);
+  assert.equal(server.includes('gdprRenderInProcessStagingAttestation'),false);
 });
 
 test('web entrypoint forbids every probe marker BEFORE loading server or pool',()=>{
