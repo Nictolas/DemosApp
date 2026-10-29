@@ -33,7 +33,7 @@ test('own-only profile reads never populate the view of another user', () => {
     assert.ok(ownBlock.includes(endpoint), endpoint);
   }
   assert.match(hook, /ownProfile \? loadOwnProfile\(signal\) : loadOtherProfile\(targetId!, signal\)/);
-  assert.match(hook, /\["profileSnapshot", ownerId \?\? null, targetId \?\? null\]/);
+  assert.match(hook, /const profileKey = \["profileSnapshot", ownerId \?\? null, targetId \?\? null\]/);
 });
 
 test('profile data requests are cancelled when no longer relevant', () => {
