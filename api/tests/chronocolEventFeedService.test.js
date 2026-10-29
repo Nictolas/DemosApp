@@ -25,7 +25,8 @@ test('official Chrono API query selects minimum public fields, verification and 
   assert.equal(url.origin, 'https://mobilitazioni.chronocol.com');
   assert.equal(url.pathname, '/api/w-mobs');
   assert.equal(url.searchParams.get('filters[VERIFICATA][$eq]'), 'true');
-  assert.equal(url.searchParams.get('filters[ANNULLATA][$eq]'), 'false');
+  assert.equal(url.searchParams.has('filters[ANNULLATA][$eq]'), false,
+    'Strapi non deve escludere gli eventi con ANNULLATA=null');
   assert.equal(url.searchParams.get('pagination[pageSize]'), '100');
   assert.equal(url.searchParams.get('pagination[page]'), '1');
   assert.ok(FIELDS.includes('DATA_ORARIO'));
@@ -57,11 +58,30 @@ test('Strapi records map to the existing DEMOS Eventi card and Europe/Rome dates
 
 test('unverified, cancelled and malformed entries never enter DEMOS', () => {
   const records = [raw(1), raw(2, { VERIFICATA: false }), raw(3, { ANNULLATA: true }),
-    raw(4, { DATA_ORARIO: null }), raw(5, { CITTA: '' })];
-  assert.equal(normalizePayload(page(records)).length, 1);
+    raw(4, { DATA_ORARIO: null }), raw(5, { CITTA: '' }),
+    raw(6, { ANNULLATA: null })];
+  assert.equal(normalizePayload(page(records)).length, 2);
+  assert.equal(mapEvent(raw(6, { ANNULLATA: null })).external_import, true);
+  assert.equal(mapEvent(raw(3, { ANNULLATA: true })), null);
   assert.equal(mapEvent({ ...raw(8), CONTATTI: 'private@example.com' }).CONTATTI, undefined);
   assert.throws(() => normalizePayload({ data: records }), /Unexpected Chrono API format/);
   assert.throws(() => normalizePayload({ data: 'invalid', meta: { pagination: {} } }), /Unexpected Chrono API format/);
+});
+
+test('verified Pisa 30 October event with ANNULLATA=null is imported and still future', () => {
+  const event = mapEvent(raw(630, {
+    documentId: 'ig8crlfttzt03b5350lzsbbl',
+    TIPO: 'Corteo', CITTA: 'Pisa', ANNULLATA: null,
+    INDIRIZZO: 'Piazza XX settembre',
+    DATA_ORARIO: '2026-10-30T08:00:00.000Z',
+    FINE_EFFETTIVA: '2026-10-30T22:59:00.000Z'
+  }));
+  assert.ok(event, 'Pisa deve essere importata');
+  assert.equal(event.giorno_inizio, '2026-10-30');
+  assert.equal(event.orario_inizio, '09:00');
+  assert.equal(event.orario_fine, '23:59');
+  assert.equal(event.comune_evento, 'Pisa');
+  assert.equal(notExpired(event, new Date('2026-10-29T16:35:00Z')), true);
 });
 
 test('expiry considers the actual end time in Italy without deleting native events', () => {
