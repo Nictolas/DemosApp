@@ -5,6 +5,8 @@ on:
     paths:
       - 'client/src/**'
       - 'api/tests/retiredMenuNavigation.smoke.test.js'
+      - 'api/tests/profileCacheNavigation.smoke.test.js'
+      - 'client/tests/profileCacheRuntime.test.mjs'
       - 'api/tests/clientAdminCapability.smoke.test.js'
       - 'api/tests/clientUsersReadonly.smoke.test.js'
       - 'api/tests/legacyManualApprovalRetirement.smoke.test.js'
@@ -32,8 +34,10 @@ jobs:
           node-version: '22'
       - name: Confirm retired Menu route and return links
         run: |
-          node --test api/tests/retiredMenuNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientUsersReadonly.smoke.test.js api/tests/legacyManualApprovalRetirement.smoke.test.js api/tests/adminAccountDeletion.smoke.test.js api/tests/utentiCanonicalSexTable.smoke.test.js
+          node --test api/tests/retiredMenuNavigation.smoke.test.js api/tests/profileCacheNavigation.smoke.test.js api/tests/clientAdminCapability.smoke.test.js api/tests/dpoGestisciNavigation.smoke.test.js api/tests/clientUsersReadonly.smoke.test.js api/tests/legacyManualApprovalRetirement.smoke.test.js api/tests/adminAccountDeletion.smoke.test.js api/tests/utentiCanonicalSexTable.smoke.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Test actual profile cache cancellation and privacy invalidation
+        run: node --test client/tests/profileCacheRuntime.test.mjs
       - name: Build frontend
         run: npm run build --prefix client
