@@ -13,6 +13,7 @@ import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
 import { ProfileInfo } from "./components/ProfileInfo";
 import { ProfileOpinions } from "./components/ProfileOpinions";
 import { ProfileGovernoIdeale } from "./components/ProfileGovernoIdeale";
+import { ProfileChosenPreferences } from "./components/ProfileChosenPreferences";
 
 // Hook personalizzato
 import { useProfileData, CLOSED_PROFILE_PANELS, type ProfilePanels } from "./hooks/useProfileData";
@@ -49,6 +50,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     rappresentantiDetails,
     candidatiDetails,
     sectionsLoading,
+    chosenVotes,
     consentGranted,
     consentChecked,
     fetchAllProfileData,
@@ -244,6 +246,10 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                   )}
                 </div>
               </div>
+            )}
+
+            {isViewingOwnProfile && consentGranted && (
+              <ProfileChosenPreferences choices={chosenVotes} />
             )}
 
             {/* Le opinioni restano accessibili senza un elenco lungo all'apertura. */}
