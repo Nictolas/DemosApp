@@ -200,6 +200,24 @@
   overflow: hidden;
 }
 
+/* Eventi: stesso layout a scroll isolato di Notifiche.
+   L'app shell si arresta sopra la navbar; header e tab non scorrono. */
+.app-main.app-main--eventi {
+  overflow-y: hidden !important;
+}
+
+.app-main.app-main--eventi > .app-main__inner {
+  overflow: hidden;
+}
+
+.app-main.app-main--eventi .fade-up-transition {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .app-main__inner {
   flex: 1 1 auto;
   min-height: 0;
