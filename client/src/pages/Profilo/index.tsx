@@ -134,7 +134,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
             )}
             <div className="min-w-0 flex-1">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-                Profilo Utente
+                Profilo Cittadino
               </h1>
               <p className="text-gray-600 text-sm">
                 {isViewingOwnProfile ? 'Il tuo profilo personale' : 'Profilo pubblico'}
