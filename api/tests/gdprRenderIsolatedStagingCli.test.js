@@ -4,7 +4,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {
-  assertIsolatedTarget,runIsolatedProbe,LOG_PREFIX,CLI_MARKER
+  assertIsolatedTarget,runIsolatedProbe,LOG_PREFIX,CLI_MARKER,
+  catalogMatchesStagingRuntime,EXPECTED_SQL_ROLE
 }=require('../scripts/attest-gdpr-render-staging-isolated');
 
 const STAGING_REF='fkeayjzvtuvzesljhjbc';
@@ -22,10 +23,10 @@ const base=extras=>({
   ...extras
 });
 const row={
-  current_role:'synthetic_writer',session_role:'synthetic_writer',
+  current_role:'demos_staging_runtime',session_role:'demos_staging_runtime',
   role_setting:'none',database_name:'postgres',
-  ledger_present:true,ledger_rls:true,ledger_force_rls:false,
-  ledger_owner:true,ledger_insert_grant:true,ledger_select_grant:true,
+  ledger_present:true,ledger_rls:true,ledger_force_rls:true,
+  ledger_owner:false,ledger_insert_grant:true,ledger_select_grant:true,
   bypass_rls:false,public_grants_exist:false,
   public_column_grants_exist:false,api_roles_with_dml_grants:0
 };
@@ -110,7 +111,8 @@ test('one CLI SQL SELECT observes role but never claims a running backend identi
   assert.deepEqual({loaded,gotPool,connected,queries,released,closed},{
     loaded:1,gotPool:1,connected:1,queries:1,released:1,closed:1
   });
-  assert.equal(report.current_role,'synthetic_writer');
+  assert.equal(report.current_role,EXPECTED_SQL_ROLE);
+  assert.equal(report.least_privilege_catalog_match,true);
   assert.equal(report.isolated_cli_staging_session_observed,true);
   assert.equal(report.in_process_staging_session_observed,false);
   assert.equal(report.sql_writer_attested,false);
@@ -118,9 +120,49 @@ test('one CLI SQL SELECT observes role but never claims a running backend identi
   assert.equal(report.live_render_pool_verified,false);
   assert.equal(report.recoveryReady,false);
   assert.equal(report.execution,'ISOLATED_CLI_NOT_RUNNING_BACKEND');
-  assert.equal(report.status,'READONLY_ISOLATED_CLI_ROLE_ONLY_NOT_RUNTIME');
+  assert.equal(report.status,'READONLY_EXPECTED_STAGING_ROLE_NOT_RUNTIME');
   assert.equal(emitted.length,1);
   assert.doesNotMatch(emitted[0],/FAKE_SECRET|postgresql:\/\/|pooler.supabase.com/);
+});
+
+
+test('wrong, privileged and broader-than-expected catalog roles never pass',async()=>{
+  assert.equal(catalogMatchesStagingRuntime(row),true);
+  for(const partial of [
+    {current_role:'postgres',session_role:'postgres',bypass_rls:true,ledger_owner:true},
+    {current_role:'supabase_admin',session_role:'supabase_admin',bypass_rls:true},
+    {current_role:'demos_staging_b2_worker',session_role:'demos_staging_b2_worker',
+      ledger_insert_grant:false},
+    {session_role:'postgres'},
+    {bypass_rls:true},
+    {ledger_force_rls:false},
+    {ledger_owner:true},
+    {ledger_insert_grant:false},
+    {ledger_select_grant:false},
+    {public_grants_exist:true},
+    {public_column_grants_exist:true},
+    {api_roles_with_dml_grants:1},
+    {ledger_present:false},
+    {database_name:'another_database'}
+  ]){
+    const state={...row,...partial};
+    assert.equal(catalogMatchesStagingRuntime(state),false,
+      JSON.stringify(partial));
+    const report=await runIsolatedProbe({
+      env:base(),emit:()=>{},
+      loadDatabase:()=>({
+        getPool:()=>({connect:async()=>({
+          query:async()=>({rows:[state]}),
+          release:()=>{}
+        })}),
+        closePool:async()=>{}
+      })
+    });
+    assert.equal(report.least_privilege_catalog_match,false);
+    assert.equal(report.recoveryReady,false);
+    assert.equal(report.live_render_pool_verified,false);
+    assert.match(report.status,/^NO_GO/);
+  }
 });
 
 test('missing ledger never produces a positive eligibility/readiness status',async()=>{
