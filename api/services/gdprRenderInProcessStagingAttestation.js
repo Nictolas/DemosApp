@@ -103,5 +103,6 @@ async function attestInProcess({env, getPool, emit}) {
 }
 
 module.exports=Object.freeze({
-  attestInProcess,assertProcessTarget,LOG_PREFIX,STAGING_SERVICE_ID
+  attestInProcess,assertProcessTarget,LOG_PREFIX,STAGING_SERVICE_ID,
+  MUTATING_STAGING_E2E_FLAGS
 });
