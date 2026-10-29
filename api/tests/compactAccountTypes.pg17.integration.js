@@ -43,13 +43,13 @@ async function run() {
       ['organization', 'ORGANIZATION', 'O'],
       ['institution', 'INSTITUTION', 'I'],
       ['legacyCandidatePolitician', 'PERSON', 'CP'],
-      ['activist', 'PERSON', 'A']
+      ['activist', 'PERSON', format === 'long' ? 'AD' : 'A']
     ];
     for (const [key, type, role] of fixtures) {
       const raw = (await pool.query('SELECT account_type, ruolo, status FROM public.users WHERE id=$1', [IDS[key]])).rows[0];
       assert.ok(raw, 'Synthetic account missing: ' + key);
       assert.equal(raw.account_type, expectedTypes[type]);
-      assert.equal(raw.ruolo, role, 'Historical role must survive type rewrite');
+      assert.equal(raw.ruolo, role, 'Role must match its tested state; rollback fixture grants admin after verification');
       assert.equal(raw.status, 'a');
 
       const subject = await getAccountSubject(pool, IDS[key]);
