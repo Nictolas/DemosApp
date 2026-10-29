@@ -94,6 +94,7 @@ async function getAccountSubject(pool, userId) {
           FROM political_candidacies pc
           WHERE pc.user_id = u.id
             AND pc.status = 'ACTIVE'
+            AND pc.source <> 'LEGACY_BACKFILL'
             AND pc.starts_at <= NOW()
             AND (pc.ends_at IS NULL OR pc.ends_at > NOW())
         ) AS is_candidate,
@@ -102,6 +103,7 @@ async function getAccountSubject(pool, userId) {
           FROM political_mandates pm
           WHERE pm.user_id = u.id
             AND pm.status = 'ACTIVE'
+            AND pm.source <> 'LEGACY_BACKFILL'
             AND pm.starts_at <= NOW()
             AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
         ) AS is_politician
