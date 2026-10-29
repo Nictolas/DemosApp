@@ -7,6 +7,8 @@ on:
       - 'api/app.js'
       - 'api/routes/database.js'
       - 'api/routes/health.js'
+      - 'api/routes/admin/database.js'
+      - 'api/tests/gdprLegacyAdminSchemaMutationRouteIsolated.test.js'
       - 'api/tests/gdprLegacyHealthDbDiagnosticIsolated.test.js'
       - 'api/routes/cleanup.js'
       - 'api/routes/migrations.js'
@@ -71,6 +73,7 @@ jobs:
         run: |
           node --check api/services/privacyErasureOutboxWorker.js
           node --test --test-concurrency=1 api/tests/gdprDataPlaneRouteSurface.test.js
+          node api/tests/gdprLegacyAdminSchemaMutationRouteIsolated.test.js
           # Run node:test in-process to avoid intermittent Node 22 child-runner IPC deserialization.
           node api/tests/gdprLegacyHealthDbDiagnosticIsolated.test.js
           node --check api/tests/fixtures/gdprDurableRecoveryPrototype.js
