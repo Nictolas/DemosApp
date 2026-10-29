@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, Redirect, useLocation, useParams } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
@@ -26,7 +25,6 @@ interface ProfiloProps {
 
 export default function Profilo({ userId: propUserId }: ProfiloProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [, setLocation] = useLocation();
   const params = useParams();
   const [isEditing, setIsEditing] = useState(false);
@@ -64,24 +62,10 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
   };
 
 
-  // Gestione salvataggio profilo
-  const handleSaveProfile = async (updatedData: any) => {
-    try {
-      toast({
-        title: "Successo",
-        description: "Profilo aggiornato con successo!",
-      });
-      setIsEditing(false);
-      // Ricarica i dati del profilo
-      await fetchAllProfileData();
-    } catch (error) {
-      console.error('Errore nel salvataggio del profilo:', error);
-      toast({
-        title: "Errore",
-        description: error instanceof Error ? error.message : "Errore nel salvataggio del profilo",
-        variant: "destructive",
-      });
-    }
+  // Il salvataggio invalida già la cache tramite apiRequest: non ricaricarla
+  // una seconda volta e non mostrare due toast per lo stesso risultato.
+  const handleSaveProfile = () => {
+    setIsEditing(false);
   };
 
   // Redirect se non autenticato
