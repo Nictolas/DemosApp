@@ -168,6 +168,61 @@ if (!safe) {
       '.ledger')).rows[0].n,2);
   });
 
+  test('PG17 distinct accounts can COMMIT concurrently, with reverse journal finalization',async()=>{
+    await reset();
+    const journal=new SyntheticExternalJournal();
+    const first=operation('delete-a-parallel','account_deleted');
+    const second=operation('revoke-b-parallel','political_consent_revoked',bob.id);
+    journal.prepare(first);
+    journal.prepare(second);
+    // Two actual PostgreSQL connections/transactions, one subject each.
+    await Promise.all([atomicWrite(first),atomicWrite(second)]);
+    journal.commit(second);
+    journal.commit(first);
+    const flags=seals(journal);
+    await restoreOldSnapshot();
+    const model=restoreSyntheticSnapshot(
+      new SyntheticDatabase({[alice.id]:{exists:true,consent:true},
+        [bob.id]:{exists:true,consent:false}}),journal,flags);
+    assert.equal(model.productionRecoveryReady,false);
+    assert.equal(model.replayed,2);
+    await replay(journal.verify());
+    assert.deepEqual(await rows(),[{id:bob.id,consent:false}]);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM '+schema+
+      '.ledger')).rows[0].n,2);
+  });
+
+  test('PG17 original confirmed row can support TEST-ONLY ambiguous finalization',async()=>{
+    await reset();
+    const journal=new SyntheticExternalJournal();
+    const pending=operation('ambiguous-live-primary','account_deleted');
+    journal.prepare(pending);
+    const witness=journal.witness.current();
+    await atomicWrite(pending);
+    const committed=(await pool.query('SELECT event_id,action,subject FROM '+schema+
+      '.ledger WHERE event_id=$1',[pending.id])).rows;
+    assert.equal(committed.length,1);
+    // This is intentionally a fixture adapter, not a trusted production SQL
+    // attestation. A real system must authenticate the original writer/pool.
+    const marked=new SyntheticDatabase({[alice.id]:{exists:true,consent:true}});
+    if(committed[0].event_id===pending.id &&
+        committed[0].action===pending.action &&
+        committed[0].subject===pending.subject) marked.apply(pending);
+    const outcome=journal.finalizeAmbiguousFromOriginalPrimary(marked,pending,{
+      originalPrimaryVerified:true,writersFenced:true,
+      independentWitness:witness
+    });
+    assert.equal(outcome.externallyFinalized,true);
+    const flags=seals(journal);
+    await restoreOldSnapshot();
+    const restored=restoreSyntheticSnapshot(
+      new SyntheticDatabase({[alice.id]:{exists:true,consent:true},
+        [bob.id]:{exists:true,consent:false}}),journal,flags);
+    await replay(journal.verify());
+    assert.equal(restored.productionRecoveryReady,false);
+    assert.deepEqual(await rows(),[bob]);
+  });
+
   test.after(async()=>{
     try {await pool.query('DROP SCHEMA IF EXISTS '+schema+' CASCADE');}
     finally {await pool.end();}
