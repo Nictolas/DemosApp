@@ -144,3 +144,74 @@ test('audit dashboard and service avoid logging raw provider error objects', () 
   assert.doesNotMatch(source, /message:\s*error\.message/);
   assert.doesNotMatch(serviceSource, /console\.error\([^\n]*,\s*error\)/);
 });
+
+
+test('legacy retention refuses destructive methods before any SQL or audit writes', async () => {
+  const serviceSource = fs.readFileSync(path.join(__dirname, '../services/dataRetentionService.js'), 'utf8');
+  let dbCalls = 0;
+  let auditCalls = 0;
+  const moduleStub = { exports: {} };
+  new Function('require', 'module', 'console', serviceSource)((name) => {
+    if (name === '../middleware/auth') return { pool: { query: async () => { dbCalls++; throw new Error('UNEXPECTED_DB_QUERY'); } } };
+    if (name === './auditService') return { logAction: async () => { auditCalls++; } };
+    throw new Error('Unexpected dependency: ' + name);
+  }, moduleStub, { log() {}, error() {} });
+  const service = moduleStub.exports;
+  for (const operation of [
+    () => service.deleteExpiredData('synthetic-user'),
+    () => service.deleteAllExpiredData(),
+    () => service.performFullCleanup()
+  ]) {
+    await assert.rejects(operation, error => error.code === 'RETENTION_POLICY_NOT_APPROVED' && error.statusCode === 409);
+  }
+  assert.equal(dbCalls, 0);
+  assert.equal(auditCalls, 0);
+});
+
+test('legacy admin retention cleanup endpoints and job start return 409 before scheduling', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../routes/admin/data-retention.js'), 'utf8');
+  const routes = new Map();
+  let mutationCalls = 0;
+  const blocked = () => {
+    const error = new Error('RETENTION_POLICY_NOT_APPROVED');
+    error.code = 'RETENTION_POLICY_NOT_APPROVED';
+    throw error;
+  };
+  const router = {
+    use() {}, get() {},
+    delete(route, handler) { routes.set('DELETE ' + route, handler); },
+    post(route, handler) { routes.set('POST ' + route, handler); }
+  };
+  const moduleStub = { exports: {} };
+  new Function('require', 'module', 'console', source)((name) => {
+    if (name === 'express') return { Router: () => router };
+    if (name === '../../middleware/auth') return { verifyToken() {}, requireAdmin() {} };
+    if (name === '../../services/dataRetentionService') return {
+      assertRetentionPolicyApproved: blocked,
+      deleteExpiredData: () => { mutationCalls++; blocked(); },
+      deleteAllExpiredData: () => { mutationCalls++; blocked(); }
+    };
+    if (name === '../../jobs/dataRetentionJob') return {
+      start: () => { mutationCalls++; },
+      performImmediateCleanup: () => { mutationCalls++; blocked(); }
+    };
+    throw new Error('Unexpected dependency: ' + name);
+  }, moduleStub, { warn() {}, error() {} });
+  for (const route of [
+    'DELETE /cleanup/:userId', 'POST /cleanup-all',
+    'POST /job/start', 'POST /cleanup/immediate'
+  ]) {
+    const handler = routes.get(route);
+    assert.equal(typeof handler, 'function', route);
+    const res = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(body) { this.body = body; return this; }
+    };
+    await handler({ body: {}, params: { userId: 'synthetic-user' } }, res);
+    assert.equal(res.statusCode, 409, route);
+    assert.equal(res.body.success, false, route);
+    assert.equal(res.body.error, 'RETENTION_POLICY_NOT_APPROVED', route);
+  }
+  assert.equal(mutationCalls, 3);
+});
