@@ -53,9 +53,11 @@ function inventory(root = ROOT, files = trackedFiles(root)) {
     if (!stat.isFile()) continue;
     if (stat.size > 512 * 1024) { skipped.push({ file, reason: 'size_over_512KiB' }); continue; }
     const source = fs.readFileSync(absolute, 'utf8');
-    if (source.includes('\0')) { skipped.push({ file, reason: 'binary' }); continue; }
+    // Preserve source coverage even if a tracked JS file contains NUL bytes.
+    // NUL is treated as a separator; the artifact reports file/line only.
+    if (source.includes('\0')) skipped.push({ file, reason: 'nul_normalized_for_scan' });
     considered += 1;
-    source.split(/\r?\n/).forEach((line, index) => {
+    source.replace(/\0/g, '\n').split(/\r?\n/).forEach((line, index) => {
       const signals = inspectLine(line);
       if (!signals.length) return;
       matches.push({
