@@ -69,7 +69,7 @@ router.get('/', async (req, res) => {
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
-        AND u.account_type = 'PERSON'
+        AND u.account_type IN ('PERSON', 'P')
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
       `;
       
@@ -396,7 +396,7 @@ router.get('/:regione', async (req, res) => {
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
-        AND u.account_type = 'PERSON'
+        AND u.account_type IN ('PERSON', 'P')
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE 
         AND u.regione_residenza = $1
       `;
@@ -514,7 +514,7 @@ router.get('/:regione/:provincia', async (req, res) => {
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
-        AND u.account_type = 'PERSON'
+        AND u.account_type IN ('PERSON', 'P')
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.regione_residenza = $1
         AND u.provincia_residenza = $2
@@ -635,7 +635,7 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr."${columnName}" IS NOT NULL
-        AND u.account_type = 'PERSON'
+        AND u.account_type IN ('PERSON', 'P')
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
         AND u.regione_residenza = $1
         AND u.provincia_residenza = $2
