@@ -91,18 +91,49 @@ async function main() {
     assert.deepEqual(regionLabels, ['Piemonte', 'Emilia-Romagna', 'Lombardia', 'Toscana'], 'Regional bars must be descending, with alphabetical ties');
     assert.ok(await regionCard.getByText('Regione non disponibile per 1 utente.').count(), 'Missing region must be shown separately');
 
-    // Su smartphone si può scorrere dentro il grafico con il dito oppure
-    // con le frecce, senza spostare orizzontalmente l'intera pagina.
+    // Su smartphone solo il grafico deve muoversi orizzontalmente, senza
+    // frecce o navigazione indietro. Simula gli eventi touch reali (incluse
+    // interazioni sull'SVG) per verificare preventDefault + scrollLeft.
     await page.setViewportSize({ width: 390, height: 844 });
     const chartScroll = regionCard.getByTestId('utenti-region-chart-scroll');
     const regionOverflow = await chartScroll.evaluate(el => el.scrollWidth > el.clientWidth);
     assert.equal(regionOverflow, true, 'Regional chart must scroll horizontally on mobile');
+    assert.equal(await regionCard.getByRole('button', { name: /Mostra le regioni/i }).count(), 0, 'Arrow controls must not be displayed');
     const mobileTouchAction = await chartScroll.evaluate(el => getComputedStyle(el).touchAction);
-    assert.equal(mobileTouchAction, 'pan-x', 'Touch gestures inside the chart must be horizontal');
-    await regionCard.getByRole('button', { name: 'Mostra le regioni successive' }).click();
-    await page.waitForFunction(() => (document.querySelector('[data-testid="utenti-region-chart-scroll"]')?.scrollLeft || 0) > 70);
-    await regionCard.getByRole('button', { name: 'Mostra le regioni precedenti' }).click();
-    await page.waitForFunction(() => (document.querySelector('[data-testid="utenti-region-chart-scroll"]')?.scrollLeft || 0) < 2);
+    assert.equal(mobileTouchAction, 'pan-y', 'Only vertical panning must remain native');
+    const touchBehavior = await chartScroll.evaluate(el => {
+      const target = el.querySelector('svg') || el;
+      const fire = (type, x, y) => {
+        const touch = new Touch({ identifier: 1, target, clientX: x, clientY: y });
+        const present = type === 'touchend' ? [] : [touch];
+        const event = new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches: present,
+          targetTouches: present,
+          changedTouches: [touch],
+        });
+        target.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      fire('touchstart', 300, 200);
+      const horizontalPrevented = fire('touchmove', 140, 205);
+      const afterForward = el.scrollLeft;
+      fire('touchend', 140, 205);
+      fire('touchstart', 140, 205);
+      const reversePrevented = fire('touchmove', 300, 210);
+      const afterBack = el.scrollLeft;
+      fire('touchend', 300, 210);
+      fire('touchstart', 220, 220);
+      const verticalPrevented = fire('touchmove', 218, 130);
+      fire('touchend', 218, 130);
+      return { horizontalPrevented, afterForward, reversePrevented, afterBack, verticalPrevented };
+    });
+    assert.equal(touchBehavior.horizontalPrevented, true, 'Horizontal swipe must cancel default browser gesture');
+    assert.ok(touchBehavior.afterForward > 70, 'Swipe left must reveal later regions');
+    assert.equal(touchBehavior.reversePrevented, true, 'Reverse swipe must cancel default browser gesture');
+    assert.ok(touchBehavior.afterBack < 2, 'Swipe right must return to earlier regions');
+    assert.equal(touchBehavior.verticalPrevented, false, 'Vertical page scrolling must remain available');
     const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     assert.equal(pageOverflow, false, 'Horizontal chart scrolling must not overflow the page');
 
