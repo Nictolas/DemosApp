@@ -76,8 +76,10 @@ BEGIN
     RAISE EXCEPTION 'INVALID_OFFICIAL_ID';
   END IF;
   IF p_legislature IS NULL OR p_legislature NOT BETWEEN 1 AND 100 OR
-     p_starts_on IS NULL OR p_starts_on > CURRENT_DATE OR
-     (p_ends_on IS NOT NULL AND p_ends_on < p_starts_on) THEN
+     p_starts_on IS NULL OR p_starts_on < DATE '1946-01-01' OR
+     p_starts_on > CURRENT_DATE OR
+     (p_ends_on IS NOT NULL AND
+       (p_ends_on < p_starts_on OR p_ends_on > CURRENT_DATE)) THEN
     RAISE EXCEPTION 'INVALID_MANDATE_DATES';
   END IF;
   IF p_review_reference IS NULL OR length(btrim(p_review_reference)) NOT BETWEEN 8 AND 120 OR
@@ -153,6 +155,18 @@ BEGIN
       AND v_start < COALESCE(pm.ends_at, 'infinity'::timestamptz)
   ) THEN
     RAISE EXCEPTION 'VERIFIED_CAMERA_SENATO_PERIOD_OVERLAP';
+  END IF;
+
+  -- Reject duplicate or overlapping verified mandates within the SAME chamber.
+  -- Multiple distinct, nonoverlapping legislatures remain allowed.
+  IF EXISTS (
+    SELECT 1 FROM public.political_mandates pm
+    WHERE pm.user_id = p_user_id AND pm.office_code = v_office
+      AND pm.source = 'OFFICIAL_VERIFIED' AND pm.status <> 'CANCELLED'
+      AND pm.starts_at < COALESCE(v_end, 'infinity'::timestamptz)
+      AND v_start < COALESCE(pm.ends_at, 'infinity'::timestamptz)
+  ) THEN
+    RAISE EXCEPTION 'VERIFIED_SAME_CHAMBER_PERIOD_OVERLAP';
   END IF;
 
   INSERT INTO demos_internal.official_political_identities
