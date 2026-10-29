@@ -59,6 +59,7 @@ if(!ISOLATED){
       '.fictional TO '+APP+','+PRIV);
     await admin.query('GRANT UPDATE ON '+SCHEMA+'.fictional TO '+PRIV);
     app=conn(APP);
+    app.on('error',()=>{}); // expected backend termination in synthetic fixture
     priv=conn(PRIV);
     await app.connect();
     await priv.connect();
