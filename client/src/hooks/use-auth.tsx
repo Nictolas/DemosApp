@@ -12,7 +12,7 @@ import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
 import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
 import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCache";
-import { clearAllEncryptedProfiles } from "@/pages/Profilo/utils/encryptedProfileVault";
+import { clearAllEncryptedProfiles, clearEncryptedProfile } from "@/pages/Profilo/utils/encryptedProfileVault";
 
 type VerifiedPoliticalConsent = { granted: boolean; timestamp: string | null };
 
@@ -131,6 +131,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isSessionVerified = !!userData && !isLoading && !isError && !isFetching &&
     typeof userData.political_consent?.granted === "boolean";
   const verifiedPoliticalConsent = isSessionVerified ? userData.political_consent! : null;
+
+  // A verified revocation must delete the encrypted political snapshot,
+  // not just hide it. Also reject in-flight query completions after revocation.
+  useEffect(() => {
+    const owner = userData?.id;
+    if (!owner || !isSessionVerified || userData.political_consent?.granted !== false) return;
+    void queryClient.cancelQueries({
+      predicate: query => query.queryKey[0] === "opinioniQuestions" &&
+        query.queryKey[1] === owner,
+    });
+    queryClient.removeQueries({
+      predicate: query => query.queryKey[0] === "opinioniQuestions" &&
+        query.queryKey[1] === owner,
+    });
+    void clearEncryptedProfile(owner);
+  }, [userData?.id, userData?.political_consent?.granted, isSessionVerified, queryClient]);
 
   let user: User | null = userData ?? null;
   if (!user && token) {
