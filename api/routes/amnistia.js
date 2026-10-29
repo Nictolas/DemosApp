@@ -1,6 +1,7 @@
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { validateInput } = require('../middleware/validation');
 const { pool } = require('../middleware/auth');
@@ -88,83 +89,94 @@ router.get('/', verifyToken, async (req, res) => {
 
 // POST /api/amnistia/vota - Vota per amnistia
 router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, validateInput(['legge']), async (req, res) => {
+  let client = null;
+  let transactionStarted = false;
   try {
     const { legge } = req.body;
-    // Usa req.userId con fallback a req.user.id per sicurezza
     const userId = req.userId || req.user?.id;
-    
+
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Utente non autenticato'
-      });
+      return res.status(401).json({ success: false, error: 'Utente non autenticato' });
     }
-    
     if (!legge) {
-      return res.status(400).json({
-        success: false,
-        error: 'Il campo legge è obbligatorio'
-      });
+      return res.status(400).json({ success: false, error: 'Il campo legge è obbligatorio' });
     }
-    
-    // Prima trova l'ID di amnistia corrispondente alla legge
+
     const amnistiaResult = await pool.query(
       'SELECT id FROM amnistia WHERE legge = $1 AND attiva = true',
       [legge]
     );
-    
     if (amnistiaResult.rows.length === 0) {
-      return res.status(404).json({
+      return res.status(404).json({ success: false, error: 'Amnistia non trovata' });
+    }
+    const amnistiaId = amnistiaResult.rows[0].id;
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    transactionStarted = true;
+
+    // Revocation updates this users row before deleting consent-scoped votes.
+    // Lock first; recheck consent in a separate statement after the lock.
+    const lockedUser = await client.query(
+      'SELECT id FROM users WHERE id = $1 FOR UPDATE',
+      [userId]
+    );
+    if (lockedUser.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const consentState = await getPoliticalConsentState(client, userId);
+    if (!consentState.granted) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
+      return res.status(403).json({
         success: false,
-        error: 'Amnistia non trovata'
+        error: 'Consenso richiesto',
+        code: 'POLITICAL_CONSENT_REQUIRED',
+        consent_required: true
       });
     }
-    
-    const amnistiaId = amnistiaResult.rows[0].id;
-    
-    const existingVote = await pool.query(
+
+    // Read the current preference only after acquiring the user lock:
+    // concurrent replacements must not reuse a stale pre-transaction value.
+    const existingVote = await client.query(
       'SELECT id, legge FROM voti_amnistia WHERE userid = $1 LIMIT 1',
       [userId]
     );
     const current = existingVote.rows[0] || null;
     if (current?.legge === legge) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.json({ success: true, message: 'Preferenza Amnistia già aggiornata' });
     }
 
-    await assertPreferenceChangeAllowed(pool, {
+    await assertPreferenceChangeAllowed(client, {
       userId,
       scope: 'amnistia:preferenza',
       isAdmin: Boolean(req.user?.isAdmin)
     });
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      if (current) {
-        await client.query('DELETE FROM voti_amnistia WHERE userid = $1', [userId]);
-      }
-      await client.query(
-        'INSERT INTO voti_amnistia (userid, amnistia_id, legge) VALUES ($1, $2, $3)',
-        [userId, amnistiaId, legge]
-      );
-      await recordPreferenceChange(client, { userId, scope: 'amnistia:preferenza' });
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
-
-    res.json({ success: true, message: 'Voto amnistia salvato' });
+    await client.query('DELETE FROM voti_amnistia WHERE userid = $1', [userId]);
+    await client.query(
+      'INSERT INTO voti_amnistia (userid, amnistia_id, legge) VALUES ($1, $2, $3)',
+      [userId, amnistiaId, legge]
+    );
+    await recordPreferenceChange(client, { userId, scope: 'amnistia:preferenza' });
+    await client.query('COMMIT');
+    transactionStarted = false;
+    return res.json({ success: true, message: 'Voto amnistia salvato' });
   } catch (error) {
+    if (transactionStarted && client) {
+      try { await client.query('ROLLBACK'); } catch (rollbackError) {
+        console.error('Errore rollback preferenza amnistia:', rollbackError);
+      }
+    }
     if (sendCooldownError(res, error)) return;
     console.error('❌ Errore nel salvare voto amnistia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel salvare voto amnistia',
-      details: error.message
-    });
+    return res.status(500).json({ success: false, error: 'Errore nel salvare voto amnistia' });
+  } finally {
+    if (client) client.release();
   }
 });
 

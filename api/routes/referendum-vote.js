@@ -6,6 +6,7 @@ const { verifyToken } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
 const { getPool } = require('../config/database');
+const { getPoliticalConsentState } = require('../services/politicalConsentService');
 const {
   getPreferenceCooldown,
   assertPreferenceChangeAllowed,
@@ -275,6 +276,30 @@ router.post(
       client = await pool.connect();
       await client.query('BEGIN');
       transactionStarted = true;
+
+      // Serialize with consent revocation, which updates this same users row
+      // before deleting political data. Read consent in a SEPARATE statement
+      // after the lock: a combined SELECT may use a stale READ COMMITTED snapshot.
+      const lockedUser = await client.query(
+        'SELECT id FROM users WHERE id = $1 FOR UPDATE',
+        [req.userId],
+      );
+      if (lockedUser.rows.length === 0) {
+        await client.query('ROLLBACK');
+        transactionStarted = false;
+        return res.status(404).json({ success: false, error: 'Utente non trovato' });
+      }
+      const consentState = await getPoliticalConsentState(client, req.userId);
+      if (!consentState.granted) {
+        await client.query('ROLLBACK');
+        transactionStarted = false;
+        return res.status(403).json({
+          success: false,
+          error: 'Consenso richiesto',
+          code: 'POLITICAL_CONSENT_REQUIRED',
+          consent_required: true,
+        });
+      }
 
       const ballotResult = await client.query(
         `SELECT id, status, opens_at, closes_at

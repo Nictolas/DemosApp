@@ -74,7 +74,7 @@ async function withCandidateApp(pool, fn) {
     loaded: true,
     exports: {
       pool,
-      verifyToken: (req, _res, next) => { req.userId = 'u1'; req.user = { id: 'u1', ruolo: 'E' }; next(); }
+      verifyToken: (req, res, next) => { if (req.get('x-synthetic-deny') === '1') return res.status(401).json({success:false}); req.userId = 'u1'; req.user = { id: 'u1', ruolo: 'E' }; next(); }
     }
   };
   const routePath = require.resolve(path.join(ROOT, 'routes', 'candidati.js'));
@@ -168,5 +168,20 @@ test('HTTP selezione candidato: candidato fuori circoscrizione viene bloccato da
     const body = await res.json();
     assert.equal(body.error, 'CANDIDATO_NON_VOTABILE');
     assert.equal(body.data.strict, true);
+  });
+});
+
+test('candidate routes never allow browser or shared cache, including auth and validation failures', async () => {
+  await withCandidateApp(makePool(), async (base) => {
+    for (const [url, options, expected] of [
+      ['/api/candidati/europei', {}, 200],
+      ['/api/candidati/disponibili', {}, 400],
+      ['/api/candidati/disponibili?grado_candidatura=E', { headers: { 'x-synthetic-deny': '1' } }, 401],
+    ]) {
+      const res = await fetch(base + url, options);
+      assert.equal(res.status, expected);
+      assert.match(res.headers.get('cache-control') || '', /(?:^|,\s*)private(?:,|$)/);
+      assert.match(res.headers.get('cache-control') || '', /(?:^|,\s*)no-store(?:,|$)/);
+    }
   });
 });

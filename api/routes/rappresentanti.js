@@ -12,6 +12,13 @@ const {
 const { loadPoliticalSelections, selectionsByOffice } = require('../services/politicalSelectionService');
 
 const router = express.Router();
+
+// These authenticated endpoints return personal political selections or
+// inferred compatibility scores. Apply before auth, including 401/4xx/5xx.
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
 const REPRESENTATIVE_SELECTION_DESCRIPTORS = Object.freeze(getLegacySelectionDescriptors('representative'));
 
 async function loadRepresentativeSelectionProjection(userId) {

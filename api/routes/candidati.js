@@ -16,6 +16,13 @@ const {
 } = require('../services/politicalSelectionService');
 
 const router = express.Router();
+
+// These authenticated endpoints return personal political selections or
+// inferred compatibility scores. Apply before auth, including 401/4xx/5xx.
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
 const CANDIDATE_SELECTION_DESCRIPTORS = Object.freeze(getLegacySelectionDescriptors('candidate'));
 const CANDIDATE_TEST_FIELD_MAPPING = Object.freeze(Object.fromEntries(
   CANDIDATE_SELECTION_DESCRIPTORS.map((item) => [item.testField, item.field])

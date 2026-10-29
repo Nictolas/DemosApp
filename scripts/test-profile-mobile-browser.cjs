@@ -1,0 +1,257 @@
+'use strict';
+
+// Browser test of the built DEMOS profile with fictional identities only.
+// All network requests outside localhost:4173 are blocked before dispatch.
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+
+const BASE = 'http://localhost:4173';
+const OWNER = '00000000-0000-4000-8000-000000000101';
+const OTHER = '00000000-0000-4000-8000-000000000102';
+const authToken = [ 'eyJhbGciOiJub25lIn0',
+  Buffer.from(JSON.stringify({ userId: OWNER, role: 'AD', exp: 4102444800 })).toString('base64url'),
+  'synthetic-signature' ].join('.');
+
+const ownerProfile = {
+  id: OWNER, ruolo: 'AD', status: 'A', nome: 'Finto', cognome: 'Utente',
+  data_nascita: '24/10/1990', cittadinanza: 'Italiana',
+  paese_residenza: 'Italia', regione_residenza: 'Toscana',
+  provincia_residenza: 'Pisa', comune_residenza: 'Comune Inventato',
+  telefono: '000 000 0000',
+};
+const publicProfile = {
+  id: OTHER, ruolo: 'P', nome: 'Politica', cognome: 'Inventata',
+  nome_completo: 'Politica Inventata',
+};
+
+async function main() {
+  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  try {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      deviceScaleFactor: 3,
+      isMobile: true,
+      hasTouch: true,
+      serviceWorkers: 'block',
+    });
+    await context.addInitScript(token => {
+      localStorage.setItem('auth_token', token);
+    }, authToken);
+
+    const page = await context.newPage();
+    const errors = [];
+    const calls = new Map();
+    let consentGranted = true;
+    let consentUnavailable = false;
+    let consentTimestamp = '2026-10-29T09:00:00Z';
+    const blockedOffsite = new Set();
+    page.on('pageerror', error => errors.push(error.message));
+
+    const reply = (route, value, status = 200) =>
+      route.fulfill({
+        status,
+        contentType: 'application/json',
+        headers: { 'cache-control': 'no-store' },
+        body: JSON.stringify(value),
+      });
+
+    await page.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== 'localhost' || url.port !== '4173') {
+        blockedOffsite.add(url.origin);
+        return route.abort();
+      }
+      const p = url.pathname;
+      if (!p.startsWith('/api/')) return route.continue();
+      calls.set(p, (calls.get(p) || 0) + 1);
+      if (p === '/api/auth/me') {
+        return reply(route, { success: true, user: { id: OWNER, role: 'AD', ruolo: 'AD', status: 'A', is_admin: true } });
+      }
+      if (p === '/api/users/me') return reply(route, { success: true, user: ownerProfile });
+      if (p === '/api/user/political-opinions-consent') {
+        if (consentUnavailable) return reply(route, { success: false, error: 'Synthetic temporary outage' }, 503);
+        return reply(route, {
+          success: true, consent: { granted: consentGranted, timestamp: consentTimestamp },
+        });
+      }
+      if (p === '/api/opinioni/profile') return reply(route, {
+        success: true, data: {
+          questions: [{ id: 'synthetic_opinion', text: 'Domanda inventata?' }],
+          userAnswers: consentGranted ? { synthetic_opinion: 'f' } : {},
+        },
+      });
+      if (p === '/api/governo/ideale') return reply(route, { success: true, data: consentGranted ? { Primo_Ministro: 'Ministra Fittizia' } : {} });
+      if (p === '/api/rappresentanti') return reply(route, { success: true, data: { rappresentanti: {} } });
+      if (p === '/api/candidati/selezioni') return reply(route, { success: true, data: { candidati: {} } });
+      if (p === `/api/users/${OTHER}/public-profile`) return reply(route, {
+        success: true, user: publicProfile,
+        public: { governoIdeale: {}, rappresentanti: {}, candidati: {} },
+      });
+      if (p === `/api/users/${OTHER}/opinioni`) return reply(route, { success: true, data: { opinioni: [] } });
+      return reply(route, { success: true, data: {} });
+    });
+
+    await page.goto(BASE + '/profilo', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Profilo Utente' }).waitFor({ timeout: 25000 });
+    await page.getByText('Comune Inventato', { exact: false }).first().waitFor({ timeout: 30000 });
+    await page.getByText('Nascita: 1990', { exact: false }).first().waitFor();
+    assert.ok(await page.locator('nav.app-bottom-nav a[href="/profilo"]').count(), 'Reader profile remains navigable');
+    assert.equal(await page.getByText('Dati personali completi').count(), 1);
+    const personal = page.locator('details').filter({ has: page.getByText('Dati personali completi') });
+    assert.equal(await personal.evaluate(el => el.open), false, 'Personal fields closed by default');
+    await personal.locator('summary').click();
+    await personal.getByText('Telefono', { exact: true }).waitFor();
+    await personal.locator('summary').click();
+    assert.equal(await personal.evaluate(el => el.open), false);
+
+    const sections = [
+      'Rappresentanti selezionati', 'Candidati selezionati',
+      'Il tuo Governo ideale', 'Opinioni politiche',
+    ];
+    for (const label of sections) {
+      const disclosure = page.locator('details').filter({ has: page.getByText(label, { exact: false }) }).first();
+      assert.equal(await disclosure.count(), 1, 'Missing disclosure: ' + label);
+      assert.equal(await disclosure.evaluate(el => el.open), false, label + ' should be initially collapsed');
+      await disclosure.locator('summary').click();
+      assert.equal(await disclosure.evaluate(el => el.open), true);
+      await disclosure.locator('summary').click();
+    }
+    assert.ok(await page.getByRole('link', { name: 'Impostazioni' }).count(), 'Settings must remain accessible from profile');
+    assert.ok(await page.locator('nav.app-bottom-nav a[href="/profilo"]').count(), 'Profile is a bottom-nav destination');
+    assert.equal(await page.locator('nav.app-bottom-nav a[href="/impostazioni"]').count(), 0, 'No eighth Settings tab');
+    const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    assert.equal(horizontalOverflow, false, 'Profile must not overflow 390px viewport');
+
+    const summaryHeight = await page.getByText('Dati personali completi').evaluate(el => {
+      const card = el.closest('.rounded-2xl');
+      return card?.getBoundingClientRect().height || 0;
+    });
+    assert.ok(summaryHeight > 0 && summaryHeight < 350, 'Compact profile summary too tall: ' + summaryHeight);
+
+    const ownEndpoints = [
+      '/api/users/me', '/api/opinioni/profile', '/api/governo/ideale',
+      '/api/rappresentanti', '/api/candidati/selezioni',
+    ];
+    const consentPath = '/api/user/political-opinions-consent';
+    for (const p of ownEndpoints) {
+      assert.ok((calls.get(p) || 0) >= 1, 'First opening missing ' + p);
+    }
+    // Other app bootstrap components may also read /api/users/me; count the
+    // delta caused by *reopening* the profile, not all application activity.
+    const originalCounts = ownEndpoints.map(p => calls.get(p) || 0);
+
+    // Client-side navigation must reuse the same React Query cache.
+    await page.locator('nav.app-bottom-nav a[href="/preferiti"]').click();
+    await page.waitForURL('**/preferiti');
+    await page.waitForTimeout(700);
+    const countsBeforeReturn = ownEndpoints.map(p => calls.get(p) || 0);
+    await page.locator('nav.app-bottom-nav a[href="/profilo"]').click();
+    await page.waitForURL('**/profilo');
+    await page.getByText('Comune Inventato', { exact: false }).first().waitFor();
+    assert.deepEqual(ownEndpoints.map(p => calls.get(p) || 0), countsBeforeReturn,
+      'Reopening profile with fresh cache must not refetch the five full profile endpoints');
+    assert.equal(calls.get(consentPath), 2,
+      'Cached reopen must validate consent version with one cheap GET');
+
+    // Screenshot only after the fade-up page transition is fully opaque.
+    // Capturing mid-animation produces misleading low-contrast screenshots.
+    const awaitFullyVisible = () => page.waitForFunction(() => {
+      const layer = document.querySelector('.fade-up-transition');
+      return layer && Number.parseFloat(getComputedStyle(layer).opacity) >= 0.99;
+    }, null, { timeout: 10000 });
+    await awaitFullyVisible();
+    await page.screenshot({ path: '/tmp/demos-profile-own-synthetic-mobile.png', fullPage: true });
+    // A different browser context is a separate device with no shared
+    // in-memory query cache. Its revocation affects the same synthetic server.
+    await page.locator('nav.app-bottom-nav a[href="/preferiti"]').click();
+    await page.waitForURL('**/preferiti');
+    const otherDevice = await browser.newContext({ serviceWorkers: 'block' });
+    const otherPage = await otherDevice.newPage();
+    await otherPage.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== 'localhost' || url.port !== '4173') return route.abort();
+      if (url.pathname === consentPath && route.request().method() === 'PUT') {
+        consentGranted = false;
+        consentTimestamp = null;
+        return reply(route, { success: true, consent: { granted: false, timestamp: null } });
+      }
+      if (url.pathname.startsWith('/api/')) return reply(route, { success: true, data: {} });
+      return route.continue();
+    });
+    await otherPage.goto(BASE + '/auth', { waitUntil: 'domcontentloaded' });
+    await otherPage.evaluate(async path => {
+      const response = await fetch(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' } });
+      if (!response.ok) throw new Error('Synthetic revocation failed');
+    }, consentPath);
+    await otherDevice.close();
+    const beforeRevocationReturn = ownEndpoints.map(p => calls.get(p) || 0);
+    await page.locator('nav.app-bottom-nav a[href="/profilo"]').click();
+    await page.waitForURL('**/profilo');
+    await page.getByText('Comune Inventato').first().waitFor({ timeout: 15000 });
+    await page.waitForFunction(() => !document.body.innerText.includes('synthetic_opinion'), null, { timeout: 12000 });
+    assert.equal(await page.getByText('Opinioni politiche', { exact: false }).count(), 0,
+      'Revoked choices must not reappear from the RAM cache');
+    assert.equal(await page.getByText('Ministra Fittizia').count(), 0,
+      'Revoked political choices must not reappear in the government section');
+    for (let i = 0; i < ownEndpoints.length; i++) {
+      assert.equal((calls.get(ownEndpoints[i]) || 0), beforeRevocationReturn[i] + 1,
+        'After cross-device revocation, reload server-gated endpoint ' + ownEndpoints[i]);
+    }
+    assert.equal(calls.get(consentPath), 4,
+      'First fetch, cached reentry and revoked reentry each validate consent; refetch obtains version');
+    // Fail closed when consent cannot be checked; never display a cached
+    // political snapshot just because the device temporarily lost connectivity.
+    await page.locator('nav.app-bottom-nav a[href="/preferiti"]').click();
+    await page.waitForURL('**/preferiti');
+    consentUnavailable = true;
+    await page.locator('nav.app-bottom-nav a[href="/profilo"]').click();
+    await page.getByText('Impossibile verificare il consenso politico.', { exact: false }).waitFor({ timeout: 15000 });
+    assert.equal(await page.getByText('Comune Inventato').count(), 0,
+      'Do not display cached sensitive snapshot on consent validation failure');
+    consentUnavailable = false;
+    await page.getByRole('button', { name: 'Riprova' }).click();
+    await page.getByText('Comune Inventato').first().waitFor({ timeout: 15000 });
+
+
+
+    // Public view must use the public projection only, not visitor's selections.
+    const ownCountsBeforePublic = ownEndpoints.map(p => calls.get(p));
+    await page.goto(BASE + '/profilo/' + OTHER, { waitUntil: 'domcontentloaded' });
+    await page.getByText('Politica Inventata', { exact: false }).first().waitFor({ timeout: 30000 });
+    await page.getByText('Profilo pubblico', { exact: true }).first().waitFor();
+    assert.equal(await page.getByText('Dati personali completi').count(), 0);
+    assert.equal(await page.getByText('Comune Inventato').count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Modifica profilo' }).count(), 0);
+    assert.equal(await page.getByRole('link', { name: 'Impostazioni' }).count(), 0);
+    const ownPoliticalPaths = ownEndpoints.filter(p => p !== '/api/users/me');
+    assert.deepEqual(
+      ownPoliticalPaths.map(p => calls.get(p) || 0),
+      ownPoliticalPaths.map(p => ownCountsBeforePublic[ownEndpoints.indexOf(p)]),
+      'Public view must not fetch private political choices of the signed-in visitor',
+    );
+    // Global app bootstrap can independently request /api/users/me on a full
+    // reload. This is not an owner-selection leak and is recorded separately.
+    const unrelatedOwnUserReadsOnReload = (calls.get('/api/users/me') || 0) - ownCountsBeforePublic[0];
+    assert.equal(calls.get(`/api/users/${OTHER}/public-profile`), 1);
+    assert.equal(calls.get(`/api/users/${OTHER}/opinioni`), 1);
+    await awaitFullyVisible();
+    await page.screenshot({ path: '/tmp/demos-profile-public-synthetic-mobile.png', fullPage: true });
+
+    assert.deepEqual(errors, [], 'Uncaught browser errors');
+    console.log(JSON.stringify({
+      kind: 'compiled-profile-browser-synthetic',
+      status: 'pass', viewport: '390x844', summaryHeight,
+      firstOpeningObservedApiReads: originalCounts.reduce((a, b) => a + b, 0),
+      secondOpeningAdditionalProfileReads: 0,
+      crossDeviceRevocationDetected: true,
+      postRevocationFullProfileRefetches: ownEndpoints.length,
+      unrelatedOwnUserReadsOnReload,
+      externalRequestsAllowed: 0,
+      externalOriginsBlocked: blockedOffsite.size,
+    }));
+    await context.close();
+  } finally {
+    await browser.close();
+  }
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });
