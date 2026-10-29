@@ -6,15 +6,30 @@ BEGIN;
 CREATE SCHEMA IF NOT EXISTS demos_internal;
 REVOKE ALL ON SCHEMA demos_internal FROM PUBLIC;
 
--- Manual approvals are inserted ONLY via privileged, separately authorized
--- administrative SQL after checking official rosters and canonical user identity.
--- This table has no API exposure, public policies, or writable application grants.
--- A caller-supplied review_reference alone is NOT an authorization.
+-- Manual approvals are inserted by privileged administrators after independent
+-- review of the official roster and canonical identity. No application grants.
 CREATE TABLE IF NOT EXISTS demos_internal.approved_political_mandate_imports (
   institution TEXT NOT NULL CHECK (institution IN ('CAMERA', 'SENATO')),
-  official_id TEXT NOT NULL CHECK (official_id ~ '^[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}
+  official_id TEXT NOT NULL CHECK (length(official_id) BETWEEN 1 AND 128
+    AND official_id !~ '[^A-Za-z0-9:._/-]'
+    AND substring(official_id, 1, 1) ~ '[A-Za-z0-9]'),
+  legislature INTEGER NOT NULL CHECK (legislature BETWEEN 1 AND 100),
+  starts_on DATE NOT NULL,
+  ends_on DATE,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+  source_url TEXT NOT NULL,
+  review_reference TEXT NOT NULL CHECK (length(btrim(review_reference)) BETWEEN 8 AND 120),
+  reviewed_by TEXT NOT NULL CHECK (length(btrim(reviewed_by)) BETWEEN 3 AND 120),
+  approved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (institution, official_id, legislature, starts_on),
+  CHECK (ends_on IS NULL OR ends_on >= starts_on)
+);
+
+CREATE TABLE IF NOT EXISTS demos_internal.official_political_identities (
   institution TEXT NOT NULL CHECK (institution IN ('CAMERA', 'SENATO')),
-  official_id TEXT NOT NULL CHECK (official_id ~ '^[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}$'),
+  official_id TEXT NOT NULL CHECK (length(official_id) BETWEEN 1 AND 128
+    AND official_id !~ '[^A-Za-z0-9:._/-]'
+    AND substring(official_id, 1, 1) ~ '[A-Za-z0-9]'),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
   source_url TEXT NOT NULL,
   review_reference TEXT NOT NULL CHECK (length(btrim(review_reference)) BETWEEN 8 AND 120),
