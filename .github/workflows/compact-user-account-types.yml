@@ -16,6 +16,7 @@ on:
       - 'api/tests/accountCapabilityAuthorization.smoke.test.js'
       - 'api/database/users-role-default-e-20261029.sql'
       - 'api/database/users-account-type-poe-20261029.sql'
+      - 'api/database/users-account-type-poe-rollback-20261029.sql'
       - 'api/tests/shortAccountTypeCodes.test.js'
       - 'api/tests/shortAccountTypeMigration.integration.sh'
       - '.github/workflows/compact-user-account-types.yml'
