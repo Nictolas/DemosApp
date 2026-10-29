@@ -25,10 +25,11 @@ export const Header: React.FC<HeaderProps> = ({ total, isLoading }) => {
             variant="outline"
             size="sm"
             className="h-10 shrink-0 gap-1.5 rounded-xl border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-none hover:bg-slate-50"
+            aria-label="Preferenze notifiche"
             onClick={() => setLocation("/notifiche/preferenze")}
           >
             <Settings className="h-4 w-4" aria-hidden="true" />
-            Preferenze
+            <span className="hidden min-[360px]:inline">Preferenze</span>
           </Button>
         </div>
         <p className="mt-2 pl-1 text-xs font-medium text-slate-500" aria-live="polite">
