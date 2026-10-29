@@ -26,6 +26,7 @@ async function test() {
     let granted = true;
     let version = "2026-10-29T10:00:00Z";
     let initiativeTitle = 'Iniziativa Inventata';
+    let allSelectionsEmpty = false;
     page.on('pageerror', error => errors.push(error.message));
     const fulfill = (route, body) => route.fulfill({
       status: 200, contentType: 'application/json',
@@ -51,7 +52,10 @@ async function test() {
             comune_residenza: 'Comune Inventato',
           }});
         case '/api/user/profile-selections':
-          return fulfill(route, { success:true, data: {
+          return fulfill(route, { success:true, data: allSelectionsEmpty ? {
+            capoStato: [], grazia: [], amnistia: [], iniziativaPopolare: [],
+            attivista: null, organizzazione: null,
+          } : {
             capoStato: ['Presidente Inventato'], grazia: [],
             amnistia: ['Reato Inventato'], iniziativaPopolare: [initiativeTitle],
             attivista: { id:'synthetic-activist',nome:'Attivista Inventato' },
@@ -85,8 +89,12 @@ async function test() {
       await page.getByText('Comune Inventato').first().waitFor({ timeout: 30000 });
       if (political) {
         await page.getByText('Attivista Inventato').first().waitFor({timeout:15000});
-        assert.equal(await page.getByText('Grazia', { exact:true }).count(), 0,
-          'Empty categories must remain hidden in the profile');
+        assert.equal(await page.getByText('Grazia', { exact:true }).count(), 1,
+          'Grazia must remain visible when no vote has been selected');
+        assert.equal(await page.getByText('Nessun voto selezionato', { exact: true }).count(), 1,
+          'An empty Grazia vote must offer the user a choice action');
+        assert.equal(await page.getByRole('link').filter({ has: page.getByText('Grazia', { exact: true }) }).count(), 1,
+          'The empty Grazia row must be navigable');
       }
       for (const title of [
         'Rappresentanti selezionati', 'Candidati selezionati',
@@ -145,6 +153,25 @@ async function test() {
     await page.getByText(initiativeTitle).first().waitFor({ timeout: 15000 });
     assert.equal(count.get('/api/user/profile-selections'), beforeLegacyRepair + 1,
       'Once the title is repaired, subsequent reloads must use only the encrypted cache');
+
+    // All six civic categories must be present even when every selection is empty.
+    // A new consent epoch invalidates the previous votes before displaying blanks.
+    allSelectionsEmpty = true;
+    version = '2026-10-29T13:00:00Z';
+    await page.goto(ORIGIN + '/profilo', { waitUntil: 'domcontentloaded' });
+    await page.getByText('Comune Inventato').first().waitFor({ timeout: 30000 });
+    const choicesSection = page.locator('section[aria-label="Le mie altre scelte"]');
+    await choicesSection.getByText('Nessun voto selezionato', { exact: true }).first().waitFor({ timeout: 15000 });
+    assert.equal(await choicesSection.getByText('Nessun voto selezionato', { exact: true }).count(), 6,
+      'Each of the six empty categories must offer a selection');
+    assert.equal(await choicesSection.getByText('Scegli ora', { exact: true }).count(), 6,
+      'All six empty choices must be actionable');
+    const emptyFirst = count.get('/api/user/profile-selections') || 0;
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await choicesSection.getByText('Nessun voto selezionato', { exact: true }).first().waitFor({ timeout: 15000 });
+    assert.equal(await choicesSection.getByText('Nessun voto selezionato', { exact: true }).count(), 6);
+    assert.equal(count.get('/api/user/profile-selections') || 0, emptyFirst,
+      'Showing empty preference categories must not trigger any extra database reads');
 
     assert.deepEqual(errors, [], 'No uncaught browser errors');
     console.log(JSON.stringify({ kind: 'persistent-local-profile', result: 'PASS', first, after,
