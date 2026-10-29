@@ -48,17 +48,17 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
   };
 
   return (
-    <Card className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-md sm:shadow-xl border border-blue-100/50 overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white sm:p-6 sm:pb-4">
+    <Card className="overflow-hidden rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm sm:shadow-xl">
+      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2.5 text-white sm:p-6 sm:pb-4">
         <div className="flex items-start justify-between gap-2 sm:items-center">
           <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
             <div className="hidden rounded-lg bg-white/20 p-2 backdrop-blur-sm sm:block">
               <ThumbsUp className="h-6 w-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-lg font-bold sm:text-2xl">Il tuo voto</h2>
-              <CardDescription className="mt-1 text-xs leading-snug text-blue-100 sm:text-sm">
-                Scegli un nome dalla classifica o aggiungilo. Massimo {limit} voto{limit !== 1 ? 'i' : ''}.
+              <h2 className="text-base font-bold sm:text-2xl">Il tuo voto</h2>
+              <CardDescription className="mt-0.5 text-xs leading-snug text-blue-100 sm:mt-1 sm:text-sm">
+                {limit} voto{limit === 1 ? '' : 'i'} disponibile{limit === 1 ? '' : 'i'}. Scegli dalla classifica o cerca un nome.
               </CardDescription>
             </div>
           </div>
@@ -85,8 +85,8 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
           </div>
         )}
       </CardHeader>
-      <CardContent className="px-3 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-6">
-        <form onSubmit={onSubmit} className="mb-3 space-y-3 sm:mb-6 sm:space-y-4">
+      <CardContent className="px-3 pb-2 pt-2.5 sm:px-6 sm:pb-6 sm:pt-6">
+        <form onSubmit={onSubmit} className="mb-2 space-y-2 sm:mb-6 sm:space-y-4">
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
               <Input
@@ -166,14 +166,12 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3 rounded-lg bg-white/60 px-2 py-3 sm:flex-col sm:py-8 sm:text-center">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gray-200 to-gray-300 sm:mb-4 sm:h-20 sm:w-20">
-              <ThumbsUp className="h-5 w-5 text-gray-400 sm:h-10 sm:w-10" />
+          <div className="rounded-lg bg-white/60 px-2 py-2 text-center sm:flex sm:flex-col sm:items-center sm:py-8">
+            <div className="hidden h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-gray-200 to-gray-300 sm:mb-4 sm:flex">
+              <ThumbsUp className="h-10 w-10 text-gray-400" />
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-600 sm:text-base">Nessuna richiesta selezionata</p>
-              <p className="mt-0.5 text-xs leading-snug text-gray-500 sm:mt-1 sm:text-sm">Scegli un carcerato dalla classifica per votare</p>
-            </div>
+            <p className="text-xs text-gray-600 sm:text-base sm:font-medium">Nessuna richiesta selezionata</p>
+            <p className="mt-1 hidden text-sm text-gray-500 sm:block">Scegli un carcerato dalla classifica per votare</p>
           </div>
         )}
       </CardContent>
