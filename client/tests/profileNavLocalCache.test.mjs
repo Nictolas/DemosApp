@@ -199,3 +199,24 @@ test("authenticated app startup consistently opens Profile and not Favorites", (
   assert.ok(!profile.includes('<Link href="/preferiti"'));
   assert.ok(wrapper.includes('return <Redirect to="/preferiti" />;'));
 });
+
+test("startup shows no timed React splash and Android has no artificial launch delay", () => {
+  const wrapper = read("components/AppWrapper.tsx");
+  const stylesheet = read("index.css");
+  const policy = read("pages/CookiePolicy.tsx");
+  const capacitor = readFileSync(new URL("../capacitor.config.ts", import.meta.url), "utf8");
+
+  for (const stale of ["SplashScreen", "showSplash", "isAppReady", "splash_shown", "app_loaded", "setTimeout("]) {
+    assert.ok(!wrapper.includes(stale), "stale splash startup code: " + stale);
+  }
+  assert.ok(wrapper.includes("setLocation('/profilo');"), "authenticated startup still opens Profile");
+  assert.ok(wrapper.includes("if (isAdminOnlyPath(location))"), "admin route guard remains active");
+  assert.ok(wrapper.includes("if (isAuthLoading)"), "auth loading guard remains active");
+  assert.ok(!stylesheet.includes(".splash-screen"), "dead splash overlay CSS must be removed");
+  assert.ok(!stylesheet.includes("@keyframes splash"), "dead splash animations must be removed");
+  assert.ok(!policy.includes(">app_loaded<"), "obsolete splash storage declaration must be removed");
+  assert.ok(capacitor.includes("launchShowDuration: 0"), "no fixed native launch duration");
+  assert.ok(capacitor.includes("launchAutoHide: true"), "native splash must not remain indefinitely");
+  assert.ok(capacitor.includes("launchFadeOutDuration: 0"), "no additional native fade delay");
+  assert.equal(readFileSync(new URL("../src/components/AppWrapper.tsx", import.meta.url), "utf8"), wrapper);
+});
