@@ -1,0 +1,46 @@
+name: Opinioni fixed-footer mobile browser regression
+
+on:
+  pull_request:
+    branches: [main, integration/opinioni-catalog-privacy-20261029]
+    paths:
+      - 'client/src/components/OpinionActionsBar.tsx'
+      - 'client/src/pages/OpinioniEuropee.tsx'
+      - 'client/src/pages/OpinioniNazionali.tsx'
+      - 'client/src/pages/OpinioniRegionali.tsx'
+      - 'client/src/pages/OpinioniComunali.tsx'
+      - 'client/src/robust-layout.css'
+      - 'scripts/test-opinioni-fixed-footer-browser.cjs'
+      - '.github/workflows/opinioni-fixed-footer-browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fixed-opinioni:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend for browser tests
+        run: npm run build --prefix client
+      - name: Install isolated Playwright runner
+        run: |
+          npm install --prefix /tmp/demos-opinioni-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          node /tmp/demos-opinioni-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Test anchored footer and scrolling on mobile and desktop
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-opinioni-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/opinioni-comunali >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-opinioni-browser/node_modules node scripts/test-opinioni-fixed-footer-browser.cjs
