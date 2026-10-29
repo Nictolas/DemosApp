@@ -54,7 +54,7 @@ async function withRoute({ routeFile, mount, pool, fn }) {
     id: authPath, filename: authPath, loaded: true,
     exports: {
       pool,
-      verifyToken: (req, _res, next) => { req.userId = 'u1'; req.user = { id: 'u1', ruolo: 'E' }; req.userRole = 'E'; next(); },
+      verifyToken: (req, res, next) => { if (req.get('x-synthetic-deny') === '1') return res.status(401).json({success:false}); req.userId = 'u1'; req.user = { id: 'u1', ruolo: 'E' }; req.userRole = 'E'; next(); },
       requireAdmin: (_req, _res, next) => next()
     }
   };
@@ -125,4 +125,19 @@ test('eleggibilità rappresentanti: backend esclude profili non politici e inatt
     /async function listEligibleRepresentativesLegacy[\s\S]*?WHERE \(u\.ruolo = 'P' OR u\.ruolo = 'CP'\)[\s\S]*?AND u\.status = 'a'[\s\S]*?AND u\.grado_elezione = \$1/,
     'il fallback legacy deve accettare solo politici attivi del grado richiesto'
   );
+});
+
+test('representative routes never allow browser or shared cache, including auth and validation failures', async () => {
+  await withRoute({ routeFile: 'rappresentanti.js', mount: '/api/rappresentanti', pool: makePool(), fn: async (base) => {
+    for (const [url, options, expected] of [
+      ['/api/rappresentanti/disponibili?grado_elezione=E', {}, 200],
+      ['/api/rappresentanti/disponibili', {}, 400],
+      ['/api/rappresentanti/disponibili?grado_elezione=E', { headers: { 'x-synthetic-deny': '1' } }, 401],
+    ]) {
+      const res = await fetch(base + url, options);
+      assert.equal(res.status, expected);
+      assert.match(res.headers.get('cache-control') || '', /(?:^|,\s*)private(?:,|$)/);
+      assert.match(res.headers.get('cache-control') || '', /(?:^|,\s*)no-store(?:,|$)/);
+    }
+  }});
 });
