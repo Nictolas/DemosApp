@@ -25,6 +25,7 @@ async function test() {
     const errors = [];
     let granted = true;
     let version = "2026-10-29T10:00:00Z";
+    let initiativeTitle = 'Iniziativa Inventata';
     page.on('pageerror', error => errors.push(error.message));
     const fulfill = (route, body) => route.fulfill({
       status: 200, contentType: 'application/json',
@@ -52,7 +53,7 @@ async function test() {
         case '/api/user/profile-selections':
           return fulfill(route, { success:true, data: {
             capoStato: ['Presidente Inventato'], grazia: [],
-            amnistia: ['Reato Inventato'], iniziativaPopolare: ['Iniziativa Inventata'],
+            amnistia: ['Reato Inventato'], iniziativaPopolare: [initiativeTitle],
             attivista: { id:'synthetic-activist',nome:'Attivista Inventato' },
             organizzazione: { id:'synthetic-org',nome:'Associazione Inventata' },
           }});
@@ -129,6 +130,22 @@ async function test() {
     await enter();
     assert.ok((count.get('/api/governo/ideale') || 0) > first[1],
       'Regranted session must fetch a fresh political snapshot, not old cached data');
+    // Migrate a one-time legacy UUID written by an older app build:
+    // only this defective cached section is fetched again and corrected.
+    initiativeTitle = '09f7c726-b705-46cb-aaf7-9b4b328b1e77';
+    version = '2026-10-29T12:00:00Z';
+    await enter();
+    const beforeLegacyRepair = count.get('/api/user/profile-selections') || 0;
+    initiativeTitle = 'BASTA QUORUM PER I REFERENDUM! CHI VOTA DECIDE.';
+    await enter();
+    await page.getByText(initiativeTitle).first().waitFor({ timeout: 15000 });
+    assert.equal(count.get('/api/user/profile-selections'), beforeLegacyRepair + 1,
+      'Legacy initiative UUID should trigger exactly one corrective GET');
+    await enter();
+    await page.getByText(initiativeTitle).first().waitFor({ timeout: 15000 });
+    assert.equal(count.get('/api/user/profile-selections'), beforeLegacyRepair + 1,
+      'Once the title is repaired, subsequent reloads must use only the encrypted cache');
+
     assert.deepEqual(errors, [], 'No uncaught browser errors');
     console.log(JSON.stringify({ kind: 'persistent-local-profile', result: 'PASS', first, after,
       additionalProfileGets: after.reduce((sum, n, i) => sum + n - first[i], 0) }));
