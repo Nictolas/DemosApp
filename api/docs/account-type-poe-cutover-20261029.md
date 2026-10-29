@@ -54,6 +54,46 @@ updates capability flags to verify those roles are still P/CP. This addresses
 a post-rollback failure that the previous immediate row-count tests missed.
 No production account rows or account-type DDL were changed by these fixes.
 
+## Extended private Supabase staging profile data model, 29 October 2026
+
+Applied `api/staging/f12_poe_canonical_profile_fixture_20261029.sql`
+**only to Demos-Staging** (Supabase project `fkeayjzvtuvzesljhjbc`) in
+migration `f12_poe_canonical_profile_fixture_20261029`. It extends the
+existing non-exposed `f12_poe_ci` synthetic schema with the required
+`users` profile columns, `user_profile`, and `user_representatives`.
+No real names, emails, provider identities or credentials were inserted.
+
+- Five private tables, each RLS enabled and with a primary key;
+  `anon`, `authenticated` and `service_role` have no schema USAGE.
+- Retained exactly seven invented account records, including one DPO
+  that is **not** Admin. Performance advisor returned no missing PK or
+  unindexed-FK findings for the new schema.
+- Ran the **exact production /auth/me SELECT text** extracted from
+  `api/routes/auth/profile.js`, replacing only the table schema and
+  synthetic UUID parameter. Its 40+ selected fields executed successfully
+  on Demos-Staging, returning the intended profile-region override
+  (`Toscana`) and joined synthetic representative selection.
+- Ran the exact account-subject SELECT from
+  `api/services/accountCapabilitiesService.js` similarly; on an
+  invented P/CP historical subject it returned code `P`, active status
+  and separate `is_candidate`/`is_politician` projections.
+- GitHub Actions' disposable PostgreSQL 17 HTTP integration now
+  **also** creates both companion profile tables and checks the complete
+  /auth/me query, DPO-vs-Admin separation, and resulting values with
+  `account_type` in both long and compact form.
+  Previously the HTTP test was passing via its legacy schema fallback,
+  leaving the full profile query untested.
+- Staging SQL is covered by `api/tests/compactAccountTypesStagingContract.test.js`
+  which rejects public/auth/storage mutations or unprivileged grants.
+
+**Not yet complete:** This private schema has intentionally no Data API
+grants and is NOT bound to a running Render backend. The older Render
+`demos-functional-staging` service still runs a separate older branch;
+`public.users` in Demos-Staging remains incomplete. The above verifies
+real Supabase database compatibility but is **not** live Google/Apple/
+passkey sign-in or Android E2E. Do not merge PR #402 or change production
+`account_type` before that separate gate is satisfied.
+
 ## Actual local HTTP authentication regression
 
 The PR adds api/tests/compactAccountTypesHttp.pg17.integration.js, executed
