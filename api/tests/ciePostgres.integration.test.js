@@ -22,18 +22,20 @@ test('real PostgreSQL: CIE atomic write, concurrent identity and detach guards',
   const fiscal='TINIT-ABCDEF12G34H567I';
   try {
     await db.query('BEGIN');
+    // The service accepts an existing transactional query client (not a Pool).
+    const transactionClient={query:(...args)=>db.query(...args)};
     await db.query("CREATE TEMP TABLE users(id uuid PRIMARY KEY, account_type varchar(16) NOT NULL, sesso varchar(1) CHECK (sesso IN ('M','F')), updated_at timestamptz DEFAULT now()) ON COMMIT DROP");
     await db.query('CREATE TEMP TABLE identity_verifications(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid UNIQUE REFERENCES users(id), person_key varchar(64) NOT NULL UNIQUE, provider varchar(32) NOT NULL, status varchar(16) NOT NULL, verified_at timestamptz NOT NULL DEFAULT now(), detached_at timestamptz, retention_until timestamptz, updated_at timestamptz NOT NULL DEFAULT now()) ON COMMIT DROP');
     await db.query('INSERT INTO users(id,account_type,sesso) VALUES($1,$4,$5),($2,$4,NULL),($3,$6,NULL)',
       [a,b,org,'PERSON','F','ORGANIZATION']);
-    const first=await completeCieVerificationFromVerifiedClaims({userId:a,claims:{fiscal_number:fiscal,sesso:'M'}},db);
+    const first=await completeCieVerificationFromVerifiedClaims({userId:a,claims:{fiscal_number:fiscal,sesso:'M'}},transactionClient);
     assert.equal(first.created,true);
     assert.equal(first.verified,true);
     assert.equal((await db.query('SELECT sesso FROM users WHERE id=$1',[a])).rows[0].sesso,'M');
     const row=(await db.query('SELECT person_key FROM identity_verifications WHERE user_id=$1',[a])).rows[0];
     assert.match(row.person_key,/^[a-f0-9]{64}$/);
     assert.ok(!row.person_key.includes('ABCDEF12G34H567I'));
-    const second=await completeCieVerificationFromVerifiedClaims({userId:a,claims:{fiscal_number:fiscal,sesso:'F'}},db);
+    const second=await completeCieVerificationFromVerifiedClaims({userId:a,claims:{fiscal_number:fiscal,sesso:'F'}},transactionClient);
     assert.equal(second.created,false);
     assert.equal((await db.query('SELECT sesso FROM users WHERE id=$1',[a])).rows[0].sesso,'F');
     await assert.rejects(registerVerifiedIdentity({userId:b,fiscalNumber:fiscal},db),
