@@ -113,7 +113,7 @@ async function execute(handler) {
   return jsonValue;
 }
 
-test('sette endpoint sostenitori usano solo M/F verificati, senza esportare attributi personali', async () => {
+test('sette endpoint sostenitori aggregano M/F registrati, senza esportare attributi personali', async () => {
   for (const [file, uri] of HANDLERS) {
     const handler = loadRoute(file, buildRows()).get(uri);
     assert.equal(typeof handler, 'function', file + ': missing route ' + uri);
@@ -133,7 +133,7 @@ test('sette endpoint sostenitori usano solo M/F verificati, senza esportare attr
   }
 });
 
-test('sette endpoint nascondono tutta la distribuzione se un gruppo CIE ha 1-9 sostenitori', async () => {
+test('sette endpoint nascondono tutta la distribuzione se un gruppo M/F ha 1-9 sostenitori', async () => {
   for (const [file, uri] of HANDLERS) {
     const handler = loadRoute(file, buildRows({ men: 9, women: 15, unknown: 2, organizations: 3 })).get(uri);
     const payload = await execute(handler);
@@ -147,7 +147,9 @@ test('la UI mostra dati mancanti/soppressi senza usare il genere legacy o invent
   const ui = read('client/src/pages/Sostenitori.tsx');
   assert.match(ui, /stats\.sexDistribution/);
   assert.match(ui, /stats\.sexSuppressed/);
-  assert.match(ui, /Nessun sesso anagrafico certificato disponibile/);
+  assert.match(ui, /Nessun dato sul sesso disponibile/);
+  assert.match(ui, /M\/F registrati, anche storici o inferiti: non necessariamente certificati CIE/);
+  assert.doesNotMatch(ui, /Sesso anagrafico certificato \(CIE\)/);
   assert.doesNotMatch(ui, /Object\.entries\(stats\.genderDistribution\)/);
   assert.doesNotMatch(ui, /Distribuzione per Genere/);
   for (const [file] of HANDLERS) {
