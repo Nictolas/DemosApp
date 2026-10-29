@@ -52,15 +52,18 @@ export default function Notifiche() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="w-full flex flex-col" style={{ minHeight: 'calc(100vh - 6rem - max(env(safe-area-inset-bottom), 56px))' }}>
+    <PageContainer className="notifiche-page overflow-hidden bg-gradient-to-b from-slate-50 via-blue-50/60 to-slate-50">
+      <div className="flex h-full min-h-0 w-full flex-col">
         <LoadingStates isAuthLoading={isAuthLoading} />
-        
-        <div className="flex-shrink-0">
-          <Header />
-        </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <Header total={data?.notifiche?.length ?? 0} isLoading={isLoading} />
+
+        <div
+          className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-4 sm:px-6 sm:pb-6"
+          role="region"
+          aria-label="Elenco notifiche"
+          tabIndex={0}
+        >
           <ListaNotifiche
             data={data}
             isLoading={isLoading}
@@ -71,7 +74,6 @@ export default function Notifiche() {
           />
         </div>
       </div>
-
     </PageContainer>
   );
 }
