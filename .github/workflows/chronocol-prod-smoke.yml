@@ -1,0 +1,58 @@
+name: One-off Chrono public endpoint smoke
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/chronocol-prod-smoke.yml'
+
+jobs:
+  public-endpoint-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only production GET without login or user profile
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          (async () => {
+            const url = 'https://api.demos.community/api/eventi/mobilitazioni';
+            const response = await fetch(url, {
+              method: 'GET',
+              headers: { Accept: 'application/json' },
+              signal: AbortSignal.timeout(45000)
+            });
+            const payload = await response.json();
+            const rows = payload.data || [];
+            const todayItaly = new Intl.DateTimeFormat('sv-SE', {
+              year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Europe/Rome'
+            }).format(new Date());
+            const forbidden = ['CONTATTI', 'DESCRIZIONE', 'creator_user_id', 'user_id', 'email'];
+            const unsafe = rows.some((row) => forbidden.some((key) => Object.hasOwn(row, key)));
+            const expired = rows.some((row) => {
+              const day = row.giorno_fine || row.giorno_inizio;
+              return day && day < todayItaly;
+            });
+            console.log(JSON.stringify({
+              probe: 'PRODUCTION_CHRONOCOL_PUBLIC',
+              status: response.status,
+              contentType: response.headers.get('content-type'),
+              cacheControl: response.headers.get('cache-control'),
+              source: payload.source,
+              events: rows.length,
+              expired, unsafe,
+              allFromChrono: rows.every((row) => row.external_import === true)
+            }));
+            assert.equal(response.status, 200);
+            assert.equal(payload.success, true);
+            assert.equal(payload.source, 'Chrono Collective');
+            assert.ok(rows.length > 0, 'The source import is not active or cache is empty');
+            assert.equal(expired, false);
+            assert.equal(unsafe, false);
+            assert.ok(rows.every((row) => row.external_import === true));
+            assert.match(response.headers.get('cache-control') || '', /public/);
+          })().catch((error) => { console.error('LIVE_SMOKE_FAILED', error.message); process.exitCode = 1; });
+          NODE
