@@ -191,7 +191,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearStoredNativePushToken();
       clearSessionTokens();
       clearAllProfileSummaries();
-      void clearAllEncryptedProfiles();
+      // Finish IndexedDB deletion before logout can navigate/reload the app.
+      await clearAllEncryptedProfiles();
       setToken(null);
 
       try {
