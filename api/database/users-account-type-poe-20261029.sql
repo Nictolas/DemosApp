@@ -43,11 +43,14 @@ ALTER TABLE public.users
   ADD CONSTRAINT users_account_type_check CHECK (account_type IN ('P','O','E'));
 ALTER TABLE public.users ALTER COLUMN account_type SET DEFAULT 'P';
 
+-- Preserve the existing function search_path (public, pg_temp) as well as
+-- its invoker security; do not weaken its security config on replace.
 -- Preserve the existing legacy projection behavior for non-type capabilities
 -- while accepting the new account_type codes.
 CREATE OR REPLACE FUNCTION public.refresh_users_legacy_role(p_user_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
+SET search_path TO public, pg_temp
 AS $role$
 DECLARE
   v_account_type VARCHAR(20);
