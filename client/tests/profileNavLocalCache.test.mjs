@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { QueryClient } from "@tanstack/react-query";
+
 
 const read = path => readFileSync(new URL("../src/" + path, import.meta.url), "utf8");
 const nav = read("lib/nav-items.ts");
@@ -85,27 +85,29 @@ test("only allowlisted demographic summary is persisted, scoped to account", () 
   assert.equal(storage.length, 0);
 });
 
-test("expired summary is discarded and cannot silently stay current forever", () => {
+test("summary does not expire with time", () => {
   const { api, storage } = harness();
   api.storeProfileSummary("account-1", { id:"account-1", ruolo:"E", data_nascita:"1990" });
   const key = [...storage.items.keys()][0];
   const cache = JSON.parse(storage.getItem(key));
-  cache.savedAt = Date.now() - api.PROFILE_SUMMARY_TTL_MS - 1;
+  cache.savedAt = Date.now() - 5 * 365 * 24 * 60 * 60 * 1000;
   storage.setItem(key, JSON.stringify(cache));
+  assert.equal(api.PROFILE_SUMMARY_TTL_MS, Infinity);
+  assert.equal(api.readProfileSummary("account-1").user.data_nascita, "1990");
+  api.clearProfileSummary("account-1");
   assert.equal(api.readProfileSummary("account-1"), null);
-  assert.equal(storage.length, 0);
 });
 
 test("opening profile loads just summary; political API requests require expansion and consent", () => {
   assert.match(hook, /initialData: ownProfile \? saved\?\.user : undefined/);
   assert.match(hook, /staleTime: ownProfile \? PROFILE_SUMMARY_TTL_MS : 0/);
   assert.match(hook, /const politicalPanelOpen = panels\.representatives/);
-  assert.match(hook, /enabled: enabled && ownProfile && politicalPanelOpen/);
-  assert.match(hook, /const politicalAllowed = ownProfile && consent\.isSuccess/);
-  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.government/);
-  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.representatives/);
-  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.candidates/);
-  assert.match(hook, /enabled: enabled && politicalAllowed && panels\.opinions/);
+  assert.match(hook, /const consentVerified = isSessionVerified && verifiedPoliticalConsent !== null/);
+  assert.match(hook, /const politicalAllowed = ownProfile && vaultReady && consentVerified/);
+  assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.government/);
+  assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.representatives/);
+  assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.candidates/);
+  assert.match(hook, /enabled: enabled && vaultReady && politicalAllowed && panels\.opinions/);
   assert.doesNotMatch(source, /userOpinions|governoIdeale|candidatiDetails|rappresentantiDetails/);
 });
 
@@ -117,37 +119,24 @@ test("successful login and onboarding open Profile as the new home", () => {
   assert.match(read("pages/registrazione-ruolo.tsx"), /navigate\("\/profilo"\)/);
 });
 
-test("political disclosures reuse per-account RAM without permanent storage", async () => {
-  // Verify the actual React Query cache semantics, as well as the hook wiring.
-  assert.match(hook, /const POLITICAL_RAM_TTL_MS = 10 \* 60 \* 1000/);
-  assert.match(hook, /const POLITICAL_RAM_GC_MS = 30 \* 60 \* 1000/);
-  assert.match(hook, /const CONSENT_RAM_TTL_MS = 60 \* 1000/);
-  assert.equal((hook.match(/staleTime: POLITICAL_RAM_TTL_MS/g) || []).length, 5);
-  assert.equal((hook.match(/gcTime: POLITICAL_RAM_GC_MS/g) || []).length, 6);
-  assert.equal((hook.match(/politicalEpoch, "(government|representatives|candidates|opinions)"/g) || []).length, 4);
-  assert.match(hook, /queryKey: \["profileFull", ownerId, politicalPanelOpen \? politicalEpoch : "personal"\]/);
-  assert.match(hook, /!consent\.isRefetchError/);
-  assert.match(hook, /refetchOnWindowFocus: "always"/);
-
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  let sqlEquivalentCalls = 0;
-  const load = async (ownerId, consentEpoch) => queryClient.fetchQuery({
-    queryKey: ["profilePolitical", ownerId, consentEpoch, "government"],
-    queryFn: async () => { sqlEquivalentCalls += 1; return { Primo_Ministro: "Figura sintetica" }; },
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-  });
-  await load("account-1", "consent-era-1");
-  await load("account-1", "consent-era-1");
-  assert.equal(sqlEquivalentCalls, 1, "reopening the same disclosure must not repeat the query");
-  await load("account-2", "consent-era-1");
-  assert.equal(sqlEquivalentCalls, 2, "another user must never inherit the same cache");
-  await load("account-1", "consent-era-2");
-  assert.equal(sqlEquivalentCalls, 3, "new consent epoch must never reuse the old answers");
-  queryClient.removeQueries({ queryKey: ["profilePolitical", "account-1"] });
-  await load("account-1", "consent-era-2");
-  assert.equal(sqlEquivalentCalls, 4, "revocation invalidation must flush RAM results");
-  queryClient.clear();
+test("political panels use a persistent encrypted vault and do not expire", () => {
+  const vault = read("pages/Profilo/utils/encryptedProfileVault.ts");
+  assert.match(vault, /AES-GCM/);
+  assert.match(vault, /indexedDB\.open\(DB_NAME, DB_VERSION\)/);
+  assert.match(vault, /additionalData: new TextEncoder\(\)\.encode\(ownerKey\(owner\)\)/);
+  assert.match(vault, /patchEncryptedProfile/);
+  assert.match(hook, /loadEncryptedProfile\(ownerId\)/);
+  assert.match(hook, /const PROFILE_CACHE_FRESH = Infinity/);
+  assert.doesNotMatch(hook, /getPayload\("\/api\/user\/political-opinions-consent"\)/);
+  const authClient = read("hooks/use-auth.tsx");
+  assert.match(authClient, /refetchOnWindowFocus: "always"/);
+  assert.match(authClient, /isSessionVerified/);
+  assert.match(authClient, /verifiedPoliticalConsent/);
+  assert.doesNotMatch(hook, /refetchOnWindowFocus: "always"/);
+  for (const section of ["government","representatives","candidates","opinions"]) {
+    assert.ok(hook.includes("patchEncryptedProfile(ownerId, { " + section + ": result })"));
+    assert.ok(hook.includes('["profilePolitical", ownerId, politicalEpoch, "' + section + '"]'));
+  }
 });
 
 test("grant and revoke immediately invalidate all profile political caches", () => {

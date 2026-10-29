@@ -1,7 +1,8 @@
 import type { UserInfo } from "@/types/profile";
 
 const PREFIX = "demos:profile-summary:v1:";
-export const PROFILE_SUMMARY_TTL_MS = 24 * 60 * 60 * 1000;
+// No time-based expiration: the canonical server update invalidates local copies.
+export const PROFILE_SUMMARY_TTL_MS = Infinity;
 
 type StoredSummary = { savedAt: number; user: UserInfo };
 
@@ -49,8 +50,7 @@ export function readProfileSummary(userId: string): StoredSummary | null {
     const item = JSON.parse(raw) as StoredSummary;
     if (item?.user?.id !== userId ||
         !Number.isFinite(item.savedAt) ||
-        item.savedAt > Date.now() ||
-        Date.now() - item.savedAt >= PROFILE_SUMMARY_TTL_MS) {
+        item.savedAt > Date.now()) {
       window.localStorage.removeItem(safeKey(userId));
       return null;
     }

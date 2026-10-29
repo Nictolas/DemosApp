@@ -132,6 +132,21 @@ export default function PrivacyPolicy() {
               salvo obblighi di legge che richiedono periodi più lunghi.
             </p>
             
+            <h3 className="text-xl font-medium mb-2 mt-4">Copia locale del Profilo sul dispositivo</h3>
+            <p className="text-gray-700 mb-3">
+              Per evitare richieste ripetute al database, il Profilo conserva sul dispositivo
+              una copia dei dati anagrafici e delle preferenze già caricate. Le scelte politiche
+              sono conservate in un archivio locale cifrato, distinto per account. Questa copia
+              non ha una scadenza temporale automatica: viene aggiornata quando salvi modifiche
+              o sincronizzi il profilo, e viene eliminata al logout, alla cancellazione
+              dell'account, al rifiuto della sessione o alla revoca del consenso rilevata dall'app.
+              Una modifica o una revoca eseguita da un altro dispositivo è riconosciuta alla
+              successiva verifica della sessione, per cui un dispositivo offline potrebbe
+              conservare temporaneamente una copia cifrata non ancora aggiornata.
+              Il browser o il sistema operativo possono inoltre cancellare autonomamente
+              i dati locali. Questa conservazione sul dispositivo è distinta da quella sui server.
+            </p>
+
             <h3 className="text-xl font-medium mb-2 mt-4">5.1 Periodi di Conservazione per Tipo di Dato</h3>
             <p className="text-gray-700 mb-3">
               I seguenti periodi di conservazione si applicano ai tuoi dati personali:
