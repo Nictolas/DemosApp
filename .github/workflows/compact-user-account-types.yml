@@ -24,6 +24,7 @@ on:
       - 'api/tests/shortAccountTypeMigration.integration.sh'
       - 'api/tests/compactAccountTypes.pg17.integration.js'
       - 'api/tests/compactAccountTypesHttp.pg17.integration.js'
+      - 'api/tests/compactAccountTypesSurvey.pg17.integration.js'
       - 'api/tests/compactAccountTypesStagingContract.test.js'
       - 'api/staging/f12_poe_isolated_synthetic_20261029.sql'
       - 'api/staging/f12_poe_isolated_synthetic_index_20261029.sql'
