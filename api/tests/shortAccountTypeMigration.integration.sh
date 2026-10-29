@@ -18,7 +18,7 @@ CREATE TABLE public.political_mandates (
   user_id UUID, status VARCHAR(30), source VARCHAR(70), starts_at TIMESTAMPTZ, ends_at TIMESTAMPTZ
 );
 CREATE OR REPLACE FUNCTION public.refresh_users_legacy_role(p_user_id UUID)
-RETURNS VOID LANGUAGE plpgsql AS $f$
+RETURNS VOID LANGUAGE plpgsql SET search_path TO public, pg_temp AS $f$
 BEGIN
   UPDATE public.users SET ruolo = CASE
     WHEN account_type = 'ORGANIZATION' THEN 'O'
@@ -44,6 +44,11 @@ INSERT INTO public.users (id, account_type, ruolo, status) VALUES
   ('00000000-0000-4000-8000-000000000003', 'ORGANIZATION', 'O', 'a'),
   ('00000000-0000-4000-8000-000000000004', 'INSTITUTION', 'I', 'a'),
   ('00000000-0000-4000-8000-000000000005', 'PERSON', 'CP', 'a');
+INSERT INTO public.political_mandates(user_id,status,source,starts_at,ends_at) VALUES
+('00000000-0000-4000-8000-000000000001','ACTIVE','LEGACY_BACKFILL',NOW() - INTERVAL '1 year',NULL),
+('00000000-0000-4000-8000-000000000005','ACTIVE','LEGACY_BACKFILL',NOW() - INTERVAL '1 year',NULL);
+INSERT INTO public.political_candidacies(user_id,status,starts_at,ends_at) VALUES
+('00000000-0000-4000-8000-000000000005','ACTIVE',NOW() - INTERVAL '1 year',NULL);
 SQL
 
 psql -X -v ON_ERROR_STOP=1 -f api/database/users-role-default-e-20261029.sql
@@ -52,6 +57,10 @@ psql -X -v ON_ERROR_STOP=1 -f api/database/users-account-type-poe-20261029.sql
 psql -X -v ON_ERROR_STOP=1 <<'SQL'
 DO $verify$
 BEGIN
+  IF NOT ('search_path=public, pg_temp' = ANY(
+     (SELECT proconfig FROM pg_proc
+      WHERE oid='public.refresh_users_legacy_role(uuid)'::regprocedure)
+   )) THEN RAISE EXCEPTION 'Forward migration lost function search_path'; END IF;
   IF (SELECT COUNT(*) FROM public.users) <> 5
     OR (SELECT COUNT(*) FROM public.users WHERE account_type='P') <> 3
     OR (SELECT COUNT(*) FROM public.users WHERE account_type='O') <> 1
@@ -112,6 +121,13 @@ psql -X -v ON_ERROR_STOP=1 -f api/database/users-account-type-poe-rollback-20261
 psql -X -v ON_ERROR_STOP=1 <<'SQL'
 DO $verify$
 BEGIN
+  IF NOT ('search_path=public, pg_temp' = ANY(
+     (SELECT proconfig FROM pg_proc
+      WHERE oid='public.refresh_users_legacy_role(uuid)'::regprocedure)
+   )) THEN RAISE EXCEPTION 'Rollback lost function search_path'; END IF;
+  IF POSITION('LEGACY_BACKFILL' IN
+    pg_get_functiondef('public.refresh_users_legacy_role(uuid)'::regprocedure)) <> 0
+  THEN RAISE EXCEPTION 'Rollback restored filtered mandates, not production historical semantics'; END IF;
   IF (SELECT COUNT(*) FROM public.users) <> 6
     OR (SELECT COUNT(*) FROM public.users WHERE account_type='PERSON') <> 4
     OR (SELECT COUNT(*) FROM public.users WHERE account_type='ORGANIZATION') <> 1
@@ -142,6 +158,25 @@ BEGIN
   IF (SELECT ruolo FROM public.users WHERE id='00000000-0000-4000-8000-000000000006') <> 'AD'
   THEN RAISE EXCEPTION 'Restored legacy projection trigger failed'; END IF;
 END $verify$;
+SQL
+
+# In production, ACTIVE legacy-import mandates are valid inputs to the OLD
+# legacy-role projection, even if they are not proof of current public office.
+# Exercise the role projection after ROLLBACK: a snapshot-only test would miss
+# a subsequent-downgrade regression.
+psql -X -v ON_ERROR_STOP=1 <<'SQL'
+UPDATE public.users SET is_activist = false
+WHERE id IN ('00000000-0000-4000-8000-000000000001',
+             '00000000-0000-4000-8000-000000000005');
+DO $verify$
+BEGIN
+ IF (SELECT ruolo FROM public.users
+     WHERE id='00000000-0000-4000-8000-000000000001') <> 'P'
+ OR (SELECT ruolo FROM public.users
+     WHERE id='00000000-0000-4000-8000-000000000005') <> 'CP'
+ THEN RAISE EXCEPTION 'Post-rollback capability update downgraded historical P/CP'; END IF;
+END;
+$verify$;
 SQL
 
 node api/tests/compactAccountTypes.pg17.integration.js long
