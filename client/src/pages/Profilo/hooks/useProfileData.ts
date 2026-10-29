@@ -44,34 +44,38 @@ function parseAvatar(value: unknown): unknown {
   }
 }
 
-async function getProfilePayload(path: string): Promise<any> {
-  const response = await apiRequest("GET", path);
+async function getProfilePayload(path: string, signal: AbortSignal): Promise<any> {
+  const response = await apiRequest("GET", path, undefined, undefined, signal);
   if (!response?.ok || !response?.data || response.data.success === false) {
     throw new Error("Impossibile caricare il profilo");
   }
   return response.data;
 }
 
-async function getOptionalPayload(path: string): Promise<any | null> {
+async function getOptionalPayload(path: string, signal: AbortSignal): Promise<any | null> {
   try {
-    return await getProfilePayload(path);
-  } catch {
-    // Una sezione accessoria non deve rendere irraggiungibile il profilo.
-    return null;
+    return await getProfilePayload(path, signal);
+  } catch (error: any) {
+    // In una richiesta annullata non salvare uno snapshot parziale in cache.
+    if (signal.aborted || error?.name === "AbortError") throw error;
+    // Accesso non consentito o sezione non trovata: non mostrare i dati.
+    if (error?.status === 403 || error?.status === 404) return null;
+    // Guasti transitori non devono diventare uno snapshot vuoto valido 10 minuti.
+    throw error;
   }
 }
 
-async function loadOwnProfile(): Promise<ProfileSnapshot> {
-  const payload = await getProfilePayload("/api/users/me");
+async function loadOwnProfile(signal: AbortSignal): Promise<ProfileSnapshot> {
+  const payload = await getProfilePayload("/api/users/me", signal);
   const userInfo = (payload.user || payload.data || payload) as UserInfo;
 
   // Queste letture non devono essere ripetute ad ogni montaggio della pagina.
   // In caso di salvataggio le mutation invalidano il gruppo profileSnapshot.
   const [opinions, government, representatives, candidates] = await Promise.all([
-    getOptionalPayload("/api/opinioni/profile"),
-    getOptionalPayload("/api/governo/ideale"),
-    getOptionalPayload("/api/rappresentanti"),
-    getOptionalPayload("/api/candidati/selezioni"),
+    getOptionalPayload("/api/opinioni/profile", signal),
+    getOptionalPayload("/api/governo/ideale", signal),
+    getOptionalPayload("/api/rappresentanti", signal),
+    getOptionalPayload("/api/candidati/selezioni", signal),
   ]);
 
   const opinionData = opinions?.data;
@@ -89,15 +93,15 @@ async function loadOwnProfile(): Promise<ProfileSnapshot> {
   };
 }
 
-async function loadOtherProfile(targetUserId: string): Promise<ProfileSnapshot> {
+async function loadOtherProfile(targetUserId: string, signal: AbortSignal): Promise<ProfileSnapshot> {
   // I dati di un altro utente NON sono quelli dell'account visitatore.
   // Usare esclusivamente la proiezione pubblica server-side; non /api/users/:id admin.
   const payload = await getProfilePayload(
-    `/api/users/${encodeURIComponent(targetUserId)}/public-profile`,
+    `/api/users/${encodeURIComponent(targetUserId)}/public-profile`, signal,
   );
   const userInfo = payload.user as UserInfo;
   const opinions = await getOptionalPayload(
-    `/api/users/${encodeURIComponent(targetUserId)}/opinioni`,
+    `/api/users/${encodeURIComponent(targetUserId)}/opinioni`, signal,
   );
   const opinionData = opinions?.data;
   const publicOpinions = Array.isArray(opinionData?.opinioni) ? opinionData.opinioni : [];
@@ -133,10 +137,11 @@ export const useProfileData = (userId?: string) => {
   const query = useQuery<ProfileSnapshot>({
     queryKey: ["profileSnapshot", ownerId ?? null, targetId ?? null],
     enabled: Boolean(authReady && !isLoading && ownerId && targetId),
-    queryFn: () => ownProfile ? loadOwnProfile() : loadOtherProfile(targetId!),
+    queryFn: ({ signal }) => ownProfile ? loadOwnProfile(signal) : loadOtherProfile(targetId!, signal),
     staleTime: ownProfile ? 10 * 60 * 1000 : 0,
     gcTime: ownProfile ? 30 * 60 * 1000 : 0,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     retry: false,
   });
 
