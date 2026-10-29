@@ -50,17 +50,20 @@ export default function OpinioniRegionali() {
   const { hasConsent } = usePoliticalOpinionsConsent();
 
   // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
+  const { data: questionsData, isLoading: isLoadingQuestions, isFetching: isRefreshingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Regionale'],
     queryFn: ({ signal }) => loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp, "R", signal) as any,
     enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true,
-    staleTime: Infinity,
+    // Re-run the cheap catalog check on each visit. Valid encrypted answers
+    // still avoid database reads; a changed release never stays permanently stale.
+    staleTime: 0,
     gcTime: Infinity,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false
   });
 
   // Combina i dati
-  const isLoading = isLoadingQuestions;
+  const isLoading = isLoadingQuestions || isRefreshingQuestions;
   // A disabled query can still hold data in RAM: never render it after revocation.
   const canReadOpinions = !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true;
   const questions = canReadOpinions && questionsData?.data && Array.isArray(questionsData.data)
