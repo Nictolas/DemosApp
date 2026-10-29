@@ -165,3 +165,20 @@ test("profile shows the concise personal summary and edit action without duplica
   assert.ok(!hook.includes("personal: false"));
   assert.ok(hook.includes("const needFull = panels.edit ||"));
 });
+
+test("authenticated app startup consistently opens Profile and not Favorites", () => {
+  const wrapper = read("components/AppWrapper.tsx");
+  const landing = read("pages/LandingPage.tsx");
+  const auth = read("pages/auth-page.tsx");
+  assert.ok(wrapper.includes("if (!isAuthLoading && user && location === '/')"));
+  assert.ok(wrapper.includes("setLocation('/profilo');"));
+  assert.ok(!wrapper.includes("setLocation('/preferiti');"));
+  assert.ok(landing.includes('return <Redirect to="/profilo" />;'));
+  assert.ok(auth.includes('return <Redirect to="/profilo" />;'));
+  assert.ok(!landing.includes('return <Redirect to="/preferiti" />;'));
+  assert.ok(!auth.includes('return <Redirect to="/preferiti" />;'));
+  assert.match(read("hooks/useAuthLogin.ts"), /window\\.location\\.href = "\\/profilo"/);
+  // Intentional Favorites navigation and admin guard remain untouched.
+  assert.ok(profile.includes('<Link href="/preferiti"'));
+  assert.ok(wrapper.includes('return <Redirect to="/preferiti" />;'));
+});
