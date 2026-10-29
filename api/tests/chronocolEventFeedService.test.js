@@ -52,6 +52,25 @@ test('territorial personalization, de-duplication and source-only read access', 
   assert.equal(mergeEvents([], [future], { user, now: new Date('2026-10-29T12:00:00Z') }).length, 1);
 });
 
+test('external events respect native selected-subject > territory > election feed ranking', () => {
+  const now = new Date('2026-10-29T12:00:00Z');
+  const user = { comune_residenza: 'Pisa', provincia_residenza: 'PI', regione_residenza: 'Toscana' };
+  const native = [
+    { id: 'selected', nome_evento: 'Scelto', giorno_inizio: '2026-12-31', feed_priority: 0 },
+    { id: 'native-city', nome_evento: 'Locale', comune_evento: 'Pisa',
+      giorno_inizio: '2026-11-15', feed_priority: 1 },
+    { id: 'election', nome_evento: 'Elezioni', giorno_inizio: '2026-11-01', feed_priority: 2 }
+  ];
+  const external = [{ id: 'chronocol:two', nome_evento: 'Corteo a Pisa', comune_evento: 'Pisa',
+    giorno_inizio: '2026-11-02', orario_inizio: '12:00', external_import: true }];
+  const personal = mergeEvents(native, external, { user, now });
+  assert.deepEqual(personal.map((event) => event.id),
+    ['selected', 'chronocol:two', 'native-city', 'election']);
+  assert.equal(personal[1].feed_reason, 'TERRITORY');
+  assert.deepEqual(mergeEvents(native, external, { global: true, now }).map((event) => event.id),
+    ['election', 'chronocol:two', 'native-city', 'selected']);
+});
+
 test('import remains disabled by default and caches one upstream download for all users', async () => {
   const oldEnabled = process.env.CHRONOCOL_IMPORT_ENABLED;
   const oldUrl = process.env.CHRONOCOL_EVENTS_JSON_URL;
