@@ -32,6 +32,7 @@ on:
       - 'api/staging/f12_poe_isolated_synthetic_20261029.sql'
       - 'api/staging/f12_poe_isolated_synthetic_index_20261029.sql'
       - 'api/staging/f12_poe_readonly_smoke_20261029.sql'
+      - 'api/staging/f12_poe_canonical_profile_fixture_20261029.sql'
       - 'api/docs/account-type-poe-cutover-20261029.md'
       - 'client/src/pages/Utenti/index.tsx'
       - '.github/workflows/compact-user-account-types.yml'
