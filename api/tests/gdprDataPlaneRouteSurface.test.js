@@ -6,6 +6,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const vm=require('node:vm');
 const ROOT=path.join(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(ROOT,p),'utf8');
 
@@ -28,13 +29,47 @@ test('health SQL diagnostic is never routed when NODE_ENV is production',()=>{
   // Runtime tests additionally verify 404 and zero database connection.
 });
 
-test('cleanup and migration database pools remain dev/override-only, NOT covered by production safety proof',()=>{
+test('legacy SQL migrations and cleanup are guarded by non-production only',()=>{
   const app=read('app.js');
-  assert.match(app,/const mountDevApiSurface = !isProductionApp \|\| process\.env\.ALLOW_DEV_API_SURFACE === 'true';/);
-  assert.match(app,/if \(mountDevApiSurface\) \{\s*app\.use\('\/api\/migrations', migrationsRoutes\);\s*app\.use\('\/api\/cleanup', cleanupRoutes\);/);
-  assert.match(read('routes/cleanup.js'),/new Pool\(\{/);
-  assert.match(read('routes/migrations.js'),/new Pool\(\{/);
-  // Production with ALLOW_DEV_API_SURFACE=true remains an explicit open risk.
+  assert.match(app,/const mountDevApiSurface = !isProductionApp \\|\\| process\\.env\\.ALLOW_DEV_API_SURFACE === 'true';/);
+  assert.match(app,/if \\(!isProductionApp\\) \\{\\s*app\\.use\\('\\/api\\/migrations', migrationsRoutes\\);\\s*app\\.use\\('\\/api\\/cleanup', cleanupRoutes\\);\\s*app\\.use\\('\\/api\\/cleanup', cleanupRateLimitRoutes\\);\\s*\\}/);
+  for(const segment of [
+    "app.use('/api/migrations', migrationsRoutes)",
+    "app.use('/api/cleanup', cleanupRoutes)",
+    "app.use('/api/cleanup', cleanupRateLimitRoutes)"
+  ])assert.equal(app.split(segment).length,2,segment);
+  assert.match(read('routes/cleanup.js'),/new Pool\\(\\{/);
+  assert.match(read('routes/migrations.js'),/new Pool\\(\\{/);
+  // This prevents the known legacy routes from being mounted through the
+  // override flag. It is not a complete provider admission barrier.
+});
+
+test('executed maintenance mount block is fail-closed for production with any dev override',()=>{
+  const app=read('app.js');
+  const from=app.indexOf('// Legacy SQL migrations/cleanup are never mounted in production,');
+  const to=app.indexOf('// Gestione errori 404',from);
+  assert.ok(from>=0&&to>from,'Maintenance mount block must remain auditable');
+  const fragment=app.slice(from,to);
+  const scenarios=[
+    {name:'production default',isProductionApp:true,mountDevApiSurface:false,expected:[]},
+    {name:'production override set',isProductionApp:true,mountDevApiSurface:true,expected:[['/api/test','test']]},
+    {name:'non-production',isProductionApp:false,mountDevApiSurface:true,
+      expected:[['/api/migrations','migrations'],['/api/cleanup','cleanup'],
+        ['/api/cleanup','cleanup-limiter'],['/api/test','test']]}
+  ];
+  for(const scenario of scenarios){
+    const actual=[];
+    const context={
+      isProductionApp:scenario.isProductionApp,
+      mountDevApiSurface:scenario.mountDevApiSurface,
+      migrationsRoutes:'migrations',cleanupRoutes:'cleanup',
+      cleanupRateLimitRoutes:'cleanup-limiter',testRateLimitRoutes:'test',
+      app:{use:(prefix,route)=>actual.push([prefix,route])},
+      console:{log:()=>{}}
+    };
+    vm.runInNewContext(fragment,context,{timeout:1000,filename:'app-maintenance-mounts.js'});
+    assert.deepEqual(JSON.parse(JSON.stringify(actual)),scenario.expected,scenario.name);
+  }
 });
 
 test('independent SQL constructors exist beyond canonical pool: full ingress audit still required',()=>{
