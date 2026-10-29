@@ -95,7 +95,11 @@ async function test() {
         await d.locator('summary').click();
       }
       if (political) await page.getByText('Ministra Inventata').first().waitFor({ timeout: 20000 });
-      else await page.getByText('Per visualizzare le selezioni è necessario il consenso politico.').first().waitFor({ timeout: 20000 });
+      else {
+        await page.waitForTimeout(700);
+        assert.equal(await page.getByText('Attivista Inventato').count(), 0,
+          'Revocation must hide cached favourite activist');
+      }
       await page.waitForTimeout(500);
     };
     await enter();
