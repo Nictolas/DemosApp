@@ -35,6 +35,21 @@ A currently deployed query filtering account_type = PERSON will return no matchi
 
 An UPDATE to account_type invokes the existing role-projection trigger; for legacy political profiles it might downgrade P or CP to E due to incomplete verified mandates. Both the forward and rollback scripts snapshot all roles and suspend that trigger only within the transaction.
 
+## Staging compatibility assessment (read-only, 29 October 2026)
+
+Connected Supabase project Demos-Staging (PostgreSQL 17.11) is healthy, but is **not yet** a full mirror of the DEMOS user-account schema. At inspection it had 2 synthetic rows in public.users and:
+- Present: id, ruolo, account_type.
+- Missing: status, is_admin, is_activist.
+- Missing: public.political_mandates, public.political_candidacies.
+
+It also has its own OP37 private synthetic benchmark schema and other limited regression fixtures. Do not repurpose or rewrite these test fixtures without planning a separate schema.
+
+Therefore an end-to-end OAuth/passkey authorization test against the Demos-Staging public schema would not represent production's canonical account capabilities. This is an **unmet staging gate**, not a successful E2E test.
+
+In contrast, PR #402's PostgreSQL 17 CI exercises the real getAccountSubject SQL using six synthetic users with legacy roles, canonical columns, active account statuses, a verified synthetic mandate, a forward compact migration, and rollback, including subsequent capability updates. The CI checks database protocol and data consistency, but is not a live provider authentication test.
+
+Before deployment, provision a dedicated isolated and complete staging schema/application using safe synthetic data. Reuse of production identities, credentials or user PII is neither necessary nor authorized.
+
 ## Read-only postflight
 
 SELECT account_type, count(*)::int FROM public.users GROUP BY 1 ORDER BY 1;
