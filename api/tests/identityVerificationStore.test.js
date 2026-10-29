@@ -23,7 +23,7 @@ test('lo stato pubblico espone solo verified e provider', async () => {
     assert.match(sql, /SELECT provider, status/);
     assert.doesNotMatch(sql, /person_key/);
     assert.doesNotMatch(sql, /verified_at/);
-    assert.doesNotMatch(sql, /detached_at/);
+    assert.match(sql, /WHERE user_id = \$1 AND detached_at IS NULL/);
     assert.doesNotMatch(sql, /retention_until/);
 
     return {
@@ -118,5 +118,34 @@ test('blocca person_key gia collegata a un altro account', async () => {
       fiscalNumber: 'ABCDEF12G34H567I'
     }, db),
     error => error instanceof IdentityVerificationError && error.code === 'PERSON_ALREADY_LINKED'
+  );
+});
+
+
+test('una verifica CIE scollegata non risulta più attiva', async () => {
+  const db = createFakeDb(async sql => {
+    assert.match(sql, /detached_at IS NULL/);
+    return { rows: [] };
+  });
+  assert.deepEqual(await getIdentityVerificationStatus('user-detached', db), { verified: false });
+});
+
+test('una vecchia verifica scollegata non può essere riutilizzata come verifica corrente', async () => {
+  const expectedKey = require('../services/identityVerificationService')
+    .derivePersonKey('ABCDEF12G34H567I');
+  const db = createFakeDb(async sql => {
+    assert.match(sql, /SELECT person_key, provider, status/);
+    return { rows: [{
+      person_key: expectedKey,
+      provider: 'CIE',
+      status: 'verified',
+      detached_at: '2026-10-28T23:00:00Z',
+      verified_at: '2026-10-28T20:00:00Z',
+      retention_until: '2027-04-28T23:00:00Z'
+    }] };
+  });
+  await assert.rejects(
+    registerVerifiedIdentity({userId:'user-detached',fiscalNumber:'ABCDEF12G34H567I'},db),
+    error => error instanceof IdentityVerificationError && error.code === 'ACCOUNT_ALREADY_VERIFIED'
   );
 });
