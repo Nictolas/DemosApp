@@ -123,6 +123,7 @@ async function run() {
           };
         });
 
+        console.log('MEASURE ' + JSON.stringify({ viewport, path, initial }));
         assert.ok(initial.scrollHeight > initial.clientHeight + 100,
           path + ' must have a scrollable opinion list at ' + viewport.width + 'x' + viewport.height);
         assert.ok(initial.clientHeight > 90, 'The scroll area must remain usable');
