@@ -38,3 +38,17 @@ La strategia di intenzione esterna è una **proposta da validare**, non un fix g
 - Nessuna interazione con provider reali, backup, restore, SQL live o informazioni degli utenti.
 
 **Esito fase A:** gap identificato e falsa interpretazione della readiness resa esplicita nel contratto. **NON chiuso** il gap di durabilità, nessuna prova E2E esterna. Prossimo lavoro: disegnare e testare in CI isolata la macchina a stati del journal esterno e la barriera di ammissione recovery, senza collegare provider reali, e sottoporre il protocollo a revisione prima di qualsiasi integrazione.
+
+## Fase B — prototipo e verifiche riproducibili (29 ottobre 2026)
+
+**Solo codice di test, NON integrato nelle API o nei provider.**
+- api/tests/fixtures/gdprDurableRecoveryPrototype.js: journal fittizio append-only con hash-chain, testimone HMAC esterno simulato, preparazione/commit, idempotenza, blocco intenzioni ambigue e sigillo del registro.
+- api/tests/gdprDurableRecoveryProtocolSynthetic.test.js: 14 test con dati inventati (guasti, registro troncato/manomesso, testimone mancante o falsificato, retry, revoca e successiva concessione).
+- api/tests/gdprDurableRecoveryPg17Synthetic.test.js: 3 test PostgreSQL 17 con transazioni SQL vere ma SOLO su database temporaneo locale di GitHub Actions e schema dedicato. Il vecchio snapshot viene simulato ricreando le righe: non è un vero pg_restore/PITR.
+- Suite integrata nel workflow esistente gdpr-b2-worker-retry-isolated-ci.yml: [run 40915481806](https://github.com/Nictolas/DemosApp/actions/runs/40915481806) SUCCESS, 14/14 test JS e 3/3 test PG17, zero errori e zero skip.
+
+**Contratto modellato:** l'intenzione va attestata esternamente prima di cambiare PostgreSQL; la conferma durevole richiede COMMIT SQL e successivo testimone esterno del commit. Un guasto fra i due rende incerto il risultato e blocca il ripristino: non si deduce un commit da una semplice intenzione. Prima di riprodurre eventi si richiedono tutti i writer fermati, ingress bloccato, provider isolati, testimone corrente, catena continua, journal sigillato e zero intenzioni ambigue. Il replay usa soltanto commit verificati, con ordine e idempotenza. Le attestazioni infrastrutturali sono qui soltanto flag simulati.
+
+**Limiti fondamentali:** l'HMAC in memoria NON è prova B2/Object Lock, completezza o freschezza; il modello serializza globalmente le intenzioni e NON è pronto alla concorrenza/scalabilità; non include autentificazione/API/RLS reale né tutte le tabelle dati di DEMOS. Nessuna prova su provider reale o backup autentico. Lo stato restituito è sempre productionRecoveryReady=false, anche dopo test positivi. Non cambiare il recoveryReady=false del worker Draft in base a questo prototipo. Prima di integrare nel runtime sono necessari design di concorrenza e ordering, enforcement di un unico writer, durabilità realmente indipendente, trattamento delle intenzioni ambigue, verifica di tutti i restore/writer, RP-10/DPIA e approvazioni separate.
+
+**Risultato: Fase B sintetica superata. Issue GH-296 ancora APERTA / NO-GO.**
