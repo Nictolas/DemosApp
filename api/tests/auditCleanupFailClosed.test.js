@@ -88,3 +88,59 @@ test('unexpected audit cleanup failures return a stable generic 500 without leak
   assert.equal(result.res.body.success, false);
   assert.doesNotMatch(JSON.stringify(result.res.body) + result.diagnostics.join(' '), /SYNTHETIC_SECRET/);
 });
+
+test('audit dashboard read failures never disclose raw provider exceptions in HTTP or logs', async () => {
+  const secret = 'SYNTHETIC_AUDIT_SQL_PROVIDER_DETAIL';
+  const routes = new Map();
+  const diagnostics = [];
+  const router = {
+    use() {},
+    get(route, handler) { routes.set(route, handler); },
+    post() {}
+  };
+  const requireStub = (name) => {
+    if (name === 'express') return { Router: () => router };
+    if (name === '../../middleware/auth') return {
+      verifyToken() {}, requireAdmin() {},
+      pool: { query: async () => { throw new Error(secret); } }
+    };
+    if (name === '../../middleware/validation') return { validateInput() {} };
+    if (name === '../../services/auditService') return {
+      getUserAuditLogs: async () => { throw new Error(secret); }
+    };
+    if (name === '../../utils/dateUtils') return {
+      formatAuditLogDate() {}, formatSecurityViolationDate() {}
+    };
+    if (name === '../../utils/axiomQueryHelper') return {
+      getAuditLogs: async () => { throw new Error(secret); },
+      queryAxiom() {}
+    };
+    throw new Error('Unexpected dependency: ' + name);
+  };
+  const isolatedModule = { exports: {} };
+  new Function('require', 'module', 'console', 'process', source)(
+    requireStub, isolatedModule,
+    { error: (...args) => diagnostics.push(args.join(' ')) },
+    { env: { AXIOM_ENABLED: 'true' } }
+  );
+  for (const route of ['/stats', '/logs', '/user/:userId', '/suspicious', '/violations', '/performance']) {
+    const handler = routes.get(route);
+    assert.equal(typeof handler, 'function', route);
+    const res = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(body) { this.body = body; return this; }
+    };
+    await handler({ query: {}, params: { userId: 'synthetic-user' } }, res);
+    assert.equal(res.statusCode, 500, route);
+    assert.equal(res.body.success, false, route);
+    assert.doesNotMatch(JSON.stringify(res.body) + diagnostics.join(' '), /SYNTHETIC_AUDIT_SQL_PROVIDER_DETAIL/, route);
+  }
+});
+
+test('audit dashboard and service avoid logging raw provider error objects', () => {
+  const serviceSource = fs.readFileSync(path.join(__dirname, '../services/auditService.js'), 'utf8');
+  assert.doesNotMatch(source, /console\\.error\\([^\\n]*,\\s*error\\)/);
+  assert.doesNotMatch(source, /message:\\s*error\\.message/);
+  assert.doesNotMatch(serviceSource, /console\\.error\\([^\\n]*,\\s*error\\)/);
+});
