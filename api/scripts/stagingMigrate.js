@@ -162,7 +162,7 @@ async function seedE2EUser(client, logger = console) {
     ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,nome=EXCLUDED.nome,cognome=EXCLUDED.cognome,status='a',is_admin=FALSE,is_activist=TRUE
   `, [E2E_ACTIVIST_USER_ID,'DEMOS E2E Activist','DEMOS','E2E Activist']);
   await client.query(`
-    INSERT INTO users (id,name,nome,cognome,ruolo,status,account_type,is_admin,is_activist,paese_residenza,regione_residenza,provincia_residenza,comune_residenza)
+    INSERT INTO users (id,name,nome,cognome,ruolo,status,is_admin,is_activist,paese_residenza,regione_residenza,provincia_residenza,comune_residenza)
     VALUES ($1,$2,$3,$4,'AD','a',TRUE,FALSE,'Italia','Toscana','Pisa','Pisa')
     ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,nome=EXCLUDED.nome,cognome=EXCLUDED.cognome,status='a',is_admin=TRUE,is_activist=FALSE
   `, [E2E_ADMIN_USER_ID,'DEMOS E2E Admin','DEMOS','E2E Admin']);
