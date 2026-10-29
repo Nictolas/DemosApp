@@ -490,18 +490,23 @@ if (process.env.SECURITY_CENTER_RUNTIME_ENABLED === 'true') {
   });
 }
 
-// Route per migrazioni database / cleanup / test (non in produzione senza ALLOW_DEV_API_SURFACE)
-if (mountDevApiSurface) {
+// Legacy SQL migrations/cleanup are never mounted in production,
+// even if ALLOW_DEV_API_SURFACE=true. Their direct pools and DDL/DELETE
+// bypass the canonical GDPR data-plane entrypoint; staging with NODE_ENV
+// 'production' must also fail closed until a separate migration design.
+if (!isProductionApp) {
   app.use('/api/migrations', migrationsRoutes);
   app.use('/api/cleanup', cleanupRoutes);
   app.use('/api/cleanup', cleanupRateLimitRoutes);
-  app.use('/api/test', testRateLimitRoutes);
 }
 
-if (isProductionApp && !mountDevApiSurface) {
-  console.log(
-    'ðŸ”’ Route API dev/test/migrate/cleanup non esposte. Per abilitarle: ALLOW_DEV_API_SURFACE=true'
-  );
+// Keep the existing override for non-destructive test-only routes;
+// it no longer permits the legacy SQL mutation endpoints above.
+if (mountDevApiSurface) {
+  app.use('/api/test', testRateLimitRoutes);
+}
+if (isProductionApp) {
+  console.log('Legacy SQL migrations/cleanup disabled in production regardless of ALLOW_DEV_API_SURFACE');
 }
 
 // Gestione errori 404
