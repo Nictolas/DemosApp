@@ -71,7 +71,8 @@ test('single-user admin read contains canonical sex but profile updates cannot o
   const update = source.slice(end);
   assert.match(update, /sesso: \['M', 'F'\]\.includes\(updatedUser\.sesso\)/);
   const listStart = source.indexOf("router.get('/',");
-  assert.match(source, /avatar_config, sesso, account_type, genere, cittadinanza/);
+  assert.match(source, /u\.avatar_config, u\.sesso, u\.account_type, u\.genere/);
+  assert.match(source, /LEFT JOIN user_profile up ON up\.user_id = u\.id/);
   const list = source.slice(listStart, start);
   assert.match(list, /sesso: \['M', 'F'\]\.includes\(user\.sesso\)/);
   for (const block of [source.slice(end), read('api/routes/users/profile.js')]) {
