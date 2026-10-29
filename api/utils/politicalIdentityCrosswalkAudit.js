@@ -99,14 +99,18 @@ function auditPoliticalIdentityCrosswalk(cases) {
         continue;
       }
       const institutionalKey = chamber + ':' + row.official_id.toLowerCase();
-      if (idOwners.has(institutionalKey) && idOwners.get(institutionalKey).index !== result.length) {
-        errors.add('OFFICIAL_ID_IN_MULTIPLE_CASES');
-        result[idOwners.get(institutionalKey).index].errors.add('OFFICIAL_ID_IN_MULTIPLE_CASES');
-      } else idOwners.set(institutionalKey, { index: result.length, user_id: row.user_id });
-
-      // One institutional identity cannot silently become two local user IDs.
-      if (idOwners.get(institutionalKey).user_id !== row.user_id) {
-        errors.add('OFFICIAL_ID_IN_MULTIPLE_USERS');
+      const knownOwner = idOwners.get(institutionalKey);
+      if (knownOwner) {
+        if (knownOwner.index !== result.length) {
+          errors.add('OFFICIAL_ID_IN_MULTIPLE_CASES');
+          result[knownOwner.index].errors.add('OFFICIAL_ID_IN_MULTIPLE_CASES');
+        }
+        // Never replace an institutional ID's first owner within the same case.
+        if (knownOwner.user_id !== row.user_id) {
+          errors.add('OFFICIAL_ID_IN_MULTIPLE_USERS');
+        }
+      } else {
+        idOwners.set(institutionalKey, { index: result.length, user_id: row.user_id });
       }
       parsed.push(row);
     }
