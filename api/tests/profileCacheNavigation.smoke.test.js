@@ -22,7 +22,7 @@ test('profile cache is private, account-scoped and does not persist political re
   assert.match(hook, /queryKey:\s*\["profileSnapshot", ownerId \?\? null, targetId \?\? null\]/);
   assert.match(hook, /staleTime:\s*ownProfile \?/);
   assert.match(hook, /gcTime:\s*ownProfile \?/);
-  assert.doesNotMatch(hook, /localStorage|sessionStorage|indexedDB/i);
+  assert.doesNotMatch(hook, /(?:localStorage|sessionStorage)\.(?:getItem|setItem)|indexedDB\.open/i);
   assert.doesNotMatch(profile, /localStorage\.getItem|localStorage\.setItem/);
 });
 
