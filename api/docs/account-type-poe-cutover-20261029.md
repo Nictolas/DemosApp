@@ -80,6 +80,25 @@ Created dedicated private schema f12_poe_ci on Demos-Staging PostgreSQL 17.11, u
 Reproducible files: api/staging/f12_poe_isolated_synthetic_20261029.sql, api/staging/f12_poe_isolated_synthetic_index_20261029.sql, api/staging/f12_poe_readonly_smoke_20261029.sql.
 
 Remaining gate: This private schema is not connected to a running DEMOS backend. Existing public staging tables are incomplete for auth, so the tests are real Supabase/PostgreSQL integration but NOT live Google/Apple/passkey or Android E2E. Production role DEFAULT E was already changed independently; NO account_type P/O/E DDL, merge or deploy is allowed until separate application compatibility gates pass.
+## Real survey SQL regression across both account-type encodings
+
+On the synthetic PostgreSQL 17 CI database, the real `api/utils/sondaggiTextBulk.js`
+aggregate reads now run in BOTH modes: compact account_type P/O/E and
+descriptive PERSON/ORGANIZATION/INSTITUTION after rollback. CI suite
+`api/tests/compactAccountTypesSurvey.pg17.integration.js` confirms:
+
+- Identical national opinion q01 counts in both modes: favorevole 7, contrario 4, indeciso 1.
+- Identical Toscana subgroup counts: favorevole 7, contrario 3, indeciso 0.
+- Lazio subgroup of 2 and question q02 with 9 responses are suppressed at the 10-response privacy threshold.
+- Two organizations with consent are excluded from person-based aggregates.
+- A revoked person's user-consent record overrides their older users table flag and excludes their answer.
+- A consenting person whose consent is recorded in user_consents rather than users is counted.
+- All fabricated survey rows are deleted from the disposable CI database before the subsequent rollback tests.
+
+PR #402 CI run 40865011758 completed successfully; logs show both
+`COMPACT_ACCOUNT_TYPES_SURVEY_PG17_PASS` (mode short and long). All 14
+PR workflows succeeded at commit c6987d2f. This verifies SQL/data semantics,
+not live provider OAuth or a production mobile build.
 ## Read-only postflight
 
 SELECT account_type, count(*)::int FROM public.users GROUP BY 1 ORDER BY 1;
