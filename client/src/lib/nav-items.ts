@@ -1,5 +1,5 @@
 import {
-  Settings,
+  UserRound,
   Megaphone,
   Star,
   Binoculars,
@@ -62,9 +62,9 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     icon: Binoculars,
   },
   {
-    path: "/impostazioni",
-    label: "Impostazioni",
-    icon: Settings,
+    path: "/profilo",
+    label: "Profilo",
+    icon: UserRound,
   },
 ];
 
