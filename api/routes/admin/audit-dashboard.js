@@ -620,11 +620,14 @@ router.get('/performance', async (req, res) => {
  */
 router.post('/cleanup', async (req, res) => {
   try {
-    // Se Axiom è abilitato, la pulizia viene gestita automaticamente da Axiom
+    // Axiom applies its own dataset retention, but this endpoint cannot erase
+    // external Axiom records or immutable B2 archive versions. Never report
+    // cleanup success without provider-specific evidence and RP-10 approval.
     if (process.env.AXIOM_ENABLED === 'true') {
-      return res.json({
-        success: true,
-        message: 'Con Axiom abilitato, la pulizia dei log viene gestita automaticamente da Axiom. Non è necessario pulire manualmente.',
+      return res.status(409).json({
+        success: false,
+        error: 'AUDIT_RETENTION_PROVIDER_REVIEW_REQUIRED',
+        message: 'Nessuna pulizia eseguita. Verificare separatamente la conservazione su Axiom e B2.',
         deleted_count: 0
       });
     }
@@ -640,11 +643,16 @@ router.post('/cleanup', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella pulizia log audit:', error);
-    res.status(error.code === 'AUDIT_RETENTION_POLICY_NOT_APPROVED' ? 409 : 500).json({
+    const policyPending = error?.code === 'AUDIT_RETENTION_POLICY_NOT_APPROVED';
+    // Never disclose raw SQL/provider exceptions to the Admin HTTP client or
+    // unminimized logs; diagnostics use controlled, stable codes only.
+    console.error(policyPending ? 'AUDIT_CLEANUP_POLICY_NOT_APPROVED' : 'AUDIT_CLEANUP_FAILED');
+    return res.status(policyPending ? 409 : 500).json({
       success: false,
-      error: error.code === 'AUDIT_RETENTION_POLICY_NOT_APPROVED' ? error.code : 'Errore interno del server',
-      message: error.message
+      error: policyPending ? 'AUDIT_RETENTION_POLICY_NOT_APPROVED' : 'AUDIT_CLEANUP_FAILED',
+      message: policyPending
+        ? 'La politica di conservazione dei log non è ancora approvata.'
+        : 'Impossibile completare la pulizia dei log.'
     });
   }
 });

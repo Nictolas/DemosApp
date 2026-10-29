@@ -1,0 +1,90 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const source = fs.readFileSync(path.join(__dirname, '../routes/admin/audit-dashboard.js'), 'utf8');
+
+async function invokeCleanup({ axiomEnabled, cleanupOldLogs }) {
+  const routes = new Map();
+  const diagnostics = [];
+  let cleanupCalls = 0;
+  const router = {
+    use() {},
+    get() {},
+    post(route, handler) { routes.set(route, handler); }
+  };
+  const requireStub = (name) => {
+    if (name === 'express') return { Router: () => router };
+    if (name === '../../middleware/auth') return { verifyToken() {}, requireAdmin() {}, pool: {} };
+    if (name === '../../middleware/validation') return { validateInput() {} };
+    if (name === '../../services/auditService') {
+      return { cleanupOldLogs: async (...args) => {
+        cleanupCalls++;
+        return cleanupOldLogs(...args);
+      } };
+    }
+    if (name === '../../utils/dateUtils') {
+      return { formatAuditLogDate() {}, formatSecurityViolationDate() {} };
+    }
+    if (name === '../../utils/axiomQueryHelper') {
+      return { getAuditLogs() {}, queryAxiom() {} };
+    }
+    throw new Error('Unexpected dependency: ' + name);
+  };
+  const isolatedModule = { exports: {} };
+  new Function('require', 'module', 'console', 'process', source)(
+    requireStub,
+    isolatedModule,
+    { error: (...args) => diagnostics.push(args.join(' ')) },
+    { env: { AXIOM_ENABLED: axiomEnabled ? 'true' : 'false' } }
+  );
+  const handler = routes.get('/cleanup');
+  assert.equal(typeof handler, 'function');
+  const res = {
+    statusCode: 200,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; }
+  };
+  await handler({ body: { daysToKeep: 30 } }, res);
+  return { res, diagnostics, cleanupCalls };
+}
+
+test('Axiom/B2 archive cannot be reported cleaned by an endpoint that performs no cleanup', async () => {
+  const result = await invokeCleanup({
+    axiomEnabled: true,
+    cleanupOldLogs: async () => { throw new Error('must never be called'); }
+  });
+  assert.equal(result.res.statusCode, 409);
+  assert.equal(result.res.body.success, false);
+  assert.equal(result.res.body.deleted_count, 0);
+  assert.equal(result.res.body.error, 'AUDIT_RETENTION_PROVIDER_REVIEW_REQUIRED');
+  assert.equal(result.cleanupCalls, 0);
+});
+
+test('unapproved local audit retention remains fail-closed and never exposes raw exceptions', async () => {
+  const sensitive = 'SYNTHETIC_SECRET_NEVER_RETURN';
+  const result = await invokeCleanup({
+    axiomEnabled: false,
+    cleanupOldLogs: async () => {
+      throw Object.assign(new Error(sensitive), { code: 'AUDIT_RETENTION_POLICY_NOT_APPROVED' });
+    }
+  });
+  assert.equal(result.res.statusCode, 409);
+  assert.equal(result.res.body.error, 'AUDIT_RETENTION_POLICY_NOT_APPROVED');
+  assert.equal(result.res.body.success, false);
+  assert.equal(result.cleanupCalls, 1);
+  assert.doesNotMatch(JSON.stringify(result.res.body) + result.diagnostics.join(' '), /SYNTHETIC_SECRET/);
+});
+
+test('unexpected audit cleanup failures return a stable generic 500 without leaking SQL/provider details', async () => {
+  const result = await invokeCleanup({
+    axiomEnabled: false,
+    cleanupOldLogs: async () => { throw new Error('SYNTHETIC_SECRET_SQL_QUERY'); }
+  });
+  assert.equal(result.res.statusCode, 500);
+  assert.equal(result.res.body.error, 'AUDIT_CLEANUP_FAILED');
+  assert.equal(result.res.body.success, false);
+  assert.doesNotMatch(JSON.stringify(result.res.body) + result.diagnostics.join(' '), /SYNTHETIC_SECRET/);
+});

@@ -5,6 +5,8 @@ on:
       - 'api/services/privacyErasureLedgerService.js'
       - 'api/tests/legacyAdminCleanup.smoke.test.js'
       - 'api/tests/accountDeletion.integration.test.js'
+      - 'api/routes/admin/audit-dashboard.js'
+      - 'api/tests/auditCleanupFailClosed.test.js'
       - 'api/tests/accountDeletionProductionShape.pg17.test.js'
       - 'api/tests/legacyLinkedRows.integration.test.js'
       - '.github/workflows/privacy-erasure-regression.yml'
@@ -34,6 +36,8 @@ jobs:
       - run: npm ci --prefix api --ignore-scripts
       - name: Test canonical account erasure with synthetic users
         run: node --test api/tests/legacyAdminCleanup.smoke.test.js api/tests/accountDeletion.integration.test.js
+      - name: Verify audit retention cleanup fails closed (synthetic, no provider)
+        run: node --test api/tests/auditCleanupFailClosed.test.js
       - name: Verify legacy linked rows and foreign keys
         run: node --test api/tests/legacyLinkedRows.integration.test.js
       - name: Verify UUID production-shaped FK and GDPR erasure (synthetic PG17)
