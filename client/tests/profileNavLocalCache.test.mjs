@@ -170,9 +170,13 @@ test("grant and revoke immediately invalidate all profile political caches", () 
 });
 
 test("profile shows the concise personal summary and edit action without duplicated detail rows or extra reads", () => {
-  for (const content of ["Il mio profilo", "birthYear", "userInfo.cittadinanza", "locationSummary", "Modifica profilo", "onClick={onEditClick}"]) {
+  for (const content of ["birthYear", "userInfo.cittadinanza", "locationSummary", "Modifica profilo", "onClick={onEditClick}"]) {
     assert.ok(profileInfo.includes(content), "missing summary or edit control: " + content);
   }
+  assert.match(profile, /Profilo Cittadino/);
+  assert.doesNotMatch(profile, /Profilo Utente/);
+  assert.doesNotMatch(profileInfo, /Il mio profilo/);
+  assert.match(profileInfo, /\(canShowFullName \|\| !isOwnProfile\) && \(/);
   for (const obsolete of ["Dati personali completi", "detailRows", "onPersonalDetailsToggle"]) {
     assert.ok(!profileInfo.includes(obsolete), "obsolete full-detail UI: " + obsolete);
   }
@@ -184,7 +188,7 @@ test("profile shows the concise personal summary and edit action without duplica
 });
 
 test("own profile shows a pencil next to demographic summary instead of a full-width edit button", () => {
-  const summary = profileInfo.indexOf('className="mt-1 flex min-w-0 items-center gap-1"');
+  const summary = profileInfo.indexOf('flex min-w-0 items-center gap-1');
   const birthYear = profileInfo.indexOf('birthYear !== "Non specificato"', summary);
   const pencil = profileInfo.indexOf('data-testid="profilo-modifica-icon"', summary);
   const location = profileInfo.indexOf('locationSummary &&', summary);
