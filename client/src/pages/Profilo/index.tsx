@@ -190,7 +190,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                     userInfo={displayUserInfo}
                     isEditing={isEditing}
                     onEditClick={() => setIsEditing(true)}
-                    onPersonalDetailsToggle={(expanded) => setPanel("personal", expanded)}
                     onModificaImmagine={handleModificaImmagine}
                     canEdit={isViewingOwnProfile}
                     isOwnProfile={isViewingOwnProfile}
