@@ -6,6 +6,7 @@ import { EditProfileForm } from "@/components/EditProfileForm";
 import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
 import { PageContainer } from "@/components/PageContainer";
+import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
 import { ChevronDown, Settings, Star, RefreshCcw } from "lucide-react";
 
 // Componenti modulari
@@ -106,13 +107,31 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
           <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-10 blur-xl"></div>
           <div className="absolute -top-2 -right-4 w-16 h-16 bg-gradient-to-br from-pink-400 to-orange-500 rounded-full opacity-10 blur-xl"></div>
           
-          <div className="relative text-left">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-              Profilo Utente
-            </h1>
-            <p className="text-gray-600 text-sm">
-              {isViewingOwnProfile ? 'Il tuo profilo personale' : 'Profilo pubblico'}
-            </p>
+          <div className="relative flex items-center gap-3 text-left">
+            {isViewingOwnProfile && (
+              (hasAdminCapability(user) || hasDpoCapability(user)) ? (
+                <button
+                  type="button"
+                  onClick={() => setLocation("/gestisci")}
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 hover:opacity-80"
+                  title="Clicca per accedere alla sezione Gestisci"
+                  aria-label="Vai a Gestisci"
+                  data-testid="profilo-logo-gestisci"
+                >
+                  <img src="/icona.png" alt="Logo Demos" className="h-11 w-11 object-contain" />
+                </button>
+              ) : (
+                <img src="/icona.png" alt="Logo Demos" className="h-11 w-11 shrink-0 object-contain" data-testid="profilo-logo" />
+              )
+            )}
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+                Profilo Utente
+              </h1>
+              <p className="text-gray-600 text-sm">
+                {isViewingOwnProfile ? 'Il tuo profilo personale' : 'Profilo pubblico'}
+              </p>
+            </div>
           </div>
         </div>
 
