@@ -117,17 +117,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
           
           <div className="relative flex items-center gap-2 sm:gap-3 text-left">
             {isViewingOwnProfile && (
-              <Link
-                href="/impostazioni"
-                aria-label="Apri impostazioni"
-                title="Impostazioni"
-                data-testid="profilo-impostazioni-icon"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-indigo-100 bg-white text-indigo-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-              >
-                <Settings aria-hidden="true" className="h-5 w-5" />
-              </Link>
-            )}
-            {isViewingOwnProfile && (
               (hasAdminCapability(user) || hasDpoCapability(user)) ? (
                 <button
                   type="button"
@@ -143,7 +132,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 <img src="/icona.png" alt="Logo Demos" className="h-11 w-11 shrink-0 object-contain" data-testid="profilo-logo" />
               )
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
                 Profilo Utente
               </h1>
@@ -151,6 +140,17 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 {isViewingOwnProfile ? 'Il tuo profilo personale' : 'Profilo pubblico'}
               </p>
             </div>
+            {isViewingOwnProfile && (
+              <Link
+                href="/impostazioni"
+                aria-label="Apri impostazioni"
+                title="Impostazioni"
+                data-testid="profilo-impostazioni-icon"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-indigo-100 bg-white text-indigo-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+              >
+                <Settings aria-hidden="true" className="h-5 w-5" />
+              </Link>
+            )}
           </div>
         </div>
 
