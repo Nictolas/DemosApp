@@ -1,5 +1,4 @@
 import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Bell } from "lucide-react";
 import { NotificheData } from "../types";
@@ -23,43 +22,37 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
   userReazioniMap,
 }) => {
   return (
-    <Card className="bg-white">
-      <CardHeader>
-        <CardDescription>
-          {data?.notifiche?.length || 0} notifiche totali
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        ) : error ? (
-          <Alert variant="destructive">
-            <AlertDescription>
-              Errore nel caricamento delle notifiche: {error.message}
-            </AlertDescription>
-          </Alert>
-        ) : !data?.notifiche || data.notifiche.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>Nessuna notifica disponibile</p>
-            <p className="text-sm">Le tue notifiche appariranno qui</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {data.notifiche.map((notifica) => (
-              <NotificaItem
-                key={notifica.id}
-                notifica={notifica}
-                deleteSegnalazioneMutation={deleteSegnalazioneMutation}
-                initialReazioni={reazioniMap?.[notifica.id]}
-                initialUserReaction={userReazioniMap?.[notifica.id] ?? undefined}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <section className="mx-auto w-full max-w-3xl" aria-label="Notifiche ricevute">
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12" role="status">
+          <Loader2 className="h-7 w-7 animate-spin text-blue-600" aria-hidden="true" />
+          <span className="sr-only">Caricamento notifiche</span>
+        </div>
+      ) : error ? (
+        <Alert variant="destructive">
+          <AlertDescription>
+            Errore nel caricamento delle notifiche: {error.message}
+          </AlertDescription>
+        </Alert>
+      ) : !data?.notifiche || data.notifiche.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-12 text-center text-slate-500">
+          <Bell className="mx-auto mb-3 h-9 w-9 text-slate-300" aria-hidden="true" />
+          <p className="font-semibold text-slate-700">Nessuna notifica disponibile</p>
+          <p className="mt-1 text-sm">Le tue notifiche appariranno qui</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {data.notifiche.map((notifica) => (
+            <NotificaItem
+              key={notifica.id}
+              notifica={notifica}
+              deleteSegnalazioneMutation={deleteSegnalazioneMutation}
+              initialReazioni={reazioniMap?.[notifica.id]}
+              initialUserReaction={userReazioniMap?.[notifica.id] ?? undefined}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 };
