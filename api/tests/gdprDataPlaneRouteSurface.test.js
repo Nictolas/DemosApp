@@ -112,6 +112,28 @@ test('independent SQL constructors exist beyond canonical pool: full ingress aud
   // Search only proves presence of source, not execution or deployment.
 });
 
+test('production never imports legacy dev modules that allocate independent SQL pools',()=>{
+  const app=read('app.js');
+  const gate="const mountDevApiSurface = !isProductionApp;";
+  assert.equal(app.split(gate).length,2);
+  // The guard must be assigned before imports that may initialize a Pool.
+  assert.ok(app.indexOf(gate)<app.indexOf("databaseRoutes = mountDevApiSurface"));
+  const guardedModules=[
+    'database','test-opinioni-endpoints','test-add-opinione','test-db',
+    'migrate-columns','fix-database','debug-opinioni','migrations',
+    'cleanup','cleanup-reset-rate-limit','test-rate-limit',
+    'test-performance'
+  ];
+  for(const name of guardedModules){
+    const pattern="mountDevApiSurface ? require('./routes/"+name+"') : null;";
+    assert.equal(app.split(pattern).length,2,'Must avoid importing '+name+' in production');
+    assert.equal(app.split("require('./routes/"+name+"')").length,2,
+      'Unconditional or duplicate require of '+name);
+  }
+  // Not all independent Pool constructors are in this list; it protects
+  // imports in the main app only, not secondary processes or SQL clients.
+});
+
 test('no synthetic recovery confidence may be promoted into production readiness',()=>{
   const worker=read('services/privacyErasureOutboxWorker.js');
   assert.match(worker,/recoveryReady:\s*false/);
