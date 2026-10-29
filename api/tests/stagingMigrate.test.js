@@ -90,10 +90,10 @@ test('E2E user seeding uses the DB default for both PERSON and compact P', async
     };
     const result = await seedE2EUser(client, { log() {} });
     assert.equal(result, '00000000-0000-4000-8000-000000000001');
-    const inserts = sqlWrites.filter(item => /INSERT INTO users\\b/.test(item.sql));
+    const inserts = sqlWrites.filter(item => /INSERT INTO users\b/.test(item.sql));
     assert.equal(inserts.length, 3);
     for (const {sql,values} of inserts) {
-      assert.doesNotMatch(sql, /\\baccount_type\\b/,
+      assert.doesNotMatch(sql, /\baccount_type\b/,
         'Seed must preserve existing person type and use DB default for inserts');
       assert.ok(!(values || []).includes('PERSON'), 'Legacy value must not be sent as a query parameter');
     }
