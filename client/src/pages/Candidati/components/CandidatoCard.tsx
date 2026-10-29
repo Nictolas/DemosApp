@@ -104,7 +104,7 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
   return (
     <button
       type="button"
-      className="relative w-full h-60 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="relative flex w-full h-full min-h-0 items-center justify-center rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
       onMouseDown={(e) => {
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}

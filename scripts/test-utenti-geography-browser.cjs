@@ -91,23 +91,98 @@ async function main() {
     assert.deepEqual(regionLabels, ['Piemonte', 'Emilia-Romagna', 'Lombardia', 'Toscana'], 'Regional bars must be descending, with alphabetical ties');
     assert.ok(await regionCard.getByText('Regione non disponibile per 1 utente.').count(), 'Missing region must be shown separately');
 
-    // Su smartphone si può scorrere dentro il grafico con il dito oppure
-    // con le frecce, senza spostare orizzontalmente l'intera pagina.
+    // Anche i ruoli sono barre verticali, ordinate per conteggio decrescente.
+    const roleCard = page.locator('div.bg-white').filter({ has: page.getByText('Distribuzione per Ruolo') }).last();
+    await roleCard.locator('.recharts-xAxis .recharts-cartesian-axis-tick-value').first().waitFor({ timeout: 10000 });
+    const roleLabels = await roleCard.locator('.recharts-xAxis .recharts-cartesian-axis-tick-value').allTextContents();
+    assert.deepEqual(roleLabels, ['P', 'E'], 'Role bars must be descending by number of users');
+
+    // Su smartphone solo il grafico deve muoversi orizzontalmente, senza
+    // frecce o navigazione indietro. Simula gli eventi touch reali (incluse
+    // interazioni sull'SVG) per verificare preventDefault + scrollLeft.
     await page.setViewportSize({ width: 390, height: 844 });
     const chartScroll = regionCard.getByTestId('utenti-region-chart-scroll');
     const regionOverflow = await chartScroll.evaluate(el => el.scrollWidth > el.clientWidth);
     assert.equal(regionOverflow, true, 'Regional chart must scroll horizontally on mobile');
+    assert.equal(await regionCard.getByRole('button', { name: /Mostra le regioni/i }).count(), 0, 'Arrow controls must not be displayed');
     const mobileTouchAction = await chartScroll.evaluate(el => getComputedStyle(el).touchAction);
-    assert.equal(mobileTouchAction, 'pan-x', 'Touch gestures inside the chart must be horizontal');
-    await regionCard.getByRole('button', { name: 'Mostra le regioni successive' }).click();
-    await page.waitForFunction(() => (document.querySelector('[data-testid="utenti-region-chart-scroll"]')?.scrollLeft || 0) > 70);
-    await regionCard.getByRole('button', { name: 'Mostra le regioni precedenti' }).click();
-    await page.waitForFunction(() => (document.querySelector('[data-testid="utenti-region-chart-scroll"]')?.scrollLeft || 0) < 2);
+    assert.equal(mobileTouchAction, 'pan-y', 'Only vertical panning must remain native');
+    const touchBehavior = await chartScroll.evaluate(el => {
+      const target = el.querySelector('svg') || el;
+      const fire = (type, x, y) => {
+        const touch = new Touch({ identifier: 1, target, clientX: x, clientY: y });
+        const present = type === 'touchend' ? [] : [touch];
+        const event = new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches: present,
+          targetTouches: present,
+          changedTouches: [touch],
+        });
+        target.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      fire('touchstart', 300, 200);
+      const horizontalPrevented = fire('touchmove', 140, 205);
+      const afterForward = el.scrollLeft;
+      fire('touchend', 140, 205);
+      fire('touchstart', 140, 205);
+      const reversePrevented = fire('touchmove', 300, 210);
+      const afterBack = el.scrollLeft;
+      fire('touchend', 300, 210);
+      fire('touchstart', 220, 220);
+      const verticalPrevented = fire('touchmove', 218, 130);
+      fire('touchend', 218, 130);
+      return { horizontalPrevented, afterForward, reversePrevented, afterBack, verticalPrevented };
+    });
+    assert.equal(touchBehavior.horizontalPrevented, true, 'Horizontal swipe must cancel default browser gesture');
+    assert.ok(touchBehavior.afterForward > 70, 'Swipe left must reveal later regions');
+    assert.equal(touchBehavior.reversePrevented, true, 'Reverse swipe must cancel default browser gesture');
+    assert.ok(touchBehavior.afterBack < 2, 'Swipe right must return to earlier regions');
+    assert.equal(touchBehavior.verticalPrevented, false, 'Vertical page scrolling must remain available');
+    assert.equal(new URL(page.url()).pathname, '/utenti', 'Chart swipes must not trigger global swipe-back navigation');
     const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
     assert.equal(pageOverflow, false, 'Horizontal chart scrolling must not overflow the page');
 
+    const roleScroll = roleCard.getByTestId('utenti-role-chart-scroll');
+    assert.equal(await roleScroll.evaluate(el => el.scrollWidth > el.clientWidth), true, 'Role chart must fit in a horizontally scrollable area on iPhone');
+    assert.equal(await roleScroll.evaluate(el => getComputedStyle(el).touchAction), 'pan-y', 'Role chart preserves native vertical pan');
+    const roleTouch = await roleScroll.evaluate(el => {
+      const target = el.querySelector('svg') || el;
+      const fire = (type, x, y) => {
+        const touch = new Touch({ identifier: 1, target, clientX: x, clientY: y });
+        const current = type === 'touchend' ? [] : [touch];
+        const event = new TouchEvent(type, {
+          bubbles: true, cancelable: true,
+          touches: current, targetTouches: current, changedTouches: [touch],
+        });
+        target.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      fire('touchstart', 300, 200);
+      const forwardPrevented = fire('touchmove', 140, 202);
+      const forwarded = el.scrollLeft;
+      fire('touchend', 140, 202);
+      fire('touchstart', 140, 202);
+      const backwardPrevented = fire('touchmove', 300, 205);
+      const returned = el.scrollLeft;
+      fire('touchend', 300, 205);
+      fire('touchstart', 250, 260);
+      const verticalPrevented = fire('touchmove', 248, 180);
+      fire('touchend', 248, 180);
+      return { forwardPrevented, forwarded, backwardPrevented, returned, verticalPrevented };
+    });
+    assert.equal(roleTouch.forwardPrevented, true, 'Role chart must consume horizontal swipe on its SVG');
+    assert.ok(roleTouch.forwarded > 70, 'Swipe left on role bars must reveal more roles');
+    assert.equal(roleTouch.backwardPrevented, true, 'Role chart must consume reverse horizontal swipe');
+    assert.ok(roleTouch.returned < 2, 'Swipe right on role bars must return to initial roles');
+    assert.equal(roleTouch.verticalPrevented, false, 'Vertical page scrolling remains available inside role chart');
+    assert.equal(new URL(page.url()).pathname, '/utenti', 'Role chart swipes must not navigate away from users');
+    assert.equal(await roleCard.getByRole('button', { name: /Mostra i ruoli/i }).count(), 0, 'Role chart must not show arrow controls');
+
     const municipalCard = page.locator('div.bg-white').filter({ has: page.getByText('I 10 comuni di residenza o riferimento comunale') }).last();
     const table = municipalCard.locator('table');
+    await table.locator('tbody tr').first().waitFor({ state: 'visible', timeout: 10000 });
     const entries = await table.locator('tbody tr').allTextContents();
     for (const city of ['Milano', 'Torino', 'Bologna']) {
       assert.ok(entries.some(e => e.includes(city)), 'Missing expected city ' + city + ': ' + entries.join('; '));

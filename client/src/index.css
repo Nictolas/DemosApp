@@ -171,13 +171,12 @@ th[class*="overflow"] {
   }
 }
 
-/* Eccezione mirata: il grafico a barre delle regioni deve poter essere
-   trascinato orizzontalmente su iOS/Android. Tutti i figli (incluso
-   l'SVG di Recharts) prevalgono sulla regola mobile globale pan-y. */
+/* I grafici a barre scorrevoli in Statistiche Utenti gestiscono
+   orizzontalmente touchmove, lasciando nativo soltanto lo scroll verticale. */
 @media (max-width: 768px) {
-  .utenti-region-chart-scroll,
-  .utenti-region-chart-scroll * {
-    touch-action: pan-x !important;
+  .utenti-horizontal-chart-scroll,
+  .utenti-horizontal-chart-scroll * {
+    touch-action: pan-y !important;
   }
 }
 

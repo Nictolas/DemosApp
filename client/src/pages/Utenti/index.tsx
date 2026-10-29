@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Users, AlertCircle, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Users, AlertCircle, BarChart3 } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
 import { useUserManagement } from "./hooks/useUserManagement";
 import { getDisplayColumns } from "./utils/columnUtils";
@@ -36,6 +36,55 @@ const COLORS = ['#87CEEB', '#FFB6C1', '#FFD700', '#98FB98', '#DDA0DD', '#F0E68C'
 // Colori delle categorie M/F salvate; la CIE potrà correggerle dopo la verifica.
 const getSexColor = (sesso: string) =>
   sesso === 'M' ? '#3b82f6' : sesso === 'F' ? '#ec4899' : '#9ca3af';
+
+// Condivide lo swipe touch locale tra i grafici delle statistiche.
+function useHorizontalChartTouchScroll() {
+  const cleanupRef = useRef<(() => void) | null>(null);
+  return useCallback((element: HTMLDivElement | null) => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    if (!element) return;
+
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let gesture: 'horizontal' | 'vertical' | null = null;
+    const handleStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        gesture = 'vertical';
+        return;
+      }
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+      startScrollLeft = element.scrollLeft;
+      gesture = null;
+    };
+    const handleMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+      const dx = event.touches[0].clientX - startX;
+      const dy = event.touches[0].clientY - startY;
+      if (!gesture && Math.max(Math.abs(dx), Math.abs(dy)) >= 7) {
+        gesture = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+      }
+      if (gesture !== 'horizontal') return;
+
+      // I gesti orizzontali restano nel grafico; il verticale rimane nativo.
+      if (event.cancelable) event.preventDefault();
+      element.scrollLeft = startScrollLeft - dx;
+    };
+    const handleEnd = () => { gesture = null; };
+    element.addEventListener('touchstart', handleStart, { passive: true });
+    element.addEventListener('touchmove', handleMove, { passive: false });
+    element.addEventListener('touchend', handleEnd, { passive: true });
+    element.addEventListener('touchcancel', handleEnd, { passive: true });
+    cleanupRef.current = () => {
+      element.removeEventListener('touchstart', handleStart);
+      element.removeEventListener('touchmove', handleMove);
+      element.removeEventListener('touchend', handleEnd);
+      element.removeEventListener('touchcancel', handleEnd);
+    };
+  }, []);
+}
 
 export default function Utenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -258,14 +307,13 @@ export default function Utenti() {
       .map(([name, value]) => ({ name, value }));
   };
   const regionBarData = prepareRegionBarData(stats?.usersByRegionWithEstimates);
-  const regionChartScrollRef = useRef<HTMLDivElement>(null);
 
-  // I pulsanti spostano solo il grafico, senza far scorrere la pagina.
-  const scrollRegionChart = (direction: -1 | 1) => {
-    const element = regionChartScrollRef.current;
-    if (!element) return;
-    element.scrollBy({ left: direction * Math.max(240, element.clientWidth * 0.85), behavior: 'smooth' });
-  };
+  const setRegionChartScrollRef = useHorizontalChartTouchScroll();
+  const setRoleChartScrollRef = useHorizontalChartTouchScroll();
+  const roleBarData = Object.entries(stats?.usersByRole ?? {})
+    .sort(([nameA, countA], [nameB, countB]) =>
+      countB - countA || nameA.localeCompare(nameB, 'it'))
+    .map(([name, value]) => ({ name, value }));
 
   useEffect(() => {
     const checkMobile = () => {
@@ -589,28 +637,34 @@ export default function Utenti() {
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Ruolo</CardTitle>
+                      <CardDescription>Dal ruolo più numeroso al meno numeroso.</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie 
-                            data={preparePieData(stats.usersByRole)} 
-                            dataKey="value" 
-                            nameKey="name" 
-                            cx="50%" 
-                            cy="50%" 
-                            outerRadius={80} 
-                            fill="#8884d8" 
-                            label
-                          >
-                            {preparePieData(stats.usersByRole).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                    <CardContent>
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Trascina il grafico con il dito verso destra o sinistra per vedere tutti i ruoli.
+                      </p>
+                      <div
+                        ref={setRoleChartScrollRef}
+                        data-testid="utenti-role-chart-scroll"
+                        data-horizontal-swipe-region="true"
+                        className="utenti-horizontal-chart-scroll w-full max-w-full overflow-x-auto pb-2"
+                        style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
+                        role="region"
+                        aria-label="Grafico dei ruoli ordinato per numero di utenti: scorri orizzontalmente"
+                        tabIndex={0}
+                      >
+                        <div className="h-[380px] w-full" style={{ minWidth: `${Math.max(640, roleBarData.length * 80)}px` }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={roleBarData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                              <XAxis dataKey="name" interval={0} height={52} tick={{ fontSize: 12 }} />
+                              <YAxis allowDecimals={false} />
+                              <Tooltip />
+                              <Bar dataKey="value" name="Utenti" fill="#3b82f6" maxBarSize={46} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                   
@@ -702,36 +756,15 @@ export default function Utenti() {
                       <p className="text-sm text-muted-foreground mb-3">
                         Regione non disponibile per {stats.usersByRegionWithEstimates['N/A'] ?? 0} {(stats.usersByRegionWithEstimates['N/A'] ?? 0) === 1 ? 'utente' : 'utenti'}.
                       </p>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-xs text-muted-foreground">
-                          Scorri il grafico a destra e sinistra per vedere tutte le regioni.
-                        </p>
-                        <div className="flex shrink-0 gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label="Mostra le regioni precedenti"
-                            onClick={() => scrollRegionChart(-1)}
-                          >
-                            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label="Mostra le regioni successive"
-                            onClick={() => scrollRegionChart(1)}
-                          >
-                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                        </div>
-                      </div>
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Trascina il grafico con il dito verso destra o sinistra per vedere tutte le regioni.
+                      </p>
                       <div
-                        ref={regionChartScrollRef}
+                        ref={setRegionChartScrollRef}
                         data-testid="utenti-region-chart-scroll"
-                        className="utenti-region-chart-scroll w-full max-w-full overflow-x-auto pb-2"
-                        style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
+                        data-horizontal-swipe-region="true"
+                        className="utenti-horizontal-chart-scroll w-full max-w-full overflow-x-auto pb-2"
+                        style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
                         role="region"
                         aria-label="Grafico delle regioni ordinato per numero di utenti: scorri orizzontalmente"
                         tabIndex={0}

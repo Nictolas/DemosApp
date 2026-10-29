@@ -142,7 +142,18 @@ function useTouchNavigation() {
     let touchStartTime = 0;
     let isNavigating = false;
 
+    // Le aree con scorrimento orizzontale autonomo devono restare fuori
+    // dalla navigazione globale swipe-back di DEMOS.
+    const isLocalHorizontalSwipe = (target: EventTarget | null) =>
+      target instanceof Element && !!target.closest('[data-horizontal-swipe-region="true"]');
+
     const handleTouchStart = (e: TouchEvent) => {
+      if (isLocalHorizontalSwipe(e.target)) {
+        startX = 0;
+        startY = 0;
+        isScrolling = true;
+        return;
+      }
       // Evita conflitti se già in navigazione
       if (isNavigating) return;
       
@@ -153,6 +164,7 @@ function useTouchNavigation() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (isLocalHorizontalSwipe(e.target)) return;
       if (!startX || !startY || isNavigating) return;
 
       const currentX = e.touches[0].clientX;
@@ -617,11 +629,11 @@ export default function App() {
                 <ProtectedRoute path="/preferiti" component={Preferiti} />
               </Route>
 
-              {/* Route candidati */}
+              {/* Come Rappresentanti: la griglia occupa direttamente l'altezza
+                  della shell, già al netto della navbar. Il wrapper PageTransition
+                  non ha altezza esplicita e comprimeva Candidati verso l'alto. */}
               <Route path="/candidati">
-                <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/candidati" component={Candidati} />
-                </PageTransition>
+                <ProtectedRoute path="/candidati" component={Candidati} />
               </Route>
 
               {/* Route attivisti - PAGINA PUBBLICA */}

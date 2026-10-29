@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
+import "../SelectionGrid.css";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useRappresentantiData } from "./hooks/useRappresentantiData";
 import { useRappresentantiActions } from "./hooks/useRappresentantiActions";
@@ -36,37 +37,32 @@ export default function Rappresentanti() {
   }
 
   return (
-    <PageContainer className="rappresentanti-page select-none">
-      <div className="rappresentanti-page__inner flex h-full min-h-0 flex-col">
-        <div className="rappresentanti-page__scroll flex-1 min-h-0 overflow-y-auto app-page-scroll container mx-auto max-w-full px-4 pt-2">
-          {isLoading ? (
-            <LoadingState />
-          ) : isError ? (
-            <ErrorState />
-          ) : (
-            <>
-              <CategoriaPrincipale
-                key={categorie[0].id}
-                categoria={categorie[0]}
+    <PageContainer className="rappresentanti-page selection-grid-page select-none">
+      <div className="selection-grid-page__content container mx-auto w-full max-w-full px-4 pt-2 pb-2">
+        {isLoading ? (
+          <LoadingState />
+        ) : isError ? (
+          <ErrorState />
+        ) : (
+          <div className="selection-grid-page__grid">
+            <CategoriaPrincipale
+              key={categorie[0].id}
+              categoria={categorie[0]}
+              data={data}
+              onNavigate={handleNavigateToSelection}
+              onOpenOpinioni={handleOpenOpinioniDialog}
+            />
+            {categorie.slice(1).map((categoria) => (
+              <RappresentanteCard
+                key={categoria.id}
+                categoria={categoria}
                 data={data}
                 onNavigate={handleNavigateToSelection}
                 onOpenOpinioni={handleOpenOpinioniDialog}
               />
-
-              <div className="grid grid-cols-2 gap-2 pb-2">
-                {categorie.slice(1).map((categoria) => (
-                  <RappresentanteCard
-                    key={categoria.id}
-                    categoria={categoria}
-                    data={data}
-                    onNavigate={handleNavigateToSelection}
-                    onOpenOpinioni={handleOpenOpinioniDialog}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {opinioniDialogData && (
