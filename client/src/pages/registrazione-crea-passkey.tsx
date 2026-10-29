@@ -87,7 +87,7 @@ export default function RegistrazioneCreaPasskey() {
       Object.keys(window.localStorage).forEach((key) => {
         if (key.startsWith("registrazione_")) window.localStorage.removeItem(key);
       });
-      window.location.href = "/preferiti";
+      window.location.href = "/profilo";
     })();
     return () => {
       cancelled = true;
@@ -234,10 +234,10 @@ export default function RegistrazioneCreaPasskey() {
             });
             // Forza un reload completo come nel login, così il contesto auth viene ricalcolato
             setTimeout(() => {
-              window.location.href = "/preferiti";
+              window.location.href = "/profilo";
             }, 200);
           } else {
-            navigate("/preferiti");
+            navigate("/profilo");
           }
         } else {
           setStatus("error");

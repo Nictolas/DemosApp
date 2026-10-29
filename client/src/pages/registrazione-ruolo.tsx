@@ -28,7 +28,7 @@ export default function RegistrazioneRuolo() {
           if (key.startsWith("registrazione_")) localStorage.removeItem(key);
         });
         toast({ title: "Registrazione completata!", description: "Benvenuto su Demos." });
-        navigate("/preferiti");
+        navigate("/profilo");
         return;
       }
 

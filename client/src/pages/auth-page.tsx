@@ -11,7 +11,7 @@ export default function AuthPage() {
   const isMobileLayout = useMobile();
 
   if (user && !isLoading) {
-    return <Redirect to="/preferiti" />;
+    return <Redirect to="/profilo" />;
   }
 
   if (isLoading) {

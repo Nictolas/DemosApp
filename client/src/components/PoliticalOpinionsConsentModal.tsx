@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Shield, AlertCircle, ExternalLink } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { clearAllEncryptedProfiles } from '@/pages/Profilo/utils/encryptedProfileVault';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 
@@ -40,6 +41,12 @@ export function PoliticalOpinionsConsentModal({
     onSuccess: (data) => {
       // Invalida la cache per aggiornare lo stato del consenso
       queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
+      // Invalidate the short-lived profile consent snapshot immediately.
+      // Consent epoch changes must never reuse the prior political answers.
+      queryClient.removeQueries({ queryKey: ['profilePolitical'] });
+      void clearAllEncryptedProfiles();
+      queryClient.removeQueries({ queryKey: ['profileFull'] });
+      queryClient.invalidateQueries({ queryKey: ['profileConsent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       
       toast({

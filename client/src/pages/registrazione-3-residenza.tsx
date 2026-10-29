@@ -105,7 +105,7 @@ export default function RegistrazioneResidenza() {
           title: "Profilo salvato",
           description: "I tuoi dati sono stati salvati solo su questo dispositivo.",
         });
-        navigate("/preferiti");
+        navigate("/profilo");
         return;
       }
 

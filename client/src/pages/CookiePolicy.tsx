@@ -91,12 +91,6 @@ export default function CookiePolicy() {
                     <td className="py-2">Dati utente temporanei</td>
                     <td className="py-2">Fino al logout</td>
                   </tr>
-                  <tr>
-                    <td className="py-2 font-mono">app_loaded</td>
-                    <td className="py-2">sessionStorage</td>
-                    <td className="py-2">Flag per evitare splash screen ripetuti</td>
-                    <td className="py-2">Sessione browser</td>
-                  </tr>
                 </tbody>
               </table>
             </div>
