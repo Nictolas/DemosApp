@@ -49,6 +49,13 @@ async function test() {
             regione_residenza: 'Toscana', provincia_residenza: 'Pisa',
             comune_residenza: 'Comune Inventato',
           }});
+        case '/api/user/profile-selections':
+          return fulfill(route, { success:true, data: {
+            capoStato: ['Presidente Inventato'], grazia: [],
+            amnistia: ['Reato Inventato'], iniziativaPopolare: ['Iniziativa Inventata'],
+            attivista: { id:'synthetic-activist',nome:'Attivista Inventato' },
+            organizzazione: { id:'synthetic-org',nome:'Associazione Inventata' },
+          }});
         case '/api/governo/ideale':
           return fulfill(route, { success: true, data: { Primo_Ministro: 'Ministra Inventata' } });
         case '/api/rappresentanti':
@@ -67,6 +74,7 @@ async function test() {
     const endpoints = [
       '/api/users/me',
       '/api/governo/ideale',
+      '/api/user/profile-selections',
       '/api/rappresentanti',
       '/api/candidati/selezioni',
       '/api/opinioni/profile',
@@ -74,6 +82,11 @@ async function test() {
     const enter = async (political = true) => {
       await page.goto(ORIGIN + '/profilo', { waitUntil: 'domcontentloaded' });
       await page.getByText('Comune Inventato').first().waitFor({ timeout: 30000 });
+      if (political) {
+        await page.getByText('Attivista Inventato').first().waitFor({timeout:15000});
+        assert.equal(await page.getByText('Grazia', { exact:true }).count(), 0,
+          'Empty categories must remain hidden in the profile');
+      }
       for (const title of [
         'Rappresentanti selezionati', 'Candidati selezionati',
         'Il tuo Governo ideale', 'Opinioni politiche',
