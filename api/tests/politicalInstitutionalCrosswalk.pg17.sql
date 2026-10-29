@@ -11,6 +11,35 @@ DECLARE
 BEGIN
   SELECT COUNT(*) INTO before_users FROM public.users;
 
+  -- Free-form review_reference/reviewed_by are NOT sufficient: require an
+  -- independently inserted, exact-match row in the private approval table.
+  BEGIN
+    PERFORM demos_internal.import_official_political_mandate(
+      '22222222-2222-4222-8222-222222222222','SENATO','not-approved',19,
+      DATE '2022-10-13',NULL,
+      'https://www.senato.it/composizione/senatori/scheda?did=not-approved',
+      'POL-015-unapproved','reviewer-fixture'
+    );
+    RAISE EXCEPTION 'EXPECTED_APPROVAL_REQUIRED_NOT_RAISED';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS err = MESSAGE_TEXT;
+    IF err <> 'MANUAL_APPROVAL_NOT_FOUND_OR_MISMATCHED' THEN RAISE; END IF;
+  END;
+
+  -- An approved ID still cannot be used with another reviewer's declaration.
+  BEGIN
+    PERFORM demos_internal.import_official_political_mandate(
+      '11111111-1111-4111-8111-111111111111','CAMERA','d456_17',17,
+      DATE '2013-03-15',DATE '2018-03-22',
+      'https://dati.camera.it/ocd/deputato.rdf/d456_17',
+      'POL-015-review-001','reviewer-spoof'
+    );
+    RAISE EXCEPTION 'EXPECTED_APPROVAL_MISMATCH_NOT_RAISED';
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS err = MESSAGE_TEXT;
+    IF err <> 'MANUAL_APPROVAL_NOT_FOUND_OR_MISMATCHED' THEN RAISE; END IF;
+  END;
+
   SELECT demos_internal.import_official_political_mandate(
     '11111111-1111-4111-8111-111111111111','CAMERA','d456_17',17,
     DATE '2013-03-15',DATE '2018-03-22',
@@ -58,10 +87,10 @@ BEGIN
   -- Collision: same official ID must never be assigned to a different user.
   BEGIN
     PERFORM demos_internal.import_official_political_mandate(
-      '22222222-2222-4222-8222-222222222222','CAMERA','d456_17',17,
-      DATE '2013-03-15',DATE '2018-03-22',
+      '22222222-2222-4222-8222-222222222222','CAMERA','d456_17',18,
+      DATE '2019-03-15',DATE '2022-03-22',
       'https://dati.camera.it/ocd/deputato.rdf/d456_17',
-      'POL-015-review-001','reviewer-fixture'
+      'POL-015-review-collision','reviewer-fixture'
     );
     RAISE EXCEPTION 'EXPECTED_COLLISION_NOT_RAISED';
   EXCEPTION WHEN OTHERS THEN
@@ -111,8 +140,14 @@ BEGIN
     IF err <> 'INVALID_MANDATE_DATES' THEN RAISE; END IF;
   END;
 
-  -- Reject changing an already verified official record silently.
+  -- Even a NEW manually approved correction may not rewrite an existing
+  -- verified mandate silently. The test-only approval UPDATE is rolled back
+  -- by the expected exception's plpgsql subtransaction.
   BEGIN
+    UPDATE demos_internal.approved_political_mandate_imports
+      SET ends_on = DATE '2018-03-23'
+      WHERE institution='CAMERA' AND official_id='d456_17'
+        AND legislature=17 AND starts_on=DATE '2013-03-15';
     PERFORM demos_internal.import_official_political_mandate(
       '11111111-1111-4111-8111-111111111111','CAMERA','d456_17',17,
       DATE '2013-03-15',DATE '2018-03-23',
@@ -184,6 +219,13 @@ BEGIN
   END IF;
 
   -- New schema and functions are not available to API anon/authenticated roles.
+  IF has_table_privilege('anon',
+       'demos_internal.approved_political_mandate_imports','SELECT')
+    OR has_table_privilege('authenticated',
+       'demos_internal.approved_political_mandate_imports','INSERT')
+  THEN
+    RAISE EXCEPTION 'manual approval table exposed to application roles';
+  END IF;
   IF has_schema_privilege('anon','demos_internal','USAGE')
      OR has_schema_privilege('authenticated','demos_internal','USAGE') THEN
     RAISE EXCEPTION 'private schema leaked'; END IF;
