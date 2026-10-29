@@ -40,12 +40,16 @@ ALTER TABLE public.users
   CHECK (account_type IN ('PERSON','ORGANIZATION','INSTITUTION'));
 ALTER TABLE public.users ALTER COLUMN account_type SET DEFAULT 'PERSON';
 
--- Restore the historical projection's long-label-aware implementation.
+-- Restore the EXACT current production long-label role projection semantics.
+-- Existing production function includes ACTIVE LEGACY_BACKFILL mandates when
+-- deriving the historical P/CP labels. Losing that clause changes roles
+-- on the NEXT unrelated account update, even if rollback snapshot matches.
 
-CREATE OR REPLACE FUNCTION refresh_users_legacy_role(p_user_id UUID)
+CREATE OR REPLACE FUNCTION public.refresh_users_legacy_role(p_user_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
-AS $$
+SET search_path TO public, pg_temp
+AS $
 DECLARE
   v_account_type VARCHAR(20);
   v_is_admin BOOLEAN;
@@ -56,7 +60,7 @@ DECLARE
 BEGIN
   SELECT account_type, is_admin, is_activist
   INTO v_account_type, v_is_admin, v_is_activist
-  FROM users
+  FROM public.users
   WHERE id = p_user_id;
 
   IF NOT FOUND THEN
@@ -75,8 +79,6 @@ BEGIN
     SELECT 1 FROM political_mandates pm
     WHERE pm.user_id = p_user_id
       AND pm.status = 'ACTIVE'
-      -- Legacy imports do not establish a presently held office.
-      AND pm.source <> 'LEGACY_BACKFILL'
       AND pm.starts_at <= NOW()
       AND (pm.ends_at IS NULL OR pm.ends_at > NOW())
   ) INTO v_is_politician;
@@ -92,7 +94,7 @@ BEGIN
     ELSE 'E'
   END;
 
-  UPDATE users
+  UPDATE public.users
   SET ruolo = v_legacy_role
   WHERE id = p_user_id
     AND ruolo IS DISTINCT FROM v_legacy_role;
