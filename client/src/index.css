@@ -171,6 +171,16 @@ th[class*="overflow"] {
   }
 }
 
+/* Eccezione mirata: il grafico a barre delle regioni deve poter essere
+   trascinato orizzontalmente su iOS/Android. Tutti i figli (incluso
+   l'SVG di Recharts) prevalgono sulla regola mobile globale pan-y. */
+@media (max-width: 768px) {
+  .utenti-region-chart-scroll,
+  .utenti-region-chart-scroll * {
+    touch-action: pan-x !important;
+  }
+}
+
 body {
   min-height: 100vh;
   height: 100%;
