@@ -104,18 +104,35 @@ async function applyMigrations(client, logger = console) {
   }
 }
 async function seedE2EUser(client, logger = console) {
+  // Use the live default rather than writing the old PERSON literal.
+  // Existing E2E IDs must remain personal accounts in both storage formats.
+  const defaults = await client.query(
+    "SELECT column_default FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name='account_type'"
+  );
+  const typeDefault = defaults.rows[0]?.column_default;
+  if (!/^'(?:PERSON|P)'::(?:character varying|text)$/.test(typeDefault || '')) {
+    throw new Error('Refusing E2E seed: users.account_type default must be PERSON or P');
+  }
+  const seedIds = [E2E_USER_ID, E2E_ACTIVIST_USER_ID, E2E_ADMIN_USER_ID];
+  const existing = await client.query(
+    'SELECT id, account_type FROM users WHERE id = ANY($1::uuid[])',
+    [seedIds]
+  );
+  if (existing.rows.some(({ account_type }) => !['PERSON', 'P'].includes(account_type))) {
+    throw new Error('Refusing E2E seed: synthetic user ID belongs to a non-person account');
+  }
   const params = [
-    E2E_USER_ID, 'DEMOS E2E Test', 'DEMOS', 'E2E', 'E', 'a', 'PERSON', false, false,
+    E2E_USER_ID, 'DEMOS E2E Test', 'DEMOS', 'E2E', 'E', 'a', false, false,
     'Italia', 'Toscana', 'Pisa', 'Pisa',
   ];
   await client.query(`
     INSERT INTO users (
-      id, name, nome, cognome, ruolo, status, account_type, is_admin, is_activist,
+      id, name, nome, cognome, ruolo, status, is_admin, is_activist,
       paese_residenza, regione_residenza, provincia_residenza, comune_residenza
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name, nome = EXCLUDED.nome, cognome = EXCLUDED.cognome,
-      status = 'a', account_type = 'PERSON', is_admin = FALSE, is_activist = FALSE,
+      status = 'a', is_admin = FALSE, is_activist = FALSE,
       paese_residenza = EXCLUDED.paese_residenza, regione_residenza = EXCLUDED.regione_residenza,
       provincia_residenza = EXCLUDED.provincia_residenza, comune_residenza = EXCLUDED.comune_residenza
   `, params);
@@ -140,14 +157,14 @@ async function seedE2EUser(client, logger = console) {
       updated_at = NOW()
   `, [E2E_USER_ID]);
   await client.query(`
-    INSERT INTO users (id,name,nome,cognome,ruolo,status,account_type,is_admin,is_activist,paese_residenza,regione_residenza,provincia_residenza,comune_residenza)
-    VALUES ($1,$2,$3,$4,'E','a','PERSON',FALSE,TRUE,'Italia','Toscana','Pisa','Pisa')
-    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,nome=EXCLUDED.nome,cognome=EXCLUDED.cognome,status='a',account_type='PERSON',is_admin=FALSE,is_activist=TRUE
+    INSERT INTO users (id,name,nome,cognome,ruolo,status,is_admin,is_activist,paese_residenza,regione_residenza,provincia_residenza,comune_residenza)
+    VALUES ($1,$2,$3,$4,'E','a',FALSE,TRUE,'Italia','Toscana','Pisa','Pisa')
+    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,nome=EXCLUDED.nome,cognome=EXCLUDED.cognome,status='a',is_admin=FALSE,is_activist=TRUE
   `, [E2E_ACTIVIST_USER_ID,'DEMOS E2E Activist','DEMOS','E2E Activist']);
   await client.query(`
     INSERT INTO users (id,name,nome,cognome,ruolo,status,account_type,is_admin,is_activist,paese_residenza,regione_residenza,provincia_residenza,comune_residenza)
-    VALUES ($1,$2,$3,$4,'AD','a','PERSON',TRUE,FALSE,'Italia','Toscana','Pisa','Pisa')
-    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,nome=EXCLUDED.nome,cognome=EXCLUDED.cognome,status='a',account_type='PERSON',is_admin=TRUE,is_activist=FALSE
+    VALUES ($1,$2,$3,$4,'AD','a',TRUE,FALSE,'Italia','Toscana','Pisa','Pisa')
+    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,nome=EXCLUDED.nome,cognome=EXCLUDED.cognome,status='a',is_admin=TRUE,is_activist=FALSE
   `, [E2E_ADMIN_USER_ID,'DEMOS E2E Admin','DEMOS','E2E Admin']);
   logger.log(`[staging] E2E synthetic users ready: ${E2E_USER_ID}, ${E2E_ACTIVIST_USER_ID}, ${E2E_ADMIN_USER_ID}`);
   return E2E_USER_ID;
