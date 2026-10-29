@@ -85,6 +85,23 @@ END $verify$;
 SQL
 
 
+# Refreshing an unrelated capability must not silently downgrade politicians
+# whose only mandate evidence is historical LEGACY_BACKFILL.
+psql -X -v ON_ERROR_STOP=1 <<'SQL'
+UPDATE public.users SET is_activist = true
+WHERE id IN ('00000000-0000-4000-8000-000000000001',
+             '00000000-0000-4000-8000-000000000005');
+DO $political_role_guard$
+BEGIN
+ IF (SELECT ruolo FROM public.users WHERE id='00000000-0000-4000-8000-000000000001') <> 'P'
+ OR (SELECT ruolo FROM public.users WHERE id='00000000-0000-4000-8000-000000000005') <> 'CP'
+ THEN
+   RAISE EXCEPTION 'Capability refresh downgraded P or CP with unverified political history';
+ END IF;
+END;
+$political_role_guard$;
+SQL
+
 # Verify the complete rollback AFTER the compact schema has accepted a new user.
 psql -X -v ON_ERROR_STOP=1 -f api/database/users-account-type-poe-rollback-20261029.sql
 
