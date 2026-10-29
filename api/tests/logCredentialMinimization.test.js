@@ -41,13 +41,12 @@ test('CIE identity status and callback log fixed categories, never raw exception
     'CIE_CALLBACK_REDIRECT_FAILED'
   ];
   for (const code of expectedCodes) {
-    assert.match(source, new RegExp("console\\.error\\('"+code+"'\\)"));
+    assert.ok(source.includes("console.error('" + code + "')"));
   }
-  const logCalls = [...source.matchAll(/console\\.error\\(([^;\\n]*)\\);/g)];
-  assert.equal(logCalls.length, 6);
-  assert.equal((source.match(/console\\.error\\(/g) || []).length, logCalls.length);
-  for (const [, args] of logCalls) {
-    assert.match(args, /^'[A-Z_]+'$/);
+  const logLines = source.split('\n').filter(line => line.includes('console.error('));
+  assert.equal(logLines.length, 6);
+  for (const line of logLines) {
+    assert.match(line.trim(), /^console\.error\('[A-Z_]+'\);$/);
   }
-  assert.doesNotMatch(source, /console\\.(?:error|warn|log)\\([^;\\n]*\\b(?:error|redirectError)\\b/);
+  assert.doesNotMatch(source, /console\.(?:error|warn|log)\([^;\n]*(?:error\?\.message|redirectError\?\.message)/);
 });
