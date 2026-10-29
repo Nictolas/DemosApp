@@ -61,15 +61,15 @@ export default function CapodiStato() {
   }
 
   return (
-    <div className="capo-di-stato-page min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+    <div className="capo-di-stato-page min-h-screen bg-gradient-to-b from-background to-secondary/20 p-3 pb-5 sm:p-4 page-with-navbar">
       <div className="w-full max-w-full mx-auto h-full min-h-0 lg:overflow-hidden flex flex-col">
         {data?.blocco.isBlocked && (
           <BlockedWarning unlockDate={data.blocco.unlockDate} />
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-4 items-start flex-1 min-h-0 lg:overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-6 lg:gap-4 items-start flex-1 min-h-0 lg:overflow-hidden">
           {/* Colonna sinistra: Capo di Stato, Consenso, Il tuo voto */}
-          <div className="space-y-6 lg:space-y-3 lg:h-full lg:min-h-0 lg:overflow-hidden lg:flex lg:flex-col">
+          <div className="space-y-2 sm:space-y-6 lg:space-y-3 lg:h-full lg:min-h-0 lg:overflow-hidden lg:flex lg:flex-col">
             <Header />
 
             {isLoadingData || isLoadingConsenso ? (
