@@ -50,10 +50,10 @@ router.get('/requirements', verifyToken, async (req, res) => {
  * Per utenti solo passkey o solo OAuth: richiede solo conferma "CANCELLA".
  */
 router.delete('/', verifyToken, async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
+  let client;
   try {
+    const pool = getPool();
+    client = await pool.connect();
     const userId = req.user.id;
     const { password, confirmText } = req.body;
 
@@ -151,7 +151,14 @@ router.delete('/', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        // A failed rollback must not mask the original database failure.
+        console.error('ACCOUNT_DELETION_ROLLBACK_FAILED');
+      }
+    }
     console.error('ACCOUNT_DELETION_FAILED');
     
     // Log dell'errore
@@ -170,7 +177,7 @@ router.delete('/', verifyToken, async (req, res) => {
       message: 'Errore interno del server durante la cancellazione dell\'account'
     });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
