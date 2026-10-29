@@ -64,7 +64,10 @@ export default function OpinioniRegionali() {
 
   // Combina i dati
   const isLoading = isLoadingQuestions;
-  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
+  // A disabled query can still hold data in RAM: never render it after revocation.
+  const canReadOpinions = !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true;
+  const questions = canReadOpinions && questionsData?.data && Array.isArray(questionsData.data)
+    ? questionsData.data : [];
   
   // Debug
   useEffect(() => {
@@ -125,7 +128,11 @@ export default function OpinioniRegionali() {
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("R", newOpinions),
-    onSuccess: (_data, savedOpinions) => {
+    onSuccess: async (_data, savedOpinions) => {
+      // An older in-flight GET must not restore the pre-save snapshot.
+      await queryClient.cancelQueries({
+        queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Regionale'],
+      });
       console.log('🔍 DEBUG saveMutation.onSuccess:', data);
       toast({ title: "Successo", description: "Le tue opinioni regionali sono state salvate." });
       queryClient.setQueryData(
