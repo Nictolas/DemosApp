@@ -14,7 +14,7 @@ const authToken = [ 'eyJhbGciOiJub25lIn0',
 
 const ownerProfile = {
   id: OWNER, ruolo: 'AD', status: 'A', nome: 'Finto', cognome: 'Utente',
-  data_nascita: '1990-04-01', cittadinanza: 'Italiana',
+  data_nascita: '24/10/1990', cittadinanza: 'Italiana',
   paese_residenza: 'Italia', regione_residenza: 'Toscana',
   provincia_residenza: 'Pisa', comune_residenza: 'Comune Inventato',
   telefono: '000 000 0000',
@@ -94,6 +94,8 @@ async function main() {
     await page.goto(BASE + '/profilo', { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: 'Profilo Utente' }).waitFor({ timeout: 25000 });
     await page.getByText('Comune Inventato', { exact: false }).first().waitFor({ timeout: 30000 });
+    await page.getByText('Nascita: 1990', { exact: false }).first().waitFor();
+    assert.ok(await page.locator('nav.app-bottom-nav a[href="/profilo"]').count(), 'Reader profile remains navigable');
     assert.equal(await page.getByText('Dati personali completi').count(), 1);
     const personal = page.locator('details').filter({ has: page.getByText('Dati personali completi') });
     assert.equal(await personal.evaluate(el => el.open), false, 'Personal fields closed by default');
