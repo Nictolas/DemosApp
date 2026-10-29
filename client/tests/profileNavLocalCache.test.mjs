@@ -177,7 +177,7 @@ test("authenticated app startup consistently opens Profile and not Favorites", (
   assert.ok(auth.includes('return <Redirect to="/profilo" />;'));
   assert.ok(!landing.includes('return <Redirect to="/preferiti" />;'));
   assert.ok(!auth.includes('return <Redirect to="/preferiti" />;'));
-  assert.match(read("hooks/useAuthLogin.ts"), /window\\.location\\.href = "\\/profilo"/);
+  assert.ok(read("hooks/useAuthLogin.ts").includes('window.location.href = "/profilo"'));
   // Intentional Favorites navigation and admin guard remain untouched.
   assert.ok(profile.includes('<Link href="/preferiti"'));
   assert.ok(wrapper.includes('return <Redirect to="/preferiti" />;'));
