@@ -114,7 +114,7 @@ test("opening profile loads just summary; political API requests require expansi
 
 test("successful login and onboarding open Profile as the new home", () => {
   assert.doesNotMatch(read("hooks/useAuthLogin.ts"), /window\.location\.href = "\/preferiti"/);
-  assert.match(read("hooks/useAuthLogin.ts"), /window\.location\.href = "\/profilo"/);
+  assert.ok(read("hooks/useAuthLogin.ts").includes('window.location.href = "/profilo"'));
   assert.match(read("pages/registrazione-crea-passkey.tsx"), /window\.location\.href = "\/profilo"/);
   assert.match(read("pages/registrazione-3-residenza.tsx"), /navigate\("\/profilo"\)/);
   assert.match(read("pages/registrazione-ruolo.tsx"), /navigate\("\/profilo"\)/);
@@ -164,4 +164,21 @@ test("profile shows the concise personal summary and edit action without duplica
   assert.ok(!hook.includes("panels.personal"));
   assert.ok(!hook.includes("personal: false"));
   assert.ok(hook.includes("const needFull = panels.edit ||"));
+});
+
+test("authenticated app startup consistently opens Profile and not Favorites", () => {
+  const wrapper = read("components/AppWrapper.tsx");
+  const landing = read("pages/LandingPage.tsx");
+  const auth = read("pages/auth-page.tsx");
+  assert.ok(wrapper.includes("if (!isAuthLoading && user && location === '/')"));
+  assert.ok(wrapper.includes("setLocation('/profilo');"));
+  assert.ok(!wrapper.includes("setLocation('/preferiti');"));
+  assert.ok(landing.includes('return <Redirect to="/profilo" />;'));
+  assert.ok(auth.includes('return <Redirect to="/profilo" />;'));
+  assert.ok(!landing.includes('return <Redirect to="/preferiti" />;'));
+  assert.ok(!auth.includes('return <Redirect to="/preferiti" />;'));
+  assert.ok(read("hooks/useAuthLogin.ts").includes('window.location.href = "/profilo"'));
+  // Intentional Favorites navigation and admin guard remain untouched.
+  assert.ok(profile.includes('<Link href="/preferiti"'));
+  assert.ok(wrapper.includes('return <Redirect to="/preferiti" />;'));
 });

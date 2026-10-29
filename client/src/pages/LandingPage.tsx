@@ -11,7 +11,7 @@ export default function LandingPage() {
   const isMobileLayout = useMobile();
 
   if (user && !isLoading) {
-    return <Redirect to="/preferiti" />;
+    return <Redirect to="/profilo" />;
   }
 
   if (isLoading) {
