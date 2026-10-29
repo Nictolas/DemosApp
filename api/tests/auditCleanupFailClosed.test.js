@@ -140,7 +140,7 @@ test('audit dashboard read failures never disclose raw provider exceptions in HT
 
 test('audit dashboard and service avoid logging raw provider error objects', () => {
   const serviceSource = fs.readFileSync(path.join(__dirname, '../services/auditService.js'), 'utf8');
-  assert.doesNotMatch(source, /console\\.error\\([^\\n]*,\\s*error\\)/);
-  assert.doesNotMatch(source, /message:\\s*error\\.message/);
-  assert.doesNotMatch(serviceSource, /console\\.error\\([^\\n]*,\\s*error\\)/);
+  assert.doesNotMatch(source, /console\.error\([^\n]*,\s*error\)/);
+  assert.doesNotMatch(source, /message:\s*error\.message/);
+  assert.doesNotMatch(serviceSource, /console\.error\([^\n]*,\s*error\)/);
 });
