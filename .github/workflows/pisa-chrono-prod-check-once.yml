@@ -17,7 +17,7 @@ jobs:
           (async()=>{
             let found = null;
             for (let attempt=1;attempt<=12;attempt++){
-              const url=(attempt%2===0?'https://api.demos.community':'https://demos-c7k0.onrender.com')+'/api/eventi/pubblici?__pisa_verify='+Date.now();
+              const url='https://api.demos.community/api/eventi/pubblici?__pisa_verify='+Date.now();
               const r=await fetch(url,{headers:{Accept:'application/json','Cache-Control':'no-cache'},
                 signal:AbortSignal.timeout(20000)});
               const body=await r.json();
