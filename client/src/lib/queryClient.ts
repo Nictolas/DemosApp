@@ -114,7 +114,7 @@ const apiRequestFunction = async (method: string, url: string, body?: any, custo
     
     // A successful local write is the explicit invalidation event.
     // Other users' pages and reads never trigger this path.
-    if (method !== "GET" && /^\/api\/(?:users(?:\/me|\/profile)?|user\/political-opinions-consent|rappresentanti|candidati|governo|opinioni)(?:\/|$)/.test(url)) {
+    if (method !== "GET" && /^\/api\/(?:users(?:\/me|\/profile)?|user\/political-opinions-consent|rappresentanti|candidati|governo|opinioni|capo-stato|grazia|amnistia|iniziative-popolari|sostenitori)(?:\/|$)/.test(url)) {
       await clearAllEncryptedProfiles();
       queryClient.removeQueries({ queryKey: ["profilePolitical"] });
       queryClient.removeQueries({ queryKey: ["profileFull"] });
