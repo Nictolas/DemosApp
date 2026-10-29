@@ -166,7 +166,9 @@ async function retrieve(fetchImpl = fetch, now = new Date()) {
 function signature(event) {
   const city = normalize(event.comune_evento);
   if (!city) return '';
-  const day = clean(event.giorno_inizio, 30).slice(0, 10);
+  const rawDay = event.giorno_inizio;
+  const day = rawDay instanceof Date ? rawDay.toISOString().slice(0, 10) :
+    clean(rawDay, 30).slice(0, 10);
   return [normalize(event.nome_evento), day, city].join('|');
 }
 
