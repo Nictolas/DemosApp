@@ -19,6 +19,7 @@ import { ITALY_DATA } from "@/data/italyData";
 import DatePicker from "@/components/DatePicker";
 import { formatEventoLocation, formatEventoElezioniLocation, decompressPaeseEvento, decompressRegioneEvento, decompressProvinciaEvento, compressPaeseEvento, compressRegioneEvento, compressProvinciaEvento } from "@/utils/eventiGeographicUtils";
 import { composeTerritorialEvents, type EventRecord, type EventTerritory } from "@/utils/eventTerritoryView";
+import { PageContainer } from "@/components/PageContainer";
 
 // Schema di validazione per il form di modifica
 const eventoSchema = z.object({
@@ -291,11 +292,11 @@ export default function Eventi() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 select-none page-with-navbar" style={{ paddingBottom: '280px' }}>
-      <div className="container mx-auto px-4 py-8">
-        
+    <PageContainer className="eventi-page overflow-hidden select-none bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="shrink-0 border-b border-slate-200/70 bg-white/90 px-3 pb-3 pt-3 sm:px-6 sm:pt-4">
+        <div className="mx-auto w-full max-w-4xl">
         {/* Intestazione più compatta e navigazione leggibile da smartphone */}
-        <header className="mb-5 text-center">
+        <header className="mb-3 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Calendar className="h-7 w-7 text-blue-600" aria-hidden="true" />
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Eventi</h1>
@@ -305,7 +306,7 @@ export default function Eventi() {
           </p>
         </header>
 
-        <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-sm p-1.5 mb-3">
+        <div className="rounded-2xl bg-white/95 border border-slate-200 shadow-sm p-1 mb-2">
           <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Visualizza eventi per territorio">
             {([
               { value: 'personal', label: 'Personali' },
@@ -329,7 +330,7 @@ export default function Eventi() {
             ))}
           </div>
         </div>
-        <p className="mb-5 px-2 text-xs sm:text-sm text-center text-slate-500">
+        <p className="px-2 text-xs sm:text-sm text-center text-slate-500" aria-live="polite">
           {activeTab === 'personal'
             ? provinciaLabel
               ? `Eventi dei soggetti seguiti e appuntamenti in provincia di ${provinciaLabel}`
@@ -341,6 +342,17 @@ export default function Eventi() {
               : 'Tutti gli eventi pubblici e le mobilitazioni in Italia'}
         </p>
 
+        </div>
+      </div>
+
+      {/* Titolo, filtri e descrizione restano fissi; soltanto le card scorrono. */}
+      <div
+        className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 pt-4 sm:px-6 sm:pb-6"
+        role="region"
+        aria-label="Elenco eventi"
+        tabIndex={0}
+      >
+        <div className="mx-auto w-full max-w-4xl">
         {/* Schede Eventi */}
         <div className="space-y-4">
           {eventiLoading ? (
@@ -554,6 +566,7 @@ export default function Eventi() {
             </a>
           </p>
         )}
+        </div>
       </div>
 
       {/* Modal per modificare evento */}
@@ -899,6 +912,6 @@ export default function Eventi() {
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 } 
