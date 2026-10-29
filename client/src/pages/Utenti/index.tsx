@@ -692,7 +692,7 @@ export default function Utenti() {
                         Le stime non vengono salvate nel profilo e sono superate dalla residenza indicata dal politico.
                       </p>
                       <p className="text-sm text-muted-foreground mb-3">
-                        Regione non disponibile per {stats.usersByRegionWithEstimates['N/A'] ?? 0} utenti.
+                        Regione non disponibile per {stats.usersByRegionWithEstimates['N/A'] ?? 0} {(stats.usersByRegionWithEstimates['N/A'] ?? 0) === 1 ? 'utente' : 'utenti'}.
                       </p>
                       <div className="w-full overflow-x-auto pb-2" aria-label="Grafico delle regioni ordinato per numero di utenti">
                         <div className="h-[380px] w-full" style={{ minWidth: `${Math.max(640, regionBarData.length * 72)}px` }}>
