@@ -99,7 +99,9 @@ router.delete('/', verifyToken, async (req, res) => {
 
     // Log dell'inizio della cancellazione
     await AuditService.logAction({
-      userId: userId,
+      // An audit entry can outlive deletion in Axiom or the SQL fallback.
+      // Failed attempts remain attributable via ACCOUNT_DELETION_ERROR.
+      userId: null,
       action: 'ACCOUNT_DELETION_STARTED',
       resource: 'user_account',
       details: {
