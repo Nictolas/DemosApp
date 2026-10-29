@@ -1,0 +1,31 @@
+name: Institutional political crosswalk — offline gate
+
+on:
+  pull_request:
+    paths:
+      - 'api/utils/politicalIdentityCrosswalkAudit.js'
+      - 'api/scripts/audit-political-crosswalk.js'
+      - 'api/tests/politicalIdentityCrosswalkAudit.test.js'
+      - 'api/docs/political-identity-crosswalk-20261029.md'
+      - '.github/workflows/political-identity-crosswalk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-readonly-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify pure offline audit and blockers
+        run: |
+          node --check api/utils/politicalIdentityCrosswalkAudit.js
+          node --check api/scripts/audit-political-crosswalk.js
+          node --test api/tests/politicalIdentityCrosswalkAudit.test.js
