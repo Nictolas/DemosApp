@@ -183,6 +183,22 @@ test("profile shows the concise personal summary and edit action without duplica
   assert.ok(hook.includes("const needFull = panels.edit ||"));
 });
 
+test("own profile shows a pencil next to demographic summary instead of a full-width edit button", () => {
+  const summary = profileInfo.indexOf('className="mt-1 flex min-w-0 items-center gap-1"');
+  const birthYear = profileInfo.indexOf('birthYear !== "Non specificato"', summary);
+  const pencil = profileInfo.indexOf('data-testid="profilo-modifica-icon"', summary);
+  const location = profileInfo.indexOf('locationSummary &&', summary);
+  assert.ok(summary >= 0 && birthYear > summary && pencil > birthYear && location > pencil,
+    "The edit control must sit alongside birth year and citizenship before location");
+  assert.match(profileInfo, /\{canEdit && !isEditing && \(\s*<button/);
+  assert.match(profileInfo, /aria-label="Modifica profilo"/);
+  assert.match(profileInfo, /title="Modifica profilo"/);
+  assert.match(profileInfo, /onClick=\{onEditClick\}/);
+  assert.match(profileInfo, /h-11 w-11 shrink-0 items-center justify-center/);
+  assert.match(profileInfo, /<Edit aria-hidden="true" className="h-4 w-4" \/>/);
+  assert.doesNotMatch(profileInfo, /mt-3 h-9 w-full gap-2/);
+});
+
 test("authenticated app startup consistently opens Profile and not Favorites", () => {
   const wrapper = read("components/AppWrapper.tsx");
   const landing = read("pages/LandingPage.tsx");
