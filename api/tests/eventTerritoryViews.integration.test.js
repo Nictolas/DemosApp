@@ -103,3 +103,14 @@ test('public global uses anonymous API, and backend public SQL denies pending/re
   assert.match(publicRoute, /Cache-Control/);
   assert.match(router, /router\.get\('\/', verifyToken/);
 });
+
+test('Chrono source attribution is displayed only once, not inside each event card', () => {
+  const client = fs.readFileSync(path.join(root, 'client/src/pages/Eventi.tsx'), 'utf8');
+  const cardBlock = client.slice(client.indexOf('eventi.map((evento: any)'), client.indexOf('/* Modal per modificare evento */'));
+  assert.doesNotMatch(cardBlock, /Fonte: Chrono Collective/);
+  assert.match(cardBlock, /Dati delle mobilitazioni:/);
+  assert.equal((cardBlock.match(/Dati delle mobilitazioni:/g) || []).length, 1);
+  assert.match(cardBlock, /https:\/\/mobilitazioni\.chronocol\.com\//);
+  assert.match(cardBlock, /evento\.external_import \? 'Fine: '/);
+  assert.match(cardBlock, /evento\.external_import && evento\.orario_fine/);
+});
