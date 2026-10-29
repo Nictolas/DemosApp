@@ -11,6 +11,7 @@ on:
       - 'api/tests/politicalInstitutionalCrosswalk.pg17.sql'
       - 'api/tests/fixtures/politicalInstitutionalCrosswalk.pg17.fixture.sql'
       - 'api/tests/politicalInstitutionalCrosswalk.concurrent.sh'
+      - 'api/scripts/audit-political-legacy-role-impact-20261029.sql'
       - '.github/workflows/political-identity-crosswalk.yml'
   workflow_dispatch:
 
@@ -71,3 +72,5 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f api/tests/politicalInstitutionalCrosswalk.pg17.sql
       - name: Two concurrent attempts to import same official ID
         run: bash api/tests/politicalInstitutionalCrosswalk.concurrent.sh
+      - name: Execute aggregate role-impact report against synthetic fixtures
+        run: psql -X -v ON_ERROR_STOP=1 -f api/scripts/audit-political-legacy-role-impact-20261029.sql
