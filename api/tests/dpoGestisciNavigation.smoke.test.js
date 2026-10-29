@@ -70,3 +70,13 @@ test('main logos link Admin and DPO capabilities to Gestisci without legacy-role
   assert.match(desktop, /hasAdminCapability\(user\) \|\| hasDpoCapability\(user\)/);
   assert.match(desktop, /if \(canOpenGestisci\) setLocation\("\/gestisci"\)/);
 });
+
+test('personal Profile reuses Demos logo and Gestisci capability without extra data reads', () => {
+  const profile = read('client/src/pages/Profilo/index.tsx');
+  assert.match(profile, /src="\\/icona\\.png"/);
+  assert.match(profile, /isViewingOwnProfile && \\(/);
+  assert.match(profile, /hasAdminCapability\\(user\\) \\|\\| hasDpoCapability\\(user\\)/);
+  assert.match(profile, /onClick=\\{\\(\\) => setLocation\\("\\/gestisci"\\)\\}/);
+  assert.match(profile, /aria-label="Vai a Gestisci"/);
+  assert.match(profile, /data-testid="profilo-logo-gestisci"/);
+});
