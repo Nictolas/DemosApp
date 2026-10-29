@@ -1,12 +1,9 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Edit, Image, Heart, User } from "lucide-react";
-import { useLocation } from "wouter";
+import { Edit, MapPin, User } from "lucide-react";
 import { UserInfo } from "@/types/profile";
-import { TIPOLOGIE_ATTIVISMO } from "@/constants/attivismo-types";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 interface ProfileInfoProps {
@@ -15,314 +12,160 @@ interface ProfileInfoProps {
   onEditClick: () => void;
   onModificaImmagine: () => void;
   canEdit?: boolean;
+  isOwnProfile?: boolean;
   avatarConfig?: any;
 }
 
-export const ProfileInfo = ({ 
-  userInfo, 
-  isEditing, 
-  onEditClick, 
+export const ProfileInfo = ({
+  userInfo,
+  isEditing,
+  onEditClick,
   onModificaImmagine,
   canEdit = true,
-  avatarConfig
+  isOwnProfile = true,
+  avatarConfig,
 }: ProfileInfoProps) => {
-  const [, setLocation] = useLocation();
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
+  const [showEditConfirmation, setShowEditConfirmation] = useState(false);
 
-  // Funzione per verificare se l'utente di cui si sta visualizzando il profilo ha uno dei ruoli che possono avere l'avatar
-  // IMPORTANTE: controlla il ruolo dell'utente di cui si sta visualizzando il profilo (userInfo.ruolo), non di chi guarda
-  const canShowAvatar = () => {
-    const ruolo = userInfo.ruolo;
-    // Verifica sia i codici abbreviati che i nomi completi
-    return (
-      ruolo === "P" || ruolo === "Politico" ||
-      ruolo === "C" || ruolo === "Candidato" || ruolo === "CP" || ruolo === "Candidato Politico" ||
-      ruolo === "AD" || ruolo === "Admin"
-    );
-  };
+  // Tutti gli account possono riconoscere e modificare il proprio avatar.
+  const canShowAvatar = true;
+  const canShowFullName = ["P", "Politico", "C", "Candidato", "CP", "Candidato Politico"].includes(userInfo.ruolo);
 
-  // Funzione per ottenere la configurazione avatar parsata
-  const getAvatarConfig = () => {
-    if (!avatarConfig) {
+  const fullName = userInfo.nome_completo ||
+    [userInfo.nome, userInfo.cognome].filter(Boolean).join(" ") || "Nome non disponibile";
+
+  // La data completa non va mostrata: basta l'anno.
+  const birthYear = (() => {
+    if (!userInfo.data_nascita) return "Non specificato";
+    const value = String(userInfo.data_nascita).trim();
+    if (/^\d{4}$/.test(value)) return value;
+    // L'API /users/me usa DD/MM/YYYY per le date complete: Date.parse non lo supporta.
+    const italianDate = value.match(/^\d{1,2}\/\d{1,2}\/(\d{4})$/);
+    if (italianDate) return italianDate[1];
+    const isoDate = value.match(/^(\d{4})-\d{2}-\d{2}/);
+    if (isoDate) return isoDate[1];
+    return "Non specificato";
+  })();
+
+  const parsedAvatar = (() => {
+    if (!avatarConfig) return null;
+    try {
+      let parsed = typeof avatarConfig === "string" ? JSON.parse(avatarConfig) : avatarConfig;
+      if (typeof parsed === "string") parsed = JSON.parse(parsed);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
       return null;
     }
-    
-    // Se è già un oggetto, restituiscilo
-    if (typeof avatarConfig === 'object' && avatarConfig !== null) {
-      return avatarConfig;
-    }
-    
-    // Se è una stringa, prova a parsarla
-    if (typeof avatarConfig === 'string') {
-      try {
-        let parsed = JSON.parse(avatarConfig);
-        // Se il risultato è ancora una stringa, fai un secondo parse (caso doppia serializzazione)
-        if (typeof parsed === 'string') {
-          parsed = JSON.parse(parsed);
-        }
-        return parsed;
-      } catch (e) {
-        console.warn('Errore nel parsing avatar config:', e);
-        return null;
-      }
-    }
-    
-    return null;
-  };
+  })();
 
-  // Componente placeholder grigio per avatar vuoto
-  const AvatarPlaceholder = ({ size = 120 }: { size?: number }) => (
-    <div 
-      className="rounded-full bg-gray-300 flex items-center justify-center"
-      style={{ width: size, height: size }}
-    >
-      <User className="text-gray-500" size={size * 0.5} />
-    </div>
-  );
+  const locationSummary = [
+    userInfo.comune_residenza,
+    userInfo.provincia_residenza,
+  ].filter(Boolean).join(", ");
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'Non specificata';
-    if (dateString.includes('/') && dateString.split('/').length === 3) return dateString;
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-      return date.toLocaleDateString('it-IT');
-    } catch {
-      return dateString;
-    }
-  };
-
-  // GDPR: in profilo mostriamo solo l'anno di nascita
-  const formatBirthYear = (dateString: string | undefined) => {
-    if (!dateString) return 'Non specificato';
-    const s = String(dateString).trim();
-    if (/^\d{4}$/.test(s)) return s;
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-      return String(date.getFullYear());
-    } catch {
-      return dateString;
-    }
-  };
-
-  const getFullName = () => {
-    if (userInfo.nome_completo) {
-      return userInfo.nome_completo;
-    }
-    if (userInfo.nome && userInfo.cognome) {
-      return `${userInfo.nome} ${userInfo.cognome}`;
-    }
-    return userInfo.nome || userInfo.cognome || 'Nome non disponibile';
-  };
-
-  const canShowFullName = () => {
-    const ruolo = userInfo.ruolo;
-    return (
-      ruolo === "P" || ruolo === "Politico" ||
-      ruolo === "C" || ruolo === "Candidato" ||
-      ruolo === "CP" || ruolo === "Candidato Politico"
-    );
-  };
 
   return (
-    <div>
-      <Card className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
-        {/* Decorative background */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-purple-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-400/20 to-orange-500/20 rounded-full translate-y-12 -translate-x-12"></div>
-        
-        <CardHeader className="relative">
-          <CardTitle className="flex items-center gap-3 text-xl lg:text-2xl font-bold">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shrink-0">
-              <Image className="h-5 w-5 text-white" />
-            </div>
-            <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-              Informazioni Profilo
-            </span>
-          </CardTitle>
-          <CardDescription className="text-gray-600 text-base">
-            I tuoi dati personali e informazioni di contatto
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="relative">
-          {/* Avatar - Solo per Politico, Candidato e Admin */}
-          {/* Mostra sempre l'avatar se l'utente di cui si sta visualizzando il profilo ha uno dei ruoli richiesti */}
-          {canShowAvatar() && (
-            <div className="mb-8 flex justify-center">
-              <div 
-                className={`p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg ${canEdit ? 'cursor-pointer hover:shadow-xl transition-shadow duration-300' : ''}`}
-                onClick={canEdit ? () => setShowAvatarDialog(true) : undefined}
-                title={canEdit ? "Clicca per modificare l'avatar" : undefined}
-              >
-                {getAvatarConfig() ? (
-                  <CustomAvatar 
-                    config={getAvatarConfig()} 
-                    size={120} 
-                    className="rounded-full"
-                  />
-                ) : (
-                  <AvatarPlaceholder size={120} />
-                )}
-              </div>
+    <Card className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          {canShowAvatar && (
+            <div className="relative shrink-0">
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarDialog(true)}
+                  className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-xl border border-indigo-200 bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  aria-label="Modifica avatar"
+                >
+                  {parsedAvatar ? <CustomAvatar config={parsedAvatar} size={68} /> : <User className="h-9 w-9 text-slate-500" />}
+                </button>
+              ) : (
+                <div className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-xl border border-indigo-200 bg-indigo-50">
+                  {parsedAvatar ? <CustomAvatar config={parsedAvatar} size={68} /> : <User className="h-9 w-9 text-slate-500" />}
+                </div>
+              )}
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              {canShowFullName() && (
-                <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
-                  <label className="text-sm font-semibold text-blue-700 uppercase tracking-wider">Nome Completo</label>
-                  <p className="text-xl font-bold text-gray-900 mt-1">{getFullName()}</p>
-                </div>
-              )}
-              
-              <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
-                <label className="text-sm font-semibold text-purple-700 uppercase tracking-wider">Anno di nascita</label>
-                <p className="text-lg font-semibold text-gray-900 mt-1">{formatBirthYear(userInfo.data_nascita)}</p>
-              </div>
-              
-              {/* Genere visibile solo per Politico (P), Candidato (C), Candidato Politico (CP) */}
-              {canShowFullName() && (
-                <div className="p-4 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200">
-                  <label className="text-sm font-semibold text-orange-700 uppercase tracking-wider">Genere</label>
-                  <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.genere || 'Non specificato'}</p>
-                </div>
-              )}
-              
-              {userInfo.cittadinanza && (
-                <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200">
-                  <label className="text-sm font-semibold text-yellow-700 uppercase tracking-wider">Cittadinanza</label>
-                  <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.cittadinanza}</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-6">
-              <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200">
-                <label className="text-sm font-semibold text-cyan-700 uppercase tracking-wider">Paese</label>
-                <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.paese_residenza || 'Non specificato'}</p>
-              </div>
-              
-              <div className="p-4 rounded-xl bg-gradient-to-r from-teal-50 to-green-50 border border-teal-200">
-                <label className="text-sm font-semibold text-teal-700 uppercase tracking-wider">Regione</label>
-                <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.regione_residenza || 'Non specificata'}</p>
-              </div>
-              
-              <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200">
-                <label className="text-sm font-semibold text-indigo-700 uppercase tracking-wider">Provincia</label>
-                <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.provincia_residenza || 'Non specificata'}</p>
-              </div>
-              
-              <div className="p-4 rounded-xl bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200">
-                <label className="text-sm font-semibold text-pink-700 uppercase tracking-wider">Comune</label>
-                <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.comune_residenza || 'Non specificato'}</p>
-              </div>
-            </div>
-          </div>
-          
-          {(userInfo.professione || userInfo.istruzione || userInfo.telefono) && (
-            <div className="mt-8 pt-8 border-t border-gray-200">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center">
-                  <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                Informazioni Aggiuntive
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {userInfo.professione && (
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200">
-                    <label className="text-sm font-semibold text-amber-700 uppercase tracking-wider">Professione</label>
-                    <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.professione}</p>
-                  </div>
-                )}
-                
-                {userInfo.istruzione && (
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200">
-                    <label className="text-sm font-semibold text-emerald-700 uppercase tracking-wider">Istruzione</label>
-                    <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.istruzione}</p>
-                  </div>
-                )}
-                
-                {userInfo.telefono && (
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200">
-                    <label className="text-sm font-semibold text-violet-700 uppercase tracking-wider">Telefono</label>
-                    <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.telefono}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Sezione Tipologie di Attivismo - Solo per Attivisti e Admin */}
-          {(userInfo.ruolo === "A" || userInfo.ruolo === "AD") && userInfo.tipologie_attivismo && userInfo.tipologie_attivismo.length > 0 && (
-            <div className="mt-8 pt-8 border-t border-gray-200">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
-                  <Heart className="h-3 w-3 text-white" />
-                </div>
-                Tipologie di Attivismo
-              </h3>
-              <div className="flex flex-wrap gap-3">
-                {userInfo.tipologie_attivismo.map((tipo) => {
-                  const tipologia = TIPOLOGIE_ATTIVISMO.find(t => t.tipo === tipo);
-                  if (!tipologia) return null;
-                  
-                  return (
-                    <Badge
-                      key={tipo}
-                      variant="secondary"
-                      className="flex items-center gap-2 px-4 py-2 text-sm"
-                      style={{ backgroundColor: `${tipologia.colore}20`, color: tipologia.colore }}
+          <div className="min-w-0 flex-1">
+            {(canShowFullName || !isOwnProfile) && (
+              <h2 className="text-lg font-bold leading-tight text-slate-900">
+                {canShowFullName ? fullName : "Profilo pubblico"}
+              </h2>
+            )}
+            {isOwnProfile ? (
+              <>
+                <div className={`flex min-w-0 items-center gap-1 ${canShowFullName ? "mt-1" : ""}`}>
+                  <p className="min-w-0 flex-1 break-words text-sm text-slate-600">
+                    {birthYear !== "Non specificato" ? `Nascita: ${birthYear}` : "Anno di nascita non specificato"}
+                    {userInfo.cittadinanza ? ` · ${userInfo.cittadinanza}` : ""}
+                  </p>
+                  {canEdit && !isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEditConfirmation(true)}
+                      aria-label="Modifica profilo"
+                      title="Modifica profilo"
+                      data-testid="profilo-modifica-icon"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-indigo-100 text-indigo-700 transition-colors hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
                     >
-                      <span className="text-lg">{tipologia.emoji}</span>
-                      <span className="font-medium">{tipologia.nome}</span>
-                    </Badge>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </CardContent>
-        
-        <CardFooter className="relative flex gap-3 pt-6">
-          {canEdit && !isEditing && (
-            <Button 
-              onClick={onEditClick}
-              className="flex-1 h-12 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
-            >
-              <div className="h-6 w-6 rounded-md bg-white flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                <Edit className="h-3 w-3 text-white" />
-              </div>
-              <span className="font-semibold text-white">Modifica Profilo</span>
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
+                      <Edit aria-hidden="true" className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {locationSummary && (
+                  <p className="mt-1 flex items-start gap-1 text-sm text-slate-600">
+                    <MapPin aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span className="break-words">{locationSummary}</span>
+                  </p>
+                )}
+                {userInfo.regione_residenza && (
+                  <p className="mt-0.5 text-xs text-slate-500">{userInfo.regione_residenza}</p>
+                )}
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-slate-600">Profilo pubblico</p>
+            )}
+          </div>
+        </div>
 
-      {/* Dialog di conferma per modificare l'avatar */}
-      <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
+      </CardContent>
+
+      <Dialog open={showEditConfirmation} onOpenChange={setShowEditConfirmation}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle>Modifica Avatar</DialogTitle>
+            <DialogTitle>Vuoi modificare il profilo?</DialogTitle>
             <DialogDescription>
-              Vuoi modificare il tuo avatar?
+              Potrai aggiornare i tuoi dati e scegliere se salvare le modifiche.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAvatarDialog(false)}>
-              Annulla
-            </Button>
-            <Button onClick={() => {
-              setShowAvatarDialog(false);
-              onModificaImmagine();
-            }}>
-              Conferma
+            <Button type="button" variant="outline" onClick={() => setShowEditConfirmation(false)}>Annulla</Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setShowEditConfirmation(false);
+                onEditClick();
+              }}
+            >
+              Procedi
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+
+      <Dialog open={showAvatarDialog} onOpenChange={setShowAvatarDialog}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>Modifica avatar</DialogTitle>
+            <DialogDescription>Vuoi modificare il tuo avatar?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAvatarDialog(false)}>Annulla</Button>
+            <Button onClick={() => { setShowAvatarDialog(false); onModificaImmagine(); }}>Conferma</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 };
