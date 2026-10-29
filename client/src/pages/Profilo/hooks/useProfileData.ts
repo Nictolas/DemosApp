@@ -76,7 +76,7 @@ function normalizedAnswers(raw: Record<string, unknown>): Record<string, string>
 }
 
 export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_PROFILE_PANELS) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isSessionVerified, verifiedPoliticalConsent } = useAuth();
   const authReady = useAuthReady();
   const client = useQueryClient();
   const [vaultOwner, setVaultOwner] = useState<string | null>(null);
@@ -87,21 +87,28 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
   const vaultReady = !ownProfile || vaultOwner === ownerId;
 
   useEffect(() => {
-    if (!ownProfile || !enabled) {
+    if (!ownProfile || !enabled || !isSessionVerified || !verifiedPoliticalConsent) {
       setVaultOwner(null);
       return;
     }
     let active = true;
     setVaultOwner(null);
-    void loadEncryptedProfile(ownerId).then(snapshot => {
+    void loadEncryptedProfile(ownerId).then(async snapshot => {
       if (!active) return;
-      if (snapshot?.consent) {
-        client.setQueryData(["profileConsent", ownerId], snapshot.consent);
-        const epoch = snapshot.consent.timestamp || "legacy";
-        if (snapshot.full) {
-          client.setQueryData(["profileFull", ownerId, epoch], snapshot.full);
-          client.setQueryData(["profileFull", ownerId, "personal"], snapshot.full);
-        }
+      const currentEpoch = verifiedPoliticalConsent.timestamp || "legacy";
+      // The authorization version is supplied by the already mandatory
+      // /auth/me request; a revoked/regranted consent cannot revive old data.
+      const matches = snapshot?.consent?.granted === true &&
+        verifiedPoliticalConsent.granted === true &&
+        (snapshot?.consent?.timestamp || "legacy") === currentEpoch;
+      if (!matches) {
+        if (snapshot) await clearEncryptedProfile(ownerId);
+        if (!active) return;
+        client.removeQueries({ queryKey: ["profilePolitical", ownerId] });
+        client.removeQueries({ queryKey: ["profileFull", ownerId] });
+      } else if (snapshot) {
+        client.setQueryData(["profileFull", ownerId, currentEpoch], snapshot.full || undefined);
+        client.setQueryData(["profileFull", ownerId, "personal"], snapshot.full || undefined);
         const sections = [
           ["government", snapshot.government],
           ["representatives", snapshot.representatives],
@@ -110,16 +117,15 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
         ] as const;
         for (const [section, payload] of sections) {
           if (payload !== null) client.setQueryData(
-            ["profilePolitical", ownerId, epoch, section], payload,
+            ["profilePolitical", ownerId, currentEpoch, section], payload,
           );
         }
-      } else if (snapshot?.full) {
-        client.setQueryData(["profileFull", ownerId, "personal"], snapshot.full);
       }
-      setVaultOwner(ownerId);
+      if (active) setVaultOwner(ownerId);
     }).catch(() => { if (active) setVaultOwner(ownerId); });
     return () => { active = false; };
-  }, [ownerId, ownProfile, enabled, client]);
+  }, [ownerId, ownProfile, enabled, isSessionVerified,
+      verifiedPoliticalConsent?.granted, verifiedPoliticalConsent?.timestamp, client]);
 
   const saved = useMemo(
     () => ownProfile ? readProfileSummary(ownerId) : null,
@@ -152,32 +158,18 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
 
   const politicalPanelOpen = panels.representatives || panels.candidates ||
     panels.government || panels.opinions;
-  // One consent request on opening a political section. The result is NOT
-  // persisted and is rechecked after reopening or returning to the app.
-  const consent = useQuery<{ granted: boolean; timestamp: string | null }>({
-    queryKey: ["profileConsent", ownerId],
-    enabled: enabled && ownProfile && vaultReady && politicalPanelOpen,
-    queryFn: async () => {
-      const payload = await getPayload("/api/user/political-opinions-consent");
-      const result = {
-        granted: payload.consent?.granted === true,
-        timestamp: payload.consent?.timestamp || null,
-      };
-      // A locally saved snapshot must never remain after a server refusal.
-      if (result.granted) await patchEncryptedProfile(ownerId, { consent: result });
-      else await clearEncryptedProfile(ownerId);
-      return result;
-    },
-    staleTime: PROFILE_CACHE_FRESH,
-    gcTime: PROFILE_CACHE_GC,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
-  const politicalAllowed = ownProfile && vaultReady && consent.isSuccess &&
-    !consent.isRefetchError && consent.data?.granted === true;
-  // A revocation followed by a regrant changes the timestamp. That creates
-  // entirely new cache keys; choices from the earlier consent cannot reappear.
-  const politicalEpoch = consent.data?.timestamp || "legacy";
+  // The mandatory session authentication already includes the consent
+  // grant and epoch. Opening panels must not trigger a separate consent GET.
+  const consentVerified = isSessionVerified && verifiedPoliticalConsent !== null;
+  const politicalAllowed = ownProfile && vaultReady && consentVerified &&
+    verifiedPoliticalConsent?.granted === true;
+  const politicalEpoch = verifiedPoliticalConsent?.timestamp || "legacy";
+  const consent = {
+    isPending: !consentVerified,
+    isFetching: !isSessionVerified,
+    isSuccess: consentVerified,
+    data: verifiedPoliticalConsent,
+  };
 
   const needFull = panels.personal || panels.edit ||
     ((panels.representatives || panels.candidates || panels.opinions) && politicalAllowed);
@@ -243,13 +235,12 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
   });
 
   useEffect(() => {
-    if (ownProfile && consent.isSuccess && consent.data?.granted === false) {
-      // No old political results may remain accessible after local revocation.
+    if (ownProfile && isSessionVerified && verifiedPoliticalConsent?.granted === false) {
       client.removeQueries({ queryKey: ["profilePolitical", ownerId] });
       client.removeQueries({ queryKey: ["profileFull", ownerId] });
       void clearEncryptedProfile(ownerId);
     }
-  }, [client, ownProfile, ownerId, consent.data?.granted, consent.isSuccess]);
+  }, [client, ownProfile, ownerId, isSessionVerified, verifiedPoliticalConsent?.granted]);
 
   const fetchAllProfileData = useCallback(async () => {
     if (!enabled) return;
@@ -257,7 +248,7 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
       clearProfileSummary(ownerId);
       client.removeQueries({ queryKey: ["profileFull", ownerId] });
       client.removeQueries({ queryKey: ["profilePolitical", ownerId] });
-      client.removeQueries({ queryKey: ["profileConsent", ownerId] });
+      client.invalidateQueries({ queryKey: ["user"] });
       await clearEncryptedProfile(ownerId);
     }
     await summary.refetch();
