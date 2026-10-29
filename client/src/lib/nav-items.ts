@@ -1,7 +1,6 @@
 import {
-  Settings,
+  UserRound,
   Megaphone,
-  Star,
   Binoculars,
   PenLine,
   Bell,
@@ -30,10 +29,9 @@ function hasAdvancedAccess(userRole?: string): boolean {
 
 export const MAIN_NAV_ITEMS: NavItem[] = [
   {
-    path: "/preferiti",
-    label: "Preferiti",
-    icon: Star,
-    isVisible: (role) => role !== "I",
+    path: "/profilo",
+    label: "Profilo",
+    icon: UserRound,
   },
   {
     path: "/eventi",
@@ -60,11 +58,6 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     path: "/avvistamenti",
     label: "Avvistamenti",
     icon: Binoculars,
-  },
-  {
-    path: "/impostazioni",
-    label: "Impostazioni",
-    icon: Settings,
   },
 ];
 
