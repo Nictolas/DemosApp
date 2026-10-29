@@ -31,15 +31,15 @@ test('health SQL diagnostic is never routed when NODE_ENV is production',()=>{
 
 test('legacy SQL migrations and cleanup are guarded by non-production only',()=>{
   const app=read('app.js');
-  assert.match(app,/const mountDevApiSurface = !isProductionApp \\|\\| process\\.env\\.ALLOW_DEV_API_SURFACE === 'true';/);
-  assert.match(app,/if \\(!isProductionApp\\) \\{\\s*app\\.use\\('\\/api\\/migrations', migrationsRoutes\\);\\s*app\\.use\\('\\/api\\/cleanup', cleanupRoutes\\);\\s*app\\.use\\('\\/api\\/cleanup', cleanupRateLimitRoutes\\);\\s*\\}/);
+  assert.match(app,/const mountDevApiSurface = !isProductionApp \|\| process\.env\.ALLOW_DEV_API_SURFACE === 'true';/);
+  assert.match(app,/if \(!isProductionApp\) \{\s*app\.use\('\/api\/migrations', migrationsRoutes\);\s*app\.use\('\/api\/cleanup', cleanupRoutes\);\s*app\.use\('\/api\/cleanup', cleanupRateLimitRoutes\);\s*\}/);
   for(const segment of [
     "app.use('/api/migrations', migrationsRoutes)",
     "app.use('/api/cleanup', cleanupRoutes)",
     "app.use('/api/cleanup', cleanupRateLimitRoutes)"
   ])assert.equal(app.split(segment).length,2,segment);
-  assert.match(read('routes/cleanup.js'),/new Pool\\(\\{/);
-  assert.match(read('routes/migrations.js'),/new Pool\\(\\{/);
+  assert.match(read('routes/cleanup.js'),/new Pool\(\{/);
+  assert.match(read('routes/migrations.js'),/new Pool\(\{/);
   // This prevents the known legacy routes from being mounted through the
   // override flag. It is not a complete provider admission barrier.
 });
