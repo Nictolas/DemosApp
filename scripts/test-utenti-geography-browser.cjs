@@ -91,10 +91,20 @@ async function main() {
     assert.deepEqual(regionLabels, ['Piemonte', 'Emilia-Romagna', 'Lombardia', 'Toscana'], 'Regional bars must be descending, with alphabetical ties');
     assert.ok(await regionCard.getByText('Regione non disponibile per 1 utente.').count(), 'Missing region must be shown separately');
 
-    // Su smartphone tutte le etichette rimangono leggibili tramite scroll.
+    // Su smartphone si può scorrere dentro il grafico con il dito oppure
+    // con le frecce, senza spostare orizzontalmente l'intera pagina.
     await page.setViewportSize({ width: 390, height: 844 });
-    const regionOverflow = await regionCard.locator('.overflow-x-auto').evaluate(el => el.scrollWidth > el.clientWidth);
+    const chartScroll = regionCard.getByTestId('utenti-region-chart-scroll');
+    const regionOverflow = await chartScroll.evaluate(el => el.scrollWidth > el.clientWidth);
     assert.equal(regionOverflow, true, 'Regional chart must scroll horizontally on mobile');
+    const mobileTouchAction = await chartScroll.evaluate(el => getComputedStyle(el).touchAction);
+    assert.equal(mobileTouchAction, 'pan-x', 'Touch gestures inside the chart must be horizontal');
+    await regionCard.getByRole('button', { name: 'Mostra le regioni successive' }).click();
+    await page.waitForFunction(() => (document.querySelector('[data-testid="utenti-region-chart-scroll"]')?.scrollLeft || 0) > 70);
+    await regionCard.getByRole('button', { name: 'Mostra le regioni precedenti' }).click();
+    await page.waitForFunction(() => (document.querySelector('[data-testid="utenti-region-chart-scroll"]')?.scrollLeft || 0) < 2);
+    const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    assert.equal(pageOverflow, false, 'Horizontal chart scrolling must not overflow the page');
 
     const municipalCard = page.locator('div.bg-white').filter({ has: page.getByText('I 10 comuni di residenza o riferimento comunale') }).last();
     const table = municipalCard.locator('table');
