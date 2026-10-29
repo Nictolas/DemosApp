@@ -106,6 +106,17 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
         if (!active) return;
         client.removeQueries({ queryKey: ["profilePolitical", ownerId] });
         client.removeQueries({ queryKey: ["profileFull", ownerId] });
+        // Initialize the new authorization epoch BEFORE requesting any panels.
+        // Without this write every browser reload treats the encrypted vault
+        // as untrusted and unnecessarily re-fetches all six profile endpoints.
+        if (verifiedPoliticalConsent.granted) {
+          await patchEncryptedProfile(ownerId, {
+            consent: {
+              granted: true,
+              timestamp: verifiedPoliticalConsent.timestamp || null,
+            },
+          });
+        }
       } else if (snapshot) {
         client.setQueryData(["profileFull", ownerId, currentEpoch], snapshot.full || undefined);
         client.setQueryData(["profileFull", ownerId, "personal"], snapshot.full || undefined);
