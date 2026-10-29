@@ -20,10 +20,13 @@ Una esecuzione futura, se autorizzata su un ambiente davvero isolato con gli ste
 - `execution: ISOLATED_CLI_NOT_RUNNING_BACKEND`
 - `isolated_cli_staging_session_observed: true|false`
 - `in_process_staging_session_observed: false`
+- `least_privilege_catalog_match: true|false` (**soltanto** per la sessione CLI)
 - `sql_writer_attested: false`
 - `live_render_pool_verified: false`
 - `live_production_pool_verified: false`
 - `recoveryReady: false`
+
+Il nuovo controllo confronta `current_user` e `session_user` con il solo ruolo previsto **`demos_staging_runtime`**; richiede assenza di BYPASSRLS, owner non privilegiato, RLS+FORCE e ACL minime del ledger. Con `postgres`, `supabase_admin`, `service_role`, un worker read-only o grant inattesi il report è `NO_GO_STAGING_SQL_ROLE_OR_LEDGER_PRIVILEGES_MISMATCH`, anche se la SELECT ha avuto successo. La corrispondenza produce soltanto `READONLY_EXPECTED_STAGING_ROLE_NOT_RUNTIME` e mantiene `recoveryReady:false`. Evidenza di catalogo staging: `api/docs/gdpr-staging-ledger-live-catalog-audit-20261029.md`.
 
 Non attribuire mai il ruolo della CLI alle connessioni già aperte nell'app web, né al servizio `demos-backend` di produzione. **La prova del ruolo delle connessioni del backend Render live resta ancora mancante.** I metadati catalogo/RLS non provano che si possano salvare o cancellare dati attraverso gli ingressi consentiti; non provano la revoca di sessioni precedenti.
 
