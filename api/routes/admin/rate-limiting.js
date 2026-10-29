@@ -112,28 +112,12 @@ router.get('/check-ip/:ip', async (req, res) => {
   }
 });
 
-// Pulizia violazioni vecchie
-router.post('/cleanup', async (req, res) => {
-  try {
-    const { retentionDays = 30 } = req.body;
-    
-    const deletedCount = await RateLimitService.cleanupOldViolations(parseInt(retentionDays));
-    
-    res.json({
-      success: true,
-      message: `Pulizia completata: rimosse ${deletedCount} violazioni`,
-      data: {
-        deletedCount,
-        retentionDays: parseInt(retentionDays)
-      }
-    });
-  } catch (error) {
-    console.error('❌ Errore nella pulizia violazioni:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
+// RP-10 non approvata: non confermare falsi successi o cancellare eventi di sicurezza.
+router.post('/cleanup', async (_req, res) => {
+  return res.status(409).json({
+    success: false,
+    error: 'RETENTION_POLICY_NOT_APPROVED'
+  });
 });
 
 module.exports = router;
