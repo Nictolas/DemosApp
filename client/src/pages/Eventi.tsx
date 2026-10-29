@@ -467,7 +467,7 @@ export default function Eventi() {
                                   <div className="flex items-center">
                                     <Calendar className="h-4 w-4 text-gray-500 mr-2" />
                                     <span className="text-gray-600">
-                                      Inizio: {formatDate(evento.giorno_inizio)}
+                                      {evento.giorno_fine && evento.giorno_fine !== evento.giorno_inizio ? 'Inizio: ' : 'Quando: '}{formatDate(evento.giorno_inizio)}
                                       {evento.orario_inizio && (
                                         <> · {formatTime(evento.orario_inizio)}{evento.orario_fine && (!evento.external_import || !evento.giorno_fine || evento.giorno_fine === evento.giorno_inizio) && <>–{formatTime(evento.orario_fine)}</>}</>
                                       )}
@@ -489,28 +489,8 @@ export default function Eventi() {
                                   </div>
                                 )}
                                 
-                                {/* Orari senza secondo giorno */}
-                                {evento.giorno_fine && evento.giorno_fine === evento.giorno_inizio && !evento.orario_inizio_giorno2 && (
-                                  <>
-                                    {evento.orario_inizio && (
-                                      <div className="flex items-center">
-                                        <Clock className="h-4 w-4 text-gray-500 mr-2" />
-                                        <span className="text-gray-600">
-                                          Orario inizio: {formatTime(evento.orario_inizio)}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {evento.orario_fine && (
-                                      <div className="flex items-center">
-                                        <Clock className="h-4 w-4 text-gray-500 mr-2" />
-                                        <span className="text-gray-600">
-                                          Orario fine: {formatTime(evento.orario_fine)}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </>
-                                )}
-                                
+                                {/* Data e fascia oraria già nella riga Quando/Inizio; evitare duplicati. */}
+
                                 {/* Fallback per orario_evento se non ci sono i nuovi campi */}
                                 {!evento.giorno_inizio && !evento.orario_inizio && evento.orario_evento && (
                                   <div className="flex items-center">
