@@ -34,7 +34,7 @@ router.get('/requirements', verifyToken, async (req, res) => {
       requiresPassword
     });
   } catch (error) {
-    console.error('Errore nel recupero requisiti cancellazione account:', error);
+    console.error('ACCOUNT_DELETION_REQUIREMENTS_FAILED');
     return res.status(500).json({
       success: false,
       message: 'Errore interno del server'
@@ -139,7 +139,6 @@ router.delete('/', verifyToken, async (req, res) => {
       action: 'ACCOUNT_DELETION_COMPLETED',
       resource: 'user_account',
       details: {
-        deletedUserId: userId,
         timestamp: new Date().toISOString()
       }
     });
@@ -151,7 +150,7 @@ router.delete('/', verifyToken, async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Errore durante la cancellazione dell\'account:', error);
+    console.error('ACCOUNT_DELETION_FAILED');
     
     // Log dell'errore
     await AuditService.logAction({
@@ -159,7 +158,7 @@ router.delete('/', verifyToken, async (req, res) => {
       action: 'ACCOUNT_DELETION_ERROR',
       resource: 'user_account',
       details: {
-        error: error.message,
+        errorCode: 'ACCOUNT_DELETION_FAILED',
         timestamp: new Date().toISOString()
       }
     });
