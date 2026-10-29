@@ -750,6 +750,7 @@ export default function Utenti() {
                       <div
                         ref={setRegionChartScrollRef}
                         data-testid="utenti-region-chart-scroll"
+                        data-horizontal-swipe-region="true"
                         className="utenti-region-chart-scroll w-full max-w-full overflow-x-auto pb-2"
                         style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
                         role="region"
