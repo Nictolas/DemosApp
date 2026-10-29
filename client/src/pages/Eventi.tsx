@@ -423,20 +423,6 @@ export default function Eventi() {
                               <p className="mb-2 text-sm font-medium text-purple-700">Evento collegato a uno sciopero</p>
                             )}
                             
-                            {evento.external_import && (
-                              <div className="mb-3 space-y-2 text-sm text-gray-600">
-                                {evento.descrizione && <p className="whitespace-pre-line">{evento.descrizione}</p>}
-                                <a
-                                  href={evento.fonte_url || 'https://mobilitazioni.chronocol.com/'}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-700 underline underline-offset-2"
-                                >
-                                  Fonte: Chrono Collective
-                                </a>
-                              </div>
-                            )}
-
                             {/* Luogo - Solo per eventi non "Elezioni" */}
                             {evento.tipologia_evento !== 'Elezioni' && (
                               <div className="mb-3 flex items-center">
@@ -471,7 +457,7 @@ export default function Eventi() {
                                     <span className="text-gray-600">
                                       Inizio: {formatDate(evento.giorno_inizio)}
                                       {evento.orario_inizio && (
-                                        <> · {formatTime(evento.orario_inizio)}{evento.orario_fine && <>–{formatTime(evento.orario_fine)}</>}</>
+                                        <> · {formatTime(evento.orario_inizio)}{evento.orario_fine && (!evento.external_import || !evento.giorno_fine || evento.giorno_fine === evento.giorno_inizio) && <>–{formatTime(evento.orario_fine)}</>}</>
                                       )}
                                     </span>
                                   </div>
@@ -482,8 +468,9 @@ export default function Eventi() {
                                   <div className="flex items-center">
                                     <Calendar className="h-4 w-4 text-gray-500 mr-2" />
                                     <span className="text-gray-600">
-                                      Secondo giorno: {formatDate(evento.giorno_fine)}
-                                      {evento.orario_inizio_giorno2 && (
+                                      {evento.external_import ? 'Fine: ' : 'Secondo giorno: '}{formatDate(evento.giorno_fine)}
+                                      {evento.external_import && evento.orario_fine && <> · {formatTime(evento.orario_fine)}</>}
+                                      {!evento.external_import && evento.orario_inizio_giorno2 && (
                                         <> · {formatTime(evento.orario_inizio_giorno2)}{evento.orario_fine_giorno2 && <>–{formatTime(evento.orario_fine_giorno2)}</>}</>
                                       )}
                                     </span>
@@ -556,6 +543,17 @@ export default function Eventi() {
             </div>
           )}
         </div>
+        {/* Accredito singolo per il catalogo esterno, senza appesantire ogni scheda. */}
+        {!eventiLoading && eventi.some((evento: EventRecord) => evento.external_import) && (
+          <p className="mt-6 px-2 text-center text-xs text-slate-500">
+            Dati delle mobilitazioni:{" "}
+            <a href="https://mobilitazioni.chronocol.com/"
+              target="_blank" rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-slate-700">
+              Chrono Collective
+            </a>
+          </p>
+        )}
       </div>
 
       {/* Modal per modificare evento */}
