@@ -21,7 +21,7 @@ const emojiPerMinistero: Record<string, string> = {
 };
 
 const emojiMinistero = (categoria: string): string =>
-  emojiPerMinistero[categoria.trim().toLowerCase().replace(/[\\s-]+/g, "_")] ?? "📋";
+  emojiPerMinistero[categoria.trim().toLowerCase().replace(/[\s-]+/g, "_")] ?? "📋";
 
 interface ProfileGovernoIdealeProps {
   governoIdeale: Record<string, string>;
