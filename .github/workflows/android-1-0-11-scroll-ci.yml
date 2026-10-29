@@ -12,6 +12,7 @@ on:
       - 'client/src/pages/Candidati/index.tsx'
       - 'client/src/pages/ScegliRappresentante/index.tsx'
       - 'client/tests/androidPageScrollPolicy.test.mjs'
+      - 'client/tests/androidPublicAccountDeletion.test.mjs'
       - 'client/src/pages/registrazione-*.tsx'
       - 'client/public/eliminazione-account.html'
       - '.github/workflows/android-1-0-11-scroll-ci.yml'
@@ -32,10 +33,14 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - name: Assert 19 Android routes and unaffected inner scrollers
         run: node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
+      - name: Verify passkey-only account deletion instructions (source)
+        run: node --test client/tests/androidPublicAccountDeletion.test.mjs
       - name: Install frontend without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend without AAB, secrets or deployment
         run: npm run build --prefix client
+      - name: Verify public deletion page in built site assets
+        run: DEMOS_ASSERT_BUILT_ASSET=1 node --test client/tests/androidPublicAccountDeletion.test.mjs
 
   # Safety-only integration rehearsal. It merges current main into the ephemeral
   # runner checkout, never into a GitHub branch. No credentials or deployment.
@@ -71,7 +76,11 @@ jobs:
         run: |
           node --experimental-strip-types --test client/tests/androidPageScrollPolicy.test.mjs
           node --test api/tests/utentiElectionTerritory.smoke.test.js
+      - name: Verify account deletion page after main overlay (source)
+        run: node --test client/tests/androidPublicAccountDeletion.test.mjs
       - name: Install frontend without lifecycle scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build main-integrated frontend without deploy or Android signing
         run: npm run build --prefix client
+      - name: Verify public deletion page in built main-overlay assets
+        run: DEMOS_ASSERT_BUILT_ASSET=1 node --test client/tests/androidPublicAccountDeletion.test.mjs
