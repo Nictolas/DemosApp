@@ -41,12 +41,12 @@ jobs:
                 });
                 const html = (await response.text()).slice(0, 150000);
                 const hrefs = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
-                  .map((x) => x[1]).filter((x) => /\\.js|\\.json|api|download|export|csv|\.xml/i.test(x))
+                  .map((x) => x[1])
+                  .filter((x) => ['.js', '.json', 'api', 'download', 'export', 'csv'].some((piece) => x.includes(piece)))
                   .slice(0, 40);
-                const hints = [...new Set((html.match(/\\/api\\/[a-zA-Z0-9/_-]+/g) || []))].slice(0, 30);
-                const plain = html.replace(/<script[\\s\\S]*?<\\/script>/gi, '')
-                  .replace(/<style[\\s\\S]*?<\\/style>/gi, '')
-                  .replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ').slice(0, 1800);
+                const hints = [...new Set(html.split('"/api/').slice(1)
+                  .map((fragment) => '/api/' + fragment.split('"')[0]))].slice(0, 30);
+                const plain = html.replace(/<[^>]+>/g, ' ').slice(0, 1800);
                 console.log(JSON.stringify({ path, status: response.status, finalUrl: response.url,
                   contentType: response.headers.get('content-type'), bytes: html.length,
                   links: hrefs, apiHints: hints, sampleText: plain }));
