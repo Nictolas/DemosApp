@@ -21,6 +21,7 @@ on:
       - 'api/database/users-account-type-poe-rollback-20261029.sql'
       - 'api/tests/shortAccountTypeCodes.test.js'
       - 'api/tests/shortAccountTypeMigration.integration.sh'
+      - 'api/tests/compactAccountTypes.pg17.integration.js'
       - '.github/workflows/compact-user-account-types.yml'
   workflow_dispatch:
 
