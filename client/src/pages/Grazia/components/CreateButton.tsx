@@ -8,7 +8,7 @@ interface CreateButtonProps {
 
 export const CreateButton: React.FC<CreateButtonProps> = ({ onClick }) => {
   return (
-    <Button onClick={onClick} className="mb-6">
+    <Button onClick={onClick} className="mb-0 h-11 px-3 text-sm">
       <Plus className="h-4 w-4 mr-2" />
       Proponi carcerato
     </Button>
