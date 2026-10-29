@@ -153,14 +153,15 @@ test("grant and revoke immediately invalidate all profile political caches", () 
 });
 
 test("profile shows the concise personal summary and edit action without duplicated detail rows or extra reads", () => {
-  assert.match(profileInfo, /Il mio profilo/);
-  assert.match(profileInfo, /birthYear/);
-  assert.match(profileInfo, /userInfo\\.cittadinanza/);
-  assert.match(profileInfo, /locationSummary/);
-  assert.match(profileInfo, /Modifica profilo/);
-  assert.match(profileInfo, /onClick=\\{onEditClick\\}/);
-  assert.doesNotMatch(profileInfo, /Dati personali completi|detailRows|onPersonalDetailsToggle/);
-  assert.doesNotMatch(profile, /onPersonalDetailsToggle|setPanel\\("personal"/);
-  assert.doesNotMatch(hook, /panels\\.personal|personal: false/);
-  assert.match(hook, /const needFull = panels\\.edit \\|\\|/);
+  for (const content of ["Il mio profilo", "birthYear", "userInfo.cittadinanza", "locationSummary", "Modifica profilo", "onClick={onEditClick}"]) {
+    assert.ok(profileInfo.includes(content), "missing summary or edit control: " + content);
+  }
+  for (const obsolete of ["Dati personali completi", "detailRows", "onPersonalDetailsToggle"]) {
+    assert.ok(!profileInfo.includes(obsolete), "obsolete full-detail UI: " + obsolete);
+  }
+  assert.ok(!profile.includes('onPersonalDetailsToggle'));
+  assert.ok(!profile.includes('setPanel("personal"'));
+  assert.ok(!hook.includes("panels.personal"));
+  assert.ok(!hook.includes("personal: false"));
+  assert.ok(hook.includes("const needFull = panels.edit ||"));
 });
