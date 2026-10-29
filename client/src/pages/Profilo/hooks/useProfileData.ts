@@ -304,6 +304,7 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     error: summary.error instanceof Error ? summary.error.message : null,
     chosenVotes: politicalAllowed ? (preferences.data || null) : null,
     chosenVotesLoading: politicalAllowed && preferences.isPending,
+    chosenVotesError: politicalAllowed && preferences.isError,
     userOpinions: storedOpinions,
     opinionQuestions: politicalAllowed && panels.opinions ? (opinions.data?.questions || []) : [],
     avatarConfig: avatarFrom(userInfo),
