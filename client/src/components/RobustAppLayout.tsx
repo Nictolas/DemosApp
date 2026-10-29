@@ -55,7 +55,7 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
         {showDesktopHeader && <DesktopAppHeader />}
 
-        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : ''}`}>
+        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : location === '/profilo' || location.startsWith('/profilo/') ? ' app-main--profile' : ''}`}>
           <ErrorBoundary>
             <div className="app-main__inner">{children}</div>
           </ErrorBoundary>
