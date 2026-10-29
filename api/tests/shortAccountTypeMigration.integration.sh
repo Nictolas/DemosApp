@@ -103,6 +103,7 @@ $political_role_guard$;
 SQL
 
 node api/tests/compactAccountTypes.pg17.integration.js short
+node api/tests/compactAccountTypesHttp.pg17.integration.js short
 
 # Verify the complete rollback AFTER the compact schema has accepted a new user.
 psql -X -v ON_ERROR_STOP=1 -f api/database/users-account-type-poe-rollback-20261029.sql
@@ -143,3 +144,4 @@ END $verify$;
 SQL
 
 node api/tests/compactAccountTypes.pg17.integration.js long
+node api/tests/compactAccountTypesHttp.pg17.integration.js long
