@@ -1,5 +1,6 @@
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
 import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
+import { loadOpinionCategory, cacheConfirmedOpinionAnswers } from "@/lib/encryptedOpinionCache";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
@@ -62,14 +63,11 @@ export default function OpinioniNazionali() {
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Nazionale'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=N");
-      if (response.ok && response.data) {
-        return response.data;
-      }
-      return { success: false, data: [] };
-    },
-    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true
+    queryFn: ({ signal }) => loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp, "N", signal) as any,
+    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false
   });
 
   // Combina i dati
@@ -130,6 +128,8 @@ export default function OpinioniNazionali() {
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("N", newOpinions),
     onSuccess: async (_data, savedOpinions) => {
+      // ACK commit has completed: persist all shared encrypted grade caches.
+      await cacheConfirmedOpinionAnswers(user!.id, verifiedPoliticalConsent!.timestamp, savedOpinions);
       // An older in-flight GET must not restore the pre-save snapshot.
       await queryClient.cancelQueries({
         queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Nazionale'],
