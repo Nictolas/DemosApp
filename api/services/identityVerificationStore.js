@@ -95,25 +95,24 @@ async function registerVerifiedIdentity(
     );
   }
 
-  try {
-    const inserted = await db.query(
-      `INSERT INTO identity_verifications
-        (user_id, person_key, provider, status, verified_at, updated_at)
-       VALUES ($1, $2, $3, 'verified', NOW(), NOW())
-       RETURNING provider, status, verified_at, detached_at, retention_until`,
-      [userId, personKey, normalizedProvider]
-    );
-
+  // La collisione NON deve interrompere la transazione PostgreSQL:
+  // un INSERT che lancia 23505 invalida ogni query successiva fino al rollback.
+  // ON CONFLICT DO NOTHING permette invece di leggere il vincitore della race.
+  const inserted = await db.query(
+    `INSERT INTO identity_verifications
+      (user_id, person_key, provider, status, verified_at, updated_at)
+     VALUES ($1, $2, $3, 'verified', NOW(), NOW())
+     ON CONFLICT DO NOTHING
+     RETURNING provider, status, verified_at, detached_at, retention_until`,
+    [userId, personKey, normalizedProvider]
+  );
+  if (inserted.rows.length === 1) {
     return { created: true, ...sanitizeRow(inserted.rows[0]) };
-  } catch (error) {
-    if (error?.code !== '23505') {
-      throw error;
-    }
+  }
 
-    // Gestisce anche la race condition di due callback simultanee sullo stesso account.
-    const afterConflict = await findInternalVerificationByUserId(userId, db);
+  const afterConflict = await findInternalVerificationByUserId(userId, db);
+  if (afterConflict) {
     if (
-      afterConflict &&
       afterConflict.person_key === personKey &&
       afterConflict.provider === normalizedProvider &&
       afterConflict.status === 'verified' &&
@@ -121,26 +120,27 @@ async function registerVerifiedIdentity(
     ) {
       return { created: false, ...sanitizeRow(afterConflict) };
     }
-
-    if (error.constraint === 'identity_verifications_person_key_key') {
-      throw new IdentityVerificationError(
-        IDENTITY_ERROR_CODES.PERSON_ALREADY_LINKED,
-        'Questa persona e gia associata a un altro account DEMOS'
-      );
-    }
-
-    if (error.constraint === 'identity_verifications_user_id_key') {
-      throw new IdentityVerificationError(
-        IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED,
-        'Account gia associato a una identita verificata'
-      );
-    }
-
     throw new IdentityVerificationError(
-      IDENTITY_ERROR_CODES.IDENTITY_CONFLICT,
-      'Conflitto durante la verifica identita'
+      IDENTITY_ERROR_CODES.ACCOUNT_ALREADY_VERIFIED,
+      'Account gia associato a una identita verificata'
     );
   }
+
+  const personOwner = await db.query(
+    'SELECT 1 FROM identity_verifications WHERE person_key = $1 LIMIT 1',
+    [personKey]
+  );
+  if (personOwner.rows.length > 0) {
+    throw new IdentityVerificationError(
+      IDENTITY_ERROR_CODES.PERSON_ALREADY_LINKED,
+      'Questa persona e gia associata a un altro account DEMOS'
+    );
+  }
+
+  throw new IdentityVerificationError(
+    IDENTITY_ERROR_CODES.IDENTITY_CONFLICT,
+    'Conflitto durante la verifica identita'
+  );
 }
 
 module.exports = {
