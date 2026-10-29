@@ -104,7 +104,7 @@ function auditOfficialSexEvidence(users, officialRecords) {
 
   const candidatesByKey = new Map();
   for (const row of users) {
-    if (row?.account_type !== 'PERSON' || row?.ruolo !== 'P' ||
+    if (!['PERSON', 'P'].includes(row?.account_type) || row?.ruolo !== 'P' ||
         row?.sesso != null || typeof row?.id !== 'string' ||
         !/^[0-9a-f-]{36}$/i.test(row.id)) continue;
     const key = matchKey(row);
