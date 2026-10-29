@@ -9,7 +9,9 @@ const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8')
 test('auth profile logging omits access token fragments and user identifiers', () => {
   const source = read('routes/auth/profile.js');
   assert.match(source, /verifyAccessToken\(token\)/);
-  assert.match(source, /Verifica accesso riuscita/);
+  assert.match(source, /console\.warn\('AUTH_ME_SCHEMA_FALLBACK'\)/);
+  assert.match(source, /console\.error\('AUTH_ME_FAILED'\)/);
+  assert.doesNotMatch(source, /Verifica accesso riuscita/);
   assert.doesNotMatch(source, /Token ricevuto:/i);
   assert.doesNotMatch(source, /console\.(?:log|info|debug)\([^\n]*token\.substring/i);
   assert.doesNotMatch(source, /console\.(?:log|info|debug)\([^\n]*decoded\.userId/i);
