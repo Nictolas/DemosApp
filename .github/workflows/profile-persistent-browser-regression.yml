@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'client/src/pages/Profilo/**'
+      - 'api/routes/user/profile-selections.js'
+      - 'api/app.js'
+      - 'api/tests/profileSelections.smoke.test.js'
       - 'client/src/lib/queryClient.ts'
       - 'scripts/test-profile-persistent-browser.cjs'
       - '.github/workflows/profile-persistent-browser-regression.yml'
@@ -25,6 +28,8 @@ jobs:
           node-version: '22'
       - name: Install frontend
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Verify private selected-preferences API contract
+        run: node --test api/tests/profileSelections.smoke.test.js
       - name: Build production frontend
         run: npm run build --prefix client
       - name: Install isolated browser runner
