@@ -71,6 +71,7 @@ const organizzazioniSostenitoriRoutes = require('./routes/organizzazioni-sosteni
 const attivismoTipologieRoutes = require('./routes/attivismo-tipologie');
 const gdprRightsRoutes = require('./routes/user/gdpr-rights');
 const politicalOpinionsConsentRoutes = require('./routes/user/political-opinions-consent');
+const profileSelectionsRoutes = require('./routes/user/profile-selections');
 const registrationConsentsRoutes = require('./routes/user/registration-consents');
 const gdprRequestsRoutes = require('./routes/user/gdpr-requests');
 const downloadDataRoutes = require('./routes/user/download-data');
@@ -423,6 +424,7 @@ app.use('/api/user/privacy-settings', userLimiter, privacySettingsRoutes);
 
 // Route per consenso opinioni politiche (GDPR Art. 9)
 app.use('/api/user/political-opinions-consent', userLimiter, politicalOpinionsConsentRoutes);
+app.use('/api/user/profile-selections', userLimiter, profileSelectionsRoutes);
 // Route per consensi dati in fase di registrazione (privacy + termini)
 app.use('/api/user/registration-consents', userLimiter, registrationConsentsRoutes);
 
