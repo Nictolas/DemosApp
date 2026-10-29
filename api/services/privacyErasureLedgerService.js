@@ -36,6 +36,7 @@ class PrivacyErasureLedgerService {
         details JSONB NOT NULL DEFAULT '{}'::jsonb
       );
       ALTER TABLE public.privacy_erasure_ledger ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.privacy_erasure_ledger FORCE ROW LEVEL SECURITY;
       REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM PUBLIC;
       DO $gdpr_ledger_privileges$
       BEGIN
@@ -106,10 +107,11 @@ class PrivacyErasureLedgerService {
   static async assertProtectedLedger(client) {
     // This check only inspects pg_catalog; it never reads GDPR event rows.
     // regclass resolution raises 42P01 if a restore omitted the ledger.
-    // A restored table that exists but lacks RLS or has API/public grants
-    // must not silently accept a new sensitive GDPR event.
+    // Reject restored ledger without FORCE RLS, mirroring the outbox guard.
+    // Provider administrators with BYPASSRLS remain outside this check.
     const result = await client.query(`
       SELECT c.relrowsecurity AS rls_enabled,
+        c.relforcerowsecurity AS force_rls,
         EXISTS (
           SELECT 1
           FROM pg_catalog.aclexplode(
@@ -140,7 +142,7 @@ class PrivacyErasureLedgerService {
       WHERE c.oid = 'public.privacy_erasure_ledger'::regclass
     `);
     const state = result.rows?.[0];
-    if (state?.rls_enabled !== true ||
+    if (state?.rls_enabled !== true || state?.force_rls !== true ||
         state?.public_grants_exist !== false ||
         state?.public_column_grants_exist !== false ||
         state?.api_roles_with_dml_grants !== 0) {
