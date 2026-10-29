@@ -56,7 +56,7 @@ test('a third-party profile hides private demographic/contact cards and selectio
   const candidates = read('client/src/components/ProfileCandidates.tsx');
   assert.match(page, /isOwnProfile=\{isViewingOwnProfile\}/);
   assert.match(page, /canEditSelections=\{isViewingOwnProfile\}/g);
-  assert.match(info, /\{isOwnProfile && \(\s*<div className="grid grid-cols-2 gap-3">/);
+  assert.match(info, /\{isOwnProfile && \(\s*<details className=/);
   assert.match(info, /isOwnProfile && \(userInfo\.professione/);
   assert.match(reps, /\{canEditSelections && \(/);
   assert.match(candidates, /\{canEditSelections && \(/);
@@ -83,4 +83,28 @@ test('successful profile edits avoid a second redundant full GET', () => {
   const saveHandler = page.match(/const handleSaveProfile = \(\) => \{[\s\S]*?\n  \};/);
   assert.ok(saveHandler);
   assert.doesNotMatch(saveHandler[0], /fetchAllProfileData|apiRequest/);
+});
+
+test('mobile profile uses a small avatar and expandable sections instead of tall demographic tiles', () => {
+  const profile = read('client/src/pages/Profilo/index.tsx');
+  const info = read('client/src/pages/Profilo/components/ProfileInfo.tsx');
+  const government = read('client/src/pages/Profilo/components/ProfileGovernoIdeale.tsx');
+  assert.match(info, /h-\[76px\] w-\[76px\]/);
+  assert.match(info, /Dati personali completi/);
+  assert.match(info, /<details className="group mt-3/);
+  assert.doesNotMatch(info, /I tuoi dati personali e informazioni di contatto/);
+  assert.match(profile, /<details className="group rounded-xl/);
+  assert.match(profile, /showHeading=\{false\}/g);
+  assert.match(profile, /Opinioni politiche · /);
+  assert.match(government, /<details className="group/);
+  assert.match(government, /Scegli ministri/);
+});
+
+test('the compact profile does not accidentally expose own-only demographic values to other visitors', () => {
+  const info = read('client/src/pages/Profilo/components/ProfileInfo.tsx');
+  const ownOnly = info.indexOf('{isOwnProfile && (');
+  const fullDetails = info.indexOf('{detailRows.map(', ownOnly);
+  assert.ok(ownOnly >= 0 && fullDetails > ownOnly);
+  assert.match(info, /\{isOwnProfile && \(\s*<details/);
+  assert.match(info, /canEdit && !isEditing/);
 });
