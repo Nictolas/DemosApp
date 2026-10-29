@@ -120,3 +120,19 @@ test('opinion statistics never return raw SQL errors or log exception objects', 
   assert.doesNotMatch(source, /Error details:/);
   assert.match(source, /message:\s*'Errore interno del server'/);
 });
+
+
+test('il valore sesso resta unico, senza metadati di fonte o migrazioni aggiuntive', () => {
+  const read = relative => fs.readFileSync(path.resolve(__dirname, '../..', relative), 'utf8');
+  const cie = read('api/utils/cieSex.js');
+  assert.match(cie, /UPDATE users SET sesso = \$1, updated_at = NOW\(\)/);
+  assert.match(cie, /identity_verifications iv/);
+  assert.match(cie, /iv.provider = 'CIE'/);
+  assert.match(cie, /iv.status = 'verified'/);
+  assert.match(cie, /iv.detached_at IS NULL/);
+  assert.doesNotMatch(cie, /sesso_fonte|isCurrentlyVerifiedCieSex/);
+  const exportService = read('api/services/privacyDataExportService.js');
+  assert.doesNotMatch(exportService, /sesso_fonte/);
+  const obsoleteMigration = path.resolve(__dirname, '../migrations/20261028_cie_sex_provenance.sql');
+  assert.equal(fs.existsSync(obsoleteMigration), false);
+});
