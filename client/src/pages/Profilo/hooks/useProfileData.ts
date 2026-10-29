@@ -13,6 +13,13 @@ import {
   clearProfileSummary,
 } from "../utils/profileSummaryCache";
 
+// React Query RAM cache: never persisted to localStorage or disk.
+const POLITICAL_RAM_TTL_MS = 10 * 60 * 1000;
+const POLITICAL_RAM_GC_MS = 30 * 60 * 1000;
+// Only the consent state needs frequent validation. A closed and immediately
+// reopened section must not re-fetch its full (politically sensitive) payload.
+const CONSENT_RAM_TTL_MS = 60 * 1000;
+
 export type ProfilePanels = {
   personal: boolean;
   edit: boolean;
@@ -98,7 +105,7 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
       if (ownProfile && full?.id === ownerId) {
         storeProfileSummary(ownerId, full);
         // Preserve rich data in RAM only; it is never written to localStorage.
-        client.setQueryData(["profileFull", ownerId], full);
+        client.setQueryData(["profileFull", ownerId, "personal"], full);
       }
       return full;
     },
@@ -118,59 +125,64 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
         timestamp: payload.consent?.timestamp || null,
       };
     },
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    staleTime: CONSENT_RAM_TTL_MS,
+    gcTime: POLITICAL_RAM_GC_MS,
+    // Recheck on return from background even within the short TTL.
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
   });
   const politicalAllowed = ownProfile && consent.isSuccess &&
-    !consent.isFetching && consent.data?.granted === true;
+    !consent.isFetching && !consent.isRefetchError &&
+    consent.data?.granted === true;
+  // A revocation followed by a regrant changes the timestamp. That creates
+  // entirely new cache keys; choices from the earlier consent cannot reappear.
+  const politicalEpoch = consent.data?.timestamp || "legacy";
 
   const needFull = panels.personal || panels.edit ||
     ((panels.representatives || panels.candidates || panels.opinions) && politicalAllowed);
   const full = useQuery<UserInfo>({
-    queryKey: ["profileFull", ownerId],
+    queryKey: ["profileFull", ownerId, politicalPanelOpen ? politicalEpoch : "personal"],
     enabled: enabled && ownProfile && needFull,
     queryFn: async () => {
       const payload = await getPayload("/api/users/me");
       return (payload.user || payload.data || payload) as UserInfo;
     },
-    staleTime: 10 * 60 * 1000,
-    gcTime: 0,
+    staleTime: POLITICAL_RAM_TTL_MS,
+    gcTime: POLITICAL_RAM_GC_MS,
     refetchOnWindowFocus: false,
   });
 
   const government = useQuery<Record<string, string>>({
-    queryKey: ["profilePolitical", ownerId, "government"],
+    queryKey: ["profilePolitical", ownerId, politicalEpoch, "government"],
     enabled: enabled && politicalAllowed && panels.government,
     queryFn: async () => (await getPayload("/api/governo/ideale")).data || {},
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: POLITICAL_RAM_TTL_MS,
+    gcTime: POLITICAL_RAM_GC_MS,
   });
   const representatives = useQuery<Record<string, any>>({
-    queryKey: ["profilePolitical", ownerId, "representatives"],
+    queryKey: ["profilePolitical", ownerId, politicalEpoch, "representatives"],
     enabled: enabled && politicalAllowed && panels.representatives,
     queryFn: async () => (await getPayload("/api/rappresentanti")).data?.rappresentanti || {},
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: POLITICAL_RAM_TTL_MS,
+    gcTime: POLITICAL_RAM_GC_MS,
   });
   const candidates = useQuery<Record<string, any>>({
-    queryKey: ["profilePolitical", ownerId, "candidates"],
+    queryKey: ["profilePolitical", ownerId, politicalEpoch, "candidates"],
     enabled: enabled && politicalAllowed && panels.candidates,
     queryFn: async () => (await getPayload("/api/candidati/selezioni")).data?.candidati || {},
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: POLITICAL_RAM_TTL_MS,
+    gcTime: POLITICAL_RAM_GC_MS,
   });
   const opinions = useQuery<{ questions: OpinionQuestion[]; userAnswers: Record<string, string> }>({
-    queryKey: ["profilePolitical", ownerId, "opinions"],
+    queryKey: ["profilePolitical", ownerId, politicalEpoch, "opinions"],
     enabled: enabled && politicalAllowed && panels.opinions,
     queryFn: async () => {
       const payload = (await getPayload("/api/opinioni/profile")).data || {};
       return { questions: Array.isArray(payload.questions) ? payload.questions : [],
         userAnswers: payload.userAnswers || {} };
     },
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: POLITICAL_RAM_TTL_MS,
+    gcTime: POLITICAL_RAM_GC_MS,
   });
 
   useEffect(() => {
