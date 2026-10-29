@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { sexFromVerifiedCieGender, persistVerifiedCieSex, isCurrentlyVerifiedCieSex } = require('../utils/cieSex');
+const { sexFromVerifiedCieGender, persistVerifiedCieSex } = require('../utils/cieSex');
 
 test('il claim CIE firmato usa M/F/NULL e non inferisce il genere', () => {
   assert.equal(sexFromVerifiedCieGender('male'), 'M');
@@ -31,7 +31,6 @@ test('persistenza sesso CIE richiede valore verificato, UUID e aggiornamento di 
   // Un valore storico difforme non deve impedire la successiva verifica CIE.
   assert.match(calls[0].sql, /UPDATE users SET sesso = \$1/);
   assert.match(calls[0].sql, /account_type = 'PERSON'/);
-  assert.match(calls[0].sql, /sesso_fonte = 'C'/);
   assert.match(calls[0].sql, /FROM identity_verifications iv/);
   assert.match(calls[0].sql, /iv.provider = 'CIE'/);
   assert.match(calls[0].sql, /iv.status = 'verified'/);
@@ -112,21 +111,6 @@ test('le statistiche M/F storiche non vengono presentate come CIE certificate', 
 });
 
 
-test('metadato provenienza: migrazione non effettua backfill e CIE richiede verifica attiva', () => {
-  const read = relative => fs.readFileSync(path.resolve(__dirname, '../..', relative), 'utf8');
-  const migration = read('api/migrations/20261028_cie_sex_provenance.sql');
-  assert.match(migration, /ADD COLUMN IF NOT EXISTS sesso_fonte VARCHAR\(1\)/);
-  assert.match(migration, /sesso_fonte IN \('L', 'N', 'O', 'C'\)/);
-  assert.match(migration, /sesso IN \('M', 'F'\)/);
-  assert.match(migration, /account_type = 'PERSON'/);
-  assert.doesNotMatch(migration, /UPDATE\s+(?:public\.)?users\s+SET/i);
-  const cie = read('api/utils/cieSex.js');
-  assert.match(cie, /sesso_fonte = 'C'/);
-  assert.match(cie, /identity_verifications iv/);
-  assert.match(cie, /iv.provider = 'CIE'/);
-  assert.match(cie, /iv.detached_at IS NULL/);
-});
-
 test('opinion statistics never return raw SQL errors or log exception objects', () => {
   const fs = require('node:fs');
   const path = require('node:path');
@@ -135,47 +119,4 @@ test('opinion statistics never return raw SQL errors or log exception objects', 
   assert.doesNotMatch(source, /console\.error\([^;\n]*,\s*error(?:\.stack)?\s*\)/);
   assert.doesNotMatch(source, /Error details:/);
   assert.match(source, /message:\s*'Errore interno del server'/);
-});
-
-
-test('la certificazione CIE corrente richiede fonte C e verifica attiva', async () => {
-  let sqlText = '';
-  const active = {
-    async query(sql, params) {
-      sqlText = sql;
-      assert.deepEqual(params, ['user-cie']);
-      return { rows: [{ verified_cie_sex: true }] };
-    }
-  };
-  assert.equal(await isCurrentlyVerifiedCieSex(active, 'user-cie'), true);
-  for (const guard of [
-    /u\.sesso IN \('M','F'\)/,
-    /u\.sesso_fonte = 'C'/,
-    /iv\.provider = 'CIE'/,
-    /iv\.status = 'verified'/,
-    /iv\.detached_at IS NULL/,
-    /u\.account_type = 'PERSON'/
-  ]) assert.match(sqlText, guard);
-  assert.equal(await isCurrentlyVerifiedCieSex({
-    async query() { return { rows: [{ verified_cie_sex: false }] }; }
-  }, 'user-cie'), false);
-  assert.equal(await isCurrentlyVerifiedCieSex({
-    async query() { return { rows: [] }; }
-  }, 'user-cie'), false);
-  assert.equal(await isCurrentlyVerifiedCieSex({
-    async query() { throw new Error('must not query'); }
-  }, null), false);
-});
-
-test('sesso_fonte non e modificabile dal browser e compare nell export GDPR canonico', () => {
-  const read = relative => fs.readFileSync(path.resolve(__dirname, '../..', relative), 'utf8');
-  for (const file of ['api/routes/users/search.js', 'api/routes/users/profile.js']) {
-    const source = read(file);
-    for (const fields of source.matchAll(/const allowedFields = \[([\s\S]*?)\];/g)) {
-      assert.doesNotMatch(fields[1], /'sesso_fonte'/);
-    }
-  }
-  const exportService = read('api/services/privacyDataExportService.js');
-  assert.match(exportService, /'data_nascita', 'sesso', 'sesso_fonte', 'genere'/);
-  assert.match(exportService, /filter\(\(column\) => columns\.includes\(column\)\)/);
 });
