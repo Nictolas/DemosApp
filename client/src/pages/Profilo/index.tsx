@@ -14,7 +14,7 @@ import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
 import { ProfileInfo } from "./components/ProfileInfo";
 import { ProfileOpinions } from "./components/ProfileOpinions";
 import { ProfileGovernoIdeale } from "./components/ProfileGovernoIdeale";
-import { ProfileChosenPreferences } from "./components/ProfileChosenPreferences";
+import { ProfileChosenPreferences, type ChosenPreferencesStatus } from "./components/ProfileChosenPreferences";
 
 // Hook personalizzato
 import { useProfileData, CLOSED_PROFILE_PANELS, type ProfilePanels } from "./hooks/useProfileData";
@@ -52,6 +52,8 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     candidatiDetails,
     sectionsLoading,
     chosenVotes,
+    chosenVotesLoading,
+    chosenVotesError,
     consentGranted,
     consentChecked,
     fetchAllProfileData,
@@ -62,6 +64,12 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
   // Determina se l'utente sta visualizzando il proprio profilo o quello di un altro
   const isViewingOwnProfile = !userId || userId === user?.id;
   const isViewingOtherProfile = Boolean(userId && userId !== user?.id);
+
+  const chosenPreferencesStatus: ChosenPreferencesStatus =
+    !consentChecked ? "loading" :
+    !consentGranted ? "consent-required" :
+    chosenVotesLoading ? "loading" :
+    chosenVotesError || !chosenVotes ? "unavailable" : "ready";
 
   // No shared profilo_locale: the hook restores only the allowlisted per-account
   // summary from device storage, never political answers or selection IDs.
@@ -266,8 +274,11 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               </div>
             )}
 
-            {isViewingOwnProfile && consentGranted && (
-              <ProfileChosenPreferences choices={chosenVotes} />
+            {isViewingOwnProfile && (
+              <ProfileChosenPreferences
+                choices={consentGranted ? chosenVotes : null}
+                status={chosenPreferencesStatus}
+              />
             )}
 
             {/* Le opinioni restano accessibili senza un elenco lungo all'apertura. */}
