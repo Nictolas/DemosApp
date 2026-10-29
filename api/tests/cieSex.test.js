@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { sexFromVerifiedCieGender, persistVerifiedCieSex } = require('../utils/cieSex');
+const { sexFromVerifiedCieGender, persistVerifiedCieSex, isCurrentlyVerifiedCieSex } = require('../utils/cieSex');
 
 test('il claim CIE firmato usa M/F/NULL e non inferisce il genere', () => {
   assert.equal(sexFromVerifiedCieGender('male'), 'M');
