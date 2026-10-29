@@ -74,7 +74,21 @@ permissions:
 jobs:
   canonical-sex:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: demos-ci-synthetic-only
+          POSTGRES_DB: demos_cie_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d demos_cie_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -84,7 +98,11 @@ jobs:
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Test CIE identity, verified M/F and registration
         run: |
-          node --test api/tests/politicalVotingSubject.test.js api/tests/userAgeStatistics.smoke.test.js api/tests/utentiAdminConsolePrivacy.smoke.test.js api/tests/registrationGenderRetirement.smoke.test.js api/tests/supporterSexPrivacy.test.js api/tests/opinionStatsAccountPopulation.test.js api/tests/canonicalSexAggregate.test.js api/tests/cieSex.test.js api/tests/cieOidcAuthorizationService.test.js api/tests/cieOidcUserInfoService.test.js api/tests/cieVerificationService.test.js api/tests/cieRequiredRegistration.smoke.test.js api/tests/oauthRegistrationService.test.js api/tests/passkeyRegistrationService.test.js
+          node --test api/tests/politicalVotingSubject.test.js api/tests/userAgeStatistics.smoke.test.js api/tests/utentiAdminConsolePrivacy.smoke.test.js api/tests/registrationGenderRetirement.smoke.test.js api/tests/supporterSexPrivacy.test.js api/tests/opinionStatsAccountPopulation.test.js api/tests/canonicalSexAggregate.test.js api/tests/cieSex.test.js api/tests/cieOidcAuthorizationService.test.js api/tests/cieOidcUserInfoService.test.js api/tests/cieVerificationService.test.js api/tests/identityVerificationStore.test.js api/tests/cieRequiredRegistration.smoke.test.js api/tests/oauthRegistrationService.test.js api/tests/passkeyRegistrationService.test.js
+      - name: PostgreSQL 17 transactional CIE integration (synthetic only)
+        env:
+          DEMOS_CIE_TEST_DATABASE_URL: postgresql://postgres:demos-ci-synthetic-only@127.0.0.1:5432/demos_cie_test
+        run: node --test api/tests/ciePostgres.integration.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build web frontend
