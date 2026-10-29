@@ -1,236 +1,166 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/use-auth';
-import { useAuthReady } from '@/hooks/use-auth-ready';
-import { apiRequest } from '@/lib/queryClient';
-import { UserInfo } from '@/types/profile';
-import { OpinionQuestion } from '../types';
-import { extractBaseOpinions } from '../utils/opinionUtils';
+import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { useAuthReady } from "@/hooks/use-auth-ready";
+import { apiRequest } from "@/lib/queryClient";
+import type { UserInfo } from "@/types/profile";
+import type { OpinionQuestion } from "../types";
+import { extractBaseOpinions } from "../utils/opinionUtils";
+
+type ProfileSnapshot = {
+  userInfo: UserInfo;
+  userOpinions: Record<string, string>;
+  avatarConfig: unknown;
+  governoIdeale: Record<string, string>;
+  opinionQuestions: OpinionQuestion[];
+  rappresentantiDetails: Record<string, any>;
+  candidatiDetails: Record<string, any>;
+};
+
+function normalizeOpinionValue(value: unknown): string | null {
+  if (value === "f" || value === "Sì" || value === "Favorevole") return "Favorevole";
+  if (value === "c" || value === "No" || value === "Contrario") return "Contrario";
+  if (value === "i" || value === "Indeciso" || value === "Non lo so") return "Indeciso";
+  return null;
+}
+
+function normalizeOpinionAnswers(raw: Record<string, unknown>): Record<string, string> {
+  const output: Record<string, string> = {};
+  for (const [id, answer] of Object.entries(raw)) {
+    const normalized = normalizeOpinionValue(answer);
+    if (normalized) output[id] = normalized;
+  }
+  return output;
+}
+
+function parseAvatar(value: unknown): unknown {
+  if (!value) return null;
+  try {
+    let parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
+    if (typeof parsed === "string") parsed = JSON.parse(parsed);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getProfilePayload(path: string, signal: AbortSignal): Promise<any> {
+  const response = await apiRequest("GET", path, undefined, undefined, signal);
+  if (!response?.ok || !response?.data || response.data.success === false) {
+    throw new Error("Impossibile caricare il profilo");
+  }
+  return response.data;
+}
+
+async function getOptionalPayload(path: string, signal: AbortSignal): Promise<any | null> {
+  try {
+    return await getProfilePayload(path, signal);
+  } catch (error: any) {
+    // In una richiesta annullata non salvare uno snapshot parziale in cache.
+    if (signal.aborted || error?.name === "AbortError") throw error;
+    // Accesso non consentito o sezione non trovata: non mostrare i dati.
+    if (error?.status === 403 || error?.status === 404) return null;
+    // Guasti transitori non devono diventare uno snapshot vuoto valido 10 minuti.
+    throw error;
+  }
+}
+
+async function loadOwnProfile(signal: AbortSignal): Promise<ProfileSnapshot> {
+  const payload = await getProfilePayload("/api/users/me", signal);
+  const userInfo = (payload.user || payload.data || payload) as UserInfo;
+
+  // Queste letture non devono essere ripetute ad ogni montaggio della pagina.
+  // In caso di salvataggio le mutation invalidano il gruppo profileSnapshot.
+  const [opinions, government, representatives, candidates] = await Promise.all([
+    getOptionalPayload("/api/opinioni/profile", signal),
+    getOptionalPayload("/api/governo/ideale", signal),
+    getOptionalPayload("/api/rappresentanti", signal),
+    getOptionalPayload("/api/candidati/selezioni", signal),
+  ]);
+
+  const opinionData = opinions?.data;
+  return {
+    userInfo,
+    avatarConfig: parseAvatar(userInfo.avatar_config),
+    userOpinions: normalizeOpinionAnswers({
+      ...extractBaseOpinions(userInfo),
+      ...(opinionData?.userAnswers || {}),
+    }),
+    opinionQuestions: Array.isArray(opinionData?.questions) ? opinionData.questions : [],
+    governoIdeale: government?.data?.success === false ? {} : (government?.data || {}),
+    rappresentantiDetails: representatives?.data?.rappresentanti || {},
+    candidatiDetails: candidates?.data?.candidati || {},
+  };
+}
+
+async function loadOtherProfile(targetUserId: string, signal: AbortSignal): Promise<ProfileSnapshot> {
+  // I dati di un altro utente NON sono quelli dell'account visitatore.
+  // Usare esclusivamente la proiezione pubblica server-side; non /api/users/:id admin.
+  const payload = await getProfilePayload(
+    `/api/users/${encodeURIComponent(targetUserId)}/public-profile`, signal,
+  );
+  const userInfo = payload.user as UserInfo;
+  const opinions = await getOptionalPayload(
+    `/api/users/${encodeURIComponent(targetUserId)}/opinioni`, signal,
+  );
+  const opinionData = opinions?.data;
+  const publicOpinions = Array.isArray(opinionData?.opinioni) ? opinionData.opinioni : [];
+  const answers: Record<string, string> = {};
+  const questions: OpinionQuestion[] = [];
+  for (const item of publicOpinions) {
+    if (typeof item?.id !== "string") continue;
+    const normalized = normalizeOpinionValue(item.userAnswer);
+    if (!normalized) continue;
+    answers[item.id] = normalized;
+    questions.push({ id: item.id, text: String(item.text || "") });
+  }
+  return {
+    userInfo,
+    avatarConfig: parseAvatar(userInfo.avatar_config),
+    userOpinions: answers,
+    opinionQuestions: questions,
+    governoIdeale: payload.public?.governoIdeale || {},
+    rappresentantiDetails: payload.public?.rappresentanti || {},
+    candidatiDetails: payload.public?.candidati || {},
+  };
+}
 
 export const useProfileData = (userId?: string) => {
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
-  
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [isLoadingInfo, setIsLoadingInfo] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userOpinions, setUserOpinions] = useState<Record<string, string>>({});
-  const [avatarConfig, setAvatarConfig] = useState<any>(null);
-  const [governoIdeale, setGovernoIdeale] = useState<Record<string, string>>({});
-  const [opinionQuestions, setOpinionQuestions] = useState<OpinionQuestion[]>([]);
-  const [rappresentantiDetails, setRappresentantiDetails] = useState<Record<string, any>>({});
-  const [candidatiDetails, setCandidatiDetails] = useState<Record<string, any>>({});
+  const ownerId = user?.id;
+  const targetId = userId || ownerId;
+  const ownProfile = !!ownerId && targetId === ownerId;
 
-  /**
-   * Funzione unificata per caricare tutti i dati del profilo
-   */
-  const fetchAllProfileData = async () => {
-    if (!user) return;
-    
-    setIsLoadingInfo(true);
-    setError(null);
-    
-    try {
-      console.log('🔍 DEBUG Profilo - Iniziando caricamento dati profilo...');
-      console.log('🔍 DEBUG Profilo - userId passato:', userId);
-      console.log('🔍 DEBUG Profilo - user.id:', user.id);
-      
-      // Determina l'ID dell'utente da utilizzare
-      const targetUserId = userId || user.id;
-      console.log('🔍 DEBUG Profilo - targetUserId:', targetUserId);
-      
-      // 1. Carica dati utente
-      console.log('🔍 DEBUG Profilo - Caricando dati utente...');
-      
-      // Se userId è fornito, carica i dati di quell'utente specifico
-      // Altrimenti carica i dati dell'utente autenticato
-      let userResponse;
-      try {
-        if (userId) {
-          // Carica dati di un utente specifico (per admin)
-          userResponse = await apiRequest("GET", `/api/users/${userId}`);
-        } else {
-          // Carica dati dell'utente autenticato
-          userResponse = await apiRequest("GET", "/api/users/me");
-        }
-      } catch (error) {
-        console.error('❌ DEBUG Profilo - Errore nella richiesta API:', error);
-        throw new Error(error instanceof Error ? error.message : 'Errore nel caricamento dati utente');
-      }
-      
-      if (!userResponse.ok || !userResponse.data) {
-        const errorMsg = userResponse.data?.error || userResponse.data?.message || 'Errore nel caricamento dati utente';
-        throw new Error(errorMsg);
-      }
-      
-      const userResult = userResponse.data;
-      const userData = userResult.user || userResult.data || userResult;
-      console.log('🔍 DEBUG Profilo - Dati utente estratti:', userData);
-      
-      setUserInfo(userData as UserInfo);
-      console.log('🔍 DEBUG Profilo - userInfo impostato:', userData);
-      
-      // 2. Carica opinioni utente
-      console.log('🔍 DEBUG Profilo - Caricando opinioni utente...');
-      const userOpinionsData = extractBaseOpinions(userData);
-      
-      setUserOpinions(userOpinionsData);
-      console.log('🔍 DEBUG Profilo - Opinion base caricate:', userOpinionsData);
-      
-      // 3. Carica domande opinioni
-      console.log('🔍 DEBUG Profilo - Caricando domande opinioni...');
-      try {
-        // Se userId è fornito, carica le opinioni di quell'utente specifico
-        // Altrimenti carica le opinioni dell'utente autenticato
-        let opinionsResponse;
-        if (userId) {
-          // Carica opinioni di un utente specifico (per admin)
-          opinionsResponse = await apiRequest("GET", `/api/users/${userId}/opinioni`);
-        } else {
-          // Carica opinioni dell'utente autenticato
-          opinionsResponse = await apiRequest("GET", "/api/opinioni/profile");
-        }
-        
-        if (opinionsResponse?.ok && opinionsResponse?.data?.success && opinionsResponse.data.data) {
-          const opinionsResult = opinionsResponse.data;
-          setOpinionQuestions(Array.isArray(opinionsResult.data.questions) ? opinionsResult.data.questions : []);
-          // Aggiorna anche le opinioni dell'utente
-          if (opinionsResult.data.userAnswers) {
-            setUserOpinions(prev => ({
-              ...prev,
-              ...opinionsResult.data.userAnswers
-            }));
-          }
-        }
-      } catch (opinionsError) {
-        console.warn('⚠️ DEBUG Profilo - Errore nel caricamento opinioni:', opinionsError);
-        // Non bloccare il caricamento per errori nelle opinioni
-      }
-      
-      // 4. Carica governo ideale
-      console.log('🔍 DEBUG Profilo - Caricando governo ideale...');
-      try {
-        const governoResponse = await apiRequest("GET", "/api/governo/ideale");
-        if (governoResponse?.ok && governoResponse?.data?.success && governoResponse.data.data) {
-          setGovernoIdeale(governoResponse.data.data);
-        }
-      } catch (governoError) {
-        console.warn('⚠️ DEBUG Profilo - Errore nel caricamento governo:', governoError);
-        // Non bloccare il caricamento per errori nel governo
-      }
-      
-      // 5. Carica configurazione avatar
-      if (userData.avatar_config) {
-        try {
-          let parsedConfig;
-          
-          // Se è già un oggetto, usalo direttamente
-          if (typeof userData.avatar_config === 'object') {
-            parsedConfig = userData.avatar_config;
-          } 
-          // Se è una stringa, prova a parsarla
-          else if (typeof userData.avatar_config === 'string') {
-            parsedConfig = JSON.parse(userData.avatar_config);
-            // Se il risultato è ancora una stringa, fai un secondo parse (caso doppia serializzazione)
-            if (typeof parsedConfig === 'string') {
-              parsedConfig = JSON.parse(parsedConfig);
-            }
-          } else {
-            setAvatarConfig(null);
-            return;
-          }
-          
-          setAvatarConfig(parsedConfig);
-        } catch (avatarError) {
-          console.warn('⚠️ Errore nel parsing avatar config:', avatarError);
-          // Se l'avatar_config non è JSON valido, imposta null
-          setAvatarConfig(null);
-        }
-      } else {
-        setAvatarConfig(null);
-      }
-      
-        // 6. Carica dettagli rappresentanti (solo se abbiamo un targetUserId)
-      if (targetUserId) {
-        console.log('🔍 DEBUG Profilo - Caricando dettagli rappresentanti per userId:', targetUserId);
-        try {
-          const rappresentantiResponse = await apiRequest("GET", "/api/rappresentanti");
-          console.log('🔍 DEBUG Profilo - rappresentantiResponse:', rappresentantiResponse);
-          if (rappresentantiResponse?.ok && rappresentantiResponse?.data?.success && rappresentantiResponse.data.data) {
-            const rappresentantiResult = rappresentantiResponse.data;
-            console.log('🔍 DEBUG Profilo - rappresentantiResult.data:', rappresentantiResult.data);
-            console.log('🔍 DEBUG Profilo - rappresentantiResult.data.rappresentanti:', rappresentantiResult.data.rappresentanti);
-            setRappresentantiDetails(rappresentantiResult.data.rappresentanti || {});
-          } else {
-            console.warn('⚠️ DEBUG Profilo - Risposta rappresentanti non valida:', rappresentantiResponse);
-          }
-        } catch (rappresentantiError) {
-          console.warn('⚠️ DEBUG Profilo - Errore nel caricamento rappresentanti:', rappresentantiError);
-        }
-        
-        // 7. Carica dettagli candidati
-        console.log('🔍 DEBUG Profilo - Caricando dettagli candidati per userId:', targetUserId);
-        try {
-          const candidatiResponse = await apiRequest("GET", "/api/candidati/selezioni");
-          console.log('🔍 DEBUG Profilo - candidatiResponse:', candidatiResponse);
-          if (candidatiResponse?.ok && candidatiResponse?.data?.success && candidatiResponse.data.data) {
-            const candidatiResult = candidatiResponse.data;
-            console.log('🔍 DEBUG Profilo - candidatiResult.data:', candidatiResult.data);
-            console.log('🔍 DEBUG Profilo - candidatiResult.data.candidati:', candidatiResult.data.candidati);
-            setCandidatiDetails(candidatiResult.data.candidati || {});
-          } else {
-            console.warn('⚠️ DEBUG Profilo - Risposta candidati non valida:', candidatiResponse);
-          }
-        } catch (candidatiError) {
-          console.warn('⚠️ DEBUG Profilo - Errore nel caricamento candidati:', candidatiError);
-        }
-      } else {
-        console.warn('⚠️ DEBUG Profilo - Nessun targetUserId disponibile per caricare rappresentanti e candidati');
-        console.warn('⚠️ DEBUG Profilo - userId:', userId, 'user.id:', user?.id);
-      }
-      
-      console.log('✅ DEBUG Profilo - Caricamento completato con successo');
-      
-    } catch (error) {
-      console.error('❌ DEBUG Profilo - Errore nel caricamento:', error);
-      setError(error instanceof Error ? error.message : 'Errore sconosciuto');
-    } finally {
-      setIsLoadingInfo(false);
-    }
-  };
+  // Cache SOLO in memoria React Query: nessuna opinione/scelta politica in localStorage.
+  // Le chiavi includono il visitatore e il soggetto: mai riusare dati tra account.
+  const query = useQuery<ProfileSnapshot>({
+    queryKey: ["profileSnapshot", ownerId ?? null, targetId ?? null],
+    enabled: Boolean(authReady && !isLoading && ownerId && targetId),
+    queryFn: ({ signal }) => ownProfile ? loadOwnProfile(signal) : loadOtherProfile(targetId!, signal),
+    staleTime: ownProfile ? 10 * 60 * 1000 : 0,
+    gcTime: ownProfile ? 30 * 60 * 1000 : 0,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: false,
+  });
 
-  // Carica i dati quando l'utente è pronto
-  useEffect(() => {
-    if (authReady && user && !isLoading) {
-      fetchAllProfileData();
-    }
-  }, [authReady, user, isLoading, userId]);
+  const fetchAllProfileData = useCallback(async () => {
+    if (ownerId && targetId) await query.refetch();
+  }, [ownerId, targetId, query.refetch]);
 
   return {
-    // Stati
-    userInfo,
-    isLoadingInfo,
-    error,
-    userOpinions,
-    avatarConfig,
-    governoIdeale,
-    opinionQuestions,
-    rappresentantiDetails,
-    candidatiDetails,
-    
-    // Azioni
-    setUserInfo,
-    setIsLoadingInfo,
-    setError,
-    setUserOpinions,
-    setAvatarConfig,
-    setGovernoIdeale,
-    setOpinionQuestions,
-    setRappresentantiDetails,
-    setCandidatiDetails,
+    userInfo: query.data?.userInfo || null,
+    isLoadingInfo: !authReady || (Boolean(ownerId && targetId) && query.isPending),
+    error: query.error instanceof Error ? query.error.message : null,
+    userOpinions: query.data?.userOpinions || {},
+    avatarConfig: query.data?.avatarConfig || null,
+    governoIdeale: query.data?.governoIdeale || {},
+    opinionQuestions: query.data?.opinionQuestions || [],
+    rappresentantiDetails: query.data?.rappresentantiDetails || {},
+    candidatiDetails: query.data?.candidatiDetails || {},
     fetchAllProfileData,
-    
-    // Stati di caricamento
     isLoading,
-    authReady
+    authReady,
   };
 };
