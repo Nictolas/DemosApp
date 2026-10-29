@@ -57,7 +57,10 @@ export default function OpinioniComunali() {
 
   // Combina i dati
   const isLoading = isLoadingQuestions;
-  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
+  // A disabled query can still hold data in RAM: never render it after revocation.
+  const canReadOpinions = !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true;
+  const questions = canReadOpinions && questionsData?.data && Array.isArray(questionsData.data)
+    ? questionsData.data : [];
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
     const opinioniEspresse = questions
@@ -99,7 +102,11 @@ export default function OpinioniComunali() {
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("CO", newOpinions),
-    onSuccess: (_data, savedOpinions) => {
+    onSuccess: async (_data, savedOpinions) => {
+      // An older in-flight GET must not restore the pre-save snapshot.
+      await queryClient.cancelQueries({
+        queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Comunale'],
+      });
       toast({ title: "Successo", description: "Le tue opinioni comunali sono state salvate." });
       queryClient.setQueryData(
         ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Comunale'],
