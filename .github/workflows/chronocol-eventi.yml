@@ -148,6 +148,26 @@ jobs:
           NODE
       - name: Install API dependencies
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Live read-only Chrono normalization smoke (temporary)
+        continue-on-error: true
+        run: |
+          node <<'NODE'
+          const { loadAllPages, notExpired } = require('./api/services/chronocolEventFeedService');
+          const upstream = require('./api/node_modules/node-fetch');
+          (async () => {
+            const all = await loadAllPages(upstream);
+            const active = all.filter((item) => notExpired(item));
+            const hasSensitive = all.some((item) => 'CONTATTI' in item || 'DESCRIZIONE' in item);
+            console.log(JSON.stringify({
+              test: 'LIVE_CHRONO_READ_ONLY', verifiedActiveAndHistorical: all.length,
+              upcomingOrInProgress: active.length,
+              sampleCities: [...new Set(active.map((item) => item.comune_evento))].slice(0, 12),
+              hasSensitive, allHaveSource: all.every((item) => item.fonte_url),
+              sampleDate: active[0]?.giorno_inizio || null
+            }));
+            if (hasSensitive || !all.every((item) => item.fonte_url)) process.exitCode = 1;
+          })().catch((error) => { console.error('LIVE_CHRONO_SMOKE_FAILED:', error.message); process.exitCode = 1; });
+          NODE
       - name: Run Chrono and existing Eventi feed tests
         run: node --test api/tests/chronocolEventFeedService.test.js api/tests/eventFeedService.test.js
       - name: Install client dependencies
