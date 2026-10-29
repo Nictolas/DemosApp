@@ -26,6 +26,9 @@ on:
       - 'api/tests/compactAccountTypesHttp.pg17.integration.js'
       - 'api/tests/compactAccountTypesSurvey.pg17.integration.js'
       - 'api/tests/compactAccountTypesStagingContract.test.js'
+      - 'api/tests/shortAccountTypeRegistrationGate.test.js'
+      - 'api/services/oauthRegistrationService.js'
+      - 'api/services/passkeyRegistrationService.js'
       - 'api/staging/f12_poe_isolated_synthetic_20261029.sql'
       - 'api/staging/f12_poe_isolated_synthetic_index_20261029.sql'
       - 'api/staging/f12_poe_readonly_smoke_20261029.sql'
@@ -70,7 +73,7 @@ jobs:
           node-version: '24'
       - name: Account-type semantics and legacy role regression
         run: |
-          node --test api/tests/shortAccountTypeCodes.test.js api/tests/accountCapabilitiesService.test.js api/tests/accountCapabilitiesMigration.test.js api/tests/accountCapabilityAuthorization.smoke.test.js api/tests/compactAccountTypesApiContract.test.js api/tests/compactAccountTypesStagingContract.test.js
+          node --test api/tests/shortAccountTypeCodes.test.js api/tests/accountCapabilitiesService.test.js api/tests/accountCapabilitiesMigration.test.js api/tests/accountCapabilityAuthorization.smoke.test.js api/tests/compactAccountTypesApiContract.test.js api/tests/compactAccountTypesStagingContract.test.js api/tests/shortAccountTypeRegistrationGate.test.js
       - name: Install API dependencies for OAuth and passkey regression
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: OAuth registration and passkey status policy
