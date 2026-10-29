@@ -28,9 +28,11 @@ function checkOperation(operation) {
 class SyntheticWitness {
   #secret;
   #latest = null;
+  available = true;
 
   constructor(secret = 'synthetic-test-only') { this.#secret = secret; }
   attest(checkpoint) {
+    if (!this.available) reject('GDPR_MODEL_WITNESS_UNAVAILABLE');
     const body = {epoch:checkpoint.epoch, count:checkpoint.count,
       head:checkpoint.head, sealed:checkpoint.sealed};
     const mac = crypto.createHmac('sha256', this.#secret)
@@ -77,6 +79,9 @@ class SyntheticExternalJournal {
       previous:this.entries.at(-1)?.hash || ZERO,
       epoch:this.epoch, phase, operation:{...operation}};
     const entry = {...row, hash:sha(row)};
+    // Simulate a required witness being available before the append. This is
+    // NOT an actual atomic two-provider commit protocol.
+    if (!this.witness.available) reject('GDPR_MODEL_WITNESS_UNAVAILABLE');
     this.entries.push(entry);
     // Prototype assumes atomic, durable external append AND independent witness
     // acknowledgement. A real implementation must prove that property.
@@ -87,6 +92,7 @@ class SyntheticExternalJournal {
     if (!this.sealed) reject('GDPR_MODEL_WRITERS_NOT_SEALED');
     let previous = ZERO;
     const pending = new Map();
+    const pendingSubjects = new Map();
     const committed = [];
     const used = new Map();
     for (let i=0; i<this.entries.length; i++) {
@@ -102,16 +108,19 @@ class SyntheticExternalJournal {
       if (original && original !== fingerprint) reject('GDPR_MODEL_IDEMPOTENCY_CONFLICT');
       used.set(op.id, fingerprint);
       if (e.phase === 'prepare') {
-        if (pending.size || committed.some(x=>x.id === op.id)) {
+        if (pending.has(op.id) || pendingSubjects.has(op.subject) ||
+            committed.some(x=>x.id === op.id)) {
           reject('GDPR_MODEL_PENDING_OR_DUPLICATE');
         }
         pending.set(op.id, op);
+        pendingSubjects.set(op.subject, op.id);
       } else if (e.phase === 'commit') {
         if (!pending.has(op.id) ||
             canonical(pending.get(op.id)) !== canonical(op)) {
           reject('GDPR_MODEL_COMMIT_WITHOUT_INTENT');
         }
         pending.delete(op.id);
+        pendingSubjects.delete(op.subject);
         committed.push(op);
       } else reject('GDPR_MODEL_PHASE_INVALID');
       previous = e.hash;
@@ -134,7 +143,10 @@ class SyntheticExternalJournal {
     const op=checkOperation(operation);
     const old=this.prior(op);
     if (old) return old;
+    // Serialize only the SAME subject. Other subjects can prepare and commit
+    // independently; journal sequence/hash and witnessed head remain global.
     if (this.entries.some(e => e.phase === 'prepare' &&
+        e.operation.subject === op.subject &&
         !this.entries.some(f => f.phase === 'commit' && f.operation.id === e.operation.id))) {
       reject('GDPR_MODEL_AMBIGUOUS_INTENT');
     }
@@ -146,6 +158,25 @@ class SyntheticExternalJournal {
     if (this.prior(op) !== 'pending') reject('GDPR_MODEL_COMMIT_WITHOUT_INTENT');
     this.append('commit',op);
   }
+  // TEST-ONLY reconciliation. Simulates independently established proof from
+  // the ORIGINAL live primary, not a restored snapshot, after every writer is
+  // fenced. Never infer a commit from a user profile field alone.
+  finalizeAmbiguousFromOriginalPrimary(originalDb,raw,{
+    originalPrimaryVerified=false,writersFenced=false,independentWitness=null
+  }={}) {
+    const op=checkOperation(raw);
+    if (this.sealed) reject('GDPR_MODEL_JOURNAL_SEALED');
+    if (!originalPrimaryVerified || !writersFenced || !independentWitness) {
+      reject('GDPR_MODEL_ORIGINAL_PRIMARY_NOT_ATTESTED');
+    }
+    this.witness.verify(independentWitness);
+    if (this.prior(op) !== 'pending') reject('GDPR_MODEL_AMBIGUOUS_INTENT');
+    if (!originalDb || !originalDb.hasExactCommit(op)) {
+      reject('GDPR_MODEL_SQL_COMMIT_NOT_ATTESTED');
+    }
+    this.commit(op);
+    return {externallyFinalized:true,productionRecoveryReady:false};
+  }
   seal() {
     if (this.offline) reject('GDPR_MODEL_EXTERNAL_UNAVAILABLE');
     this.sealed=true;
@@ -156,16 +187,23 @@ class SyntheticExternalJournal {
 class SyntheticDatabase {
   constructor(accounts = {}) {
     this.accounts = structuredClone(accounts);
-    this.applied = new Set();
+    this.applied = new Map();
   }
   snapshot() {
     const result = new SyntheticDatabase(this.accounts);
-    result.applied = new Set(this.applied);
+    result.applied = new Map(this.applied);
     return result;
+  }
+  hasExactCommit(operation) {
+    const op=checkOperation(operation);
+    return this.applied.get(op.id) === sha(op);
   }
   apply(operation) {
     const op=checkOperation(operation);
-    if (this.applied.has(op.id)) return 'already-applied';
+    if (this.applied.has(op.id)) {
+      if (!this.hasExactCommit(op)) reject('GDPR_MODEL_IDEMPOTENCY_CONFLICT');
+      return 'already-applied';
+    }
     const user=this.accounts[op.subject];
     if (!user) reject('GDPR_MODEL_UNKNOWN_SUBJECT');
     const next={...user};
@@ -178,7 +216,7 @@ class SyntheticDatabase {
     }
     // In the synthetic model, state change and idempotency record are atomic.
     this.accounts[op.subject]=next;
-    this.applied.add(op.id);
+    this.applied.set(op.id, sha(op));
     return 'applied';
   }
 }
