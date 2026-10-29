@@ -730,7 +730,7 @@ export default function Utenti() {
                       <div
                         ref={regionChartScrollRef}
                         data-testid="utenti-region-chart-scroll"
-                        className="w-full max-w-full overflow-x-auto pb-2"
+                        className="utenti-region-chart-scroll w-full max-w-full overflow-x-auto pb-2"
                         style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
                         role="region"
                         aria-label="Grafico delle regioni ordinato per numero di utenti: scorri orizzontalmente"
