@@ -61,6 +61,15 @@ test('legacy maintenance script is explicitly excluded, but runtime utils remain
   // Excluding the maintenance script must NOT blanket-exclude utils.
   assert.ok(scanned.some(file=>file.endsWith('opinionStatsColumns.js')),
     'Production utils must remain covered by the legacy-SQL guard');
+  // Do not let any runtime module import the excluded, database-mutating
+  // maintenance script. Excluding it from text scanning is safe only while
+  // it stays out of the application's module dependency graph.
+  const runtime=scanDirs.flatMap(dir=>allRuntimeModules(path.join(root,dir)));
+  for(const file of runtime){
+    assert.doesNotMatch(withoutComments(fs.readFileSync(file,'utf8')),
+      /(?:require\\(|import\\s*\\(|from\\s+['\"\\s]).*add-unique-constraint-opinioni/,
+      'A runtime module must never import the legacy migration script');
+  }
 });
 
 test('the one-time read-only cutover preflight remains the explicit exception',()=>{
