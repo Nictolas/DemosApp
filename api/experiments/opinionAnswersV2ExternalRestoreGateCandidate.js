@@ -58,7 +58,7 @@ function createHybridExternalRestoreGate({
       a.restore_status!=='ready'||
       a.ledger_complete!==true||
       a.replay_committed!==true||
-      a.ingress_restore_barrier==='externally_enforced'!==true||
+      a.ingress_restore_barrier!=='externally_enforced'||
       typeof a.external_ledger_digest!=='string'||
       !HASH.test(a.external_ledger_digest)){
       throw fail('incomplete-or-wrong-generation');
