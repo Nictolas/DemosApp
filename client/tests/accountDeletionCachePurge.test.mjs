@@ -25,13 +25,14 @@ test("logout aborts authenticated queries and clears RAM before encrypted vault 
   const start = authSource.indexOf("const logoutMutation = useMutation");
   const clearTokens = authSource.indexOf("clearSessionTokens();", start);
   const cancel = authSource.indexOf("await queryClient.cancelQueries();", start);
-  const clearRam = authSource.indexOf("queryClient.clear();", start);
+  const clearRam = authSource.indexOf("queryClient.removeQueries();", start);
   const clearSummary = authSource.indexOf("clearAllProfileSummaries();", start);
   const clearVault = authSource.indexOf("await clearAllEncryptedProfiles();", start);
   const navigation = authSource.indexOf('window.location.href = "/";', start);
   assert.ok(start >= 0 && clearTokens > start, "logout must clear credentials");
   assert.ok(cancel > clearTokens && clearRam > cancel, "logout must cancel GETs and clear RAM");
   assert.ok(clearSummary > clearRam && clearVault > clearSummary, "vault wipe must follow RAM cleanup");
+  assert.ok(authSource.indexOf("queryClient.clear();", start) > navigation, "full cache clear must stay in onSuccess after the logout mutation");
   assert.ok(navigation > clearVault, "navigation must not precede the encrypted purge");
 });
 
