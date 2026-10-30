@@ -25,6 +25,9 @@ function fixture() {
   let catalogReads = 0;
   let storeWrites = 0;
   let afterGet = () => {};
+  let beforeCatalog = () => {};
+  let catalogAvailable = true;
+  let personalAnswersAvailable = true;
   let lastSignal;
   const snapshots = new Map();
   const generations = new Map();
@@ -35,11 +38,14 @@ function fixture() {
     assert.equal(method, 'GET');
     if (url === '/api/opinioni-catalog-revision') {
       catalogReads += 1;
+      await beforeCatalog();
+      if (!catalogAvailable) throw new Error('Synthetic catalog metadata unavailable');
       return { ok: true, data: { success: true, revision: currentRevision } };
     }
     assert.equal(url, '/api/opinioni-list?grado=N');
     answerReads += 1;
     lastSignal = signal;
+    if (!personalAnswersAvailable) throw new Error('Synthetic personal answer API unavailable');
     await afterGet(signal);
     return { ok: true, data: { success: true, data: q } };
   };
@@ -70,6 +76,9 @@ function fixture() {
     setRevision: value => { currentRevision = value; },
     advance: milliseconds => { now += milliseconds; },
     onGet: fn => { afterGet = fn; },
+    onCatalog: fn => { beforeCatalog = fn; },
+    setCatalogAvailable: ok => { catalogAvailable = ok; },
+    setPersonalAnswersAvailable: ok => { personalAnswersAvailable = ok; },
     counts: () => ({ answers: answerReads, catalog: catalogReads, writes: storeWrites }),
     signal: () => lastSignal,
   };
@@ -128,4 +137,37 @@ test('consent/revision race rejects a stale answer GET before disk write', async
   h.onGet(() => { h.bump(A, 'opinionN'); });
   await assert.rejects(h.load(A, 'consent-1', 'N'), /Caricamento opinioni annullato/);
   assert.equal(h.counts().writes, 0);
+});
+
+test('simultaneous accounts coalesce the public catalog revision request', async () => {
+  const h = fixture();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  h.onCatalog(() => gate);
+  const first = h.load(A, 'consent-1', 'N');
+  const second = h.load(B, 'consent-1', 'N');
+  // Both calls must join one in-flight public revision request, but each
+  // account's private answers still require their own authenticated GET.
+  assert.equal(h.counts().catalog, 1);
+  release();
+  const [a, b] = await Promise.all([first, second]);
+  assert.equal(a.data[0].id, 'valid_opinion');
+  assert.equal(b.data[0].id, 'valid_opinion');
+  assert.deepEqual(h.counts(), { answers: 2, catalog: 1, writes: 2 });
+});
+
+test('unavailable public catalog revision never authorizes reusing a stale snapshot', async () => {
+  const h = fixture();
+  await h.load(A, 'consent-1', 'N');
+  assert.equal(h.counts().writes, 1);
+  h.advance(300001);
+  h.setCatalogAvailable(false);
+  await h.load(A, 'consent-1', 'N');
+  // Without the current official catalog revision, fail closed on cached
+  // responses: fetch the authenticated server's current answer payload.
+  assert.deepEqual(h.counts(), { answers: 2, catalog: 2, writes: 1 });
+  h.setPersonalAnswersAvailable(false);
+  await assert.rejects(h.load(A, 'consent-1', 'N'),
+    /Synthetic personal answer API unavailable/);
+  assert.deepEqual(h.counts(), { answers: 3, catalog: 3, writes: 1 });
 });
