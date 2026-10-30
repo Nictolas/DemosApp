@@ -21,6 +21,10 @@ on:
       - "api/tests/opinionAnswersV2Backfill.unit.test.js"
       - "api/scripts/benchmark-opinion-answer-layouts-ci.js"
       - "api/scripts/benchmark-opinion-sources-ci.js"
+      - "api/scripts/benchmark-opinion-hybrid-ci.js"
+      - "api/experiments/opinionAnswersV2HybridCandidate.js"
+      - "api/tests/opinionAnswersV2Hybrid.unit.test.js"
+      - "api/tests/opinionAnswersV2Hybrid.pg.test.js"
       - "api/docs/opinion-answer-v2-no-column-ddl.md"
       - ".github/workflows/opinion-answers-v2-research.yml"
   workflow_dispatch:
@@ -64,8 +68,10 @@ jobs:
       - name: Install locked API dependencies without running scripts
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Run isolated unit and PostgreSQL 17 contract tests
-        run: node --test api/tests/opinionAnswersV2Candidate.test.js api/tests/opinionAnswersV2Candidate.pg.test.js api/tests/opinionAnswersV2Consent.pg.test.js api/tests/opinionAnswersV2ManifestCompatibility.test.js api/tests/opinionAnswersV2Backfill.pg.test.js api/tests/opinionAnswersV2Backfill.unit.test.js api/tests/opinionAnswersV2Preflight.unit.test.js api/tests/opinionAnswersV2Restore.pg.test.js api/tests/opinionAnswersV2Compat.unit.test.js api/tests/opinionAnswersV2Gdpr.unit.test.js api/tests/opinionAnswersV2Gdpr.pg.test.js api/tests/opinionAnswersV2Sources.unit.test.js api/tests/opinionAnswersV2Sources.pg.test.js
+        run: node --test api/tests/opinionAnswersV2Candidate.test.js api/tests/opinionAnswersV2Candidate.pg.test.js api/tests/opinionAnswersV2Consent.pg.test.js api/tests/opinionAnswersV2ManifestCompatibility.test.js api/tests/opinionAnswersV2Backfill.pg.test.js api/tests/opinionAnswersV2Backfill.unit.test.js api/tests/opinionAnswersV2Preflight.unit.test.js api/tests/opinionAnswersV2Restore.pg.test.js api/tests/opinionAnswersV2Compat.unit.test.js api/tests/opinionAnswersV2Gdpr.unit.test.js api/tests/opinionAnswersV2Gdpr.pg.test.js api/tests/opinionAnswersV2Sources.unit.test.js api/tests/opinionAnswersV2Sources.pg.test.js api/tests/opinionAnswersV2Hybrid.unit.test.js api/tests/opinionAnswersV2Hybrid.pg.test.js
       - name: Measure synthetic layouts and SQL reads
         run: node api/scripts/benchmark-opinion-answer-layouts-ci.js
       - name: Measure source-inclusive storage, reads and update WAL on disposable PG17
         run: node api/scripts/benchmark-opinion-sources-ci.js
+      - name: Compare one-time overflow JSONB against unchanged 94-column storage
+        run: node api/scripts/benchmark-opinion-hybrid-ci.js
