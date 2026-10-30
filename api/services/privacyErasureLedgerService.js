@@ -8,8 +8,12 @@ class PrivacyErasureLedgerService {
   });
 
   static async ensureTable(client) {
+    // OPERATOR-ONLY bootstrap/maintenance. PostgreSQL commits the entire
+    // multi-statement query atomically: never commit a public relation before
+    // RLS and revocation of PostgREST API-role grants are applied.
+    // Never invoke this helper from a user-facing GDPR transaction.
     await client.query(`
-      CREATE TABLE IF NOT EXISTS privacy_erasure_ledger (
+      CREATE TABLE IF NOT EXISTS public.privacy_erasure_ledger (
         event_key TEXT PRIMARY KEY,
         subject_user_id TEXT NOT NULL,
         event_type TEXT NOT NULL CHECK (event_type IN (
@@ -19,12 +23,74 @@ class PrivacyErasureLedgerService {
         )),
         occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         details JSONB NOT NULL DEFAULT '{}'::jsonb
-      )
+      );
+      ALTER TABLE public.privacy_erasure_ledger ENABLE ROW LEVEL SECURITY;
+      REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM PUBLIC;
+      DO $gdpr_ledger_privileges$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM anon;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM authenticated;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+          REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM service_role;
+        END IF;
+      END
+      $gdpr_ledger_privileges$;
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_privacy_erasure_ledger_subject_time
-      ON privacy_erasure_ledger(subject_user_id, occurred_at DESC)
+      ON public.privacy_erasure_ledger(subject_user_id, occurred_at DESC)
     `);
+  }
+
+  static async assertProtectedLedger(client) {
+    // This check only inspects pg_catalog; it never reads GDPR event rows.
+    // regclass resolution raises 42P01 if a restore omitted the ledger.
+    // A restored table that exists but lacks RLS or has API/public grants
+    // must not silently accept a new sensitive GDPR event.
+    const result = await client.query(`
+      SELECT c.relrowsecurity AS rls_enabled,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.aclexplode(
+            COALESCE(c.relacl, pg_catalog.acldefault('r', c.relowner))
+          ) acl WHERE acl.grantee = 0
+        ) AS public_grants_exist,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_attribute a
+          CROSS JOIN LATERAL pg_catalog.aclexplode(a.attacl) acl
+          WHERE a.attrelid = c.oid
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+            AND acl.grantee = 0
+        ) AS public_column_grants_exist,
+        (
+          SELECT COUNT(*)::integer
+          FROM pg_catalog.pg_roles r
+          WHERE r.rolname IN ('anon', 'authenticated', 'service_role')
+            AND (
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'SELECT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'INSERT') OR
+              pg_catalog.has_any_column_privilege(r.rolname, c.oid, 'UPDATE') OR
+              pg_catalog.has_table_privilege(r.rolname, c.oid, 'DELETE')
+            )
+        ) AS api_roles_with_dml_grants
+      FROM pg_catalog.pg_class c
+      WHERE c.oid = 'public.privacy_erasure_ledger'::regclass
+    `);
+    const state = result.rows?.[0];
+    if (state?.rls_enabled !== true ||
+        state?.public_grants_exist !== false ||
+        state?.public_column_grants_exist !== false ||
+        state?.api_roles_with_dml_grants !== 0) {
+      const error = new Error('GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      error.code = 'GDPR_LEDGER_SCHEMA_NOT_PROTECTED';
+      throw error;
+    }
   }
 
   static async recordEvent(client, { userId, eventType, details = {} }) {
@@ -35,45 +101,168 @@ class PrivacyErasureLedgerService {
       throw new Error('Privacy ledger event requires userId');
     }
 
-    await this.ensureTable(client);
+    // The ledger must be preinstalled in a reviewed maintenance operation.
+    // Missing relation fails closed (42P01), without DDL during deletion or
+    // political-consent revocation and without creating an unprotected table.
+    // Even a pre-existing ledger must be rejected if restored with RLS off,
+    // unexpected table/column PUBLIC grants or exposed API-role permissions.
+    await this.assertProtectedLedger(client);
     const eventKey = crypto.randomUUID();
+    const subjectUserId = String(userId);
+    const detailsJson = JSON.stringify(details);
+    if (typeof detailsJson !== 'string') {
+      const error = new Error('GDPR_LEDGER_INSERT_NOT_CONFIRMED');
+      error.code = 'GDPR_LEDGER_INSERT_NOT_CONFIRMED';
+      throw error;
+    }
     const result = await client.query(
-      `INSERT INTO privacy_erasure_ledger
+      `INSERT INTO public.privacy_erasure_ledger
         (event_key, subject_user_id, event_type, occurred_at, details)
        VALUES ($1, $2, $3, NOW(), $4::jsonb)
-       RETURNING event_key, subject_user_id, event_type, occurred_at, details`,
-      [eventKey, String(userId), eventType, JSON.stringify(details)]
+       RETURNING event_key, subject_user_id, event_type, occurred_at, details,
+         details = $4::jsonb AS details_match`,
+      [eventKey, subjectUserId, eventType, detailsJson]
     );
-    return result.rows[0];
+    // PostgreSQL BEFORE INSERT triggers may silently suppress a row
+    // (RETURN NULL) or rewrite its subject/payload. A successful SQL query
+    // alone is NOT proof that the privacy event was durably recorded.
+    // Throw inside the caller's transaction so consent/deletion rolls back.
+    const row = result.rows?.[0];
+    if (result.rowCount !== 1 || result.rows?.length !== 1 ||
+        row?.event_key !== eventKey ||
+        row.subject_user_id !== subjectUserId ||
+        row.event_type !== eventType ||
+        row.details_match !== true ||
+        !row.occurred_at) {
+      const error = new Error('GDPR_LEDGER_INSERT_NOT_CONFIRMED');
+      error.code = 'GDPR_LEDGER_INSERT_NOT_CONFIRMED';
+      throw error;
+    }
+    const { details_match: _verified, ...event } = row;
+    return event;
+  }
+
+  // Recovery/export MUST run with SQL visibility of the complete ledger.
+  // A correctly protected relation can return only a subset (or zero rows)
+  // to a subject-scoped RLS role, which is never a complete archive.
+  static async assertUnfilteredLedger(client) {
+    await this.assertProtectedLedger(client);
+    const result = await client.query(
+      "SELECT NOT pg_catalog.row_security_active(" +
+      "'public.privacy_erasure_ledger'::regclass) AS complete_visibility"
+    );
+    if (result.rows?.[0]?.complete_visibility !== true) {
+      const error = new Error('GDPR_LEDGER_VISIBILITY_INCOMPLETE');
+      error.code = 'GDPR_LEDGER_VISIBILITY_INCOMPLETE';
+      throw error;
+    }
   }
 
   static async captureCurrent(client) {
-    await this.ensureTable(client);
+    // Never manufacture an incomplete/empty history during export.
+    await this.assertUnfilteredLedger(client);
     const result = await client.query(`
-      SELECT event_key, subject_user_id, event_type, occurred_at, details
-      FROM privacy_erasure_ledger
+      SELECT event_key, subject_user_id, event_type,
+        -- node-postgres TIMESTAMPTZ -> Date truncates PostgreSQL microseconds.
+        -- Preserve full precision for signed/exported recovery evidence.
+        to_char(occurred_at AT TIME ZONE 'UTC',
+          'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at,
+        details
+      FROM public.privacy_erasure_ledger
       ORDER BY occurred_at ASC, event_key ASC
     `);
     return result.rows;
   }
 
   static async mergeCaptured(client, rows = []) {
-    await this.ensureTable(client);
-    let merged = 0;
+    // An offline operator must still wrap import AND privacy replay in one
+    // transaction. Preflight every captured value nevertheless: a late bad
+    // timestamp, duplicate event key or JSON serialization failure must not
+    // leave earlier rows inserted by a caller that forgot BEGIN.
+    await this.assertUnfilteredLedger(client);
+    const invalid = () => {
+      const error = new Error('GDPR_LEDGER_INVALID_CAPTURED_EVENT');
+      error.code = 'GDPR_LEDGER_INVALID_CAPTURED_EVENT';
+      return error;
+    };
+    if (!Array.isArray(rows)) throw invalid();
+    const seenKeys = new Set();
+    const prepared = [];
     for (const row of rows) {
+      if (!row || typeof row !== 'object' ||
+          typeof row.event_key !== 'string' || !row.event_key.trim() ||
+          typeof row.subject_user_id !== 'string' || !row.subject_user_id.trim() ||
+          !Object.values(this.EVENT_TYPES).includes(row.event_type) ||
+          seenKeys.has(row.event_key)) throw invalid();
+
+      // PostgreSQL accepts implicit NULL or permissive timestamp casts, and
+      // JavaScript Date loses microseconds. Require lossless UTC text from
+      // captureCurrent (or an equivalent validated legacy UTC timestamp).
+      const timestamp = row.occurred_at;
+      const match = typeof timestamp === 'string' &&
+        /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?Z$/.exec(timestamp);
+      if (!match) throw invalid();
+      const milliseconds = match[1] + '.' +
+        (match[2] || '').padEnd(3, '0').slice(0, 3) + 'Z';
+      const parsed = new Date(milliseconds);
+      if (!Number.isFinite(parsed.getTime()) ||
+          parsed.toISOString() !== milliseconds) throw invalid();
+
+      // Captured PostgreSQL JSONB details must be an object. A missing,
+      // null or scalar payload must not silently become '{}' on replay.
+      if (!row.details || typeof row.details !== 'object' ||
+          Array.isArray(row.details)) throw invalid();
+      // Serialize once in the preflight. Objects with circular references,
+      // BigInt or a serializer returning undefined must fail before ANY DML.
+      let details;
+      try { details = JSON.stringify(row.details); } catch (_) { throw invalid(); }
+      if (typeof details !== 'string' || details[0] !== '{') throw invalid();
+      seenKeys.add(row.event_key);
+      prepared.push([
+        row.event_key, row.subject_user_id, row.event_type, timestamp, details
+      ]);
+    }
+    let merged = 0;
+    for (const event of prepared) {
       const result = await client.query(
-        `INSERT INTO privacy_erasure_ledger
+        `INSERT INTO public.privacy_erasure_ledger
           (event_key, subject_user_id, event_type, occurred_at, details)
          VALUES ($1, $2, $3, $4, $5::jsonb)
-         ON CONFLICT (event_key) DO NOTHING`,
-        [
-          row.event_key,
-          String(row.subject_user_id),
-          row.event_type,
-          row.occurred_at,
-          JSON.stringify(row.details || {})
-        ]
+         ON CONFLICT (event_key) DO NOTHING
+         RETURNING (
+           event_key = $1::text AND subject_user_id = $2::text
+           AND event_type = $3::text AND occurred_at = $4::timestamptz
+           AND details = $5::jsonb
+         ) AS identical`,
+        event
       );
+      // A BEFORE INSERT trigger can rewrite any imported field and still
+      // produce rowCount=1. Verify the exact persisted SQL values, including
+      // microseconds, rather than trusting successful execution alone.
+      if (result.rowCount === 1) {
+        if (result.rows?.length !== 1 || result.rows[0]?.identical !== true) {
+          const error = new Error('GDPR_LEDGER_IMPORT_NOT_CONFIRMED');
+          error.code = 'GDPR_LEDGER_IMPORT_NOT_CONFIRMED';
+          throw error;
+        }
+      } else if (result.rowCount === 0) {
+        // Idempotent replay is safe only when the previously stored event
+        // matches in full. A reused event_key with different content must
+        // stop recovery, not silently discard a later erasure/revocation.
+        const existing = await client.query(
+          `SELECT (
+             subject_user_id = $2::text AND event_type = $3::text
+             AND occurred_at = $4::timestamptz AND details = $5::jsonb
+           ) AS identical
+           FROM public.privacy_erasure_ledger WHERE event_key = $1`,
+          event
+        );
+        if (existing.rows.length !== 1 || existing.rows[0].identical !== true) {
+          const error = new Error('GDPR_LEDGER_EVENT_KEY_CONFLICT');
+          error.code = 'GDPR_LEDGER_EVENT_KEY_CONFLICT';
+          throw error;
+        }
+      }
       merged += result.rowCount || 0;
     }
     return merged;
@@ -97,10 +286,12 @@ class PrivacyErasureLedgerService {
     return `"${String(identifier).replace(/"/g, '""')}"`;
   }
 
+  // Schema-qualified DML is essential in offline GDPR replay: pg_temp can
+  // shadow an unqualified public relation even when metadata checks use public.
   static async deleteByColumn(client, table, column, userId) {
     if (!(await this.tableHasColumn(client, table, column))) return 0;
     const result = await client.query(
-      `DELETE FROM ${this.quoteIdentifier(table)} WHERE ${this.quoteIdentifier(column)}::text = $1`,
+      `DELETE FROM public.${this.quoteIdentifier(table)} WHERE ${this.quoteIdentifier(column)}::text = $1`,
       [String(userId)]
     );
     return result.rowCount || 0;
@@ -124,7 +315,7 @@ class PrivacyErasureLedgerService {
       .map((row) => `${this.quoteIdentifier(row.column_name)}::text = $1`)
       .join(' OR ');
     const result = await client.query(
-      `DELETE FROM ${this.quoteIdentifier(table)} WHERE ${conditions}`,
+      `DELETE FROM public.${this.quoteIdentifier(table)} WHERE ${conditions}`,
       [String(userId)]
     );
     return result.rowCount || 0;
@@ -146,11 +337,11 @@ class PrivacyErasureLedgerService {
     const udtName = columnInfo.rows[0].udt_name;
     let sql;
     if (udtName === '_uuid') {
-      sql = `UPDATE ${this.quoteIdentifier(table)}
+      sql = `UPDATE public.${this.quoteIdentifier(table)}
              SET ${this.quoteIdentifier(column)} = array_remove(${this.quoteIdentifier(column)}, $1::uuid)
              WHERE $1::uuid = ANY(${this.quoteIdentifier(column)})`;
     } else if (['_text', '_varchar', '_bpchar'].includes(udtName)) {
-      sql = `UPDATE ${this.quoteIdentifier(table)}
+      sql = `UPDATE public.${this.quoteIdentifier(table)}
              SET ${this.quoteIdentifier(column)} = array_remove(${this.quoteIdentifier(column)}, $1::text)
              WHERE $1::text = ANY(${this.quoteIdentifier(column)}::text[])`;
     } else {
@@ -213,9 +404,9 @@ class PrivacyErasureLedgerService {
       await this.tableHasColumn(client, 'comunicazioni', 'id_utente')
     ) {
       const result = await client.query(
-        `DELETE FROM reazioni
+        `DELETE FROM public.reazioni
          WHERE comunicazione_id::text IN (
-           SELECT id::text FROM comunicazioni WHERE id_utente::text = $1
+           SELECT id::text FROM public.comunicazioni WHERE id_utente::text = $1
          )`,
         [String(userId)]
       );
@@ -272,7 +463,7 @@ class PrivacyErasureLedgerService {
 
     let userDeleted = 0;
     if (await this.tableHasColumn(client, 'users', 'id')) {
-      const result = await client.query('DELETE FROM users WHERE id::text = $1', [String(userId)]);
+      const result = await client.query('DELETE FROM public.users WHERE id::text = $1', [String(userId)]);
       userDeleted = result.rowCount || 0;
     }
 
@@ -280,7 +471,12 @@ class PrivacyErasureLedgerService {
   }
 
   static async enforcePoliticalRevocation(client, userId) {
-    let opinionsDeleted = await this.deleteByUserId(client, 'opinioni_risposte', userId);
+    // Restore replay must erase the same consent-scoped political data as the
+    // live revocation route, including votes and legacy opinion columns.
+    // Lazy require avoids the module cycle: politicalConsentService uses our
+    // schema-aware deletion helpers.
+    const { cleanupConsentScopedPoliticalData } = require('./politicalConsentService');
+    const cleanup = await cleanupConsentScopedPoliticalData(client, userId);
 
     const userConsentColumns = [
       'political_opinions_consent',
@@ -293,7 +489,7 @@ class PrivacyErasureLedgerService {
     );
     if (userHasConsent.every(Boolean)) {
       await client.query(
-        `UPDATE users SET
+        `UPDATE public.users SET
            political_opinions_consent = false,
            political_opinions_consent_timestamp = NULL,
            political_opinions_consent_ip_address = NULL,
@@ -308,7 +504,7 @@ class PrivacyErasureLedgerService {
     const consentHasFlag = await this.tableHasColumn(client, 'user_consents', 'political_opinions_consent');
     if (consentHasUserId && consentHasFlag) {
       await client.query(
-        `UPDATE user_consents SET
+        `UPDATE public.user_consents SET
            political_opinions_consent = false,
            political_opinions_consent_timestamp = NULL,
            political_opinions_consent_ip_address = NULL,
@@ -319,15 +515,112 @@ class PrivacyErasureLedgerService {
       );
     }
 
-    return { opinionsDeleted };
+    return { opinionsDeleted: cleanup.deletedByTable.opinioni_risposte || 0 };
+  }
+
+  static async assertReplayCoreSchema(client) {
+    // A partial/old restore must never be reported as a successful replay
+    // merely because schema-aware deletion helpers skip missing relations.
+    // Inspect only catalog metadata; do not read user rows.
+    const result = await client.query(`
+      SELECT NOT EXISTS (
+        SELECT 1
+        FROM (VALUES
+          ('users', 'id'),
+          ('users', 'political_opinions_consent'),
+          ('users', 'political_opinions_consent_timestamp'),
+          ('users', 'political_opinions_consent_ip_address'),
+          ('users', 'political_opinions_consent_user_agent'),
+          ('users', 'updated_at'),
+          ('opinioni_risposte', 'user_id'),
+          ('user_consents', 'user_id'),
+          ('user_consents', 'political_opinions_consent'),
+          ('user_consents', 'political_opinions_consent_timestamp'),
+          ('user_consents', 'political_opinions_consent_ip_address'),
+          ('user_consents', 'political_opinions_consent_user_agent'),
+          ('user_consents', 'updated_at')
+        ) AS required(table_name, column_name)
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_class c
+          JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+          JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+          WHERE n.nspname = 'public'
+            AND c.relname = required.table_name
+            AND c.relkind IN ('r', 'p')
+            AND a.attname = required.column_name
+            AND a.attnum > 0
+            AND NOT a.attisdropped
+        )
+      ) AS complete
+    `);
+    if (result.rows?.[0]?.complete !== true) {
+      const error = new Error('GDPR_REPLAY_SCHEMA_INCOMPLETE');
+      error.code = 'GDPR_REPLAY_SCHEMA_INCOMPLETE';
+      throw error;
+    }
+  }
+
+  // An operator can own/read the ledger but still have RLS-filtered access
+  // to restored application tables. DELETE/UPDATE on those tables could then
+  // silently touch zero rows and falsely report a successful replay.
+  // Conservatively refuse replay when ANY restored public application table
+  // applies RLS to the executing role. This is an offline operator gate only.
+  static async assertUnfilteredReplayTables(client) {
+    const result = await client.query(`
+      SELECT COALESCE(
+        bool_and(NOT pg_catalog.row_security_active(c.oid::regclass)),
+        true
+      ) AS complete_visibility
+      FROM pg_catalog.pg_class c
+      JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public'
+        AND c.relkind IN ('r','p')
+        AND c.relname NOT IN (
+          'privacy_erasure_ledger',
+          'privacy_erasure_delivery_outbox'
+        )
+    `);
+    if (result.rows?.[0]?.complete_visibility !== true) {
+      const error = new Error('GDPR_REPLAY_DATA_VISIBILITY_INCOMPLETE');
+      error.code = 'GDPR_REPLAY_DATA_VISIBILITY_INCOMPLETE';
+      throw error;
+    }
   }
 
   static async applyCurrentPrivacyState(client) {
-    await this.ensureTable(client);
+    // Missing or RLS-filtered tombstones must block replay before any DML.
+    await this.assertUnfilteredLedger(client);
+    // Schema-aware cleanup is intentionally tolerant of optional legacy tables,
+    // but these core relations/columns must exist before any replay mutation.
+    await this.assertReplayCoreSchema(client);
+    // A full tombstone SELECT is insufficient if application tables hide
+    // deletable records behind a different RLS policy. Check catalog-only
+    // visibility before the first user-data mutation.
+    await this.assertUnfilteredReplayTables(client);
+
+    // Two opposite consent events with the same PostgreSQL timestamp have no
+    // trustworthy causal order: event_key is a random UUID, not a sequence.
+    // Refuse replay before any deletion instead of arbitrarily choosing the
+    // last consent state. Clock skew across distinct timestamps remains an
+    // independent recovery attestation concern.
+    const orderCheck = await client.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM public.privacy_erasure_ledger
+        WHERE event_type IN ('political_consent_revoked', 'political_consent_granted')
+        GROUP BY subject_user_id, occurred_at
+        HAVING COUNT(DISTINCT event_type) > 1
+      ) AS ambiguous
+    `);
+    if (orderCheck.rows?.[0]?.ambiguous !== false) {
+      const error = new Error('GDPR_LEDGER_AMBIGUOUS_CONSENT_ORDER');
+      error.code = 'GDPR_LEDGER_AMBIGUOUS_CONSENT_ORDER';
+      throw error;
+    }
 
     const accountEvents = await client.query(`
       SELECT DISTINCT subject_user_id
-      FROM privacy_erasure_ledger
+      FROM public.privacy_erasure_ledger
       WHERE event_type = 'account_deleted'
     `);
 
@@ -342,7 +635,7 @@ class PrivacyErasureLedgerService {
     const consentStates = await client.query(`
       SELECT DISTINCT ON (subject_user_id)
         subject_user_id, event_type, occurred_at
-      FROM privacy_erasure_ledger
+      FROM public.privacy_erasure_ledger
       WHERE event_type IN ('political_consent_revoked', 'political_consent_granted')
       ORDER BY subject_user_id, occurred_at DESC, event_key DESC
     `);
