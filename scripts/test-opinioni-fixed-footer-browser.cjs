@@ -333,8 +333,18 @@ async function run() {
       }
       assert.equal(await encryptedOwnerRecordExists(page, ID), false,
         'Verified political-consent revocation must delete the encrypted owner record');
-      // Regrant with a new authorization epoch cannot reuse old cached answers.
+      // A positive grant flag without its server-verified epoch is not enough.
+      // The UI should offer the consent form but MUST NOT make a private GET.
       politicalGrant = true;
+      politicalEpoch = '';
+      const beforeMissingEpochReads = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByRole('button', { name: 'Leggi e scegli se dare il consenso' }).waitFor();
+      assert.equal(answerReads.length, beforeMissingEpochReads,
+        'Missing consent epoch must never trigger a personal opinion GET');
+      assert.equal(await page.getByText('Opinione sintetica numero 24', { exact: true }).count(), 0);
+      cases += 1;
+      // Regrant with a new authorization epoch cannot reuse old cached answers.
       politicalEpoch = '2026-10-02T00:00:00Z';
       const beforeRegrantReads = answerReads.length;
       await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
