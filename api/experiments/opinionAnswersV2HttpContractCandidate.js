@@ -38,6 +38,10 @@ function createHybridHttpResearchRouter(deps){
   if(!isHybridReadWithGate(deps.loadOwnAuthorizedRow,deps.assertRestoreReady)){
     throw new TypeError('Personal reader must enforce shared external GDPR gate');
   }
+  // Pin trusted dependencies at router creation. Never dereference a
+  // mutable deps object's reader/gate at request time after validation.
+  const personalReader=deps.loadOwnAuthorizedRow;
+  const externalRestoreGate=deps.assertRestoreReady;
   const router=express.Router();
   function handle(callback){
     return (req,res)=>{
@@ -78,7 +82,7 @@ function createHybridHttpResearchRouter(deps){
     // Calling it again here would duplicate the external attestation read.
     // Must be one authorized subject-specific read, with consent checked
     // by the injected service in the SAME DB snapshot/transaction.
-    const result=await deps.loadOwnAuthorizedRow(principal.userId);
+    const result=await personalReader(principal.userId);
     if(!result || !['ok','forbidden','missing'].includes(result.status)){
       throw Error('Invalid consent/subject result');
     }
@@ -106,7 +110,7 @@ function createHybridHttpResearchRouter(deps){
         message:'L\'opinione richiesta non è supportata'
       });
     }
-    await deps.assertRestoreReady();
+    await externalRestoreGate();
     // The injected query MUST filter political consent and account type.
     // Never load personal rows for public aggregation.
     const rows=await deps.querySingleAggregate(op.id);
@@ -132,7 +136,7 @@ function createHybridHttpResearchRouter(deps){
       if(!op || op.id!==req.params.opinionId){
         return res.status(404).json({success:false,error:'Opinione non trovata'});
       }
-      await deps.assertRestoreReady();
+      await externalRestoreGate();
       const rows=await deps.queryDemographic(op.id,dimension);
       const released=publishHybridDemographicBreakdown(rows,dimension);
       const data=dimension==='sesso'
