@@ -89,6 +89,19 @@ test('PG17 hybrid: existing 94 columns + one permanent overflow JSONB', {skip:!e
       assert.deepEqual(r.rows[0].answers_extra,{opinione_94:'i',opinione_95:'f'});
       assert.equal(await schemaCount(a),before);
     });
+    await t.test('concurrent future-ID edits serialize without losing either key',async()=>{
+      const saved=await Promise.all([
+        write(a,{opinione_94:'c'}),
+        write(b,{opinione_95:'i'})
+      ]);
+      assert.deepEqual(saved,['saved','saved']);
+      const result=await a.query(
+        'SELECT answers_extra,fonti_opinioni FROM ci_hybrid_answers WHERE user_id=$1',[uid]
+      );
+      assert.deepEqual(result.rows[0].answers_extra,{opinione_94:'c',opinione_95:'i'});
+      assert.deepEqual(result.rows[0].fonti_opinioni,{opinione_0:'historic source'});
+      assert.equal(await write(a,{opinione_94:'i'}),'saved');
+    });
     await t.test('archiving only removes public projection, NOT the stored answer',async()=>{
       const r=await a.query('SELECT * FROM ci_hybrid_answers WHERE user_id=$1',[uid]);
       const currentlyPublished=[{id:'opinione_0',text:'still public',gradi_opinione:['N']}];
