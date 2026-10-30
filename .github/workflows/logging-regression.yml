@@ -17,6 +17,7 @@ on:
       - 'api/routes/auth/logout.js'
       - 'api/tests/logoutSessionEndToEnd.synthetic.test.js'
       - 'api/tests/logoutRealStores.integration.test.js'
+      - 'api/tests/logoutUpstashRestTransport.integration.test.js'
       - 'api/routes/comunicazioni.js'
       - 'api/tests/logCredentialMinimization.test.js'
       - 'api/tests/diagnosticTokenMinimization.smoke.test.js'
@@ -160,3 +161,10 @@ jobs:
           DEMOS_LOGOUT_CI_POSTGRES_URL: postgresql://demos_ci:disposable-only@127.0.0.1:5432/demos_logout_ci
           DEMOS_LOGOUT_CI_REDIS_URL: redis://127.0.0.1:6379
         run: node --test --test-concurrency=1 api/tests/logoutRealStores.integration.test.js
+      - name: Verify production Upstash REST SDK against loopback Redis adapter
+        timeout-minutes: 4
+        env:
+          CI: 'true'
+          DEMOS_DISPOSABLE_LOGOUT_STORES: 'true'
+          DEMOS_LOGOUT_CI_REDIS_URL: redis://127.0.0.1:6379
+        run: node --test --test-concurrency=1 api/tests/logoutUpstashRestTransport.integration.test.js
