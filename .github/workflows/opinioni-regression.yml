@@ -1,6 +1,16 @@
 name: Opinioni regression
 
 on:
+  # A conflicted Draft PR has no merge ref, so pull_request CI may never start.
+  # Restrict push CI to this historical cache branch and the test harness only.
+  # This job has read-only contents permission and does not deploy or migrate.
+  push:
+    branches:
+      - 'feat/opinioni-delta-cache-prep-20261029'
+    paths:
+      - 'client/tests/encryptedOpinionCategory.behavior.test.mjs'
+      - 'client/tests/opinionPayload.test.mjs'
+      - '.github/workflows/opinioni-regression.yml'
   pull_request:
     paths:
       - 'api/routes/opinioni/**'
