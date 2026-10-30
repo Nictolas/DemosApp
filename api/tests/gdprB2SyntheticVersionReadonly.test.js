@@ -300,3 +300,35 @@ test('clock rollback between retention check and response fails closed',async()=
   assert.equal(output.syntheticVersionVerified,false);
   assert.equal(client.destroyed,true);
 });
+
+
+test('cleanup exceptions never leak SDK or body errors on deadline expiry',async()=>{
+  let bodyDestroyCalled=false;
+  let clientDestroyCalled=false;
+  const neverEndingBody={
+    async *[Symbol.asyncIterator]() { await new Promise(()=>{}); },
+    destroy() {
+      bodyDestroyCalled=true;
+      throw Error('synthetic-sensitive-body-cleanup-error');
+    }
+  };
+  const client=fake();
+  const original=client.send.bind(client);
+  client.send=async(command,options)=>{
+    const response=await original(command,options);
+    if(command instanceof GetObjectCommand) response.Body=neverEndingBody;
+    return response;
+  };
+  client.destroy=()=>{
+    clientDestroyCalled=true;
+    throw Error('synthetic-sensitive-client-cleanup-error');
+  };
+  const output=await verifySyntheticVersion({
+    env:base(),clock,timeoutMs:30,makeClient:()=>client
+  });
+  assert.equal(output.status,CLOSED);
+  assert.equal(output.recoveryReady,false);
+  assert.equal(bodyDestroyCalled,true);
+  assert.equal(clientDestroyCalled,true);
+  assert.doesNotMatch(JSON.stringify(output),/sensitive|cleanup-error/);
+});
