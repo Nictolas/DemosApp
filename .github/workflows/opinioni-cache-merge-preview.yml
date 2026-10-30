@@ -120,6 +120,49 @@ jobs:
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build combined frontend
         run: npm --prefix client run build
+      - name: Adapt old main-only consent test fixture in temporary workspace
+        # The original test predates useAuth + /auth/me verification.
+        # Only its synthetic mock is updated. This does NOT edit main or the PR.
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('client/tests/politicalConsentGrantVaultBarrier.test.mjs')
+          s = path.read_text()
+          def replace_once(old, new):
+              global s
+              if s.count(old) != 1:
+                  raise SystemExit('Historical privacy test changed unexpectedly')
+              s = s.replace(old, new, 1)
+          replace_once(
+              "    if (id === '@/pages/Profilo/utils/encryptedProfileVault')",
+              """    if (id === '@/hooks/use-auth') return { useAuth: () => ({ user: { id: 'synthetic-owner' } }) };
+    if (id === '@/lib/auth-token') return { getAuthToken: () => 'synthetic-token' };
+    if (id === '@/pages/Profilo/utils/encryptedProfileVault')""",
+          )
+          replace_once(
+              '  const queryClient = {',
+              """  let authUpdateCount = 1;
+  const queryClient = {
+    getQueryState: () => ({ dataUpdateCount: authUpdateCount }),
+    getQueryData: () => ({
+      id: 'synthetic-owner',
+      political_consent: { granted: true, timestamp: 'verified-epoch' },
+    }),
+    refetchQueries: async ({ queryKey }) => {
+      events.push('refetch:' + queryKey[0]);
+      authUpdateCount++;
+    },
+    setQueryData: () => {},
+""",
+          )
+          replace_once(
+              "events.indexOf('invalidate:user')",
+              "events.indexOf('refetch:user')",
+          )
+          path.write_text(s)
+          print('Temporary fixture upgraded to check the verified auth refresh.')
+          PY
       - name: Check combined cache and main privacy regressions
         shell: bash
         run: |
