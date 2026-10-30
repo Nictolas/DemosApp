@@ -60,9 +60,11 @@ function readOnlyTransport(client, cfg) {
   return {send(command) {
     if (!(command instanceof GetObjectRetentionCommand) &&
         !(command instanceof GetObjectCommand) ||
-        command.input?.Bucket !== cfg.bucket ||
-        command.input?.Key !== OBJECT_KEY ||
-        command.input?.VersionId !== cfg.versionId) {
+        !command.input || Object.keys(command.input).sort().join(',') !==
+          'Bucket,Key,VersionId' ||
+        command.input.Bucket !== cfg.bucket ||
+        command.input.Key !== OBJECT_KEY ||
+        command.input.VersionId !== cfg.versionId) {
       throw Error('NO_GO_GDPR_B2_SYNTHETIC_OPERATION_REJECTED');
     }
     return client.send(command);
@@ -123,13 +125,32 @@ async function verifySyntheticVersion({
     const response = await reader.send(new GetObjectCommand({
       Bucket: cfg.bucket, Key: OBJECT_KEY, VersionId: cfg.versionId
     }));
-    if (response.ContentLength != null &&
-        (!Number.isSafeInteger(response.ContentLength) ||
-          response.ContentLength < 0 || response.ContentLength > MAX_BYTES)) {
+    // The response must identify the exact version that was requested.
+    // Matching fixture bytes alone cannot prove which immutable version was
+    // served by a gateway; missing identity metadata also fails closed.
+    const responseRetainUntil = response.ObjectLockRetainUntilDate == null
+      ? null : new Date(response.ObjectLockRetainUntilDate);
+    if (response.VersionId !== cfg.versionId ||
+        response.DeleteMarker === true ||
+        (response.ObjectLockMode != null &&
+          response.ObjectLockMode !== 'COMPLIANCE') ||
+        (responseRetainUntil !== null &&
+          (!Number.isFinite(responseRetainUntil.getTime()) ||
+            responseRetainUntil.getTime() !== until.getTime())) ||
+        (response.ContentLength != null &&
+          (!Number.isSafeInteger(response.ContentLength) ||
+            response.ContentLength < 0 || response.ContentLength > MAX_BYTES))) {
+      response.Body?.destroy?.();
+      throw Error(CLOSED);
+    }
       response.Body?.destroy?.();
       throw Error(CLOSED);
     }
     const actual = await boundedBytes(response.Body);
+    // Contradictory provider length metadata is not a valid attestation even
+    // if the downloaded bytes happen to match the committed fixture.
+    if (response.ContentLength != null &&
+        response.ContentLength !== actual.length) throw Error(CLOSED);
     const actualHash = crypto.createHash('sha256').update(actual).digest('hex');
     const ended = clock();
     if (!(ended instanceof Date) || !Number.isFinite(ended.getTime()) ||
