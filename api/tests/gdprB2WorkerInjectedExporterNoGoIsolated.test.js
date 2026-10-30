@@ -132,3 +132,25 @@ test('maintenance and disabled worker switches deny even inside isolated CI',asy
     assert.deepEqual(f.counts(),{configCalls:0,archiveCalls:0});
   }
 });
+
+test('only the exact disposable backend-pool role and URL remain eligible in isolated CI',async()=>{
+  const local='postgresql://gdpr_runtime_ci_worker:synthetic-ci-only@127.0.0.1:5432/' +
+    'gdpr_runtime_pool_ci?sslmode=require&pgbouncer=true';
+  await asEnv({GDPR_BACKEND_POOL_CI:'isolated',DATABASE_URL:local},async()=>{
+    const f=fake();
+    const worker=new PrivacyErasureOutboxWorker({env:flags,exporter:f.client});
+    assert.doesNotThrow(()=>worker.validate());
+    assert.deepEqual(f.counts(),{configCalls:1,archiveCalls:0});
+  });
+  for(const invalid of [
+    local.replace('gdpr_runtime_ci_worker','postgres'),
+    local.replace('127.0.0.1','localhost'),
+    local.replace('gdpr_runtime_pool_ci','production'),
+    local.replace('pgbouncer=true','pgbouncer=false')
+  ]) {
+    await asEnv({GDPR_BACKEND_POOL_CI:'isolated',DATABASE_URL:invalid},
+      async()=>denied(fake()));
+  }
+  await asEnv({GDPR_BACKEND_POOL_CI:undefined,DATABASE_URL:local},
+    async()=>denied(fake()));
+});
