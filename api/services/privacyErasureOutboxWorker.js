@@ -49,11 +49,23 @@ class PrivacyErasureOutboxWorker {
     const testFile = /^[A-Za-z0-9_.-]+[.]test[.]js$/.test(parts.at(-1) || '');
     const testRunner = parts.at(-3) === 'api' && parts.at(-2) === 'tests' && testFile;
     const proc = process.env;
+    // Two existing CI fixtures: the plain isolated outbox database and
+    // the actual backend pool, which explicitly uses another disposable
+    // local PG17 database/role. Do not accept arbitrary DATABASE_URL.
+    const localAdmin =
+      'postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_worker_ci';
+    const localBackend =
+      'postgresql://gdpr_runtime_ci_worker:synthetic-ci-only@127.0.0.1:5432/' +
+      'gdpr_runtime_pool_ci?sslmode=require&pgbouncer=true';
+    const isolatedOutbox = proc.GDPR_OUTBOX_WORKER_CI === 'isolated' &&
+      !proc.DATABASE_URL;
+    const isolatedBackend = proc.GDPR_BACKEND_POOL_CI === 'isolated' &&
+      proc.DATABASE_URL === localBackend;
     const isolated = proc.GITHUB_ACTIONS === 'true' &&
       proc.GDPR_OUTBOX_WORKER_CI === 'isolated' &&
-      proc.TEST_DATABASE_URL ===
-        'postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_worker_ci' &&
-      !proc.DATABASE_URL && !proc.SUPABASE_URL && !proc.SUPABASE_DB_URL &&
+      proc.TEST_DATABASE_URL === localAdmin &&
+      (isolatedOutbox || isolatedBackend) &&
+      !proc.SUPABASE_URL && !proc.SUPABASE_DB_URL &&
       !proc.SUPABASE_SERVICE_ROLE_KEY && !proc.RENDER && !proc.RENDER_SERVICE_ID &&
       testRunner;
     if (!isolated || this.exporter instanceof PrivacyErasureB2Journal) {
