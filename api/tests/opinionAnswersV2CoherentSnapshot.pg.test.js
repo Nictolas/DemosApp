@@ -77,7 +77,7 @@ test('disposable PG17: single statement national/regional snapshot is coherent',
         assert.ok(publication.suppressedRegions.includes('LA'));
       }
     });
-    await t.test('one additional consenting region can be published while tiny remains hidden',async()=>{
+    await t.test('new full region still cannot expose hidden single contrary answer',async()=>{
       await db.query('INSERT INTO ci_coherent_users VALUES($1,$2,true,$3)',
         [uid(14),'P','LO']);
       await db.query('INSERT INTO ci_coherent_answers VALUES($1,$2,$3::jsonb)',
@@ -92,8 +92,9 @@ test('disposable PG17: single statement national/regional snapshot is coherent',
           [uid(i),'f',JSON.stringify({opinione_94:'f'})]);
       }
       result=await snapshot(db,'opinione_94');
-      assert.equal(result.publication.visibleRegions.length,1);
+      assert.deepEqual(result.publication.visibleRegions,[]);
       assert.equal(result.publication.publishNational,true);
+      assert.equal(result.publication.suppressedForDifferencing,true);
       assert.ok(result.publication.suppressedRegions.includes('LA'));
     });
     await t.test('unmapped regional answers invalidate public snapshot',async()=>{
@@ -118,7 +119,7 @@ test('disposable PG17: single statement national/regional snapshot is coherent',
         favorevole:'19',contrario:'1',indeciso:'0'
       });
       assert.equal(result.publication.publishNational,true);
-      assert.equal(result.publication.visibleRegions.length,1);
+      assert.deepEqual(result.publication.visibleRegions,[]);
       assert.ok(result.publication.suppressedRegions.includes('LA'));
     });
   }finally{
