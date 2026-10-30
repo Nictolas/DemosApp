@@ -39,6 +39,10 @@ on:
       - ".github/workflows/opinion-answers-v2-research.yml"
   workflow_dispatch:
 
+concurrency:
+  group: opinion-v2-research-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
