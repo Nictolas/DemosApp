@@ -154,6 +154,8 @@ test('all opinion editors defer pending save until the verified owner and epoch 
     assert.match(source, /isSessionVerified && verifiedPoliticalConsent\?\.granted !== true/);
     assert.match(source, /!isSessionVerified \|\| !hasConsent \|\| !canReadOpinions/);
     assert.match(source, /setGrantConfirmed\(true\)/);
+    // The selected pending answer must survive the post-grant category reload.
+    assert.match(source, /\.\.\.opinions, \.\.\.pendingOpinionsToSave\.answers/);
     assert.doesNotMatch(source, /refetchQueries\(\{\s*queryKey:\s*\['political-opinions-consent'\]/);
     assert.doesNotMatch(source, /saveMutation\.mutate\(pendingOpinionsToSave\)/);
   }
