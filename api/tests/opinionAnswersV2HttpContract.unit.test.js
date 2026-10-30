@@ -4,6 +4,8 @@ const assert=require('node:assert/strict');
 const express=require('express');
 const {createHybridHttpResearchRouter}=
   require('../experiments/opinionAnswersV2HttpContractCandidate');
+const {createHybridAuthorizedReadCandidate}=
+  require('../experiments/opinionAnswersV2AuthorizedReadCandidate');
 
 const ownId='00000000-0000-4000-8000-000000000031';
 const otherId='00000000-0000-4000-8000-000000000032';
@@ -20,6 +22,28 @@ test('real Express HTTP contract against synthetic in-memory data, no live DB',
     }
   },counts:10,sexSmall:false,wrongSubject:false,readCalls:[],
     statsCalls:[],demographicCalls:[],gates:0};
+  const assertRestoreReady=async()=>{
+    state.gates++;
+    if(!state.restoreReady){
+      const e=Error('External restore gate is closed');
+      e.code='RESTORE_NOT_READY';throw e;
+    }
+    return true;
+  };
+  const loadOwnAuthorizedRow=createHybridAuthorizedReadCandidate({
+    assertRestoreReady,
+    db:{query:async(_sql,[id])=>{
+      state.readCalls.push(id);
+      if(!state.consent)return {rows:[{
+        subject_id:id,granted:false,answer_row:null
+      }]};
+      return {rows:[{
+        subject_id:id,granted:true,
+        answer_row:state.wrongSubject
+          ? {...state.row,user_id:otherId} : state.row
+      }]};
+    }}
+  });
   const deps={
     immutableLegacyIds:['opinione_0'],
     authenticate:async req=>
@@ -28,19 +52,7 @@ test('real Express HTTP contract against synthetic in-memory data, no live DB',
     resolveGrade:value=>value==='N'?'N':value==='R'?'R':'',
     getGradeOpinions:grade=>grade==='N'?opinions:[],
     getPublishedOpinion:id=>opinions.find(x=>x.id===id)||null,
-    assertRestoreReady:async()=>{
-      state.gates++;
-      if(!state.restoreReady){
-        const e=Error('External restore gate is closed');
-        e.code='RESTORE_NOT_READY';throw e;
-      }
-    },
-    loadOwnAuthorizedRow:async id=>{
-      state.readCalls.push(id);
-      if(!state.consent)return {status:'forbidden'};
-      return {status:'ok',row:state.wrongSubject
-        ? {...state.row,user_id:otherId}:state.row};
-    },
+    assertRestoreReady,loadOwnAuthorizedRow,
     querySingleAggregate:async opinionId=>{
       state.statsCalls.push(opinionId);
       return [{opinion_id:opinionId,favorevole:state.counts===10?4:3,
@@ -107,6 +119,7 @@ test('real Express HTTP contract against synthetic in-memory data, no live DB',
         ]
       });
       assert.deepEqual(state.readCalls.slice(before),[ownId]);
+      assert.equal(state.gates,1,'one external restore attestation per personal GET');
       assert.equal(JSON.stringify(response.json).includes('opinione_archived'),false);
     });
     await t.test('empty public grade never reads an answer row',async()=>{
