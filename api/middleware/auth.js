@@ -104,7 +104,9 @@ const verifyToken = async (req, res, next) => {
         }
       }
 
-      if (user.status !== 'a') {
+      // DEMOS canonical active status is 'A'. Keep the historical 'a'
+      // during rollout; all other states remain unauthorized.
+      if (user.status !== 'A' && user.status !== 'a') {
         return res.status(401).json({
           success: false,
           error: 'Account non attivo',
