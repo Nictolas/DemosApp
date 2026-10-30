@@ -101,3 +101,17 @@ test('optional operational columns are not mistaken for archived opinions',()=>{
     ? {...c,data_type:'text'} : c);
   assert.throws(()=>assertLegacySchemaInventory(ids,wrongKey),/service column type/);
 });
+
+test('one-time hybrid overflow column is permitted as JSONB metadata, not an opinion',()=>{
+  const legacy=[
+    {column_name:'user_id',data_type:'uuid'},
+    {column_name:'fonti_opinioni',data_type:'jsonb'},
+    ...ids.map(id=>({column_name:id,data_type:'text'}))
+  ];
+  const hybrid=[...legacy,{column_name:'answers_extra',data_type:'jsonb'}];
+  assert.equal(assertLegacySchemaInventory(ids,hybrid).coveredIds,94);
+  assert.equal(assertLegacySchemaInventory(ids,hybrid).serviceColumns.length,3);
+  assert.throws(()=>assertLegacySchemaInventory(ids,hybrid.map(row=>
+    row.column_name==='answers_extra'?{...row,data_type:'text'}:row
+  )),/service column type/);
+});
