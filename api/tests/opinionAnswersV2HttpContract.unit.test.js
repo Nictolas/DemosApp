@@ -55,17 +55,17 @@ test('real Express HTTP contract against synthetic in-memory data, no live DB',
     assertRestoreReady,loadOwnAuthorizedRow,
     querySingleAggregate:async opinionId=>{
       state.statsCalls.push(opinionId);
-      return [{opinion_id:opinionId,favorevole:state.counts===10?4:3,
-        contrario:3,indeciso:3}];
+      return [{opinion_id:opinionId,favorevole:state.counts===10?10:9,
+        contrario:10,indeciso:10}];
     },
     queryDemographic:async (opinionId,dimension)=>{
       state.demographicCalls.push([opinionId,dimension]);
       if(dimension==='eta')return [
-        {fascia_eta:'18-25',favorevole:4,contrario:3,indeciso:3}
+        {fascia_eta:'18-25',favorevole:10,contrario:10,indeciso:10}
       ];
       return [
-        {sesso:'F',favorevole:state.sexSmall?3:4,contrario:3,indeciso:3},
-        {sesso:'M',favorevole:4,contrario:3,indeciso:3}
+        {sesso:'F',favorevole:state.sexSmall?9:10,contrario:10,indeciso:10},
+        {sesso:'M',favorevole:10,contrario:10,indeciso:10}
       ];
     }
   };
@@ -153,14 +153,14 @@ test('real Express HTTP contract against synthetic in-memory data, no live DB',
       assert.equal(JSON.stringify(response.json).includes(otherId),false);
       state.wrongSubject=false;
     });
-    await t.test('public single-opinion stats suppress 9 but publish 10',async()=>{
+    await t.test('public stats suppress minority category 9 despite 29 participants',async()=>{
       const passed=await request('/stats/opinione_94');
       assert.equal(passed.status,200);
       assert.deepEqual(passed.json,{
         success:true,data:{
           suppressed:false,minimumCellSize:10,questionText:'Nuova Opinione',
-          stats:{favorevole:4,contrario:3,indeciso:3},
-          totaleUtenti:10
+          stats:{favorevole:10,contrario:10,indeciso:10},
+          totaleUtenti:30
         }
       });
       state.counts=9;
@@ -185,15 +185,15 @@ test('real Express HTTP contract against synthetic in-memory data, no live DB',
       assert.equal(age.status,200);
       assert.deepEqual(age.json,{
         success:true,minimumCellSize:10,
-        data:[{fascia_eta:'18-25',favorevole:4,contrario:3,indeciso:3}]
+        data:[{fascia_eta:'18-25',favorevole:10,contrario:10,indeciso:10}]
       });
       const sex=await request('/stats/opinione_94/genere');
       assert.equal(sex.status,200);
       assert.deepEqual(sex.json,{
         success:true,minimumCellSize:10,
         data:[
-          {genere:'Donna',favorevole:4,contrario:3,indeciso:3},
-          {genere:'Uomo',favorevole:4,contrario:3,indeciso:3}
+          {genere:'Donna',favorevole:10,contrario:10,indeciso:10},
+          {genere:'Uomo',favorevole:10,contrario:10,indeciso:10}
         ]
       });
       state.sexSmall=true;
