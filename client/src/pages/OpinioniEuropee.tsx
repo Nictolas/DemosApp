@@ -55,7 +55,7 @@ export default function OpinioniEuropee() {
   const { data: questionsData, isLoading: isLoadingQuestions, isFetching: isRefreshingQuestions } = useQuery({
     queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Europeo'],
     queryFn: ({ signal }) => loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp, "E", signal) as any,
-    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true,
+    enabled: !!user && isSessionVerified && hasConsent,
     // Re-run the cheap catalog check on each visit. Valid encrypted answers
     // still avoid database reads; a changed release never stays permanently stale.
     staleTime: 0,
@@ -67,7 +67,7 @@ export default function OpinioniEuropee() {
   // Combina i dati
   const isLoading = isLoadingQuestions || isRefreshingQuestions;
   // A disabled query can still hold data in RAM: never render it after revocation.
-  const canReadOpinions = !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true;
+  const canReadOpinions = !!user && isSessionVerified && hasConsent;
   const questions = canReadOpinions && questionsData?.data && Array.isArray(questionsData.data)
     ? questionsData.data : [];
   
@@ -257,7 +257,7 @@ export default function OpinioniEuropee() {
           <CardContent className="opinioni-editor-page__list min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain pb-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>
-            ) : isSessionVerified && verifiedPoliticalConsent?.granted === false ? (
+            ) : isSessionVerified && !hasConsent ? (
               <div className="mx-auto max-w-md space-y-4 px-4 py-8 text-center">
                 <p className="text-sm text-muted-foreground">
                   Per esprimere opinioni politiche puoi scegliere se prestare il consenso
