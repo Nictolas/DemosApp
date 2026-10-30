@@ -25,8 +25,8 @@ function statement(subject,answerPatch,sourcePatch){
   });
   if(!q)return null;
   return {
-    sql:q.sql.replaceAll('opinioni_risposte',TABLE),
-    params:q.params
+    text:q.sql.replaceAll('opinioni_risposte',TABLE),
+    values:q.params
   };
 }
 async function read(db,subject){
