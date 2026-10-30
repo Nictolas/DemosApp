@@ -18,6 +18,9 @@ const FIXTURE_PATH = path.join(__dirname, '../tests/fixtures/gdpr-b2-synthetic-o
 const BAD = 'NO_GO_GDPR_B2_SYNTHETIC_VERSION_PRECHECK_FAILED';
 const CLOSED = 'NO_GO_GDPR_B2_SYNTHETIC_VERSION_UNVERIFIED';
 const MAX_BYTES = 1024;
+// Total wall-clock budget for metadata, version download and stream consumption.
+// A stalled read-only preflight must terminate as NO-GO, not hang indefinitely.
+const MAX_PROBE_MS = 15000;
 const MS_DAY = 86400000;
 const ALWAYS_NO_GO = Object.freeze({
   recoveryReady: false,
@@ -57,8 +60,13 @@ function safeConfig(env) {
 
 function readOnlyTransport(client, cfg) {
   if (!client || typeof client.send !== 'function') throw Error(BAD);
-  return {send(command) {
-    if (!(command instanceof GetObjectRetentionCommand) &&
+  return {send(command, options = undefined) {
+    const allowedOptions = options === undefined ||
+      (options && typeof options === 'object' && !Array.isArray(options) &&
+        Object.keys(options).join(',') === 'abortSignal' &&
+        options.abortSignal instanceof AbortSignal);
+    if (!allowedOptions ||
+        !(command instanceof GetObjectRetentionCommand) &&
         !(command instanceof GetObjectCommand) ||
         !command.input || Object.keys(command.input).sort().join(',') !==
           'Bucket,Key,VersionId' ||
@@ -67,7 +75,7 @@ function readOnlyTransport(client, cfg) {
         command.input.VersionId !== cfg.versionId) {
       throw Error('NO_GO_GDPR_B2_SYNTHETIC_OPERATION_REJECTED');
     }
-    return client.send(command);
+    return client.send(command, options);
   }};
 }
 
@@ -92,6 +100,7 @@ async function boundedBytes(body) {
 async function verifySyntheticVersion({
   env = process.env,
   clock = () => new Date(),
+  timeoutMs = MAX_PROBE_MS,
   makeClient = cfg => new S3Client({
     endpoint: cfg.endpoint, region: cfg.region, forcePathStyle: true,
     maxAttempts: 2,
@@ -101,8 +110,22 @@ async function verifySyntheticVersion({
   })
 } = {}) {
   let cfg;
-  try { cfg = safeConfig(env); } catch (_) { return report(BAD); }
+  try {
+    cfg = safeConfig(env);
+    if (!Number.isSafeInteger(timeoutMs) ||
+        timeoutMs < 1 || timeoutMs > MAX_PROBE_MS) throw Error(BAD);
+  } catch (_) { return report(BAD); }
   let client;
+  let activeBody;
+  const controller = new AbortController();
+  let timeout;
+  const deadline = new Promise((_, reject) => {
+    timeout = setTimeout(() => {
+      controller.abort();
+      activeBody?.destroy?.();
+      reject(Error(CLOSED));
+    }, timeoutMs);
+  });
   try {
     // Exact committed fixture bytes only. No caller-supplied user data,
     // object path, SQL connection or arbitrary keys are accepted.
@@ -113,18 +136,19 @@ async function verifySyntheticVersion({
     if (!(started instanceof Date) || !Number.isFinite(started.getTime())) throw Error(CLOSED);
     client = makeClient(cfg);
     const reader = readOnlyTransport(client, cfg);
-    const retention = await reader.send(new GetObjectRetentionCommand({
+    const retention = await Promise.race([reader.send(new GetObjectRetentionCommand({
       Bucket: cfg.bucket, Key: OBJECT_KEY, VersionId: cfg.versionId
-    }));
+    }), {abortSignal: controller.signal}), deadline]);
     const until = new Date(retention?.Retention?.RetainUntilDate);
     if (retention?.Retention?.Mode !== 'COMPLIANCE' ||
         !Number.isFinite(until.getTime()) ||
         until.getTime() < started.getTime() + cfg.minRemainingDays * MS_DAY) {
       throw Error(CLOSED);
     }
-    const response = await reader.send(new GetObjectCommand({
+    const response = await Promise.race([reader.send(new GetObjectCommand({
       Bucket: cfg.bucket, Key: OBJECT_KEY, VersionId: cfg.versionId
-    }));
+    }), {abortSignal: controller.signal}), deadline]);
+    activeBody = response?.Body;
     // The response must identify the exact version that was requested.
     // Matching fixture bytes alone cannot prove which immutable version was
     // served by a gateway; missing identity metadata also fails closed.
@@ -143,7 +167,7 @@ async function verifySyntheticVersion({
       response.Body?.destroy?.();
       throw Error(CLOSED);
     }
-    const actual = await boundedBytes(response.Body);
+    const actual = await Promise.race([boundedBytes(response.Body), deadline]);
     // Contradictory provider length metadata is not a valid attestation even
     // if the downloaded bytes happen to match the committed fixture.
     if (response.ContentLength != null &&
@@ -151,6 +175,7 @@ async function verifySyntheticVersion({
     const actualHash = crypto.createHash('sha256').update(actual).digest('hex');
     const ended = clock();
     if (!(ended instanceof Date) || !Number.isFinite(ended.getTime()) ||
+        ended.getTime() < started.getTime() ||
         until.getTime() <= ended.getTime() || actualHash !== expectedHash ||
         !actual.equals(fixture)) throw Error(CLOSED);
     return report('READONLY_SYNTHETIC_VERSION_VERIFIED_NOT_RECOVERY', {
@@ -159,7 +184,12 @@ async function verifySyntheticVersion({
       fixtureSha256Verified: true
     });
   } catch (_) { return report(CLOSED); }
-  finally { client?.destroy?.(); }
+  finally {
+    clearTimeout(timeout);
+    controller.abort();
+    activeBody?.destroy?.();
+    client?.destroy?.();
+  }
 }
 
 if (require.main === module) {
@@ -174,5 +204,5 @@ if (require.main === module) {
 }
 module.exports = {
   MARKER, OBJECT_KEY, BAD, CLOSED, safeConfig, readOnlyTransport,
-  boundedBytes, verifySyntheticVersion
+  boundedBytes, MAX_PROBE_MS, verifySyntheticVersion
 };
