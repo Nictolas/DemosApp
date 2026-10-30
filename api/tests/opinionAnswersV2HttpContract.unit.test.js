@@ -224,6 +224,30 @@ test('real Express HTTP contract against synthetic in-memory data, no live DB',
       assert.equal(JSON.stringify(response.json).includes('99'),false);
       deps.querySingleAggregate=original;
     });
+    await t.test('mutating dependency object cannot swap trusted reader or restore gate after setup',async()=>{
+      const originalReader=deps.loadOwnAuthorizedRow;
+      const originalGate=deps.assertRestoreReady;
+      const before=state.readCalls.length;
+      try{
+        deps.loadOwnAuthorizedRow=async()=>({
+          status:'ok',
+          row:{user_id:ownId,opinione_0:'f',
+            answers_extra:{opinione_94:'c'}}
+        });
+        deps.assertRestoreReady=async()=>true;
+        state.restoreReady=false;
+        const personal=await request('/opinioni-list?grado=N',{authorized:true});
+        const publicStats=await request('/stats/opinione_94');
+        assert.equal(personal.status,503);
+        assert.equal(publicStats.status,503);
+        assert.equal(state.readCalls.length,before);
+        assert.equal(JSON.stringify(personal.json).includes('userAnswer'),false);
+      }finally{
+        state.restoreReady=true;
+        deps.loadOwnAuthorizedRow=originalReader;
+        deps.assertRestoreReady=originalGate;
+      }
+    });
   }finally{
     await new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve()));
   }
