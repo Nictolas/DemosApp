@@ -74,6 +74,7 @@ on:
       - 'api/docs/gdpr-b2-synthetic-version-bounded-readonly-20261030.md'
       - 'api/tests/fixtures/gdpr-b2-synthetic-object-v1.json'
       - 'api/services/privacyErasureLedgerService.js'
+      - 'api/tests/gdprLedgerArchiveFormatNoOutboxIsolated.test.js'
       - 'api/tests/gdprOutboxWorkerIsolated.pg17.test.js'
       - 'api/tests/fixtures/gdprDurableRecoveryPrototype.js'
       - 'api/tests/gdprDurableRecoveryProtocolSynthetic.test.js'
@@ -150,6 +151,7 @@ jobs:
           node --test --test-concurrency=1 api/tests/gdprB2BucketComplianceDeadlineIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2ArchiveHeadPutDeadlineIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2RealWorkerFailClosedSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprLedgerArchiveFormatNoOutboxIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2WorkerInjectedExporterNoGoIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2DirectWriteGateIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2WrappedTransportNoGoIsolated.test.js
