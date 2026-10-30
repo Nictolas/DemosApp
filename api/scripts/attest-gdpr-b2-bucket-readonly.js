@@ -10,6 +10,7 @@ const {
 const MARKER='demos-gdpr-b2-isolated-metadata-readonly-v1';
 const BAD='NO_GO_GDPR_B2_METADATA_PRECHECK_FAILED';
 const CLOSED='NO_GO_GDPR_B2_METADATA_UNVERIFIED';
+const MAX_PROBE_MS=15000;
 const NEVER_READY=Object.freeze({
   recoveryReady:false,
   restoreTestVerified:false,
@@ -61,13 +62,21 @@ function assertSafeEnvironment(env) {
 
 function readOnlyTransport(client, bucket) {
   if(!client || typeof client.send!=='function') throw Error(BAD);
-  return {send(command) {
-    if(!(command instanceof GetBucketVersioningCommand) &&
-       !(command instanceof GetObjectLockConfigurationCommand)) {
+  return {send(command,options=undefined) {
+    // A read-only call cannot override the bucket, SDK request options,
+    // deadline, or escape into a mutating/listing operation.
+    const allowedOptions=options===undefined ||
+      (options && typeof options==='object' && !Array.isArray(options) &&
+       Object.keys(options).join(',')==='abortSignal' &&
+       options.abortSignal instanceof AbortSignal);
+    if(!allowedOptions ||
+      !(command instanceof GetBucketVersioningCommand) &&
+      !(command instanceof GetObjectLockConfigurationCommand) ||
+      !command.input || Object.keys(command.input).join(',')!=='Bucket' ||
+      command.input.Bucket!==bucket) {
       throw Error('NO_GO_GDPR_B2_NON_READONLY_OPERATION_REJECTED');
     }
-    if(command.input?.Bucket!==bucket) throw Error(BAD);
-    return client.send(command);
+    return client.send(command,options);
   }};
 }
 
@@ -78,7 +87,9 @@ function safeReport(status, extra={}) {
 }
 
 async function runReadOnlyBucketProbe({
-  env=process.env, makeClient=cfg=>new S3Client({
+  env=process.env,
+  timeoutMs=MAX_PROBE_MS,
+  makeClient=cfg=>new S3Client({
     endpoint:cfg.endpoint,region:cfg.region,forcePathStyle:true,
     maxAttempts:2,
     credentials:{accessKeyId:cfg.accessKeyId,
@@ -86,17 +97,34 @@ async function runReadOnlyBucketProbe({
   })
 }={}) {
   let cfg;
-  try { cfg=assertSafeEnvironment(env); } catch (_) {
-    return safeReport(BAD);
-  }
-  let client;
+  try {
+    cfg=assertSafeEnvironment(env);
+    if(!Number.isSafeInteger(timeoutMs) || timeoutMs<1 ||
+       timeoutMs>MAX_PROBE_MS) throw Error(BAD);
+  } catch (_) { return safeReport(BAD); }
+
+  let client, timer;
+  const controller=new AbortController();
+  const deadline=new Promise((_,reject)=>{
+    timer=setTimeout(()=>{
+      controller.abort();
+      reject(Error(CLOSED));
+    },timeoutMs);
+  });
   try {
     client=makeClient(cfg);
     const reader=readOnlyTransport(client,cfg.bucket);
-    const versions=await reader.send(
-      new GetBucketVersioningCommand({Bucket:cfg.bucket}));
-    const locked=await reader.send(
-      new GetObjectLockConfigurationCommand({Bucket:cfg.bucket}));
+    // A SINGLE wall-clock budget covers both metadata reads.
+    const versions=await Promise.race([
+      reader.send(new GetBucketVersioningCommand({Bucket:cfg.bucket}),
+        {abortSignal:controller.signal}),deadline
+    ]);
+    if(controller.signal.aborted)throw Error(CLOSED);
+    const locked=await Promise.race([
+      reader.send(new GetObjectLockConfigurationCommand({Bucket:cfg.bucket}),
+        {abortSignal:controller.signal}),deadline
+    ]);
+    if(controller.signal.aborted)throw Error(CLOSED);
     // The responses describe bucket defaults, NOT retention on a specific
     // immutable event version. Require COMPLIANCE, not GOVERNANCE.
     const defaultRule=locked?.ObjectLockConfiguration?.Rule?.DefaultRetention;
@@ -106,19 +134,20 @@ async function runReadOnlyBucketProbe({
       Number.isSafeInteger(defaultRule.Days) &&
       defaultRule.Days>=cfg.minRetentionDays &&
       defaultRule.Days<=3000;
-    if(!enabled || !compliance) return safeReport(CLOSED,{
-      bucketVersioningEnabled:enabled,
-      complianceDefaultVerified:compliance
+    if(!enabled || !compliance)return safeReport(CLOSED,{
+      bucketVersioningEnabled:enabled,complianceDefaultVerified:compliance
     });
     return safeReport('READONLY_BUCKET_METADATA_COMPLIANCE_NOT_RECOVERY',{
       bucketMetadataVerified:true,bucketVersioningEnabled:true,
       complianceDefaultVerified:true
     });
   }catch(_){
-    // Never expose SDK errors or URL, bucket, key IDs or response contents.
+    // Never expose SDK errors, URL, bucket, key IDs or response contents.
     return safeReport(CLOSED);
   }finally{
-    if(client && typeof client.destroy==='function')client.destroy();
+    clearTimeout(timer);
+    controller.abort();
+    try{client?.destroy?.();}catch(_){/* do not leak provider errors */}
   }
 }
 
@@ -134,5 +163,5 @@ if(require.main===module){
 }
 module.exports={
   MARKER,BAD,CLOSED,assertSafeEnvironment,readOnlyTransport,
-  runReadOnlyBucketProbe
+  runReadOnlyBucketProbe,MAX_PROBE_MS
 };
