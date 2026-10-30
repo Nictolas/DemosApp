@@ -5,6 +5,14 @@ const { normalizeMinisteroDate, resolveIniziativaDataFine } = require('../utils/
 const { resolveFirmaUrl } = require('../utils/iniziativeMinisteroMapper');
 const { resolveProcessTypeFromSource, getSignatureThreshold } = require('./civicProcessRegistryService');
 
+// Do not send arbitrary API/SQL error messages or record fields to operational logs.
+function safeMinisteroErrorCode(error) {
+  const code = error?.code;
+  return typeof code === 'string' && /^[A-Z0-9_]{2,32}$/.test(code)
+    ? code
+    : 'UNCLASSIFIED';
+}
+
 const MINISTERO_JURISDICTION_ID = 'it';
 const MINISTERO_SOURCE_ID = 'it.justice.signature_portal';
 
@@ -69,7 +77,7 @@ class MinisteroSyncService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('❌ Errore nel fetch dall\'API Ministero:', error);
+      console.error('Errore fetch Ministero:', safeMinisteroErrorCode(error));
       throw error;
     }
   }
@@ -159,7 +167,7 @@ class MinisteroSyncService {
         }
       };
     } catch (error) {
-      console.error('❌ Errore nel recupero di tutte le iniziative dal Ministero:', error);
+      console.error('Errore paginazione Ministero:', safeMinisteroErrorCode(error));
       throw error;
     }
   }
@@ -310,7 +318,7 @@ class MinisteroSyncService {
       const fields = this.extractFields(iniziativa);
       
       // Debug: log dei campi estratti (solo se DEBUG_MODE è abilitato)
-      const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || process.env.NODE_ENV === 'development';
+      const DEBUG_MODE = process.env.NODE_ENV === 'development' && process.env.DEBUG_MODE === 'true';
       if (DEBUG_MODE) {
         console.log(`🔍 DEBUG saveIniziativa - Campi estratti:`, {
           id_ministero: fields.id_ministero,
@@ -497,27 +505,7 @@ class MinisteroSyncService {
         return { action: 'created', id: result.rows[0].id };
       }
     } catch (error) {
-      console.error('❌ Errore nel salvataggio iniziativa:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        code: error.code,
-        detail: error.detail,
-        constraint: error.constraint,
-        table: error.table,
-        column: error.column,
-        hint: error.hint
-      });
-      
-      // Log anche i dati dell'iniziativa che ha causato l'errore
-      if (iniziativa) {
-        console.error('❌ Dati iniziativa che ha causato errore:', {
-          id: iniziativa.id,
-          titolo: iniziativa.titolo?.substring(0, 100),
-          tipo: iniziativa.idDecTipoIniziativa?.nome || iniziativa.tipo,
-          stato: iniziativa.idDecStatoIniziativa?.nome || iniziativa.stato
-        });
-      }
-      
+      // The caller reports only aggregate counts and allowlisted diagnostic codes.
       throw error;
     }
   }
@@ -558,6 +546,7 @@ class MinisteroSyncService {
         errors: 0,
         skipped: 0
       };
+      const failureCodes = Object.create(null);
 
       // Processa tutte le iniziative in batch per ottimizzare la memoria
       const BATCH_SIZE = 10; // Processa 10 iniziative alla volta
@@ -576,7 +565,6 @@ class MinisteroSyncService {
             // Verifica che l'iniziativa abbia almeno un ID o un titolo
             const fields = this.extractFields(iniziativa);
             if (!fields.id_ministero && !fields.titolo) {
-              console.log(`⚠️ Iniziativa saltata: manca id_ministero e titolo`);
               results.skipped++;
               continue;
             }
@@ -584,34 +572,13 @@ class MinisteroSyncService {
             const result = await this.saveIniziativa(iniziativa);
             if (result.action === 'created') {
               results.created++;
-              console.log(`✅ Creata nuova iniziativa: ${result.id} - ${fields.titolo?.substring(0, 50) || 'N/A'} - Stato: ${fields.stato}`);
             } else {
               results.updated++;
-              console.log(`🔄 Aggiornata iniziativa: ${result.id} - ${fields.titolo?.substring(0, 50) || 'N/A'} - Stato: ${fields.stato}`);
             }
           } catch (error) {
             results.errors++;
-            const fields = this.extractFields(iniziativa);
-            console.error(`❌ Errore sincronizzazione iniziativa:`);
-            console.error(`   Messaggio: ${error.message}`);
-            console.error(`   Codice errore: ${error.code || 'N/A'}`);
-            console.error(`   Detail: ${error.detail || 'N/A'}`);
-            console.error(`   Constraint: ${error.constraint || 'N/A'}`);
-            console.error(`   Dati iniziativa:`, {
-              id_ministero: fields.id_ministero || 'NULL',
-              titolo: fields.titolo?.substring(0, 100) || 'NULL',
-              tipo: fields.tipo || 'NULL',
-              stato: fields.stato || 'NULL',
-              raw_id: iniziativa?.id || 'N/A'
-            });
-            
-            // Log anche l'oggetto iniziativa completo per debug
-            console.error(`   Iniziativa raw (primi campi):`, {
-              id: iniziativa?.id,
-              titolo: iniziativa?.titolo?.substring(0, 50),
-              idDecTipoIniziativa: iniziativa?.idDecTipoIniziativa?.nome,
-              idDecStatoIniziativa: iniziativa?.idDecStatoIniziativa?.nome
-            });
+            const code = safeMinisteroErrorCode(error);
+            failureCodes[code] = (failureCodes[code] || 0) + 1;
           }
         }
         
@@ -690,7 +657,7 @@ class MinisteroSyncService {
           results.backfilled_quorum = quorumBackfill.rowCount;
         }
       } catch (backfillError) {
-        console.warn('⚠️ Backfill data_fine fallito:', backfillError.message);
+        console.warn('Backfill Ministero fallito:', safeMinisteroErrorCode(backfillError));
       }
 
       await logger.info('Sincronizzazione Ministero completata', {
@@ -701,6 +668,9 @@ class MinisteroSyncService {
         skipped: results.skipped
       });
 
+      if (results.errors > 0) {
+        console.error('Sincronizzazione Ministero: errori aggregati per codice', failureCodes);
+      }
       console.log(`✅ Sincronizzazione completata: ${results.created} create, ${results.updated} aggiornate, ${results.errors} errori, ${results.skipped} saltate`);
       console.log(`📊 Totale iniziative processate: ${totalIniziative}, sincronizzate: ${results.created + results.updated}`);
 
@@ -723,8 +693,9 @@ class MinisteroSyncService {
 
       return results;
     } catch (error) {
-      console.error('❌ Errore nella sincronizzazione:', error);
-      await logger.error('Errore sincronizzazione Ministero', { error: error.message });
+      const code = safeMinisteroErrorCode(error);
+      console.error('Errore sincronizzazione Ministero:', code);
+      await logger.error('Errore sincronizzazione Ministero', { code });
       throw error;
     }
   }
