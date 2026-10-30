@@ -632,3 +632,55 @@ rispetto alla migrazione completa JSONB/bitset, perché soddisfa il
 requisito "nessun DDL per ogni nuova Opinione" con minore spostamento
 di dati. La PR resta Draft e **NO-GO produzione**: nessun ALTER TABLE,
 merge, backfill reale, modifica alle route o deploy autorizzato qui.
+
+
+## Adattatori di salvataggio e compatibilità ibrida (30 ottobre 2026, test isolati)
+
+La revisione del percorso POST delle Opinioni e del Profilo Admin ha
+evidenziato due dettagli da preservare durante l'integrazione:
+
+**Primo salvataggio misto.** Se un utente non ha ancora una riga nella
+tabella delle risposte e invia insieme una delle 94 Opinioni storiche
+e una nuova Opinione, fare prima UPDATE della vecchia colonna e poi
+UPSERT del campo JSONB perde la risposta storica: UPDATE non trova
+alcuna riga. Il nuovo candidato
+api/experiments/opinionAnswersV2HybridCandidate.js prepara invece
+UN SOLO INSERT ... ON CONFLICT DO UPDATE, con tutti i valori storici
+e la patch JSONB. Il test PostgreSQL verifica il primo inserimento
+misto e successivi aggiornamenti a ID diversi, senza sostituire
+l'intera mappa. I nomi delle vecchie colonne derivano esclusivamente
+dal manifest immutabile validato nel codice; i valori sono parametri SQL.
+
+**Due contratti di risposta distinti.** Nell'endpoint legacy
+GET /api/opinioni/opinioni-list, il campo id nel JSON restituito
+è ancora il testo della domanda normalizzato (spazi in underscore
+e minuscolo), mentre la risposta viene individuata con il vero ID
+stabile. Nel GET Opinioni del Profilo, il campo id è invece l'ID
+stabile. Convertire indiscriminatamente entrambi al nuovo ID
+potrebbe rompere vecchi client Android. Gli adattatori sperimentali
+formatHybridLegacyGradePayload e formatHybridProfileOpinions
+preservano deliberatamente i rispettivi formati, senza modificare
+le route attive e senza ulteriore SELECT del catalogo.
+
+**Notifiche e scritture inutili.** Un unico SELECT di risposte
+esistenti con FOR UPDATE, dopo lock utenti e rilettura del consenso,
+può distinguere risposta nuova (non notificare), posizione politica
+cambiata (notifica secondo l'attuale ruolo e le attuali regole)
+e valore invariato (saltare l'UPDATE e il relativo WAL).
+planHybridAnswerChanges produce tale classificazione per vecchie
+colonne e nuove chiavi insieme. Rimangono obbligatorie tutte le
+verifiche esistenti per creare notifiche e le autorizzazioni.
+
+**Concorrenza.** Le patch future applicate a chiavi JSONB differenti
+non devono sostituire snapshot client completi. Le prove synthetic
+PG17 serializzano le scritture tramite lo stesso lock utente,
+preservano fonti e altre risposte, e bloccano eventuali scritture
+dopo la revoca.
+
+**Non è ancora integrazione live.** Il runtime ha ancora writer
+Admin con una lettura di information_schema per ogni modifica;
+la soluzione futura deve usare il manifest statico, non creare
+nuove letture SQL ripetute. I test della PR #483 sono autonomi e
+non coprono ancora il routing HTTP completo, le notifiche push,
+le autorizzazioni tra utenti e un vero ripristino GDPR/B2.
+Qualunque modifica schema o deploy richiede separata autorizzazione.
