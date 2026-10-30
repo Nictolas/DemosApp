@@ -527,14 +527,14 @@ finché export/cancellazione GDPR e rollback non attestano anche le fonti.
 
 **Raccomandazione di ricerca aggiornata (30 ottobre 2026):** conservare
 tutte le 94 colonne TEXT esistenti nella stessa tabella
-\`public.opinioni_risposte\`, conservare \`fonti_opinioni\` JSONB
+`public.opinioni_risposte`, conservare `fonti_opinioni` JSONB
 **senza spostarla**, e proporre **un'unica nuova colonna NULLABLE
-\`answers_extra JSONB\`** per le Opinioni aggiunte in seguito.
+`answers_extra JSONB`** per le Opinioni aggiunte in seguito.
 
 Non va eseguito ora alcun DDL reale. La modifica **una tantum** allo
 schema esistente richiede approvazione, valutazione di lock, RLS, backup
 e rollout. Le Opinioni n. 95, 96, ... entrerebbero nella mappa
-\`answers_extra\` con ID immutabili, senza altre ALTER TABLE. Una
+`answers_extra` con ID immutabili, senza altre ALTER TABLE. Una
 domanda archiviata viene nascosta nel catalogo in codice, non
 cancellata dalle risposte storiche. Un ID non va mai riutilizzato.
 
@@ -542,13 +542,13 @@ Questa terza architettura elimina la necessità del **backfill delle
 94 risposte esistenti**, evitando conversione massiva, doppia copia,
 rischio di divergenze e necessità di modificare subito tutte le
 aggregazioni vecchie. Anche per le Opinioni future, un'unica SELECT
-della riga corrente può ottenere colonne esistenti, \`answers_extra\`
-e \`fonti_opinioni\`. L'utente non paga una lettura SQL in più
+della riga corrente può ottenere colonne esistenti, `answers_extra`
+e `fonti_opinioni`. L'utente non paga una lettura SQL in più
 soltanto perché esiste una nuova Opinione.
 
 ### Benchmark fonti incluse — vecchio schema, JSONB completo, 2-bit fisso
 
-\`api/scripts/benchmark-opinion-sources-ci.js\` usa 1.200 utenti
+`api/scripts/benchmark-opinion-sources-ci.js` usa 1.200 utenti
 e 94 domande fittizie, con fonti di circa 95 byte sul 20% delle risposte
 nel campione poco compilato e 40% nel campione più compilato.
 
@@ -566,10 +566,10 @@ varia: non usarlo per predire fatture Supabase.
 
 ### Benchmark specifico ibrido — 94 colonne conservate, due nuove Opinioni
 
-\`api/scripts/benchmark-opinion-hybrid-ci.js\` confronta tabelle
+`api/scripts/benchmark-opinion-hybrid-ci.js` confronta tabelle
 sintetiche gemelle dopo **VACUUM FULL** (a differenza dell'esperimento
 precedente): 1.200 utenti e 94 colonne TEXT con fonti identiche.
-La variante contiene una sola colonna NULLABLE \`answers_extra\`.
+La variante contiene una sola colonna NULLABLE `answers_extra`.
 Successivamente 120 utenti compilano due nuove Opinioni in JSONB.
 Le vecchie 94 risposte e tutte le fonti restano identiche.
 
@@ -592,19 +592,19 @@ attendibili dei costi commerciali.
 
 ### Prototipo verificabile e dipendenze ancora da integrare
 
-\`api/experiments/opinionAnswersV2HybridCandidate.js\` è un modulo
+`api/experiments/opinionAnswersV2HybridCandidate.js` è un modulo
 **non importato dalle route in uso**. Distingue gli ID storici
 dalle nuove Opinioni pubblicate e prepara patch senza colonne per
 domanda futura. La proiezione del Profilo conserva l'attuale payload
-e \`buildHybridAnswerSelect\` prepara **un solo SELECT** con le colonne
+e `buildHybridAnswerSelect` prepara **un solo SELECT** con le colonne
 TEXT per quel grado e le mappe JSONB della stessa riga.
 
-\`api/tests/opinionAnswersV2Hybrid.unit.test.js\` e
-\`api/tests/opinionAnswersV2Hybrid.pg.test.js\` simulano aggiunta di
+`api/tests/opinionAnswersV2Hybrid.unit.test.js` e
+`api/tests/opinionAnswersV2Hybrid.pg.test.js` simulano aggiunta di
 95ª/96ª Opinione, modifica senza sovrascrivere risposte esistenti,
 archiviazione, fonti intatte, cancellazione dell'intera riga su
 revoca e blocco della scrittura in attesa del lock. Il preflight
-riconosce \`answers_extra\` come campo di servizio **opzionale**
+riconosce `answers_extra` come campo di servizio **opzionale**
 di tipo JSONB, preservando la verifica di tutte le 94 colonne TEXT.
 
 Restano indispensabili prima di qualsiasi cutover:
@@ -619,7 +619,7 @@ Restano indispensabili prima di qualsiasi cutover:
   risolvere gli ID oltre le 94 colonne; mantenere la soglia privacy
   delle aggregazioni e la semantica delle fonti.
 - La cancellazione della **stessa riga** dovrebbe coprire anche
-  \`answers_extra\`, ma va verificata end-to-end su tutti i percorsi
+  `answers_extra`, ma va verificata end-to-end su tutti i percorsi
   GDPR e dopo restore/consenso revocato. Il rischio
   revoca→nuova concessione→restore individuato nel ledger B2
   non è risolto da questa architettura.
