@@ -56,32 +56,65 @@ function planCoherentRegionalPublication(nationalRaw,regionRows){
     }
   }
   const visible=new Set(REGIONS.filter(code=>total(byRegion.get(code))>=MINIMUM));
-  const hidden=new Set(REGIONS.filter(code=>!visible.has(code)));
-  let hiddenTotal=[...hidden].reduce((n,code)=>n+total(byRegion.get(code)),0);
-  if(hiddenTotal>0 && hiddenTotal<MINIMUM){
-    // Primary suppression alone allows the user to subtract each
-    // published region from the national total to reconstruct a small
-    // undisclosed remainder. Withhold the smallest otherwise-releasable
-    // region too, thus making the combined hidden remainder >= MINIMUM.
-    const eligible=[...visible].sort((a,b)=>
-      total(byRegion.get(a))-total(byRegion.get(b)) || a.localeCompare(b)
-    );
-    while(hiddenTotal>0 && hiddenTotal<MINIMUM && eligible.length){
-      const code=eligible.shift();
-      visible.delete(code);
-      hidden.add(code);
-      hiddenTotal+=total(byRegion.get(code));
+  // Suppression by the TOTAL hidden population alone is insufficient.
+  // National totals are published separately by f/c/i, so subtraction
+  // of released regions can reveal a tiny hidden CATEGORY even if the
+  // hidden total itself is much larger than the threshold.
+  //
+  // In this intentionally conservative research candidate, each
+  // positive hidden remainder must meet MINIMUM for BOTH the overall
+  // population and each response category. Otherwise withhold another
+  // region which contributes to the unsafe remainder. If there is no
+  // such visible region, withhold all regional results (the national
+  // aggregate may still be published, but cannot be subtracted).
+  const residual=()=>{
+    const remainder={favorevole:national.favorevole,
+      contrario:national.contrario,indeciso:national.indeciso};
+    for(const code of visible){
+      const counts=byRegion.get(code);
+      for(const key of COUNTS)remainder[key]-=counts[key];
     }
+    return remainder;
+  };
+  let suppressedForDifferencing=false;
+  while(visible.size>0){
+    const r=residual();
+    const risks=[
+      ...COUNTS.map(key=>({key,value:r[key]})),
+      {key:'total',value:total(r)}
+    ].filter(({value})=>value>0&&value<MINIMUM)
+      .sort((a,b)=>a.value-b.value || a.key.localeCompare(b.key));
+    if(!risks.length)break;
+    suppressedForDifferencing=true;
+    const mostAtRisk=risks[0];
+    const options=[...visible].filter(code=>{
+      const counts=byRegion.get(code);
+      return mostAtRisk.key==='total'
+        ? total(counts)>0
+        : counts[mostAtRisk.key]>0;
+    }).sort((a,b)=>total(byRegion.get(a))-total(byRegion.get(b))||
+      a.localeCompare(b));
+    if(!options.length){
+      // No remaining visible region contributes to the tiny category:
+      // suppression of a different region cannot repair that
+      // category. Publishing ANY other region alongside the national
+      // count would permit subtraction of this small remainder.
+      visible.clear();
+      break;
+    }
+    visible.delete(options[0]);
   }
   // If national itself has fewer than 10, neither national nor any
-  // region may be released.
+  // region may be released. The separate API routes must consume ONE
+  // versioned decision, not calculate a different plan per request.
   const publishNational=total(national)>=MINIMUM;
   if(!publishNational)visible.clear();
   return Object.freeze({
     publishNational,
     visibleRegions:Object.freeze([...visible].sort()),
     suppressedRegions:Object.freeze(REGIONS.filter(code=>!visible.has(code))),
-    minimumCellSize:MINIMUM
+    minimumCellSize:MINIMUM,
+    suppressedForDifferencing
   });
 }
 
