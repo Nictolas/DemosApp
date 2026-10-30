@@ -28,15 +28,15 @@ test('immutable v1 public payload leaks no suppressed region counts',()=>{
   assert.equal(Object.hasOwn(publication,'regions'),false);
   assert.equal(Object.hasOwn(publication,'nationalRaw'),false);
   assert.equal(Object.isFrozen(publication),true);
-  assert.equal(Object.isFrozen(publication.national.stats),true);
+  assert.equal(Object.isFrozen(publication.national),true);
   const national=readVersionedOpinionPublication(publication,{
     version:'v1',opinionId
   });
   assert.deepEqual(national,{
     success:true,
-    data:{suppressed:false,minimumCellSize:10,questionText:title,
-      stats:format(10,1),totaleUtenti:11}
+    data:{suppressed:true,minimumCellSize:10,questionText:title}
   });
+  assert.equal(Object.hasOwn(publication.national,'stats'),false);
   for(const regionCode of ['TO','LA']){
     const regional=readVersionedOpinionPublication(publication,{
       version:'v1',opinionId,regionCode
@@ -111,4 +111,31 @@ test('empty and inconsistent snapshots fail to become a public cache version',()
     }
   });
   assert.equal(Object.hasOwn(empty.national,'stats'),false);
+});
+
+
+test('national 29f/1c must not publish a one-person minority response',()=>{
+  const publication=build(rows(format(29,1),{
+    TO:format(20,0),LO:format(9,1)
+  }));
+  const nation=readVersionedOpinionPublication(publication,{
+    version:'v1',opinionId
+  });
+  assert.equal(nation.data.suppressed,true);
+  assert.equal(Object.hasOwn(nation.data,'stats'),false);
+  for(const regionCode of ['TO','LO']){
+    const region=readVersionedOpinionPublication(publication,{
+      version:'v1',opinionId,regionCode
+    });
+    assert.equal(region.data.suppressed,true);
+  }
+});
+
+test('safe national 10f/10c and one 10f/10c region can be published',()=>{
+  const publication=build(rows(format(10,10),{
+    TO:format(10,10)
+  }));
+  assert.deepEqual(publication.national.stats,format(10,10));
+  assert.equal(publication.regionsByCode.TO.suppressed,false);
+  assert.deepEqual(publication.regionsByCode.TO.stats,format(10,10));
 });
