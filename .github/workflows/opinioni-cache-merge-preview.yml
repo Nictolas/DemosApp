@@ -64,7 +64,7 @@ jobs:
     # This tests a throwaway combined tree. It does NOT create a merge commit.
     # Where conflicts exist, take the cache PR version to expose integration
     # regressions against all the privacy tests added independently to main.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout cache PR in disposable workspace
