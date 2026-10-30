@@ -185,3 +185,19 @@ jobs:
             client/tests/authLogRedaction.test.mjs \
             client/tests/privacyDisclosureIntegrity.test.mjs \
             client/tests/dpiaReviewStatus.test.mjs
+
+      - name: Browser regression on combined disposable tree
+        shell: bash
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/demos-merge-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          node /tmp/demos-merge-playwright/node_modules/playwright/cli.js install --with-deps chromium
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-merge-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/opinioni-comunali >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-merge-playwright/node_modules node scripts/test-opinioni-fixed-footer-browser.cjs
