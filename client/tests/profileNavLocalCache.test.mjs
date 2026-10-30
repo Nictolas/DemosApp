@@ -43,6 +43,15 @@ function harness() {
   return { storage: localStorage, api: module.exports };
 }
 
+test("desktop header uses existing demographic summary before any avatar GET", () => {
+  const header = read("components/DesktopAppHeader.tsx");
+  assert.match(header, /readProfileSummary\(user\.id\)/);
+  assert.match(header, /if \(saved\) return parseAvatarConfig\(saved\.user\.avatar_config\)/);
+  assert.match(header, /storeProfileSummary\(user\.id, userData\)/);
+  assert.match(header, /staleTime: Infinity/);
+  assert.match(header, /gcTime: Infinity/);
+});
+
 test("the first bottom nav item is Profile, with no Favorites or Settings tab", () => {
   const items = nav.slice(nav.indexOf("export const MAIN_NAV_ITEMS"));
   assert.match(items, /\[\s*\{\s*path: "\/profilo",\s*label: "Profilo"/);

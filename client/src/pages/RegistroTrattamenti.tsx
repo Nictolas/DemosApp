@@ -12,8 +12,8 @@ export default function RegistroTrattamenti() {
             Registro delle Attività di Trattamento
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Conforme GDPR Art. 30<br />
-            Ultima modifica: {new Date().toLocaleDateString('it-IT')}
+            <strong>DemosApp</strong> - Registro ai sensi dell'art. 30 GDPR<br />
+            Ultima modifica del testo: 30/10/2026
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -91,7 +91,7 @@ export default function RegistroTrattamenti() {
                   Termini di Cancellazione
                 </h3>
                 <p className="text-sm text-gray-700">
-                  <strong>Profilo utente:</strong> 7 anni dalla data di registrazione (dati fiscali - Art. 2220 c.c.)<br />
+                  <strong>Profilo utente:</strong> per il tempo necessario al servizio, fino a cancellazione dell'account, salvo specifici obblighi documentati<br />
                   <strong>Dati autenticazione:</strong> 1 anno dall'ultimo accesso<br />
                   <strong>Dati sessione:</strong> 30 giorni dall'ultima attività
                 </p>
@@ -172,8 +172,8 @@ export default function RegistroTrattamenti() {
                   Termini di Cancellazione
                 </h3>
                 <p className="text-sm text-gray-700">
-                  <strong>Opinioni politiche:</strong> 5 anni dalla data di espressione<br />
-                  <strong>In caso di revoca consenso:</strong> Cancellazione immediata di tutte le opinioni (GDPR Art. 17)
+                  <strong>Opinioni politiche:</strong> fino alla revoca del consenso o alla cancellazione dell'account, secondo le finalità del servizio<br />
+                   <strong>In caso di revoca consenso:</strong> il backend avvia la cancellazione dei dati politici prodotti dall'utente e il client elimina la cache cifrata quando rileva la revoca
                 </p>
               </div>
 
@@ -252,8 +252,8 @@ export default function RegistroTrattamenti() {
                   Termini di Cancellazione
                 </h3>
                 <p className="text-sm text-gray-700">
-                  <strong>Dati di voto:</strong> 5 anni dalla data di espressione (dati politici - Art. 2220 c.c.)<br />
-                  <strong>In caso di cancellazione account:</strong> Anonimizzazione dei voti (mantenimento per finalità statistiche)
+                  <strong>Dati di voto:</strong> per il tempo necessario alla partecipazione e in presenza della base giuridica applicabile; l'art. 2220 c.c. riguarda le scritture contabili, non i voti politici<br />
+                   <strong>In caso di cancellazione account:</strong> i dati personali sono soggetti alle procedure di cancellazione; possono permanere soltanto statistiche irreversibilmente anonime
                 </p>
               </div>
             </div>
@@ -340,7 +340,7 @@ export default function RegistroTrattamenti() {
                   Termini di Cancellazione
                 </h3>
                 <p className="text-sm text-gray-700">
-                  <strong>Log di audit:</strong> 7 anni dalla data di creazione (conformità normativa e sicurezza)
+                  <strong>Log di audit:</strong> conservazione proporzionata, differenziata per finalità e categoria di evento; il GDPR non stabilisce un termine generale di sette anni
                 </p>
               </div>
             </div>

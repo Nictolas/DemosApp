@@ -1,0 +1,205 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const http = require('node:http');
+const { spawn } = require('node:child_process');
+const path = require('node:path');
+const { getOpinionsForGrade } = require('../services/opinionCatalog');
+
+const apiRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(apiRoot, '..');
+const browserModule = process.env.DEMOS_PLAYWRIGHT_MODULE;
+const HEADLESS_ORIGIN = 'http://localhost:3000';
+const QA_USER_ID = 'qa-synthetic-opinions-user';
+
+async function waitForLocal(url, timeoutMs = 45000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
+      if (response.ok) return;
+    } catch {}
+    await new Promise(resolve => setTimeout(resolve, 350));
+  }
+  throw Error('Local QA dev server did not become ready: ' + new URL(url).pathname);
+}
+
+test('real Chromium DOM: four official Opinions pages + verified save through candidate HTTP routes', {
+  skip: !browserModule,
+  timeout: 120000
+}, async () => {
+  // An isolated process and loopback Vite proxy are mandatory: no real DB URL,
+  // real credentials, Render services or production traffic are involved.
+  for (const key of ['DATABASE_URL','POSTGRES_URL','SUPABASE_DB_URL','SUPABASE_URL','PGHOST','PGDATABASE']) {
+    assert.equal(process.env[key], undefined, 'Blocked database env in browser QA: ' + key);
+  }
+  const jwtPayload = Buffer.from(JSON.stringify({
+    userId: QA_USER_ID, role: 'E', status: 'a',
+    exp: Math.floor(Date.now() / 1000) + 3600
+  })).toString('base64');
+  const token = 'eyJhbGciOiJIUzI1NiJ9.' + jwtPayload + '.qa-synthetic-not-a-real-jwt';
+  assert.ok(token.length >= 48);
+  const before = {
+    mode: process.env.DEMOS_OPINIONS_QA_ONLY,
+    token: process.env.DEMOS_OPINIONS_QA_TOKEN
+  };
+  process.env.DEMOS_OPINIONS_QA_ONLY = 'isolated-synthetic';
+  process.env.DEMOS_OPINIONS_QA_TOKEN = token;
+
+  let server, vite, browser, context;
+  try {
+    const { createQaApp } = require('../qa/opinionCatalogQaServer');
+    const { chromium } = require(browserModule);
+    server = http.createServer(createQaApp());
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      // The Vite proxy resolves localhost on both IPv4 and IPv6.
+      server.listen(10000, resolve);
+    });
+    assert.equal(server.address().port, 10000);
+    const viteBin = path.join(repoRoot, 'client/node_modules/vite/bin/vite.js');
+    vite = spawn(process.execPath, [viteBin, '--config', 'vite.config.js', '--host', 'localhost', '--port', '3000', '--strictPort'], {
+      cwd: path.join(repoRoot, 'client'),
+      env: { ...process.env, NODE_ENV: 'development' },
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    let viteErrors = '';
+    vite.stderr.on('data', chunk => { viteErrors += String(chunk).slice(0, 4000); });
+    await waitForLocal(HEADLESS_ORIGIN + '/');
+    await waitForLocal('http://localhost:10000/healthz');
+    // Validate reverse proxy separately, before booting the browser.
+    const viaProxy = await fetch(HEADLESS_ORIGIN + '/api/opinioni-list?grado=N', {
+      headers: { authorization: 'Bearer ' + token }
+    });
+    const viaProxyText = await viaProxy.text();
+    assert.equal(viaProxy.status, 200, 'Vite proxy must route local synthetic API');
+    assert.match(viaProxy.headers.get('content-type') || '', /application\/json/,
+      'Unexpected Vite proxy response type: ' + viaProxyText.slice(0, 180));
+    const viaProxyData = JSON.parse(viaProxyText);
+    assert.equal(viaProxyData.data?.length, getOpinionsForGrade('N').length,
+      'Vite proxy must return candidate published questions, not an HTML fallback');
+    browser = await chromium.launch({
+      channel: 'chrome', headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage']
+    });
+    context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      serviceWorkers: 'block',
+      permissions: []
+    });
+    await context.addInitScript(qaToken => {
+      localStorage.setItem('auth_token', qaToken);
+    }, token);
+    const page = await context.newPage();
+    // Fail closed: no test browser request may touch production, CDN,
+    // authentication providers, real people or remote telemetry.
+    const outside = [];
+    await page.route('**/*', route => {
+      const target = new URL(route.request().url());
+      if (target.hostname === 'localhost' && target.port === '3000' && target.protocol === 'http:') {
+        return route.continue();
+      }
+      outside.push(target.origin);
+      return route.abort('blockedbyclient');
+    });
+    const grades = [
+      ['N', '/opinioni-nazionali', 'Opinioni Nazionali', 'Favorevole', 'f'],
+      ['R', '/opinioni-regionali', 'Opinioni Regionali', 'Contrario', 'c'],
+      ['CO', '/opinioni-comunali', 'Opinioni Comunali', 'Indeciso', 'i'],
+      ['E', '/opinioni-europee', 'Opinioni Europee', 'Favorevole', 'f']
+    ];
+    const savedByGrade = new Map();
+    for (const [grade, route, heading, answerLabel, answerCode] of grades) {
+      await page.goto(HEADLESS_ORIGIN + route, { waitUntil: 'domcontentloaded', timeout: 35000 });
+      await page.getByText(heading, { exact: true }).first().waitFor({ timeout: 25000 });
+      try {
+        await page.getByText(/Opinion da Inserire/).first().waitFor({ timeout: 25000 });
+      } catch (error) {
+        // The browser uses ONLY synthetic tokens, IDs and local hosts.
+        // Never print authorization headers, cookies or answer payloads.
+        const screen = (await page.locator('body').innerText()).slice(0, 1100);
+        const direct = await page.evaluate(async ({ grade, token }) => {
+          try {
+            const res = await fetch('/api/opinioni-list?grado=' + grade, {
+              headers: { authorization: 'Bearer ' + token }
+            });
+            const data = await res.json().catch(() => ({}));
+            return { status: res.status, contentType: res.headers.get('content-type'),
+              count: data?.data?.length || 0,
+              grado: data?.grado || null, message: data?.message || null,
+              error: data?.error || null };
+          } catch (cause) {
+            return { failure: String(cause?.message || cause) };
+          }
+        }, {grade, token});
+        throw new Error('Browser page missing Opinions list; grade=' + grade +
+          ', screen=' + JSON.stringify(screen) + ', synthetic_API=' + JSON.stringify(direct) +
+          ', original=' + error.message);
+      }
+      const expectedCount = getOpinionsForGrade(grade).length;
+      assert.ok(expectedCount > 0, grade + ': published questions needed for UI');
+      // Some questions belong to multiple grades and may already have answers.
+      const unanswered = page.locator('div.bg-blue-50').filter({
+        has: page.getByRole('button', { name: 'Favorevole', exact: true })
+      });
+      const answered = page.locator('div.bg-green-50').filter({
+        has: page.getByRole('button', { name: 'Favorevole', exact: true })
+      });
+      assert.equal(await unanswered.count() + await answered.count(), expectedCount,
+        grade + ': all official question cards must be rendered');
+      assert.ok(await unanswered.count() > 0, grade + ': requires an unanswered synthetic question');
+      const first = unanswered.first();
+      const questionText = await first.locator('h3').first().innerText();
+      const candidate = getOpinionsForGrade(grade).find(x => x.text === questionText);
+      assert.ok(candidate, grade + ': rendered question must match the official catalog');
+      const selectedId = candidate.id;
+      await first.getByRole('button', { name: answerLabel, exact: true }).click();
+      const savedResponse = page.waitForResponse(response =>
+        response.url().includes('/api/opinioni/salva') &&
+        response.request().method() === 'POST',
+        { timeout: 25000 }
+      );
+      await page.getByRole('button', { name: 'Salva le mie opinioni' }).click();
+      const saved = await savedResponse;
+      assert.equal(saved.status(), 200, grade + ': real UI must POST successfully');
+      const posted = saved.request().postDataJSON();
+      assert.equal(posted.opinioni[selectedId], answerCode,
+        grade + ': UI must serialize the selected answer');
+      assert.equal((await saved.json()).savedCount, 1,
+        grade + ': exactly one synthetic answer must be saved');
+      const readback = await page.evaluate(async ({ accessToken, grade }) => {
+        const result = await fetch('/api/opinioni-list?grado=' + grade, {
+          headers: { Authorization: 'Bearer ' + accessToken }
+        });
+        if (!result.ok) throw Error('Synthetic browser GET readback failed');
+        return result.json();
+      }, { accessToken: token, grade });
+      assert.equal(readback.data.find(x => x.id === selectedId)?.userAnswer, answerCode,
+        grade + ': browser must read back the saved answer');
+      savedByGrade.set(grade, { id: selectedId, answer: answerCode });
+    }
+    assert.equal(savedByGrade.size, 4, 'Four real UI save/readback cycles must succeed');
+    assert.equal(outside.filter(x => x !== 'http://localhost:3000').length, outside.length);
+    assert.ok(outside.every(x => !/demos\.community|onrender\.com/.test(x)),
+      'No request may escape to DEMOS production');
+  } finally {
+    if (context) await context.close();
+    if (browser) await browser.close();
+    if (vite) {
+      vite.kill('SIGTERM');
+      await new Promise(resolve => {
+        if (vite.exitCode !== null) return resolve();
+        vite.once('exit', resolve);
+        setTimeout(resolve, 3000).unref();
+      });
+    }
+    if (server) await new Promise(resolve => server.close(resolve));
+    for (const [key, value] of [
+      ['DEMOS_OPINIONS_QA_ONLY', before.mode],
+      ['DEMOS_OPINIONS_QA_TOKEN', before.token]
+    ]) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});

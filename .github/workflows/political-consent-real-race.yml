@@ -1,0 +1,58 @@
+name: Political consent real race — isolated PostgreSQL 17
+on:
+  pull_request:
+    paths:
+      - 'api/scripts/verify-political-consent-save-race-ci.js'
+      - 'api/routes/opinioni/user-answers.js'
+      - 'api/routes/user/political-opinions-consent.js'
+      - 'api/routes/users/profile.js'
+      - 'api/services/politicalConsentService.js'
+      - 'client/src/lib/queryClient.ts'
+      - 'client/src/pages/GDPR/index.tsx'
+      - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
+      - 'client/tests/politicalOpinionPrivacyIntegration.test.mjs'
+      - '.github/workflows/political-consent-real-race.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-concurrent-revocation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: political_consent_race_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d political_consent_race_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install isolated API dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Check atomic consent and no-store policies
+        run: node --test --test-concurrency=1 api/tests/politicalConsentAtomic.smoke.test.js api/tests/politicalConsentScope.smoke.test.js api/tests/opinionCatalogReadCachePolicy.test.js
+      - name: Verify five contested write/revoke sequences on real synthetic Postgres
+        env:
+          GITHUB_ACTIONS: 'true'
+          POLITICAL_CONSENT_RACE_CI: synthetic
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: political_consent_race_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-political-consent-save-race-ci.js

@@ -7,6 +7,8 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const authPath = require.resolve(path.join(ROOT, 'middleware', 'auth.js'));
 const civicIdentityPath = require.resolve(path.join(ROOT, 'middleware', 'civicIdentity.js'));
+const catalogPath = require.resolve(path.join(ROOT,'services','opinionCatalog.js'));
+const matchingPath = require.resolve(path.join(ROOT,'services','politicalMatchingService.js'));
 
 function makePool({ complete, canonicalBlocked = false }) {
   const ids = ['q1', 'q2'];
@@ -51,6 +53,11 @@ function makePool({ complete, canonicalBlocked = false }) {
 async function withProfile(pool, fn) {
   const original = require.cache[authPath];
   const originalCivicIdentity = require.cache[civicIdentityPath];
+  const previousCatalog = require.cache[catalogPath];
+  const previousMatching = require.cache[matchingPath];
+  require.cache[catalogPath] = {id:catalogPath,filename:catalogPath,loaded:true,
+    exports:{getOpinionIdsForGrade:()=>['q1','q2']} };
+  delete require.cache[matchingPath];
   require.cache[civicIdentityPath] = {
     id: civicIdentityPath, filename: civicIdentityPath, loaded: true,
     exports: { requireVerifiedCivicIdentity: (_req, _res, next) => next() }
@@ -76,6 +83,8 @@ async function withProfile(pool, fn) {
     if (original) require.cache[authPath] = original; else delete require.cache[authPath];
     if (originalCivicIdentity) require.cache[civicIdentityPath] = originalCivicIdentity;
     else delete require.cache[civicIdentityPath];
+    if(previousCatalog)require.cache[catalogPath]=previousCatalog;else delete require.cache[catalogPath];
+    if(previousMatching)require.cache[matchingPath]=previousMatching;else delete require.cache[matchingPath];
   }
 }
 
