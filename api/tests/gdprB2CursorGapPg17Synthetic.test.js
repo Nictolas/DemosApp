@@ -78,7 +78,6 @@ test('PG17 synthetic: cursor scan cannot certify complete GDPR history',async t=
       assert.notEqual(digest(exported),digest(external));
       // The external list here is the SAME disposable SQL database.
       // It is NOT an independent witness and cannot authorize recovery.
-      assert.equal(false,false);
     });
     console.log('GDPR_B2_CURSOR_GAP_PG17_SYNTHETIC_PASS');
   }finally{
