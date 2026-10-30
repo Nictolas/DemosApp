@@ -85,9 +85,13 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
   await withAndroid110Contract(async({base,state,fixtureId})=>{
     const noToken=await fetch(base+'/api/opinioni-list?grado=N');
     assert.equal(noToken.status,401);
+    assert.equal(noToken.headers.get('cache-control'),'private, no-store, max-age=0',
+      'even authentication errors must never be cached');
     assert.equal(state.sql.length,0,'No SQL before authentication');
     for(const query of ['', '?grado=', '?grado=N&grado=R']){
       const missing=await fetch(base+'/api/opinioni-list'+query,options);
+      assert.equal(missing.headers.get('cache-control'),'private, no-store, max-age=0',
+        'invalid-grade errors must never be cached');
       assert.equal(missing.status,400,
         'Android invalid grade is not a valid personal-answer lookup');
       assert.equal(state.sql.length,0,
@@ -97,6 +101,8 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
     for(const grade of ['N','R','C','CO','E']){
       const response=await fetch(base+'/api/opinioni-list?grado='+grade,options);
       assert.equal(response.status,200);
+      assert.equal(response.headers.get('cache-control'),'private, no-store, max-age=0',
+        'personal political answers must never be cached by intermediary proxies');
       const body=await response.json();
       assert.equal(body.success,true);
       assert.equal(body.grado,grade);
