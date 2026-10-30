@@ -68,9 +68,9 @@ test('PG17 hybrid Sondaggi: consent, geography, privacy threshold and matching',
       // Ten consenting people in Livorno, one consenting person in Rome.
       // Person 2: base false, explicit true (consent override INCLUDED).
       // Person 12: base true, explicit false (override EXCLUDED).
-      // Person 13: organization (EXCLUDED).
+      // Person 13: compact O organization (EXCLUDED); even persons use P.
       for(let i=1;i<=13;i++){
-        const account=i===13?'ORGANIZATION':'PERSON';
+        const account=i===13?'O':(i%2===0?'P':'PERSON');
         const base=i!==2;
         const region=i===11?'Lazio':'Toscana';
         const province=i===11?'Roma':'Livorno';
@@ -96,6 +96,18 @@ test('PG17 hybrid Sondaggi: consent, geography, privacy threshold and matching',
       await db.query('INSERT INTO ci_hybrid_agg_consents VALUES($1,true),($2,false)',
         [uid(2),uid(12)]);
 
+      await t.test('compact P and legacy PERSON both count; O never counts',async()=>{
+        const grouped=await db.query(
+          'SELECT account_type,COUNT(*)::int AS n FROM ci_hybrid_agg_users '+
+          'GROUP BY account_type ORDER BY account_type'
+        );
+        assert.deepEqual(grouped.rows.map(r=>[r.account_type,r.n]),[
+          ['O',1],['P',6],['PERSON',6]
+        ]);
+        const publishedCounts=await stats(db,['opinione_0','opinione_94']);
+        assert.equal(Object.values(publishedCounts.opinione_0).reduce((a,b)=>a+b,0),11);
+        assert.equal(Object.values(publishedCounts.opinione_94).reduce((a,b)=>a+b,0),11);
+      });
       await t.test('national totals include old and future, suppress 96th',async()=>{
         const result=await stats(db,['opinione_0','opinione_94','opinione_95']);
         assert.equal(Object.hasOwn(result,'opinione_0'),true);
