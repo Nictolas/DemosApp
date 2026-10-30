@@ -36,6 +36,15 @@ class PrivacyErasureOutboxWorker {
         this.env.GDPR_ERASURE_OUTBOX_WORKER_ENABLED !== 'true') {
       throw Error('GDPR erasure outbox worker is disabled');
     }
+    // The Draft exporter has only an in-memory latch after an uncertain
+    // immutable PUT. A restart or a second worker can issue a duplicate PUT
+    // before any persistent claim is visible. Until a durable cross-worker
+    // claim/reconciliation protocol is integrated and reviewed, refuse the
+    // REAL exporter entirely (including empty batches) before SQL or B2 I/O.
+    // Injected synthetic exporters are used solely by isolated CI fixtures.
+    if (this.exporter instanceof PrivacyErasureB2Journal) {
+      throw Error('GDPR_B2_DURABLE_PUT_CLAIM_NOT_IMPLEMENTED');
+    }
     // Do not touch PostgreSQL if B2 is unavailable/misconfigured.
     this.exporter.config();
   }
