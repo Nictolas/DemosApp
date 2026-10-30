@@ -159,7 +159,8 @@ async function run(){
           "sources=sources||jsonb_build_object('opinione_7',$3::text) "+
           'WHERE user_id=$1',
         fixed:'UPDATE ci_sources_bench_fixed SET '+
-          'answers=set_byte(answers,1,(get_byte(answers,1)&252)|3),'+
+          'answers=set_byte(answers,1,(get_byte(answers,1)&252)|'+
+          "CASE $2::text WHEN 'f' THEN 1 WHEN 'c' THEN 2 WHEN 'i' THEN 3 ELSE 0 END),"+
           "sources=sources||jsonb_build_object('opinione_7',$3::text) "+
           'WHERE user_id=$1'
       };
