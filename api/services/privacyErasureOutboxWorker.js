@@ -36,16 +36,30 @@ class PrivacyErasureOutboxWorker {
         this.env.GDPR_ERASURE_OUTBOX_WORKER_ENABLED !== 'true') {
       throw Error('GDPR erasure outbox worker is disabled');
     }
-    // The Draft exporter has only an in-memory latch after an uncertain
-    // immutable PUT. A restart or a second worker can issue a duplicate PUT
-    // before any persistent claim is visible. Until a durable cross-worker
-    // claim/reconciliation protocol is integrated and reviewed, refuse the
-    // REAL exporter entirely (including empty batches) before SQL or B2 I/O.
-    // Injected synthetic exporters are used solely by isolated CI fixtures.
-    if (this.exporter instanceof PrivacyErasureB2Journal) {
+    // A custom exporter can wrap an actual S3Client and evade instanceof.
+    // Until an independently durable, single-use pre-PUT claim exists,
+    // disable ALL production worker paths (even custom exporters), before
+    // exporter.config(), pool.connect(), or any provider call. Allow only
+    // synthetic, isolated GitHub Actions tests to inject fake exporters.
+    // Process flags are not an authorization boundary against hostile code;
+    // this is a temporary operational NO-GO and cannot permit deployment.
+    const invoked = typeof process.argv[1] === 'string'
+      ? process.argv[1].replaceAll(String.fromCharCode(92), '/') : '';
+    const parts = invoked.split('/');
+    const testFile = /^[A-Za-z0-9_.-]+[.]test[.]js$/.test(parts.at(-1) || '');
+    const testRunner = parts.at(-3) === 'api' && parts.at(-2) === 'tests' && testFile;
+    const proc = process.env;
+    const isolated = proc.GITHUB_ACTIONS === 'true' &&
+      proc.GDPR_OUTBOX_WORKER_CI === 'isolated' &&
+      proc.TEST_DATABASE_URL ===
+        'postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_worker_ci' &&
+      !proc.DATABASE_URL && !proc.SUPABASE_URL && !proc.SUPABASE_DB_URL &&
+      !proc.SUPABASE_SERVICE_ROLE_KEY && !proc.RENDER && !proc.RENDER_SERVICE_ID &&
+      testRunner;
+    if (!isolated || this.exporter instanceof PrivacyErasureB2Journal) {
       throw Error('GDPR_B2_DURABLE_PUT_CLAIM_NOT_IMPLEMENTED');
     }
-    // Do not touch PostgreSQL if B2 is unavailable/misconfigured.
+    // This config call belongs only to the isolated fake used by CI.
     this.exporter.config();
   }
   async runOnce(pool, { limit = 10 } = {}) {
