@@ -156,7 +156,9 @@ test('all opinion editors defer pending save until the verified owner and epoch 
     assert.match(source, /setGrantConfirmed\(true\)/);
     // New users must be able to reach the optional consent form without
     // fetching political answers before authorization.
-    assert.match(source, /isSessionVerified && verifiedPoliticalConsent\?\.granted === false \? \(/);
+    assert.match(source, /enabled: !!user && isSessionVerified && hasConsent/);
+    assert.match(source, /const canReadOpinions = !!user && isSessionVerified && hasConsent/);
+    assert.match(source, /isSessionVerified && !hasConsent \? \(/);
     assert.match(source, /onClick=\{\(\) => setShowConsentDialog\(true\)\}/);
     assert.match(source, /Leggi e scegli se dare il consenso/);
     assert.match(source, /if \(pendingOpinionsToSave\) setGrantConfirmed\(true\)/);
