@@ -32,6 +32,7 @@ on:
       - 'api/tests/gdprB2ReadonlyBucketMetadata.test.js'
       - 'api/scripts/attest-gdpr-b2-synthetic-version-readonly.js'
       - 'api/tests/gdprB2SyntheticVersionReadonly.test.js'
+      - 'api/docs/gdpr-b2-synthetic-version-bounded-readonly-20261030.md'
       - 'api/tests/fixtures/gdpr-b2-synthetic-object-v1.json'
       - 'api/services/privacyErasureLedgerService.js'
       - 'api/tests/gdprOutboxWorkerIsolated.pg17.test.js'
