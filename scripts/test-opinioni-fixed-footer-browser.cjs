@@ -37,6 +37,8 @@ const Q = Array.from({ length: 24 }, (_, i) => ({
 async function run() {
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   let cases = 0;
+  let warmRevisits = 0;
+  let requiredColdReads = 0;
   try {
     for (const viewport of VIEWPORTS) {
       const context = await browser.newContext({
@@ -184,6 +186,22 @@ async function run() {
         cases += 1;
       }
 
+      // Four first visits require one private GET per grade. Reopening all
+      // categories multiple times must not multiply SQL-dependent traffic.
+      assert.equal(answerReads.length, ROUTES.length,
+        'Cold first load must read each grade once, with no duplicate GETs');
+      requiredColdReads += answerReads.length;
+      for (let round = 0; round < 2; round += 1) {
+        for (const [path] of ROUTES) {
+          const beforeWarm = answerReads.length;
+          await page.goto(ORIGIN + path, { waitUntil: 'domcontentloaded' });
+          await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+          assert.equal(answerReads.length, beforeWarm,
+            'Repeated warm visit must not issue a private GET: ' + path);
+          warmRevisits += 1;
+        }
+      }
+
       // All four category snapshots have been encrypted in IndexedDB.
       // A full page navigation must not repeat a personal-answer GET.
       const readsBeforeWarmReturn = answerReads.length;
@@ -284,7 +302,11 @@ async function run() {
       assert.deepEqual(errors, [], 'No uncaught errors at ' + viewport.width + 'x' + viewport.height);
       await context.close();
     }
-    console.log(JSON.stringify({ test: 'opinioni-fixed-footer-browser', result: 'PASS', cases }));
+    console.log(JSON.stringify({
+      test: 'opinioni-fixed-footer-browser',
+      result: 'PASS', cases, warmRevisits, requiredColdReads,
+      avoidedPrivateReadsOnWarmRevisits: warmRevisits,
+    }));
   } finally {
     await browser.close();
   }
