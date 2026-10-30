@@ -48,6 +48,25 @@ function assertLegacyColumnCoverage(manifestIds, actualColumnNames) {
   return {coveredIds:ids.length, serviceColumns:[...actual].filter(col=>SERVICE_COLUMNS.has(col))};
 }
 
+// Require both names and SQL types in the one-time metadata preflight.
+function assertLegacySchemaInventory(manifestIds, columnMetadata) {
+  if (!Array.isArray(columnMetadata) || !columnMetadata.length) {
+    throw new TypeError('Schema column metadata required');
+  }
+  const names=columnMetadata.map(col=>{
+    if (!col || typeof col.column_name!=='string' || typeof col.data_type!=='string') {
+      throw new TypeError('Schema metadata must provide column_name and data_type');
+    }
+    return col.column_name;
+  });
+  const coverage=assertLegacyColumnCoverage(manifestIds,names);
+  const ids=new Set(manifestIds);
+  if(columnMetadata.some(col=>ids.has(col.column_name)&&col.data_type!=='text')) {
+    throw new Error('Non-TEXT historical opinion column detected');
+  }
+  return coverage;
+}
+
 function legacyRowToAnswers(row, orderedIds) {
   const ids = validateLegacyIds(orderedIds);
   if (!row || typeof row !== 'object' || Array.isArray(row)) {
@@ -106,4 +125,4 @@ function rollbackParity(v2Document, legacyRow, legacyIds) {
   };
 }
 
-module.exports={validateLegacyIds,assertLegacyColumnCoverage,legacyRowToAnswers,rollbackCoverage,rollbackParity};
+module.exports={validateLegacyIds,assertLegacyColumnCoverage,assertLegacySchemaInventory,legacyRowToAnswers,rollbackCoverage,rollbackParity};
