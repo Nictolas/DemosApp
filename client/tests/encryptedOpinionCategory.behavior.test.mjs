@@ -26,6 +26,7 @@ function fixture() {
   let storeWrites = 0;
   let afterGet = () => {};
   let beforeCatalog = () => {};
+  let beforePersist = () => {};
   let catalogAvailable = true;
   let personalAnswersAvailable = true;
   let lastSignal;
@@ -50,8 +51,10 @@ function fixture() {
     return { ok: true, data: { success: true, data: q } };
   };
   const persistEncryptedOpinionCategory = async (owner, consentEpoch, section, category, expectedRevision) => {
-    assert.equal(revision(owner, section), expectedRevision,
-      'An outdated completion cannot persist an old answer snapshot');
+    await beforePersist();
+    // The real encrypted vault discards a queued write whose epoch/revision
+    // changed while waiting; it does not throw an exception for that skip.
+    if (revision(owner, section) !== expectedRevision) return;
     storeWrites += 1;
     snapshots.set(owner, {
       ...snapshots.get(owner),
@@ -99,6 +102,7 @@ function fixture() {
     advance: milliseconds => { now += milliseconds; },
     onGet: fn => { afterGet = fn; },
     onCatalog: fn => { beforeCatalog = fn; },
+    onPersist: fn => { beforePersist = fn; },
     setCatalogAvailable: ok => { catalogAvailable = ok; },
     setPersonalAnswersAvailable: ok => { personalAnswersAvailable = ok; },
     counts: () => ({ answers: answerReads, catalog: catalogReads, writes: storeWrites }),
@@ -233,4 +237,41 @@ test('a confirmed answer cannot be cached under an old consent epoch', async () 
   assert.equal(h.snapshots.get(A).opinionN.questions[0].userAnswer, 'f',
     'A stale or unrelated authorization epoch cannot modify the encrypted cache');
   assert.equal(h.counts().answers, 1, 'No private GET is triggered by local ACK sync');
+});
+
+test('revocation during queued vault write cannot return a stale GET payload', async () => {
+  const h = fixture();
+  let releaseWrite;
+  let reachedWrite;
+  const writeStarted = new Promise(resolve => { reachedWrite = resolve; });
+  const gate = new Promise(resolve => { releaseWrite = resolve; });
+  h.onPersist(() => { reachedWrite(); return gate; });
+
+  const pending = h.load(A, 'consent-1', 'N');
+  await writeStarted;
+  h.bump(A, 'opinionN'); // verified revoke advances the vault generation
+  releaseWrite();
+
+  await assert.rejects(pending, /Caricamento opinioni annullato/);
+  assert.equal(h.counts().writes, 0, 'The revoked snapshot must not be persisted');
+  assert.equal(h.counts().answers, 1, 'The stale request is not retried');
+});
+
+test('abort during queued encrypted write cancels the result returned to React Query', async () => {
+  const h = fixture();
+  const ac = new AbortController();
+  let releaseWrite;
+  let reachedWrite;
+  const writeStarted = new Promise(resolve => { reachedWrite = resolve; });
+  const gate = new Promise(resolve => { releaseWrite = resolve; });
+  h.onPersist(() => { reachedWrite(); return gate; });
+
+  const pending = h.load(A, 'consent-1', 'N', ac.signal);
+  await writeStarted;
+  ac.abort();
+  releaseWrite();
+
+  await assert.rejects(pending, /Caricamento opinioni annullato/);
+  assert.equal(h.signal(), ac.signal);
+  assert.equal(h.counts().answers, 1);
 });
