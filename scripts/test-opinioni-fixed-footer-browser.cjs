@@ -62,6 +62,7 @@ async function run() {
   let cases = 0;
   let warmRevisits = 0;
   let requiredColdReads = 0;
+  let statsWarmRevisits = 0;
   try {
     for (const viewport of VIEWPORTS) {
       const context = await browser.newContext({
@@ -75,6 +76,7 @@ async function run() {
       const saved = new Map();
       const answerReads = [];
       let sessionOwner = ID;
+      let sessionRole = 'E';
       let politicalGrant = true;
       let politicalEpoch = '2026-10-01T00:00:00Z';
       let catalogRevision = 'a'.repeat(64);
@@ -95,8 +97,8 @@ async function run() {
 
         if (u.pathname === '/api/auth/me') {
           return fulfill(route, { success: true, user: {
-            id: sessionOwner, email: 'test.invalid@example.invalid', role: 'E',
-            ruolo: 'E', status: 'A',
+            id: sessionOwner, email: 'test.invalid@example.invalid', role: sessionRole,
+            ruolo: sessionRole, status: 'A',
             political_consent: { granted: politicalGrant, timestamp: politicalEpoch },
           }});
         }
@@ -331,13 +333,38 @@ async function run() {
       await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
       assert.equal(answerReads.length, beforeAccountChangeReads + 1,
         'Different account must fetch its own answer snapshot');
+
+      // The advanced statistics selector reuses the same encrypted N snapshot
+      // that the second verified account obtained from its opinion editor.
+      // The original stats route without an ID must show its selector, not
+      // mistake the route slug for a published question ID.
+      await page.goto(ORIGIN + '/opinioni-nazionali', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      const beforeStatsWarm = answerReads.length;
+      sessionRole = 'AD'; // same synthetic owner, advanced statistics permission
+      await page.goto(ORIGIN + '/statistiche-opinione', { waitUntil: 'domcontentloaded' });
+      await page.getByRole('heading', {
+        name: "Seleziona un'Opinione per Visualizzare le Statistiche",
+      }).waitFor({ timeout: 30000 });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, beforeStatsWarm,
+        'Stats selector must reuse encrypted national snapshot without GET');
+      statsWarmRevisits += 1;
+      // A reload cannot accidentally lose the account/consent-scoped cache.
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, beforeStatsWarm,
+        'Stats selector reload must still make no personal-answer GET');
+      statsWarmRevisits += 1;
+
       assert.deepEqual(errors, [], 'No uncaught errors at ' + viewport.width + 'x' + viewport.height);
       await context.close();
     }
     console.log(JSON.stringify({
       test: 'opinioni-fixed-footer-browser',
       result: 'PASS', cases, warmRevisits, requiredColdReads,
-      avoidedPrivateReadsOnWarmRevisits: warmRevisits,
+      statsWarmRevisits,
+      avoidedPrivateReadsOnWarmRevisits: warmRevisits + statsWarmRevisits,
     }));
   } finally {
     await browser.close();
