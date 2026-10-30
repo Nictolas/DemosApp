@@ -460,7 +460,12 @@ class PrivacyErasureB2Journal {
       await this.archiveEvent(event);
       last = {occurred_at:exactTimestamp,event_key:event.event_key};
     }
-    return {exported:page.length, cursor:last};
+    // A cursor/empty page proves only this SQL query's visible suffix.
+    // Late commits with earlier occurred_at, stale restores and lost SQL
+    // history can make the scan incomplete even with unrestricted RLS.
+    // Never expose a positive completion/recovery attestation here.
+    return {exported:page.length, cursor:last,
+      complete:false, recoveryReady:false};
   }
 }
 module.exports = {PrivacyErasureB2Journal, normalizeEvent, validatedConfig, keyFor};
