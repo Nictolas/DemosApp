@@ -230,3 +230,77 @@ test('NO-GO when witness goes offline after signing but before an ambiguous inte
     }),{code:'GDPR_MODEL_WITNESS_UNAVAILABLE'});
   assert.equal(journal.prior(op('pending-before-outage')),'pending');
 });
+
+
+test('NO-GO if an older truncated journal attempts to replace a newer signed head',()=>{
+  const {journal,db,witness}=setup();
+  const oldDb=db.snapshot();
+  submitSyntheticOperation(db,journal,op('revoke-1','political_consent_revoked'));
+  const olderEntries=structuredClone(journal.entries);
+  submitSyntheticOperation(db,journal,op('grant-2','political_consent_granted'));
+  const newest=witness.current();
+  assert.equal(newest.count,4);
+  // A stale journal attempts to seal its truncated history, as might happen
+  // if an older database/object listing were mistaken for current state.
+  journal.entries=olderEntries;
+  assert.throws(()=>journal.seal(),{code:'GDPR_MODEL_WITNESS_NON_MONOTONIC'});
+  assert.deepEqual(witness.current(),newest);
+  assert.throws(()=>restoreSyntheticSnapshot(oldDb,journal,
+    quarantine(journal,{independentWitness:newest})),
+    {code:'GDPR_MODEL_WITNESS_MISMATCH'});
+  assert.equal(oldDb.accounts.alice.consent,true);
+});
+
+test('independent witness refuses same-count substitution, gaps and epoch rollback',()=>{
+  const {journal,db,witness}=setup();
+  submitSyntheticOperation(db,journal,op('revoke-1','political_consent_revoked'));
+  const latest=witness.current();
+  const invalid=[
+    {...latest,head:'f'.repeat(64)},
+    {...latest,count:latest.count-1},
+    {...latest,count:latest.count+2,head:'e'.repeat(64)},
+    {...latest,epoch:'synthetic-older-epoch'},
+    {...latest,head:'not-a-hash'},
+    {...latest, sealed:true,count:latest.count+1},
+    {...latest, sealed:false}
+  ];
+  for(const forged of invalid) {
+    assert.throws(()=>witness.attest(forged),
+      {code:'GDPR_MODEL_WITNESS_NON_MONOTONIC'});
+    assert.deepEqual(witness.current(),latest);
+  }
+  journal.seal();
+  const sealed=witness.current();
+  assert.deepEqual(witness.attest({...sealed}),sealed); // idempotent seal
+  assert.throws(()=>witness.attest({...sealed,sealed:false}),
+    {code:'GDPR_MODEL_WITNESS_NON_MONOTONIC'});
+  assert.throws(()=>witness.attest({...sealed,count:sealed.count+1,head:'a'.repeat(64)}),
+    {code:'GDPR_MODEL_WITNESS_NON_MONOTONIC'});
+  assert.deepEqual(witness.current(),sealed);
+});
+
+test('independent witness loss cannot be hidden by freshly signing a stale journal',()=>{
+  const {journal,db,witness}=setup();
+  submitSyntheticOperation(db,journal,op('delete-1'));
+  witness.lose();
+  assert.equal(witness.current(),null);
+  assert.throws(()=>journal.seal(),{code:'GDPR_MODEL_WITNESS_MISSING'});
+  assert.throws(()=>witness.attest(journal.state()),{code:'GDPR_MODEL_WITNESS_MISSING'});
+  assert.throws(()=>restoreSyntheticSnapshot(db.snapshot(),journal,
+    quarantine(journal,{independentWitness:null})),
+    {code:'GDPR_MODEL_WITNESS_MISSING'});
+});
+
+test('independent witness accepts an empty sealed journal only as initial state',()=>{
+  const {journal,db,witness}=setup();
+  const clean=db.snapshot();
+  const sealed=journal.seal();
+  assert.equal(sealed.count,0);
+  assert.equal(sealed.sealed,true);
+  assert.deepEqual(witness.attest(journal.state()),sealed);
+  assert.equal(restoreSyntheticSnapshot(clean,journal,quarantine(journal))
+    .productionRecoveryReady,false);
+  assert.throws(()=>witness.attest({
+    ...journal.state(), count:1, head:'f'.repeat(64), sealed:false
+  }),{code:'GDPR_MODEL_WITNESS_NON_MONOTONIC'});
+});
