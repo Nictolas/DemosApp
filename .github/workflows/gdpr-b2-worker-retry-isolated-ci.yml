@@ -39,6 +39,7 @@ on:
       - 'api/tests/gdprDurableRecoveryProtocolSynthetic.test.js'
       - 'api/tests/gdprRecoveryConcurrencySynthetic.test.js'
       - 'api/tests/gdprWitnessAckCrashGapSynthetic.test.js'
+      - 'api/docs/gdpr-witness-ack-crash-gap-synthetic-20261030.md'
       - 'api/tests/gdprDurableRecoveryPg17Synthetic.test.js'
       - 'api/tests/gdprDistributedFencePg17Synthetic.test.js'
       - 'api/tests/gdprDualPlaneQuarantinePg17Synthetic.test.js'
