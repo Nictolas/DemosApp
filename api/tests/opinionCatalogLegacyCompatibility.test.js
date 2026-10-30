@@ -60,8 +60,9 @@ test('legacy /api/opinioni/opinioni-list returns stable catalog IDs with one sco
         'query only the answers for the requested electoral grade');
       const answered=body.data.filter(x=>x.userAnswer==='f');
       assert.equal(answered.length,1);
-      assert.equal(answered[0].id,columns[0]!==undefined
-        ? body.data.find(x=>x.id===columns[0])?.id : answered[0].id);
+      const firstColumn=queries.at(-1).match(/"([a-z][a-z0-9_]*)"/)?.[1];
+      assert.equal(answered[0].id,firstColumn,
+        'the saved answer must use the SQL/canonical ID rather than text slug');
     }
   }finally{
     if(server)await new Promise(resolve=>server.close(resolve));
