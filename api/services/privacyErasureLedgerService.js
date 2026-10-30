@@ -238,7 +238,9 @@ class PrivacyErasureLedgerService {
       event_key: eventKey,
       subject_user_id: subjectUserId,
       event_type: eventType,
-      occurred_at: '2000-01-01T00:00:00.000Z',
+      // PostgreSQL NOW() can include six fractional digits; validate against
+      // the longest lossless timestamp, not a shorter millisecond fixture.
+      occurred_at: '2000-01-01T00:00:00.000001Z',
       details: JSON.parse(detailsJson)
     });
 
