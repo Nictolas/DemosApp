@@ -105,7 +105,7 @@ test('explicit consent refresh after mutation retains the dedicated server endpo
   const h = fixture(verified());
   const result = await h.value.refetch();
   assert.equal(h.getReads(), 1, 'Only an explicit refetch contacts the consent endpoint');
-  assert.equal(result.data.consent.timestamp, 'synthetic-epoch-2');
+  assert.equal(result.consent.timestamp, 'synthetic-epoch-2');
 });
 
 test('an unauthorized explicit refetch is blocked before reaching the network', async () => {
