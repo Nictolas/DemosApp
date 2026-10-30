@@ -128,7 +128,7 @@ test('fails closed on GOVERNANCE, expired, insufficient or malformed retention b
 test('fails closed on altered bytes, oversized object, invalid length or provider exception',async()=>{
   for(const scenario of [
     {payload:Buffer.from('{}')},
-    {payload:Buffer.alloc(1025)},
+    {payload:Buffer.alloc(1025),contentLength:null},
     {contentLength:1025},
     {contentLength:-1},
     {error:'private-id-and-secret'}
