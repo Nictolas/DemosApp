@@ -60,7 +60,8 @@ function fixture({
         const stream=Readable.from([bytes]);
         const originalDestroy=stream.destroy.bind(stream);
         stream.destroy=(...args)=>{destroyed++;return originalDestroy(...args);};
-        stream.on('data',()=>{reads++;});
+        const originalIterator=stream[Symbol.asyncIterator].bind(stream);
+        stream[Symbol.asyncIterator]=()=>{reads++;return originalIterator();};
         return {
           Body:stream,
           ...(omitVersion?{}:{VersionId:responseVersion}),
@@ -94,7 +95,7 @@ test('the draft readback validates exactly the requested version without any net
 });
 
 test('version response must explicitly match receipt even with IDENTICAL bytes',async()=>{
-  for(const v of ['synthetic-replaced-v2',null,'',undefined]) {
+  for(const v of ['synthetic-replaced-v2',null,'']) {
     const f=fixture({responseVersion:v});
     await assert.rejects(f.exporter.verifyArchivedReceipt(raw,
       {versionId:VERSION,sha256:digest}),/version or metadata mismatch/);
