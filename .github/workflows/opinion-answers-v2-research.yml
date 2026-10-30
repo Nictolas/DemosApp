@@ -1,0 +1,24 @@
+name: Opinion answers v2 — isolated research
+on:
+  pull_request:
+    paths:
+      - "api/experiments/opinionAnswersV2Candidate.js"
+      - "api/tests/opinionAnswersV2Candidate.test.js"
+      - "api/docs/opinion-answer-v2-no-column-ddl.md"
+      - ".github/workflows/opinion-answers-v2-research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  document-contract:
+    name: Research-only JSONB answer contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run pure isolated contract tests
+        run: node --test api/tests/opinionAnswersV2Candidate.test.js
