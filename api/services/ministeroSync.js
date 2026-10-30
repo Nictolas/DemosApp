@@ -8,7 +8,9 @@ const { resolveProcessTypeFromSource, getSignatureThreshold } = require('./civic
 // Do not send arbitrary API/SQL error messages or record fields to operational logs.
 function safeMinisteroErrorCode(error) {
   const code = error?.code;
-  return typeof code === 'string' && /^[A-Z0-9_]{2,32}$/.test(code)
+  // Only PostgreSQL SQLSTATE classes and known network error codes are public diagnostics.
+  const transportCodes = new Set(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'ABORT_ERR']);
+  return typeof code === 'string' && (/^[0-9]{2}[A-Z0-9]{3}$/.test(code) || code === 'XX000' || transportCodes.has(code))
     ? code
     : 'UNCLASSIFIED';
 }
