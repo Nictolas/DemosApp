@@ -314,12 +314,31 @@ class PrivacyErasureB2Journal {
     );
   }
 
+  // A durable pre-PUT claim has not been wired into the actual exporter.
+  // Deny the default or explicitly supplied real AWS client at this DIRECT
+  // write entrypoint; the worker has a separate mandatory NO-GO guard.
+  // Injected fake clients are for synthetic CI only, not a security boundary
+  // for a deployed service or a permit to wrap real provider clients.
+  assertNoRealWriteTransport() {
+    if (!this.client || this.client instanceof S3Client) {
+      throw Error('GDPR_B2_DURABLE_PUT_CLAIM_NOT_IMPLEMENTED');
+    }
+  }
   async archiveEvent(raw) {
     if (this.uncertainWrite) {
       throw Error('GDPR_B2_PUT_OUTCOME_UNKNOWN_REQUIRES_RECONCILIATION');
     }
     const cfg = this.config();
     const event = normalizeEvent(raw);
+    this.assertNoRealWriteTransport();
+    // The existing uncertainWrite latch starts only *after* HEAD. Without
+    // this synchronous gate two parallel calls can both observe HEAD=404 and
+    // issue irreversible COMPLIANCE PUTs from the SAME process.
+    if (this.writeInProgress) {
+      throw Error('GDPR_B2_CONCURRENT_ARCHIVE_NOT_ALLOWED');
+    }
+    this.writeInProgress = true;
+    try {
     const client = this.s3(cfg);
     await this.assertBucketCompliance(client, cfg);
     const key = keyFor(event);
@@ -359,9 +378,13 @@ class PrivacyErasureB2Journal {
     const verified = await this.readVerified(client,cfg,key,event,hash,versionId,until);
     this.uncertainWrite = false;
     return {eventKey:event.event_key,key,reused:false,...verified};
+    } finally {
+      this.writeInProgress = false;
+    }
   }
   async archiveBatch(db, {after = null, limit = 100} = {}) {
     this.config(); // Refuse before even reading the database.
+    this.assertNoRealWriteTransport(); // No SQL reads before direct write NO-GO.
     if (!db || typeof db.query !== 'function' ||
         !Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw Error('Explicit database connection and bounded GDPR batch required');
