@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {validateLegacyIds,legacyRowToAnswers,rollbackCoverage,rollbackParity}=
+const {validateLegacyIds,assertLegacyColumnCoverage,legacyRowToAnswers,rollbackCoverage,rollbackParity}=
   require('../experiments/opinionAnswersV2BackfillCandidate');
 
 const ids=Array.from({length:94},(_,i)=>'opinione_'+i);
@@ -50,8 +50,21 @@ test('archived IDs cannot be silently omitted from migration manifests',()=>{
   const manifest=ids.slice();
   manifest.splice(17,1);
   const row={...empty,opinione_17:'c'};
-  // The unsafe narrower manifest would silently lose a still-stored answer:
-  // the future cutover must attest its manifest covers historical ID space.
-  assert.equal(Object.hasOwn(legacyRowToAnswers(row,manifest),'opinione_17'),false);
+  // Metadata inventory blocks a narrower manifest even when a published
+  // catalog no longer shows that historical opinion.
+  assert.throws(
+    ()=>assertLegacyColumnCoverage(manifest,['user_id','fonti_opinioni',...ids]),
+    /historical ID manifest/
+  );
+  assert.deepEqual(assertLegacyColumnCoverage(ids,['user_id','fonti_opinioni',...ids]),{
+    coveredIds:94,serviceColumns:['user_id','fonti_opinioni']
+  });
   assert.equal(Object.hasOwn(legacyRowToAnswers(row,ids),'opinione_17'),true);
+});
+
+test('schema inventory rejects incomplete, untracked or duplicate columns',()=>{
+  assert.throws(()=>assertLegacyColumnCoverage(ids,[]),/schema inventory/);
+  assert.throws(()=>assertLegacyColumnCoverage(ids,['user_id',...ids,'opinione_extra']),/historical ID manifest/);
+  assert.throws(()=>assertLegacyColumnCoverage(ids,[...ids]),/Missing legacy user_id/);
+  assert.throws(()=>assertLegacyColumnCoverage(ids,['user_id',...ids,'opinione_0']),/duplicate/);
 });
