@@ -8,7 +8,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG, getApiUrl } from "@/lib/api-config";
 import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-token";
-import { requestLogoutRevocation } from "@/lib/logout-revocation";
+import { requestLogoutRevocation, runBoundedLogoutSideEffect } from "@/lib/logout-revocation";
 import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
 import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
@@ -200,23 +200,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Finché la sessione è ancora autenticata, disattiva il token push server-side.
       if (pushTokenToRevoke && tokenToRevoke) {
-        try {
-          await fetch(getApiUrl(`/fcm-tokens/${encodeURIComponent(pushTokenToRevoke)}`), {
+        const pushRemoved = await runBoundedLogoutSideEffect(async (signal) => {
+          const response = await fetch(getApiUrl(`/fcm-tokens/${encodeURIComponent(pushTokenToRevoke)}`), {
             method: "DELETE",
             headers: {
               Authorization: `Bearer ${tokenToRevoke}`,
             },
+            signal,
           });
-        } catch {
+          if (!response.ok) throw new Error("push-unregister-not-confirmed");
+        });
+        if (!pushRemoved) {
           console.warn("Impossibile disattivare il token push durante il logout (dettagli omessi)");
         }
       }
 
-      // Native push unregister may fail offline; it must not prevent local
-      // token/cache erasure or the independent server revocation attempt.
-      try {
+      // A native bridge can ignore cancellation and never settle. Keep this
+      // best-effort step bounded so it cannot indefinitely block local wipe.
+      const nativePushRemoved = await runBoundedLogoutSideEffect(async () => {
         await unregisterNativePush();
-      } catch {
+      });
+      if (!nativePushRemoved) {
         console.warn("Errore disattivazione push nativo (dettagli omessi)");
       }
       clearStoredNativePushToken();
@@ -243,11 +247,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Errore logout backend (dettagli omessi)");
       }
 
-      try {
+      // Credential Manager is another external native bridge: do not let an
+      // indefinitely pending plugin prevent the completed logout redirect.
+      const nativeCredentialsCleared = await runBoundedLogoutSideEffect(async () => {
         await clearNativeGoogleCredentialState();
-      } catch {
-        // Il logout DEMOS deve riuscire anche se Credential Manager non riesce
-        // a pulire il proprio stato locale. Never print provider exception details.
+      });
+      if (!nativeCredentialsCleared) {
         console.warn("Errore pulizia Credential Manager Android (dettagli omessi)");
       }
       return { localSessionCleared: true, serverRevocationConfirmed: revocation.serverRevocationConfirmed };
