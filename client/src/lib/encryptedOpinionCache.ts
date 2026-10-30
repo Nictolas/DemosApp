@@ -53,6 +53,12 @@ const sections: Record<OpinionGrade, OpinionCategorySection> = {
   E: "opinionE", N: "opinionN", R: "opinionR", CO: "opinionCO",
 };
 
+// Consent must carry a non-blank server-verified epoch before any personal
+// responses can enter or be reused from persistent encrypted storage.
+function hasVerifiedConsentEpoch(epoch: string | null): epoch is string {
+  return typeof epoch === "string" && epoch.trim().length > 0;
+}
+
 
 /**
  * No network read when the authenticated owner's encrypted snapshot is valid.
@@ -76,7 +82,7 @@ export async function loadOpinionCategory(
   }
   // Accounts without a server-supplied consent epoch cannot safely retain a
   // persistent snapshot across revocation/regrant; use network as fallback.
-  const cached = consentEpoch !== null && snapshot?.consent?.granted === true &&
+  const cached = hasVerifiedConsentEpoch(consentEpoch) && snapshot?.consent?.granted === true &&
     snapshot.consent.timestamp === consentEpoch ? snapshot[section] : null;
   if (catalogRevision !== null && cached?.version === OPINION_CATEGORY_CACHE_VERSION &&
       cached.grade === grade && cached.catalogRevision === catalogRevision) {
@@ -99,7 +105,7 @@ export async function loadOpinionCategory(
   if (signal?.aborted || revision !== profileSectionRevision(owner, section)) {
     throw new Error("Caricamento opinioni annullato");
   }
-  if (consentEpoch !== null && catalogRevision !== null) {
+  if (hasVerifiedConsentEpoch(consentEpoch) && catalogRevision !== null) {
     await persistEncryptedOpinionCategory(owner, consentEpoch, section,
       { version: OPINION_CATEGORY_CACHE_VERSION, catalogRevision, grade, questions }, revision);
   }
@@ -119,6 +125,6 @@ export async function cacheConfirmedOpinionAnswers(
   consentEpoch: string | null,
   answers: Readonly<Record<string, string>>,
 ): Promise<void> {
-  if (!owner || Object.keys(answers).length === 0) return;
+  if (!owner || !hasVerifiedConsentEpoch(consentEpoch) || Object.keys(answers).length === 0) return;
   await mergeEncryptedOpinionAnswers(owner, consentEpoch, answers);
 }
