@@ -94,7 +94,7 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
         'invalid grade should never query the user or the answers table');
     }
 
-    for(const grade of ['N','R','CO','E']){
+    for(const grade of ['N','R','C','CO','E']){
       const response=await fetch(base+'/api/opinioni-list?grado='+grade,options);
       assert.equal(response.status,200);
       const body=await response.json();
@@ -102,7 +102,7 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
       assert.equal(body.grado,grade);
       assert.equal(body.total,getOpinionsForGrade(grade).length);
       assert.equal(body.data.length,body.total);
-      assert.equal(state.sql.length, ['N','R','CO','E'].indexOf(grade)+1,
+      assert.equal(state.sql.length, ['N','R','C','CO','E'].indexOf(grade)+1,
         'Exactly one joined SQL query per grade, even before an answer row exists');
       for(const row of body.data){
         assert.equal(typeof row.id,'string');
