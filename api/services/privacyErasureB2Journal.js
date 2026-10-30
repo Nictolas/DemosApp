@@ -138,18 +138,39 @@ class PrivacyErasureB2Journal {
     return this.client;
   }
   async assertBucketCompliance(client, cfg) {
-    const response = await client.send(
-      new GetObjectLockConfigurationCommand({Bucket: cfg.bucket})
-    );
-    const lock = response.ObjectLockConfiguration || {};
-    const retention = lock.Rule?.DefaultRetention;
-    // Refuse the existing Axiom log bucket or any unlocked/governance store.
-    // No code path silently enables lock or changes a bucket policy.
-    if (lock.ObjectLockEnabled !== 'Enabled' ||
-        retention?.Mode !== 'COMPLIANCE' ||
-        !Number.isInteger(retention.Days) ||
-        retention.Days < cfg.retentionDays) {
-      throw Error('B2 bucket must have sufficient COMPLIANCE Object Lock default retention');
+    // The bucket preflight precedes version readback. A stalled provider here
+    // must not bypass the bounded readback timeout or hang a manual recovery
+    // verifier indefinitely. This is a separate local deadline; a real B2
+    // request that ignores AbortSignal still remains NO-GO after timeout.
+    const abort = new AbortController();
+    let timeoutId;
+    const deadline = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        abort.abort();
+        reject(Error('GDPR_B2_BUCKET_COMPLIANCE_TIMEOUT'));
+      }, this.readbackTimeoutMs);
+    });
+    try {
+      const response = await Promise.race([
+        client.send(new GetObjectLockConfigurationCommand({
+          Bucket: cfg.bucket
+        }), {abortSignal: abort.signal}),
+        deadline
+      ]);
+      if (abort.signal.aborted) throw Error('GDPR_B2_BUCKET_COMPLIANCE_TIMEOUT');
+      const lock = response?.ObjectLockConfiguration || {};
+      const retention = lock.Rule?.DefaultRetention;
+      // Refuse the existing Axiom log bucket or any unlocked/governance store.
+      // No code path silently enables lock or changes a bucket policy.
+      if (lock.ObjectLockEnabled !== 'Enabled' ||
+          retention?.Mode !== 'COMPLIANCE' ||
+          !Number.isInteger(retention.Days) ||
+          retention.Days < cfg.retentionDays) {
+        throw Error('B2 bucket must have sufficient COMPLIANCE Object Lock default retention');
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      abort.abort();
     }
   }
   async readVerified(client, cfg, key, event, expectedHash, versionId, requiredUntil) {
