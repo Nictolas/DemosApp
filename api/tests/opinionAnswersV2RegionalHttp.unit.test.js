@@ -43,19 +43,19 @@ test('regional Express HTTP routes use synthetic aggregates with GDPR gate',
         state.queryCalls.push([id,code]);
         return [{
           opinion_id:state.spoof?'opinione_archived':id,
-          favorevole:state.answers===10?4:3,
-          contrario:3,indeciso:3
+          favorevole:state.answers===10?10:9,
+          contrario:10,indeciso:10
         }];
       },
       queryRegionalDemographic:async(id,dimension,code)=>{
         state.demographicCalls.push([id,dimension,code]);
         if(dimension==='eta')return [
-          {fascia_eta:'18-25',favorevole:4,contrario:3,indeciso:3},
-          {fascia_eta:'26-35',favorevole:4,contrario:3,indeciso:3}
+          {fascia_eta:'18-25',favorevole:10,contrario:10,indeciso:10},
+          {fascia_eta:'26-35',favorevole:10,contrario:10,indeciso:10}
         ];
         return [
-          {sesso:'F',favorevole:state.sexSmall?3:4,contrario:3,indeciso:3},
-          {sesso:'M',favorevole:4,contrario:3,indeciso:3}
+          {sesso:'F',favorevole:state.sexSmall?9:10,contrario:10,indeciso:10},
+          {sesso:'M',favorevole:10,contrario:10,indeciso:10}
         ];
       }
     };
@@ -79,8 +79,8 @@ test('regional Express HTTP routes use synthetic aggregates with GDPR gate',
           success:true,data:{
             suppressed:false,minimumCellSize:10,
             questionText:'Nuova domanda',regione:'Toscana',
-            stats:{favorevole:4,contrario:3,indeciso:3},
-            totaleUtenti:10
+            stats:{favorevole:10,contrario:10,indeciso:10},
+            totaleUtenti:30
           }
         });
         assert.deepEqual(state.queryCalls.at(-1),['opinione_94','TO']);
@@ -89,10 +89,10 @@ test('regional Express HTTP routes use synthetic aggregates with GDPR gate',
         const response=await request('/stats/opinione_0/regione/emilia-romagna');
         assert.equal(response.status,200);
         assert.equal(response.json.data.regione,'Emilia-Romagna');
-        assert.equal(response.json.data.totaleUtenti,10);
+        assert.equal(response.json.data.totaleUtenti,30);
         assert.deepEqual(state.queryCalls.at(-1),['opinione_0','ER']);
       });
-      await t.test('under-ten region total is fully suppressed',async()=>{
+      await t.test('minority answer category under ten is suppressed despite a region total of 29',async()=>{
         state.answers=9;
         const hidden=await request('/stats/opinione_94/regione/toscana');
         assert.deepEqual(hidden.json,{
@@ -109,21 +109,21 @@ test('regional Express HTTP routes use synthetic aggregates with GDPR gate',
         assert.deepEqual(age.json,{
           success:true,minimumCellSize:10,
           data:[
-            {fascia_eta:'18-25',favorevole:4,contrario:3,indeciso:3},
-            {fascia_eta:'26-35',favorevole:4,contrario:3,indeciso:3}
+            {fascia_eta:'18-25',favorevole:10,contrario:10,indeciso:10},
+            {fascia_eta:'26-35',favorevole:10,contrario:10,indeciso:10}
           ]
         });
         const sex=await request('/stats/opinione_94/genere/regione/toscana');
         assert.deepEqual(sex.json,{
           success:true,minimumCellSize:10,
           data:[
-            {genere:'d',favorevole:4,contrario:3,indeciso:3},
-            {genere:'u',favorevole:4,contrario:3,indeciso:3}
+            {genere:'d',favorevole:10,contrario:10,indeciso:10},
+            {genere:'u',favorevole:10,contrario:10,indeciso:10}
           ]
         });
         assert.deepEqual(state.demographicCalls.at(-1),['opinione_94','sesso','TO']);
       });
-      await t.test('9 respondents in demographic group hide entire detail',async()=>{
+      await t.test('a demographic category of 9 hides entire group even when group has 29',async()=>{
         state.sexSmall=true;
         const sex=await request('/stats/opinione_94/genere/regione/toscana');
         assert.deepEqual(sex.json,{success:true,minimumCellSize:10,data:[]});
