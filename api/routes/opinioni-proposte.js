@@ -47,19 +47,15 @@ router.get('/test-voto', verifyToken, requireAdmin, async (_req, res) => {
 // GET /api/opinioni-proposte/debug - Debug endpoint per verificare database
 router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
   try {
-    console.log('🔍 Debug endpoint opinioni-proposte chiamato');
     
     // Test connessione database
     const testQuery = await pool.query('SELECT NOW() as current_time');
-    console.log('✅ Database connesso:', testQuery.rows[0].current_time);
     
     // Test tabella opinioni
     const opinioniCount = {rows:[{count:String(require('../services/opinionCatalog').getAllOpinions().length)}]};
-    console.log('✅ Righe in opinioni:', opinioniCount.rows[0].count);
     
     // Test opinioni da approvare
     const daApprovareCount = {rows:[{count:'0'}]}; // Official catalog has no draft questions.
-    console.log('✅ Righe da approvare:', daApprovareCount.rows[0].count);
     
     // Test tabella voti_opinioni_proposte
     let votiTableExists = false;
@@ -68,9 +64,7 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
       const votiCountQuery = await pool.query('SELECT COUNT(*) as count FROM voti_opinioni_proposte');
       votiTableExists = true;
       votiCount = votiCountQuery.rows[0].count;
-      console.log('✅ Righe in voti_opinioni_proposte:', votiCount);
     } catch (error) {
-      console.log('⚠️ Tabella voti_opinioni_proposte non esiste:', error.message);
     }
     
     // Test struttura tabella voti se esiste
@@ -85,9 +79,7 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
         `;
         const structure = await pool.query(structureQuery);
         votiStructure = structure.rows;
-        console.log('📋 Struttura tabella voti:', votiStructure);
       } catch (error) {
-        console.log('⚠️ Errore nel recuperare struttura tabella voti:', error.message);
       }
     }
     
@@ -103,10 +95,10 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel debug:', error);
+    console.error('[opinion-proposals] failure');
     res.status(500).json({
       success: false,
-      error: error.message,
+      error: 'Errore interno',
       timestamp: new Date().toISOString()
     });
   }
@@ -116,7 +108,6 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
 router.get('/voti-utente', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
-    console.log('🔍 GET /api/opinioni-proposte/voti-utente - Voti utente:', userId);
     
     const query = `
       SELECT opinione_id 
@@ -129,10 +120,8 @@ router.get('/voti-utente', verifyToken, async (req, res) => {
     
     // Debug: mostra i primi 3 ID voti per verificare il formato
     if (votiUtente.length > 0) {
-      console.log('🔍 DEBUG - Prime 3 ID voti utente:', votiUtente.slice(0, 3).map(id => ({ id, idType: typeof id, idLength: id?.length })));
     }
     
-    console.log(`✅ Trovati ${votiUtente.length} voti per utente ${userId}`);
     
     res.json({
       success: true,
@@ -140,11 +129,11 @@ router.get('/voti-utente', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare voti utente:', error);
+    console.error('[opinion-proposals] failure');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare voti utente',
-      message: error.message
+      message: 'Operazione non riuscita'
     });
   }
 });
@@ -152,7 +141,6 @@ router.get('/voti-utente', verifyToken, async (req, res) => {
 // GET /api/opinioni-proposte - Ottieni opinioni da approvare dalla tabella opinioni
 router.get('/', async (req, res) => {
   try {
-    console.log('🔍 GET /api/opinioni-proposte - Caricamento opinioni da approvare');
 
     // Proposte dinamiche: leggere solo opinioni_proposte, mai il catalogo ufficiale.
     const fromProposte = `
@@ -166,7 +154,6 @@ router.get('/', async (req, res) => {
     // Fail closed if that table is absent; never read drafts from the
     // published catalog's legacy database table.
     const result = await pool.query(fromProposte);
-    console.log(`✅ Trovate ${result.rows.length} opinioni da approvare`);
     
     // Chi ha proposto ogni opinione (users.opinione_proposta_id)
     let proposersByOpinionId = {};
@@ -182,7 +169,7 @@ router.get('/', async (req, res) => {
           if (r.opinione_proposta_id) proposersByOpinionId[r.opinione_proposta_id] = label;
         });
       } catch (e) {
-        if (e.code !== '42703') console.error('Errore lettura proponenti:', e);
+        if (e.code !== '42703') console.error('[opinion-proposals] failure');
       }
     }
     
@@ -233,11 +220,11 @@ router.get('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare opinioni da approvare:', error);
+    console.error('[opinion-proposals] failure');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare opinioni da approvare',
-      message: error.message
+      message: 'Operazione non riuscita'
     });
   }
 });
@@ -251,9 +238,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
       return res.status(503).json({success:false,error:'PROPOSALS_TABLE_REQUIRED'});
     }
     const userId = req.userId;
-    console.log('📝 POST /api/opinioni-proposte - Creazione nuova opinione proposta');
-    console.log('🔍 Body ricevuto:', req.body);
-    console.log('🔍 User ID:', userId);
     
     const { testo, titolo, descrizione, categoria } = req.body;
     
@@ -276,11 +260,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
     // PostgreSQL advisory locks usano bigint, quindi possiamo usare più caratteri
     const lockKey = parseInt(lockId.substring(0, 15), 16) % Number.MAX_SAFE_INTEGER;
     
-    console.log('🔒 Lock generato:', {
-      testo: testoPerHash,
-      lockHash: lockId.substring(0, 15),
-      lockKey: lockKey
-    });
     
     const client = await pool.connect();
     let lockHeld = false;
@@ -292,7 +271,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
       let lockAcquired = await client.query('SELECT pg_try_advisory_lock($1) as acquired', [lockKey]);
       
       if (!lockAcquired.rows[0].acquired) {
-        console.log('⚠️ Lock non acquisito immediatamente - potrebbe essere un lock orfano');
         // Attendi un po' e riprova (il lock potrebbe essere rilasciato a breve)
         await new Promise(resolve => setTimeout(resolve, 100));
         lockAcquired = await client.query('SELECT pg_try_advisory_lock($1) as acquired', [lockKey]);
@@ -302,7 +280,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
           // (solo se siamo sicuri che non ci sia una transazione attiva)
           try {
             await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
-            console.log('🔓 Tentativo di forzare rilascio lock orfano');
             await new Promise(resolve => setTimeout(resolve, 50));
             lockAcquired = await client.query('SELECT pg_try_advisory_lock($1) as acquired', [lockKey]);
           } catch (unlockError) {
@@ -312,7 +289,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
         
         if (!lockAcquired.rows[0].acquired) {
           client.release();
-          console.log('⚠️ Lock non acquisito dopo tentativi - un\'altra richiesta sta già processando questo testo');
           return res.status(409).json({
             success: false,
             error: 'Un\'opinione con questo testo è già in fase di creazione. Riprova tra qualche istante.'
@@ -321,7 +297,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
       }
       
       lockHeld = true;
-      console.log('🔒 Lock acquisito con successo');
       
       try {
         await client.query('BEGIN');
@@ -348,7 +323,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
         
         // Genera ID univoco
         const id = require('crypto').randomUUID();
-        console.log('🔍 ID generato per nuova opinione:', id);
         
         const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
         
@@ -356,16 +330,9 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
         const checkDuplicateQuery = `SELECT id FROM opinioni_proposte
           WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) FOR UPDATE SKIP LOCKED LIMIT 1`;
         const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
-        console.log('🔍 Controllo duplicati per testo:', testoNormalizzato);
-        console.log('🔍 Lock key utilizzato:', lockKey);
-        console.log('🔍 Risultato controllo duplicati:', {
-          righeTrovate: duplicateCheck.rows.length,
-          duplicati: duplicateCheck.rows
-        });
         
         if (duplicateCheck.rows.length > 0) {
           await client.query('ROLLBACK');
-          console.log('⚠️ Opinione duplicata trovata:', duplicateCheck.rows[0].id);
           return res.status(409).json({
             success: false,
             error: 'Un\'opinione con questo testo è già stata proposta'
@@ -377,11 +344,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
           VALUES ($1, $2, $3)
           RETURNING id, text
         `;
-        console.log('🔍 Tentativo inserimento con parametri:', {
-          id,
-          testo: testoNormalizzato.substring(0, 50) + '...',
-          approfondimento: approfondimento.substring(0, 50) + '...'
-        });
 
         let insertResult;
         try {
@@ -394,16 +356,13 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
               error: 'Un\'opinione con questo testo è già stata proposta'
             });
           }
-          console.error('❌ Errore durante INSERT:', error);
+          console.error('[opinion-proposals] failure');
           throw error;
         }
         
-        console.log('✅ Insert eseguito. Righe inserite:', insertResult.rowCount);
-        console.log('✅ Dati inseriti:', insertResult.rows);
         
         if (insertResult.rows.length === 0) {
           await client.query('ROLLBACK');
-          console.log('⚠️ Insert fallito: nessuna riga inserita');
           return res.status(500).json({
             success: false,
             error: 'Errore durante l\'inserimento dell\'opinione'
@@ -418,18 +377,16 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
         );
 
         await client.query('COMMIT');
-        console.log('✅ Transazione committata con successo');
         
         // Rilascia il lock subito dopo il commit (prima di altre operazioni)
         await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
         lockHeld = false; // Marca il lock come rilasciato
-        console.log('🔓 Lock rilasciato dopo commit');
         
         // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
         const checkDuplicateQueryFinal = `SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))`;
         const finalCheck = await client.query(checkDuplicateQueryFinal, [testoNormalizzato]);
         if (finalCheck.rows.length > 1) {
-          console.error('❌ ERRORE CRITICO: Trovati duplicati dopo l\'inserimento!', finalCheck.rows);
+          console.error('[opinion-proposals] failure');
           // Non blocchiamo, ma loggiamo l'errore
         }
         
@@ -446,9 +403,6 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
               RETURNING *
             `;
             const voteResult = await pool.query(insertVoteQuery, [userId, id]);
-            console.log(`✅ Voto automatico - Query eseguita per utente ${userId} su opinione ${id}`);
-            console.log(`✅ Voto automatico - Righe inserite: ${voteResult.rowCount}`);
-            console.log(`✅ Voto automatico - Dati inseriti:`, voteResult.rows);
             
             if (voteResult.rowCount === 0) {
               // Verifica se il voto esiste già
@@ -456,24 +410,19 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
                 'SELECT * FROM voti_opinioni_proposte WHERE utente_id = $1 AND opinione_id = $2',
                 [userId, id]
               );
-              console.log(`⚠️ Voto automatico - Voto già esistente? Righe trovate: ${checkExisting.rows.length}`);
               if (checkExisting.rows.length > 0) {
-                console.log(`✅ Voto automatico già presente per utente ${userId} su opinione ${id}`);
               } else {
-                console.error(`❌ Voto automatico - Impossibile inserire voto per utente ${userId} su opinione ${id}`);
+                console.error('[opinion-proposals] failure');
               }
             } else {
-              console.log(`✅ Voto automatico aggiunto con successo per utente ${userId} su opinione ${id}`);
             }
           } catch (error) {
-            console.error('❌ Errore nell\'aggiungere voto automatico:', error);
-            console.error('❌ Stack trace:', error.stack);
+            console.error('[opinion-proposals] failure');
+            console.error('[opinion-proposals] failure');
             // Non bloccare l'operazione se il voto non può essere aggiunto
           }
         }
         
-        console.log('✅ Opinione proposta creata con successo nella tabella opinioni:', id);
-        console.log('📤 Invio risposta al client...');
         
         res.json({
           success: true,
@@ -481,51 +430,47 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
           data: { id, testo: testoNormalizzato }
         });
         
-        console.log('✅ Risposta inviata con successo');
         
         // Rilascia il client dopo aver inviato la risposta
         // (verrà rilasciato anche nel finally, ma meglio essere espliciti)
         
       } catch (error) {
-        console.error('❌ Errore durante la transazione:', error);
-        console.error('❌ Stack trace:', error.stack);
-        console.error('❌ Error code:', error.code);
-        console.error('❌ Error detail:', error.detail);
+        console.error('[opinion-proposals] failure');
+        console.error('[opinion-proposals] failure');
+        console.error('[opinion-proposals] failure');
+        console.error('[opinion-proposals] failure');
         try {
           await client.query('ROLLBACK');
-          console.log('✅ Rollback eseguito');
         } catch (rollbackError) {
-          console.error('❌ Errore durante rollback:', rollbackError);
+          console.error('[opinion-proposals] failure');
         }
         // Non rilasciare il lock qui - verrà rilasciato nel finally
         throw error;
       }
     } catch (error) {
-      console.error('❌ Errore nel blocco try esterno (lock acquisition):', error);
+      console.error('[opinion-proposals] failure');
       throw error;
     } finally {
         // Rilascia SEMPRE il lock se è stato acquisito, prima di rilasciare il client
         if (lockHeld) {
           try {
             await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
-            console.log('🔓 Lock rilasciato nel finally');
             lockHeld = false;
           } catch (unlockError) {
-            console.error('❌ Errore durante unlock nel finally:', unlockError);
+            console.error('[opinion-proposals] failure');
             // Prova a rilasciare comunque il client
           }
         }
         client.release();
-        console.log('✅ Client rilasciato nel finally');
       }
     
     
   } catch (error) {
-    console.error('❌ Errore nella creazione opinione proposta:', error);
+    console.error('[opinion-proposals] failure');
     res.status(500).json({
       success: false,
       error: 'Errore nella creazione opinione proposta',
-      message: error.message
+      message: 'Operazione non riuscita'
     });
   }
 });
@@ -536,20 +481,15 @@ router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePolit
     const { id } = req.params;
     const userId = req.userId; // User ID dall'autenticazione JWT
     
-    console.log('👍 POST /api/opinioni-proposte/:id/vota - Voto opinione proposta');
-    console.log('🔍 ID opinione:', id);
-    console.log('🔍 User ID:', userId);
     
     await assertVotiTableExists();
     let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
-      console.log('❌ Opinione non trovata o non in stato da approvare');
       return res.status(404).json({
         success: false,
         error: 'Opinione non trovata o non in stato da approvare'
       });
     }
-    console.log('✅ Opinione trovata, procedo con il voto...');
     
     // Inserisci il voto nella tabella voti_opinioni_proposte
     const insertVotoQuery = `
@@ -558,11 +498,8 @@ router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePolit
       ON CONFLICT (utente_id, opinione_id) DO NOTHING
     `;
     
-    console.log('🔍 Inserimento voto con parametri:', { userId, id });
     const insertResult = await pool.query(insertVotoQuery, [userId, id]);
-    console.log('📊 Risultato inserimento:', insertResult);
     
-    console.log('✅ Voto registrato con successo per opinione:', id);
     
     res.json({
       success: true,
@@ -570,13 +507,12 @@ router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePolit
     });
     
   } catch (error) {
-    console.error('❌ Errore nel voto:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('[opinion-proposals] failure');
+    console.error('[opinion-proposals] failure');
     res.status(500).json({
       success: false,
       error: 'Errore nel voto',
-      message: error.message,
-      details: error.stack
+      message: 'Operazione non riuscita'
     });
   }
 });
@@ -587,9 +523,6 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
     const { id } = req.params;
     const userId = req.userId; // User ID dall'autenticazione JWT
     
-    console.log('👎 DELETE /api/opinioni-proposte/:id/vota - Rimozione voto');
-    console.log('🔍 ID opinione:', id);
-    console.log('🔍 User ID:', userId);
     
     await assertVotiTableExists();
     let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
@@ -599,36 +532,11 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
         error: 'Opinione non trovata o non in stato da approvare'
       });
     }
-    console.log('✅ Opinione trovata, procedo con la rimozione del voto...');
-    
-    // Assicurati che la tabella esista
-    await assertVotiTableExists();
     
     // Normalizza l'ID per assicurarsi che sia una stringa
     const opinioneIdNormalizzato = String(id).trim();
     
-    // Debug: verifica se il voto esiste prima di eliminarlo
-    const checkVotoQuery = `
-      SELECT * FROM voti_opinioni_proposte 
-      WHERE utente_id = $1 AND opinione_id = $2
-    `;
-    const checkVoto = await pool.query(checkVotoQuery, [userId, opinioneIdNormalizzato]);
-    console.log('🔍 Voti trovati per questa opinione:', checkVoto.rows.length);
-    console.log('🔍 Dettagli voto:', checkVoto.rows);
-    console.log('🔍 Parametri ricerca:', { userId, opinioneId: opinioneIdNormalizzato, userIdType: typeof userId, idType: typeof opinioneIdNormalizzato });
-    
-    // Debug aggiuntivo: verifica tutti i voti dell'utente per vedere se l'ID esiste con un formato diverso
-    const allUserVotes = await pool.query(
-      'SELECT opinione_id, utente_id FROM voti_opinioni_proposte WHERE utente_id = $1',
-      [userId]
-    );
-    console.log('🔍 Tutti i voti dell\'utente (per confronto):', allUserVotes.rows.map(r => ({ 
-      opinione_id: r.opinione_id, 
-      opinione_id_type: typeof r.opinione_id,
-      opinione_id_length: r.opinione_id?.length,
-      matches: String(r.opinione_id) === String(opinioneIdNormalizzato)
-    })));
-    
+    // Elimina il voto direttamente: nessuna lettura diagnostica di voti personali.
     // Rimuovi il voto dalla tabella voti_opinioni_proposte
     // Prova prima con l'ID normalizzato, poi con l'ID originale se non funziona
     const deleteVotoQuery = `
@@ -636,28 +544,20 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
       WHERE utente_id = $1 AND opinione_id = $2
     `;
     
-    console.log('🔍 Rimozione voto con query:', deleteVotoQuery);
-    console.log('🔍 Parametri:', [userId, opinioneIdNormalizzato]);
     let result = await pool.query(deleteVotoQuery, [userId, opinioneIdNormalizzato]);
-    console.log('📊 Righe rimosse (con ID normalizzato):', result.rowCount);
     
     // Se non trova nulla, prova con l'ID originale (senza normalizzazione)
     if (result.rowCount === 0 && id !== opinioneIdNormalizzato) {
-      console.log('🔍 Tentativo con ID originale (non normalizzato):', id);
       result = await pool.query(deleteVotoQuery, [userId, id]);
-      console.log('📊 Righe rimosse (con ID originale):', result.rowCount);
     }
     
     if (result.rowCount === 0) {
-      console.log('❌ Voto non trovato con nessun formato di ID');
-      console.log('🔍 ID tentati:', { normalizzato: opinioneIdNormalizzato, originale: id });
       return res.status(404).json({
         success: false,
         error: 'Voto non trovato. Potrebbe essere che il voto non sia stato salvato correttamente quando hai proposto l\'opinione. Riprova dopo aver ricaricato la pagina.'
       });
     }
     
-    console.log('✅ Voto rimosso con successo per opinione:', id);
     
     res.json({
       success: true,
@@ -665,13 +565,12 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella rimozione voto:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('[opinion-proposals] failure');
+    console.error('[opinion-proposals] failure');
     res.status(500).json({
       success: false,
       error: 'Errore nella rimozione voto',
-      message: error.message,
-      details: error.stack
+      message: 'Operazione non riuscita'
     });
   }
 });
@@ -686,8 +585,6 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     }
     const { id } = req.params;
     
-    console.log('🗑️ DELETE /api/opinioni-proposte/:id - Cancellazione opinione proposta');
-    console.log('🔍 ID opinione:', id);
     
     const checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
@@ -705,11 +602,10 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
         [id]
       );
     } catch (e) {
-      if (e.code !== '42703') console.error('Errore reset opinione_proposta_id:', e);
+      if (e.code !== '42703') console.error('[opinion-proposals] failure');
     }
     const deleteResult = await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id]);
     
-    console.log('✅ Opinione cancellata con successo:', id);
     
     res.json({
       success: true,
@@ -717,13 +613,12 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella cancellazione opinione:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('[opinion-proposals] failure');
+    console.error('[opinion-proposals] failure');
     res.status(500).json({
       success: false,
       error: 'Errore nella cancellazione opinione',
-      message: error.message,
-      details: error.stack
+      message: 'Operazione non riuscita'
     });
   }
 });
