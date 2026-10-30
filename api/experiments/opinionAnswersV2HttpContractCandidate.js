@@ -9,6 +9,7 @@
  * read after consent check, external restore-readiness, static catalog.
  */
 const express=require('express');
+const {isHybridReadWithGate}=require('./opinionAnswersV2AuthorizedReadCandidate');
 const {
   formatHybridLegacyGradePayload
 }=require('./opinionAnswersV2HybridCandidate');
@@ -30,6 +31,12 @@ function createHybridHttpResearchRouter(deps){
   if(!deps || needed.some(key=>typeof deps[key]!=='function') ||
       !Array.isArray(deps.immutableLegacyIds)){
     throw new TypeError('Required research HTTP dependencies missing');
+  }
+  // Personal reads must be created by the consent-gated reader factory
+  // with exactly the SAME external restore gate used by public stats.
+  // This prevents a future integration from injecting an unguarded loader.
+  if(!isHybridReadWithGate(deps.loadOwnAuthorizedRow,deps.assertRestoreReady)){
+    throw new TypeError('Personal reader must enforce shared external GDPR gate');
   }
   const router=express.Router();
   function handle(callback){
@@ -67,7 +74,8 @@ function createHybridHttpResearchRouter(deps){
       success:true,data:[],
       message:'Nessuna opinione trovata per il grado: '+req.query.grado
     });
-    await deps.assertRestoreReady();
+    // The trusted personal reader checks the SAME restore gate internally.
+    // Calling it again here would duplicate the external attestation read.
     // Must be one authorized subject-specific read, with consent checked
     // by the injected service in the SAME DB snapshot/transaction.
     const result=await deps.loadOwnAuthorizedRow(principal.userId);
