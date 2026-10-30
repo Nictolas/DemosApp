@@ -162,25 +162,48 @@ export async function loadEncryptedProfile(owner: string): Promise<PersistedProf
   }
 }
 
+// Direct writes and serialized patch writes share the same purge barrier.
+// A write may already be inside its IndexedDB transaction when logout or
+// revocation begins: changing activeEpoch alone cannot cancel that transaction.
+const inFlightWrites = new Map<string, Set<Promise<void>>>();
+
 export async function storeEncryptedProfile(
   owner: string,
   profile: PersistedProfile,
 ): Promise<void> {
   if (!owner || !available() || clearingAllVault || clearingOwners.has(owner)) return;
   const epoch = activeEpoch;
-  try {
-    const key = await getKey();
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await crypto.subtle.encrypt({
-      name: "AES-GCM",
-      iv,
-      additionalData: new TextEncoder().encode(ownerKey(owner)),
-    }, key, new TextEncoder().encode(JSON.stringify(profile)));
-    if (epoch !== activeEpoch || clearingAllVault || clearingOwners.has(owner)) return; // logout/revocation raced this write
-    await writeRaw(ownerKey(owner), { version: 1, iv, ciphertext } satisfies EncryptedRecord);
-  } catch {
-    // In private browsing or storage quota failures, keep the RAM fallback.
+  const write = (async () => {
+    try {
+      const key = await getKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ciphertext = await crypto.subtle.encrypt({
+        name: "AES-GCM",
+        iv,
+        additionalData: new TextEncoder().encode(ownerKey(owner)),
+      }, key, new TextEncoder().encode(JSON.stringify(profile)));
+      if (epoch !== activeEpoch || clearingAllVault || clearingOwners.has(owner)) return;
+      await writeRaw(ownerKey(owner), { version: 1, iv, ciphertext } satisfies EncryptedRecord);
+    } catch {
+      // In private browsing or storage quota failures, keep the RAM fallback.
+    }
+  })();
+  const active = inFlightWrites.get(owner) || new Set<Promise<void>>();
+  active.add(write);
+  inFlightWrites.set(owner, active);
+  try { await write; } finally {
+    active.delete(write);
+    if (!active.size && inFlightWrites.get(owner) === active) inFlightWrites.delete(owner);
   }
+}
+
+async function settleOwnerWrites(owner: string): Promise<void> {
+  // Wait for queued patch operations and transactions already in flight.
+  // The purge flag/epoch is set FIRST, so they cannot start new writes.
+  await Promise.allSettled([
+    pendingWrites.get(owner) || Promise.resolve(),
+    ...(inFlightWrites.get(owner) || []),
+  ]);
 }
 
 const pendingWrites = new Map<string, Promise<void>>();
@@ -315,6 +338,7 @@ export async function clearEncryptedProfile(owner: string): Promise<void> {
   if (!owner || !available()) return;
   clearingOwners.add(owner);
   try {
+    await settleOwnerWrites(owner);
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
@@ -333,6 +357,10 @@ export async function clearAllEncryptedProfiles(): Promise<void> {
   clearingAllVault = true;
   try {
     if (!available()) return;
+    await Promise.allSettled([
+      ...pendingWrites.values(),
+      ...Array.from(inFlightWrites.values()).flatMap(writes => [...writes]),
+    ]);
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
