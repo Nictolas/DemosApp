@@ -186,3 +186,70 @@ test('a valid refresh credential alone revokes refresh and associated access ses
   assert.equal(response.body.success, true);
   assert.deepEqual(called, [['refresh', 'synthetic-session'], ['access-session', 'synthetic-session']]);
 });
+
+test('mixed account credentials cannot revoke either account', async () => {
+  const operations = [];
+  const { handler, logs } = loadRoute({
+    '../../utils/jwt': {
+      verifyAccessToken: () => ({ userId: 'synthetic-A', sid: 'device-A' }),
+      verifyRefreshToken: () => ({ userId: 'synthetic-B', sid: 'device-B' }),
+    },
+    '../../services/sessionService': {
+      revokeRefreshSession: async () => { operations.push('refresh'); },
+    },
+    '../../services/accessRevocationService': {
+      MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
+      revokeAccessSession: async () => { operations.push('access-session'); },
+      revokeDecodedAccessToken: async () => { operations.push('access-token'); return true; },
+    },
+  });
+  const result = await request(handler);
+  assert.equal(result.statusCode, 401);
+  assert.equal(result.body.success, false);
+  assert.deepEqual(operations, []);
+  assert.equal(logs.length, 0);
+});
+
+test('mixed devices of the same account cannot revoke the second session', async () => {
+  const operations = [];
+  const { handler, logs } = loadRoute({
+    '../../utils/jwt': {
+      verifyAccessToken: () => ({ userId: 'synthetic-A', sid: 'device-A1' }),
+      verifyRefreshToken: () => ({ userId: 'synthetic-A', sid: 'device-A2' }),
+    },
+    '../../services/sessionService': {
+      revokeRefreshSession: async () => { operations.push('refresh'); },
+    },
+    '../../services/accessRevocationService': {
+      MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
+      revokeAccessSession: async () => { operations.push('access-session'); },
+      revokeDecodedAccessToken: async () => { operations.push('access-token'); return true; },
+    },
+  });
+  const result = await request(handler);
+  assert.equal(result.statusCode, 401);
+  assert.equal(result.body.success, false);
+  assert.deepEqual(operations, []);
+  assert.equal(logs.length, 0);
+});
+
+test('legacy JWT without sid remains compatible when user IDs match', async () => {
+  const operations = [];
+  const { handler } = loadRoute({
+    '../../utils/jwt': {
+      verifyAccessToken: () => ({ userId: 'synthetic-A', jti: 'old-access' }),
+      verifyRefreshToken: () => ({ userId: 'synthetic-A', jti: 'old-refresh' }),
+    },
+    '../../services/sessionService': {
+      revokeRefreshSession: async () => { operations.push('refresh'); },
+    },
+    '../../services/accessRevocationService': {
+      MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
+      revokeAccessSession: async () => { operations.push('access-session'); },
+      revokeDecodedAccessToken: async () => { operations.push('access-token'); return true; },
+    },
+  });
+  const result = await request(handler);
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(operations, ['refresh', 'access-token', 'access-session']);
+});
