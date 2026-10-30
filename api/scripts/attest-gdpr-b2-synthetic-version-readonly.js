@@ -143,9 +143,6 @@ async function verifySyntheticVersion({
       response.Body?.destroy?.();
       throw Error(CLOSED);
     }
-      response.Body?.destroy?.();
-      throw Error(CLOSED);
-    }
     const actual = await boundedBytes(response.Body);
     // Contradictory provider length metadata is not a valid attestation even
     // if the downloaded bytes happen to match the committed fixture.
