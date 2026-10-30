@@ -1,0 +1,61 @@
+name: Opinioni cache merge conflict preview
+
+on:
+  push:
+    branches:
+      - 'feat/opinioni-delta-cache-prep-20261029'
+    paths:
+      - '.github/workflows/opinioni-cache-merge-preview.yml'
+  workflow_dispatch:
+
+# Diagnostics ONLY. The workflow never pushes, deploys, or writes databases.
+permissions:
+  contents: read
+
+jobs:
+  merge-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout cache PR in disposable workspace
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Preview merge from main, list conflicts, and abort
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          echo "Branch HEAD: $(git rev-parse --short HEAD)"
+          echo "Main HEAD: $(git rev-parse --short origin/main)"
+          echo "Merge base: $(git merge-base HEAD origin/main)"
+          echo "### Dry-run integration with main" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Only a disposable runner is modified. No push/commit/merge to the repository.' >> "$GITHUB_STEP_SUMMARY"
+          set +e
+          git -c user.name="Merge Preview" -c user.email="merge-preview@invalid.example" \
+            merge --no-commit --no-ff origin/main > /tmp/cache-merge-preview.log 2>&1
+          merge_status=$?
+          set -e
+
+          if [ "$merge_status" -eq 0 ]; then
+            echo "CLEAN: main can be merged without text conflicts."
+            echo "**Result:** no merge conflicts" >> "$GITHUB_STEP_SUMMARY"
+          elif git ls-files --unmerged | grep -q .; then
+            echo "CONFLICTS: files below need reconciliation."
+            echo "**Result:** merge conflicts found in these files:" >> "$GITHUB_STEP_SUMMARY"
+            echo '~~~' >> "$GITHUB_STEP_SUMMARY"
+            git diff --name-only --diff-filter=U | tee /tmp/cache-merge-conflicts.txt
+            cat /tmp/cache-merge-conflicts.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '~~~' >> "$GITHUB_STEP_SUMMARY"
+            echo "Conflict file count: $(wc -l < /tmp/cache-merge-conflicts.txt)"
+          else
+            echo "Merge preview failed for a non-conflict reason; no files changed remotely."
+            if [ -f .git/MERGE_HEAD ]; then git merge --abort; fi
+            exit 1
+          fi
+
+          if [ -f .git/MERGE_HEAD ]; then git merge --abort; fi
+          test -z "$(git status --porcelain)"
+          echo "PASS: temporary workspace restored to a clean state."
