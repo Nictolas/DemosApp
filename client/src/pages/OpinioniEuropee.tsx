@@ -196,7 +196,7 @@ export default function OpinioniEuropee() {
         isLoading || questions.length === 0 || saveMutation.isPending) return;
     const toSave = collectChangedOpinionAnswers(
       questions,
-      { ...pendingOpinionsToSave.answers, ...opinions },
+      { ...opinions, ...pendingOpinionsToSave.answers },
     );
     setGrantConfirmed(false);
     setPendingOpinionsToSave(null);
