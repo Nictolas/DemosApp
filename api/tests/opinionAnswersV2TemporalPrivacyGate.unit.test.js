@@ -23,9 +23,7 @@ function make(version,national,regions={},text='Domanda sintetica'){
 }
 test('10→11 participants: unchanged k=10 minimum does NOT protect a one-person time delta',()=>{
   const old=make('snapshot_1',counts(10),{TO:counts(10)});
-  const latest=make('snapshot_2',counts(10,1),{
-    TO:counts(10),LA:counts(0,1)
-  });
+  const latest=make('snapshot_2',counts(11),{TO:counts(11)});
   assert.equal(old.national.minimumCellSize,10);
   assert.equal(latest.national.minimumCellSize,10);
   assert.equal(latest.national.suppressed,false);
@@ -131,4 +129,16 @@ test('a title-only change still requires public version review, not silent repla
   });
   assert.equal(out.action,'BLOCK_NEW_PUBLICATION');
   assert.equal(out.requiresIndependentReview,true);
+});
+
+
+test('positive category of one is blocked even at first snapshot',()=>{
+  const p=make('v1',counts(29,1),{
+    TO:counts(20),LO:counts(9,1)
+  });
+  assert.equal(p.national.suppressed,true);
+  assert.equal(p.regionsByCode.TO.suppressed,true);
+  const result=evaluateLongitudinalOpinionPublication({proposed:p});
+  assert.equal(result.action,'BLOCK_NEW_PUBLICATION');
+  assert.equal(result.releaseAuthorized,false);
 });
