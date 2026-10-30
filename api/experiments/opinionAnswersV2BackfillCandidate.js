@@ -57,4 +57,27 @@ function rollbackCoverage(v2Document, legacyIds) {
   unrepresentable.sort();
   return { canRollbackWithoutLoss: unrepresentable.length === 0, unrepresentable };
 }
-module.exports={validateLegacyIds,legacyRowToAnswers,rollbackCoverage};
+
+/**
+ * A code-only rollback can lose or resurrect changed answers even when IDs
+ * remain representable: compare the WHOLE old and new logical snapshots.
+ * Caller must first take an authorized, consistent, consent-safe snapshot.
+ * This does NOT authorize reading real user data outside a GDPR workflow.
+ */
+function rollbackParity(v2Document, legacyRow, legacyIds) {
+  const ids=validateLegacyIds(legacyIds);
+  const coverage=rollbackCoverage(v2Document,ids);
+  const source=legacyRowToAnswers(legacyRow,ids);
+  const divergentIds=ids.filter(id=>{
+    const oldValue=Object.prototype.hasOwnProperty.call(source,id) ? source[id] : null;
+    const newValue=Object.prototype.hasOwnProperty.call(v2Document,id) ? v2Document[id] : null;
+    return oldValue!==newValue;
+  });
+  return {
+    canRollbackWithoutLoss: coverage.canRollbackWithoutLoss && !divergentIds.length,
+    unrepresentable:coverage.unrepresentable,
+    divergentIds
+  };
+}
+
+module.exports={validateLegacyIds,legacyRowToAnswers,rollbackCoverage,rollbackParity};
