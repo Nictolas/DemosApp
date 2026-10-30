@@ -13,6 +13,8 @@
 const {REGIONI_DB_TO_FRONTEND}=require('../utils/regioniUtils');
 const {planSnapshotPublication}=
   require('./opinionAnswersV2CoherentSnapshotCandidate');
+const {validateCounts,total}=
+  require('./opinionAnswersV2RegionalPrivacyCandidate');
 const ID=/^[a-z][a-z0-9_]{0,62}$/;
 const REGION_CODES=Object.keys(REGIONI_DB_TO_FRONTEND);
 const VALID_VERSION=/^[a-zA-Z0-9_-]{1,64}$/;
@@ -28,13 +30,7 @@ function checkedInput(opinionId,questionText,version){
 }
 
 function onlyPublishedCounts(raw){
-  const counts={};
-  for(const key of ['favorevole','contrario','indeciso']){
-    const n=Number(raw[key]);
-    if(!Number.isSafeInteger(n)||n<0)throw new TypeError('Invalid public count');
-    counts[key]=n;
-  }
-  return Object.freeze(counts);
+  return Object.freeze(validateCounts(raw));
 }
 function buildVersionedOpinionPublication({
   opinionId,questionText,version,snapshotRows
@@ -45,12 +41,12 @@ function buildVersionedOpinionPublication({
   const {publication,national,regions}=planSnapshotPublication(snapshotRows);
   const min=publication.minimumCellSize;
   const base=Object.freeze({suppressed:true,minimumCellSize:min,questionText});
+  const nationalStats=publication.publishNational
+    ? onlyPublishedCounts(national):null;
   const nationalPayload=publication.publishNational
     ? Object.freeze({
         suppressed:false,minimumCellSize:min,questionText,
-        stats:onlyPublishedCounts(national),
-        totaleUtenti:['favorevole','contrario','indeciso']
-          .reduce((n,k)=>n+Number(national[k]),0)
+        stats:nationalStats,totaleUtenti:total(nationalStats)
       })
     : base;
   const byCode=Object.create(null);
@@ -67,7 +63,7 @@ function buildVersionedOpinionPublication({
     const stats=onlyPublishedCounts(regionMap.get(code));
     byCode[code]=Object.freeze({
       ...publicRegion,suppressed:false,stats,
-      totaleUtenti:stats.favorevole+stats.contrario+stats.indeciso
+      totaleUtenti:total(stats)
     });
   }
   return Object.freeze({
