@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
+import { createGdprRightsSubmission } from "@/lib/gdprRightsSubmission";
 
 interface DataCategory {
   id: string;
@@ -18,27 +19,27 @@ interface DataCategory {
 
 const dataCategories: DataCategory[] = [
   { 
-    id: 'personal', 
+    id: 'personal_data',
     label: 'Dati Personali', 
     description: 'Nome, cognome, anno di nascita, indirizzo, ecc.' 
   },
   { 
-    id: 'voting', 
+    id: 'voting_data',
     label: 'Dati di Voto', 
     description: 'Opinioni politiche, voti espressi, preferenze elettorali' 
   },
   { 
-    id: 'technical', 
+    id: 'technical_data',
     label: 'Dati Tecnici', 
     description: 'IP, cookie, dati di navigazione, dispositivi utilizzati' 
   },
   { 
-    id: 'political', 
+    id: 'political_opinions',
     label: 'Opinioni Politiche', 
     description: 'Posizioni su temi politici, affiliazioni, ideologie' 
   },
   { 
-    id: 'communication', 
+    id: 'communication_data',
     label: 'Dati di Comunicazione', 
     description: 'Email, notifiche, messaggi, preferenze di comunicazione' 
   }
@@ -56,65 +57,6 @@ const objectionReasons = [
 export default function OpposizioneTrattamento() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [objectionCategories, setObjectionCategories] = useState<string[]>([]);
-  const [objectionReason, setObjectionReason] = useState('');
-  const [customReason, setCustomReason] = useState('');
-
-  const toggleCategory = (categoryId: string) => {
-    setObjectionCategories(prev => 
-      prev.includes(categoryId) 
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
-
-  const handleObjection = async () => {
-    if (objectionCategories.length === 0) {
-      setError('Seleziona almeno una categoria di dati per l\'obiezione');
-      return;
-    }
-
-    if (!objectionReason.trim()) {
-      setError('Seleziona il motivo dell\'obiezione');
-      return;
-    }
-
-    if (objectionReason === 'Altro motivo specifico' && !customReason.trim()) {
-      setError('Inserisci il motivo specifico dell\'obiezione');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
-
-      const finalReason = objectionReason === 'Altro motivo specifico' ? customReason : objectionReason;
-
-      const response = await apiRequest.post('/user/object', {
-        categories: objectionCategories,
-        reason: finalReason
-      });
-      
-      if (response.success) {
-        setSuccess('Opposizione registrata con successo');
-        setObjectionCategories([]);
-        setObjectionReason('');
-        setCustomReason('');
-      } else {
-        setError(response.error || 'Errore nella registrazione dell\'opposizione');
-      }
-    } catch (err) {
-      setError('Errore nella comunicazione con il server');
-      console.error('Errore opposizione:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
@@ -140,6 +82,66 @@ export default function OpposizioneTrattamento() {
       </div>
     );
   }
+  return <OpposizioneTrattamentoForm key={user.id} />;
+}
+
+function OpposizioneTrattamentoForm() {
+  const [, setLocation] = useLocation();
+  const [submission] = useState(() => createGdprRightsSubmission(apiRequest));
+  const busy = useRef(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [objectionCategories, setObjectionCategories] = useState<string[]>([]);
+  const [objectionReason, setObjectionReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+
+  const toggleCategory = (categoryId: string) => {
+    setObjectionCategories(prev => 
+      prev.includes(categoryId) 
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
+  const handleObjection = async () => {
+    if (busy.current) return;
+    if (objectionCategories.length === 0) {
+      setError('Seleziona almeno una categoria di dati per l\'obiezione');
+      return;
+    }
+
+    if (!objectionReason.trim()) {
+      setError('Seleziona il motivo dell\'obiezione');
+      return;
+    }
+
+    if (objectionReason === 'Altro motivo specifico' && !customReason.trim()) {
+      setError('Inserisci il motivo specifico dell\'obiezione');
+      return;
+    }
+
+    busy.current = true;
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      const finalReason = objectionReason === 'Altro motivo specifico' ? customReason : objectionReason;
+
+      await submission.object(objectionCategories, finalReason);
+      setSuccess('Opposizione registrata. Consulta lo stato nello storico delle richieste.');
+      setObjectionCategories([]);
+      setObjectionReason('');
+      setCustomReason('');
+    } catch {
+      setError('Registrazione non confermata. Puoi riprovare con gli stessi dati in questa pagina. Prima di uscire o inviare una nuova richiesta, controlla lo storico.');
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
@@ -195,6 +197,12 @@ export default function OpposizioneTrattamento() {
           </Alert>
         )}
 
+        {(error || success) && (
+          <Button type="button" variant="outline" className="mb-6" onClick={() => setLocation('/gdpr-rights')}>
+            Controlla lo storico delle richieste
+          </Button>
+        )}
+
         {/* Form Opposizione */}
         <Card className="mb-8 bg-white">
           <CardHeader>
@@ -215,6 +223,7 @@ export default function OpposizioneTrattamento() {
                   <div key={reason} className="flex items-center space-x-2">
                     <input
                       type="radio"
+                      disabled={loading}
                       id={`reason-${reason}`}
                       name="objectionReason"
                       value={reason}
@@ -235,6 +244,8 @@ export default function OpposizioneTrattamento() {
                     Specifica il motivo
                   </Label>
                   <Textarea
+                    disabled={loading}
+                    maxLength={1000}
                     id="custom-reason"
                     value={customReason}
                     onChange={(e) => setCustomReason(e.target.value)}
@@ -256,6 +267,7 @@ export default function OpposizioneTrattamento() {
                       id={`objection-${category.id}`}
                       checked={objectionCategories.includes(category.id)}
                       onCheckedChange={() => toggleCategory(category.id)}
+                      disabled={loading}
                       className="mt-1"
                     />
                     <div className="flex-1">

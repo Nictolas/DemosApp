@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { downloadGdprExport } from "@/lib/gdprDataExport";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ export default function GDPR() {
   const { toast } = useToast();
   const [showRevokeDialog, setShowRevokeDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const downloading = useRef(false);
   
   const revokeConsentMutation = useMutation({
     mutationFn: async () => {
@@ -60,145 +62,25 @@ export default function GDPR() {
   });
 
   const handleDownloadData = async (format: 'json' | 'csv' = 'json') => {
+    if (downloading.current) return;
+    downloading.current = true;
+    setIsDownloading(true);
     try {
-      setIsDownloading(true);
-      
-      if (format === 'csv') {
-        // Per CSV, l'API restituisce direttamente il file CSV
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/user/data-export?format=csv`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        
-        if (!response.ok) {
-          throw new Error('Errore nel recupero dei dati');
-        }
-        
-        const csv = await response.text();
-        const timestamp = new Date().toISOString().split('T')[0];
-        const csvBlob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(csvBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `dati-personali-${timestamp}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Download completato",
-          description: "I tuoi dati sono stati scaricati in formato CSV.",
-        });
-      } else {
-        // Per JSON, l'API restituisce JSON
-        const response = await apiRequest('GET', `/api/user/data-export?format=json`);
-        
-        if (!response.success || !response.data) {
-          throw new Error('Errore nel recupero dei dati');
-        }
-
-        const data = response.data;
-        const timestamp = new Date().toISOString().split('T')[0];
-        const jsonBlob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(jsonBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `dati-personali-${timestamp}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Download completato",
-          description: "I tuoi dati sono stati scaricati in formato JSON.",
-        });
-      }
-    } catch (error: any) {
-      console.error('Errore nel download dati:', error);
+      await downloadGdprExport(format);
       toast({
-        title: "Errore",
-        description: error.message || "Errore durante il download dei dati. Riprova più tardi.",
+        title: "Download avviato",
+        description: `È stato avviato il download in formato ${format.toUpperCase()}. Verifica il file sul dispositivo.`,
+      });
+    } catch {
+      toast({
+        title: "Esportazione non completata",
+        description: "Non è stato possibile verificare l’esportazione. Controlla la sessione e riprova.",
         variant: "destructive",
       });
     } finally {
+      downloading.current = false;
       setIsDownloading(false);
     }
-  };
-
-  // Funzione per convertire JSON in CSV
-  const convertToCSV = (data: any): string => {
-    const lines: string[] = [];
-    
-    // Header principale
-    lines.push('Sezione,Campo,Valore');
-    
-    // Profilo utente
-    if (data.user_profile) {
-      Object.entries(data.user_profile).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          lines.push(`Profilo Utente,${key},"${String(value).replace(/"/g, '""')}"`);
-        }
-      });
-    }
-    
-    // Opinioni
-    if (data.opinions && Array.isArray(data.opinions)) {
-      data.opinions.forEach((opinion: any, index: number) => {
-        Object.entries(opinion).forEach(([key, value]) => {
-          if (value !== null && value !== undefined) {
-            lines.push(`Opinioni [${index + 1}],${key},"${String(value).replace(/"/g, '""')}"`);
-          }
-        });
-      });
-    }
-    
-    // Voti
-    if (data.votes && Array.isArray(data.votes)) {
-      data.votes.forEach((vote: any, index: number) => {
-        Object.entries(vote).forEach(([key, value]) => {
-          if (value !== null && value !== undefined) {
-            lines.push(`Voti [${index + 1}],${key},"${String(value).replace(/"/g, '""')}"`);
-          }
-        });
-      });
-    }
-    
-    // Comunicazioni
-    if (data.communications && Array.isArray(data.communications)) {
-      data.communications.forEach((comm: any, index: number) => {
-        Object.entries(comm).forEach(([key, value]) => {
-          if (value !== null && value !== undefined) {
-            lines.push(`Comunicazioni [${index + 1}],${key},"${String(value).replace(/"/g, '""')}"`);
-          }
-        });
-      });
-    }
-    
-    // Notifiche
-    if (data.notifications && Array.isArray(data.notifications)) {
-      data.notifications.forEach((notif: any, index: number) => {
-        Object.entries(notif).forEach(([key, value]) => {
-          if (value !== null && value !== undefined) {
-            lines.push(`Notifiche [${index + 1}],${key},"${String(value).replace(/"/g, '""')}"`);
-          }
-        });
-      });
-    }
-    
-    // Consensi
-    if (data.consent_history) {
-      Object.entries(data.consent_history).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          lines.push(`Consensi,${key},"${String(value).replace(/"/g, '""')}"`);
-        }
-      });
-    }
-    
-    return lines.join('\n');
   };
 
   if (isLoading) {

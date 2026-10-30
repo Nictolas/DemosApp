@@ -47,14 +47,16 @@ test('GDPR POST persists a real request ID via parameterized DPO table before 20
       calls.push({sql, args});
       return {rows:[{
         id:'00000000-0000-4000-8000-000000000351',
-        request_type:'erasure', status:'pending', created_at:'2026-10-28T00:00:00Z'
+        user_id:'synthetic-user', request_type:'erasure', status:'pending', created_at:'2026-10-28T00:00:00Z'
       }]};
     }
   };
   await withMockedRoute(pool, async ({post}) => {
     const res=response();
     await post({
-      userId:'synthetic-user', body:{tipo:'erasure',dettagli:'synthetic private message'}
+      userId:'synthetic-user',
+      headers:{'idempotency-key':'00000000-0000-4000-8000-000000000351'},
+      body:{tipo:'erasure',dettagli:'synthetic private message'}
     },res);
     assert.equal(res.statusCode,201);
     assert.equal(res.body.success,true);
@@ -65,72 +67,176 @@ test('GDPR POST persists a real request ID via parameterized DPO table before 20
   });
   assert.equal(calls.length,1);
   assert.match(calls[0].sql,/INSERT INTO public\.user_rights_requests/);
-  assert.match(calls[0].sql,/RETURNING id, request_type, status, created_at/);
-  assert.deepEqual(calls[0].args.slice(0,2),['synthetic-user','erasure']);
-  assert.deepEqual(JSON.parse(calls[0].args[2]),
+  assert.match(calls[0].sql,/ON CONFLICT \(id\) DO NOTHING/);
+  assert.match(calls[0].sql,/RETURNING id, user_id, request_type, status, created_at/);
+  assert.match(calls[0].args[0],/^[0-9a-f]{8}-[0-9a-f-]{27,}$/);
+  assert.deepEqual(calls[0].args.slice(1,3),['synthetic-user','erasure']);
+  assert.deepEqual(JSON.parse(calls[0].args[3]),
     {source:'gdpr_requests_api',details:'synthetic private message'});
 });
 
-test('GDPR GET reads only the authenticated user history and excludes request details', async () => {
-  const calls = [];
-  const pool = {async query(sql,args) {
-    calls.push({sql,args});
-    if (sql.includes('row_security_active(')) {
-      return {rows:[{complete_visibility:true}]};
+test('GDPR POST refuses a database receipt with mismatched ID, owner, type or extra rows',async()=>{
+  const key='6d6f7c42-5470-4960-a643-f3be05b57e98';
+  const good={id:key,user_id:'synthetic-user',request_type:'access',
+    status:'pending',created_at:'2026-10-28T00:00:00Z'};
+  let returned=[];
+  const pool={async query(sql){
+    assert.match(sql,/RETURNING id, user_id, request_type, status, created_at/);
+    return {rows:returned};
+  }};
+  const previousError=console.error;
+  console.error=()=>{};
+  try{
+    await withMockedRoute(pool,async({post})=>{
+      for(const rows of [
+        [{...good,id:'8c09bdfa-ad1b-4770-9940-02d1e7cacb25'}],
+        [{...good,user_id:'another-account'}],
+        [{...good,request_type:'erasure'}],
+        [good,good]
+      ]){
+        returned=rows;
+        const res=response();
+        await post({userId:'synthetic-user',headers:{'idempotency-key':key},
+          body:{tipo:'access',dettagli:'synthetic confidential request'}},res);
+        assert.equal(res.statusCode,503);
+        assert.equal(res.body.success,false);
+        assert.ok(!JSON.stringify(res.body).includes('synthetic confidential request'));
+      }
+      returned=[good];
+      const correct=response();
+      await post({userId:'synthetic-user',headers:{'idempotency-key':key},
+        body:{tipo:'access',dettagli:'synthetic confidential request'}},correct);
+      assert.equal(correct.statusCode,201);
+      assert.equal(correct.body.data.id,key);
+    });
+  }finally{console.error=previousError;}
+});
+
+test('GDPR Idempotency-Key retry returns same saved receipt without duplicate INSERT', async () => {
+  const key='e5633efb-2d49-4bcb-99ee-37833470f54a';
+  let calls=0;
+  const pool={async query(sql,params){
+    calls++;
+    assert.equal(params[0],key);
+    if(sql.startsWith('INSERT')) {
+      return {rows:calls===1?[{id:key,user_id:'user-1',request_type:'access',status:'pending',created_at:'2026-10-28T00:00:00Z'}]:[]};
     }
+    assert.match(sql,/WHERE id=\$1::uuid AND user_id=\$2/);
+    assert.deepEqual(params.slice(1,3),['user-1','access']);
+    return {rows:[{id:key,request_type:'access',status:'processing',created_at:'2026-10-28T00:00:00Z'}]};
+  }};
+  await withMockedRoute(pool,async ({post})=>{
+    const req={userId:'user-1',headers:{'idempotency-key':key},body:{tipo:'access',dettagli:'fixture'}};
+    const one=response();await post(req,one);
+    assert.equal(one.statusCode,201);
+    const two=response();await post(req,two);
+    assert.equal(two.statusCode,200);
+    assert.equal(two.body.data.id,one.body.data.id);
+    assert.equal(two.body.data.stato,'processing');
+  });
+  assert.equal(calls,3);
+});
+
+test('same Idempotency-Key with changed owner or payload never reveals another request', async () => {
+  const key='e5633efb-2d49-4bcb-99ee-37833470f54a';
+  let writes=0;
+  const pool={async query(sql){
+    if(sql.startsWith('INSERT')){writes++;return {rows:[]};}
+    return {rows:[]};
+  }};
+  await withMockedRoute(pool,async ({post})=>{
+    for(const req of [
+      {userId:'another-user',headers:{'idempotency-key':key},body:{tipo:'access',dettagli:'fixture'}},
+      {userId:'user-1',headers:{'idempotency-key':key},body:{tipo:'access',dettagli:'different'}}
+    ]){
+      const result=response();await post(req,result);
+      assert.equal(result.statusCode,409);
+      assert.equal(result.body.success,false);
+      assert.equal(JSON.stringify(result.body).includes(key),false);
+    }
+  });
+  assert.equal(writes,2);
+});
+
+test('invalid Idempotency-Key is refused before SQL',async()=>{
+  let count=0;
+  const pool={async query(){count++;throw Error('SQL should not run');}};
+  await withMockedRoute(pool,async ({post})=>{
+    for(const value of ['not-uuid','00000000-0000-0000-0000-000000000000',
+      'e5633efb-2d49-4bcb-99ee-37833470f54a;DROP TABLE x']){
+      const r=response();await post({
+        userId:'user-1',headers:{'idempotency-key':value},
+        body:{tipo:'access',dettagli:'fixture'}
+      },r);
+      assert.equal(r.statusCode,400);
+      assert.equal(r.body.success,false);
+    }
+  });
+  assert.equal(count,0);
+});
+
+test('both GDPR history endpoints share one bounded RLS-aware SQL statement and no payload', async () => {
+  const calls=[];
+  const db={async query(sql,args){
+    calls.push({sql,args});
+    assert.match(sql,/WITH visibility AS MATERIALIZED/);
+    assert.match(sql,/LEFT JOIN LATERAL/);
+    assert.doesNotMatch(sql,/request_data|response_data|processed_by/);
     return {rows:[{
-      id:'synthetic-id',request_type:'access',status:'pending',
-      created_at:'2026-10-28T00:00:00Z',processed_at:null,
-      request_data:{details:'must-never-be-returned'}
+      complete_visibility:true,id:'synthetic-id',request_type:'access',
+      status:'pending',created_at:'2026-10-28T00:00:00Z',
+      processed_at:null,request_data:{details:'private'}
     }]};
   }};
-  await withMockedRoute(pool, async ({get}) => {
+  await withMockedRoute(db,async ({get})=>{
     const res=response();
-    await get({user:{id:'synthetic-user'}},res);
+    await get({user:{id:'synthetic-user'},query:{}},res);
     assert.equal(res.statusCode,200);
     assert.equal(res.body.success,true);
     assert.deepEqual(res.body.data,[{
       id:'synthetic-id',tipo:'access',stato:'pending',
       data_richiesta:'2026-10-28T00:00:00Z',data_elaborazione:null
     }]);
-    assert.equal(JSON.stringify(res.body).includes('must-never-be-returned'),false);
+    assert.deepEqual(res.body.pagination,{
+      limit:50,offset:0,has_more:false,next_offset:null
+    });
+    assert.doesNotMatch(JSON.stringify(res.body),/private/);
+    assert.equal(calls.length,1);
+    assert.deepEqual(calls[0].args,['synthetic-user',51,0]);
   });
-  assert.equal(calls.length,2);
-  assert.ok(calls[0].sql.includes('row_security_active('));
-  assert.deepEqual(calls[1].args,['synthetic-user']);
-  assert.match(calls[1].sql,/WHERE user_id = \$1/);
-  assert.ok(!calls[1].sql.includes('request_data'));
 });
 
-test('GDPR GET refuses incomplete RLS-scoped history even when a policy exists', async () => {
-  let rlsActive = true;
-  let queryCount = 0;
-  const pool = { async query(sql) {
-    queryCount++;
-    if (sql.includes('row_security_active(')) {
-      return {rows:[{complete_visibility:!rlsActive}]};
-    }
-    if (sql.includes('FROM public.user_rights_requests')) return {rows:[]};
-    throw Error('unexpected query');
+test('legacy GDPR GET refuses RLS-filtered history and bad pagination before SQL',async()=>{
+  let filtered=true;
+  let calls=0;
+  const db={async query(sql){
+    calls++;
+    assert.match(sql,/row_security_active/);
+    return {rows:[{complete_visibility:!filtered,id:null}]};
   }};
-  const origLog = console.error;
-  console.error = () => {};
-  try {
-    await withMockedRoute(pool, async ({get}) => {
-      const hidden = response();
-      await get({userId:'synthetic-user'},hidden);
-      assert.equal(hidden.statusCode,503);
-      assert.equal(hidden.body.success,false);
-      assert.ok(!JSON.stringify(hidden.body).includes('"data":[]'));
-      assert.equal(queryCount,1,'do not query incomplete RLS-scoped history');
-      rlsActive = false;
-      const legitimatelyEmpty = response();
-      await get({userId:'synthetic-user'},legitimatelyEmpty);
-      assert.equal(legitimatelyEmpty.statusCode,200);
-      assert.deepEqual(legitimatelyEmpty.body.data,[]);
+  const oldLog=console.error;
+  console.error=()=>{};
+  try{
+    await withMockedRoute(db,async ({get})=>{
+      const denied=response();
+      await get({userId:'synthetic-user',query:{}},denied);
+      assert.equal(denied.statusCode,503);
+      assert.equal(denied.body.success,false);
+      assert.equal(calls,1);
+      filtered=false;
+      const empty=response();
+      await get({userId:'synthetic-user',query:{}},empty);
+      assert.equal(empty.statusCode,200);
+      assert.deepEqual(empty.body.data,[]);
+      assert.equal(calls,2);
+      for(const query of [{limit:'9999'},{offset:'-1'},{status:'../../etc'},{limit:['1','2']}]) {
+        const invalid=response();
+        await get({userId:'synthetic-user',query},invalid);
+        assert.equal(invalid.statusCode,400);
+      }
+      assert.equal(calls,2,'invalid page parameters must never query PostgreSQL');
     });
-    assert.equal(queryCount,3);
-  } finally {console.error=origLog;}
+  }finally{console.error=oldLog;}
 });
 
 test('GDPR route rejects unauthenticated and invalid inputs before SQL', async () => {
@@ -185,4 +291,334 @@ test('failed PostgreSQL INSERT or missing RETURNING ID never fabricates success'
       assert.notDeepEqual(unavailable.body,{success:true,data:[]});
     });
   }finally{console.error=originalLog;}
+});
+
+test('actual rights history is bounded, same-snapshot, payload-free and honestly paginated', async () => {
+  const paths = [
+    require.resolve('../middleware/auth'),
+    require.resolve('../middleware/validation'),
+    require.resolve('../services/auditService'),
+    require.resolve('../utils/emailCrypto'),
+    require.resolve('../routes/user/gdpr-rights')
+  ];
+  const previous = paths.map(path => require.cache[path]);
+  let filtered = true;
+  let reads = 0;
+  const fakeRows = Array.from({length: 51}, (_, i) => ({
+    complete_visibility: true,
+    id: 'synthetic-' + i, request_type: 'access', status: 'pending',
+    created_at: '2026-10-28T00:00:00Z', processed_at: null,
+    request_data: { secret: 'must-not-escape' },
+    response_data: { secret: 'DPO-internal' },
+    processed_by: 'synthetic-internal-operator'
+  }));
+  const mockedPool = {async query(sql, params) {
+    reads++;
+    assert.match(sql,/WITH visibility AS MATERIALIZED/);
+    assert.match(sql,/row_security_active/);
+    assert.match(sql,/LEFT JOIN LATERAL/);
+    assert.match(sql,/ORDER BY created_at DESC NULLS LAST, id DESC/);
+    assert.doesNotMatch(sql,/request_data|response_data|processed_by/);
+    assert.equal(params[0],'synthetic-subject');
+    if (filtered) return {rows:[{complete_visibility:false,id:null}]};
+    const offset = params.at(-1);
+    assert.equal(params.at(-2),51,'fetch one extra row for honest has_more');
+    return {rows:fakeRows.slice(offset,offset+51)};
+  }};
+  const originalLog = console.error;
+  console.error = () => {};
+  try {
+    const modules = [
+      {verifyToken(req,res,next){next();},pool:mockedPool},
+      {validateInput(){return (req,res,next)=>next();}},
+      {logAction:async()=>{},getUserAuditLogs:async()=>[]},
+      {decrypt(value){return value;}},
+      null
+    ];
+    for(let i=0;i<paths.length-1;i++)require.cache[paths[i]]={
+      id:paths[i],filename:paths[i],loaded:true,exports:modules[i]
+    };
+    delete require.cache[paths[4]];
+    const router=require('../routes/user/gdpr-rights');
+    const layer=router.stack.find(x=>x.route?.path==='/rights-requests'&&x.route?.methods.get);
+    assert.ok(layer);
+    const get=layer.route.stack.at(-1).handle;
+    const denied=response();
+    await get({userId:'synthetic-subject',query:{}},denied);
+    assert.equal(denied.statusCode,503);
+    assert.equal(denied.body.success,false);
+    assert.equal(reads,1);
+
+    filtered=false;
+    const page1=response();
+    await get({userId:'synthetic-subject',query:{}},page1);
+    assert.equal(page1.statusCode,200);
+    assert.equal(page1.body.data.length,50);
+    assert.deepEqual(page1.body.pagination,{
+      limit:50,offset:0,has_more:true,next_offset:50
+    });
+    assert.doesNotMatch(JSON.stringify(page1.body),/must-not-escape|DPO-internal|synthetic-internal-operator/);
+    assert.equal(page1.body.pagination.total,undefined,
+      'page size must never be presented as total history');
+
+    const page2=response();
+    await get({userId:'synthetic-subject',query:{limit:'50',offset:'50'}},page2);
+    assert.equal(page2.statusCode,200);
+    assert.equal(page2.body.data.length,1);
+    assert.deepEqual(page2.body.pagination,{
+      limit:50,offset:50,has_more:false,next_offset:null
+    });
+
+    for(const query of [
+      {limit:'0'},{limit:'51'},{limit:'1e3'},{limit:'2oops'},
+      {limit:['1','2']},{offset:'-1'},{offset:'99999999'},
+      {status:{bad:'input'}},{status:'../../etc'},{offset:'1.2'}
+    ]) {
+      const invalid=response();
+      await get({userId:'synthetic-subject',query},invalid);
+      assert.equal(invalid.statusCode,400);
+    }
+    assert.equal(reads,3,'invalid pagination must never query PostgreSQL');
+    const unauthenticated=response();
+    await get({query:{}},unauthenticated);
+    assert.equal(unauthenticated.statusCode,401);
+    assert.equal(reads,3);
+  } finally {
+    console.error=originalLog;
+    for(let i=0;i<paths.length;i++){
+      delete require.cache[paths[i]];
+      if(previous[i])require.cache[paths[i]]=previous[i];
+    }
+  }
+});
+
+test('history UI is keyed by authenticated user, preventing cross-session stale results', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const file = fs.readFileSync(
+    path.join(__dirname,'..','..','client','src','pages','GDPRRights.tsx'),
+    'utf8'
+  );
+  // This is a static boundary contract; the separate Vite workflow
+  // typechecks/transforms the actual TSX. No users, browser or provider I/O.
+  assert.match(file, /const \{ user, isLoading \} = useAuth\(\)/);
+  assert.match(file, /if \(!user\)\s*\{/);
+  assert.match(file, /return <AuthenticatedRightsHistory key=\{user\.id\} \/>/);
+  assert.match(file, /function AuthenticatedRightsHistory\(\)/);
+  assert.match(file, /Accedi per consultare le tue richieste/);
+});
+
+
+test('legacy DELETE /api/user/account cannot bypass canonical password and ledger deletion', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const appSource = fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8');
+  assert.match(appSource, /app\.use\('\/api\/user', userLimiter, gdprRightsRoutes\)/);
+  assert.match(appSource, /app\.use\('\/api\/user\/delete-account', userLimiter, deleteAccountRoutes\)/);
+  const modules = [
+    require.resolve('../middleware/auth'),
+    require.resolve('../middleware/validation'),
+    require.resolve('../services/auditService'),
+    require.resolve('../utils/emailCrypto'),
+    require.resolve('../routes/user/gdpr-rights')
+  ];
+  const prior = modules.map(module => require.cache[module]);
+  let sqlCalls = 0;
+  let auditCalls = 0;
+  try {
+    const fakePool = {
+      query() { sqlCalls++; throw Error('legacy deletion must never query SQL'); },
+      connect() { sqlCalls++; throw Error('legacy deletion must never acquire SQL client'); }
+    };
+    const mocks = [
+      { verifyToken(_req, _res, next) { next(); }, pool: fakePool },
+      { validateInput() { return (_req, _res, next) => next(); } },
+      { async logAction() { auditCalls++; }, async getUserAuditLogs() { return []; } },
+      { decrypt(value) { return value; } }
+    ];
+    for (let i = 0; i < mocks.length; i++) {
+      require.cache[modules[i]] = {
+        id: modules[i], filename: modules[i], loaded: true, exports: mocks[i]
+      };
+    }
+    delete require.cache[modules[4]];
+    const router = require('../routes/user/gdpr-rights');
+    const layer = router.stack.find(item =>
+      item.route?.path === '/account' && item.route?.methods.delete
+    );
+    assert.ok(layer, 'legacy path must remain an explicit fail-closed response');
+    assert.equal(layer.route.stack.length, 1, 'no legacy deletion middleware can mutate data');
+    const res = response();
+    await layer.route.stack[0].handle({
+      userId: 'synthetic-subject',
+      body: { confirmation: 'CONFERMO_CANCELLAZIONE_ACCOUNT' }
+    }, res);
+    assert.equal(res.statusCode, 410);
+    assert.equal(res.body.success, false);
+    assert.equal(res.body.canonical_path, '/api/user/delete-account');
+    assert.equal(sqlCalls, 0);
+    assert.equal(auditCalls, 0);
+  } finally {
+    for (let i = 0; i < modules.length; i++) {
+      delete require.cache[modules[i]];
+      if (prior[i]) require.cache[modules[i]] = prior[i];
+    }
+  }
+});
+
+
+test('shared validation never logs GDPR bodies or emails and rejects long input before next', () => {
+  const {validateInput,validateEmail} = require('../middleware/validation');
+  const oldLog=console.log, oldError=console.error, logged=[];
+  console.log=(...args)=>logged.push(args.join(' '));
+  console.error=(...args)=>logged.push(args.join(' '));
+  try {
+    let nextCalls=0;
+    const valid=response();
+    const sensitive='synthetic-secret-reason-and-email@example.test';
+    validateInput(['limited','categories'])({
+      path:'/api/user/limit-processing',
+      body:{limited:false,categories:['personal_data'],reason:sensitive}
+    },valid,()=>{nextCalls++;});
+    assert.equal(nextCalls,1,'false is a valid restriction removal');
+    const tooLong=response();
+    validateInput(['reason'])({
+      path:'/api/user/object',body:{reason:'X'.repeat(1001)}
+    },tooLong,()=>{nextCalls++;});
+    assert.equal(tooLong.statusCode,400);
+    assert.equal(nextCalls,1,'oversize fields must not reach route handler');
+    const missing=response();
+    validateInput(['reason'])({path:'/api/user/object'},missing,()=>{nextCalls++;});
+    assert.equal(missing.statusCode,400);
+    const badEmail=response();
+    validateEmail({path:'/register',body:{email:sensitive+' bad'}},badEmail,()=>{nextCalls++;});
+    assert.equal(badEmail.statusCode,400);
+    assert.equal(logged.join(' ').includes(sensitive),false,
+      'sensitive body and email must never be logged');
+  } finally {
+    console.log=oldLog;console.error=oldError;
+  }
+});
+
+test('removing all processing restrictions accepts empty categories, but active limits require categories', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '../routes/user/gdpr-rights.js'), 'utf8');
+  assert.ok(source.includes("router.put('/limit-processing', validateInput(['limited'])"),
+    'middleware must not reject an empty list before the route handles it');
+  assert.ok(source.includes('(limited && categories.length === 0)'),
+    'enabling a restriction without categories must remain invalid');
+  const { validateInput } = require('../middleware/validation');
+  const result = response();
+  let forwarded = 0;
+  validateInput(['limited'])({body:{limited:false,categories:[]}}, result,
+    () => { forwarded++; });
+  assert.equal(forwarded, 1);
+  assert.equal(result.statusCode, 200);
+});
+
+test('GDPR objection validates input, verifies an idempotent receipt and ignores audit outage',async()=>{
+  const paths=[
+    require.resolve('../middleware/auth'),
+    require.resolve('../middleware/validation'),
+    require.resolve('../services/auditService'),
+    require.resolve('../utils/emailCrypto'),
+    require.resolve('../routes/user/gdpr-rights')
+  ];
+  const prior=paths.map(path=>require.cache[path]);
+  const key='e5c87f4a-6c6e-47c0-9151-8d2a4f4ff2b7';
+  let sqlCalls=0,auditCalls=0,failSql=false;
+  const fakePool={async query(sql,params){
+    sqlCalls++;
+    if(failSql)throw Error('synthetic-insert-failure');
+    assert.ok(sql.includes('INSERT INTO public.user_rights_requests'));
+    assert.equal(params[0],key);
+    assert.equal(params[1],'synthetic-objection-user');
+    assert.equal(JSON.parse(params[2]).reason,'synthetic-private-reason');
+    return {rowCount:1,rows:[{
+      id:key,user_id:'synthetic-objection-user',
+      request_type:'object_processing',status:'pending'
+    }]};
+  }};
+  const mocks=[
+    {verifyToken(_req,_res,next){next();},pool:fakePool},
+    {validateInput(){return (_req,_res,next)=>next();}},
+    {async logAction(){auditCalls++;throw Error('synthetic-audit-unavailable');},
+      async getUserAuditLogs(){return [];}},
+    {decrypt(value){return value;}}
+  ];
+  const oldLog=console.log,oldError=console.error,logs=[];
+  console.log=(...args)=>logs.push(args.join(' '));
+  console.error=(...args)=>logs.push(args.join(' '));
+  try{
+    for(let i=0;i<4;i++)require.cache[paths[i]]={
+      id:paths[i],filename:paths[i],loaded:true,exports:mocks[i]
+    };
+    delete require.cache[paths[4]];
+    const router=require('../routes/user/gdpr-rights');
+    const layer=router.stack.find(item=>item.route?.path==='/object'&&item.route?.methods.post);
+    assert.ok(layer);
+    const handler=layer.route.stack.at(-1).handle;
+    const req=(categories,reason='synthetic-private-reason',uuid=key)=>({
+      userId:'synthetic-objection-user',
+      headers:{'idempotency-key':uuid},body:{reason,categories},
+      ip:'127.0.0.1',get:()=> 'synthetic-test-agent'
+    });
+    for(const categories of [undefined,'political_opinions',[],['invalid'],['personal_data','personal_data']]){
+      const bad=response();await handler(req(categories),bad);
+      assert.equal(bad.statusCode,400);
+    }
+    const invalidKey=response();
+    await handler(req(['political_opinions'],'synthetic-private-reason','not-a-uuid'),invalidKey);
+    assert.equal(invalidKey.statusCode,400);
+    assert.equal(sqlCalls,0,'invalid objection must not query PostgreSQL');
+    const saved=response();
+    await handler(req(['political_opinions']),saved);
+    assert.equal(saved.statusCode,200);
+    assert.equal(saved.body.success,true);
+    assert.equal(saved.body.request_id,key);
+    assert.equal(sqlCalls,1);assert.equal(auditCalls,1);
+    assert.equal(JSON.stringify(saved.body).includes('synthetic-private-reason'),false);
+    failSql=true;
+    const uncertain=response();await handler(req(['political_opinions']),uncertain);
+    assert.equal(uncertain.statusCode,503);
+    assert.equal(uncertain.body.success,false);
+    assert.equal(auditCalls,1,'no audit success after unconfirmed INSERT');
+    assert.equal(logs.join(' ').includes('synthetic-private-reason'),false);
+    assert.equal(logs.join(' ').includes('synthetic-insert-failure'),false);
+  }finally{
+    console.log=oldLog;console.error=oldError;
+    for(let i=0;i<paths.length;i++){
+      delete require.cache[paths[i]];
+      if(prior[i])require.cache[paths[i]]=prior[i];
+    }
+  }
+});
+
+
+// GDPR data portability: prevent formula execution in spreadsheet applications
+// and preserve falsy personal-data fields instead of empty CSV cells.
+test('GDPR CSV export preserves false, zero and negative numbers while neutralizing formulas', () => {
+  const { convertToCSV } = require('../services/gdprCsvExport');
+  const csv = convertToCSV({
+    consent: false, vote_count: 0, delta: -3,
+    title: '=HYPERLINK("https://example.invalid/?x=1","open")',
+    nested: { text: ' \t@SUM(1,1)', note: 'safe, "quoted"' },
+    date: new Date('2026-10-28T00:00:00.000Z'),
+    nullable: null, array: [false, 0]
+  });
+  assert.ok(csv.startsWith('Campo,Valore\n'));
+  assert.ok(csv.includes('"consent","false"'));
+  assert.ok(csv.includes('"vote_count","0"'));
+  assert.ok(csv.includes('"delta","-3"'));
+  assert.ok(csv.includes('"title","\'=HYPERLINK(""https://example.invalid/?x=1"",""open"")"'));
+  assert.ok(csv.includes('"nested.text","\' \t@SUM(1,1)"'));
+  assert.ok(csv.includes('"nested.note","safe, ""quoted"""'));
+  assert.ok(csv.includes('"date","2026-10-28T00:00:00.000Z"'));
+  assert.ok(csv.includes('"nullable",""'));
+  assert.ok(csv.includes('"array","[false,0]"'));
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const route = fs.readFileSync(path.join(__dirname, '../routes/user/gdpr-rights.js'), 'utf8');
+  assert.match(route, /require\('\.\.\/\.\.\/services\/gdprCsvExport'\)/);
 });

@@ -16,17 +16,34 @@ interface RightsRequest {
   id: string;
   request_type: string;
   status: string;
-  request_data: any;
-  response_data: any;
   created_at: string;
   processed_at?: string;
-  processed_by?: string;
 }
 
+// Key the entire history view by the authenticated subject. Changing
+// accounts unmounts the previous state (including pending pagination), so a
+// late response from user A cannot render under user B's session.
 export default function GDPRRights() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl bg-white min-h-screen">
+        <h1 className="text-3xl font-bold mb-4">Storico Richieste GDPR</h1>
+        <div role="status">
+          {isLoading ? 'Verifica della sessione...' : 'Accedi per consultare le tue richieste.'}
+        </div>
+      </div>
+    );
+  }
+  return <AuthenticatedRightsHistory key={user.id} />;
+}
+
+function AuthenticatedRightsHistory() {
   const [requests, setRequests] = useState<RightsRequest[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -35,21 +52,48 @@ export default function GDPRRights() {
     loadRightsRequests();
   }, []);
 
-  const loadRightsRequests = async () => {
+  const loadRightsRequests = async (offset: number = 0) => {
+    if (offset === 0) setLoading(true);
+    else setLoadingMore(true);
+    setError(null);
     try {
-      setLoading(true);
-      const response = await apiRequest('GET', '/api/user/rights-requests');
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data.data || []);
+      const response = await apiRequest('GET',
+        '/api/user/rights-requests?limit=50&offset=' + offset);
+      if (!response.ok) throw new Error('GDPR_HISTORY_HTTP_ERROR');
+      const payload = await response.json();
+      const pagination = payload?.pagination;
+      if (payload?.success !== true || !Array.isArray(payload.data) ||
+          typeof pagination?.has_more !== 'boolean' ||
+          pagination.offset !== offset ||
+          (pagination.has_more &&
+            (!Number.isSafeInteger(pagination.next_offset) ||
+             pagination.next_offset <= offset)) ||
+          (!pagination.has_more && pagination.next_offset !== null)) {
+        throw new Error('GDPR_HISTORY_INVALID_RESPONSE');
       }
-    } catch (error) {
-      console.error('Errore nel caricamento richieste:', error);
+      const page = payload.data as RightsRequest[];
+      setRequests(previous => {
+        if (offset === 0) return page;
+        const existing = new Set(previous.map(request => request.id));
+        return [...previous, ...page.filter(request => !existing.has(request.id))];
+      });
+      setHasMore(pagination.has_more);
+      setNextOffset(pagination.next_offset);
+    } catch {
+      // Never transform an unverified or RLS-filtered response into an
+      // apparently genuine empty history. Preserve earlier verified pages
+      // on a later pagination failure and permit a retry.
+      if (offset === 0) {
+        setRequests([]);
+        setHasMore(false);
+        setNextOffset(null);
+      }
+      setError('Non è stato possibile verificare lo storico delle richieste. Riprova più tardi o contatta il DPO.');
     } finally {
-      setLoading(false);
+      if (offset === 0) setLoading(false);
+      else setLoadingMore(false);
     }
   };
-
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -121,9 +165,15 @@ export default function GDPRRights() {
           {loading ? (
             <div className="text-center py-4">Caricamento...</div>
           ) : requests.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">
-              Nessuna richiesta presente
-            </div>
+            error ? (
+              <div className="text-center py-4 text-gray-500" role="status">
+                Storico non disponibile: impossibile verificare le richieste.
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                Nessuna richiesta presente
+              </div>
+            )
           ) : (
             <div className="space-y-4">
               {requests.map((request) => (
@@ -137,12 +187,19 @@ export default function GDPRRights() {
                     {request.processed_at && (
                       <p>Data elaborazione: {new Date(request.processed_at).toLocaleString('it-IT')}</p>
                     )}
-                    {request.processed_by && (
-                      <p>Elaborato da: {request.processed_by}</p>
-                    )}
                   </div>
                 </div>
               ))}
+              {hasMore && nextOffset !== null && (
+                <button
+                  type="button"
+                  disabled={loadingMore}
+                  onClick={() => loadRightsRequests(nextOffset)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium disabled:opacity-50"
+                >
+                  {loadingMore ? 'Caricamento altre richieste...' : 'Carica altre richieste'}
+                </button>
+              )}
             </div>
           )}
         </CardContent>

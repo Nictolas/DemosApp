@@ -6,59 +6,30 @@ const AuditService = require('../../services/auditService');
 const { decrypt: decryptEmail } = require('../../utils/emailCrypto');
 // Usa crypto nativo invece di uuid
 const crypto = require('crypto');
+const { convertToCSV } = require('../../services/gdprCsvExport');
+const {readGdprPersonalDatasets} = require('../../services/gdprPersonalExportDatasets');
+const {parseRightsHistoryQuery, readRightsHistory} = require('../../services/gdprRightsHistoryService');
 
 const router = express.Router();
+
+// This router is mounted before the other /api/user routers. Protect the
+// request-history alias here too: authentication may reject it before its
+// own router is reached. Do not alter cache policy for unrelated user APIs.
+router.use([
+  '/data-export', '/account', '/limit-processing', '/object',
+  '/rights-requests', '/gdpr-requests'
+], (_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
 
 // Middleware per tutti gli endpoint
 router.use(verifyToken);
 
 /**
- * Funzione helper per convertire oggetto in CSV
- */
-function convertToCSV(data) {
-  const lines = [];
-  
-  // Funzione ricorsiva per appiattire oggetti annidati
-  function flatten(obj, prefix = '') {
-    const result = [];
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        const newKey = prefix ? `${prefix}.${key}` : key;
-        if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key]) && !(obj[key] instanceof Date)) {
-          result.push(...flatten(obj[key], newKey));
-        } else {
-          let value = obj[key];
-          if (value instanceof Date) {
-            value = value.toISOString();
-          } else if (Array.isArray(value)) {
-            value = JSON.stringify(value);
-          } else if (typeof value === 'object' && value !== null) {
-            value = JSON.stringify(value);
-          }
-          result.push({ key: newKey, value: String(value || '') });
-        }
-      }
-    }
-    return result;
-  }
-  
-  // Header
-  lines.push('Campo,Valore');
-  
-  // Dati appiattiti
-  const flattened = flatten(data);
-  flattened.forEach(item => {
-    const escapedValue = String(item.value).replace(/"/g, '""');
-    lines.push(`"${item.key}","${escapedValue}"`);
-  });
-  
-  return lines.join('\n');
-}
-
-/**
  * GET /api/user/data-export
  * Diritto di portabilità dei dati (GDPR Art. 20)
- * Esporta tutti i dati personali dell'utente in formato JSON o CSV
+ * Esporta i dati disponibili dalle sorgenti personali verificate in JSON o CSV
  * 
  * Query parameters:
  * - format: 'json' (default) o 'csv'
@@ -68,7 +39,10 @@ router.get('/data-export', async (req, res) => {
     const userId = req.userId;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
-    const format = (req.query.format || 'json').toLowerCase(); // json o csv
+    // Express query params may be arrays/objects: reject rather than 500.
+    const requestedFormat = req.query?.format;
+    const format = requestedFormat === undefined ? 'json' :
+      (typeof requestedFormat === 'string' ? requestedFormat.toLowerCase() : null);
     
     // Valida il formato
     if (format !== 'json' && format !== 'csv') {
@@ -77,8 +51,6 @@ router.get('/data-export', async (req, res) => {
         error: 'Formato non valido. Utilizzare "json" o "csv"'
       });
     }
-
-    console.log(`📤 Richiesta esportazione dati per utente: ${userId}, formato: ${format}`);
 
     // Log dell'accesso ai dati
     await AuditService.logAction({
@@ -135,34 +107,9 @@ router.get('/data-export', async (req, res) => {
     const userData = userResult.rows[0];
     if (userData.email != null) userData.email = decryptEmail(userData.email);
 
-    // 2. Recupera opinioni politiche
-    const opinionsQuery = `
-      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-             eutanasia, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
-      FROM users 
-      WHERE id = $1
-    `;
-    
-    const opinionsResult = await pool.query(opinionsQuery, [userId]);
-    const opinions = opinionsResult.rows[0] || {};
-
-    // 3. Recupera voti (anonimizzati per privacy)
-    const votesQuery = `
-      SELECT 'capo_stato' as vote_type, COUNT(*) as vote_count
-      FROM voti_capo_stato WHERE userid = $1
-      UNION ALL
-      SELECT 'referendum' as vote_type, COUNT(*) as vote_count
-      FROM voti_referendum_abrogativi WHERE userid = $1
-      UNION ALL
-      SELECT 'iniziative' as vote_type, COUNT(*) as vote_count
-      FROM voti_iniziative_popolari WHERE userid = $1
-      UNION ALL
-      SELECT 'ice' as vote_type, COUNT(*) as vote_count
-      FROM voti_ice WHERE userid = $1
-    `;
-    
-    const votesResult = await pool.query(votesQuery, [userId]);
-    const votes = votesResult.rows;
+    // Canonical, user-scoped sources; missing schema must fail the export.
+    const {opinions, votes, notifications, notificationPreferences} =
+      await readGdprPersonalDatasets(pool, userId);
 
     // 4. Recupera comunicazioni
     const communicationsQuery = `
@@ -175,19 +122,20 @@ router.get('/data-export', async (req, res) => {
     const communicationsResult = await pool.query(communicationsQuery, [userId]);
     const communications = communicationsResult.rows;
 
-    // 5. Recupera notifiche
-    const notificationsQuery = `
-      SELECT id, type, title, message, read, created_at
-      FROM user_notifications 
-      WHERE user_id = $1
-      ORDER BY created_at DESC
-    `;
-    
-    const notificationsResult = await pool.query(notificationsQuery, [userId]);
-    const notifications = notificationsResult.rows;
-
-    // 6. Recupera log di audit dell'utente
+    // 6. This API returns at most 100 audit entries. Axiom's default
+    // query window is the last 30 days, and the external archive is not
+    // independently attested here. Never label this as complete history.
     const auditLogs = await AuditService.getUserAuditLogs(userId, { limit: 100 });
+    if (!Array.isArray(auditLogs)) {
+      throw Error('GDPR_EXPORT_AUDIT_SOURCE_UNVERIFIABLE');
+    }
+    const auditLogCoverage = {
+      returned_rows: auditLogs.length,
+      per_request_limit: 100,
+      provider_window_days: process.env.AXIOM_ENABLED === 'true' ? 30 : null,
+      complete_history_verified: false,
+      note: 'Lo storico audit restituito può essere parziale; l’archivio esterno e le durate di conservazione non sono verificati da questa esportazione.'
+    };
 
     // 6b. Provider OAuth: nuovo schema user_auth_providers + fallback legacy
     const authProvidersResult = await pool.query(
@@ -213,10 +161,12 @@ router.get('/data-export', async (req, res) => {
           'voting_activity',
           'communications',
           'notifications',
+          'notification_preferences',
           'consent_history',
-          'audit_logs'
+          'audit_logs',
+          'audit_log_coverage'
         ],
-        note: 'I dati sono esportati in formato strutturato, comunemente usato e leggibile automaticamente, conforme al GDPR Art. 20.1'
+        note: 'Esportazione strutturata dei dati disponibili; i log audit possono essere parziali e le durate di conservazione richiedono verifica separata.'
       },
       personal_data: {
         basic_info: {
@@ -264,6 +214,7 @@ router.get('/data-export', async (req, res) => {
       },
       communications: communications,
       notifications: notifications,
+      notification_preferences: notificationPreferences,
       consent_history: {
         privacy_policy_consent: userData.privacy_policy_consent,
         terms_of_service_consent: userData.terms_of_service_consent,
@@ -272,11 +223,16 @@ router.get('/data-export', async (req, res) => {
         consent_user_agent: userData.consent_user_agent
       },
       audit_logs: auditLogs,
+      audit_log_coverage: auditLogCoverage,
+      // F5-17 (CHECKLIST MASTER) remains an unapproved retention gate.
+      // Never invent legal retention periods in an authenticated export.
       data_retention_info: {
-        account_data: 'Conservato fino alla cancellazione dell\'account',
-        voting_data: 'Conservato in forma anonima per 5 anni',
-        communication_data: 'Conservato per 3 anni dall\'ultima interazione',
-        technical_data: 'Conservato per 12 mesi per sicurezza e debugging'
+        status: 'verifica_necessaria',
+        account_data: null,
+        voting_data: null,
+        communication_data: null,
+        technical_data: null,
+        note: 'I tempi di conservazione per categoria non sono ancora verificati e approvati. Consultare l’informativa privacy aggiornata quando disponibile.'
       }
     };
 
@@ -297,7 +253,7 @@ router.get('/data-export', async (req, res) => {
     if (format === 'csv') {
       const csv = convertToCSV(dataExport);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${userId}-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${new Date().toISOString().split('T')[0]}.csv"`);
       res.send('\ufeff' + csv); // BOM UTF-8 per Excel
     } else {
       res.json({
@@ -308,19 +264,25 @@ router.get('/data-export', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Errore nell\'esportazione dati:', error);
+    console.error('GDPR_DATA_EXPORT_FAILED', error?.code || 'QUERY_FAILED');
     
     // Log dell'errore
-    await AuditService.logAction({
-      userId: req.userId,
-      action: 'DATA_ACCESS',
-      resource: 'user_data_export',
-      details: { request_type: 'data_export' },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
-      success: false,
-      errorMessage: error.message
-    });
+    try {
+      await AuditService.logAction({
+        userId: req.userId,
+        action: 'DATA_ACCESS',
+        resource: 'user_data_export',
+        details: { request_type: 'data_export' },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        success: false,
+        errorMessage: 'GDPR_DATA_EXPORT_FAILED'
+      });
+    } catch (_) {
+      // Secondary audit delivery must not prevent the error response or
+      // turn an export failure into an unhandled rejected route promise.
+      console.error('GDPR_DATA_EXPORT_SECONDARY_AUDIT_UNAVAILABLE');
+    }
 
     res.status(500).json({
       success: false,
@@ -334,218 +296,175 @@ router.get('/data-export', async (req, res) => {
  * Diritto di cancellazione (GDPR Art. 17)
  * Cancella l'account e tutti i dati associati
  */
-router.delete('/account', validateInput(['confirmation']), async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { confirmation } = req.body;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
-
-    if (confirmation !== 'CONFERMO_CANCELLAZIONE_ACCOUNT') {
-      return res.status(400).json({
-        success: false,
-        error: 'Conferma di cancellazione non valida'
-      });
-    }
-
-    console.log(`🗑️ Richiesta cancellazione account per utente: ${userId}`);
-
-    // Log dell'inizio cancellazione
-    await AuditService.logAction({
-      userId,
-      action: 'DATA_DELETE_REQUEST',
-      resource: 'user_account',
-      details: { request_type: 'account_deletion' },
-      ipAddress,
-      userAgent,
-      success: true
-    });
-
-    // 1. Registra la richiesta di cancellazione
-    const requestQuery = `
-      INSERT INTO user_rights_requests (user_id, request_type, request_data, status)
-      VALUES ($1, $2, $3, 'processing')
-      RETURNING id
-    `;
-    
-    const requestResult = await pool.query(requestQuery, [
-      userId,
-      'data_erasure',
-      JSON.stringify({ 
-        deletion_date: new Date().toISOString(),
-        confirmation: true 
-      })
-    ]);
-
-    const requestId = requestResult.rows[0].id;
-
-    // 2. Inizia transazione per cancellazione completa
-    await pool.query('BEGIN');
-
-    try {
-      // 3. Anonimizza i voti (mantieni per statistiche)
-      await pool.query(`
-        UPDATE voti_capo_stato 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      await pool.query(`
-        UPDATE voti_referendum_abrogativi 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      await pool.query(`
-        UPDATE voti_iniziative_popolari 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      await pool.query(`
-        UPDATE voti_ice 
-        SET userid = 'ANONYMIZED_' || userid 
-        WHERE userid = $1
-      `, [userId]);
-
-      // 4. Cancella comunicazioni
-      await pool.query('DELETE FROM comunicazioni WHERE id_utente = $1', [userId]);
-
-      // 5. Cancella notifiche
-      await pool.query('DELETE FROM user_notifications WHERE user_id = $1', [userId]);
-
-      // 6. Cancella limitazioni trattamento
-      await pool.query('DELETE FROM data_processing_limits WHERE user_id = $1', [userId]);
-
-      // 7. Cancella richieste diritti
-      await pool.query('DELETE FROM user_rights_requests WHERE user_id = $1', [userId]);
-
-      // 8. Cancella log di audit
-      // NOTA: Con Axiom abilitato, i log vengono conservati su Axiom per conformità GDPR
-      // Axiom non supporta DELETE diretto di record, quindi i log vengono mantenuti
-      // Questo è conforme al GDPR che richiede conservazione dei log per sicurezza
-      if (process.env.AXIOM_ENABLED !== 'true') {
-        await pool.query('DELETE FROM audit_logs WHERE user_id = $1', [userId]);
-      } else {
-        console.log(`ℹ️  Log audit per utente ${userId} conservati su Axiom per conformità GDPR`);
-      }
-
-      // 9. Cancella account utente (google_sub, apple_user_id sono in users, eliminati con la riga)
-      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-
-      // 10. Conferma transazione
-      await pool.query('COMMIT');
-
-      // 11. Aggiorna stato richiesta
-      await pool.query(`
-        UPDATE user_rights_requests 
-        SET status = 'completed', processed_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-      `, [requestId]);
-
-      console.log(`✅ Account ${userId} cancellato con successo`);
-
-      res.json({
-        success: true,
-        message: 'Account e tutti i dati associati sono stati cancellati con successo',
-        deletion_date: new Date().toISOString()
-      });
-
-    } catch (error) {
-      // Rollback in caso di errore
-      await pool.query('ROLLBACK');
-      throw error;
-    }
-
-  } catch (error) {
-    console.error('❌ Errore nella cancellazione account:', error);
-    
-    // Log dell'errore
-    await AuditService.logAction({
-      userId: req.userId,
-      action: 'DATA_DELETE_REQUEST',
-      resource: 'user_account',
-      details: { request_type: 'account_deletion' },
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
-      success: false,
-      errorMessage: error.message
-    });
-
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server durante la cancellazione dell\'account'
-    });
-  }
-});
+// The old deletion endpoint used pool.query('BEGIN') across pooled connections,
+// bypassed password verification and never recorded the GDPR erasure ledger.
+// It cannot safely forward the old confirmation-only payload to the canonical
+// route, which requires stronger proof. Fail closed without touching any data.
+router.delete('/account', (_req, res) => res.status(410).json({
+  success: false,
+  error: 'Percorso di cancellazione obsoleto. Usa la cancellazione account dalle Impostazioni.',
+  canonical_path: '/api/user/delete-account'
+}));
 
 /**
  * PUT /api/user/limit-processing
  * Diritto di limitazione del trattamento (GDPR Art. 18)
  * Limita il trattamento di specifiche categorie di dati
  */
-router.put('/limit-processing', validateInput(['limited', 'categories']), async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { limited, categories, reason } = req.body;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
-
-    console.log(`🔒 Richiesta limitazione trattamento per utente: ${userId}`);
-
-    // Valida le categorie
-    const validCategories = [
-      'personal_data', 'political_opinions', 'voting_data', 
-      'communication_data', 'technical_data', 'marketing_data'
-    ];
-    
-    const invalidCategories = categories.filter(cat => !validCategories.includes(cat));
-    if (invalidCategories.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: `Categorie non valide: ${invalidCategories.join(', ')}`
-      });
-    }
-
-    // Imposta le limitazioni
-    const result = await AuditService.setProcessingLimits(
-      userId, 
-      limited, 
-      categories, 
-      reason
-    );
-
-    // Registra la richiesta
-    const requestQuery = `
-      INSERT INTO user_rights_requests (user_id, request_type, request_data, status)
-      VALUES ($1, $2, $3, 'completed')
-      RETURNING id
-    `;
-    
-    await pool.query(requestQuery, [
-      userId,
-      'limit_processing',
-      JSON.stringify({ 
-        limited, 
-        categories, 
-        reason,
-        request_date: new Date().toISOString()
-      })
-    ]);
-
-    res.json({
-      success: true,
-      message: limited ? 'Limitazioni di trattamento applicate' : 'Limitazioni di trattamento rimosse',
-      data: result
-    });
-
-  } catch (error) {
-    console.error('❌ Errore nella limitazione trattamento:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server durante la limitazione del trattamento'
+router.put('/limit-processing', validateInput(['limited']), async (req, res) => {
+  const userId = req.userId || req.user?.id;
+  const { limited, categories, reason = null } = req.body || {};
+  const validCategories = new Set([
+    'personal_data', 'political_opinions', 'voting_data',
+    'communication_data', 'technical_data', 'marketing_data'
+  ]);
+  if (!userId || typeof limited !== 'boolean' ||
+      !Array.isArray(categories) || (limited && categories.length === 0) ||
+      categories.length > validCategories.size ||
+      categories.some(cat => typeof cat !== 'string' || !validCategories.has(cat)) ||
+      new Set(categories).size !== categories.length ||
+      (reason !== null && (typeof reason !== 'string' || reason.length > 1000))) {
+    return res.status(400).json({
+      success: false, error: 'Parametri della limitazione non validi'
     });
   }
+
+  // A retry with the SAME Idempotency-Key must never apply an old
+  // restriction again after a newer user action. A conflicting receipt is
+  // resolved ONLY after rolling back the whole processing-limit update.
+  // Legacy clients without this header retain their existing semantics.
+  const header = req.headers?.['idempotency-key'];
+  if (header !== undefined && (
+    typeof header !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(header)
+  )) {
+    return res.status(400).json({
+      success: false, error: 'Idempotency-Key non valida: serve un UUID v4'
+    });
+  }
+  const requestId = header === undefined ? crypto.randomUUID() : header.toLowerCase();
+  const receiptPayload = { limited, categories, reason };
+  let client;
+  let inTransaction = false;
+  let applied;
+  let receipt;
+  let replay = false;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    inTransaction = true;
+    const updated = await client.query(
+      'INSERT INTO public.data_processing_limits ' +
+      '(user_id, processing_limited, limited_categories, reason) ' +
+      'VALUES ($1, $2, $3, $4) ' +
+      'ON CONFLICT (user_id) DO UPDATE SET ' +
+      'processing_limited = EXCLUDED.processing_limited, ' +
+      'limited_categories = EXCLUDED.limited_categories, ' +
+      'reason = EXCLUDED.reason, updated_at = CURRENT_TIMESTAMP ' +
+      'RETURNING *',
+      [userId, limited, categories, reason]
+    );
+    applied = updated.rows?.[0];
+    if (updated.rowCount !== 1 || !applied?.id ||
+        applied.processing_limited !== limited) {
+      throw Error('GDPR_PROCESSING_LIMIT_NOT_CONFIRMED');
+    }
+    const recorded = await client.query(
+      'INSERT INTO public.user_rights_requests ' +
+      '(id, user_id, request_type, request_data, status) ' +
+      "VALUES ($1::uuid, $2, 'limit_processing', $3::jsonb, 'completed') " +
+      'ON CONFLICT (id) DO NOTHING ' +
+      'RETURNING id, user_id, request_type, status',
+      [requestId, userId, JSON.stringify({
+        ...receiptPayload, request_date: new Date().toISOString()
+      })]
+    );
+    if (recorded.rowCount === 0 && recorded.rows?.length === 0) {
+      // The UPDATE above MUST NOT survive a repeated or colliding key.
+      // PostgreSQL's unique constraint waits for an in-flight winner.
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      replay = true;
+    } else {
+      receipt = recorded.rows?.[0];
+      if (recorded.rowCount !== 1 || !receipt?.id ||
+          String(receipt.user_id) !== String(userId) ||
+          receipt.request_type !== 'limit_processing' ||
+          receipt.status !== 'completed' ||
+          String(receipt.id).toLowerCase() !== requestId) {
+        throw Error('GDPR_PROCESSING_RIGHTS_RECEIPT_NOT_CONFIRMED');
+      }
+      await client.query('COMMIT');
+      inTransaction = false;
+    }
+  } catch (error) {
+    if (inTransaction && client) {
+      try { await client.query('ROLLBACK'); }
+      catch (_) { /* The operation remains unconfirmed. */ }
+    }
+    console.error('Errore nella limitazione trattamento:',
+      error?.code || 'QUERY_FAILED');
+    return res.status(503).json({
+      success: false,
+      error: 'Modifica non confermata. Controlla lo stato delle richieste prima di riprovare.'
+    });
+  } finally {
+    if (client) client.release();
+  }
+
+  if (replay) {
+    // A previous receipt proves that a particular request was committed,
+    // not that its restriction remains the CURRENT setting. Never return
+    // the rolled-back "applied" row as if it were the current state.
+    try {
+      const previous = await pool.query(
+        'SELECT id, status FROM public.user_rights_requests ' +
+        "WHERE id=$1::uuid AND user_id=$2 AND request_type='limit_processing' " +
+        "AND request_data - 'request_date' = $3::jsonb LIMIT 1",
+        [requestId, userId, JSON.stringify(receiptPayload)]
+      );
+      const stored = previous.rows?.[0];
+      if (!stored?.id) {
+        return res.status(409).json({
+          success: false, error: 'Chiave già utilizzata o richiesta non verificabile'
+        });
+      }
+      return res.json({
+        success: true, replayed: true,
+        message: 'Richiesta già registrata. Verifica lo stato attuale delle limitazioni.',
+        request_id: stored.id, request_status: stored.status, data: null
+      });
+    } catch (error) {
+      console.error('GDPR_PROCESSING_LIMIT_RETRY_LOOKUP_FAILED',
+        error?.code || 'QUERY_FAILED');
+      return res.status(503).json({
+        success: false, error: 'Ricevuta non verificabile. Controlla lo storico prima di riprovare.'
+      });
+    }
+  }
+
+  // Delivering secondary audit logs cannot turn a committed receipt into
+  // a false HTTP failure that could cause an unsafe retry.
+  try {
+    await AuditService.logAction({
+      userId,
+      action: limited ? 'PROCESSING_LIMITED' : 'PROCESSING_UNLIMITED',
+      resource: 'data_processing_limits',
+      resourceId: applied.id,
+      details: { limited, categories },
+      ipAddress: req.ip || req.connection?.remoteAddress,
+      userAgent: req.get?.('User-Agent'),
+      success: true
+    });
+  } catch (_) {
+    console.error('GDPR_PROCESSING_LIMIT_SECONDARY_AUDIT_UNAVAILABLE');
+  }
+  return res.json({
+    success: true,
+    message: limited ? 'Limitazioni di trattamento applicate' :
+      'Limitazioni di trattamento rimosse',
+    request_id: receipt.id, data: applied
+  });
 });
 
 /**
@@ -554,119 +473,129 @@ router.put('/limit-processing', validateInput(['limited', 'categories']), async 
  * Oppone al trattamento per motivi legittimi
  */
 router.post('/object', validateInput(['reason', 'categories']), async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { reason, categories } = req.body;
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
-
-    console.log(`🚫 Richiesta opposizione trattamento per utente: ${userId}`);
-
-    // Valida le categorie
-    const validCategories = [
-      'personal_data', 'political_opinions', 'voting_data', 
-      'communication_data', 'technical_data'
-    ];
-    
-    const invalidCategories = categories.filter(cat => !validCategories.includes(cat));
-    if (invalidCategories.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: `Categorie non valide: ${invalidCategories.join(', ')}`
-      });
-    }
-
-    // Registra l'opposizione
-    const requestQuery = `
-      INSERT INTO user_rights_requests (user_id, request_type, request_data, status)
-      VALUES ($1, $2, $3, 'pending')
-      RETURNING id
-    `;
-    
-    const requestResult = await pool.query(requestQuery, [
-      userId,
-      'object_processing',
-      JSON.stringify({ 
-        reason, 
-        categories,
-        request_date: new Date().toISOString()
-      })
-    ]);
-
-    const requestId = requestResult.rows[0].id;
-
-    // Log dell'opposizione
-    await AuditService.logAction({
-      userId,
-      action: 'PROCESSING_OBJECTION',
-      resource: 'user_rights_requests',
-      resourceId: requestId,
-      details: { reason, categories },
-      ipAddress,
-      userAgent,
-      success: true
-    });
-
-    res.json({
-      success: true,
-      message: 'Opposizione al trattamento registrata. Verrà esaminata entro 30 giorni.',
-      request_id: requestId
-    });
-
-  } catch (error) {
-    console.error('❌ Errore nell\'opposizione trattamento:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server durante la registrazione dell\'opposizione'
+  const userId = req.userId || req.user?.id;
+  const {reason, categories} = req.body || {};
+  const allowed = new Set([
+    'personal_data', 'political_opinions', 'voting_data',
+    'communication_data', 'technical_data'
+  ]);
+  if (!userId) {
+    return res.status(401).json({success:false,error:'Autenticazione richiesta'});
+  }
+  if (typeof reason !== 'string' || !reason.trim() || reason.length > 1000 ||
+      !Array.isArray(categories) || categories.length < 1 ||
+      categories.length > allowed.size ||
+      categories.some(category => typeof category !== 'string' || !allowed.has(category)) ||
+      new Set(categories).size !== categories.length) {
+    return res.status(400).json({
+      success:false,error:'Motivo o categorie della richiesta non validi'
     });
   }
+  // The same browser retry key must correspond to exactly one objection.
+  // Requests without this optional header keep the legacy behavior.
+  const header = req.headers?.['idempotency-key'];
+  if (header !== undefined && (
+    typeof header !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(header)
+  )) {
+    return res.status(400).json({
+      success:false,error:'Idempotency-Key non valida: serve un UUID v4'
+    });
+  }
+  const requestId = header === undefined ? crypto.randomUUID() : header.toLowerCase();
+  const payload = {reason:reason.trim(),categories};
+  let stored;
+  let replay = false;
+  try {
+    const saved = await pool.query(
+      'INSERT INTO public.user_rights_requests ' +
+      '(id, user_id, request_type, request_data, status) ' +
+      "VALUES ($1::uuid, $2, 'object_processing', $3::jsonb, 'pending') " +
+      'ON CONFLICT (id) DO NOTHING RETURNING id, user_id, request_type, status',
+      [requestId, userId, JSON.stringify({
+        ...payload,request_date:new Date().toISOString()
+      })]
+    );
+    stored = saved.rows?.[0];
+    replay = !stored;
+    if (replay) {
+      // A separate READ COMMITTED statement can see the unique-key winner
+      // after PostgreSQL finishes waiting for its concurrent transaction.
+      const previous = await pool.query(
+        'SELECT id, status FROM public.user_rights_requests ' +
+        "WHERE id=$1::uuid AND user_id=$2 AND request_type='object_processing' " +
+        "AND request_data - 'request_date' = $3::jsonb LIMIT 1",
+        [requestId,userId,JSON.stringify(payload)]
+      );
+      stored = previous.rows?.[0];
+      if (!stored?.id) {
+        return res.status(409).json({
+          success:false,error:'Chiave già utilizzata o richiesta non verificabile'
+        });
+      }
+    } else if (saved.rowCount !== 1 || !stored?.id ||
+        String(stored.id).toLowerCase() !== requestId ||
+        String(stored.user_id) !== String(userId) ||
+        stored.request_type !== 'object_processing' ||
+        stored.status !== 'pending') {
+      throw Error('GDPR_OBJECTION_RECEIPT_NOT_CONFIRMED');
+    }
+  } catch (error) {
+    console.error('GDPR_OBJECTION_PERSIST_FAILED', error?.code || 'QUERY_FAILED');
+    return res.status(503).json({
+      success:false,
+      error:'Registrazione non confermata. Controlla lo storico prima di riprovare.'
+    });
+  }
+  // The durable receipt is authoritative; audit delivery must not cause
+  // duplicate objections or false HTTP failures. Never re-log a retry.
+  if (!replay) {
+    try {
+      await AuditService.logAction({
+        userId, action:'PROCESSING_OBJECTION', resource:'user_rights_requests',
+        resourceId:stored.id, details:{categories},
+        ipAddress:req.ip || req.connection?.remoteAddress,
+        userAgent:req.get?.('User-Agent'), success:true
+      });
+    } catch (_) {
+      console.error('GDPR_OBJECTION_SECONDARY_AUDIT_FAILED');
+    }
+  }
+  return res.json({
+    success:true,
+    message:replay ? 'Opposizione già registrata. Controlla lo stato nello storico.' :
+      'Opposizione al trattamento registrata. Verrà esaminata entro 30 giorni.',
+    request_id:stored.id,
+    ...(replay ? {replayed:true,request_status:stored.status} : {})
+  });
 });
 
 /**
  * GET /api/user/rights-requests
  * Ottiene lo stato delle richieste diritti GDPR dell'utente
  */
+// GET /api/user/rights-requests: same verified page contract as the
+// /gdpr-requests alias. No DPO-only payload and no false total count.
 router.get('/rights-requests', async (req, res) => {
-  try {
-    const userId = req.userId;
-    const { status, limit = 50, offset = 0 } = req.query;
-
-    let query = `
-      SELECT id, request_type, status, request_data, response_data, 
-             created_at, processed_at, processed_by
-      FROM user_rights_requests 
-      WHERE user_id = $1
-    `;
-    
-    const values = [userId];
-    let paramCount = 1;
-
-    if (status) {
-      paramCount++;
-      query += ` AND status = $${paramCount}`;
-      values.push(status);
-    }
-
-    query += ` ORDER BY created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-    values.push(parseInt(limit), parseInt(offset));
-
-    const result = await pool.query(query, values);
-
-    res.json({
-      success: true,
-      data: result.rows,
-      pagination: {
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        total: result.rows.length
-      }
+  const userId = req.userId || req.user?.id;
+  if (!userId) {
+    return res.status(401).json({success:false,error:'Autenticazione richiesta'});
+  }
+  const options = parseRightsHistoryQuery(req.query || {});
+  if (!options) {
+    return res.status(400).json({
+      success:false,error:'Parametri di paginazione non validi'
     });
-
-  } catch (error) {
-    console.error('❌ Errore nel recupero richieste diritti:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
+  }
+  try {
+    const history = await readRightsHistory(pool, userId, options);
+    return res.json({success:true, ...history});
+  } catch(error) {
+    // Database/visibility errors must not become a fabricated empty history.
+    console.error('Errore recupero storico diritti GDPR:',error?.code||'QUERY_FAILED');
+    return res.status(503).json({
+      success:false,
+      error:'Impossibile verificare lo storico delle richieste in questo momento'
     });
   }
 });
