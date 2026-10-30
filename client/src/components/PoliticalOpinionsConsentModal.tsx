@@ -38,22 +38,31 @@ export function PoliticalOpinionsConsentModal({
       });
       return response.data;
     },
-    onSuccess: (data) => {
-      // Invalida la cache per aggiornare lo stato del consenso
-      queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
-      // Invalidate the short-lived profile consent snapshot immediately.
-      // Consent epoch changes must never reuse the prior political answers.
+    onSuccess: async () => {
+      // The server has granted a new consent epoch. Stop old personal reads
+      // before allowing the new session to open political opinion pages.
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['opinioniQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['statsOpinionQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['profilePolitical'] }),
+        queryClient.cancelQueries({ queryKey: ['profileFull'] }),
+      ]);
+      queryClient.removeQueries({ queryKey: ['opinioniQuestions'] });
+      queryClient.removeQueries({ queryKey: ['statsOpinionQuestions'] });
       queryClient.removeQueries({ queryKey: ['profilePolitical'] });
-      void clearAllEncryptedProfiles();
       queryClient.removeQueries({ queryKey: ['profileFull'] });
+      // IndexedDB writes may already be in flight: wait for the vault's
+      // write barrier and wipe before invoking navigation callbacks.
+      await clearAllEncryptedProfiles();
+      queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
       queryClient.invalidateQueries({ queryKey: ['profileConsent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      
+
       toast({
         title: "Consenso salvato",
         description: "Puoi ora esprimere le tue opinioni politiche sulla piattaforma.",
       });
-      
+
       onConsentGranted?.();
       onOpenChange(false);
     },
