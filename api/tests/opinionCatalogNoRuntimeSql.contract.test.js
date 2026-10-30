@@ -8,6 +8,11 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const scanDirs=['routes','services','utils','middleware','jobs','controllers'];
+// One-time maintenance script that intentionally deletes historical duplicates
+// and creates an index on the legacy table. It is never imported by the API.
+// Exclude this exact path, not the whole utils directory: runtime helpers
+// must still be checked whenever they are added or changed.
+const maintenanceOnly=new Set(['utils/add-unique-constraint-opinioni.cjs']);
 
 function allRuntimeModules(dir){
   if(!fs.existsSync(dir))return [];
@@ -17,7 +22,8 @@ function allRuntimeModules(dir){
     if(entry.isDirectory()){
       if(!['node_modules','dist','.git','test','tests','__tests__'].includes(entry.name))
         files.push(...allRuntimeModules(full));
-    }else if(entry.isFile() && /\.(?:cjs|mjs|js)$/.test(entry.name)){
+    }else if(entry.isFile() && /\.(?:cjs|mjs|js)$/.test(entry.name) &&
+      !maintenanceOnly.has(path.relative(root,full).split(path.sep).join('/'))){
       files.push(full);
     }
   }
@@ -42,6 +48,19 @@ test('every runtime API module uses release-managed catalog, not old table',()=>
     assert.doesNotMatch(source,/\bopinioni_domande\b/i,
       'Runtime catalog SQL/reference is forbidden: '+path.relative(root,file));
   }
+});
+
+test('legacy maintenance script is explicitly excluded, but runtime utils remain scanned',()=>{
+  const maintenance=path.join(root,'utils/add-unique-constraint-opinioni.cjs');
+  const scanned=allRuntimeModules(path.join(root,'utils'));
+  if(fs.existsSync(maintenance)){
+    assert.match(fs.readFileSync(maintenance,'utf8'),/DELETE FROM opinioni_domande/);
+    assert.ok(!scanned.includes(maintenance),
+      'One-off migration must not be reported as an active API module');
+  }
+  // Excluding the maintenance script must NOT blanket-exclude utils.
+  assert.ok(scanned.some(file=>file.endsWith('opinionStatsColumns.js')),
+    'Production utils must remain covered by the legacy-SQL guard');
 });
 
 test('the one-time read-only cutover preflight remains the explicit exception',()=>{
