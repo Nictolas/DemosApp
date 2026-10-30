@@ -103,7 +103,9 @@ router.get('/opinioni-list', async (req, res) => {
     
     const user = userResult.rows[0];
     
-    if (user.status !== 'a') {
+    // Canonical active status is 'A'; retain legacy lowercase 'a' while
+    // migration finishes. Never permit other statuses to read opinions.
+    if (user.status !== 'A' && user.status !== 'a') {
       return res.status(401).json({
         success: false,
         error: 'Account non attivo',
