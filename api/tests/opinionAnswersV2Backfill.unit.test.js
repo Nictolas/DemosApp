@@ -79,3 +79,25 @@ test('metadata inventory rejects wrong column types, including historical ones',
   assert.throws(()=>assertLegacySchemaInventory(ids,bad),/Non-TEXT/);
   assert.throws(()=>assertLegacySchemaInventory(ids,columns.map(c=>({column_name:c.column_name}))),/data_type/);
 });
+
+test('optional operational columns are not mistaken for archived opinions',()=>{
+  const columns=[
+    {column_name:'user_id',data_type:'uuid'},
+    {column_name:'fonti_opinioni',data_type:'jsonb'},
+    {column_name:'id',data_type:'bigint'},
+    {column_name:'created_at',data_type:'timestamp with time zone'},
+    {column_name:'updated_at',data_type:'timestamp with time zone'},
+    ...ids.map(id=>({column_name:id,data_type:'text'}))
+  ];
+  const coverage=assertLegacySchemaInventory(ids,columns);
+  assert.equal(coverage.coveredIds,94);
+  assert.equal(coverage.serviceColumns.length,5);
+  const unexpected=columns.concat({column_name:'historical_opinion_new',data_type:'text'});
+  assert.throws(()=>assertLegacySchemaInventory(ids,unexpected),/historical ID manifest/);
+  const wrong=columns.map(c=>c.column_name==='fonti_opinioni'
+    ? {...c,data_type:'text'} : c);
+  assert.throws(()=>assertLegacySchemaInventory(ids,wrong),/service column type/);
+  const wrongKey=columns.map(c=>c.column_name==='user_id'
+    ? {...c,data_type:'text'} : c);
+  assert.throws(()=>assertLegacySchemaInventory(ids,wrongKey),/service column type/);
+});
