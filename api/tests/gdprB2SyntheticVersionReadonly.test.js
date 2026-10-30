@@ -29,7 +29,8 @@ const base = () => ({
 });
 function fake({mode = 'COMPLIANCE', until = '2026-11-15T12:00:00Z',
   payload = fixture, contentLength = payload.length, error = null,
-  versionId = '4_z_synthetic-version-123', deleteMarker = false,
+  versionId = '4_z_synthetic-version-123', omitVersionId = false,
+  deleteMarker = false,
   objectLockMode = undefined, objectLockUntil = undefined} = {}) {
   const calls = [];
   const client = {
@@ -41,7 +42,8 @@ function fake({mode = 'COMPLIANCE', until = '2026-11-15T12:00:00Z',
         return {Retention:{Mode:mode,RetainUntilDate:until}};
       }
       if(cmd instanceof GetObjectCommand) {
-        return {ContentLength:contentLength,VersionId:versionId,
+        return {ContentLength:contentLength,
+          ...(omitVersionId ? {} : {VersionId:versionId}),
           DeleteMarker:deleteMarker,ObjectLockMode:objectLockMode,
           ObjectLockRetainUntilDate:objectLockUntil,
           Body:Readable.from([payload])};
@@ -157,10 +159,11 @@ test('fails closed on altered bytes, oversized object, invalid length or provide
 
 
 test('rejects wrong or absent version identity even when fixture bytes are exact',async()=>{
-  for(const versionId of [undefined,null,'other-version','']) {
-    const client=fake({versionId});
+  for(const scenario of [{omitVersionId:true},{versionId:null},
+    {versionId:'other-version'},{versionId:''}]) {
+    const client=fake(scenario);
     const output=await verifySyntheticVersion({env:base(),clock,makeClient:()=>client});
-    assert.equal(output.status,CLOSED,String(versionId));
+    assert.equal(output.status,CLOSED,JSON.stringify(scenario));
     assert.equal(output.syntheticVersionVerified,false);
     assert.equal(output.recoveryReady,false);
     assert.deepEqual(client.calls.map(x=>x.name),[
