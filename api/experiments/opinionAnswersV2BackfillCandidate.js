@@ -29,11 +29,12 @@ function validateLegacyIds(ids) {
 // answers. These names are an explicit allowlist, NEVER a broad prefix rule.
 // Unknown columns remain a hard failure instead of being silently dropped.
 const SERVICE_COLUMNS=new Set([
-  'user_id','fonti_opinioni','id','created_at','updated_at'
+  'user_id','fonti_opinioni','answers_extra','id','created_at','updated_at'
 ]);
 const SERVICE_TYPES=Object.freeze({
   user_id: ['uuid'],
   fonti_opinioni: ['jsonb'],
+  answers_extra: ['jsonb'],
   id: ['uuid','integer','bigint'],
   created_at: ['timestamp with time zone','timestamp without time zone'],
   updated_at: ['timestamp with time zone','timestamp without time zone']
