@@ -366,6 +366,25 @@ class PrivacyErasureLedgerService {
       let details;
       try { details = JSON.stringify(row.details); } catch (_) { throw invalid(); }
       if (typeof details !== 'string' || details[0] !== '{') throw invalid();
+
+      // A captured SQL event is not automatically a valid immutable archive.
+      // Validate the exact JSONB-shaped payload and lossless timestamp against
+      // the B2 canonical format BEFORE the first import INSERT, even if the
+      // live outbox switch is OFF. An oversized or malformed historic event
+      // must stop operator recovery rather than be silently imported as a
+      // ledger row that could never be exported and independently verified.
+      // No B2 client or network connection is constructed by this formatter.
+      try {
+        const { normalizeEvent } = require('./privacyErasureB2Journal');
+        normalizeEvent({
+          event_key: row.event_key,
+          subject_user_id: row.subject_user_id,
+          event_type: row.event_type,
+          occurred_at: timestamp,
+          details: JSON.parse(details)
+        });
+      } catch (_) { throw invalid(); }
+
       seenKeys.add(row.event_key);
       prepared.push([
         row.event_key, row.subject_user_id, row.event_type, timestamp, details
