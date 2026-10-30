@@ -112,3 +112,34 @@ test('matching fails closed if database returns an unrequested subject or duplic
     [],['a','a'],['opinione_0'],published,legacy
   ),/unique authorized/);
 });
+
+
+const {
+  getOpinionCompletion,calculatePoliticalMatch
+}=require('../utils/politicalMatching');
+
+test('real political matching scorer includes new Opinion and ignores archived keys',()=>{
+  const ids=['opinione_0','opinione_94'];
+  const rows=[
+    {user_id:'citizen',opinione_0:'f',
+      answers_extra:{opinione_94:'c',opinione_archived:'i'}},
+    {user_id:'representative',opinione_0:'f',
+      answers_extra:{opinione_94:'c',opinione_archived:'f'}}
+  ];
+  const maps=projectHybridMatchingMaps(rows,['citizen','representative'],
+    ids,published,legacy);
+  const citizen=maps.get('citizen');
+  const representative=maps.get('representative');
+  assert.equal(getOpinionCompletion(ids,citizen).isComplete,true);
+  assert.deepEqual(calculatePoliticalMatch(ids,citizen,representative),{
+    rawScore:6,maxScore:6,compatibilityPercentage:100,
+    knownPositions:2,totalOpinions:2,coveragePercentage:100,
+    clearAgreements:2,uncertainAgreements:0,disagreements:0,
+    mixedUncertainty:0,targetMissing:0,sharedOpinions:2
+  });
+  const missing=projectHybridMatchingMaps([
+    {user_id:'citizen',opinione_0:'f',answers_extra:{}}
+  ],['citizen'],ids,published,legacy).get('citizen');
+  assert.deepEqual(getOpinionCompletion(ids,missing).missingOpinionIds,['opinione_94']);
+  assert.equal(getOpinionCompletion(ids,missing).isComplete,false);
+});
