@@ -87,3 +87,8 @@ test('consent grant does not use fire-and-forget encrypted deletion', () => {
   assert.match(source, /onSuccess:\s*async\s*\(/);
   assert.match(source, /await\s+clearAllEncryptedProfiles\s*\(/);
 });
+
+test('consent dialog does not promise unverified complete deletion of backups', () => {
+  assert.doesNotMatch(source, /eliminate completamente/);
+  assert.match(source, /copie di sicurezza seguono procedure distinte/);
+});
