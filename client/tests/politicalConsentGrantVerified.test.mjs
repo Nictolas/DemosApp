@@ -154,6 +154,12 @@ test('all opinion editors defer pending save until the verified owner and epoch 
     assert.match(source, /isSessionVerified && verifiedPoliticalConsent\?\.granted !== true/);
     assert.match(source, /!isSessionVerified \|\| !hasConsent \|\| !canReadOpinions/);
     assert.match(source, /setGrantConfirmed\(true\)/);
+    // New users must be able to reach the optional consent form without
+    // fetching political answers before authorization.
+    assert.match(source, /isSessionVerified && verifiedPoliticalConsent\?\.granted === false \? \(/);
+    assert.match(source, /onClick=\{\(\) => setShowConsentDialog\(true\)\}/);
+    assert.match(source, /Leggi e scegli se dare il consenso/);
+    assert.match(source, /if \(pendingOpinionsToSave\) setGrantConfirmed\(true\)/);
     // The selected pending answer must survive the post-grant category reload.
     assert.match(source, /\.\.\.opinions, \.\.\.pendingOpinionsToSave\.answers/);
     // Failed POST must leave the selected answers in React state for a retry.
