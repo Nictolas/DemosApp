@@ -41,6 +41,9 @@ on:
       - 'api/tests/gdprB2DurablePutClaimPg17Synthetic.test.js'
       - 'api/tests/gdprB2StaleSqlWitnessGateSynthetic.test.js'
       - 'api/tests/gdprB2WitnessSingleUseReservationSynthetic.test.js'
+      - 'api/tests/fixtures/gdprB2MonotonicAnchorSynthetic.js'
+      - 'api/tests/gdprB2MonotonicAnchorSynthetic.test.js'
+      - 'api/docs/gdpr-b2-monotonic-anchor-rollback-synthetic-20261030.md'
       - 'api/docs/gdpr-b2-one-shot-witness-reservation-synthetic-20261030.md'
       - 'api/docs/gdpr-b2-durable-claim-prototype-20261030.md'
       - 'api/docs/gdpr-b2-head-put-uncertain-outcome-20261030.md'
@@ -138,6 +141,8 @@ jobs:
           node --test --test-concurrency=1 api/tests/gdprB2DurablePutClaimPg17Synthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprB2StaleSqlWitnessGateSynthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprB2WitnessSingleUseReservationSynthetic.test.js
+          node --check api/tests/fixtures/gdprB2MonotonicAnchorSynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprB2MonotonicAnchorSynthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprB2JournalBoundedReadbackIsolated.test.js
           node --check api/scripts/attest-gdpr-b2-bucket-readonly.js
           node --test --test-concurrency=1 api/tests/gdprB2ReadonlyBucketMetadata.test.js
