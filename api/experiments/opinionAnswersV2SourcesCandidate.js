@@ -15,6 +15,7 @@ const ID=/^[a-z][a-z0-9_]{0,62}$/;
 const MAX_IDS=512;
 const MAX_SOURCE_BYTES=8192;
 const hasOwn=(obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
+const {validateLegacyIds,legacyRowToAnswers} = require('./opinionAnswersV2BackfillCandidate');
 
 function plainRecord(x) {
   return x!==null && typeof x==='object' &&
@@ -43,6 +44,21 @@ function validateSourceMap(value,{historicalIds}={}) {
     result[id]=source;
   }
   return result;
+}
+
+/**
+ * A complete v2 backfill must copy BOTH the answer map and its sources.
+ * This is an offline candidate only: schema preflight, user lock, consent
+ * and restore/erasure journal checks are separate mandatory blockers.
+ */
+function legacyRowToOpinionMaps(legacyRow,immutableHistoricalIds) {
+  const ids=validateLegacyIds(immutableHistoricalIds);
+  if(!legacyRow || !Object.prototype.hasOwnProperty.call(legacyRow,'fonti_opinioni')) {
+    throw new Error('Missing legacy fonti_opinioni column in backfill row');
+  }
+  const answers=legacyRowToAnswers(legacyRow,ids);
+  const sources=validateSourceMap(legacyRow.fonti_opinioni,{historicalIds:new Set(ids)});
+  return {answers,sources};
 }
 
 function planSourcePatch(stored,patch,publishedIds) {
@@ -107,5 +123,5 @@ function projectSourcesForProfile(published,storedSources) {
 }
 
 module.exports={
-  validateSourceMap,planSourcePatch,projectSourcesForProfile,SQL
+  validateSourceMap,legacyRowToOpinionMaps,planSourcePatch,projectSourcesForProfile,SQL
 };
