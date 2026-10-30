@@ -36,6 +36,12 @@ jobs:
       OPINION_V2_PG_CI_URL: postgresql://opinion_ci:synthetic-only@127.0.0.1:5432/opinion_answers_ci
     steps:
       - uses: actions/checkout@v4
+      - name: Read pinned prototype codecs from PR #247 (no source copied)
+        uses: actions/checkout@v4
+        with:
+          ref: 17c935e5ab6e7500297d14e4e3b9c2e822a1a459
+          path: _ci_op247
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
