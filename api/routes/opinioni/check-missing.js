@@ -8,8 +8,16 @@ const {
 
 const router = express.Router();
 
-// GET /api/opinioni/check-missing-all — tutti i gradi Preferiti in una round-trip
-router.get('/check-missing-all', verifyToken, async (req, res) => {
+// Completion results reveal whether a person has recorded political opinions.
+// Never allow browser or intermediary caches to persist them, including 401,
+// 400 and 500 responses. Run before authentication.
+function noStorePoliticalCompletion(_req, res, next) {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}
+
+// GET /api/opinioni/check-missing-all — tutti i gradi Preferiti in una richiesta HTTP
+router.get('/check-missing-all', noStorePoliticalCompletion, verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const colonneEsistenti = await getColonneOpinioniRisposte(pool);
@@ -47,7 +55,7 @@ router.get('/check-missing-all', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore check-missing-all:', error);
+    console.error('Errore interno nella verifica delle Opinioni mancanti');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -57,14 +65,10 @@ router.get('/check-missing-all', verifyToken, async (req, res) => {
 });
 
 // GET /api/opinioni/check-missing/:grado - Controlla opinioni mancanti per grado
-router.get('/check-missing/:grado', verifyToken, async (req, res) => {
+router.get('/check-missing/:grado', noStorePoliticalCompletion, verifyToken, async (req, res) => {
   try {
     const { grado } = req.params;
     const userId = req.user.id;
-
-    console.log(
-      `🔍 GET /api/opinioni/check-missing/${grado} - Controllo opinioni mancanti per utente ${userId}`
-    );
 
     const colonneEsistenti = await getColonneOpinioniRisposte(pool);
 
@@ -81,20 +85,12 @@ router.get('/check-missing/:grado', verifyToken, async (req, res) => {
       throw e;
     }
 
-    console.log(`📊 Risultati per grado ${grado}:`, {
-      totaleOpinioni: data.totaleOpinioni,
-      opinioniRisposte: data.opinioniRisposte,
-      opinioniMancanti: data.opinioniMancanti,
-      percentualeCompletamento: data.percentualeCompletamento,
-      isComplete: data.isComplete
-    });
-
     res.json({
       success: true,
       data
     });
   } catch (error) {
-    console.error('❌ Errore nel controllo opinioni mancanti:', error);
+    console.error('Errore interno nella verifica delle Opinioni mancanti');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
