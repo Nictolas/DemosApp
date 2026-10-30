@@ -37,7 +37,11 @@ export default function OpinioniComunali() {
   const { toast } = useToast();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
   const [showConsentDialog, setShowConsentDialog] = useState(false);
-  const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<Record<string, string> | null>(null);
+  const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<{
+    ownerId: string;
+    answers: Record<string, string>;
+  } | null>(null);
+  const [grantConfirmed, setGrantConfirmed] = useState(false);
   
   // Controllo consenso opinioni politiche (GDPR Art. 9)
   const { hasConsent } = usePoliticalOpinionsConsent();
@@ -149,7 +153,8 @@ export default function OpinioniComunali() {
     // Verifica consenso opinioni politiche (GDPR Art. 9)
     if (!hasConsent) {
       // Salva le opinioni da salvare in uno stato temporaneo
-      setPendingOpinionsToSave(opinionsToSave);
+      setPendingOpinionsToSave({ ownerId: user!.id, answers: opinionsToSave });
+      setGrantConfirmed(false);
       // Apri il dialog del consenso
       setShowConsentDialog(true);
       return;
@@ -160,19 +165,37 @@ export default function OpinioniComunali() {
 
   saveHandlerRef.current = handleSave;
 
-  // Funzione chiamata quando il consenso viene concesso
-  const handleConsentGranted = async () => {
-    // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
-    if (pendingOpinionsToSave) {
-      // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
-      await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
-      // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
-      setTimeout(() => {
-        saveMutation.mutate(pendingOpinionsToSave);
-        setPendingOpinionsToSave(null);
-      }, 300);
-    }
+  // A consent grant does not authorize an automatic save until /auth/me
+  // confirms the new epoch, the vault wipe is complete, and the new
+  // category snapshot is loaded. No arbitrary timeouts or consent GETs.
+  const handleConsentGranted = () => {
+    setGrantConfirmed(true);
   };
+
+  useEffect(() => {
+    if (!grantConfirmed || !pendingOpinionsToSave) return;
+    if (pendingOpinionsToSave.ownerId !== user?.id ||
+        (isSessionVerified && verifiedPoliticalConsent?.granted !== true)) {
+      setGrantConfirmed(false);
+      setPendingOpinionsToSave(null);
+      return;
+    }
+    if (!isSessionVerified || !hasConsent || !canReadOpinions ||
+        isLoading || questions.length === 0 || saveMutation.isPending) return;
+    const toSave = collectChangedOpinionAnswers(
+      questions,
+      { ...pendingOpinionsToSave.answers, ...opinions },
+    );
+    setGrantConfirmed(false);
+    setPendingOpinionsToSave(null);
+    if (Object.keys(toSave).length > 0) {
+      saveMutation.mutate(toSave);
+    }
+  }, [
+    grantConfirmed, pendingOpinionsToSave, user?.id, isSessionVerified,
+    verifiedPoliticalConsent?.granted, hasConsent, canReadOpinions,
+    isLoading, questions, opinions, saveMutation.isPending,
+  ]);
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <div>Redirecting...</div>;
