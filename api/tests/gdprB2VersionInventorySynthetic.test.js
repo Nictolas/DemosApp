@@ -121,7 +121,7 @@ test('stale or forged independent checkpoint never proves the version listing',(
 test('valid object list cannot conceal altered journal or pending intent',()=>{
   const {journal,checkpoint}=setup();
   const pages=pagesFor(journal);
-  journal.entries[1].operation.subject='alice';
+  journal.entries[1].operation.subject='bob'; // actual mutation, not the original Alice
   assert.throws(()=>verifySyntheticB2VersionInventory(journal,checkpoint,pages),
     {code:'GDPR_MODEL_CHAIN_INVALID'});
   const pending=new SyntheticExternalJournal();
