@@ -80,7 +80,8 @@ router.post('/logout', async (req, res) => {
       message: 'Logout effettuato con successo'
     });
   } catch (error) {
-    console.error('Errore durante logout:', error?.message || error);
+    // Exception messages may contain token, SQL or request metadata: never log them.
+    console.error('Logout: errore interno durante la revoca della sessione');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server durante il logout'
