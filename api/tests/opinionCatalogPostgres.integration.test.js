@@ -114,11 +114,19 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
       assert.ok(payload.data.every(row=>row.userAnswer===null));
       chosen[payload.data[0].id]='f';
     }
-    // Also preserve 401 for inactive accounts with an existing answers row.
+    // Current DEMOS uses uppercase A; the legacy fixture used lowercase a.
+    // The official catalog endpoint must admit both, without relaxing the
+    // inactive-account gate or changing any database row in production.
+    await database.query("UPDATE users SET status='A' WHERE id=$1",[userId]);
+    const activeCanonical=await apiGet('N');
+    assert.equal(activeCanonical.data.length,getOpinionsForGrade('N').length);
+    // All non-active states must still be denied.
     await database.query("UPDATE users SET status='x' WHERE id=$1",[userId]);
     const inactive=await localFetch(base+'/api/opinioni-list?grado=N',{headers:auth});
     assert.equal(inactive.status,401);
     await database.query("UPDATE users SET status='a' WHERE id=$1",[userId]);
+    assert.equal((await apiGet('N')).data.length,getOpinionsForGrade('N').length,
+      'legacy lowercase active accounts remain compatible');
     const answers=Object.keys(chosen);
     assert.ok(answers.length>=2);
     const post=()=>fetch(base+'/api/opinioni/salva',{
