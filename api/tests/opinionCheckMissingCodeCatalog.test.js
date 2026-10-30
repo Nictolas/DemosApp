@@ -70,3 +70,40 @@ test('invalid grade is rejected before any personal SQL query',async()=>{
     {code:'INVALID_GRADO'});
   assert.equal(queries,0);
 });
+
+test('a failed answer lookup must not fabricate 100% missing progress',async()=>{
+  let sqlCalls=0;
+  const pool={async query(sql,values){
+    sqlCalls++;
+    assert.match(sql,/FROM opinioni_risposte/);
+    assert.deepEqual(values,['synthetic-user']);
+    const error=new Error('do not disclose synthetic DB details');
+    error.code='42703';
+    throw error;
+  }};
+  const ids=await getColonneOpinioniRisposte(pool);
+  await assert.rejects(
+    computeCheckMissingForGrado(pool,'synthetic-user','N',ids),
+    error=>{
+      assert.equal(error.code,'OPINION_ANSWERS_UNAVAILABLE');
+      assert.doesNotMatch(error.message,/42703|SQL|synthetic DB details/);
+      return true;
+    });
+  assert.equal(sqlCalls,1,
+    'SQL failure must stop immediately, without schema fallback or fanout');
+});
+
+test('only f/c/i count as answered; invalid legacy values stay missing',async()=>{
+  const questions=getOpinionsForGrade('C');
+  const row=Object.fromEntries(questions.map(x=>[x.id,null]));
+  const values=['f','c','i','wrong'];
+  for(let n=0;n<Math.min(questions.length,values.length);n++){
+    row[questions[n].id]=values[n];
+  }
+  const pool={async query(){return {rows:[row]};}};
+  const ids=await getColonneOpinioniRisposte(pool);
+  const result=await computeCheckMissingForGrado(pool,'synthetic-user','C',ids);
+  assert.equal(result.opinioniRisposte,Math.min(3,questions.length));
+  const invalid=questions[3];
+  if(invalid)assert.ok(result.missingOpinions.some(x=>x.id===invalid.id));
+});
