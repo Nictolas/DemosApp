@@ -39,6 +39,12 @@ async function inspectCatalogParitySnapshot(client,{schemaOnly=false}={}) {
       'SELECT id, text, gradi_opinione, approfondimento FROM public.opinioni_domande ORDER BY id'
     );
     const db=normalize(sourceRows), src=normalize(published);
+    // A Map silently overwrites duplicate keys. Never attest a one-to-one
+    // source catalog if a legacy ID appears twice, even with identical text.
+    const dbIds=new Set(db.map(op=>op.id));
+    if(dbIds.size!==db.length){
+      throw new Error('Legacy catalog contains duplicate opinion IDs');
+    }
     const old=new Map(db.map(op=>[op.id,JSON.stringify(op)]));
     const conflicts=[];
     for(const op of src){
