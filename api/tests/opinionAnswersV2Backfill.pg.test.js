@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {Client}=require('pg');
 const {
-  validateLegacyIds,legacyRowToAnswers,rollbackCoverage,rollbackParity
+  validateLegacyIds,assertLegacyColumnCoverage,legacyRowToAnswers,rollbackCoverage,rollbackParity
 }=require('../experiments/opinionAnswersV2BackfillCandidate');
 
 // RESEARCH ONLY. Run exclusively on synthetic PostgreSQL 17 in GitHub Actions.
@@ -90,6 +90,15 @@ test('synthetic v2 backfill: idempotence, consent, erasure and rollback gates',
       'user_id uuid PRIMARY KEY REFERENCES ci_v2_bf_users(id),'+
       ids.map(id=>'"'+id+'" text').join(',')+
       ',fonti_opinioni jsonb)');
+    // Read only schema metadata to attest ALL legacy columns, including
+    // archived IDs, before any personal-data backfill could begin.
+    const inventory=await a.query(
+      "SELECT column_name FROM information_schema.columns "+
+      "WHERE table_schema='public' AND table_name='ci_v2_bf_legacy'"
+    );
+    assert.equal(assertLegacyColumnCoverage(
+      ids,inventory.rows.map(row=>row.column_name)
+    ).coveredIds,94);
     await a.query('CREATE TABLE ci_v2_bf_shadow ('+
       'user_id uuid PRIMARY KEY REFERENCES ci_v2_bf_users(id),'+
       "answers jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(answers)='object'))");
