@@ -92,11 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!response.ok) {
-          console.error(
-            "useAuth - Errore risposta /auth/me:",
-            response.status,
-            await response.text(),
-          );
+          // The error response may contain personal data; log only the HTTP status.
+          console.error("useAuth - Errore risposta /auth/me:", response.status);
           return null;
         }
 
@@ -192,6 +189,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await unregisterNativePush();
       clearStoredNativePushToken();
       clearSessionTokens();
+      // Abort authenticated requests and erase their in-memory results before
+      // wiping IndexedDB, so logout cannot leave an old account visible.
+      await queryClient.cancelQueries();
+      // Remove personal queries without clearing the active logout mutation;
+      // its onSuccess callback still needs to complete navigation.
+      queryClient.removeQueries();
       clearAllProfileSummaries();
       // Finish IndexedDB deletion before logout can navigate/reload the app.
       await clearAllEncryptedProfiles();
