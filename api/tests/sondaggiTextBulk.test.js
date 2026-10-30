@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const express = require('express');
 const http = require('node:http');
 const path = require('node:path');
+const catalogPath = require.resolve('../services/opinionCatalog.js');
 
 const {
   safeOpinionIds, buildNationalTextAggregateQuery, getNationalSurveyStats,
@@ -133,6 +134,12 @@ async function withRealSurveyRoute(pool,callback){
   const authFile=require.resolve('../middleware/auth');
   const routeFile=require.resolve('../routes/sondaggi');
   const oldAuth=require.cache[authFile];
+  const oldCatalog=require.cache[catalogPath];
+  // This route-level test uses five synthetic questions (including an unsafe
+  // ID) so the response/SQL-identifier contract can be tested independently
+  // from the real 94-entry snapshot. Production always uses the real module.
+  require.cache[catalogPath]={id:catalogPath,filename:catalogPath,loaded:true,
+    exports:{getAllOpinions:()=>QUESTIONS,sortOpinionsByText:xs=>xs}};
   const oldRoute=require.cache[routeFile];
   require.cache[authFile]={
     id:authFile,filename:authFile,loaded:true,
@@ -156,6 +163,8 @@ async function withRealSurveyRoute(pool,callback){
     else delete require.cache[authFile];
     if(oldRoute)require.cache[routeFile]=oldRoute;
     else delete require.cache[routeFile];
+    if(oldCatalog)require.cache[catalogPath]=oldCatalog;
+    else delete require.cache[catalogPath];
   }
 }
 
@@ -172,8 +181,8 @@ test('actual GET /api/sondaggi keeps legacy payload with one stats query',async(
       }
     });
   });
-  assert.equal(calls.length,3,'published questions + column whitelist + single stats query');
-  assert.equal(calls.filter(c=>c.sql.includes('FROM opinioni_domande')).length,1);
+  assert.equal(calls.length,2,'code catalog + schema whitelist + one stats query');
+  assert.equal(calls.filter(c=>c.sql.includes('FROM opinioni_domande')).length,0);
   assert.equal(calls.filter(c=>c.sql.includes('CROSS JOIN LATERAL')).length,1);
 });
 
@@ -272,7 +281,7 @@ test('actual regional, provincial and municipal GET keep exactly the legacy JSON
         }
       });
     });
-    assert.equal(calls.length,3);
+    assert.equal(calls.length,2);
     assert.deepEqual(calls.at(-1).params,scope.params);
     assert.match(calls.at(-1).sql,/CROSS JOIN LATERAL \(VALUES/);
   }
