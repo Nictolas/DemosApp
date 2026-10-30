@@ -22,6 +22,7 @@ test('single grouped query includes legacy column and future JSONB key, no SQL c
   assert.match(q.sql,/JOIN users u ON u\.id = orr\.user_id/);
   assert.match(q.sql,/LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
   assert.match(q.sql,/COALESCE\(uc\.political_opinions_consent,/);
+  assert.match(q.sql,/u\.account_type IN \('PERSON','P'\)/);
   assert.match(q.sql,/GROUP BY v\.opinion_id/);
   assert.doesNotMatch(q.sql,/information_schema|opinioni_domande|UNION ALL|SELECT \*/);
 });
