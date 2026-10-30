@@ -97,7 +97,7 @@ export default function PrivacyPolicy() {
               <li>Il consenso alle opinioni politiche è <strong>opzionale</strong> e può essere rifiutato</li>
               <li>Se rifiuti il consenso, non potrai esprimere opinioni politiche ma potrai utilizzare tutte le altre funzionalità della piattaforma</li>
               <li>Il consenso può essere <strong>revocato in qualsiasi momento</strong> dalle impostazioni del profilo</li>
-              <li>In caso di revoca, le opinioni politiche già espresse verranno <strong>eliminate completamente</strong> dal sistema (GDPR Art. 17 - Diritto alla cancellazione)</li>
+              <li>In caso di revoca, il servizio avvia la cancellazione dei dati politici generati dall'utente nei sistemi attivi. La copia cifrata sul dispositivo viene eliminata quando l'app rileva la revoca; eventuali copie di sicurezza richiedono procedure distinte.</li>
               <li>Il consenso viene registrato con data, ora, indirizzo IP e user agent per finalità di audit e conformità</li>
             </ul>
             <p className="text-gray-700 mb-3">
