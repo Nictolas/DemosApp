@@ -12,6 +12,7 @@ on:
       - 'api/services/**'
       - 'api/tests/opinionCatalog*.test.js'
       - 'api/tests/opinionCheckMissingCodeCatalog.test.js'
+      - 'api/tests/opinionCheckMissingHttp.contract.test.js'
       - 'api/middleware/**'
       - 'api/utils/**'
       - 'api/jobs/**'
@@ -55,6 +56,8 @@ jobs:
         run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js api/tests/opinionCheckMissingCodeCatalog.test.js api/tests/opinionCatalogNoRuntimeSql.contract.test.js
       - name: Install backend dependencies for isolated HTTP regression
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Political opinion completion HTTP privacy (200/400/401/500)
+        run: node --test api/tests/opinionCheckMissingHttp.contract.test.js
       - name: Validate read-only cutover parity and answer-column schema regression
         run: node --test api/tests/opinionCatalogPreflight.test.js
       - name: Live Opinions route topology — avoid dormant module false positives
