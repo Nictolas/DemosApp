@@ -21,7 +21,6 @@ const {
 }=require('./opinionAnswersV2HybridCandidate');
 const {LOCK_SUBJECT_SQL,CHECK_CONSENT_SQL}=
   require('./opinionAnswersV2AuthorizedWriteCandidate');
-const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-[0-9a-f]{12}$/i;
 // Explicit UUID shape, NOT the only authentication/authorization mechanism.
 const CANONICAL_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function fail(code){
