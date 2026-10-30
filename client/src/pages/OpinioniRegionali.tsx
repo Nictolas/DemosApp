@@ -186,7 +186,8 @@ export default function OpinioniRegionali() {
   // confirms the new epoch, the vault wipe is complete, and the new
   // category snapshot is loaded. No arbitrary timeouts or consent GETs.
   const handleConsentGranted = () => {
-    setGrantConfirmed(true);
+    // Opening the consent form without draft answers does not request an auto-save.
+    if (pendingOpinionsToSave) setGrantConfirmed(true);
   };
 
   useEffect(() => {
@@ -235,6 +236,20 @@ export default function OpinioniRegionali() {
           <CardContent className="opinioni-editor-page__list min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain pb-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>
+            ) : isSessionVerified && verifiedPoliticalConsent?.granted === false ? (
+              <div className="mx-auto max-w-md space-y-4 px-4 py-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Per esprimere opinioni politiche puoi scegliere se prestare il consenso
+                  esplicito al trattamento di questi dati. Il consenso è facoltativo.
+                </p>
+                <button
+                  type="button"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  onClick={() => setShowConsentDialog(true)}
+                >
+                  Leggi e scegli se dare il consenso
+                </button>
+              </div>
             ) : questions.length === 0 ? (
               <div className="text-center py-8"><p className="text-muted-foreground">Nessuna domanda disponibile.</p></div>
             ) : (
