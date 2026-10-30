@@ -32,6 +32,8 @@ on:
       - 'api/tests/gdprB2BucketComplianceDeadlineIsolated.test.js'
       - 'api/tests/gdprB2ArchiveHeadPutDeadlineIsolated.test.js'
       - 'api/tests/gdprB2RealWorkerFailClosedSynthetic.test.js'
+      - 'api/tests/gdprB2WorkerInjectedExporterNoGoIsolated.test.js'
+      - 'api/docs/gdpr-b2-worker-injected-exporter-no-go-20261030.md'
       - 'api/tests/gdprB2DirectWriteGateIsolated.test.js'
       - 'api/tests/gdprB2WrappedTransportNoGoIsolated.test.js'
       - 'api/docs/gdpr-b2-wrapped-adapter-ci-only-write-gate-20261030.md'
@@ -130,6 +132,7 @@ jobs:
           node --test --test-concurrency=1 api/tests/gdprB2BucketComplianceDeadlineIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2ArchiveHeadPutDeadlineIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2RealWorkerFailClosedSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2WorkerInjectedExporterNoGoIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2DirectWriteGateIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2WrappedTransportNoGoIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2DurablePutClaimPg17Synthetic.test.js
