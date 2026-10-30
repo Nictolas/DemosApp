@@ -182,8 +182,9 @@ test('PG17 hybrid GDPR: same-row erasure and post-backup regrant cannot resurrec
     await t.test('a missing hybrid table fails closed; no silent erasure success',async()=>{
       await db.query('BEGIN');
       try{
-        await assert.rejects(db.query(SQL.deleteWholeRow,[uid(1)]),
-          error=>error.code==='42P01');
+        await assert.rejects(db.query(
+          SQL.deleteWholeRow.replaceAll('public.opinioni_risposte','ci_hgdpr_intentionally_absent'),
+          [uid(1)]),error=>error.code==='42P01');
         await db.query('ROLLBACK');
       }catch(e){await db.query('ROLLBACK');throw e;}
       assert.equal((await db.query('SELECT consent FROM ci_hgdpr_users WHERE id=$1',[uid(1)])).rows[0].consent,true);
