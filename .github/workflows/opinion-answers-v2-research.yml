@@ -6,6 +6,8 @@ on:
     paths:
       - "api/experiments/opinionAnswersV2Candidate.js"
       - "api/experiments/opinionAnswersV2BackfillCandidate.js"
+      - "api/experiments/opinionAnswersV2PreflightCandidate.js"
+      - "api/tests/opinionAnswersV2Preflight.unit.test.js"
       - "api/tests/opinionAnswersV2*.test.js"
       - "api/tests/opinionAnswersV2*.pg.test.js"
       - "api/scripts/benchmark-opinion-answer-layouts-ci.js"
@@ -65,6 +67,6 @@ jobs:
       - name: Install locked API dependencies without running scripts
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Run isolated unit and PostgreSQL 17 contract tests
-        run: node --test api/tests/opinionAnswersV2Candidate.test.js api/tests/opinionAnswersV2Candidate.pg.test.js api/tests/opinionAnswersV2Consent.pg.test.js api/tests/opinionAnswersV2ManifestCompatibility.test.js api/tests/opinionAnswersV2Backfill.pg.test.js api/tests/opinionAnswersV2Backfill.unit.test.js
+        run: node --test api/tests/opinionAnswersV2Candidate.test.js api/tests/opinionAnswersV2Candidate.pg.test.js api/tests/opinionAnswersV2Consent.pg.test.js api/tests/opinionAnswersV2ManifestCompatibility.test.js api/tests/opinionAnswersV2Backfill.pg.test.js api/tests/opinionAnswersV2Backfill.unit.test.js api/tests/opinionAnswersV2Preflight.unit.test.js
       - name: Measure synthetic layouts and SQL reads
         run: node api/scripts/benchmark-opinion-answer-layouts-ci.js
