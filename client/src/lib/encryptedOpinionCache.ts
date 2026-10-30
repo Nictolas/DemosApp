@@ -103,6 +103,12 @@ export async function loadOpinionCategory(
     await persistEncryptedOpinionCategory(owner, consentEpoch, section,
       { version: OPINION_CATEGORY_CACHE_VERSION, catalogRevision, grade, questions }, revision);
   }
+  // The encrypted vault serializes disk writes. Consent revocation, account
+  // change or a confirmed save may advance the revision WHILE we await that
+  // queue. Do not return a now-stale payload even if the vault discarded it.
+  if (signal?.aborted || revision !== profileSectionRevision(owner, section)) {
+    throw new Error("Caricamento opinioni annullato");
+  }
   return { success: true, data: questions, grado: grade, total: questions.length };
 }
 
