@@ -1,18 +1,5 @@
 name: Opinion answers v2 — isolated research
 on:
-  push:
-    branches:
-      - research/opinion-answers-v2-document-20261030
-    paths:
-      - "api/experiments/opinionAnswersV2Candidate.js"
-      - "api/experiments/opinionAnswersV2BackfillCandidate.js"
-      - "api/experiments/opinionAnswersV2PreflightCandidate.js"
-      - "api/tests/opinionAnswersV2Preflight.unit.test.js"
-      - "api/tests/opinionAnswersV2*.test.js"
-      - "api/tests/opinionAnswersV2*.pg.test.js"
-      - "api/scripts/benchmark-opinion-answer-layouts-ci.js"
-      - "api/docs/opinion-answer-v2-no-column-ddl.md"
-      - ".github/workflows/opinion-answers-v2-research.yml"
   pull_request:
     paths:
       - "api/experiments/opinionAnswersV2Candidate.js"
