@@ -1277,3 +1277,52 @@ Questo codice non e importato da nessuna route,
 non e un rilascio Android, non cambia Supabase.
 
 **PR #483 Draft/NO-GO**: nessun deploy, merge o DDL.
+
+
+## Scrittura amministrativa autorizzata: lock e consenso dopo revoca — solo test
+
+La sola INSERT/UPSERT atomica non garantisce un salvataggio sicuro.
+Il candidato NON ATTIVO
+`api/experiments/opinionAnswersV2AuthorizedWriteCandidate.js`
+orchestra l'ordine richiesto per una futura integrazione:
+
+1. Convalida ID e patch (senza interrogazioni). Verifica che
+   il **gate esterno di restore** sia aperto PRIMA della query.
+2. Avvia la transazione; richiede una verifica effettiva del ruolo
+   Admin nella **stessa transazione**. Il verificatore e una
+   dipendenza obbligatoria, che deve mantenere valido il ruolo
+   con opportuno lock fino al commit: questo prototipo NON
+   contiene la vera autenticazione DEMOS.
+3. Blocca la riga del soggetto con
+   `SELECT id FROM users WHERE id=$1::uuid FOR UPDATE`.
+4. Solo in una **seconda istruzione SQL**, dopo aver ottenuto
+   il lock, controlla l'effettivo consenso politico con
+   precedenza a `user_consents` sul valore base `users`.
+   In READ COMMITTED questo ordine evita di usare un
+   consenso obsoleto quando una revoca ha fatto attendere
+   il salvataggio sul lock dell'utente.
+5. Se autorizzazione/consenso sono validi, esegue **una**
+   scrittura parametrizzata, oppure nessuna per patch vuota;
+   conferma il numero di righe e fa COMMIT. Qualunque errore
+   provoca ROLLBACK; non trasforma errori in salvataggi riusciti.
+
+Test `api/tests/opinionAnswersV2AuthorizedWrite.unit.test.js`
+e `api/tests/opinionAnswersV2AuthorizedWrite.pg.test.js`:
+blocco su restore non verificato e ruolo Admin revocato,
+consenso negato, assenza utente, esito di scrittura inatteso,
+consenso esplicito true/false che prevale sul valore base,
+e soprattutto una competizione reale fra due connessioni
+PostgreSQL 17: revoca con lock + DELETE delle opinioni prima
+del salvataggio in attesa. Il successivo controllo del consenso
+impedisce di reinserire la riga appena eliminata. Una nuova
+concessione consente solo un salvataggio nuovo, senza recuperare
+le vecchie risposte.
+
+**Limiti NO-GO:** non e un middleware reale, non include
+la verifica privilegi dell'applicazione né la firma del gate
+esterno. Una verifica di restore per singola richiesta non
+impedisce una corsa con un ripristino avviato in seguito:
+serve sempre una barriera ingress esterna per API, worker
+e client vecchi. Resta da coordinare con PR #374.
+Il database di CI e interamente sintetico; nessuna
+modifica a route attive, Supabase, Render o Android.
