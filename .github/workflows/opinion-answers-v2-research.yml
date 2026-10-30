@@ -4,6 +4,7 @@ on:
     paths:
       - "api/experiments/opinionAnswersV2Candidate.js"
       - "api/tests/opinionAnswersV2Candidate.test.js"
+      - "api/tests/opinionAnswersV2Candidate.pg.test.js"
       - "api/docs/opinion-answer-v2-no-column-ddl.md"
       - ".github/workflows/opinion-answers-v2-research.yml"
   workflow_dispatch:
@@ -13,12 +14,32 @@ permissions:
 
 jobs:
   document-contract:
-    name: Research-only JSONB answer contract
+    name: Research-only JSONB answer contract + synthetic PostgreSQL
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: opinion_answers_ci
+          POSTGRES_USER: opinion_ci
+          POSTGRES_PASSWORD: synthetic-only
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U opinion_ci -d opinion_answers_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      OPINION_V2_PG_CI_URL: postgresql://opinion_ci:synthetic-only@127.0.0.1:5432/opinion_answers_ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Run pure isolated contract tests
-        run: node --test api/tests/opinionAnswersV2Candidate.test.js
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install locked API dependencies without running scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Run isolated unit and PostgreSQL 17 contract tests
+        run: node --test api/tests/opinionAnswersV2Candidate.test.js api/tests/opinionAnswersV2Candidate.pg.test.js
