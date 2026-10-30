@@ -276,18 +276,19 @@ test('abort during queued encrypted write cancels the result returned to React Q
   assert.equal(h.counts().answers, 1);
 });
 
-test('blank or whitespace-only consent epochs never authorize persistent cache reuse', async () => {
+test('blank or whitespace-only consent epochs forbid personal GETs and cache reuse', async () => {
   const h = fixture();
   await h.load(A, 'consent-1', 'N');
   assert.equal(h.counts().answers, 1);
-  for (const epoch of ['', '   ']) {
-    const result = await h.load(A, epoch, 'N');
-    assert.equal(result.data[0].id, 'valid_opinion');
+  for (const epoch of [null, '', '   ']) {
+    await assert.rejects(h.load(A, epoch, 'N'), /consenso non verificati/);
   }
-  assert.equal(h.counts().answers, 3,
-    'Unverifiable consent epochs must require an authenticated personal GET');
+  assert.equal(h.counts().answers, 1,
+    'Unverifiable consent epochs must not issue a personal answer GET');
+  assert.equal(h.counts().catalog, 1,
+    'Reject without even fetching public catalog metadata');
   assert.equal(h.counts().writes, 1,
-    'No new encrypted snapshot may be written with a blank consent epoch');
+    'No encrypted snapshot may be written with a blank consent epoch');
   assert.equal(h.snapshots.get(A).consent.timestamp, 'consent-1');
 });
 
