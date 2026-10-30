@@ -51,6 +51,11 @@ function validateCounts(raw){
   return out;
 }
 const total=c=>COUNTS.reduce((n,k)=>checkedAdd(n,c[k]),0);
+// A group of 30 users can still expose a sensitive one-person answer
+// category (29 favorable / 1 contrary). Never publish that category as a
+// raw exact count even if its parent group meets the total threshold.
+const safePositiveCategories=c=>COUNTS.every(k=>c[k]===0||c[k]>=MINIMUM);
+const safePublicCounts=c=>total(c)>=MINIMUM&&safePositiveCategories(c);
 
 function planCoherentRegionalPublication(nationalRaw,regionRows){
   const national=validateCounts(nationalRaw);
@@ -77,7 +82,7 @@ function planCoherentRegionalPublication(nationalRaw,regionRows){
       throw new Error('Regional and national totals are inconsistent');
     }
   }
-  const visible=new Set(REGIONS.filter(code=>total(byRegion.get(code))>=MINIMUM));
+  const visible=new Set(REGIONS.filter(code=>safePublicCounts(byRegion.get(code))));
   // Suppression by the TOTAL hidden population alone is insufficient.
   // National totals are published separately by f/c/i, so subtraction
   // of released regions can reveal a tiny hidden CATEGORY even if the
@@ -129,7 +134,7 @@ function planCoherentRegionalPublication(nationalRaw,regionRows){
   // If national itself has fewer than 10, neither national nor any
   // region may be released. The separate API routes must consume ONE
   // versioned decision, not calculate a different plan per request.
-  const publishNational=total(national)>=MINIMUM;
+  const publishNational=safePublicCounts(national);
   if(!publishNational)visible.clear();
   return Object.freeze({
     publishNational,
@@ -140,4 +145,5 @@ function planCoherentRegionalPublication(nationalRaw,regionRows){
   });
 }
 
-module.exports={planCoherentRegionalPublication,validateCounts,total};
+module.exports={planCoherentRegionalPublication,validateCounts,total,
+  safePositiveCategories,safePublicCounts};
