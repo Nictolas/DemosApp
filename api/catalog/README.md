@@ -67,6 +67,8 @@ Il middleware ora accetta **esattamente** `A` e `a`, continuando a respingere tu
 
 
 ## Gate CI: nessun accesso runtime a `opinioni_domande` (30 ottobre 2026)
+**Eccezione verificata:** `api/utils/add-unique-constraint-opinioni.cjs` è uno script storico standalone che esegue operazioni di manutenzione sulla vecchia tabella e non fa parte del runtime. La scansione CI esclude solo questo percorso preciso, **non** l'intera cartella `api/utils`; il test verifica che nessun modulo runtime lo importi. La sua presenza non autorizza a eseguirlo, soprattutto non sul database reale.
+
 
 La migrazione è sorvegliata da `api/tests/opinionCatalogNoRuntimeSql.contract.test.js`: durante la CI esamina ricorsivamente route, servizi, utility, middleware e job JavaScript/CJS/MJS del backend e rifiuta riferimenti eseguibili alla tabella legacy `opinioni_domande`. Esclude i commenti e non scandisce gli script di manutenzione/cutover, in cui il controllo storico **read-only** di `api/scripts/checkOpinionCatalogParity.js` resta intenzionale. Un nuovo endpoint non deve recuperare l'elenco delle 94 domande con SQL: importare `api/services/opinionCatalog.js` e usare ID pubblicati. I dati e le risposte personali restano autorevoli in PostgreSQL.
 
