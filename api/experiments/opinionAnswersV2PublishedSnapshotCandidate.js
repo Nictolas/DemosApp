@@ -19,6 +19,11 @@ const ID=/^[a-z][a-z0-9_]{0,62}$/;
 const REGION_CODES=Object.keys(REGIONI_DB_TO_FRONTEND);
 const VALID_VERSION=/^[a-zA-Z0-9_-]{1,64}$/;
 const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
+// Research-only provenance; not a substitute for a signed, persisted
+// external publication ledger when the server restarts.
+const mintedEnvelopes=new WeakSet();
+const isMintedPublication=value=>value!==null&&
+  typeof value==='object'&&mintedEnvelopes.has(value);
 
 function checkedInput(opinionId,questionText,version){
   if(typeof opinionId!=='string'||!ID.test(opinionId)||
@@ -66,11 +71,13 @@ function buildVersionedOpinionPublication({
       totaleUtenti:total(stats)
     });
   }
-  return Object.freeze({
+  const envelope=Object.freeze({
     version,opinionId,national:nationalPayload,
     regionsByCode:Object.freeze(byCode),
     // Deliberately NO unfiltered counts, regionRows or raw snapshot.
   });
+  mintedEnvelopes.add(envelope);
+  return envelope;
 }
 function readVersionedOpinionPublication(envelope,{
   version,opinionId,regionCode
@@ -91,5 +98,6 @@ function readVersionedOpinionPublication(envelope,{
   return {success:true,data:envelope.regionsByCode[regionCode]};
 }
 module.exports={
-  buildVersionedOpinionPublication,readVersionedOpinionPublication
+  buildVersionedOpinionPublication,readVersionedOpinionPublication,
+  isMintedPublication
 };
