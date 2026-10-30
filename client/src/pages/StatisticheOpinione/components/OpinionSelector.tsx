@@ -29,7 +29,10 @@ interface OpinionSelectorProps {
 
 export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
   const { user, isSessionVerified, verifiedPoliticalConsent } = useAuth();
-  const cacheGrade = cacheGradeByLabel[grado.trim().toLowerCase()] ?? null;
+  const cacheGrade = Object.prototype.hasOwnProperty.call(cacheGradeByLabel, grado.trim().toLowerCase())
+    ? cacheGradeByLabel[grado.trim().toLowerCase()] : null;
+  const canReadOpinions = !!user?.id && isSessionVerified &&
+    verifiedPoliticalConsent?.granted === true && !!verifiedPoliticalConsent.timestamp;
   const { data: questionsData, isLoading, isError } = useQuery<{
     success: boolean;
     data: OpinionQuestion[];
@@ -54,6 +57,11 @@ export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
       return response.data;
     },
   });
+
+  // Disabling a TanStack query does not discard its previously cached data.
+  // Never display personal political answers after consent/session loss while
+  // the logout/revoke cleanup is still cancelling and removing RAM queries.
+  if (!canReadOpinions) return null;
 
   if (isLoading) {
     return (
