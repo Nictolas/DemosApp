@@ -156,6 +156,10 @@ test('all opinion editors defer pending save until the verified owner and epoch 
     assert.match(source, /setGrantConfirmed\(true\)/);
     // The selected pending answer must survive the post-grant category reload.
     assert.match(source, /\.\.\.opinions, \.\.\.pendingOpinionsToSave\.answers/);
+    // Failed POST must leave the selected answers in React state for a retry.
+    assert.match(source, /setOpinions\(\(previous\) => \(\{ \.\.\.previous, \.\.\.toSave \}\)\)/);
+    assert.ok(source.indexOf('setOpinions((previous) => ({ ...previous, ...toSave }))') <
+      source.indexOf('saveMutation.mutate(toSave)'), category);
     assert.doesNotMatch(source, /refetchQueries\(\{\s*queryKey:\s*\['political-opinions-consent'\]/);
     assert.doesNotMatch(source, /saveMutation\.mutate\(pendingOpinionsToSave\)/);
   }
