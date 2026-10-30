@@ -9,7 +9,7 @@ const {
 }=require('@aws-sdk/client-s3');
 const {
   MARKER,BAD,CLOSED,assertSafeEnvironment,readOnlyTransport,
-  runReadOnlyBucketProbe
+  runReadOnlyBucketProbe,MAX_PROBE_MS
 }=require('../scripts/attest-gdpr-b2-bucket-readonly');
 
 const base=()=>({
@@ -170,4 +170,137 @@ test('isolated entrypoint never imports app, DB, B2 event journal or servers',()
   ]) assert.doesNotMatch(src,forbidden);
   assert.match(src,/process\.exitCode=2/);
   assert.match(src,/completeGdprJournalVerified:false/);
+});
+
+test('invalid total deadline is rejected before constructing any client',async()=>{
+  for(const timeoutMs of [0,-1,NaN,Infinity,'20',1.3,MAX_PROBE_MS+1]){
+    let constructed=false;
+    const output=await runReadOnlyBucketProbe({
+      env:base(),timeoutMs,
+      makeClient:()=>{constructed=true;throw Error('NO_SDK_ALLOWED');}
+    });
+    assert.equal(constructed,false);
+    assert.equal(output.status,BAD);
+    assert.equal(output.recoveryReady,false);
+  }
+});
+
+test('read-only transport accepts only abortSignal and exact Bucket-only input',async()=>{
+  const client=fake(),reader=readOnlyTransport(client,base().GDPR_B2_READONLY_BUCKET);
+  const command=new GetBucketVersioningCommand({Bucket:base().GDPR_B2_READONLY_BUCKET});
+  const signal=new AbortController().signal;
+  await reader.send(command,{abortSignal:signal});
+  for(const [invalid,options] of [
+    [command,{}],[command,{abortSignal:'fake'}],
+    [command,{abortSignal:signal,requestTimeout:0}],
+    [new GetBucketVersioningCommand({Bucket:base().GDPR_B2_READONLY_BUCKET,ExpectedBucketOwner:'bad'}),undefined]
+  ]){
+    await assert.rejects(Promise.resolve().then(()=>reader.send(invalid,options)),
+      /NO_GO_GDPR_B2/);
+  }
+  assert.equal(client.calls.length,1);
+});
+
+test('a stalled first metadata request times out, aborts and never reaches second read',async()=>{
+  const calls=[],signals=[];
+  const client={
+    send(command,options){
+      calls.push(command.constructor.name);
+      signals.push(options.abortSignal);
+      return new Promise(()=>{});
+    },
+    destroy(){this.destroyed=true;}
+  };
+  const result=await runReadOnlyBucketProbe({
+    env:base(),timeoutMs:25,makeClient:()=>client
+  });
+  assert.equal(result.status,CLOSED);
+  assert.equal(result.recoveryReady,false);
+  assert.deepEqual(calls,['GetBucketVersioningCommand']);
+  assert.ok(signals[0] instanceof AbortSignal);
+  assert.equal(signals[0].aborted,true);
+  assert.equal(client.destroyed,true);
+});
+
+test('second metadata read is bounded by the same total deadline',async()=>{
+  const calls=[],signals=[];
+  const client={
+    send(command,options){
+      calls.push(command.constructor.name);
+      signals.push(options.abortSignal);
+      if(command instanceof GetBucketVersioningCommand)
+        return Promise.resolve({Status:'Enabled'});
+      return new Promise(()=>{});
+    },
+    destroy(){this.destroyed=true;}
+  };
+  const result=await runReadOnlyBucketProbe({
+    env:base(),timeoutMs:25,makeClient:()=>client
+  });
+  assert.equal(result.status,CLOSED);
+  assert.equal(result.bucketMetadataVerified,false);
+  assert.deepEqual(calls,[
+    'GetBucketVersioningCommand','GetObjectLockConfigurationCommand'
+  ]);
+  assert.equal(signals.length,2);
+  assert.equal(signals[0],signals[1]);
+  assert.equal(signals[1].aborted,true);
+  assert.equal(client.destroyed,true);
+});
+
+test('late resolution after deadline cannot request Object Lock or publish success',async()=>{
+  let resolveFirst;
+  const calls=[];
+  const client={
+    send(command){
+      calls.push(command.constructor.name);
+      if(command instanceof GetBucketVersioningCommand){
+        return new Promise(resolve=>{resolveFirst=resolve;});
+      }
+      throw Error('LATE_SECOND_READ_NOT_ALLOWED');
+    },
+    destroy(){this.destroyed=true;}
+  };
+  const result=await runReadOnlyBucketProbe({
+    env:base(),timeoutMs:25,makeClient:()=>client
+  });
+  assert.equal(result.status,CLOSED);
+  resolveFirst({Status:'Enabled'});
+  await Promise.resolve();
+  assert.deepEqual(calls,['GetBucketVersioningCommand']);
+  assert.equal(client.destroyed,true);
+});
+
+test('provider cleanup failures cannot leak private errors or turn denial into success',async()=>{
+  const client={
+    async send(command){
+      if(command instanceof GetBucketVersioningCommand) return {Status:'Enabled'};
+      throw Error('sensitive-private-bucket-error');
+    },
+    destroy(){throw Error('sensitive-cleanup-error');}
+  };
+  const output=await runReadOnlyBucketProbe({
+    env:base(),makeClient:()=>client
+  });
+  assert.equal(output.status,CLOSED);
+  assert.equal(output.recoveryReady,false);
+  assert.doesNotMatch(JSON.stringify(output),/sensitive|private-bucket|cleanup-error/);
+});
+
+test('successful two-request probe forwards AbortSignal and still cannot grant recovery',async()=>{
+  const calls=[];
+  const client=fake();
+  const original=client.send.bind(client);
+  client.send=(command,options)=>{
+    calls.push({name:command.constructor.name,signal:options?.abortSignal});
+    return original(command);
+  };
+  const result=await runReadOnlyBucketProbe({env:base(),
+    timeoutMs:1000,makeClient:()=>client});
+  assert.equal(result.bucketMetadataVerified,true);
+  assert.equal(result.recoveryReady,false);
+  assert.deepEqual(calls.map(x=>x.name),
+    ['GetBucketVersioningCommand','GetObjectLockConfigurationCommand']);
+  assert.equal(calls[0].signal,calls[1].signal);
+  assert.equal(calls[0].signal.aborted,true);
 });
