@@ -93,6 +93,19 @@ test('PostgreSQL 17: consent and user lock serialize writes with erasure', { ski
     assert.equal(await consentCheckedSave(a, 'c'), false);
     await assertErased(a);
 
+    // A revocation holding the user lock wins before a queued save.
+    // The pending save MUST check consent in a separate statement after
+    // it acquires the lock, so it cannot resurrect deleted answers.
+    await a.query('UPDATE opinion_v2_consent_users_ci SET consent=true WHERE id=$1', [userId]);
+    await b.query('BEGIN');
+    await b.query('SELECT id FROM opinion_v2_consent_users_ci WHERE id=$1 FOR UPDATE', [userId]);
+    await b.query('UPDATE opinion_v2_consent_users_ci SET consent=false WHERE id=$1', [userId]);
+    const queuedSave = consentCheckedSave(a, 'i');
+    await b.query('DELETE FROM opinion_v2_consent_answers_ci WHERE user_id=$1', [userId]);
+    await b.query('COMMIT');
+    assert.equal(await queuedSave, false);
+    await assertErased(a);
+
     // Regrant requires a separate approved flow in the actual app;
     // only the invented fixture is reused here.
     await a.query('UPDATE opinion_v2_consent_users_ci SET consent=true WHERE id=$1', [userId]);
