@@ -2,7 +2,7 @@
 // Research-only PostgreSQL 17 benchmark; no DEMOS data or Supabase connection.
 const assert=require('node:assert/strict');
 const {Client}=require('pg');
-// Exact fixed 2-bit codec from read-only pinned PR #247 checkout.
+// Pinned fixed 2-bit codec from PR #247; never copied into runtime.
 const {encodeAnswers,decodeAnswers}=require('../../_ci_op247/api/utils/opinionBitset');
 const uri=process.env.OPINION_V2_PG_CI_URL;
 if(!uri || process.env.GITHUB_ACTIONS!=='true')throw Error('Ephemeral CI only');
@@ -72,8 +72,8 @@ async function run(){
         "answers jsonb NOT NULL DEFAULT '{}'::jsonb,"+
         "sources jsonb NOT NULL DEFAULT '{}'::jsonb)");
       await db.query('CREATE TABLE ci_sources_bench_fixed ('+
-        'user_id integer PRIMARY KEY, catalog_version integer NOT NULL,'+
-        "answers bytea NOT NULL, sources jsonb NOT NULL DEFAULT '{}'::jsonb)");
+        'user_id integer PRIMARY KEY,catalog_version integer NOT NULL,'+
+        "answers bytea NOT NULL,sources jsonb NOT NULL DEFAULT '{}'::jsonb)");
       await db.query(
         'INSERT INTO ci_sources_bench_legacy(user_id,'+labels.map((_,i)=>ident(i)).join(',')+
         ') SELECT g,'+
@@ -90,327 +90,22 @@ async function run(){
         'FROM generate_series(1,'+USERS+') g '+
         'LEFT JOIN ci_sources_bench_fixture f ON f.user_id=g GROUP BY g'
       );
-      // Same exact fixture, encoded with the existing PR247 codec, sources
-      // unchanged. The bitset needs one immutable catalog version per row.
-      const snapshots=await db.query(
-        'SELECT user_id,answers,sources FROM ci_sources_bench_v2 ORDER BY user_id'
-      );
+      // Same synthetic data, encoded using the pinned PR #247 fixed bitset.
+      const snapshots=await db.query('SELECT user_id,answers,sources FROM ci_sources_bench_v2 ORDER BY user_id');
       for(let at=0;at<snapshots.rows.length;at+=100){
-        const batch=snapshots.rows.slice(at,at+100), params=[],parts=[];
+        const batch=snapshots.rows.slice(at,at+100),params=[],parts=[];
         for(const row of batch){
           const n=params.length;
           params.push(row.user_id,1,encodeAnswers(labels,row.answers),JSON.stringify(row.sources));
-          parts.push('(+
-        'FROM ci_sources_bench_v2 v WHERE l.user_id=v.user_id'
-      );
-      const proof=await db.query(
-        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_v2 v '+
-        'JOIN ci_sources_bench_legacy l ON v.user_id=l.user_id '+
-        'WHERE v.sources IS DISTINCT FROM l.fonti_opinioni'
-      );
-      assert.equal(proof.rows[0].mismatches,0);
-      const answerProof=await db.query(
-        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_fixture f '+
-        'JOIN ci_sources_bench_v2 v ON v.user_id=f.user_id '+
-        'JOIN ci_sources_bench_legacy l ON l.user_id=f.user_id '+
-        'WHERE v.answers->>f.opinion_id IS DISTINCT FROM f.answer OR '+
-        'to_jsonb(l)->>f.opinion_id IS DISTINCT FROM f.answer'
-      );
-      assert.equal(answerProof.rows[0].mismatches,0);
-      for(const t of TABLES.slice(0,2))await db.query('ANALYZE '+t);
-      const metric={users:USERS,opinions:QUESTIONS,...cfg,
-        bytes:{legacy:await getSize(db,'ci_sources_bench_legacy'),
-          v2:await getSize(db,'ci_sources_bench_v2'),
-          fixed:await getSize(db,'ci_sources_bench_fixed')},
-        readsMs:{},updateWalBytes:{},updatedRows:80,
-        sourceTextBytes:Buffer.byteLength(sourceText+'93','utf8'),
-        identicalAnswersAndSources:true};
-      const sql={
-        legacy:'SELECT * FROM ci_sources_bench_legacy WHERE user_id=$1',
-        v2:'SELECT answers,sources FROM ci_sources_bench_v2 WHERE user_id=$1',
-        fixed:'SELECT catalog_version,answers,sources FROM ci_sources_bench_fixed WHERE user_id=$1',
-        fixed:'UPDATE ci_sources_bench_fixed SET '+
-          'answers=set_byte(answers,1,(get_byte(answers,1)&252)|3),'+
-          "sources=sources||jsonb_build_object('opinione_7',$3::text) "+
-          'WHERE user_id=$1'
-      };
-      for(const kind of ['legacy','v2','fixed']){
-        const times=[];
-        for(let i=0;i<12;i++)times.push(await measure(db,sql[kind],[500]));
-        metric.readsMs[kind]={p50:percentile(times,.5),p95:percentile(times,.95)};
-      }
-      // Sequential identical 80 answer+source changes, one PostgreSQL
-      // instance. WAL values are illustrative, not production forecast.
-      const update={
-        legacy:'UPDATE ci_sources_bench_legacy SET "opinione_7"=$2,'+
-          "fonti_opinioni=fonti_opinioni||jsonb_build_object('opinione_7',$3::text) "+
-          'WHERE user_id=$1',
-        v2:'UPDATE ci_sources_bench_v2 SET '+
-          "answers=answers||jsonb_build_object('opinione_7',$2::text),"+
-          "sources=sources||jsonb_build_object('opinione_7',$3::text) "+
-          'WHERE user_id=$1'
-      };
-      for(const kind of ['legacy','v2']){
-        const lsn=await walStart(db);
-        for(let id=1;id<=80;id++){
-          const res=await db.query(update[kind],[id,'i',sourceText+'update']);
-          assert.equal(res.rowCount,1);
+          parts.push('($'+(n+1)+',$'+(n+2)+',$'+(n+3)+',$'+(n+4)+'::jsonb)');
         }
-        metric.updateWalBytes[kind]=await walSince(db,lsn);
-      }
-      const post=await db.query(
-        'SELECT count(*)::integer AS mismatches FROM ci_sources_bench_legacy l '+
-        'JOIN ci_sources_bench_v2 v ON l.user_id=v.user_id '+
-        'WHERE l.fonti_opinioni IS DISTINCT FROM v.sources OR '+
-        "l.\"opinione_7\" IS DISTINCT FROM v.answers->>'opinione_7'"
-      );
-      assert.equal(post.rows[0].mismatches,0);
-      const fixedPost=await db.query(
-        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_fixed b '+
-        'JOIN ci_sources_bench_v2 v USING(user_id) '+
-        'WHERE b.sources IS DISTINCT FROM v.sources OR '+
-        "(get_byte(b.answers,1)&3) IS DISTINCT FROM CASE v.answers->>'opinione_7' "+
-        "WHEN 'f' THEN 1 WHEN 'c' THEN 2 WHEN 'i' THEN 3 ELSE 0 END"
-      );
-      assert.equal(fixedPost.rows[0].mismatches,0);
-      metric.identicalAfter80Updates=true;
-      output.push(metric);
-    }
-    console.log('OPINION_V2_SOURCES_BENCHMARK_JSON='+JSON.stringify(output));
-  }finally{
-    await drop(db);
-    await db.end();
-  }
-}
-run().catch(e=>{
-  console.error('Sources benchmark failed',e.code||e.name||'UNKNOWN',e.message);
-  process.exitCode=1;
-});
-+(n+1)+',+
-        'FROM ci_sources_bench_v2 v WHERE l.user_id=v.user_id'
-      );
-      const proof=await db.query(
-        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_v2 v '+
-        'JOIN ci_sources_bench_legacy l ON v.user_id=l.user_id '+
-        'WHERE v.sources IS DISTINCT FROM l.fonti_opinioni'
-      );
-      assert.equal(proof.rows[0].mismatches,0);
-      const answerProof=await db.query(
-        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_fixture f '+
-        'JOIN ci_sources_bench_v2 v ON v.user_id=f.user_id '+
-        'JOIN ci_sources_bench_legacy l ON l.user_id=f.user_id '+
-        'WHERE v.answers->>f.opinion_id IS DISTINCT FROM f.answer OR '+
-        'to_jsonb(l)->>f.opinion_id IS DISTINCT FROM f.answer'
-      );
-      assert.equal(answerProof.rows[0].mismatches,0);
-      for(const t of TABLES.slice(0,2))await db.query('ANALYZE '+t);
-      const metric={users:USERS,opinions:QUESTIONS,...cfg,
-        bytes:{legacy:await getSize(db,'ci_sources_bench_legacy'),
-          v2:await getSize(db,'ci_sources_bench_v2')},
-        readsMs:{},updateWalBytes:{},updatedRows:80,
-        sourceTextBytes:Buffer.byteLength(sourceText+'93','utf8'),
-        identicalAnswersAndSources:true};
-      const sql={
-        legacy:'SELECT * FROM ci_sources_bench_legacy WHERE user_id=$1',
-        v2:'SELECT answers,sources FROM ci_sources_bench_v2 WHERE user_id=$1'
-      };
-      for(const kind of ['legacy','v2']){
-        const times=[];
-        for(let i=0;i<12;i++)times.push(await measure(db,sql[kind],[500]));
-        metric.readsMs[kind]={p50:percentile(times,.5),p95:percentile(times,.95)};
-      }
-      // Sequential identical 80 answer+source changes, one PostgreSQL
-      // instance. WAL values are illustrative, not production forecast.
-      const update={
-        legacy:'UPDATE ci_sources_bench_legacy SET "opinione_7"=$2,'+
-          "fonti_opinioni=fonti_opinioni||jsonb_build_object('opinione_7',$3::text) "+
-          'WHERE user_id=$1',
-        v2:'UPDATE ci_sources_bench_v2 SET '+
-          "answers=answers||jsonb_build_object('opinione_7',$2::text),"+
-          "sources=sources||jsonb_build_object('opinione_7',$3::text) "+
-          'WHERE user_id=$1'
-      };
-      for(const kind of ['legacy','v2']){
-        const lsn=await walStart(db);
-        for(let id=1;id<=80;id++){
-          const res=await db.query(update[kind],[id,'i',sourceText+'update']);
-          assert.equal(res.rowCount,1);
-        }
-        metric.updateWalBytes[kind]=await walSince(db,lsn);
-      }
-      const post=await db.query(
-        'SELECT count(*)::integer AS mismatches FROM ci_sources_bench_legacy l '+
-        'JOIN ci_sources_bench_v2 v ON l.user_id=v.user_id '+
-        'WHERE l.fonti_opinioni IS DISTINCT FROM v.sources OR '+
-        "l.\"opinione_7\" IS DISTINCT FROM v.answers->>'opinione_7'"
-      );
-      assert.equal(post.rows[0].mismatches,0);
-      metric.identicalAfter80Updates=true;
-      output.push(metric);
-    }
-    console.log('OPINION_V2_SOURCES_BENCHMARK_JSON='+JSON.stringify(output));
-  }finally{
-    await drop(db);
-    await db.end();
-  }
-}
-run().catch(e=>{
-  console.error('Sources benchmark failed',e.code||e.name||'UNKNOWN',e.message);
-  process.exitCode=1;
-});
-+(n+2)+',+
-        'FROM ci_sources_bench_v2 v WHERE l.user_id=v.user_id'
-      );
-      const proof=await db.query(
-        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_v2 v '+
-        'JOIN ci_sources_bench_legacy l ON v.user_id=l.user_id '+
-        'WHERE v.sources IS DISTINCT FROM l.fonti_opinioni'
-      );
-      assert.equal(proof.rows[0].mismatches,0);
-      const answerProof=await db.query(
-        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_fixture f '+
-        'JOIN ci_sources_bench_v2 v ON v.user_id=f.user_id '+
-        'JOIN ci_sources_bench_legacy l ON l.user_id=f.user_id '+
-        'WHERE v.answers->>f.opinion_id IS DISTINCT FROM f.answer OR '+
-        'to_jsonb(l)->>f.opinion_id IS DISTINCT FROM f.answer'
-      );
-      assert.equal(answerProof.rows[0].mismatches,0);
-      for(const t of TABLES.slice(0,2))await db.query('ANALYZE '+t);
-      const metric={users:USERS,opinions:QUESTIONS,...cfg,
-        bytes:{legacy:await getSize(db,'ci_sources_bench_legacy'),
-          v2:await getSize(db,'ci_sources_bench_v2')},
-        readsMs:{},updateWalBytes:{},updatedRows:80,
-        sourceTextBytes:Buffer.byteLength(sourceText+'93','utf8'),
-        identicalAnswersAndSources:true};
-      const sql={
-        legacy:'SELECT * FROM ci_sources_bench_legacy WHERE user_id=$1',
-        v2:'SELECT answers,sources FROM ci_sources_bench_v2 WHERE user_id=$1'
-      };
-      for(const kind of ['legacy','v2']){
-        const times=[];
-        for(let i=0;i<12;i++)times.push(await measure(db,sql[kind],[500]));
-        metric.readsMs[kind]={p50:percentile(times,.5),p95:percentile(times,.95)};
-      }
-      // Sequential identical 80 answer+source changes, one PostgreSQL
-      // instance. WAL values are illustrative, not production forecast.
-      const update={
-        legacy:'UPDATE ci_sources_bench_legacy SET "opinione_7"=$2,'+
-          "fonti_opinioni=fonti_opinioni||jsonb_build_object('opinione_7',$3::text) "+
-          'WHERE user_id=$1',
-        v2:'UPDATE ci_sources_bench_v2 SET '+
-          "answers=answers||jsonb_build_object('opinione_7',$2::text),"+
-          "sources=sources||jsonb_build_object('opinione_7',$3::text) "+
-          'WHERE user_id=$1'
-      };
-      for(const kind of ['legacy','v2']){
-        const lsn=await walStart(db);
-        for(let id=1;id<=80;id++){
-          const res=await db.query(update[kind],[id,'i',sourceText+'update']);
-          assert.equal(res.rowCount,1);
-        }
-        metric.updateWalBytes[kind]=await walSince(db,lsn);
-      }
-      const post=await db.query(
-        'SELECT count(*)::integer AS mismatches FROM ci_sources_bench_legacy l '+
-        'JOIN ci_sources_bench_v2 v ON l.user_id=v.user_id '+
-        'WHERE l.fonti_opinioni IS DISTINCT FROM v.sources OR '+
-        "l.\"opinione_7\" IS DISTINCT FROM v.answers->>'opinione_7'"
-      );
-      assert.equal(post.rows[0].mismatches,0);
-      metric.identicalAfter80Updates=true;
-      output.push(metric);
-    }
-    console.log('OPINION_V2_SOURCES_BENCHMARK_JSON='+JSON.stringify(output));
-  }finally{
-    await drop(db);
-    await db.end();
-  }
-}
-run().catch(e=>{
-  console.error('Sources benchmark failed',e.code||e.name||'UNKNOWN',e.message);
-  process.exitCode=1;
-});
-+(n+3)+',+
-        'FROM ci_sources_bench_v2 v WHERE l.user_id=v.user_id'
-      );
-      const proof=await db.query(
-        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_v2 v '+
-        'JOIN ci_sources_bench_legacy l ON v.user_id=l.user_id '+
-        'WHERE v.sources IS DISTINCT FROM l.fonti_opinioni'
-      );
-      assert.equal(proof.rows[0].mismatches,0);
-      const answerProof=await db.query(
-        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_fixture f '+
-        'JOIN ci_sources_bench_v2 v ON v.user_id=f.user_id '+
-        'JOIN ci_sources_bench_legacy l ON l.user_id=f.user_id '+
-        'WHERE v.answers->>f.opinion_id IS DISTINCT FROM f.answer OR '+
-        'to_jsonb(l)->>f.opinion_id IS DISTINCT FROM f.answer'
-      );
-      assert.equal(answerProof.rows[0].mismatches,0);
-      for(const t of TABLES.slice(0,2))await db.query('ANALYZE '+t);
-      const metric={users:USERS,opinions:QUESTIONS,...cfg,
-        bytes:{legacy:await getSize(db,'ci_sources_bench_legacy'),
-          v2:await getSize(db,'ci_sources_bench_v2')},
-        readsMs:{},updateWalBytes:{},updatedRows:80,
-        sourceTextBytes:Buffer.byteLength(sourceText+'93','utf8'),
-        identicalAnswersAndSources:true};
-      const sql={
-        legacy:'SELECT * FROM ci_sources_bench_legacy WHERE user_id=$1',
-        v2:'SELECT answers,sources FROM ci_sources_bench_v2 WHERE user_id=$1'
-      };
-      for(const kind of ['legacy','v2']){
-        const times=[];
-        for(let i=0;i<12;i++)times.push(await measure(db,sql[kind],[500]));
-        metric.readsMs[kind]={p50:percentile(times,.5),p95:percentile(times,.95)};
-      }
-      // Sequential identical 80 answer+source changes, one PostgreSQL
-      // instance. WAL values are illustrative, not production forecast.
-      const update={
-        legacy:'UPDATE ci_sources_bench_legacy SET "opinione_7"=$2,'+
-          "fonti_opinioni=fonti_opinioni||jsonb_build_object('opinione_7',$3::text) "+
-          'WHERE user_id=$1',
-        v2:'UPDATE ci_sources_bench_v2 SET '+
-          "answers=answers||jsonb_build_object('opinione_7',$2::text),"+
-          "sources=sources||jsonb_build_object('opinione_7',$3::text) "+
-          'WHERE user_id=$1'
-      };
-      for(const kind of ['legacy','v2']){
-        const lsn=await walStart(db);
-        for(let id=1;id<=80;id++){
-          const res=await db.query(update[kind],[id,'i',sourceText+'update']);
-          assert.equal(res.rowCount,1);
-        }
-        metric.updateWalBytes[kind]=await walSince(db,lsn);
-      }
-      const post=await db.query(
-        'SELECT count(*)::integer AS mismatches FROM ci_sources_bench_legacy l '+
-        'JOIN ci_sources_bench_v2 v ON l.user_id=v.user_id '+
-        'WHERE l.fonti_opinioni IS DISTINCT FROM v.sources OR '+
-        "l.\"opinione_7\" IS DISTINCT FROM v.answers->>'opinione_7'"
-      );
-      assert.equal(post.rows[0].mismatches,0);
-      metric.identicalAfter80Updates=true;
-      output.push(metric);
-    }
-    console.log('OPINION_V2_SOURCES_BENCHMARK_JSON='+JSON.stringify(output));
-  }finally{
-    await drop(db);
-    await db.end();
-  }
-}
-run().catch(e=>{
-  console.error('Sources benchmark failed',e.code||e.name||'UNKNOWN',e.message);
-  process.exitCode=1;
-});
-+(n+4)+'::jsonb)');
-        }
-        await db.query('INSERT INTO ci_sources_bench_fixed'+
+        await db.query('INSERT INTO ci_sources_bench_fixed '+
           '(user_id,catalog_version,answers,sources) VALUES '+parts.join(','),params);
       }
       const samples=await db.query(
         'SELECT b.answers,b.sources,v.answers AS json_answers,v.sources AS json_sources '+
         'FROM ci_sources_bench_fixed b JOIN ci_sources_bench_v2 v USING(user_id) '+
-        'WHERE b.user_id IN (1,500,1200)'
+        'WHERE b.user_id IN(1,500,1200)'
       );
       for(const row of samples.rows){
         const decoded=decodeAnswers(labels,row.answers);
@@ -438,15 +133,17 @@ run().catch(e=>{
       for(const t of TABLES.slice(0,2))await db.query('ANALYZE '+t);
       const metric={users:USERS,opinions:QUESTIONS,...cfg,
         bytes:{legacy:await getSize(db,'ci_sources_bench_legacy'),
-          v2:await getSize(db,'ci_sources_bench_v2')},
+          v2:await getSize(db,'ci_sources_bench_v2'),
+          fixed:await getSize(db,'ci_sources_bench_fixed')},
         readsMs:{},updateWalBytes:{},updatedRows:80,
         sourceTextBytes:Buffer.byteLength(sourceText+'93','utf8'),
         identicalAnswersAndSources:true};
       const sql={
         legacy:'SELECT * FROM ci_sources_bench_legacy WHERE user_id=$1',
-        v2:'SELECT answers,sources FROM ci_sources_bench_v2 WHERE user_id=$1'
+        v2:'SELECT answers,sources FROM ci_sources_bench_v2 WHERE user_id=$1',
+        fixed:'SELECT catalog_version,answers,sources FROM ci_sources_bench_fixed WHERE user_id=$1'
       };
-      for(const kind of ['legacy','v2']){
+      for(const kind of ['legacy','v2','fixed']){
         const times=[];
         for(let i=0;i<12;i++)times.push(await measure(db,sql[kind],[500]));
         metric.readsMs[kind]={p50:percentile(times,.5),p95:percentile(times,.95)};
@@ -460,9 +157,13 @@ run().catch(e=>{
         v2:'UPDATE ci_sources_bench_v2 SET '+
           "answers=answers||jsonb_build_object('opinione_7',$2::text),"+
           "sources=sources||jsonb_build_object('opinione_7',$3::text) "+
+          'WHERE user_id=$1',
+        fixed:'UPDATE ci_sources_bench_fixed SET '+
+          'answers=set_byte(answers,1,(get_byte(answers,1)&252)|3),'+
+          "sources=sources||jsonb_build_object('opinione_7',$3::text) "+
           'WHERE user_id=$1'
       };
-      for(const kind of ['legacy','v2']){
+      for(const kind of ['legacy','v2','fixed']){
         const lsn=await walStart(db);
         for(let id=1;id<=80;id++){
           const res=await db.query(update[kind],[id,'i',sourceText+'update']);
@@ -477,6 +178,14 @@ run().catch(e=>{
         "l.\"opinione_7\" IS DISTINCT FROM v.answers->>'opinione_7'"
       );
       assert.equal(post.rows[0].mismatches,0);
+      const fixedPost=await db.query(
+        'SELECT COUNT(*)::integer AS mismatches FROM ci_sources_bench_fixed b '+
+        'JOIN ci_sources_bench_v2 v USING(user_id) '+
+        'WHERE b.sources IS DISTINCT FROM v.sources OR '+
+        "(get_byte(b.answers,1)&3) IS DISTINCT FROM CASE v.answers->>'opinione_7' "+
+        "WHEN 'f' THEN 1 WHEN 'c' THEN 2 WHEN 'i' THEN 3 ELSE 0 END"
+      );
+      assert.equal(fixedPost.rows[0].mismatches,0);
       metric.identicalAfter80Updates=true;
       output.push(metric);
     }
