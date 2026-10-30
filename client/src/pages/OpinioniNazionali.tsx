@@ -212,7 +212,7 @@ export default function OpinioniNazionali() {
         isLoading || questions.length === 0 || saveMutation.isPending) return;
     const toSave = collectChangedOpinionAnswers(
       questions,
-      { ...pendingOpinionsToSave.answers, ...opinions },
+      { ...opinions, ...pendingOpinionsToSave.answers },
     );
     setGrantConfirmed(false);
     setPendingOpinionsToSave(null);
