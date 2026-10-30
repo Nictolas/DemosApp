@@ -606,8 +606,8 @@ export default function PrivacyPolicy() {
           {/* Footer */}
           <div className="border-t pt-6 mt-8">
             <p className="text-sm text-gray-500 text-center">
-              Questa informativa è conforme al Regolamento (UE) 2016/679 (GDPR) 
-              e al D.Lgs. 196/2003 (Codice Privacy).
+              Questa informativa descrive il trattamento dei dati personali ai sensi del Regolamento (UE) 2016/679 (GDPR) 
+              e del D.Lgs. 196/2003 (Codice Privacy).
             </p>
           </div>
 
