@@ -40,7 +40,7 @@ test('national minus Tuscany could expose one Laziale; coherent plan hides Tusca
     row(0,'TO','10','0','0'),
     row(0,'LA','0','1','0')
   ]);
-  assert.equal(result.publication.publishNational,true);
+  assert.equal(result.publication.publishNational,false);
   assert.deepEqual(result.publication.visibleRegions,[]);
   assert.ok(result.publication.suppressedRegions.includes('TO'));
   assert.ok(result.publication.suppressedRegions.includes('LA'));
