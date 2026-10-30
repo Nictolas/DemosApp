@@ -10,7 +10,7 @@ const {
 } = require('@aws-sdk/client-s3');
 const {
   MARKER, OBJECT_KEY, BAD, CLOSED, safeConfig, readOnlyTransport,
-  verifySyntheticVersion
+  MAX_PROBE_MS, verifySyntheticVersion
 } = require('../scripts/attest-gdpr-b2-synthetic-version-readonly');
 const fixture = fs.readFileSync(path.join(__dirname, 'fixtures/gdpr-b2-synthetic-object-v1.json'));
 const clock = () => new Date('2026-10-30T12:00:00.000Z');
@@ -202,4 +202,101 @@ test('matching optional lock metadata is allowed, but still not recovery proof',
   assert.equal(output.versionRetentionComplianceVerified,true);
   assert.equal(output.recoveryReady,false);
   assert.equal(output.completeGdprJournalVerified,false);
+});
+
+
+test('bounded preflight rejects invalid timeout before constructing an SDK client',async()=>{
+  for (const timeoutMs of [0,-1,MAX_PROBE_MS+1,NaN,'25',Infinity]) {
+    let constructed=false;
+    const output=await verifySyntheticVersion({
+      env:base(),clock,timeoutMs,
+      makeClient:()=>{constructed=true;return fake();}
+    });
+    assert.equal(constructed,false);
+    assert.equal(output.status,BAD);
+    assert.equal(output.recoveryReady,false);
+  }
+});
+
+test('read-only transport accepts only an AbortSignal option, never extra SDK controls',async()=>{
+  const cfg=safeConfig(base());
+  const client=fake();
+  const reader=readOnlyTransport(client,cfg);
+  const cmd=new GetObjectRetentionCommand({
+    Bucket:cfg.bucket,Key:OBJECT_KEY,VersionId:cfg.versionId
+  });
+  const signal=new AbortController().signal;
+  await reader.send(cmd,{abortSignal:signal});
+  for(const options of [
+    {abortSignal:signal,requestTimeout:0},
+    {abortSignal:'not-a-signal'},
+    {requestTimeout:0},
+    {abortSignal:null},
+    {}
+  ]) {
+    await assert.rejects(Promise.resolve().then(()=>reader.send(cmd,options)),
+      /NO_GO_GDPR_B2_SYNTHETIC_OPERATION_REJECTED/);
+  }
+  assert.equal(client.calls.length,1);
+});
+
+test('stalled retention and stalled version fetch both time out NO-GO and abort SDK reads',async()=>{
+  for(const stallAt of ['retention','version']){
+    const normal=fake();
+    const original=normal.send.bind(normal);
+    let aborted=false;
+    normal.send=(command,options)=>{
+      assert.ok(options.abortSignal instanceof AbortSignal);
+      if((stallAt==='retention' && command instanceof GetObjectRetentionCommand) ||
+         (stallAt==='version' && command instanceof GetObjectCommand)) {
+        return new Promise(()=>{options.abortSignal.addEventListener('abort',
+          ()=>{aborted=true;},{once:true});});
+      }
+      return original(command);
+    };
+    const result=await verifySyntheticVersion({
+      env:base(),clock,timeoutMs:30,makeClient:()=>normal
+    });
+    assert.equal(result.status,CLOSED,stallAt);
+    assert.equal(result.syntheticVersionVerified,false);
+    assert.equal(result.recoveryReady,false);
+    assert.equal(aborted,true);
+    assert.equal(normal.destroyed,true);
+  }
+});
+
+test('stalled response body is destroyed on timeout without a positive attestation',async()=>{
+  const stalled=new Readable({read(){}});
+  const client=fake();
+  const original=client.send.bind(client);
+  client.send=async(command,options)=>{
+    const response=await original(command,options);
+    if(command instanceof GetObjectCommand) response.Body=stalled;
+    return response;
+  };
+  const output=await verifySyntheticVersion({
+    env:base(),clock,timeoutMs:30,makeClient:()=>client
+  });
+  assert.equal(output.status,CLOSED);
+  assert.equal(output.syntheticVersionVerified,false);
+  assert.equal(output.recoveryReady,false);
+  assert.equal(stalled.destroyed,true);
+  assert.equal(client.destroyed,true);
+});
+
+test('clock rollback between retention check and response fails closed',async()=>{
+  let tick=0;
+  const reversed=()=>{
+    tick++;
+    return new Date(tick===1
+      ? '2026-10-30T12:00:00Z' : '2026-10-29T12:00:00Z');
+  };
+  const client=fake();
+  const output=await verifySyntheticVersion({
+    env:base(),clock:reversed,makeClient:()=>client
+  });
+  assert.equal(output.status,CLOSED);
+  assert.equal(output.recoveryReady,false);
+  assert.equal(output.syntheticVersionVerified,false);
+  assert.equal(client.destroyed,true);
 });
