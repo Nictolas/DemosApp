@@ -1,4 +1,9 @@
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
+import { getAuthToken } from "@/lib/auth-token";
+import {
+  captureOpinionSaveSession, matchesOpinionSaveSession,
+  type VerifiedOpinionSaveUser,
+} from "@/lib/opinionSaveSession";
 import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
 import { loadOpinionCategory, cacheConfirmedOpinionAnswers } from "@/lib/encryptedOpinionCache";
 import React, { useState, useEffect } from 'react';
@@ -116,17 +121,38 @@ export default function OpinioniEuropee() {
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
-    mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("E", newOpinions),
-    onSuccess: async (_data, savedOpinions) => {
+    mutationFn: async (newOpinions: Record<string, string>) => {
+      const token = getAuthToken();
+      const savedSession = captureOpinionSaveSession(
+        isSessionVerified ? user?.id : null,
+        verifiedPoliticalConsent?.timestamp, token,
+        token ? queryClient.getQueryData<VerifiedOpinionSaveUser>(['user', token]) : null,
+      );
+      if (!savedSession) {
+        throw new Error("Sessione o consenso non verificati: impossibile salvare.");
+      }
+      await saveAndVerifyOpinions("E", newOpinions);
+      return savedSession;
+    },
+    onSuccess: async (savedSession, savedOpinions) => {
+      // A successful server ACK belongs only to the session that sent it.
+      // Fail closed on account switches or revocations, without another GET.
+      const stillCurrent = () => matchesOpinionSaveSession(
+        savedSession, getAuthToken(),
+        queryClient.getQueryData<VerifiedOpinionSaveUser>(['user', savedSession.token]),
+      );
+      if (!stillCurrent()) return;
       // ACK commit has completed: persist all shared encrypted grade caches.
-      await cacheConfirmedOpinionAnswers(user!.id, verifiedPoliticalConsent!.timestamp, savedOpinions);
+      await cacheConfirmedOpinionAnswers(savedSession.ownerId, savedSession.consentEpoch, savedOpinions);
+      if (!stillCurrent()) return;
       // An older in-flight GET must not restore the pre-save snapshot.
       await queryClient.cancelQueries({
-        queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Europeo'],
+        queryKey: ['opinioniQuestions', savedSession.ownerId, savedSession.consentEpoch, 'Europeo'],
       });
+      if (!stillCurrent()) return;
       toast({ title: "Successo", description: "Le tue opinioni europee sono state salvate." });
       queryClient.setQueryData(
-        ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Europeo'],
+        ['opinioniQuestions', savedSession.ownerId, savedSession.consentEpoch, 'Europeo'],
         (previous: any) => previous && Array.isArray(previous.data) ? ({
           ...previous,
           data: previous.data.map((question: any) =>
@@ -138,7 +164,7 @@ export default function OpinioniEuropee() {
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
       queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
       const nextPage = exitGuard.onSaveSuccess();
-      setTimeout(() => setLocation(nextPage), 1500);
+      setTimeout(() => { if (stillCurrent()) setLocation(nextPage); }, 1500);
     },
     onError: (error: any) => {
       exitGuard.onSaveError();
