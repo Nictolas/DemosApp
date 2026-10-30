@@ -39,6 +39,7 @@ on:
       - 'api/docs/gdpr-b2-wrapped-adapter-ci-only-write-gate-20261030.md'
       - 'api/docs/gdpr-b2-direct-write-no-go-and-concurrency-20261030.md'
       - 'api/tests/gdprB2DurablePutClaimPg17Synthetic.test.js'
+      - 'api/tests/gdprB2CursorGapPg17Synthetic.test.js'
       - 'api/tests/gdprB2StaleSqlWitnessGateSynthetic.test.js'
       - 'api/tests/gdprB2WitnessSingleUseReservationSynthetic.test.js'
       - 'api/tests/fixtures/gdprB2MonotonicAnchorSynthetic.js'
@@ -146,6 +147,7 @@ jobs:
           node --test --test-concurrency=1 api/tests/gdprB2DirectWriteGateIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2WrappedTransportNoGoIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2DurablePutClaimPg17Synthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2CursorGapPg17Synthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprB2StaleSqlWitnessGateSynthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprB2WitnessSingleUseReservationSynthetic.test.js
           node --check api/tests/fixtures/gdprB2MonotonicAnchorSynthetic.js
