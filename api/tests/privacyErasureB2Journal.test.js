@@ -331,7 +331,7 @@ test('existing event key with changed content is a fatal conflict',async()=>{
 test('readback hash mismatch and governance retention fail closed',async()=>{
   for(const bad of [{failRead:true},{failRetention:true}]){
     const b2=new FakeB2(bad);
-    await assert.rejects(service(b2).archiveEvent(EVT()),/hash mismatch|COMPLIANCE/);
+    await assert.rejects(service(b2).archiveEvent(EVT()),/length mismatch|hash mismatch|COMPLIANCE/);
   }
 });
 test('cursor advances only when every object in bounded batch is verified',async()=>{
