@@ -61,7 +61,7 @@ test('PG17 hybrid detailed opinion statistics: demographic/consent privacy',
       await db.query('INSERT INTO ci_demo_stats_users VALUES($1,$2,$3,$4,$5,$6)',
         [uid(n),tipo,base,age,male?'M':'F',regione]);
       await db.query('INSERT INTO ci_demo_stats_answers VALUES($1,$2,$3::jsonb)',
-        [uid(n),n%2===0?'f':'c',JSON.stringify({opinione_94:n%2===0?'f':'c',opinione_archived:'i'})]);
+        [uid(n),'f',JSON.stringify({opinione_94:'f',opinione_archived:'i'})]);
     }
     // Consent of 10 is explicit true, despite base false.
     // Consent of 20 is explicit false, despite base true.
@@ -88,6 +88,24 @@ test('PG17 hybrid detailed opinion statistics: demographic/consent privacy',
         assert.deepEqual(sexes.data.map(x=>x.sesso),['F','M']);
         assert.deepEqual(sexes.data.map(x=>x.favorevole+x.contrario+x.indeciso),[10,10]);
       }
+    });
+    await t.test('ten-person demographic hides entire breakdown if just one answer is contrary',async()=>{
+      const index=uid(19);
+      await db.query(
+        'UPDATE ci_demo_stats_answers SET "opinione_0"=$2, '+
+        "answers_extra=jsonb_set(answers_extra,'{opinione_94}',to_jsonb($2::text)) "+
+        'WHERE user_id=$1',[index,'c']
+      );
+      for(const dimension of ['eta','sesso']){
+        const result=await breakdown(db,'opinione_94',dimension,'Toscana');
+        assert.equal(result.suppressed,true);
+        assert.deepEqual(result.data,[]);
+      }
+      await db.query(
+        'UPDATE ci_demo_stats_answers SET "opinione_0"=$2, '+
+        "answers_extra=jsonb_set(answers_extra,'{opinione_94}',to_jsonb($2::text)) "+
+        'WHERE user_id=$1',[index,'f']
+      );
     });
     await t.test('one-person region is fully hidden, national totals can be published',async()=>{
       const tiny=await breakdown(db,'opinione_94','sesso','Lazio');
