@@ -244,10 +244,11 @@ test('NO-GO if an older truncated journal attempts to replace a newer signed hea
   // if an older database/object listing were mistaken for current state.
   journal.entries=olderEntries;
   assert.throws(()=>journal.seal(),{code:'GDPR_MODEL_WITNESS_NON_MONOTONIC'});
+  assert.equal(journal.sealed,false); // failed witness cannot seal an old journal
   assert.deepEqual(witness.current(),newest);
   assert.throws(()=>restoreSyntheticSnapshot(oldDb,journal,
     quarantine(journal,{independentWitness:newest})),
-    {code:'GDPR_MODEL_WITNESS_MISMATCH'});
+    {code:'GDPR_MODEL_WRITERS_NOT_SEALED'});
   assert.equal(oldDb.accounts.alice.consent,true);
 });
 
@@ -306,4 +307,58 @@ test('independent witness accepts an empty sealed journal only as initial state'
   assert.throws(()=>witness.attest({
     ...journal.state(), count:1, head:'f'.repeat(64), sealed:false
   }),{code:'GDPR_MODEL_WITNESS_NON_MONOTONIC'});
+});
+
+
+test('witness refuses a plausible next hash without the exact chained entry',()=>{
+  const {journal,db,witness}=setup();
+  journal.prepare(op('first-prepare'));
+  const previous=witness.current();
+  const falseNext={
+    epoch:previous.epoch,count:previous.count+1,
+    head:'a'.repeat(64),sealed:false
+  };
+  assert.throws(()=>witness.attest(falseNext),
+    {code:'GDPR_MODEL_WITNESS_ENTRY_INVALID'});
+  const original=journal.entries[0];
+  const fakeEntry={...original,seq:falseNext.count,
+    previous:previous.head,hash:falseNext.head};
+  assert.throws(()=>witness.attest(falseNext,fakeEntry),
+    {code:'GDPR_MODEL_WITNESS_ENTRY_INVALID'});
+  assert.throws(()=>witness.attest(falseNext,{...fakeEntry,
+    phase:'write-unknown'}),{code:'GDPR_MODEL_WITNESS_ENTRY_INVALID'});
+  assert.throws(()=>witness.attest(falseNext,{...fakeEntry,
+    operation:{id:'invalid',subject:'alice',action:'not-approved'}}),
+    {code:'GDPR_MODEL_WITNESS_ENTRY_INVALID'});
+  assert.deepEqual(witness.current(),previous);
+  assert.equal(journal.entries.length,1);
+  // A legitimate append still receives a witnessed head after the rejects.
+  journal.prepare(op('second-prepare','political_consent_revoked','bob'));
+  assert.equal(witness.current().count,2);
+});
+
+test('failed witness acknowledgement never publishes an unwitnessed journal entry',()=>{
+  const {journal,db,witness}=setup();
+  journal.prepare(op('first-prepare'));
+  const before=structuredClone(journal.entries);
+  witness.lose();
+  assert.throws(()=>journal.prepare(op('second-prepare',
+    'political_consent_revoked','bob')),
+    {code:'GDPR_MODEL_WITNESS_MISSING'});
+  assert.deepEqual(journal.entries,before);
+  assert.equal(journal.sealed,false);
+  assert.throws(()=>journal.seal(),{code:'GDPR_MODEL_WITNESS_MISSING'});
+  assert.equal(journal.sealed,false);
+});
+
+test('witness does not sign a seal carrying a newly introduced event entry',()=>{
+  const {journal,witness}=setup();
+  journal.prepare(op('first-prepare'));
+  const original=witness.current();
+  const seal={...journal.state(),sealed:true};
+  assert.throws(()=>witness.attest(seal,journal.entries[0]),
+    {code:'GDPR_MODEL_WITNESS_ENTRY_INVALID'});
+  assert.deepEqual(witness.current(),original);
+  journal.seal();
+  assert.equal(journal.sealed,true);
 });
