@@ -265,8 +265,11 @@ test('independent witness refuses same-count substitution, gaps and epoch rollba
     {...latest, sealed:false}
   ];
   for(const forged of invalid) {
-    assert.throws(()=>witness.attest(forged),
-      {code:'GDPR_MODEL_WITNESS_NON_MONOTONIC'});
+    // Malformed hashes fail input validation before the monotonicity gate.
+    const code=forged.head==='not-a-hash'
+      ? 'GDPR_MODEL_WITNESS_INVALID_CHECKPOINT'
+      : 'GDPR_MODEL_WITNESS_NON_MONOTONIC';
+    assert.throws(()=>witness.attest(forged),{code});
     assert.deepEqual(witness.current(),latest);
   }
   journal.seal();
