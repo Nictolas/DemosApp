@@ -119,4 +119,6 @@ test('only factory-produced readers match the exact external gate identity',()=>
   assert.equal(isHybridReadWithGate(async()=>({status:'ok',row:{}}),gate),false);
   assert.equal(isHybridReadWithGate(undefined,gate),false);
   assert.equal(isHybridReadWithGate(read.bind(null),gate),false);
+  assert.equal(isHybridReadWithGate(async()=>null,undefined),false);
+  assert.equal(isHybridReadWithGate(read,undefined),false);
 });
