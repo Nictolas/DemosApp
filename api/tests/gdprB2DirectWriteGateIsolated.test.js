@@ -165,3 +165,18 @@ test('uncertain PUT outcome remains sticky even after in-flight gate is released
   });
   assert.equal(calls.length,count);
 });
+
+test('empty SQL archive cursor page never claims journal completeness',async()=>{
+  let reads=0,network=0;
+  const journal=new PrivacyErasureB2Journal({env,client:{
+    send(){network++;throw Error('UNEXPECTED_PROVIDER_IO');}
+  }});
+  const db={async query(){reads++;return {rows:[{
+    complete_visibility:true,event_key:null
+  }]};}};
+  const result=await journal.archiveBatch(db);
+  assert.deepEqual(result,{exported:0,cursor:null,
+    complete:false,recoveryReady:false});
+  assert.equal(reads,1);
+  assert.equal(network,0);
+});
