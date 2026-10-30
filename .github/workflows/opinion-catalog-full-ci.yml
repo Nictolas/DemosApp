@@ -53,6 +53,8 @@ jobs:
         run: node --test api/tests/opinionCatalogPreflight.test.js
       - name: Live Opinions route topology — avoid dormant module false positives
         run: node --test api/tests/opinionCatalogRouteTopology.contract.test.js
+      - name: Authenticated Opinions accept canonical status A and legacy a (no SQL, no secrets)
+        run: node --test api/tests/opinionCatalogActiveStatusAuth.test.js
       - name: Dormant nested compatibility route contract (not mounted)
         run: node --test api/tests/opinionCatalogLegacyCompatibility.test.js
       - name: Android 1.0.10 legacy Opinions HTTP contract (no real accounts)
