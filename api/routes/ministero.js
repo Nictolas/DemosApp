@@ -426,7 +426,7 @@ router.get('/logs', verifyToken, requireAdmin, async (req, res) => {
       info: {
         purpose: 'Questo endpoint mostra i log di debug relativi alla sincronizzazione delle iniziative dal Ministero della Giustizia.',
         whatItShouldShow: [
-          'Log di ogni iniziativa durante il salvataggio (creata/aggiornata)',
+          'Conteggi aggregati di iniziative create, aggiornate, saltate e fallite (senza titoli o identificativi)',
           'Errori se una sincronizzazione fallisce',
           'Dettagli sul processo (quante iniziative recuperate, salvate, errori)'
         ],
