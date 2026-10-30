@@ -984,3 +984,44 @@ calcolo pesante a ogni visita, per minimizzare letture e costi.
 
 **Stato:** sola ricerca nella PR #483 Draft/NO-GO. Nessun
 merge, deploy, DDL, backfill, modifica al runtime o Supabase.
+
+
+## Correzione 30/10/2026: rischio di sottrazione per singola categoria
+
+Una seconda verifica ha evidenziato un difetto nella politica
+di soppressione complementare che considerava soltanto il
+**numero totale** delle risposte regionali nascoste.
+
+Controesempio sintetico: Toscana pubblicata con 10 favorevoli;
+Lazio nascosto con 15 favorevoli e **1 contrario**. Il
+totale nazionale avrebbe 25 favorevoli e 1 contrario.
+La popolazione nascosta totale sarebbe 16 (sopra soglia),
+ma sottraendo la Toscana dal nazionale si ricostruirebbe
+comunque l'unico contrario nella regione nascosta.
+
+La funzione di ricerca `planCoherentRegionalPublication` ora
+valuta **sia il totale nascosto sia ciascun residuo f/c/i**.
+Se un residuo positivo e inferiore a 10, nasconde una ulteriore
+regione che contribuisca alla categoria a rischio. Se nessuna
+regione ancora pubblicabile puo alzare tale residuo alla soglia,
+nasconde tutti i risultati regionali per quella Opinione:
+il nazionale rimane pubblicabile soltanto quando il proprio
+totale raggiunge la soglia applicativa.
+
+I test unitari includono il controesempio 25 favorevoli +
+1 contrario, il caso 10+10+1 con due regioni altrimenti
+pubblicabili, e il caso in cui sia possibile preservare una
+regione pubblica nascondendo l'altra che contribuisce alla
+categoria troppo piccola. I test degli snapshot PostgreSQL
+sono stati aggiornati alla regola piu prudente.
+
+**Limite:** la soppressione per categorie riduce il rischio
+di sottrazione da un *singolo snapshot nazionale e regionale*.
+Non dimostra la protezione da confronti nel tempo, incroci
+con eta/sesso/province/comuni o deduzioni da informazioni
+esterne. Non rende sicuro pubblicare automaticamente tutte
+le viste: occorre un coordinamento centralizzato, versionato
+e una verifica privacy end-to-end prima di attivare il codice.
+
+Nessuna query di produzione, modifiche a Supabase, merge,
+deploy o variazioni delle API attive.
