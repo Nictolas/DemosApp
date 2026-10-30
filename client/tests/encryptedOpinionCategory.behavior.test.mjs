@@ -59,19 +59,41 @@ function fixture() {
       [section]: category,
     });
   };
+  const mergeEncryptedOpinionAnswers = async (owner, consentEpoch, confirmedAnswers) => {
+    // Simulate the vault's commit-only merge across four shared grades, with
+    // the SAME revision barrier used by the production vault. No server GET.
+    const names = ['opinionE', 'opinionN', 'opinionR', 'opinionCO'];
+    for (const name of names) bump(owner, name);
+    const old = snapshots.get(owner);
+    if (!old?.consent?.granted || old.consent.timestamp !== consentEpoch) return;
+    const next = { ...old };
+    for (const name of names) {
+      if (!old[name]) continue;
+      next[name] = {
+        ...old[name],
+        questions: old[name].questions.map(question => {
+          const answer = confirmedAnswers[question.id];
+          return ['f', 'c', 'i'].includes(answer)
+            ? { ...question, userAnswer: answer } : question;
+        }),
+      };
+    }
+    snapshots.set(owner, next);
+  };
   const sandbox = {
     Date: class extends Date { static now() { return now; } },
     apiRequest,
     parseOpinionQuestions,
     loadEncryptedProfile: async owner => snapshots.get(owner) || null,
     persistEncryptedOpinionCategory,
-    mergeEncryptedOpinionAnswers: async () => {},
+    mergeEncryptedOpinionAnswers,
     profileSectionRevision: revision,
   };
   vm.runInNewContext(executable + '\nthis.cache = { loadOpinionCategory, cacheConfirmedOpinionAnswers };',
     sandbox, { filename: 'encryptedOpinionCache.ts' });
   return {
     load: sandbox.cache.loadOpinionCategory,
+    confirm: sandbox.cache.cacheConfirmedOpinionAnswers,
     snapshots, bump,
     setRevision: value => { currentRevision = value; },
     advance: milliseconds => { now += milliseconds; },
@@ -170,4 +192,45 @@ test('unavailable public catalog revision never authorizes reusing a stale snaps
   await assert.rejects(h.load(A, 'consent-1', 'N'),
     /Synthetic personal answer API unavailable/);
   assert.deepEqual(h.counts(), { answers: 3, catalog: 3, writes: 1 });
+});
+
+test('a late personal GET cannot overwrite an acknowledged save in another grade', async () => {
+  const h = fixture();
+  // Prime a real category snapshot, then force a catalog revision refresh.
+  await h.load(A, 'consent-1', 'N');
+  assert.equal(h.snapshots.get(A).opinionN.questions[0].userAnswer, 'f');
+  h.advance(300001);
+  h.setRevision('b'.repeat(64));
+
+  let resumeGet;
+  let getStarted;
+  const pendingGetStarted = new Promise(resolve => { getStarted = resolve; });
+  const gate = new Promise(resolve => { resumeGet = resolve; });
+  h.onGet(() => { getStarted(); return gate; });
+  const staleGet = h.load(A, 'consent-1', 'N');
+  await pendingGetStarted;
+
+  const beforeSave = h.counts();
+  await h.confirm(A, 'consent-1', { valid_opinion: 'c' });
+  assert.equal(h.counts().answers, beforeSave.answers,
+    'An acknowledged cross-grade answer must not cause a new personal GET');
+  assert.equal(h.snapshots.get(A).opinionN.questions[0].userAnswer, 'c',
+    'The acknowledged answer replaces the old local response');
+
+  resumeGet();
+  await assert.rejects(staleGet, /Caricamento opinioni annullato/,
+    'The old response must fail its revision guard, never return stale answers');
+  assert.equal(h.snapshots.get(A).opinionN.questions[0].userAnswer, 'c',
+    'The old in-flight GET must not restore the pre-save snapshot');
+  assert.equal(h.counts().writes, 1,
+    'The pending GET must not overwrite the encrypted profile after ACK');
+});
+
+test('a confirmed answer cannot be cached under an old consent epoch', async () => {
+  const h = fixture();
+  await h.load(A, 'consent-1', 'N');
+  await h.confirm(A, 'consent-2', { valid_opinion: 'c' });
+  assert.equal(h.snapshots.get(A).opinionN.questions[0].userAnswer, 'f',
+    'A stale or unrelated authorization epoch cannot modify the encrypted cache');
+  assert.equal(h.counts().answers, 1, 'No private GET is triggered by local ACK sync');
 });
