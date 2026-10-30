@@ -20,6 +20,7 @@ on:
       - "api/tests/opinionAnswersV2Gdpr.pg.test.js"
       - "api/tests/opinionAnswersV2Backfill.unit.test.js"
       - "api/scripts/benchmark-opinion-answer-layouts-ci.js"
+      - "api/scripts/benchmark-opinion-sources-ci.js"
       - "api/docs/opinion-answer-v2-no-column-ddl.md"
       - ".github/workflows/opinion-answers-v2-research.yml"
   workflow_dispatch:
@@ -66,3 +67,5 @@ jobs:
         run: node --test api/tests/opinionAnswersV2Candidate.test.js api/tests/opinionAnswersV2Candidate.pg.test.js api/tests/opinionAnswersV2Consent.pg.test.js api/tests/opinionAnswersV2ManifestCompatibility.test.js api/tests/opinionAnswersV2Backfill.pg.test.js api/tests/opinionAnswersV2Backfill.unit.test.js api/tests/opinionAnswersV2Preflight.unit.test.js api/tests/opinionAnswersV2Restore.pg.test.js api/tests/opinionAnswersV2Compat.unit.test.js api/tests/opinionAnswersV2Gdpr.unit.test.js api/tests/opinionAnswersV2Gdpr.pg.test.js api/tests/opinionAnswersV2Sources.unit.test.js api/tests/opinionAnswersV2Sources.pg.test.js
       - name: Measure synthetic layouts and SQL reads
         run: node api/scripts/benchmark-opinion-answer-layouts-ci.js
+      - name: Measure source-inclusive storage, reads and update WAL on disposable PG17
+        run: node api/scripts/benchmark-opinion-sources-ci.js
