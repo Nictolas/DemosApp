@@ -60,6 +60,9 @@ on:
       - 'api/tests/gdprB2SyntheticVersionReadonly.test.js'
       - 'api/tests/fixtures/gdprB2VersionInventorySynthetic.js'
       - 'api/tests/gdprB2VersionInventorySynthetic.test.js'
+      - 'api/tests/fixtures/gdprB2S3VersionPaginationSynthetic.js'
+      - 'api/tests/gdprB2S3VersionPaginationSynthetic.test.js'
+      - 'api/docs/gdpr-b2-s3-version-pagination-synthetic-20261030.md'
       - 'api/tests/fixtures/gdprB2IndependentVersionPinsSynthetic.js'
       - 'api/tests/gdprB2IndependentVersionPinsSynthetic.test.js'
       - 'api/tests/fixtures/gdprB2VersionRetentionSynthetic.js'
@@ -164,6 +167,8 @@ jobs:
           node --test --test-concurrency=1 api/tests/gdprB2SyntheticVersionReadonly.test.js
           node --check api/tests/fixtures/gdprB2VersionInventorySynthetic.js
           node --test --test-concurrency=1 api/tests/gdprB2VersionInventorySynthetic.test.js
+          node --check api/tests/fixtures/gdprB2S3VersionPaginationSynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprB2S3VersionPaginationSynthetic.test.js
           node --check api/tests/fixtures/gdprB2IndependentVersionPinsSynthetic.js
           node --test --test-concurrency=1 api/tests/gdprB2IndependentVersionPinsSynthetic.test.js
           node --check api/tests/fixtures/gdprB2VersionRetentionSynthetic.js
