@@ -54,7 +54,7 @@ test('two large regions and one tiny region leave at most one public region',()=
     row(0,'LO','10','0','0'),
     row(0,'LA','0','1','0')
   ]);
-  assert.equal(result.publication.visibleRegions.length,1);
+  assert.deepEqual(result.publication.visibleRegions,[]);
   assert.ok(result.publication.suppressedRegions.includes('LA'));
 });
 
