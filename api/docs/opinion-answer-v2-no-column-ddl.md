@@ -521,3 +521,114 @@ percorso autorizzativo non implementato, costo storage aggiuntivo
 non ancora misurato per la densità reale, nessuna integrazione
 con il Profilo Android o la cache PR #464. Non abilitare v2
 finché export/cancellazione GDPR e rollback non attestano anche le fonti.
+
+
+## Nuova candidata preferenziale: una sola colonna per le Opinioni future
+
+**Raccomandazione di ricerca aggiornata (30 ottobre 2026):** conservare
+tutte le 94 colonne TEXT esistenti nella stessa tabella
+\`public.opinioni_risposte\`, conservare \`fonti_opinioni\` JSONB
+**senza spostarla**, e proporre **un'unica nuova colonna NULLABLE
+\`answers_extra JSONB\`** per le Opinioni aggiunte in seguito.
+
+Non va eseguito ora alcun DDL reale. La modifica **una tantum** allo
+schema esistente richiede approvazione, valutazione di lock, RLS, backup
+e rollout. Le Opinioni n. 95, 96, ... entrerebbero nella mappa
+\`answers_extra\` con ID immutabili, senza altre ALTER TABLE. Una
+domanda archiviata viene nascosta nel catalogo in codice, non
+cancellata dalle risposte storiche. Un ID non va mai riutilizzato.
+
+Questa terza architettura elimina la necessità del **backfill delle
+94 risposte esistenti**, evitando conversione massiva, doppia copia,
+rischio di divergenze e necessità di modificare subito tutte le
+aggregazioni vecchie. Anche per le Opinioni future, un'unica SELECT
+della riga corrente può ottenere colonne esistenti, \`answers_extra\`
+e \`fonti_opinioni\`. L'utente non paga una lettura SQL in più
+soltanto perché esiste una nuova Opinione.
+
+### Benchmark fonti incluse — vecchio schema, JSONB completo, 2-bit fisso
+
+\`api/scripts/benchmark-opinion-sources-ci.js\` usa 1.200 utenti
+e 94 domande fittizie, con fonti di circa 95 byte sul 20% delle risposte
+nel campione poco compilato e 40% nel campione più compilato.
+
+| Risposte compilate | 94 TEXT + fonti | JSONB completo + fonti | 2-bit fisso + fonti |
+| --- | ---: | ---: | ---: |
+| 9%, tabella+indici | 520 KiB | 576 KiB | 400 KiB |
+| 45%, tabella+indici | 712 KiB | 1.464 KiB | 1.776 KiB |
+
+In questo esperimento il 2-bit fisso non ha un vantaggio stabile
+sul layout già esistente: è più compatto nel caso 9%, molto più
+voluminoso nel 45%. Il comportamento può riflettere differenti
+decisioni PostgreSQL di compressione/TOAST, non una proprietà generale
+della codifica a 2 bit. Anche il WAL delle 80 scritture fittizie
+varia: non usarlo per predire fatture Supabase.
+
+### Benchmark specifico ibrido — 94 colonne conservate, due nuove Opinioni
+
+\`api/scripts/benchmark-opinion-hybrid-ci.js\` confronta tabelle
+sintetiche gemelle dopo **VACUUM FULL** (a differenza dell'esperimento
+precedente): 1.200 utenti e 94 colonne TEXT con fonti identiche.
+La variante contiene una sola colonna NULLABLE \`answers_extra\`.
+Successivamente 120 utenti compilano due nuove Opinioni in JSONB.
+Le vecchie 94 risposte e tutte le fonti restano identiche.
+
+| Densità | Vecchia tabella | Ibrida, campo extra vuoto | Ibrida, 120 utenti con 2 nuove risposte |
+| --- | ---: | ---: | ---: |
+| 9% | 376 KiB | 376 KiB | 384 KiB |
+| 45% | 1.304 KiB | 1.304 KiB | 1.320 KiB |
+
+Differenze osservate: **0 KiB misurabili prima di nuovi dati**,
+poi **+8 KiB** (9%) o **+16 KiB** (45%). Il p50 della SELECT di un utente
+è rimasto identico nel test: 0,014 ms e 0,021 ms rispettivamente.
+I conteggi di colonne restano invariati dopo aver inserito le
+Opinioni n. 95 e 96.
+
+**Non confrontare direttamente le dimensioni assolute delle due
+tabelle sopra:** i benchmark usano diversi ordini di INSERT/UPDATE
+e il test ibrido compatta i file mediante VACUUM FULL. Questi non
+sono dati di produzione, benchmark a un milione di utenti o stime
+attendibili dei costi commerciali.
+
+### Prototipo verificabile e dipendenze ancora da integrare
+
+\`api/experiments/opinionAnswersV2HybridCandidate.js\` è un modulo
+**non importato dalle route in uso**. Distingue gli ID storici
+dalle nuove Opinioni pubblicate e prepara patch senza colonne per
+domanda futura. La proiezione del Profilo conserva l'attuale payload
+e \`buildHybridAnswerSelect\` prepara **un solo SELECT** con le colonne
+TEXT per quel grado e le mappe JSONB della stessa riga.
+
+\`api/tests/opinionAnswersV2Hybrid.unit.test.js\` e
+\`api/tests/opinionAnswersV2Hybrid.pg.test.js\` simulano aggiunta di
+95ª/96ª Opinione, modifica senza sovrascrivere risposte esistenti,
+archiviazione, fonti intatte, cancellazione dell'intera riga su
+revoca e blocco della scrittura in attesa del lock. Il preflight
+riconosce \`answers_extra\` come campo di servizio **opzionale**
+di tipo JSONB, preservando la verifica di tutte le 94 colonne TEXT.
+
+Restano indispensabili prima di qualsiasi cutover:
+- Adeguare **tutti i writer** (salvataggio personale e profilo Admin),
+  mantenendo il lock dell'utente e il controllo consenso dopo lock
+  nella stessa transazione; non inserire nuovi ID tramite SQL
+  costruita da testo fornito dal client.
+- Adeguare GET di compatibilità, Profilo, Android e cache locale
+  #464: la domanda nuova viene dal catalogo #384, il suo valore
+  dalla mappa; nessuna lettura del catalogo da Supabase.
+- Adeguare Sondaggi, matching, statistiche e export GDPR per
+  risolvere gli ID oltre le 94 colonne; mantenere la soglia privacy
+  delle aggregazioni e la semantica delle fonti.
+- La cancellazione della **stessa riga** dovrebbe coprire anche
+  \`answers_extra\`, ma va verificata end-to-end su tutti i percorsi
+  GDPR e dopo restore/consenso revocato. Il rischio
+  revoca→nuova concessione→restore individuato nel ledger B2
+  non è risolto da questa architettura.
+- Verificare permessi, RLS, backup, query planner, WAL e regressioni
+  Android con dati di prova realistici; evitare la riattivazione
+  di risposte eliminate durante aggiornamenti, rollback o replay.
+
+**Decisione di ricerca:** dare priorità alla soluzione **ibrida**
+rispetto alla migrazione completa JSONB/bitset, perché soddisfa il
+requisito "nessun DDL per ogni nuova Opinione" con minore spostamento
+di dati. La PR resta Draft e **NO-GO produzione**: nessun ALTER TABLE,
+merge, backfill reale, modifica alle route o deploy autorizzato qui.
