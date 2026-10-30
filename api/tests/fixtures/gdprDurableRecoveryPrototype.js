@@ -128,7 +128,7 @@ class SyntheticExternalJournal {
     return {epoch:this.epoch, count:this.entries.length,
       head:this.entries.at(-1)?.hash || ZERO, sealed:this.sealed};
   }
-  append(phase, operation) {
+  append(phase, operation, {crashAfterWitness=false}={}) {
     if (this.sealed) reject('GDPR_MODEL_JOURNAL_SEALED');
     if (this.offline) reject('GDPR_MODEL_EXTERNAL_UNAVAILABLE');
     const row = {seq:this.entries.length + 1,
@@ -142,6 +142,9 @@ class SyntheticExternalJournal {
     // A real implementation still needs a durable atomic two-provider protocol.
     const checkpoint={epoch:this.epoch,count:entry.seq,head:entry.hash,sealed:false};
     this.witness.attest(checkpoint,entry);
+    // An ACK can arrive before the journal entry is durably published.
+    // Model that dangerous cross-provider gap without repairing it locally.
+    if (crashAfterWitness) reject('GDPR_MODEL_SIMULATED_CRASH');
     this.entries.push(entry);
     return entry;
   }
@@ -206,7 +209,7 @@ class SyntheticExternalJournal {
     if (rows.some(e=>e.phase === 'commit')) return 'committed';
     return 'pending';
   }
-  prepare(operation) {
+  prepare(operation, {crashAfterWitness=false}={}) {
     const op=checkOperation(operation);
     const old=this.prior(op);
     if (old) return old;
@@ -217,13 +220,13 @@ class SyntheticExternalJournal {
         !this.entries.some(f => f.phase === 'commit' && f.operation.id === e.operation.id))) {
       reject('GDPR_MODEL_AMBIGUOUS_INTENT');
     }
-    this.append('prepare',op);
+    this.append('prepare',op,{crashAfterWitness});
     return 'prepared';
   }
-  commit(operation) {
+  commit(operation, {crashAfterWitness=false}={}) {
     const op=checkOperation(operation);
     if (this.prior(op) !== 'pending') reject('GDPR_MODEL_COMMIT_WITHOUT_INTENT');
-    this.append('commit',op);
+    this.append('commit',op,{crashAfterWitness});
   }
   // TEST-ONLY reconciliation. Simulates independently established proof from
   // the ORIGINAL live primary, not a restored snapshot, after every writer is
@@ -244,10 +247,11 @@ class SyntheticExternalJournal {
     this.commit(op);
     return {externallyFinalized:true,productionRecoveryReady:false};
   }
-  seal() {
+  seal({crashAfterWitness=false}={}) {
     if (this.offline) reject('GDPR_MODEL_EXTERNAL_UNAVAILABLE');
     // Never mark even the synthetic journal sealed if attestation fails.
     const receipt=this.witness.attest({...this.state(),sealed:true});
+    if (crashAfterWitness) reject('GDPR_MODEL_SIMULATED_CRASH');
     this.sealed=true;
     return receipt;
   }
@@ -304,11 +308,11 @@ function submitSyntheticOperation(db,journal,raw,{crashAt=null}={}) {
   // Unknown precommit outcome is never automatically acknowledged or retried.
   if (prior === 'pending') reject('GDPR_MODEL_AMBIGUOUS_INTENT');
   if (crashAt === 'before_prepare') reject('GDPR_MODEL_SIMULATED_CRASH');
-  journal.prepare(op);
+  journal.prepare(op,{crashAfterWitness:crashAt === 'after_prepare_witness_ack'});
   if (crashAt === 'after_prepare') reject('GDPR_MODEL_SIMULATED_CRASH');
   db.apply(op);
   if (crashAt === 'after_db_commit') reject('GDPR_MODEL_SIMULATED_CRASH');
-  journal.commit(op);
+  journal.commit(op,{crashAfterWitness:crashAt === 'after_commit_witness_ack'});
   if (crashAt === 'after_external_commit') reject('GDPR_MODEL_SIMULATED_CRASH');
   return {confirmed:true,reused:false};
 }
