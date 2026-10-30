@@ -65,7 +65,18 @@ router.get('/opinioni-list', async (req, res) => {
     // This avoids transferring all 94 answers or the fonti_opinioni JSONB
     // service field while preserving the existing single SQL round trip.
     const { grado } = req.query;
-    const normalizedGrade = grado ? (normalizeOpinionScope(String(grado)) || String(grado)) : '';
+    // Reject missing/malformed categories *before* querying the user's
+    // account or answers. The catalog and its categories live in code.
+    // Preserve legacy unknown-grade behavior (200 with empty metadata) for
+    // authenticated clients that ask for a not-yet-published scope.
+    if (typeof grado !== 'string' || !grado.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Grado richiesto',
+        message: 'Il parametro grado è obbligatorio'
+      });
+    }
+    const normalizedGrade = normalizeOpinionScope(grado) || grado;
     const opinionResult = { rows: sortOpinionsByText(getOpinionsForGrade(normalizedGrade)) };
     // opinionCatalog.js enforces stable, safe [a-z0-9_] identifiers at load time.
     const projection = opinionResult.rows.map(op => `a."${op.id}"`).join(', ');
@@ -102,14 +113,6 @@ router.get('/opinioni-list', async (req, res) => {
     
     if (isDev) console.log('🔍 GET /api/opinioni-list - grado:', grado);
 
-    if (!grado) {
-      return res.status(400).json({
-        success: false,
-        error: 'Grado richiesto',
-        message: 'Il parametro grado è obbligatorio'
-      });
-    }
-    
     const gradiColumn = 'gradi_opinione';
 
     if (opinionResult.rows.length === 0) {
@@ -158,7 +161,7 @@ router.get('/opinioni-list', async (req, res) => {
         frontendAnswer = null;
       }
       return {
-        id: opinion.id, // USA L'ID DIRETTO DAL DATABASE (opinioni_domande.id)
+        id: opinion.id, // Published code catalog ID, stable across text changes
         text: opinion.text,
         grado: opinion[gradiColumn] || opinion.gradi_opinione || opinion.gradi_opinioni,
         userAnswer: frontendAnswer
