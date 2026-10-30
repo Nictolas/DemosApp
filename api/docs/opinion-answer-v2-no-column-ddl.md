@@ -944,3 +944,43 @@ attivare pubblicamente questi endpoint basandosi solo sul test.
 Test isolati: `api/tests/opinionAnswersV2RegionalPrivacy.unit.test.js`;
 nessuna lettura di dati personali, nessuna modifica di schemi,
 Supabase, Render o servizi di produzione. La PR resta Draft/NO-GO.
+
+
+## Un solo snapshot nazionale/regionale per Opinione — prototipo isolato
+
+La soppressione complementare delle regioni descritta sopra richiede
+conteggi nazionali e regionali dalla **stessa istantanea dei dati**,
+non da 21 interrogazioni indipendenti mentre cambiano risposte e consensi.
+
+Il candidato `api/experiments/opinionAnswersV2CoherentSnapshotCandidate.js`
+prepara una **sola query PostgreSQL** tramite
+`GROUPING SETS ((regione), ())` su utenti e consensi:
+
+- Legge una vecchia colonna TEXT oppure una nuova chiave
+  di `answers_extra JSONB`, con ID pubblicati nel codice.
+- Include persone `PERSON` e `P` con consenso politico valido;
+  esclude organizzazioni `O` e consensi esplicitamente negati.
+- Restituisce nello stesso statement conteggi nazionali e
+  regionali, senza una SELECT separata per ciascuna regione.
+- Rifiuta codici geografici ignoti, duplicazioni, marker di
+  raggruppamento non validi e incongruenze fra conteggi.
+- Completa in memoria le regioni a zero risposte e applica
+  la soppressione complementare in modo deterministico.
+
+Test: `api/tests/opinionAnswersV2CoherentSnapshot.unit.test.js`
+e `api/tests/opinionAnswersV2CoherentSnapshot.pg.test.js`
+su PostgreSQL 17 temporaneo e dati inventati. Verificano vecchia
+e futura Opinione, 10 persone in Toscana + 1 in Lazio, presenza
+di un'altra regione sopra soglia, revoca e regione non riconosciuta.
+
+**Limite essenziale:** una SELECT crea uno snapshot coerente soltanto
+per quella specifica esecuzione. Non rende coerenti le risposte
+pubblicate successivamente da endpoint e cache diversi.
+Il piano dovra essere calcolato centralmente e versionato,
+applicato a livelli nazionale, regionale, provinciale, comunale
+e demografico. Confronti temporali e gruppi sovrapposti
+richiedono protezioni aggiuntive; non eseguire questo
+calcolo pesante a ogni visita, per minimizzare letture e costi.
+
+**Stato:** sola ricerca nella PR #483 Draft/NO-GO. Nessun
+merge, deploy, DDL, backfill, modifica al runtime o Supabase.
