@@ -86,6 +86,16 @@ function verifySyntheticS3VersionPagination({
         seen.add(JSON.stringify([v.Key,v.VersionId]));
         count++;
       }
+      // In this normalized, delete-marker-free model, the continuation
+      // cursor must identify the last returned version, not merely be
+      // repeated by the next page. Otherwise a fabricated cursor can be
+      // accepted even though the provider has not proved page continuity.
+      // This is NOT a substitute for independent provider completeness.
+      if(page.IsTruncated){
+        const last=page.Versions[page.Versions.length-1];
+        if(!last || page.NextKeyMarker!==last.Key ||
+           page.NextVersionIdMarker!==last.VersionId)fail();
+      }
       expectedKey=page.NextKeyMarker;
       expectedVersion=page.NextVersionIdMarker;
     }
