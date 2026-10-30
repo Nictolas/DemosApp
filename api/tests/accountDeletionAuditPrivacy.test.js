@@ -97,6 +97,16 @@ test('successful DELETE stays successful if completion audit delivery throws aft
   assert.deepEqual(h.operationalErrors, [['ACCOUNT_DELETION_COMPLETION_AUDIT_FAILED']]);
 });
 
+test('failed start audit delivery cannot block account erasure', async () => {
+  const h = makeHarness({ auditErrorOn: 'ACCOUNT_DELETION_STARTED' });
+  await h.deleteAccount();
+  assert.equal(h.response.statusCode, 200);
+  assert.equal(h.response.body.success, true);
+  assert.equal(h.queries.filter(x => x === 'COMMIT').length, 1);
+  assert.equal(h.queries.filter(x => x === 'ROLLBACK').length, 0);
+  assert.deepEqual(h.operationalErrors, [['ACCOUNT_DELETION_START_AUDIT_FAILED']]);
+});
+
 test('failed DELETE rolls back and never exposes exception details in audit or operational logs', async () => {
   const h = makeHarness({ deletionError: new Error('PRIVATE_EMAIL@example.test SQL select secret') });
   await h.deleteAccount();
