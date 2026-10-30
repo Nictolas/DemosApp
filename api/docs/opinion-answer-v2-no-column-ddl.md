@@ -684,3 +684,56 @@ nuove letture SQL ripetute. I test della PR #483 sono autonomi e
 non coprono ancora il routing HTTP completo, le notifiche push,
 le autorizzazioni tra utenti e un vero ripristino GDPR/B2.
 Qualunque modifica schema o deploy richiede separata autorizzazione.
+
+
+## Sondaggi e compatibilità politica con la soluzione ibrida — ricerca isolata
+
+Il nuovo modulo sperimentale api/experiments/opinionAnswersV2AggregateCandidate.js,
+non collegato alle route, prepara il percorso delle Opinioni future
+anche per statistiche e matching, oltre ai GET/POST personali già provati.
+
+- **Sondaggi nazionali e territoriali:** una sola query con CROSS JOIN
+  LATERAL (VALUES ...) aggrega le colonne TEXT storiche e le nuove chiavi
+  di answers_extra. Gli identificatori di colonna derivano esclusivamente
+  dal manifest storico; le nuove chiavi JSONB sono validate rispetto al
+  catalogo pubblicato **nel codice**. Nessuna interrogazione del catalogo
+  SQL o di information_schema per aggiungere una nuova Opinione.
+- **Consenso:** il join con utenti e consensi mantiene la precedenza
+  esplicita di user_consents.political_opinions_consent sul valore base
+  users.political_opinions_consent. Gli account non-persona sono
+  esclusi. **Verificare account_type all'integrazione:** il codice
+  Sondaggi esaminato usa il valore legacy PERSON; eventuali codifiche
+  compatte richiedono un cambiamento coordinato, non una scelta in PR #483.
+- **Territorio:** filtri statici per regione, provincia e comune, con
+  valori geografici come parametri SQL, senza interpolazione del client.
+- **Soglia privacy:** utilizza api/utils/politicalAggregatePrivacy.js
+  con minimo 10 risposte valide f/c/i. Nel test PG17 Toscana/Livorno
+  con 10 risposte è visibile; dopo una revoca e cancellazione scende a
+  9 e non appare. Il totale nazionale può restare visibile a 10.
+  Una cella regionale con un solo rispondente non viene pubblicata.
+  **Attenzione:** la soglia di 10 non impedisce da sola inferenze
+  per differenza tra aggregati sovrapposti; servono ulteriori garanzie.
+- **Matching:** uno SELECT per gli utenti autorizzati può essere
+  proiettato in mappe identiche con vecchi ID e ID futuri. I test
+  usano anche gli algoritmi reali getOpinionCompletion e
+  calculatePoliticalMatch: le nuove Opinioni partecipano al punteggio
+  e le Opinioni archiviate no. **L'autorizzazione del singolo soggetto
+  non è implementata dall'adapter**, e deve precedere la lettura.
+
+L'esperimento limita ciascuna query aggregata a 128 Opinioni: un
+catalogo futuro più grande richiederà batch nello stesso snapshot
+consistente e nuovi benchmark, senza ricadere su una lettura per
+Opinione né aumentare senza controllo le interrogazioni. Un errore
+nella struttura deve bloccare la query.
+
+Test: api/tests/opinionAnswersV2Aggregate.unit.test.js e
+api/tests/opinionAnswersV2Aggregate.pg.test.js, con PostgreSQL 17
+effimero e dati inventati. Coprono vecchie e nuove risposte,
+prevalenza del consenso, esclusione organizzazioni, geografia a tre
+livelli, parametri ostili, soglia 10→9, archiviazione e compatibilità
+del matching con il calcolo dell'app.
+
+**Stato Draft/NO-GO:** nessuna modifica a route Sondaggi, Statistiche,
+politicalMatchingService, Render, Supabase o Android. RLS,
+autorizzazioni, inferenza sui dati aggregati, restore GDPR/B2 e
+cataloghi molto grandi sono ancora gate aperti prima del rilascio.
