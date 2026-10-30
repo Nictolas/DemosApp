@@ -115,7 +115,7 @@ test('successful logout preserves refresh and access session revocation', async 
 
 test('no credentials cannot be falsely reported as server revocation success', async () => {
   const { handler, logs } = loadRoute();
-  const response = await request(handler, { refreshToken: null, authorization: undefined });
+  const response = await request(handler, { refreshToken: null, authorization: null });
   assert.equal(response.statusCode, 401);
   assert.equal(response.body.success, false);
   assert.equal(logs.length, 0);
@@ -181,7 +181,7 @@ test('a valid refresh credential alone revokes refresh and associated access ses
       revokeDecodedAccessToken: async () => { called.push(['access-token']); return true; },
     },
   });
-  const response = await request(handler, { authorization: undefined });
+  const response = await request(handler, { authorization: null });
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.success, true);
   assert.deepEqual(called, [['refresh', 'synthetic-session'], ['access-session', 'synthetic-session']]);
