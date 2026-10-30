@@ -73,14 +73,14 @@ async function run() {
     await client.query(
       'CREATE OR REPLACE FUNCTION opinion_v2_bench_sparse_slot(' +
       'packed bytea, target_index integer) RETURNS integer ' +
-      'LANGUAGE plpgsql IMMUTABLE STRICT AS $ ' +
+      'LANGUAGE plpgsql IMMUTABLE STRICT AS ' + String.fromCharCode(36).repeat(2) + ' ' +
       'DECLARE pos integer := -1; i integer; b integer; code integer; ' +
       'BEGIN IF target_index < 0 THEN RETURN 0; END IF; ' +
       'FOR i IN 0..octet_length(packed)-1 LOOP ' +
       'b := get_byte(packed,i); pos := pos + (b >> 2); code := b & 3; ' +
       'IF pos = target_index THEN RETURN code; END IF; ' +
       'IF pos > target_index THEN RETURN 0; END IF; ' +
-      'END LOOP; RETURN 0; END $'
+      'END LOOP; RETURN 0; END ' + String.fromCharCode(36).repeat(2)
     );
     const outputs = [];
     for (const density of [9, 45]) {
