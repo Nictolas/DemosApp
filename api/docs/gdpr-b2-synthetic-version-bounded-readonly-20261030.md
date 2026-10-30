@@ -15,7 +15,7 @@ The previous fixed-key/version preflight bounded downloaded **bytes** to 1024 bu
 
 ## Test coverage
 
-`api/tests/gdprB2SyntheticVersionReadonly.test.js` adds five synthetic test groups: invalid deadline preflight, forbidden SDK options, hung retention and hung GetObject, hung response body with stream destruction, and backwards clock. All positive results continue to return `recoveryReady:false`, `completeGdprJournalVerified:false`, `restoreTestVerified:false` and `externalCheckpointVerified:false`.
+`api/tests/gdprB2SyntheticVersionReadonly.test.js` adds six synthetic test groups: invalid deadline preflight, forbidden SDK options, hung retention and hung GetObject, hung response body with stream destruction, backwards clock, and cleanup exceptions that must not leak provider details. All positive results continue to return `recoveryReady:false`, `completeGdprJournalVerified:false`, `restoreTestVerified:false` and `externalCheckpointVerified:false`.
 
 **Operational limitation:** this is a process-level fail-closed deadline, not an independently audited provider network timeout, durable journal proof or signed attestation. An SDK transport may complete an operation after a local timeout if its underlying I/O does not honor cancellation; the operator must not treat such a late response as evidence. Real credentials, bucket policies, object retention, full journal coverage, independently fresh checkpoints, SQL lineage, writer isolation and an isolated restore all remain separate **NO-GO** gates. No deploy or merge is authorized.
 
