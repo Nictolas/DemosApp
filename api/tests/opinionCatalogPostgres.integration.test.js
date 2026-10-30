@@ -98,6 +98,14 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
       return response.json();
     };
     assert.equal((await fetch(base+'/api/opinioni-list?grado=N')).status,401);
+    // A missing or malformed grade must not spend a personal SQL read.
+    const beforeBadGrade=observedSql.length;
+    for(const badGrade of ['', '?grado=', '?grado=N&grado=R']){
+      const invalid=await localFetch(base+'/api/opinioni-list'+badGrade,{headers:auth});
+      assert.equal(invalid.status,400);
+      assert.equal(observedSql.length,beforeBadGrade,
+        'an invalid catalog grade must not query users or opinioni_risposte');
+    }
     const chosen={};
     for(const grade of ['N','R','CO','E']){
       const payload=await apiGet(grade);
