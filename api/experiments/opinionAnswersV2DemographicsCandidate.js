@@ -12,10 +12,10 @@
  * aggregates still require a complete inference/privacy review.
  */
 const {validateLegacyIds}=require('./opinionAnswersV2BackfillCandidate');
-const {
-  MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE:MINIMUM,
-  countAggregateResponses
-}=require('../utils/politicalAggregatePrivacy');
+const {MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE:MINIMUM}=
+  require('../utils/politicalAggregatePrivacy');
+const {validateCounts,total,safePublicCounts}=
+  require('./opinionAnswersV2RegionalPrivacyCandidate');
 
 const ID=/^[a-z][a-z0-9_]{0,62}$/;
 const AGE_LABELS=Object.freeze([
@@ -105,13 +105,13 @@ function validateRows(rows,dimension){
       throw new Error('Invalid or duplicate demographic group');
     }
     seen.add(key);
-    const out={[label]:key};
-    for(const k of ['favorevole','contrario','indeciso']){
-      const n=Number(row[k]);
-      if(!Number.isSafeInteger(n)||n<0)throw new TypeError('Invalid demographic count');
-      out[k]=n;
+    let counts;
+    try{
+      counts=validateCounts(row);
+    }catch(_error){
+      throw new TypeError('Invalid demographic count');
     }
-    return out;
+    return {[label]:key,...counts};
   });
 }
 
@@ -123,16 +123,15 @@ function validateRows(rows,dimension){
  */
 function publishHybridDemographicBreakdown(rows,dimension){
   const valid=validateRows(rows,dimension);
-  const small=valid.some(row=>{
-    const count=countAggregateResponses(row);
-    return count>0 && count<MINIMUM;
-  });
+  const small=valid.some(row=>
+    total(row)>0 && !safePublicCounts(row)
+  );
   if(small)return {
     success:true,minimumCellSize:MINIMUM,suppressed:true,data:[]
   };
   return {
     success:true,minimumCellSize:MINIMUM,suppressed:false,
-    data:valid.filter(row=>countAggregateResponses(row)>=MINIMUM)
+    data:valid.filter(safePublicCounts)
   };
 }
 
