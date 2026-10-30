@@ -110,7 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error instanceof Error && error.name === "AbortError") {
           return null;
         }
-        console.error("useAuth - Errore fetch /auth/me:", error);
+        // Exception payloads can embed authorization headers or user data.
+        console.error("useAuth - Errore fetch /auth/me (dettagli omessi)");
         return null;
       }
     },
@@ -167,8 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           status: payload.status || "a",
         };
       }
-    } catch (error) {
-      console.error("useAuth - Errore nella decodifica del token JWT:", error);
+    } catch {
+      // Never log JWT parsing exceptions or token fragments.
+      console.error("useAuth - Token JWT non decodificabile");
     }
   }
 
@@ -187,8 +189,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               Authorization: `Bearer ${tokenToRevoke}`,
             },
           });
-        } catch (error) {
-          console.warn("Impossibile disattivare il token push durante il logout:", error);
+        } catch {
+          console.warn("Impossibile disattivare il token push durante il logout (dettagli omessi)");
         }
       }
 
@@ -215,16 +217,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
           body: JSON.stringify({ refreshToken: refreshTokenToRevoke }),
         });
-      } catch (error) {
-        console.warn("Errore logout backend:", error);
+      } catch {
+        console.warn("Errore logout backend (dettagli omessi)");
       }
 
       try {
         await clearNativeGoogleCredentialState();
-      } catch (error) {
+      } catch {
         // Il logout DEMOS deve riuscire anche se Credential Manager non riesce
-        // a pulire il proprio stato locale.
-        console.warn("Errore pulizia Credential Manager Android:", error);
+        // a pulire il proprio stato locale. Never print provider exception details.
+        console.warn("Errore pulizia Credential Manager Android (dettagli omessi)");
       }
     },
     onSuccess: () => {
