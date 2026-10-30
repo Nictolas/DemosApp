@@ -45,10 +45,15 @@ jobs:
         run: |
           node --check middleware/civicIdentity.js
           node --check services/civicIdentityPolicy.js
-          node --test \
+          # Node 22's isolated test-runner IPC can intermittently corrupt the
+          # serialized output for these HTTP test fixtures. Run each complete
+          # node:test suite directly, preserving assertions and failure exits.
+          for test_file in \
             tests/civicIdentityRollout.test.js \
             tests/civicIdentityAdminException.test.js \
             tests/civicIdentityScope.smoke.test.js \
             tests/politicalRepresentativeSelection.smoke.test.js \
             tests/politicalSelectionRoute.test.js \
-            tests/politicalConsentScope.smoke.test.js
+            tests/politicalConsentScope.smoke.test.js; do
+            node "$test_file"
+          done

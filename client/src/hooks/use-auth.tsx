@@ -12,7 +12,7 @@ import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
 import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
 import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCache";
-import { clearAllEncryptedProfiles } from "@/pages/Profilo/utils/encryptedProfileVault";
+import { clearAllEncryptedProfiles, clearEncryptedProfile } from "@/pages/Profilo/utils/encryptedProfileVault";
 
 type VerifiedPoliticalConsent = { granted: boolean; timestamp: string | null };
 
@@ -132,6 +132,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     typeof userData.political_consent?.granted === "boolean";
   const verifiedPoliticalConsent = isSessionVerified ? userData.political_consent! : null;
 
+  // A verified revocation must delete the encrypted political snapshot,
+  // not just hide it. Also reject in-flight query completions after revocation.
+  useEffect(() => {
+    const owner = userData?.id;
+    if (!owner || !isSessionVerified || userData.political_consent?.granted !== false) return;
+    // A revocation observed in /auth/me can arrive from a second device.
+    // Cancel both editors AND the statistics selector before dropping RAM and
+    // persistent snapshots. Disabling useQuery alone would leave old data.
+    const personalToCancel = (query: { queryKey: readonly unknown[] }) =>
+      ["opinioniQuestions", "statsOpinionQuestions", "profilePolitical", "profileFull"]
+        .includes(String(query.queryKey[0])) && query.queryKey[1] === owner;
+    void (async () => {
+      await queryClient.cancelQueries({ predicate: personalToCancel });
+      queryClient.removeQueries({ predicate: personalToCancel });
+      await clearEncryptedProfile(owner);
+    })();
+  }, [userData?.id, userData?.political_consent?.granted, isSessionVerified, queryClient]);
+
   let user: User | null = userData ?? null;
   if (!user && token) {
     try {
@@ -175,7 +193,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearStoredNativePushToken();
       clearSessionTokens();
       clearAllProfileSummaries();
-      void clearAllEncryptedProfiles();
+      // Finish IndexedDB deletion before logout can navigate/reload the app.
+      await clearAllEncryptedProfiles();
       setToken(null);
 
       try {

@@ -2,6 +2,7 @@
 const express = require('express');
 const { verifyToken, pool } = require('../../middleware/auth');
 const { requirePrivacyOverviewAccess } = require('../../middleware/dpoAccess');
+const { getAllOpinions } = require('../../services/opinionCatalog');
 const router = express.Router();
 router.use(verifyToken, requirePrivacyOverviewAccess);
 router.get('/overview', async (req, res) => {
@@ -51,7 +52,6 @@ router.get('/areas', async (_req, res) => {
         (SELECT COUNT(*)::integer FROM public.users WHERE status = 'a') AS users_active,
         (SELECT COUNT(*)::integer FROM public.riconoscimenti) AS recognitions_total,
         (SELECT COUNT(*)::integer FROM public.riconoscimenti WHERE created_at >= NOW() - INTERVAL '30 days') AS recognitions_last_30d,
-        (SELECT COUNT(*)::integer FROM public.opinioni_domande) AS opinions_total,
         (SELECT COUNT(*)::integer FROM public.opinioni_proposte) AS proposed_opinions_total,
         (SELECT COUNT(*)::integer FROM public.opinioni_proposte WHERE created_at >= NOW() - INTERVAL '30 days') AS proposals_last_30d,
         (SELECT COUNT(*)::integer FROM public.notifiche_demos) AS notifications_total,
@@ -75,7 +75,7 @@ router.get('/areas', async (_req, res) => {
           recognitions_last_30d: counts.recognitions_last_30d
         },
         contenuti: {
-          opinions_total: counts.opinions_total,
+          opinions_total: getAllOpinions().length,
           proposed_opinions_total: counts.proposed_opinions_total,
           proposals_last_30d: counts.proposals_last_30d
         },

@@ -1,11 +1,12 @@
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
+import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
+import { loadOpinionCategory, cacheConfirmedOpinionAnswers } from "@/lib/encryptedOpinionCache";
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { ApprofondimentoButton } from '@/components/ApprofondimentoButton';
 import { usePoliticalOpinionsConsent } from '@/hooks/usePoliticalOpinionsConsent';
@@ -31,7 +32,7 @@ const normalizeAnswer = (answer: string | undefined) => {
 
 export default function OpinioniComunali() {
   const [, setLocation] = useLocation();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, isSessionVerified, verifiedPoliticalConsent } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
@@ -42,21 +43,24 @@ export default function OpinioniComunali() {
   const { hasConsent } = usePoliticalOpinionsConsent();
 
   // 1. Query per caricare le domande
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: ['opinioniQuestions', 'Comunale'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=CO");
-      if (response.ok && response.data) {
-        return response.data;
-      }
-      return { success: false, data: [] };
-    },
-    enabled: !!user
+  const { data: questionsData, isLoading: isLoadingQuestions, isFetching: isRefreshingQuestions } = useQuery({
+    queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Comunale'],
+    queryFn: ({ signal }) => loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp, "CO", signal) as any,
+    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true,
+    // Re-run the cheap catalog check on each visit. Valid encrypted answers
+    // still avoid database reads; a changed release never stays permanently stale.
+    staleTime: 0,
+    gcTime: Infinity,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false
   });
 
   // Combina i dati
-  const isLoading = isLoadingQuestions;
-  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
+  const isLoading = isLoadingQuestions || isRefreshingQuestions;
+  // A disabled query can still hold data in RAM: never render it after revocation.
+  const canReadOpinions = !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true;
+  const questions = canReadOpinions && questionsData?.data && Array.isArray(questionsData.data)
+    ? questionsData.data : [];
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
     const opinioniEspresse = questions
@@ -98,9 +102,24 @@ export default function OpinioniComunali() {
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("CO", newOpinions),
-    onSuccess: () => {
+    onSuccess: async (_data, savedOpinions) => {
+      // ACK commit has completed: persist all shared encrypted grade caches.
+      await cacheConfirmedOpinionAnswers(user!.id, verifiedPoliticalConsent!.timestamp, savedOpinions);
+      // An older in-flight GET must not restore the pre-save snapshot.
+      await queryClient.cancelQueries({
+        queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Comunale'],
+      });
       toast({ title: "Successo", description: "Le tue opinioni comunali sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Comunale'] });
+      queryClient.setQueryData(
+        ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Comunale'],
+        (previous: any) => previous && Array.isArray(previous.data) ? ({
+          ...previous,
+          data: previous.data.map((question: any) =>
+            Object.prototype.hasOwnProperty.call(savedOpinions, question.id)
+              ? { ...question, userAnswer: savedOpinions[question.id] }
+              : question),
+        }) : previous,
+      );
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
       queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
       const nextPage = exitGuard.onSaveSuccess();
@@ -119,17 +138,11 @@ export default function OpinioniComunali() {
   };
 
   const handleSave = () => {
-    // Mappa le opinioni usando l'ID corretto per l'API
-    const opinionsToSave: Record<string, string> = {};
-    questions.forEach(question => {
-      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
-        // Usa l'ID dell'opinione direttamente dal database
-        opinionsToSave[question.id] = opinions[question.id];
-      }
-    });
-    
+    // Only changed IDs: never overwrite positions from another device.
+    const opinionsToSave = collectChangedOpinionAnswers(questions, opinions);
+
     if (Object.keys(opinionsToSave).length === 0) {
-      toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
+      toast({ title: "Attenzione", description: "Non ci sono nuove opinioni da salvare.", variant: "destructive" });
       return;
     }
     

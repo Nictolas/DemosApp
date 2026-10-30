@@ -16,6 +16,17 @@ on:
       - 'client/tests/crashDiagnostic.test.mjs'
       - 'client/src/pages/Opinioni*.tsx'
       - 'client/src/lib/saveAndVerifyOpinions.ts'
+      - 'client/src/lib/opinionDelta.ts'
+      - 'client/src/lib/encryptedOpinionCache.ts'
+      - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
+      - 'client/src/hooks/use-auth.tsx'
+      - 'client/tests/opinionDelta.test.mjs'
+      - 'client/tests/politicalOpinionHttpCancellation.test.mjs'
+      - 'client/tests/politicalOpinionPrivacyIntegration.test.mjs'
+      - 'client/tests/encryptedVaultPurgeRace.test.mjs'
+      - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
+      - 'client/src/lib/queryClient.ts'
+      - 'client/src/pages/GDPR/index.tsx'
       - '.github/workflows/opinioni-regression.yml'
 
 permissions:
@@ -37,7 +48,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Test mobile crash diagnostic and toast opacity
-        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs
+        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs client/tests/opinionDelta.test.mjs client/tests/politicalOpinionHttpCancellation.test.mjs client/tests/politicalOpinionPrivacyIntegration.test.mjs client/tests/encryptedVaultPurgeRace.test.mjs
       - name: Build frontend
         run: npm --prefix client run build
       - name: Install API dependencies

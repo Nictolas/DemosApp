@@ -15,6 +15,8 @@ const DB_VERSION = 1;
 let activeEpoch = 0;
 let openedDb: Promise<IDBDatabase> | undefined;
 let vaultKey: Promise<CryptoKey> | undefined;
+let clearingAllVault = false;
+const clearingOwners = new Set<string>();
 
 export type ProfileChosenVotes = {
   capoStato: string[];
@@ -27,7 +29,7 @@ export type ProfileChosenVotes = {
 
 export type ProfileCacheSection =
   | "full" | "government" | "representatives" | "candidates"
-  | "opinions" | "preferences";
+  | "opinions" | "preferences" | "opinionE" | "opinionN" | "opinionR" | "opinionCO";
 
 // The generation advances on writes AND on account/consent resets. A GET
 // started before a successful write must not put its stale result back on disk.
@@ -35,6 +37,16 @@ const sectionRevisions = new Map<string, number>();
 export function profileSectionRevision(owner: string, section: ProfileCacheSection): string {
   return `${activeEpoch}:${sectionRevisions.get(owner + ":" + section) || 0}`;
 }
+
+export type EncryptedOpinionCategory = {
+  version: 1;
+  grade: "E" | "N" | "R" | "CO";
+  // Content hash served from the backend release catalog (never user data).
+  catalogRevision: string;
+  questions: Array<{ id: string; text: string; userAnswer: "f" | "c" | "i" | null; grado?: unknown }>;
+};
+
+export type OpinionCategorySection = "opinionE" | "opinionN" | "opinionR" | "opinionCO";
 
 export type PersistedProfile = {
   version: 1;
@@ -45,12 +57,17 @@ export type PersistedProfile = {
   candidates: Record<string, unknown> | null;
   opinions: { questions: unknown[]; userAnswers: Record<string, string> } | null;
   preferences?: ProfileChosenVotes | null;
+  opinionE?: EncryptedOpinionCategory | null;
+  opinionN?: EncryptedOpinionCategory | null;
+  opinionR?: EncryptedOpinionCategory | null;
+  opinionCO?: EncryptedOpinionCategory | null;
 };
 
 const emptyProfile = (): PersistedProfile => ({
   version: 1, consent: null, full: null, government: null,
   representatives: null, candidates: null, opinions: null,
   preferences: null,
+  opinionE: null, opinionN: null, opinionR: null, opinionCO: null,
 });
 
 const available = () => typeof window !== "undefined" &&
@@ -145,25 +162,48 @@ export async function loadEncryptedProfile(owner: string): Promise<PersistedProf
   }
 }
 
+// Direct writes and serialized patch writes share the same purge barrier.
+// A write may already be inside its IndexedDB transaction when logout or
+// revocation begins: changing activeEpoch alone cannot cancel that transaction.
+const inFlightWrites = new Map<string, Set<Promise<void>>>();
+
 export async function storeEncryptedProfile(
   owner: string,
   profile: PersistedProfile,
 ): Promise<void> {
-  if (!owner || !available()) return;
+  if (!owner || !available() || clearingAllVault || clearingOwners.has(owner)) return;
   const epoch = activeEpoch;
-  try {
-    const key = await getKey();
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await crypto.subtle.encrypt({
-      name: "AES-GCM",
-      iv,
-      additionalData: new TextEncoder().encode(ownerKey(owner)),
-    }, key, new TextEncoder().encode(JSON.stringify(profile)));
-    if (epoch !== activeEpoch) return; // logout/revocation raced this write
-    await writeRaw(ownerKey(owner), { version: 1, iv, ciphertext } satisfies EncryptedRecord);
-  } catch {
-    // In private browsing or storage quota failures, keep the RAM fallback.
+  const write = (async () => {
+    try {
+      const key = await getKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ciphertext = await crypto.subtle.encrypt({
+        name: "AES-GCM",
+        iv,
+        additionalData: new TextEncoder().encode(ownerKey(owner)),
+      }, key, new TextEncoder().encode(JSON.stringify(profile)));
+      if (epoch !== activeEpoch || clearingAllVault || clearingOwners.has(owner)) return;
+      await writeRaw(ownerKey(owner), { version: 1, iv, ciphertext } satisfies EncryptedRecord);
+    } catch {
+      // In private browsing or storage quota failures, keep the RAM fallback.
+    }
+  })();
+  const active = inFlightWrites.get(owner) || new Set<Promise<void>>();
+  active.add(write);
+  inFlightWrites.set(owner, active);
+  try { await write; } finally {
+    active.delete(write);
+    if (!active.size && inFlightWrites.get(owner) === active) inFlightWrites.delete(owner);
   }
+}
+
+async function settleOwnerWrites(owner: string): Promise<void> {
+  // Wait for queued patch operations and transactions already in flight.
+  // The purge flag/epoch is set FIRST, so they cannot start new writes.
+  await Promise.allSettled([
+    pendingWrites.get(owner) || Promise.resolve(),
+    ...(inFlightWrites.get(owner) || []),
+  ]);
 }
 
 const pendingWrites = new Map<string, Promise<void>>();
@@ -175,13 +215,13 @@ export async function patchEncryptedProfile(
   patch: Partial<PersistedProfile>,
   expectedRevisions?: Partial<Record<ProfileCacheSection, string>>,
 ): Promise<void> {
-  if (!owner || !available()) return;
+  if (!owner || !available() || clearingAllVault || clearingOwners.has(owner)) return;
   const epoch = activeEpoch;
   const prior = pendingWrites.get(owner) || Promise.resolve();
   const next = prior.catch(() => {}).then(async () => {
-    if (epoch !== activeEpoch) return;
+    if (epoch !== activeEpoch || clearingAllVault || clearingOwners.has(owner)) return;
     const existing = await loadEncryptedProfile(owner);
-    if (epoch !== activeEpoch) return;
+    if (epoch !== activeEpoch || clearingAllVault || clearingOwners.has(owner)) return;
     const safePatch = Object.fromEntries(Object.entries(patch).filter(([key]) => {
       const section = key as ProfileCacheSection;
       const expected = expectedRevisions?.[section];
@@ -189,6 +229,87 @@ export async function patchEncryptedProfile(
     })) as Partial<PersistedProfile>;
     if (Object.keys(safePatch).length === 0) return;
     await storeEncryptedProfile(owner, { ...emptyProfile(), ...existing, ...safePatch });
+  });
+  pendingWrites.set(owner, next);
+  try { await next; } finally {
+    if (pendingWrites.get(owner) === next) pendingWrites.delete(owner);
+  }
+}
+
+/**
+ * Opinion-category writes share the profile vault's serialization queue.
+ * A GET started before a save/revocation cannot later overwrite the cache.
+ * The verified consent epoch must be supplied by the authenticated session.
+ */
+export async function persistEncryptedOpinionCategory(
+  owner: string,
+  consentTimestamp: string | null,
+  section: OpinionCategorySection,
+  category: EncryptedOpinionCategory,
+  expectedRevision: string,
+): Promise<void> {
+  if (!owner || !available()) return;
+  const epoch = activeEpoch;
+  const prior = pendingWrites.get(owner) || Promise.resolve();
+  const next = prior.catch(() => {}).then(async () => {
+    if (epoch !== activeEpoch || clearingAllVault || clearingOwners.has(owner) || expectedRevision !== profileSectionRevision(owner, section)) return;
+    const existing = await loadEncryptedProfile(owner);
+    if (epoch !== activeEpoch || expectedRevision !== profileSectionRevision(owner, section)) return;
+    const matches = existing?.consent?.granted === true &&
+      existing.consent.timestamp === consentTimestamp;
+    // An old consent epoch must never carry cached political responses forward.
+    const base = matches ? existing : {
+      ...emptyProfile(), consent: { granted: true, timestamp: consentTimestamp },
+    };
+    await storeEncryptedProfile(owner, { ...base, [section]: category });
+  });
+  pendingWrites.set(owner, next);
+  try { await next; } finally {
+    if (pendingWrites.get(owner) === next) pendingWrites.delete(owner);
+  }
+}
+
+export async function mergeEncryptedOpinionAnswers(
+  owner: string,
+  consentTimestamp: string | null,
+  answers: Readonly<Record<string, string>>,
+): Promise<void> {
+  if (!owner || !available() || clearingAllVault || clearingOwners.has(owner)) return;
+  // Prevent an already-running GET from resurrecting pre-commit answers.
+  const sections: OpinionCategorySection[] = ["opinionE", "opinionN", "opinionR", "opinionCO"];
+  for (const section of sections) {
+    const key = owner + ":" + section;
+    sectionRevisions.set(key, (sectionRevisions.get(key) || 0) + 1);
+  }
+  const epoch = activeEpoch;
+  const prior = pendingWrites.get(owner) || Promise.resolve();
+  const next = prior.catch(() => {}).then(async () => {
+    if (epoch !== activeEpoch || clearingAllVault || clearingOwners.has(owner)) return;
+    const existing = await loadEncryptedProfile(owner);
+    if (epoch !== activeEpoch || clearingAllVault || clearingOwners.has(owner) || existing?.consent?.granted !== true ||
+        existing.consent.timestamp !== consentTimestamp) return;
+    const patch: Partial<PersistedProfile> = {};
+    for (const section of sections) {
+      const category = existing[section];
+      if (!category) continue;
+      patch[section] = {
+        ...category,
+        questions: category.questions.map(question => {
+          const value = answers[question.id];
+          return value === "f" || value === "c" || value === "i"
+            ? { ...question, userAnswer: value } : question;
+        }),
+      };
+    }
+    // The legacy profile opinion view reads userAnswers; keep it consistent too.
+    const currentProfileOpinions = existing.opinions;
+    if (currentProfileOpinions) {
+      patch.opinions = {
+        ...currentProfileOpinions,
+        userAnswers: { ...currentProfileOpinions.userAnswers, ...answers },
+      };
+    }
+    await storeEncryptedProfile(owner, { ...existing, ...patch });
   });
   pendingWrites.set(owner, next);
   try { await next; } finally {
@@ -215,7 +336,9 @@ export async function invalidateEncryptedProfileSections(
 export async function clearEncryptedProfile(owner: string): Promise<void> {
   activeEpoch += 1;
   if (!owner || !available()) return;
+  clearingOwners.add(owner);
   try {
+    await settleOwnerWrites(owner);
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
@@ -225,13 +348,19 @@ export async function clearEncryptedProfile(owner: string): Promise<void> {
       tx.onabort = () => reject(tx.error);
     });
   } catch { /* Best effort when storage disabled */ }
+  finally { clearingOwners.delete(owner); }
 }
 
 export async function clearAllEncryptedProfiles(): Promise<void> {
   activeEpoch += 1;
   sectionRevisions.clear();
-  if (!available()) return;
+  clearingAllVault = true;
   try {
+    if (!available()) return;
+    await Promise.allSettled([
+      ...pendingWrites.values(),
+      ...Array.from(inFlightWrites.values()).flatMap(writes => [...writes]),
+    ]);
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
@@ -242,6 +371,7 @@ export async function clearAllEncryptedProfiles(): Promise<void> {
     });
     vaultKey = undefined;
   } catch { /* Best effort when storage disabled */ }
+  finally { clearingAllVault = false; }
 }
 
 /** Keep only profile form fields and the legacy opinion/selection flags,

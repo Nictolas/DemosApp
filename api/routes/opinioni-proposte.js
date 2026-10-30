@@ -54,15 +54,11 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
     console.log('✅ Database connesso:', testQuery.rows[0].current_time);
     
     // Test tabella opinioni
-    const opinioniCount = await pool.query('SELECT COUNT(*) as count FROM opinioni_domande');
+    const opinioniCount = {rows:[{count:String(require('../services/opinionCatalog').getAllOpinions().length)}]};
     console.log('✅ Righe in opinioni:', opinioniCount.rows[0].count);
     
     // Test opinioni da approvare
-    const daApprovareQuery = `
-      SELECT COUNT(*) as count FROM opinioni_domande 
-      WHERE 'da approvare' = ANY(gradi_opinione)
-    `;
-    const daApprovareCount = await pool.query(daApprovareQuery);
+    const daApprovareCount = {rows:[{count:'0'}]}; // Official catalog has no draft questions.
     console.log('✅ Righe da approvare:', daApprovareCount.rows[0].count);
     
     // Test tabella voti_opinioni_proposte
@@ -158,7 +154,7 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni-proposte - Caricamento opinioni da approvare');
 
-    // Leggi da opinioni_proposte se esiste, altrimenti da opinioni_domande (proposte "da approvare")
+    // Proposte dinamiche: leggere solo opinioni_proposte, mai il catalogo ufficiale.
     const fromProposte = `
       SELECT o.id, o.text as testo, o.approfondimento, COALESCE(v.voti_count, 0)::int as voti
       FROM opinioni_proposte o
@@ -166,59 +162,10 @@ router.get('/', async (req, res) => {
         SELECT opinione_id, COUNT(*) as voti_count FROM voti_opinioni_proposte GROUP BY opinione_id
       ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
       ORDER BY o.text`;
-    // Supporto sia gradi_opinione che gradi_opinioni (il DB può avere l'uno o l'altro)
-    const whereGradi = (col) => `((o.${col}::text LIKE '%da approvare%'))`;
-    const queryBaseDomande = (col) => `
-      SELECT o.id, o.text as testo, o.approfondimento
-      FROM opinioni_domande o
-      WHERE ${whereGradi(col)}
-      ORDER BY o.text`;
-    const queryDomandeWithVoti = (col) => `
-      SELECT o.id, o.text as testo, o.approfondimento, COALESCE(v.voti_count, 0)::int as voti
-      FROM opinioni_domande o
-      LEFT JOIN (
-        SELECT opinione_id, COUNT(*) as voti_count FROM voti_opinioni_proposte GROUP BY opinione_id
-      ) v ON CAST(o.id AS TEXT) = CAST(v.opinione_id AS TEXT)
-      WHERE ${whereGradi(col)}
-      ORDER BY o.text`;
-
-    let result;
-    try {
-      result = await pool.query(fromProposte);
-    } catch (err) {
-      if (err.code === '42P01' && err.message && err.message.includes('opinioni_proposte')) {
-        // Fallback: leggi da opinioni_domande. Prova prima gradi_opinioni, poi gradi_opinione
-        const cols = ['gradi_opinioni', 'gradi_opinione'];
-        for (const col of cols) {
-          try {
-            result = await pool.query(queryDomandeWithVoti(col));
-            break;
-          } catch (e2) {
-            if (e2.code === '42703') continue; // colonna inesistente, prova l'altra
-            try {
-              result = await pool.query(queryBaseDomande(col));
-              result.rows = (result.rows || []).map(r => ({ ...r, voti: 0 }));
-              break;
-            } catch (e3) {
-              if (e3.code === '42703') continue;
-              throw e3;
-            }
-          }
-        }
-        if (!result) {
-          for (const col of cols) {
-            try {
-              result = await pool.query(queryBaseDomande(col));
-              result.rows = (result.rows || []).map(r => ({ ...r, voti: 0 }));
-              break;
-            } catch (_) { continue; }
-          }
-        }
-        if (!result) throw err;
-      } else {
-        throw err;
-      }
-    }
+    // Dynamic proposals are separate from the immutable official catalog.
+    // Fail closed if that table is absent; never read drafts from the
+    // published catalog's legacy database table.
+    const result = await pool.query(fromProposte);
     console.log(`✅ Trovate ${result.rows.length} opinioni da approvare`);
     
     // Chi ha proposto ogni opinione (users.opinione_proposta_id)
@@ -298,6 +245,11 @@ router.get('/', async (req, res) => {
 // POST /api/opinioni-proposte - Crea una nuova opinione proposta (max 1 per utente, richiede auth)
 router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
   try {
+    // Pending proposals require their dedicated dynamic table. No fallbacks.
+    const proposalTable = await pool.query("SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS ok");
+    if (proposalTable.rows[0]?.ok !== true) {
+      return res.status(503).json({success:false,error:'PROPOSALS_TABLE_REQUIRED'});
+    }
     const userId = req.userId;
     console.log('📝 POST /api/opinioni-proposte - Creazione nuova opinione proposta');
     console.log('🔍 Body ricevuto:', req.body);
@@ -398,18 +350,11 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
         const id = require('crypto').randomUUID();
         console.log('🔍 ID generato per nuova opinione:', id);
         
-        const gradiOpinione = ['da approvare'];
         const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
         
-        // Sceglie la sorgente proposta senza provocare un errore 42P01 dentro la transazione:
-        // in PostgreSQL una query fallita abortisce l'intera transazione e rende inutilizzabile il fallback.
-        const proposalSourceResult = await client.query(
-          `SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS has_separate_proposals`
-        );
-        const hasSeparateProposals = proposalSourceResult.rows[0]?.has_separate_proposals === true;
-        const checkDuplicateQuery = hasSeparateProposals
-          ? `SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) FOR UPDATE SKIP LOCKED LIMIT 1`
-          : `SELECT id FROM opinioni_domande WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) AND 'da approvare' = ANY(gradi_opinione) FOR UPDATE SKIP LOCKED LIMIT 1`;
+        // All proposals remain dynamic in their dedicated table.
+        const checkDuplicateQuery = `SELECT id FROM opinioni_proposte
+          WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) FOR UPDATE SKIP LOCKED LIMIT 1`;
         const duplicateCheck = await client.query(checkDuplicateQuery, [testoNormalizzato]);
         console.log('🔍 Controllo duplicati per testo:', testoNormalizzato);
         console.log('🔍 Lock key utilizzato:', lockKey);
@@ -427,15 +372,9 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
           });
         }
         
-        // Inserisce in opinioni_proposte se esiste, altrimenti in opinioni_domande
         const insertQueryProposte = `
           INSERT INTO opinioni_proposte (id, text, approfondimento)
           VALUES ($1, $2, $3)
-          RETURNING id, text
-        `;
-        const insertQueryDomande = `
-          INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
-          VALUES ($1, $2, $3::text[], $4)
           RETURNING id, text
         `;
         console.log('🔍 Tentativo inserimento con parametri:', {
@@ -446,9 +385,7 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
 
         let insertResult;
         try {
-          insertResult = hasSeparateProposals
-            ? await client.query(insertQueryProposte, [id, testoNormalizzato, approfondimento])
-            : await client.query(insertQueryDomande, [id, testoNormalizzato, gradiOpinione, approfondimento]);
+          insertResult = await client.query(insertQueryProposte, [id, testoNormalizzato, approfondimento]);
         } catch (error) {
           if (error.code === '23505') {
             await client.query('ROLLBACK');
@@ -489,9 +426,7 @@ router.post('/', verifyToken, requireVerifiedCivicIdentity, requirePoliticalCons
         console.log('🔓 Lock rilasciato dopo commit');
         
         // Verifica finale che non ci siano duplicati creati (dovrebbe essere impossibile, ma meglio verificare)
-        const checkDuplicateQueryFinal = hasSeparateProposals
-          ? `SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))`
-          : `SELECT id FROM opinioni_domande WHERE LOWER(TRIM(text)) = LOWER(TRIM($1)) AND 'da approvare' = ANY(gradi_opinione)`;
+        const checkDuplicateQueryFinal = `SELECT id FROM opinioni_proposte WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))`;
         const finalCheck = await client.query(checkDuplicateQueryFinal, [testoNormalizzato]);
         if (finalCheck.rows.length > 1) {
           console.error('❌ ERRORE CRITICO: Trovati duplicati dopo l\'inserimento!', finalCheck.rows);
@@ -608,12 +543,6 @@ router.post('/:id/vota', verifyToken, requireVerifiedCivicIdentity, requirePolit
     await assertVotiTableExists();
     let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
-      checkResult = await pool.query(
-        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
-        [id]
-      );
-    }
-    if (checkResult.rows.length === 0) {
       console.log('❌ Opinione non trovata o non in stato da approvare');
       return res.status(404).json({
         success: false,
@@ -664,12 +593,6 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
     
     await assertVotiTableExists();
     let checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
-    if (checkResult.rows.length === 0) {
-      checkResult = await pool.query(
-        `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
-        [id]
-      );
-    }
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -756,22 +679,17 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
 // DELETE /api/opinioni-proposte/:id - Cancella un'opinione proposta (solo admin)
 router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
+    // Only dynamic proposals may be rejected/deleted, not official questions.
+    const proposalTable = await pool.query("SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS ok");
+    if (proposalTable.rows[0]?.ok !== true) {
+      return res.status(503).json({success:false,error:'PROPOSALS_TABLE_REQUIRED'});
+    }
     const { id } = req.params;
     
     console.log('🗑️ DELETE /api/opinioni-proposte/:id - Cancellazione opinione proposta');
     console.log('🔍 ID opinione:', id);
     
-    // Sceglie la sorgente proposta in modo schema-aware: opinioni_proposte è opzionale.
-    const proposalSourceResult = await pool.query(
-      `SELECT to_regclass('public.opinioni_proposte') IS NOT NULL AS has_separate_proposals`
-    );
-    const hasSeparateProposals = proposalSourceResult.rows[0]?.has_separate_proposals === true;
-    const checkResult = hasSeparateProposals
-      ? await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id])
-      : await pool.query(
-          `SELECT id FROM opinioni_domande WHERE id = $1 AND (gradi_opinione::text LIKE '%da approvare%')`,
-          [id]
-        );
+    const checkResult = await pool.query('SELECT id FROM opinioni_proposte WHERE id = $1', [id]);
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -789,9 +707,7 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     } catch (e) {
       if (e.code !== '42703') console.error('Errore reset opinione_proposta_id:', e);
     }
-    const deleteResult = hasSeparateProposals
-      ? await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id])
-      : await pool.query('DELETE FROM opinioni_domande WHERE id = $1', [id]);
+    const deleteResult = await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [id]);
     
     console.log('✅ Opinione cancellata con successo:', id);
     

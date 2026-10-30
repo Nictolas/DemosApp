@@ -4,11 +4,19 @@ on:
   pull_request:
     branches:
       - main
+      - performance/opinion-catalog-in-code-20261028
+      - integration/opinioni-catalog-privacy-20261029
     paths:
       - 'api/services/oauthRegistrationService.js'
       - 'api/tests/oauthRegistrationService.test.js'
       - 'api/tests/androidAuthNativePushIntegration.test.js'
+      - 'api/catalog/**'
+      - 'api/services/opinionCatalog.js'
+      - 'api/routes/compatibility.js'
+      - 'api/routes/opinioni/**'
+      - 'api/tests/opinionCatalogAndroid110.contract.test.js'
       - 'client/android/app/build.gradle'
+      - 'client/android/app/src/androidTest/**'
       - 'client/src/css/android-navbar-fix.css'
       - 'api/tests/navbarResponsiveContract.test.js'
       - 'client/android/app/src/main/res/mipmap-*/**'
@@ -16,6 +24,10 @@ on:
       - 'client/package.json'
       - 'client/package-lock.json'
       - '.github/workflows/android-alpha-validation.yml'
+  push:
+    branches:
+      - integration/opinioni-catalog-privacy-20261029
+      - integration/opinioni-full-stack-20261029
   workflow_dispatch:
 
 permissions:
@@ -24,7 +36,7 @@ permissions:
 jobs:
   validate-alpha:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +63,9 @@ jobs:
 
       - name: Check responsive Android navbar contract
         run: node --test api/tests/navbarResponsiveContract.test.js
+
+      - name: Verify Android 1.0.10 Opinions API compatibility against isolated backend
+        run: node --test api/tests/opinionCatalogAndroid110.contract.test.js
 
       - name: Install client dependencies
         working-directory: client
@@ -103,4 +118,37 @@ jobs:
           name: demos-android-current-UNSIGNED-aab
           path: client/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
+          retention-days: 7
+
+      # Emulator is deliberately limited to this PR: no credentials or user data.
+      - name: Enable KVM for catalog Android emulator
+        if: github.head_ref == 'performance/opinion-catalog-in-code-20261028' || github.head_ref == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-full-stack-20261029' || github.head_ref == 'integration/opinioni-full-stack-20261029'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run offline native app smoke on Android emulator
+        if: github.head_ref == 'performance/opinion-catalog-in-code-20261028' || github.head_ref == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-full-stack-20261029' || github.head_ref == 'integration/opinioni-full-stack-20261029'
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb shell svc wifi disable
+            adb shell svc data disable
+            bash client/android/gradlew -p client/android :app:connectedDebugAndroidTest --no-daemon --stacktrace
+
+      - name: Archive native emulator report
+        if: always() && github.head_ref == 'performance/opinion-catalog-in-code-20261028' || github.head_ref == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-full-stack-20261029' || github.head_ref == 'integration/opinioni-full-stack-20261029'
+        uses: actions/upload-artifact@v4
+        with:
+          name: demos-catalog-android-emulator-report
+          path: |
+            client/android/app/build/reports/androidTests/
+            client/android/app/build/outputs/androidTest-results/
+          if-no-files-found: ignore
           retention-days: 7
