@@ -61,6 +61,33 @@ test("timeout aborts request and does not claim remote revocation", async () => 
   assert.deepEqual(result, { serverRevocationConfirmed: false, reason: "timeout" });
 });
 
+test("hard deadline returns when fetch ignores AbortSignal and never settles", async () => {
+  let aborted = false;
+  let watchdog;
+  const watchdogPromise = new Promise((_resolve, reject) => {
+    watchdog = setTimeout(() => reject(new Error("logout remained pending after abort")), 500);
+  });
+  try {
+    const result = await Promise.race([
+      requestLogoutRevocation({
+        url: "/api/auth/logout",
+        accessToken: "synthetic-access-A",
+        refreshToken: "synthetic-refresh-A",
+        timeoutMs: 10,
+        fetcher: async (_url, options) => new Promise(() => {
+          options.signal.addEventListener("abort", () => { aborted = true; }, { once: true });
+          // Deliberately ignore abort: no resolve/reject, like a broken adapter.
+        }),
+      }),
+      watchdogPromise,
+    ]);
+    assert.equal(aborted, true);
+    assert.deepEqual(result, { serverRevocationConfirmed: false, reason: "timeout" });
+  } finally {
+    clearTimeout(watchdog);
+  }
+});
+
 test("late 200 after abort is still unconfirmed", async () => {
   const result = await requestLogoutRevocation({
     url: "/api/auth/logout",
