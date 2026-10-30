@@ -12,7 +12,6 @@ const {sanitizePublishedDelta,sanitizeStoredDocument}=
   require('./opinionAnswersV2Candidate');
 const {validateLegacyIds}=require('./opinionAnswersV2BackfillCandidate');
 const VALID=new Set(['f','c','i']);
-const {sanitizeStoredDocument}=require('./opinionAnswersV2Candidate');
 function plain(x){
   return x!==null && typeof x==='object' && !Array.isArray(x);
 }
