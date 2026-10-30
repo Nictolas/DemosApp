@@ -30,6 +30,8 @@ on:
       - 'api/services/privacyErasureB2Journal.js'
       - 'api/tests/gdprB2JournalVersionBindingIsolated.test.js'
       - 'api/tests/gdprB2BucketComplianceDeadlineIsolated.test.js'
+      - 'api/tests/gdprB2ArchiveHeadPutDeadlineIsolated.test.js'
+      - 'api/docs/gdpr-b2-head-put-uncertain-outcome-20261030.md'
       - 'api/docs/gdpr-b2-bucket-compliance-deadline-20261030.md'
       - 'api/tests/gdprB2JournalBoundedReadbackIsolated.test.js'
       - 'api/docs/gdpr-b2-archive-receipt-version-binding-20261030.md'
@@ -116,6 +118,7 @@ jobs:
           node --check api/services/privacyErasureB2Journal.js
           node --test --test-concurrency=1 api/tests/gdprB2JournalVersionBindingIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2BucketComplianceDeadlineIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2ArchiveHeadPutDeadlineIsolated.test.js
           node --test --test-concurrency=1 api/tests/gdprB2JournalBoundedReadbackIsolated.test.js
           node --check api/scripts/attest-gdpr-b2-bucket-readonly.js
           node --test --test-concurrency=1 api/tests/gdprB2ReadonlyBucketMetadata.test.js
