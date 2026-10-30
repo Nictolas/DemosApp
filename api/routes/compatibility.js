@@ -17,6 +17,8 @@ router.get('/opinioni-catalog-revision', (_req, res) => {
 const isDev = process.env.NODE_ENV !== 'production';
 
 router.get('/opinioni-list', async (req, res) => {
+  // Never allow caches to store an individual's political answers, even on errors.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     if (isDev) {
       console.log('🔍 GET /api/opinioni-list - Richiesta diretta');
@@ -42,7 +44,7 @@ router.get('/opinioni-list', async (req, res) => {
     try {
       decoded = verifyAccessToken(token);
     } catch (jwtError) {
-      console.error('❌ Errore verifica JWT:', jwtError.message);
+      console.error('Errore verifica JWT nelle Opinioni');
       return res.status(401).json({
         success: false,
         error: 'Token non valido',
@@ -180,7 +182,7 @@ router.get('/opinioni-list', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('💥 Errore endpoint diretto opinioni-list:', error);
+    console.error('Errore interno endpoint Opinioni');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
