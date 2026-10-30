@@ -112,7 +112,7 @@ function planPostSnapshotPoliticalErasure(events,{snapshotAt}={}) {
       continue;
     }
     seen.set(event.event_key,identity);
-    if(at<=cut || event.event_type==='political_consent_granted')continue;
+    if(at<cut || event.event_type==='political_consent_granted')continue;
     const prior=flagged.get(userId);
     const accountDeleted=event.event_type==='account_deleted';
     flagged.set(userId,{
