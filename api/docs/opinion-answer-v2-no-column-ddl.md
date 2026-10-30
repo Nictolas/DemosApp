@@ -1443,3 +1443,39 @@ non autorizza una modifica delle API attive o della
 struttura `opinioni_risposte` reale.
 
 **Stato: ricerca e test soltanto; PR #483 Draft / NO-GO.**
+
+
+## Lettura personale: un solo controllo esterno GDPR per richiesta
+
+Il primo round-trip HTTP della ricerca chiamava due volte
+la verifica esterna di readiness nel caso GET personale:
+una volta nella route `GET /opinioni-list` e una seconda
+volta nel servizio di lettura consent-gated.
+Non erano due letture Supabase, ma potevano diventare
+due chiamate inutili al coordinatore esterno per visita.
+
+La route sperimentale `opinionAnswersV2HttpContractCandidate.js`
+ora delega il controllo personale al lettore di fiducia
+creato da `createHybridAuthorizedReadCandidate`,
+che verifica il gate **prima di qualsiasi SQL**.
+La route non accetta piu una funzione generica come
+`loadOwnAuthorizedRow`: controlla una registrazione privata
+del factory e che il lettore sia vincolato alla **stessa
+istanza di `assertRestoreReady`** utilizzata dalle API
+aggregate. Le route statistiche continuano a verificare
+il gate ciascuna una volta.
+
+I test sul server HTTP e su PostgreSQL 17 ora verificano
+un solo controllo GDPR per GET personale e una sola SELECT
+per consenso + risposte, con risposta 503 e **zero SQL**
+quando il restore e chiuso. Altri test rifiutano lettori
+non creati dal factory e lettori che verificano una
+funzione di restore diversa da quella della route.
+
+**Limite:** questo e soltanto un collegamento controllato
+fra moduli sperimentali, non una firma/attestazione esterna
+reale. Il ripristino deve comunque chiudere il traffico
+all'ingresso, inclusi richieste gia avviate, worker e
+cache. Non bisogna interpretare questa riduzione di
+una chiamata come autorizzazione al cutover o garanzia
+contro race infrastrutturali. PR #483 resta Draft/NO-GO.
