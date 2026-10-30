@@ -6,6 +6,8 @@ const {createHybridExternalRestoreGate}=
   require('../experiments/opinionAnswersV2ExternalRestoreGateCandidate');
 const {createHybridHttpResearchRouter}=
   require('../experiments/opinionAnswersV2HttpContractCandidate');
+const {createHybridAuthorizedReadCandidate}=
+  require('../experiments/opinionAnswersV2AuthorizedReadCandidate');
 const {createHybridRegionalHttpResearchRouter}=
   require('../experiments/opinionAnswersV2RegionalHttpCandidate');
 
@@ -148,10 +150,16 @@ test('old Android GET and national/regional stats return 503 BEFORE personal SQL
     getGradeOpinions:grade=>grade==='N'?catalog:[],
     getPublishedOpinion:id=>catalog.find(op=>op.id===id)||null,
     assertRestoreReady:x.gate,
-    loadOwnAuthorizedRow:async()=>{
-      personalReads++;
-      return {status:'ok',row:{user_id:self,opinione_0:'f',answers_extra:{}}};
-    },
+    loadOwnAuthorizedRow:createHybridAuthorizedReadCandidate({
+      assertRestoreReady:x.gate,
+      db:{query:async(_sql,[subject])=>{
+        personalReads++;
+        return {rows:[{
+          subject_id:subject,granted:true,
+          answer_row:{user_id:subject,opinione_0:'f',answers_extra:{}}
+        }]};
+      }}
+    }),
     querySingleAggregate:async id=>{
       publicAggregates++;
       return [{opinion_id:id,favorevole:10,contrario:0,indeciso:0}];
