@@ -803,3 +803,49 @@ Primo run corretto del nuovo codice: GitHub Actions #41090798270,
 **Stato Draft/NO-GO:** nessun merge, deploy, DDL o modifica alla
 produzione. Le integrazioni con Sondaggi, Statistiche, Profilo,
 matching, API Android, consenso e recupero GDPR/B2 rimangono separate.
+
+
+## Contratto HTTP reale simulato, senza attivazione delle route
+
+Il modulo sperimentale `api/experiments/opinionAnswersV2HttpContractCandidate.js`
+monta un router Express separato per verificare il contratto di:
+
+- `GET /api/opinioni/opinioni-list?grado=N` (autenticato): mantiene
+  gli ID di risposta normalizzati dal testo, gli ID stabili utilizzati
+  per leggere le risposte e il JSON legacy `{success,data,grado,total}`.
+  La lettura avviene una volta sola per il soggetto autenticato.
+- `GET /api/opinioni/stats/:opinionId` (statistiche pubbliche):
+  mantiene il formato della risposta e non espone alcun totale o
+  conteggio quando la soglia delle 10 risposte non e raggiunta.
+- `GET /api/opinioni/stats/:opinionId/eta` e `/genere`: conserva
+  la struttura `success,minimumCellSize,data` richiesta dai vecchi
+  client; la proiezione sperimentale usa il campo attuale `sesso`
+  M/F ma conserva la chiave JSON `genere` e la presentazione
+  Uomo/Donna per il percorso nazionale.
+
+Il router non legge direttamente alcun database. Riceve dipendenze
+iniettate: autenticazione, catalogo nel codice, gate di restore,
+lettura del solo soggetto dopo verifica del consenso, aggregazioni.
+Tutti i dati nei test sono sintetici e le risposte HTTP sono
+scambiate soltanto con un server locale temporaneo.
+
+Le prove `api/tests/opinionAnswersV2HttpContract.unit.test.js`
+verificano 401 prima di qualunque lettura, 400 su grado mancante,
+403 quando il consenso non e valido, 404 per un ID archiviato,
+500 generico se una lettura restituisce un soggetto diverso o
+dati aggregati invalidi e 503 con gate GDPR chiuso, impedendo
+letture personali e conteggi pubblici.
+
+**Limiti essenziali:** l'autenticazione del test e un fake token.
+`loadOwnAuthorizedRow` e un'astrazione: il suo implementatore
+deve eseguire il controllo reale delle autorizzazioni e del
+consenso in una vista/transazione coerente. Il gate di ripristino
+deve essere esterno al DB restaurato o imposto prima della
+riapertura del traffico. Il test NON prova il middleware reale,
+RLS, le route regionali, le diverse etichette legacy regionali
+di genere, il backend Render, Android ne restore B2.
+Non importare il router nella produzione prima del lavoro
+coordinato con #384, #464 e il flusso GDPR.
+
+**Stato:** PR #483 Draft/NO-GO. Nessuna API runtime cambiata,
+nessun deploy, merge, DDL o backfill reale.
