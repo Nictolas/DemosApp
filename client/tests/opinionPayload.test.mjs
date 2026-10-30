@@ -67,5 +67,6 @@ test('warm and cold cache paths both validate IDs, with no new query for valid c
   assert.match(source,/parseOpinionQuestions\(response\.data\?\.data\)/);
   assert.match(source,/return \{ success: true, data: questions/);
   assert.match(source,/const response = await apiRequest\("GET", `\/api\/opinioni-list/);
+  assert.match(source,/apiRequest\("GET", `\/api\/opinioni-list\?grado=\$\{grade\}`, undefined, undefined, signal\)/);
   assert.doesNotMatch(source,/sanitiseQuestions/);
 });
