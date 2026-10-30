@@ -326,3 +326,27 @@ reale da B2 e non sostituisce l'integrazione con il ledger GDPR esistente.
 **Gate:** il completamento dei test isolati non autorizza alcun
 `CREATE TABLE`, backfill reale, dual write, cambio di fonte,
 pubblicazione, merge o deploy. Lo schema attuale resta autorevole.
+
+
+### Nuovo blocco preventivo: inventario delle colonne storiche
+
+La migrazione sperimentale ora richiede che l'elenco dei 94 ID utilizzato
+per convertire le risposte coincida con **tutte** le colonne storiche
+presenti in `public.opinioni_risposte`, non soltanto le Opinioni
+visibili nel catalogo corrente. La verifica deve controllare
+`information_schema.columns` e imporre il tipo PostgreSQL `TEXT`
+per ogni colonna di risposta. `user_id` e `fonti_opinioni` sono
+campi di servizio, non Opinioni.
+
+Questo preflight va eseguito **una sola volta prima del backfill**
+con accesso di sola lettura ai metadati, senza nuove query per ogni
+apertura dell'app. Se manca un ID, appare una colonna storica non
+registrata o il tipo è incompatibile, bloccare la migrazione: non
+ignorare la colonna e non eliminarla. Gli ID archiviati devono essere
+nel manifest storico anche se non più pubblicati.
+
+Il controllo è implementato nel candidato di ricerca
+`api/experiments/opinionAnswersV2BackfillCandidate.js` e provato
+nei test unitari e PostgreSQL sintetici. **Non è ancora collegato
+al database DEMOS**. I controlli sul catalogo della PR #384
+rimangono indipendenti, per evitare di modificarne il rilascio.
