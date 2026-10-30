@@ -103,13 +103,13 @@ async function computeCheckMissingForGrado(pool, userId, gradoParam, colonneEsis
         );
       }
     } catch (error) {
-      console.error('❌ Errore nella query risposte:', error);
-      opinioniMancanti.push(
-        ...opinioniConColonna.map((op) => ({
-          id: op.id,
-          text: op.text
-        }))
-      );
+      // An unavailable answer table or a missing published column is NOT
+      // evidence that the person has left every question unanswered.
+      // Fail the request rather than returning misleading completion data.
+      // Keep the SQL error out of responses and application logs.
+      const failure = new Error('Impossibile verificare le risposte alle Opinioni');
+      failure.code = 'OPINION_ANSWERS_UNAVAILABLE';
+      throw failure;
     }
   }
 
