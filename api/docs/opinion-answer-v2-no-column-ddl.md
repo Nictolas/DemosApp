@@ -147,3 +147,40 @@ invarianti isolate; non sostituiscono l'integrazione con le vere route GDPR.
 **Decisione attuale: NO-GO su una migrazione schema.** Mantenere la PR #483
 sperimentale e separata fino a confronto completo, test end-to-end
 con consenso, GDPR, migrazione dei dati e autorizzazione specifica.
+
+
+## Dipendenze applicative verificate (inventario dal codice esistente)
+
+Prima di passare da ricerca a implementazione, tutte le seguenti parti
+devono leggere/scrivere la **stessa fonte autorevole** e rispettare
+consenso, diritti GDPR e compatibilità:
+
+| Componente | Dipendenza da correggere soltanto nel futuro ramo di integrazione |
+| --- | --- |
+| api/routes/compatibility.js | GET Opinioni N/R/CO/E: proiezione delle colonne per grado e formato Android storico |
+| api/routes/opinioni/compatibility.js | Lettura risposte personali e payload legacy |
+| api/routes/opinioni/user-answers.js | POST Salva, notifiche su cambio posizione, lock e controllo consenso |
+| api/routes/users/profile.js | Lettura e aggiornamento opinioni e fonti; allineare anche i metadati fonti_opinioni |
+| api/utils/sondaggiTextBulk.js | Sondaggi nazionale/territoriali, aggregazioni e soglia minima 10 |
+| api/routes/opinioni/stats.js | Statistiche per età, sesso, regione e singola opinione |
+| api/services/politicalMatchingService.js | Matching tra rappresentanti e persone |
+| api/services/politicalConsentService.js | Portata della revoca e tabelle con dati politici |
+| api/services/privacyDataExportService.js | Export completo delle opinioni, anche ID storici |
+| api/services/privacyErasureLedgerService.js | Cancellazione account, revoca e replay dopo ripristino |
+| api/scripts/checkOpinionCatalogParity.js | Preflight attuale: una colonna TEXT per ogni ID pubblicato; aggiornare soltanto al cutover v2 |
+
+Questo inventario riguarda le dipendenze principali viste nei file attuali;
+non è un audit completo di ogni SQL dinamica, trigger, view, amministrazione,
+script storico o cliente Android. Eseguire una nuova ricerca repository-wide e
+un inventario PostgreSQL di funzioni/trigger/viste al gate di integrazione.
+
+**Rischio specifico:** il salvataggio del Profilo conserva fonti_opinioni
+in JSONB nella tabella attuale. Un eventuale spostamento delle sole risposte
+senza includere la semantica delle fonti potrebbe creare incoerenza e
+trattamento GDPR incompleto. Nessuna fonte va eliminata o convertita senza
+piano approvato e testato.
+
+**Ulteriore barriera:** prima del backfill, consentire al sistema di riconoscere
+account con consenso revocato/cancellati e preservare la validità del ledger
+di revoca anche dopo PITR/restore. Una copia legacy non può mai diventare
+un fallback che ricrea dati personali cancellati.
