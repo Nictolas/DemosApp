@@ -64,3 +64,30 @@ export async function requestLogoutRevocation({
     if (timeout !== undefined) clearTimeout(timeout);
   }
 }
+
+/**
+ * Best-effort logout side effects (push unregister, native credential state)
+ * must not hold the local session hostage if a native bridge or fetch hangs.
+ * Abort is advisory; the independent deadline always settles. Never log
+ * exception objects, tokens or response bodies.
+ */
+export async function runBoundedLogoutSideEffect(
+  effect: (signal: AbortSignal) => Promise<unknown>,
+  timeoutMs = 1500,
+): Promise<boolean> {
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(() => effect(controller.signal)).then(() => true, () => false),
+      new Promise<boolean>((resolve) => {
+        timeout = setTimeout(() => {
+          controller.abort();
+          resolve(false);
+        }, Math.max(1, timeoutMs));
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+}
