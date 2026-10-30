@@ -25,6 +25,9 @@ on:
       - 'client/tests/politicalOpinionPrivacyIntegration.test.mjs'
       - 'client/tests/encryptedVaultPurgeRace.test.mjs'
       - 'client/tests/accountDeletionCachePurge.test.mjs'
+      - 'client/tests/privacyDisclosureIntegrity.test.mjs'
+      - 'client/src/pages/PrivacyPolicy.tsx'
+      - 'client/src/pages/RegistroTrattamenti.tsx'
       - 'client/src/pages/Impostazioni/CancellaAccount/index.tsx'
       - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
       - 'client/src/lib/queryClient.ts'
@@ -50,7 +53,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Test mobile crash diagnostic and toast opacity
-        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs client/tests/opinionDelta.test.mjs client/tests/politicalOpinionHttpCancellation.test.mjs client/tests/politicalOpinionPrivacyIntegration.test.mjs client/tests/encryptedVaultPurgeRace.test.mjs client/tests/accountDeletionCachePurge.test.mjs
+        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs client/tests/opinionDelta.test.mjs client/tests/politicalOpinionHttpCancellation.test.mjs client/tests/politicalOpinionPrivacyIntegration.test.mjs client/tests/encryptedVaultPurgeRace.test.mjs client/tests/accountDeletionCachePurge.test.mjs client/tests/privacyDisclosureIntegrity.test.mjs
       - name: Build frontend
         run: npm --prefix client run build
       - name: Install API dependencies
