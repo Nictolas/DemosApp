@@ -12,6 +12,7 @@ on:
       - 'client/tests/saveAndVerifyOpinions.test.mjs'
       - 'client/tests/statsOpinionCacheReuse.test.mjs'
       - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
+      - 'client/src/pages/StatisticheOpinione/hooks/useOpinionId.ts'
       - 'client/tests/opinionPayload.test.mjs'
       - '.github/workflows/opinioni-regression.yml'
   pull_request:
@@ -40,6 +41,7 @@ on:
       - 'client/tests/saveAndVerifyOpinions.test.mjs'
       - 'client/tests/statsOpinionCacheReuse.test.mjs'
       - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
+      - 'client/src/pages/StatisticheOpinione/hooks/useOpinionId.ts'
       - '.github/workflows/opinioni-regression.yml'
 
 permissions:
