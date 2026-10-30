@@ -212,7 +212,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      await unregisterNativePush();
+      // Native push unregister may fail offline; it must not prevent local
+      // token/cache erasure or the independent server revocation attempt.
+      try {
+        await unregisterNativePush();
+      } catch {
+        console.warn("Errore disattivazione push nativo (dettagli omessi)");
+      }
       clearStoredNativePushToken();
       clearSessionTokens();
       // Abort authenticated requests and erase their in-memory results before
@@ -253,11 +259,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           sessionStorage.setItem(LOGOUT_REVOCATION_WARNING_KEY, "1");
         } catch {
-          toast({
-            title: "Disconnessione locale completata",
-            description: "Revoca della sessione sul server non confermata.",
-            variant: "destructive",
-          });
+          // If storage is blocked, a blocking notice is preferable to
+          // silently losing the warning during the immediate redirect.
+          window.alert("Disconnessione locale completata, ma la revoca sul server non è confermata.");
         }
       } else {
         toast({
