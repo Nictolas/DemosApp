@@ -32,6 +32,9 @@ on:
       - 'api/tests/gdprB2ReadonlyBucketMetadata.test.js'
       - 'api/scripts/attest-gdpr-b2-synthetic-version-readonly.js'
       - 'api/tests/gdprB2SyntheticVersionReadonly.test.js'
+      - 'api/tests/fixtures/gdprB2VersionInventorySynthetic.js'
+      - 'api/tests/gdprB2VersionInventorySynthetic.test.js'
+      - 'api/docs/gdpr-b2-synthetic-version-inventory-completeness-20261030.md'
       - 'api/docs/gdpr-b2-synthetic-version-bounded-readonly-20261030.md'
       - 'api/tests/fixtures/gdpr-b2-synthetic-object-v1.json'
       - 'api/services/privacyErasureLedgerService.js'
@@ -103,6 +106,8 @@ jobs:
           node --test --test-concurrency=1 api/tests/gdprB2ReadonlyBucketMetadata.test.js
           node --check api/scripts/attest-gdpr-b2-synthetic-version-readonly.js
           node --test --test-concurrency=1 api/tests/gdprB2SyntheticVersionReadonly.test.js
+          node --check api/tests/fixtures/gdprB2VersionInventorySynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprB2VersionInventorySynthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprDataPlaneRouteSurface.test.js
           node api/tests/gdprLegacyAdminSchemaMutationRouteIsolated.test.js
           node api/tests/gdprPrivacyCanonicalPoolIsolated.test.js
