@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/queryClient";
+import { parseOpinionQuestions } from "./opinionPayload";
 import {
   loadEncryptedProfile,
   persistEncryptedOpinionCategory,
@@ -52,20 +53,6 @@ const sections: Record<OpinionGrade, OpinionCategorySection> = {
   E: "opinionE", N: "opinionN", R: "opinionR", CO: "opinionCO",
 };
 
-function sanitiseQuestions(raw: unknown): EncryptedOpinionCategory["questions"] {
-  if (!Array.isArray(raw)) throw new Error("Formato opinioni non valido.");
-  return raw.map((question: any) => {
-    if (!question || typeof question.id !== "string" || typeof question.text !== "string") {
-      throw new Error("Domanda opinione non valida.");
-    }
-    const answer = question.userAnswer;
-    return {
-      id: question.id, text: question.text,
-      userAnswer: answer === "f" || answer === "c" || answer === "i" ? answer : null,
-      ...(question.grado === undefined ? {} : { grado: question.grado }),
-    };
-  });
-}
 
 /**
  * No network read when the authenticated owner's encrypted snapshot is valid.
@@ -93,14 +80,22 @@ export async function loadOpinionCategory(
     snapshot.consent.timestamp === consentEpoch ? snapshot[section] : null;
   if (catalogRevision !== null && cached?.version === OPINION_CATEGORY_CACHE_VERSION &&
       cached.grade === grade && cached.catalogRevision === catalogRevision) {
-    return { success: true, data: cached.questions, grado: grade, total: cached.questions.length };
+    // Encrypted != automatically valid: older cache releases or corrupt
+    // snapshots may contain textual slugs or duplicate IDs. Fail closed
+    // to the ordinary authenticated GET rather than returning them.
+    try {
+      const questions = parseOpinionQuestions(cached.questions);
+      return { success: true, data: questions, grado: grade, total: questions.length };
+    } catch {
+      // Invalid cache is not authoritative; do not re-use or merge it.
+    }
   }
 
   const response = await apiRequest("GET", `/api/opinioni-list?grado=${grade}`);
   if (!response.ok || response.data?.success !== true) {
     throw new Error("Impossibile caricare le opinioni.");
   }
-  const questions = sanitiseQuestions(response.data?.data);
+  const questions = parseOpinionQuestions(response.data?.data);
   if (signal?.aborted || revision !== profileSectionRevision(owner, section)) {
     throw new Error("Caricamento opinioni annullato");
   }
