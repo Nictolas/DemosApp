@@ -1539,3 +1539,68 @@ Sono necessarie conferma dello schema reale, revisione
 privacy, validazione e approvazione esplicita prima di
 qualsiasi DDL o attivazione. Nessuna PR coordinata e stata
 modificata o integrata da questi esperimenti.
+
+
+## Rischio statistico fra due pubblicazioni: prova e blocco NO-GO
+
+Il filtro precedente di almeno dieci rispondenti per
+aggregato non protegge contro il **confronto nel tempo**.
+Esempio sintetico: nella versione 1 ci sono dieci
+risposte favorevoli; nella versione 2 ci sono ancora
+dieci favorevoli e una contraria. Entrambe le versioni
+superano la soglia per popolazione totale, ma la
+differenza mostra il contributo politico di una sola
+nuova persona. Anche il passaggio da dieci a undici
+favorevoli o una variazione di visibilita regionale
+puo far trapelare informazioni sensibili.
+
+Il nuovo modulo di sola ricerca
+`api/experiments/opinionAnswersV2TemporalPrivacyGateCandidate.js`
+confronta l'involucro **gia filtrato per il pubblico**
+di due snapshot coerenti, creati dal factory controllato
+`buildVersionedOpinionPublication`. Se cambiano conteggi
+nazionali, conteggi regionali, decisioni di soppressione
+oppure testi/identificatori pubblicati, il candidato
+**blocca ogni nuova versione** senza revisione esterna
+indipendente. Anche la primissima pubblicazione richiede
+revisione; un numero totale di almeno dieci non
+garantisce che ogni categoria positiva abbia dieci
+risposte. Il solo caso riutilizzabile e mantenere
+l'**esatta versione precedente** se i dati pubblici
+sono identici, e solo se quella versione era gia stata
+approvata realmente: il modulo NON puo attestarne
+la precedente approvazione.
+
+Non esiste qui alcuna funzione che rilasci automaticamente
+una nuova versione. Il risultato include sempre
+`releaseAuthorized: false`. I riferimenti ai candidati
+sono verificati con una `WeakSet` privata del factory
+solo nel processo Node di prova; NON sostituisce
+un ledger immutabile, firmato e durevole dopo riavvio.
+Il rapporto di blocco usa solo codici: non contiene
+risposte personali o conteggi soppressi.
+
+**Hardening numerico:**
+`opinionAnswersV2RegionalPrivacyCandidate.js` ora accetta
+solo interi JavaScript non negativi sicuri oppure le
+stringhe decimali canoniche emesse da PostgreSQL per
+`COUNT(bigint)`. Rifiuta conversioni ambigue in zero
+(stringa vuota, spazi, booleani, array), stringhe
+decimali non canoniche e somme fuori
+`Number.MAX_SAFE_INTEGER`, che avrebbero potuto
+alterare calcoli e decisioni di soppressione.
+Il factory degli snapshot pubblici riusa le stesse
+regole. Sono aggiunti test avversari e unitari.
+
+**Limitazione NO-GO fondamentale:** un controllo su
+due versioni non analizza automaticamente tutte le
+versioni gia esposte negli storici dei client, le
+intersezioni con fasce d'eta, sesso, province/comuni,
+altre Opinioni o dati esterni. Prima di pubblicare
+servono una policy statistica documentata, un
+registro esterno completo di OGNI versione pubblicata,
+un piano per la permanenza delle cache e una
+revisione indipendente delle variazioni consentite.
+Questa ricerca non modifica gli endpoint attivi,
+non crea servizi di pubblicazione e non aggiorna
+Supabase/Android. PR #483 rimane Draft/NO-GO.
