@@ -11,6 +11,7 @@
  * backup recovery and external replay gates are integrated and verified.
  */
 const {sanitizeStoredDocument} = require('./opinionAnswersV2Candidate');
+const {validateSourceMap} = require('./opinionAnswersV2SourcesCandidate');
 
 const DELETE_V2_SQL =
   'DELETE FROM demos_private.opinion_answer_maps_v2 WHERE user_id = $1::uuid';
@@ -60,13 +61,25 @@ function projectV2GdprExport(subjectUserId, databaseRow) {
   const source=sanitizeStoredDocument(databaseRow.answers);
   const answersById=Object.create(null);
   for(const id of Object.keys(source).sort()) answersById[id]=source[id];
-  return {
+  // Sources are part of the complete opinion export. An older candidate
+  // row lacking the sources column is explicitly marked INCOMPLETE, not
+  // confused with an empty sources map. This module never fetches legacy
+  // sources or performs an authorization check by itself.
+  const sourcesProvided=Object.prototype.hasOwnProperty.call(databaseRow,'sources');
+  const sourcesById=sourcesProvided
+    ? validateSourceMap(databaseRow.sources)
+    : null;
+  const exported={
     format:'demos-opinion-answers-v2',
     answers_by_id:answersById,
-    // Sources (fonti_opinioni) are not included in v2 and MUST be added
-    // separately from an authorized legacy-source export at cutover.
-    answer_sources_included:false
+    answer_sources_included:sourcesProvided
   };
+  if(sourcesProvided){
+    const sourceCopy=Object.create(null);
+    for(const id of Object.keys(sourcesById).sort()) sourceCopy[id]=sourcesById[id];
+    exported.sources_by_id=sourceCopy;
+  }
+  return exported;
 }
 
 function isoTimeMs(value) {
