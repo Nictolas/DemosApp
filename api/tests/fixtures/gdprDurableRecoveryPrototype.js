@@ -43,6 +43,7 @@ class SyntheticWitness {
   }
   current() { return this.#latest && {...this.#latest}; }
   verify(checkpoint) {
+    if (!this.available) reject('GDPR_MODEL_WITNESS_UNAVAILABLE');
     if (!checkpoint || !this.#latest) reject('GDPR_MODEL_WITNESS_MISSING');
     const body = {epoch:checkpoint.epoch, count:checkpoint.count,
       head:checkpoint.head, sealed:checkpoint.sealed};
