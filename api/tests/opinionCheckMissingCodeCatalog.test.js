@@ -61,14 +61,20 @@ test('the code catalog still marks all personal answers missing if no answer row
   }
 });
 
-test('invalid grade is rejected before any personal SQL query',async()=>{
+test('unknown and inherited-prototype grades is rejected before any personal SQL query',async()=>{
   let queries=0;
   const pool={async query(){queries++;throw Error('UNEXPECTED_SQL');}};
   const ids=await getColonneOpinioniRisposte(pool);
-  await assert.rejects(
-    computeCheckMissingForGrado(pool,'synthetic-user','UNKNOWN',ids),
-    {code:'INVALID_GRADO'});
-  assert.equal(queries,0);
+  for(const grade of [
+    'UNKNOWN','constructor','toString','valueOf','hasOwnProperty',
+    '__proto__','prototype','N ', '', null, undefined, {}, 42
+  ]){
+    await assert.rejects(
+      computeCheckMissingForGrado(pool,'synthetic-user',grade,ids),
+      {code:'INVALID_GRADO'},
+      'invalid or inherited grade must never be treated as complete');
+  }
+  assert.equal(queries,0,'No personal SQL query for any invalid grade');
 });
 
 test('a failed answer lookup must not fabricate 100% missing progress',async()=>{
