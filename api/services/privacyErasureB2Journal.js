@@ -117,10 +117,14 @@ function keyFor(event) {
   return 'demos/gdpr-erasure/v1/events/' + month + '/' + event.event_key + '.json';
 }
 class PrivacyErasureB2Journal {
-  constructor({env = process.env, client = null, clock = () => new Date()} = {}) {
+  constructor({env = process.env, client = null, clock = () => new Date(), readbackTimeoutMs = 15000} = {}) {
+    if (!Number.isSafeInteger(readbackTimeoutMs) || readbackTimeoutMs < 1 || readbackTimeoutMs > 15000) {
+      throw Error('Invalid bounded B2 readback timeout');
+    }
     this.env = env;
     this.client = client;
     this.clock = clock;
+    this.readbackTimeoutMs = readbackTimeoutMs;
   }
   config() { return validatedConfig(this.env); }
   s3(cfg) {
@@ -149,6 +153,18 @@ class PrivacyErasureB2Journal {
     }
   }
   async readVerified(client, cfg, key, event, expectedHash, versionId, requiredUntil) {
+    // Bound retention and object readback; a stalled provider or body cannot hang recovery.
+    const abort = new AbortController();
+    let body = null;
+    let timeoutId;
+    const timeout = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        abort.abort();
+        try { body?.destroy?.(); } catch (_) { /* fail closed */ }
+        reject(Error('GDPR_B2_READBACK_TIMEOUT'));
+      }, this.readbackTimeoutMs);
+    });
+    const readback = (async () => {
     // Metadata/headers are not enough: download the chosen object *version*.
     if (!versionId) throw Error('B2 object version ID required');
     if (!(requiredUntil instanceof Date) || !Number.isFinite(requiredUntil.getTime())) {
@@ -159,7 +175,8 @@ class PrivacyErasureB2Journal {
     // immutable version is not legally retained.
     const retained = await client.send(new GetObjectRetentionCommand({
       Bucket: cfg.bucket, Key: key, VersionId: versionId
-    }));
+    }), {abortSignal: abort.signal});
+    if (abort.signal.aborted) throw Error('GDPR_B2_READBACK_TIMEOUT');
     const retentionUntil = new Date(retained.Retention?.RetainUntilDate);
     if (retained.Retention?.Mode !== 'COMPLIANCE' ||
         !Number.isFinite(retentionUntil.getTime()) ||
@@ -168,7 +185,13 @@ class PrivacyErasureB2Journal {
     }
     const read = await client.send(new GetObjectCommand({
       Bucket: cfg.bucket, Key: key, VersionId: versionId
-    }));
+    }), {abortSignal: abort.signal});
+    body = read.Body;
+    // A client may ignore abortSignal and resolve after the deadline.
+    if (abort.signal.aborted) {
+      try { body?.destroy?.(); } catch (_) { /* fail closed */ }
+      throw Error('GDPR_B2_READBACK_TIMEOUT');
+    }
     // S3 can return the requested bytes under another version ID. The
     // immutable receipt is version-specific: matching bytes are not enough.
     // Fail BEFORE reading the body if its provider identity or metadata is
@@ -209,6 +232,13 @@ class PrivacyErasureB2Journal {
     // The recovery verifier needs the expiry of every version, not just
     // the fact that each one was retained at its individual readback time.
     return {sha256:expectedHash, versionId, retentionUntil:retentionUntil.toISOString()};
+    })();
+    try {
+      return await Promise.race([readback, timeout]);
+    } finally {
+      clearTimeout(timeoutId);
+      abort.abort();
+    }
   }
   async verifyArchivedReceipt(raw, receipt) {
     // Strictly read-only: a recovery readiness check must NEVER repair a
