@@ -92,3 +92,58 @@ a 1 milione di utenti **non verificato**.
 
 **Fonte autorevole corrente:** ancora `public.opinioni_risposte` a colonne,
 finché un rilascio futuro esplicito e verificato non cambia il contratto.
+
+
+## Prime misurazioni replicabili (30 ottobre 2026)
+
+**Riproduzione in CI:** node api/scripts/benchmark-opinion-answer-layouts-ci.js nel workflow
+Opinion answers v2 — isolated research della PR #483. Il benchmark rifiuta
+connessioni fuori dal database PostgreSQL 17 effimero, locale, opinion_answers_ci
+in GitHub Actions. Sono utilizzati **solo 1.200 utenti e 94 domande sintetiche**,
+con densità deterministica del 9% oppure del 45%. Nessuna credenziale o risposta
+di DEMOS reale è letta. La terza struttura è normalizzata con PK
+(user_id, opinion_id) e indice (opinion_id, answer, user_id).
+
+La misura dello spazio usa pg_total_relation_size, **compresi gli indici**,
+e quindi rappresenta tabella+indici in queste fixture, non spazio di rete,
+backup, piani Supabase o costo fatturabile. I tempi sono EXPLAIN ANALYZE
+server-side con 12 ripetizioni per richiesta, **non** latenze HTTP, P95
+di produzione o un carico concorrente. Non è stata confrontata in questa
+suite la bitmap BYTEA della PR #247.
+
+| Densità | 94 colonne TEXT | JSONB un documento/utente | Righe normalizzate |
+| --- | ---: | ---: | ---: |
+| 9%, spazio totale | 163.840 B | 344.064 B | 1.376.256 B |
+| 45%, spazio totale | 245.760 B | 1.179.648 B | 6.979.584 B |
+| 9%, p50 aggregazione singola Opinione | 0,188 ms | 0,292 ms | 0,051 ms |
+| 45%, p50 aggregazione singola Opinione | 0,238 ms | 0,466 ms | 0,145 ms |
+| 9%, p50 lettura di un utente | 0,019 ms | 0,011 ms | 0,020 ms |
+| 45%, p50 lettura di un utente | 0,020 ms | 0,016 ms | 0,043 ms |
+
+L'aggregazione ha restituito **conteggi identici** nelle tre strutture in
+entrambe le densità. La struttura a righe è più rapida su una singola domanda
+in questo benchmark (indice specifico) ma usa molto più spazio; JSONB elimina
+il DDL per domanda ma usa più spazio rispetto alle 94 colonne sparse.
+**Non si può sostenere che JSONB risparmi spazio o costo** in base ai dati.
+I test SQL con lock e revoca su PostgreSQL sintetico verificano soltanto
+invarianti isolate; non sostituiscono l'integrazione con le vere route GDPR.
+
+### Interpretazione e scelta sospesa
+
+1. La struttura **attuale** usa meno spazio nei due campioni, ma richiede
+   un'altra colonna per ogni domanda aggiunta.
+2. **JSONB** soddisfa il requisito di nessun DDL per nuova domanda, ma il
+   costo di memorizzare le chiavi testuali per ogni utente è concreto.
+3. Le **righe normalizzate** rendono l'aggiunta di nuove domande semplice,
+   però presentano il maggior overhead per record e indici nel campione.
+4. La **bitmap 2-bit con ID immutabili e manifest persistente**, oggetto
+   della PR #247, è una quarta possibilità: non duplicare il suo lavoro,
+   ma richiedere benchmark comparabili di aggregazioni e GDPR, compreso
+   il caso di aggiunta/rimozione domanda, prima di scegliere.
+5. Una soluzione può vincere per spazio e perdere per costo delle query:
+   la scelta deve considerare contemporaneamente Sondaggi, matching,
+   revoche, profilo/caching e rollback su Android vecchi.
+
+**Decisione attuale: NO-GO su una migrazione schema.** Mantenere la PR #483
+sperimentale e separata fino a confronto completo, test end-to-end
+con consenso, GDPR, migrazione dei dati e autorizzazione specifica.
