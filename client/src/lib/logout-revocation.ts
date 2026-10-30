@@ -26,9 +26,12 @@ export async function requestLogoutRevocation({
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    const response = await fetcher(url, {
+    // AbortSignal is advisory: an adapter can ignore it and never settle.
+    // Race the request against a hard deadline so logout always returns.
+    const response = await Promise.race([
+      fetcher(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -36,7 +39,14 @@ export async function requestLogoutRevocation({
       },
       body: JSON.stringify({ refreshToken }),
       signal: controller.signal,
-    });
+      }),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          controller.abort();
+          reject(new Error("logout-revocation-timeout"));
+        }, Math.max(1, timeoutMs));
+      }),
+    ]);
     // A late response from a non-compliant fetch adapter cannot turn an
     // already timed-out attempt into a confirmed revocation.
     if (controller.signal.aborted) {
@@ -51,6 +61,6 @@ export async function requestLogoutRevocation({
       reason: controller.signal.aborted ? "timeout" : "network",
     };
   } finally {
-    clearTimeout(timeout);
+    if (timeout !== undefined) clearTimeout(timeout);
   }
 }
