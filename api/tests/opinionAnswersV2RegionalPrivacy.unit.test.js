@@ -2,7 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {REGIONI_DB_TO_FRONTEND}=require('../utils/regioniUtils');
-const {planCoherentRegionalPublication}=
+const {planCoherentRegionalPublication,validateCounts,total}=
   require('../experiments/opinionAnswersV2RegionalPrivacyCandidate');
 
 const regions=Object.keys(REGIONI_DB_TO_FRONTEND);
@@ -133,4 +133,39 @@ test('no positive hidden remainder leaves stable 10-person regions visible',()=>
   );
   assert.deepEqual([...p.visibleRegions].sort(),['LO','TO']);
   assert.equal(p.suppressedForDifferencing,false);
+});
+
+
+test('political aggregate parser rejects Number coercion and noncanonical bigint strings',()=>{
+  const invalid=[null,undefined,'',' ',' \t ','01','-0','1.0','1e3','+1',
+    '0x10',false,true,[],[1],{},'9007199254740992',
+    Number.MAX_SAFE_INTEGER+1,Infinity,NaN,-1,-0.5];
+  for(const value of invalid){
+    assert.throws(()=>validateCounts({
+      favorevole:value,contrario:0,indeciso:0
+    }),/Invalid count/,String(value));
+  }
+  assert.deepEqual(validateCounts({
+    favorevole:'001'.slice(2),contrario:'0',indeciso:3
+  }),{favorevole:1,contrario:0,indeciso:3});
+  assert.equal(total(validateCounts({
+    favorevole:'10',contrario:'20',indeciso:'3'
+  })),33);
+});
+
+test('sum overflow is rejected before any public regional publication',()=>{
+  const max=Number.MAX_SAFE_INTEGER;
+  assert.throws(()=>validateCounts({
+    favorevole:max,contrario:1,indeciso:0
+  }),/Unsafe aggregate count sum/);
+  const values=fixture({
+    TO:{favorevole:max},LO:{favorevole:1}
+  });
+  assert.throws(()=>planCoherentRegionalPublication(
+    {favorevole:max,contrario:0,indeciso:0},values
+  ),/Unsafe aggregate count sum/);
+  assert.throws(()=>planCoherentRegionalPublication(
+    {favorevole:'1',contrario:'0',indeciso:'0'},
+    fixture({TO:{favorevole:''},LA:{favorevole:1}})
+  ),/Invalid count/);
 });
