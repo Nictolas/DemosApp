@@ -99,13 +99,13 @@ test('Ministero sync does not echo untrusted diagnostic codes', async () => {
   ctx.service.extractFields = (record) => record;
   ctx.service.saveIniziativa = async () => {
     const error = new Error('PRIVATE-EXCEPTION-TEXT');
-    error.code = 'private@example.com';
+    error.code = 'PRIVATE_NAME';
     throw error;
   };
   const result = await ctx.service.syncAll();
   assert.equal(result.errors, 1);
   const output = JSON.stringify(ctx.messages);
-  assert.ok(!output.includes('private@example.com'));
+  assert.ok(!output.includes('PRIVATE_NAME'));
   assert.ok(!output.includes('PRIVATE-TITLE'));
   assert.match(output, /UNCLASSIFIED/);
 });
