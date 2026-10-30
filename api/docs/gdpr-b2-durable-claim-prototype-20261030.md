@@ -20,6 +20,12 @@ Il modello prova la riconciliazione **senza nuovi PUT**, tramite due sorgenti fi
 
 La suite include crash pre-PUT, race tra due connessioni PG17, perdita dell'ACK dopo un PUT fittizio, prova mancante/discordante, duplicazione di versioni, e perdita del marker in uno snapshot SQL ripristinato. L'ultima prova dimostra un limite importante: **il solo database non può attestare la propria completezza**. Servono un witness esterno realmente durabile e un inventario B2 versionato, verificati in modo indipendente.
 
+## Hardening idempotenza del claim — 30 ottobre 2026
+
+Nel prototipo PG17, il conflitto su `event_key` non viene più trattato indistintamente come retry: dopo `ON CONFLICT DO NOTHING` viene letta la riga persistita e confrontato lo SHA-256. Solo lo **stesso hash** produce un esito idempotente (`false`); hash differente, riga invisibile o assente producono `CLAIM_EVENT_KEY_HASH_CONFLICT` e non autorizzano alcun PUT. La verifica è effettuata anche dopo l'attesa di una transazione concorrente e dopo la transizione a `VERIFIED`. La modifica è **solo nel test/prototipo**, non una migrazione né un protocollo runtime attivo. Il test SQL utilizza un ruolo privilegiato in CI e non attesta la visibilità con ACL/RLS di un worker reale.
+
+Il claim SQL resta **non indipendente** da uno snapshot precedente: la sua perdita può rendere apparentemente nuovo un evento già caricato. Nessuna condizione di questa suite consente recovery GO senza witness durabile, completezza indipendente e restore isolato.
+
 ## Mancano ancora prima di qualunque uso reale
 
 1. Definire schema/migrazione e ACL RLS del marker su un ambiente autorizzato e separato; integrare il claim **committato prima del PUT** nel worker senza finestre di retry automatico.
