@@ -66,3 +66,28 @@ test('valid bounded event passes archive preflight without contacting B2', async
     });
   }
 });
+
+test('SQL microsecond precision cannot turn a preflight-approved 8192-byte event into an unarchivable event', async () => {
+  // Exact synthetic boundary: a millisecond timestamp is 3 bytes shorter
+  // than the six-digit microsecond timestamp returned by PostgreSQL.
+  const { normalizeEvent } = require('../services/privacyErasureB2Journal');
+  const subject = '00000000-0000-4000-8000-000000000301';
+  const details = { syntheticOnly:true, padding:'x'.repeat(7952) };
+  const event = {
+    event_key:subject, subject_user_id:subject, event_type:EVENT,
+    occurred_at:'2000-01-01T00:00:00.000001Z', details
+  };
+  assert.equal(Buffer.byteLength(JSON.stringify(normalizeEvent(event))), 8192);
+  assert.equal(Buffer.byteLength(JSON.stringify(normalizeEvent({
+    ...event, occurred_at:'2000-01-01T00:00:00.000Z'
+  }))), 8189);
+  for (const mode of ['false','true']) {
+    await inOutboxMode(mode, async () => {
+      const db=forbiddenDb();
+      await assert.rejects(Ledger.recordEvent(db, {
+        userId:subject,eventType:EVENT,details:{...details,padding:details.padding+'x'}
+      }), /GDPR ledger event exceeds minimization limit/);
+      assert.equal(db.queries,0);
+    });
+  }
+});
