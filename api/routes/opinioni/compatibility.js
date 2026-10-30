@@ -35,21 +35,21 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       });
     }
     
-    // Only per-user answers require PostgreSQL. Do not join a catalog table.
-    const answersResult = await pool.query('SELECT * FROM opinioni_risposte WHERE user_id = $1',[userId]);
+    // Read only the answer columns for this grade. These identifiers come
+    // from the validated code catalog, never from client-provided text.
+    const columns = opinionResult.rows.map(op => '"' + op.id + '"');
+    const answersResult = await pool.query(
+      `SELECT ${columns.join(', ')} FROM opinioni_risposte WHERE user_id = $1`,
+      [userId]
+    );
     const answers = answersResult.rows[0] || {};
-    const userAnswers = {};
-    for (const op of opinionResult.rows) {
-      const key = op.text.replace(/\s+/g,'_').toLowerCase();
-      userAnswers[key] = answers[op.id] ?? null;
-    }
 
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
-      // Usa il testo dell'opinione per ottenere la risposta dell'utente
-      const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
-      const userAnswer = userAnswers[opinionKey];
-      
+      // The answer-column ID is the stable published ID. Never create an
+      // alternate ID by normalizing UI text (including accent/apostrophe).
+      const userAnswer = answers[opinion.id] ?? null;
+
       // Restituisci direttamente i valori compressi dal database
       let frontendAnswer = null;
       if (userAnswer === 'f' || userAnswer === 'c' || userAnswer === 'i') {
@@ -59,7 +59,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       }
       
       return {
-        id: opinionKey,
+        id: opinion.id,
         text: opinion.text,
         grado: opinion.gradi_opinione,
         userAnswer: frontendAnswer
@@ -89,8 +89,6 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
 router.get('/proposte', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni per gestione');
-    console.log('🔍 Headers:', req.headers);
-    console.log('🔍 Query params:', req.query);
     
     const result = {rows: sortOpinionsByText(getAllOpinions())};
     // Debug: log dei primi 3 risultati per vedere la struttura
