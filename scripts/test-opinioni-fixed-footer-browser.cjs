@@ -82,6 +82,9 @@ async function run() {
       let catalogRevision = 'a'.repeat(64);
       let catalogEndpointAvailable = true;
       let denyPersonalAnswers = false;
+      let holdNextSave = false;
+      let releaseHeldSave = null;
+      let notifyHeldSave = null;
       const catalogChecks = [];
       page.on('pageerror', error => errors.push(error.message));
       const fulfill = (route, value) => route.fulfill({
@@ -132,7 +135,14 @@ async function run() {
           const body = route.request().postDataJSON();
           const answers = body.opinioni;
           writes.push(answers);
-          // Only used in the final save flow on the communal route.
+          if (holdNextSave) {
+            // Model a COMMIT ACK arriving after another account takes over.
+            holdNextSave = false;
+            await new Promise(resolve => {
+              releaseHeldSave = resolve;
+              notifyHeldSave?.();
+            });
+          }
           saved.set('CO', { ...(saved.get('CO') || {}), ...answers });
           return fulfill(route, { success: true, savedCount: Object.keys(answers).length, errorCount: 0 });
         }
@@ -361,6 +371,35 @@ async function run() {
       assert.equal(answerReads.length, beforeStatsWarm,
         'Stats selector reload must still make no personal-answer GET');
       statsWarmRevisits += 1;
+
+      // A valid server ACK must not update local state after auth changes
+      // during the network request. Use synthetic tokens and a held response.
+      sessionRole = 'E';
+      await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      const secondOpinion = page.locator('.opinioni-editor-page__list')
+        .locator('div.border-blue-200').filter({
+          has: page.getByRole('heading', { name: 'Opinione sintetica numero 02' }),
+        }).first();
+      await secondOpinion.getByRole('button', { name: 'Contrario' }).click();
+      const enteredHeldSave = new Promise(resolve => { notifyHeldSave = resolve; });
+      holdNextSave = true;
+      const beforeSwitchedSaveWrites = writes.length;
+      await page.locator('footer[aria-label="Azioni delle opinioni"]')
+        .getByRole('button', { name: 'Salva le mie opinioni' }).click();
+      await enteredHeldSave;
+      assert.equal(writes.length, beforeSwitchedSaveWrites + 1,
+        'One and only one delta POST is sent before the account switch');
+      await page.evaluate(() => localStorage.setItem('auth_token', 'synthetic-switched-token'));
+      releaseHeldSave();
+      releaseHeldSave = null;
+      notifyHeldSave = null;
+      await page.waitForTimeout(300);
+      assert.ok(page.url().endsWith('/opinioni-comunali'),
+        'An ACK for a former login must not navigate the current page');
+      assert.equal(await page.getByText('Le tue opinioni comunali sono state salvate.', { exact: true }).count(), 0,
+        'An ACK after token switch must not show a success toast for the old account');
+      cases += 1;
 
       assert.deepEqual(errors, [], 'No uncaught errors at ' + viewport.width + 'x' + viewport.height);
       await context.close();
