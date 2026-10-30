@@ -83,7 +83,7 @@ test('real Express HTTP contract against synthetic in-memory data, no live DB',
       });
       assert.equal(response.status,401);
       assert.equal(state.readCalls.length,before);
-      assert.equal(JSON.stringify(response.json).includes('f'),false);
+      assert.equal(JSON.stringify(response.json).includes('userAnswer'),false);
     });
     await t.test('missing grade returns legacy 400 and no subject read',async()=>{
       const before=state.readCalls.length;
