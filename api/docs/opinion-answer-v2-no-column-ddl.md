@@ -410,3 +410,64 @@ lettura fallback dai vecchi dati se il consenso è stato revocato.
 **Stato:** controlli sperimentali separati dalle PR #384/#464
 e dal lavoro GDPR/B2. Nessuna modifica a produzione,
 Supabase, Render, schema, API runtime, o backup reali.
+
+
+## Ricerca sulla copertura GDPR v2: cancellazione, export, consenso dopo restore
+
+L'esperimento **non importato dalle route**
+`api/experiments/opinionAnswersV2GdprCandidate.js` contiene:
+
+- un comando DELETE parametrizzato, specifico della futura
+  `demos_private.opinion_answer_maps_v2`, per l'uso *esclusivamente*
+  dentro una transazione GDPR che ha già acquisito il lock dell'utente;
+  l'assenza della nuova tabella produce un **errore**, non un successo
+  fittizio;
+- un proiettore per l'export GDPR del singolo interessato, vincolato
+  all'ID richiesto, che include anche gli ID di Opinioni archiviate.
+  Il proiettore **non include** `fonti_opinioni`: il percorso futuro
+  deve esportare tali fonti separatamente, con autorizzazione e coerenza;
+- un pianificatore conservativo per gli eventi **successivi o coincidenti**
+  con il timestamp del backup ripristinato. Revoche/cancellazioni
+  impongono la rimozione delle risposte da **entrambe** le strutture.
+  Una nuova concessione del consenso *successiva alla revoca* non
+  fa riapparire le vecchie risposte che erano nel backup.
+
+Il test `api/tests/opinionAnswersV2Gdpr.pg.test.js` verifica su
+PostgreSQL 17 effimero la cancellazione atomica delle due tabelle con
+consenso, il rollback integrale quando una query fallisce, l'export
+degli ID archiviati, il caso revoca→nuovo consenso e la mancata
+cancellazione silenziosa quando la nuova tabella non esiste.
+
+### Blocco logico individuato nel replay attuale — nessuna modifica al servizio
+
+L'implementazione corrente di
+`api/services/privacyErasureLedgerService.js`, nella funzione
+`applyCurrentPrivacyState`, seleziona l'**ultimo evento**
+`political_consent_revoked`/`political_consent_granted` per
+interessato e cancella le opinioni soltanto se quell'ultimo evento
+è una revoca.
+
+Scenario da gestire **prima di qualunque passaggio a v2**:
+
+1. Il backup contiene risposte originali `A`.
+2. Dopo il backup l'interessato revoca il consenso: `A` viene cancellata.
+3. Successivamente l'interessato concede un nuovo consenso, **senza**
+   esprimere nuovamente `A`.
+4. Un restore riporta alla luce il backup con `A`.
+5. Un replay che considera soltanto l'**ultimo** consenso (concesso)
+   non cancella `A`: rischio di *resurrezione di dati cancellati*.
+
+Occorre quindi riprodurre in ordine cronologico i **cambiamenti
+successivi al punto di ripristino** su un registro esterno completo,
+senza ritenere che un nuovo consenso autorizzi il recupero automatico
+di dati cancellati prima della nuova concessione. Questo problema è
+rilevante anche per lo schema legacy, non soltanto per v2. Il fix
+del servizio GDPR reale spetta al flusso GDPR/B2 coordinato, e **non**
+viene introdotto in questa PR di ricerca.
+
+**Condizioni non provate:** completezza e integrità del ledger esterno,
+timestamp affidabile del backup, orchestrazione che chiuda l'accesso
+fuori dal DB fino al replay, identità/permessi del pool Render,
+regole RLS, esportazione completa di `fonti_opinioni`, restore B2
+reale e coerenza di tutte le API/Android. La documentazione non
+autorizza un cutover, né i test sintetici dimostrano questi requisiti.
