@@ -471,3 +471,53 @@ fuori dal DB fino al replay, identità/permessi del pool Render,
 regole RLS, esportazione completa di `fonti_opinioni`, restore B2
 reale e coerenza di tutte le API/Android. La documentazione non
 autorizza un cutover, né i test sintetici dimostrano questi requisiti.
+
+
+## Fonti delle Opinioni — contratto v2 sperimentale (30 ottobre 2026)
+
+La versione in uso conserva già `fonti_opinioni` come JSONB nella
+tabella delle risposte. La pagina profilo usa `fonti_opinioni[id]` e
+mostra `unknown` per fonti assenti. Il modulo sperimentale
+`api/experiments/opinionAnswersV2SourcesCandidate.js` non è collegato
+al runtime e prepara una **seconda mappa JSONB `sources`** nella futura
+riga per utente, accanto a `answers`:
+
+```text
+user_id | answers: { opinione_0:"f", ... } | sources: { opinione_0:"fonte...", ... }
+```
+
+L'aggiunta o il nascondimento di Opinioni riguarda soltanto gli ID
+del catalogo nel codice: **nessuna colonna dedicata per nuova Opinione**.
+Tuttavia, la presenza di una nuova colonna JSONB `sources` sarebbe
+una modifica **una tantum al futuro schema v2**, da includere nella
+migrazione solo previa autorizzazione; non è stata applicata.
+
+Proprietà verificate nel codice di ricerca:
+
+- Una copia legacy completa deve trasferire **insieme** risposte e
+  `fonti_opinioni`. La migrazione si interrompe su sorgenti senza
+  ID storico noto o valori incompatibili. Un'Opinione archiviata non
+  viene mostrata nel profilo pubblico, ma la fonte rimane disponibile
+  per export GDPR e rollback autorizzato.
+- Gli aggiornamenti delle fonti usano **delta JSONB**, non la scrittura
+  dell'intero snapshot client. Una fonte vuota o `null` rimuove
+  soltanto la chiave specificata; le fonti di altri ID restano intatte.
+- Il profilo conserva `source: 'unknown'` quando la fonte non esiste,
+  rispettando il contratto del client storico.
+- Il candidato export GDPR adesso include facoltativamente
+  `sources_by_id` e `answer_sources_included: true` quando la riga
+  v2 contiene il campo `sources`. Una riga di ricerca che contiene
+  soltanto `answers` segnala invece chiaramente
+  `answer_sources_included: false`. **Questo non sostituisce**
+  l'esportazione reale della fonte autorevole al cutover.
+- Il salvataggio e la cancellazione di risposte e fonti devono
+  condividere lock dell'utente, controllo del consenso dopo il lock
+  e un'unica transazione; la futura revoca deve eliminare anche
+  il documento `sources` e i dati del legacy.
+
+**Limitazioni:** testo originale delle fonti non normalizzato, possibili
+fonti storiche non conformi da valutare prima della migrazione,
+percorso autorizzativo non implementato, costo storage aggiuntivo
+non ancora misurato per la densità reale, nessuna integrazione
+con il Profilo Android o la cache PR #464. Non abilitare v2
+finché export/cancellazione GDPR e rollback non attestano anche le fonti.
