@@ -28,6 +28,7 @@ on:
     branches:
       - integration/opinioni-catalog-privacy-20261029
       - integration/opinioni-full-stack-20261029
+      - feat/opinioni-delta-cache-prep-20261029
   workflow_dispatch:
 
 permissions:
@@ -122,14 +123,14 @@ jobs:
 
       # Emulator is deliberately limited to this PR: no credentials or user data.
       - name: Enable KVM for catalog Android emulator
-        if: github.head_ref == 'performance/opinion-catalog-in-code-20261028' || github.head_ref == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-full-stack-20261029' || github.head_ref == 'integration/opinioni-full-stack-20261029'
+        if: github.head_ref == 'performance/opinion-catalog-in-code-20261028' || github.head_ref == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-full-stack-20261029' || github.head_ref == 'integration/opinioni-full-stack-20261029' || github.ref_name == 'feat/opinioni-delta-cache-prep-20261029'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
       - name: Run offline native app smoke on Android emulator
-        if: github.head_ref == 'performance/opinion-catalog-in-code-20261028' || github.head_ref == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-full-stack-20261029' || github.head_ref == 'integration/opinioni-full-stack-20261029'
+        if: github.head_ref == 'performance/opinion-catalog-in-code-20261028' || github.head_ref == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-full-stack-20261029' || github.head_ref == 'integration/opinioni-full-stack-20261029' || github.ref_name == 'feat/opinioni-delta-cache-prep-20261029'
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 35
@@ -143,7 +144,7 @@ jobs:
             bash client/android/gradlew -p client/android :app:connectedDebugAndroidTest --no-daemon --stacktrace
 
       - name: Archive native emulator report
-        if: always() && github.head_ref == 'performance/opinion-catalog-in-code-20261028' || github.head_ref == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-full-stack-20261029' || github.head_ref == 'integration/opinioni-full-stack-20261029'
+        if: always() && github.head_ref == 'performance/opinion-catalog-in-code-20261028' || github.head_ref == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-catalog-privacy-20261029' || github.ref_name == 'integration/opinioni-full-stack-20261029' || github.head_ref == 'integration/opinioni-full-stack-20261029' || github.ref_name == 'feat/opinioni-delta-cache-prep-20261029'
         uses: actions/upload-artifact@v4
         with:
           name: demos-catalog-android-emulator-report
