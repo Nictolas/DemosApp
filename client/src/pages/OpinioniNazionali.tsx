@@ -57,7 +57,11 @@ export default function OpinioniNazionali() {
   const [, setLocation] = useLocation();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
   const [showConsentDialog, setShowConsentDialog] = useState(false);
-  const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<Record<string, string> | null>(null);
+  const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<{
+    ownerId: string;
+    answers: Record<string, string>;
+  } | null>(null);
+  const [grantConfirmed, setGrantConfirmed] = useState(false);
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions, isFetching: isRefreshingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
@@ -177,7 +181,8 @@ export default function OpinioniNazionali() {
     // Verifica consenso opinioni politiche (GDPR Art. 9)
     if (!hasConsent) {
       // Salva le opinioni da salvare in uno stato temporaneo
-      setPendingOpinionsToSave(opinionsToSave);
+      setPendingOpinionsToSave({ ownerId: user!.id, answers: opinionsToSave });
+      setGrantConfirmed(false);
       // Apri il dialog del consenso
       setShowConsentDialog(true);
       return;
@@ -188,36 +193,37 @@ export default function OpinioniNazionali() {
 
   saveHandlerRef.current = handleSave;
 
-  // Funzione chiamata quando il consenso viene concesso
-  const handleConsentGranted = async () => {
-    // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
-    if (pendingOpinionsToSave) {
-      
-      // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
-      await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
-      
-      // Recompute only real changes after consent; no full snapshot writes.
-      const allOpinionsToSave = collectChangedOpinionAnswers(
-        questions, { ...pendingOpinionsToSave, ...opinions },
-      );
-
-      // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
-      setTimeout(() => {
-        // Verifica che le opinioni siano ancora valide
-        if (allOpinionsToSave && Object.keys(allOpinionsToSave).length > 0) {
-          saveMutation.mutate(allOpinionsToSave);
-        } else {
-          console.error('❌ DEBUG: Nessuna opinione valida da salvare dopo il consenso');
-          toast({ 
-            title: "Errore", 
-            description: "Nessuna opinione valida da salvare. Riprova a salvare le tue opinioni.", 
-            variant: "destructive" 
-          });
-        }
-        setPendingOpinionsToSave(null);
-      }, 500);
-    }
+  // A consent grant does not authorize an automatic save until /auth/me
+  // confirms the new epoch, the vault wipe is complete, and the new
+  // category snapshot is loaded. No arbitrary timeouts or consent GETs.
+  const handleConsentGranted = () => {
+    setGrantConfirmed(true);
   };
+
+  useEffect(() => {
+    if (!grantConfirmed || !pendingOpinionsToSave) return;
+    if (pendingOpinionsToSave.ownerId !== user?.id ||
+        (isSessionVerified && verifiedPoliticalConsent?.granted !== true)) {
+      setGrantConfirmed(false);
+      setPendingOpinionsToSave(null);
+      return;
+    }
+    if (!isSessionVerified || !hasConsent || !canReadOpinions ||
+        isLoading || questions.length === 0 || saveMutation.isPending) return;
+    const toSave = collectChangedOpinionAnswers(
+      questions,
+      { ...pendingOpinionsToSave.answers, ...opinions },
+    );
+    setGrantConfirmed(false);
+    setPendingOpinionsToSave(null);
+    if (Object.keys(toSave).length > 0) {
+      saveMutation.mutate(toSave);
+    }
+  }, [
+    grantConfirmed, pendingOpinionsToSave, user?.id, isSessionVerified,
+    verifiedPoliticalConsent?.granted, hasConsent, canReadOpinions,
+    isLoading, questions, opinions, saveMutation.isPending,
+  ]);
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
