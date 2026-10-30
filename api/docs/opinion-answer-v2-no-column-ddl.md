@@ -350,3 +350,63 @@ Il controllo è implementato nel candidato di ricerca
 nei test unitari e PostgreSQL sintetici. **Non è ancora collegato
 al database DEMOS**. I controlli sul catalogo della PR #384
 rimangono indipendenti, per evitare di modificarne il rilascio.
+
+
+## Nuove verifiche di compatibilità e ripristino (30 ottobre 2026)
+
+### Formato delle API legacy
+
+Il candidato **non collegato alle route**
+`api/experiments/opinionAnswersV2CompatCandidate.js` riceve solo
+metadati pubblici delle Opinioni e un oggetto di risposte già autorizzato.
+Riproduce il formato `{success,data:[{id,text,grado,userAnswer}],grado,total}`
+usato dalle API `GET /api/opinioni-list` e
+`GET /api/opinioni/opinioni-list`: `f/c/i` oppure `null` per le
+risposte mancanti. Non restituisce le risposte a Opinioni archiviate,
+né `user_id` o `fonti_opinioni` come campi della risposta pubblica.
+Una 95ª Opinione può avere risposta nella mappa senza esigere una
+nuova colonna. La proiezione è *solo dopo* autenticazione, verifica
+dello stato dell'account, consenso politico e protezione del ripristino.
+I test comparano payload sintetici vecchi/nuovi, senza chiamare API reali.
+Non è stato cambiato alcun endpoint Android/frontend.
+
+### Replay GDPR dopo un backup
+
+Il test **solo PostgreSQL 17 sintetico**
+`api/tests/opinionAnswersV2Restore.pg.test.js` simula un backup che
+reintroduce risposte e consenso *precedenti* alla revoca/cancellazione.
+Il gate fittizio rimane chiuso finché un insieme completo di eventi
+esterni *inventati* non è riconciliato. Il test verifica che:
+
+- letture e scritture sono bloccate con gate chiuso; un ripristino non
+  può riaprire automaticamente gli accessi;
+- la revoca elimina le risposte sia nella tabella vecchia sia in
+  quella v2, e l'eliminazione account elimina entrambe;
+- i successivi tentativi di salvare/leggere un soggetto revocato o
+  eliminato sono negati;
+- il replay idempotente non riscrive i dati eliminati;
+- il gate dev'essere richiuso anche per un eventuale secondo restore.
+
+**Limite fondamentale:** il test NON esegue `pg_restore`, B2, PITR,
+un vero ledger esterno, ruoli RLS o le route dell'app. Il requisito
+"due eventi" è unicamente un controllo sulla fixture fittizia, NON
+una prova che un archivio esterno sia completo. In produzione,
+**il blocco dell'accesso deve essere applicato fuori dal database
+restaurabile**, o garantito dall'orchestrazione prima che il database
+sia nuovamente raggiungibile; un flag ripristinato insieme al database
+potrebbe essere erroneamente `true`.
+
+### Dipendenze esistenti osservate
+
+`api/services/privacyErasureLedgerService.js` e
+`api/services/politicalConsentService.js` eliminano attualmente
+dati della tabella legacy `opinioni_risposte`; la futura tabella
+v2 non è ancora nel loro perimetro. Lo stesso vale per
+`api/services/privacyDataExportService.js`, che legge le opinioni
+dalla tabella legacy. Questi componenti richiederanno integrazione
+coordinata **prima** di abilitare v2. Non si deve aggiungere una
+lettura fallback dai vecchi dati se il consenso è stato revocato.
+
+**Stato:** controlli sperimentali separati dalle PR #384/#464
+e dal lavoro GDPR/B2. Nessuna modifica a produzione,
+Supabase, Render, schema, API runtime, o backup reali.
