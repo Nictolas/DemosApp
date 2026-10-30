@@ -1382,3 +1382,64 @@ branch GitHub, ai deploy Render o al database reale.**
 Prima di utilizzarlo come gate operativo servirebbero
 fonti di evidenza indipendenti e protezioni di rilascio
 applicate esternamente. La PR #483 rimane Draft/NO-GO.
+
+
+## Prima prova completa di salvataggio/rilettura HTTP con PostgreSQL 17
+
+Nuovi prototipi esclusivamente nella cartella `api/experiments`: 
+
+- `opinionAnswersV2AuthorizedReadCandidate.js` effettua
+  **una sola SELECT** per un soggetto autenticato, con
+  `users LEFT JOIN user_consents LEFT JOIN opinioni_risposte`.
+  La JOIN della riga politica e condizionata dal consenso
+  attivo; anche il risultato SQL del soggetto che ha negato
+  il consenso contiene `answer_row=null`. Non esiste
+  una lettura separata delle 94 risposte o del catalogo SQL.
+  Il gate GDPR/B2 esterno deve essere verificato prima
+  della SELECT. Il soggetto proviene dal token autenticato,
+  mai da un parametro modificabile nel client.
+- `opinionAnswersV2PersonalWriteCandidate.js` riproduce
+  il percorso di salvataggio dell'utente, distinto dalle
+  funzioni Admin. Una transazione blocca `users FOR UPDATE`,
+  verifica il consenso in una SECONDA istruzione SQL,
+  legge solo il valore precedente delle Opinioni che
+  cambiano, esegue una UPSERT per le differenze effettive
+  e registra le notifiche dei veri cambiamenti **nello
+  stesso commit**. La prima risposta non crea notifiche.
+  Ripetere lo stesso salvataggio non provoca UPDATE
+  o scritture inutili del JSONB.
+- `opinionAnswersV2PersonalSaveHttpCandidate.js` monta
+  **solo in test** il vecchio contratto `POST /salva`,
+  riconoscendo sia `body.opinioni` sia un oggetto diretto
+  e mantenendo le chiavi di risposta `savedCount`,
+  `errorCount`, `notificationsCreated` e `timestamp`.
+
+Il nuovo `api/tests/opinionAnswersV2HybridHttpRoundtrip.pg.test.js`
+usa un server Express su localhost e due connessioni
+PostgreSQL 17 effimere con tabelle e utenti inventati.
+Verifica il ciclo completo GET iniziale con risposte null,
+POST di una delle 94 Opinioni storiche piu una 95ª,
+GET che le rilegge, doppio salvataggio senza UPDATE
+inutile, modifica con notifica nello stesso commit,
+rollback se fallisce la notifica, ID non pubblicati
+rifiutati, blocco delle letture/scritture durante
+ripristino, revoca con cancellazione e risposta 403,
+nuova concessione con solo nuove risposte e
+Opinioni archiviate escluse dalla lista pubblica.
+Le altre due suite unitarie coprono query personale,
+identita del soggetto e verifica dei risultati.
+
+**Limiti NO-GO:** l'autenticazione e il gate del test
+sono finti e non collegati agli effettivi middleware
+DEMOS; il servizio di notifica e un sostituto locale.
+Il GET di ricerca e il servizio di lettura verificano
+entrambi il gate in questa composizione; in una futura
+integrazione la verifica deve essere centralizzata
+senza richieste esterne duplicate, preservando
+l'invalidazione della cache della PR #464.
+Il test non e un collaudo su smartphone, non usa
+database con dati reali, non esegue restore B2 e
+non autorizza una modifica delle API attive o della
+struttura `opinioni_risposte` reale.
+
+**Stato: ricerca e test soltanto; PR #483 Draft / NO-GO.**
