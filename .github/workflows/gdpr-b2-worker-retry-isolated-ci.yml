@@ -77,6 +77,8 @@ on:
       - 'api/docs/gdpr-witness-ack-crash-gap-synthetic-20261030.md'
       - 'api/tests/gdprDurableRecoveryPg17Synthetic.test.js'
       - 'api/tests/gdprRecoverySnapshotAtomicCutPg17Synthetic.test.js'
+      - 'api/tests/gdprRecoveryCrossConnectionSnapshotPg17Synthetic.test.js'
+      - 'api/docs/gdpr-recovery-cross-session-pg17-snapshot-20261030.md'
       - 'api/docs/gdpr-recovery-pg17-atomic-snapshot-cut-synthetic-20261030.md'
       - 'api/tests/gdprDistributedFencePg17Synthetic.test.js'
       - 'api/tests/gdprDualPlaneQuarantinePg17Synthetic.test.js'
@@ -173,6 +175,8 @@ jobs:
           node --test --test-concurrency=1 api/tests/gdprDurableRecoveryPg17Synthetic.test.js
           node --check api/tests/gdprRecoverySnapshotAtomicCutPg17Synthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprRecoverySnapshotAtomicCutPg17Synthetic.test.js
+          node --check api/tests/gdprRecoveryCrossConnectionSnapshotPg17Synthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprRecoveryCrossConnectionSnapshotPg17Synthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprDistributedFencePg17Synthetic.test.js
           node --test --test-concurrency=1 api/tests/gdprDualPlaneQuarantinePg17Synthetic.test.js
           node --check api/tests/gdprPrivilegedWriterBypassPg17Synthetic.test.js
