@@ -18,9 +18,11 @@ on:
       - 'client/src/lib/saveAndVerifyOpinions.ts'
       - 'client/src/lib/opinionDelta.ts'
       - 'client/src/lib/encryptedOpinionCache.ts'
+      - 'client/src/lib/opinionPayload.ts'
       - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
       - 'client/src/hooks/use-auth.tsx'
       - 'client/tests/opinionDelta.test.mjs'
+      - 'client/tests/opinionPayload.test.mjs'
       - '.github/workflows/opinioni-regression.yml'
 
 permissions:
@@ -42,7 +44,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Test mobile crash diagnostic and toast opacity
-        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs client/tests/opinionDelta.test.mjs
+        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs client/tests/opinionDelta.test.mjs client/tests/opinionPayload.test.mjs
       - name: Build frontend
         run: npm --prefix client run build
       - name: Install API dependencies
