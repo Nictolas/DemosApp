@@ -1223,3 +1223,57 @@ PR #374 non fornisca e verifichi tali garanzie.
 
 Il ramo resta di sola ricerca: nessun merge, deploy,
 modifica di database o route produttive.
+
+
+## Salvataggio unico di risposte e fonti nel Profilo — ricerca isolata
+
+Il codice attivo della route Admin Profilo oggi legge prima
+`fonti_opinioni` da `opinioni_risposte` e successivamente
+riscrive tutto il documento JSONB. Con richieste ravvicinate
+o concorrenti questa strategia puo perdere fonti aggiornate
+da un'altra richiesta. Fa inoltre una SELECT aggiuntiva
+del JSONB e una SELECT a `information_schema` per verificare
+le colonne di risposta. Non sono state modificate le route attive.
+
+Il prototipo `api/experiments/opinionAnswersV2HybridAdminCandidate.js`
+costruisce una sola INSERT ... ON CONFLICT DO UPDATE per
+salvare nella medesima riga risposte storiche TEXT, nuove
+risposte `answers_extra` e modifiche a `fonti_opinioni`.
+Quando una fonte viene modificata, la query SQL usa
+`(COALESCE(current.fonti_opinioni, '{}'::jsonb) - removedKeys)
+`|| EXCLUDED.fonti_opinioni`, conservando le chiavi
+non menzionate, comprese quelle delle Opinioni archiviate.
+Le nuove fonti e i riferimenti alle chiavi da cancellare
+sono parametri SQL; le colonne storiche provengono
+esclusivamente dagli ID immutabili verificati nel codice.
+Non viene eseguita alcuna lettura del catalogo dal database.
+
+Il caso **sole rimozioni di fonti** usa UPDATE e non UPSERT:
+se un utente non ha ancora risposte, non viene creata
+una riga vuota con il solo tentativo di cancellare una fonte.
+L'inserimento iniziale di risposte storiche, future e fonti
+puo invece avvenire in una sola operazione atomica.
+
+Test isolati:
+`api/tests/opinionAnswersV2HybridAdmin.unit.test.js` e
+`api/tests/opinionAnswersV2HybridAdmin.pg.test.js`,
+con PostgreSQL 17 effimero e fonti sintetiche.
+Controllano SQL parametrizzato, prima scrittura, fonti
+di Opinioni archiviate preservate, input non valido,
+rimozione senza riga e due richieste concorrenti
+che modificano fonti differenti senza sovrascriverle.
+Verificano inoltre il rollback di risposte e fonti
+quando fallisce un passo successivo nella transazione.
+
+**Limiti vincolanti:** il builder non autentica nessuno e
+NON controlla il consenso. Ogni uso reale richiederebbe
+la transazione con lock `users FOR UPDATE`, verifica
+del consenso politico DOPO il lock, autorizzazione Admin
+appropriata e gate esterno GDPR/B2, oltre all'uso di
+uno snapshot coerente per notifiche e audit.
+La rimozione di una fonte e ammessa, la rimozione
+di una risposta espressa rimane vietata.
+Questo codice non e importato da nessuna route,
+non e un rilascio Android, non cambia Supabase.
+
+**PR #483 Draft/NO-GO**: nessun deploy, merge o DDL.
