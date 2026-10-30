@@ -125,13 +125,40 @@ class PrivacyErasureB2Journal {
     this.client = client;
     this.clock = clock;
     this.readbackTimeoutMs = readbackTimeoutMs;
+    // In-memory safety latch only. An uncertain remote PUT must not be
+    // retried by this exporter instance without independent reconciliation.
+    // This cannot protect a process restart or another worker.
+    this.uncertainWrite = false;
+  }
+  async sendBounded(client, command, timeoutCode) {
+    const abort = new AbortController();
+    let timer;
+    const deadline = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        abort.abort();
+        reject(Error(timeoutCode));
+      }, this.readbackTimeoutMs);
+    });
+    try {
+      const result = await Promise.race([
+        Promise.resolve().then(() => client.send(command, {abortSignal: abort.signal})),
+        deadline
+      ]);
+      if (abort.signal.aborted) throw Error(timeoutCode);
+      return result;
+    } finally {
+      clearTimeout(timer);
+      abort.abort();
+    }
   }
   config() { return validatedConfig(this.env); }
   s3(cfg) {
     if (this.client) return this.client;
     this.client = new S3Client({
       endpoint: cfg.endpoint, region: cfg.region, forcePathStyle: true,
-      maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED',
+      // A retried PUT could create a second COMPLIANCE-locked version after
+      // a lost acknowledgement. Do not allow automatic SDK-level retries.
+      maxAttempts: 1, requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
       credentials: {accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey}
     });
@@ -288,6 +315,9 @@ class PrivacyErasureB2Journal {
   }
 
   async archiveEvent(raw) {
+    if (this.uncertainWrite) {
+      throw Error('GDPR_B2_PUT_OUTCOME_UNKNOWN_REQUIRES_RECONCILIATION');
+    }
     const cfg = this.config();
     const event = normalizeEvent(raw);
     const client = this.s3(cfg);
@@ -300,7 +330,9 @@ class PrivacyErasureB2Journal {
     const until = new Date(now.getTime() + cfg.retentionDays * MS_DAY);
     let head;
     try {
-      head = await client.send(new HeadObjectCommand({Bucket:cfg.bucket,Key:key}));
+      head = await this.sendBounded(client,
+        new HeadObjectCommand({Bucket:cfg.bucket,Key:key}),
+        'GDPR_B2_HEAD_TIMEOUT');
     } catch (error) {
       if (!notFound(error)) throw error;
     }
@@ -313,14 +345,19 @@ class PrivacyErasureB2Journal {
       return {eventKey:event.event_key,key,reused:true,
         ...(await this.readVerified(client,cfg,key,event,hash,head.VersionId,now))};
     }
-    const uploaded = await client.send(new PutObjectCommand({
+    // From this point an acknowledgement can be lost AFTER the provider
+    // has committed an immutable version. Never retry PUT automatically in
+    // this process, even if the transport reports an error or readback fails.
+    this.uncertainWrite = true;
+    const uploaded = await this.sendBounded(client, new PutObjectCommand({
       Bucket:cfg.bucket, Key:key, Body:payload, ContentType:'application/json',
       ServerSideEncryption:'AES256', ObjectLockMode:'COMPLIANCE',
       ObjectLockRetainUntilDate:until,
       Metadata:{sha256:hash}
-    }));
-    const versionId = uploaded.VersionId;
+    }), 'GDPR_B2_PUT_OUTCOME_UNKNOWN');
+    const versionId = uploaded?.VersionId;
     const verified = await this.readVerified(client,cfg,key,event,hash,versionId,until);
+    this.uncertainWrite = false;
     return {eventKey:event.event_key,key,reused:false,...verified};
   }
   async archiveBatch(db, {after = null, limit = 100} = {}) {
