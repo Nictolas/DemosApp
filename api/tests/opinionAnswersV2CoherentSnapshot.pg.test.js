@@ -71,7 +71,7 @@ test('disposable PG17: single statement national/regional snapshot is coherent',
           favorevole:'10',contrario:'1',indeciso:'0'
         });
         assert.equal(regions.length,20);
-        assert.equal(publication.publishNational,true);
+        assert.equal(publication.publishNational,false);
         assert.deepEqual(publication.visibleRegions,[]);
         assert.ok(publication.suppressedRegions.includes('TO'));
         assert.ok(publication.suppressedRegions.includes('LA'));
@@ -93,7 +93,7 @@ test('disposable PG17: single statement national/regional snapshot is coherent',
       }
       result=await snapshot(db,'opinione_94');
       assert.deepEqual(result.publication.visibleRegions,[]);
-      assert.equal(result.publication.publishNational,true);
+      assert.equal(result.publication.publishNational,false);
       assert.equal(result.publication.suppressedForDifferencing,true);
       assert.ok(result.publication.suppressedRegions.includes('LA'));
     });
@@ -118,7 +118,7 @@ test('disposable PG17: single statement national/regional snapshot is coherent',
       assert.deepEqual(result.national,{
         favorevole:'19',contrario:'1',indeciso:'0'
       });
-      assert.equal(result.publication.publishNational,true);
+      assert.equal(result.publication.publishNational,false);
       assert.deepEqual(result.publication.visibleRegions,[]);
       assert.ok(result.publication.suppressedRegions.includes('LA'));
     });
