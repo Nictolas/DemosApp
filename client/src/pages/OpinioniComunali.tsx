@@ -189,6 +189,9 @@ export default function OpinioniComunali() {
     setGrantConfirmed(false);
     setPendingOpinionsToSave(null);
     if (Object.keys(toSave).length > 0) {
+      // Keep the just-consented draft visible even if the first POST fails.
+      // This updates React RAM only; the server still receives delta-only data.
+      setOpinions((previous) => ({ ...previous, ...toSave }));
       saveMutation.mutate(toSave);
     }
   }, [
