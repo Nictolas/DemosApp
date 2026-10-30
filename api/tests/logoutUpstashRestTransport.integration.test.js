@@ -42,12 +42,14 @@ test('real Redis via production Upstash REST SDK: revoke, TTL and failure semant
   const tcp = new RedisTcp(redisUrl, { lazyConnect: true, enableOfflineQueue: false, maxRetriesPerRequest: 1 });
   const allowedPrefix = cacheKeys.keys.revokedAccessSession('ci-rest-');
   const observed = [];
+  const observedWire = [];
   let rejectWrites = false;
   let gateway;
   let sessionId = null;
   try {
     await tcp.connect();
     const gatewayServer = http.createServer(async (req, res) => {
+      observedWire.push([req.method, (req.url || '').split('?')[0]]);
       function reply(status, data) {
         res.writeHead(status, { 'content-type': 'application/json' });
         res.end(JSON.stringify(data));
@@ -101,7 +103,12 @@ test('real Redis via production Upstash REST SDK: revoke, TTL and failure semant
     sessionId = 'ci-rest-' + crypto.randomUUID();
     const decoded = { sid: sessionId, exp: Math.floor(Date.now() / 1000) + 180 };
     const other = { sid: 'ci-rest-other-' + crypto.randomUUID() };
-    assert.equal(await service.isAccessSessionRevoked(decoded), false);
+    try {
+      assert.equal(await service.isAccessSessionRevoked(decoded), false);
+    } catch (err) {
+      console.log('Synthetic REST adapter diagnostic:', JSON.stringify({ wire: observedWire, causeType: err?.cause?.name || 'none', causeMessage: String(err?.cause?.message || '').slice(0, 240) }));
+      throw err;
+    }
     assert.equal(await service.revokeDecodedAccessToken(decoded), true);
     assert.equal(await service.isAccessSessionRevoked(decoded), true);
     assert.equal(await service.isAccessSessionRevoked(other), false);
