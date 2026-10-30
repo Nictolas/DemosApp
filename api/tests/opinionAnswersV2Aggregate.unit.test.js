@@ -55,15 +55,15 @@ test('all identifiers must come from code-published immutable catalog',()=>{
   }),/1\.\.128/);
 });
 
-test('privacy: threshold 10 publishes counts; 9 suppresses and 0 never appears',()=>{
+test('privacy: each nonzero answer category must reach 10; 9 or 0 total hides',()=>{
   const rows=[
-    {opinion_id:'opinione_0',favorevole:'4',contrario:'3',indeciso:'3'},
-    {opinion_id:'opinione_94',favorevole:'4',contrario:'3',indeciso:'2'},
+    {opinion_id:'opinione_0',favorevole:'10',contrario:'10',indeciso:'10'},
+    {opinion_id:'opinione_94',favorevole:'10',contrario:'9',indeciso:'10'},
     {opinion_id:'opinione_95',favorevole:'0',contrario:'0',indeciso:'0'}
   ];
   const result=publishHybridSurveyStats(rows,published);
   assert.deepEqual({...result},{
-    opinione_0:{favorevole:4,contrario:3,indeciso:3}
+    opinione_0:{favorevole:10,contrario:10,indeciso:10}
   });
   assert.equal(Object.hasOwn(result,'opinione_94'),false);
   assert.equal(Object.hasOwn(result,'opinione_95'),false);
@@ -143,4 +143,30 @@ test('real political matching scorer includes new Opinion and ignores archived k
   ],['citizen'],ids,published,legacy).get('citizen');
   assert.deepEqual(getOpinionCompletion(ids,missing).missingOpinionIds,['opinione_94']);
   assert.equal(getOpinionCompletion(ids,missing).isComplete,false);
+});
+
+
+test('30-person mixed count with one contrary response must NOT disclose single voter',()=>{
+  const raw=publishHybridSurveyStats([
+    {opinion_id:'opinione_0',favorevole:'29',contrario:'1',indeciso:'0'},
+    {opinion_id:'opinione_94',favorevole:'30',contrario:'0',indeciso:'0'}
+  ],published);
+  assert.equal(Object.hasOwn(raw,'opinione_0'),false);
+  assert.deepEqual(raw.opinione_94,{
+    favorevole:30,contrario:0,indeciso:0
+  });
+});
+
+test('public aggregate rejects count coercion and overflowing category sums',()=>{
+  for(const invalid of ['', ' ', false, [], '01', '1e3',
+    '9007199254740992']){
+    assert.throws(()=>publishHybridSurveyStats([{
+      opinion_id:'opinione_0',favorevole:invalid,
+      contrario:0,indeciso:0
+    }],published),/Invalid SQL aggregate count/);
+  }
+  assert.throws(()=>publishHybridSurveyStats([{
+    opinion_id:'opinione_0',
+    favorevole:Number.MAX_SAFE_INTEGER,contrario:1,indeciso:0
+  }],published),/Invalid SQL aggregate count/);
 });
