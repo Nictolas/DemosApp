@@ -186,7 +186,7 @@ test('old Android GET and national/regional stats return 503 BEFORE personal SQL
       const r=await get(route,headers);
       assert.equal(r.status,503);
       assert.equal(r.body.success,false);
-      assert.equal(JSON.stringify(r.body).includes('f'),false);
+      assert.equal(JSON.stringify(r.body).includes('userAnswer'),false);
     }
     assert.equal(personalReads,0);
     assert.equal(publicAggregates,0);
