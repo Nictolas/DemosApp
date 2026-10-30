@@ -14,7 +14,8 @@
  */
 const {validateLegacyIds}=require('./opinionAnswersV2BackfillCandidate');
 const {sanitizeStoredDocument}=require('./opinionAnswersV2Candidate');
-const {cellThresholdMet}=require('../utils/politicalAggregatePrivacy');
+const {validateCounts,safePublicCounts}=
+  require('./opinionAnswersV2RegionalPrivacyCandidate');
 
 const ID=/^[a-z][a-z0-9_]{0,62}$/;
 const ANSWERS=new Set(['f','c','i']);
@@ -108,14 +109,16 @@ function publishHybridSurveyStats(rows,publishedIds){
       throw new Error('Repeated opinion ID in SQL aggregate');
     }
     seen.add(row.opinion_id);
-    const counts={};
-    for(const key of ['favorevole','contrario','indeciso']){
-      const n=Number(row[key]);
-      if(!Number.isSafeInteger(n)||n<0)throw new Error('Invalid SQL aggregate count');
-      counts[key]=n;
+    let counts;
+    try{
+      counts=validateCounts(row);
+    }catch(_error){
+      // Never accidentally expose the malformed value in an HTTP error.
+      throw new Error('Invalid SQL aggregate count');
     }
-    // Never release a count below the published privacy threshold of 10.
-    if(cellThresholdMet(counts))result[row.opinion_id]=counts;
+    // Restrict BOTH the total and every positive f/c/i category.
+    // 29 favorable + 1 contrary must not expose that one answer.
+    if(safePublicCounts(counts))result[row.opinion_id]=counts;
   }
   return result;
 }
