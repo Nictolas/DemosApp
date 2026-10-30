@@ -22,4 +22,17 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react', 'react-dom'],
   },
+  // Active config for 'vite' (vite.config.js takes precedence over .ts).
+  // The candidate Opinions browser QA and local development route /api only
+  // to an explicitly launched localhost backend. No production build change.
+  server: {
+    port: 3000,
+    host: 'localhost',
+    proxy: {
+      '/api': {
+        target: 'http://localhost:10000',
+        changeOrigin: true,
+      },
+    },
+  },
 })

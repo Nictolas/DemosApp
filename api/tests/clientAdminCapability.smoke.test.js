@@ -72,7 +72,7 @@ test('/utenti uses canonical Admin capability instead of legacy role strings', (
 
 test('auth state refreshes on mount and window focus so capability changes are picked up', () => {
   const src = read('client/src/hooks/use-auth.tsx');
-  assert.match(src, /refetchOnWindowFocus:\s*(?:true|"always")/);
+  assert.match(src, /refetchOnWindowFocus:\s*(?:true|["\x27]always["\x27])/);
   assert.match(src, /refetchOnMount:\s*["']always["']/);
 });
 

@@ -7,6 +7,8 @@ const fs = require('node:fs');
 
 const ROOT = path.resolve(__dirname, '..');
 const authPath = require.resolve(path.join(ROOT, 'middleware', 'auth.js'));
+const catalogPath = require.resolve(path.join(ROOT, 'services', 'opinionCatalog.js'));
+const matchingPath = require.resolve(path.join(ROOT, 'services', 'politicalMatchingService.js'));
 
 function makePool({ complete = true, withEmptyProfiles = false } = {}) {
   const questionIds = ['q1', 'q2', 'q3', 'q4'];
@@ -50,6 +52,13 @@ function makePool({ complete = true, withEmptyProfiles = false } = {}) {
 
 async function withRoute({ routeFile, mount, pool, fn }) {
   const original = require.cache[authPath];
+  const previousCatalog = require.cache[catalogPath];
+  const previousMatching = require.cache[matchingPath];
+  // Only the test fixture uses q1..q4. In production this function reads
+  // all canonical grade IDs from the versioned 94-opinion catalog.
+  require.cache[catalogPath] = { id:catalogPath,filename:catalogPath,loaded:true,
+    exports:{getOpinionIdsForGrade:()=>['q1','q2','q3','q4']} };
+  delete require.cache[matchingPath];
   require.cache[authPath] = {
     id: authPath, filename: authPath, loaded: true,
     exports: {
@@ -69,6 +78,8 @@ async function withRoute({ routeFile, mount, pool, fn }) {
     await new Promise((resolve) => server.close(resolve));
     delete require.cache[routePath];
     if (original) require.cache[authPath] = original; else delete require.cache[authPath];
+    if(previousCatalog)require.cache[catalogPath]=previousCatalog;else delete require.cache[catalogPath];
+    if(previousMatching)require.cache[matchingPath]=previousMatching;else delete require.cache[matchingPath];
   }
 }
 

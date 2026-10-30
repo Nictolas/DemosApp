@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, BarChart3 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 interface OpinionQuestion {
   id: string;
@@ -16,19 +17,22 @@ interface OpinionSelectorProps {
 }
 
 export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
+  const { user, isSessionVerified, verifiedPoliticalConsent } = useAuth();
   const { data: questionsData, isLoading, isError } = useQuery<{
     success: boolean;
     data: OpinionQuestion[];
     grado: string;
     total: number;
   }>({
-    queryKey: ['opinioniQuestions', grado],
-    queryFn: async () => {
-      console.log('🔍 DEBUG - Caricamento opinioni per selettore...');
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`);
-      console.log('🔍 DEBUG - Risposta API selettore:', data);
-      return data;
+    // Personalized userAnswer values must never be shared across accounts,
+    // revocation/regrant epochs or the four opinion entry editors.
+    queryKey: ['statsOpinionQuestions', user?.id, verifiedPoliticalConsent?.timestamp, grado],
+    enabled: !!user?.id && isSessionVerified && verifiedPoliticalConsent?.granted === true &&
+      !!verifiedPoliticalConsent.timestamp,
+    queryFn: async ({ signal }) => {
+      const response = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`,
+        undefined, undefined, signal);
+      return response.data;
     },
   });
 

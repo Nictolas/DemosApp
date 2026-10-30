@@ -1,11 +1,12 @@
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
+import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
+import { loadOpinionCategory, cacheConfirmedOpinionAnswers } from "@/lib/encryptedOpinionCache";
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { ApprofondimentoButton } from '@/components/ApprofondimentoButton';
 import { usePoliticalOpinionsConsent } from '@/hooks/usePoliticalOpinionsConsent';
@@ -31,7 +32,7 @@ const normalizeAnswer = (answer: string | undefined) => {
 
 export default function OpinioniEuropee() {
   const [, setLocation] = useLocation();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, isSessionVerified, verifiedPoliticalConsent } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
@@ -42,27 +43,27 @@ export default function OpinioniEuropee() {
   const { hasConsent } = usePoliticalOpinionsConsent();
 
   // 1. Query per caricare le domande
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: ['opinioniQuestions', 'Europeo'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=E");
-      if (response.ok && response.data) {
-        return response.data;
-      }
-      return { success: false, data: [] };
-    },
-    enabled: !!user
+  const { data: questionsData, isLoading: isLoadingQuestions, isFetching: isRefreshingQuestions } = useQuery({
+    queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Europeo'],
+    queryFn: ({ signal }) => loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp, "E", signal) as any,
+    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true,
+    // Re-run the cheap catalog check on each visit. Valid encrypted answers
+    // still avoid database reads; a changed release never stays permanently stale.
+    staleTime: 0,
+    gcTime: Infinity,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false
   });
 
   // Combina i dati
-  const isLoading = isLoadingQuestions;
-  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
+  const isLoading = isLoadingQuestions || isRefreshingQuestions;
+  // A disabled query can still hold data in RAM: never render it after revocation.
+  const canReadOpinions = !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true;
+  const questions = canReadOpinions && questionsData?.data && Array.isArray(questionsData.data)
+    ? questionsData.data : [];
   
   // Debug
   useEffect(() => {
-    console.log('🔍 DEBUG - questionsData:', questionsData);
-    console.log('🔍 DEBUG - questions:', questions);
-    console.log('🔍 DEBUG - questions.length:', questions.length);
   }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
@@ -82,35 +83,22 @@ export default function OpinioniEuropee() {
 
   // Debug per vedere le sezioni
   useEffect(() => {
-    console.log('🔍 DEBUG - opinioniEspresse:', opinioniEspresse);
-    console.log('🔍 DEBUG - opinioniDaInserire:', opinioniDaInserire);
-    console.log('🔍 DEBUG - opinioniEspresse.length:', opinioniEspresse.length);
-    console.log('🔍 DEBUG - opinioniDaInserire.length:', opinioniDaInserire.length);
   }, [opinioniEspresse, opinioniDaInserire]);
 
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
     if (questions && questions.length > 0) {
-      console.log('🔍 DEBUG useEffect - questions ricevute:', questions);
       const mappedOpinions: Record<string, string> = {};
       
       questions.forEach(question => {
-        console.log(`🔍 DEBUG question:`, {
-          id: question.id,
-          text: question.text,
-          userAnswer: question.userAnswer
-        });
         
         if (question.userAnswer && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
-          console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
         } else {
           // Non impostare nulla per opinioni senza risposta - rimangono undefined
-          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer}) -> non impostata`);
         }
       });
       
-      console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);
       setOpinions(mappedOpinions);
     }
   }, [questions]);
@@ -125,9 +113,24 @@ export default function OpinioniEuropee() {
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("E", newOpinions),
-    onSuccess: () => {
+    onSuccess: async (_data, savedOpinions) => {
+      // ACK commit has completed: persist all shared encrypted grade caches.
+      await cacheConfirmedOpinionAnswers(user!.id, verifiedPoliticalConsent!.timestamp, savedOpinions);
+      // An older in-flight GET must not restore the pre-save snapshot.
+      await queryClient.cancelQueries({
+        queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Europeo'],
+      });
       toast({ title: "Successo", description: "Le tue opinioni europee sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Europeo'] });
+      queryClient.setQueryData(
+        ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Europeo'],
+        (previous: any) => previous && Array.isArray(previous.data) ? ({
+          ...previous,
+          data: previous.data.map((question: any) =>
+            Object.prototype.hasOwnProperty.call(savedOpinions, question.id)
+              ? { ...question, userAnswer: savedOpinions[question.id] }
+              : question),
+        }) : previous,
+      );
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
       queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
       const nextPage = exitGuard.onSaveSuccess();
@@ -146,35 +149,12 @@ export default function OpinioniEuropee() {
   };
 
   const handleSave = () => {
-    console.log('🔍 DEBUG handleSave:');
-    console.log('  questions:', questions);
-    console.log('  opinions:', opinions);
     
-    // Mappa le opinioni usando l'ID corretto per l'API
-    const opinionsToSave: Record<string, string> = {};
-    questions.forEach(question => {
-      console.log(`🔍 DEBUG question:`, {
-        id: question.id,
-        text: question.text,
-        userAnswer: question.userAnswer,
-        opinionValue: opinions[question.id]
-      });
-      
-      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
-        // Usa l'ID dell'opinione direttamente dal database
-        opinionsToSave[question.id] = opinions[question.id];
-        console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
-      } else {
-        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: ${!opinions[question.id] ? 'non selezionata' : opinions[question.id] === 'Astenuto' ? 'Astenuto' : 'altro'})`);
-      }
-    });
-    
-    console.log('  opinionsToSave:', opinionsToSave);
-    console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
-    
+    // Only changed IDs: never overwrite positions from another device.
+    const opinionsToSave = collectChangedOpinionAnswers(questions, opinions);
+
     if (Object.keys(opinionsToSave).length === 0) {
-      console.log('❌ DEBUG: Nessuna opinione da salvare');
-      toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
+      toast({ title: "Attenzione", description: "Non ci sono nuove opinioni da salvare.", variant: "destructive" });
       return;
     }
     
@@ -187,7 +167,6 @@ export default function OpinioniEuropee() {
       return;
     }
     
-    console.log('✅ DEBUG: Procedo con il salvataggio');
     saveMutation.mutate(opinionsToSave);
   };
 
@@ -197,7 +176,6 @@ export default function OpinioniEuropee() {
   const handleConsentGranted = async () => {
     // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
     if (pendingOpinionsToSave) {
-      console.log('✅ DEBUG: Consenso concesso, aggiorno la cache e procedo con il salvataggio delle opinioni');
       // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
       await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
       // Aspetta un breve momento per assicurarsi che la cache sia aggiornata

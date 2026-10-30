@@ -36,6 +36,7 @@ module.exports = {
     '/api/user/',
     '/api/admin/',
     '/api/opinioni/',
+    '/api/opinioni-list',
     '/api/notifiche',
     '/api/governo/',
     '/api/eventi', // ECCEZIONE: GET /api/eventi/mobilitazioni (pubblico e cacheabile)

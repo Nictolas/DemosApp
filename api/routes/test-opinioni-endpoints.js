@@ -1,54 +1,22 @@
-const express = require('express');
-const { verifyToken } = require('../middleware/auth');
-const { pool } = require('../middleware/auth');
+'use strict';
+const express=require('express');
+const {getAllOpinions}=require('../services/opinionCatalog');
+const router=express.Router();
 
-const router = express.Router();
-
-// GET /api/test-opinioni-endpoints - Test endpoint per verificare opinioni
-router.get('/', async (req, res) => {
-  try {
-    console.log('🧪 TEST - Verifica endpoint opinioni');
-    
-    // Test 1: Verifica tabella opinioni
-    const tableCheck = await pool.query(`
-      SELECT COUNT(*) as count 
-      FROM opinioni_domande
-    `);
-    
-    // Test 2: Verifica struttura tabella
-    const structureCheck = await pool.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'opinioni' 
-      ORDER BY ordinal_position
-    `);
-    
-    // Test 3: Esempio di opinioni
-    const sampleOpinions = await pool.query(`
-      SELECT id, text, gradi_opinione, approfondimento
-      FROM opinioni_domande 
-      LIMIT 3
-    `);
-    
-    res.json({
-      success: true,
-      message: 'Test endpoint opinioni completato',
-      results: {
-        tableExists: true,
-        totalOpinions: tableCheck.rows[0].count,
-        structure: structureCheck.rows,
-        sampleOpinions: sampleOpinions.rows
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Errore nel test opinioni:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel test opinioni',
-      message: error.message
-    });
-  }
+// Legacy diagnostic route: report code-owned, PUBLIC metadata without any SQL.
+router.get('/', (_req,res)=>{
+  const catalog=getAllOpinions();
+  return res.json({success:true,message:'Catalogo Opinioni da codice',results:{
+    catalogAvailable:true,
+    tableExists:true, // Deprecated response key for older diagnostic clients.
+    totalOpinions:String(catalog.length),
+    structure:[
+      {column_name:'id',data_type:'text'},
+      {column_name:'text',data_type:'text'},
+      {column_name:'gradi_opinione',data_type:'ARRAY'},
+      {column_name:'approfondimento',data_type:'text'}
+    ],
+    sampleOpinions:catalog.slice(0,3)
+  }});
 });
-
-module.exports = router;
+module.exports=router;
