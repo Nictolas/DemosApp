@@ -55,8 +55,10 @@ test('ephemeral PostgreSQL 17: initial 94-question parity, duplicate fail-close 
       [first.id,first.text,first.gradi_opinione,first.approfondimento]);
     await assert.rejects(checkOpinionCatalogParity(db),
       /Legacy catalog contains duplicate opinion IDs/);
+    // Remove exactly one duplicate. PostgreSQL does not universally
+    // provide max(tid) for ctid, so select one tuple directly.
     await db.query('DELETE FROM public.opinioni_domande WHERE ctid=('+
-      'SELECT max(ctid) FROM public.opinioni_domande WHERE id=$1)',[first.id]);
+      'SELECT ctid FROM public.opinioni_domande WHERE id=$1 LIMIT 1)',[first.id]);
     assert.equal((await checkOpinionCatalogParity(db)).mode,'initial-cutover');
 
     // A second connection commits a new legacy text after the verifier's
