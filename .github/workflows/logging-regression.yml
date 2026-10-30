@@ -8,6 +8,8 @@ on:
       - 'api/services/ministeroSync.js'
       - 'api/routes/ministero.js'
       - 'api/routes/opinioni-proposte.js'
+      - 'api/routes/user/delete-account.js'
+      - 'api/tests/accountDeletionAuditPrivacy.test.js'
       - 'api/tests/logOpinionProposalMinimization.test.js'
       - 'api/services/auditService.js'
       - 'api/services/axiomMigrationService.js'
@@ -69,6 +71,11 @@ jobs:
         run: |
           node --check routes/opinioni-proposte.js
           node --test tests/logOpinionProposalMinimization.test.js
+      - name: Account deletion audit privacy regression (synthetic, no DB)
+        working-directory: api
+        run: |
+          node --check routes/user/delete-account.js
+          node --test tests/accountDeletionAuditPrivacy.test.js
       - name: Logging privacy and delivery tests
         working-directory: api
         run: |

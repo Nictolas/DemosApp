@@ -34,7 +34,7 @@ router.get('/requirements', verifyToken, async (req, res) => {
       requiresPassword
     });
   } catch (error) {
-    console.error('Errore nel recupero requisiti cancellazione account:', error);
+    console.error('ACCOUNT_DELETION_REQUIREMENTS_FAILED');
     return res.status(500).json({
       success: false,
       message: 'Errore interno del server'
@@ -97,16 +97,22 @@ router.delete('/', verifyToken, async (req, res) => {
       }
     }
 
-    // Log dell'inizio della cancellazione
-    await AuditService.logAction({
-      userId: userId,
-      action: 'ACCOUNT_DELETION_STARTED',
-      resource: 'user_account',
-      details: {
-        timestamp: new Date().toISOString(),
-        reason: 'User requested account deletion'
-      }
-    });
+    // Un problema del trasporto audit non deve impedire l'esercizio
+    // del diritto di cancellazione. L'eventuale mancata consegna va
+    // segnalata senza riportare payload o identificativi nel log tecnico.
+    try {
+      await AuditService.logAction({
+        userId,
+        action: 'ACCOUNT_DELETION_STARTED',
+        resource: 'user_account',
+        details: {
+          timestamp: new Date().toISOString(),
+          reason: 'User requested account deletion'
+        }
+      });
+    } catch {
+      console.error('ACCOUNT_DELETION_START_AUDIT_FAILED');
+    }
 
     await PrivacyErasureLedgerService.recordEvent(client, {
       userId,
@@ -133,16 +139,19 @@ router.delete('/', verifyToken, async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Log della cancellazione completata
-    await AuditService.logAction({
-      userId: null, // L'utente non esiste più
-      action: 'ACCOUNT_DELETION_COMPLETED',
-      resource: 'user_account',
-      details: {
-        deletedUserId: userId,
-        timestamp: new Date().toISOString()
-      }
-    });
+    // COMMIT gia' confermato: un errore nell'audit esterno non deve
+    // trasformare una cancellazione riuscita in una falsa risposta HTTP 500.
+    // Non copiare l'ID cancellato nei dettagli del log.
+    try {
+      await AuditService.logAction({
+        userId: null,
+        action: 'ACCOUNT_DELETION_COMPLETED',
+        resource: 'user_account',
+        details: { timestamp: new Date().toISOString() }
+      });
+    } catch {
+      console.error('ACCOUNT_DELETION_COMPLETION_AUDIT_FAILED');
+    }
 
     res.json({
       success: true,
@@ -150,19 +159,25 @@ router.delete('/', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Errore durante la cancellazione dell\'account:', error);
-    
-    // Log dell'errore
-    await AuditService.logAction({
-      userId: req.user?.id,
-      action: 'ACCOUNT_DELETION_ERROR',
-      resource: 'user_account',
-      details: {
-        error: error.message,
-        timestamp: new Date().toISOString()
-      }
-    });
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      console.error('ACCOUNT_DELETION_ROLLBACK_FAILED');
+    }
+    // Evita dettagli SQL, identificativi e payload nei log operativi.
+    console.error('ACCOUNT_DELETION_FAILED');
+    try {
+      await AuditService.logAction({
+        userId: req.user?.id,
+        action: 'ACCOUNT_DELETION_ERROR',
+        resource: 'user_account',
+        details: { timestamp: new Date().toISOString() },
+        success: false,
+        errorMessage: 'ACCOUNT_DELETION_FAILED'
+      });
+    } catch {
+      console.error('ACCOUNT_DELETION_ERROR_AUDIT_FAILED');
+    }
 
     res.status(500).json({
       success: false,
