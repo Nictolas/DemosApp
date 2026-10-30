@@ -321,10 +321,12 @@ class PrivacyErasureB2Journal {
   // This is a temporary negative gate, NOT a proof that CI mocks are real
   // provider attestations or a production-grade capability mechanism.
   assertNoRealWriteTransport() {
-    const testFile = typeof process.argv[1] === 'string'
-      ? process.argv[1].replace(/\\/g, '/') : '';
+    const invocation = typeof process.argv[1] === 'string'
+      ? process.argv[1].replaceAll(String.fromCharCode(92), '/') : '';
+    const segments = invocation.split('/');
+    const isTestFile = /^[A-Za-z0-9_.-]+[.]test[.]js$/.test(segments.at(-1) || '');
     const isolatedTest = process.env.GITHUB_ACTIONS === 'true' &&
-      /(?:^|\\/)api\\/tests\\/[A-Za-z0-9_.-]+\\.test\\.js$/.test(testFile);
+      segments.at(-3) === 'api' && segments.at(-2) === 'tests' && isTestFile;
     if (!isolatedTest || !this.client || this.client instanceof S3Client) {
       throw Error('GDPR_B2_DURABLE_PUT_CLAIM_NOT_IMPLEMENTED');
     }
