@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {Client}=require('pg');
 const {
-  validateLegacyIds,legacyRowToAnswers,rollbackCoverage
+  validateLegacyIds,legacyRowToAnswers,rollbackCoverage,rollbackParity
 }=require('../experiments/opinionAnswersV2BackfillCandidate');
 
 // RESEARCH ONLY. Run exclusively on synthetic PostgreSQL 17 in GitHub Actions.
@@ -162,6 +162,28 @@ test('synthetic v2 backfill: idempotence, consent, erasure and rollback gates',
       assert.deepEqual(old,{canRollbackWithoutLoss:true,unrepresentable:[]});
       const future=rollbackCoverage(await shadow(a,uid(4)),ids);
       assert.deepEqual(future,{canRollbackWithoutLoss:false,unrepresentable:['opinione_94']});
+    });
+    await t.test('rollback blocks older-ID drift, not only 95th ID coverage',async()=>{
+      const legacy=(await a.query(
+        'SELECT '+ids.map(id=>'"'+id+'"').join(',')+
+        ' FROM ci_v2_bf_legacy WHERE user_id=$1',[uid(1)]
+      )).rows[0];
+      const current=await shadow(a,uid(1));
+      assert.deepEqual(rollbackParity(current,legacy,ids),{
+        canRollbackWithoutLoss:true,unrepresentable:[],divergentIds:[]
+      });
+      await a.query(
+        'UPDATE ci_v2_bf_shadow SET answers=answers || $2::jsonb WHERE user_id=$1',
+        [uid(1),JSON.stringify({opinione_0:'i'})]
+      );
+      assert.deepEqual(rollbackParity(await shadow(a,uid(1)),legacy,ids),{
+        canRollbackWithoutLoss:false,unrepresentable:[],divergentIds:['opinione_0']
+      });
+      await a.query(
+        'UPDATE ci_v2_bf_shadow SET answers=answers || $2::jsonb WHERE user_id=$1',
+        [uid(1),JSON.stringify({opinione_0:'f'})]
+      );
+      assert.equal(rollbackParity(await shadow(a,uid(4)),legacy,ids).canRollbackWithoutLoss,false);
     });
     await t.test('source JSONB in legacy remains untouched by this answer-only proof',async()=>{
       const r=await a.query('SELECT fonti_opinioni FROM ci_v2_bf_legacy WHERE user_id=$1',[uid(1)]);
