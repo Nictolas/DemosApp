@@ -294,6 +294,47 @@ class SyntheticDatabase {
   }
 }
 
+// A restored SQL snapshot must not contain a later same-subject commit marker
+// while missing an earlier one. Replaying an earlier revoke and skipping an
+// already-marked later grant would silently reverse the final consent state.
+// Cross-subject SQL commits can interleave independently, so this is NOT a
+// global journal-prefix requirement. Synthetic markers are not real SQL proof.
+function validateSyntheticSnapshotLineage(snapshot, committed) {
+  if (!(snapshot instanceof SyntheticDatabase) ||
+      !(snapshot.applied instanceof Map) ||
+      !snapshot.accounts || typeof snapshot.accounts !== 'object') {
+    reject('GDPR_MODEL_SNAPSHOT_LINEAGE_INVALID');
+  }
+  const expected = new Map(committed.map(op => [op.id, sha(op)]));
+  for (const [id, fingerprint] of snapshot.applied) {
+    if (!expected.has(id) || expected.get(id) !== fingerprint)
+      reject('GDPR_MODEL_SNAPSHOT_LINEAGE_INVALID');
+  }
+  const missingBySubject = new Set();
+  const latestAppliedBySubject = new Map();
+  for (const op of committed) {
+    if (!snapshot.applied.has(op.id)) {
+      missingBySubject.add(op.subject);
+    } else {
+      if (missingBySubject.has(op.subject))
+        reject('GDPR_MODEL_SNAPSHOT_LINEAGE_INVALID');
+      latestAppliedBySubject.set(op.subject, op.action);
+    }
+  }
+  // A snapshot marker is not enough if its corresponding account state was
+  // restored from a different point in time. Only verify subjects with an
+  // applied marker; others have no proven baseline in this small model.
+  for (const [subject, action] of latestAppliedBySubject) {
+    const account = snapshot.accounts[subject];
+    const expectedExists = action !== 'account_deleted';
+    const expectedConsent = action === 'political_consent_granted';
+    if (!account || account.exists !== expectedExists ||
+        account.consent !== expectedConsent) {
+      reject('GDPR_MODEL_SNAPSHOT_STATE_DIVERGENCE');
+    }
+  }
+}
+
 function submitSyntheticOperation(db,journal,raw,{crashAt=null}={}) {
   const op=checkOperation(raw);
   if (journal.sealed) reject('GDPR_MODEL_JOURNAL_SEALED');
@@ -328,6 +369,7 @@ function restoreSyntheticSnapshot(snapshot,journal,{
   if (!independentWitness) reject('GDPR_MODEL_WITNESS_MISSING');
   journal.witness.verify(independentWitness);
   const operations=journal.verify();
+  validateSyntheticSnapshotLineage(snapshot,operations);
   const restored=snapshot.snapshot();
   for (const op of operations) restored.apply(op);
   // Explicitly NEVER return a production recoveryReady or GO boolean.
