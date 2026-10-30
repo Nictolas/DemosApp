@@ -67,7 +67,7 @@ test('legacy maintenance script is explicitly excluded, but runtime utils remain
   const runtime=scanDirs.flatMap(dir=>allRuntimeModules(path.join(root,dir)));
   for(const file of runtime){
     assert.doesNotMatch(withoutComments(fs.readFileSync(file,'utf8')),
-      /(?:require\\(|import\\s*\\(|from\\s+['\"\\s]).*add-unique-constraint-opinioni/,
+      /(?:require\s*\(|import\s*\(|from\s+['"])[^\n]*add-unique-constraint-opinioni/,
       'A runtime module must never import the legacy migration script');
   }
 });
