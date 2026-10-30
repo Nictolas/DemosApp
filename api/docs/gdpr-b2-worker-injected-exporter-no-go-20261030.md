@@ -13,14 +13,15 @@ Il worker **nega tutte le esecuzioni operative** con `GDPR_B2_DURABLE_PUT_CLAIM_
 - `GITHUB_ACTIONS=true` e `GDPR_OUTBOX_WORKER_CI=isolated` del processo;
 - URL del DB di test esattamente `postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_worker_ci`;
 - un file di ingresso del tipo `api/tests/*.test.js` (percorso e suffisso verificati);
-- assenza delle comuni variabili di accesso alla produzione (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_DB_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RENDER`, `RENDER_SERVICE_ID`);
+- per l'ulteriore prova del pool backend PG17, alternativa limitata al ruolo `gdpr_runtime_ci_worker` e al database effimero `gdpr_runtime_pool_ci` su `127.0.0.1:5432`, con URL completo e `GDPR_BACKEND_POOL_CI=isolated` esatti; qualunque altra `DATABASE_URL` blocca il worker;
+- assenza delle comuni variabili di accesso alla produzione (`SUPABASE_URL`, `SUPABASE_DB_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RENDER`, `RENDER_SERVICE_ID`);
 - exporter fittizio che **non** sia `PrivacyErasureB2Journal`.
 
 Il controllo avviene **prima** di `exporter.config()`, `pool.connect()` e `archiveEvent()`; le protezioni di manutenzione e flag disabilitati restano più restrittive. Nessuna migrazione né nuova dipendenza.
 
 ## Test ripetibili
 
-`api/tests/gdprB2WorkerInjectedExporterNoGoIsolated.test.js` verifica: wrapper attorno a SDK S3 simulato; custom exporter in app; CLI/sorgenti non-test; file test fuori CI; marker di isolamento mancante, URL errato e variabili di produzione; rifiuto dell'esportatore reale anche in CI; normale fake CI; manutenzione e feature flag disabilitati. Il workflow B2 con PostgreSQL 17 esegue la nuova suite e i test esistenti.
+`api/tests/gdprB2WorkerInjectedExporterNoGoIsolated.test.js` verifica: wrapper attorno a SDK S3 simulato; custom exporter in app; CLI/sorgenti non-test; file test fuori CI; marker di isolamento mancante, URL errato e variabili di produzione; rifiuto dell'esportatore reale anche in CI; normale fake CI; manutenzione e feature flag disabilitati. Il workflow B2 con PostgreSQL 17 esegue la nuova suite e i test esistenti. Una prima esecuzione ha rilevato che il test del backend pool usa una seconda istanza PG17 locale: è stata aggiunta una sola eccezione *esatta* per quella fixture, senza consentire URL remoti o un vero exporter.
 
 ## Limiti reali
 
