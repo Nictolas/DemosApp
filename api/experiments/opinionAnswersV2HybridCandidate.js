@@ -49,6 +49,28 @@ function projectHybridAnswers(legacyRow,published,immutableLegacyIds){
     return {id:op.id,text:op.text,grado:[...op.gradi_opinione],userAnswer:raw};
   });
 }
+/**
+ * One authorized answer SELECT for both historical TEXT fields and all
+ * future JSONB keys, with sources in the SAME legacy table. No query to
+ * opinion catalog tables and no extra round-trip for overflow answers.
+ * The grade's public metadata comes from the versioned code catalog.
+ */
+function buildHybridAnswerSelect(published,immutableLegacyIds) {
+  if(!Array.isArray(published))throw new TypeError('Published metadata list required');
+  const legacy=new Set(validateLegacyIds(immutableLegacyIds));
+  const selected=new Set();
+  for(const op of published){
+    if(!op || typeof op.id!=='string' || !/^[a-z][a-z0-9_]{0,62}$/.test(op.id)){
+      throw new TypeError('Invalid published ID');
+    }
+    if(selected.has(op.id))throw new Error('Duplicate published ID');
+    selected.add(op.id);
+  }
+  const columns=[...selected].filter(id=>legacy.has(id)).map(id=>'"'+id+'"');
+  columns.push('answers_extra','fonti_opinioni');
+  return 'SELECT '+columns.join(',')+' FROM opinioni_risposte WHERE user_id=$1::uuid';
+}
+
 const SQL=Object.freeze({
   upsertOverflow:
     'INSERT INTO opinioni_risposte AS old (user_id,answers_extra) '+
@@ -58,4 +80,4 @@ const SQL=Object.freeze({
   readOverflowAndSources:
     'SELECT answers_extra,fonti_opinioni FROM opinioni_risposte WHERE user_id=$1::uuid'
 });
-module.exports={splitHybridDelta,projectHybridAnswers,SQL};
+module.exports={splitHybridDelta,projectHybridAnswers,buildHybridAnswerSelect,SQL};
