@@ -85,7 +85,9 @@ async function computeCheckMissingForGrado(pool, userId, gradoParam, colonneEsis
 
         opinioniConColonna.forEach((opinione) => {
           const answer = userAnswers[opinione.id];
-          if (answer && answer !== null && answer !== '') {
+          // Only the three published compact answer values count as answered.
+          // Unexpected/stale data must not artificially raise completion.
+          if (answer === 'f' || answer === 'c' || answer === 'i') {
             opinioniRisposte++;
           } else {
             opinioniMancanti.push({
