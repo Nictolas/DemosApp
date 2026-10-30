@@ -275,3 +275,29 @@ test('abort during queued encrypted write cancels the result returned to React Q
   assert.equal(h.signal(), ac.signal);
   assert.equal(h.counts().answers, 1);
 });
+
+test('blank or whitespace-only consent epochs never authorize persistent cache reuse', async () => {
+  const h = fixture();
+  await h.load(A, 'consent-1', 'N');
+  assert.equal(h.counts().answers, 1);
+  for (const epoch of ['', '   ']) {
+    const result = await h.load(A, epoch, 'N');
+    assert.equal(result.data[0].id, 'valid_opinion');
+  }
+  assert.equal(h.counts().answers, 3,
+    'Unverifiable consent epochs must require an authenticated personal GET');
+  assert.equal(h.counts().writes, 1,
+    'No new encrypted snapshot may be written with a blank consent epoch');
+  assert.equal(h.snapshots.get(A).consent.timestamp, 'consent-1');
+});
+
+test('blank consent epochs cannot mutate a confirmed answer in encrypted storage', async () => {
+  const h = fixture();
+  await h.load(A, 'consent-1', 'N');
+  for (const epoch of [null, '', '  ']) {
+    await h.confirm(A, epoch, { valid_opinion: 'c' });
+    assert.equal(h.snapshots.get(A).opinionN.questions[0].userAnswer, 'f',
+      'Unverified epoch must not modify stored political answers');
+  }
+  assert.deepEqual(h.counts(), { answers: 1, catalog: 1, writes: 1 });
+});
