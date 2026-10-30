@@ -8,11 +8,11 @@ const normalize = items => items.map(({id,text,gradi_opinione,approfondimento})=
   id, text, approfondimento, gradi_opinione:[...gradi_opinione].sort()
 })).sort((a,b)=>a.id.localeCompare(b.id));
 
-async function checkOpinionCatalogParity(pool,{schemaOnly=false}={}) {
+async function inspectCatalogParitySnapshot(client,{schemaOnly=false}={}) {
   const published=getAllOpinions();
   const ids=new Set(published.map(x=>x.id));
   // This query reads schema definitions only, NEVER rows in opinioni_risposte.
-  const {rows:columns}=await pool.query(`
+  const {rows:columns}=await client.query(`
     SELECT column_name, data_type
     FROM information_schema.columns
     WHERE table_schema='public' AND table_name='opinioni_risposte'
@@ -35,7 +35,7 @@ async function checkOpinionCatalogParity(pool,{schemaOnly=false}={}) {
     throw new Error('Opinion answer schema drift: '+summary);
   }
   if(!schemaOnly){
-    const {rows:sourceRows}=await pool.query(
+    const {rows:sourceRows}=await client.query(
       'SELECT id, text, gradi_opinione, approfondimento FROM public.opinioni_domande ORDER BY id'
     );
     const db=normalize(sourceRows), src=normalize(published);
@@ -49,6 +49,37 @@ async function checkOpinionCatalogParity(pool,{schemaOnly=false}={}) {
     if(conflicts.length)throw new Error('Catalog drift IDs: '+[...new Set(conflicts)].sort().join(','));
   }
   return { published:published.length, checkedColumns:ids.size, mode:schemaOnly?'schema-only':'initial-cutover' };
+}
+
+
+// Both preflight reads must observe the same PostgreSQL snapshot. A pool.query
+// for each would allow a schema change to race the comparison. The transaction
+// is READ ONLY and never queries personal answer values.
+async function checkOpinionCatalogParity(pool,{schemaOnly=false}={}) {
+  if (!pool || typeof pool.connect !== 'function') {
+    throw new TypeError('Opinion parity preflight requires a transaction-capable PostgreSQL pool');
+  }
+  const client = await pool.connect();
+  let begun = false;
+  let damaged = false;
+  try {
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    begun = true;
+    const result = await inspectCatalogParitySnapshot(client,{schemaOnly});
+    await client.query('COMMIT');
+    begun = false;
+    return result;
+  } catch (error) {
+    if (begun) {
+      try { await client.query('ROLLBACK'); }
+      catch (_) { damaged = true; }
+    } else {
+      damaged = true; // failed BEGIN: never recycle an uncertain connection
+    }
+    throw error;
+  } finally {
+    client.release(damaged);
+  }
 }
 
 async function main() {
