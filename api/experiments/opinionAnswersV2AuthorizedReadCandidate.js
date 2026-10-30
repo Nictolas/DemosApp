@@ -20,6 +20,8 @@
 const authorizedReaders=new WeakMap();
 function isHybridReadWithGate(reader,externalGate){
   return typeof reader==='function' &&
+    typeof externalGate==='function' &&
+    authorizedReaders.has(reader) &&
     authorizedReaders.get(reader)===externalGate;
 }
 const USER_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
