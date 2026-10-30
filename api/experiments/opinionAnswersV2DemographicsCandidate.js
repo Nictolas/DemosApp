@@ -60,8 +60,7 @@ function buildHybridDemographicQuery({
     : ["u.sesso IN ('M','F')"];
   const where=[
     "u.account_type = ANY($2::text[])",
-    'COALESCE(uc.political_opinions_consent,',
-    '         u.political_opinions_consent,false) IS TRUE',
+    'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
     ...metaFilter,
     "v.answer IN ('f','c','i')"
   ];
