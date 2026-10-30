@@ -1101,3 +1101,72 @@ di qualsiasi integrazione. Il controllo preventivo live
 `inspectLegacyOpinionAnswerSchema` deve essere eseguito
 **immediatamente prima** di ogni futura migrazione autorizzata.
 Nessun DDL, lettura dati personali, merge o deploy reale.
+
+
+## GDPR della soluzione ibrida: una sola riga, sorgenti, revoca e backup
+
+**Verifica di integrazione nel codice attuale (sola lettura):**
+il servizio `api/services/politicalConsentService.js` include gia
+`opinioni_risposte` tra le tabelle politiche soggette a revoca;
+la route `api/routes/user/political-opinions-consent.js` avvia una
+transazione e chiama il cleanup prima del COMMIT.
+Anche `api/services/privacyErasureLedgerService.js` elimina
+la riga di `opinioni_risposte` durante revoca/cancellazione.
+Poiche il layout ibrido mantiene vecchie colonne TEXT,
+`fonti_opinioni` e futuri `answers_extra` **nella stessa riga**,
+una cancellazione completa di quella riga elimina tutte le
+rappresentazioni; non servirebbe la seconda tabella v2.
+
+Il servizio di esportazione GDPR esistente
+`api/services/privacyDataExportService.js` usa `SELECT *`
+sulle righe di `opinioni_risposte`: una volta aggiunto lo schema,
+il campo `answers_extra` sarebbe quindi incluso nell'export
+grezzo. Questo **non** verifica la copertura dei restanti
+percorsi di esportazione, il consenso, la completezza delle
+fonti, ne la portabilita del formato Android.
+
+Il modulo non integrato
+`api/experiments/opinionAnswersV2HybridGdprCandidate.js`
+prepara l'export di una singola riga dell'interessato,
+comprendendo risposte delle 94 vecchie colonne, Opinioni
+future e archiviate, e tutte le fonti (comprese archiviate).
+Richiede soggetto autorizzato, riga completa e ID
+immutabili; fallisce senza esportare parzialmente se trova
+campi mancanti, collisioni o fonti malformate.
+La DELETE parametrizzata elimina la **riga intera**
+ed e progettata per funzionare esclusivamente nella
+transazione di revoca/account deletion dopo il lock utente.
+Una tabella assente deve provocare errore e rollback, mai
+essere trattata come cancellazione riuscita.
+
+**Backup e nuova concessione:** dopo il backup possono
+avvenire revoca del consenso e poi nuova concessione.
+La nuova concessione non legittima il recupero delle
+vecchie risposte presenti nel backup antecedente alla
+revoca. `planHybridPostRestoreErasure` usa il piano
+dei precedenti esperimenti GDPR per cancellare la riga
+dello snapshot se nel ledger esterno esiste una revoca
+o cancellazione posteriore al backup, anche se seguita
+da un evento di consenso concesso.
+
+**Limite di sicurezza assoluto:** il prototipo NON attesta
+che il ledger esterno sia completo, durabile, coerente
+con il backup o immune da perdita di eventi. Il blocco
+del traffico durante il restore deve essere imposto
+fuori dal database ripristinato o prima di riaprire
+l'accesso; non e sufficiente fidarsi di un flag
+interno al database riportato indietro dal backup.
+Questa resta la criticita da coordinare con la PR #374.
+
+Test isolati: `api/tests/opinionAnswersV2HybridGdpr.unit.test.js`
+e `api/tests/opinionAnswersV2HybridGdpr.pg.test.js`.
+Il PostgreSQL 17 di CI contiene soltanto UUID, risposte
+e fonti sintetiche. Le prove coprono export autorizzato,
+fonti archiviate, rollback se fallisce il ledger,
+revoca che elimina tutta la riga, nuova concessione
+senza resurrezione, restore simulato con ledger
+revoca+regrant e cancellazione integrale dell'account.
+
+**Non eseguiti:** un vero ripristino B2/PITR, test
+con utenti reali, API runtime, middleware/auth/RLS,
+DDL, deployment o merge. PR #483 resta Draft / NO-GO.
