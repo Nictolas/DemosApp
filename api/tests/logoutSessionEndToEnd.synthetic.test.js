@@ -47,7 +47,7 @@ function createSyntheticBackend() {
     async connect() {
       return {
         async query(sql, p = []) {
-          const statement = sql.replace(/\\s+/g, ' ').trim();
+          const statement = sql.replace(/\s+/g, ' ').trim();
           writes.push(statement.split(' ')[0]);
           if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(statement)) return { rows: [] };
           if (statement.startsWith('SELECT id, user_id, session_token')) {
