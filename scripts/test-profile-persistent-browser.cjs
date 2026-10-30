@@ -118,7 +118,10 @@ async function test() {
     await enter(); // Real reload: destroys React Query RAM but retains IndexedDB.
     const after = endpoints.map(x => count.get(x) || 0);
     assert.deepEqual(after, first,
-      'Reopening after page reload must not read any profile endpoint if unchanged');
+      'Reopening after page reload must not read any profile endpoint if unchanged: ' +
+      JSON.stringify(endpoints.map((endpoint, i) => ({
+        endpoint, first: first[i], after: after[i],
+      }))));
 
     // Another device revoked consent while this one was suspended.
     // Only the existing /auth/me handshake communicates the new state.

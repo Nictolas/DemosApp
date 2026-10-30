@@ -48,6 +48,13 @@ async function run() {
       const errors = [];
       const writes = [];
       const saved = new Map();
+      const answerReads = [];
+      let sessionOwner = ID;
+      let politicalGrant = true;
+      let politicalEpoch = '2026-10-01T00:00:00Z';
+      let catalogRevision = 'a'.repeat(64);
+      let catalogEndpointAvailable = true;
+      const catalogChecks = [];
       page.on('pageerror', error => errors.push(error.message));
       const fulfill = (route, value) => route.fulfill({
         status: 200, contentType: 'application/json',
@@ -62,16 +69,25 @@ async function run() {
 
         if (u.pathname === '/api/auth/me') {
           return fulfill(route, { success: true, user: {
-            id: ID, email: 'test.invalid@example.invalid', role: 'E',
+            id: sessionOwner, email: 'test.invalid@example.invalid', role: 'E',
             ruolo: 'E', status: 'A',
-            political_consent: { granted: true, timestamp: '2026-10-01T00:00:00Z' },
+            political_consent: { granted: politicalGrant, timestamp: politicalEpoch },
           }});
         }
         if (u.pathname === '/api/user/political-opinions-consent') {
-          return fulfill(route, { success: true, consent: { granted: true, timestamp: '2026-10-01T00:00:00Z' } });
+          return fulfill(route, { success: true, consent: { granted: politicalGrant, timestamp: politicalEpoch } });
+        }
+        if (u.pathname === '/api/opinioni-catalog-revision') {
+          catalogChecks.push(catalogRevision);
+          if (!catalogEndpointAvailable) {
+            return route.fulfill({ status: 404, contentType: 'application/json',
+              body: JSON.stringify({ success: false, error: 'NOT_FOUND' }) });
+          }
+          return fulfill(route, { success: true, revision: catalogRevision });
         }
         if (u.pathname === '/api/opinioni-list') {
           const grade = u.searchParams.get('grado');
+          answerReads.push(grade);
           const answers = saved.get(grade) || {};
           return fulfill(route, { success: true, total: Q.length, data: Q.map(q => ({
             ...q, userAnswer: answers[q.id] || null,
@@ -163,6 +179,14 @@ async function run() {
         cases += 1;
       }
 
+      // All four category snapshots have been encrypted in IndexedDB.
+      // A full page navigation must not repeat a personal-answer GET.
+      const readsBeforeWarmReturn = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, readsBeforeWarmReturn,
+        'Encrypted warm cache must survive browser navigation without a GET');
+
       // Real save and unsaved navigation guard using only synthetic API responses.
       await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
       await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
@@ -174,10 +198,57 @@ async function run() {
       await page.getByText('Opinioni non salvate').waitFor();
       await page.getByRole('button', { name: 'Annulla' }).click();
       assert.ok(page.url().endsWith('/opinioni-comunali'), 'Cancel must keep the current opinion page');
+      const beforeSaveReads = answerReads.length;
       await page.locator('footer[aria-label="Azioni delle opinioni"]').getByRole('button', { name: 'Salva le mie opinioni' }).click();
-      await page.getByText('Le tue opinioni comunali sono state salvate.').waitFor({ timeout: 15000 });
+      await page.getByText('Le tue opinioni comunali sono state salvate.', { exact: true }).waitFor({ timeout: 15000 });
+      assert.equal(answerReads.length, beforeSaveReads,
+        'Saving a delta must not refetch the full personal answer list');
       assert.ok(writes.length > 0, 'Save button must post the selected opinion');
       assert.equal(writes.at(-1)['synthetic-opinion-01'], 'f');
+      assert.deepEqual(Object.keys(writes.at(-1)), ['synthetic-opinion-01'],
+        'An unchanged answer must never be included in the delta payload');
+      await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, beforeSaveReads,
+        'Warm cache after ACK must not repeat an answer GET');
+      // New official question release changes public metadata, not the auth
+      // epoch: the encrypted answer snapshot must be rejected on next visit.
+      catalogRevision = 'b'.repeat(64);
+      const readsBeforeCatalogChange = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, readsBeforeCatalogChange + 1,
+        'Catalog revision change must refresh this category exactly once');
+      assert.ok(catalogChecks.length > 0, 'Metadata-only catalog revision endpoint must be consulted');
+      // Older backend versions do not yet expose a catalog checksum.
+      // Such responses must not trust a persistent snapshot of unknown age.
+      catalogEndpointAvailable = false;
+      const readsBeforeLegacyBackend = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, readsBeforeLegacyBackend + 1,
+        'Legacy backend without revision must fall back to a fresh authenticated GET');
+      catalogEndpointAvailable = true;
+      // Consent revoked in a verified session: cached personal answers stay hidden.
+      politicalGrant = false;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Nessuna domanda disponibile.').waitFor();
+      assert.equal(await page.getByText('Opinione sintetica numero 24', { exact: true }).count(), 0);
+      // Regrant with a new authorization epoch cannot reuse old cached answers.
+      politicalGrant = true;
+      politicalEpoch = '2026-10-02T00:00:00Z';
+      const beforeRegrantReads = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, beforeRegrantReads + 1,
+        'New consent epoch must require a fresh personal snapshot');
+      // A different verified account must never read the previous account's vault.
+      sessionOwner = '00000000-0000-4000-8000-000000008888';
+      const beforeAccountChangeReads = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, beforeAccountChangeReads + 1,
+        'Different account must fetch its own answer snapshot');
       assert.deepEqual(errors, [], 'No uncaught errors at ' + viewport.width + 'x' + viewport.height);
       await context.close();
     }
