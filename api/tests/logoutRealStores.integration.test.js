@@ -59,10 +59,11 @@ const cacheKeys = require('../config/cacheKeys');
 
 test('real disposable PostgreSQL + Redis: logout A invalidates access and refresh while B remains active', { timeout: 55000 }, async () => {
   const pool = new Pool({ connectionString: pgUrl, ssl: false, max: 5, connectionTimeoutMillis: 5000 });
-  const redis = new Redis(redisUrl, { enableOfflineQueue: false, maxRetriesPerRequest: 1, connectTimeout: 5000 });
+  const redis = new Redis(redisUrl, { lazyConnect: true, enableOfflineQueue: false, maxRetriesPerRequest: 1, connectTimeout: 5000 });
   const sessionIds = [];
   let server;
   try {
+    await redis.connect();
     await Promise.all([pool.query('SELECT 1'), redis.ping()]);
     await pool.query(`CREATE TABLE users (
       id TEXT PRIMARY KEY, email TEXT, ruolo TEXT, nome TEXT, cognome TEXT, status TEXT NOT NULL
