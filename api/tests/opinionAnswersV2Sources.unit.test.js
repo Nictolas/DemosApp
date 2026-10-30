@@ -41,7 +41,7 @@ test('empty/whitespace source removes only named key, never an archived one',()=
 
 test('rejects client edits to archived IDs, malformed and overly long source strings',()=>{
   assert.throws(()=>planSourcePatch({}, {opinione_archiviata:'new'},ids),/Unpublished/);
-  assert.throws(()=>planSourcePatch({}, {'__proto__':'foo',opinione_94:'ok'},ids),/Unpublished|Invalid/); // additional enumerable key depends on literal semantics
+  assert.throws(()=>planSourcePatch({}, {['__proto__']:'foo',opinione_94:'ok'},ids),/Unpublished|Invalid/); // additional enumerable key depends on literal semantics
   assert.throws(()=>planSourcePatch({}, {opinione_0:3},ids),/Source must/);
   assert.throws(()=>planSourcePatch({}, {opinione_0:'a'.repeat(8193)},ids),/too large/);
   assert.throws(()=>validateSourceMap({opinione_0:42},{historicalIds:ids}),/source text/);
