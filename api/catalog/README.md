@@ -93,3 +93,10 @@ Gli endpoint autenticati `GET /api/opinioni/check-missing-all` e `GET /api/opini
 `api/tests/opinionCheckMissingHttp.contract.test.js` esercita le route Express con token e database esclusivamente **sintetici**, verificando le risposte 200/400/401/500, il divieto di cache, l'assenza di query SQL per gradi non validi e la mancata divulgazione di dettagli DB. È eseguito nel workflow `opinion-catalog-full-ci.yml` **dopo** l'installazione delle dipendenze backend. Nel test `check-missing-all` effettua una **singola chiamata HTTP** che, allo stato attuale, legge in sequenza le risposte di quattro gradi; non è corretto dichiararla una sola query SQL.
 
 La verifica in un harness isolato dei quattro codici HTTP è una prova funzionale simulata, non la certificazione del job Actions completo o del backend Render. Nessun dato personale o SQL di produzione è stato consultato o modificato.
+
+
+## Validazione stretta dei gradi in check-missing (30 ottobre 2026)
+
+`api/services/opinioniCheckMissing.js` accetta esattamente i livelli pubblicati `N`, `E`, `R`, `C`, `CO`, applicando `typeof gradoParam === 'string'` e `Object.hasOwn(GRADO_MAPPING, gradoParam)` **prima** di interrogare le risposte personali. Una semplice lettura `GRADO_MAPPING[gradoParam]` su un oggetto standard accetterebbe proprietà ereditate da `Object.prototype` come `constructor`, `toString` e `__proto__`: con un catalogo vuoto per quel livello, il servizio avrebbe potuto indicare erroneamente **100% completato**. La validazione respinge ora tutte queste stringhe con `INVALID_GRADO`, senza query delle risposte. Il percorso HTTP risponde 400 (con l'header `no-store` già previsto).
+
+Le regressioni `api/tests/opinionCheckMissingCodeCatalog.test.js` e `api/tests/opinionCheckMissingHttp.contract.test.js` coprono gli identificatori ereditati e gli input malformati. In un controllo eseguito sul **vero modulo della branch** con i 94 JSON correnti e pool simulato, sono stati rifiutati 13 valori invalidi senza SQL e accettati tutti e cinque i gradi legittimi. **Non** è un'attestazione della CI Actions/PG17 o della produzione.
