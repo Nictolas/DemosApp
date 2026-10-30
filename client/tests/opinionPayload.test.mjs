@@ -70,3 +70,24 @@ test('warm and cold cache paths both validate IDs, with no new query for valid c
   assert.match(source,/apiRequest\("GET", `\/api\/opinioni-list\?grado=\$\{grade\}`, undefined, undefined, signal\)/);
   assert.doesNotMatch(source,/sanitiseQuestions/);
 });
+
+test('every versioned catalog question is cacheable under its unchanged stable ID', () => {
+  const parts = [0, 1, 2, 3, 4, 5].map(index => {
+    const source = new URL(`../../api/catalog/opinions-part-0${index}.json`, import.meta.url);
+    return JSON.parse(fs.readFileSync(source, 'utf8'));
+  });
+  const published = parts.flat();
+  // The catalog is owned by PR #384. This test only checks the #464 cache's
+  // ability to accept its published IDs; it must never mutate those assets.
+  assert.ok(published.length >= 94, 'Unexpectedly truncated versioned catalog');
+  const questions = published.map((opinion, index) => ({
+    id: opinion.id,
+    text: opinion.text,
+    grado: opinion.gradi_opinione,
+    userAnswer: index % 4 === 0 ? null : ['f', 'c', 'i'][(index - 1) % 3],
+  }));
+  const parsed = parseOpinionQuestions(questions);
+  assert.equal(parsed.length, published.length);
+  assert.deepEqual(parsed.map(question => question.id), published.map(opinion => opinion.id));
+  assert.deepEqual(parsed.map(question => question.userAnswer), questions.map(question => question.userAnswer));
+});
