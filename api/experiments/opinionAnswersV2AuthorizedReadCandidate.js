@@ -13,6 +13,15 @@
  * Authentication MUST bind userId to the independently verified access
  * token. NEVER accept a user ID supplied in URL/body/query/header.
  */
+// Factory provenance is private: a route may only accept a reader whose
+// external restore gate is the SAME dependency used by public stats.
+// This avoids accidentally delegating sensitive reads to an unchecked
+// function when removing the redundant route-level gate call.
+const authorizedReaders=new WeakMap();
+function isHybridReadWithGate(reader,externalGate){
+  return typeof reader==='function' &&
+    authorizedReaders.get(reader)===externalGate;
+}
 const USER_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SELECT_AUTHORIZED_HYBRID_ROW_SQL=[
   'SELECT u.id AS subject_id,',
@@ -40,7 +49,7 @@ function createHybridAuthorizedReadCandidate({
     typeof assertRestoreReady!=='function'){
     throw new TypeError('Read-only DB and external restore gate required');
   }
-  return async function loadOwnAuthorizedRow(authenticatedUserId){
+  const loadOwnAuthorizedRow=async function(authenticatedUserId){
     if(typeof authenticatedUserId!=='string'||
       !USER_ID.test(authenticatedUserId)){
       throw new TypeError('Authenticated canonical UUID required');
@@ -75,8 +84,10 @@ function createHybridAuthorizedReadCandidate({
     }
     return {status:'ok',row};
   };
+  authorizedReaders.set(loadOwnAuthorizedRow,assertRestoreReady);
+  return loadOwnAuthorizedRow;
 }
 module.exports={
   SELECT_AUTHORIZED_HYBRID_ROW_SQL,
-  createHybridAuthorizedReadCandidate
+  createHybridAuthorizedReadCandidate,isHybridReadWithGate
 };
