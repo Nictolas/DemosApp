@@ -849,3 +849,54 @@ coordinato con #384, #464 e il flusso GDPR.
 
 **Stato:** PR #483 Draft/NO-GO. Nessuna API runtime cambiata,
 nessun deploy, merge, DDL o backfill reale.
+
+
+## Route regionali HTTP: compatibilita Android e privacy (30 ottobre 2026)
+
+Il modulo `api/experiments/opinionAnswersV2RegionalHttpCandidate.js`
+e il test `api/tests/opinionAnswersV2RegionalHttp.unit.test.js`
+sono SOLO sperimentali: server Express temporaneo, aggregate sintetiche
+e dipendenze iniettate; nessuna importazione dalle route attive.
+
+Il contratto riproduce ESATTAMENTE i tre URL regionali esistenti:
+
+- `GET /api/opinioni/stats/:opinionId/regione/:regione`;
+- `GET /api/opinioni/stats/:opinionId/eta/regione/:regione`;
+- `GET /api/opinioni/stats/:opinionId/genere/regione/:regione`.
+
+Le regioni sono risolte da `api/utils/regioniUtils.js`, con nomi
+ufficiali e codici storici di DEMOS. Gli slug Emilia-Romagna,
+Friuli-Venezia Giulia e Valle d'Aosta vengono normalizzati
+senza query SQL. I nomi invalidi sono rifiutati con HTTP 400,
+gli ID di Opinioni non pubblicate ricevono HTTP 404 e non
+innescano interrogazioni di aggregazione.
+
+Un dettaglio di compatibilita non ovvio: **la vecchia route
+nazionale /genere converte u/d in Uomo/Donna, la route regionale
+/genere/regione restituisce ancora u/d**. I due adattatori di
+ricerca preservano deliberatamente tale differenza, convertendo
+eventuali valori `sesso` M/F nella forma attesa solo al confine
+HTTP. Questa decisione non cambia gli utenti, i loro dati,
+ne i nomi delle API gia distribuite.
+
+La route regionale pubblica conta una cella soltanto quando
+raggiunge almeno 10 risposte; sotto soglia non presenta totale
+ne conteggi. I dettagli eta/sesso applicano la regola piu
+prudente della ricerca: se un sottogruppo non vuoto ha meno di
+10 risposte, non viene pubblicato nessun altro sottogruppo
+della stessa suddivisione. Il gate di replay GDPR deve essere
+aperto **prima** di interrogare qualunque aggregato.
+
+**Limiti:** le query regionali del router sono dipendenze finte
+nei test; l'app reale dovra filtrare account persona, consenso
+politico e territorio nella stessa query, con parametri SQL.
+Resta una dipendenza sulla conversione dati `genere` -> `sesso`
+e su `account_type` compatto P rispetto a PERSON. Occorre
+prevenire differenze inferibili tra statistiche nazionali,
+regionali o in momenti differenti: soglia 10 da sola non basta.
+Le API provinciali/comunali dei Sondaggi hanno un percorso
+separato e NON sono state simulate qui.
+
+**NO-GO:** nessun merge, deploy, DDL, backfill o cambiamento
+del middleware reale. Queste verifiche HTTP non sono un test
+Android end-to-end, RLS, Supabase o ripristino B2.
