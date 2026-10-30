@@ -2,7 +2,7 @@
  * Logica condivisa per GET /check-missing/:grado e GET /check-missing-all.
  */
 
-const { getOpinionsForGrade } = require('./opinionCatalog');
+const { getAllOpinions, getOpinionsForGrade } = require('./opinionCatalog');
 
 const GRADO_MAPPING = {
   N: 'N',
@@ -16,19 +16,18 @@ const GRADO_MAPPING = {
 const GRADI_PREFERITI_DEFAULT = ['N', 'E', 'R', 'CO'];
 
 /**
- * @param {import('pg').Pool} pool
+ * Historical name retained for callers: this is now the published release
+ * catalog ID set, not a database schema introspection.
+ *
+ * The one-time cutover preflight separately verifies that PostgreSQL still
+ * has all published answer columns. Runtime should not query
+ * information_schema on every page visit to discover code-owned questions.
+ *
+ * @param {import('pg').Pool} _pool - retained for caller compatibility; unused
  * @returns {Promise<Set<string>>}
  */
-async function getColonneOpinioniRisposte(pool) {
-  const colonneEsistentiQuery = `
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'opinioni_risposte' 
-      AND column_name != 'user_id'
-      AND column_name != 'fonti_opinioni'
-    `;
-  const colonneEsistentiResult = await pool.query(colonneEsistentiQuery);
-  return new Set(colonneEsistentiResult.rows.map((row) => row.column_name));
+async function getColonneOpinioniRisposte(_pool) {
+  return new Set(getAllOpinions().map(({id}) => id));
 }
 
 /**
