@@ -5,6 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, BarChart3 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { loadOpinionCategory, type OpinionGrade } from "@/lib/encryptedOpinionCache";
+import { useAuth } from "@/hooks/use-auth";
+
+// The statistics selector has historically used Italian grade labels,
+// while the encrypted editor snapshots use stable grade codes. A familiar
+// label must resolve to the SAME cache as the corresponding opinion editor.
+const cacheGradeByLabel: Readonly<Record<string, OpinionGrade>> = {
+  n: "N", nazionale: "N", nazionali: "N",
+  e: "E", europeo: "E", europea: "E", europee: "E", europei: "E",
+  r: "R", regionale: "R", regionali: "R",
+  co: "CO", comunale: "CO", comunali: "CO",
+};
 
 interface OpinionQuestion {
   id: string;
@@ -16,19 +28,30 @@ interface OpinionSelectorProps {
 }
 
 export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
+  const { user, isSessionVerified, verifiedPoliticalConsent } = useAuth();
+  const cacheGrade = cacheGradeByLabel[grado.trim().toLowerCase()] ?? null;
   const { data: questionsData, isLoading, isError } = useQuery<{
     success: boolean;
     data: OpinionQuestion[];
     grado: string;
     total: number;
   }>({
-    queryKey: ['opinioniQuestions', grado],
-    queryFn: async () => {
-      console.log('🔍 DEBUG - Caricamento opinioni per selettore...');
-      // apiRequest restituisce già il JSON parsato, non un Response
-      const data = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`);
-      console.log('🔍 DEBUG - Risposta API selettore:', data);
-      return data;
+    // Personalized userAnswer values must never be shared across accounts,
+    // revocation/regrant epochs or the four opinion entry editors.
+    queryKey: ['statsOpinionQuestions', user?.id, verifiedPoliticalConsent?.timestamp, grado],
+    enabled: !!user?.id && isSessionVerified && verifiedPoliticalConsent?.granted === true &&
+      !!verifiedPoliticalConsent.timestamp,
+    queryFn: async ({ signal }) => {
+      // Reuse the editor's verified-consent, per-account encrypted snapshot.
+      // A valid warm cache makes ZERO personal-answer GETs here.
+      if (cacheGrade) {
+        return loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp,
+          cacheGrade, signal);
+      }
+      // Preserve the old behavior only for unknown legacy grade labels.
+      const response = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`,
+        undefined, undefined, signal);
+      return response.data;
     },
   });
 
