@@ -68,8 +68,9 @@ test('grant cancels prior-epoch reads and awaits encrypted wipe before navigatio
   assert.equal(events.includes('vault:start'), false);
   assert.equal(events.includes('granted'), false);
   pendingCancels.forEach((resolve) => resolve());
-  await Promise.resolve();
-  await Promise.resolve();
+  // The TSX callback runs in a separate VM realm: let its Promise.all
+  // continuation drain on the event loop rather than assuming two ticks.
+  await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(events.filter((x) => x.startsWith('remove:')).length, 4);
   assert.equal(events.includes('vault:start'), true);
