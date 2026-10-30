@@ -2,7 +2,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {Client}=require('pg');
-const {splitHybridDelta,projectHybridAnswers,SQL}=
+const {planHybridAnswerChanges,buildHybridAtomicAnswerUpsert,
+  projectHybridAnswers,formatHybridLegacyGradePayload,formatHybridProfileOpinions,SQL}=
   require('../experiments/opinionAnswersV2HybridCandidate');
 // Fully invented PostgreSQL fixture. No DEMOS or staging access.
 const uri=process.env.OPINION_V2_PG_CI_URL;
@@ -27,14 +28,16 @@ async function write(db,input,{afterLock}={}){
     if(afterLock)await afterLock();
     const consent=await db.query('SELECT consent FROM ci_hybrid_users WHERE id=$1',[uid]);
     if(!consent.rows[0].consent){await db.query('ROLLBACK');return 'no-consent';}
-    const delta=splitHybridDelta(input,published,legacy);
-    for(const [id,value] of Object.entries(delta.legacyColumns)){
-      // Actual SQL column name must come only from validated fixed manifest.
-      await db.query('UPDATE ci_hybrid_answers SET "'+id+'"=$2 WHERE user_id=$1',[uid,value]);
-    }
-    if(Object.keys(delta.extraPatch).length){
-      await db.query(upsert,[uid,JSON.stringify(delta.extraPatch)]);
-    }
+    const previous=await db.query(
+      'SELECT * FROM ci_hybrid_answers WHERE user_id=$1 FOR UPDATE',[uid]
+    );
+    const plan=planHybridAnswerChanges(previous.rows[0]||null,input,published,legacy);
+    if(plan.changedCount===0){await db.query('COMMIT');return 'unchanged';}
+    const statement=buildHybridAtomicAnswerUpsert(plan.changed,published,legacy,uid);
+    const written=await db.query(
+      statement.sql.replaceAll('opinioni_risposte','ci_hybrid_answers'),statement.params
+    );
+    assert.equal(written.rowCount,1);
     await db.query('COMMIT');
     return 'saved';
   }catch(error){await db.query('ROLLBACK');throw error;}
@@ -92,6 +95,27 @@ test('PG17 hybrid: existing 94 columns + one permanent overflow JSONB', {skip:!e
       assert.deepEqual(projectHybridAnswers(r.rows[0],currentlyPublished,legacy)
         .map(x=>x.id),['opinione_0']);
       assert.equal(r.rows[0].answers_extra.opinione_94,'i');
+    });
+    await t.test('mixed first save inserts legacy and 95th answer atomically',async()=>{
+      await a.query('DELETE FROM ci_hybrid_answers WHERE user_id=$1',[uid]);
+      assert.equal(await write(a,{opinione_0:'i',opinione_94:'c'}),'saved');
+      const result=await a.query('SELECT "opinione_0",answers_extra FROM ci_hybrid_answers WHERE user_id=$1',[uid]);
+      assert.equal(result.rowCount,1);
+      assert.equal(result.rows[0].opinione_0,'i');
+      assert.deepEqual(result.rows[0].answers_extra,{opinione_94:'c'});
+      assert.equal(await write(a,{opinione_0:'i',opinione_94:'c'}),'unchanged');
+      assert.equal(await schemaCount(a),before);
+    });
+    await t.test('legacy GET and profile formatting agree on answer but not external IDs',async()=>{
+      const r=await a.query('SELECT * FROM ci_hybrid_answers WHERE user_id=$1',[uid]);
+      const opinions=[{id:'opinione_0',text:'Politica sanitaria?',gradi_opinione:['N']},
+        {id:'opinione_94',text:'Nuova Opinione 95',gradi_opinione:['N']}];
+      const compatibility=formatHybridLegacyGradePayload(r.rows[0],opinions,legacy,'N');
+      const profile=formatHybridProfileOpinions(r.rows[0],opinions,legacy);
+      assert.deepEqual(compatibility.data.map(x=>x.userAnswer),['i','c']);
+      assert.deepEqual(compatibility.data.map(x=>x.id),['politica_sanitaria?','nuova_opinione_95']);
+      assert.deepEqual(profile.map(x=>x.id),['opinione_0','opinione_94']);
+      assert.equal(profile[0].source,'unknown');
     });
     await t.test('revocation gets lock first and queued new-opinion write cannot resurrect',async()=>{
       await b.query('BEGIN');
