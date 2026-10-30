@@ -38,12 +38,14 @@ async function getColonneOpinioniRisposte(_pool) {
  * @returns {Promise<object>} payload `data` come nella risposta API singola
  */
 async function computeCheckMissingForGrado(pool, userId, gradoParam, colonneEsistenti) {
-  const gradoDatabase = GRADO_MAPPING[gradoParam];
-  if (!gradoDatabase) {
+  // A plain object inherits keys such as "constructor", "toString" and
+  // "__proto__". Those must never be accepted as published electoral grades.
+  if (typeof gradoParam !== 'string' || !Object.hasOwn(GRADO_MAPPING, gradoParam)) {
     const err = new Error('Grado non valido');
     err.code = 'INVALID_GRADO';
     throw err;
   }
+  const gradoDatabase = GRADO_MAPPING[gradoParam];
 
   const opinioniDelGrado = getOpinionsForGrade(gradoDatabase).map(({ id, text, gradi_opinione }) => ({ id, text, gradi_opinione }));
 
