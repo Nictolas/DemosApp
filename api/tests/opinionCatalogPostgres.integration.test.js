@@ -107,7 +107,7 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
         'an invalid catalog grade must not query users or opinioni_risposte');
     }
     const chosen={};
-    for(const grade of ['N','R','CO','E']){
+    for(const grade of ['N','R','C','CO','E']){
       const payload=await apiGet(grade);
       assert.equal(payload.data.length,getOpinionsForGrade(grade).length);
       assert.ok(payload.data.length>0);
@@ -143,7 +143,7 @@ test('real PostgreSQL: Android Opinions N/R/CO/E save, readback and concurrent r
     assert.equal(saved.status,200);
     assert.equal(result.savedCount,answers.length);
     assert.equal(result.errorCount,0);
-    for(const grade of ['N','R','CO','E']){
+    for(const grade of ['N','R','C','CO','E']){
       const payload=await apiGet(grade);
       for(const [id,answer] of Object.entries(chosen)){
         const row=payload.data.find(q=>q.id===id);
