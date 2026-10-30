@@ -22,6 +22,32 @@ function validateLegacyIds(ids) {
   }
   return ids.slice();
 }
+// Release inventory gate: schema metadata, no personal rows queried.
+// Archived opinion columns MUST remain in the migration manifest.
+// This differs from the visible/public catalog, which may hide archived IDs.
+const SERVICE_COLUMNS=new Set(['user_id','fonti_opinioni']);
+function assertLegacyColumnCoverage(manifestIds, actualColumnNames) {
+  const ids=validateLegacyIds(manifestIds);
+  if(!Array.isArray(actualColumnNames)||actualColumnNames.length===0) {
+    throw new TypeError('Legacy schema inventory is required');
+  }
+  const actual=new Set();
+  for(const col of actualColumnNames){
+    if(typeof col!=='string'||actual.has(col)){
+      throw new TypeError('Invalid or duplicate legacy column');
+    }
+    actual.add(col);
+  }
+  if(!actual.has('user_id'))throw new Error('Missing legacy user_id key');
+  const responses=[...actual].filter(col=>!SERVICE_COLUMNS.has(col));
+  const missing=ids.filter(id=>!actual.has(id));
+  const untracked=responses.filter(id=>!ids.includes(id));
+  if(missing.length||untracked.length){
+    throw new Error('Legacy schema and historical ID manifest do not match');
+  }
+  return {coveredIds:ids.length, serviceColumns:[...actual].filter(col=>SERVICE_COLUMNS.has(col))};
+}
+
 function legacyRowToAnswers(row, orderedIds) {
   const ids = validateLegacyIds(orderedIds);
   if (!row || typeof row !== 'object' || Array.isArray(row)) {
@@ -80,4 +106,4 @@ function rollbackParity(v2Document, legacyRow, legacyIds) {
   };
 }
 
-module.exports={validateLegacyIds,legacyRowToAnswers,rollbackCoverage,rollbackParity};
+module.exports={validateLegacyIds,assertLegacyColumnCoverage,legacyRowToAnswers,rollbackCoverage,rollbackParity};
