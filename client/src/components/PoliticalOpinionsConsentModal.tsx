@@ -38,22 +38,31 @@ export function PoliticalOpinionsConsentModal({
       });
       return response.data;
     },
-    onSuccess: (data) => {
-      // Invalida la cache per aggiornare lo stato del consenso
-      queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
-      // Invalidate the short-lived profile consent snapshot immediately.
-      // Consent epoch changes must never reuse the prior political answers.
+    onSuccess: async () => {
+      // The server has granted a new consent epoch. Stop old personal reads
+      // before allowing the new session to open political opinion pages.
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['opinioniQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['statsOpinionQuestions'] }),
+        queryClient.cancelQueries({ queryKey: ['profilePolitical'] }),
+        queryClient.cancelQueries({ queryKey: ['profileFull'] }),
+      ]);
+      queryClient.removeQueries({ queryKey: ['opinioniQuestions'] });
+      queryClient.removeQueries({ queryKey: ['statsOpinionQuestions'] });
       queryClient.removeQueries({ queryKey: ['profilePolitical'] });
-      void clearAllEncryptedProfiles();
       queryClient.removeQueries({ queryKey: ['profileFull'] });
+      // IndexedDB writes may already be in flight: wait for the vault's
+      // write barrier and wipe before invoking navigation callbacks.
+      await clearAllEncryptedProfiles();
+      queryClient.invalidateQueries({ queryKey: ['political-opinions-consent'] });
       queryClient.invalidateQueries({ queryKey: ['profileConsent'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      
+
       toast({
         title: "Consenso salvato",
         description: "Puoi ora esprimere le tue opinioni politiche sulla piattaforma.",
       });
-      
+
       onConsentGranted?.();
       onOpenChange(false);
     },
@@ -145,7 +154,7 @@ export function PoliticalOpinionsConsentModal({
             </h4>
             <ul className="list-disc pl-6 space-y-1 text-sm text-gray-700">
               <li>Puoi <strong>revocare il consenso in qualsiasi momento</strong> dalle impostazioni del profilo</li>
-              <li>In caso di revoca, le opinioni già espresse verranno <strong>eliminate completamente</strong> (GDPR Art. 17)</li>
+              <li>In caso di revoca, viene avviata la cancellazione delle risposte personali attive; le eventuali copie di sicurezza seguono procedure distinte, come indicato nella Privacy Policy</li>
               <li>Le tue opinioni <strong>individuali non vengono vendute o condivise</strong> con partiti politici, organizzazioni o terze parti, e <strong>non vengono utilizzate</strong> per targeting pubblicitario o scopi commerciali</li>
               <li>Le <strong>statistiche aggregate e anonime</strong> (non identificabili) possono essere condivise con giornalisti, ricercatori e organizzazioni per ricerca, analisi e informazione pubblica</li>
               <li>I dati sono protetti con <strong>crittografia</strong> e misure di sicurezza avanzate</li>
