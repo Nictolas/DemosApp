@@ -38,10 +38,13 @@ function buildHybridDemographicQuery({
     throw new TypeError('Valid compressed region code required');
   }
   const old=new Set(validateLegacyIds(legacyIds));
-  const expression=old.has(opinionId)
+  const isLegacy=old.has(opinionId);
+  const expression=isLegacy
     ? 'orr."'+opinionId+'"'
     : "orr.answers_extra->>$1::text";
-  const params=[opinionId,[...TYPE_CODES]];
+  const params=isLegacy?[[...TYPE_CODES]]:[opinionId,[...TYPE_CODES]];
+  const accountParam=isLegacy?1:2;
+  const regionParam=isLegacy?2:3;
   if(region!==undefined)params.push(region);
   const ageExpr=[
     'CASE',
@@ -59,7 +62,236 @@ function buildHybridDemographicQuery({
     ? ['u.data_nascita IS NOT NULL','u.data_nascita <= CURRENT_DATE']
     : ["u.sesso IN ('M','F')"];
   const where=[
-    "u.account_type = ANY($2::text[])",
+    'u.account_type = ANY(
+    'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
+    ...metaFilter,
+    "v.answer IN ('f','c','i')"
+  ];
+  if(region!==undefined)where.push('u.regione_residenza = 
+  const sql=[
+    'WITH valid_responses AS (',
+    'SELECT '+groupExpr+' AS dimension_label,',
+    'v.answer',
+    'FROM opinioni_risposte orr',
+    'JOIN users u ON u.id = orr.user_id',
+    'LEFT JOIN user_consents uc ON uc.user_id = u.id',
+    'CROSS JOIN LATERAL (SELECT '+expression+' AS answer) v',
+    'WHERE '+where.join('\n AND '),
+    ')',
+    'SELECT dimension_label AS '+label+',',
+    "COUNT(*) FILTER (WHERE answer='f')::integer AS favorevole,",
+    "COUNT(*) FILTER (WHERE answer='c')::integer AS contrario,",
+    "COUNT(*) FILTER (WHERE answer='i')::integer AS indeciso",
+    'FROM valid_responses',
+    'GROUP BY dimension_label',
+    'ORDER BY '+(dimension==='eta'
+      ? "array_position(ARRAY['Under 18','18-25','26-35','36-45','46-55','56-65','65+']::text[],dimension_label)"
+      : 'dimension_label')
+  ].join('\n');
+  return {sql,params,dimension};
+}
+
+/** Strict typed row validation before thresholding, fail closed on malformed SQL. */
+function validateRows(rows,dimension){
+  if(!Array.isArray(rows)||!DEMOGRAPHICS.has(dimension)){
+    throw new TypeError('Expected demographic SQL results');
+  }
+  const label=dimension==='eta'?'fascia_eta':'sesso';
+  const seen=new Set();
+  return rows.map(row=>{
+    const key=row?.[label];
+    if(typeof key!=='string' || seen.has(key) ||
+       (dimension==='eta'?!AGE_LABELS.includes(key):!['M','F'].includes(key))){
+      throw new Error('Invalid or duplicate demographic group');
+    }
+    seen.add(key);
+    const out={[label]:key};
+    for(const k of ['favorevole','contrario','indeciso']){
+      const n=Number(row[k]);
+      if(!Number.isSafeInteger(n)||n<0)throw new TypeError('Invalid demographic count');
+      out[k]=n;
+    }
+    return out;
+  });
+}
+
+/**
+ * For detailed groups, even displaying only the >=10 cells could disclose
+ * a suppressed remainder by subtraction from an available region/national
+ * parent total. We conservatively suppress ALL subgroup counts when any
+ * nonempty subgroup is below ten. This is stricter than existing runtime.
+ */
+function publishHybridDemographicBreakdown(rows,dimension){
+  const valid=validateRows(rows,dimension);
+  const small=valid.some(row=>{
+    const count=countAggregateResponses(row);
+    return count>0 && count<MINIMUM;
+  });
+  if(small)return {
+    success:true,minimumCellSize:MINIMUM,suppressed:true,data:[]
+  };
+  return {
+    success:true,minimumCellSize:MINIMUM,suppressed:false,
+    data:valid.filter(row=>countAggregateResponses(row)>=MINIMUM)
+  };
+}
+
+module.exports={
+  buildHybridDemographicQuery,publishHybridDemographicBreakdown,
+  TYPE_CODES
+};
++accountParam+'::text[])',
+    'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
+    ...metaFilter,
+    "v.answer IN ('f','c','i')"
+  ];
+  if(region!==undefined)where.push('u.regione_residenza = $3');
+  const sql=[
+    'WITH valid_responses AS (',
+    'SELECT '+groupExpr+' AS dimension_label,',
+    'v.answer',
+    'FROM opinioni_risposte orr',
+    'JOIN users u ON u.id = orr.user_id',
+    'LEFT JOIN user_consents uc ON uc.user_id = u.id',
+    'CROSS JOIN LATERAL (SELECT '+expression+' AS answer) v',
+    'WHERE '+where.join('\n AND '),
+    ')',
+    'SELECT dimension_label AS '+label+',',
+    "COUNT(*) FILTER (WHERE answer='f')::integer AS favorevole,",
+    "COUNT(*) FILTER (WHERE answer='c')::integer AS contrario,",
+    "COUNT(*) FILTER (WHERE answer='i')::integer AS indeciso",
+    'FROM valid_responses',
+    'GROUP BY dimension_label',
+    'ORDER BY '+(dimension==='eta'
+      ? "array_position(ARRAY['Under 18','18-25','26-35','36-45','46-55','56-65','65+']::text[],dimension_label)"
+      : 'dimension_label')
+  ].join('\n');
+  return {sql,params,dimension};
+}
+
+/** Strict typed row validation before thresholding, fail closed on malformed SQL. */
+function validateRows(rows,dimension){
+  if(!Array.isArray(rows)||!DEMOGRAPHICS.has(dimension)){
+    throw new TypeError('Expected demographic SQL results');
+  }
+  const label=dimension==='eta'?'fascia_eta':'sesso';
+  const seen=new Set();
+  return rows.map(row=>{
+    const key=row?.[label];
+    if(typeof key!=='string' || seen.has(key) ||
+       (dimension==='eta'?!AGE_LABELS.includes(key):!['M','F'].includes(key))){
+      throw new Error('Invalid or duplicate demographic group');
+    }
+    seen.add(key);
+    const out={[label]:key};
+    for(const k of ['favorevole','contrario','indeciso']){
+      const n=Number(row[k]);
+      if(!Number.isSafeInteger(n)||n<0)throw new TypeError('Invalid demographic count');
+      out[k]=n;
+    }
+    return out;
+  });
+}
+
+/**
+ * For detailed groups, even displaying only the >=10 cells could disclose
+ * a suppressed remainder by subtraction from an available region/national
+ * parent total. We conservatively suppress ALL subgroup counts when any
+ * nonempty subgroup is below ten. This is stricter than existing runtime.
+ */
+function publishHybridDemographicBreakdown(rows,dimension){
+  const valid=validateRows(rows,dimension);
+  const small=valid.some(row=>{
+    const count=countAggregateResponses(row);
+    return count>0 && count<MINIMUM;
+  });
+  if(small)return {
+    success:true,minimumCellSize:MINIMUM,suppressed:true,data:[]
+  };
+  return {
+    success:true,minimumCellSize:MINIMUM,suppressed:false,
+    data:valid.filter(row=>countAggregateResponses(row)>=MINIMUM)
+  };
+}
+
+module.exports={
+  buildHybridDemographicQuery,publishHybridDemographicBreakdown,
+  TYPE_CODES
+};
++regionParam);
+  const sql=[
+    'WITH valid_responses AS (',
+    'SELECT '+groupExpr+' AS dimension_label,',
+    'v.answer',
+    'FROM opinioni_risposte orr',
+    'JOIN users u ON u.id = orr.user_id',
+    'LEFT JOIN user_consents uc ON uc.user_id = u.id',
+    'CROSS JOIN LATERAL (SELECT '+expression+' AS answer) v',
+    'WHERE '+where.join('\n AND '),
+    ')',
+    'SELECT dimension_label AS '+label+',',
+    "COUNT(*) FILTER (WHERE answer='f')::integer AS favorevole,",
+    "COUNT(*) FILTER (WHERE answer='c')::integer AS contrario,",
+    "COUNT(*) FILTER (WHERE answer='i')::integer AS indeciso",
+    'FROM valid_responses',
+    'GROUP BY dimension_label',
+    'ORDER BY '+(dimension==='eta'
+      ? "array_position(ARRAY['Under 18','18-25','26-35','36-45','46-55','56-65','65+']::text[],dimension_label)"
+      : 'dimension_label')
+  ].join('\n');
+  return {sql,params,dimension};
+}
+
+/** Strict typed row validation before thresholding, fail closed on malformed SQL. */
+function validateRows(rows,dimension){
+  if(!Array.isArray(rows)||!DEMOGRAPHICS.has(dimension)){
+    throw new TypeError('Expected demographic SQL results');
+  }
+  const label=dimension==='eta'?'fascia_eta':'sesso';
+  const seen=new Set();
+  return rows.map(row=>{
+    const key=row?.[label];
+    if(typeof key!=='string' || seen.has(key) ||
+       (dimension==='eta'?!AGE_LABELS.includes(key):!['M','F'].includes(key))){
+      throw new Error('Invalid or duplicate demographic group');
+    }
+    seen.add(key);
+    const out={[label]:key};
+    for(const k of ['favorevole','contrario','indeciso']){
+      const n=Number(row[k]);
+      if(!Number.isSafeInteger(n)||n<0)throw new TypeError('Invalid demographic count');
+      out[k]=n;
+    }
+    return out;
+  });
+}
+
+/**
+ * For detailed groups, even displaying only the >=10 cells could disclose
+ * a suppressed remainder by subtraction from an available region/national
+ * parent total. We conservatively suppress ALL subgroup counts when any
+ * nonempty subgroup is below ten. This is stricter than existing runtime.
+ */
+function publishHybridDemographicBreakdown(rows,dimension){
+  const valid=validateRows(rows,dimension);
+  const small=valid.some(row=>{
+    const count=countAggregateResponses(row);
+    return count>0 && count<MINIMUM;
+  });
+  if(small)return {
+    success:true,minimumCellSize:MINIMUM,suppressed:true,data:[]
+  };
+  return {
+    success:true,minimumCellSize:MINIMUM,suppressed:false,
+    data:valid.filter(row=>countAggregateResponses(row)>=MINIMUM)
+  };
+}
+
+module.exports={
+  buildHybridDemographicQuery,publishHybridDemographicBreakdown,
+  TYPE_CODES
+};
++accountParam+'::text[])',
     'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
     ...metaFilter,
     "v.answer IN ('f','c','i')"
