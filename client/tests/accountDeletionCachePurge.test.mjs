@@ -40,7 +40,7 @@ test("auth session failures never log the raw HTTP response body", () => {
   const end = authSource.indexOf("const result = await response.json()", start);
   assert.ok(start >= 0 && end > start, "must inspect the /auth/me error branch");
   const errorBranch = authSource.slice(start, end);
-  assert.match(errorBranch, /console\\.error\\(/);
-  assert.match(errorBranch, /response\\.status/);
-  assert.doesNotMatch(errorBranch, /response\\.(?:text|json)\\s*\\(/, "response bodies may contain personal data");
+  assert.ok(errorBranch.includes("console.error("));
+  assert.ok(errorBranch.includes("response.status"));
+  assert.doesNotMatch(errorBranch, /response[.](?:text|json)[(]/, "response bodies may contain personal data");
 });
