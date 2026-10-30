@@ -48,18 +48,18 @@ test('sex uses verified sesso field rather than old genere; geography is a param
 
 test('publish only >=10 cells; a nonempty small group hides entire breakdown',()=>{
   assert.deepEqual(publishHybridDemographicBreakdown([
-    {sesso:'M',favorevole:'4',contrario:'3',indeciso:'3'},
-    {sesso:'F',favorevole:'4',contrario:'3',indeciso:'2'}
+    {sesso:'M',favorevole:'10',contrario:'10',indeciso:'10'},
+    {sesso:'F',favorevole:'9',contrario:'10',indeciso:'10'}
   ],'sesso'),{
     success:true,minimumCellSize:10,suppressed:true,data:[]
   });
   assert.deepEqual(publishHybridDemographicBreakdown([
-    {sesso:'M',favorevole:'4',contrario:'3',indeciso:'3'},
-    {sesso:'F',favorevole:'5',contrario:'3',indeciso:'2'}
+    {sesso:'M',favorevole:'10',contrario:'10',indeciso:'10'},
+    {sesso:'F',favorevole:'10',contrario:'10',indeciso:'10'}
   ],'sesso'),{
     success:true,minimumCellSize:10,suppressed:false,data:[
-      {sesso:'M',favorevole:4,contrario:3,indeciso:3},
-      {sesso:'F',favorevole:5,contrario:3,indeciso:2}
+      {sesso:'M',favorevole:10,contrario:10,indeciso:10},
+      {sesso:'F',favorevole:10,contrario:10,indeciso:10}
     ]
   });
 });
@@ -99,4 +99,22 @@ test('source-list input must be bounded, published and immutable',()=>{
     opinionId:'opinione_94',dimension:'sesso',publishedIds:published,
     legacyIds:ids,region:'a'.repeat(129)
   }),/region/);
+});
+
+
+test('demographic group 29 favorable / 1 contrary hides entire breakdown',()=>{
+  const result=publishHybridDemographicBreakdown([
+    {sesso:'M',favorevole:'29',contrario:'1',indeciso:'0'},
+    {sesso:'F',favorevole:'30',contrario:'0',indeciso:'0'}
+  ],'sesso');
+  assert.equal(result.suppressed,true);
+  assert.deepEqual(result.data,[]);
+});
+
+test('demographics reject empty, boolean and overflowed SQL count values',()=>{
+  for(const bad of ['',false,[], '00', Number.MAX_SAFE_INTEGER]){
+    assert.throws(()=>publishHybridDemographicBreakdown([
+      {sesso:'M',favorevole:bad,contrario:1,indeciso:0}
+    ],'sesso'),/Invalid demographic count/);
+  }
 });
