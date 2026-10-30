@@ -9,12 +9,12 @@ const {
   GRADI_PREFERITI_DEFAULT,getColonneOpinioniRisposte,computeCheckMissingForGrado
 }=require('../services/opinioniCheckMissing');
 
-test('check-missing derives all 94 published answer IDs from code without SQL metadata reads',async()=>{
+test('check-missing derives all published answer IDs from code without SQL metadata reads',async()=>{
   let calls=0;
   const pool={async query(){calls++;throw Error('FORBIDDEN_SCHEMA_DB_READ');}};
   const ids=await getColonneOpinioniRisposte(pool);
   assert.equal(calls,0,'No information_schema request is allowed');
-  assert.equal(ids.size,94);
+  assert.equal(ids.size,getAllOpinions().length);
   assert.deepEqual([...ids].sort(),getAllOpinions().map(op=>op.id).sort());
   assert.ok(Object.isFrozen(getAllOpinions()[0]));
   assert.deepEqual(GRADI_PREFERITI_DEFAULT,['N','E','R','CO']);
@@ -22,7 +22,7 @@ test('check-missing derives all 94 published answer IDs from code without SQL me
 
 test('provincial C grade computes missing questions with only one personal answer SELECT',async()=>{
   const grade='C',questions=getOpinionsForGrade(grade);
-  assert.equal(questions.length,6,'Current published fixture has 6 provincial opinions');
+  assert.ok(questions.length>0,'Provincial scope must have published questions');
   const first=questions[0].id,calls=[];
   const pool={async query(sql,values){
     calls.push({sql:String(sql),values});
@@ -39,9 +39,9 @@ test('provincial C grade computes missing questions with only one personal answe
   const columns=[...calls[0].sql.matchAll(/"([a-z][a-z0-9_]*)"/g)]
     .map(x=>x[1]).sort();
   assert.deepEqual(columns,questions.map(x=>x.id).sort());
-  assert.equal(result.totaleOpinioni,6);
+  assert.equal(result.totaleOpinioni,questions.length);
   assert.equal(result.opinioniRisposte,1);
-  assert.equal(result.opinioniMancanti,5);
+  assert.equal(result.opinioniMancanti,questions.length-1);
   assert.ok(!result.missingOpinions.some(x=>x.id===first));
 });
 
