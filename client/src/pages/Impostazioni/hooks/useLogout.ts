@@ -20,8 +20,9 @@ export const useLogout = () => {
     try {
       await logoutMutation.mutateAsync();
       // Il redirect viene gestito dal hook useAuth
-    } catch (error) {
-      console.error('Errore logout:', error);
+    } catch {
+      // Keep diagnostics free of exception bodies (may contain account/session data).
+      console.error('Errore logout (dettagli omessi)');
       toast({
         title: "Errore",
         description: "Errore durante il logout. Riprova.",
