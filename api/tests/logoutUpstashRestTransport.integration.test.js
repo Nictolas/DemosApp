@@ -54,7 +54,9 @@ test('real Redis via production Upstash REST SDK: revoke, TTL and failure semant
         res.writeHead(status, { 'content-type': 'application/json' });
         res.end(JSON.stringify(data));
       }
-      if (req.method !== 'POST' || req.url !== '/' || req.headers.authorization !== 'Bearer synthetic-local-only') {
+      const endpoint = (req.url || '').split('?')[0];
+      if (req.method !== 'POST' || !['/', '/pipeline'].includes(endpoint) ||
+          req.headers.authorization !== 'Bearer synthetic-local-only') {
         return reply(403, { error: 'Unauthorized local fixture' });
       }
       let body = '';
@@ -62,24 +64,32 @@ test('real Redis via production Upstash REST SDK: revoke, TTL and failure semant
         body += chunk;
         if (body.length > 4096) return reply(413, { error: 'Too large' });
       }
-      let command;
-      try { command = JSON.parse(body); } catch { return reply(400, { error: 'Invalid command' }); }
-      if (!Array.isArray(command) || command.length < 2 || command.length > 6) {
+      let payload;
+      try { payload = JSON.parse(body); } catch { return reply(400, { error: 'Invalid command' }); }
+      // @upstash/redis may automatically pipeline even a single GET. Both forms
+      // follow its REST wire protocol and are restricted to synthetic keys.
+      const commands = endpoint === '/pipeline' ? payload : [payload];
+      if (!Array.isArray(commands) || commands.length < 1 || commands.length > 4 ||
+          commands.some(command => !Array.isArray(command) || command.length < 2 || command.length > 6)) {
         return reply(400, { error: 'Bad command shape' });
       }
-      const cmd = String(command[0]).toUpperCase();
-      const key = String(command[1]);
-      if (!['GET', 'SET'].includes(cmd) || !key.startsWith(allowedPrefix)) {
-        return reply(403, { error: 'Command outside CI namespace' });
+      const results = [];
+      for (const command of commands) {
+        const cmd = String(command[0]).toUpperCase();
+        const key = String(command[1]);
+        if (!['GET', 'SET'].includes(cmd) || !key.startsWith(allowedPrefix)) {
+          return reply(403, { error: 'Command outside CI namespace' });
+        }
+        observed.push(cmd);
+        if (cmd === 'SET' && rejectWrites) return reply(503, { error: 'synthetic Redis transport failure' });
+        try {
+          const result = await tcp.call(cmd, ...command.slice(1).map(String));
+          results.push({ result });
+        } catch (_) {
+          return reply(503, { error: 'synthetic Redis gateway failure' });
+        }
       }
-      observed.push(cmd);
-      if (cmd === 'SET' && rejectWrites) return reply(503, { error: 'synthetic Redis transport failure' });
-      try {
-        const result = await tcp.call(cmd, ...command.slice(1).map(String));
-        return reply(200, { result });
-      } catch (_) {
-        return reply(503, { error: 'synthetic Redis gateway failure' });
-      }
+      return reply(200, endpoint === '/pipeline' ? results : results[0]);
     });
     gateway = await new Promise((resolve, reject) => {
       const listener = gatewayServer.listen(0, '127.0.0.1', () => resolve(listener));
