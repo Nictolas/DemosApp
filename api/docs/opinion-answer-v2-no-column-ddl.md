@@ -737,3 +737,69 @@ del matching con il calcolo dell'app.
 politicalMatchingService, Render, Supabase o Android. RLS,
 autorizzazioni, inferenza sui dati aggregati, restore GDPR/B2 e
 cataloghi molto grandi sono ancora gate aperti prima del rilascio.
+
+
+## Statistiche dettagliate: eta, sesso, regione — esperimento isolato
+
+Il candidato api/experiments/opinionAnswersV2DemographicsCandidate.js
+prepara una singola SELECT per l'Opinione specifica, sia essa una delle
+94 colonne TEXT storiche, sia una chiave futura di answers_extra JSONB.
+Non e importato da alcuna route: NON modifica DEMOS in produzione.
+
+### Metadati verificati con accesso di sola lettura
+
+In information_schema.columns della tabella public.users esistono
+data_nascita (DATE), sesso (VARCHAR), genere (VARCHAR), account_type e
+regione_residenza. Non e stata trovata la colonna anno_nascita.
+Non sono state lette righe utente, solo nomi e tipi delle colonne.
+Le route attuali delle statistiche utilizzano data_nascita e genere;
+il nuovo prototipo usa data_nascita e sesso M/F per allinearsi al
+campo unico previsto, senza convertirli ne leggere dati aggiuntivi.
+I valori PERSON e P sono entrambi accettati come account persona
+durante la transizione; le organizzazioni sono escluse.
+Prima dell'integrazione va verificata la semantica effettiva dei
+valori legacy e la completezza del campo sesso, senza inferenze.
+
+### Proprieta testate
+
+- Autorizzazione aggregata: conta solo account persona con consenso
+  politico valido, dando la precedenza al consenso esplicito.
+- I gruppi eta seguono le fasce preesistenti Under 18, 18-25,
+  26-35, 36-45, 46-55, 56-65, 65+. Le date mancanti o future
+  sono escluse dalle fasce.
+- Il sesso accetta soltanto M/F presenti nella colonna sesso;
+  valori nulli o fuori codifica non sono raggruppati arbitrariamente.
+- Il filtro regionale riceve un parametro SQL, mai testo interpolato.
+  Gli ID di colonna storica provengono dal manifest statico, mentre
+  quelli JSONB sono limitati agli ID ufficiali pubblicati nel codice.
+- Riuso del minimo applicativo di 10 risposte f/c/i, con una
+  precauzione aggiuntiva: se una cella NON vuota e sotto soglia,
+  sopprimere l'INTERO breakdown invece di mostrare soltanto le altre
+  celle. In caso contrario il totale pubblico potrebbe permettere
+  la ricostruzione indiretta della cella piccola per sottrazione.
+- I test PostgreSQL 17 effimeri simulano 10 M + 9 F e la
+  soppressione completa; con consenso esplicito il gruppo F sale
+  a 10 e diventa visibile. Una revoca fa scendere 10 a 9 e
+  sopprime il dettaglio; il caso di una sola persona in Lazio
+  resta nascosto. I 94 vecchi ID e una nuova Opinione condividono
+  la medesima regola, senza DDL per domanda.
+
+### Limiti non risolti
+
+La soppressione integrale riduce un vettore di inferenza ma non e
+una garanzia generale contro differenze fra piu query, fasce,
+geografie sovrapposte o pubblicazioni in momenti diversi.
+Occorre una revisione delle statistiche pubbliche e dei limiti
+di interrogazione prima di un'eventuale integrazione.
+Le route attive /api/opinioni/stats restano inalterate: il prototipo
+non dimostra parita completa delle API, dei dati reali o dei vecchi
+client Android, ne autorizza un aggiornamento di Supabase.
+
+Test automatici: api/tests/opinionAnswersV2Demographics.unit.test.js
+e api/tests/opinionAnswersV2Demographics.pg.test.js.
+Primo run corretto del nuovo codice: GitHub Actions #41090798270,
+125 test PASS, benchmark completati. Dati soltanto sintetici.
+
+**Stato Draft/NO-GO:** nessun merge, deploy, DDL o modifica alla
+produzione. Le integrazioni con Sondaggi, Statistiche, Profilo,
+matching, API Android, consenso e recupero GDPR/B2 rimangono separate.
