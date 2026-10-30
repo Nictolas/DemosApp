@@ -33,7 +33,7 @@ class SyntheticWitness {
   available = true;
 
   constructor(secret = 'synthetic-test-only') { this.#secret = secret; }
-  attest(checkpoint) {
+  attest(checkpoint, entry = null) {
     if (!this.available) reject('GDPR_MODEL_WITNESS_UNAVAILABLE');
     // A lost independent anchor must not be silently recreated by signing a
     // restored, possibly truncated journal. Require external recovery instead.
@@ -64,6 +64,30 @@ class SyntheticWitness {
       if (body.epoch !== prior.epoch ||
           !(nextAppend || nextSeal || sealedRetry))
         reject('GDPR_MODEL_WITNESS_NON_MONOTONIC');
+    }
+    // A counter and an arbitrary 64-character hash do not constitute proof
+    // of an append. Bind every new checkpoint to its exact synthetic record.
+    // This is an IN-MEMORY fixture, not a remotely attested durable object.
+    if (!body.sealed) {
+      const priorHead = prior?.head || ZERO;
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry) ||
+          Object.keys(entry).sort().join(',') !==
+            'epoch,hash,operation,phase,previous,seq' ||
+          entry.seq !== body.count || entry.epoch !== body.epoch ||
+          entry.previous !== priorHead || entry.hash !== body.head ||
+          !['prepare','commit'].includes(entry.phase)) {
+        reject('GDPR_MODEL_WITNESS_ENTRY_INVALID');
+      }
+      let normalized;
+      try { normalized=checkOperation(entry.operation); }
+      catch { reject('GDPR_MODEL_WITNESS_ENTRY_INVALID'); }
+      if (canonical(entry.operation) !== canonical(normalized) ||
+          sha({seq:entry.seq,previous:entry.previous,epoch:entry.epoch,
+            phase:entry.phase,operation:normalized}) !== body.head) {
+        reject('GDPR_MODEL_WITNESS_ENTRY_INVALID');
+      }
+    } else if (entry !== null) {
+      reject('GDPR_MODEL_WITNESS_ENTRY_INVALID');
     }
     const mac = crypto.createHmac('sha256', this.#secret)
       .update(canonical(body)).digest('hex');
@@ -114,10 +138,11 @@ class SyntheticExternalJournal {
     // Simulate a required witness being available before the append. This is
     // NOT an actual atomic two-provider commit protocol.
     if (!this.witness.available) reject('GDPR_MODEL_WITNESS_UNAVAILABLE');
+    // Do not append in-memory until the witness has checked the exact entry.
+    // A real implementation still needs a durable atomic two-provider protocol.
+    const checkpoint={epoch:this.epoch,count:entry.seq,head:entry.hash,sealed:false};
+    this.witness.attest(checkpoint,entry);
     this.entries.push(entry);
-    // Prototype assumes atomic, durable external append AND independent witness
-    // acknowledgement. A real implementation must prove that property.
-    this.witness.attest(this.state());
     return entry;
   }
   verify() {
@@ -214,8 +239,10 @@ class SyntheticExternalJournal {
   }
   seal() {
     if (this.offline) reject('GDPR_MODEL_EXTERNAL_UNAVAILABLE');
+    // Never mark even the synthetic journal sealed if attestation fails.
+    const receipt=this.witness.attest({...this.state(),sealed:true});
     this.sealed=true;
-    return this.witness.attest(this.state());
+    return receipt;
   }
 }
 
