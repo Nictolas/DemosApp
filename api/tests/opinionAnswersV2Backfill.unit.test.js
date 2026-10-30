@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {validateLegacyIds,assertLegacyColumnCoverage,legacyRowToAnswers,rollbackCoverage,rollbackParity}=
+const {validateLegacyIds,assertLegacyColumnCoverage,assertLegacySchemaInventory,legacyRowToAnswers,rollbackCoverage,rollbackParity}=
   require('../experiments/opinionAnswersV2BackfillCandidate');
 
 const ids=Array.from({length:94},(_,i)=>'opinione_'+i);
@@ -67,4 +67,15 @@ test('schema inventory rejects incomplete, untracked or duplicate columns',()=>{
   assert.throws(()=>assertLegacyColumnCoverage(ids,['user_id',...ids,'opinione_extra']),/historical ID manifest/);
   assert.throws(()=>assertLegacyColumnCoverage(ids,[...ids]),/Missing legacy user_id/);
   assert.throws(()=>assertLegacyColumnCoverage(ids,['user_id',...ids,'opinione_0']),/duplicate/);
+});
+
+test('metadata inventory rejects wrong column types, including historical ones',()=>{
+  const columns=[{column_name:'user_id',data_type:'uuid'},
+    {column_name:'fonti_opinioni',data_type:'jsonb'},
+    ...ids.map(id=>({column_name:id,data_type:'text'}))];
+  assert.equal(assertLegacySchemaInventory(ids,columns).coveredIds,94);
+  const bad=columns.map(c=>c.column_name==='opinione_17'
+    ? {...c,data_type:'boolean'} : c);
+  assert.throws(()=>assertLegacySchemaInventory(ids,bad),/Non-TEXT/);
+  assert.throws(()=>assertLegacySchemaInventory(ids,columns.map(c=>({column_name:c.column_name}))),/data_type/);
 });
