@@ -34,7 +34,7 @@ test('real PG17 partial RLS cannot make manual B2 export seem complete',async()=
     GDPR_LEDGER_B2_ACCESS_KEY_ID:'synthetic-id',
     GDPR_LEDGER_B2_SECRET_ACCESS_KEY:'synthetic-only',
     GDPR_LEDGER_B2_RETENTION_DAYS:'30'
-  }});
+  },client:{send(){throw Error('UNEXPECTED_B2_NETWORK');}}});
   journal.archiveEvent=async(event)=>{fakeWrites++;return {eventKey:event.event_key};};
   try {
     const version=await admin.query("SELECT current_database() AS db,current_setting('server_version_num')::int AS ver");
