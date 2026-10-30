@@ -28,7 +28,9 @@ const base = () => ({
   B2_BUCKET_NAME: 'demos-log-archive-eu'
 });
 function fake({mode = 'COMPLIANCE', until = '2026-11-15T12:00:00Z',
-  payload = fixture, contentLength = payload.length, error = null} = {}) {
+  payload = fixture, contentLength = payload.length, error = null,
+  versionId = '4_z_synthetic-version-123', deleteMarker = false,
+  objectLockMode = undefined, objectLockUntil = undefined} = {}) {
   const calls = [];
   const client = {
     calls, destroyed: false,
@@ -39,7 +41,10 @@ function fake({mode = 'COMPLIANCE', until = '2026-11-15T12:00:00Z',
         return {Retention:{Mode:mode,RetainUntilDate:until}};
       }
       if(cmd instanceof GetObjectCommand) {
-        return {ContentLength:contentLength,Body:Readable.from([payload])};
+        return {ContentLength:contentLength,VersionId:versionId,
+          DeleteMarker:deleteMarker,ObjectLockMode:objectLockMode,
+          ObjectLockRetainUntilDate:objectLockUntil,
+          Body:Readable.from([payload])};
       }
       throw Error('not allowed');
     },
@@ -87,7 +92,11 @@ test('transport accepts only two read commands on fixed synthetic key/version/bu
     new ListObjectVersionsCommand({Bucket:cfg.bucket}),
     new GetObjectCommand({Bucket:cfg.bucket,Key:'demos/gdpr-erasure/v1/events/someone.json',VersionId:cfg.versionId}),
     new GetObjectCommand({Bucket:'other',Key:OBJECT_KEY,VersionId:cfg.versionId}),
-    new GetObjectCommand({Bucket:cfg.bucket,Key:OBJECT_KEY,VersionId:'other-version'})
+    new GetObjectCommand({Bucket:cfg.bucket,Key:OBJECT_KEY,VersionId:'other-version'}),
+    new GetObjectCommand({Bucket:cfg.bucket,Key:OBJECT_KEY,
+      VersionId:cfg.versionId,Range:'bytes=0-20'}),
+    new GetObjectRetentionCommand({Bucket:cfg.bucket,Key:OBJECT_KEY,
+      VersionId:cfg.versionId,RequestPayer:'requester'})
   ]) await assert.rejects(Promise.resolve().then(()=>gate.send(cmd)),/NO_GO_GDPR_B2/);
   assert.equal(client.calls.length,2);
 });
@@ -144,4 +153,50 @@ test('fails closed on altered bytes, oversized object, invalid length or provide
       assert.equal(json.includes(forbidden),false);
     }
   }
+});
+
+
+test('rejects wrong or absent version identity even when fixture bytes are exact',async()=>{
+  for(const versionId of [undefined,null,'other-version','']) {
+    const client=fake({versionId});
+    const output=await verifySyntheticVersion({env:base(),clock,makeClient:()=>client});
+    assert.equal(output.status,CLOSED,String(versionId));
+    assert.equal(output.syntheticVersionVerified,false);
+    assert.equal(output.recoveryReady,false);
+    assert.deepEqual(client.calls.map(x=>x.name),[
+      'GetObjectRetentionCommand','GetObjectCommand']);
+    assert.equal(client.destroyed,true);
+  }
+});
+
+test('rejects contradictory version retention, delete marker and response length',async()=>{
+  const cases=[
+    {deleteMarker:true},
+    {objectLockMode:'GOVERNANCE'},
+    {objectLockMode:'OFF'},
+    {objectLockUntil:'2026-11-16T12:00:00Z'},
+    {objectLockUntil:'not-a-date'},
+    {contentLength:fixture.length-1},
+    {contentLength:0},
+    {contentLength:null,objectLockMode:'GOVERNANCE'}
+  ];
+  for(const scenario of cases){
+    const client=fake(scenario);
+    const output=await verifySyntheticVersion({env:base(),clock,makeClient:()=>client});
+    assert.equal(output.status,CLOSED,JSON.stringify(scenario));
+    assert.equal(output.syntheticVersionVerified,false);
+    assert.equal(output.recoveryReady,false);
+    assert.equal(client.destroyed,true);
+  }
+});
+
+test('matching optional lock metadata is allowed, but still not recovery proof',async()=>{
+  const client=fake({
+    objectLockMode:'COMPLIANCE',objectLockUntil:'2026-11-15T12:00:00Z'
+  });
+  const output=await verifySyntheticVersion({env:base(),clock,makeClient:()=>client});
+  assert.equal(output.syntheticVersionVerified,true);
+  assert.equal(output.versionRetentionComplianceVerified,true);
+  assert.equal(output.recoveryReady,false);
+  assert.equal(output.completeGdprJournalVerified,false);
 });
