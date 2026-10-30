@@ -51,7 +51,9 @@ jobs:
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Validate read-only cutover parity and answer-column schema regression
         run: node --test api/tests/opinionCatalogPreflight.test.js
-      - name: Legacy nested Opinions endpoint uses canonical ID and scoped SQL (no real DB)
+      - name: Live Opinions route topology — avoid dormant module false positives
+        run: node --test api/tests/opinionCatalogRouteTopology.contract.test.js
+      - name: Dormant nested compatibility route contract (not mounted)
         run: node --test api/tests/opinionCatalogLegacyCompatibility.test.js
       - name: Android 1.0.10 legacy Opinions HTTP contract (no real accounts)
         run: node --test api/tests/opinionCatalogAndroid110.contract.test.js api/tests/opinionCatalogConsentRace.contract.test.js
