@@ -1326,3 +1326,59 @@ serve sempre una barriera ingress esterna per API, worker
 e client vecchi. Resta da coordinare con PR #374.
 Il database di CI e interamente sintetico; nessuna
 modifica a route attive, Supabase, Render o Android.
+
+
+## Controllo automatico NO-GO prima dell'integrazione (30/10/2026)
+
+Il prototipo `api/experiments/opinionAnswersV2CutoverAuditCandidate.js`
+produce un rapporto di **sola lettura** che distingue le
+verifiche meccaniche dall'autorizzazione a procedere.
+Non apre connessioni, non interroga risposte personali e
+non esegue DDL. Accetta metadati `information_schema`
+solo se forniti da un controllo preventivo autorizzato.
+
+Requisiti esaminati:
+
+- Tutti i **94 ID storici immutabili** devono coincidere
+  esattamente con il manifest congelato dalla PR #384;
+  la pubblicazione di Opinioni future non li modifica.
+- Lo schema deve contenere le 94 colonne storiche TEXT,
+  `user_id uuid`, `fonti_opinioni jsonb` e, al momento
+  della migrazione autorizzata, **`answers_extra jsonb`**.
+- Le PR coordinate **#384, #464 e #374** devono essere
+  effettivamente integrate nella revisione di rilascio,
+  non semplicemente aperte con test riusciti.
+- Ogni requisito operativo necessita di verifica esterna
+  per il commit esatto da pubblicare: compatibilita
+  delle API, consenso dopo il lock, ruoli Admin,
+  vero ripristino GDPR/B2 con registro esterno,
+  vecchi client Android, protezione delle statistiche
+  contro confronti nel tempo e rollback senza perdita.
+
+Un controllo e marcato completo solo quando e associato
+al medesimo commit e a un riferimento di verifica;
+**questa verifica della forma non garantisce l'autenticita**
+di chi la dichiara. Anche in un caso fittizio con ogni
+indicatore positivo, `releaseAuthorized` resta SEMPRE
+`false`: nessun test isolato puo sostituire l'approvazione
+esplicita e i collaudi infrastrutturali reali.
+
+**Situazione verificata oggi:** le PR #384, #464 e #374
+sono ancora aperte e in bozza; lo schema controllato
+il 30/10 conteneva le 94 colonne originali e non ancora
+`answers_extra`. Questi sono blocchi concreti e attesi,
+non errori da nascondere. Il rapporto puo cambiare
+solo dopo nuovi controlli sul vero stato di integrazione.
+
+Test `api/tests/opinionAnswersV2CutoverAudit.unit.test.js`:
+percorso corrente **NO-GO**, schema incompleto, tipo
+di colonna errato, manifest storico alterato, PR non
+integrate, evidenze mancanti/attribuite al commit
+sbagliato, e rilascio negato anche nello scenario
+puramente ipotetico con controlli positivi.
+
+**Questo controllo non si collega alle protezioni di
+branch GitHub, ai deploy Render o al database reale.**
+Prima di utilizzarlo come gate operativo servirebbero
+fonti di evidenza indipendenti e protezioni di rilascio
+applicate esternamente. La PR #483 rimane Draft/NO-GO.
