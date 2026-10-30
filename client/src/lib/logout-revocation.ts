@@ -37,6 +37,11 @@ export async function requestLogoutRevocation({
       body: JSON.stringify({ refreshToken }),
       signal: controller.signal,
     });
+    // A late response from a non-compliant fetch adapter cannot turn an
+    // already timed-out attempt into a confirmed revocation.
+    if (controller.signal.aborted) {
+      return { serverRevocationConfirmed: false, reason: "timeout" };
+    }
     return response.ok
       ? { serverRevocationConfirmed: true, reason: "confirmed" }
       : { serverRevocationConfirmed: false, reason: "http-error" };
