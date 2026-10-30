@@ -32,7 +32,16 @@ async function claim(db,key,hash=HASH){
     'INSERT INTO '+TABLE+' (event_key,sha256) VALUES ($1,$2) '+
     'ON CONFLICT (event_key) DO NOTHING RETURNING event_key',[key,hash]
   );
-  return result.rowCount===1;
+  if(result.rowCount===1)return true;
+  // An existing claim is safe to reuse only for the *same* event digest.
+  // A colliding event_key with changed bytes must not be silently treated
+  // as an idempotent retry. Fail closed, even after a concurrent INSERT.
+  const existing=await db.query('SELECT sha256 FROM '+TABLE+
+    ' WHERE event_key=$1',[key]);
+  if(existing.rowCount!==1 || existing.rows[0].sha256!==hash){
+    throw Error('CLAIM_EVENT_KEY_HASH_CONFLICT');
+  }
+  return false;
 }
 async function state(db,key){
   const r=await db.query('SELECT sha256,phase,version_id FROM '+TABLE+
@@ -119,7 +128,8 @@ test('PG17: durable pre-PUT UNKNOWN claim blocks restart, race and unsafe replay
           sha256:HASH,phase:'UNKNOWN',version_id:null
         });
         assert.equal(await claim(restarted,KEY1),false);
-        assert.equal(await claim(restarted,KEY1,sha('changed payload')),false);
+        await assert.rejects(claim(restarted,KEY1,sha('changed payload')),
+          /CLAIM_EVENT_KEY_HASH_CONFLICT/);
         assert.equal(provider.putCount,0);
         await assert.rejects(reconcile(restarted,KEY1,{
           provider,pin:new SyntheticPin()
@@ -138,6 +148,8 @@ test('PG17: durable pre-PUT UNKNOWN claim blocks restart, race and unsafe replay
         await sleep(30);
         await c1.query('COMMIT');
         assert.equal(await competing,false);
+        await assert.rejects(claim(c2,KEY2,sha('concurrent changed event')),
+          /CLAIM_EVENT_KEY_HASH_CONFLICT/);
         assert.equal((await state(db,KEY2)).phase,'UNKNOWN');
       }finally{
         try{await c1.query('ROLLBACK');}catch{}
@@ -160,6 +172,10 @@ test('PG17: durable pre-PUT UNKNOWN claim blocks restart, race and unsafe replay
         verified:true,productionRecoveryReady:false
       });
       assert.equal((await state(db,KEY3)).phase,'VERIFIED');
+      assert.equal(await claim(db,KEY3),false,
+        'exact duplicate remains idempotent after verification');
+      await assert.rejects(claim(db,KEY3,sha('mutated after verification')),
+        /CLAIM_EVENT_KEY_HASH_CONFLICT/);
       assert.equal(provider.putCount,1);
       await assert.rejects(reconcile(db,KEY3,{provider,pin}),/CLAIM_NOT_UNKNOWN/);
     });
