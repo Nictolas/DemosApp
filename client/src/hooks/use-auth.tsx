@@ -82,11 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearTimeout(timeoutId);
 
         if (response.status === 401 || response.status === 404) {
+          // A late response for an old token must never log out a newer session.
+          if (getAuthToken() !== token) return null;
           clearSessionTokens();
+          // Stop old authenticated GETs before the vault write barrier and wipe.
+          // Do not cancel this currently executing ["user", token] query.
+          const nonAuthQuery = (query: { queryKey: readonly unknown[] }) =>
+            query.queryKey[0] !== "user";
+          await queryClient.cancelQueries({ predicate: nonAuthQuery });
+          queryClient.removeQueries({ predicate: nonAuthQuery });
           clearAllProfileSummaries();
           await clearAllEncryptedProfiles();
-          queryClient.removeQueries({ queryKey: ["profilePolitical"] });
-          queryClient.removeQueries({ queryKey: ["profileFull"] });
           setToken(null);
           return null;
         }
