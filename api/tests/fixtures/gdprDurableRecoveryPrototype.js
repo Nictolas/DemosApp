@@ -29,13 +29,42 @@ function checkOperation(operation) {
 class SyntheticWitness {
   #secret;
   #latest = null;
+  #lost = false;
   available = true;
 
   constructor(secret = 'synthetic-test-only') { this.#secret = secret; }
   attest(checkpoint) {
     if (!this.available) reject('GDPR_MODEL_WITNESS_UNAVAILABLE');
+    // A lost independent anchor must not be silently recreated by signing a
+    // restored, possibly truncated journal. Require external recovery instead.
+    if (this.#lost) reject('GDPR_MODEL_WITNESS_MISSING');
+    if (!checkpoint || typeof checkpoint !== 'object')
+      reject('GDPR_MODEL_WITNESS_INVALID_CHECKPOINT');
     const body = {epoch:checkpoint.epoch, count:checkpoint.count,
       head:checkpoint.head, sealed:checkpoint.sealed};
+    if (typeof body.epoch !== 'string' ||
+        !/^[a-zA-Z0-9_-]{1,80}$/.test(body.epoch) ||
+        !Number.isSafeInteger(body.count) || body.count < 0 ||
+        typeof body.head !== 'string' || !/^[a-f0-9]{64}$/.test(body.head) ||
+        typeof body.sealed !== 'boolean')
+      reject('GDPR_MODEL_WITNESS_INVALID_CHECKPOINT');
+    const prior = this.#latest;
+    if (!prior) {
+      // Initial acknowledgement must be the first append or an empty seal.
+      if (!((body.count === 1 && !body.sealed && body.head !== ZERO) ||
+            (body.count === 0 && body.sealed && body.head === ZERO)))
+        reject('GDPR_MODEL_WITNESS_NON_MONOTONIC');
+    } else {
+      const nextAppend = !prior.sealed && !body.sealed &&
+        body.count === prior.count + 1 && body.head !== prior.head;
+      const nextSeal = !prior.sealed && body.sealed &&
+        body.count === prior.count && body.head === prior.head;
+      const sealedRetry = prior.sealed && body.sealed &&
+        body.count === prior.count && body.head === prior.head;
+      if (body.epoch !== prior.epoch ||
+          !(nextAppend || nextSeal || sealedRetry))
+        reject('GDPR_MODEL_WITNESS_NON_MONOTONIC');
+    }
     const mac = crypto.createHmac('sha256', this.#secret)
       .update(canonical(body)).digest('hex');
     this.#latest = {...body, mac};
@@ -44,7 +73,8 @@ class SyntheticWitness {
   current() { return this.#latest && {...this.#latest}; }
   verify(checkpoint) {
     if (!this.available) reject('GDPR_MODEL_WITNESS_UNAVAILABLE');
-    if (!checkpoint || !this.#latest) reject('GDPR_MODEL_WITNESS_MISSING');
+    if (this.#lost || !checkpoint || !this.#latest)
+      reject('GDPR_MODEL_WITNESS_MISSING');
     const body = {epoch:checkpoint.epoch, count:checkpoint.count,
       head:checkpoint.head, sealed:checkpoint.sealed};
     const signed = crypto.createHmac('sha256', this.#secret)
@@ -58,7 +88,7 @@ class SyntheticWitness {
     return true;
   }
   // Simulate losing the independent anchor, not merely local SQL state.
-  lose() { this.#latest = null; }
+  lose() { this.#lost = true; this.#latest = null; }
 }
 
 class SyntheticExternalJournal {
