@@ -27,6 +27,9 @@ router.post('/logout', async (req, res) => {
     }
 
     let refreshSessionId = null;
+    // HTTP 200 must prove that at least one supplied credential was actually revoked.
+    // Invalid/expired credentials alone cannot confirm a server-side revocation.
+    let revocationPersisted = false;
     if (refreshToken && typeof refreshToken === 'string') {
       let decoded = null;
       try {
@@ -37,6 +40,21 @@ router.post('/logout', async (req, res) => {
       }
 
       if (decoded) {
+        // An authenticated logout must never mix two different accounts or
+        // modern sessions. Check *before* mutating PostgreSQL or Redis.
+        // Legacy tokens without a shared sid still retain the userId guard.
+        if (decodedAccess && (
+          !decodedAccess.userId ||
+          !decoded.userId ||
+          String(decodedAccess.userId) !== String(decoded.userId) ||
+          (decodedAccess.sid && decoded.sid && decodedAccess.sid !== decoded.sid)
+        )) {
+          return res.status(401).json({
+            success: false,
+            error: 'Credenziali di sessione incoerenti',
+          });
+        }
+
         refreshSessionId = decoded.sid || decoded.jti;
         if (!refreshSessionId) {
           throw new Error('Refresh token privo di identificatore di sessione');
@@ -50,19 +68,23 @@ router.post('/logout', async (req, res) => {
           ipAddress: req.ip || req.connection?.remoteAddress || null,
           userAgent: req.get('User-Agent') || null,
         });
+        revocationPersisted = true;
       }
     }
 
     try {
       // Revoca immediata dell'access token corrente su tutte le istanze backend.
       if (decodedAccess) {
-        await revokeDecodedAccessToken(decodedAccess);
+        // Legacy tokens without a usable sid/jti return false: this is NOT proof.
+        const accessRevoked = await revokeDecodedAccessToken(decodedAccess);
+        if (accessRevoked === true) revocationPersisted = true;
       }
 
       // I token moderni condividono lo stesso sid. Estendere la revoca a 24 ore
       // impedisce l'uso di qualunque access token già emesso per quella sessione.
       if (refreshSessionId) {
         await revokeAccessSession(refreshSessionId, MAX_ACCESS_TOKEN_TTL_SECONDS);
+        revocationPersisted = true;
       }
     } catch (error) {
       if (error?.code === 'ACCESS_REVOCATION_STORE_UNAVAILABLE') {
@@ -73,6 +95,13 @@ router.post('/logout', async (req, res) => {
         });
       }
       throw error;
+    }
+
+    if (!revocationPersisted) {
+      return res.status(401).json({
+        success: false,
+        error: 'Nessuna revoca server confermata',
+      });
     }
 
     res.status(200).json({

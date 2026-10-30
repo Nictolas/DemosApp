@@ -8,6 +8,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG, getApiUrl } from "@/lib/api-config";
 import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-token";
+import { requestLogoutRevocation, runBoundedLogoutSideEffect } from "@/lib/logout-revocation";
 import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
 import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
@@ -15,6 +16,8 @@ import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCa
 import { clearAllEncryptedProfiles, clearEncryptedProfile } from "@/pages/Profilo/utils/encryptedProfileVault";
 
 type VerifiedPoliticalConsent = { granted: boolean; timestamp: string | null };
+type LogoutResult = { localSessionCleared: true; serverRevocationConfirmed: boolean };
+const LOGOUT_REVOCATION_WARNING_KEY = "demos_logout_revocation_unconfirmed";
 
 interface User {
   id: string;
@@ -37,7 +40,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   isSessionVerified: boolean;
   verifiedPoliticalConsent: VerifiedPoliticalConsent | null;
-  logoutMutation: UseMutationResult<void, Error, void>;
+  logoutMutation: UseMutationResult<LogoutResult, Error, void>;
 };
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -53,6 +56,21 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  // A boolean-only, one-time warning survives the full-page redirect after
+  // offline/503 logout. No token, account ID or personal data is persisted.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(LOGOUT_REVOCATION_WARNING_KEY) !== "1") return;
+      sessionStorage.removeItem(LOGOUT_REVOCATION_WARNING_KEY);
+      toast({
+        title: "Disconnessione locale completata",
+        description: "La revoca della sessione sul server non è confermata. Se temi un accesso non autorizzato, cambia le credenziali e contatta l'assistenza.",
+        variant: "destructive",
+      });
+    } catch {
+      // Storage can be unavailable in restricted browser contexts.
+    }
+  }, [toast]);
   const [token, setToken] = useState<string | null>(() => {
     const storedToken = getAuthToken();
     if (!storedToken) return null;
@@ -174,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logoutMutation = useMutation<void, Error, void>({
+  const logoutMutation = useMutation<LogoutResult, Error, void>({
     mutationFn: async () => {
       const tokenToRevoke = token;
       const refreshTokenToRevoke = getRefreshToken();
@@ -182,19 +200,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Finché la sessione è ancora autenticata, disattiva il token push server-side.
       if (pushTokenToRevoke && tokenToRevoke) {
-        try {
-          await fetch(getApiUrl(`/fcm-tokens/${encodeURIComponent(pushTokenToRevoke)}`), {
+        const pushRemoved = await runBoundedLogoutSideEffect(async (signal) => {
+          const response = await fetch(getApiUrl(`/fcm-tokens/${encodeURIComponent(pushTokenToRevoke)}`), {
             method: "DELETE",
             headers: {
               Authorization: `Bearer ${tokenToRevoke}`,
             },
+            signal,
           });
-        } catch {
+          if (!response.ok) throw new Error("push-unregister-not-confirmed");
+        });
+        if (!pushRemoved) {
           console.warn("Impossibile disattivare il token push durante il logout (dettagli omessi)");
         }
       }
 
-      await unregisterNativePush();
+      // A native bridge can ignore cancellation and never settle. Keep this
+      // best-effort step bounded so it cannot indefinitely block local wipe.
+      const nativePushRemoved = await runBoundedLogoutSideEffect(async () => {
+        await unregisterNativePush();
+      });
+      if (!nativePushRemoved) {
+        console.warn("Errore disattivazione push nativo (dettagli omessi)");
+      }
       clearStoredNativePushToken();
       clearSessionTokens();
       // Abort authenticated requests and erase their in-memory results before
@@ -208,35 +236,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await clearAllEncryptedProfiles();
       setToken(null);
 
-      try {
-        await fetch(getApiUrl(API_CONFIG.AUTH.LOGOUT), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(tokenToRevoke ? { Authorization: `Bearer ${tokenToRevoke}` } : {}),
-          },
-          body: JSON.stringify({ refreshToken: refreshTokenToRevoke }),
-        });
-      } catch {
+      // Local deletion is complete, but server-side revocation must be
+      // confirmed separately. Never restore or persist a token for retry.
+      const revocation = await requestLogoutRevocation({
+        url: getApiUrl(API_CONFIG.AUTH.LOGOUT),
+        accessToken: tokenToRevoke,
+        refreshToken: refreshTokenToRevoke,
+      });
+      if (!revocation.serverRevocationConfirmed) {
         console.warn("Errore logout backend (dettagli omessi)");
       }
 
-      try {
+      // Credential Manager is another external native bridge: do not let an
+      // indefinitely pending plugin prevent the completed logout redirect.
+      const nativeCredentialsCleared = await runBoundedLogoutSideEffect(async () => {
         await clearNativeGoogleCredentialState();
-      } catch {
-        // Il logout DEMOS deve riuscire anche se Credential Manager non riesce
-        // a pulire il proprio stato locale. Never print provider exception details.
+      });
+      if (!nativeCredentialsCleared) {
         console.warn("Errore pulizia Credential Manager Android (dettagli omessi)");
       }
+      return { localSessionCleared: true, serverRevocationConfirmed: revocation.serverRevocationConfirmed };
     },
-    onSuccess: () => {
+    onSuccess: ({ localSessionCleared, serverRevocationConfirmed }) => {
       queryClient.setQueryData(["user"], null);
       queryClient.clear();
-      toast({
-        title: "Logout effettuato",
-        description: "Alla prossima!",
-        variant: "default",
-      });
+      if (localSessionCleared && !serverRevocationConfirmed) {
+        try {
+          sessionStorage.setItem(LOGOUT_REVOCATION_WARNING_KEY, "1");
+        } catch {
+          // If storage is blocked, a blocking notice is preferable to
+          // silently losing the warning during the immediate redirect.
+          window.alert("Disconnessione locale completata, ma la revoca sul server non è confermata.");
+        }
+      } else {
+        toast({
+          title: "Logout effettuato",
+          description: "Sessione locale rimossa e revoca server confermata.",
+          variant: "default",
+        });
+      }
       window.location.href = "/";
     },
   });

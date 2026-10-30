@@ -32,7 +32,7 @@ test("logout aborts authenticated queries and clears RAM before encrypted vault 
   assert.ok(start >= 0 && clearTokens > start, "logout must clear credentials");
   assert.ok(cancel > clearTokens && clearRam > cancel, "logout must cancel GETs and clear RAM");
   assert.ok(clearSummary > clearRam && clearVault > clearSummary, "vault wipe must follow RAM cleanup");
-  const onSuccess = authSource.indexOf("onSuccess: () =>", start);
+  const onSuccess = authSource.indexOf("onSuccess: ({ localSessionCleared, serverRevocationConfirmed }) =>", start);
   const fullClear = authSource.indexOf("queryClient.clear();", start);
   assert.ok(onSuccess > clearVault && fullClear > onSuccess && navigation > fullClear, "full cache clear stays in onSuccess, preserving logout navigation");
   assert.ok(navigation > clearVault, "navigation must not precede the encrypted purge");

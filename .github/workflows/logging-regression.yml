@@ -15,6 +15,9 @@ on:
       - 'api/services/axiomMigrationService.js'
       - 'api/routes/auth/profile.js'
       - 'api/routes/auth/logout.js'
+      - 'api/tests/logoutSessionEndToEnd.synthetic.test.js'
+      - 'api/tests/logoutRealStores.integration.test.js'
+      - 'api/tests/logoutUpstashRestTransport.integration.test.js'
       - 'api/routes/comunicazioni.js'
       - 'api/tests/logCredentialMinimization.test.js'
       - 'api/tests/diagnosticTokenMinimization.smoke.test.js'
@@ -96,6 +99,7 @@ jobs:
           node --check routes/auth/profile.js
           node --check routes/auth/logout.js
           node --test tests/logLogoutErrorMinimization.test.js
+          node --test tests/logoutSessionEndToEnd.synthetic.test.js
           node --check routes/comunicazioni.js
           node --check services/axiomMigrationService.js
           node --test tests/logCredentialMinimization.test.js tests/diagnosticTokenMinimization.smoke.test.js tests/unapprovedLogRetentionGuard.smoke.test.js
@@ -112,3 +116,55 @@ jobs:
       - name: Production dependency audit
         working-directory: api
         run: npm audit --omit=dev --audit-level=high
+
+  logout-real-stores:
+    name: Disposable real PostgreSQL and Redis logout integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: demos_logout_ci
+          POSTGRES_USER: demos_ci
+          POSTGRES_PASSWORD: disposable-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U demos_ci -d demos_logout_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies from lockfile
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Verify access and refresh revocation using disposable real stores
+        timeout-minutes: 4
+        env:
+          CI: 'true'
+          DEMOS_DISPOSABLE_LOGOUT_STORES: 'true'
+          DEMOS_LOGOUT_CI_POSTGRES_URL: postgresql://demos_ci:disposable-only@127.0.0.1:5432/demos_logout_ci
+          DEMOS_LOGOUT_CI_REDIS_URL: redis://127.0.0.1:6379
+        run: node --test --test-concurrency=1 api/tests/logoutRealStores.integration.test.js
+      - name: Verify production Upstash REST SDK against loopback Redis adapter
+        timeout-minutes: 4
+        env:
+          CI: 'true'
+          DEMOS_DISPOSABLE_LOGOUT_STORES: 'true'
+          DEMOS_LOGOUT_CI_REDIS_URL: redis://127.0.0.1:6379
+        run: node --test --test-concurrency=1 api/tests/logoutUpstashRestTransport.integration.test.js

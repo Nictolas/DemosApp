@@ -43,15 +43,15 @@ function loadRoute(overrides = {}) {
   return { handler, logs };
 }
 
-async function request(handler) {
+async function request(handler, { refreshToken = 'synthetic-refresh-token', authorization = 'Bearer synthetic-access-token' } = {}) {
   const result = { statusCode: null, body: null };
   const res = {
     status(code) { result.statusCode = code; return this; },
     json(body) { result.body = body; return this; },
   };
   await handler({
-    body: { refreshToken: 'synthetic-refresh-token' },
-    headers: { authorization: 'Bearer synthetic-access-token' },
+    body: { refreshToken },
+    headers: { authorization },
     ip: '192.0.2.1',
     get: () => 'synthetic-user-agent',
   }, res);
@@ -99,7 +99,7 @@ test('successful logout preserves refresh and access session revocation', async 
     '../../services/accessRevocationService': {
       MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
       revokeAccessSession: async (sid, ttl) => { called.push(['access-session', sid, ttl]); },
-      revokeDecodedAccessToken: async () => { called.push(['access-token']); },
+      revokeDecodedAccessToken: async () => { called.push(['access-token']); return true; },
     },
   });
   const response = await request(handler);
@@ -111,4 +111,145 @@ test('successful logout preserves refresh and access session revocation', async 
     ['access-session', 'synthetic-session', 86400],
   ]);
   assert.equal(logs.length, 0);
+});
+
+test('no credentials cannot be falsely reported as server revocation success', async () => {
+  const { handler, logs } = loadRoute();
+  const response = await request(handler, { refreshToken: null, authorization: null });
+  assert.equal(response.statusCode, 401);
+  assert.equal(response.body.success, false);
+  assert.equal(logs.length, 0);
+});
+
+test('both invalid credentials must not be reported as server revocation success', async () => {
+  const { handler, logs } = loadRoute({
+    '../../utils/jwt': {
+      verifyAccessToken: () => { throw new Error('synthetic-secret-access'); },
+      verifyRefreshToken: () => { throw new Error('synthetic-secret-refresh'); },
+    },
+  });
+  const response = await request(handler);
+  assert.equal(response.statusCode, 401);
+  assert.equal(response.body.success, false);
+  assert.ok(!JSON.stringify(logs).includes('synthetic-secret'));
+  assert.ok(!JSON.stringify(response).includes('synthetic-secret'));
+});
+
+test('valid access token without a usable sid/jti is not proof of revocation', async () => {
+  const called = [];
+  const { handler } = loadRoute({
+    '../../utils/jwt': {
+      verifyAccessToken: () => ({ userId: 'synthetic-user' }),
+      verifyRefreshToken: () => { throw new Error('invalid refresh'); },
+    },
+    '../../services/accessRevocationService': {
+      MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
+      revokeAccessSession: async () => { called.push('session'); },
+      revokeDecodedAccessToken: async () => { called.push('access'); return false; },
+    },
+  });
+  const response = await request(handler);
+  assert.equal(response.statusCode, 401);
+  assert.equal(response.body.success, false);
+  assert.deepEqual(called, ['access']);
+});
+
+test('a valid access credential alone can confirm its own revocation', async () => {
+  const called = [];
+  const { handler } = loadRoute({
+    '../../services/accessRevocationService': {
+      MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
+      revokeAccessSession: async () => { called.push('session'); },
+      revokeDecodedAccessToken: async () => { called.push('access'); return true; },
+    },
+  });
+  const response = await request(handler, { refreshToken: null });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+  assert.deepEqual(called, ['access']);
+});
+
+test('a valid refresh credential alone revokes refresh and associated access session', async () => {
+  const called = [];
+  const { handler } = loadRoute({
+    '../../services/sessionService': {
+      revokeRefreshSession: async ({ sessionId }) => { called.push(['refresh', sessionId]); },
+    },
+    '../../services/accessRevocationService': {
+      MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
+      revokeAccessSession: async (sid) => { called.push(['access-session', sid]); },
+      revokeDecodedAccessToken: async () => { called.push(['access-token']); return true; },
+    },
+  });
+  const response = await request(handler, { authorization: null });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+  assert.deepEqual(called, [['refresh', 'synthetic-session'], ['access-session', 'synthetic-session']]);
+});
+
+test('mixed account credentials cannot revoke either account', async () => {
+  const operations = [];
+  const { handler, logs } = loadRoute({
+    '../../utils/jwt': {
+      verifyAccessToken: () => ({ userId: 'synthetic-A', sid: 'device-A' }),
+      verifyRefreshToken: () => ({ userId: 'synthetic-B', sid: 'device-B' }),
+    },
+    '../../services/sessionService': {
+      revokeRefreshSession: async () => { operations.push('refresh'); },
+    },
+    '../../services/accessRevocationService': {
+      MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
+      revokeAccessSession: async () => { operations.push('access-session'); },
+      revokeDecodedAccessToken: async () => { operations.push('access-token'); return true; },
+    },
+  });
+  const result = await request(handler);
+  assert.equal(result.statusCode, 401);
+  assert.equal(result.body.success, false);
+  assert.deepEqual(operations, []);
+  assert.equal(logs.length, 0);
+});
+
+test('mixed devices of the same account cannot revoke the second session', async () => {
+  const operations = [];
+  const { handler, logs } = loadRoute({
+    '../../utils/jwt': {
+      verifyAccessToken: () => ({ userId: 'synthetic-A', sid: 'device-A1' }),
+      verifyRefreshToken: () => ({ userId: 'synthetic-A', sid: 'device-A2' }),
+    },
+    '../../services/sessionService': {
+      revokeRefreshSession: async () => { operations.push('refresh'); },
+    },
+    '../../services/accessRevocationService': {
+      MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
+      revokeAccessSession: async () => { operations.push('access-session'); },
+      revokeDecodedAccessToken: async () => { operations.push('access-token'); return true; },
+    },
+  });
+  const result = await request(handler);
+  assert.equal(result.statusCode, 401);
+  assert.equal(result.body.success, false);
+  assert.deepEqual(operations, []);
+  assert.equal(logs.length, 0);
+});
+
+test('legacy JWT without sid remains compatible when user IDs match', async () => {
+  const operations = [];
+  const { handler } = loadRoute({
+    '../../utils/jwt': {
+      verifyAccessToken: () => ({ userId: 'synthetic-A', jti: 'old-access' }),
+      verifyRefreshToken: () => ({ userId: 'synthetic-A', jti: 'old-refresh' }),
+    },
+    '../../services/sessionService': {
+      revokeRefreshSession: async () => { operations.push('refresh'); },
+    },
+    '../../services/accessRevocationService': {
+      MAX_ACCESS_TOKEN_TTL_SECONDS: 86400,
+      revokeAccessSession: async () => { operations.push('access-session'); },
+      revokeDecodedAccessToken: async () => { operations.push('access-token'); return true; },
+    },
+  });
+  const result = await request(handler);
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(operations, ['refresh', 'access-token', 'access-session']);
 });
