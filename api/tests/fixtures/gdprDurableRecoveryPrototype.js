@@ -132,10 +132,13 @@ class SyntheticExternalJournal {
     return committed;
   }
   prior(operation) {
-    const id = operation.id;
+    // Normalize before comparing: object property insertion order must not
+    // turn a legitimate retry into a false idempotency conflict.
+    const normalized = checkOperation(operation);
+    const id = normalized.id;
     const rows = this.entries.filter(e=>e.operation.id === id);
     if (!rows.length) return null;
-    if (rows.some(e=>canonical(e.operation) !== canonical(operation))) {
+    if (rows.some(e=>canonical(e.operation) !== canonical(normalized))) {
       reject('GDPR_MODEL_IDEMPOTENCY_CONFLICT');
     }
     if (rows.some(e=>e.phase === 'commit')) return 'committed';
