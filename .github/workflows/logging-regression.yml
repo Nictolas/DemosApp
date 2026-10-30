@@ -7,6 +7,8 @@ on:
       - 'api/services/centralizedLogger.js'
       - 'api/services/ministeroSync.js'
       - 'api/routes/ministero.js'
+      - 'api/routes/opinioni-proposte.js'
+      - 'api/tests/logOpinionProposalMinimization.test.js'
       - 'api/services/auditService.js'
       - 'api/services/axiomMigrationService.js'
       - 'api/routes/auth/profile.js'
@@ -62,6 +64,11 @@ jobs:
           node --check services/auditService.js
           node --check services/axiomArchiveService.js
           node --check scripts/verify-latest-axiom-archive.js
+      - name: Proposal vote privacy regression (synthetic, no DB)
+        working-directory: api
+        run: |
+          node --check routes/opinioni-proposte.js
+          node --test tests/logOpinionProposalMinimization.test.js
       - name: Logging privacy and delivery tests
         working-directory: api
         run: |
