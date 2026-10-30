@@ -87,7 +87,7 @@ async function scenario(browser, mode) {
       assert.equal(state.warning, null, 'Successful logout must not retain a warning');
       assert.equal(await page.getByText(/La revoca della sessione sul server non è confermata/).count(), 0);
     } else {
-      await page.getByText(/La revoca della sessione sul server non è confermata/).waitFor({ timeout: 10000 });
+      await page.getByText(/La revoca della sessione sul server non è confermata/).first().waitFor({ timeout: 10000 });
       assert.equal(state.warning, null, 'Boolean warning must be consumed after redirect');
     }
     // Same browser can later open account B; A cannot be reintroduced from storage.
