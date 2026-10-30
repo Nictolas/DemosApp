@@ -163,6 +163,32 @@ test('real disposable PostgreSQL + Redis: logout A invalidates access and refres
     assert.equal(await protectedStatus(aOther.accessToken), 200);
     assert.equal(await protectedStatus(b.accessToken), 200);
 
+    // A stale/mixed client must not revoke a different account or device.
+    for (const unrelatedRefresh of [b.refreshToken, aOther.refreshToken]) {
+      const mismatch = await fetch(base + '/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + a.accessToken,
+        },
+        body: JSON.stringify({ refreshToken: unrelatedRefresh }),
+      });
+      assert.equal(mismatch.status, 401, 'mixed credentials must be rejected');
+      assert.equal((await mismatch.json()).success, false);
+      const unchanged = await pool.query(
+        'SELECT id, is_active FROM active_sessions WHERE id = ANY($1)',
+        [[...sessionIds]],
+      );
+      assert.ok(unchanged.rows.every(row => row.is_active === true),
+        'mismatched logout must perform no PostgreSQL revocation');
+      assert.equal(await redis.get(cacheKeys.keys.revokedAccessSession(sessionIds[0])), null);
+      assert.equal(await redis.get(cacheKeys.keys.revokedAccessSession(sessionIds[1])), null);
+      assert.equal(await redis.get(cacheKeys.keys.revokedAccessSession(sessionIds[2])), null);
+    }
+    assert.equal(await protectedStatus(a.accessToken), 200);
+    assert.equal(await protectedStatus(aOther.accessToken), 200);
+    assert.equal(await protectedStatus(b.accessToken), 200);
+
     const logoutResponse = await fetch(base + '/api/auth/logout', {
       method: 'POST', headers: {
         'Content-Type': 'application/json', Authorization: 'Bearer ' + a.accessToken,
