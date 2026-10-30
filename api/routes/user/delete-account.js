@@ -97,16 +97,22 @@ router.delete('/', verifyToken, async (req, res) => {
       }
     }
 
-    // Log dell'inizio della cancellazione
-    await AuditService.logAction({
-      userId: userId,
-      action: 'ACCOUNT_DELETION_STARTED',
-      resource: 'user_account',
-      details: {
-        timestamp: new Date().toISOString(),
-        reason: 'User requested account deletion'
-      }
-    });
+    // Un problema del trasporto audit non deve impedire l'esercizio
+    // del diritto di cancellazione. L'eventuale mancata consegna va
+    // segnalata senza riportare payload o identificativi nel log tecnico.
+    try {
+      await AuditService.logAction({
+        userId,
+        action: 'ACCOUNT_DELETION_STARTED',
+        resource: 'user_account',
+        details: {
+          timestamp: new Date().toISOString(),
+          reason: 'User requested account deletion'
+        }
+      });
+    } catch {
+      console.error('ACCOUNT_DELETION_START_AUDIT_FAILED');
+    }
 
     await PrivacyErasureLedgerService.recordEvent(client, {
       userId,
