@@ -15,6 +15,7 @@ on:
       - 'api/services/axiomMigrationService.js'
       - 'api/routes/auth/profile.js'
       - 'api/routes/auth/logout.js'
+      - 'api/tests/logoutSessionEndToEnd.synthetic.test.js'
       - 'api/routes/comunicazioni.js'
       - 'api/tests/logCredentialMinimization.test.js'
       - 'api/tests/diagnosticTokenMinimization.smoke.test.js'
@@ -96,6 +97,7 @@ jobs:
           node --check routes/auth/profile.js
           node --check routes/auth/logout.js
           node --test tests/logLogoutErrorMinimization.test.js
+          node --test tests/logoutSessionEndToEnd.synthetic.test.js
           node --check routes/comunicazioni.js
           node --check services/axiomMigrationService.js
           node --test tests/logCredentialMinimization.test.js tests/diagnosticTokenMinimization.smoke.test.js tests/unapprovedLogRetentionGuard.smoke.test.js
