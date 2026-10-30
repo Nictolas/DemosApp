@@ -30,10 +30,14 @@ async function backfill(db,id,{afterLock}={}) {
     const erased=await db.query('SELECT 1 FROM ci_v2_bf_replay WHERE user_id=$1',[id]);
     if (erased.rowCount) {await db.query('ROLLBACK');return 'erased';}
     const already=await db.query('SELECT answers FROM ci_v2_bf_shadow WHERE user_id=$1 FOR UPDATE',[id]);
-    if (already.rowCount) {await db.query('COMMIT');return 'already';}
     const selection='SELECT '+ids.map(id=>'"'+id+'"').join(',')+
       ' FROM ci_v2_bf_legacy WHERE user_id=$1';
     const legacy=await db.query(selection,[id]);
+    if (already.rowCount) {
+      const same=legacy.rowCount && rollbackParity(already.rows[0].answers,legacy.rows[0],ids).canRollbackWithoutLoss;
+      await db.query('COMMIT');
+      return same ? 'already' : 'conflict';
+    }
     if (!legacy.rowCount) {await db.query('COMMIT');return 'no-legacy';}
     const answers=legacyRowToAnswers(legacy.rows[0],ids);
     if (!Object.keys(answers).length) {await db.query('COMMIT');return 'empty';}
@@ -115,12 +119,19 @@ test('synthetic v2 backfill: idempotence, consent, erasure and rollback gates',
     await t.test('skip revoked, empty, existing v2 and erased-on-restore accounts',async()=>{
       assert.equal(await backfill(a,uid(2)),'no-consent');
       assert.equal(await backfill(a,uid(3)),'empty');
-      assert.equal(await backfill(a,uid(4)),'already');
+      assert.equal(await backfill(a,uid(4)),'conflict');
       assert.deepEqual(await shadow(a,uid(4)),{opinione_0:'i',opinione_94:'c'});
       assert.equal(await backfill(a,uid(6)),'erased');
       assert.equal(await shadow(a,uid(2)),null);
       assert.equal(await shadow(a,uid(3)),null);
       assert.equal(await shadow(a,uid(6)),null);
+    });
+    await t.test('detect legacy changes after initial backfill without overwriting either side',async()=>{
+      await a.query('UPDATE ci_v2_bf_legacy SET "opinione_0"=$2 WHERE user_id=$1',[uid(1),'i']);
+      assert.equal(await backfill(a,uid(1)),'conflict');
+      assert.equal((await shadow(a,uid(1))).opinione_0,'f');
+      await a.query('UPDATE ci_v2_bf_legacy SET "opinione_0"=$2 WHERE user_id=$1',[uid(1),'f']);
+      assert.equal(await backfill(a,uid(1)),'already');
     });
     await t.test('invalid legacy value aborts atomically and preserves source',async()=>{
       await assert.rejects(()=>backfill(a,uid(5)),/Unexpected legacy answer/);
