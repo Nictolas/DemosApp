@@ -362,3 +362,76 @@ test('witness does not sign a seal carrying a newly introduced event entry',()=>
   journal.seal();
   assert.equal(journal.sealed,true);
 });
+
+
+test('reused committed receipt requires exact SQL operation marker, not just its ID',()=>{
+  const {journal,db}=setup();
+  const action=op('delete-1');
+  submitSyntheticOperation(db,journal,action);
+  const before=journal.entries.length;
+  // A corrupted marker with the same operation ID must never be acknowledged.
+  db.applied.set(action.id,'f'.repeat(64));
+  assert.throws(()=>submitSyntheticOperation(db,journal,action),
+    {code:'GDPR_MODEL_DB_JOURNAL_DIVERGENCE'});
+  assert.equal(journal.entries.length,before);
+  assert.equal(db.accounts.alice.exists,false);
+});
+
+test('reused receipt fails closed if the independent witness is offline or lost',()=>{
+  const {journal,db,witness}=setup();
+  const action=op('delete-1');
+  submitSyntheticOperation(db,journal,action);
+  const count=journal.entries.length;
+  witness.available=false;
+  assert.throws(()=>submitSyntheticOperation(db,journal,action),
+    {code:'GDPR_MODEL_WITNESS_UNAVAILABLE'});
+  witness.available=true;
+  witness.lose();
+  assert.throws(()=>submitSyntheticOperation(db,journal,action),
+    {code:'GDPR_MODEL_WITNESS_MISSING'});
+  assert.equal(journal.entries.length,count);
+});
+
+test('reused receipt refuses a truncated or internally altered journal',()=>{
+  const action=op('delete-1');
+  {
+    const {journal,db}=setup();
+    submitSyntheticOperation(db,journal,action);
+    journal.entries.pop(); // loses the witnessed commit
+    assert.throws(()=>submitSyntheticOperation(db,journal,action),
+      {code:'GDPR_MODEL_WITNESS_MISMATCH'});
+  }
+  {
+    const {journal,db}=setup();
+    submitSyntheticOperation(db,journal,action);
+    // Latest head remains unchanged, but an earlier record is modified.
+    journal.entries[0].operation.action='political_consent_granted';
+    assert.throws(()=>submitSyntheticOperation(db,journal,action),
+      {code:'GDPR_MODEL_CHAIN_INVALID'});
+  }
+});
+
+test('committed retry remains possible with an unrelated pending intent',()=>{
+  const {journal,db}=setup();
+  const deletion=op('delete-1');
+  submitSyntheticOperation(db,journal,deletion);
+  journal.prepare(op('bob-pending','political_consent_revoked','bob'));
+  const count=journal.entries.length;
+  assert.deepEqual(submitSyntheticOperation(db,journal,deletion),
+    {confirmed:true,reused:true});
+  assert.equal(journal.entries.length,count);
+  assert.equal(journal.prior(op('bob-pending','political_consent_revoked','bob')),
+    'pending');
+});
+
+test('new operation refuses an unverified existing live prefix before SQL changes',()=>{
+  const {journal,db,witness}=setup();
+  submitSyntheticOperation(db,journal,op('alice-revoke','political_consent_revoked'));
+  const before=db.snapshot();
+  witness.available=false;
+  assert.throws(()=>submitSyntheticOperation(db,journal,
+    op('bob-revoke','political_consent_revoked','bob')),
+    {code:'GDPR_MODEL_WITNESS_UNAVAILABLE'});
+  assert.deepEqual(db.accounts,before.accounts);
+  assert.equal(journal.entries.length,2);
+});
