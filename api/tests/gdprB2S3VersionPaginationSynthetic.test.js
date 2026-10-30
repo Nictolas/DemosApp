@@ -145,3 +145,20 @@ test('bounded pagination and exact page shape are mandatory',()=>{
     f=>{f.pages[1].Versions[0].Key='demos/axiom-archive/v1/bad';}
   ]){const f=fixture();edit(f);rejected(f);}
 });
+
+test('forged but consistently echoed continuation cursor cannot claim a complete scan',()=>{
+  for(const edit of [
+    f=>{f.pages[0].NextKeyMarker='fabricated-key';
+      f.pages[0].NextVersionIdMarker='fabricated-version';},
+    f=>{f.pages[0].NextKeyMarker=f.pages[0].Versions[0].Key;
+      f.pages[0].NextVersionIdMarker=f.pages[0].Versions[0].VersionId;},
+    f=>{f.pages[0].NextVersionIdMarker='other-version';}
+  ]){
+    const f=fixture();edit(f);
+    // An attacker can echo the same false cursor in the next request:
+    // prior validation only compared the two envelopes and accepted it.
+    f.pages[1].KeyMarker=f.pages[0].NextKeyMarker;
+    f.pages[1].VersionIdMarker=f.pages[0].NextVersionIdMarker;
+    rejected(f);
+  }
+});
