@@ -314,13 +314,18 @@ class PrivacyErasureB2Journal {
     );
   }
 
-  // A durable pre-PUT claim has not been wired into the actual exporter.
-  // Deny the default or explicitly supplied real AWS client at this DIRECT
-  // write entrypoint; the worker has a separate mandatory NO-GO guard.
-  // Injected fake clients are for synthetic CI only, not a security boundary
-  // for a deployed service or a permit to wrap real provider clients.
+  // A durable pre-PUT claim has NOT been implemented. A wrapped S3Client
+  // can evade instanceof, so arbitrary injected clients must NOT enable
+  // a direct write from an application/CLI process. Permit the old mock
+  // transport ONLY in explicitly isolated GitHub Actions test processes.
+  // This is a temporary negative gate, NOT a proof that CI mocks are real
+  // provider attestations or a production-grade capability mechanism.
   assertNoRealWriteTransport() {
-    if (!this.client || this.client instanceof S3Client) {
+    const testFile = typeof process.argv[1] === 'string'
+      ? process.argv[1].replace(/\\/g, '/') : '';
+    const isolatedTest = process.env.GITHUB_ACTIONS === 'true' &&
+      /(?:^|\\/)api\\/tests\\/[A-Za-z0-9_.-]+\\.test\\.js$/.test(testFile);
+    if (!isolatedTest || !this.client || this.client instanceof S3Client) {
       throw Error('GDPR_B2_DURABLE_PUT_CLAIM_NOT_IMPLEMENTED');
     }
   }
