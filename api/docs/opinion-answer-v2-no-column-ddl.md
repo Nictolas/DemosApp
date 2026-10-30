@@ -1484,3 +1484,58 @@ all'ingresso, inclusi richieste gia avviate, worker e
 cache. Non bisogna interpretare questa riduzione di
 una chiamata come autorizzazione al cutover o garanzia
 contro race infrastrutturali. PR #483 resta Draft/NO-GO.
+
+
+## Piano di migrazione minima e ritorno non distruttivo — ricerca 31/10/2026
+
+Ho preparato il file **NON eseguibile in produzione senza una nuova
+autorizzazione** `api/experiments/opinionAnswersV2AddOnlyColumn.sql`.
+Il solo cambiamento proposto e
+`ALTER TABLE public.opinioni_risposte ADD COLUMN IF NOT EXISTS
+answers_extra jsonb;`. Il tipo e JSONB **nullable** e senza
+default: nessuna riscrittura o backfill delle 94 colonne TEXT
+e nessuna modifica a `fonti_opinioni`.
+Il comando e *idempotente* sulla stessa versione di schema.
+Il lock di DDL deve essere gestito dall'operatore con un timeout
+breve e una finestra controllata, dopo un preflight di sola lettura.
+
+Il rollback sicuro **NON e un rollback dello schema**:
+per tornare al codice precedente si disabilita anzitutto
+la pubblicazione delle nuove Opinioni (ID non presenti
+nelle 94 colonne), si sospende il traffico durante lo switch,
+si lascia completare la scrittura in corso, si invalida
+la cache del client e si verifica il gate GDPR/B2 esterno.
+Poi si ripristina *solo il codice applicativo*: le 94 colonne
+rimangono utilizzabili dal backend vecchio, mentre
+`answers_extra` resta fisicamente nella stessa tabella.
+Eliminare la colonna significherebbe distruggere le risposte
+politiche nuove/archiviate, incidendo anche sul diritto
+di accesso e sul principio di integrita GDPR.
+
+`api/experiments/opinionAnswersV2RollbackCandidate.js`
+e un **validatore di piano** che rifiuta il fallback
+se esistono ancora Opinioni future pubblicate, se manca
+uno dei prerequisiti dichiarati o se sono stati modificati
+gli ID storici. Non verifica autonomamente ingress,
+worker, cache o il registro GDPR: e non autorizza mai
+un rilascio. Non fornisce istruzioni SQL distruttive.
+
+`api/tests/opinionAnswersV2AdditiveRollback.pg.test.js`
+esegue la migrazione esclusivamente in uno schema sintetico
+del PostgreSQL 17 di CI, con 94 colonne e due utenti
+di prova. Verifica la compatibilita e l'idempotenza
+dell'ALTER, l'assenza di modifiche ai valori storici,
+il salvataggio misto old+future e delle fonti, una
+scrittura realistica del backend precedente che non
+cancella il JSONB, la riattivazione del nuovo backend
+che rilegge la risposta futura senza modificare la riga,
+e la DELETE integrale per la revoca.
+
+**Limiti NO-GO:** il test non e una migrazione su Supabase
+e non misura il tempo reale di lock della tabella con
+carico di produzione. Non collauda un vero client Android,
+le cache #464 o il ripristino da B2 (#374).
+Sono necessarie conferma dello schema reale, revisione
+privacy, validazione e approvazione esplicita prima di
+qualsiasi DDL o attivazione. Nessuna PR coordinata e stata
+modificata o integrata da questi esperimenti.
