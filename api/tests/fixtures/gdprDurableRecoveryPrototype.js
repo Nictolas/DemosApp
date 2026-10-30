@@ -145,8 +145,12 @@ class SyntheticExternalJournal {
     this.entries.push(entry);
     return entry;
   }
-  verify() {
-    if (!this.sealed) reject('GDPR_MODEL_WRITERS_NOT_SEALED');
+  // Validate a live prefix without requiring all operations to have committed.
+  // This also gates idempotent receipt reuse: a cached local row alone is not
+  // proof that the current independent witness still attests the chain.
+  validatePrefix({requireSealed=false,allowPending=true}={}) {
+    if (requireSealed && !this.sealed)
+      reject('GDPR_MODEL_WRITERS_NOT_SEALED');
     let previous = ZERO;
     const pending = new Map();
     const pendingSubjects = new Map();
@@ -183,8 +187,11 @@ class SyntheticExternalJournal {
       previous = e.hash;
     }
     this.witness.verify({...this.state(),mac:this.witness.current()?.mac});
-    if (pending.size) reject('GDPR_MODEL_AMBIGUOUS_INTENT');
+    if (!allowPending && pending.size) reject('GDPR_MODEL_AMBIGUOUS_INTENT');
     return committed;
+  }
+  verify() {
+    return this.validatePrefix({requireSealed:true,allowPending:false});
   }
   prior(operation) {
     // Normalize before comparing: object property insertion order must not
@@ -286,13 +293,16 @@ class SyntheticDatabase {
 function submitSyntheticOperation(db,journal,raw,{crashAt=null}={}) {
   const op=checkOperation(raw);
   if (journal.sealed) reject('GDPR_MODEL_JOURNAL_SEALED');
-  if (journal.prior(op) === 'committed') {
-    // Reuse an already externally committed receipt; no duplicate SQL write.
-    if (!db.applied.has(op.id)) reject('GDPR_MODEL_DB_JOURNAL_DIVERGENCE');
+  // A committed retry must never succeed using only a local SQL marker or a
+  // stale/tampered journal. A live prefix may contain other pending subjects.
+  if (journal.entries.length) journal.validatePrefix();
+  const prior=journal.prior(op);
+  if (prior === 'committed') {
+    if (!db.hasExactCommit(op)) reject('GDPR_MODEL_DB_JOURNAL_DIVERGENCE');
     return {confirmed:true,reused:true};
   }
   // Unknown precommit outcome is never automatically acknowledged or retried.
-  if (journal.prior(op) === 'pending') reject('GDPR_MODEL_AMBIGUOUS_INTENT');
+  if (prior === 'pending') reject('GDPR_MODEL_AMBIGUOUS_INTENT');
   if (crashAt === 'before_prepare') reject('GDPR_MODEL_SIMULATED_CRASH');
   journal.prepare(op);
   if (crashAt === 'after_prepare') reject('GDPR_MODEL_SIMULATED_CRASH');
