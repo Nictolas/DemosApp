@@ -60,10 +60,11 @@ test('PG17 + localhost HTTP: old/new answers save, list, revoke, regrant, privac
     await a.query('INSERT INTO user_consents VALUES($1,true)',[subject]);
 
     const state={
-      gateReady:true,sql:[],notices:[],failNotices:false,
+      gateReady:true,gateChecks:0,sql:[],notices:[],failNotices:false,
       acquisitions:0,releases:0
     };
     const externalGate=async()=>{
+      state.gateChecks++;
       if(!state.gateReady){
         const e=Error('external restore not verified');e.code='RESTORE_NOT_READY';
         throw e;
@@ -144,6 +145,7 @@ test('PG17 + localhost HTTP: old/new answers save, list, revoke, regrant, privac
     });
     await t.test('initial GET returns null for both opinions with ONE consent-gated SELECT',async()=>{
       const before=state.sql.length;
+      const previousGateChecks=state.gateChecks;
       const response=await get();
       assert.equal(response.status,200);
       assert.deepEqual(response.data,{
@@ -156,6 +158,8 @@ test('PG17 + localhost HTTP: old/new answers save, list, revoke, regrant, privac
         ]
       });
       assert.equal(state.sql.length-before,1);
+      assert.equal(state.gateChecks-previousGateChecks,1,
+        'personal GET must verify external restore exactly once');
       assert.match(state.sql.at(-1),/AND COALESCE\(uc.political_opinions_consent,/);
     });
     await t.test('POST mixed historical+future IDs saves once; next GET sees both',async()=>{
