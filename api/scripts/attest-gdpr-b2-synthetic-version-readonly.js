@@ -79,6 +79,11 @@ function readOnlyTransport(client, cfg) {
   }};
 }
 
+// Cleanup must never turn a timeout into a thrown, potentially sensitive SDK error.
+function destroyBodyQuietly(body) {
+  try { body?.destroy?.(); } catch (_) { /* already NO-GO */ }
+}
+
 async function boundedBytes(body) {
   if (!body || typeof body[Symbol.asyncIterator] !== 'function') {
     throw Error(CLOSED);
@@ -89,7 +94,7 @@ async function boundedBytes(body) {
     const buffer = Buffer.isBuffer(part) ? part : Buffer.from(part);
     size += buffer.length;
     if (size > MAX_BYTES) {
-      body.destroy?.();
+      destroyBodyQuietly(body);
       throw Error(CLOSED);
     }
     parts.push(buffer);
@@ -122,7 +127,7 @@ async function verifySyntheticVersion({
   const deadline = new Promise((_, reject) => {
     timeout = setTimeout(() => {
       controller.abort();
-      activeBody?.destroy?.();
+      destroyBodyQuietly(activeBody);
       reject(Error(CLOSED));
     }, timeoutMs);
   });
@@ -164,7 +169,7 @@ async function verifySyntheticVersion({
         (response.ContentLength != null &&
           (!Number.isSafeInteger(response.ContentLength) ||
             response.ContentLength < 0 || response.ContentLength > MAX_BYTES))) {
-      response.Body?.destroy?.();
+      destroyBodyQuietly(response.Body);
       throw Error(CLOSED);
     }
     const actual = await Promise.race([boundedBytes(response.Body), deadline]);
@@ -187,8 +192,8 @@ async function verifySyntheticVersion({
   finally {
     clearTimeout(timeout);
     controller.abort();
-    activeBody?.destroy?.();
-    client?.destroy?.();
+    destroyBodyQuietly(activeBody);
+    try { client?.destroy?.(); } catch (_) { /* already NO-GO */ }
   }
 }
 
