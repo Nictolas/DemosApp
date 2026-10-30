@@ -182,3 +182,83 @@ test('same-subject revoke/grant order is retained even with unrelated interleavi
   assert.throws(()=>submitSyntheticOperation(db,journal,grantAlice),
     {code:'GDPR_MODEL_JOURNAL_SEALED'});
 });
+
+
+test('same-subject snapshot markers must form a committed prefix',()=>{
+  const {db,journal}=setup();
+  submitSyntheticOperation(db,journal,b);
+  submitSyntheticOperation(db,journal,grantBob);
+  const damaged=db.snapshot();
+  damaged.applied.delete(b.id); // later grant marker survives, earlier revoke lost
+  const before=damaged.snapshot();
+  journal.seal();
+  assert.throws(()=>restoreSyntheticSnapshot(damaged,journal,fences(journal)),
+    {code:'GDPR_MODEL_SNAPSHOT_LINEAGE_INVALID'});
+  assert.deepEqual(damaged.accounts,before.accounts);
+  assert.deepEqual([...damaged.applied],[...before.applied]);
+});
+
+test('a genuine same-subject prefix snapshot replays the later grant',()=>{
+  const {db,journal}=setup();
+  submitSyntheticOperation(db,journal,b);
+  const old=db.snapshot();
+  submitSyntheticOperation(db,journal,grantBob);
+  journal.seal();
+  const result=restoreSyntheticSnapshot(old,journal,fences(journal));
+  assert.equal(result.database.accounts.bob.consent,true);
+  assert.equal(result.database.applied.size,2);
+  assert.equal(result.productionRecoveryReady,false);
+});
+
+test('cross-subject SQL snapshot markers need not match global journal commit order',()=>{
+  const {db,journal}=setup();
+  journal.prepare(a);
+  journal.prepare(b);
+  db.apply(a);
+  const snapshot=db.snapshot(); // Alice SQL commit precedes Bob
+  db.apply(b);
+  journal.commit(b); // Bob external commit precedes Alice
+  journal.commit(a);
+  journal.seal();
+  const result=restoreSyntheticSnapshot(snapshot,journal,fences(journal));
+  assert.equal(result.database.accounts.alice.exists,false);
+  assert.equal(result.database.accounts.bob.consent,false);
+  assert.equal(result.database.applied.size,2);
+});
+
+test('snapshot refuses unknown or mismatched operation fingerprints',()=>{
+  for(const mutate of [
+    s=>s.applied.set('foreign-commit','f'.repeat(64)),
+    s=>s.applied.set(a.id,'f'.repeat(64))
+  ]){
+    const {db,journal}=setup();
+    submitSyntheticOperation(db,journal,a);
+    const snapshot=db.snapshot();
+    mutate(snapshot);
+    journal.seal();
+    assert.throws(()=>restoreSyntheticSnapshot(snapshot,journal,fences(journal)),
+      {code:'GDPR_MODEL_SNAPSHOT_LINEAGE_INVALID'});
+  }
+});
+
+test('snapshot marker plus resurrected deleted account fails before replay',()=>{
+  const {db,journal}=setup();
+  submitSyntheticOperation(db,journal,a);
+  const snapshot=db.snapshot();
+  snapshot.accounts.alice.exists=true; // marker and account from different times
+  journal.seal();
+  assert.throws(()=>restoreSyntheticSnapshot(snapshot,journal,fences(journal)),
+    {code:'GDPR_MODEL_SNAPSHOT_STATE_DIVERGENCE'});
+  assert.equal(snapshot.accounts.alice.exists,true);
+});
+
+test('snapshot marker plus inconsistent consent fails before replay',()=>{
+  const {db,journal}=setup();
+  submitSyntheticOperation(db,journal,b);
+  const snapshot=db.snapshot();
+  snapshot.accounts.bob.consent=true;
+  journal.seal();
+  assert.throws(()=>restoreSyntheticSnapshot(snapshot,journal,fences(journal)),
+    {code:'GDPR_MODEL_SNAPSHOT_STATE_DIVERGENCE'});
+  assert.equal(snapshot.accounts.bob.consent,true);
+});
