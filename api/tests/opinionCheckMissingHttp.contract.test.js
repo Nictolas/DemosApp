@@ -53,9 +53,15 @@ test('personal check-missing GETs never permit HTTP caching and reject invalid r
     assert.equal(unauth.status,401);
     assert.equal(calls.length,0,'401 must never touch personal SQL');
 
-    const invalid=await checked('/api/opinioni/check-missing/UNKNOWN');
-    assert.equal(invalid.status,400);
-    assert.equal(calls.length,0,'Invalid grade must never touch personal SQL');
+    // Even JavaScript Object.prototype names must not be accepted as grades.
+    // Older object-key lookups silently treated these as valid and could
+    // return a false 100%-complete result with no SQL.
+    for(const grade of ['UNKNOWN','constructor','toString','valueOf','__proto__']){
+      const invalid=await checked('/api/opinioni/check-missing/'+grade);
+      assert.equal(invalid.status,400,'Invalid or inherited grade '+grade);
+      assert.equal(invalid.body.success,false);
+      assert.equal(calls.length,0,'Invalid grade must never touch personal SQL');
+    }
 
     const province=await checked('/api/opinioni/check-missing/C');
     assert.equal(province.status,200);
