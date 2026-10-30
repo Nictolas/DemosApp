@@ -184,3 +184,72 @@ piano approvato e testato.
 account con consenso revocato/cancellati e preservare la validità del ledger
 di revoca anche dopo PITR/restore. Una copia legacy non può mai diventare
 un fallback che ricrea dati personali cancellati.
+
+
+## Confronto stesso campione con i codec reali della PR #247 (30 ottobre 2026)
+
+Il benchmark di questa PR ora legge i tre codec della PR #247 **direttamente
+da uno snapshot Git immutabile** (commit 17c935e5ab6e7500297d14e4e3b9c2e822a1a459),
+tramite un secondo checkout GitHub Actions. Nessun codec è copiato o
+modificato dalla PR #483. Il confronto si svolge su **esattamente le stesse
+risposte sintetiche** per 1.200 utenti, 94 Opinioni e densità del 9%/45%.
+
+Per i tre formati BYTEA è presente un campo catalog_version INTEGER per
+ogni utente. **Non è conteggiata l'eventuale tabella condivisa dei manifest
+storici**, né il costo di recupero della versione/rotazione dei cataloghi,
+di conversione del dato o di locking read-modify-write. La query SQL
+*ad hoc* per leggere un singolo bitset sparse usa una funzione temporanea
+PL/pgSQL che scorre i byte; è un riferimento sperimentale, NON un decoder
+ottimizzato di produzione. Mancano fonti_opinioni, consenso e indici
+territoriali, ugualmente per tutte le tabelle. Dimensioni su PostgreSQL 17
+con PK INTEGER sintetica, non UUID reale.
+
+### Spazio totale tabella più indici (pg_total_relation_size)
+
+| Densità | Colonne TEXT | JSONB | Una riga/risposta | 2-bit fisso | 2-bit trimmed | 2-bit sparse |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 9% | 163.840 B | 344.064 B | 1.376.256 B | 163.840 B | 163.840 B | 147.456 B |
+| 45% | 245.760 B | 1.179.648 B | 6.979.584 B | 163.840 B | 163.840 B | 188.416 B |
+
+### Aggregazione di una singola Opinione: p50 SQL server-side
+
+| Densità | Colonne TEXT | JSONB | Righe | Fisso | Trimmed | Sparse (funzione PL/pgSQL) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 9% | 0,120 ms | 0,172 ms | 0,033 ms | 0,171 ms | 0,174 ms | 1,910 ms |
+| 45% | 0,147 ms | 0,334 ms | 0,105 ms | 0,275 ms | 0,280 ms | 3,145 ms |
+
+Tutti e sei i formati producono **i medesimi tre conteggi f/c/i**.
+Le misure (12 ripetizioni, EXPLAIN ANALYZE) sono soggette a variabilità
+runner, pagina e planner. Non simulano consenso, rete, API, distribuzione
+territoriale, milioni di utenti, aggiornamenti concorrenti o un costo mensile.
+
+Il formato sparse risparmia 16.384 B sulla tabella al 9% (solo **13,65 B
+per utente** in questo campione), ma l'aggregazione sperimentale è circa
+16 volte più lenta della TEXT in p50; a densità 45% sparse usa
+**24.576 B in più** del bitset fisso. La bitmap fissa migliora lo spazio
+rispetto a TEXT nel campione al 45%, non al 9%; le sue aggregazioni sono
+comunque più lente in questa misura. Non c'è un formato universalmente
+migliore.
+
+### ID immutabili, aggiunta e rimozione dal catalogo
+
+La PR #483 ora prova con i codec della #247 che si possa appendere un
+ID 95 senza cambiare gli ordinali delle 94 domande iniziali. Per
+"eliminare" una domanda pubblicata, il catalogo visibile può nasconderla,
+**ma lo slot storico deve restare nel manifest di decodifica**. Rimuovere
+fisicamente un ID da un elenco ordinato e ricompattare gli slot non è
+sicuro: confonderebbe le vecchie risposte fra Opinioni diverse. Gli ID
+non possono mai essere riciclati.
+
+Un manifest storico nel codice (senza query al DB per il catalogo)
+è possibile solo se ogni release conserva la possibilità di
+decodificare TUTTE le versioni ancora persistenti. Non viene garantito
+automaticamente dal prototipo: servono test di upgrade e rollback, e
+gestione di versioni eventualmente sconosciute. Se il manifest
+versionato fosse invece una tabella SQL, sarebbe necessario chiarire
+come evitare le riletture nel normale percorso applicativo.
+
+**Decisione:** mantenere il vecchio schema fino a una scelta condivisa
+e motivata. I dati non giustificano da soli la migrazione BYTEA o JSONB,
+e l'attuale esigenza di nuove colonne non autorizza a perdere risposte,
+compatibilità Android o garanzie GDPR.
