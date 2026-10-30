@@ -61,3 +61,16 @@ test('base statistics route displays the selector, while deep links retain their
     assert.equal(scope.readOpinionId(), expected, pathname);
   }
 });
+
+test('disabled React Query cannot display cached political answers after consent loss', () => {
+  const canRead = selector.indexOf('const canReadOpinions =');
+  const renderGuard = selector.indexOf('if (!canReadOpinions) return null;');
+  const display = selector.indexOf('const questions = questionsData.data;');
+  assert.ok(canRead > 0 && renderGuard > canRead && display > renderGuard,
+    'A revoked or unverified session must not render previously retained query data');
+  assert.match(selector, /const canReadOpinions = !!user\?\.id && isSessionVerified &&\s*verifiedPoliticalConsent\?\.granted === true && !!verifiedPoliticalConsent\.timestamp/);
+});
+
+test('malformed grade labels cannot alias inherited object properties as cache grades', () => {
+  assert.match(selector, /Object\.prototype\.hasOwnProperty\.call\(cacheGradeByLabel, grado\.trim\(\)\.toLowerCase\(\)\)/);
+});
