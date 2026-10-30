@@ -1604,3 +1604,55 @@ revisione indipendente delle variazioni consentite.
 Questa ricerca non modifica gli endpoint attivi,
 non crea servizi di pubblicazione e non aggiorna
 Supabase/Android. PR #483 rimane Draft/NO-GO.
+
+
+## Ulteriore minimizzazione statistiche: 10 per ogni categoria positiva
+
+**Problema rilevato:** una soglia di 10 applicata solo al numero totale
+di rispondenti non protegge i piccoli sottogruppi delle categorie
+`favorevole`, `contrario`, `indeciso`. Esempio: 30 risposte
+(29 favorevoli, 1 contraria) superano la soglia totale,
+ma pubblicare i tre numeri espone una categoria politica di UNA persona.
+
+I moduli sperimentali di statistiche nazionali, regionali e
+demografiche ora applicano una regola piu prudente:
+pubblicare una cella completa **solo se il totale e almeno 10**
+e **ciascuna categoria positiva contiene almeno 10 risposte**.
+Le categorie pari a zero non sono trattate come categorie
+positive da sopprimere: un insieme di dieci sole risposte
+favorevoli (10/0/0) supera il controllo statico.
+Una cella 29/1/0, 9/10/10 oppure 4/3/3 viene soppressa.
+
+Il pianificatore coerente nazionale/regionale sopprime
+tutte le regioni se il nazionale stesso contiene una
+categoria positiva con meno di 10 risposte; per le
+singole regioni il controllo vale separatamente prima
+della soppressione complementare del resto del territorio.
+Le statistiche per sesso ed eta sopprimono l'INTERO
+dettaglio quando anche una sola categoria positiva
+in una fascia valida risulta sotto 10, per non lasciare
+residui ricostruibili tramite differenze fra gruppi.
+Le API sperimentali conservano i campi JSON legacy
+`success`, `data`, `stats`, `totaleUtenti`, `minimumCellSize`,
+ma non espongono `stats` e `totaleUtenti` in caso di
+soppressione. La validazione dei conteggi usa la
+verifica rigorosa degli interi PostgreSQL gia introdotta.
+
+**Prove di regressione:** unita regionali, nazionali,
+demografiche, inviluppi pubblici e gate temporale,
+oltre ai test HTTP di compatibilita nazionali/regionali.
+I casi di prova includono 29 favorevoli + 1 contrario,
+gruppi 10/10/10 che restano visibili, categorie
+con nove risposte, conteggi malformati e medesimi
+campi di risposta Android.
+
+**NON e una garanzia definitiva di riservatezza:**
+anche gruppi >=10 con singole categorie >=10 possono
+essere vulnerabili a versioni successive, intersezioni
+fra territori/demografia, dati ausiliari, selezione
+ripetuta di filtri e pubblico con conoscenze esterne.
+Restano obbligatori il gate anti-deduzione temporale,
+la revisione indipendente dell'intera superficie
+statistica e la policy per cache e vecchie versioni.
+Questa modifica e nel solo ramo di ricerca #483,
+non nelle statistiche pubbliche attive.
