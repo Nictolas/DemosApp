@@ -253,3 +253,76 @@ come evitare le riletture nel normale percorso applicativo.
 e motivata. I dati non giustificano da soli la migrazione BYTEA o JSONB,
 e l'attuale esigenza di nuove colonne non autorizza a perdere risposte,
 compatibilità Android o garanzie GDPR.
+
+
+## Prova di backfill e rollback reversibile (30 ottobre 2026)
+
+Aggiunti il prototipo **inattivo** di verifica dei dati
+`api/experiments/opinionAnswersV2BackfillCandidate.js` e il test SQL
+`api/tests/opinionAnswersV2Backfill.pg.test.js`. Il test opera soltanto
+su tabelle `ci_v2_bf_*` di PostgreSQL 17 effimero, con nove utenti e
+94 colonne completamente **fittizi**. Non è un migratore di produzione.
+
+Il test copre:
+
+- Copia di tutte e sole le risposte non nulle `f/c/i` dalle 94 colonne
+  alla mappa JSONB; un valore non valido causa rollback, non correzione
+  silenziosa. Le fonti JSONB restano nella vecchia tabella durante la
+  prova: la loro migrazione **non è implementata**.
+- Ogni account va bloccato con `FOR UPDATE`; solo **dopo** il lock
+  si rileggono consenso e stato di cancellazione. Account senza consenso,
+  dati vuoti o con segnale di cancellazione ricostruito da un registro
+  esterno **non** vengono copiati.
+- L'operazione è idempotente: una seconda copia non deve sovrascrivere
+  una risposta già presente nella nuova struttura. Se cambia una
+  risposta legacy dopo la prima copia, o se v2 contiene risposte che
+  non esistono nel sistema precedente, il test segnala **conflitto**:
+  l'assenza di errori SQL non significa migrazione corretta.
+- Salvataggio/copia in attesa del lock e revoca del consenso in
+  concorrenza: la revoca elimina entrambe le rappresentazioni e una
+  copia in coda non può far riapparire i dati.
+- `rollbackCoverage` impedisce un ritorno cieco al formato precedente
+  se esistono nuovi ID non rappresentabili (es. la 95ª Opinione).
+  `rollbackParity` blocca anche le modifiche a Opinioni *già esistenti*
+  che siano presenti solo nella nuova struttura. Il rollback del solo
+  codice può altrimenti perdere o riportare indietro le risposte.
+
+Il registro di cancellazione usato nel test è una **tabella fittizia
+già ripopolata** per simulare un evento esterno al ripristino. Un registro
+conservato nello stesso snapshot del DB potrebbe essere riportato
+indietro assieme alle risposte: questo test **non prova** un ripristino
+reale da B2 e non sostituisce l'integrazione con il ledger GDPR esistente.
+
+### Sequenza di rilascio possibile — NON autorizzata
+
+1. **Preparazione:** inventariare ogni percorso SQL/HTTP/Android e la
+   posizione delle fonti; eseguire parità 94/94, verifica degli account,
+   consenso e rischi di ripristino. Escludere qualunque autodeploy,
+   merge o modifica del database da questa PR di ricerca.
+2. **Ombra (solo dopo autorizzazione):** predisporre una tabella
+   privata v2 e permessi strettamente necessari; copia con lock sullo
+   stesso utente, consenso verificato dopo lock e registro di
+   cancellazione autorevole. Verificare la parità di risposte/consensi
+   e fermarsi sui conflitti. Non eliminare le 94 colonne.
+3. **Scritture coerenti:** definire un'unica autorità per le risposte e
+   instradare **tutti** i writer, incluse API legacy e Profilo, attraverso
+   il medesimo protocollo atomico di consenso/revoca. Nessuna doppia
+   scrittura eventualmente incoerente e nessuna copia opportunistica
+   da snapshot del client.
+4. **Switch controllato:** adeguare GET/POST, Sondaggi, statistiche,
+   matching, fonti, GDPR export/cancellazione, cache #464, catalogo
+   #384 e vecchi Android. Su database testare i conteggi con soglia
+   minima 10 e una revoca che riduce una cella da 10 a 9.
+5. **Rollback prima di accettare nuove Opinioni:** verificare
+   parità *di valori*, non solo di ID. Se v2 accetta un ID senza
+   colonna legacy o una modifica non sincronizzata, il vecchio
+   deploy non può essere ripristinato senza una procedura di recupero
+   separata e senza rischi di perdita di dati.
+6. **Pulizia successiva:** dismettere l'architettura precedente solo
+   dopo collaudi Android reali, verifica restore/erasure B2,
+   benchmark rappresentativi, piano di rollback dimostrato e
+   autorizzazione specifica per ogni passo irreversibile.
+
+**Gate:** il completamento dei test isolati non autorizza alcun
+`CREATE TABLE`, backfill reale, dual write, cambio di fonte,
+pubblicazione, merge o deploy. Lo schema attuale resta autorevole.
