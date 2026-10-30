@@ -1170,3 +1170,56 @@ revoca+regrant e cancellazione integrale dell'account.
 **Non eseguiti:** un vero ripristino B2/PITR, test
 con utenti reali, API runtime, middleware/auth/RLS,
 DDL, deployment o merge. PR #483 resta Draft / NO-GO.
+
+
+## Contratto di apertura post-restore: verifica esterna, non flag nel DB
+
+La verifica del 30/10 ha confermato che l'attuale
+`PrivacyErasureLedgerService.applyCurrentPrivacyState`
+seleziona per ogni soggetto soltanto l'**ultimo** evento tra
+`political_consent_granted` e `political_consent_revoked`.
+Se un backup vecchio contiene risposte, un utente revoca
+il consenso DOPO il backup e successivamente lo riconcede,
+l'ultimo evento e `granted` e la cancellazione nel replay
+puo essere saltata. Questa condizione rimane un BLOCCO
+per la PR #374: il ledger/restore reale non e corretto da #483.
+
+Il nuovo prototipo INATTIVO
+`api/experiments/opinionAnswersV2ExternalRestoreGateCandidate.js`
+formalizza il controllo che tutte le API di Opinioni
+(personali e statistiche) devono superare PRIMA della lettura:
+
+- Conferma ottenuta **fuori dal database ripristinato**, con
+  verifica della prova da un coordinatore attendibile. Il
+  prototipo fornisce solo l'interfaccia per un verificatore
+  esterno: NON contiene tale servizio o firma crittografica.
+- Identita esatta della generazione di ripristino e del
+  backup atteso. Un certificato del backup precedente
+  non deve poter riaprire quello successivo.
+- Attestazione che registro esterno sia completo e che
+  la sua copertura inizi prima/durante lo snapshot e
+  comprenda il termine della finestra di replay.
+- Replay concluso e salvato, barriera di ingresso gestita
+  **esternamente**, prova ancora valida e scadenza breve.
+- Qualunque errore di rete, prova non verificata, copertura
+  insufficiente, versione errata o conferma scaduta deve
+  impedire la lettura, senza consultare SQL per un fallback.
+
+I test `api/tests/opinionAnswersV2ExternalRestoreGate.unit.test.js`
+coprono le cause di rifiuto e verificano su Express temporaneo
+che le API di lista Opinioni, statistiche nazionali e regionali
+rispondano 503 SENZA leggere risposte personali o conteggi
+quando il gate esterno e chiuso.
+
+**Limitazione fondamentale:** un controllo nel singolo endpoint
+non puo impedire da solo una race con un ripristino avviato
+dopo il controllo, ne blocca automaticamente cache, worker,
+cron o versioni Android vecchie. Il coordinamento dovra
+impedire il traffico a livello di ingresso e attestare
+il replay **prima** della riapertura. Non e una prova di
+ripristino B2/PITR, di durabilita degli eventi o di
+integrita crittografica del registro reale. No-GO finche
+PR #374 non fornisca e verifichi tali garanzie.
+
+Il ramo resta di sola ricerca: nessun merge, deploy,
+modifica di database o route produttive.
