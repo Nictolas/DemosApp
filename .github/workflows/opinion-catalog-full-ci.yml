@@ -9,6 +9,10 @@ on:
       - 'api/routes/**'
       - 'api/services/**'
       - 'api/tests/opinionCatalog*.test.js'
+      - 'api/tests/opinionCheckMissingCodeCatalog.test.js'
+      - 'api/middleware/auth.js'
+      - 'api/utils/**'
+      - 'api/jobs/**'
       - 'client/src/pages/GestisciOpinioni/**'
       - '.github/workflows/opinion-catalog-full-ci.yml'
 permissions:
@@ -46,7 +50,7 @@ jobs:
             node --check "$file"
           done
       - name: Catalog integrity and zero-DB-metadata contract
-        run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js api/tests/opinionCheckMissingCodeCatalog.test.js
+        run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js api/tests/opinionCheckMissingCodeCatalog.test.js api/tests/opinionCatalogNoRuntimeSql.contract.test.js
       - name: Install backend dependencies for isolated HTTP regression
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Validate read-only cutover parity and answer-column schema regression
