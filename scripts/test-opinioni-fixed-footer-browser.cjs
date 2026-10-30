@@ -28,7 +28,7 @@ const VIEWPORTS = [
   { width: 1280, height: 800 }, // desktop
 ];
 const Q = Array.from({ length: 24 }, (_, i) => ({
-  id: 'synthetic-opinion-' + String(i + 1).padStart(2, '0'),
+  id: 'synthetic_opinion_' + String(i + 1).padStart(2, '0'),
   text: 'Opinione sintetica numero ' + String(i + 1).padStart(2, '0'),
   grado: ['E', 'N', 'R', 'CO'],
   userAnswer: null,
@@ -204,8 +204,8 @@ async function run() {
       assert.equal(answerReads.length, beforeSaveReads,
         'Saving a delta must not refetch the full personal answer list');
       assert.ok(writes.length > 0, 'Save button must post the selected opinion');
-      assert.equal(writes.at(-1)['synthetic-opinion-01'], 'f');
-      assert.deepEqual(Object.keys(writes.at(-1)), ['synthetic-opinion-01'],
+      assert.equal(writes.at(-1)['synthetic_opinion_01'], 'f');
+      assert.deepEqual(Object.keys(writes.at(-1)), ['synthetic_opinion_01'],
         'An unchanged answer must never be included in the delta payload');
       await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
       await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
