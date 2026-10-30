@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { requestLogoutRevocation } from "../src/lib/logout-revocation.ts";
+import { requestLogoutRevocation, runBoundedLogoutSideEffect } from "../src/lib/logout-revocation.ts";
 
 const auth = readFileSync(new URL("../src/hooks/use-auth.tsx", import.meta.url), "utf8");
 
@@ -130,4 +130,42 @@ test("local session wipe precedes remote revocation; warning survives redirect w
   assert.match(auth, /sessionStorage.removeItem\(LOGOUT_REVOCATION_WARNING_KEY\)/);
   assert.match(auth, /La revoca della sessione sul server non è confermata/);
   assert.doesNotMatch(auth, /sessionStorage.setItem\([^\n]*(?:tokenToRevoke|refreshTokenToRevoke)/);
+});
+
+test("best-effort native cleanup cannot hang logout when a bridge ignores abort", async () => {
+  let aborted = false;
+  let watchdog;
+  const watchdogPromise = new Promise((_resolve, reject) => {
+    watchdog = setTimeout(() => reject(new Error("native cleanup remained pending")), 500);
+  });
+  try {
+    const result = await Promise.race([
+      runBoundedLogoutSideEffect(async (signal) => new Promise(() => {
+        signal.addEventListener("abort", () => { aborted = true; }, { once: true });
+      }), 10),
+      watchdogPromise,
+    ]);
+    assert.equal(result, false);
+    assert.equal(aborted, true);
+  } finally {
+    clearTimeout(watchdog);
+  }
+});
+
+test("best-effort cleanup reports failure without leaking exception details", async () => {
+  assert.equal(await runBoundedLogoutSideEffect(async () => {
+    throw new Error("synthetic-private-device-id");
+  }), false);
+  assert.equal(await runBoundedLogoutSideEffect(async () => undefined), true);
+});
+
+test("push and Credential Manager cannot block logout indefinitely", () => {
+  const logout = auth.slice(auth.indexOf("const logoutMutation = useMutation"));
+  assert.match(logout, /runBoundedLogoutSideEffect\(async \(signal\) => \{/);
+  assert.match(logout, /signal,/);
+  assert.match(logout, /runBoundedLogoutSideEffect\(async \(\) => \{\s*await unregisterNativePush\(\)/);
+  assert.match(logout, /runBoundedLogoutSideEffect\(async \(\) => \{\s*await clearNativeGoogleCredentialState\(\)/);
+  const nativePush = readFileSync(new URL("../src/lib/native-push.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(nativePush, /console\.warn\([^\n]*,\s*error\)/);
+  assert.match(nativePush, /dettagli omessi/);
 });
