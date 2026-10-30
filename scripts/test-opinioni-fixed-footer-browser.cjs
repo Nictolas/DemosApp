@@ -310,9 +310,14 @@ async function run() {
       assert.equal(await encryptedOwnerRecordExists(page, ID), true,
         'Precondition: the original synthetic account has encrypted cached answers');
       politicalGrant = false;
+      const beforeRevokedVisitReads = answerReads.length;
       await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
-      await page.getByText('Nessuna domanda disponibile.').waitFor();
+      // A user without consent now sees the voluntary consent entrypoint,
+      // not an ambiguous "no questions available" empty state.
+      await page.getByRole('button', { name: 'Leggi e scegli se dare il consenso' }).waitFor();
       assert.equal(await page.getByText('Opinione sintetica numero 24', { exact: true }).count(), 0);
+      assert.equal(answerReads.length, beforeRevokedVisitReads,
+        'Revoked political consent must not trigger a private answer GET');
       for (let attempt = 0; attempt < 30 && await encryptedOwnerRecordExists(page, ID); attempt++) {
         await page.waitForTimeout(100);
       }
