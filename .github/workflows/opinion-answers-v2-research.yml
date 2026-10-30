@@ -9,6 +9,7 @@ on:
       - "api/tests/opinionAnswersV2ManifestCompatibility.test.js"
       - "api/experiments/opinionAnswersV2BackfillCandidate.js"
       - "api/tests/opinionAnswersV2Backfill.pg.test.js"
+      - "api/tests/opinionAnswersV2Backfill.unit.test.js"
       - "api/scripts/benchmark-opinion-answer-layouts-ci.js"
       - "api/docs/opinion-answer-v2-no-column-ddl.md"
       - ".github/workflows/opinion-answers-v2-research.yml"
@@ -53,6 +54,6 @@ jobs:
       - name: Install locked API dependencies without running scripts
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Run isolated unit and PostgreSQL 17 contract tests
-        run: node --test api/tests/opinionAnswersV2Candidate.test.js api/tests/opinionAnswersV2Candidate.pg.test.js api/tests/opinionAnswersV2Consent.pg.test.js api/tests/opinionAnswersV2ManifestCompatibility.test.js api/tests/opinionAnswersV2Backfill.pg.test.js
+        run: node --test api/tests/opinionAnswersV2Candidate.test.js api/tests/opinionAnswersV2Candidate.pg.test.js api/tests/opinionAnswersV2Consent.pg.test.js api/tests/opinionAnswersV2ManifestCompatibility.test.js api/tests/opinionAnswersV2Backfill.pg.test.js api/tests/opinionAnswersV2Backfill.unit.test.js
       - name: Measure synthetic layouts and SQL reads
         run: node api/scripts/benchmark-opinion-answer-layouts-ci.js
