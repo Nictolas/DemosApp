@@ -34,7 +34,9 @@ export async function unregisterNativePush(): Promise<void> {
   if (!isNativePushEnabled()) return;
   try {
     await PushNotifications.unregister();
-  } catch (error) {
-    console.warn('Impossibile annullare la registrazione push nativa:', error);
+  } catch {
+    // Provider exceptions can contain device or registration identifiers.
+    console.warn('Impossibile annullare la registrazione push nativa (dettagli omessi)');
+    throw new Error('native-push-unregister-failed');
   }
 }
