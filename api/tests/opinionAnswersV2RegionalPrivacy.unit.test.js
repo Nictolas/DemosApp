@@ -36,9 +36,13 @@ test('if two full regions and one subthreshold region exist, hide a second regio
     TO:{favorevole:10},LO:{favorevole:10},LA:{contrario:1}
   }));
   assert.equal(result.publishNational,true);
-  assert.equal(result.visibleRegions.length,1);
-  assert.equal(result.suppressedRegions.length,regions.length-1);
+  // The single contrary answer would still be reconstructible by
+  // subtracting a public all-favorable region from the national
+  // response-category totals. Both regions must remain withheld.
+  assert.deepEqual(result.visibleRegions,[]);
+  assert.equal(result.suppressedRegions.length,regions.length);
   assert.ok(result.suppressedRegions.includes('LA'));
+  assert.equal(result.suppressedForDifferencing,true);
 });
 
 test('every region with >=10 can be published when no hidden positive remainder exists',()=>{
@@ -84,4 +88,48 @@ test('zero-count regions are still required for completeness but not published',
   );
   assert.deepEqual(p.visibleRegions,['TO']);
   assert.equal(p.suppressedRegions.length,regions.length-1);
+});
+
+
+test('hidden total can exceed 10 while a hidden answer category is 1',()=>{
+  // Before the fix, the total suppressed remainder was 16 (>10),
+  // so Tuscany's released counts let users infer one regional
+  // contrary vote by subtracting categories from national figures.
+  const p=planCoherentRegionalPublication(
+    {favorevole:25,contrario:1,indeciso:0},
+    fixture({
+      TO:{favorevole:10},
+      LA:{favorevole:15,contrario:1}
+    })
+  );
+  assert.equal(p.publishNational,true);
+  assert.deepEqual(p.visibleRegions,[]);
+  assert.equal(p.suppressedForDifferencing,true);
+});
+
+test('prefer withholding a region contributing to the vulnerable answer category',()=>{
+  // Withhold the 10-contrary region to raise the suppressed contrary
+  // count from 1 to 11, while preserving the 10-favorable region.
+  const p=planCoherentRegionalPublication(
+    {favorevole:10,contrario:11,indeciso:0},
+    fixture({
+      TO:{favorevole:10},
+      LO:{contrario:10},
+      LA:{contrario:1}
+    })
+  );
+  assert.equal(p.publishNational,true);
+  assert.deepEqual(p.visibleRegions,['TO']);
+  assert.ok(p.suppressedRegions.includes('LO'));
+  assert.ok(p.suppressedRegions.includes('LA'));
+  assert.equal(p.suppressedForDifferencing,true);
+});
+
+test('no positive hidden remainder leaves stable 10-person regions visible',()=>{
+  const p=planCoherentRegionalPublication(
+    {favorevole:10,contrario:10,indeciso:0},
+    fixture({TO:{favorevole:10},LO:{contrario:10}})
+  );
+  assert.deepEqual([...p.visibleRegions].sort(),['LO','TO']);
+  assert.equal(p.suppressedForDifferencing,false);
 });
