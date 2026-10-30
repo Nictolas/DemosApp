@@ -1462,7 +1462,12 @@ La route non accetta piu una funzione generica come
 `loadOwnAuthorizedRow`: controlla una registrazione privata
 del factory e che il lettore sia vincolato alla **stessa
 istanza di `assertRestoreReady`** utilizzata dalle API
-aggregate. Le route statistiche continuano a verificare
+aggregate. Il lettore e il controllo esterno sono anche catturati
+alla creazione della route: sostituire successivamente le funzioni
+nell'oggetto di dipendenze non deve poter eludere il blocco GDPR.
+Un test HTTP forza proprio questo tentativo di sostituzione.
+
+Le route statistiche continuano a verificare
 il gate ciascuna una volta.
 
 I test sul server HTTP e su PostgreSQL 17 ora verificano
