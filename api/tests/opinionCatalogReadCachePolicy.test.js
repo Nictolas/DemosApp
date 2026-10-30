@@ -8,8 +8,8 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../routes/compatibility.js'), 'utf8');
 const policy = require('../config/publicCachePolicy.js');
 
-function handlers({ validToken = true, active = true } = {}) {
-  const routes = new Map(), sql = [];
+function handlers({ validToken = true, active = true, sensitiveJwtError = null, sensitiveDbError = null } = {}) {
+  const routes = new Map(), sql = [], logs = [];
   const fakeRequire = (name) => {
     if (name === 'express') return { Router: () => ({
       get(key, handler) { routes.set(key, handler); },
@@ -25,13 +25,14 @@ function handlers({ validToken = true, active = true } = {}) {
     if (name === '../middleware/auth') return { pool: {
       async query(query, params) {
         sql.push(String(query));
+        if (sensitiveDbError) throw new Error(sensitiveDbError);
         assert.deepEqual(Array.from(params), ['synthetic-user']);
         return { rows: [{ id: 'synthetic-user', status: active ? 'a' : 's',
           ruolo: 'E', opinion_answers: { caccia: 'f' } }] };
       },
     } };
     if (name === '../utils/jwt') return { verifyAccessToken() {
-      if (!validToken) throw new Error('Synthetic invalid token');
+      if (!validToken) throw new Error(sensitiveJwtError || 'Synthetic invalid token');
       return { userId: 'synthetic-user' };
     } };
     throw new Error('Unexpected dependency ' + name);
@@ -39,9 +40,9 @@ function handlers({ validToken = true, active = true } = {}) {
   const moduleStub = { exports: {} };
   vm.runInNewContext(source, {
     require: fakeRequire, module: moduleStub, exports: moduleStub.exports,
-    console: { log() {}, error() {} }, process: { env: { NODE_ENV: 'production' } },
+    console: { log() {}, error(...args) { logs.push(args); } }, process: { env: { NODE_ENV: 'production' } },
   });
-  return { routes, sql };
+  return { routes, sql, logs };
 }
 function response() {
   return { statusCode: 200, headers: {}, set(k,v) {
@@ -86,4 +87,24 @@ test('legacy personalized path cannot be stored at CDN/edge',()=>{
   assert.ok(policy.neverCachePathPrefixes.some(prefix =>
     '/api/opinioni-list'.startsWith(prefix)));
   assert.ok(!policy.cacheableApiGetPaths.some(({pattern})=>pattern==='/api/opinioni-list'));
+});
+
+test('JWT and SQL failures never log raw exception payloads', async () => {
+  const marker = 'SENSITIVE_MARKER_JWT_SQL_ACCOUNT_TOKEN';
+  for (const [options, expectedStatus] of [
+    [{ validToken: false, sensitiveJwtError: marker }, 401],
+    [{ sensitiveDbError: marker }, 500],
+  ]) {
+    const { routes, logs } = handlers(options);
+    const res = response();
+    await routes.get('/opinioni-list')({
+      headers: { authorization: 'Bearer synthetic' },
+      query: { grado: 'N' },
+    }, res);
+    assert.equal(res.statusCode, expectedStatus);
+    assert.match(res.headers['cache-control'], /private, no-store/);
+    assert.equal(logs.length, 1, 'one fixed diagnostic per failure');
+    assert.ok(!JSON.stringify(logs).includes(marker), 'raw exception in logs');
+    assert.ok(!JSON.stringify(res.body).includes(marker), 'raw exception in response');
+  }
 });
