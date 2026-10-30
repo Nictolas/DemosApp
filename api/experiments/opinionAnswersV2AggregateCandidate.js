@@ -84,7 +84,7 @@ function buildHybridSurveyAggregateQuery({
     values.join(',\n'),
     ') AS v(opinion_id,answer)',
     "WHERE v.answer IN ('f','c','i')",
-    "AND u.account_type = 'PERSON'",
+    "AND u.account_type IN ('PERSON','P')",
     'AND COALESCE(uc.political_opinions_consent,',
     '             u.political_opinions_consent, false) IS TRUE',
     ...geo.sql.map(x=>'AND '+x),
