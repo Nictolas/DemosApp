@@ -89,7 +89,8 @@ test('Opinions authentication admits canonical A and legacy a; refuses all inact
     assert.equal(invalid.status,401);
     assert.equal(invalid.next,0);
   }finally{
-    process.env.NODE_ENV=oldEnv;
+    if(oldEnv===undefined)delete process.env.NODE_ENV;
+    else process.env.NODE_ENV=oldEnv;
     for(const [p,previous] of oldCache){
       if(previous)require.cache[p]=previous;
       else delete require.cache[p];
