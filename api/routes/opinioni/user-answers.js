@@ -136,9 +136,18 @@ router.post('/salva', verifyToken, async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Serialize saving with consent revocation, which UPDATE-locks users.
-      // The earlier read is only a fast precheck: it is NOT authoritative
-      // when revocation can run concurrently on another connection.
+      // Lock the exact users row shared with consent revocation/deletion.
+      // IMPORTANT: In READ COMMITTED the consent must be read in a SECOND
+      // statement after FOR UPDATE has acquired the lock. Reading consent
+      // in the locking SELECT can use a stale statement snapshot when a
+      // concurrent revocation commits while waiting for that lock.
+      const lockedUser = await client.query(
+        'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+      );
+      if (lockedUser.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, error: 'Utente non trovato' });
+      }
       const lockedConsent = await client.query(`
         SELECT COALESCE(
           uc.political_opinions_consent,
@@ -148,13 +157,8 @@ router.post('/salva', verifyToken, async (req, res) => {
         FROM users u
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE u.id = $1
-        FOR UPDATE OF u
       `, [userId]);
-      if (lockedConsent.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ success: false, error: 'Utente non trovato' });
-      }
-      if (lockedConsent.rows[0].granted !== true) {
+      if (lockedConsent.rows.length === 0 || lockedConsent.rows[0].granted !== true) {
         await client.query('ROLLBACK');
         return res.status(403).json({
           success: false,
