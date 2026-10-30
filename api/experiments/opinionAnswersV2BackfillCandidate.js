@@ -25,7 +25,19 @@ function validateLegacyIds(ids) {
 // Release inventory gate: schema metadata, no personal rows queried.
 // Archived opinion columns MUST remain in the migration manifest.
 // This differs from the visible/public catalog, which may hide archived IDs.
-const SERVICE_COLUMNS=new Set(['user_id','fonti_opinioni']);
+// Legacy tables can contain operational columns that are not political
+// answers. These names are an explicit allowlist, NEVER a broad prefix rule.
+// Unknown columns remain a hard failure instead of being silently dropped.
+const SERVICE_COLUMNS=new Set([
+  'user_id','fonti_opinioni','id','created_at','updated_at'
+]);
+const SERVICE_TYPES=Object.freeze({
+  user_id: ['uuid'],
+  fonti_opinioni: ['jsonb'],
+  id: ['uuid','integer','bigint'],
+  created_at: ['timestamp with time zone','timestamp without time zone'],
+  updated_at: ['timestamp with time zone','timestamp without time zone']
+});
 function assertLegacyColumnCoverage(manifestIds, actualColumnNames) {
   const ids=validateLegacyIds(manifestIds);
   if(!Array.isArray(actualColumnNames)||actualColumnNames.length===0) {
@@ -63,6 +75,11 @@ function assertLegacySchemaInventory(manifestIds, columnMetadata) {
   const ids=new Set(manifestIds);
   if(columnMetadata.some(col=>ids.has(col.column_name)&&col.data_type!=='text')) {
     throw new Error('Non-TEXT historical opinion column detected');
+  }
+  for(const {column_name,data_type} of columnMetadata){
+    if(SERVICE_COLUMNS.has(column_name)&&!SERVICE_TYPES[column_name].includes(data_type)){
+      throw new Error('Unexpected service column type: '+column_name);
+    }
   }
   return coverage;
 }
