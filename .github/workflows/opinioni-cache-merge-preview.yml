@@ -137,24 +137,24 @@ jobs:
           replace_once(
               "    if (id === '@/pages/Profilo/utils/encryptedProfileVault')",
               """    if (id === '@/hooks/use-auth') return { useAuth: () => ({ user: { id: 'synthetic-owner' } }) };
-    if (id === '@/lib/auth-token') return { getAuthToken: () => 'synthetic-token' };
-    if (id === '@/pages/Profilo/utils/encryptedProfileVault')""",
+              if (id === '@/lib/auth-token') return { getAuthToken: () => 'synthetic-token' };
+              if (id === '@/pages/Profilo/utils/encryptedProfileVault')""",
           )
           replace_once(
               '  const queryClient = {',
               """  let authUpdateCount = 1;
-  const queryClient = {
-    getQueryState: () => ({ dataUpdateCount: authUpdateCount }),
-    getQueryData: () => ({
-      id: 'synthetic-owner',
-      political_consent: { granted: true, timestamp: 'verified-epoch' },
-    }),
-    refetchQueries: async ({ queryKey }) => {
-      events.push('refetch:' + queryKey[0]);
-      authUpdateCount++;
-    },
-    setQueryData: () => {},
-""",
+            const queryClient = {
+              getQueryState: () => ({ dataUpdateCount: authUpdateCount }),
+              getQueryData: () => ({
+                id: 'synthetic-owner',
+                political_consent: { granted: true, timestamp: 'verified-epoch' },
+              }),
+              refetchQueries: async ({ queryKey }) => {
+                events.push('refetch:' + queryKey[0]);
+                authUpdateCount++;
+              },
+              setQueryData: () => {},
+          """,
           )
           replace_once(
               "events.indexOf('invalidate:user')",
