@@ -71,13 +71,17 @@ function buildHybridAnswerSelect(published,immutableLegacyIds) {
   return 'SELECT '+columns.join(',')+' FROM opinioni_risposte WHERE user_id=$1::uuid';
 }
 
+const SQL=Object.freeze({
+  upsertOverflow:
+    'INSERT INTO opinioni_risposte AS old (user_id,answers_extra) '+
+    'VALUES($1::uuid,$2::jsonb) '+
+    'ON CONFLICT(user_id) DO UPDATE SET '+
+    "answers_extra=COALESCE(old.answers_extra,'{}'::jsonb)||EXCLUDED.answers_extra",
+  readOverflowAndSources:
+    'SELECT answers_extra,fonti_opinioni FROM opinioni_risposte WHERE user_id=$1::uuid'
+});
 
-/**
- * Preview a save against one locked answer row, including original text
- * columns and the overflow map. The caller owns authorization, user FOR
- * UPDATE lock and a separate post-lock consent SELECT before this read.
- * Notifications are allowed only on actual changes to existing answers.
- */
+/** Pre-write plan. Caller already holds user lock and verified consent. */
 function planHybridAnswerChanges(storedRow,rawDelta,publishedIds,immutableLegacyIds) {
   if(storedRow!==null && storedRow!==undefined && !plain(storedRow)) {
     throw new TypeError('Stored opinion row must be an object or null');
@@ -105,19 +109,15 @@ function planHybridAnswerChanges(storedRow,rawDelta,publishedIds,immutableLegacy
   return {
     acceptedCount:Object.keys(split.legacyColumns).length+Object.keys(split.extraPatch).length,
     changedCount:Object.keys(changed).length,
-    changed,
-    firstAnswers,
-    notifications
+    changed,firstAnswers,notifications
   };
 }
 
 /**
- * A SINGLE INSERT/UPSERT in the existing answers table for mixed legacy and
- * future IDs, including the FIRST ANSWER when there is no previous row.
- * Dynamic column identifiers originate ONLY from validated code-held immutable
- * legacy IDs. All values and overflow map are parameterized. The unrelated
- * fonti_opinioni JSONB column is untouched and never replaced by a stale
- * client snapshot. Execute AFTER users FOR UPDATE and consent recheck.
+ * One INSERT/UPSERT saves old and future opinion answers atomically,
+ * INCLUDING first-ever save. Column identifiers are validated immutable
+ * IDs, all values and JSONB patches are parameterized. Unrelated sources
+ * are untouched. Execute ONLY after users FOR UPDATE and consent recheck.
  */
 function buildHybridAtomicAnswerUpsert(rawDelta,publishedIds,immutableLegacyIds,userId) {
   if(typeof userId!=='string' ||
@@ -132,39 +132,17 @@ function buildHybridAtomicAnswerUpsert(rawDelta,publishedIds,immutableLegacyIds,
   const columns=['user_id'],values=['$1::uuid'],params=[userId];
   const updates=[];
   for(const name of names){
-    // name comes from validateLegacyIds AND publishedIds, never untrusted SQL.
+    // name comes from validateLegacyIds AND publishedIds, never arbitrary SQL.
     const column='"'+name+'"';
     columns.push(column);
     params.push(legacyColumns[name]);
-    values.push('
-  upsertOverflow:
-    'INSERT INTO opinioni_risposte AS old (user_id,answers_extra) '+
-    'VALUES($1::uuid,$2::jsonb) '+
-    'ON CONFLICT(user_id) DO UPDATE SET '+
-    "answers_extra=COALESCE(old.answers_extra,'{}'::jsonb)||EXCLUDED.answers_extra",
-  readOverflowAndSources:
-    'SELECT answers_extra,fonti_opinioni FROM opinioni_risposte WHERE user_id=$1::uuid'
-});
-module.exports={splitHybridDelta,projectHybridAnswers,buildHybridAnswerSelect,
-  planHybridAnswerChanges,buildHybridAtomicAnswerUpsert,
-  formatHybridLegacyGradePayload,formatHybridProfileOpinions,SQL};
-+params.length);
+    values.push('$'+params.length);
     updates.push(column+'=EXCLUDED.'+column);
   }
   if(extraIds.length){
     columns.push('answers_extra');
     params.push(JSON.stringify(extraPatch));
-    values.push('
-  upsertOverflow:
-    'INSERT INTO opinioni_risposte AS old (user_id,answers_extra) '+
-    'VALUES($1::uuid,$2::jsonb) '+
-    'ON CONFLICT(user_id) DO UPDATE SET '+
-    "answers_extra=COALESCE(old.answers_extra,'{}'::jsonb)||EXCLUDED.answers_extra",
-  readOverflowAndSources:
-    'SELECT answers_extra,fonti_opinioni FROM opinioni_risposte WHERE user_id=$1::uuid'
-});
-module.exports={splitHybridDelta,projectHybridAnswers,buildHybridAnswerSelect,SQL};
-+params.length+'::jsonb');
+    values.push('$'+params.length+'::jsonb');
     updates.push(
       "answers_extra=COALESCE(current.answers_extra,'{}'::jsonb)||EXCLUDED.answers_extra"
     );
@@ -179,12 +157,8 @@ module.exports={splitHybridDelta,projectHybridAnswers,buildHybridAnswerSelect,SQ
   };
 }
 
-/**
- * Existing Android compatibility endpoint sends normalized display text as
- * id, while stable opinion IDs select the stored answer. Keep those separate
- * until clients migrate; otherwise old clients may treat every question new.
- */
-function formatHybridLegacyGradePayload(storedRow,published,immutableLegacyIds,grade){
+/** Preserve old Android API's normalized text-key id distinct from stable ID. */
+function formatHybridLegacyGradePayload(storedRow,published,immutableLegacyIds,grade) {
   if(typeof grade!=='string'||!grade.trim())throw new TypeError('Grade required');
   const projected=projectHybridAnswers(storedRow||{},published,immutableLegacyIds);
   return {
@@ -195,12 +169,11 @@ function formatHybridLegacyGradePayload(storedRow,published,immutableLegacyIds,g
       grado:item.grado,
       userAnswer:item.userAnswer
     })),
-    grado:grade,
-    total:projected.length
+    grado:grade,total:projected.length
   };
 }
 
-/** Profile endpoint keeps stable ID, source and userAnswer fields. */
+/** Profile endpoint keeps stable IDs plus original per-opinion source. */
 function formatHybridProfileOpinions(storedRow,published,immutableLegacyIds){
   const row=storedRow||{};
   const sources=row.fonti_opinioni||{};
@@ -212,13 +185,6 @@ function formatHybridProfileOpinions(storedRow,published,immutableLegacyIds){
   }));
 }
 
-const SQL=Object.freeze({
-  upsertOverflow:
-    'INSERT INTO opinioni_risposte AS old (user_id,answers_extra) '+
-    'VALUES($1::uuid,$2::jsonb) '+
-    'ON CONFLICT(user_id) DO UPDATE SET '+
-    "answers_extra=COALESCE(old.answers_extra,'{}'::jsonb)||EXCLUDED.answers_extra",
-  readOverflowAndSources:
-    'SELECT answers_extra,fonti_opinioni FROM opinioni_risposte WHERE user_id=$1::uuid'
-});
-module.exports={splitHybridDelta,projectHybridAnswers,buildHybridAnswerSelect,SQL};
+module.exports={splitHybridDelta,projectHybridAnswers,buildHybridAnswerSelect,
+  planHybridAnswerChanges,buildHybridAtomicAnswerUpsert,
+  formatHybridLegacyGradePayload,formatHybridProfileOpinions,SQL};
