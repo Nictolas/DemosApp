@@ -69,6 +69,12 @@ test('real Express HTTP contract against synthetic in-memory data, no live DB',
       ];
     }
   };
+  assert.throws(()=>createHybridHttpResearchRouter({
+    ...deps,loadOwnAuthorizedRow:async()=>({status:'ok',row:null})
+  }),/shared external GDPR gate/);
+  assert.throws(()=>createHybridHttpResearchRouter({
+    ...deps,assertRestoreReady:async()=>true
+  }),/shared external GDPR gate/);
   const app=express();
   app.disable('x-powered-by');
   app.use('/api/opinioni',createHybridHttpResearchRouter(deps));
