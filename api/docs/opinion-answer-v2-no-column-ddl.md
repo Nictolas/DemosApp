@@ -1058,3 +1058,46 @@ rispetto a successive modifiche dei dati di input.
 
 **NO-GO:** serve revisione del DPO e test end-to-end prima di
 pubblicare statistiche ottenute da questa nuova struttura.
+
+
+## Riscontro 94/94 fra PR #384 e schema reale — sola lettura, 30 ottobre 2026
+
+Ho confrontato tramite la connessione autorizzata **solo i metadati**
+di information_schema.columns sulla tabella public.opinioni_risposte
+(senza SELECT di risposte personali e senza SQL di scrittura) con
+i sei file JSON del catalogo in codice nella PR #384, alla commit
+`3396b2d5ce9e190a9e34d68473050750d8099c5c`.
+
+**Risultato: corrispondenza esatta 94/94 ID**, senza ID mancanti,
+aggiunti, duplicati o colonne di risposta non TEXT.
+Sono inoltre presenti `user_id uuid` e `fonti_opinioni jsonb`.
+Al momento dell'ispezione non risultava alcun campo `answers_extra`.
+I sei frammenti del catalogo contavano 10, 20, 20, 20, 20 e 4 Opinioni.
+
+Per evitare che la pubblicazione/archiviazione futura di una
+Opinione cancelli accidentalmente la sua identita storica,
+la PR #483 conserva il nuovo manifest di riferimento
+`api/experiments/opinionAnswersV2HistoricalManifest.json`.
+Contiene esclusivamente gli ID gia pubblici delle 94 domande
+e un riferimento alla commit canonica verificata, non risposte
+di utenti. E un **manifest storico immutabile** per le vecchie
+colonne: eventuali nuove Opinioni useranno `answers_extra` e
+non richiederanno modifiche al manifest SQL storico.
+
+Il workflow di ricerca ora fa una checkout in sola lettura,
+fissata allo SHA indicato, dei sei JSON della PR #384 e lancia
+`api/tests/opinionAnswersV2HistoricalParity.unit.test.js`.
+I test verificano equivalenza esatta degli ID, colonne storiche
+tutte TEXT in un inventario di prova, comportamento fail-closed
+quando un ID viene rinominato/rimosso, nuova Opinione scritta
+solo nella mappa JSONB e archiviazione senza perdita di identita.
+
+**Limiti e gate:** il test CI usa metadata sintetici per le
+verifiche strutturali, non interroga Supabase durante ogni run.
+La parita effettiva vale per l'istante della verifica read-only
+e per il commit specificato della PR #384; una successiva modifica
+del catalogo o dello schema richiede nuovo confronto prima
+di qualsiasi integrazione. Il controllo preventivo live
+`inspectLegacyOpinionAnswerSchema` deve essere eseguito
+**immediatamente prima** di ogni futura migrazione autorizzata.
+Nessun DDL, lettura dati personali, merge o deploy reale.
