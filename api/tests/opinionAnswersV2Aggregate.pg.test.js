@@ -120,6 +120,23 @@ test('PG17 hybrid Sondaggi: consent, geography, privacy threshold and matching',
         const tiny=await stats(db,['opinione_94'],'regione',['Lazio']);
         assert.deepEqual({...tiny},{});
       });
+      await t.test('explicit user_consents overrides base consent in both directions',async()=>{
+        // Base consent of person 2 is false, but explicit consent is true.
+        await db.query('UPDATE ci_hybrid_agg_consents SET political_opinions_consent=false WHERE user_id=$1',[uid(2)]);
+        const noOverride=await stats(db,['opinione_0','opinione_94'],'regione',['Toscana']);
+        assert.deepEqual({...noOverride},{});
+        await db.query('UPDATE ci_hybrid_agg_consents SET political_opinions_consent=true WHERE user_id=$1',[uid(2)]);
+        const granted=await stats(db,['opinione_0','opinione_94'],'regione',['Toscana']);
+        assert.equal(Object.values(granted.opinione_94).reduce((a,b)=>a+b,0),10);
+
+        // Base consent of person 12 is true, but explicit false overrides it.
+        await db.query('UPDATE ci_hybrid_agg_consents SET political_opinions_consent=true WHERE user_id=$1',[uid(12)]);
+        const extra=await stats(db,['opinione_0','opinione_94'],'regione',['Toscana']);
+        assert.equal(Object.values(extra.opinione_94).reduce((a,b)=>a+b,0),11);
+        await db.query('UPDATE ci_hybrid_agg_consents SET political_opinions_consent=false WHERE user_id=$1',[uid(12)]);
+        const restored=await stats(db,['opinione_0','opinione_94'],'regione',['Toscana']);
+        assert.equal(Object.values(restored.opinione_0).reduce((a,b)=>a+b,0),10);
+      });
       await t.test('territorial parameters cannot change the SQL filter',async()=>{
         const result=await stats(db,['opinione_94'],'regione',[
           "Toscana' OR TRUE --"
