@@ -9,6 +9,9 @@ on:
     paths:
       - 'scripts/test-opinioni-fixed-footer-browser.cjs'
       - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
+      - 'client/src/hooks/use-auth.tsx'
+      - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
+      - 'client/src/lib/encryptedOpinionCache.ts'
       - 'client/src/pages/StatisticheOpinione/hooks/useOpinionId.ts'
       - '.github/workflows/opinioni-fixed-footer-browser.yml'
   pull_request:
