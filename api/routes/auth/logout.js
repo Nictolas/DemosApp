@@ -40,6 +40,21 @@ router.post('/logout', async (req, res) => {
       }
 
       if (decoded) {
+        // An authenticated logout must never mix two different accounts or
+        // modern sessions. Check *before* mutating PostgreSQL or Redis.
+        // Legacy tokens without a shared sid still retain the userId guard.
+        if (decodedAccess && (
+          !decodedAccess.userId ||
+          !decoded.userId ||
+          String(decodedAccess.userId) !== String(decoded.userId) ||
+          (decodedAccess.sid && decoded.sid && decodedAccess.sid !== decoded.sid)
+        )) {
+          return res.status(401).json({
+            success: false,
+            error: 'Credenziali di sessione incoerenti',
+          });
+        }
+
         refreshSessionId = decoded.sid || decoded.jti;
         if (!refreshSessionId) {
           throw new Error('Refresh token privo di identificatore di sessione');
