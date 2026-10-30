@@ -46,7 +46,7 @@ test('every region with >=10 can be published when no hidden positive remainder 
     {favorevole:10,contrario:10,indeciso:0},
     fixture({TO:{favorevole:10},LO:{contrario:10}})
   );
-  assert.deepEqual(p.visibleRegions.sort(),['LO','TO']);
+  assert.deepEqual([...p.visibleRegions].sort(),['LO','TO']);
   assert.equal(p.publishNational,true);
 });
 
