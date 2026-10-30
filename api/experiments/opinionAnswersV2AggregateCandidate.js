@@ -99,13 +99,15 @@ function publishHybridSurveyStats(rows,publishedIds){
     throw new TypeError('SQL aggregate rows and published catalog required');
   }
   const result=Object.create(null);
+  const seen=new Set();
   for(const row of rows){
     if(!row||!publishedIds.has(row.opinion_id)||!ID.test(row.opinion_id)){
       throw new Error('Unexpected opinion ID returned by aggregate');
     }
-    if(Object.prototype.hasOwnProperty.call(result,row.opinion_id)){
+    if(seen.has(row.opinion_id)){
       throw new Error('Repeated opinion ID in SQL aggregate');
     }
+    seen.add(row.opinion_id);
     const counts={};
     for(const key of ['favorevole','contrario','indeciso']){
       const n=Number(row[key]);
