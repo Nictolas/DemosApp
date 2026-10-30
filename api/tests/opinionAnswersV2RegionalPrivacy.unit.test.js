@@ -24,7 +24,7 @@ test('national 11 vs Tuscany 10 reveals a one-person Lazio answer without second
     contrario:national.contrario-oldUnsafeRegional.contrario
   },{favorevole:0,contrario:1});
   const p=planCoherentRegionalPublication(national,rows);
-  assert.equal(p.publishNational,true);
+  assert.equal(p.publishNational,false);
   assert.deepEqual(p.visibleRegions,[]);
   assert.ok(p.suppressedRegions.includes('LA'));
   assert.ok(p.suppressedRegions.includes('TO'));
@@ -35,7 +35,7 @@ test('if two full regions and one subthreshold region exist, hide a second regio
   const result=planCoherentRegionalPublication(national,fixture({
     TO:{favorevole:10},LO:{favorevole:10},LA:{contrario:1}
   }));
-  assert.equal(result.publishNational,true);
+  assert.equal(result.publishNational,false);
   // The single contrary answer would still be reconstructible by
   // subtracting a public all-favorable region from the national
   // response-category totals. Both regions must remain withheld.
@@ -103,7 +103,7 @@ test('hidden total can exceed 10 while a hidden answer category is 1',()=>{
       LO:{favorevole:6,contrario:1}
     })
   );
-  assert.equal(p.publishNational,true);
+  assert.equal(p.publishNational,false);
   assert.deepEqual(p.visibleRegions,[]);
   assert.equal(p.suppressedForDifferencing,true);
 });
@@ -168,4 +168,34 @@ test('sum overflow is rejected before any public regional publication',()=>{
     {favorevole:'1',contrario:'0',indeciso:'0'},
     fixture({TO:{favorevole:''},LA:{favorevole:1}})
   ),/Invalid count/);
+});
+
+
+test('category with one respondent is suppressed even in a nation of 30',()=>{
+  const national={favorevole:29,contrario:1,indeciso:0};
+  const p=planCoherentRegionalPublication(national,fixture({
+    TO:{favorevole:20},LO:{favorevole:9,contrario:1}
+  }));
+  assert.equal(p.publishNational,false);
+  assert.deepEqual(p.visibleRegions,[]);
+  assert.equal(p.suppressedRegions.length,regions.length);
+});
+
+test('regions with small positive categories are hidden even with a safe national result',()=>{
+  const p=planCoherentRegionalPublication({
+    favorevole:30,contrario:10,indeciso:0
+  },fixture({
+    TO:{favorevole:19,contrario:1},
+    LO:{favorevole:11,contrario:9}
+  }));
+  assert.equal(p.publishNational,true);
+  assert.deepEqual(p.visibleRegions,[]);
+});
+
+test('10/10 mixed region can be visible with no hidden residual',()=>{
+  const p=planCoherentRegionalPublication({
+    favorevole:10,contrario:10,indeciso:0
+  },fixture({TO:{favorevole:10,contrario:10}}));
+  assert.equal(p.publishNational,true);
+  assert.deepEqual(p.visibleRegions,['TO']);
 });
