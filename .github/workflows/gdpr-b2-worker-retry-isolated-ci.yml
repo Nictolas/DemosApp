@@ -62,6 +62,7 @@ on:
       - 'api/tests/gdprB2VersionInventorySynthetic.test.js'
       - 'api/tests/fixtures/gdprB2S3VersionPaginationSynthetic.js'
       - 'api/tests/gdprB2S3VersionPaginationSynthetic.test.js'
+      - 'api/docs/gdpr-b2-s3-cursor-binding-synthetic-20261030.md'
       - 'api/docs/gdpr-b2-s3-version-pagination-synthetic-20261030.md'
       - 'api/tests/fixtures/gdprB2IndependentVersionPinsSynthetic.js'
       - 'api/tests/gdprB2IndependentVersionPinsSynthetic.test.js'
