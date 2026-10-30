@@ -66,29 +66,29 @@ Il processo rifiuta `DATABASE_URL`, `SUPABASE_DB_URL`, token amministrativi, var
 
 ## Secondo controllo: versione sintetica immutabile, **ancora non eseguito sul provider**
 
-**CLI:** \`node api/scripts/attest-gdpr-b2-synthetic-version-readonly.js\`
+**CLI:** `node api/scripts/attest-gdpr-b2-synthetic-version-readonly.js`
 
-Questo controllo è deliberatamente separato dal precedente. Può eseguire solo \`GetObjectRetention\` e \`GetObject\` per **una versione esplicitamente indicata** di **un unico oggetto sintetico fisso**:
+Questo controllo è deliberatamente separato dal precedente. Può eseguire solo `GetObjectRetention` e `GetObject` per **una versione esplicitamente indicata** di **un unico oggetto sintetico fisso**:
 
-\`demos/gdpr-erasure/v1/attestation/synthetic/object-lock-probe-v1.json\`
+`demos/gdpr-erasure/v1/attestation/synthetic/object-lock-probe-v1.json`
 
-Il contenuto previsto è l'esatto file versionato nel repository \`api/tests/fixtures/gdpr-b2-synthetic-object-v1.json\` (SHA-256: \`bbc957092a258ecf1b5fda9988391b15afbb8f54f59fb76e792127a19f716861\`), senza identificativi di utenti reali. Non è possibile passare una chiave oggetto arbitraria, leggere percorsi \`events/\`, elencare file, creare, sovrascrivere, cancellare o modificare retention. Il body viene letto in streaming con limite di 1024 byte; il report non contiene bucket, version ID, chiavi o risposta provider.
+Il contenuto previsto è l'esatto file versionato nel repository `api/tests/fixtures/gdpr-b2-synthetic-object-v1.json` (SHA-256: `bbc957092a258ecf1b5fda9988391b15afbb8f54f59fb76e792127a19f716861`), senza identificativi di utenti reali. Non è possibile passare una chiave oggetto arbitraria, leggere percorsi `events/`, elencare file, creare, sovrascrivere, cancellare o modificare retention. Il body viene letto in streaming con limite di 1024 byte; il report non contiene bucket, version ID, chiavi o risposta provider.
 
 ### Condizioni per la futura prova reale — non soddisfatte
 
 1. **Prima** dell'esecuzione occorre un bucket GDPR distinto da quello Axiom con versioning e Object Lock COMPLIANCE già verificati (prima CLI), e una decisione DPIA/retention approvata. **Non creare/attivare Object Lock o modificare bucket per effetto di questa nota.**
-2. Un operatore autorizzato deve caricare **esattamente il file sintetico versionato**, a sua discrezione, dopo l'approvazione del test con una credenziale *di scrittura temporanea separata* e conservare in ambiente sicuro il suo \`VersionId\`. Questo repository **non contiene uno script per scriverlo** e il file non risulta caricato sul provider. Nessun upload viene eseguito da GitHub Actions.
-3. Una seconda chiave B2 di sola lettura, limitata al **solo bucket GDPR** e, ove possibile, al prefisso dell'oggetto sintetico, deve avere soltanto \`readFileRetentions\` (\`Get Object Retention\`) e \`readFiles\` (\`Get Object\`). Non concedere \`writeFiles\`, \`deleteFiles\`, \`writeFileRetentions\`, \`bypassGovernance\`, né permessi di lettura di dati personali; non riutilizzare chiavi di writer o archivio log. In un ambiente operatore *isolato*, non in Render né GitHub Actions, impostare le variabili metadata comuni e inoltre:
+2. Un operatore autorizzato deve caricare **esattamente il file sintetico versionato**, a sua discrezione, dopo l'approvazione del test con una credenziale *di scrittura temporanea separata* e conservare in ambiente sicuro il suo `VersionId`. Questo repository **non contiene uno script per scriverlo** e il file non risulta caricato sul provider. Nessun upload viene eseguito da GitHub Actions.
+3. Una seconda chiave B2 di sola lettura, limitata al **solo bucket GDPR** e, ove possibile, al prefisso dell'oggetto sintetico, deve avere soltanto `readFileRetentions` (`Get Object Retention`) e `readFiles` (`Get Object`). Non concedere `writeFiles`, `deleteFiles`, `writeFileRetentions`, `bypassGovernance`, né permessi di lettura di dati personali; non riutilizzare chiavi di writer o archivio log. In un ambiente operatore *isolato*, non in Render né GitHub Actions, impostare le variabili metadata comuni e inoltre:
 
 | Variabile addizionale | Contratto |
 |---|---|
-| \`GDPR_B2_SYNTHETIC_VERSION_PROBE\` | \`demos-gdpr-b2-synthetic-version-readonly-v1\` |
-| \`GDPR_B2_READONLY_PROBE_VERSION_ID\` | ID opaco **esatto** della versione del file di prova (non un evento GDPR) |
-| \`GDPR_B2_READONLY_MIN_REMAINING_DAYS\` | Numero intero 1–3000: durata residua minima deliberata per la prova |
+| `GDPR_B2_SYNTHETIC_VERSION_PROBE` | `demos-gdpr-b2-synthetic-version-readonly-v1` |
+| `GDPR_B2_READONLY_PROBE_VERSION_ID` | ID opaco **esatto** della versione del file di prova (non un evento GDPR) |
+| `GDPR_B2_READONLY_MIN_REMAINING_DAYS` | Numero intero 1–3000: durata residua minima deliberata per la prova |
 
-4. Eseguire la CLI senza \`GDPR_B2_METADATA_PROBE\` né variabili produzione, SQL, writer, Axiom, worker o Render. Il processo termina **sempre con exit code 2**, anche se la versione sintetica supera tutte le verifiche, perché la risposta positiva \`READONLY_SYNTHETIC_VERSION_VERIFIED_NOT_RECOVERY\` certifica solo che **quella versione di prova** è in COMPLIANCE e ha i byte previsti. Non dimostra alcuna versione GDPR reale, completezza/freschezza del journal, checkpoint esterno o restore riuscito.
+4. Eseguire la CLI senza `GDPR_B2_METADATA_PROBE` né variabili produzione, SQL, writer, Axiom, worker o Render. Il processo termina **sempre con exit code 2**, anche se la versione sintetica supera tutte le verifiche, perché la risposta positiva `READONLY_SYNTHETIC_VERSION_VERIFIED_NOT_RECOVERY` certifica solo che **quella versione di prova** è in COMPLIANCE e ha i byte previsti. Non dimostra alcuna versione GDPR reale, completezza/freschezza del journal, checkpoint esterno o restore riuscito.
 
-I cinque test nel file \`api/tests/gdprB2SyntheticVersionReadonly.test.js\` usano soltanto un client B2 inventato: ambiente vietato prima di chiamate, allowlist delle due operazioni, prova sintetica positiva ma recovery false, retention scaduta/governance, body alterato/oversize e errori senza divulgazione. **Nessun effetto reale su Backblaze.**
+I cinque test nel file `api/tests/gdprB2SyntheticVersionReadonly.test.js` usano soltanto un client B2 inventato: ambiente vietato prima di chiamate, allowlist delle due operazioni, prova sintetica positiva ma recovery false, retention scaduta/governance, body alterato/oversize e errori senza divulgazione. **Nessun effetto reale su Backblaze.**
 
 ### Gate successivi invariati
 
