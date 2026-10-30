@@ -139,8 +139,15 @@ async function run() {
           for(let g=from;g<=Math.min(from+149,N);g++){
             const offset=args.length;
             args.push(g, 1, encode[format](catalogIds,publishedAnswers.get(g)||{}));
-            values.push('(
-      // are part of total_relation_size below.
+            values.push('(' + [1,2,3].map(i=>String.fromCharCode(36)+(offset+i)).join(',') + ')');
+          }
+          await client.query('INSERT INTO opinion_v2_bench_'+format+
+            ' (user_id,catalog_version,answers) VALUES '+values.join(','), args);
+        }
+      }
+
+      // Needed for per-user reads and per-opinion aggregates; index sizes
+
       await client.query('CREATE INDEX opinion_v2_bench_eav_op_idx ' +
         'ON opinion_v2_bench_eav (opinion_id, answer, user_id)');
       for (const table of tables) await client.query('ANALYZE ' + table);
