@@ -9,6 +9,8 @@ on:
       - 'feat/opinioni-delta-cache-prep-20261029'
     paths:
       - 'client/tests/encryptedOpinionCategory.behavior.test.mjs'
+      - 'client/tests/politicalConsentVerifiedReuse.test.mjs'
+      - 'client/src/hooks/usePoliticalOpinionsConsent.ts'
       - 'client/src/hooks/use-auth.tsx'
       - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
       - 'client/src/lib/encryptedOpinionCache.ts'
@@ -41,6 +43,8 @@ on:
       - 'client/tests/opinionDelta.test.mjs'
       - 'client/tests/opinionPayload.test.mjs'
       - 'client/tests/encryptedOpinionCategory.behavior.test.mjs'
+      - 'client/tests/politicalConsentVerifiedReuse.test.mjs'
+      - 'client/src/hooks/usePoliticalOpinionsConsent.ts'
       - 'client/tests/saveAndVerifyOpinions.test.mjs'
       - 'client/tests/statsOpinionCacheReuse.test.mjs'
       - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
@@ -66,7 +70,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Test mobile crash diagnostic and toast opacity
-        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs client/tests/opinionDelta.test.mjs client/tests/opinionPayload.test.mjs client/tests/encryptedOpinionCategory.behavior.test.mjs client/tests/saveAndVerifyOpinions.test.mjs client/tests/statsOpinionCacheReuse.test.mjs
+        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs client/tests/opinionDelta.test.mjs client/tests/opinionPayload.test.mjs client/tests/encryptedOpinionCategory.behavior.test.mjs client/tests/saveAndVerifyOpinions.test.mjs client/tests/statsOpinionCacheReuse.test.mjs client/tests/politicalConsentVerifiedReuse.test.mjs
       - name: Build frontend
         run: npm --prefix client run build
       - name: Install API dependencies
