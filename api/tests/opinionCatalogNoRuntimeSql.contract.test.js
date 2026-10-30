@@ -75,9 +75,9 @@ test('legacy maintenance script is explicitly excluded, but runtime utils remain
 test('SQL guard detects executable legacy catalog reads but ignores comments',()=>{
   const active=withoutComments("const sql=\`SELECT id FROM opinioni_domande\`;");
   const commented=withoutComments(
-    "// SELECT id FROM opinioni_domande\\nconst safe=true;");
-  assert.match(active,/\\bopinioni_domande\\b/i);
-  assert.doesNotMatch(commented,/\\bopinioni_domande\\b/i);
+    "// SELECT id FROM opinioni_domande\nconst safe=true;");
+  assert.match(active,/\bopinioni_domande\b/i);
+  assert.doesNotMatch(commented,/\bopinioni_domande\b/i);
 });
 
 test('the one-time read-only cutover preflight remains the explicit exception',()=>{
