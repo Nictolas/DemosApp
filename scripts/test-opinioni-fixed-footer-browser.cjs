@@ -34,6 +34,29 @@ const Q = Array.from({ length: 24 }, (_, i) => ({
   userAnswer: null,
 }));
 
+// Inspect only the existence of a synthetic owner's encrypted IndexedDB
+// record. Never decrypt or log political answers from a real account.
+async function encryptedOwnerRecordExists(page, owner) {
+  return page.evaluate(async id => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('demos-profile-vault-v1');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction('entries', 'readonly');
+        const request = tx.objectStore('entries')
+          .get('owner:' + encodeURIComponent(id));
+        request.onsuccess = () => resolve(request.result !== undefined);
+        request.onerror = () => reject(request.error);
+      });
+    } finally {
+      db.close();
+    }
+  }, owner);
+}
+
 async function run() {
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   let cases = 0;
@@ -280,10 +303,19 @@ async function run() {
         'Legacy backend without revision must fall back to a fresh authenticated GET');
       catalogEndpointAvailable = true;
       // Consent revoked in a verified session: cached personal answers stay hidden.
+      // A mere UI hide is insufficient: the encrypted owner record must be
+      // physically removed from IndexedDB when the revocation is verified.
+      assert.equal(await encryptedOwnerRecordExists(page, ID), true,
+        'Precondition: the original synthetic account has encrypted cached answers');
       politicalGrant = false;
       await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
       await page.getByText('Nessuna domanda disponibile.').waitFor();
       assert.equal(await page.getByText('Opinione sintetica numero 24', { exact: true }).count(), 0);
+      for (let attempt = 0; attempt < 30 && await encryptedOwnerRecordExists(page, ID); attempt++) {
+        await page.waitForTimeout(100);
+      }
+      assert.equal(await encryptedOwnerRecordExists(page, ID), false,
+        'Verified political-consent revocation must delete the encrypted owner record');
       // Regrant with a new authorization epoch cannot reuse old cached answers.
       politicalGrant = true;
       politicalEpoch = '2026-10-02T00:00:00Z';
