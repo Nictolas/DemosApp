@@ -1,20 +1,19 @@
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
-import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
-import { loadOpinionCategory, cacheConfirmedOpinionAnswers } from "@/lib/encryptedOpinionCache";
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { ApprofondimentoButton } from "@/components/ApprofondimentoButton";
 import { usePoliticalOpinionsConsent } from "@/hooks/usePoliticalOpinionsConsent";
 import { vibrateShort } from "@/utils/vibration";
 import { PoliticalOpinionsConsentModal } from "@/components/PoliticalOpinionsConsentModal";
 import { OpinionStatsBar } from "@/components/OpinionStatsBar";
 import { useUnsavedOpinionsGuard } from "@/hooks/useUnsavedOpinionsGuard";
-import { OpinionActionsBar } from "@/components/OpinionActionsBar";
 
 interface Question {
   id: string;
@@ -51,7 +50,7 @@ const normalizeAnswer = (answer: string | undefined) => {
 export default function OpinioniNazionali() {
   // Controllo consenso opinioni politiche (GDPR Art. 9)
   const { hasConsent } = usePoliticalOpinionsConsent();
-  const { user, isLoading: isAuthLoading, isSessionVerified, verifiedPoliticalConsent } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -60,29 +59,23 @@ export default function OpinioniNazionali() {
   const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<Record<string, string> | null>(null);
 
   // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions, isFetching: isRefreshingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
-    queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Nazionale'],
-    queryFn: ({ signal }) => loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp, "N", signal) as any,
-    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true,
-    // Re-run the cheap catalog check on each visit. Valid encrypted answers
-    // still avoid database reads; a changed release never stays permanently stale.
-    staleTime: 0,
-    gcTime: Infinity,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: false
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
+    queryKey: ['opinioniQuestions', 'Nazionale'],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=N");
+      if (response.ok && response.data) {
+        return response.data;
+      }
+      return { success: false, data: [] };
+    },
+    enabled: !!user
   });
 
   // Combina i dati
-  const isLoading = isLoadingQuestions || isRefreshingQuestions;
-  // A disabled query can still hold data in RAM: never render it after revocation.
-  const canReadOpinions = !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true;
-  const questions = canReadOpinions && questionsData?.data && Array.isArray(questionsData.data)
-    ? questionsData.data : [];
+  const isLoading = isLoadingQuestions;
+  const questions = (questionsData?.data && Array.isArray(questionsData.data)) ? questionsData.data : [];
   const userAnswers = questionsData?.userAnswers || {};
   
-  // Debug
-  useEffect(() => {
-  }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
     const opinioniEspresse = questions
@@ -99,9 +92,6 @@ export default function OpinioniNazionali() {
     })
     .sort((a, b) => a.text.localeCompare(b.text));
 
-  // Debug per vedere le sezioni
-  useEffect(() => {
-  }, [opinioniEspresse, opinioniDaInserire]);
 
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
@@ -129,24 +119,9 @@ export default function OpinioniNazionali() {
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("N", newOpinions),
-    onSuccess: async (_data, savedOpinions) => {
-      // ACK commit has completed: persist all shared encrypted grade caches.
-      await cacheConfirmedOpinionAnswers(user!.id, verifiedPoliticalConsent!.timestamp, savedOpinions);
-      // An older in-flight GET must not restore the pre-save snapshot.
-      await queryClient.cancelQueries({
-        queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Nazionale'],
-      });
+    onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni nazionali sono state salvate." });
-      queryClient.setQueryData(
-        ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Nazionale'],
-        (previous: any) => previous && Array.isArray(previous.data) ? ({
-          ...previous,
-          data: previous.data.map((question: any) =>
-            Object.prototype.hasOwnProperty.call(savedOpinions, question.id)
-              ? { ...question, userAnswer: savedOpinions[question.id] }
-              : question),
-        }) : previous,
-      );
+      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Nazionale'] });
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
       queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
       const nextPage = exitGuard.onSaveSuccess();
@@ -166,11 +141,18 @@ export default function OpinioniNazionali() {
 
   const handleSave = () => {
     
-    // Only changed IDs: never overwrite positions from another device.
-    const opinionsToSave = collectChangedOpinionAnswers(questions, opinions);
-
+    // Mappa le opinioni usando l'ID corretto per l'API
+    const opinionsToSave: Record<string, string> = {};
+    questions.forEach(question => {
+      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
+        // Usa l'ID dell'opinione direttamente dal database
+        opinionsToSave[question.id] = opinions[question.id];
+      }
+    });
+    
+    
     if (Object.keys(opinionsToSave).length === 0) {
-      toast({ title: "Attenzione", description: "Non ci sono nuove opinioni da salvare.", variant: "destructive" });
+      toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
       return;
     }
     
@@ -196,18 +178,24 @@ export default function OpinioniNazionali() {
       // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
       await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
       
-      // Recompute only real changes after consent; no full snapshot writes.
-      const allOpinionsToSave = collectChangedOpinionAnswers(
-        questions, { ...pendingOpinionsToSave, ...opinions },
-      );
-
+      // Ricostruisci le opinioni da salvare includendo tutte le opinioni correnti
+      // Questo assicura che anche le opinioni modificate dopo aver aperto il dialog vengano incluse
+      const allOpinionsToSave: Record<string, string> = {};
+      questions.forEach(question => {
+        // Usa l'opinione corrente se disponibile, altrimenti quella in attesa
+        const currentOpinion = opinions[question.id] || pendingOpinionsToSave[question.id];
+        if (currentOpinion && currentOpinion !== 'Astenuto') {
+          allOpinionsToSave[question.id] = currentOpinion;
+        }
+      });
+      
+      
       // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
       setTimeout(() => {
         // Verifica che le opinioni siano ancora valide
         if (allOpinionsToSave && Object.keys(allOpinionsToSave).length > 0) {
           saveMutation.mutate(allOpinionsToSave);
         } else {
-          console.error('❌ DEBUG: Nessuna opinione valida da salvare dopo il consenso');
           toast({ 
             title: "Errore", 
             description: "Nessuna opinione valida da salvare. Riprova a salvare le tue opinioni.", 
@@ -227,14 +215,14 @@ export default function OpinioniNazionali() {
   const unlockDate = null;
 
   return (
-    <div className="opinioni-editor-page flex h-full min-h-0 flex-col bg-gradient-to-b from-green-50 to-white">
-      <div className="min-h-0 flex-1 px-3 pb-2 pt-3 sm:px-4 sm:pt-6">
-        <Card className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col">
-          <CardHeader className="opinioni-editor-page__header shrink-0 text-center">
+    <div className="flex flex-col bg-gradient-to-b from-green-50 to-white page-with-navbar">
+      <div className="container mx-auto px-4 py-8">
+        <Card className="w-full max-w-4xl mx-auto">
+          <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold">Opinioni Nazionali</CardTitle>
             <CardDescription>Esprimi la tua opinione su temi di rilevanza nazionale per trovare rappresentanti con idee simili alle tue.</CardDescription>
           </CardHeader>
-          <CardContent className="opinioni-editor-page__list min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain pb-6">
+          <CardContent className="space-y-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>
             ) : questions.length === 0 ? (
@@ -317,6 +305,14 @@ export default function OpinioniNazionali() {
                   </div>
                 )}
 
+                <div className="flex flex-col items-center gap-3 pt-6">
+                  <Button onClick={handleSave} disabled={saveMutation.isPending || blocco?.isBlocked} className="px-8 py-3 text-lg">
+                    {saveMutation.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Salvando...</> : "Salva le mie opinioni"}
+                  </Button>
+                  <Button variant="outline" type="button" onClick={exitGuard.onBack} disabled={saveMutation.isPending} className="px-8 py-3 text-lg">
+                    Indietro
+                  </Button>
+                </div>
                 {blocco?.isBlocked && (
                   <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded text-center">
                     <b>Hai già modificato le opinioni questa settimana.</b><br />
@@ -328,12 +324,6 @@ export default function OpinioniNazionali() {
           </CardContent>
         </Card>
       </div>
-      <OpinionActionsBar
-        onSave={handleSave}
-        onBack={exitGuard.onBack}
-        isSaving={saveMutation.isPending}
-        saveDisabled={isLoading || questions.length === 0 || blocco.isBlocked}
-      />
 
       {/* Dialog per il consenso alle opinioni politiche */}
       {exitGuard.dialog}
