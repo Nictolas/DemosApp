@@ -44,3 +44,20 @@ test('known grades reuse the encrypted cache before any personal-answer network 
 test('statistics selector never logs political payloads to the console', () => {
   assert.doesNotMatch(selector, /console\.(?:log|error)\s*\(/);
 });
+
+test('base statistics route displays the selector, while deep links retain their opinion ID', () => {
+  const source = readFileSync(new URL('../src/pages/StatisticheOpinione/hooks/useOpinionId.ts', import.meta.url), 'utf8');
+  for (const [pathname, expected] of [
+    ['/statistiche-opinione', ''],
+    ['/statistiche-opinione/', ''],
+    ['/statistiche-opinione/synthetic_opinion_01', 'synthetic_opinion_01'],
+    ['/statistiche-opinione/synthetic_opinion_01/regione/toscana', 'synthetic_opinion_01'],
+  ]) {
+    const scope = {
+      window: { location: { pathname } },
+      console: { log() {} },
+    };
+    vm.runInNewContext(source.replace(/^export\s+/m, '') + '\nthis.readOpinionId = useOpinionId;', scope);
+    assert.equal(scope.readOpinionId(), expected, pathname);
+  }
+});
