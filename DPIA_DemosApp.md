@@ -1,5 +1,6 @@
 # DPIA - Data Protection Impact Assessment
-## Valutazione d'Impatto sulla Protezione dei Dati
+
+> **Avviso tecnico (30/10/2026): DPIA storica NON APPROVATA per il rilascio corrente.** Il contenuto sottostante conserva affermazioni e periodi da riconciliare; parere DPO e firme risultano non compilati. Non usare questo documento come attestazione GDPR. Vedere la [matrice di riconciliazione e prove mancanti](docs/privacy/DPIA_RELEASE_RECONCILIATION_2026-10-30.md).\n\n## Valutazione d'Impatto sulla Protezione dei Dati
 
 **Applicazione:** DemosApp - Piattaforma di Democrazia Partecipativa Digitale  
 **Titolare del Trattamento:** Democracy Institute APS  
