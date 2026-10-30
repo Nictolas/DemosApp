@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {splitHybridDelta,projectHybridAnswers,SQL}=
+const {splitHybridDelta,projectHybridAnswers,buildHybridAnswerSelect,SQL}=
   require('../experiments/opinionAnswersV2HybridCandidate');
 const immutable=['opinione_0','opinione_1','opinione_2'];
 const published=new Set([...immutable,'opinione_3','opinione_4']);
@@ -34,4 +34,17 @@ test('overflow SQL has parameterized JSONB patch and uses the existing legacy ta
   assert.match(SQL.upsertOverflow,/COALESCE\(old\.answers_extra,'\{\}'::jsonb\)\|\|EXCLUDED.answers_extra/);
   assert.doesNotMatch(SQL.upsertOverflow,/CREATE|ALTER|DROP/);
   assert.match(SQL.readOverflowAndSources,/FROM opinioni_risposte WHERE user_id=\$1::uuid/);
+});
+
+test('one answer query includes old selected columns, future overflow and sources',()=>{
+  const published=[{id:'opinione_0'},{id:'opinione_3'}];
+  const sql=buildHybridAnswerSelect(published,immutable);
+  assert.equal(sql,
+    'SELECT "opinione_0",answers_extra,fonti_opinioni FROM opinioni_risposte WHERE user_id=$1::uuid');
+  assert.equal((sql.match(/SELECT/g)||[]).length,1);
+  assert.doesNotMatch(sql,/"opinione_3"|opinioni_domande|information_schema/i);
+  assert.equal(buildHybridAnswerSelect([{id:'opinione_4'}],immutable),
+    'SELECT answers_extra,fonti_opinioni FROM opinioni_risposte WHERE user_id=$1::uuid');
+  assert.throws(()=>buildHybridAnswerSelect([{id:'bad-name;DROP TABLE users'}],immutable),/Invalid/);
+  assert.throws(()=>buildHybridAnswerSelect([{id:'opinione_0'},{id:'opinione_0'}],immutable),/Duplicate/);
 });
