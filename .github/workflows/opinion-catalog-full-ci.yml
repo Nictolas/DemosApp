@@ -46,7 +46,7 @@ jobs:
             node --check "$file"
           done
       - name: Catalog integrity and zero-DB-metadata contract
-        run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js
+        run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js api/tests/opinionCheckMissingCodeCatalog.test.js
       - name: Install backend dependencies for isolated HTTP regression
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Validate read-only cutover parity and answer-column schema regression
