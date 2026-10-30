@@ -62,6 +62,7 @@ async function scenario(browser, mode) {
       });
       if (mode === 'offline') return route.abort('failed');
       if (mode === 'unavailable') return json(route, 503, { success: false });
+      if (mode === 'unauthorized') return json(route, 401, { success: false });
       if (mode === 'server-error') return json(route, 500, { success: false });
       return json(route, 200, { success: true });
     }
@@ -113,7 +114,7 @@ async function scenario(browser, mode) {
 (async () => {
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   try {
-    for (const mode of ['confirmed', 'unavailable', 'server-error', 'offline']) {
+    for (const mode of ['confirmed', 'unavailable', 'server-error', 'unauthorized', 'offline']) {
       await scenario(browser, mode);
     }
   } finally {
