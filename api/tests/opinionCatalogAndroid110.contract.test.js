@@ -86,6 +86,13 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
     const noToken=await fetch(base+'/api/opinioni-list?grado=N');
     assert.equal(noToken.status,401);
     assert.equal(state.sql.length,0,'No SQL before authentication');
+    for(const query of ['', '?grado=', '?grado=N&grado=R']){
+      const missing=await fetch(base+'/api/opinioni-list'+query,options);
+      assert.equal(missing.status,400,
+        'Android invalid grade is not a valid personal-answer lookup');
+      assert.equal(state.sql.length,0,
+        'invalid grade should never query the user or the answers table');
+    }
 
     for(const grade of ['N','R','CO','E']){
       const response=await fetch(base+'/api/opinioni-list?grado='+grade,options);
