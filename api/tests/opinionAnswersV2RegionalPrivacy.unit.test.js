@@ -92,14 +92,15 @@ test('zero-count regions are still required for completeness but not published',
 
 
 test('hidden total can exceed 10 while a hidden answer category is 1',()=>{
-  // Before the fix, the total suppressed remainder was 16 (>10),
-  // so Tuscany's released counts let users infer one regional
-  // contrary vote by subtracting categories from national figures.
+  // Lazio 9 and Lombardy 7 are EACH below threshold, but together
+  // hide 16 responses (15f, 1c). A total-only policy would publish
+  // Tuscany and allow disclosure of the one contrary category.
   const p=planCoherentRegionalPublication(
     {favorevole:25,contrario:1,indeciso:0},
     fixture({
       TO:{favorevole:10},
-      LA:{favorevole:15,contrario:1}
+      LA:{favorevole:9},
+      LO:{favorevole:6,contrario:1}
     })
   );
   assert.equal(p.publishNational,true);
