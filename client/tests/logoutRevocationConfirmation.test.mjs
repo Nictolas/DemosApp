@@ -61,6 +61,19 @@ test("timeout aborts request and does not claim remote revocation", async () => 
   assert.deepEqual(result, { serverRevocationConfirmed: false, reason: "timeout" });
 });
 
+test("late 200 after abort is still unconfirmed", async () => {
+  const result = await requestLogoutRevocation({
+    url: "/api/auth/logout",
+    accessToken: "synthetic-access-A",
+    refreshToken: null,
+    timeoutMs: 5,
+    fetcher: async () => new Promise((resolve) => {
+      setTimeout(() => resolve({ ok: true, status: 200 }), 20);
+    }),
+  });
+  assert.deepEqual(result, { serverRevocationConfirmed: false, reason: "timeout" });
+});
+
 test("no tokens means no revocation claim and no network request", async () => {
   let called = false;
   const result = await requestLogoutRevocation({
