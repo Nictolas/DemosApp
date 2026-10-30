@@ -9,7 +9,7 @@ const BEGIN='BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY';
 // Fake transactional client: there is deliberately NO pool.query fallback.
 // The cutover verifier must keep both metadata reads on one read-only client.
 function fakePool({missing=null,wrongType=null,extra=null,legacyDrift=false,
-  failMetadata=false,failBegin=false,failRollback=false}={}){
+  failMetadata=false,failBegin=false,failRollback=false,duplicateLegacy=false}={}){
   const calls=[],releases=[];
   const columns=questions.filter(x=>x.id!==missing).map(x=>({
     column_name:x.id,data_type:x.id===wrongType?'integer':'text'
@@ -21,6 +21,7 @@ function fakePool({missing=null,wrongType=null,extra=null,legacyDrift=false,
     id:q.id,text:legacyDrift && q.id===questions[0].id?'CHANGED TEXT':q.text,
     gradi_opinione:[...q.gradi_opinione],approfondimento:q.approfondimento
   }));
+  if(duplicateLegacy)legacy.push({...legacy[0],gradi_opinione:[...legacy[0].gradi_opinione]});
   const client={async query(sql){
     calls.push(sql);
     if(sql===BEGIN){
@@ -122,4 +123,13 @@ test('nontransactional adapters are refused, not silently used for independent r
   await assert.rejects(checkOpinionCatalogParity({async query(){calls++;}}),
     /transaction-capable PostgreSQL pool/);
   assert.equal(calls,0);
+});
+
+test('duplicate legacy ID is rejected even when text, scope and details are identical',async()=>{
+  const pool=fakePool({duplicateLegacy:true});
+  await assert.rejects(checkOpinionCatalogParity(pool),
+    /Legacy catalog contains duplicate opinion IDs/);
+  assert.equal(pool.calls.filter(sql=>sql.includes('FROM public.opinioni_domande')).length,1);
+  assert.equal(pool.calls.at(-1),'ROLLBACK');
+  assert.deepEqual(pool.releases,[false]);
 });
