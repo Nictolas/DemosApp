@@ -30,6 +30,9 @@ on:
       - 'api/services/privacyErasureB2Journal.js'
       - 'api/scripts/attest-gdpr-b2-bucket-readonly.js'
       - 'api/tests/gdprB2ReadonlyBucketMetadata.test.js'
+      - 'api/scripts/attest-gdpr-b2-synthetic-version-readonly.js'
+      - 'api/tests/gdprB2SyntheticVersionReadonly.test.js'
+      - 'api/tests/fixtures/gdpr-b2-synthetic-object-v1.json'
       - 'api/services/privacyErasureLedgerService.js'
       - 'api/tests/gdprOutboxWorkerIsolated.pg17.test.js'
       - 'api/tests/fixtures/gdprDurableRecoveryPrototype.js'
@@ -95,6 +98,8 @@ jobs:
           node --check api/services/privacyErasureOutboxWorker.js
           node --check api/scripts/attest-gdpr-b2-bucket-readonly.js
           node --test --test-concurrency=1 api/tests/gdprB2ReadonlyBucketMetadata.test.js
+          node --check api/scripts/attest-gdpr-b2-synthetic-version-readonly.js
+          node --test --test-concurrency=1 api/tests/gdprB2SyntheticVersionReadonly.test.js
           node --test --test-concurrency=1 api/tests/gdprDataPlaneRouteSurface.test.js
           node api/tests/gdprLegacyAdminSchemaMutationRouteIsolated.test.js
           node api/tests/gdprPrivacyCanonicalPoolIsolated.test.js
