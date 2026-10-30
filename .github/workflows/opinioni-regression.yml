@@ -9,6 +9,9 @@ on:
       - 'feat/opinioni-delta-cache-prep-20261029'
     paths:
       - 'client/tests/encryptedOpinionCategory.behavior.test.mjs'
+      - 'client/src/hooks/use-auth.tsx'
+      - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
+      - 'client/src/lib/encryptedOpinionCache.ts'
       - 'client/tests/saveAndVerifyOpinions.test.mjs'
       - 'client/tests/statsOpinionCacheReuse.test.mjs'
       - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
