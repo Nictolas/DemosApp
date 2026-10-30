@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {validateSourceMap,planSourcePatch,projectSourcesForProfile,SQL}=
+const {validateSourceMap,legacyRowToOpinionMaps,planSourcePatch,projectSourcesForProfile,SQL}=
   require('../experiments/opinionAnswersV2SourcesCandidate');
 const ids=new Set(['opinione_0','opinione_1','opinione_94']);
 const historic=new Set([...ids,'opinione_archiviata']);
@@ -67,4 +67,21 @@ test('sources SQL patches with jsonb merge and explicit deletes, never snapshot 
   assert.match(SQL.exportWithSources,/user_id=\$1::uuid/);
   assert.match(SQL.readForUpdate,/FOR UPDATE/);
   assert.doesNotMatch(SQL.upsertSources,/SET\s+sources\s*=\s*EXCLUDED\.sources/i);
+});
+
+test('full historical backfill copies answers and sources, never drops archived keys',()=>{
+  const legacy={
+    opinione_0:'f',opinione_archiviata:'c',opinione_1:null,
+    fonti_opinioni:{opinione_0:'Fonte attuale',opinione_archiviata:'Fonte archiviata'}
+  };
+  const res=legacyRowToOpinionMaps(legacy,['opinione_0','opinione_1','opinione_archiviata']);
+  assert.deepEqual({...res.answers},{opinione_0:'f',opinione_archiviata:'c'});
+  assert.deepEqual({...res.sources},{
+    opinione_0:'Fonte attuale',opinione_archiviata:'Fonte archiviata'
+  });
+  assert.throws(()=>legacyRowToOpinionMaps({
+    opinione_0:'f',fonti_opinioni:{opinione_95:'untracked'}
+  },['opinione_0']),/Unknown historical/);
+  assert.throws(()=>legacyRowToOpinionMaps({opinione_0:'f'},['opinione_0']),
+    /Missing legacy fonti_opinioni/);
 });
