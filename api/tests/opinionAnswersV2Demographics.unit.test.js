@@ -19,11 +19,15 @@ test('new and old Opinions use same consent-aware age grouping and single query'
   for(const q of [old,future]){
     assert.match(q.sql,/u\.data_nascita IS NOT NULL/);
     assert.match(q.sql,/u\.data_nascita <= CURRENT_DATE/);
-    assert.match(q.sql,/u\.account_type = ANY\(\$2::text\[\]\)/);
+    assert.match(q.sql,q===old
+      ? /u\.account_type = ANY\(\$1::text\[\]\)/
+      : /u\.account_type = ANY\(\$2::text\[\]\)/);
     assert.match(q.sql,/COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
     assert.match(q.sql,/GROUP BY dimension_label/);
     assert.doesNotMatch(q.sql,/information_schema|opinioni_domande|FROM users u,/);
-    assert.deepEqual(q.params,['opinione_'+(q===old?'0':'94'),['PERSON','P']]);
+    assert.deepEqual(q.params,q===old
+      ? [['PERSON','P']]
+      : ['opinione_94',['PERSON','P']]);
   }
   assert.deepEqual([...TYPE_CODES],['PERSON','P']);
 });
