@@ -71,7 +71,11 @@ export async function loadOpinionCategory(
   grade: OpinionGrade,
   signal?: AbortSignal,
 ): Promise<OpinionPayload> {
-  if (!owner || signal?.aborted) throw new Error("Sessione non valida");
+  // A granted flag without a verified epoch cannot authorize a personal GET.
+  // Reject before even requesting the public catalog revision or reading vault.
+  if (!owner || !hasVerifiedConsentEpoch(consentEpoch) || signal?.aborted) {
+    throw new Error("Sessione o consenso non verificati");
+  }
   const section = sections[grade];
   const revision = profileSectionRevision(owner, section);
   const [catalogRevision, snapshot] = await Promise.all([
