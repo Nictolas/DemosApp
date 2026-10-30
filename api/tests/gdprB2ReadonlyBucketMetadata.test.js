@@ -129,14 +129,14 @@ test('COMPLIANCE metadata passes but absolutely never qualifies restore or event
 test('no-go for missing versioning, GOV mode, no lock, too few days and malformed retention',async()=>{
   for(const f of [
     {versionStatus:'Suspended'},
-    {versionStatus:undefined},
+    {versionStatus:null},
     {lockMode:'GOVERNANCE'},
     {enabled:'Disabled'},
     {retentionDays:29},
     {retentionDays:0},
     {retentionDays:3650},
     {retentionDays:'30'},
-    {retentionDays:undefined}
+    {retentionDays:null}
   ]){
     const client=fake(f);
     const report=await runReadOnlyBucketProbe({env:base(),makeClient:()=>client});
