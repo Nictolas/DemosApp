@@ -12,7 +12,7 @@ test('legacy mapping requires all 94 actual columns and rejects malformed payloa
   assert.throws(()=>legacyRowToAnswers({opinione_0:'f'},ids),/Missing legacy column/);
   assert.throws(()=>legacyRowToAnswers({...empty,opinione_0:'x'},ids),/Unexpected legacy answer/);
   assert.throws(()=>validateLegacyIds(['opinione_0','opinione_0']),/duplicate/);
-  assert.throws(()=>validateLegacyIds(['__proto__']),/invalid/);
+  assert.throws(()=>validateLegacyIds(['__proto__']),/invalid/i);
 });
 
 test('NULL is unanswered, not an opinion state; first and last slots survive',()=>{
