@@ -70,9 +70,7 @@ class ApiRequest {
 
     if (token) {
       headers.Authorization = `Bearer ${token}`;
-      console.log('🔍 DEBUG api-request - Token trovato e aggiunto all\'header');
     } else {
-      console.log('⚠️ DEBUG api-request - Nessun token trovato nel localStorage');
     }
 
     const controller = new AbortController();
@@ -89,7 +87,6 @@ class ApiRequest {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('❌ DEBUG api-request - Errore risposta:', response.status, errorData);
         return {
           success: false,
           error: errorData.error || `HTTP ${response.status}`,
@@ -98,11 +95,6 @@ class ApiRequest {
       }
 
       const data = await response.json();
-      console.log('✅ DEBUG api-request - Risposta ricevuta:', {
-        status: response.status,
-        success: data.success,
-        message: data.message
-      });
       return {
         success: true,
         data: data.data || data,
@@ -140,11 +132,6 @@ class ApiRequest {
   }
 
   async post<T = any>(endpoint: string, data?: any, options: RequestOptions = {}): Promise<ApiResponse<T>> {
-    console.log('🔍 DEBUG ApiRequest.post - endpoint:', endpoint);
-    console.log('🔍 DEBUG ApiRequest.post - data:', data);
-    console.log('🔍 DEBUG ApiRequest.post - this.baseURL:', this.baseURL);
-    const fullUrl = `${this.baseURL}${endpoint}`;
-    console.log('🔍 DEBUG ApiRequest.post - URL completo:', fullUrl);
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',

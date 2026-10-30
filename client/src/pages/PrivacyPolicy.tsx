@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             Informativa sulla Privacy
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Ultima modifica: {new Date().toLocaleDateString('it-IT')}
+            <strong>DemosApp</strong> - Ultima modifica del testo: 30/10/2026
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -97,7 +97,7 @@ export default function PrivacyPolicy() {
               <li>Il consenso alle opinioni politiche è <strong>opzionale</strong> e può essere rifiutato</li>
               <li>Se rifiuti il consenso, non potrai esprimere opinioni politiche ma potrai utilizzare tutte le altre funzionalità della piattaforma</li>
               <li>Il consenso può essere <strong>revocato in qualsiasi momento</strong> dalle impostazioni del profilo</li>
-              <li>In caso di revoca, le opinioni politiche già espresse verranno <strong>eliminate completamente</strong> dal sistema (GDPR Art. 17 - Diritto alla cancellazione)</li>
+              <li>In caso di revoca, il servizio avvia la cancellazione dei dati politici generati dall'utente nei sistemi attivi. La copia cifrata sul dispositivo viene eliminata quando l'app rileva la revoca; eventuali copie di sicurezza richiedono procedure distinte.</li>
               <li>Il consenso viene registrato con data, ora, indirizzo IP e user agent per finalità di audit e conformità</li>
             </ul>
             <p className="text-gray-700 mb-3">
@@ -156,30 +156,28 @@ export default function PrivacyPolicy() {
               <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
                 <h4 className="font-semibold text-gray-800 mb-2">📋 Dati del Profilo Utente</h4>
                 <p className="text-gray-700 mb-2">
-                  <strong>Periodo:</strong> 7 anni (2.555 giorni) dalla data di registrazione
+                  <strong>Criterio:</strong> Per il tempo necessario a mantenere l'account e fino alla sua cancellazione, salvo dati specifici soggetti a obblighi di legge documentati.
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
                   <strong>Dati inclusi:</strong> Nome, cognome, email, anno di nascita, cittadinanza, 
                   dati di residenza, dati di elezione e candidatura
                 </p>
                 <p className="text-sm text-gray-600">
-                  <strong>Motivo:</strong> Obbligo di conservazione per finalità fiscali e contabili 
-                  (Art. 2220 Codice Civile italiano)
+                  <strong>Motivo:</strong> Erogazione del servizio. Le scritture contabili, se presenti, sono trattate separatamente; l'art. 2220 c.c. non giustifica la conservazione generalizzata dei profili.
                 </p>
               </div>
 
               <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
                 <h4 className="font-semibold text-gray-800 mb-2">🗳️ Voti e Opinioni Politiche</h4>
                 <p className="text-gray-700 mb-2">
-                  <strong>Periodo:</strong> 5 anni (1.825 giorni) dalla data di espressione
+                  <strong>Criterio:</strong> Per il tempo necessario alle funzionalità richieste e finché rimane valido il consenso esplicito per i dati politici. Alla revoca, il servizio avvia la cancellazione dei dati politici generati dall'utente.
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
                   <strong>Dati inclusi:</strong> Voti per capo di stato, referendum, iniziative popolari, 
                   ICE, opinioni politiche su temi specifici
                 </p>
                 <p className="text-sm text-gray-600">
-                  <strong>Motivo:</strong> Conservazione per finalità di democrazia partecipativa e 
-                  trasparenza politica (Art. 2220 Codice Civile)
+                  <strong>Motivo:</strong> Partecipazione democratica e statistiche. Non si applica automaticamente ai dati politici il termine previsto dall'art. 2220 c.c. per le scritture contabili.
                 </p>
               </div>
 
@@ -199,7 +197,7 @@ export default function PrivacyPolicy() {
               <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
                 <h4 className="font-semibold text-gray-800 mb-2">📊 Log di Audit e Sicurezza</h4>
                 <p className="text-gray-700 mb-2">
-                  <strong>Periodo:</strong> 7 anni (2.555 giorni) dalla data di creazione
+                  <strong>Criterio:</strong> Secondo la finalità specifica di sicurezza o accountability, con un periodo motivato, limitato e distinto per categoria di log; nessun termine generale di sette anni è imposto dal GDPR.
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
                   <strong>Dati inclusi:</strong> Azioni di audit, eventi di sicurezza, accessi al sistema, 
@@ -252,13 +250,13 @@ export default function PrivacyPolicy() {
 
             <h3 className="text-xl font-medium mb-2 mt-6">5.2 Meccanismo di Cancellazione</h3>
             <p className="text-gray-700 mb-3">
-              La cancellazione dei dati avviene <strong>automaticamente</strong> secondo le policy di retention configurate:
+              La cancellazione dei dati è soggetta alle finalità, alla base giuridica e agli effettivi meccanismi di cancellazione applicabili:
             </p>
             <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li>I dati vengono cancellati automaticamente alla scadenza del periodo di conservazione</li>
-              <li>La cancellazione avviene senza preavviso, secondo i periodi indicati in questa sezione</li>
-              <li>La cancellazione è <strong>irreversibile</strong> una volta completata</li>
-              <li>I dati vengono cancellati in modo sicuro e conforme al GDPR Art. 17 (Diritto alla cancellazione)</li>
+              <li>I dati non più necessari devono essere cancellati o resi irreversibilmente anonimi. I tempi operativi e i processi per ciascuna categoria devono essere verificati e documentati.</li>
+              <li>Il consenso ai dati politici può essere revocato in qualsiasi momento e la richiesta comporta la rimozione dei dati personali trattati esclusivamente sulla base di tale consenso.</li>
+              <li>Le copie tecniche e di backup seguono procedure di cancellazione e accesso distinte, da verificare nell'ambito delle misure di protezione.</li>
+              <li>Per la cancellazione dei dati personali si applicano l'art. 17 GDPR e le eventuali eccezioni previste dalla legge.</li>
             </ul>
 
             <h3 className="text-xl font-medium mb-2 mt-6">5.3 Diritto di Estensione</h3>
@@ -608,8 +606,8 @@ export default function PrivacyPolicy() {
           {/* Footer */}
           <div className="border-t pt-6 mt-8">
             <p className="text-sm text-gray-500 text-center">
-              Questa informativa è conforme al Regolamento (UE) 2016/679 (GDPR) 
-              e al D.Lgs. 196/2003 (Codice Privacy).
+              Questa informativa descrive il trattamento dei dati personali ai sensi del Regolamento (UE) 2016/679 (GDPR) 
+              e del D.Lgs. 196/2003 (Codice Privacy).
             </p>
           </div>
 

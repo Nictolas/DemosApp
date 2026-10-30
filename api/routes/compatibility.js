@@ -1,11 +1,24 @@
 const express = require('express');
 
+const { getOpinionsForGrade, sortOpinionsByText, getOpinionCatalogRevision } = require('../services/opinionCatalog');
+const { normalizeOpinionScope } = require('../services/politicalJurisdictionRegistryService');
+
 const router = express.Router();
+
+// Public, metadata-only release revision. Never returns political answers,
+// does not query the users database and must not log personal data.
+// A verified session is independently required before decrypting local answers.
+router.get('/opinioni-catalog-revision', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  return res.json({ success: true, revision: getOpinionCatalogRevision() });
+});
 
 // Endpoint diretto per opinioni-list (compatibilità frontend)
 const isDev = process.env.NODE_ENV !== 'production';
 
 router.get('/opinioni-list', async (req, res) => {
+  // Personalized political answers: forbid browser/edge storage, including errors.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     if (isDev) {
       console.log('🔍 GET /api/opinioni-list - Richiesta diretta');
@@ -31,7 +44,7 @@ router.get('/opinioni-list', async (req, res) => {
     try {
       decoded = verifyAccessToken(token);
     } catch (jwtError) {
-      console.error('❌ Errore verifica JWT:', jwtError.message);
+      console.error('Errore verifica JWT nelle Opinioni');
       return res.status(401).json({
         success: false,
         error: 'Token non valido',
@@ -50,11 +63,26 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
 
-    // La colonna email può non esistere più nella tabella users: qui servono solo id/status/ruolo
-    const userResult = await pool.query(
-      'SELECT id, status, ruolo FROM users WHERE id = $1',
-      [userIdFromToken]
-    );
+    // Select ONLY the published opinion columns for this electoral grade.
+    // This avoids transferring all 94 answers or the fonti_opinioni JSONB
+    // service field while preserving the existing single SQL round trip.
+    const { grado } = req.query;
+    const normalizedGrade = grado ? (normalizeOpinionScope(String(grado)) || String(grado)) : '';
+    const opinionResult = { rows: sortOpinionsByText(getOpinionsForGrade(normalizedGrade)) };
+    // opinionCatalog.js enforces stable, safe [a-z0-9_] identifiers at load time.
+    const projection = opinionResult.rows.map(op => `a."${op.id}"`).join(', ');
+    const userSql = projection
+      ? `SELECT u.id, u.status, u.ruolo, row_to_json(selected) AS opinion_answers
+         FROM users u
+         LEFT JOIN LATERAL (
+           SELECT ${projection}
+           FROM opinioni_risposte a
+           WHERE a.user_id = u.id
+         ) selected ON true
+         WHERE u.id = $1`
+      : `SELECT u.id, u.status, u.ruolo, NULL::json AS opinion_answers
+         FROM users u WHERE u.id = $1`;
+    const userResult = await pool.query(userSql, [userIdFromToken]);
     
     if (userResult.rows.length === 0) {
       return res.status(401).json({
@@ -74,9 +102,6 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
     
-    const { grado } = req.query;
-    const userId = user.id;
-    
     if (isDev) console.log('🔍 GET /api/opinioni-list - grado:', grado);
 
     if (!grado) {
@@ -87,26 +112,7 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
     
-    // Query per ottenere le opinioni del grado specificato
-    // Supporto sia gradi_opinione che gradi_opinioni (il DB può avere l'uno o l'altro)
-    const opinionQuery = (colGradi) => `
-      SELECT o.id, o.text, o.${colGradi}
-      FROM opinioni_domande o
-      WHERE $1 = ANY(o.${colGradi})
-      ORDER BY o.text
-    `;
-    let opinionResult;
-    let gradiColumn = 'gradi_opinione';
-    try {
-      opinionResult = await pool.query(opinionQuery(gradiColumn), [grado]);
-    } catch (err) {
-      if (err.code === '42703' && err.message && err.message.includes('gradi_opinione')) {
-        gradiColumn = 'gradi_opinioni';
-        opinionResult = await pool.query(opinionQuery(gradiColumn), [grado]);
-      } else {
-        throw err;
-      }
-    }
+    const gradiColumn = 'gradi_opinione';
 
     if (opinionResult.rows.length === 0) {
       if (isDev) console.log(`⚠️ Nessuna opinione per grado: ${grado}`);
@@ -117,17 +123,11 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
     
-    // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
-    // Recupera direttamente la riga dell'utente e poi accedi alle colonne per ID
-    const userAnswersQuery = `
-      SELECT * FROM opinioni_risposte WHERE user_id = $1
-    `;
-    const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
-    
+    // Answers already arrived with the account status (including null
+    // for a newly registered user who has no response row yet).
     const userAnswers = {};
-    
-    if (userAnswersResult.rows.length > 0) {
-      const userRow = userAnswersResult.rows[0];
+    const userRow = user.opinion_answers;
+    if (userRow && typeof userRow === 'object' && !Array.isArray(userRow)) {
       opinionResult.rows.forEach(opinion => {
         const opinionId = opinion.id;
         if (userRow.hasOwnProperty(opinionId)) {
@@ -177,7 +177,7 @@ router.get('/opinioni-list', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('💥 Errore endpoint diretto opinioni-list:', error);
+    console.error('Errore interno endpoint Opinioni');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',

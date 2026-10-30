@@ -134,7 +134,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Political representative eligibility
-        run: node --test api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js
+        run: node api/tests/politicalMatchingRepresentativesRoutes.smoke.test.js
 
       - name: PWA legacy cache retirement
         run: node --test api/tests/pwaServiceWorkerRetirement.smoke.test.js

@@ -71,7 +71,14 @@ async function fixture(pool){
 async function withApp(db,task){
   const authPath=require.resolve('../middleware/auth');
   const routePath=require.resolve('../routes/sondaggi');
-  const oldAuth=require.cache[authPath],oldRoute=require.cache[routePath];
+  const catalogPath=require.resolve('../services/opinionCatalog.js');
+  const oldAuth=require.cache[authPath],oldRoute=require.cache[routePath],oldCatalog=require.cache[catalogPath];
+  // Dedicated synthetic fixture: 93 published + 1 draft (excluded). Real
+  // production requests use the immutable 94-item released code catalog.
+  const publicQuestions=COLS.map((id,i)=>({id,text:'Synthetic question '+i}))
+    .filter(({id})=>id!==COLS[92]);
+  require.cache[catalogPath]={id:catalogPath,filename:catalogPath,loaded:true,
+    exports:{getAllOpinions:()=>publicQuestions,sortOpinionsByText:xs=>xs}};
   const queries=[];
   let failNext=false,server;
   const spy={
@@ -110,6 +117,8 @@ async function withApp(db,task){
     else delete require.cache[authPath];
     if(oldRoute)require.cache[routePath]=oldRoute;
     else delete require.cache[routePath];
+    if(oldCatalog)require.cache[catalogPath]=oldCatalog;
+    else delete require.cache[catalogPath];
   }
 }
 function assertPrivate(response){
@@ -145,8 +154,8 @@ async function main(){
         });
         if(filter)assert.deepEqual(body.data.filter,filter);
         else assert.equal(Object.hasOwn(body.data,'filter'),false);
-        assert.equal(queries.length-before,3,
-          'Catalog + schema metadata + one grouped SQL, irrespective of question count');
+        assert.equal(queries.length-before,2,
+          'Code catalog: schema metadata + one grouped SQL, irrespective of question count');
         assert.equal(queries.slice(before).filter(q=>
           q.includes('CROSS JOIN LATERAL (VALUES')).length,1);
       }
@@ -183,7 +192,7 @@ async function main(){
     console.log('SONDAGGI_TEXT_BULK_REAL_PG17_PASS');
     console.log('SONDAGGI_TEXT_BULK_RESULT_JSON='+JSON.stringify({
       pg:17,synthetic:true,questions:94,published:93,
-      sqlQueriesPerNormalRequest:3,scopes:4,
+      sqlQueriesPerNormalRequest:2,scopes:4,
       consentRevocation10To9:true,queryFailureFallback:true,
       includesPersonConsentAndGeography:true,
       noSupabase:true,noDDLProduction:true,noDeploy:true

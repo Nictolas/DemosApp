@@ -1,0 +1,77 @@
+name: Versioned opinion catalog — contracts and frontend build
+on:
+  push:
+    branches: [performance/opinion-catalog-in-code-20261028, integration/opinioni-catalog-privacy-20261029]
+  pull_request:
+    paths:
+      - 'api/catalog/**'
+      - 'api/services/opinionCatalog.js'
+      - 'api/routes/**'
+      - 'api/services/**'
+      - 'api/tests/opinionCatalog*.test.js'
+      - 'api/config/publicCachePolicy.js'
+      - 'client/src/pages/GestisciOpinioni/**'
+      - '.github/workflows/opinion-catalog-full-ci.yml'
+permissions:
+  contents: read
+jobs:
+  catalog-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: demos_ci
+          POSTGRES_PASSWORD: synthetic_only
+          POSTGRES_DB: demos_opinion_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U demos_ci -d demos_opinion_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Validate all migrated backend files parse
+        run: |
+          for file in api/services/opinionCatalog.js api/routes/compatibility.js api/routes/opinioni/management.js api/routes/opinioni/user-answers.js api/routes/opinioni/stats.js api/routes/sondaggi.js api/routes/opinioni-proposte.js api/routes/users/profile.js api/routes/statistiche.js api/routes/bacheca.js; do
+            node --check "$file"
+          done
+      - name: Catalog integrity and zero-DB-metadata contract
+        run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js
+      - name: Install backend dependencies for isolated HTTP regression
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Validate read-only cutover parity and answer-column schema regression
+        run: node --test api/tests/opinionCatalogPreflight.test.js
+      - name: Android 1.0.10 legacy Opinions HTTP contract (no real accounts)
+        run: node --test api/tests/opinionCatalogAndroid110.contract.test.js api/tests/opinionCatalogConsentRace.contract.test.js api/tests/opinionCatalogReadCachePolicy.test.js
+      - name: Render QA synthetic service security and candidate HTTP smoke
+        run: node --test api/tests/opinionCatalogQaServer.smoke.test.js
+      - name: Install frontend without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Exercise real PostgreSQL API and production client save/readback (synthetic DB only)
+        env:
+          OPINION_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_opinion_ci
+        run: node --test api/tests/opinionCatalogPostgres.integration.test.js
+      - name: TypeScript and Vite frontend build (no release)
+        run: npm run build --prefix client
+      - name: Install isolated Chromium browser test dependency
+        run: |
+          command -v google-chrome
+          mkdir -p /tmp/demos-opinion-browser
+          npm install --prefix /tmp/demos-opinion-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+      - name: Real browser Opinions UI, save and readback against localhost synthetic API
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-opinion-browser/node_modules/playwright
+          CI: 'true'
+          NODE_ENV: production
+        run: node --test api/tests/opinionCatalogBrowser.e2e.test.js

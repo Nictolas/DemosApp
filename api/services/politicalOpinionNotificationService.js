@@ -1,4 +1,5 @@
 const { loadSupporterUserIds } = require('./politicalSelectionService');
+const { getOpinionById } = require('./opinionCatalog');
 
 const VALID_VALUES = new Set(['f', 'c', 'i']);
 
@@ -11,15 +12,8 @@ function normalizeChange(change) {
   return { opinionId, previousValue, newValue };
 }
 
-async function loadOpinionTexts(db, opinionIds) {
-  if (opinionIds.length === 0) return new Map();
-  const result = await db.query(
-    `SELECT id::text AS id, text
-     FROM opinioni_domande
-     WHERE id::text = ANY($1::text[])`,
-    [opinionIds],
-  );
-  return new Map(result.rows.map((row) => [String(row.id), String(row.text || row.id)]));
+async function loadOpinionTexts(_db, opinionIds) {
+  return new Map(opinionIds.map(id => [String(id), getOpinionById(id)?.text || String(id)]));
 }
 
 async function createSupporterOpinionNotifications(db, { subjectUserId, changes }) {

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "abbattimento_cinghiali",
+    "text": "Abbattimento dei cinghiali",
+    "gradi_opinione": [
+      "R"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Piani regionali di controllo e prelievo numerico dei cinghiali per danni agricoli, sicurezza e contrasto alla peste suina africana. Si distingue dalla caccia come attività ricreativa: il controllo si inserisce in piani e procedure autorizzate.\n\n**Dove e risultati.** La Toscana disciplina programmi di prelievo e impone la rendicontazione periodica dei capi abbattuti tramite strumenti regionali. Il numero di capi prelevati documenta l'attività svolta, ma da solo non dimostra una diminuzione permanente della popolazione o dei danni agricoli: servono monitoraggi specifici.\n\n✔️ **Possibili vantaggi:** contenimento di danni e rischi sanitari, se efficace.\n❌ **Possibili svantaggi:** benessere animale, sicurezza delle operazioni e rischio di risultati temporanei.\n\n**Fonte:** [Regione Toscana – Delibera 631/2025 sui piani di prelievo](https://www301.regione.toscana.it/bancadati/atti/Contenuto.xml?id=5468957&nomeFile=Delibera_n.631_del_26-05-2025)."
+  },
+  {
+    "id": "abolizione_contante",
+    "text": "Abolizione Contante",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "Abolizione del contante significa vietare o limitare l’uso di denaro fisico per pagamenti, spostando tutte le transazioni su mezzi elettronici.\n\n✔️ Riduce l’evasione fiscale, aumenta la tracciabilità delle transazioni e può favorire la sicurezza contro furti.\n\n❌ Limita la privacy dei cittadini, può escludere chi non ha accesso a conti o strumenti digitali e aumenta la dipendenza dalle infrastrutture elettroniche."
+  },
+  {
+    "id": "abolizione_ticket_regionali",
+    "text": "Abolizione dei ticket regionali",
+    "gradi_opinione": [
+      "R"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Eliminazione, nei margini consentiti dalla normativa, delle quote di compartecipazione sanitaria poste a carico degli assistiti su prestazioni regionali. L'Opinione non implica che una Regione possa disapplicare unilateralmente tutte le quote definite da norme nazionali.\n\n**Dove e risultati.** La Toscana ha abolito dal 1° settembre 2020 il ticket aggiuntivo per fascia economica su specialistica e farmaci, mentre ha mantenuto altre forme di ticket. È un esempio di soppressione di una componente, non della gratuità generale di ogni prestazione. La fonte istituzionale conferma la modifica, ma non quantifica un effetto causale su salute o liste d'attesa.\n\n✔️ **Possibili vantaggi:** minori barriere economiche nell'accesso alle cure.\n❌ **Possibili svantaggi:** minor gettito e necessità di copertura finanziaria; domanda potenzialmente più elevata.\n\n**Fonte:** [Regione Toscana – Ticket sanitari](https://www.regione.toscana.it/-/ticket)."
+  },
+  {
+    "id": "aborto_farmacologico_consultori",
+    "text": "Aborto farmacologico nei consultori",
+    "gradi_opinione": [
+      "R"
+    ],
+    "approfondimento": "**Definizione.** Accesso all'interruzione volontaria di gravidanza farmacologica nei consultori familiari adeguatamente attrezzati, con le valutazioni cliniche, l'assistenza e il follow-up previsti.\n\n**Esperienze e risultati.** Le linee nazionali italiane aggiornate nel 2020 contemplano questa possibilità in strutture con requisiti adeguati; l'effettiva organizzazione del servizio dipende anche dalle Regioni. Non tutti i consultori lo offrono. Le raccomandazioni OMS del 2022 illustrano percorsi di assistenza basati sulle evidenze, da adattare alle condizioni cliniche e locali.\n\n✔️ **Possibili benefici:** accesso territoriale e continuità dell'assistenza.\n❌ **Criticità:** personale formato, capacità organizzativa, disponibilità di gestione delle complicanze e follow-up.\n\n**Fonti:** [Ministero della Salute – linee di indirizzo 2020](https://www.salute.gov.it/new/it/pubblicazione/linee-di-indirizzo-sulla-interruzione-volontaria-di-gravidanza-con-mifepristone-e-0/) · [OMS – Abortion care guideline](https://www.who.int/publications-detail-redirect/9789240039483/)."
+  },
+  {
+    "id": "adozioni_omogenitoriali",
+    "text": "Adozioni omogenitoriali",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "**Definizione.** Accesso delle coppie dello stesso sesso all'adozione in base alle valutazioni di idoneità e all'interesse del minore, senza esclusione automatica fondata sul sesso dei partner.\n\n**Paesi ed effetti.** I Paesi Bassi prevedono l'adozione interna da parte di coppie dello stesso o diverso sesso, con condizioni specifiche di convivenza e cura. L'esperienza mostra un modello normativo già operativo; non significa che tutte le procedure, in particolare quelle internazionali, seguano regole identiche.\n\n✔️ **Possibili benefici:** parità di accesso alla valutazione e ampliamento delle possibili famiglie adottive.\n❌ **Criticità applicative:** controlli sull'idoneità, garanzie nell'interesse del minore e vincoli posti dai Paesi d'origine nelle adozioni internazionali.\n\n**Fonte:** [Governo dei Paesi Bassi – Conditions for adopting a Dutch child](https://www.government.nl/themes/family-health-and-care/adoption/adopting-a-dutch-child)."
+  },
+  {
+    "id": "allevamenti_intensivi",
+    "text": "Allevamenti Intensivi",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Sistemi zootecnici ad alta densità produttiva, oggetto di dibattito su benessere animale, impatto ambientale, salute ed economia. **Esperienze.** Nell’Unione europea esistono norme su emissioni e benessere animale; sono state discusse misure di riconversione e riduzione dell’impatto ambientale. **Interpretazione della risposta.** Favorevole significa sostenere il mantenimento degli allevamenti intensivi; contrario significa sostenerne il superamento. La firma della proposta C.1760 sulla riconversione non equivale automaticamente a sostenere il divieto di ogni allevamento intensivo. Fonte: https://www.camera.it/leg19/126?idDocumento=1760&leg=19"
+  },
+  {
+    "id": "antifascismo",
+    "text": "Antifascismo",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Contrasto politico, culturale e istituzionale al fascismo e alla ricostituzione di organizzazioni fasciste. La nozione comprende orientamenti e iniziative diverse: una dichiarazione di antifascismo non implica adesione a ogni singola proposta normativa.\n\n**Dove e risultati.** La XII disposizione transitoria e finale della Costituzione italiana vieta la riorganizzazione, sotto qualsiasi forma, del disciolto partito fascista. La tutela democratica deve operare insieme ai diritti costituzionali di espressione, associazione e partecipazione, secondo i limiti di legge.\n\n✔️ **Possibili vantaggi:** salvaguardia delle istituzioni democratiche e contrasto alle ideologie autoritarie.\n❌ **Criticità applicative:** necessità di distinguere condotte penalmente rilevanti, opinioni e conflitti politici legittimi.\n\n**Fonte:** [Senato – XII disposizione della Costituzione](https://www.senato.it/istituzione/la-costituzione/disposizioni-transitorie-e-finali/xii)."
+  },
+  {
+    "id": "armi_ucraina",
+    "text": "Armi all'Ucraina",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "**Definizione.** Fornitura italiana di armamenti e materiali militari all'Ucraina, distinta dagli aiuti umanitari e finanziari.\n\n**Paesi ed effetti.** Numerosi Stati UE e NATO hanno fornito assistenza militare all'Ucraina dopo l'invasione russa del 2022. L'UE documenta finanziamenti, addestramento e aiuti; tali cifre misurano il sostegno erogato, ma non permettono di isolare l'effetto di una singola fornitura sull'esito della guerra.\n\n✔️ **Possibili benefici:** rafforzamento delle capacità di autodifesa ucraine e della deterrenza.\n❌ **Criticità:** costo delle forniture, rischi di escalation, necessità di controllo sull'impiego delle armi e di iniziative diplomatiche.\n\n**Fonte:** [Consiglio dell'UE – sostegno militare all'Ucraina](https://www.consilium.europa.eu/it/policies/military-support-ukraine/)."
+  },
+  {
+    "id": "asili_nido_gratuiti",
+    "text": "Asili nido gratuiti",
+    "gradi_opinione": [
+      "CO"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Eliminazione delle rette a carico delle famiglie nei nidi comunali, interamente o per fasce di reddito, senza confondere la gratuità del servizio con l'obbligo di garantire un posto.\n\n**Dove e risultati.** In Italia diversi enti locali riducono o azzerano le rette tramite contributi regionali o nazionali. La presenza di una misura tariffaria non implica automaticamente un aumento dei posti disponibili: sono necessari personale e strutture.\n\n✔️ Possibili benefici: riduzione del costo per le famiglie e maggiore accessibilità.\n❌ Criticità: costo del finanziamento pubblico e possibili liste d'attesa se l'offerta rimane invariata.\n\n**Fonte:** [Dipartimento per le Politiche della Famiglia – servizi educativi](https://famiglia.governo.it/)."
+  },
+  {
+    "id": "auto_emissioni_zero_2035",
+    "text": "Auto a emissioni zero dal 2035",
+    "gradi_opinione": [
+      "E"
+    ],
+    "approfondimento": "**Definizione.** Obiettivo europeo di azzeramento delle emissioni di CO₂ allo scarico delle nuove automobili immatricolate dal 2035, non divieto generalizzato di circolazione delle auto già vendute.\n\n**Paesi e risultati.** Il regolamento UE del 2023 ha introdotto l'obiettivo di riduzione del 100% per le nuove auto nel 2035. Secondo la Commissione, fra 2019 e 2024 le emissioni medie delle nuove auto sono diminuite del 28%, in larga parte per l'aumento delle auto a zero emissioni. Nel dicembre 2025 la Commissione ha proposto una revisione che ridurrebbe al 90% il target; una proposta non equivale a una modifica definitiva della legge.\n\n✔️ **Possibili benefici:** riduzione delle emissioni allo scarico e impulso alla mobilità elettrica.\n❌ **Criticità:** costo dei veicoli, infrastrutture di ricarica, filiere e riconversione industriale.\n\n**Fonte:** [Commissione europea – Cars and vans](https://climate.ec.europa.eu/areas-action/transport-decarbonisation/road-transport/cars-and-vans_en)."
+  }
+]

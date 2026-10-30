@@ -9,6 +9,8 @@ const {
   suppressSmallCells
 } = require('../../utils/politicalAggregatePrivacy');
 
+const { getAllOpinions, getOpinionById } = require('../../services/opinionCatalog');
+
 const router = express.Router();
 const { resolvePublishedOpinionColumn } = require('../../utils/opinionStatsColumns');
 
@@ -23,7 +25,7 @@ router.get('/candidati', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Errore endpoint test:', error);
+    console.error('❌ Errore endpoint test:');
     res.status(500).json({
       success: false,
       error: 'Errore endpoint test'
@@ -46,28 +48,13 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
     
     const structureResult = await pool.query(structureQuery);
     
-    // 2. Conta opinioni totali
-    const countQuery = 'SELECT COUNT(*) as total FROM opinioni_domande';
-    const countResult = await pool.query(countQuery);
-    
-    // 3. Verifica gradi opinioni
-    const degreesQuery = `
-      SELECT DISTINCT unnest(gradi_opinione) as grado
-      FROM opinioni_domande
-      ORDER BY grado
-    `;
-    
-    const degreesResult = await pool.query(degreesQuery);
-    
-    // 4. Esempio opinioni
-    const sampleQuery = `
-      SELECT id, text, gradi_opinione, created_at, updated_at
-      FROM opinioni_domande
-      LIMIT 5
-    `;
-    
-    const sampleResult = await pool.query(sampleQuery);
-    
+    // The official catalog no longer comes from PostgreSQL.
+    const official = getAllOpinions();
+    const countResult = {rows:[{total:String(official.length)}]};
+    const grades = [...new Set(official.flatMap(op=>op.gradi_opinione))].sort();
+    const degreesResult = {rows:grades.map(grado=>({grado}))};
+    const sampleResult = {rows:official.slice(0,5).map(({id,text,gradi_opinione})=>({id,text,gradi_opinione}))};
+
     res.json({
       success: true,
       debug: {
@@ -80,11 +67,11 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel debug opinioni:', error);
+    console.error('❌ Errore nel debug opinioni:');
     res.status(500).json({
       success: false,
       error: 'Errore nel debug opinioni',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -128,15 +115,7 @@ router.get('/stats/:opinionId', async (req, res) => {
     console.log('🔍 DEBUG /api/opinioni/stats/:opinionId - Query eseguita con successo, righe:', statsResult.rows.length);
     const stats = statsResult.rows[0];
     
-    // Query per ottenere il testo dell'opinione
-    const questionQuery = `
-      SELECT text
-      FROM opinioni_domande
-      WHERE id = $1
-    `;
-    
-    const questionResult = await pool.query(questionQuery, [opinionId]);
-    const questionText = questionResult.rows[0]?.text || opinionId;
+    const questionText = getOpinionById(opinionId)?.text || opinionId;
     
     const totaleUtenti = parseInt(stats.totale_utenti) || 0;
     const favorevole = parseInt(stats.favorevole) || 0;
@@ -161,18 +140,11 @@ router.get('/stats/:opinionId', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche opinione:', error);
-    console.error('❌ Stack trace:', error.stack);
-    console.error('❌ Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint
-    });
+    console.error('❌ Errore nel recuperare statistiche opinione:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche opinione',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -241,11 +213,11 @@ router.get('/stats/:opinionId/eta', async (req, res) => {
       data: suppressSmallCells(etaResult.rows)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche età opinione:', error);
+    console.error('❌ Errore nel recuperare statistiche età opinione:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche età opinione',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -297,11 +269,11 @@ router.get('/stats/:opinionId/genere', async (req, res) => {
       data: suppressSmallCells(decompressedData)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere opinione:', error);
+    console.error('❌ Errore nel recuperare statistiche genere opinione:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche genere opinione',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -353,15 +325,7 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
     const statsResult = await pool.query(statsQuery, [regionCode]);
     const stats = statsResult.rows[0];
     
-    // Query per ottenere il testo dell'opinione
-    const questionQuery = `
-      SELECT text
-      FROM opinioni_domande
-      WHERE id = $1
-    `;
-    
-    const questionResult = await pool.query(questionQuery, [opinionId]);
-    const questionText = questionResult.rows[0]?.text || opinionId;
+    const questionText = getOpinionById(opinionId)?.text || opinionId;
     
     const totaleUtenti = parseInt(stats.totale_utenti) || 0;
     const favorevole = parseInt(stats.favorevole) || 0;
@@ -387,11 +351,11 @@ router.get('/stats/:opinionId/regione/:regione', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche opinione regionale:', error);
+    console.error('❌ Errore nel recuperare statistiche opinione regionale:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche opinione regionale',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -474,11 +438,11 @@ router.get('/stats/:opinionId/eta/regione/:regione', async (req, res) => {
       data: suppressSmallCells(etaResult.rows)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche età opinione regionale:', error);
+    console.error('❌ Errore nel recuperare statistiche età opinione regionale:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche età opinione regionale',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });
@@ -538,11 +502,11 @@ router.get('/stats/:opinionId/genere/regione/:regione', async (req, res) => {
       data: suppressSmallCells(genereResult.rows)
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare statistiche genere opinione regionale:', error);
+    console.error('❌ Errore nel recuperare statistiche genere opinione regionale:');
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche genere opinione regionale',
-      message: error.message
+      message: 'Errore interno del server'
     });
   }
 });

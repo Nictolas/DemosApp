@@ -9,6 +9,7 @@ const authModule = path.resolve(__dirname, '../middleware/auth.js');
 const dpoModule = path.resolve(__dirname, '../middleware/dpoAccess.js');
 const routeModule = path.resolve(__dirname, '../routes/dpo/overview.js');
 const originalLoad = Module._load;
+const { getAllOpinions } = require('../services/opinionCatalog');
 let revoked = false;
 let databaseFailed = false;
 const queries = [];
@@ -87,7 +88,8 @@ test('DPO and Admin see only aggregate figures; no writes or individual data', a
   assert.equal(dpo.status, 200);
   assert.equal(dpo.body.data.scope, 'aggregated_readonly');
   assert.equal(dpo.body.data['utenti-verifiche'].users_total, 10);
-  assert.equal(dpo.body.data.contenuti.opinions_total, 4);
+  assert.equal(dpo.body.data.contenuti.opinions_total, getAllOpinions().length);
+  assert.ok(queries.every(sql => !sql.includes('opinioni_domande')), 'No legacy catalog DB reads in DPO oversight');
   assert.equal(dpo.body.data.contenuti.proposals_last_30d, 2);
   assert.equal(dpo.body.data.comunicazioni.notifications_last_30d, 1);
   assert.equal(dpo.body.data.comunicazioni.notifications_latest_date, '2026-10-24');

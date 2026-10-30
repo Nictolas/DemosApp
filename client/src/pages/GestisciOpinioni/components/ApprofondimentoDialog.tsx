@@ -26,7 +26,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   opinionText,
   open,
   onOpenChange,
-  readOnly = false
+  readOnly = true
 }) => {
   const { user } = useAuth();
   const isAdmin = user?.ruolo === 'AD' || user?.role === 'AD';

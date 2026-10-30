@@ -5,9 +5,18 @@ on:
     branches: [main]
     paths:
       - 'api/services/centralizedLogger.js'
+      - 'api/services/ministeroSync.js'
+      - 'api/routes/ministero.js'
+      - 'api/routes/opinioni-proposte.js'
+      - 'api/routes/user/delete-account.js'
+      - 'api/tests/accountDeletionAuditPrivacy.test.js'
+      - 'api/tests/logOpinionProposalMinimization.test.js'
       - 'api/services/auditService.js'
       - 'api/services/axiomMigrationService.js'
       - 'api/routes/auth/profile.js'
+      - 'api/routes/auth/logout.js'
+      - 'api/routes/compatibility.js'
+      - 'api/tests/opinionCatalogReadCachePolicy.test.js'
       - 'api/routes/comunicazioni.js'
       - 'api/tests/logCredentialMinimization.test.js'
       - 'api/tests/diagnosticTokenMinimization.smoke.test.js'
@@ -55,12 +64,26 @@ jobs:
         working-directory: api
         run: |
           node --check services/centralizedLogger.js
+          node --check services/ministeroSync.js
+          node --check routes/ministero.js
           node --check services/auditService.js
           node --check services/axiomArchiveService.js
           node --check scripts/verify-latest-axiom-archive.js
+      - name: Proposal vote privacy regression (synthetic, no DB)
+        working-directory: api
+        run: |
+          node --check routes/opinioni-proposte.js
+          node --test tests/logOpinionProposalMinimization.test.js
+      - name: Account deletion audit privacy regression (synthetic, no DB)
+        working-directory: api
+        run: |
+          node --check routes/user/delete-account.js
+          node --test tests/accountDeletionAuditPrivacy.test.js
       - name: Logging privacy and delivery tests
         working-directory: api
-        run: npm run test:logging-privacy
+        run: |
+          npm run test:logging-privacy
+          node --test tests/logMinisteroSyncMinimization.test.js
       - name: Operational alert privacy and readability regression
         working-directory: api
         run: |
@@ -73,6 +96,10 @@ jobs:
         working-directory: api
         run: |
           node --check routes/auth/profile.js
+          node --check routes/auth/logout.js
+          node --test tests/logLogoutErrorMinimization.test.js
+          node --check routes/compatibility.js
+          node --test tests/opinionCatalogReadCachePolicy.test.js
           node --check routes/comunicazioni.js
           node --check services/axiomMigrationService.js
           node --test tests/logCredentialMinimization.test.js tests/diagnosticTokenMinimization.smoke.test.js tests/unapprovedLogRetentionGuard.smoke.test.js

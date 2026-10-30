@@ -1,9 +1,6 @@
 name: Opinioni regression
 
 on:
-  # A conflicted Draft PR has no merge ref, so pull_request CI may never start.
-  # Restrict push CI to this historical cache branch and the test harness only.
-  # This job has read-only contents permission and does not deploy or migrate.
   push:
     branches:
       - 'feat/opinioni-delta-cache-prep-20261029'
@@ -41,23 +38,39 @@ on:
       - 'client/src/lib/saveAndVerifyOpinions.ts'
       - 'client/src/lib/opinionDelta.ts'
       - 'client/src/lib/encryptedOpinionCache.ts'
-      - 'client/src/lib/opinionPayload.ts'
       - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
       - 'client/src/hooks/use-auth.tsx'
+      - 'client/src/pages/Impostazioni/hooks/useLogout.ts'
+      - 'client/tests/authLogRedaction.test.mjs'
       - 'client/tests/opinionDelta.test.mjs'
+      - 'client/src/components/PoliticalOpinionsConsentModal.tsx'
+      - 'client/tests/politicalConsentGrantVaultBarrier.test.mjs'
+      - 'client/tests/politicalOpinionHttpCancellation.test.mjs'
+      - 'client/tests/politicalOpinionPrivacyIntegration.test.mjs'
+      - 'client/tests/encryptedVaultPurgeRace.test.mjs'
+      - 'client/tests/accountDeletionCachePurge.test.mjs'
+      - 'client/tests/authInvalidationBarrier.test.mjs'
+      - 'client/tests/privacyDisclosureIntegrity.test.mjs'
+      - 'client/tests/dpiaReviewStatus.test.mjs'
+      - 'docs/privacy/DPIA_RELEASE_RECONCILIATION_2026-10-30.md'
+      - 'DPIA_DemosApp.md'
+      - 'client/src/pages/PrivacyPolicy.tsx'
+      - 'client/src/pages/RegistroTrattamenti.tsx'
+      - 'client/src/pages/Impostazioni/CancellaAccount/index.tsx'
+      - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
+      - 'client/src/lib/queryClient.ts'
+      - 'client/src/pages/GDPR/index.tsx'
+      - '.github/workflows/opinioni-regression.yml'
+      - 'client/src/lib/opinionPayload.ts'
       - 'client/tests/opinionPayload.test.mjs'
       - 'client/tests/encryptedOpinionCategory.behavior.test.mjs'
       - 'client/tests/politicalConsentVerifiedReuse.test.mjs'
       - 'client/tests/politicalConsentGrantVerified.test.mjs'
-      - 'client/src/components/PoliticalOpinionsConsentModal.tsx'
-      - 'client/src/pages/Opinioni*.tsx'
       - 'client/src/hooks/usePoliticalOpinionsConsent.ts'
       - 'client/src/lib/opinionSaveSession.ts'
       - 'client/tests/saveAndVerifyOpinions.test.mjs'
       - 'client/tests/statsOpinionCacheReuse.test.mjs'
-      - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
       - 'client/src/pages/StatisticheOpinione/hooks/useOpinionId.ts'
-      - '.github/workflows/opinioni-regression.yml'
 
 permissions:
   contents: read
@@ -78,7 +91,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Test mobile crash diagnostic and toast opacity
-        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs client/tests/opinionDelta.test.mjs client/tests/opinionPayload.test.mjs client/tests/encryptedOpinionCategory.behavior.test.mjs client/tests/saveAndVerifyOpinions.test.mjs client/tests/statsOpinionCacheReuse.test.mjs client/tests/politicalConsentVerifiedReuse.test.mjs client/tests/politicalConsentGrantVerified.test.mjs
+        run: node --experimental-strip-types --test client/tests/crashDiagnostic.test.mjs client/tests/toastOpaque.test.mjs client/tests/opinionDelta.test.mjs client/tests/politicalOpinionHttpCancellation.test.mjs client/tests/politicalConsentGrantVaultBarrier.test.mjs client/tests/politicalOpinionPrivacyIntegration.test.mjs client/tests/encryptedVaultPurgeRace.test.mjs client/tests/accountDeletionCachePurge.test.mjs client/tests/authInvalidationBarrier.test.mjs client/tests/authLogRedaction.test.mjs client/tests/privacyDisclosureIntegrity.test.mjs client/tests/dpiaReviewStatus.test.mjs client/tests/opinionPayload.test.mjs client/tests/encryptedOpinionCategory.behavior.test.mjs client/tests/saveAndVerifyOpinions.test.mjs client/tests/statsOpinionCacheReuse.test.mjs client/tests/politicalConsentVerifiedReuse.test.mjs client/tests/politicalConsentGrantVerified.test.mjs
       - name: Build frontend
         run: npm --prefix client run build
       - name: Install API dependencies

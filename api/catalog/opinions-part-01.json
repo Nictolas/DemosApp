@@ -1,0 +1,169 @@
+[
+  {
+    "id": "autonomia_differenziata",
+    "text": "Autonomia Differenziata",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Possibilità per le Regioni a statuto ordinario di ottenere ulteriori competenze e forme di autonomia, secondo l’articolo 116, terzo comma, della Costituzione. La legge n. 86/2024 ha disciplinato il procedimento. **Confronti internazionali.** Germania, Spagna e Canada hanno sistemi diversi di distribuzione territoriale delle competenze: non sono equivalenti al modello italiano e gli effetti dipendono dalle materie trasferite e dai finanziamenti. **Interpretazione della risposta.** Favorevole significa sostenere l’attuazione dell’autonomia differenziata; contrario significa opporvisi. Fonte: https://www.camera.it/leg19/126?idDocumento=1665&leg=19"
+  },
+  {
+    "id": "caccia",
+    "text": "Caccia",
+    "gradi_opinione": [
+      "R"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Attività venatoria regolamentata, distinta dagli interventi straordinari di controllo faunistico e dal bracconaggio. La questione può riguardare mantenimento, limitazione o abolizione della caccia.\n\n**Dove e risultati.** In Italia la legge 157/1992 disciplina tutela della fauna, specie cacciabili, periodi, autorizzazioni e competenze regionali. Gli effetti sull'ecosistema dipendono da specie, pressione di prelievo, sorveglianza e condizioni locali; non ogni abbattimento produce automaticamente un vantaggio ecologico.\n\n✔️ **Argomenti favorevoli:** attività ricreativa tradizionale e, in casi regolati, contributo a gestione faunistica.\n❌ **Criticità:** uccisione e sofferenza animale, incidenti, disturbo della fauna e rischi per biodiversità.\n\n**Fonte:** [Normattiva – Legge 157/1992](https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=092G0211&atto.dataPubblicazioneGazzetta=1992-02-25&bloccoAggiornamentoBreadCrumb=true&classica=true&dataVigenza=&generaTabId=true&qId=&tabID=&tipoDettaglio=originario&title=lbl.dettaglioAtto)."
+  },
+  {
+    "id": "carne_coltivata",
+    "text": "Carne coltivata",
+    "gradi_opinione": [
+      "E",
+      "N"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Produzione di alimenti a partire da cellule animali coltivate in ambienti controllati, anziché dall'allevamento e macellazione di animali. Non coincide con i sostituti vegetali della carne.\n\n**Dove e risultati.** Nell'UE i prodotti cellulari animali devono passare per la procedura di autorizzazione dei nuovi alimenti, con valutazione scientifica della sicurezza. L'EFSA segnala che nessun alimento di origine animale ottenuto da colture cellulari è ancora autorizzato al commercio nell'UE. I possibili impatti ambientali dipendono dall'energia, dai materiali e dai processi industriali effettivamente impiegati.\n\n✔️ **Possibili vantaggi:** minore necessità di allevamento e macellazione, diversificazione della produzione alimentare.\n❌ **Possibili svantaggi:** costi elevati, consumi energetici, incognite sulla produzione su larga scala e necessità di controlli di sicurezza.\n\n**Fonte:** [EFSA – Novel food](https://www.efsa.europa.eu/en/topics/topic/novel-food)."
+  },
+  {
+    "id": "case_chiuse",
+    "text": "Case chiuse",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "Le Case chiuse sono strutture dove si svolge legalmente la prostituzione sotto regolamentazione statale.\n\n✔️ Germania: giro d’affari 14‑18 miliardi € annui, con IVA, tasse sul reddito e lavoratori registrati.\n✔️ Nuova Zelanda: centinaia di milioni di NZD annui al PIL, con tasse, licenze e contributi sociali pagati.\n✔️ Nevada (USA): decine di milioni di $ in tasse e licenze, occupazione formale e imposte locali.\n✔️ Paesi Bassi: centinaia di milioni di € annui in turnover e tasse, con effetti positivi sul turismo.\n❌ Proibizionismo: nessuna entrata fiscale diretta, economia sommersa, alti costi di enforcement senza contributi economici.\n\n👉 [Fonte Gitnux](https://gitnux.org/legalizing-prostitution-statistics/)"
+  },
+  {
+    "id": "cassonetti_intelligenti_con_tessera",
+    "text": "Cassonetti intelligenti con tessera",
+    "gradi_opinione": [
+      "CO",
+      "C",
+      "R"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Contenitori stradali che si aprono tramite tessera o identificativo dell'utenza e possono registrare accessi o misurare i conferimenti. Non implicano necessariamente una tariffa proporzionale ai rifiuti prodotti.\n\n**Dove e risultati.** ARERA rileva differenti sistemi di identificazione dell'utenza e misurazione puntuale dei rifiuti nei Comuni. Per valutarli contano accessibilità, errori di attribuzione, quantità differenziate, rifiuti abbandonati e costi di manutenzione; l'adozione di una tessera non dimostra da sola un aumento del riciclo.\n\n✔️ **Possibili vantaggi:** tracciabilità dei conferimenti, dati utili alla gestione, eventuali tariffe più commisurate.\n❌ **Possibili svantaggi:** problemi di accesso o guasti, privacy e rischio di abbandoni o conferimenti impropri.\n\n**Fonte:** [ARERA – Identificazione utenze e misurazione puntuale](https://www.arera.it/comunicati-operatore/dettaglio/ricognizione-delle-articolazioni-dei-corrispettivi-del-settore-rifiuti-24)."
+  },
+  {
+    "id": "centri_comunali_accoglienza_migranti",
+    "text": "Centri comunali di accoglienza migranti",
+    "gradi_opinione": [
+      "CO"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Partecipazione del Comune alla gestione o all'ospitalità di progetti di accoglienza e integrazione per migranti e richiedenti protezione, nel quadro dei programmi e finanziamenti disponibili.\n\n**Dove e risultati.** Il Sistema di Accoglienza e Integrazione (SAI) italiano coinvolge gli enti locali mediante progetti territoriali, con servizi di accompagnamento e integrazione. Le relazioni annuali documentano posti, persone accolte e attività, ma non attribuiscono gli esiti esclusivamente alla dimensione comunale.\n\n✔️ Possibili benefici: percorsi di accoglienza coordinati e integrazione territoriale.\n❌ Criticità: disponibilità di immobili, personale, servizi e necessità di finanziamenti sostenibili.\n\n**Fonte:** [Sistema Accoglienza e Integrazione – rapporto e rete dei progetti](https://www.retesai.it/)."
+  },
+  {
+    "id": "centri_migranti_estero",
+    "text": "Centri migranti all'estero",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "**Definizione.** Utilizzo di strutture in Stati terzi per procedure connesse a migrazione e richieste d'asilo. I diversi modelli differiscono per luogo, autorità responsabile e garanzie legali.\n\n**Paesi ed effetti.** L'Australia ha operato centri a Nauru e in Papua Nuova Guinea. L'Australian National Audit Office ha stimato costi complessivi degli accordi di elaborazione regionale di circa 7,1 miliardi di dollari australiani dall'avvio fino al periodo dell'audit e ha rilevato criticità amministrative. Il dato non prova, isolatamente, l'efficacia dei centri nel ridurre gli arrivi.\n\n✔️ **Possibili benefici:** gestione delle procedure e contrasto alle traversate irregolari, secondo i sostenitori.\n❌ **Criticità:** costi, tutela dei richiedenti asilo, condizioni nei centri e controllo giurisdizionale.\n\n**Fonte:** [Australian National Audit Office – Procurement of Garrison Support and Welfare Services](https://www.anao.gov.au/work/performance-audit/procurement-garrison-support-and-welfare-services)."
+  },
+  {
+    "id": "chiusura_ospedali_di_provincia",
+    "text": "Chiusura ospedali di provincia",
+    "gradi_opinione": [
+      "R"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Chiusura, accorpamento o riconversione di presìdi ospedalieri provinciali, eventualmente trasferendo servizi ad altre strutture. Non equivale necessariamente alla soppressione di ogni servizio sanitario sul territorio.\n\n**Dove e risultati.** In Italia il DM 70/2015 stabilisce criteri per le reti ospedaliere e la qualità delle cure; il DM 77/2022 disciplina il rafforzamento dell'assistenza territoriale. Gli effetti di una chiusura si valutano su tempi di accesso, emergenze, esiti clinici, capacità ricettiva e alternative effettivamente attivate: la sola diminuzione dei presìdi non prova né un miglioramento né un peggioramento complessivo.\n\n✔️ **Possibili vantaggi:** concentrazione di competenze e tecnologie per prestazioni complesse, se i collegamenti funzionano.\n❌ **Possibili svantaggi:** maggiore distanza dalle cure, sovraccarico di altri ospedali e difficoltà nelle aree interne.\n\n**Fonte:** [AGENAS – Reti cliniche ospedaliere](https://www.agenas.gov.it/aree-tematiche/organizzazione-dei-servizi-sanitari)."
+  },
+  {
+    "id": "citta_30",
+    "text": "Città 30",
+    "gradi_opinione": [
+      "CO"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Applicazione estesa del limite di 30 km/h nelle strade urbane, con eccezioni e provvedimenti previsti dalle regole sulla circolazione.\n\n**Dove e risultati.** Bologna ha introdotto nel 2024 un progetto Città 30. I monitoraggi comunali riportano una riduzione dell'incidentalità nel primo anno, ma occorre distinguere la correlazione temporale dall'effetto attribuibile esclusivamente al limite.\n\n✔️ Possibili benefici: sicurezza stradale e minore gravità degli incidenti.\n❌ Criticità: tempi di percorrenza in alcune tratte, controlli e necessità di adeguare la viabilità.\n\n**Fonti:** [Bologna Città 30](https://www.bolognacitta30.it/) · [OMS – sicurezza stradale](https://www.who.int/news-room/fact-sheets/detail/road-traffic-injuries)."
+  },
+  {
+    "id": "concessione_spazi_pubblici_a_centri_sociali_autogestiti",
+    "text": "Concessione spazi pubblici a centri sociali autogestiti",
+    "gradi_opinione": [
+      "CO",
+      "C"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Assegnazione, concessione o utilizzo regolato di immobili comunali da parte di associazioni o centri sociali autogestiti. Non significa automaticamente cessione gratuita della proprietà pubblica né immunità da autorizzazioni e norme di sicurezza.\n\n**Dove e risultati.** Gli enti locali possono utilizzare strumenti diversi secondo natura del bene, destinazione, finalità pubblica e regole applicabili. Per una valutazione occorrono criteri trasparenti, progetto di attività, accessibilità, responsabilità di gestione e verifica dei risultati. La sola disponibilità di uno spazio non prova un beneficio sociale.\n\n✔️ **Possibili vantaggi:** luoghi di aggregazione, attività culturali e recupero di edifici inutilizzati.\n❌ **Possibili svantaggi:** conflitti sull'equità dell'assegnazione, oneri di gestione, sicurezza e responsabilità.\n\n**Fonte di riferimento:** [Costituzione italiana – Articolo 118, sussidiarietà](https://www.senato.it/istituzione/la-costituzione/parte-ii/titolo-v/articolo-118)."
+  },
+  {
+    "id": "corrida",
+    "text": "Corrida",
+    "gradi_opinione": [
+      "E"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Spettacoli tradizionali che coinvolgono tori, soprattutto in Spagna, Portogallo e alcune aree della Francia. Le modalità variano: non tutti gli eventi prevedono l'uccisione dell'animale. L'Opinione riguarda sostegno o opposizione alla pratica, non l'allevamento bovino in generale.\n\n**Dove e risultati.** L'articolo 13 del TFUE richiede attenzione al benessere animale, rispettando le tradizioni culturali degli Stati membri. La disciplina degli spettacoli taurini è essenzialmente nazionale: un divieto europeo generalizzato non discende dalle norme attuali. Sono documentati dibattiti su sofferenza animale, identità culturale e impatto economico locale.\n\n✔️ **Argomenti favorevoli:** tutela di tradizioni e attività economiche collegate.\n❌ **Criticità:** sofferenza e uccisione di animali per intrattenimento, conflitti etici.\n\n**Fonti:** [Parlamento europeo – Competenza sugli spettacoli taurini](https://www.europarl.europa.eu/meetdocs/2014_2019/plmrep/COMMITTEES/PETI/CM/2023/03-22/1032541EN.pdf); [CAS International – Indagine sulle opinioni](https://www.cas-international.org/en-gb/majority-of-people-in-european-bullfighting-countries-against-the-harmful-tradition/)."
+  },
+  {
+    "id": "divieto_di_nuovi_fast_food_nel_centro_storico",
+    "text": "Divieto di nuovi fast food nel centro storico",
+    "gradi_opinione": [
+      "CO",
+      "C"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Limitazione dell'apertura di nuovi esercizi di ristorazione veloce in determinate aree di pregio storico. Non comporta automaticamente la chiusura delle attività già autorizzate.\n\n**Dove e risultati.** In Italia i limiti locali alle attività commerciali richiedono una base giuridica, motivazioni adeguate e rispetto dei principi di proporzionalità e concorrenza. Nel 2026 la Camera ha esaminato proposte per regolamentare specifiche categorie commerciali nei centri storici: una proposta di legge non equivale a normativa già in vigore. Va definito cosa sia un fast food e verificato l'impatto su residenti, lavoratori e consumatori.\n\n✔️ **Possibili vantaggi:** tutela del tessuto commerciale storico e diversità dell'offerta, se la misura è mirata.\n❌ **Possibili svantaggi:** restrizioni all'iniziativa economica, effetti selettivi e difficoltà applicative.\n\n**Fonte:** [Camera – Regolazione del commercio nei centri storici](https://temi.camera.it/leg19/provvedimento/disposizioni-per-la-tutela-e-la-valorizzazione-delle-attivit-commerciali-e-artigianali-negli-ambiti-di-interesse-storico-culturale-e-paesaggistico-dei-centri-storici.html)."
+  },
+  {
+    "id": "educazione_sessuale",
+    "text": "Educazione sessuo-affettiva",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "**Definizione.** Introduzione di un insegnamento scolastico strutturato e adatto all'età su corpo e salute sessuale, emozioni, relazioni affettive, consenso, rispetto reciproco e prevenzione.\n\n**Paesi e risultati.** La revisione delle evidenze dell'Organizzazione mondiale della sanità (2026) indica che programmi completi di buona qualità migliorano le conoscenze e possono aumentare l'uso della contraccezione e ridurre i comportamenti a rischio. Non emergono prove che l'educazione sessuale aumenti l'attività sessuale o ne anticipi l'inizio. Qualità e accesso ai programmi variano tra Paesi.\n\n✔️ **Possibili benefici:** prevenzione e decisioni informate.\n❌ **Criticità:** formazione degli insegnanti, appropriatezza dei contenuti per età, confronto con le famiglie.\n\n**Fonte:** [OMS – Comprehensive sexuality education, 11/03/2026](https://www.who.int/news-room/fact-sheets/detail/comprehensive-sexuality-education)."
+  },
+  {
+    "id": "energia_nucleare",
+    "text": "Energia nucleare",
+    "gradi_opinione": [
+      "E",
+      "N"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Produzione di elettricità in centrali che sfruttano la fissione nucleare. È distinta dalla ricerca sulla fusione e richiede impianti, personale specializzato, regolazione della sicurezza e gestione dei rifiuti radioattivi.\n\n**Dove e risultati.** L'Agenzia internazionale dell'energia considera il nucleare una fonte a basse emissioni operative di CO₂ e programmabile, potenzialmente complementare alle rinnovabili. Segnala però ritardi e sforamenti di costo in vari progetti recenti, oltre ai problemi di sicurezza e smaltimento: gli effetti economici variano molto secondo Paese e progetto.\n\n✔️ **Possibili vantaggi:** generazione continua a basse emissioni, diversificazione delle fonti.\n❌ **Possibili svantaggi:** investimenti iniziali elevati, tempi lunghi, rischi da gestire e rifiuti radioattivi di lunga durata.\n\n**Fonte:** [IEA – Nuclear Power and Secure Energy Transitions](https://www.iea.org/reports/nuclear-power-and-secure-energy-transitions)."
+  },
+  {
+    "id": "esercito_europeo",
+    "text": "Esercito Comune Europeo",
+    "gradi_opinione": [
+      "E"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Costituzione di forze militari comuni europee o di un esercito integrato sotto decisioni politiche condivise. Non coincide con le attuali missioni dell'UE, le cooperazioni tra eserciti nazionali o con la NATO.\n\n**Dove e risultati.** La Bussola strategica approvata dal Consiglio UE nel 2022 rafforza capacità comuni, cooperazione, investimenti e dispiegamento rapido, ma non istituisce un esercito unico che sostituisca quelli degli Stati. Per realizzarlo occorrerebbe definire comando, responsabilità democratica, finanziamento e poteri decisionali.\n\n✔️ **Possibili vantaggi:** acquisti e capacità coordinati, minori duplicazioni, maggiore autonomia strategica.\n❌ **Possibili svantaggi:** difficoltà nel concordare interventi, sovranità militare condivisa, costi di transizione e rapporti con la NATO.\n\n**Fonte:** [Consiglio UE – Bussola strategica per sicurezza e difesa](https://www.consilium.europa.eu/en/policies/strategic-compass/)."
+  },
+  {
+    "id": "estensione_delle_zone_a_traffico_limitato",
+    "text": "Estensione delle zone a traffico limitato",
+    "gradi_opinione": [
+      "CO"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Ampliamento delle ZTL in cui l'accesso dei veicoli è disciplinato da orari, autorizzazioni e deroghe. Un singolo consigliere comunale non può istituire autonomamente una ZTL: servono i provvedimenti amministrativi competenti previsti dalla normativa.\n\n**Dove e risultati.** Il Ministero delle infrastrutture ha pubblicato linee guida per istituzione, modifica, segnaletica e controlli automatici. Per valutare un'estensione occorre misurare traffico, qualità dell'aria, sicurezza, accessibilità per residenti e persone con disabilità, e possibili spostamenti del traffico nelle zone limitrofe.\n\n✔️ **Possibili vantaggi:** meno traffico di attraversamento, più spazio pedonale e migliore vivibilità.\n❌ **Possibili svantaggi:** difficoltà per accessi e consegne, spostamento della congestione e costi di controllo.\n\n**Fonte:** [MIT – Linee guida ZTL](https://mit.gov.it/node/10821)."
+  },
+  {
+    "id": "eutanasia",
+    "text": "Eutanasia",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Intervento mediante il quale un sanitario provoca direttamente e intenzionalmente la morte di un paziente su richiesta, secondo i requisiti eventualmente fissati dalla legge. Va distinto dal suicidio medicalmente assistito e dalla rinuncia ai trattamenti.\n\n**Dove e risultati.** In Italia l'eutanasia attiva non è in generale legalizzata. La Corte costituzionale, con la sentenza 242/2019 e successive pronunce, ha individuato specifiche condizioni di non punibilità per l'aiuto al suicidio: non equivalgono a una legalizzazione generale dell'eutanasia.\n\n✔️ **Argomenti favorevoli:** autodeterminazione e possibilità di evitare sofferenze considerate intollerabili.\n❌ **Criticità:** definizione di garanzie effettive contro pressioni o abusi, tutela di persone vulnerabili e rapporto con cure palliative.\n\n**Fonte:** [Corte costituzionale – Giurisprudenza sul fine vita](https://www.cortecostituzionale.it/contenuti/rapporti-cittadini/pagine-tematiche/fine-vita)."
+  },
+  {
+    "id": "finanziamento_eventi_culturali_gratuiti",
+    "text": "Finanziamento eventi culturali gratuiti",
+    "gradi_opinione": [
+      "CO",
+      "C"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Uso di risorse comunali per organizzare o sostenere concerti, spettacoli, festival, proiezioni e iniziative culturali accessibili senza biglietto. Non esclude costi per l'amministrazione.\n\n**Dove e risultati.** ISTAT monitora partecipazione culturale e spesa pubblica comunale per attività culturali. Il successo di un evento non si esaurisce nel numero di spettatori: contano inclusione, qualità, accessibilità, ripartizione dei finanziamenti e continuità dell'offerta durante l'anno.\n\n✔️ **Possibili vantaggi:** accesso anche per chi ha redditi bassi, socialità e promozione culturale.\n❌ **Possibili svantaggi:** costi a carico dei contribuenti, rischio di finanziamenti poco trasparenti o eventi con scarsa partecipazione.\n\n**Fonte:** [ISTAT – Statistiche culturali 2024](https://www.istat.it/tavole-di-dati/statistiche-culturali-anno-2024/)."
+  },
+  {
+    "id": "finanziamento_rsa_private",
+    "text": "Finanziamento delle RSA private",
+    "gradi_opinione": [
+      "R"
+    ],
+    "approfondimento": "**Di cosa si tratta.** Impiego di risorse pubbliche regionali per posti e prestazioni in residenze sanitarie assistenziali private accreditate, con obblighi di qualità, trasparenza e controllo. Non coincide con il finanziamento indiscriminato di ogni struttura privata.\n\n**Dove e risultati.** In Italia l'assistenza residenziale sociosanitaria può coinvolgere strutture accreditate e il costo viene in parte sostenuto dal SSN e in parte dall'assistito o, in certi casi, dal Comune. Il Ministero della Salute illustra questo modello. La disponibilità di posti finanziati, da sola, non misura la qualità della cura.\n\n✔️ **Possibili vantaggi:** ampliamento dei posti convenzionati e possibilità di scelta.\n❌ **Possibili svantaggi:** controlli sui livelli assistenziali, uso di fondi pubblici e costo residuo per le famiglie.\n\n**Fonte:** [Ministero della Salute – LEA e assistenza residenziale](https://www.salute.gov.it/new/it/tema/livelli-essenziali-di-assistenza/lea-regioni-e-province-autonome/)."
+  },
+  {
+    "id": "finanziamento_scuole_paritarie",
+    "text": "Finanziamento scuole paritarie",
+    "gradi_opinione": [
+      "N"
+    ],
+    "approfondimento": "**Definizione.** Finanziamento pubblico delle scuole non statali paritarie, purché rispettino requisiti di riconoscimento, programmi e controlli previsti. In Italia esistono già forme di sostegno pubblico: l'Opinione riguarda il loro mantenimento o ampliamento.\n\n**Paesi e risultati.** In Francia le scuole private sotto contratto ricevono finanziamenti pubblici e i docenti sono retribuiti dallo Stato; in cambio accettano controlli e obblighi, compreso il rispetto dei programmi. Secondo il ministero francese, circa il 17% degli alunni frequenta scuole private. La quota non dimostra da sola una superiore qualità dei risultati scolastici.\n\n✔️ **Possibili benefici:** scelta educativa, pluralismo e integrazione dell'offerta scolastica.\n❌ **Criticità:** impiego di risorse pubbliche, trasparenza, equità di accesso e controllo delle prestazioni.\n\n**Fonti:** [Ministero francese dell'Istruzione – scuole private](https://www.education.gouv.fr/les-etablissements-d-enseignement-scolaire-prives-2942) · [eduscol – principi del sistema scolastico](https://eduscol.education.gouv.fr/4842/general-principles?menu_id=3557)."
+  }
+]

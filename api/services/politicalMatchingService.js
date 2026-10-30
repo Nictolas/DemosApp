@@ -2,17 +2,11 @@ const {
   getOpinionCompletion,
   calculatePoliticalMatch
 } = require('../utils/politicalMatching');
+const { getOpinionIdsForGrade } = require('./opinionCatalog');
 
-async function getGradeOpinionIds(pool, grade) {
-  const result = await pool.query(
-    `SELECT id
-     FROM opinioni_domande
-     WHERE $1 = ANY(gradi_opinione)
-     ORDER BY id`,
-    [grade]
-  );
-
-  return result.rows.map((row) => String(row.id));
+async function getGradeOpinionIds(_pool, grade) {
+  // Official question IDs no longer need a query to opinioni_domande.
+  return getOpinionIdsForGrade(grade);
 }
 
 async function getOpinionMapsByUserId(pool, userIds, opinionIds) {

@@ -2,6 +2,8 @@
  * Logica condivisa per GET /check-missing/:grado e GET /check-missing-all.
  */
 
+const { getOpinionsForGrade } = require('./opinionCatalog');
+
 const GRADO_MAPPING = {
   N: 'N',
   E: 'E',
@@ -44,15 +46,7 @@ async function computeCheckMissingForGrado(pool, userId, gradoParam, colonneEsis
     throw err;
   }
 
-  const opinioniQuery = `
-      SELECT id, text, gradi_opinione
-      FROM opinioni_domande 
-      WHERE $1 = ANY(gradi_opinione)
-      ORDER BY id
-    `;
-
-  const opinioniResult = await pool.query(opinioniQuery, [gradoDatabase]);
-  const opinioniDelGrado = opinioniResult.rows;
+  const opinioniDelGrado = getOpinionsForGrade(gradoDatabase).map(({ id, text, gradi_opinione }) => ({ id, text, gradi_opinione }));
 
   if (opinioniDelGrado.length === 0) {
     return {

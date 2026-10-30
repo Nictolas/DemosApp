@@ -18,6 +18,8 @@ const {
   setPoliticalSelection,
 } = require('../../services/politicalSelectionService');
 
+const { getAllOpinions, getOpinionsForGrade, sortOpinionsByText } = require('../../services/opinionCatalog');
+
 const router = express.Router();
 const isSchemaMigrationError = (error) => (
   error &&
@@ -681,26 +683,10 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
       });
     }
     
-    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
-    let opinioniQuery = `
-      SELECT id, text, gradi_opinione, approfondimento
-      FROM opinioni_domande
-    `;
-    
-    if (grado) {
-      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
-    }
-    
-    opinioniQuery += ` ORDER BY text`;
-    
-    let opinioniResult;
-    if (grado) {
-      opinioniResult = await pool.query(opinioniQuery, [grado]);
-    } else {
-      opinioniResult = await pool.query(opinioniQuery);
-    }
-    const opinioni = opinioniResult.rows;
-    
+    // The catalog contains public question metadata only. Access checks above
+    // and personal answer retrieval below remain intact.
+    const opinioni = sortOpinionsByText(grado ? getOpinionsForGrade(grado) : getAllOpinions());
+
     const userAnswersResult = await pool.query(
       'SELECT * FROM opinioni_risposte WHERE user_id = $1',
       [userId]
@@ -812,8 +798,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
 
     // Verifica che gli ID delle opinioni esistano in opinioni_domande
     // e ottieni la lista delle colonne valide in opinioni_risposte
-    const validOpinionsResult = await pool.query('SELECT id FROM opinioni_domande');
-    const validOpinionIds = new Set(validOpinionsResult.rows.map(row => row.id));
+    const validOpinionIds = new Set(getAllOpinions().map(op => op.id));
     
     // Ottieni anche le colonne esistenti in opinioni_risposte per validazione
     const columnsResult = await pool.query(`
@@ -897,50 +882,71 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    // Controlla se l'utente ha già delle risposte nella tabella opinioni_risposte
-    const checkResult = await pool.query(
-      'SELECT user_id FROM opinioni_risposte WHERE user_id = $1',
-      [userId]
-    );
-    
+    // L'Admin usa lo stesso lock users della revoca GDPR e dei salvataggi
+    // personali. Il pre-check precedente è solo un filtro UX: la verifica
+    // AUTOREVOLE del consenso avviene dopo il lock, nella transazione.
+    const client = await pool.connect();
     let result;
-    if (checkResult.rows.length === 0) {
-      // Prima volta: inserisci tutte le opinioni
-      const insertFields = updateFields.map(field => field.split(' = ')[0]);
-      const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
-      const insertQuery = `
-        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
-        VALUES ($1, ${insertPlaceholders})
-      `;
-      const allValues = [userId, ...updateValues];
-      
-      console.log('📝 Query SQL INSERT:', insertQuery);
-      console.log('📝 INSERT opinioni: valori sensibili omessi dai log');
-      
-      result = await pool.query(insertQuery, allValues);
-    } else {
-      // Utente esistente: aggiorna solo le opinioni specifiche
-      updateValues.push(userId);
-      const updateQuery = `
-        UPDATE opinioni_risposte 
-        SET ${updateFields.join(', ')}
-        WHERE user_id = $${updateValues.length}
-      `;
-      
-      console.log('📝 Query SQL UPDATE:', updateQuery);
-      console.log('📝 UPDATE opinioni: valori sensibili omessi dai log');
-      
-      result = await pool.query(updateQuery, updateValues);
+    try {
+      await client.query('BEGIN');
+      const lockedUser = await client.query(
+        'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]
+      );
+      if (lockedUser.rows.length === 0) {
+        throw Object.assign(new Error('Profile no longer exists'), {
+          code: 'OPINION_USER_NOT_FOUND'
+        });
+      }
+      // New statement = fresh READ COMMITTED snapshot after waiting for
+      // any concurrent consent revocation transaction to finish.
+      const currentConsent = await client.query(`
+        SELECT COALESCE(
+          uc.political_opinions_consent, u.political_opinions_consent, false
+        ) AS granted
+        FROM users u
+        LEFT JOIN user_consents uc ON uc.user_id = u.id
+        WHERE u.id = $1
+      `, [userId]);
+      if (currentConsent.rows[0]?.granted !== true) {
+        throw Object.assign(new Error('Political consent revoked'), {
+          code: 'OPINION_CONSENT_REQUIRED'
+        });
+      }
+
+      const checkResult = await client.query(
+        'SELECT user_id FROM opinioni_risposte WHERE user_id = $1 FOR UPDATE',
+        [userId]
+      );
+      if (checkResult.rows.length === 0) {
+        const insertFields = updateFields.map(field => field.split(' = ')[0]);
+        const insertPlaceholders = updateFields.map((_, i) => `$${i + 2}`).join(', ');
+        const insertQuery = `
+          INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+          VALUES ($1, ${insertPlaceholders})
+        `;
+        result = await client.query(insertQuery, [userId, ...updateValues]);
+      } else {
+        const params = [...updateValues, userId];
+        const updateQuery = `
+          UPDATE opinioni_risposte
+          SET ${updateFields.join(', ')}
+          WHERE user_id = $${params.length}
+        `;
+        result = await client.query(updateQuery, params);
+        if (result.rowCount === 0) {
+          throw Object.assign(new Error('Opinion row no longer exists'), {
+            code: 'OPINION_ROW_NOT_FOUND'
+          });
+        }
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-    
-    if (result.rowCount === 0 && checkResult.rows.length > 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Record non trovato',
-        message: 'Impossibile aggiornare le opinioni'
-      });
-    }
-    
+
     console.log('✅ Opinioni politiche salvate con successo');
     
     res.json({
@@ -951,6 +957,18 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
+    if (error?.code === 'OPINION_CONSENT_REQUIRED') {
+      return res.status(403).json({
+        success: false, error: 'Consenso richiesto', consent_required: true,
+        message: 'Le opinioni politiche del soggetto non possono essere modificate senza consenso esplicito attivo.'
+      });
+    }
+    if (error?.code === 'OPINION_USER_NOT_FOUND' || error?.code === 'OPINION_ROW_NOT_FOUND') {
+      return res.status(404).json({
+        success: false, error: 'Record non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
     console.error('❌ Errore nel salvare opinioni utente:', error);
     console.error('❌ Stack trace:', error.stack);
     console.error('❌ Dettagli errore:', {

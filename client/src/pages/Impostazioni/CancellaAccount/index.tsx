@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Trash2, AlertTriangle, Shield, Database } from "lucide-react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,7 @@ interface DeletionStep {
 
 export default function CancellaAccount() {
   const { user, isLoading } = useAuth();
+  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [password, setPassword] = useState("");
   const [confirmText, setConfirmText] = useState("");
@@ -104,10 +106,15 @@ export default function CancellaAccount() {
         confirmText,
       });
 
-      // L'account non esiste più: rimuovi subito le credenziali locali e forza un reload pulito.
+      // The server already deleted the account. First revoke local access,
+      // then cancel any outstanding authenticated GET, erase RAM and wait for
+      // every already-started encrypted IndexedDB write to settle and be wiped.
+      // Reloading before this barrier can resurrect deleted political data.
       clearSessionTokens();
+      await queryClient.cancelQueries();
+      queryClient.clear();
       clearAllProfileSummaries();
-      void clearAllEncryptedProfiles();
+      await clearAllEncryptedProfiles();
       window.location.assign("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore durante la cancellazione");

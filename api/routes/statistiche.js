@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { getAllOpinions } = require('../services/opinionCatalog');
 const { getPool } = require('../config/database');
 const { remember, isEnabled } = require('../services/redisCache');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
@@ -51,16 +52,8 @@ router.get('/utenti', async (req, res) => {
 router.get('/opinioni', async (req, res) => {
   try {
     const body = await remember(keys.statisticheOpinioni, ttl.statistiche, async () => {
-      const result = await pool.query(`
-      SELECT 
-        COUNT(*) as totale_opinioni,
-        COUNT(*) as opinioni_approvate
-      FROM opinioni_domande
-    `);
-      return {
-        success: true,
-        data: result.rows[0]
-      };
+      const count = String(getAllOpinions().length);
+      return { success: true, data: { totale_opinioni: count, opinioni_approvate: count } };
     });
 
     if (isEnabled()) {
