@@ -59,3 +59,86 @@ jobs:
           if [ -f .git/MERGE_HEAD ]; then git merge --abort; fi
           test -z "$(git status --porcelain)"
           echo "PASS: temporary workspace restored to a clean state."
+
+  candidate-integration:
+    # This tests a throwaway combined tree. It does NOT create a merge commit.
+    # Where conflicts exist, take the cache PR version to expose integration
+    # regressions against all the privacy tests added independently to main.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout cache PR in disposable workspace
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Assemble temporary candidate with main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          set +e
+          git -c user.name="Merge Preview" -c user.email="merge-preview@invalid.example" \
+            merge --no-commit --no-ff origin/main > /tmp/cache-merge-candidate.log 2>&1
+          merge_status=$?
+          set -e
+          if [ "$merge_status" -ne 0 ] && ! git ls-files --unmerged | grep -q .; then
+            echo "Non-conflict merge error"; exit 1
+          fi
+          # This is only a diagnostic candidate, NOT the final resolution.
+          # Main-only files, especially privacy tests, remain in the tree.
+          for path in \
+            .github/workflows/opinioni-regression.yml \
+            client/src/components/PoliticalOpinionsConsentModal.tsx \
+            client/src/lib/encryptedOpinionCache.ts \
+            client/src/pages/OpinioniComunali.tsx \
+            client/src/pages/OpinioniEuropee.tsx \
+            client/src/pages/OpinioniNazionali.tsx \
+            client/src/pages/OpinioniRegionali.tsx \
+            client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx \
+            scripts/test-opinioni-fixed-footer-browser.cjs
+          do
+            if git ls-files --unmerged -- "$path" | grep -q .; then
+              git checkout --ours -- "$path"
+              git add -- "$path"
+            fi
+          done
+          if git ls-files --unmerged | grep -q .; then
+            echo "Unexpected unresolved files after candidate selection"
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+          echo "Temporary candidate includes main-only files plus selected PR code."
+          echo "No commit/push made, and permissions remain read-only."
+      - name: Configure Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build combined frontend
+        run: npm --prefix client run build
+      - name: Check combined cache and main privacy regressions
+        shell: bash
+        run: |
+          node --experimental-strip-types --test \
+            client/tests/crashDiagnostic.test.mjs \
+            client/tests/toastOpaque.test.mjs \
+            client/tests/opinionDelta.test.mjs \
+            client/tests/opinionPayload.test.mjs \
+            client/tests/encryptedOpinionCategory.behavior.test.mjs \
+            client/tests/saveAndVerifyOpinions.test.mjs \
+            client/tests/statsOpinionCacheReuse.test.mjs \
+            client/tests/politicalConsentVerifiedReuse.test.mjs \
+            client/tests/politicalConsentGrantVerified.test.mjs \
+            client/tests/politicalOpinionHttpCancellation.test.mjs \
+            client/tests/politicalConsentGrantVaultBarrier.test.mjs \
+            client/tests/politicalOpinionPrivacyIntegration.test.mjs \
+            client/tests/encryptedVaultPurgeRace.test.mjs \
+            client/tests/accountDeletionCachePurge.test.mjs \
+            client/tests/authInvalidationBarrier.test.mjs \
+            client/tests/authLogRedaction.test.mjs \
+            client/tests/privacyDisclosureIntegrity.test.mjs \
+            client/tests/dpiaReviewStatus.test.mjs
