@@ -21,6 +21,7 @@ on:
       - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
       - 'client/src/hooks/use-auth.tsx'
       - 'client/src/lib/logout-revocation.ts'
+      - 'client/src/lib/native-push.ts'
       - 'client/tests/logoutRevocationConfirmation.test.mjs'
       - 'client/src/pages/Impostazioni/hooks/useLogout.ts'
       - 'client/tests/authLogRedaction.test.mjs'
@@ -68,5 +69,5 @@ jobs:
         run: npm --prefix client run build
       - name: Install API dependencies
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
-      - name: Verify opinion regressions
-        run: node --test --test-concurrency=1 api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js
+      - name: Verify opinion regressions and Android push logout contracts
+        run: node --test --test-concurrency=1 api/tests/opinionStatsColumns.test.js api/tests/ordinaryUserOpinionSave.test.js api/tests/politicalOpinionWriteRules.smoke.test.js api/tests/opinionPrivacy.test.js api/tests/androidAuthNativePushIntegration.test.js api/tests/fcmTokenIntegrity.test.js
