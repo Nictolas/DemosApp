@@ -1025,3 +1025,36 @@ e una verifica privacy end-to-end prima di attivare il codice.
 
 Nessuna query di produzione, modifiche a Supabase, merge,
 deploy o variazioni delle API attive.
+
+
+## Snapshot pubblico versionato senza conteggi nascosti (ricerca)
+
+Il modulo `api/experiments/opinionAnswersV2PublishedSnapshotCandidate.js`
+converte una singola istantanea nazionale/regionale in un
+**oggetto pubblico immutabile**, associato a un ID di Opinione
+e a una versione di pubblicazione. Non contiene righe personali,
+conteggi delle regioni oscurate o altre risposte non pubblicabili.
+
+Il futuro backend potrebbe calcolare la pubblicazione una volta,
+memorizzarla in cache e usare **gli stessi conteggi gia filtrati**
+per le route nazionali e regionali; una richiesta che si riferisce
+a un'altra versione viene rifiutata, non ricomputata con dati
+di un'altra istantanea. La risposta HTTP conserva le chiavi
+legacy `success`, `data`, `stats`, `totaleUtenti`, `regione`
+e `minimumCellSize`. Non e stata collegata alcuna route reale.
+
+**IMPORTANTE:** la compatibilita fra due richieste dello stesso
+snapshot non impedisce il confronto di **due snapshot pubblicati
+in momenti diversi**. Per questo occorre una futura politica
+di rilascio che valuti differenze temporali e incroci
+territoriali e demografici prima di sostituire la cache.
+Il modulo non crea un cron, non scrive in database e non
+risolve da solo queste inferenze.
+
+I test `api/tests/opinionAnswersV2PublishedSnapshot.unit.test.js`
+verificano la forma dei payload, il blocco di versioni errate,
+l'assenza di conteggi regionali soppressi e l'immutabilita
+rispetto a successive modifiche dei dati di input.
+
+**NO-GO:** serve revisione del DPO e test end-to-end prima di
+pubblicare statistiche ottenute da questa nuova struttura.
