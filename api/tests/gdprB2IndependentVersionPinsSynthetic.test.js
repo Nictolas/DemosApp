@@ -53,7 +53,8 @@ test('independently pinned synthetic B2 versions pass without ever authorizing r
 
 test('substituting a different version ID with identical bytes fools basic inventory but NOT independent pins',()=>{
   const f=setup(),receipt=pinAll(f);
-  const forged=structuredClone(f.pages);
+  const forged=f.pages.map(page=>({...page,
+    objects:page.objects.map(item=>({...item,Body:Buffer.from(item.Body)}))}));
   forged[0].objects[2].VersionId='synthetic-replacement-version';
   assert.equal(verifySyntheticB2VersionInventory(f.journal,f.checkpoint,forged)
     .syntheticInventoryVerified,true);
