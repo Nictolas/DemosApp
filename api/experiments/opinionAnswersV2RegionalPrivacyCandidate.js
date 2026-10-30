@@ -13,22 +13,44 @@ const {MINIMUM_POLITICAL_AGGREGATE_CELL_SIZE:MINIMUM}=
   require('../utils/politicalAggregatePrivacy');
 const COUNTS=['favorevole','contrario','indeciso'];
 const REGIONS=Object.freeze(Object.keys(REGIONI_DB_TO_FRONTEND));
+// PostgreSQL COUNT(bigint) arrives as a canonical base-10 string.
+// Number(''), Number(false) and Number([]) are all zero: never silently
+// accept those malformed values as political statistics.
+const MAX=Number.MAX_SAFE_INTEGER;
+function checkedAdd(a,b){
+  if(!Number.isSafeInteger(a)||a<0||!Number.isSafeInteger(b)||b<0||
+     a>MAX-b)throw new TypeError('Unsafe aggregate count sum');
+  return a+b;
+}
+function parseCount(value,name){
+  let n;
+  if(typeof value==='number'){
+    n=value;
+  }else if(typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value)){
+    const exact=BigInt(value);
+    if(exact>BigInt(MAX))throw new TypeError('Invalid count: '+name);
+    n=Number(exact);
+  }else{
+    throw new TypeError('Invalid count: '+name);
+  }
+  if(!Number.isSafeInteger(n)||n<0){
+    throw new TypeError('Invalid count: '+name);
+  }
+  return n;
+}
 function validateCounts(raw){
   if(!raw || typeof raw!=='object'||Array.isArray(raw)){
     throw new TypeError('Expected complete aggregate counts');
   }
   const out={};
   for(const name of COUNTS){
-    const number=Number(raw[name]);
-    if(raw[name]===null||raw[name]===undefined||
-       !Number.isSafeInteger(number)||number<0){
-      throw new TypeError('Invalid count: '+name);
-    }
-    out[name]=number;
+    out[name]=parseCount(raw[name],name);
   }
+  // Even a per-category safe integer can overflow when summed.
+  total(out);
   return out;
 }
-const total=c=>COUNTS.reduce((n,k)=>n+c[k],0);
+const total=c=>COUNTS.reduce((n,k)=>checkedAdd(n,c[k]),0);
 
 function planCoherentRegionalPublication(nationalRaw,regionRows){
   const national=validateCounts(nationalRaw);
@@ -48,7 +70,7 @@ function planCoherentRegionalPublication(nationalRaw,regionRows){
   }
   const sum={favorevole:0,contrario:0,indeciso:0};
   for(const c of byRegion.values()){
-    for(const key of COUNTS)sum[key]+=c[key];
+    for(const key of COUNTS)sum[key]=checkedAdd(sum[key],c[key]);
   }
   for(const key of COUNTS){
     if(sum[key]!==national[key]){
@@ -118,4 +140,4 @@ function planCoherentRegionalPublication(nationalRaw,regionRows){
   });
 }
 
-module.exports={planCoherentRegionalPublication};
+module.exports={planCoherentRegionalPublication,validateCounts,total};
