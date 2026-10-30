@@ -1,4 +1,9 @@
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
+import { getAuthToken } from "@/lib/auth-token";
+import {
+  captureOpinionSaveSession, matchesOpinionSaveSession,
+  type VerifiedOpinionSaveUser,
+} from "@/lib/opinionSaveSession";
 import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
 import { loadOpinionCategory, cacheConfirmedOpinionAnswers } from "@/lib/encryptedOpinionCache";
 import React, { useState, useEffect } from "react";
@@ -44,7 +49,11 @@ export default function OpinioniRegionali() {
   const [, setLocation] = useLocation();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
   const [showConsentDialog, setShowConsentDialog] = useState(false);
-  const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<Record<string, string> | null>(null);
+  const [pendingOpinionsToSave, setPendingOpinionsToSave] = useState<{
+    ownerId: string;
+    answers: Record<string, string>;
+  } | null>(null);
+  const [grantConfirmed, setGrantConfirmed] = useState(false);
   
   // Controllo consenso opinioni politiche (GDPR Art. 9)
   const { hasConsent } = usePoliticalOpinionsConsent();
@@ -53,7 +62,7 @@ export default function OpinioniRegionali() {
   const { data: questionsData, isLoading: isLoadingQuestions, isFetching: isRefreshingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Regionale'],
     queryFn: ({ signal }) => loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp, "R", signal) as any,
-    enabled: !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true,
+    enabled: !!user && isSessionVerified && hasConsent,
     // Re-run the cheap catalog check on each visit. Valid encrypted answers
     // still avoid database reads; a changed release never stays permanently stale.
     staleTime: 0,
@@ -65,7 +74,7 @@ export default function OpinioniRegionali() {
   // Combina i dati
   const isLoading = isLoadingQuestions || isRefreshingQuestions;
   // A disabled query can still hold data in RAM: never render it after revocation.
-  const canReadOpinions = !!user && isSessionVerified && verifiedPoliticalConsent?.granted === true;
+  const canReadOpinions = !!user && isSessionVerified && hasConsent;
   const questions = canReadOpinions && questionsData?.data && Array.isArray(questionsData.data)
     ? questionsData.data : [];
   
@@ -114,17 +123,38 @@ export default function OpinioniRegionali() {
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
-    mutationFn: (newOpinions: Record<string, string>) => saveAndVerifyOpinions("R", newOpinions),
-    onSuccess: async (_data, savedOpinions) => {
+    mutationFn: async (newOpinions: Record<string, string>) => {
+      const token = getAuthToken();
+      const savedSession = captureOpinionSaveSession(
+        isSessionVerified ? user?.id : null,
+        verifiedPoliticalConsent?.timestamp, token,
+        token ? queryClient.getQueryData<VerifiedOpinionSaveUser>(['user', token]) : null,
+      );
+      if (!savedSession) {
+        throw new Error("Sessione o consenso non verificati: impossibile salvare.");
+      }
+      await saveAndVerifyOpinions("R", newOpinions);
+      return savedSession;
+    },
+    onSuccess: async (savedSession, savedOpinions) => {
+      // A successful server ACK belongs only to the session that sent it.
+      // Fail closed on account switches or revocations, without another GET.
+      const stillCurrent = () => matchesOpinionSaveSession(
+        savedSession, getAuthToken(),
+        queryClient.getQueryData<VerifiedOpinionSaveUser>(['user', savedSession.token]),
+      );
+      if (!stillCurrent()) return;
       // ACK commit has completed: persist all shared encrypted grade caches.
-      await cacheConfirmedOpinionAnswers(user!.id, verifiedPoliticalConsent!.timestamp, savedOpinions);
+      await cacheConfirmedOpinionAnswers(savedSession.ownerId, savedSession.consentEpoch, savedOpinions);
+      if (!stillCurrent()) return;
       // An older in-flight GET must not restore the pre-save snapshot.
       await queryClient.cancelQueries({
-        queryKey: ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Regionale'],
+        queryKey: ['opinioniQuestions', savedSession.ownerId, savedSession.consentEpoch, 'Regionale'],
       });
+      if (!stillCurrent()) return;
       toast({ title: "Successo", description: "Le tue opinioni regionali sono state salvate." });
       queryClient.setQueryData(
-        ['opinioniQuestions', user?.id, verifiedPoliticalConsent?.timestamp, 'Regionale'],
+        ['opinioniQuestions', savedSession.ownerId, savedSession.consentEpoch, 'Regionale'],
         (previous: any) => previous && Array.isArray(previous.data) ? ({
           ...previous,
           data: previous.data.map((question: any) =>
@@ -136,7 +166,7 @@ export default function OpinioniRegionali() {
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
       queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
       const nextPage = exitGuard.onSaveSuccess();
-      setTimeout(() => setLocation(nextPage), 1500);
+      setTimeout(() => { if (stillCurrent()) setLocation(nextPage); }, 1500);
     },
     onError: (error: any) => {
       exitGuard.onSaveError();
@@ -166,7 +196,8 @@ export default function OpinioniRegionali() {
     // Verifica consenso opinioni politiche (GDPR Art. 9)
     if (!hasConsent) {
       // Salva le opinioni da salvare in uno stato temporaneo
-      setPendingOpinionsToSave(opinionsToSave);
+      setPendingOpinionsToSave({ ownerId: user!.id, answers: opinionsToSave });
+      setGrantConfirmed(false);
       // Apri il dialog del consenso
       setShowConsentDialog(true);
       return;
@@ -177,19 +208,41 @@ export default function OpinioniRegionali() {
 
   saveHandlerRef.current = handleSave;
 
-  // Funzione chiamata quando il consenso viene concesso
-  const handleConsentGranted = async () => {
-    // Dopo che il consenso è stato concesso, aggiorna la cache e poi salva le opinioni in attesa
-    if (pendingOpinionsToSave) {
-      // Aggiorna la cache del consenso per assicurarsi che sia aggiornata
-      await queryClient.refetchQueries({ queryKey: ['political-opinions-consent'] });
-      // Aspetta un breve momento per assicurarsi che la cache sia aggiornata
-      setTimeout(() => {
-        saveMutation.mutate(pendingOpinionsToSave);
-        setPendingOpinionsToSave(null);
-      }, 300);
-    }
+  // A consent grant does not authorize an automatic save until /auth/me
+  // confirms the new epoch, the vault wipe is complete, and the new
+  // category snapshot is loaded. No arbitrary timeouts or consent GETs.
+  const handleConsentGranted = () => {
+    // Opening the consent form without draft answers does not request an auto-save.
+    if (pendingOpinionsToSave) setGrantConfirmed(true);
   };
+
+  useEffect(() => {
+    if (!grantConfirmed || !pendingOpinionsToSave) return;
+    if (pendingOpinionsToSave.ownerId !== user?.id ||
+        (isSessionVerified && verifiedPoliticalConsent?.granted !== true)) {
+      setGrantConfirmed(false);
+      setPendingOpinionsToSave(null);
+      return;
+    }
+    if (!isSessionVerified || !hasConsent || !canReadOpinions ||
+        isLoading || questions.length === 0 || saveMutation.isPending) return;
+    const toSave = collectChangedOpinionAnswers(
+      questions,
+      { ...opinions, ...pendingOpinionsToSave.answers },
+    );
+    setGrantConfirmed(false);
+    setPendingOpinionsToSave(null);
+    if (Object.keys(toSave).length > 0) {
+      // Keep the just-consented draft visible even if the first POST fails.
+      // This updates React RAM only; the server still receives delta-only data.
+      setOpinions((previous) => ({ ...previous, ...toSave }));
+      saveMutation.mutate(toSave);
+    }
+  }, [
+    grantConfirmed, pendingOpinionsToSave, user?.id, isSessionVerified,
+    verifiedPoliticalConsent?.granted, hasConsent, canReadOpinions,
+    isLoading, questions, opinions, saveMutation.isPending,
+  ]);
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -209,6 +262,20 @@ export default function OpinioniRegionali() {
           <CardContent className="opinioni-editor-page__list min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain pb-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>
+            ) : isSessionVerified && !hasConsent ? (
+              <div className="mx-auto max-w-md space-y-4 px-4 py-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Per esprimere opinioni politiche puoi scegliere se prestare il consenso
+                  esplicito al trattamento di questi dati. Il consenso è facoltativo.
+                </p>
+                <button
+                  type="button"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  onClick={() => setShowConsentDialog(true)}
+                >
+                  Leggi e scegli se dare il consenso
+                </button>
+              </div>
             ) : questions.length === 0 ? (
               <div className="text-center py-8"><p className="text-muted-foreground">Nessuna domanda disponibile.</p></div>
             ) : (

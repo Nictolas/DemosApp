@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/queryClient";
+import { parseOpinionQuestions } from "./opinionPayload";
 import {
   loadEncryptedProfile,
   persistEncryptedOpinionCategory,
@@ -52,20 +53,12 @@ const sections: Record<OpinionGrade, OpinionCategorySection> = {
   E: "opinionE", N: "opinionN", R: "opinionR", CO: "opinionCO",
 };
 
-function sanitiseQuestions(raw: unknown): EncryptedOpinionCategory["questions"] {
-  if (!Array.isArray(raw)) throw new Error("Formato opinioni non valido.");
-  return raw.map((question: any) => {
-    if (!question || typeof question.id !== "string" || typeof question.text !== "string") {
-      throw new Error("Domanda opinione non valida.");
-    }
-    const answer = question.userAnswer;
-    return {
-      id: question.id, text: question.text,
-      userAnswer: answer === "f" || answer === "c" || answer === "i" ? answer : null,
-      ...(question.grado === undefined ? {} : { grado: question.grado }),
-    };
-  });
+// Consent must carry a non-blank server-verified epoch before any personal
+// responses can enter or be reused from persistent encrypted storage.
+function hasVerifiedConsentEpoch(epoch: string | null): epoch is string {
+  return typeof epoch === "string" && epoch.trim().length > 0;
 }
+
 
 /**
  * No network read when the authenticated owner's encrypted snapshot is valid.
@@ -78,7 +71,11 @@ export async function loadOpinionCategory(
   grade: OpinionGrade,
   signal?: AbortSignal,
 ): Promise<OpinionPayload> {
-  if (!owner || signal?.aborted) throw new Error("Sessione non valida");
+  // A granted flag without a verified epoch cannot authorize a personal GET.
+  // Reject before even requesting the public catalog revision or reading vault.
+  if (!owner || !hasVerifiedConsentEpoch(consentEpoch) || signal?.aborted) {
+    throw new Error("Sessione o consenso non verificati");
+  }
   const section = sections[grade];
   const revision = profileSectionRevision(owner, section);
   const [catalogRevision, snapshot] = await Promise.all([
@@ -89,24 +86,38 @@ export async function loadOpinionCategory(
   }
   // Accounts without a server-supplied consent epoch cannot safely retain a
   // persistent snapshot across revocation/regrant; use network as fallback.
-  const cached = consentEpoch !== null && snapshot?.consent?.granted === true &&
+  const cached = hasVerifiedConsentEpoch(consentEpoch) && snapshot?.consent?.granted === true &&
     snapshot.consent.timestamp === consentEpoch ? snapshot[section] : null;
   if (catalogRevision !== null && cached?.version === OPINION_CATEGORY_CACHE_VERSION &&
       cached.grade === grade && cached.catalogRevision === catalogRevision) {
-    return { success: true, data: cached.questions, grado: grade, total: cached.questions.length };
+    // Encrypted != automatically valid: older cache releases or corrupt
+    // snapshots may contain textual slugs or duplicate IDs. Fail closed
+    // to the ordinary authenticated GET rather than returning them.
+    try {
+      const questions = parseOpinionQuestions(cached.questions);
+      return { success: true, data: questions, grado: grade, total: questions.length };
+    } catch {
+      // Invalid cache is not authoritative; do not re-use or merge it.
+    }
   }
 
   const response = await apiRequest("GET", `/api/opinioni-list?grado=${grade}`, undefined, undefined, signal);
   if (!response.ok || response.data?.success !== true) {
     throw new Error("Impossibile caricare le opinioni.");
   }
-  const questions = sanitiseQuestions(response.data?.data);
+  const questions = parseOpinionQuestions(response.data?.data);
   if (signal?.aborted || revision !== profileSectionRevision(owner, section)) {
     throw new Error("Caricamento opinioni annullato");
   }
-  if (consentEpoch !== null && catalogRevision !== null) {
+  if (hasVerifiedConsentEpoch(consentEpoch) && catalogRevision !== null) {
     await persistEncryptedOpinionCategory(owner, consentEpoch, section,
       { version: OPINION_CATEGORY_CACHE_VERSION, catalogRevision, grade, questions }, revision);
+  }
+  // The encrypted vault serializes disk writes. Consent revocation, account
+  // change or a confirmed save may advance the revision WHILE we await that
+  // queue. Do not return a now-stale payload even if the vault discarded it.
+  if (signal?.aborted || revision !== profileSectionRevision(owner, section)) {
+    throw new Error("Caricamento opinioni annullato");
   }
   return { success: true, data: questions, grado: grade, total: questions.length };
 }
@@ -118,6 +129,6 @@ export async function cacheConfirmedOpinionAnswers(
   consentEpoch: string | null,
   answers: Readonly<Record<string, string>>,
 ): Promise<void> {
-  if (!owner || Object.keys(answers).length === 0) return;
+  if (!owner || !hasVerifiedConsentEpoch(consentEpoch) || Object.keys(answers).length === 0) return;
   await mergeEncryptedOpinionAnswers(owner, consentEpoch, answers);
 }

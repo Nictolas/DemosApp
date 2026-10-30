@@ -26,6 +26,8 @@ function loadConsentMutation(queryClient, clearVault, events) {
       useMutation: (mutation) => { config = mutation; return { isPending: false, mutate: () => {} }; },
       useQueryClient: () => queryClient,
     };
+    if (id === '@/hooks/use-auth') return { useAuth: () => ({ user: { id: 'synthetic-owner' } }) };
+    if (id === '@/lib/auth-token') return { getAuthToken: () => 'synthetic-token' };
     if (id === '@/pages/Profilo/utils/encryptedProfileVault') return { clearAllEncryptedProfiles: clearVault };
     if (id === '@/hooks/use-toast') return { useToast: () => ({ toast: () => events.push('toast') }) };
     if (id === 'wouter') return { Link: () => null };
@@ -48,7 +50,19 @@ test('grant cancels prior-epoch reads and awaits encrypted wipe before navigatio
   const events = [];
   const pendingCancels = [];
   let finishVault;
+  let authUpdateCount = 1;
   const queryClient = {
+    getQueryState: () => ({ dataUpdateCount: authUpdateCount }),
+    getQueryData: () => ({
+      id: 'synthetic-owner',
+      political_consent: { granted: true, timestamp: 'verified-epoch' },
+    }),
+    refetchQueries: async ({ queryKey }) => {
+      events.push('refetch:' + queryKey[0]);
+      authUpdateCount++;
+    },
+    setQueryData: () => {},
+
     cancelQueries: ({ queryKey }) => new Promise((resolve) => {
       events.push('cancel:' + queryKey[0]);
       pendingCancels.push(resolve);
@@ -80,7 +94,7 @@ test('grant cancels prior-epoch reads and awaits encrypted wipe before navigatio
   await completion;
   assert.ok(events.indexOf('vault:start') < events.indexOf('granted'));
   assert.ok(events.indexOf('granted') < events.indexOf('close'));
-  assert.ok(events.indexOf('invalidate:user') < events.indexOf('granted'));
+  assert.ok(events.indexOf('refetch:user') < events.indexOf('granted'));
 });
 
 test('consent grant does not use fire-and-forget encrypted deletion', () => {

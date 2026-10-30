@@ -1,6 +1,21 @@
 name: Opinioni fixed-footer mobile browser regression
 
 on:
+  # PR #464 is conflicted; validate its browser-only changes without a
+  # pull_request merge ref. Read-only job: no deployment or migrations.
+  push:
+    branches:
+      - 'feat/opinioni-delta-cache-prep-20261029'
+    paths:
+      - 'scripts/test-opinioni-fixed-footer-browser.cjs'
+      - 'client/src/pages/StatisticheOpinione/components/OpinionSelector.tsx'
+      - 'client/src/hooks/use-auth.tsx'
+      - 'client/src/pages/Profilo/utils/encryptedProfileVault.ts'
+      - 'client/src/lib/encryptedOpinionCache.ts'
+      - 'client/src/pages/StatisticheOpinione/hooks/useOpinionId.ts'
+      - '.github/workflows/opinioni-fixed-footer-browser.yml'
+      - 'client/tests/politicalConsentGrantVaultBarrier.test.mjs'
+      - '.github/workflows/opinioni-regression.yml'
   pull_request:
     branches: [main]
     paths:

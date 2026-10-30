@@ -5,7 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, BarChart3 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { loadOpinionCategory, type OpinionGrade } from "@/lib/encryptedOpinionCache";
 import { useAuth } from "@/hooks/use-auth";
+
+// The statistics selector has historically used Italian grade labels,
+// while the encrypted editor snapshots use stable grade codes. A familiar
+// label must resolve to the SAME cache as the corresponding opinion editor.
+const cacheGradeByLabel: Readonly<Record<string, OpinionGrade>> = {
+  n: "N", nazionale: "N", nazionali: "N",
+  e: "E", europeo: "E", europea: "E", europee: "E", europei: "E",
+  r: "R", regionale: "R", regionali: "R",
+  co: "CO", comunale: "CO", comunali: "CO",
+};
 
 interface OpinionQuestion {
   id: string;
@@ -18,6 +29,10 @@ interface OpinionSelectorProps {
 
 export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
   const { user, isSessionVerified, verifiedPoliticalConsent } = useAuth();
+  const cacheGrade = Object.prototype.hasOwnProperty.call(cacheGradeByLabel, grado.trim().toLowerCase())
+    ? cacheGradeByLabel[grado.trim().toLowerCase()] : null;
+  const canReadOpinions = !!user?.id && isSessionVerified &&
+    verifiedPoliticalConsent?.granted === true && !!verifiedPoliticalConsent.timestamp;
   const { data: questionsData, isLoading, isError } = useQuery<{
     success: boolean;
     data: OpinionQuestion[];
@@ -30,11 +45,23 @@ export function OpinionSelector({ grado = "Nazionale" }: OpinionSelectorProps) {
     enabled: !!user?.id && isSessionVerified && verifiedPoliticalConsent?.granted === true &&
       !!verifiedPoliticalConsent.timestamp,
     queryFn: async ({ signal }) => {
+      // Reuse the editor's verified-consent, per-account encrypted snapshot.
+      // A valid warm cache makes ZERO personal-answer GETs here.
+      if (cacheGrade) {
+        return loadOpinionCategory(user!.id, verifiedPoliticalConsent!.timestamp,
+          cacheGrade, signal);
+      }
+      // Preserve the old behavior only for unknown legacy grade labels.
       const response = await apiRequest("GET", `/api/opinioni-list?grado=${grado}`,
         undefined, undefined, signal);
       return response.data;
     },
   });
+
+  // Disabling a TanStack query does not discard its previously cached data.
+  // Never display personal political answers after consent/session loss while
+  // the logout/revoke cleanup is still cancelling and removing RAM queries.
+  if (!canReadOpinions) return null;
 
   if (isLoading) {
     return (
