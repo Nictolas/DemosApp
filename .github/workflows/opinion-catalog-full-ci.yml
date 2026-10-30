@@ -42,7 +42,7 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - name: Validate all migrated backend files parse
         run: |
-          for file in api/services/opinionCatalog.js api/routes/compatibility.js api/routes/opinioni/management.js api/routes/opinioni/user-answers.js api/routes/opinioni/stats.js api/routes/sondaggi.js api/routes/opinioni-proposte.js api/routes/users/profile.js api/routes/statistiche.js api/routes/bacheca.js; do
+          for file in api/services/opinionCatalog.js api/routes/compatibility.js api/routes/opinioni/compatibility.js api/routes/opinioni/management.js api/routes/opinioni/user-answers.js api/routes/opinioni/stats.js api/routes/sondaggi.js api/routes/opinioni-proposte.js api/routes/users/profile.js api/routes/statistiche.js api/routes/bacheca.js; do
             node --check "$file"
           done
       - name: Catalog integrity and zero-DB-metadata contract
@@ -51,6 +51,8 @@ jobs:
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Validate read-only cutover parity and answer-column schema regression
         run: node --test api/tests/opinionCatalogPreflight.test.js
+      - name: Legacy nested Opinions endpoint uses canonical ID and scoped SQL (no real DB)
+        run: node --test api/tests/opinionCatalogLegacyCompatibility.test.js
       - name: Android 1.0.10 legacy Opinions HTTP contract (no real accounts)
         run: node --test api/tests/opinionCatalogAndroid110.contract.test.js api/tests/opinionCatalogConsentRace.contract.test.js
       - name: Render QA synthetic service security and candidate HTTP smoke
