@@ -62,12 +62,12 @@ function buildHybridDemographicQuery({
     ? ['u.data_nascita IS NOT NULL','u.data_nascita <= CURRENT_DATE']
     : ["u.sesso IN ('M','F')"];
   const where=[
-    'u.account_type = ANY(
+    'u.account_type = ANY($'+accountParam+'::text[])',
     'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
     ...metaFilter,
     "v.answer IN ('f','c','i')"
   ];
-  if(region!==undefined)where.push('u.regione_residenza = 
+  if(region!==undefined)where.push('u.regione_residenza = $'+regionParam);
   const sql=[
     'WITH valid_responses AS (',
     'SELECT '+groupExpr+' AS dimension_label,',
