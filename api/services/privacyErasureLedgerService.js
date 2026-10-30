@@ -228,16 +228,19 @@ class PrivacyErasureLedgerService {
       error.code = 'GDPR_LEDGER_INVALID_EVENT_DETAILS';
       throw error;
     }
-    if (outboxEnabled) {
-      const { normalizeEvent } = require('./privacyErasureB2Journal');
-      normalizeEvent({
-        event_key: eventKey,
-        subject_user_id: subjectUserId,
-        event_type: eventType,
-        occurred_at: '2000-01-01T00:00:00.000Z',
-        details: JSON.parse(detailsJson)
-      });
-    }
+    // Enforce the immutable B2 event format even when the outbox is OFF.
+    // Otherwise a committed SQL-only erasure can exceed the bounded 8192-byte
+    // archive format and become impossible to export when B2 is enabled later.
+    // This is a local validation only: importing the formatter does not
+    // construct an SDK client, open a connection or enable the exporter.
+    const { normalizeEvent } = require('./privacyErasureB2Journal');
+    normalizeEvent({
+      event_key: eventKey,
+      subject_user_id: subjectUserId,
+      event_type: eventType,
+      occurred_at: '2000-01-01T00:00:00.000Z',
+      details: JSON.parse(detailsJson)
+    });
 
     // The caller must use a single explicit SQL transaction for all account/
     // consent changes, this event and the outbox. No implicit DDL here.
