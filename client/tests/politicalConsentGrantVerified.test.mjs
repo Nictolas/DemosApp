@@ -160,6 +160,13 @@ test('all opinion editors defer pending save until the verified owner and epoch 
     assert.match(source, /onClick=\{\(\) => setShowConsentDialog\(true\)\}/);
     assert.match(source, /Leggi e scegli se dare il consenso/);
     assert.match(source, /if \(pendingOpinionsToSave\) setGrantConfirmed\(true\)/);
+    // A completed POST must never write a cache entry for a different login.
+    assert.match(source, /const savedSession = captureOpinionSaveSession\(/);
+    assert.match(source, /if \(!savedSession\) \{/);
+    assert.match(source, /matchesOpinionSaveSession\(/);
+    assert.match(source, /if \(!stillCurrent\(\)\) return/);
+    assert.match(source, /cacheConfirmedOpinionAnswers\(savedSession\.ownerId, savedSession\.consentEpoch/);
+    assert.doesNotMatch(source, /cacheConfirmedOpinionAnswers\(user!\.id/);
     // The selected pending answer must survive the post-grant category reload.
     assert.match(source, /\.\.\.opinions, \.\.\.pendingOpinionsToSave\.answers/);
     // Failed POST must leave the selected answers in React state for a retry.
@@ -174,4 +181,51 @@ test('all opinion editors defer pending save until the verified owner and epoch 
 test('consent mutation does not automatically issue redundant dedicated consent GET', () => {
   assert.doesNotMatch(modalSource, /invalidateQueries\(\{\s*queryKey:\s*\['political-opinions-consent'\]/);
   assert.match(modalSource, /refetchQueries\(\{\s*queryKey:\s*authKey/);
+});
+
+const saveSessionSource = readFileSync(
+  new URL('../src/lib/opinionSaveSession.ts', import.meta.url), 'utf8',
+);
+const saveSessionJs = ts.transpileModule(saveSessionSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const saveSessionModule = { exports: {} };
+runInNewContext(saveSessionJs, {
+  module: saveSessionModule, exports: saveSessionModule.exports,
+});
+const { captureOpinionSaveSession, matchesOpinionSaveSession } = saveSessionModule.exports;
+
+const consentUser = (id = 'owner-a', epoch = 'epoch-a', granted = true) => ({
+  id, political_consent: { granted, timestamp: epoch },
+});
+
+test('opinion save binds the verified owner, token and consent epoch in RAM', () => {
+  const started = captureOpinionSaveSession('owner-a', 'epoch-a', 'token-a', consentUser());
+  assert.equal(started?.ownerId, 'owner-a');
+  assert.equal(started?.consentEpoch, 'epoch-a');
+  assert.equal(started?.token, 'token-a');
+  assert.equal(matchesOpinionSaveSession(started, 'token-a', consentUser()), true);
+});
+
+test('a different login cannot receive an old save ACK in the local cache', () => {
+  const started = captureOpinionSaveSession('owner-a', 'epoch-a', 'token-a', consentUser());
+  assert.equal(matchesOpinionSaveSession(started, 'token-b', consentUser()), false);
+  assert.equal(matchesOpinionSaveSession(started, 'token-a', consentUser('owner-b')), false);
+  assert.equal(matchesOpinionSaveSession(started, 'token-a', null), false);
+});
+
+test('revocation and consent renewal invalidate pending save acknowledgements', () => {
+  const started = captureOpinionSaveSession('owner-a', 'epoch-a', 'token-a', consentUser());
+  assert.equal(matchesOpinionSaveSession(started, 'token-a', consentUser('owner-a', 'epoch-b')), false);
+  assert.equal(matchesOpinionSaveSession(started, 'token-a', consentUser('owner-a', 'epoch-a', false)), false);
+  assert.equal(matchesOpinionSaveSession(started, 'token-a', { id: 'owner-a' }), false);
+});
+
+test('unverified and empty-epoch sessions cannot start a political POST', () => {
+  assert.equal(captureOpinionSaveSession('owner-a', 'epoch-a', 'token-a', null), null);
+  assert.equal(captureOpinionSaveSession('owner-a', null, 'token-a', consentUser()), null);
+  assert.equal(captureOpinionSaveSession('owner-a', '  ', 'token-a', consentUser()), null);
+  assert.equal(captureOpinionSaveSession('owner-a', 'epoch-a', '', consentUser()), null);
+  assert.equal(captureOpinionSaveSession('owner-a', 'epoch-a', 'token-a', consentUser('owner-b')), null);
+  assert.equal(captureOpinionSaveSession('owner-a', 'epoch-a', 'token-a', consentUser('owner-a','epoch-b')), null);
 });
