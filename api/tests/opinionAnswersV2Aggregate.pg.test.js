@@ -79,8 +79,10 @@ test('PG17 hybrid Sondaggi: consent, geography, privacy threshold and matching',
           'INSERT INTO ci_hybrid_agg_users VALUES($1,$2,$3,$4,$5,$6)',
           [uid(i),account,base,region,province,comune]
         );
-        const old=i===11?'f':(i%10<4?'f':(i%10<7?'c':'i'));
-        const future=i===11?'c':(i%10<4?'f':(i%10<7?'c':'i'));
+        // A pure-favorable 10/11-person group is statically publishable.
+        // A separate test injects one minority response to assert suppression.
+        const old='f';
+        const future='f';
         // Three responses on the 96th question, always under threshold.
         const extra={
           opinione_94:future,
@@ -117,6 +119,21 @@ test('PG17 hybrid Sondaggi: consent, geography, privacy threshold and matching',
           assert.equal(Object.values(result[id]).reduce((a,b)=>a+b,0),11);
         }
         assert.equal(result.opinione_0.favorevole>=1,true);
+      });
+      await t.test('11 consenting users with one contrary answer are fully suppressed',async()=>{
+        await db.query(
+          'UPDATE ci_hybrid_agg_answers SET "opinione_0"=$2, '+
+          "answers_extra=jsonb_set(answers_extra,'{opinione_94}',to_jsonb($2::text)) "+
+          'WHERE user_id=$1',[uid(11),'c']
+        );
+        const mixed=await stats(db,['opinione_0','opinione_94']);
+        assert.equal(Object.hasOwn(mixed,'opinione_0'),false);
+        assert.equal(Object.hasOwn(mixed,'opinione_94'),false);
+        await db.query(
+          'UPDATE ci_hybrid_agg_answers SET "opinione_0"=$2, '+
+          "answers_extra=jsonb_set(answers_extra,'{opinione_94}',to_jsonb($2::text)) "+
+          'WHERE user_id=$1',[uid(11),'f']
+        );
       });
       await t.test('region, province and town cells show exactly ten consenting users',async()=>{
         const cases=[
