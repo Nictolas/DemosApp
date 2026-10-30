@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {
   SELECT_AUTHORIZED_HYBRID_ROW_SQL,
-  createHybridAuthorizedReadCandidate
+  createHybridAuthorizedReadCandidate,isHybridReadWithGate
 }=require('../experiments/opinionAnswersV2AuthorizedReadCandidate');
 
 const id='00000000-0000-4000-8000-000000000071';
@@ -105,4 +105,18 @@ test('SQL errors propagate; there is no silent cache fallback',async()=>{
   assert.throws(()=>createHybridAuthorizedReadCandidate({
     db:{query:async()=>({rows:[]})}
   }),/external restore gate/);
+});
+
+
+test('only factory-produced readers match the exact external gate identity',()=>{
+  const gate=async()=>true;
+  const db={query:async()=>({rows:[]})};
+  const read=createHybridAuthorizedReadCandidate({
+    db,assertRestoreReady:gate
+  });
+  assert.equal(isHybridReadWithGate(read,gate),true);
+  assert.equal(isHybridReadWithGate(read,async()=>true),false);
+  assert.equal(isHybridReadWithGate(async()=>({status:'ok',row:{}}),gate),false);
+  assert.equal(isHybridReadWithGate(undefined,gate),false);
+  assert.equal(isHybridReadWithGate(read.bind(null),gate),false);
 });
