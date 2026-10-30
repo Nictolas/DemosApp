@@ -82,21 +82,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearTimeout(timeoutId);
 
         if (response.status === 401 || response.status === 404) {
+          // A late response for an old token must never log out a newer session.
+          if (getAuthToken() !== token) return null;
           clearSessionTokens();
+          // Stop old authenticated GETs before the vault write barrier and wipe.
+          // Do not cancel this currently executing ["user", token] query.
+          const nonAuthQuery = (query: { queryKey: readonly unknown[] }) =>
+            query.queryKey[0] !== "user";
+          await queryClient.cancelQueries({ predicate: nonAuthQuery });
+          queryClient.removeQueries({ predicate: nonAuthQuery });
           clearAllProfileSummaries();
           await clearAllEncryptedProfiles();
-          queryClient.removeQueries({ queryKey: ["profilePolitical"] });
-          queryClient.removeQueries({ queryKey: ["profileFull"] });
           setToken(null);
           return null;
         }
 
         if (!response.ok) {
-          console.error(
-            "useAuth - Errore risposta /auth/me:",
-            response.status,
-            await response.text(),
-          );
+          // The error response may contain personal data; log only the HTTP status.
+          console.error("useAuth - Errore risposta /auth/me:", response.status);
           return null;
         }
 
@@ -107,7 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error instanceof Error && error.name === "AbortError") {
           return null;
         }
-        console.error("useAuth - Errore fetch /auth/me:", error);
+        // Exception payloads can embed authorization headers or user data.
+        console.error("useAuth - Errore fetch /auth/me (dettagli omessi)");
         return null;
       }
     },
@@ -137,15 +141,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const owner = userData?.id;
     if (!owner || !isSessionVerified || userData.political_consent?.granted !== false) return;
-    void queryClient.cancelQueries({
-      predicate: query => query.queryKey[0] === "opinioniQuestions" &&
-        query.queryKey[1] === owner,
-    });
-    queryClient.removeQueries({
-      predicate: query => query.queryKey[0] === "opinioniQuestions" &&
-        query.queryKey[1] === owner,
-    });
-    void clearEncryptedProfile(owner);
+    // A revocation observed in /auth/me can arrive from a second device.
+    // Cancel both editors AND the statistics selector before dropping RAM and
+    // persistent snapshots. Disabling useQuery alone would leave old data.
+    const personalToCancel = (query: { queryKey: readonly unknown[] }) =>
+      ["opinioniQuestions", "statsOpinionQuestions", "profilePolitical", "profileFull"]
+        .includes(String(query.queryKey[0])) && query.queryKey[1] === owner;
+    void (async () => {
+      await queryClient.cancelQueries({ predicate: personalToCancel });
+      queryClient.removeQueries({ predicate: personalToCancel });
+      await clearEncryptedProfile(owner);
+    })();
   }, [userData?.id, userData?.political_consent?.granted, isSessionVerified, queryClient]);
 
   let user: User | null = userData ?? null;
@@ -162,8 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           status: payload.status || "a",
         };
       }
-    } catch (error) {
-      console.error("useAuth - Errore nella decodifica del token JWT:", error);
+    } catch {
+      // Never log JWT parsing exceptions or token fragments.
+      console.error("useAuth - Token JWT non decodificabile");
     }
   }
 
@@ -182,14 +189,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               Authorization: `Bearer ${tokenToRevoke}`,
             },
           });
-        } catch (error) {
-          console.warn("Impossibile disattivare il token push durante il logout:", error);
+        } catch {
+          console.warn("Impossibile disattivare il token push durante il logout (dettagli omessi)");
         }
       }
 
       await unregisterNativePush();
       clearStoredNativePushToken();
       clearSessionTokens();
+      // Abort authenticated requests and erase their in-memory results before
+      // wiping IndexedDB, so logout cannot leave an old account visible.
+      await queryClient.cancelQueries();
+      // Remove personal queries without clearing the active logout mutation;
+      // its onSuccess callback still needs to complete navigation.
+      queryClient.removeQueries();
       clearAllProfileSummaries();
       // Finish IndexedDB deletion before logout can navigate/reload the app.
       await clearAllEncryptedProfiles();
@@ -204,16 +217,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
           body: JSON.stringify({ refreshToken: refreshTokenToRevoke }),
         });
-      } catch (error) {
-        console.warn("Errore logout backend:", error);
+      } catch {
+        console.warn("Errore logout backend (dettagli omessi)");
       }
 
       try {
         await clearNativeGoogleCredentialState();
-      } catch (error) {
+      } catch {
         // Il logout DEMOS deve riuscire anche se Credential Manager non riesce
-        // a pulire il proprio stato locale.
-        console.warn("Errore pulizia Credential Manager Android:", error);
+        // a pulire il proprio stato locale. Never print provider exception details.
+        console.warn("Errore pulizia Credential Manager Android (dettagli omessi)");
       }
     },
     onSuccess: () => {
