@@ -169,13 +169,26 @@ class PrivacyErasureB2Journal {
     const read = await client.send(new GetObjectCommand({
       Bucket: cfg.bucket, Key: key, VersionId: versionId
     }));
-    if (read.ContentLength != null &&
-        (!Number.isSafeInteger(read.ContentLength) ||
-         read.ContentLength > MAX_EVENT_BYTES || read.ContentLength < 0)) {
+    // S3 can return the requested bytes under another version ID. The
+    // immutable receipt is version-specific: matching bytes are not enough.
+    // Fail BEFORE reading the body if its provider identity or metadata is
+    // missing, contradictory or does not match the retained version.
+    const readRetentionUntil = read.ObjectLockRetainUntilDate == null
+      ? null : new Date(read.ObjectLockRetainUntilDate);
+    if (read.VersionId !== versionId || read.DeleteMarker === true ||
+        (read.ObjectLockMode != null && read.ObjectLockMode !== 'COMPLIANCE') ||
+        (readRetentionUntil !== null &&
+          (!Number.isFinite(readRetentionUntil.getTime()) ||
+           readRetentionUntil.getTime() !== retentionUntil.getTime())) ||
+        !Number.isSafeInteger(read.ContentLength) ||
+        read.ContentLength < 0 || read.ContentLength > MAX_EVENT_BYTES) {
       if (typeof read.Body?.destroy === 'function') read.Body.destroy();
-      throw Error('B2 archived event exceeds bounded read limit');
+      throw Error('B2 archived event version or metadata mismatch');
     }
     const payload = await bytesOf(read.Body);
+    if (read.ContentLength !== payload.length) {
+      throw Error('B2 archived event length mismatch');
+    }
     if (checksum(payload) !== expectedHash) {
       throw Error('B2 archived event hash mismatch');
     }
