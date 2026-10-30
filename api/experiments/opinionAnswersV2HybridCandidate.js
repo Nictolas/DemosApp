@@ -12,6 +12,7 @@ const {sanitizePublishedDelta,sanitizeStoredDocument}=
   require('./opinionAnswersV2Candidate');
 const {validateLegacyIds}=require('./opinionAnswersV2BackfillCandidate');
 const VALID=new Set(['f','c','i']);
+const {sanitizeStoredDocument}=require('./opinionAnswersV2Candidate');
 function plain(x){
   return x!==null && typeof x==='object' && !Array.isArray(x);
 }
@@ -69,6 +70,147 @@ function buildHybridAnswerSelect(published,immutableLegacyIds) {
   const columns=[...selected].filter(id=>legacy.has(id)).map(id=>'"'+id+'"');
   columns.push('answers_extra','fonti_opinioni');
   return 'SELECT '+columns.join(',')+' FROM opinioni_risposte WHERE user_id=$1::uuid';
+}
+
+
+/**
+ * Preview a save against one locked answer row, including original text
+ * columns and the overflow map. The caller owns authorization, user FOR
+ * UPDATE lock and a separate post-lock consent SELECT before this read.
+ * Notifications are allowed only on actual changes to existing answers.
+ */
+function planHybridAnswerChanges(storedRow,rawDelta,publishedIds,immutableLegacyIds) {
+  if(storedRow!==null && storedRow!==undefined && !plain(storedRow)) {
+    throw new TypeError('Stored opinion row must be an object or null');
+  }
+  const row=storedRow||{};
+  const split=splitHybridDelta(rawDelta,publishedIds,immutableLegacyIds);
+  const legacy=new Set(validateLegacyIds(immutableLegacyIds));
+  const overflow=sanitizeStoredDocument(row.answers_extra);
+  for(const id of Object.keys(overflow)){
+    if(legacy.has(id))throw new Error('Duplicate hybrid legacy and overflow opinion ID');
+  }
+  const changed=Object.create(null),notifications=[],firstAnswers=[];
+  for(const [id,next] of Object.entries({...split.legacyColumns,...split.extraPatch})){
+    const old=legacy.has(id)
+      ? (Object.prototype.hasOwnProperty.call(row,id)?row[id]:null)
+      : (Object.prototype.hasOwnProperty.call(overflow,id)?overflow[id]:null);
+    if(old!==null && !VALID.has(old)){
+      throw new TypeError('Invalid existing opinion answer; no blind overwrite');
+    }
+    if(old===next)continue;
+    changed[id]=next;
+    if(old===null)firstAnswers.push(id);
+    else notifications.push({opinionId:id,previousValue:old,newValue:next});
+  }
+  return {
+    acceptedCount:Object.keys(split.legacyColumns).length+Object.keys(split.extraPatch).length,
+    changedCount:Object.keys(changed).length,
+    changed,
+    firstAnswers,
+    notifications
+  };
+}
+
+/**
+ * A SINGLE INSERT/UPSERT in the existing answers table for mixed legacy and
+ * future IDs, including the FIRST ANSWER when there is no previous row.
+ * Dynamic column identifiers originate ONLY from validated code-held immutable
+ * legacy IDs. All values and overflow map are parameterized. The unrelated
+ * fonti_opinioni JSONB column is untouched and never replaced by a stale
+ * client snapshot. Execute AFTER users FOR UPDATE and consent recheck.
+ */
+function buildHybridAtomicAnswerUpsert(rawDelta,publishedIds,immutableLegacyIds,userId) {
+  if(typeof userId!=='string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)){
+    throw new TypeError('Canonical UUID required');
+  }
+  const {legacyColumns,extraPatch}=splitHybridDelta(
+    rawDelta,publishedIds,immutableLegacyIds
+  );
+  const names=Object.keys(legacyColumns);
+  const extraIds=Object.keys(extraPatch);
+  const columns=['user_id'],values=['$1::uuid'],params=[userId];
+  const updates=[];
+  for(const name of names){
+    // name comes from validateLegacyIds AND publishedIds, never untrusted SQL.
+    const column='"'+name+'"';
+    columns.push(column);
+    params.push(legacyColumns[name]);
+    values.push('
+  upsertOverflow:
+    'INSERT INTO opinioni_risposte AS old (user_id,answers_extra) '+
+    'VALUES($1::uuid,$2::jsonb) '+
+    'ON CONFLICT(user_id) DO UPDATE SET '+
+    "answers_extra=COALESCE(old.answers_extra,'{}'::jsonb)||EXCLUDED.answers_extra",
+  readOverflowAndSources:
+    'SELECT answers_extra,fonti_opinioni FROM opinioni_risposte WHERE user_id=$1::uuid'
+});
+module.exports={splitHybridDelta,projectHybridAnswers,buildHybridAnswerSelect,
+  planHybridAnswerChanges,buildHybridAtomicAnswerUpsert,
+  formatHybridLegacyGradePayload,formatHybridProfileOpinions,SQL};
++params.length);
+    updates.push(column+'=EXCLUDED.'+column);
+  }
+  if(extraIds.length){
+    columns.push('answers_extra');
+    params.push(JSON.stringify(extraPatch));
+    values.push('
+  upsertOverflow:
+    'INSERT INTO opinioni_risposte AS old (user_id,answers_extra) '+
+    'VALUES($1::uuid,$2::jsonb) '+
+    'ON CONFLICT(user_id) DO UPDATE SET '+
+    "answers_extra=COALESCE(old.answers_extra,'{}'::jsonb)||EXCLUDED.answers_extra",
+  readOverflowAndSources:
+    'SELECT answers_extra,fonti_opinioni FROM opinioni_risposte WHERE user_id=$1::uuid'
+});
+module.exports={splitHybridDelta,projectHybridAnswers,buildHybridAnswerSelect,SQL};
++params.length+'::jsonb');
+    updates.push(
+      "answers_extra=COALESCE(current.answers_extra,'{}'::jsonb)||EXCLUDED.answers_extra"
+    );
+  }
+  return {
+    sql:'INSERT INTO opinioni_risposte AS current ('+columns.join(',')+') '+
+      'VALUES ('+values.join(',')+') '+
+      'ON CONFLICT(user_id) DO UPDATE SET '+updates.join(',')+
+      ' RETURNING user_id',
+    params,
+    changedCount:names.length+extraIds.length
+  };
+}
+
+/**
+ * Existing Android compatibility endpoint sends normalized display text as
+ * id, while stable opinion IDs select the stored answer. Keep those separate
+ * until clients migrate; otherwise old clients may treat every question new.
+ */
+function formatHybridLegacyGradePayload(storedRow,published,immutableLegacyIds,grade){
+  if(typeof grade!=='string'||!grade.trim())throw new TypeError('Grade required');
+  const projected=projectHybridAnswers(storedRow||{},published,immutableLegacyIds);
+  return {
+    success:true,
+    data:projected.map(item=>({
+      id:item.text.replace(/\s+/g,'_').toLowerCase(),
+      text:item.text,
+      grado:item.grado,
+      userAnswer:item.userAnswer
+    })),
+    grado:grade,
+    total:projected.length
+  };
+}
+
+/** Profile endpoint keeps stable ID, source and userAnswer fields. */
+function formatHybridProfileOpinions(storedRow,published,immutableLegacyIds){
+  const row=storedRow||{};
+  const sources=row.fonti_opinioni||{};
+  if(!plain(sources))throw new TypeError('Malformed historical source map');
+  return projectHybridAnswers(row,published,immutableLegacyIds).map(item=>({
+    ...item,
+    source:Object.prototype.hasOwnProperty.call(sources,item.id)
+      ? sources[item.id]||'unknown' : 'unknown'
+  }));
 }
 
 const SQL=Object.freeze({
