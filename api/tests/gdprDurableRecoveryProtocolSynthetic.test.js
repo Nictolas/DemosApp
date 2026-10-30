@@ -194,3 +194,39 @@ test('malformed, unapproved and mismatched operations fail closed',()=>{
     {...op('x'), extra:'payload'}),{code:'GDPR_MODEL_INVALID_OPERATION'});
   assert.equal(journal.entries.length,0);
 });
+
+
+test('NO-GO when independent witness is offline even with a previously signed current receipt',()=>{
+  const {journal,db,witness}=setup();
+  const old=db.snapshot();
+  submitSyntheticOperation(db,journal,op('delete-after-snapshot'));
+  journal.seal();
+  const signedBeforeOutage=witness.current();
+  // A cached signature is not proof that the external witness remains
+  // independently reachable at recovery admission time.
+  witness.available=false;
+  assert.throws(()=>restoreSyntheticSnapshot(old,journal,
+    quarantine(journal,{independentWitness:signedBeforeOutage})),
+    {code:'GDPR_MODEL_WITNESS_UNAVAILABLE'});
+  assert.equal(old.accounts.alice.exists,true);
+  // When the test witness returns, the same signed checkpoint may be verified.
+  witness.available=true;
+  const recovered=restoreSyntheticSnapshot(old,journal,
+    quarantine(journal,{independentWitness:witness.current()}));
+  assert.equal(recovered.database.accounts.alice.exists,false);
+  assert.equal(recovered.productionRecoveryReady,false);
+});
+
+test('NO-GO when witness goes offline after signing but before an ambiguous intent is resolved',()=>{
+  const {journal,db,witness}=setup();
+  assert.throws(()=>submitSyntheticOperation(db,journal,
+    op('pending-before-outage'),{crashAt:'after_prepare'}),
+    {code:'GDPR_MODEL_SIMULATED_CRASH'});
+  const receipt=witness.current();
+  witness.available=false;
+  assert.throws(()=>journal.finalizeAmbiguousFromOriginalPrimary(
+    db,op('pending-before-outage'),{
+      originalPrimaryVerified:true,writersFenced:true,independentWitness:receipt
+    }),{code:'GDPR_MODEL_WITNESS_UNAVAILABLE'});
+  assert.equal(journal.prior(op('pending-before-outage')),'pending');
+});
