@@ -54,6 +54,7 @@ async function run() {
       let politicalEpoch = '2026-10-01T00:00:00Z';
       let catalogRevision = 'a'.repeat(64);
       let catalogEndpointAvailable = true;
+      let denyPersonalAnswers = false;
       const catalogChecks = [];
       page.on('pageerror', error => errors.push(error.message));
       const fulfill = (route, value) => route.fulfill({
@@ -88,6 +89,10 @@ async function run() {
         if (u.pathname === '/api/opinioni-list') {
           const grade = u.searchParams.get('grado');
           answerReads.push(grade);
+          if (denyPersonalAnswers) {
+            return route.fulfill({ status: 503, contentType: 'application/json',
+              body: JSON.stringify({ success: false, error: 'SYNTHETIC_PERSONAL_GET_OFFLINE' }) });
+          }
           const answers = saved.get(grade) || {};
           return fulfill(route, { success: true, total: Q.length, data: Q.map(q => ({
             ...q, userAnswer: answers[q.id] || null,
@@ -187,6 +192,17 @@ async function run() {
       assert.equal(answerReads.length, readsBeforeWarmReturn,
         'Encrypted warm cache must survive browser navigation without a GET');
 
+      // Only the personal answer endpoint is offline. Verified session and
+      // public catalog metadata still work; a warm cache must make NO
+      // private GET (even an attempted request would fail this assertion).
+      denyPersonalAnswers = true;
+      const readsBeforeOffline = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
+      assert.equal(answerReads.length, readsBeforeOffline,
+        'Warm encrypted answers must display while the private API is offline');
+      denyPersonalAnswers = false;
+
       // Real save and unsaved navigation guard using only synthetic API responses.
       await page.goto(ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
       await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
@@ -211,6 +227,22 @@ async function run() {
       await page.getByText('Opinione sintetica numero 24', { exact: true }).waitFor();
       assert.equal(answerReads.length, beforeSaveReads,
         'Warm cache after ACK must not repeat an answer GET');
+
+      // Published opinions may appear in multiple grades. The acknowledged
+      // answer must update those grade caches without an additional GET.
+      const readsBeforeSharedGrade = answerReads.length;
+      await page.goto(ORIGIN + '/opinioni-europee', { waitUntil: 'domcontentloaded' });
+      const sharedOpinion = page.locator('.opinioni-editor-page__list')
+        .locator('div.border-green-200').filter({
+          has: page.getByRole('heading', { name: 'Opinione sintetica numero 01' }),
+        }).first();
+      await sharedOpinion.waitFor();
+      const sharedButton = sharedOpinion.getByRole('button', { name: 'Favorevole' });
+      assert.match(await sharedButton.getAttribute('class'), /scale-95/,
+        'The saved response must be selected in another grade using the same ID');
+      assert.equal(answerReads.length, readsBeforeSharedGrade,
+        'Cross-grade cache synchronisation must not fetch personal answers again');
+
       // New official question release changes public metadata, not the auth
       // epoch: the encrypted answer snapshot must be rejected on next visit.
       catalogRevision = 'b'.repeat(64);
