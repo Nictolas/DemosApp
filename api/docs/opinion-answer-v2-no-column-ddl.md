@@ -900,3 +900,47 @@ separato e NON sono state simulate qui.
 **NO-GO:** nessun merge, deploy, DDL, backfill o cambiamento
 del middleware reale. Queste verifiche HTTP non sono un test
 Android end-to-end, RLS, Supabase o ripristino B2.
+
+
+## Copertura dei codici account e rischio di inferenza nazionale–regionale
+
+Nel candidato `api/experiments/opinionAnswersV2AggregateCandidate.js`
+la condizione per gli account persona comprende ora sia `PERSON`
+(legacy) sia `P` (codice compatto). I test sintetici PostgreSQL
+verificano che entrambi contribuiscano alle statistiche quando esiste
+consenso, mentre `O` (organizzazione) rimane escluso. È una correzione
+del solo prototipo: la query reale non viene modificata.
+
+**Rischio aggiuntivo da risolvere prima del rilascio:** la soglia
+minima di 10 per ciascun aggregato regionale non basta se sono
+pubblicati contemporaneamente anche i conteggi nazionali.
+Esempio fittizio: 10 rispondenti toscani tutti favorevoli,
+un rispondente laziale contrario. Si potrebbe pubblicare il risultato
+nazionale (10 favorevoli + 1 contrario) e quello toscano (10
+favorevoli). La differenza rivela la scelta dell'unico rispondente
+laziale, anche se il Lazio è nascosto.
+
+Il candidato **non collegato a nessuna API**
+`api/experiments/opinionAnswersV2RegionalPrivacyCandidate.js`
+confronta i conteggi nazionali con **tutte** le 20 regioni,
+compresi i gruppi a zero, in un insieme di risultati della
+**stessa istantanea coerente**. Verifica che ogni conteggio
+corrisponda alla somma regionale e richiede una soppressione
+complementare quando la somma dei gruppi non pubblicati è
+positiva ma inferiore a 10. Se serve, nasconde un'ulteriore
+regione sopra soglia. In caso di regione mancante, duplicata
+o totali incongruenti interrompe l'operazione.
+
+Il modulo include solo una **prova di politica di pubblicazione
+per uno snapshot nazionale/regionale**. Non garantisce la privacy
+quando vengono confrontati periodi differenti, query per
+provincia/comune, suddivisioni demografiche, cambi di composizione
+o ripetute interrogazioni. Per essere efficace richiederebbe
+una decisione centralizzata e coerente applicata a tutti gli
+endpoint, preferibilmente con aggregati precomputati e versionati,
+evitando una lettura extra per ogni richiedente. Non è sicuro
+attivare pubblicamente questi endpoint basandosi solo sul test.
+
+Test isolati: `api/tests/opinionAnswersV2RegionalPrivacy.unit.test.js`;
+nessuna lettura di dati personali, nessuna modifica di schemi,
+Supabase, Render o servizi di produzione. La PR resta Draft/NO-GO.
