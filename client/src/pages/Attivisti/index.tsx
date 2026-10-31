@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { UserCheck, ArrowLeft, Users, Heart, MapPin } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
+import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -104,6 +105,7 @@ export default function Attivisti() {
                   <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Attivisti</h1>
                   <p className="text-gray-600">Scopri e vota per gli attivisti della comunità</p>
                 </div>
+                <div className="ml-auto"><ProposeSubjectButton category="attivisti" /></div>
               </div>
             </div>
 
