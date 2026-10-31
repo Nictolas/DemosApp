@@ -13,18 +13,21 @@ const router = express.Router();
 router.use(verifyToken);
 router.use(requireAdmin);
 
-function legacyBackupActionUnavailable(req, res, next) {
-  try {
-    BackupService.assertLegacyBackupAvailable();
-    return next();
-  } catch (error) {
-    return res.status(error.statusCode || 410).json({
-      success: false,
-      error: error.code || 'LEGACY_APP_BACKUP_RETIRED',
-      message: error.message
-    });
-  }
+// The application JSON backup is incomplete and retired. Guard *every* legacy
+// endpoint, including historical read-only file verification and configuration,
+// after auth but before any handler can read the filesystem or mutate anything.
+// Reactivation requires a separately reviewed recovery implementation.
+function legacyBackupActionUnavailable(_req, res) {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  return res.status(410).json({
+    success: false,
+    error: 'LEGACY_APP_BACKUP_RETIRED'
+  });
 }
+
+// Previously only some POST actions were guarded. Do not leave GET /verify,
+// GET /list, GET /stats, GET /config or the job/status/stop handlers accessible.
+router.use(legacyBackupActionUnavailable);
 
 /**
  * GET /api/admin/backup/stats
