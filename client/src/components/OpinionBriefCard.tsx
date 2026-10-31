@@ -77,7 +77,7 @@ export function OpinionBriefCard({ brief }: { brief: OpinionBrief }) {
           </h3>
           <div className="grid grid-cols-2 gap-2">
             {brief.legalStatuses.map((place) => (
-              <div key={place.place} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div data-testid="opinion-brief-country" key={place.place} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-sm font-extrabold text-slate-900">{place.place}</p>
                 <p className={place.status === "regulated"
                   ? "my-1.5 inline-block rounded-md bg-teal-100 px-2 py-1 text-[11px] font-bold text-teal-900"
@@ -101,7 +101,7 @@ export function OpinionBriefCard({ brief }: { brief: OpinionBrief }) {
           <p className="text-xs leading-4 text-slate-600">Numeri reali, con luogo, periodo e fonte. Non sono previsioni per l'Italia.</p>
           <div className="grid grid-cols-2 gap-2">
             {brief.measuredResults.slice(0, 4).map((result) => (
-              <div key={result.place + result.topic} className="min-w-0 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+              <div data-testid="opinion-brief-result" key={result.place + result.topic} className="min-w-0 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
                 <p className="text-[11px] font-bold leading-4 text-indigo-900">{result.place} · {result.topic}</p>
                 <p className="mt-1 break-words text-lg font-extrabold leading-6 tabular-nums text-indigo-950">{result.value}</p>
                 <p className="mt-1 text-[11px] font-semibold leading-4 text-indigo-900">{result.period}</p>
