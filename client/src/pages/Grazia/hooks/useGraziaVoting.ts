@@ -4,6 +4,8 @@ import { GraziaVotingState, GraziaData } from "../types";
 import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 import { UseMutationResult } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { CarceratoFormData } from "../constants/schema";
 
 export const useGraziaVoting = (
   data: GraziaData | undefined,
@@ -18,6 +20,7 @@ export const useGraziaVoting = (
     showConfirmDialog: false,
     showForm: false
   });
+  const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [votoToRemove, setVotoToRemove] = useState<string | null>(null);
 
@@ -60,8 +63,18 @@ export const useGraziaVoting = (
 
   const addNomeLocal = (e: React.FormEvent) => {
     e.preventDefault();
-    const nomePulito = votingState.nomeInput.trim();
-    if (!nomePulito) return;
+    const input = votingState.nomeInput.trim();
+    if (!input) return;
+    const approved = data?.classifica?.find(item => item.nome.toLocaleLowerCase('it') === input.toLocaleLowerCase('it'));
+    if (!approved) {
+      toast({
+        title: "Nome non presente nella classifica",
+        description: "Puoi votare solo persone già approvate. Usa Proponi per chiedere una nuova valutazione.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const nomePulito = approved.nome;
     if (votingState.selectedVoti.includes(nomePulito)) {
       toast({ title: "Richiesta già selezionata" });
       return;
@@ -178,14 +191,31 @@ export const useGraziaVoting = (
     });
   };
 
-  const handleCreateCarcerato = (data: any) => {
-    // Qui implementerai la logica per creare un nuovo carcerato
-    console.log('Nuovo carcerato:', data);
-    toast({
-      title: "Carcerato proposto",
-      description: "La proposta è stata inviata per la revisione."
-    });
-    hideForm();
+  const handleCreateCarcerato = async (data: CarceratoFormData) => {
+    if (isSubmittingProposal) return;
+    setIsSubmittingProposal(true);
+    try {
+      const response = await apiRequest("POST", "/api/grazia", {
+        nome: data.nome,
+        urlProva: data.urlProva,
+      });
+      if (!response?.ok || !response?.data?.success) {
+        throw new Error(response?.data?.error || "Impossibile registrare la proposta");
+      }
+      toast({
+        title: "Proposta registrata",
+        description: "La richiesta è in attesa di revisione e non è ancora pubblica.",
+      });
+      hideForm();
+    } catch (error: any) {
+      toast({
+        title: "Proposta non registrata",
+        description: error?.message || "Riprova in un altro momento.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingProposal(false);
+    }
   };
 
   // Informazioni sui limiti di voto
@@ -203,6 +233,7 @@ export const useGraziaVoting = (
     removeLocal,
     toggleSelezioneClassifica,
     handleCreateCarcerato,
+    isSubmittingProposal,
     // Informazioni sui limiti
     currentVotes,
     limit,
