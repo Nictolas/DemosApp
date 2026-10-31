@@ -22,7 +22,6 @@ function queryActivists(sqlTemplate, values = []) {
 router.get('/', async (req, res) => {
   try {
     const { search, regione, tipologia, exclude_user_id } = req.query;
-    console.log('🔍 GET /api/attivisti - Lista attivisti richiesta', { search, regione, tipologia, exclude_user_id });
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -51,24 +50,16 @@ router.get('/', async (req, res) => {
     if (regione && regione.trim() && regione !== 'all') {
       // Converte nome regione in codice per la query database
       const regionCode = compressRegione(regione.trim());
-      console.log('🔍 Filtro regione:', { 
-        input: regione.trim(), 
-        regionCode, 
-        willFilter: !!regionCode 
-      });
       if (regionCode) {
         whereConditions.push(`u.regione_residenza = $${paramIndex}`);
         queryParams.push(regionCode);
         paramIndex++;
       } else {
-        console.log('⚠️ Regione non riconosciuta o non trovata:', regione);
-        console.log('⚠️ Proviamo a cercare anche AD (Admin) che hanno regione:', regione);
       }
     }
 
     // Filtro per tipologia di attivismo
     if (tipologia && tipologia.trim() && tipologia !== 'all') {
-      console.log('🔍 Filtro tipologia:', tipologia);
       // Cerca tipologie che contengono un elemento con tipo = tipologia
       whereConditions.push(`EXISTS (
         SELECT 1 
@@ -88,12 +79,6 @@ router.get('/', async (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
-    // Log per debug
-    console.log('🔍 Query params:', { 
-      whereConditions, 
-      queryParams, 
-      whereClause 
-    });
 
     // Query per ottenere tutti gli utenti con ruolo "Attivista" con conteggio voti e ordinati
     const result = await queryActivists(`
@@ -136,7 +121,6 @@ router.get('/', async (req, res) => {
     
     const attivisti = result.rows;
     
-    console.log(`✅ Trovati ${attivisti.length} attivisti`);
     
     // One indexed read piggybacks on the directory response; no extra browser GET.
     // Public directory shows only approved IDs and titles: user-submitted details and source links are private to moderation.
@@ -155,7 +139,7 @@ router.get('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero degli attivisti:', error);
+    console.error('❌ Errore nel recupero degli attivisti:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -168,7 +152,6 @@ router.get('/', async (req, res) => {
 router.get('/tipologia/:tipo', async (req, res) => {
   try {
     const { tipo } = req.params;
-    console.log(`🔍 GET /api/attivisti/tipologia/${tipo} - Lista attivisti per tipologia`);
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -213,7 +196,6 @@ router.get('/tipologia/:tipo', async (req, res) => {
     
     const attivisti = result.rows;
     
-    console.log(`✅ Trovati ${attivisti.length} attivisti per tipologia "${tipo}"`);
     
     res.json({
       success: true,
@@ -224,7 +206,7 @@ router.get('/tipologia/:tipo', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero degli attivisti per tipologia:', error);
+    console.error('❌ Errore nel recupero degli attivisti per tipologia:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -236,7 +218,6 @@ router.get('/tipologia/:tipo', async (req, res) => {
 // GET /api/attivisti/statistiche - Statistiche per tipologie di attivismo
 router.get('/statistiche', async (req, res) => {
   try {
-    console.log('📊 GET /api/attivisti/statistiche - Statistiche tipologie attivismo');
     
     // Query per contare attivisti per tipologia
     const result = await queryActivists(`
@@ -262,7 +243,6 @@ router.get('/statistiche', async (req, res) => {
     
     const totalAttivisti = parseInt(totalResult.rows[0].total);
     
-    console.log(`📊 Statistiche calcolate: ${statistiche.length} tipologie, ${totalAttivisti} attivisti totali`);
     
     res.json({
       success: true,
@@ -275,7 +255,7 @@ router.get('/statistiche', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel calcolo delle statistiche:', error);
+    console.error('❌ Errore nel calcolo delle statistiche:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -287,7 +267,6 @@ router.get('/statistiche', async (req, res) => {
 // GET /api/attivisti/filtri - Ottieni regioni e tipologie disponibili per i filtri
 router.get('/filtri', async (req, res) => {
   try {
-    console.log('🔍 GET /api/attivisti/filtri - Filtri disponibili richiesti');
     
     // Ottieni regioni uniche (già compresse nel DB come "LO", "TO", etc.)
     const regioniResult = await queryActivists(`
@@ -317,9 +296,6 @@ router.get('/filtri', async (req, res) => {
     
     const tipologie = tipologieResult.rows.map(row => row.tipo);
     
-    console.log(`✅ Filtri disponibili: ${regioni.length} regioni, ${tipologie.length} tipologie`);
-    console.log('📍 Regioni disponibili:', regioni);
-    console.log('🎯 Tipologie disponibili:', tipologie);
     
     res.json({
       success: true,
@@ -331,7 +307,7 @@ router.get('/filtri', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero dei filtri:', error);
+    console.error('❌ Errore nel recupero dei filtri:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
