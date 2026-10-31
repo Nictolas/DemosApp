@@ -243,8 +243,8 @@ app.options('*', (req, res) => {
 
 app.use(cors(corsOptions));
 
-// DEBUG: Middleware di logging universale - solo in sviluppo (evita accumulo log in produzione)
-if (process.env.NODE_ENV !== 'production') {
+// Universal request/notification debug logger: local development opt-in only.
+if (mountDevApiSurface) {
   app.use((req, res, next) => {
     console.log(`ðŸš¨ UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
     if (req.originalUrl.includes('send-demos-notification')) {
