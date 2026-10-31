@@ -145,6 +145,38 @@ async function main() {
             'Content region overlaps mobile navbar: ' + item.path);
         }
 
+        if (viewport.mobile) {
+          // A real compositor touch gesture is stronger evidence than assigning
+          // scrollTop: it catches CSS touch-action and parent interception bugs.
+          const box = await region.boundingBox();
+          assert.ok(box && box.height > 100, 'No touch target: ' + item.path);
+          const x = Math.round(box.x + box.width * 0.5);
+          const fromY = Math.round(box.y + box.height * 0.78);
+          const toY = Math.round(box.y + box.height * 0.28);
+          const cdp = await context.newCDPSession(page);
+          await cdp.send('Input.dispatchTouchEvent', {
+            type: 'touchStart', touchPoints: [{ x, y: fromY }],
+          });
+          for (let step = 1; step <= 10; step++) {
+            const y = Math.round(fromY + (toY - fromY) * step / 10);
+            await cdp.send('Input.dispatchTouchEvent', {
+              type: 'touchMove', touchPoints: [{ x, y }],
+            });
+            await page.waitForTimeout(16);
+          }
+          await cdp.send('Input.dispatchTouchEvent', {
+            type: 'touchEnd', touchPoints: [],
+          });
+          await cdp.detach();
+          await page.waitForTimeout(180);
+          const touchScrollTop = await region.evaluate(element => element.scrollTop);
+          assert.ok(touchScrollTop > 10,
+            'Finger swipe did not scroll: ' + item.path + ' ' +
+            viewport.width + 'x' + viewport.height + ' scrollTop=' + touchScrollTop);
+          console.log('TOUCH PASS ' + item.path + ' ' + viewport.width +
+            'x' + viewport.height + ' scrollTop=' + touchScrollTop);
+        }
+
         await region.evaluate(element => { element.scrollTop = element.scrollHeight; });
         await page.waitForTimeout(70);
         const lastRect = await last.evaluate(element => {
