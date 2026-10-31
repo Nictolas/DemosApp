@@ -5,6 +5,7 @@ on:
       - 'api/routes/admin/data-export.js'
       - 'api/routes/admin/axiom-migration.js'
       - 'api/tests/legacyDataExportRetirement.test.js'
+      - 'api/tests/legacyDataExportAuthIntegration.test.js'
       - 'client/src/pages/DataExport.tsx'
       - '.github/workflows/legacy-data-export-retirement.yml'
 jobs:
@@ -24,7 +25,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Run isolated real Express HTTP tests
         working-directory: api
-        run: node --test tests/legacyDataExportRetirement.test.js
+        run: node --test tests/legacyDataExportRetirement.test.js tests/legacyDataExportAuthIntegration.test.js
 
   security-composition:
     # CI-only integration rehearsal of this PR with the independent #487 dependency fix.
@@ -57,7 +58,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Test both legacy routes on actual Express with synthetic auth/providers
         working-directory: api
-        run: node --test tests/legacyDataExportRetirement.test.js
+        run: node --test tests/legacyDataExportRetirement.test.js tests/legacyDataExportAuthIntegration.test.js
       - name: Install frontend dependencies without scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build composed frontend (non-release)
@@ -99,7 +100,7 @@ jobs:
       - name: Audit high/critical production API dependencies
         run: npm audit --prefix api --omit=dev --audit-level=high
       - name: Run HTTP security regressions against merged Express source
-        run: node --test api/tests/legacyDataExportRetirement.test.js api/tests/securityProductionHardening.test.js
+        run: node --test api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js api/tests/securityProductionHardening.test.js
       - name: Install merged frontend dependencies (no scripts)
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend with merged code (no release)
