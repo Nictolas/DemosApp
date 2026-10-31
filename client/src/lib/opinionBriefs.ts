@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these thirty-three canonical IDs opt in; the other 61 use the original
+ * Only these thirty-six canonical IDs opt in; the other 58 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -1533,6 +1533,164 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "ISTAT · Libri e biblioteche, dati 2024 e 2025 (9 luglio 2026)", url: "https://www.istat.it/comunicato-stampa/libri-e-biblioteche-abitudini-di-lettura-e-frequentazione-anni-2024-e-2025/" },
       { label: "ISTAT · Censimento sulle biblioteche 2025 (12 ottobre 2026)", url: "https://www.istat.it/tavole-di-dati/indagine-sulle-biblioteche-anno-2025/" },
       { label: "IFLA/UNESCO · Manifesto per le biblioteche pubbliche", url: "https://www.ifla.org/g/public-libraries/public-library-manifesto/" },
+    ],
+    verified,
+  },
+
+  multe_in_base_al_reddito: {
+    intro: "Calcolare alcune sanzioni anche in base alla capacità economica della persona. In Italia le pene pecuniarie penali già tengono conto delle condizioni economiche e patrimoniali; questo non rende automaticamente proporzionali tutte le sanzioni amministrative.",
+    facts: [],
+    comparisonMode: "transition",
+    comparison: [
+      { label: "🇮🇹 Regole attuali", title: "Sistemi diversi", text: "Le sanzioni amministrative seguono spesso importi o fasce previsti dalla legge. Per multe e ammende penali il giudice considera già reddito e patrimonio ai sensi dell'art. 133-bis del codice penale." },
+      { label: "Modifica proposta", title: "Parametri economici più estesi", text: "Applicare una formula commisurata alla capacità economica a categorie di sanzioni da definire, distinguendo le violazioni penali dalle amministrative." },
+    ],
+    measuredResultsTitle: "🇫🇮 Finlandia e 🇮🇹 Italia · regole documentate",
+    measuredResults: [
+      {
+        place: "🇫🇮 Finlandia · Portale Giustizia",
+        topic: "Quota giornaliera per alcune multe penali",
+        value: "1/60",
+        period: "Regola descritta al 31/10/2026",
+        meaning: "Una quota è pari a un sessantesimo del reddito netto medio mensile dopo la deduzione di base. NON si applica a tutte le infrazioni stradali.",
+        sourceUrl: "https://www.oikeus.fi/en/themes/penalties/fines-and-other-penalties/",
+      },
+      {
+        place: "🇫🇮 Finlandia · Portale Giustizia",
+        topic: "Deduzione nel calcolo",
+        value: "255 €",
+        period: "Regola descritta al 31/10/2026",
+        meaning: "Deduzione di base dal reddito mensile prima del calcolo della quota; non è un importo fisso della multa.",
+        sourceUrl: "https://www.oikeus.fi/en/themes/penalties/fines-and-other-penalties/",
+      },
+      {
+        place: "🇫🇮 Finlandia · Portale Giustizia",
+        topic: "Importo minimo di una quota",
+        value: "6 €",
+        period: "Regola descritta al 31/10/2026",
+        meaning: "Minimo per singola quota giornaliera delle multe penali; gli oneri amministrativi di traffico restano indipendenti dal reddito.",
+        sourceUrl: "https://www.oikeus.fi/en/themes/penalties/fines-and-other-penalties/",
+      },
+      {
+        place: "🇮🇹 Italia · Articolo 133-bis c.p.",
+        topic: "Adeguamento giudiziale per capacità economica",
+        value: "1/3–3×",
+        period: "Disciplina penale vigente al 31/10/2026",
+        meaning: "Il giudice può diminuire sino a un terzo o aumentare sino al triplo multa o ammenda stabilite dalla legge per ragioni economiche e patrimoniali: NON è una formula automatica per multe stradali.",
+        sourceUrl: "https://www.normattiva.it/eli/id/2022/10/17/22G00159/CONSOLIDATED/20250630",
+      },
+    ],
+    evidenceCaveat: "Sono parametri normativi, NON risultati misurati sulla deterrenza o sulla sicurezza. Il modello finlandese delle quote giornaliere riguarda specifiche sanzioni penali: le sue traffic penalty fees sono amministrative e non dipendono dal reddito. In Italia il codice penale già considera la capacità economica per multa e ammenda; una riforma dovrebbe precisare cosa cambierebbe e per quali infrazioni.",
+    advantage: "Una sanzione può incidere in maniera più comparabile su persone con mezzi economici diversi.",
+    concern: "Serve verificare redditi e patrimoni in modo equo, rispettare la riservatezza e garantire proporzionalità e controlli.",
+    note: "La parola comune «multa» indica cose diverse: pena pecuniaria penale e sanzione amministrativa non sono la stessa categoria giuridica.",
+    sources: [
+      { label: "Finlandia · Giustizia, quote e sanzioni amministrative", url: "https://www.oikeus.fi/en/themes/penalties/fines-and-other-penalties/" },
+      { label: "Italia · Normattiva, riforma dell'art. 133-bis c.p.", url: "https://www.normattiva.it/eli/id/2022/10/17/22G00159/CONSOLIDATED/20250630" },
+    ],
+    verified,
+  },
+  abolizione_ticket_regionali: {
+    intro: "Abolire le quote sanitarie che una Regione può modificare o finanziare, senza confondere l'eliminazione di un ticket aggiuntivo con la gratuità di tutte le visite, gli esami e il pronto soccorso.",
+    facts: [],
+    comparisonMode: "transition",
+    comparison: [
+      { label: "Regole attuali", title: "Ticket ed esenzioni", text: "Per alcune prestazioni sanitarie si paga una compartecipazione, con esenzioni per reddito, età o condizioni cliniche. Le Regioni devono rispettare le norme nazionali." },
+      { label: "Modifica proposta", title: "Meno ticket a carico dell'utente", text: "Azzerare ulteriori quote regionali e, entro i limiti di competenza e con fondi adeguati, ridurre altre compartecipazioni previste." },
+    ],
+    measuredResultsTitle: "🇮🇹 Regione Toscana · regole vigenti",
+    measuredResults: [
+      {
+        place: "🇮🇹 Toscana · Servizio sanitario regionale",
+        topic: "Ticket aggiuntivo per fascia economica abolito",
+        value: "1/9/2020",
+        period: "Decorrenza della misura",
+        meaning: "Eliminata la componente aggiuntiva per specialistica e farmaceutica; NON sono stati aboliti tutti i ticket sanitari.",
+        sourceUrl: "https://www.regione.toscana.it/-/ticket",
+      },
+      {
+        place: "🇮🇹 Toscana · Servizio sanitario regionale",
+        topic: "Massimo ticket specialistica per ricetta",
+        value: "38 €",
+        period: "Informazioni regionali al 31/10/2026",
+        meaning: "Massimo per singola ricetta di specialistica ambulatoriale, non tariffa fissa di ogni visita e non ticket per pronto soccorso.",
+        sourceUrl: "https://www.regione.toscana.it/-/ticket",
+      },
+      {
+        place: "🇮🇹 Toscana · Servizio sanitario regionale",
+        topic: "Durata di alcune esenzioni regionali",
+        value: "31/12/2026",
+        period: "Scadenza indicata nella pagina regionale",
+        meaning: "Conferma delle esenzioni per disoccupati, persone in cassa integrazione e mobilità; NON data di abolizione di tutti i ticket.",
+        sourceUrl: "https://www.regione.toscana.it/-/ticket",
+      },
+      {
+        place: "🇮🇹 Toscana · Esenzione nazionale E01",
+        topic: "Limite di reddito familiare per E01",
+        value: "36.151,98 €",
+        period: "Soglia descritta nella guida regionale",
+        meaning: "Per persone sotto 6 anni e sopra 65 anni con requisiti specifici; NON esenzione automatica di tutte le famiglie sotto la soglia.",
+        sourceUrl: "https://www.regione.toscana.it/-/domande-frequenti-sull-esenzione-dal-ticket-per-reddito",
+      },
+    ],
+    evidenceCaveat: "Toscana è un caso concreto di soppressione di una componente aggiuntiva, non di abolizione universale delle compartecipazioni. Il limite di 38 € riguarda la ricetta specialistica e la soglia E01 soltanto le categorie di età previste. Questi dati normativi non provano effetti su salute, accessi o liste di attesa.",
+    advantage: "Può ridurre gli ostacoli economici alle cure, in particolare per chi ha necessità frequenti.",
+    concern: "Minori entrate per il servizio sanitario, necessità di coperture e possibile aumento della domanda senza incremento delle prestazioni disponibili.",
+    note: "Una Regione non può eliminare unilateralmente obblighi nazionali: occorre distinguere competenze, finanziamento ed esenzioni.",
+    sources: [
+      { label: "Regione Toscana · Ticket sanitari e abolizione del supplemento dal 2020", url: "https://www.regione.toscana.it/-/ticket" },
+      { label: "Regione Toscana · Esenzioni per reddito, FAQ", url: "https://www.regione.toscana.it/-/domande-frequenti-sull-esenzione-dal-ticket-per-reddito" },
+    ],
+    verified,
+  },
+  verde_pubblico_e_giardini: {
+    intro: "Creare, proteggere e mantenere parchi, giardini e alberature accessibili. Più superficie verde non significa automaticamente che tutti i quartieri dispongano di spazi fruibili e ben curati.",
+    facts: [],
+    comparison: [
+      { label: "Ampliare il verde", title: "Nuovi parchi e piantumazioni", text: "Interventi per aumentare aree verdi, ombra e biodiversità, con investimento iniziale e spazio disponibile." },
+      { label: "Curare l'esistente", title: "Accessibilità e manutenzione", text: "Potenziamento della cura degli alberi e apertura dei parchi esistenti, privilegiando quartieri poco serviti." },
+    ],
+    measuredResultsTitle: "🇮🇹 ISTAT · ambiente urbano 2024",
+    measuredResults: [
+      {
+        place: "🇮🇹 Italia · Comuni capoluogo",
+        topic: "Superficie verde urbano complessiva",
+        value: "oltre 590 km²",
+        period: "2024 · aree verdi urbane nei capoluoghi",
+        meaning: "Circa il 3% del territorio comunale; NON sono solo giardini direttamente accessibili ai cittadini.",
+        sourceUrl: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/",
+      },
+      {
+        place: "🇮🇹 Italia · Comuni capoluogo",
+        topic: "Verde urbano per residente",
+        value: "33,7 m²/ab.",
+        period: "2024 · media dei capoluoghi",
+        meaning: "Superficie verde totale rapportata agli abitanti, +5% dal 2015; NON equivale ai soli parchi fruibili.",
+        sourceUrl: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/",
+      },
+      {
+        place: "🇮🇹 Italia · Comuni capoluogo",
+        topic: "Città con interventi di forestazione urbana",
+        value: "68",
+        period: "2024 · erano 62 nel 2023 e 39 nel 2015",
+        meaning: "Capoluoghi con interventi avviati o completati: NON 68 nuovi parchi aperti nel 2024.",
+        sourceUrl: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/",
+      },
+      {
+        place: "🇮🇹 Italia · Comuni capoluogo",
+        topic: "Superficie destinata a forestazione urbana",
+        value: "+6,2%",
+        period: "2023 → 2024",
+        meaning: "Variazione della superficie di forestazione urbana, vicina a 16 milioni di m² nel 2024; NON dimostra automaticamente minori temperature o miglior qualità dell'aria.",
+        sourceUrl: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/",
+      },
+    ],
+    evidenceCaveat: "La media nazionale delle superfici urbane dei capoluoghi non descrive la disponibilità nel singolo quartiere. Verde complessivo, verde protetto, spazi fruibili e forestazione urbana sono indicatori diversi. Le variazioni della superficie non misurano la sopravvivenza degli alberi o gli effetti causali sul clima urbano.",
+    advantage: "Può offrire ombra, luoghi di incontro e ricreazione e spazi favorevoli alla biodiversità.",
+    concern: "Servono manutenzione stabile, acqua, specie adatte, accessibilità e una distribuzione equa tra quartieri.",
+    note: "Una superficie più grande non equivale necessariamente a maggiore accessibilità o qualità: contano gestione e localizzazione.",
+    sources: [
+      { label: "ISTAT · Ambiente urbano 2024, pubblicato il 9 settembre 2026", url: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/" },
     ],
     verified,
   },
