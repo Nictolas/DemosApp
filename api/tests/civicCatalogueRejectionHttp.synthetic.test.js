@@ -9,7 +9,7 @@ const sqlCalls=[];
 const pool={
   async query(sql,params=[]){
     sqlCalls.push({sql:String(sql),params});
-    if(String(sql).includes('SELECT 1 FROM voti_capo_stato WHERE nome = $1')){
+    if(String(sql).includes('EXISTS (SELECT 1 FROM voti_capo_stato WHERE nome = $1)') && String(sql).includes('FROM capo_stato_soggetti_approvati')){
       return {rows:params[0]==='Candidato esistente'?[{exists:1}]:[]};
     }
     throw Error('Unexpected query in rejection-only test: '+String(sql).slice(0,100));
@@ -56,7 +56,8 @@ test('Capo di Stato name not in historical candidates returns 422 before any vot
   const result=await req('/api/capo-stato/vota','synthetic',{voti:['Nuovo nome non approvato']});
   assert.equal(result.status,422,JSON.stringify(result.body));
   assert.equal(sqlCalls.length,1);
-  assert.match(sqlCalls[0].sql,/^SELECT 1 FROM voti_capo_stato/);
+  assert.match(sqlCalls[0].sql,/^SELECT 1 WHERE/);
+  assert.match(sqlCalls[0].sql,/capo_stato_soggetti_approvati/);
   assert.deepEqual(sqlCalls[0].params,['Nuovo nome non approvato']);
 });
 
