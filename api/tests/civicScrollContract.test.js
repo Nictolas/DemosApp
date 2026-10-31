@@ -29,6 +29,13 @@ test('popular initiative voting can scroll all cards above the app navbar', () =
   assert.doesNotMatch(page, /min-h-screen bg-gradient-to-b from-background/);
 });
 
+test('Iniziative Popolari voting header must not link back to Vota', () => {
+  const header = read('client/src/pages/VotaIniziativaPopolare/components/Header.tsx');
+  assert.ok(!header.includes('href="/vota"'));
+  assert.ok(!header.includes('Torna a Vota'));
+  assert.ok(!header.includes('<ArrowLeft'));
+});
+
 test('Grazia keeps title and voting controls fixed; only ranking scrolls', () => {
   const page = read('client/src/pages/Grazia/index.tsx');
   const header = read('client/src/pages/Grazia/components/Header.tsx');
