@@ -882,9 +882,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             assert.ok(data.includes(n), 'Italy/Germany rules and administrative registration ' + n);
           const countries = brief.getByTestId('opinion-brief-country');
           assert.equal(await countries.count(), 3, 'green and red legal rules shown distinctly');
-          assert.equal(await countries.locator('[data-legal-status="regulated"]').count(), 2,
+          assert.equal(await brief.locator('[data-testid="opinion-brief-country"][data-legal-status="regulated"]').count(), 2,
             'Germany and Netherlands must have regulated-status coloration');
-          assert.equal(await countries.locator('[data-legal-status="prohibited"]').count(), 1,
+          assert.equal(await brief.locator('[data-testid="opinion-brief-country"][data-legal-status="prohibited"]').count(), 1,
             'Only Italian brothel operation should be marked prohibited');
           assert.ok(data.includes('NON numero totale stimato') &&
             data.includes('non corrispondono necessariamente a singoli bordelli'),
