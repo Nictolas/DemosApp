@@ -16,6 +16,10 @@ const reactions = [];
 const fakePool = {
   async query(statement, values = []) {
     const sql = String(statement);
+    // The production route checks information_schema before querying Demos notices.
+    if (sql.includes("WHERE table_name = 'notifiche_demos'")) {
+      return { rows: [{column_name:'titolo'},{column_name:'testo'}] };
+    }
     if (sql.includes('FROM users WHERE id = $1')) {
       return { rows: [{ id: values[0], comune_residenza: null, rappresentante_camera: null, rappresentante_senato: null, rappresentante_comune: null }] };
     }
