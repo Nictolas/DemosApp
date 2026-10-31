@@ -288,6 +288,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Multe in base al Reddito', '1/60'],
       ['/opinioni-regionali', 'Abolizione dei ticket regionali', '38 €'],
       ['/opinioni-comunali', 'Verde pubblico e giardini', '33,7 m²/ab.'],
+      ['/opinioni-nazionali', 'Leva obbligatoria', '1/1/2005'],
+      ['/opinioni-regionali', 'Gare per i treni regionali', '15 + 7,5'],
+      ['/opinioni-comunali', "Riduzione dell'illuminazione notturna per risparmio energetico", '75,5%'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -806,6 +809,51 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Urban greenery and forestation numbers do not equal accessible new parks');
           assert.ok((await brief.innerText()).includes('Verde complessivo, verde protetto, spazi fruibili'));
         }
+      } else if (['Leva obbligatoria', 'Gare per i treni regionali', "Riduzione dell'illuminazione notturna per risparmio energetico"].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four facts with place, date and definition');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': official source linked per fact');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': legal traffic light would misdescribe competing policy proposals');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Gare per i treni regionali' ? 0 : 1,
+          title + ': arrow only on a policy change, not competition between existing award methods');
+        const positions = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(positions.every(Number.isFinite) && positions[0] < positions[1] && positions[1] < positions[2],
+          title + ': explanation, alternatives, and sourced evidence in reading order');
+        if (title === 'Leva obbligatoria') {
+          for (const n of ['1/1/2005', 'Art. 1929', '2022', '3 anni'])
+            assert.ok(data.includes(n), 'Leva statutory or volunteering parameter ' + n);
+          assert.ok(data.includes('SOSPESE') &&
+            data.includes('NON è una chiamata ordinaria automatica') &&
+            data.includes('NON ha riattivato la leva obbligatoria'),
+            'Suspended conscription is different from a new general call and voluntary service');
+          assert.ok((await brief.innerText()).includes('Leva obbligatoria sospesa, servizio volontario e servizio civile'));
+        }
+        if (title === 'Gare per i treni regionali') {
+          for (const n of ['2016', '1/6/2019', '15 + 7,5', '25/12/2023'])
+            assert.ok(data.includes(n), 'Regional tender and EU award-law evidence ' + n);
+          assert.ok(data.includes('NON un nuovo bando del 2026') &&
+            data.includes('NON data dell’aggiudicazione') &&
+            data.includes('Non è il divieto di OGNI affidamento diretto'),
+            'Competition, existing contract dates and EU exceptions are not interchangeable');
+          assert.ok((await brief.innerText()).includes('Gestore del servizio ferroviario e proprietario/gestore dei binari'));
+        }
+        if (title === "Riduzione dell'illuminazione notturna per risparmio energetico") {
+          for (const n of ['oltre 2,4 mln', '75,5%', '+8,5%', '+0,6%'])
+            assert.ok(data.includes(n), 'ISTAT public-lighting measurement ' + n);
+          assert.ok(data.includes('non kWh consumati') &&
+            data.includes('non riduzione ottenuta con lo spegnimento') &&
+            data.includes('non calo della bolletta'),
+            'Lighting network size and LED adoption do not measure overnight dimming savings');
+          assert.ok((await brief.innerText()).includes('Efficienza dei LED, dimmerazione e spegnimento'));
+        }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
           title + ': only state-to-proposal comparisons have an arrow');
@@ -817,7 +865,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       await dialog.waitFor({ state: 'hidden' });
     }
     await page.goto(HEADLESS_ORIGIN + '/opinioni-nazionali', { waitUntil: 'domcontentloaded' });
-    const legacy = page.locator('button[title="Approfondimento: Leva obbligatoria"]');
+    const legacy = page.locator('button[title="Approfondimento: Antifascismo"]');
     await legacy.waitFor({ timeout: 25000 });
     await legacy.click();
     const legacyDialog = page.getByRole('dialog');
