@@ -12,7 +12,7 @@ test('only the intended civic routes use the bounded scroll shell', () => {
   const layout = read('client/src/components/RobustAppLayout.tsx');
   const css = read('client/src/robust-layout.css');
 
-  assert.ok(layout.includes("location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia'"));
+  assert.ok(layout.includes("location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/capo-stato' || location === '/capo-di-stato'"));
   assert.ok(layout.includes("${isScrollableContentPage ? ' app-main--scroll-content' : ''}"));
   assert.ok(css.includes('.app-main.app-main--scroll-content {\n  overflow-y: hidden !important;'));
   assert.ok(css.includes('.app-main.app-main--scroll-content .fade-up-transition {'));
@@ -46,6 +46,26 @@ test('Grazia keeps title and voting controls fixed; only ranking scrolls', () =>
   assert.ok(page.indexOf('<ClassificaCarcerati') < page.indexOf('{/* Dialog separato dalla classifica scorrevole. */}'));
   assert.doesNotMatch(header, /<Link|href="\/vota"|Torna a Vota|<ArrowLeft|\bVota\s*<\/Button>/);
   assert.doesNotMatch(page, /page-with-navbar/);
+});
+
+test('Capo di Stato keeps title/consent/voting controls fixed while only ranking rows scroll', () => {
+  const app = read('client/src/App.tsx');
+  const page = read('client/src/pages/CapodiStato/index.tsx');
+  const header = read('client/src/pages/CapodiStato/components/Header.tsx');
+  const ranking = read('client/src/pages/CapodiStato/components/CandidatesRanking.tsx');
+
+  assert.ok(app.includes('<Route path="/capo-stato">'));
+  assert.ok(app.includes('<Route path="/capo-di-stato">'));
+  assert.match(page, /<PageContainer className="capo-di-stato-page overflow-hidden/);
+  assert.match(page, /capo-stato__fixed-header shrink-0/);
+  assert.match(page, /capo-stato__fixed-controls min-h-0/);
+  assert.ok(page.indexOf('capo-stato__fixed-header') < page.indexOf('capo-stato__fixed-controls'));
+  assert.ok(page.indexOf('capo-stato__fixed-controls') < page.indexOf('<CandidatesRanking'));
+  assert.match(ranking, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto/);
+  assert.match(ranking, /aria-label="Lista candidati Capo di Stato"/);
+  assert.ok(ranking.indexOf('<CardHeader') < ranking.indexOf('app-page-scroll min-h-0'));
+  assert.doesNotMatch(header, /<Link|href="\\/vota"|Torna a Vota|<ArrowLeft|\\bVota\\s*<\\/Button>/);
+  assert.doesNotMatch(page, /min-h-screen bg-gradient|page-with-navbar/);
 });
 
 test('sightings header stays visible while all three categories scroll', () => {
