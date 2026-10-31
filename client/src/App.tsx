@@ -69,6 +69,7 @@ import ICE from "./pages/ICE";
 import ReferendumAbrogativi from "./pages/ReferendumAbrogativi";
 import IniziativePopolari from "./pages/IniziativePopolari";
 import GestisciOpinioni from "./pages/GestisciOpinioni";
+import GestisciGrazia from "./pages/GestisciGrazia";
 import TestMinistero from "./pages/TestMinistero";
 import ModificaImmagine from "./pages/ModificaImmagine";
 import Utenti from "./pages/Utenti";
@@ -983,6 +984,13 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+
+              {/* Coda moderazione Grazia: solo Admin puo' decidere sul backend. */}
+              <Route path="/gestisci-grazia">
+                <PageTransition location={location} type="fade-up" showLoader={false}>
+                  <ProtectedRoute path="/gestisci-grazia" component={GestisciGrazia} />
+                </PageTransition>
+              </Route>
 
               {/* Route gestisci opinioni */}
               <Route path="/gestisci-opinioni">
