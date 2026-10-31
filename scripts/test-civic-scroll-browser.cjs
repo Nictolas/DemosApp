@@ -106,7 +106,11 @@ async function main() {
         await region.waitFor({ timeout: 30000 });
 
         let last;
-        if (item.last) {
+        if (item.path === '/grazia') {
+          // Grazia deliberately renders separate mobile <p> and desktop <h4>
+          // versions of every ranking row. Ignore display:none duplicates.
+          last = region.locator('p:visible, h4:visible').filter({ hasText: item.last }).last();
+        } else if (item.last) {
           last = region.getByText(item.last, { exact: true }).last();
         } else {
           last = region.getByRole('button').last();
