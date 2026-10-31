@@ -41,6 +41,7 @@ try {
 const testDbRoutes = require('./routes/test-db');
 const eventiRoutes = require('./routes/eventi');
 const graziaRoutes = require('./routes/grazia');
+const subjectProposalsRoutes = require('./routes/subject-proposals');
 const amnistiaRoutes = require('./routes/amnistia');
 const capoStatoRoutes = require('./routes/capo-stato');
 const elezioniRoutes = require('./routes/elezioni');
@@ -360,6 +361,7 @@ if (mountDevApiSurface) {
   app.use('/api/test-db', publicLimiter, testDbRoutes);
 }
 app.use('/api/eventi', publicLimiter, eventiRoutes);
+app.use('/api/subject-proposals', userLimiter, subjectProposalsRoutes);
 app.use('/api/grazia', publicLimiter, graziaRoutes);
 app.use('/api/amnistia', publicLimiter, amnistiaRoutes);
 app.use('/api/capo-stato', publicLimiter, capoStatoRoutes);
