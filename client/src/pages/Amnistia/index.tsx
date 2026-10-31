@@ -9,8 +9,6 @@ import { useAmnistiaVoting } from "./hooks/useAmnistiaVoting";
 import { Header } from "./components/Header";
 import { AmnistiaForm } from "./components/AmnistiaForm";
 import { ClassificaLeggi } from "./components/ClassificaLeggi";
-import { CreateButton } from "./components/CreateButton";
-import { CarceratoForm } from "./components/CarceratoForm";
 import { getSuggestions } from "./utils/amnistiaUtils";
 
 export default function Amnistia() {
@@ -27,9 +25,6 @@ export default function Amnistia() {
     selectSuggestion,
     handleAddVote,
     handleRemoveVote,
-    showForm,
-    hideForm,
-    handleCreateAmnistia,
     currentVotes,
     limit,
     remainingVotes,
@@ -83,9 +78,9 @@ export default function Amnistia() {
               </div>
             ) : (
               <>
-                <div className="flex items-center">
-                  <CreateButton onClick={showForm} />
-                </div>
+                <p className="text-xs text-muted-foreground" role="status">
+                  Nuove proposte temporaneamente sospese, in attesa della moderazione.
+                </p>
                 <AmnistiaForm
                   leggeInput={votingState.leggeInput}
                   showSuggestions={votingState.showSuggestions}
@@ -114,13 +109,7 @@ export default function Amnistia() {
                 onShowClassifica={showClassifica}
                 hasReachedLimit={hasReachedLimit}
                 mieiVoti={data?.mieiVoti || []}
-                proposalForm={votingState.showForm ? (
-                  <CarceratoForm
-                    onSubmit={handleCreateAmnistia}
-                    onCancel={hideForm}
-                    isLoading={false}
-                  />
-                ) : undefined}
+
               />
             )}
           </div>
