@@ -105,7 +105,12 @@ test('Capo di Stato shows a real mobile pie alongside consent statistics', () =>
   const consent = read('client/src/pages/CapodiStato/components/ConsensoSection.tsx');
   assert.match(consent, /data-testid="capo-consenso-pie-mobile"/);
   assert.match(consent, /aria-label="Grafico a torta consenso Capo di Stato"/);
-  assert.match(consent, /innerRadius=\{10\} outerRadius=\{25\}/);
+  assert.match(consent, /Ti senti rappresentato dall'attuale Capo di Stato\?/);
+  assert.doesNotMatch(consent, /<CardTitle[^>]*>\s*Consenso/);
+  assert.match(consent, /max-w-sm justify-center/);
+  assert.match(consent, /innerRadius="34%"/);
+  assert.match(consent, /outerRadius="89%"/);
+  assert.match(consent, /min-\[390px\]:h-28/);
   assert.match(consent, /isAnimationActive=\{false\}/);
   assert.match(consent, /PieChart/);
 });
