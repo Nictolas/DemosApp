@@ -15,6 +15,22 @@ Tutte e tre devono inviare `Cache-Control: no-store` e non avviare processi, esp
 - [GitHub Actions — prova combinata](https://github.com/Nictolas/DemosApp/actions/runs/41201485737): `main` `c24f8fb95aeb14070dde8221227104b8610ea1bc` + #487 `00c36708eaa5d5575c5c27aaac394db47a4ef8e7` + #490 `7bd44de72c3694bad70867f9d253156a56ae558a`, due merge solo nel runner senza push; 19/19 test, audit `--audit-level=high` e build frontend Vite PASS. **11 vulnerabilità moderate** non risolte, registrate in [issue #493](https://github.com/Nictolas/DemosApp/issues/493).
 - Test di sicurezza includono vero Express e vero `verifyToken`/`requireAdmin`, ma token e account sono **sintetici**; l'isolamento di SQL/provider è simulato.
 
+## Difesa separata: eseguibili storici e servizi importabili
+
+Il blocco HTTP 410 non è sufficiente: alcuni script storici eseguono direttamente trasferimenti verso Axiom senza passare da `/api/admin/axiom-migration/migrate`, in alcuni casi con anonimizzazione opzionale. Nel ramo #490 sono disabilitati **prima di leggere .env, creare connessioni, importare provider o contattare API**:
+
+- `scripts/migrate-local.js`
+- `scripts/migrate-neon-to-axiom.js`
+- `scripts/migrate-neon-to-axiom-gdpr-only.js`
+- `scripts/migrate-direct-http.js`
+- `scripts/run-migration.js`
+- `scripts/start-axiom-migration.js`
+- `scripts/check-migration-config.js` (l'helper mostrava anche prefissi delle credenziali e invitava all'avvio)
+
+Il codice condiviso `api/services/legacyAxiomMigrationGate.js` fa uscire i programmi con **codice 78** e identificatore `LEGACY_AXIOM_MIGRATION_RETIRED`, senza richiedere variabili di autorizzazione. Le tre funzioni esportate da `api/services/axiomMigrationService.js` rifiutano le chiamate prima di inizializzare SQL o Axiom. La CI esercita le sette entrypoint e le tre funzioni con valori fittizi e zero accessi ai provider.
+
+**Ambito:** non è disabilitato il logging applicativo ordinario, né l'integrazione separata Axiom→B2. Il blocco non dimostra che nessuna vecchia versione dei programmi sia già installata in ambienti esterni, job Render, computer amministrativi o pianificazioni fuori dal repository; verificare provider e job in sola lettura. Nessuna operazione reale di migrazione viene eseguita in questo gate.
+
 ## Ambiente esistente verificato su Render (metadati API, sola lettura)
 | Servizio | Branch | Auto-deploy | Uso ammesso adesso |
 | --- | --- | --- | --- |
