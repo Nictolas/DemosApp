@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 
@@ -64,138 +64,92 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
   const showResults = data.mioConsenso !== null && data.statistiche.totale > 0;
 
   return (
-    <Card className="mb-0 grid shrink-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1 bg-white shadow-sm lg:block">
-      <CardHeader className="px-2 py-1 lg:px-6 lg:pb-2 lg:py-3">
-        <CardTitle className="text-left text-sm font-bold lg:text-center lg:text-lg">
-          Consenso
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="min-w-0 px-1 py-1 lg:px-6 lg:pb-3">
-        <div className="min-w-0 space-y-0 lg:space-y-3">
-          {/* Domanda */}
-          <div className="text-center">
-            <h3 className="sr-only lg:not-sr-only lg:mb-2 lg:text-base lg:font-semibold lg:leading-snug lg:text-gray-800">
-              Ti senti rappresentato dall'attuale Capo di Stato?
-            </h3>
-            
-            {/* Pulsanti di voto */}
-            <div className="flex justify-center">
-              <div className="flex w-full max-w-md">
-                {[
-                  { value: 'Sì', color: 'bg-green-600 text-white' },
-                  { value: 'Non so', color: 'bg-yellow-500 text-white' },
-                  { value: 'No', color: 'bg-red-600 text-white' }
-                ].map((option, idx) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`min-h-11 flex-1 py-2 text-sm font-medium lg:py-3 lg:text-base lg:py-2 lg:text-sm transition-transform duration-150 focus:outline-none border border-gray-200 ${
-                      idx === 0 ? 'rounded-l-full' : ''
-                    } ${
-                      idx === 2 ? 'rounded-r-full' : ''
-                    } ${
-                      data.mioConsenso?.risposta === option.value 
-                        ? option.color + ' scale-95 z-10' 
-                        : 'bg-white hover:bg-gray-10 z-0'
-                    }`}
-                    onClick={() => handleVote(option.value)}
-                    disabled={isVoting || data.blocco.isBlocked}
+    <Card className="mb-0 shrink-0 border border-slate-200 bg-white shadow-sm">
+      <CardContent className="space-y-3 px-3 py-3 sm:px-4 sm:py-4 [@media(max-height:650px)]:space-y-1 [@media(max-height:650px)]:py-1">
+        <h2 className="text-center text-sm font-semibold leading-snug text-slate-900 sm:text-base [@media(max-height:650px)]:text-xs">
+          Ti senti rappresentato dall'attuale Capo di Stato?
+        </h2>
+
+        {/* Le tre risposte restano affiancate e centrate sull'intera card. */}
+        <div className="mx-auto flex w-full max-w-sm justify-center" role="group" aria-label="Esprimi il tuo consenso">
+          {[
+            { value: 'Sì', color: 'bg-green-600 text-white' },
+            { value: 'Non so', color: 'bg-yellow-500 text-white' },
+            { value: 'No', color: 'bg-red-600 text-white' }
+          ].map((option, idx) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`min-h-11 flex-1 border border-slate-200 px-2 py-2 [@media(max-height:650px)]:min-h-9 [@media(max-height:650px)]:py-1 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:text-base ${
+                idx === 0 ? 'rounded-l-full' : ''
+              } ${
+                idx === 2 ? 'rounded-r-full' : ''
+              } ${
+                data.mioConsenso?.risposta === option.value
+                  ? option.color + ' relative z-10'
+                  : 'bg-white text-slate-900 hover:bg-slate-50'
+              }`}
+              onClick={() => handleVote(option.value)}
+              disabled={isVoting || data.blocco.isBlocked}
+              aria-pressed={data.mioConsenso?.risposta === option.value}
+            >
+              {option.value}
+            </button>
+          ))}
+        </div>
+
+        {showResults && (
+          <div className="mx-auto flex w-full max-w-lg min-w-0 items-center justify-center gap-3 sm:gap-5" aria-label="Grafico a torta consenso Capo di Stato">
+            {/* Più grande su ogni schermo, ma adattabile ai telefoni bassi in orizzontale. */}
+            <div
+              className="h-24 w-24 shrink-0 min-[390px]:h-28 min-[390px]:w-28 lg:h-44 lg:w-44 [@media(max-height:650px)]:!h-[72px] [@media(max-height:650px)]:!w-[72px]"
+              data-testid="capo-consenso-pie-mobile"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    dataKey="value"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="34%"
+                    outerRadius="89%"
+                    paddingAngle={2}
+                    isAnimationActive={false}
                   >
-                    {option.value}
-                  </button>
-                ))}
-              </div>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`consent-cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => [`${value} voti`, '']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="min-w-0 text-left text-xs leading-relaxed text-slate-700 sm:text-sm">
+              <p className="font-semibold">Totale voti: {data.statistiche.totale}</p>
+              <p className="text-green-700">Sì: {data.statistiche['Sì']} ({percent(data.statistiche['Sì'])}%)</p>
+              <p className="text-amber-700">Non so: {data.statistiche['Non so']} ({percent(data.statistiche['Non so'])}%)</p>
+              <p className="text-red-700">No: {data.statistiche['No']} ({percent(data.statistiche['No'])}%)</p>
             </div>
           </div>
+        )}
 
-          {/* Torta a sinistra, statistiche a destra (PC) */}
-          {showResults && (
-            <>
-              {/* Restore the real pie chart on mobile, scaled to fit fixed controls. */}
-              <div className="flex min-w-0 items-center gap-1 lg:hidden" aria-label="Grafico a torta consenso Capo di Stato">
-                <div className="h-14 w-14 shrink-0" data-testid="capo-consenso-pie-mobile">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={chartData} dataKey="value" cx="50%" cy="50%"
-                        innerRadius={10} outerRadius={25} paddingAngle={2} isAnimationActive={false}>
-                        {chartData.map((entry, index) => (
-                          <Cell key={`mobile-cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => [`${value} voti`, '']} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <p className="min-w-0 text-[10px] leading-tight text-gray-700">
-                  Totale {data.statistiche.totale}
-                  <span className="block">Sì {data.statistiche['Sì']} ({percent(data.statistiche['Sì'])}%) · Non so {data.statistiche['Non so']} ({percent(data.statistiche['Non so'])}%) · No {data.statistiche['No']} ({percent(data.statistiche['No'])}%)</span>
-                </p>
-              </div>
-              <div className="hidden items-center gap-1 lg:grid lg:grid-cols-2 lg:gap-4">
-              <div className="hidden h-36 w-full lg:block lg:h-40">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={30}
-                      outerRadius={65}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value: number) => [`${value} voti`, '']}
-                      labelFormatter={(label: string) => `Risposta: ${label}`}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+        {data.statistiche.totale === 0 && (
+          <p className="text-center text-xs text-slate-500 sm:text-sm">
+            Nessun voto di consenso ancora espresso.
+          </p>
+        )}
 
-              <div className="min-w-0 space-y-1 text-left lg:space-y-2 lg:text-center lg:space-y-1.5 lg:text-left">
-                <p className="text-xs text-gray-600 lg:text-sm">
-                  Totale voti: <span className="font-semibold">{data.statistiche.totale}</span>
-                </p>
-                <div className="flex flex-col items-start gap-1 text-xs lg:items-center lg:text-sm lg:items-start">
-                  <span className="text-green-600 font-medium">
-                    Sì: {data.statistiche['Sì']} ({percent(data.statistiche['Sì'])}%)
-                  </span>
-                  <span className="text-yellow-600 font-medium">
-                    Non so: {data.statistiche['Non so']} ({percent(data.statistiche['Non so'])}%)
-                  </span>
-                  <span className="text-red-600 font-medium">
-                    No: {data.statistiche['No']} ({percent(data.statistiche['No'])}%)
-                  </span>
-                </div>
-              </div>
-              </div>
-            </>
-          )}
-
-          {/* Messaggio se non ci sono voti */}
-          {data.statistiche.totale === 0 && (
-            <div className="hidden py-1 text-center text-xs text-gray-500 lg:block lg:py-2 lg:text-base">
-              <p>Nessun voto di consenso ancora espresso.</p>
-              <p className="hidden text-sm lg:block">Sii il primo a esprimere la tua opinione!</p>
-            </div>
-          )}
-
-          {/* Messaggio di blocco */}
-          {data.blocco.isBlocked && (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-2 text-center lg:p-3">
-              <p className="text-yellow-800 font-medium text-sm">
-                Hai già votato per il consenso questa settimana
-              </p>
-              <p className="text-xs text-yellow-600">
-                Potrai votare di nuovo dal: {data.blocco.unlockDate ? new Date(data.blocco.unlockDate).toLocaleDateString('it-IT') : 'N/A'}
-              </p>
-            </div>
-          )}
-        </div>
+        {data.blocco.isBlocked && (
+          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-2 text-center lg:p-3">
+            <p className="text-sm font-medium text-yellow-800">
+              Hai già votato per il consenso questa settimana
+            </p>
+            <p className="text-xs text-yellow-700">
+              Potrai votare di nuovo dal: {data.blocco.unlockDate ? new Date(data.blocco.unlockDate).toLocaleDateString('it-IT') : 'N/A'}
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
