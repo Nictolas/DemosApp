@@ -52,6 +52,17 @@ test('both directory views retain normal initial load and hook only when not loa
   assert.match(read('client/src/pages/Organizzazioni/index.tsx'),/!isLoading && !isError/);
 });
 
+test('organization initial load and resumed approved list share the configured API origin',()=>{
+  const org=read('client/src/pages/Organizzazioni/index.tsx');
+  const hook=read('client/src/hooks/useApprovedSubjectResumeRefresh.ts');
+  assert.match(org,/import \{ getApiUrl \} from "@\/lib\/api-config"/);
+  assert.match(org,/fetch\(getApiUrl\('\/api\/organizzazioni\/filtri'\)\)/);
+  assert.match(org,/const url = getApiUrl\(`\/api\/organizzazioni/);
+  assert.doesNotMatch(org,/demos-c7k0\.onrender\.com|\bAPI_BASE\b/,
+    'organization must not bypass staging/native/production API configuration');
+  assert.match(hook,/await apiRequest\(/,'foreground refresh also resolves API base by central helper');
+});
+
 test('the canonical public approved endpoint is no-store and includes only approved titles',()=>{
   const source=read('api/routes/subject-proposals.js');
   assert.match(source,/SELECT id, title FROM subject_proposals WHERE category=\$1 AND status='approved'/);
