@@ -64,72 +64,72 @@ export default function Grazia() {
         tabIndex={0}
       >
         <div className="container mx-auto max-w-6xl">
-        {data?.blocco.isBlocked && (
-          <BlockedWarning unlockDate={data.blocco.unlockDate} />
-        )}
+          {data?.blocco.isBlocked && (
+            <BlockedWarning unlockDate={data.blocco.unlockDate} />
+          )}
 
-        {error ? (
-          <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded">
-            <b>Errore nel caricamento dei dati:</b><br />
-            {error.message}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 items-start gap-2 sm:gap-6 lg:grid-cols-2">
-            {/* Colonna sinistra: Header, form e voto */}
-            <div className="space-y-2 sm:space-y-6">
-              <Header />
+          {error ? (
+            <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded">
+              <b>Errore nel caricamento dei dati:</b><br />
+              {error.message}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 items-start gap-2 sm:gap-6 lg:grid-cols-2">
+              {/* Colonna sinistra: Header, form e voto */}
+              <div className="space-y-2 sm:space-y-6">
+                <Header />
 
-              {isLoadingData ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : (
-                <>
-                  <GraziaForm
-                    nomeInput={votingState.nomeInput}
-                    selectedVoti={votingState.selectedVoti}
+                {isLoadingData ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <>
+                    <GraziaForm
+                      nomeInput={votingState.nomeInput}
+                      selectedVoti={votingState.selectedVoti}
+                      classifica={data?.classifica || []}
+                      isBlocked={data?.blocco.isBlocked || false}
+                      isPending={saveVotiMutation.isPending}
+                      onUpdateField={updateField}
+                      onSubmit={addNomeLocal}
+                      onRemoveLocal={removeLocal}
+                      hasReachedLimit={hasReachedLimit}
+                      currentVotes={currentVotes}
+                      limit={limit}
+                      remainingVotes={remainingVotes}
+                    />
+
+                    <div className="flex items-center">
+                      <CreateButton onClick={showForm} />
+                    </div>
+
+                    {votingState.showForm && (
+                      <CarceratoForm
+                        onSubmit={handleCreateCarcerato}
+                        onCancel={hideForm}
+                        isLoading={false}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Colonna destra: Classifica Carcerati */}
+              {!isLoadingData && (
+                <div className="lg:sticky lg:top-4">
+                  <ClassificaCarcerati
                     classifica={data?.classifica || []}
+                    selectedVoti={votingState.selectedVoti}
                     isBlocked={data?.blocco.isBlocked || false}
                     isPending={saveVotiMutation.isPending}
-                    onUpdateField={updateField}
-                    onSubmit={addNomeLocal}
-                    onRemoveLocal={removeLocal}
+                    onToggleSelezione={toggleSelezioneClassifica}
                     hasReachedLimit={hasReachedLimit}
-                    currentVotes={currentVotes}
-                    limit={limit}
-                    remainingVotes={remainingVotes}
                   />
-
-                  <div className="flex items-center">
-                    <CreateButton onClick={showForm} />
-                  </div>
-
-                  {votingState.showForm && (
-                    <CarceratoForm
-                      onSubmit={handleCreateCarcerato}
-                      onCancel={hideForm}
-                      isLoading={false}
-                    />
-                  )}
-                </>
+                </div>
               )}
             </div>
-
-            {/* Colonna destra: Classifica Carcerati */}
-            {!isLoadingData && (
-              <div className="lg:sticky lg:top-4">
-                <ClassificaCarcerati
-                  classifica={data?.classifica || []}
-                  selectedVoti={votingState.selectedVoti}
-                  isBlocked={data?.blocco.isBlocked || false}
-                  isPending={saveVotiMutation.isPending}
-                  onToggleSelezione={toggleSelezioneClassifica}
-                  hasReachedLimit={hasReachedLimit}
-                />
-              </div>
-            )}
-          </div>
-        )}
+          )}
         </div>
       </div>
 
