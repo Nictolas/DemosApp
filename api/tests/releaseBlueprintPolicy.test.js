@@ -13,9 +13,10 @@ const workflow = fs.readFileSync(
 
 function serviceBlocks(source) {
   return source.split(/^  - type: /m).slice(1).map(block => {
+    const type = block.split('\n')[0].trim();
     const name = block.match(/^\s+name:\s+([^\s#]+)/m)?.[1];
     const trigger = block.match(/^\s+autoDeployTrigger:\s+([^\s#]+)/m)?.[1];
-    return { name, trigger, block };
+    return { type, name, trigger, block };
   });
 }
 
@@ -267,4 +268,65 @@ test('Blueprint security and cache header values stay scoped to the expected pat
   );
   assert.notEqual(missingCsp, frontend, 'fixture must mutate');
   assert.throws(() => checkBlueprintHeaders(missingCsp));
+});
+
+const reviewedServiceKeys = {
+  'demos-backend': [
+    'name', 'env', 'rootDir', 'buildCommand', 'startCommand',
+    'autoDeployTrigger', 'envVars', 'customDomains'
+  ],
+  'demos-frontend': [
+    'name', 'env', 'rootDir', 'buildCommand', 'staticPublishPath',
+    'autoDeployTrigger', 'envVars', 'customDomains', 'headers'
+  ]
+};
+
+function checkBlueprintStructure(source) {
+  const rootKeys = [...source.matchAll(/^([A-Za-z][A-Za-z0-9_-]*):/gm)]
+    .map(match => match[1]);
+  assert.deepEqual(rootKeys, ['services'],
+    'unreviewed root-level Blueprint configuration');
+
+  const services = serviceBlocks(source);
+  assert.equal(services.length, 2, 'exactly two reviewed production services required');
+  for (const svc of services) {
+    const expected = reviewedServiceKeys[svc.name];
+    assert.ok(expected, 'unexpected production service');
+    assert.equal(svc.type, 'web', svc.name + ': unexpected Render service type');
+    assert.match(svc.block, new RegExp('^    env:\\s+' +
+      (svc.name === 'demos-backend' ? 'node' : 'static') + '\\s*$', 'm'));
+    const keys = [...svc.block.matchAll(/^    ([A-Za-z][A-Za-z0-9]*):/gm)]
+      .map(match => match[1]);
+    assert.deepEqual(keys.slice().sort(), expected.slice().sort(),
+      svc.name + ': unsafe, duplicated or missing service field');
+    assert.equal(new Set(keys).size, keys.length, svc.name + ': duplicate YAML service key');
+  }
+}
+
+test('Blueprint has only reviewed service settings and cannot introduce deploy hooks', () => {
+  checkBlueprintStructure(yaml);
+  const extraCommand = yaml.replace(
+    '    startCommand: node index.js',
+    '    startCommand: node index.js\n    preDeployCommand: node scripts/migrate.js'
+  );
+  assert.notEqual(extraCommand, yaml);
+  assert.throws(() => checkBlueprintStructure(extraCommand));
+
+  const extraService = yaml + '\n  - type: web\n    name: unreviewed-service\n';
+  assert.throws(() => checkBlueprintStructure(extraService));
+
+  const duplicateTrigger = yaml.replace(
+    '    autoDeployTrigger: off',
+    '    autoDeployTrigger: off\n    autoDeployTrigger: commit'
+  );
+  assert.notEqual(duplicateTrigger, yaml);
+  assert.throws(() => checkBlueprintStructure(duplicateTrigger));
+
+  const wrongServiceRuntime = yaml.replace('    env: static', '    env: node');
+  assert.notEqual(wrongServiceRuntime, yaml);
+  assert.throws(() => checkBlueprintStructure(wrongServiceRuntime));
+
+  const newTopLevel = yaml.replace('services:', 'previews:\n  generation: automatic\nservices:');
+  assert.notEqual(newTopLevel, yaml);
+  assert.throws(() => checkBlueprintStructure(newTopLevel));
 });
