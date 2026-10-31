@@ -4,6 +4,7 @@ import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { PageContainer } from "@/components/PageContainer";
 import { useToast } from "@/hooks/use-toast";
 import { useGraziaData } from "./hooks/useGraziaData";
 import { useGraziaVoting } from "./hooks/useGraziaVoting";
@@ -55,8 +56,14 @@ export default function Grazia() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-3 pb-5 sm:p-4 page-with-navbar">
-      <div className="container mx-auto max-w-6xl">
+    <PageContainer className="overflow-hidden bg-gradient-to-b from-background to-secondary/20">
+      <div
+        className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-5 sm:p-4"
+        role="region"
+        aria-label="Contenuti della pagina Grazia"
+        tabIndex={0}
+      >
+        <div className="container mx-auto max-w-6xl">
         {data?.blocco.isBlocked && (
           <BlockedWarning unlockDate={data.blocco.unlockDate} />
         )}
@@ -123,8 +130,8 @@ export default function Grazia() {
             )}
           </div>
         )}
+        </div>
       </div>
-
 
       {/* Dialog di conferma rimozione voto */}
       {showRemoveDialog && (
@@ -143,6 +150,6 @@ export default function Grazia() {
           description={`Vuoi rimuovere la richiesta di grazia per "${votoToRemove}"?`}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }
