@@ -140,7 +140,7 @@ export default function Organizzazioni() {
         
         const url = getApiUrl(`/api/organizzazioni${params.toString() ? '?' + params.toString() : ''}`);
         
-        const response = await fetch(url, { signal: controller.signal });
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
         
         if (!response.ok) {
           throw new Error(`Errore ${response.status}: ${response.statusText}`);
