@@ -129,9 +129,17 @@ router.get('/', async (req, res) => {
     
     console.log(`✅ Trovate ${organizzazioni.length} organizzazioni`);
     
+    // One indexed read piggybacks on the directory response; no extra browser GET.
+    // Pending/rejected proposals and proposer identities are never exposed.
+    const approvedSubjects = await pool.query(
+      "SELECT id, title, details, source_url FROM subject_proposals WHERE status='approved' AND category=$1 ORDER BY reviewed_at DESC LIMIT 100",
+      ['organizzazioni']
+    );
+
     res.json({
       success: true,
       data: organizzazioni,
+      approved_subjects: approvedSubjects.rows,
       count: organizzazioni.length,
       message: organizzazioni.length === 0 ? 'Al momento non ci sono organizzazioni registrate' : `${organizzazioni.length} organizzazioni trovate`
     });
