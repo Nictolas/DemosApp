@@ -19,7 +19,7 @@ const verified = "31/10/2026";
 
 export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
   fuochi_d_artificio: {
-    intro: "Limitare i botti rumorosi, distinguendoli dagli spettacoli autorizzati.",
+    intro: "Consentire, limitare o vietare i fuochi d’artificio, soprattutto i botti rumorosi.",
     facts: [
       { value: "F1", label: "Unica categoria acquistabile dal pubblico in Irlanda" },
       { value: "2010", label: "Dal 4 luglio, F1 in vendita in Irlanda" },
