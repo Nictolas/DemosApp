@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these twenty-one canonical IDs opt in; the other 73 use the original
+ * Only these twenty-four canonical IDs opt in; the other 70 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -909,6 +909,164 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "ISTAT · Ambiente urbano 2024 (9 settembre 2026)", url: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/" },
       { label: "ISTAT · Ambiente urbano 2023, serie precedente", url: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2023/" },
+    ],
+    verified,
+  },
+  finanziamento_scuole_paritarie: {
+    intro: "Mantenere o aumentare i contributi pubblici alle scuole paritarie, che fanno parte del sistema nazionale d'istruzione. Ricevono già finanziamenti statali.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Sostegno attuale", title: "Contributi già previsti", text: "Lo Stato finanzia scuole paritarie riconosciute, con criteri, obblighi e controlli. Non sono scuole statali." },
+      { label: "Scelta proposta", title: "Mantenere o potenziare", text: "Decidere importi e criteri dei fondi, valutando accesso, inclusione, trasparenza e impatto sui servizi pubblici." },
+    ],
+    measuredResultsTitle: "🇮🇹 Italia · scuole e finanziamenti",
+    measuredResults: [
+      {
+        place: "🇮🇹 Italia · MIM",
+        topic: "Scuole paritarie",
+        value: "11.765",
+        period: "Anno scolastico 2023/24",
+        meaning: "Numero di scuole censite: comprende infanzia, primaria e secondaria.",
+        sourceUrl: "https://www.mim.gov.it/documents/20182/8426729/Principali%2Bdati%2Bdella%2Bscuola%2B-%2BFocus%2Bavvio%2Banno%2Bscolastico%2B2024-2025.pdf/",
+      },
+      {
+        place: "🇮🇹 Italia · MIM",
+        topic: "Alunni delle paritarie",
+        value: "790.460",
+        period: "Anno scolastico 2023/24",
+        meaning: "Iscritti alle scuole paritarie di ogni ordine e grado: non è una misura della qualità.",
+        sourceUrl: "https://www.mim.gov.it/documents/20182/8426729/Principali%2Bdati%2Bdella%2Bscuola%2B-%2BFocus%2Bavvio%2Banno%2Bscolastico%2B2024-2025.pdf/",
+      },
+      {
+        place: "🇮🇹 Italia · Parlamento",
+        topic: "Fondi statali destinati",
+        value: "703,7 mln €",
+        period: "Anno 2024 · stanziamenti",
+        meaning: "Totale dei contributi destinati alle paritarie, non costo complessivo del sistema scolastico.",
+        sourceUrl: "https://documenti.camera.it/leg19/dossier/pdf/D25045b.pdf",
+      },
+      {
+        place: "🇮🇹 Italia · Parlamento",
+        topic: "Quota dei fondi per alunni con disabilità",
+        value: "113,4 mln €",
+        period: "Anno 2024 · componente del totale",
+        meaning: "Stanziamento specifico incluso nei 703,7 milioni; NON va sommato una seconda volta.",
+        sourceUrl: "https://documenti.camera.it/leg19/dossier/pdf/D25045b.pdf",
+      },
+    ],
+    evidenceCaveat: "I numeri di scuole e alunni sono del 2023/24, i fondi del 2024: non calcolare una spesa annua per studente senza verificare periodi, coperture e altre fonti di finanziamento. Queste cifre non provano che aumentare i contributi migliori o peggiori la qualità dell'istruzione.",
+    advantage: "Più scelta educativa e possibile sostegno all'inclusione, se i fondi sono controllati.",
+    concern: "Spesa pubblica, equità rispetto alle scuole statali e verifiche sull'accessibilità e sulla qualità.",
+    note: "Finanziare una scuola paritaria non equivale a trasformarla in scuola statale.",
+    sources: [
+      { label: "Ministero dell'Istruzione · Focus 2024/25, appendice dati paritarie 2023/24", url: "https://www.mim.gov.it/documents/20182/8426729/Principali%2Bdati%2Bdella%2Bscuola%2B-%2BFocus%2Bavvio%2Banno%2Bscolastico%2B2024-2025.pdf/" },
+      { label: "Camera e Senato · Dossier DL 45/2025, fondi 2024", url: "https://documenti.camera.it/leg19/dossier/pdf/D25045b.pdf" },
+      { label: "MIM · Criteri di riparto dei fondi 2025", url: "https://www.mim.gov.it/documents/20182/8782792/Decreto%2BMinisteriale%2Bn.%2B17%2Bdel%2B31%2Bgennaio%2B2025.pdf/d52e0d24-31a6-ed45-8869-b9191609d651?t=1740394859127&version=1.0" },
+    ],
+    verified,
+  },
+  nuove_aree_naturali_protette: {
+    intro: "Istituire o ampliare parchi e riserve naturali regionali, con regole per conservare specie e habitat. Conta anche come vengono gestiti.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Situazione attuale", title: "Aree già tutelate", text: "Parchi, riserve e siti Natura 2000 hanno protezioni differenti e in parte si sovrappongono." },
+      { label: "Scelta regionale", title: "Nuovi parchi e riserve", text: "Individuare nuove zone, prevedere vincoli proporzionati, risorse, controlli e piani di gestione." },
+    ],
+    measuredResultsTitle: "🇮🇹 Italia · dati ISPRA e obiettivo UE",
+    measuredResults: [
+      {
+        place: "🇮🇹 Italia · ISPRA",
+        topic: "Territorio terrestre tutelato",
+        value: "21,7%",
+        period: "Superfici tutelate · dati al 2024",
+        meaning: "Quota di territorio nazionale protetto, senza contare due volte aree sovrapposte.",
+        sourceUrl: "https://indicatoriambientali.isprambiente.it/it/aree-tutelate/superficie-nazionale-protetta-terrestre-e-marina",
+      },
+      {
+        place: "🇮🇹 Italia · ISPRA",
+        topic: "Superficie terrestre tutelata",
+        value: "6,53 mln ha",
+        period: "Dati al 2024",
+        meaning: "Ettari coperti congiuntamente da aree protette e Natura 2000, al netto delle sovrapposizioni.",
+        sourceUrl: "https://indicatoriambientali.isprambiente.it/it/aree-tutelate/superficie-nazionale-protetta-terrestre-e-marina",
+      },
+      {
+        place: "🇪🇺 Strategia biodiversità",
+        topic: "Obiettivo di tutela",
+        value: "30%",
+        period: "Traguardo al 2030",
+        meaning: "Obiettivo di superficie terrestre protetta, non quota già raggiunta in Italia.",
+        sourceUrl: "https://indicatoriambientali.isprambiente.it/it/aree-tutelate/superficie-nazionale-protetta-terrestre-e-marina",
+      },
+      {
+        place: "🇮🇹 Italia · ISPRA",
+        topic: "Superficie aggiuntiva per il traguardo",
+        value: "≈2,5 mln ha",
+        period: "Distanza stimata dal 30% · dati 2024",
+        meaning: "Divario nazionale stimato, non superficie che una singola Regione deve tutelare.",
+        sourceUrl: "https://indicatoriambientali.isprambiente.it/it/aree-tutelate/superficie-nazionale-protetta-terrestre-e-marina",
+      },
+    ],
+    evidenceCaveat: "I dati sommano le principali tutele terrestri senza doppio conteggio e riguardano l'Italia, non una specifica Regione. Più ettari protetti non dimostrano da soli un miglioramento della biodiversità: servono piani di gestione, monitoraggi ecologici e risorse.",
+    advantage: "Più tutela di habitat, specie e paesaggi, se accompagnata da una gestione efficace.",
+    concern: "Vincoli sulle attività locali, conflitti d'uso e costi di gestione e sorveglianza.",
+    note: "Aree protette e siti Natura 2000 non hanno tutti lo stesso livello di restrizioni.",
+    sources: [
+      { label: "ISPRA · Superficie nazionale protetta terrestre e marina (agg. dicembre 2025)", url: "https://indicatoriambientali.isprambiente.it/it/aree-tutelate/superficie-nazionale-protetta-terrestre-e-marina" },
+      { label: "ISPRA · Aree protette terrestri per Regione (dati 2024)", url: "https://indicatoriambientali.isprambiente.it/it/aree-tutelate/aree-protette-terrestri" },
+    ],
+    verified,
+  },
+  imposta_di_soggiorno: {
+    intro: "Applicare ai pernottamenti turistici un'imposta decisa dal Comune, con tariffe ed esenzioni proprie. Non si paga ovunque.",
+    facts: [],
+    comparison: [
+      { label: "Comuni senza imposta", title: "Nessuna tassa locale", text: "Il Comune non richiede un tributo aggiuntivo ai turisti che pernottano." },
+      { label: "Comuni con imposta", title: "Entrata comunale", text: "La tariffa si applica ai pernottamenti secondo il regolamento locale, con obblighi per le strutture." },
+    ],
+    measuredResultsTitle: "🇮🇹 Italia · incassi comunali 2025",
+    measuredResults: [
+      {
+        place: "🇮🇹 Comuni · SIOPE",
+        topic: "Comuni con incassi registrati",
+        value: "1.531",
+        period: "Anno 2025 · rilevazione 2026",
+        meaning: "Comuni che risultano applicare il tributo nella rilevazione; non tutti i Comuni italiani.",
+        sourceUrl: "https://dossiercomunale.it/osservatorio/imposta-soggiorno-comuni-2025",
+      },
+      {
+        place: "🇮🇹 Comuni · SIOPE",
+        topic: "Incassi complessivi rilevati",
+        value: "859 mln €",
+        period: "Anno 2025 · Roma esclusa",
+        meaning: "Totale delle imposte registrate nei dati SIOPE dell'analisi; Roma contabilizza separatamente il contributo di soggiorno.",
+        sourceUrl: "https://dossiercomunale.it/osservatorio/imposta-soggiorno-comuni-2025",
+      },
+      {
+        place: "🇮🇹 Milano",
+        topic: "Incassi dall'imposta",
+        value: "109,3 mln €",
+        period: "Anno 2025 · dati SIOPE",
+        meaning: "Entrata comunale rilevata; non misura i benefici ottenuti dai turisti o dai residenti.",
+        sourceUrl: "https://dossiercomunale.it/osservatorio/imposta-soggiorno-comuni-2025",
+      },
+      {
+        place: "🇮🇹 Firenze",
+        topic: "Incassi dall'imposta",
+        value: "82,9 mln €",
+        period: "Anno 2025 · dati SIOPE",
+        meaning: "Entrata comunale rilevata, con tariffe e presenze turistiche diverse da Milano.",
+        sourceUrl: "https://dossiercomunale.it/osservatorio/imposta-soggiorno-comuni-2025",
+      },
+    ],
+    evidenceCaveat: "I dati sono un'elaborazione dell'Osservatorio Dossier Comunale su incassi SIOPE 2025 (estrazione settembre 2026), non un bilancio unico delle tasse turistiche italiane: Roma usa un capitolo distinto. Gli incassi variano con numero di turisti, pernottamenti e tariffe; non dimostrano che i servizi turistici siano migliorati.",
+    advantage: "Risorse aggiuntive per turismo, manutenzione del territorio e servizi previsti dalla legge.",
+    concern: "Aumento del costo del soggiorno e adempimenti per le strutture ricettive.",
+    note: "L'imposta è facoltativa per i Comuni abilitati: non esiste una tariffa nazionale uniforme.",
+    sources: [
+      { label: "Osservatorio Dossier Comunale · Elaborazione SIOPE 2025 (27/10/2026)", url: "https://dossiercomunale.it/osservatorio/imposta-soggiorno-comuni-2025" },
+      { label: "Camera dei deputati · Regole e destinazione del gettito", url: "https://temi.camera.it/temi/19_enti-locali.html" },
+      { label: "Dipartimento Finanze · Regolamenti comunali 2026", url: "https://www1.finanze.gov.it/finanze2/dipartimentopolitichefiscali/fiscalitalocale/nuova_at/dati/download.htm?anno=2026" },
     ],
     verified,
   },
