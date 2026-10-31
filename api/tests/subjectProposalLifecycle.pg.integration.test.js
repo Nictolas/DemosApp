@@ -56,7 +56,28 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const migration = fs.readFileSync(path.join(__dirname, '../migrations/20261031_subject_proposals_review_gate.sql'), 'utf8');
     assert.match(migration, /CREATE TABLE IF NOT EXISTS public.subject_proposals/);
     // Only the schema qualifier is replaced; constraints, indexes and RLS are unmodified.
-    await setup.query(migration.replaceAll('public.', SCHEMA + '.'));
+    const migratedSql = migration.replaceAll('public.', SCHEMA + '.');
+    await setup.query(migratedSql);
+
+    // Simulate the old staging CHECK (five categories) and a legacy Grazia row.
+    // Re-running the migration must fail closed without deleting that row.
+    await setup.query('ALTER TABLE ' + SCHEMA + '.subject_proposals DROP CONSTRAINT subject_proposals_category_check');
+    await setup.query("ALTER TABLE " + SCHEMA + ".subject_proposals ADD CONSTRAINT subject_proposals_category_check CHECK (category IN ('capo_stato','grazia','amnistia','attivisti','organizzazioni'))");
+    await setup.query("INSERT INTO " + SCHEMA + ".subject_proposals(proposer_user_id,category,title,source_url) VALUES($1,'grazia','Persona sintetica legacy','https://example.org')",[A]);
+    await assert.rejects(setup.query(migratedSql), e => /migration blocked: Grazia rows/.test(e.message),
+      'legacy third-party rows must block the migration instead of being erased');
+    const stillThere=await setup.query("SELECT COUNT(*)::integer n FROM " + SCHEMA + ".subject_proposals WHERE category='grazia'");
+    assert.equal(stillThere.rows[0].n,1,'failed migration preserves legacy rows');
+    // Only disposable fixture data is removed here; production migrations never DELETE.
+    await setup.query("DELETE FROM " + SCHEMA + ".subject_proposals WHERE category='grazia'");
+    await setup.query(migratedSql);
+    const categoryCheck=await setup.query(
+      "SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid=$1::regclass AND conname='subject_proposals_category_check'",
+      [SCHEMA+'.subject_proposals']
+    );
+    assert.equal(categoryCheck.rows.length,1);
+    assert.doesNotMatch(categoryCheck.rows[0].definition,/grazia/i,
+      'reapplied migration must narrow the old staging CHECK');
     const rel = await setup.query("SELECT relrowsecurity FROM pg_class WHERE oid = $1::regclass", [SCHEMA+'.subject_proposals']);
     assert.equal(rel.rows[0].relrowsecurity, true);
     const rights = await setup.query("SELECT has_table_privilege('anon',$1,'SELECT') anon_can_read, has_table_privilege('authenticated',$1,'SELECT') auth_can_read", [SCHEMA+'.subject_proposals']);
