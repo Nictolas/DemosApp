@@ -53,7 +53,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
 
   return (
     <Card className="overflow-hidden rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm lg:border-2 lg:shadow-xl lg:h-full lg:min-h-0 lg:flex lg:flex-col">
-      <CardHeader className="shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-white lg:px-5 lg:py-3">
+      <CardHeader className="shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-white lg:px-5 lg:py-3 [@media(max-height:650px)]:py-1">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-base font-bold lg:text-lg">Il tuo voto</h2>
           <Badge className="rounded-full border border-white/30 bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-white/20" aria-label={`Voti selezionati: ${currentVotes} su ${limit}`}>
@@ -114,7 +114,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
               {selectedVoti.map((voto) => (
                 <div
                   key={voto}
-                  className="group relative rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 transition-colors hover:border-green-400 lg:px-3 lg:py-2"
+                  className="group relative rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 [@media(max-height:650px)]:py-0 transition-colors hover:border-green-400 lg:px-3 lg:py-2"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-3">
