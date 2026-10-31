@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, Plus, X, Info, CheckCircle2 } from "lucide-react";
+import { ThumbsUp, X, Info, CheckCircle2 } from "lucide-react";
 import { Classifica } from "../types";
 
 interface GraziaFormProps {
@@ -87,10 +86,12 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
       </CardHeader>
       <CardContent className="px-3 pb-2 pt-2.5 lg:px-6 lg:pb-6 lg:pt-6">
         <form onSubmit={onSubmit} className="mb-2 space-y-2 lg:mb-6 lg:space-y-4">
-          <div className="flex gap-2">
-            <div className="relative min-w-0 flex-1">
+          <div>
+            <div className="relative min-w-0 w-full">
               <Input
                 placeholder="Nome del carcerato..."
+                enterKeyHint="done"
+                aria-label="Cerca un nome per il voto"
                 value={nomeInput}
                 onChange={(e) => { 
                   onUpdateField('nomeInput', e.target.value); 
@@ -119,14 +120,7 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
                 </div>
               )}
             </div>
-            <Button 
-              type="submit"
-              className="h-11 shrink-0 px-3 text-sm lg:px-4"
-              disabled={!nomeInput.trim() || isBlocked || isPending || hasReachedLimit}
-            >
-              <Plus className="mr-1 h-4 w-4 lg:mr-2" />
-              Aggiungi
-            </Button>
+
           </div>
         </form>
 
