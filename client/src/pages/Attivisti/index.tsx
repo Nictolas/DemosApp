@@ -52,6 +52,8 @@ export default function Attivisti() {
     const fetchAttivisti = async () => {
       try {
         setLoading(true);
+        // Do not retain older approved names while a replacement read is in flight.
+        setApprovedSubjects([]);
         const response = await apiRequest("GET", "/api/attivisti");
 
         if (!response.ok) {
@@ -67,6 +69,7 @@ export default function Attivisti() {
           throw new Error(data.error || "Errore nel caricamento");
         }
       } catch (err) {
+        setApprovedSubjects([]);
         console.error("Errore:", err);
         setError(err instanceof Error ? err.message : "Errore sconosciuto");
       } finally {
