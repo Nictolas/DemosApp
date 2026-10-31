@@ -4,7 +4,7 @@ services:
     name: demos-backend
     env: node
     rootDir: api
-    buildCommand: npm ci
+    buildCommand: npm install
     startCommand: node index.js
     autoDeployTrigger: off
     envVars:
@@ -39,8 +39,9 @@ services:
   - type: web
     name: demos-frontend
     env: static
-    buildCommand: cd client && npm ci --only=production && npm run build
-    staticPublishPath: client/dist
+    rootDir: client
+    buildCommand: npm install; npm run build
+    staticPublishPath: dist
     autoDeployTrigger: off
     envVars:
       - key: NODE_ENV
