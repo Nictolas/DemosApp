@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, CheckCircle2, XCircle, ChevronDown, Info } from "lucide-react";
+import { BookOpen, CheckCircle2, XCircle, ChevronDown, Info, ArrowRight } from "lucide-react";
 import type { OpinionBrief } from "@/lib/opinionBriefs";
 
 /**
@@ -7,17 +7,19 @@ import type { OpinionBrief } from "@/lib/opinionBriefs";
  * No charts are fabricated: cards show only editorially sourced facts.
  */
 export function OpinionBriefCard({ brief }: { brief: OpinionBrief }) {
+  const isTransition = brief.comparisonMode === "transition" && brief.comparison.length === 2;
   return (
     <section
       data-testid="opinion-brief"
       aria-label="Approfondimento sintetico"
       className="mx-auto w-full max-w-3xl space-y-3 text-slate-900"
     >
-      <div className="rounded-xl border border-sky-200 bg-sky-100 px-3 py-3 sm:px-4">
-        <h3 className="mb-1 text-[11px] font-bold uppercase tracking-wide text-sky-900">In breve</h3>
-        <p className="text-sm font-semibold leading-5 text-sky-950 sm:text-base">{brief.intro}</p>
+      <div className="rounded-xl border border-sky-200 bg-sky-100 px-4 py-4 sm:px-5">
+        <h3 className="mb-1 text-xs font-extrabold uppercase tracking-wide text-sky-900">In breve</h3>
+        <p className="text-base font-bold leading-6 text-sky-950 sm:text-lg sm:leading-7">{brief.intro}</p>
       </div>
 
+      {brief.facts.length > 0 && (
       <div className={`grid gap-2 ${brief.facts.length === 3 ? "grid-cols-3" : "grid-cols-2"}`} aria-label="Dati chiave">
         {brief.facts.map((fact) => (
           <div key={fact.value} className="min-w-0 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3">
@@ -28,16 +30,41 @@ export function OpinionBriefCard({ brief }: { brief: OpinionBrief }) {
           </div>
         ))}
       </div>
+      )}
 
       <div>
-        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-700">Confronto</h3>
-        <div className="grid grid-cols-2 gap-2">
-          {brief.comparison.map((item) => (
-            <div key={item.title} className="min-w-0 rounded-xl border border-cyan-200 bg-cyan-50 p-3">
-              <p className="text-[11px] font-bold leading-tight text-cyan-900">{item.label}</p>
-              <h4 className="mt-1 break-words text-sm font-extrabold leading-5 text-cyan-950">{item.title}</h4>
-              <p className="mt-1 text-xs leading-[1.4] text-slate-800">{item.text}</p>
-            </div>
+        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-700">
+          {isTransition ? "Oggi → proposta" : "Confronto"}
+        </h3>
+        <div
+          data-testid="opinion-brief-comparison"
+          className={isTransition
+            ? "grid grid-cols-[minmax(0,1fr)_1.75rem_minmax(0,1fr)] items-stretch gap-1 sm:gap-2"
+            : "grid grid-cols-2 gap-2"}
+        >
+          {brief.comparison.map((item, index) => (
+            <React.Fragment key={item.title}>
+              {isTransition && index === 1 && (
+                <div className="flex items-center justify-center">
+                  <span
+                    data-testid="opinion-brief-transition-arrow"
+                    role="img"
+                    aria-label="Dalla situazione attuale alla modifica proposta"
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-indigo-300 bg-white text-indigo-800"
+                  >
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                </div>
+              )}
+              <div className={isTransition && index === 1
+                ? "min-w-0 rounded-xl border border-indigo-300 bg-indigo-50 p-2.5 sm:p-3"
+                : "min-w-0 rounded-xl border border-cyan-200 bg-cyan-50 p-2.5 sm:p-3"}
+              >
+                <p className="text-[11px] font-bold leading-tight text-slate-700">{item.label}</p>
+                <h4 className="mt-1 break-words text-sm font-extrabold leading-5 text-slate-900">{item.title}</h4>
+                <p className="mt-1 text-xs leading-[1.4] text-slate-800">{item.text}</p>
+              </div>
+            </React.Fragment>
           ))}
         </div>
       </div>
