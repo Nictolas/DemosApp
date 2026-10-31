@@ -199,7 +199,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       await page.setViewportSize(viewport);
       const layout = await details.evaluate(element => {
         const root = element.getBoundingClientRect();
-        const header = element.querySelector('[role="heading"]')?.getBoundingClientRect();
+        const header = element.querySelector('h1, h2, h3')?.getBoundingClientRect();
         const footer = Array.from(element.querySelectorAll('button')).find(b => b.textContent?.trim() === 'Chiudi')?.getBoundingClientRect();
         const scrolling = Array.from(element.querySelectorAll('*')).find(n => {
           const style = getComputedStyle(n);
