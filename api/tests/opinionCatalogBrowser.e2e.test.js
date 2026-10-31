@@ -197,7 +197,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       const color = selector => getComputedStyle(root.querySelector(selector)).backgroundColor;
       return { pro: color('[data-testid="opinion-brief-pro"]'), con: color('[data-testid="opinion-brief-con"]') };
     });
-    const rgb = value => (value.match(/\\d+/g) || []).slice(0, 3).map(Number);
+    const rgb = value => (value.match(/[0-9]+/g) || []).slice(0, 3).map(Number);
     const [proR, proG] = rgb(proConColors.pro);
     const [conR, conG] = rgb(proConColors.con);
     assert.ok(proG > proR, 'Pro card must visibly have a green background');
