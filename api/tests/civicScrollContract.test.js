@@ -29,16 +29,22 @@ test('popular initiative voting can scroll all cards above the app navbar', () =
   assert.doesNotMatch(page, /min-h-screen bg-gradient-to-b from-background/);
 });
 
-test('Grazia scrolls complete voting form and ranking inside the navbar boundary', () => {
+test('Grazia keeps title and voting controls fixed; only ranking scrolls', () => {
   const page = read('client/src/pages/Grazia/index.tsx');
+  const header = read('client/src/pages/Grazia/components/Header.tsx');
   const app = read('client/src/App.tsx');
   assert.ok(app.includes('<Route path="/grazia">'));
   assert.match(page, /<PageContainer className="overflow-hidden/);
-  assert.match(page, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto/);
-  assert.match(page, /aria-label="Contenuti della pagina Grazia"/);
-  assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('<GraziaForm'));
-  assert.ok(page.indexOf('<GraziaForm') < page.indexOf('<ClassificaCarcerati'));
-  assert.ok(page.indexOf('<ClassificaCarcerati') < page.indexOf('{/* Dialog di conferma rimozione voto */}'));
+  assert.match(page, /grazia-page__fixed-header shrink-0/);
+  assert.match(page, /grazia-page__fixed-controls min-h-0 shrink-0/);
+  assert.match(page, /className="app-page-scroll min-h-0 min-w-0 overflow-y-auto/);
+  assert.match(page, /aria-label="Classifica Grazia"/);
+  assert.ok(page.indexOf('grazia-page__fixed-header') < page.indexOf('app-page-scroll min-h-0'));
+  assert.ok(page.indexOf('grazia-page__fixed-controls') < page.indexOf('app-page-scroll min-h-0'));
+  assert.ok(page.indexOf('<GraziaForm') < page.indexOf('app-page-scroll min-h-0'));
+  assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('<ClassificaCarcerati'));
+  assert.ok(page.indexOf('<ClassificaCarcerati') < page.indexOf('{/* Dialog separato dalla classifica scorrevole. */}'));
+  assert.doesNotMatch(header, /<Link|href="\/vota"|Torna a Vota|<ArrowLeft|\bVota\s*<\/Button>/);
   assert.doesNotMatch(page, /page-with-navbar/);
 });
 
