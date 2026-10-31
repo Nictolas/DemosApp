@@ -276,6 +276,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Finanziamento scuole paritarie', '703,7 mln €'],
       ['/opinioni-regionali', 'Nuove aree naturali protette', '6,53 mln ha'],
       ['/opinioni-comunali', 'Imposta di soggiorno', '859 mln €'],
+      ['/opinioni-nazionali', 'Ius Scholae', '931.323'],
+      ['/opinioni-regionali', 'Nuove discariche', '4,43 mln t'],
+      ['/opinioni-comunali', 'Nuovi asili nido comunali', '378.500'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -619,6 +622,48 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Roma separate contribution must be excluded from comparable aggregate');
           assert.ok(data.includes('non dimostrano che i servizi turistici siano migliorati'),
             'Revenue does not measure public-service improvement');
+        }
+      } else if (['Ius Scholae', 'Nuove discariche', 'Nuovi asili nido comunali'].includes(title)) {
+        const dataPanel = brief.getByTestId('opinion-brief-measured-results');
+        await dataPanel.waitFor();
+        const data = await dataPanel.innerText();
+        assert.equal(await dataPanel.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four factual evidence cards');
+        assert.equal(await dataPanel.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': clickable source for each number');
+        const positions = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(k => root.querySelector('[data-testid="' + k + '"]')?.getBoundingClientRect().top));
+        assert.ok(positions.every(Number.isFinite) && positions[0] < positions[1] && positions[1] < positions[2],
+          title + ': explanation is first, comparison and data below');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': must not invent jurisdictional legal badges');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Nuove discariche' ? 0 : 1,
+          title + ': arrow only for a current-state-to-proposal transition');
+        if (title === 'Ius Scholae') {
+          for (const value of ['931.323', '11,6%', '13,7%', '29,4%'])
+            assert.ok(data.includes(value), 'School citizenship datum ' + value);
+          assert.ok(data.includes('NON quanti soddisferebbero cinque anni'),
+            'All pupils without citizenship are not eligible for Ius Scholae');
+          assert.ok(data.includes('non una legge in vigore'),
+            'Current and proposed laws must remain distinct');
+        }
+        if (title === 'Nuove discariche') {
+          for (const value of ['102', '4,43 mln t', '14,8%', '−3,7%'])
+            assert.ok(data.includes(value), 'ISPRA landfill fact ' + value);
+          assert.ok(data.includes('10% dei rifiuti urbani in discarica entro il 2035'),
+            'EU target must not be mistaken for current landfill percentage');
+          assert.ok(data.includes('non stimano bisogno, emissioni o impatti'),
+            'Existing plants cannot forecast benefits from new landfill');
+        }
+        if (title === 'Nuovi asili nido comunali') {
+          for (const value of ['14.570', '378.500', '31,6', '59,5%'])
+            assert.ok(data.includes(value), 'ISTAT nursery dataset ' + value);
+          assert.ok(data.includes('0 a 6 anni') && data.includes('NON un numero di posti già completati'),
+            'PNRR target includes preschools and is not reported as completed');
+          assert.ok(data.includes('NON quota di bambini esclusi'),
+            'Waiting-list rate is per service, not children');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
