@@ -261,6 +261,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Salario minimo', '2.771 €'],
       ['/opinioni-comunali', 'Città 30', '−43,6%'],
       ['/opinioni-europee', 'Auto a emissioni zero dal 2035', '−28%'],
+      ['/opinioni-nazionali', 'Settimana lavorativa di 32 ore', '92%'],
+      ['/opinioni-nazionali', 'Matrimonio gay', '2.936'],
+      ['/opinioni-comunali', 'Trasporto pubblico gratuito', '+88%'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -399,6 +402,52 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           title + ': arrow only when a before-to-proposal transition exists');
         assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
           title + ': country status maps must not be invented for unrelated topics');
+      } else if (['Settimana lavorativa di 32 ore', 'Matrimonio gay', 'Trasporto pubblico gratuito'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.ok(await results.getByTestId('opinion-brief-result').count() >= 2,
+          title + ': at least two metrics with source links');
+        assert.ok(await results.locator('a[href^="https://"]').count() >= 2,
+          title + ': two official evidence links');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 1,
+          title + ': arrow only shows current-to-proposal reform');
+        const panels = await brief.evaluate(root => [
+          root.querySelector('[data-testid="opinion-brief-intro"]'),
+          root.querySelector('[data-testid="opinion-brief-comparison"]'),
+          root.querySelector('[data-testid="opinion-brief-measured-results"]'),
+        ].map(el => el?.getBoundingClientRect().top));
+        assert.ok(panels.every(Number.isFinite) && panels[0] < panels[1] && panels[1] < panels[2],
+          title + ': explanation, reform and evidence in distinct ordered blocks');
+        if (title === 'Settimana lavorativa di 32 ore') {
+          assert.ok(data.includes('92%') && data.includes('71%') && data.includes('39%'),
+            'UK company adoption and workers self-reports appear with correct populations');
+          assert.ok(data.includes('56 aziende su 61'), 'Denominator for UK company percent shown');
+          assert.ok(data.includes('non tutte le aziende hanno adottato esattamente 32 ore'),
+            'The pilot does not uniformly equal a 32-hour week');
+        }
+        if (title === 'Matrimonio gay') {
+          const laws = brief.getByTestId('opinion-brief-legal-status');
+          assert.equal(await laws.getByTestId('opinion-brief-country').count(), 4,
+            'Netherlands, Spain, Germany and Italy law cards');
+          const italy = laws.locator('[data-legal-status="limited"]');
+          assert.equal(await italy.count(), 1, 'Italy civil unions classified as limited, not criminalized');
+          const regulated = laws.locator('[data-legal-status="regulated"]');
+          assert.equal(await regulated.count(), 3, 'Three countries with civil marriage');
+          assert.ok(data.includes('2.936') && data.includes('72%'),
+            'ISTAT unions 2024 and EU survey 2023 are distinct figures');
+          assert.ok(data.includes('è un sondaggio, non una conseguenza della legge'),
+            'Public opinion survey is not conflated with law effects');
+        } else {
+          assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+            title + ': legal status map only when legally relevant');
+        }
+        if (title === 'Trasporto pubblico gratuito') {
+          assert.ok(data.includes('+88%') && data.includes('25 → 31,3 mln') && data.includes('6,2 → 31,7 mln'),
+            'Dunkerque and Luxembourg use exact periods and results');
+          assert.ok(data.includes('non attribuisce alla sola gratuità'),
+            'Service expansion and pandemic caveat must be visible');
+        }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
           title + ': only state-to-proposal comparisons have an arrow');
