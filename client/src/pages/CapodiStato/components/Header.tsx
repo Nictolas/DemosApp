@@ -12,7 +12,7 @@ export const Header: React.FC = () => {
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="text-lg font-bold leading-tight text-purple-700">Capo di Stato</h1>
-          <p className="mt-0.5 text-xs leading-snug text-gray-600">
+          <p className="sr-only">
             Chi vorresti come Presidente della Repubblica?
           </p>
         </div>
