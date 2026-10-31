@@ -1,15 +1,13 @@
 import React from "react";
 import { Scale } from "lucide-react";
 
-// Intestazione centrata come Attivisti/Organizzazioni, sempre fuori dalla lista scorrevole.
+// Testata essenziale: mantiene titolo e tasto + separati dalla classifica scorrevole.
 export const Header: React.FC = () => (
   <div className="text-center">
-    <div className="mb-2 flex items-center justify-center gap-2 px-10 sm:px-12">
-      <Scale className="h-8 w-8 shrink-0 text-blue-600" aria-hidden="true" />
-      <h1 className="min-w-0 text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">Amnistia</h1>
+    <div className="flex items-center justify-center gap-2 px-11 sm:px-12">
+      <Scale className="h-7 w-7 shrink-0 text-blue-600" aria-hidden="true" />
+      <h1 className="min-w-0 text-xl font-bold leading-tight text-gray-900 sm:text-2xl">Amnistia</h1>
     </div>
-    <p className="text-sm text-gray-600 sm:text-base">
-      Per quali reati ritieni dovrebbe essere concessa un'amnistia?
-    </p>
+    <p className="sr-only">Per quali reati ritieni dovrebbe essere concessa un'amnistia?</p>
   </div>
 );
