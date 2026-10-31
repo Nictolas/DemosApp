@@ -139,7 +139,6 @@ export default function DataExport() {
   const [loadingAxiom, setLoadingAxiom] = useState(true);
   const [securityEventsStats, setSecurityEventsStats] = useState<any>(null);
   const [loadingSecurityEvents, setLoadingSecurityEvents] = useState(false);
-  const [migrating, setMigrating] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
@@ -362,49 +361,6 @@ export default function DataExport() {
     }
   };
 
-  const startAxiomMigration = async (onlyCentralizedLogs = false) => {
-    try {
-      const authTest = await apiRequest.get('/admin/axiom-migration/test-auth');
-      if (!authTest.success) {
-        toast({
-          title: 'Errore autenticazione',
-          description: 'La sessione Admin non è valida. Effettua di nuovo il login.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    } catch (_error) {
-      toast({ title: 'Errore autenticazione', description: 'Impossibile verificare la sessione Admin.', variant: 'destructive' });
-      return;
-    }
-
-    const label = onlyCentralizedLogs ? 'centralized_logs' : 'centralized_logs e audit_logs';
-    if (!window.confirm(`Vuoi avviare la migrazione di ${label} da Neon ad Axiom?`)) return;
-
-    setMigrating(true);
-    try {
-      const response = await apiRequest.post(
-        '/admin/axiom-migration/migrate',
-        { tables: onlyCentralizedLogs ? ['centralized_logs'] : ['centralized_logs', 'audit_logs'], dryRun: false },
-        { timeout: 30000 },
-      );
-      if (!response.success) throw new Error(response.error || response.message || 'Impossibile avviare la migrazione');
-      toast({ title: 'Migrazione avviata', description: response.message || 'Migrazione avviata in background.' });
-      window.setTimeout(() => {
-        loadAxiomAnalysis();
-        loadDatabaseAnalysis();
-      }, 10000);
-    } catch (error) {
-      toast({
-        title: 'Errore avvio migrazione',
-        description: error instanceof Error ? error.message : 'Impossibile avviare la migrazione',
-        variant: 'destructive',
-      });
-    } finally {
-      setMigrating(false);
-    }
-  };
-
   const statusIcon = (status: ExportHistory['status']) => {
     if (status === 'completed') return <CheckCircle className="h-4 w-4 text-green-500" />;
     if (status === 'failed') return <AlertCircle className="h-4 w-4 text-red-500" />;
@@ -534,15 +490,14 @@ export default function DataExport() {
             <Card>
               <CardHeader>
                 <CardTitle>Migrazione Neon → Axiom</CardTitle>
-                <CardDescription>Le migrazioni restano disponibili; la cancellazione legacy è sospesa fino alla verifica GDPR/RP-10.</CardDescription>
+                <CardDescription>Le migrazioni legacy dei log e la cancellazione sono sospese fino alla verifica GDPR, della minimizzazione e di RP-10.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={testAuth}>Verifica sessione Admin</Button>
-                  <Button onClick={() => startAxiomMigration(false)} disabled={migrating}>Migra log verso Axiom</Button>
-                  <Button variant="outline" onClick={() => startAxiomMigration(true)} disabled={migrating}>Migra solo centralized_logs</Button>
                   <p className="text-sm text-amber-700" role="status">
-                    Eliminazione da Neon sospesa: verifica indipendente dell'archivio Axiom e policy RP-10 non approvate.
+                    Migrazione legacy verso Axiom ed eliminazione da Neon sospese: valutazione GDPR,
+                    minimizzazione dei log e verifica indipendente di archiviazione e retention ancora necessarie.
                   </p>
                 </div>
 
