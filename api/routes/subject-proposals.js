@@ -8,7 +8,7 @@ const CATEGORIES = new Set(['capo_stato', 'amnistia', 'attivisti', 'organizzazio
 
 function cleanProposal(body) {
   const category = typeof body?.category === 'string' ? body.category : '';
-  const title = typeof body?.title === 'string' ? body.title.trim().replace(/\s+/g, ' ') : '';
+  const title = typeof body?.title === 'string' ? body.title.normalize('NFC').trim().replace(/\s+/g, ' ') : '';
   const details = typeof body?.details === 'string' ? body.details.trim() : '';
   const sourceUrl = typeof body?.source_url === 'string' ? body.source_url.trim() : '';
   if (category === 'grazia') return { error: 'Per Grazia utilizzare la coda dedicata', code: 'GRAZIA_CODA_UNICA' };
