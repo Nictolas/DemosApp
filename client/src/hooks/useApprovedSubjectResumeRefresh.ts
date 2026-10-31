@@ -1,4 +1,4 @@
-import { useEffect, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { apiRequest } from "@/lib/queryClient";
 
 export type ApprovedDirectorySubject = { id: string; title: string };
@@ -17,25 +17,36 @@ export function useApprovedSubjectResumeRefresh(
   setApprovedSubjects: Dispatch<SetStateAction<ApprovedDirectorySubject[]>>,
   enabled: boolean,
 ) {
+  // Keep the foreground signal across loading/filter transitions. Both
+  // directories intentionally disable fresh reads while their initial GET
+  // is running, but must not forget a withdrawal that happened meanwhile.
+  const pendingResume = useRef(false);
+  const currentRequest = useRef<AbortController | null>(null);
+  const lastResumeAt = useRef(0);
+
   useEffect(() => {
-    if (!enabled || typeof document === "undefined" || typeof window === "undefined") return;
+    if (typeof document === "undefined" || typeof window === "undefined") return;
 
     let disposed = false;
-    let current: AbortController | null = null;
-    let lastResumeAt = 0;
 
-    const resume = () => {
+    const resume = (replay = false) => {
       if (disposed || document.visibilityState !== "visible") return;
+      if (!enabled) {
+        pendingResume.current = true;
+        return;
+      }
 
-      // Some devices dispatch focus + visibilitychange together. One GET,
-      // no recurring timer or read on initial mount.
+      // Focus and visibilitychange often arrive together; do not poll.
+      // A deferred resume must run after a stale initial/filter fetch,
+      // even if it becomes ready within the normal deduplication window.
       const now = Date.now();
-      if (now - lastResumeAt < 1500) return;
-      lastResumeAt = now;
+      if (!replay && now - lastResumeAt.current < 1500) return;
+      lastResumeAt.current = now;
+      pendingResume.current = false;
 
-      current?.abort();
+      currentRequest.current?.abort();
       const controller = new AbortController();
-      current = controller;
+      currentRequest.current = controller;
       setApprovedSubjects([]);
 
       void (async () => {
@@ -60,21 +71,29 @@ export function useApprovedSubjectResumeRefresh(
 
           if (!disposed && !controller.signal.aborted) setApprovedSubjects(approved);
         } catch {
-          // Fail closed for third-party published names. A future resume retries.
           if (!disposed && !controller.signal.aborted) setApprovedSubjects([]);
         } finally {
-          if (current === controller) current = null;
+          if (currentRequest.current === controller) currentRequest.current = null;
         }
       })();
     };
 
-    document.addEventListener("visibilitychange", resume);
-    window.addEventListener("focus", resume);
+    const onResume = () => resume();
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("focus", onResume);
+    if (enabled && pendingResume.current) resume(true);
+
     return () => {
       disposed = true;
-      current?.abort();
-      document.removeEventListener("visibilitychange", resume);
-      window.removeEventListener("focus", resume);
+      // If a new directory/search load disabled this hook mid-refresh,
+      // the next ready render must revalidate after the late result.
+      if (currentRequest.current) {
+        if (!currentRequest.current.signal.aborted) pendingResume.current = true;
+        currentRequest.current.abort();
+        currentRequest.current = null;
+      }
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("focus", onResume);
     };
   }, [category, enabled, setApprovedSubjects]);
 }
