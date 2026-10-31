@@ -27,6 +27,7 @@ export default function ProposteSoggetti() {
   const [approved, setApproved] = useState<ApprovedSubject[]>([]);
   const [showApproved, setShowApproved] = useState(false);
   const [loadingApproved, setLoadingApproved] = useState(false);
+  const [undeliveredNotification, setUndeliveredNotification] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -85,10 +86,17 @@ export default function ProposteSoggetti() {
     if (!window.confirm("Ritirare «" + p.title + "» dall'elenco pubblico? La decisione originale resterà tracciata.")) return;
     setSubmittingId(p.id);
     try {
-      await apiRequest("POST", "/api/subject-proposals/admin/" + p.id + "/withdraw", { note });
+      const response = await apiRequest("POST", "/api/subject-proposals/admin/" + p.id + "/withdraw", { note });
+      const result = await response.json();
       setApproved(old => old.filter(item => item.id !== p.id));
       setNotes(old => { const next = { ...old }; delete next[p.id]; return next; });
-      toast({ title: "Pubblicazione ritirata", description: "La voce non sarà più inclusa negli elenchi pubblici." });
+      if (result.notification_sent !== true) setUndeliveredNotification(true);
+      toast({
+        title: "Pubblicazione ritirata",
+        description: result.notification_sent === true
+          ? "La voce non sarà più inclusa negli elenchi pubblici."
+          : "La voce è stata ritirata, ma la notifica non è stata consegnata. Segnalare al DPO."
+      });
     } catch (err: any) {
       toast({ title: "Ritiro non registrato", description: err?.data?.error || err?.message || "Riprova.", variant: "destructive" });
     } finally {
@@ -135,6 +143,11 @@ export default function ProposteSoggetti() {
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
+        {undeliveredNotification && (
+          <p role="alert" className="mb-3 shrink-0 rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">
+            Almeno un ritiro è riuscito senza notifica al proponente. Segnalarlo al DPO per la gestione della comunicazione.
+          </p>
+        )}
         <div className="mb-3 flex shrink-0 gap-2">
           <Button type="button" variant={showApproved ? "outline" : "default"} onClick={() => showApproved && switchApproved()} disabled={!!submittingId}>
             In attesa
