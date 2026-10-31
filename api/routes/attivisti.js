@@ -139,9 +139,10 @@ router.get('/', async (req, res) => {
     console.log(`✅ Trovati ${attivisti.length} attivisti`);
     
     // One indexed read piggybacks on the directory response; no extra browser GET.
+    // Public directory shows only approved IDs and titles: user-submitted details and source links are private to moderation.
     // Pending/rejected proposals and proposer identities are never exposed.
     const approvedSubjects = await pool.query(
-      "SELECT id, title, details, source_url FROM subject_proposals WHERE status='approved' AND category=$1 ORDER BY reviewed_at DESC LIMIT 100",
+      "SELECT id, title FROM subject_proposals WHERE status='approved' AND category=$1 ORDER BY reviewed_at DESC LIMIT 100",
       ['attivisti']
     );
 
