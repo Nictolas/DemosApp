@@ -42,6 +42,18 @@ Al controllo del 31/10 il provider Render restituisce per **entrambi** i servizi
 
 La scelta di `Off` è intenzionale: `After CI Checks Pass` permette ancora a Render di distribuire automaticamente dopo i check verdi. I test della PR #515 sono preparatori, non sostituiscono l'azione autorizzata nel dashboard.
 
+## Verifica supplementare — pubblicazioni e visibilità dei log
+
+Verificato il 31/10 in **sola lettura**, nello stesso workspace Render e con gli ID dei servizi di produzione:
+
+- Il backend `demos-backend` e il frontend `demos-frontend` risultano entrambi **LIVE** sul commit `9e7c17b636ca2d817c014def35e307c816150774`. I deploy precedenti su `0989d6e` e `45fb2b9` risultano disattivati per entrambi.
+- Entrambi i servizi mantengono `autoDeployTrigger=commit` e il ramo `main`. GitHub `main` è a `9e7c17b`, restituisce `protected=false` e la API rulesets restituisce una lista vuota.
+- La ricerca degli eventi `auto_deploy_disabled`/`auto_deploy_enabled` nella cronologia Render disponibile non ha restituito eventi. **Lo stato letto nei dettagli dei servizi, non l'assenza di eventi, è la prova che Auto-Deploy resta attivo.**
+- La richiesta di log HTTP tipo `request` su `POST` verso i percorsi amministrativi legacy, nel periodo 24–31/10, non ha restituito registrazioni. Anche una verifica generale limitata di log `request` sul medesimo periodo è vuota: **l'assenza di record non dimostra che quelle API non siano state utilizzate**. Non dichiarare assenza di abusi, di chiamate o di trasferimenti a provider sulla base di log mancanti.
+- Le attuali connessioni consentono le letture Render/GitHub ma **non** espongono una mutazione autorizzata di `autoDeployTrigger` né un'azione GitHub di creazione dei ruleset. Per completare l'attivazione occorre accedere ai pannelli dei due provider con permessi adeguati, oppure disporre di un connettore che supporti esplicitamente tali operazioni.
+
+La configurazione `autoDeployTrigger: off` della PR è coerente con la [specifica ufficiale Blueprint Render](https://render.com/docs/blueprint-spec); `off` disabilita il deploy automatico, mentre `checksPass` continua a pubblicare dopo CI verdi. Le [regole dei required checks GitHub](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks) richiedono attenzione ai workflow con filtri `paths`: un check mai avviato resta pendente e può bloccare le PR.
+
 ## Riferimenti
 
 - Render: https://render.com/docs/deploys
