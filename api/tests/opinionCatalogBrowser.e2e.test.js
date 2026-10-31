@@ -300,6 +300,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'NATO', '32'],
       ['/opinioni-regionali', 'Reddito minimo regionale', '6.500 €'],
       ['/opinioni-comunali', 'Estensione delle zone a traffico limitato', '72%'],
+      ['/opinioni-nazionali', 'Carne coltivata', '16/12/2023'],
+      ['/opinioni-regionali', 'Potenziamento trasporto pubblico', '101,6 mln km'],
+      ['/opinioni-comunali', 'Nuove case popolari', '2.321'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1012,6 +1015,52 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Area coverage, gates and operating hours are not traffic improvements');
           assert.ok((await brief.innerText()).includes('Area B è una zona a limitazione ambientale, diversa da Area C'),
             'Free low-emissions access and paid urban toll must remain distinct');
+        }
+      } else if (['Carne coltivata', 'Potenziamento trasporto pubblico', 'Nuove case popolari'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four sourced facts with scope and period');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': each fact independently links to an official source');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': comparisons are not measured before/after transitions');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': do not invent cross-country permission/prohibition maps');
+        const panels = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(panels.every(Number.isFinite) && panels[0] < panels[1] && panels[1] < panels[2],
+          title + ': readable explanation then policy alternatives then evidence');
+        if (title === 'Carne coltivata') {
+          for (const n of ['1/1/2018', '16/12/2023', '9/2024', '0'])
+            assert.ok(data.includes(n), 'EU/Italian cultivated meat regulation fact ' + n);
+          assert.ok(data.includes('NON la data di autorizzazione') &&
+            data.includes('NON autorizzazione') &&
+            data.includes('DI ORIGINE ANIMALE'),
+            'Novel food framework and scientific application are not marketing approvals');
+          assert.ok((await brief.innerText()).includes('zero EFSA riguarda gli alimenti cell-based di origine ANIMALE'),
+            'No authorizations for animal cells must not be confused with plant-cell products');
+        }
+        if (title === 'Potenziamento trasporto pubblico') {
+          for (const n of ['1/11/2021', '1/11/2023', '101,6 mln km', '+4 mln km'])
+            assert.ok(data.includes(n), 'Tuscany regional TPL contract fact ' + n);
+          assert.ok(data.includes('NON chilometri certificati effettivamente percorsi') &&
+            data.includes('NON riduzione stimata delle emissioni'),
+            'Contractual planned bus kilometers are not realized kilometers or emission outcomes');
+          assert.ok((await brief.innerText()).includes('NON un aumento del 4% del totale'),
+            'Added weak-lot kilometers must not be misreported as percent change of total');
+        }
+        if (title === 'Nuove case popolari') {
+          for (const n of ['2.321', '2.047', '274', '40%'])
+            assert.ok(data.includes(n), 'Milan 2026 housing plan category fact ' + n);
+          assert.ok(data.includes('NON 2.321 case nuove costruite') &&
+            data.includes('sono una PARTE dei 2.321') &&
+            data.includes('compresi nel totale 2.321'),
+            'Assignable stock must not be misclassified as new construction or double counted');
+          assert.ok((await brief.innerText()).includes('non di nuove abitazioni costruite'),
+            'Proposed assignable dwellings are not units actually built or delivered');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
