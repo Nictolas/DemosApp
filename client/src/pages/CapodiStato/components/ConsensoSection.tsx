@@ -64,17 +64,17 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
   const showResults = data.mioConsenso !== null && data.statistiche.totale > 0;
 
   return (
-    <Card className="mb-0 shrink-0 bg-white shadow-sm lg:mb-6 lg:mb-0">
-      <CardHeader className="px-2 pb-0 pt-1 lg:px-6 lg:pb-2 lg:py-3">
+    <Card className="mb-0 grid shrink-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1 bg-white shadow-sm lg:block">
+      <CardHeader className="px-2 py-1 lg:px-6 lg:pb-2 lg:py-3">
         <CardTitle className="text-left text-sm font-bold lg:text-center lg:text-lg">
           Consenso
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-2 pb-1 pt-0 lg:px-6 lg:pb-3">
-        <div className="space-y-1 lg:space-y-3">
+      <CardContent className="min-w-0 px-1 py-1 lg:px-6 lg:pb-3">
+        <div className="min-w-0 space-y-0 lg:space-y-3">
           {/* Domanda */}
           <div className="text-center">
-            <h3 className="mb-1 text-xs font-semibold leading-snug text-gray-800 lg:mb-2 lg:text-base">
+            <h3 className="sr-only lg:not-sr-only lg:mb-2 lg:text-base lg:font-semibold lg:leading-snug lg:text-gray-800">
               Ti senti rappresentato dall'attuale Capo di Stato?
             </h3>
             
