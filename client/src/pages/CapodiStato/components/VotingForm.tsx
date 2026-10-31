@@ -81,7 +81,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           </div>
         </div>
         {hasReachedLimit && (
-          <div className="mt-2 rounded-lg border border-yellow-300/30 bg-yellow-500/20 p-2 backdrop-blur-sm lg:mt-3 lg:p-3">
+          <div className="mt-2 hidden rounded-lg border border-yellow-300/30 bg-yellow-500/20 p-2 backdrop-blur-sm lg:block lg:mt-3 lg:p-3">
             <p className="flex items-center text-xs font-medium leading-snug text-yellow-100 lg:text-sm">
               <Info className="h-4 w-4 mr-2" />
               Hai già votato. Rimuovi il voto esistente per votarne uno diverso.
@@ -136,7 +136,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
 
         {selectedVoti.length > 0 ? (
           <div className="space-y-2 lg:space-y-3">
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-700 lg:mb-3 lg:text-sm">
+            <div className="mb-2 hidden items-center gap-2 text-xs font-semibold text-gray-700 lg:flex lg:mb-3 lg:text-sm">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <span>Il tuo Presidente della Repubblica ideale:</span>
             </div>
