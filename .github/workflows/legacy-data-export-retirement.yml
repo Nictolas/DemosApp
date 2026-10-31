@@ -1,0 +1,26 @@
+name: Legacy data export retirement (CI only)
+on:
+  pull_request:
+    paths:
+      - 'api/routes/admin/data-export.js'
+      - 'api/tests/legacyDataExportRetirement.test.js'
+      - 'client/src/pages/DataExport.tsx'
+      - '.github/workflows/legacy-data-export-retirement.yml'
+jobs:
+  express-http:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies without scripts
+        working-directory: api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run isolated real Express HTTP tests
+        working-directory: api
+        run: node --test tests/legacyDataExportRetirement.test.js
