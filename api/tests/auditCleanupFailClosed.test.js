@@ -525,3 +525,95 @@ test('retention UI exposes only read-only status and emergency stop during RP-10
   assert.equal((source.match(/await response\.json\(\)/g) || []).length, 2,
     'status and emergency stop must decode apiRequest response wrappers before reading success');
 });
+
+
+test('legacy retention admin handlers never report partial or malformed cleanup as success', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../routes/admin/data-retention.js'), 'utf8');
+  const endpoints = [
+    'DELETE /cleanup/:userId',
+    'POST /cleanup-all',
+    'POST /cleanup/immediate'
+  ];
+  const secret = 'SYNTHETIC_SECRET_SQL_PROVIDER_DETAIL';
+  const diagnostics = [];
+  let resultToReturn;
+  const routes = new Map();
+  const router = {
+    use() {}, get() {},
+    delete(route, handler) { routes.set('DELETE ' + route, handler); },
+    post(route, handler) { routes.set('POST ' + route, handler); }
+  };
+  const moduleStub = { exports: {} };
+  new Function('require', 'module', 'console', source)((name) => {
+    if (name === 'express') return { Router: () => router };
+    if (name === '../../middleware/auth') return { verifyToken() {}, requireAdmin() {} };
+    if (name === '../../services/dataRetentionService') {
+      // Deliberately bypass the mocked service's RP-10 guard to test the
+      // defensive HTTP response if a future implementation reports partial errors.
+      return {
+        deleteExpiredData: async () => resultToReturn,
+        deleteAllExpiredData: async () => resultToReturn
+      };
+    }
+    if (name === '../../jobs/dataRetentionJob') {
+      return { performImmediateCleanup: async () => resultToReturn };
+    }
+    throw new Error('Unexpected dependency: ' + name);
+  }, moduleStub, {
+    warn: (...args) => diagnostics.push(args.join(' ')),
+    error: (...args) => diagnostics.push(args.join(' '))
+  });
+
+  const invoke = async (route) => {
+    const handler = routes.get(route);
+    assert.equal(typeof handler, 'function', route);
+    const res = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(body) { this.body = body; return this; }
+    };
+    await handler({ body: {}, params: { userId: 'synthetic-target' } }, res);
+    return res;
+  };
+
+  for (const route of endpoints) {
+    resultToReturn = {
+      deletedCounts: { user_profile: 2 },
+      totalDeleted: 2,
+      errors: [{ dataType: 'votes_opinions', error: secret }]
+    };
+    let res = await invoke(route);
+    assert.equal(res.statusCode, 500, route);
+    assert.deepEqual(res.body, {
+      success: false,
+      error: 'RETENTION_PARTIAL_FAILURE',
+      reconciliation_required: true
+    }, route);
+    assert.doesNotMatch(JSON.stringify(res.body) + diagnostics.join(' '), /SYNTHETIC_SECRET/, route);
+
+    for (const malformed of [
+      null,
+      { deletedCounts: {}, totalDeleted: '2', errors: [] },
+      { deletedCounts: {}, totalDeleted: 0 },
+      { deletedCounts: {}, totalDeleted: -1, errors: [] }
+    ]) {
+      resultToReturn = malformed;
+      res = await invoke(route);
+      assert.equal(res.statusCode, 500, route);
+      assert.equal(res.body.success, false, route);
+      assert.equal(res.body.error, 'RETENTION_CLEANUP_FAILED', route);
+      assert.equal(res.body.reconciliation_required, true, route);
+    }
+
+    resultToReturn = {
+      deletedCounts: { user_profile: 2 },
+      totalDeleted: 2,
+      errors: []
+    };
+    res = await invoke(route);
+    assert.equal(res.statusCode, 200, route);
+    assert.equal(res.body.success, true, route);
+    assert.equal(res.body.data.total_deleted, 2, route);
+    assert.deepEqual(res.body.data.errors, [], route);
+  }
+});
