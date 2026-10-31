@@ -1,0 +1,46 @@
+name: Unified subject proposal page — contracts and client build
+on:
+  push:
+    branches:
+      - feat/unified-proposals-page-20261031
+  pull_request:
+    branches:
+      - feat/moderated-subject-proposals-20261031
+      - main
+    paths:
+      - 'client/src/pages/ProponiSoggetto.tsx'
+      - 'client/src/config/subjectProposalCategories.ts'
+      - 'client/src/components/ProposeSubjectButton.tsx'
+      - 'client/src/pages/Proponi.tsx'
+      - 'client/src/App.tsx'
+      - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
+      - '.github/workflows/unified-subject-proposal-page.yml'
+permissions:
+  contents: read
+jobs:
+  static-navigation-and-no-fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Test five routes, zero proposal-specific reads on open and private submission
+        run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js
+  client-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - run: npm run build --prefix client
