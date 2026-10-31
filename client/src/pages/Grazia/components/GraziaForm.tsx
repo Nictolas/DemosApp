@@ -117,7 +117,8 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
                     </div>
                     <button
                       onClick={() => onRemoveLocal(voto)}
-                      className="ml-2 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition-colors hover:bg-red-50"\n                      aria-label={`Rimuovi il voto per ${voto}`}
+                      className="ml-2 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition-colors hover:bg-red-50"
+                      aria-label={`Rimuovi il voto per ${voto}`}
                       title="Rimuovi voto"
                     >
                       <X className="h-4 w-4" />
