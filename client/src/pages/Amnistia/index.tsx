@@ -85,6 +85,7 @@ export default function Amnistia() {
             ) : (
               <>
                 <AmnistiaForm
+                  limit={limit}
                   leggeInput={votingState.leggeInput}
                   showSuggestions={votingState.showSuggestions}
                   mieiVoti={data?.mieiVoti || []}
