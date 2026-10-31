@@ -65,16 +65,16 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
 
   return (
     <Card className="mb-0 shrink-0 bg-white shadow-sm lg:mb-6 lg:mb-0">
-      <CardHeader className="px-3 pb-1 pt-2.5 lg:p-6 lg:pb-2 lg:py-3">
-        <CardTitle className="text-left text-base font-bold lg:text-center lg:text-xl lg:text-lg">
+      <CardHeader className="px-2 pb-0 pt-1 lg:px-6 lg:pb-2 lg:py-3">
+        <CardTitle className="text-left text-sm font-bold lg:text-center lg:text-lg">
           Consenso
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-3 pb-3 pt-1 lg:px-6 lg:pb-6 lg:pt-0 lg:pb-3">
-        <div className="space-y-2 lg:space-y-4 lg:space-y-3">
+      <CardContent className="px-2 pb-1 pt-0 lg:px-6 lg:pb-3">
+        <div className="space-y-1 lg:space-y-3">
           {/* Domanda */}
           <div className="text-center">
-            <h3 className="mb-2 text-sm font-semibold leading-snug text-gray-800 lg:mb-3 lg:text-lg lg:mb-2 lg:text-base">
+            <h3 className="mb-1 text-xs font-semibold leading-snug text-gray-800 lg:mb-2 lg:text-base">
               Ti senti rappresentato dall'attuale Capo di Stato?
             </h3>
             
@@ -110,7 +110,12 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
 
           {/* Torta a sinistra, statistiche a destra (PC) */}
           {showResults && (
-            <div className="grid grid-cols-1 items-center gap-1 lg:grid-cols-2 lg:gap-4">
+            <>
+              {/* On phones preserve the exact numerical information without the tall chart. */}
+              <p className="text-center text-[11px] leading-tight text-gray-700 lg:hidden">
+                Totale {data.statistiche.totale} · Sì {data.statistiche['Sì']} ({percent(data.statistiche['Sì'])}%) · Non so {data.statistiche['Non so']} ({percent(data.statistiche['Non so'])}%) · No {data.statistiche['No']} ({percent(data.statistiche['No'])}%)
+              </p>
+              <div className="hidden items-center gap-1 lg:grid lg:grid-cols-2 lg:gap-4">
               <div className="hidden h-36 w-full lg:block lg:h-40">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -151,12 +156,13 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
                   </span>
                 </div>
               </div>
-            </div>
+              </div>
+            </>
           )}
 
           {/* Messaggio se non ci sono voti */}
           {data.statistiche.totale === 0 && (
-            <div className="py-1 text-center text-xs text-gray-500 lg:py-2 lg:text-base">
+            <div className="hidden py-1 text-center text-xs text-gray-500 lg:block lg:py-2 lg:text-base">
               <p>Nessun voto di consenso ancora espresso.</p>
               <p className="hidden text-sm lg:block">Sii il primo a esprimere la tua opinione!</p>
             </div>
