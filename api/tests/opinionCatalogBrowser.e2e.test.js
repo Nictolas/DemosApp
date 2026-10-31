@@ -297,6 +297,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Spese NATO al 5%', '3,5%'],
       ['/opinioni-regionali', 'Aborto farmacologico nei consultori', '64,3%'],
       ['/opinioni-comunali', 'Pedaggio urbano', '7,50 €'],
+      ['/opinioni-nazionali', 'NATO', '32'],
+      ['/opinioni-regionali', 'Reddito minimo regionale', '6.500 €'],
+      ['/opinioni-comunali', 'Estensione delle zone a traffico limitato', '72%'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -963,6 +966,52 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Daily ticket, resident entitlement and price are not interchangeable');
           assert.ok((await brief.innerText()).includes('NON provano da soli l\'efficacia del pedaggio'),
             'Rules and fares are not causal traffic outcomes');
+        }
+      } else if (['NATO', 'Reddito minimo regionale', 'Estensione delle zone a traffico limitato'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four verifiable official facts');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': official source linked for each fact');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': policy alternatives are not a claimed transition');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no fabricated country-wide green/red map');
+        const panels = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(panels.every(Number.isFinite) && panels[0] < panels[1] && panels[1] < panels[2],
+          title + ': introduction, alternatives and sources in reading order');
+        if (title === 'NATO') {
+          for (const n of ['12', '32', '4/4/2023', '7/3/2024'])
+            assert.ok(data.includes(n), 'NATO founding/member accession ' + n);
+          assert.ok(data.includes('NON di forze armate unificate') &&
+            data.includes('non prova automaticamente maggiore sicurezza'),
+            'NATO member counts and accession dates are not causal security outcomes');
+          assert.ok((await brief.innerText()).includes("l'impiego della forza non è automatico"),
+            'Article 5 does not automatically mandate sending troops');
+        }
+        if (title === 'Reddito minimo regionale') {
+          for (const n of ['6.500 €', '70%', '30%', '12 mesi'])
+            assert.ok(data.includes(n), 'Sardinian REIS 2026 rule ' + n);
+          assert.ok(data.includes("NON dell'ISEE totale") &&
+            data.includes('NON importo monetario pagato direttamente') &&
+            data.includes('non un diritto automatico al pagamento'),
+            'ISRE is not ISEE; services are not cash and eligibility is not paid benefit');
+          assert.ok((await brief.innerText()).includes("Il REIS non è un reddito di base universale"),
+            'Means-tested and conditioned regional income differs from universal basic income');
+        }
+        if (title === 'Estensione delle zone a traffico limitato') {
+          for (const n of ['72%', '188', '7:30–19:30', '5'])
+            assert.ok(data.includes(n), 'Milan Area B coverage, gates, hours or exemption ' + n);
+          assert.ok(data.includes('NON diminuzione del traffico') &&
+            data.includes('NON transiti, sanzioni') &&
+            data.includes('NON un divieto generalizzato'),
+            'Area coverage, gates and operating hours are not traffic improvements');
+          assert.ok((await brief.innerText()).includes('Area B è una zona a limitazione ambientale, diversa da Area C'),
+            'Free low-emissions access and paid urban toll must remain distinct');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,

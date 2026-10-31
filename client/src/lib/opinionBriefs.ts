@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these forty-five canonical IDs opt in; the other 49 use the original
+ * Only these forty-eight canonical IDs opt in; the other 46 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -2179,6 +2179,169 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Comune di Milano · Area C, condizioni e orari aggiornati al 15/10/2026", url: "https://www.comune.milano.it/argomenti/mobilita/area-c" },
       { label: "Comune di Milano · Acquisto ticket e tariffario", url: "https://www.comune.milano.it/servizi/mobilita/area-c-acquista-il-ticket" },
       { label: "Comune di Milano · Agevolazioni residenti", url: "https://www.comune.milano.it/servizi/mobilita/area-c-agevolazioni-per-residenti-ed-equiparati" },
+    ],
+    verified,
+  },
+
+
+  nato: {
+    intro: "Mantenere l'adesione italiana alla NATO, alleanza politica e di difesa collettiva. Essere membri non equivale ad approvare tutte le politiche di ogni alleato, né implica l'invio automatico di soldati a qualsiasi guerra.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Italia · adesione", title: "Difesa collettiva e decisioni condivise", text: "L'Italia aderisce fin dalla fondazione. L'articolo 5 prevede assistenza a un alleato vittima di attacco armato, con le azioni che ciascuno Stato giudica necessarie: possono non includere l'uso della forza." },
+      { label: "Alternativa politica", title: "Non appartenere all'Alleanza", text: "Uscire dalla NATO cambierebbe gli obblighi del trattato e gli assetti di sicurezza, ma non equivale di per sé a rinunciare a ogni collaborazione internazionale." },
+    ],
+    measuredResultsTitle: "🌐 NATO · adesione e difesa collettiva",
+    measuredResults: [
+      {
+        place: "🌐 NATO · fondazione",
+        topic: "Paesi firmatari del trattato originario",
+        value: "12",
+        period: "4 aprile 1949",
+        meaning: "L'Italia è uno dei 12 Stati fondatori; il numero non indica le dimensioni dell'Alleanza oggi.",
+        sourceUrl: "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      },
+      {
+        place: "🌐 NATO · membri",
+        topic: "Paesi membri dopo l'ingresso della Svezia",
+        value: "32",
+        period: "Dal 7 marzo 2024",
+        meaning: "Numero di Stati alleati, NON di forze armate unificate né di Stati impegnati in una specifica operazione.",
+        sourceUrl: "https://www.nato.int/en/about-us/organization/nato-member-countries",
+      },
+      {
+        place: "🇫🇮 Finlandia · NATO",
+        topic: "Adesione della Finlandia",
+        value: "4/4/2023",
+        period: "Diventa il 31° membro",
+        meaning: "Data di ingresso ufficiale dopo ratifica dei protocolli; non un voto sull'adesione italiana.",
+        sourceUrl: "https://um.fi/finlands-membership-in-nato",
+      },
+      {
+        place: "🇸🇪 Svezia · NATO",
+        topic: "Adesione della Svezia",
+        value: "7/3/2024",
+        period: "Diventa il 32° membro",
+        meaning: "L'allargamento riguarda la partecipazione al trattato; non prova automaticamente maggiore sicurezza o minori conflitti.",
+        sourceUrl: "https://www.nato.int/en/news-and-events/articles/news/2024/03/07/sweden-officially-joins-nato",
+      },
+    ],
+    evidenceCaveat: "Le date e il numero di Paesi mostrano l'evoluzione dell'Alleanza e NON misurano l'effetto causale dell'adesione sulla pace o sulla sicurezza. L'articolo 5 prevede assistenza in caso di attacco armato, ma ciascun alleato sceglie quali azioni reputa necessarie: l'impiego della forza non è automatico. L'adesione alla NATO e l'impegno NATO del 5% del PIL sono questioni collegate ma distinte.",
+    advantage: "Deterrenza e consultazione con alleati, pianificazione congiunta e cooperazione nella difesa.",
+    concern: "Costi finanziari, dipendenze strategiche e rischio di coinvolgimento nelle tensioni politiche e militari dell'Alleanza.",
+    note: "Non confondere il numero di Stati membri con contingenti militari, trattato di difesa collettiva o obbligo di partecipare a qualunque operazione.",
+    sources: [
+      { label: "NATO · Paesi membri e fondazione", url: "https://www.nato.int/en/about-us/organization/nato-member-countries" },
+      { label: "NATO · Articolo 5, assistenza non necessariamente militare", url: "https://www.nato.int/en/what-we-do/introduction-to-nato/collective-defence-and-article-5" },
+      { label: "Ministero Esteri Finlandia · Adesione nel 2023", url: "https://um.fi/finlands-membership-in-nato" },
+      { label: "NATO · Ingresso della Svezia il 7 marzo 2024", url: "https://www.nato.int/en/news-and-events/articles/news/2024/03/07/sweden-officially-joins-nato" },
+    ],
+    verified,
+  },
+  reddito_minimo_regionale: {
+    intro: "Prevedere un aiuto economico regionale per famiglie con redditi insufficienti, con requisiti e durata definiti. La Sardegna dispone già del REIS: un sostegno selettivo e collegato a percorsi d'inclusione, diverso dal reddito di base universale.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Sardegna · REIS esistente", title: "Aiuto selettivo e progetto d'inclusione", text: "La legge regionale 18/2016 ha istituito il REIS, integrato da contributi e servizi per nuclei con bisogno economico. L'accesso richiede condizioni di reddito e altri requisiti." },
+      { label: "Scelta per altre Regioni", title: "Introdurre o ampliare un sostegno", text: "Definire soglia di accesso, composizione familiare, durata, coordinamento con le prestazioni statali e risorse effettivamente disponibili." },
+    ],
+    measuredResultsTitle: "🇮🇹 Sardegna · REIS 2026 (esempio di reddito minimo selettivo)",
+    measuredResults: [
+      {
+        place: "🇮🇹 Cagliari · bando REIS 2026",
+        topic: "Soglia dell'Indicatore della situazione reddituale equivalente",
+        value: "6.500 €",
+        period: "Requisito ISRE per domanda 2026",
+        meaning: "Soglia dell'ISRE, NON dell'ISEE totale e NON contributo mensile spettante a ogni famiglia.",
+        sourceUrl: "https://www.comune.cagliari.it/portale/page/it/avviso_per_richiedere_i_benefici_relativi_al_reis_2026?contentId=DOC254289",
+      },
+      {
+        place: "🇮🇹 Sardegna · linee guida REIS",
+        topic: "Quota finanziaria del budget d'inclusione",
+        value: "70%",
+        period: "Linee guida regionali 2024–2026",
+        meaning: "Componente del budget riservata al contributo economico, non percentuale di nuclei beneficiari.",
+        sourceUrl: "https://www.comune.cagliari.it/portale/page/it/pubblicati_gli_elenchi_provvisori_degli_ammessi_e_non_ammessi_al_reis_2026?contentId=NVT260815",
+      },
+      {
+        place: "🇮🇹 Sardegna · linee guida REIS",
+        topic: "Quota progettuale del budget d'inclusione",
+        value: "30%",
+        period: "Linee guida regionali 2024–2026",
+        meaning: "Servizi e progetti di inclusione anche tramite voucher; NON importo monetario pagato direttamente alla famiglia.",
+        sourceUrl: "https://www.comune.cagliari.it/portale/page/it/pubblicati_gli_elenchi_provvisori_degli_ammessi_e_non_ammessi_al_reis_2026?contentId=NVT260815",
+      },
+      {
+        place: "🇮🇹 Sardegna · REIS",
+        topic: "Durata massima della componente mensile",
+        value: "12 mesi",
+        period: "Budget di inclusione 2026",
+        meaning: "Durata di erogabilità del contributo se ammesso e finanziato: non un diritto automatico al pagamento per qualunque richiedente.",
+        sourceUrl: "https://www.comune.cagliari.it/portale/page/it/pubblicati_gli_elenchi_provvisori_degli_ammessi_e_non_ammessi_al_reis_2026?contentId=NVT260815",
+      },
+    ],
+    evidenceCaveat: "Le proporzioni 70% e 30% si applicano al BUDGET d'inclusione, non ai richiedenti e non costituiscono un confronto sui risultati. L'ISRE da 6.500 € è distinto dall'ISEE e non è una mensilità da 6.500 €. Una graduatoria di persone ammesse non coincide automaticamente con contributi liquidati: la Regione ha annunciato il 13 ottobre 2026 la copertura delle risorse richieste dai Comuni, indicando ancora adempimenti per i trasferimenti. Il REIS non è un reddito di base universale.",
+    advantage: "Può ridurre difficoltà economiche e finanziare percorsi d'inclusione calibrati sulle esigenze locali.",
+    concern: "Richiede copertura finanziaria, controlli proporzionati e coordinamento con misure statali per evitare esclusioni e sovrapposizioni.",
+    note: "Non confondere ISRE e ISEE; contributo economico e servizi; domanda ammessa, finanziata e realmente pagata.",
+    sources: [
+      { label: "Regione Sardegna · REIS, atti 2024–2026", url: "https://www.regione.sardegna.it/atti-bandi-archivi/atti-amministrativi/tutti-gli-atti/171593391437261" },
+      { label: "Comune di Cagliari · Bando REIS 2026 e soglia ISRE", url: "https://www.comune.cagliari.it/portale/page/it/avviso_per_richiedere_i_benefici_relativi_al_reis_2026?contentId=DOC254289" },
+      { label: "Comune di Cagliari · Budget 70/30 e 12 mesi", url: "https://www.comune.cagliari.it/portale/page/it/pubblicati_gli_elenchi_provvisori_degli_ammessi_e_non_ammessi_al_reis_2026?contentId=NVT260815" },
+      { label: "Regione Sardegna · Copertura fondi REIS, 13 ottobre 2026", url: "https://www.regione.sardegna.it/notizie/reis-2026-sbloccati-i-fondi-la-regione-garantisce-tutte-le-risorse" },
+    ],
+    verified,
+  },
+  estensione_delle_zone_a_traffico_limitato: {
+    intro: "Allargare le zone a traffico limitato (ZTL) in parti della città, secondo gli atti amministrativi competenti, con regole su orari, accesso e deroghe. Una ZTL ambientale non equivale a un pedaggio: Milano distingue Area B, senza ticket per i veicoli ammessi, da Area C.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Esempio attuale", title: "Milano · Area B", text: "Limita la circolazione di veicoli più inquinanti o non conformi in un'area estesa della città. I veicoli ammessi non pagano un pedaggio d'ingresso." },
+      { label: "Scelta comunale proposta", title: "Estendere o introdurre una ZTL", text: "Ampliare perimetro, orari o categorie soggette a limitazioni, valutando deroghe, accessibilità, rifornimenti e traffico nelle strade di confine." },
+    ],
+    measuredResultsTitle: "🇮🇹 Milano · Area B, esempio di ZTL ambientale",
+    measuredResults: [
+      {
+        place: "🇮🇹 Milano · Comune",
+        topic: "Territorio comunale ricompreso in Area B",
+        value: "72%",
+        period: "Perimetro descritto dal Comune nel maggio 2022",
+        meaning: "Quota di superficie del Comune di Milano, NON diminuzione del traffico né percentuale di veicoli vietati.",
+        sourceUrl: "https://www2.comune.milano.it/-/mobilita.-attivate-tutte-le-telecamere-di-area-b.-ad-aprile-una-media-di-614mila-transiti-al-giorno",
+      },
+      {
+        place: "🇮🇹 Milano · Comune",
+        topic: "Varchi elettronici attivi",
+        value: "188",
+        period: "Completamento del perimetro, aprile 2022",
+        meaning: "Numero dei varchi controllati, NON transiti, sanzioni o emissioni evitate.",
+        sourceUrl: "https://www2.comune.milano.it/-/mobilita.-attivate-tutte-le-telecamere-di-area-b.-ad-aprile-una-media-di-614mila-transiti-al-giorno",
+      },
+      {
+        place: "🇮🇹 Milano · Comune",
+        topic: "Fascia di applicazione ordinaria",
+        value: "7:30–19:30",
+        period: "Da lunedì a venerdì, festivi esclusi",
+        meaning: "Orario del divieto per categorie di veicoli soggette: NON un divieto generalizzato 24 ore su 24.",
+        sourceUrl: "https://www.comune.milano.it/argomenti/mobilita/area-b",
+      },
+      {
+        place: "🇮🇹 Milano · Comune",
+        topic: "Giornate in deroga automatiche",
+        value: "5",
+        period: "Nuove modalità dal 1° ottobre 2026, secondo anno di divieto",
+        meaning: "Giorni annui di libero accesso per i veicoli destinatari della misura nei termini comunali; NON 5 giorni aggiuntivi per ogni veicolo ammesso e senza restrizioni.",
+        sourceUrl: "https://www.comune.milano.it/argomenti/mobilita/area-b",
+      },
+    ],
+    evidenceCaveat: "Area B è una zona a limitazione ambientale, diversa da Area C che prevede ticket d'ingresso per i veicoli ammessi. Le 5 giornate di deroga automatiche valgono secondo le condizioni introdotte nel 2026; Milano prevede ulteriori agevolazioni specifiche per residenti e imprese che richiedono registrazione. Superficie e varchi non quantificano da soli diminuzioni di traffico, NO₂ o PM10, né eventuali spostamenti del traffico altrove. La competenza per estendere una ZTL è amministrativa e non del singolo consigliere comunale.",
+    advantage: "Può ridurre l'esposizione a veicoli inquinanti e dare più spazio a mobilità pedonale o ciclabile quando accompagnata da alternative efficaci.",
+    concern: "Può complicare accesso per persone e servizi, creare spostamenti di traffico e richiedere controlli e deroghe accessibili.",
+    note: "Distinguere ZTL, zona a basse emissioni, area pedonale, pedaggio urbano e sosta tariffata: sono strumenti diversi.",
+    sources: [
+      { label: "Comune di Milano · Area B e deroghe ottobre 2026", url: "https://www.comune.milano.it/argomenti/mobilita/area-b" },
+      { label: "Comune di Milano · 188 varchi e 72% del territorio, 2022", url: "https://www2.comune.milano.it/-/mobilita.-attivate-tutte-le-telecamere-di-area-b.-ad-aprile-una-media-di-614mila-transiti-al-giorno" },
+      { label: "Ministero delle infrastrutture e trasporti · Linee guida ZTL", url: "https://mit.gov.it/node/10821" },
     ],
     verified,
   },
