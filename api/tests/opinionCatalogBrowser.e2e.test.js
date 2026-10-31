@@ -256,7 +256,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     // The other four pilot topics share exactly the same visual renderer;
     // legacy catalogue entries must continue to use their Markdown renderer.
     const pilotCases = [
-      ['/opinioni-nazionali', 'Abolizione Contante', '2021'],
+      ['/opinioni-nazionali', 'Abolizione Contante', 'Solo digitale'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -274,6 +274,30 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       assert.equal(await brief.getByTestId('opinion-brief-pro').count(), 1);
       assert.equal(await brief.getByTestId('opinion-brief-con').count(), 1);
       assert.ok((await brief.innerText()).includes(fact), title + ': expected fact visible');
+      if (title === 'Abolizione Contante') {
+        assert.equal(await brief.locator('[aria-label="Dati chiave"]').count(), 0,
+          'No context-free 21/2021 fact cards for cash abolition');
+        assert.equal(await brief.getByText('Oggi → proposta', { exact: true }).count(), 1);
+        const comparison = brief.getByTestId('opinion-brief-comparison');
+        const arrow = brief.getByTestId('opinion-brief-transition-arrow');
+        await arrow.waitFor();
+        const positions = await comparison.evaluate(node =>
+          Array.from(node.children).map(child => {
+            const box = child.getBoundingClientRect();
+            return box.left + box.width / 2;
+          })
+        );
+        assert.equal(positions.length, 3, 'Current, arrow and proposal in three columns');
+        assert.ok(positions[0] < positions[1] && positions[1] < positions[2],
+          'Transition arrow must be between the current and proposed states');
+        const intro = brief.getByText(/Eliminare banconote e monete dai pagamenti/);
+        const fontSize = await intro.evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize));
+        assert.ok(fontSize >= 16, 'In breve must be readable on mobile without zooming');
+        assert.doesNotMatch(await brief.innerText(), /21 Paesi|Sentenza UE sul corso legale/);
+      } else {
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': only state-to-proposal comparisons have an arrow');
+      }
       assert.equal(await brief.locator('details').count(), 1, title + ': one source disclosure');
       assert.equal(await brief.locator('section').count() >= 2, true, title + ': pro and con shown');
       await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
