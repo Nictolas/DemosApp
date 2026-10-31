@@ -91,3 +91,37 @@ test('all production protections are checked without opening a SQL connection', 
   // called, and no pool.connect/query is invoked, even for local dev tests.
   assert.ok(diagnosticRouters.length === 3);
 });
+
+test('dev API surface requires development and an explicit opt-in even for migration and cleanup routers', () => {
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const path = require('node:path');
+  const appSource = fs.readFileSync(path.resolve(__dirname, '../app.js'), 'utf8');
+  const match = appSource.match(/const mountDevApiSurface\s*=\s*([\s\S]*?);/);
+  assert.ok(match, 'expected a single central dev surface guard');
+  assert.equal((appSource.match(/const mountDevApiSurface\s*=/g) || []).length, 1);
+  assert.ok((appSource.match(/if\s*\(mountDevApiSurface\)\s*{/g) || []).length >= 6,
+    'test, migration, debug, cleanup and diagnostic routers must remain guarded');
+  const isExposed = (nodeEnv, override) => vm.runInNewContext(match[1], {
+    process: { env: { NODE_ENV: nodeEnv, ALLOW_DEV_API_SURFACE: override } }
+  });
+  for (const environment of ['production', 'staging', 'test', '', undefined]) {
+    for (const override of ['true', 'false', undefined]) {
+      assert.equal(isExposed(environment, override), false,
+        'dev API surface should be closed: ' + environment + ' / ' + override);
+    }
+  }
+  for (const override of ['false', undefined, 'TRUE', '1']) {
+    assert.equal(isExposed('development', override), false);
+  }
+  assert.equal(isExposed('development', 'true'), true);
+  for (const route of [
+    '/api/test-opinioni-endpoints', '/api/test-add-opinione',
+    '/api/test-db', '/api/migrate', '/api/test-performance',
+    '/api/fix-database', '/api/debug-opinioni',
+    '/api/migrations', '/api/cleanup', '/api/test'
+  ]) {
+    assert.ok(appSource.includes("app.use('" + route + "'"),
+      'expected audited dev mount to remain present: ' + route);
+  }
+});
