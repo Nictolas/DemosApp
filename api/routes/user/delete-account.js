@@ -34,7 +34,7 @@ router.get('/requirements', verifyToken, async (req, res) => {
       requiresPassword
     });
   } catch (error) {
-    console.error('Errore nel recupero requisiti cancellazione account:', error);
+    console.error('ACCOUNT_DELETION_REQUIREMENTS_FAILED');
     return res.status(500).json({
       success: false,
       message: 'Errore interno del server'
@@ -50,10 +50,10 @@ router.get('/requirements', verifyToken, async (req, res) => {
  * Per utenti solo passkey o solo OAuth: richiede solo conferma "CANCELLA".
  */
 router.delete('/', verifyToken, async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
+  let client;
   try {
+    const pool = getPool();
+    client = await pool.connect();
     const userId = req.user.id;
     const { password, confirmText } = req.body;
 
@@ -99,7 +99,9 @@ router.delete('/', verifyToken, async (req, res) => {
 
     // Log dell'inizio della cancellazione
     await AuditService.logAction({
-      userId: userId,
+      // An audit entry can outlive deletion in Axiom or the SQL fallback.
+      // Failed attempts remain attributable via ACCOUNT_DELETION_ERROR.
+      userId: null,
       action: 'ACCOUNT_DELETION_STARTED',
       resource: 'user_account',
       details: {
@@ -139,7 +141,6 @@ router.delete('/', verifyToken, async (req, res) => {
       action: 'ACCOUNT_DELETION_COMPLETED',
       resource: 'user_account',
       details: {
-        deletedUserId: userId,
         timestamp: new Date().toISOString()
       }
     });
@@ -150,8 +151,15 @@ router.delete('/', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Errore durante la cancellazione dell\'account:', error);
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        // A failed rollback must not mask the original database failure.
+        console.error('ACCOUNT_DELETION_ROLLBACK_FAILED');
+      }
+    }
+    console.error('ACCOUNT_DELETION_FAILED');
     
     // Log dell'errore
     await AuditService.logAction({
@@ -159,7 +167,7 @@ router.delete('/', verifyToken, async (req, res) => {
       action: 'ACCOUNT_DELETION_ERROR',
       resource: 'user_account',
       details: {
-        error: error.message,
+        errorCode: 'ACCOUNT_DELETION_FAILED',
         timestamp: new Date().toISOString()
       }
     });
@@ -169,7 +177,7 @@ router.delete('/', verifyToken, async (req, res) => {
       message: 'Errore interno del server durante la cancellazione dell\'account'
     });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

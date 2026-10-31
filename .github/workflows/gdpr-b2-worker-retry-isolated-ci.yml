@@ -1,0 +1,218 @@
+name: GDPR B2 outbox worker retry and receipt regression (synthetic PG17)
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/privacyErasureOutboxWorker.js'
+      - 'api/app.js'
+      - 'api/routes/database.js'
+      - 'api/routes/health.js'
+      - 'api/routes/admin/database.js'
+      - 'api/routes/user/privacy-settings.js'
+      - 'api/routes/user/gdpr-requests.js'
+      - 'api/tests/gdprPrivacyCanonicalPoolIsolated.test.js'
+      - 'api/tests/gdprLegacyAdminSchemaMutationRouteIsolated.test.js'
+      - 'api/tests/gdprLegacyHealthDbDiagnosticIsolated.test.js'
+      - 'api/routes/cleanup.js'
+      - 'api/routes/migrations.js'
+      - 'api/routes/categorie.js'
+      - 'api/config/db.js'
+      - 'api/tests/gdprDataPlaneRouteSurface.test.js'
+      - 'api/scripts/attest-gdpr-writer-readonly.js'
+      - 'api/scripts/attest-gdpr-render-staging-isolated.js'
+      - 'api/tests/gdprRenderIsolatedStagingCli.test.js'
+      - 'api/server.js'
+      - 'api/index.js'
+      - 'api/services/gdprRenderInProcessStagingAttestation.js'
+      - 'api/tests/gdprRenderInProcessStagingAttestation.test.js'
+      - 'api/tests/gdprStagingBootSourceAudit.test.js'
+      - 'api/tests/gdprWriterReadonlyAttestation.test.js'
+      - 'api/services/privacyErasureB2Journal.js'
+      - 'api/tests/gdprB2JournalVersionBindingIsolated.test.js'
+      - 'api/tests/gdprB2BucketComplianceDeadlineIsolated.test.js'
+      - 'api/tests/gdprB2ArchiveHeadPutDeadlineIsolated.test.js'
+      - 'api/tests/gdprB2RealWorkerFailClosedSynthetic.test.js'
+      - 'api/tests/gdprB2WorkerInjectedExporterNoGoIsolated.test.js'
+      - 'api/docs/gdpr-b2-worker-injected-exporter-no-go-20261030.md'
+      - 'api/tests/gdprB2DirectWriteGateIsolated.test.js'
+      - 'api/tests/gdprB2WrappedTransportNoGoIsolated.test.js'
+      - 'api/docs/gdpr-b2-wrapped-adapter-ci-only-write-gate-20261030.md'
+      - 'api/docs/gdpr-b2-direct-write-no-go-and-concurrency-20261030.md'
+      - 'api/tests/gdprB2DurablePutClaimPg17Synthetic.test.js'
+      - 'api/tests/gdprB2CursorGapPg17Synthetic.test.js'
+      - 'api/tests/gdprB2StaleSqlWitnessGateSynthetic.test.js'
+      - 'api/tests/gdprB2WitnessSingleUseReservationSynthetic.test.js'
+      - 'api/tests/fixtures/gdprB2MonotonicAnchorSynthetic.js'
+      - 'api/tests/gdprB2MonotonicAnchorSynthetic.test.js'
+      - 'api/tests/fixtures/gdprB2DiskReservationSynthetic.js'
+      - 'api/tests/gdprB2DiskReservationSynthetic.test.js'
+      - 'api/docs/gdpr-b2-disk-reservation-crash-synthetic-20261030.md'
+      - 'api/docs/gdpr-b2-monotonic-anchor-rollback-synthetic-20261030.md'
+      - 'api/docs/gdpr-b2-one-shot-witness-reservation-synthetic-20261030.md'
+      - 'api/docs/gdpr-b2-durable-claim-prototype-20261030.md'
+      - 'api/docs/gdpr-b2-head-put-uncertain-outcome-20261030.md'
+      - 'api/docs/gdpr-b2-bucket-compliance-deadline-20261030.md'
+      - 'api/tests/gdprB2JournalBoundedReadbackIsolated.test.js'
+      - 'api/docs/gdpr-b2-archive-receipt-version-binding-20261030.md'
+      - 'api/scripts/attest-gdpr-b2-bucket-readonly.js'
+      - 'api/tests/gdprB2ReadonlyBucketMetadata.test.js'
+      - 'api/scripts/attest-gdpr-b2-synthetic-version-readonly.js'
+      - 'api/tests/gdprB2SyntheticVersionReadonly.test.js'
+      - 'api/tests/fixtures/gdprB2VersionInventorySynthetic.js'
+      - 'api/tests/gdprB2VersionInventorySynthetic.test.js'
+      - 'api/tests/fixtures/gdprB2S3VersionPaginationSynthetic.js'
+      - 'api/tests/gdprB2S3VersionPaginationSynthetic.test.js'
+      - 'api/docs/gdpr-b2-s3-cursor-binding-synthetic-20261030.md'
+      - 'api/docs/gdpr-b2-s3-version-pagination-synthetic-20261030.md'
+      - 'api/tests/fixtures/gdprB2IndependentVersionPinsSynthetic.js'
+      - 'api/tests/gdprB2IndependentVersionPinsSynthetic.test.js'
+      - 'api/tests/fixtures/gdprB2VersionRetentionSynthetic.js'
+      - 'api/tests/gdprB2VersionRetentionSynthetic.test.js'
+      - 'api/docs/gdpr-b2-version-retention-synthetic-20261030.md'
+      - 'api/docs/gdpr-b2-synthetic-independent-version-pins-20261030.md'
+      - 'api/docs/gdpr-b2-synthetic-version-inventory-completeness-20261030.md'
+      - 'api/docs/gdpr-b2-synthetic-version-bounded-readonly-20261030.md'
+      - 'api/tests/fixtures/gdpr-b2-synthetic-object-v1.json'
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/tests/gdprLedgerArchiveFormatNoOutboxIsolated.test.js'
+      - 'api/tests/gdprLedgerCapturedArchivePreflightIsolated.test.js'
+      - 'api/services/privacyErasureB2Reconciliation.js'
+      - 'api/tests/gdprB2InventoryReconciliationIsolated.test.js'
+      - 'api/tests/gdprOutboxWorkerIsolated.pg17.test.js'
+      - 'api/tests/fixtures/gdprDurableRecoveryPrototype.js'
+      - 'api/tests/gdprDurableRecoveryProtocolSynthetic.test.js'
+      - 'api/tests/gdprRecoveryConcurrencySynthetic.test.js'
+      - 'api/tests/gdprWitnessAckCrashGapSynthetic.test.js'
+      - 'api/docs/gdpr-witness-ack-crash-gap-synthetic-20261030.md'
+      - 'api/tests/gdprDurableRecoveryPg17Synthetic.test.js'
+      - 'api/tests/gdprRecoverySnapshotAtomicCutPg17Synthetic.test.js'
+      - 'api/tests/gdprRecoveryCrossConnectionSnapshotPg17Synthetic.test.js'
+      - 'api/tests/fixtures/gdprCrossPlaneRecoveryCutSynthetic.js'
+      - 'api/tests/gdprCrossPlaneRecoveryCutSynthetic.test.js'
+      - 'api/docs/gdpr-cross-plane-recovery-cut-evidence-synthetic-20261030.md'
+      - 'api/docs/gdpr-recovery-cross-session-pg17-snapshot-20261030.md'
+      - 'api/docs/gdpr-recovery-pg17-atomic-snapshot-cut-synthetic-20261030.md'
+      - 'api/tests/gdprDistributedFencePg17Synthetic.test.js'
+      - 'api/tests/gdprDualPlaneQuarantinePg17Synthetic.test.js'
+      - 'api/tests/gdprPrivilegedWriterBypassPg17Synthetic.test.js'
+      - 'api/tests/gdprDefaultPrivilegeExposurePg17Synthetic.test.js'
+      - 'api/tests/fixtures/gdprIndependentAdmissionEpochSynthetic.js'
+      - 'api/tests/gdprIndependentAdmissionEpochSynthetic.test.js'
+      - 'api/tests/fixtures/gdprCommitAdmissionLeaseSynthetic.js'
+      - 'api/tests/gdprCommitAdmissionLeaseSynthetic.test.js'
+      - 'api/tests/gdprBackendPoolIsolated.pg17.test.js'
+      - 'api/config/database.js'
+      - 'api/utils/databaseTlsPolicy.js'
+      - '.github/workflows/gdpr-b2-worker-retry-isolated-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  b2-worker-retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: gdpr_outbox_worker_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gdpr_outbox_worker_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install synthetic-only dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Inspect existing functional staging branch SOURCE ONLY (no deploy)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin \
+            '+refs/heads/staging/functional-integration-v0:refs/remotes/origin/gdpr-audit-functional-staging'
+          node api/tests/gdprStagingBootSourceAudit.test.js
+      - name: Verify manual worker syntax, retries, receipt binding and rollback
+        env:
+          GITHUB_ACTIONS: 'true'
+          GDPR_OUTBOX_WORKER_CI: isolated
+          TEST_DATABASE_URL: postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_outbox_worker_ci
+        run: |
+          node --check api/services/privacyErasureOutboxWorker.js
+          node --check api/services/privacyErasureB2Journal.js
+          node --test --test-concurrency=1 api/tests/gdprB2JournalVersionBindingIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2BucketComplianceDeadlineIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2ArchiveHeadPutDeadlineIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2RealWorkerFailClosedSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprLedgerArchiveFormatNoOutboxIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprLedgerCapturedArchivePreflightIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2InventoryReconciliationIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2WorkerInjectedExporterNoGoIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2DirectWriteGateIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2WrappedTransportNoGoIsolated.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2DurablePutClaimPg17Synthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2CursorGapPg17Synthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2StaleSqlWitnessGateSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2WitnessSingleUseReservationSynthetic.test.js
+          node --check api/tests/fixtures/gdprB2MonotonicAnchorSynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprB2MonotonicAnchorSynthetic.test.js
+          node --check api/tests/fixtures/gdprB2DiskReservationSynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprB2DiskReservationSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprB2JournalBoundedReadbackIsolated.test.js
+          node --check api/scripts/attest-gdpr-b2-bucket-readonly.js
+          node --test --test-concurrency=1 api/tests/gdprB2ReadonlyBucketMetadata.test.js
+          node --check api/scripts/attest-gdpr-b2-synthetic-version-readonly.js
+          node --test --test-concurrency=1 api/tests/gdprB2SyntheticVersionReadonly.test.js
+          node --check api/tests/fixtures/gdprB2VersionInventorySynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprB2VersionInventorySynthetic.test.js
+          node --check api/tests/fixtures/gdprB2S3VersionPaginationSynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprB2S3VersionPaginationSynthetic.test.js
+          node --check api/tests/fixtures/gdprB2IndependentVersionPinsSynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprB2IndependentVersionPinsSynthetic.test.js
+          node --check api/tests/fixtures/gdprB2VersionRetentionSynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprB2VersionRetentionSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprDataPlaneRouteSurface.test.js
+          node api/tests/gdprLegacyAdminSchemaMutationRouteIsolated.test.js
+          node api/tests/gdprPrivacyCanonicalPoolIsolated.test.js
+          # Run node:test in-process to avoid intermittent Node 22 child-runner IPC deserialization.
+          node api/tests/gdprLegacyHealthDbDiagnosticIsolated.test.js
+          node --check api/tests/fixtures/gdprDurableRecoveryPrototype.js
+          node --test --test-concurrency=1 api/tests/gdprDurableRecoveryProtocolSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprRecoveryConcurrencySynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprWitnessAckCrashGapSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprDurableRecoveryPg17Synthetic.test.js
+          node --check api/tests/gdprRecoverySnapshotAtomicCutPg17Synthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprRecoverySnapshotAtomicCutPg17Synthetic.test.js
+          node --check api/tests/gdprRecoveryCrossConnectionSnapshotPg17Synthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprRecoveryCrossConnectionSnapshotPg17Synthetic.test.js
+          node --check api/tests/fixtures/gdprCrossPlaneRecoveryCutSynthetic.js
+          node --test --test-concurrency=1 api/tests/gdprCrossPlaneRecoveryCutSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprDistributedFencePg17Synthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprDualPlaneQuarantinePg17Synthetic.test.js
+          node --check api/tests/gdprPrivilegedWriterBypassPg17Synthetic.test.js
+          node api/tests/gdprPrivilegedWriterBypassPg17Synthetic.test.js
+          node --check api/tests/gdprDefaultPrivilegeExposurePg17Synthetic.test.js
+          node api/tests/gdprDefaultPrivilegeExposurePg17Synthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprIndependentAdmissionEpochSynthetic.test.js
+          node --test --test-concurrency=1 api/tests/gdprCommitAdmissionLeaseSynthetic.test.js
+          node --check api/scripts/attest-gdpr-writer-readonly.js
+          node --test --test-concurrency=1 api/tests/gdprWriterReadonlyAttestation.test.js
+          node api/tests/gdprRenderInProcessStagingAttestation.test.js
+          node --check api/scripts/attest-gdpr-render-staging-isolated.js
+          node api/tests/gdprRenderIsolatedStagingCli.test.js
+          node --check api/tests/gdprOutboxWorkerIsolated.pg17.test.js
+          node --test --test-concurrency=1 api/tests/gdprOutboxWorkerIsolated.pg17.test.js
+          node --check api/tests/gdprBackendPoolIsolated.pg17.test.js
+          # Execute node:test in-process: preserves TAP/exit-code assertions while
+          # avoiding intermittent Node 22 child-runner IPC deserialization failures.
+          GDPR_BACKEND_POOL_CI=isolated node api/tests/gdprBackendPoolIsolated.pg17.test.js

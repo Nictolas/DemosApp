@@ -71,12 +71,17 @@ class FakeB2 {
           },
           destroy:()=>{this.streamDestroyed=true;}
         };
-        return {ContentLength:this.declaredLength ?? undefined,Body:stream};
+        return {VersionId:object.versionId,
+          ContentLength:this.declaredLength ?? object.body.length,
+          ObjectLockMode:object.mode,ObjectLockRetainUntilDate:object.until,
+          DeleteMarker:false,Body:stream};
       }
       const payload=this.failRead?Buffer.from('{"bad":true}'):object.body;
       return {
+        VersionId:object.versionId,
         ContentLength:this.declaredLength ?? object.body.length,
-        Body:{async *[Symbol.asyncIterator](){yield payload;}}
+        ObjectLockMode:object.mode,ObjectLockRetainUntilDate:object.until,
+        DeleteMarker:false,Body:{async *[Symbol.asyncIterator](){yield payload;}}
       };
     }
     throw Error('Unexpected AWS operation: '+name);
@@ -182,10 +187,10 @@ test('readback is bounded: reject huge declared length before buffering and abor
 
   // Header alone must reject before consuming any body stream.
   b2.declaredLength=90000000;
-  await assert.rejects(journal.verifyArchivedReceipt(event,receipt),/bounded read limit/);
+  await assert.rejects(journal.verifyArchivedReceipt(event,receipt),/version or metadata mismatch/);
   b2.declaredLength=null;
 
-  // A lying/missing ContentLength must not bypass the streaming cap.
+  // A lying but bounded ContentLength must not bypass the streaming cap.
   b2.streamChunks=[Buffer.alloc(4096),Buffer.alloc(4097)];
   await assert.rejects(journal.verifyArchivedReceipt(event,receipt),/bounded read limit/);
   assert.equal(b2.streamDestroyed,true);
@@ -208,7 +213,11 @@ test('nonstreaming B2 body is rejected without invoking an unbounded buffer help
   let called=false;
   b2.send=async command=>{
     if(command.constructor.name==='GetObjectCommand') {
-      return {Body:{transformToByteArray:async()=>{called=true;return Buffer.alloc(1000000);}}};
+      const stored=b2.objects.get(saved.key);
+      return {VersionId:stored.versionId,ContentLength:stored.body.length,
+        ObjectLockMode:stored.mode,ObjectLockRetainUntilDate:stored.until,
+        DeleteMarker:false,
+        Body:{transformToByteArray:async()=>{called=true;return Buffer.alloc(1000000);}}};
     }
     return originalSend(command);
   };
@@ -322,7 +331,7 @@ test('existing event key with changed content is a fatal conflict',async()=>{
 test('readback hash mismatch and governance retention fail closed',async()=>{
   for(const bad of [{failRead:true},{failRetention:true}]){
     const b2=new FakeB2(bad);
-    await assert.rejects(service(b2).archiveEvent(EVT()),/hash mismatch|COMPLIANCE/);
+    await assert.rejects(service(b2).archiveEvent(EVT()),/length mismatch|hash mismatch|COMPLIANCE/);
   }
 });
 test('cursor advances only when every object in bounded batch is verified',async()=>{

@@ -25,7 +25,10 @@ router.get('/health', (req, res) => {
   });
 });
 
-// Endpoint per testare la connessione al database
+// Diagnostica SQL legacy: disponibile solo fuori dalla produzione.
+// NON montarla in produzione neppure con ALLOW_DEV_API_SURFACE=true;
+// ogni chiamata test-db crea una connessione/lettura non necessaria.
+if (process.env.NODE_ENV !== 'production') {
 router.get('/test-db', async (req, res) => {
   try {
     console.log('🧪 Test connessione database...');
@@ -68,5 +71,6 @@ router.get('/test-db', async (req, res) => {
     });
   }
 });
+}
 
 module.exports = router;

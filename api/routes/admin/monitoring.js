@@ -355,30 +355,14 @@ router.get('/summary', async (req, res) => {
   }
 });
 
-// POST /api/admin/monitoring/cleanup - Pulizia dati vecchi
-router.post('/cleanup', auditMiddleware, async (req, res) => {
-  try {
-    const { retentionDays = 30 } = req.body;
-    
-    const performanceCleaned = await performanceMonitor.cleanupOldMetrics(retentionDays);
-    const healthCleaned = await healthCheckService.cleanupHealthHistory(retentionDays);
-    
-    res.json({
-      success: true,
-      message: `Pulizia completata`,
-      data: {
-        performanceMetrics: performanceCleaned,
-        healthChecks: healthCleaned,
-        totalCleaned: performanceCleaned + healthCleaned
-      }
-    });
-  } catch (error) {
-    console.error('❌ Errore pulizia monitoraggio:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore pulizia monitoraggio'
-    });
-  }
+// POST /api/admin/monitoring/cleanup - RP-10 not approved.
+router.post('/cleanup', auditMiddleware, async (_req, res) => {
+  // Monitoring and health data require explicit retention approval.
+  // Do not report deletion success when none was independently verified.
+  return res.status(409).json({
+    success: false,
+    error: 'RETENTION_POLICY_NOT_APPROVED'
+  });
 });
 
 // POST /api/admin/monitoring/start - Avvia monitoraggio

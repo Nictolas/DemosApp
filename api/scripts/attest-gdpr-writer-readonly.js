@@ -126,7 +126,8 @@ function publicReport(rows) {
     state.api_roles_with_dml_grants === 0;
   const qualified = ledgerProtected && state.ledger_insert_grant === true &&
     state.ledger_select_grant === true &&
-    (state.ledger_owner === true || (state.bypass_rls === true && state.ledger_force_rls !== true));
+    ((state.ledger_owner === true && state.ledger_force_rls === false) ||
+      state.bypass_rls === true);
   return {
     project: 'Demos-Staging', environment_target_checked: true,
     current_role: state.current_role, session_role: state.session_role,

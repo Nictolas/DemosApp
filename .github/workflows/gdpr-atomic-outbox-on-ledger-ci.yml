@@ -1,16 +1,6 @@
 name: GDPR atomic outbox on protected ledger (synthetic PG17)
 
 on:
-  # The workflow is first introduced in this stacked Draft. Its parent
-  # branch does not contain this workflow, so PR checks may not start.
-  # Restrict push verification to this isolated Draft branch only.
-  push:
-    branches:
-      - 'fix/gdpr-outbox-atomic-on-b2-contract-20261027'
-    paths:
-      - 'api/services/privacyErasureLedgerService.js'
-      - 'api/tests/gdprOutboxAtomicIsolated.pg17.test.js'
-      - '.github/workflows/gdpr-atomic-outbox-on-ledger-ci.yml'
   pull_request:
     paths:
       - 'api/services/privacyErasureLedgerService.js'

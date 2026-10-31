@@ -143,11 +143,11 @@ router.get('/stats', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero statistiche audit:', error);
+    console.error('AUDIT_DASHBOARD_STATS_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: error.message
+      message: 'Impossibile recuperare i dati di audit.'
     });
   }
 });
@@ -226,7 +226,7 @@ router.get('/logs', async (req, res) => {
           userNames[user.id] = `${user.nome || ''} ${user.cognome || ''}`.trim() || 'Utente Sconosciuto';
         });
       } catch (error) {
-        console.error('Errore recupero nomi utenti:', error);
+        console.error('AUDIT_DASHBOARD_USER_LOOKUP_FAILED');
       }
     }
     
@@ -262,7 +262,7 @@ router.get('/logs', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero log audit:', error);
+    console.error('AUDIT_DASHBOARD_LOGS_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -297,7 +297,7 @@ router.get('/user/:userId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero log utente:', error);
+    console.error('AUDIT_DASHBOARD_USER_LOGS_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -412,11 +412,11 @@ router.get('/suspicious', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel rilevamento attività sospette:', error);
+    console.error('AUDIT_DASHBOARD_SUSPICIOUS_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: error.message
+      message: 'Impossibile recuperare i dati di audit.'
     });
   }
 });
@@ -491,7 +491,7 @@ router.get('/violations', async (req, res) => {
           userNames[user.id] = `${user.nome || ''} ${user.cognome || ''}`.trim() || 'Utente Sconosciuto';
         });
       } catch (error) {
-        console.error('Errore recupero nomi utenti:', error);
+        console.error('AUDIT_DASHBOARD_USER_LOOKUP_FAILED');
       }
     }
     
@@ -543,11 +543,11 @@ router.get('/violations', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero violazioni:', error);
+    console.error('AUDIT_DASHBOARD_VIOLATIONS_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: error.message
+      message: 'Impossibile recuperare i dati di audit.'
     });
   }
 });
@@ -605,11 +605,11 @@ router.get('/performance', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero performance:', error);
+    console.error('AUDIT_DASHBOARD_PERFORMANCE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: error.message
+      message: 'Impossibile recuperare i dati di audit.'
     });
   }
 });
@@ -620,11 +620,14 @@ router.get('/performance', async (req, res) => {
  */
 router.post('/cleanup', async (req, res) => {
   try {
-    // Se Axiom è abilitato, la pulizia viene gestita automaticamente da Axiom
+    // Axiom applies its own dataset retention, but this endpoint cannot erase
+    // external Axiom records or immutable B2 archive versions. Never report
+    // cleanup success without provider-specific evidence and RP-10 approval.
     if (process.env.AXIOM_ENABLED === 'true') {
-      return res.json({
-        success: true,
-        message: 'Con Axiom abilitato, la pulizia dei log viene gestita automaticamente da Axiom. Non è necessario pulire manualmente.',
+      return res.status(409).json({
+        success: false,
+        error: 'AUDIT_RETENTION_PROVIDER_REVIEW_REQUIRED',
+        message: 'Nessuna pulizia eseguita. Verificare separatamente la conservazione su Axiom e B2.',
         deleted_count: 0
       });
     }
@@ -640,11 +643,16 @@ router.post('/cleanup', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella pulizia log audit:', error);
-    res.status(error.code === 'AUDIT_RETENTION_POLICY_NOT_APPROVED' ? 409 : 500).json({
+    const policyPending = error?.code === 'AUDIT_RETENTION_POLICY_NOT_APPROVED';
+    // Never disclose raw SQL/provider exceptions to the Admin HTTP client or
+    // unminimized logs; diagnostics use controlled, stable codes only.
+    console.error(policyPending ? 'AUDIT_CLEANUP_POLICY_NOT_APPROVED' : 'AUDIT_CLEANUP_FAILED');
+    return res.status(policyPending ? 409 : 500).json({
       success: false,
-      error: error.code === 'AUDIT_RETENTION_POLICY_NOT_APPROVED' ? error.code : 'Errore interno del server',
-      message: error.message
+      error: policyPending ? 'AUDIT_RETENTION_POLICY_NOT_APPROVED' : 'AUDIT_CLEANUP_FAILED',
+      message: policyPending
+        ? 'La politica di conservazione dei log non è ancora approvata.'
+        : 'Impossibile completare la pulizia dei log.'
     });
   }
 });

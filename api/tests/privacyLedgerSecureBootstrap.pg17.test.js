@@ -31,7 +31,14 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         FROM pg_catalog.pg_class c
         WHERE c.oid='public.privacy_erasure_ledger'::regclass
       `);
-      assert.deepEqual(protectedTable.rows[0],{rls:true,forced:false,caller_is_owner:true});
+      assert.deepEqual(protectedTable.rows[0],{rls:true,forced:true,caller_is_owner:true});
+      // Disabling FORCE must immediately prevent GDPR event writes, and
+      // explicit operator maintenance must repair it before writes resume.
+      await pool.query('ALTER TABLE public.privacy_erasure_ledger NO FORCE ROW LEVEL SECURITY');
+      await assert.rejects(Ledger.recordEvent(pool,fixture),
+        error=>error?.code==='GDPR_LEDGER_SCHEMA_NOT_PROTECTED');
+      await Ledger.ensureTable(pool);
+      assert.equal((await pool.query("SELECT relforcerowsecurity AS forced FROM pg_catalog.pg_class WHERE oid='public.privacy_erasure_ledger'::regclass")).rows[0].forced,true);
       const queryPrivileges=async()=>{
         const r=await pool.query(`
           SELECT COUNT(*)::int AS n FROM pg_catalog.pg_roles
@@ -339,7 +346,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         assert.equal(captured[0].event_type,Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED);
 
         const imported=await Ledger.mergeCaptured(client,[{
-          event_key:'synthetic-imported-event',
+          event_key:'00000000-0000-4000-8000-000000000001',
           subject_user_id:keepId,
           event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_GRANTED,
           occurred_at:new Date().toISOString(),
@@ -374,7 +381,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
   test('GDPR capture preserves PostgreSQL microseconds for exact idempotent offline replay',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const event={
-      event_key:'synthetic-microsecond-event',
+      event_key:'00000000-0000-4000-8000-000000000002',
       subject_user_id:'synthetic-precision-person',
       event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
       occurred_at:'2026-01-02T03:04:05.123456Z',
@@ -416,7 +423,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
   test('GDPR import preflights identities, timestamps and details before any batch write',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const valid={
-      event_key:'synthetic-valid-batch-event',
+      event_key:'00000000-0000-4000-8000-000000000003',
       subject_user_id:'synthetic-valid-subject',
       event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
       occurred_at:'2026-01-02T03:04:05.123456Z',
@@ -432,29 +439,29 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       const circular={source:'synthetic-circular'};
       circular.self=circular;
       const invalid=[
-        {...valid,event_key:'synthetic-null-subject',subject_user_id:null},
-        {...valid,event_key:'synthetic-missing-subject',subject_user_id:undefined},
-        {...valid,event_key:'synthetic-empty-subject',subject_user_id:''},
-        {...valid,event_key:'synthetic-blank-subject',subject_user_id:'   '},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000004',subject_user_id:null},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000005',subject_user_id:undefined},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000006',subject_user_id:''},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000007',subject_user_id:'   '},
         {...valid,event_key:''},
         {...valid,event_key:undefined},
         {...valid,event_type:'unknown-event'},
-        {...valid,event_key:'synthetic-missing-time',occurred_at:null},
-        {...valid,event_key:'synthetic-invalid-time',occurred_at:'not-a-time'},
-        {...valid,event_key:'synthetic-impossible-time',occurred_at:'2026-02-30T00:00:00.000000Z'},
-        {...valid,event_key:'synthetic-date-object',
+        {...valid,event_key:'00000000-0000-4000-8000-000000000008',occurred_at:null},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000009',occurred_at:'not-a-time'},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000010',occurred_at:'2026-02-30T00:00:00.000000Z'},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000011',
           occurred_at:new Date('2026-01-02T03:04:05.123Z')},
-        {...valid,event_key:'synthetic-bigint',details:{value:1n}},
-        {...valid,event_key:'synthetic-circular',details:circular},
-        {...valid,event_key:'synthetic-undefined-json',details:Symbol('invalid')},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000012',details:{value:1n}},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000013',details:circular},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000014',details:Symbol('invalid')},
         // Malformed archives must not silently replace details with {}.
-        {...valid,event_key:'synthetic-null-details',details:null},
-        {...valid,event_key:'synthetic-undefined-details',details:undefined},
-        {...valid,event_key:'synthetic-false-details',details:false},
-        {...valid,event_key:'synthetic-zero-details',details:0},
-        {...valid,event_key:'synthetic-array-details',details:[]},
-        {...valid,event_key:'synthetic-string-details',details:'legacy-raw-json'},
-        {...valid,event_key:'synthetic-date-details',details:new Date('2026-01-02T03:04:05Z')},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000015',details:null},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000016',details:undefined},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000017',details:false},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000018',details:0},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000019',details:[]},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000020',details:'legacy-raw-json'},
+        {...valid,event_key:'00000000-0000-4000-8000-000000000021',details:new Date('2026-01-02T03:04:05Z')},
         valid // A duplicate within one captured batch must never be replayed.
       ];
       for (const row of invalid) {
@@ -473,7 +480,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       assert.equal(await Ledger.mergeCaptured(pool,[valid]),1,
         'a valid captured event must still import normally');
       let serializationCalls=0;
-      const serializedOnce={...valid,event_key:'synthetic-single-serialization',
+      const serializedOnce={...valid,event_key:'00000000-0000-4000-8000-000000000022',
         details:{toJSON(){serializationCalls++;return {source:'synthetic-once'};}}};
       assert.equal(await Ledger.mergeCaptured(pool,[serializedOnce]),1);
       assert.equal(serializationCalls,1,'details must be serialized once before SQL');
@@ -485,7 +492,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
   test('GDPR offline import accepts identical replays but rejects conflicting event keys',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const fixed={
-      event_key:'synthetic-fixed-event',
+      event_key:'00000000-0000-4000-8000-000000000023',
       subject_user_id:'synthetic-person',
       event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
       occurred_at:'2026-01-02T03:04:05.000Z',
@@ -511,7 +518,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
           await client.query('BEGIN');
           await assert.rejects(
             Ledger.mergeCaptured(client,[
-              {...fixed,event_key:'synthetic-batch-new-event'},
+              {...fixed,event_key:'00000000-0000-4000-8000-000000000024'},
               conflicting
             ]),
             e=>e?.code==='GDPR_LEDGER_EVENT_KEY_CONFLICT',
@@ -540,7 +547,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
   test('GDPR import rejects trigger-mutated rows and rolls back earlier writes',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const event={
-      event_key:'synthetic-import-verified',
+      event_key:'00000000-0000-4000-8000-000000000025',
       subject_user_id:'synthetic-import-person',
       event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
       occurred_at:'2026-01-02T03:04:05.123456Z',
@@ -764,7 +771,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
           'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
         )).rows[0].n,1,'restricted role can see only 1/2 synthetic events');
         const partial=[{
-          event_key:'synthetic-import',
+          event_key:'00000000-0000-4000-8000-000000000026',
           subject_user_id:'synthetic-visible',
           event_type:Ledger.EVENT_TYPES.POLITICAL_CONSENT_REVOKED,
           occurred_at:'2026-01-02T03:04:05.000000Z',
@@ -797,7 +804,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
     }
   });
 
-  test('replay rejects SQL role with complete ledger but RLS-hidden restored users',async()=>{
+  test('replay refuses owner with FORCE-RLS-hidden ledger and restored users',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const role='gdpr_ci_unfiltered_ledger_hidden_users';
     const deletedAccount='synthetic-restored-hidden-user';
@@ -832,9 +839,9 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
       });
       await pool.query('CREATE ROLE '+role+' NOLOGIN NOBYPASSRLS NOSUPERUSER');
       await pool.query('GRANT USAGE ON SCHEMA public TO '+role);
-      // Ledger owner bypasses its RLS, but remains constrained by RLS on
-      // the independent restored users table. This is a real PG17 role,
-      // not a mock of a 0-row DELETE.
+      // FORCE RLS means even a non-BYPASSRLS ledger owner cannot claim
+      // unconditional tombstone visibility. The restored users are also
+      // independently hidden. Both deny routes must remain fail-closed.
       await pool.query('ALTER TABLE public.privacy_erasure_ledger OWNER TO '+role);
       await pool.query('GRANT SELECT,DELETE ON public.users TO '+role);
       await pool.query('ALTER TABLE public.users ENABLE ROW LEVEL SECURITY');
@@ -843,16 +850,19 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
         await client.query('BEGIN');
         await client.query('SET LOCAL ROLE '+role);
         assert.equal((await client.query(
-          "SELECT NOT pg_catalog.row_security_active("+
-          "'public.privacy_erasure_ledger'::regclass) AS complete"
-        )).rows[0].complete,true);
+          "SELECT pg_catalog.row_security_active("+
+          "'public.privacy_erasure_ledger'::regclass) AS active"
+        )).rows[0].active,true);
+        assert.equal((await client.query(
+          'SELECT COUNT(*)::int AS n FROM public.privacy_erasure_ledger'
+        )).rows[0].n,0,'FORCE RLS denies ledger-owner tombstone visibility');
         assert.equal((await client.query(
           'SELECT COUNT(*)::int AS n FROM public.users'
         )).rows[0].n,0,'user row is hidden by the separate RLS policy');
         await assert.rejects(
           Ledger.applyCurrentPrivacyState(client),
-          error=>error?.code==='GDPR_REPLAY_DATA_VISIBILITY_INCOMPLETE',
-          'visible tombstones must never certify deletions in filtered app tables'
+          error=>error?.code==='GDPR_LEDGER_VISIBILITY_INCOMPLETE',
+          'FORCE RLS must refuse incomplete tombstones before replay ever reaches app tables'
         );
       } finally {
         await client.query('ROLLBACK');
@@ -877,7 +887,7 @@ if (!uri.endsWith('@localhost:5432/privacy_synthetic')) {
   test('missing or unprotected ledger must block capture, import and replay without auto-provisioning',async()=>{
     const pool=new Pool({connectionString:uri,max:2});
     const synthetic=[{
-      event_key:'synthetic-restore-event',
+      event_key:'00000000-0000-4000-8000-000000000027',
       subject_user_id:'synthetic-restore-user',
       event_type:Ledger.EVENT_TYPES.ACCOUNT_DELETED,
       occurred_at:'2026-02-03T04:05:06.000Z',

@@ -99,21 +99,12 @@ class RateLimitService {
     }
   }
 
-  // Pulisci vecchie violazioni
-  static async cleanupOldViolations(retentionDays = 30) {
-    try {
-      const query = `
-        DELETE FROM rate_limit_violations 
-        WHERE timestamp < NOW() - INTERVAL '${retentionDays} days'
-      `;
-      
-      const result = await pool.query(query);
-      console.log(`🧹 RATE LIMIT CLEANUP: Rimosse ${result.rowCount} violazioni vecchie`);
-      return result.rowCount;
-    } catch (error) {
-      console.error('❌ Errore nella pulizia violazioni rate limit:', error);
-      return 0;
-    }
+  // RP-10 non approvata: blocco anche per chiamate dirette fuori dalla route Admin.
+  static async cleanupOldViolations(_retentionDays = 30) {
+    const error = new Error('RETENTION_POLICY_NOT_APPROVED');
+    error.code = 'RETENTION_POLICY_NOT_APPROVED';
+    error.statusCode = 409;
+    throw error;
   }
 
   // Verifica se un IP è bloccato

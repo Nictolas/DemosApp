@@ -7,6 +7,14 @@ const { pool } = require('../middleware/auth');
 const AuditService = require('./auditService');
 
 class DataRetentionService {
+  // RP-10 is unapproved: legacy age-based cleanup must not mutate user records.
+  static assertRetentionPolicyApproved() {
+    const error = new Error('RETENTION_POLICY_NOT_APPROVED');
+    error.code = 'RETENTION_POLICY_NOT_APPROVED';
+    error.statusCode = 409;
+    throw error;
+  }
+
   /**
    * Policy di retention per ogni tipo di dato (in giorni)
    */
@@ -111,6 +119,7 @@ class DataRetentionService {
    * Cancella dati scaduti per un utente specifico
    */
   static async deleteExpiredData(userId, dataTypes = null) {
+    this.assertRetentionPolicyApproved();
     try {
       const policies = this.getRetentionPolicies();
       const deletedCounts = {};
@@ -177,6 +186,7 @@ class DataRetentionService {
    * Cancella dati scaduti per tutti gli utenti
    */
   static async deleteAllExpiredData(dataTypes = null) {
+    this.assertRetentionPolicyApproved();
     try {
       const policies = this.getRetentionPolicies();
       const deletedCounts = {};

@@ -303,7 +303,7 @@ class AuditService {
       const result = await pool.query(query, values);
       return result.rows;
     } catch (error) {
-      console.error('❌ Errore nel recupero audit logs:', error);
+      console.error('AUDIT_SERVICE_LOGS_READ_FAILED');
       throw error;
     }
   }
@@ -381,7 +381,7 @@ class AuditService {
       const result = await pool.query(query, [userId]);
       return result.rows;
     } catch (error) {
-      console.error('❌ Errore nel recupero statistiche audit:', error);
+      console.error('AUDIT_SERVICE_STATS_READ_FAILED');
       throw error;
     }
   }
@@ -404,7 +404,7 @@ class AuditService {
       policyError.statusCode = 409;
       throw policyError;
     } catch (error) {
-      console.error('❌ Errore nella pulizia audit logs:', error);
+      console.error('AUDIT_SERVICE_CLEANUP_FAILED');
       throw error;
     }
   }
@@ -424,7 +424,7 @@ class AuditService {
       const result = await pool.query(query, [userId]);
       return result.rows[0] || { processing_limited: false, limited_categories: [], reason: null };
     } catch (error) {
-      console.error('❌ Errore nel controllo limitazioni trattamento:', error);
+      console.error('AUDIT_SERVICE_PROCESSING_LIMITS_READ_FAILED');
       return { processing_limited: false, limited_categories: [], reason: null };
     }
   }
@@ -464,7 +464,7 @@ class AuditService {
       
       return result.rows[0];
     } catch (error) {
-      console.error('❌ Errore nell\'impostazione limitazioni trattamento:', error);
+      console.error('AUDIT_SERVICE_PROCESSING_LIMITS_WRITE_FAILED');
       throw error;
     }
   }
@@ -491,7 +491,7 @@ class AuditService {
       const result = await pool.query(query, [new Date(cutoffTime)]);
       return result.rows;
     } catch (error) {
-      console.error('❌ Errore nel rilevamento attività sospette:', error);
+      console.error('AUDIT_SERVICE_SUSPICIOUS_READ_FAILED');
       throw error;
     }
   }
@@ -515,7 +515,7 @@ class AuditService {
       const result = await pool.query(query);
       return result.rows[0];
     } catch (error) {
-      console.error('❌ Errore nel recupero statistiche:', error);
+      console.error('AUDIT_SERVICE_GENERAL_STATS_FAILED');
       throw error;
     }
   }

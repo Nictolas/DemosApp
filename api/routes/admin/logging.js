@@ -317,35 +317,13 @@ router.get('/export', auditMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/admin/logging/cleanup - Pulizia log vecchi
-router.post('/cleanup', auditMiddleware, async (req, res) => {
-  try {
-    // Se Axiom è abilitato, la pulizia viene gestita automaticamente
-    if (process.env.AXIOM_ENABLED === 'true') {
-      return res.json({
-        success: true,
-        message: 'Con Axiom abilitato, la pulizia dei log viene gestita automaticamente da Axiom. Non è necessario pulire manualmente.',
-        deletedCount: 0
-      });
-    }
-    
-    const { retentionDays = 30 } = req.body;
-    
-    const deletedCount = await logger.cleanupOldLogs(retentionDays);
-    
-    res.json({
-      success: true,
-      message: `Puliti ${deletedCount} log vecchi`,
-      deletedCount
-    });
-  } catch (error) {
-    console.error('❌ Errore pulizia log:', error);
-    res.status(error.code === 'LOG_RETENTION_POLICY_NOT_APPROVED' ? 409 : 500).json({
-      success: false,
-      error: error.code === 'LOG_RETENTION_POLICY_NOT_APPROVED' ? error.code : 'Errore pulizia log',
-      message: error.message
-    });
-  }
+// POST /api/admin/logging/cleanup - RP-10 not approved.
+router.post('/cleanup', auditMiddleware, async (_req, res) => {
+  // Axiom enabled is not evidence of a provider deletion or approved TTL.
+  return res.status(409).json({
+    success: false,
+    error: 'LOG_RETENTION_POLICY_NOT_APPROVED'
+  });
 });
 
 // GET /api/admin/logging/levels - Livelli di log disponibili

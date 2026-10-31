@@ -116,6 +116,37 @@ test('non-owner without bypass never obtains a positive catalog eligibility clai
   assert.equal(result.status, 'READONLY_IDENTITY_ONLY_NOT_RELEASE_GO');
 });
 
+test('FORCE RLS blocks owner-only catalog eligibility but not BYPASSRLS', () => {
+  const base = {
+    current_role: 'synthetic_writer', session_role: 'synthetic_writer',
+    role_setting: 'none', database_name: 'postgres',
+    ledger_present: true, ledger_rls: true, ledger_force_rls: true,
+    ledger_owner: true, ledger_insert_grant: true,
+    ledger_select_grant: true, bypass_rls: false,
+    public_grants_exist: false, public_column_grants_exist: false,
+    api_roles_with_dml_grants: 0
+  };
+  // A table owner with FORCE RLS is subject to policies. No policy is
+  // proven by this catalog-only probe: never suggest possible writer access.
+  const owner = publicReport([base]);
+  assert.equal(owner.catalog_eligibility, 'NOT_ATTESTED');
+  assert.equal(owner.status, 'READONLY_IDENTITY_ONLY_NOT_RELEASE_GO');
+  assert.equal(owner.live_render_pool_verified, false);
+
+  // PostgreSQL BYPASSRLS bypasses row security even when FORCE is set.
+  // This remains only a catalog possibility, NEVER a runtime/Render proof.
+  for (const state of [
+    {...base, ledger_owner: false, bypass_rls: true},
+    {...base, ledger_owner: true, bypass_rls: true}
+  ]) {
+    const bypass = publicReport([state]);
+    assert.equal(bypass.catalog_eligibility, 'POSSIBLE_NOT_PROVEN');
+    assert.equal(bypass.live_render_pool_verified, false);
+  }
+  assert.equal(publicReport([{...base, ledger_force_rls: false}])
+    .catalog_eligibility, 'POSSIBLE_NOT_PROVEN');
+});
+
 test('RLS alone is insufficient when PUBLIC or Supabase API roles still have privileges', () => {
   const base = {
     current_role: 'synthetic_writer', session_role: 'synthetic_writer',

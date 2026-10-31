@@ -8,6 +8,7 @@ const { sealOffline, verifyOffline } = require('../services/gdprExternalEvidence
 const DB='political_selection_erasure_ci';
 const USER='00000000-0000-4000-8000-000000000301';
 const OTHER='00000000-0000-4000-8000-000000000302';
+const SURVIVOR='00000000-0000-4000-8000-000000000303';
 function guard(){
   const e=process.env;
   if(e.GITHUB_ACTIONS!=='true'||e.POLITICAL_SELECTION_ERASURE_CI!=='isolated'||
@@ -42,9 +43,12 @@ async function seedChoices(db){
 }
 async function setup(db){
   await db.query('CREATE TABLE users (id uuid PRIMARY KEY,nome text NOT NULL,ruolo text NOT NULL,rappresentante_camera uuid,candidato_comune uuid,candidato_attivo boolean NOT NULL DEFAULT false,political_opinions_consent boolean NOT NULL,political_opinions_consent_timestamp timestamptz,political_opinions_consent_ip_address text,political_opinions_consent_user_agent text,updated_at timestamptz DEFAULT NOW())');
+  await db.query('CREATE TABLE user_profile(user_id uuid PRIMARY KEY,data_nascita date,comune_residenza text,avatar_config jsonb)');
+  await db.query('CREATE TABLE active_sessions(id text PRIMARY KEY,user_id text NOT NULL,session_token text,ip_address text,user_agent text,is_active boolean)');
   await db.query('CREATE TABLE user_consents(user_id uuid PRIMARY KEY,political_opinions_consent boolean,political_opinions_consent_timestamp timestamptz,political_opinions_consent_ip_address text,political_opinions_consent_user_agent text,updated_at timestamptz DEFAULT NOW())');
   await db.query('CREATE TABLE opinioni_risposte(user_id uuid PRIMARY KEY,energia_nucleare text)');
   await db.query('CREATE TABLE political_selections(user_id uuid NOT NULL,selected_user_id uuid NOT NULL,selection_kind text NOT NULL)');
+  await db.query('CREATE TABLE civic_ballot_positions(civic_ballot_id uuid NOT NULL,user_id uuid NOT NULL,choice text NOT NULL,PRIMARY KEY(civic_ballot_id,user_id))');
   await db.query('CREATE TABLE user_representatives(user_id uuid PRIMARY KEY,rappresentante_camera uuid,candidato_comune uuid)');
   await db.query("INSERT INTO users(id,nome,ruolo,rappresentante_camera,candidato_comune,candidato_attivo,political_opinions_consent) VALUES ($1,'Synthetic','E',$2,$2,true,true),($2,'Other','E',NULL,NULL,false,true)",[USER,OTHER]);
   await db.query('INSERT INTO user_consents(user_id,political_opinions_consent) VALUES ($1,true),($2,true)',[USER,OTHER]);
@@ -113,7 +117,26 @@ async function main(){
     // Account deletion must not depend on foreign keys existing after a
     // partial backup restore. This fixture intentionally has NO FKs.
     // A separate user owns a canonical selection and a legacy
-    // user_representatives row; both, plus user_consents, must be purged.
+    // user_representatives row, consent and referendum choice must be purged.
+    // The referendum fixture also omits the normally cascading user FK.
+    await db.query(
+      "INSERT INTO users(id,nome,ruolo,political_opinions_consent) VALUES ($1,'Survivor','E',true)",
+      [SURVIVOR]
+    );
+    // Profiles and operational refresh-session hashes must also be removed
+    // explicitly, without relying on cascading account foreign keys.
+    await db.query(
+      "INSERT INTO user_profile(user_id,data_nascita,comune_residenza,avatar_config) VALUES ($1,'2000-01-01','synthetic-deleted',$3::jsonb),($2,'2001-02-03','synthetic-survivor',$4::jsonb)",
+      [OTHER,SURVIVOR,JSON.stringify({color:'red'}),JSON.stringify({color:'blue'})]
+    );
+    await db.query(
+      "INSERT INTO active_sessions(id,user_id,session_token,ip_address,user_agent,is_active) VALUES ('deleted-session',$1,'synthetic-deleted-hash','192.0.2.1','synthetic-deleted',true),('surviving-session',$2,'synthetic-surviving-hash','192.0.2.2','synthetic-survivor',true)",
+      [OTHER,SURVIVOR]
+    );
+    await db.query(
+      "INSERT INTO civic_ballot_positions(civic_ballot_id,user_id,choice) VALUES ($1,$2,'YES'),($1,$3,'NO')",
+      [USER,OTHER,SURVIVOR]
+    );
     await db.query(
       'INSERT INTO user_representatives(user_id,rappresentante_camera) VALUES ($1,$2)',
       [OTHER,USER]
@@ -122,29 +145,47 @@ async function main(){
       users:await scalar(db,'SELECT COUNT(*)::int FROM users WHERE id=$1',[OTHER]),
       consent:await scalar(db,'SELECT COUNT(*)::int FROM user_consents WHERE user_id=$1',[OTHER]),
       choices:await scalar(db,'SELECT COUNT(*)::int FROM political_selections WHERE user_id=$1',[OTHER]),
+      profile:await scalar(db,'SELECT COUNT(*)::int FROM user_profile WHERE user_id=$1',[OTHER]),
+      sessions:await scalar(db,'SELECT COUNT(*)::int FROM active_sessions WHERE user_id=$1',[OTHER]),
+      referendum:await scalar(db,'SELECT COUNT(*)::int FROM civic_ballot_positions WHERE user_id=$1',[OTHER]),
       representatives:await scalar(db,'SELECT COUNT(*)::int FROM user_representatives WHERE user_id=$1',[OTHER]),
     });
-    assert.deepEqual(await accountCounts(), {users:1,consent:1,choices:1,representatives:1});
+    assert.deepEqual(await accountCounts(), {users:1,consent:1,choices:1,profile:1,sessions:1,referendum:1,representatives:1});
     await db.query('BEGIN');
     const deletionProbe=await Ledger.enforceAccountDeletion(db,OTHER);
     assert.equal(deletionProbe.userDeleted,1);
-    assert.deepEqual(await accountCounts(), {users:0,consent:0,choices:0,representatives:0});
+    assert.deepEqual(await accountCounts(), {users:0,consent:0,choices:0,profile:0,sessions:0,referendum:0,representatives:0});
     await db.query('ROLLBACK');
-    assert.deepEqual(await accountCounts(), {users:1,consent:1,choices:1,representatives:1});
+    assert.deepEqual(await accountCounts(), {users:1,consent:1,choices:1,profile:1,sessions:1,referendum:1,representatives:1});
     await db.query('BEGIN');
-    const deletion=await Ledger.enforceAccountDeletion(db,OTHER);
-    assert.equal(deletion.userDeleted,1);
+    await Ledger.recordEvent(db,{userId:OTHER,eventType:Ledger.EVENT_TYPES.ACCOUNT_DELETED,details:{source:'synthetic-account-restore'}});
+    const deletion=await Ledger.applyCurrentPrivacyState(db);
+    assert.equal(deletion.accountsRemoved,1);
     await db.query('COMMIT');
-    assert.deepEqual(await accountCounts(), {users:0,consent:0,choices:0,representatives:0});
+    assert.deepEqual(await accountCounts(), {users:0,consent:0,choices:0,profile:0,sessions:0,referendum:0,representatives:0});
     assert.equal(await scalar(db,'SELECT COUNT(*)::int FROM users WHERE id=$1',[USER]),1,
       'deleting the other account must not remove a surviving user');
+
+    assert.equal(await scalar(db,'SELECT COUNT(*)::int FROM civic_ballot_positions WHERE user_id=$1 AND choice=$2',[SURVIVOR,'NO']),1,
+      'account replay must preserve another user referendum choice');
+    await db.query('BEGIN');
+    const secondDeletion=await Ledger.applyCurrentPrivacyState(db);
+    assert.equal(secondDeletion.accountsRemoved,0);
+    await db.query('COMMIT');
+    assert.deepEqual(await accountCounts(), {users:0,consent:0,choices:0,profile:0,sessions:0,referendum:0,representatives:0});
+    assert.equal(await scalar(db,'SELECT COUNT(*)::int FROM civic_ballot_positions WHERE user_id=$1',[SURVIVOR]),1);
+
+    const survivorProfile=(await db.query('SELECT comune_residenza,avatar_config FROM user_profile WHERE user_id=$1',[SURVIVOR])).rows;
+    assert.deepEqual(survivorProfile,[{comune_residenza:'synthetic-survivor',avatar_config:{color:'blue'}}]);
+    const survivorSessions=(await db.query('SELECT session_token,ip_address,user_agent,is_active FROM active_sessions WHERE user_id=$1',[SURVIVOR])).rows;
+    assert.deepEqual(survivorSessions,[{session_token:'synthetic-surviving-hash',ip_address:'192.0.2.2',user_agent:'synthetic-survivor',is_active:true}]);
 
     // Join the real pg17 captureCurrent serialization with the OFFLINE
     // proof. This does not upload, export to any external provider, or change
     // the existing ledger. The HMAC is synthetic and pinned independently by
     // the test harness only.
     const ledgerRows=await Ledger.captureCurrent(db);
-    assert.equal(ledgerRows.length,3);
+    assert.equal(ledgerRows.length,4);
     const syntheticKey=Buffer.alloc(32,19);
     const capturedAt=new Date().toISOString();
     const sealed=sealOffline({
@@ -165,7 +206,7 @@ async function main(){
       expectedSource:'gdpr_synthetic_pg17',now:Date.now()
     }),e=>e?.code==='GDPR_EXTERNAL_EVIDENCE_DIGEST_MISMATCH');
 
-    console.log('POLITICAL_SELECTION_ERASURE_PG17_PASS '+JSON.stringify({fixture:'synthetic',rollback:true,revocation:true,regrantNoResurrection:true,laterGrantPreserved:true,laterRevocationReplay:true,ledgerReplay:true,otherUserSelectionsPreserved:true,candidacyStatusPreserved:true,accountDeletionWithoutForeignKeys:true,accountDeletionRollback:true,signedPg17LedgerCapture:true,independentPinDetectsDroppedEvent:true,productionUntouched:true}));
+    console.log('POLITICAL_SELECTION_ERASURE_PG17_PASS '+JSON.stringify({fixture:'synthetic',rollback:true,revocation:true,regrantNoResurrection:true,laterGrantPreserved:true,laterRevocationReplay:true,ledgerReplay:true,otherUserSelectionsPreserved:true,candidacyStatusPreserved:true,accountDeletionWithoutForeignKeys:true,accountDeletionRollback:true,referendumDeletionWithoutForeignKeys:true,accountReplayIdempotent:true,profileDeletionWithoutForeignKeys:true,activeSessionDeletionWithoutForeignKeys:true,otherUserProfileAndSessionPreserved:true,otherUserReferendumChoicePreserved:true,signedPg17LedgerCapture:true,independentPinDetectsDroppedEvent:true,productionUntouched:true}));
   }catch(error){
     await db.query('ROLLBACK').catch(()=>{});
     throw error;

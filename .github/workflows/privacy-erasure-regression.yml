@@ -3,8 +3,26 @@ on:
   pull_request:
     paths:
       - 'api/services/privacyErasureLedgerService.js'
+      - 'api/services/dataRetentionService.js'
+      - 'api/routes/admin/data-retention.js'
+      - 'api/jobs/dataRetentionJob.js'
+      - 'api/app.js'
+      - 'api/middleware/auth.js'
+      - 'api/services/rateLimitService.js'
+      - 'api/routes/admin/validation.js'
+      - 'api/routes/admin/rate-limiting.js'
+      - 'api/routes/admin/monitoring.js'
+      - 'api/routes/admin/logging.js'
+      - 'api/services/performanceMonitor.js'
+      - 'api/services/healthCheckService.js'
+      - 'api/services/centralizedLogger.js'
+      - 'client/src/pages/DataRetention.tsx'
+      - 'scripts/test-retention-browser.cjs'
       - 'api/tests/legacyAdminCleanup.smoke.test.js'
       - 'api/tests/accountDeletion.integration.test.js'
+      - 'api/routes/admin/audit-dashboard.js'
+      - 'api/tests/auditCleanupFailClosed.test.js'
+      - 'api/tests/accountDeletionProductionShape.pg17.test.js'
       - 'api/tests/legacyLinkedRows.integration.test.js'
       - '.github/workflows/privacy-erasure-regression.yml'
 jobs:
@@ -33,5 +51,41 @@ jobs:
       - run: npm ci --prefix api --ignore-scripts
       - name: Test canonical account erasure with synthetic users
         run: node --test api/tests/legacyAdminCleanup.smoke.test.js api/tests/accountDeletion.integration.test.js
+      - name: Verify audit retention cleanup fails closed (synthetic, no provider)
+        run: node --test api/tests/auditCleanupFailClosed.test.js
       - name: Verify legacy linked rows and foreign keys
         run: node --test api/tests/legacyLinkedRows.integration.test.js
+      - name: Verify UUID production-shaped FK and GDPR erasure (synthetic PG17)
+        run: node --test api/tests/accountDeletionProductionShape.pg17.test.js
+
+  retention-browser:
+    name: Read-only retention page (synthetic Chromium)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend for synthetic regression only
+        run: npm run build --prefix client
+      - name: Install isolated Chromium runner
+        run: |
+          npm install --prefix /tmp/demos-retention-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          node /tmp/demos-retention-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Exercise compiled retention route without external requests
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-retention-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/data-retention >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-retention-browser/node_modules node scripts/test-retention-browser.cjs

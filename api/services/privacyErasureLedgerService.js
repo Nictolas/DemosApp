@@ -36,6 +36,7 @@ class PrivacyErasureLedgerService {
         details JSONB NOT NULL DEFAULT '{}'::jsonb
       );
       ALTER TABLE public.privacy_erasure_ledger ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.privacy_erasure_ledger FORCE ROW LEVEL SECURITY;
       REVOKE ALL ON TABLE public.privacy_erasure_ledger FROM PUBLIC;
       DO $gdpr_ledger_privileges$
       BEGIN
@@ -106,10 +107,11 @@ class PrivacyErasureLedgerService {
   static async assertProtectedLedger(client) {
     // This check only inspects pg_catalog; it never reads GDPR event rows.
     // regclass resolution raises 42P01 if a restore omitted the ledger.
-    // A restored table that exists but lacks RLS or has API/public grants
-    // must not silently accept a new sensitive GDPR event.
+    // Reject restored ledger without FORCE RLS, mirroring the outbox guard.
+    // Provider administrators with BYPASSRLS remain outside this check.
     const result = await client.query(`
       SELECT c.relrowsecurity AS rls_enabled,
+        c.relforcerowsecurity AS force_rls,
         EXISTS (
           SELECT 1
           FROM pg_catalog.aclexplode(
@@ -140,7 +142,7 @@ class PrivacyErasureLedgerService {
       WHERE c.oid = 'public.privacy_erasure_ledger'::regclass
     `);
     const state = result.rows?.[0];
-    if (state?.rls_enabled !== true ||
+    if (state?.rls_enabled !== true || state?.force_rls !== true ||
         state?.public_grants_exist !== false ||
         state?.public_column_grants_exist !== false ||
         state?.api_roles_with_dml_grants !== 0) {
@@ -226,16 +228,21 @@ class PrivacyErasureLedgerService {
       error.code = 'GDPR_LEDGER_INVALID_EVENT_DETAILS';
       throw error;
     }
-    if (outboxEnabled) {
-      const { normalizeEvent } = require('./privacyErasureB2Journal');
-      normalizeEvent({
-        event_key: eventKey,
-        subject_user_id: subjectUserId,
-        event_type: eventType,
-        occurred_at: '2000-01-01T00:00:00.000Z',
-        details: JSON.parse(detailsJson)
-      });
-    }
+    // Enforce the immutable B2 event format even when the outbox is OFF.
+    // Otherwise a committed SQL-only erasure can exceed the bounded 8192-byte
+    // archive format and become impossible to export when B2 is enabled later.
+    // This is a local validation only: importing the formatter does not
+    // construct an SDK client, open a connection or enable the exporter.
+    const { normalizeEvent } = require('./privacyErasureB2Journal');
+    normalizeEvent({
+      event_key: eventKey,
+      subject_user_id: subjectUserId,
+      event_type: eventType,
+      // PostgreSQL NOW() can include six fractional digits; validate against
+      // the longest lossless timestamp, not a shorter millisecond fixture.
+      occurred_at: '2000-01-01T00:00:00.000001Z',
+      details: JSON.parse(detailsJson)
+    });
 
     // The caller must use a single explicit SQL transaction for all account/
     // consent changes, this event and the outbox. No implicit DDL here.
@@ -359,6 +366,25 @@ class PrivacyErasureLedgerService {
       let details;
       try { details = JSON.stringify(row.details); } catch (_) { throw invalid(); }
       if (typeof details !== 'string' || details[0] !== '{') throw invalid();
+
+      // A captured SQL event is not automatically a valid immutable archive.
+      // Validate the exact JSONB-shaped payload and lossless timestamp against
+      // the B2 canonical format BEFORE the first import INSERT, even if the
+      // live outbox switch is OFF. An oversized or malformed historic event
+      // must stop operator recovery rather than be silently imported as a
+      // ledger row that could never be exported and independently verified.
+      // No B2 client or network connection is constructed by this formatter.
+      try {
+        const { normalizeEvent } = require('./privacyErasureB2Journal');
+        normalizeEvent({
+          event_key: row.event_key,
+          subject_user_id: row.subject_user_id,
+          event_type: row.event_type,
+          occurred_at: timestamp,
+          details: JSON.parse(details)
+        });
+      } catch (_) { throw invalid(); }
+
       seenKeys.add(row.event_key);
       prepared.push([
         row.event_key, row.subject_user_id, row.event_type, timestamp, details
@@ -493,6 +519,30 @@ class PrivacyErasureLedgerService {
     return result.rowCount || 0;
   }
 
+  // Preserve independently useful public civic records while removing the
+  // account reference. Fail closed if a future schema makes the field required:
+  // silently skipping it would leave a personal identifier after deletion.
+  static async clearNullableUserReference(client, table, column, userId) {
+    const info = await client.query(
+      `SELECT is_nullable FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
+      [table, column]
+    );
+    if (info.rows.length === 0) return 0;
+    if (info.rows[0].is_nullable !== 'YES') {
+      const error = new Error('GDPR_ERASURE_REFERENCE_NOT_NULLABLE');
+      error.code = 'GDPR_ERASURE_REFERENCE_NOT_NULLABLE';
+      throw error;
+    }
+    const result = await client.query(
+      `UPDATE public.${this.quoteIdentifier(table)}
+       SET ${this.quoteIdentifier(column)} = NULL
+       WHERE ${this.quoteIdentifier(column)}::text = $1`,
+      [String(userId)]
+    );
+    return result.rowCount || 0;
+  }
+
   static async cleanupAdditionalAccountData(client, userId) {
     let rowsDeleted = 0;
     let rowsUnlinked = 0;
@@ -510,6 +560,7 @@ class PrivacyErasureLedgerService {
       'voti_capo_stato',
       'voti_ice',
       'voti_referendum_abrogativi',
+      'civic_ballot_positions',
       'voti_amnistia',
       'voti_grazia',
       'voti_iniziative_popolari',
@@ -569,6 +620,30 @@ class PrivacyErasureLedgerService {
       ['notifiche_demos', 'id_utente'],
       ['notifiche_comunali', 'id_utente'],
       ['programmi', 'utente_id'],
+      ['user_profile', 'user_id'],
+      ['active_sessions', 'user_id'],
+      // Explicit erasure also works on a partial restore without FK CASCADE.
+      // GDPR request receipts are account-scoped; the separate protected
+      // privacy_erasure_ledger remains the minimum restore tombstone.
+      ['user_rights_requests', 'user_id'],
+      ['data_processing_limits', 'user_id'],
+      ['rate_limit_violations', 'user_id'],
+      ['premium_requests', 'userid'],
+      ['richieste_premium', 'utente_id'],
+      ['richieste_grazia', 'utente_id'],
+      ['segnalazioni', 'utente_id'],
+      ['notifiche_avvistamenti', 'id_utente'],
+      ['notifiche_voti_comuni', 'id_utente'],
+      ['notifiche_voti_parlamento', 'id_utente'],
+      ['grazia_requests', 'userid'],
+      // Handle dependent public-profile rows before deleting users.
+      // political_programs depends on political_candidacies, and mandate
+      // snapshots depend on political_mandates; children must go first.
+      ['candidati', 'user_id'],
+      ['mandate_program_snapshots', 'user_id'],
+      ['political_programs', 'user_id'],
+      ['political_candidacies', 'user_id'],
+      ['political_mandates', 'user_id'],
       ['user_devices', 'user_id'],
       ['user_notifications', 'user_id'],
       ['notifiche_preferenze', 'user_id'],
@@ -584,10 +659,30 @@ class PrivacyErasureLedgerService {
       ['user_political_territories', 'user_id'],
       ['user_electoral_unit_memberships', 'user_id'],
       ['riconoscimenti', 'user_id'],
-      ['user_auth_providers', 'user_id']
+      ['user_auth_providers', 'user_id'],
+      ['user_providers', 'user_id'],
+      ['sessions', 'user_id']
     ];
     for (const [table, column] of directLinks) {
       rowsDeleted += await this.deleteByColumn(client, table, column, userId);
+    }
+
+    // Public processes may outlive the author/approver's DEMOS account.
+    // Preserve the civic item, NOT the deleted user's UUID: relevant columns
+    // are nullable in the audited 2026-10-28 production schema.
+    const nullableLinks = [
+      ['eventi', 'creator_user_id'],
+      ['eventi', 'approved_by_user_id'],
+      ['eventi', 'election_lifecycle_closed_by_user_id'],
+      ['referendum_abrogativi', 'userid'],
+      ['iniziative_popolari', 'userid'],
+      ['governo_attuale', 'user_id'],
+      ['programmi', 'user_id_backup'],
+      ['civic_process_reconciliation_candidates', 'reviewed_by_user_id'],
+      ['civic_processes', 'realized_verified_by_user_id']
+    ];
+    for (const [table, column] of nullableLinks) {
+      rowsUnlinked += await this.clearNullableUserReference(client, table, column, userId);
     }
 
     return { rowsDeleted, rowsUnlinked };

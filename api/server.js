@@ -41,6 +41,10 @@ try {
   process.exit(1);
 }
 
+// GDPR SQL identity diagnostics must NOT run through the full web server.
+// The isolated, operator-only CLI is api/scripts/attest-gdpr-render-staging-isolated.js.
+// In production and normal staging the backend starts unchanged.
+
 // Gestione errori semplificata
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

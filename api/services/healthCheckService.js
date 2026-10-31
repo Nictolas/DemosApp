@@ -411,22 +411,14 @@ class HealthCheckService {
     }
   }
 
-  // Cleanup storico salute
-  async cleanupHealthHistory(retentionDays = 30) {
-    try {
-      const query = `
-        DELETE FROM health_checks 
-        WHERE timestamp < NOW() - INTERVAL '${retentionDays} days'
-      `;
-      
-      const result = await pool.query(query);
-      console.log(`🧹 Puliti ${result.rowCount} controlli salute vecchi`);
-      return result.rowCount;
-    } catch (error) {
-      console.error('❌ Errore pulizia storico salute:', error);
-      return 0;
-    }
+  // RP-10 not approved: block direct callers before any database query.
+  async cleanupHealthHistory(_retentionDays = 30) {
+    const error = new Error('RETENTION_POLICY_NOT_APPROVED');
+    error.code = 'RETENTION_POLICY_NOT_APPROVED';
+    error.statusCode = 409;
+    throw error;
   }
+
 }
 
 // Istanza singleton

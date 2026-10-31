@@ -759,25 +759,12 @@ class CentralizedLogger {
     }
   }
 
-  // Pulizia log vecchi
-  async cleanupOldLogs(retentionDays = 30) {
-    try {
-      // Se Axiom è abilitato, la pulizia viene gestita automaticamente da Axiom
-      if (process.env.AXIOM_ENABLED === 'true') {
-        console.log(`ℹ️  Con Axiom abilitato, la pulizia dei log viene gestita automaticamente da Axiom. Retention: ${retentionDays} giorni`);
-        return 0; // Non è necessario pulire manualmente
-      }
-      
-      // RP-09 non approvata: bloccare ogni cleanup locale fino a policy validata.
-      const policyError = new Error('LOG_RETENTION_POLICY_NOT_APPROVED');
-      policyError.code = 'LOG_RETENTION_POLICY_NOT_APPROVED';
-      policyError.statusCode = 409;
-      throw policyError;
-    } catch (error) {
-      if (error.code === 'LOG_RETENTION_POLICY_NOT_APPROVED') throw error;
-      console.error('❌ Errore pulizia log:', error);
-      return 0;
-    }
+  // RP-10 not approved: direct callers cannot claim a fictitious cleanup.
+  async cleanupOldLogs(_retentionDays = 30) {
+    const error = new Error('LOG_RETENTION_POLICY_NOT_APPROVED');
+    error.code = 'LOG_RETENTION_POLICY_NOT_APPROVED';
+    error.statusCode = 409;
+    throw error;
   }
 
   // Esporta log per analisi

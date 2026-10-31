@@ -117,38 +117,102 @@ function keyFor(event) {
   return 'demos/gdpr-erasure/v1/events/' + month + '/' + event.event_key + '.json';
 }
 class PrivacyErasureB2Journal {
-  constructor({env = process.env, client = null, clock = () => new Date()} = {}) {
+  constructor({env = process.env, client = null, clock = () => new Date(), readbackTimeoutMs = 15000} = {}) {
+    if (!Number.isSafeInteger(readbackTimeoutMs) || readbackTimeoutMs < 1 || readbackTimeoutMs > 15000) {
+      throw Error('Invalid bounded B2 readback timeout');
+    }
     this.env = env;
     this.client = client;
     this.clock = clock;
+    this.readbackTimeoutMs = readbackTimeoutMs;
+    // In-memory safety latch only. An uncertain remote PUT must not be
+    // retried by this exporter instance without independent reconciliation.
+    // This cannot protect a process restart or another worker.
+    this.uncertainWrite = false;
+  }
+  async sendBounded(client, command, timeoutCode) {
+    const abort = new AbortController();
+    let timer;
+    const deadline = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        abort.abort();
+        reject(Error(timeoutCode));
+      }, this.readbackTimeoutMs);
+    });
+    try {
+      const result = await Promise.race([
+        Promise.resolve().then(() => client.send(command, {abortSignal: abort.signal})),
+        deadline
+      ]);
+      if (abort.signal.aborted) throw Error(timeoutCode);
+      return result;
+    } finally {
+      clearTimeout(timer);
+      abort.abort();
+    }
   }
   config() { return validatedConfig(this.env); }
   s3(cfg) {
     if (this.client) return this.client;
     this.client = new S3Client({
       endpoint: cfg.endpoint, region: cfg.region, forcePathStyle: true,
-      maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED',
+      // A retried PUT could create a second COMPLIANCE-locked version after
+      // a lost acknowledgement. Do not allow automatic SDK-level retries.
+      maxAttempts: 1, requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
       credentials: {accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey}
     });
     return this.client;
   }
   async assertBucketCompliance(client, cfg) {
-    const response = await client.send(
-      new GetObjectLockConfigurationCommand({Bucket: cfg.bucket})
-    );
-    const lock = response.ObjectLockConfiguration || {};
-    const retention = lock.Rule?.DefaultRetention;
-    // Refuse the existing Axiom log bucket or any unlocked/governance store.
-    // No code path silently enables lock or changes a bucket policy.
-    if (lock.ObjectLockEnabled !== 'Enabled' ||
-        retention?.Mode !== 'COMPLIANCE' ||
-        !Number.isInteger(retention.Days) ||
-        retention.Days < cfg.retentionDays) {
-      throw Error('B2 bucket must have sufficient COMPLIANCE Object Lock default retention');
+    // The bucket preflight precedes version readback. A stalled provider here
+    // must not bypass the bounded readback timeout or hang a manual recovery
+    // verifier indefinitely. This is a separate local deadline; a real B2
+    // request that ignores AbortSignal still remains NO-GO after timeout.
+    const abort = new AbortController();
+    let timeoutId;
+    const deadline = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        abort.abort();
+        reject(Error('GDPR_B2_BUCKET_COMPLIANCE_TIMEOUT'));
+      }, this.readbackTimeoutMs);
+    });
+    try {
+      const response = await Promise.race([
+        client.send(new GetObjectLockConfigurationCommand({
+          Bucket: cfg.bucket
+        }), {abortSignal: abort.signal}),
+        deadline
+      ]);
+      if (abort.signal.aborted) throw Error('GDPR_B2_BUCKET_COMPLIANCE_TIMEOUT');
+      const lock = response?.ObjectLockConfiguration || {};
+      const retention = lock.Rule?.DefaultRetention;
+      // Refuse the existing Axiom log bucket or any unlocked/governance store.
+      // No code path silently enables lock or changes a bucket policy.
+      if (lock.ObjectLockEnabled !== 'Enabled' ||
+          retention?.Mode !== 'COMPLIANCE' ||
+          !Number.isInteger(retention.Days) ||
+          retention.Days < cfg.retentionDays) {
+        throw Error('B2 bucket must have sufficient COMPLIANCE Object Lock default retention');
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      abort.abort();
     }
   }
   async readVerified(client, cfg, key, event, expectedHash, versionId, requiredUntil) {
+    // Bound retention and object readback; a stalled provider or body cannot hang recovery.
+    const abort = new AbortController();
+    let body = null;
+    let timeoutId;
+    const timeout = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        abort.abort();
+        try { body?.destroy?.(); } catch (_) { /* fail closed */ }
+        reject(Error('GDPR_B2_READBACK_TIMEOUT'));
+      }, this.readbackTimeoutMs);
+    });
+    const readback = (async () => {
     // Metadata/headers are not enough: download the chosen object *version*.
     if (!versionId) throw Error('B2 object version ID required');
     if (!(requiredUntil instanceof Date) || !Number.isFinite(requiredUntil.getTime())) {
@@ -159,7 +223,8 @@ class PrivacyErasureB2Journal {
     // immutable version is not legally retained.
     const retained = await client.send(new GetObjectRetentionCommand({
       Bucket: cfg.bucket, Key: key, VersionId: versionId
-    }));
+    }), {abortSignal: abort.signal});
+    if (abort.signal.aborted) throw Error('GDPR_B2_READBACK_TIMEOUT');
     const retentionUntil = new Date(retained.Retention?.RetainUntilDate);
     if (retained.Retention?.Mode !== 'COMPLIANCE' ||
         !Number.isFinite(retentionUntil.getTime()) ||
@@ -168,14 +233,33 @@ class PrivacyErasureB2Journal {
     }
     const read = await client.send(new GetObjectCommand({
       Bucket: cfg.bucket, Key: key, VersionId: versionId
-    }));
-    if (read.ContentLength != null &&
-        (!Number.isSafeInteger(read.ContentLength) ||
-         read.ContentLength > MAX_EVENT_BYTES || read.ContentLength < 0)) {
+    }), {abortSignal: abort.signal});
+    body = read.Body;
+    // A client may ignore abortSignal and resolve after the deadline.
+    if (abort.signal.aborted) {
+      try { body?.destroy?.(); } catch (_) { /* fail closed */ }
+      throw Error('GDPR_B2_READBACK_TIMEOUT');
+    }
+    // S3 can return the requested bytes under another version ID. The
+    // immutable receipt is version-specific: matching bytes are not enough.
+    // Fail BEFORE reading the body if its provider identity or metadata is
+    // missing, contradictory or does not match the retained version.
+    const readRetentionUntil = read.ObjectLockRetainUntilDate == null
+      ? null : new Date(read.ObjectLockRetainUntilDate);
+    if (read.VersionId !== versionId || read.DeleteMarker === true ||
+        (read.ObjectLockMode != null && read.ObjectLockMode !== 'COMPLIANCE') ||
+        (readRetentionUntil !== null &&
+          (!Number.isFinite(readRetentionUntil.getTime()) ||
+           readRetentionUntil.getTime() !== retentionUntil.getTime())) ||
+        !Number.isSafeInteger(read.ContentLength) ||
+        read.ContentLength < 0 || read.ContentLength > MAX_EVENT_BYTES) {
       if (typeof read.Body?.destroy === 'function') read.Body.destroy();
-      throw Error('B2 archived event exceeds bounded read limit');
+      throw Error('B2 archived event version or metadata mismatch');
     }
     const payload = await bytesOf(read.Body);
+    if (read.ContentLength !== payload.length) {
+      throw Error('B2 archived event length mismatch');
+    }
     if (checksum(payload) !== expectedHash) {
       throw Error('B2 archived event hash mismatch');
     }
@@ -196,6 +280,13 @@ class PrivacyErasureB2Journal {
     // The recovery verifier needs the expiry of every version, not just
     // the fact that each one was retained at its individual readback time.
     return {sha256:expectedHash, versionId, retentionUntil:retentionUntil.toISOString()};
+    })();
+    try {
+      return await Promise.race([readback, timeout]);
+    } finally {
+      clearTimeout(timeoutId);
+      abort.abort();
+    }
   }
   async verifyArchivedReceipt(raw, receipt) {
     // Strictly read-only: a recovery readiness check must NEVER repair a
@@ -223,9 +314,38 @@ class PrivacyErasureB2Journal {
     );
   }
 
+  // A durable pre-PUT claim has NOT been implemented. A wrapped S3Client
+  // can evade instanceof, so arbitrary injected clients must NOT enable
+  // a direct write from an application/CLI process. Permit the old mock
+  // transport ONLY in explicitly isolated GitHub Actions test processes.
+  // This is a temporary negative gate, NOT a proof that CI mocks are real
+  // provider attestations or a production-grade capability mechanism.
+  assertNoRealWriteTransport() {
+    const invocation = typeof process.argv[1] === 'string'
+      ? process.argv[1].replaceAll(String.fromCharCode(92), '/') : '';
+    const segments = invocation.split('/');
+    const isTestFile = /^[A-Za-z0-9_.-]+[.]test[.]js$/.test(segments.at(-1) || '');
+    const isolatedTest = process.env.GITHUB_ACTIONS === 'true' &&
+      segments.at(-3) === 'api' && segments.at(-2) === 'tests' && isTestFile;
+    if (!isolatedTest || !this.client || this.client instanceof S3Client) {
+      throw Error('GDPR_B2_DURABLE_PUT_CLAIM_NOT_IMPLEMENTED');
+    }
+  }
   async archiveEvent(raw) {
+    if (this.uncertainWrite) {
+      throw Error('GDPR_B2_PUT_OUTCOME_UNKNOWN_REQUIRES_RECONCILIATION');
+    }
     const cfg = this.config();
     const event = normalizeEvent(raw);
+    this.assertNoRealWriteTransport();
+    // The existing uncertainWrite latch starts only *after* HEAD. Without
+    // this synchronous gate two parallel calls can both observe HEAD=404 and
+    // issue irreversible COMPLIANCE PUTs from the SAME process.
+    if (this.writeInProgress) {
+      throw Error('GDPR_B2_CONCURRENT_ARCHIVE_NOT_ALLOWED');
+    }
+    this.writeInProgress = true;
+    try {
     const client = this.s3(cfg);
     await this.assertBucketCompliance(client, cfg);
     const key = keyFor(event);
@@ -236,7 +356,9 @@ class PrivacyErasureB2Journal {
     const until = new Date(now.getTime() + cfg.retentionDays * MS_DAY);
     let head;
     try {
-      head = await client.send(new HeadObjectCommand({Bucket:cfg.bucket,Key:key}));
+      head = await this.sendBounded(client,
+        new HeadObjectCommand({Bucket:cfg.bucket,Key:key}),
+        'GDPR_B2_HEAD_TIMEOUT');
     } catch (error) {
       if (!notFound(error)) throw error;
     }
@@ -249,18 +371,27 @@ class PrivacyErasureB2Journal {
       return {eventKey:event.event_key,key,reused:true,
         ...(await this.readVerified(client,cfg,key,event,hash,head.VersionId,now))};
     }
-    const uploaded = await client.send(new PutObjectCommand({
+    // From this point an acknowledgement can be lost AFTER the provider
+    // has committed an immutable version. Never retry PUT automatically in
+    // this process, even if the transport reports an error or readback fails.
+    this.uncertainWrite = true;
+    const uploaded = await this.sendBounded(client, new PutObjectCommand({
       Bucket:cfg.bucket, Key:key, Body:payload, ContentType:'application/json',
       ServerSideEncryption:'AES256', ObjectLockMode:'COMPLIANCE',
       ObjectLockRetainUntilDate:until,
       Metadata:{sha256:hash}
-    }));
-    const versionId = uploaded.VersionId;
+    }), 'GDPR_B2_PUT_OUTCOME_UNKNOWN');
+    const versionId = uploaded?.VersionId;
     const verified = await this.readVerified(client,cfg,key,event,hash,versionId,until);
+    this.uncertainWrite = false;
     return {eventKey:event.event_key,key,reused:false,...verified};
+    } finally {
+      this.writeInProgress = false;
+    }
   }
   async archiveBatch(db, {after = null, limit = 100} = {}) {
     this.config(); // Refuse before even reading the database.
+    this.assertNoRealWriteTransport(); // No SQL reads before direct write NO-GO.
     if (!db || typeof db.query !== 'function' ||
         !Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw Error('Explicit database connection and bounded GDPR batch required');
@@ -329,7 +460,12 @@ class PrivacyErasureB2Journal {
       await this.archiveEvent(event);
       last = {occurred_at:exactTimestamp,event_key:event.event_key};
     }
-    return {exported:page.length, cursor:last};
+    // A cursor/empty page proves only this SQL query's visible suffix.
+    // Late commits with earlier occurred_at, stale restores and lost SQL
+    // history can make the scan incomplete even with unrestricted RLS.
+    // Never expose a positive completion/recovery attestation here.
+    return {exported:page.length, cursor:last,
+      complete:false, recoveryReady:false};
   }
 }
 module.exports = {PrivacyErasureB2Journal, normalizeEvent, validatedConfig, keyFor};

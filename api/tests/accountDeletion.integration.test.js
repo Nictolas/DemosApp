@@ -45,7 +45,26 @@ if (!isLocalTestDatabase) {
     ['consenso_governo', 'userid'],
     ['consenso_capo_stato', 'userid'],
     ['candidature_elezioni', 'user_id'],
-    ['notifiche', 'user_id']
+    ['notifiche', 'user_id'],
+    ['active_sessions', 'user_id'],
+    ['user_rights_requests', 'user_id'],
+    ['data_processing_limits', 'user_id'],
+    ['rate_limit_violations', 'user_id'],
+    ['premium_requests', 'userid'],
+    ['richieste_premium', 'utente_id'],
+    ['richieste_grazia', 'utente_id'],
+    ['segnalazioni', 'utente_id'],
+    ['notifiche_avvistamenti', 'id_utente'],
+    ['notifiche_voti_comuni', 'id_utente'],
+    ['notifiche_voti_parlamento', 'id_utente'],
+    ['grazia_requests', 'userid'],
+    ['candidati', 'user_id'],
+    ['mandate_program_snapshots', 'user_id'],
+    ['political_programs', 'user_id'],
+    ['political_candidacies', 'user_id'],
+    ['political_mandates', 'user_id'],
+    ['user_providers', 'user_id'],
+    ['sessions', 'user_id']
   ];
 
   const resetSchema = async () => {
@@ -106,6 +125,107 @@ if (!isLocalTestDatabase) {
     }
   });
 
+  test('strict candidate FK and linked GDPR receipts do not block account deletion', async () => {
+    await resetSchema();
+    // Matches the production FK default NO ACTION on candidates.
+    await pool.query(`ALTER TABLE candidati
+      ADD CONSTRAINT candidates_user_fk FOREIGN KEY (user_id)
+      REFERENCES users(id) ON DELETE NO ACTION`);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await PrivacyErasureLedgerService.enforceAccountDeletion(client, 'u1');
+      assert.equal(result.userDeleted, 1);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM users WHERE id='u1'")).rows[0].n, 0);
+    for (const table of ['candidati', 'political_programs', 'user_rights_requests', 'active_sessions']) {
+      assert.equal((await pool.query(`SELECT count(*)::int AS n FROM "${table}" WHERE payload='owned'`)).rows[0].n, 0, table);
+      assert.equal((await pool.query(`SELECT count(*)::int AS n FROM "${table}" WHERE payload='other'`)).rows[0].n, 1, table);
+    }
+  });
+
+  test('public civic items survive with author references cleared; other users are retained', async () => {
+    await resetSchema();
+    const nullableColumns = [
+      ['eventi', 'creator_user_id'],
+      ['eventi', 'approved_by_user_id'],
+      ['eventi', 'election_lifecycle_closed_by_user_id'],
+      ['referendum_abrogativi', 'userid'],
+      ['iniziative_popolari', 'userid'],
+      ['governo_attuale', 'user_id'],
+      ['programmi', 'user_id_backup'],
+      ['civic_process_reconciliation_candidates', 'reviewed_by_user_id'],
+      ['civic_processes', 'realized_verified_by_user_id']
+    ];
+    const tables = new Map();
+    for (const [table, column] of nullableColumns) {
+      if (!tables.has(table)) tables.set(table, []);
+      tables.get(table).push(column);
+    }
+    for (const [table, columns] of tables) {
+      await pool.query(`CREATE TABLE "${table}" (
+        id BIGSERIAL PRIMARY KEY,
+        ${columns.map(col => `"${col}" TEXT NULL`).join(',')}
+      )`);
+      for (const col of columns) {
+        await pool.query(`INSERT INTO "${table}" ("${col}") VALUES ('u1'), ('u2')`);
+      }
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const erased = await PrivacyErasureLedgerService.enforceAccountDeletion(client, 'u1');
+      assert.equal(erased.userDeleted, 1);
+      assert.equal(erased.rowsUnlinked >= nullableColumns.length, true);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    for (const [table, column] of nullableColumns) {
+      const result = await pool.query(`SELECT
+        count(*) FILTER (WHERE "${column}"='u1')::int AS old_refs,
+        count(*) FILTER (WHERE "${column}"='u2')::int AS other_refs,
+        count(*)::int AS kept_rows
+        FROM "${table}"`);
+      assert.equal(result.rows[0].old_refs, 0, `${table}.${column} leaked account id`);
+      assert.equal(result.rows[0].other_refs, 1, `${table}.${column} changed another user`);
+      assert.equal(result.rows[0].kept_rows, tables.get(table).length * 2);
+    }
+  });
+
+  test('non-nullable public references fail closed and rollback all preceding deletions', async () => {
+    await resetSchema();
+    await pool.query(`CREATE TABLE eventi (
+      id BIGSERIAL PRIMARY KEY, creator_user_id TEXT NOT NULL
+    )`);
+    await pool.query("INSERT INTO eventi(creator_user_id) VALUES ('u1'), ('u2')");
+    const client = await pool.connect();
+    await client.query('BEGIN');
+    try {
+      await assert.rejects(
+        PrivacyErasureLedgerService.enforceAccountDeletion(client, 'u1'),
+        (error) => error.code === 'GDPR_ERASURE_REFERENCE_NOT_NULLABLE'
+      );
+    } finally {
+      await client.query('ROLLBACK');
+      client.release();
+    }
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM users WHERE id='u1'")).rows[0].n, 1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM opinioni_risposte WHERE user_id='u1'")).rows[0].n, 1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM eventi WHERE creator_user_id='u1'")).rows[0].n, 1);
+  });
+
   test('RP-05 deletes the detached CIE anti-duplication key so the same person may register again', async () => {
     await resetSchema();
     const client = await pool.connect();
@@ -138,9 +258,133 @@ if (!isLocalTestDatabase) {
     assert.doesNotMatch(route, /UPDATE identity_verifications[\s\S]*detached_at/i);
   });
 
+  test('account deletion diagnostics omit raw errors and post-erasure identifiers', () => {
+    const route = fs.readFileSync(path.join(__dirname, '../routes/user/delete-account.js'), 'utf8');
+    assert.match(route, /ACCOUNT_DELETION_COMPLETED/);
+    assert.match(route, /errorCode:\s*'ACCOUNT_DELETION_FAILED'/);
+    assert.doesNotMatch(route, /deletedUserId\s*:/);
+    assert.doesNotMatch(route, /error\s*:\s*error\.message/);
+    assert.doesNotMatch(route, /console\.error\([^;\n]*,\s*error\s*\)/);
+  });
+
+  test('deletion audit does not persist account ID on successful deletion in Axiom or SQL fallback', () => {
+    const route = fs.readFileSync(path.join(__dirname, '../routes/user/delete-account.js'), 'utf8');
+    const calls = route.match(/await AuditService\.logAction\(\{[\s\S]*?\}\);/g) || [];
+    const byAction = new Map(calls.map((call) => {
+      const action = call.match(/action:\s*'(ACCOUNT_DELETION_[A-Z]+)'/);
+      const userId = call.match(/userId:\s*([^,\n]+)/);
+      return [action?.[1], userId?.[1]?.trim()];
+    }));
+    assert.equal(byAction.size, 3);
+    // The start event may survive a completed deletion at either audit provider.
+    assert.equal(byAction.get('ACCOUNT_DELETION_STARTED'), 'null');
+    assert.equal(byAction.get('ACCOUNT_DELETION_COMPLETED'), 'null');
+    // An unsuccessful deletion still has a live account and can be investigated.
+    assert.equal(byAction.get('ACCOUNT_DELETION_ERROR'), 'req.user?.id');
+    const { buildAxiomAuditEvent } = require('../utils/axiomAuditEvent');
+    assert.equal(buildAxiomAuditEvent({ user_id: null, action: 'ACCOUNT_DELETION_STARTED' }).user_id, null);
+  });
+
   test.after(async () => {
     await pool.query('DROP SCHEMA IF EXISTS public CASCADE');
     await pool.query('CREATE SCHEMA public');
     await pool.end();
   });
 }
+
+
+test('account deletion handles pool acquisition and rollback failures', async () => {
+  const routeSource = fs.readFileSync(path.join(__dirname, '../routes/user/delete-account.js'), 'utf8');
+  for (const scenario of ['pool_init', 'connect', 'begin_and_rollback', 'success']) {
+    let deleteHandler;
+    let released = 0;
+    const sql = [];
+    const audit = [];
+    const diagnostics = [];
+    const client = {
+      async query(statement) {
+        sql.push(statement);
+        if (scenario === 'begin_and_rollback' && (statement === 'BEGIN' || statement === 'ROLLBACK')) {
+          throw new Error('synthetic database failure: do not disclose');
+        }
+        if (statement.startsWith('SELECT password_hash')) return { rows: [{ password_hash: null }] };
+        return { rows: [], rowCount: 1 };
+      },
+      release() { released += 1; }
+    };
+    const router = {
+      get() {},
+      delete(_path, _auth, handler) { deleteHandler = handler; }
+    };
+    const mockedRequire = (name) => {
+      if (name === 'express') return { Router: () => router };
+      if (name === '../../middleware/auth') return { verifyToken() {} };
+      if (name === '../../services/auditService') {
+        return { logAction: async (entry) => { audit.push(entry); return null; } };
+      }
+      if (name === '../../config/database') {
+        return {
+          getPool() {
+            if (scenario === 'pool_init') throw new Error('synthetic pool init failure: do not disclose');
+            return {
+              async connect() {
+                if (scenario === 'connect') throw new Error('synthetic connect failure: do not disclose');
+                return client;
+              }
+            };
+          }
+        };
+      }
+      if (name === 'bcryptjs') return { compare: async () => true };
+      if (name === '../../services/privacyErasureLedgerService') {
+        return {
+          EVENT_TYPES: { ACCOUNT_DELETED: 'account_deleted' },
+          recordEvent: async () => {},
+          deleteByAnyColumn: async () => {},
+          enforceAccountDeletion: async () => ({ userDeleted: 1 })
+        };
+      }
+      throw new Error('Unexpected dependency in isolated deletion test: ' + name);
+    };
+    const isolatedModule = { exports: {} };
+    new Function('require', 'module', 'console', 'process', routeSource)(
+      mockedRequire,
+      isolatedModule,
+      { error: (...args) => diagnostics.push(args.join(' ')) },
+      { env: { AXIOM_ENABLED: 'false' } }
+    );
+    assert.equal(typeof deleteHandler, 'function');
+    const response = {
+      code: 200,
+      status(value) { this.code = value; return this; },
+      json(value) { this.body = value; return this; }
+    };
+    await deleteHandler(
+      { user: { id: 'synthetic-only-user' }, body: { confirmText: 'CANCELLA' } },
+      response
+    );
+    if (scenario === 'success') {
+      assert.equal(response.code, 200);
+      assert.equal(response.body.success, true);
+      assert.equal(released, 1);
+      assert.ok(sql.includes('COMMIT'));
+      assert.deepEqual(
+        audit.filter(entry => entry.action !== 'ACCOUNT_DELETION_ERROR').map(entry => entry.userId),
+        [null, null]
+      );
+    } else {
+      assert.equal(response.code, 500, scenario);
+      assert.equal(response.body.success, false);
+      assert.equal(audit.length, 1);
+      assert.equal(audit[0].action, 'ACCOUNT_DELETION_ERROR');
+      assert.equal(audit[0].details.errorCode, 'ACCOUNT_DELETION_FAILED');
+      assert.equal(released, scenario === 'begin_and_rollback' ? 1 : 0);
+      if (scenario === 'begin_and_rollback') {
+        assert.ok(sql.includes('ROLLBACK'));
+        assert.ok(diagnostics.includes('ACCOUNT_DELETION_ROLLBACK_FAILED'));
+      }
+      assert.doesNotMatch(JSON.stringify(response.body) + diagnostics.join(' '), /do not disclose/);
+      assert.ok(diagnostics.includes('ACCOUNT_DELETION_FAILED'));
+    }
+  }
+});

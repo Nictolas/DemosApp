@@ -148,33 +148,12 @@ router.get('/failure/:id', async (req, res) => {
   }
 });
 
-// Pulizia fallimenti vecchi
-router.post('/cleanup', async (req, res) => {
-  try {
-    const { retentionDays = 30 } = req.body;
-    
-    const query = `
-      DELETE FROM validation_failures 
-      WHERE timestamp < NOW() - INTERVAL '${parseInt(retentionDays)} days'
-    `;
-    
-    const result = await pool.query(query);
-    
-    res.json({
-      success: true,
-      message: `Pulizia completata: rimossi ${result.rowCount} fallimenti`,
-      data: {
-        deletedCount: result.rowCount,
-        retentionDays: parseInt(retentionDays)
-      }
-    });
-  } catch (error) {
-    console.error('❌ Errore nella pulizia fallimenti:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
+// RP-10 non approvata: nessuna cancellazione age-based degli eventi di validazione.
+router.post('/cleanup', async (_req, res) => {
+  return res.status(409).json({
+    success: false,
+    error: 'RETENTION_POLICY_NOT_APPROVED'
+  });
 });
 
 // Fallimenti per IP specifico
