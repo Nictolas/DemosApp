@@ -25,3 +25,40 @@ jobs:
       - name: Run isolated real Express HTTP tests
         working-directory: api
         run: node --test tests/legacyDataExportRetirement.test.js
+
+  security-composition:
+    # CI-only integration rehearsal of this PR with the independent #487 dependency fix.
+    # Never commits/merges the dependency files to this branch or to main.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import pinned #487 dependency manifest in ephemeral CI workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="00c36708eaa5d5575c5c27aaac394db47a4ef8e7"
+          git fetch --no-tags --depth=1 origin "$pinned"
+          test "$(git rev-parse FETCH_HEAD)" = "$pinned"
+          git show "$pinned:api/package.json" > api/package.json
+          git show "$pinned:api/package-lock.json" > api/package-lock.json
+          node -e "const p=require('./api/package.json'); if(p.overrides['follow-redirects'] !== '1.16.2') process.exit(1)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install composed API dependencies without scripts
+        working-directory: api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Audit composed production dependencies
+        working-directory: api
+        run: npm audit --omit=dev --audit-level=high
+      - name: Test both legacy routes on actual Express with synthetic auth/providers
+        working-directory: api
+        run: node --test tests/legacyDataExportRetirement.test.js
+      - name: Install frontend dependencies without scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build composed frontend (non-release)
+        run: npm run build --prefix client
