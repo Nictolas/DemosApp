@@ -65,8 +65,17 @@ $subject_withdrawal_guard$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS subject_proposals_one_pending_per_user_category
  ON public.subject_proposals(proposer_user_id, category) WHERE status = 'pending';
-CREATE UNIQUE INDEX IF NOT EXISTS subject_proposals_no_duplicate_open_titles
- ON public.subject_proposals(category, lower(btrim(title))) WHERE status IN ('pending','approved');
+-- Safety gate for public withdrawals: a withdrawn subject must not be silently
+-- re-nominated by another account. No new personal data or separate denylist.
+-- Build the stricter index BEFORE replacing the old one. If legacy withdrawn
+-- duplicates exist, the unique CREATE fails and leaves existing rows untouched.
+-- The migration must be applied transactionally, never statement-by-statement.
+CREATE UNIQUE INDEX IF NOT EXISTS subject_proposals_no_duplicate_open_titles_guard
+ ON public.subject_proposals(category, lower(btrim(title)))
+ WHERE status IN ('pending','approved','withdrawn');
+DROP INDEX IF EXISTS public.subject_proposals_no_duplicate_open_titles;
+ALTER INDEX public.subject_proposals_no_duplicate_open_titles_guard
+ RENAME TO subject_proposals_no_duplicate_open_titles;
 CREATE INDEX IF NOT EXISTS subject_proposals_admin_queue_idx
  ON public.subject_proposals(created_at ASC) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS subject_proposals_approved_directory_idx
