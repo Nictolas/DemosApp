@@ -40,7 +40,9 @@ Non introdurre "consenso implicito" attribuito a terze persone, non considerare 
 5. **Minimizzazione applicata ora:** la lista Admin generica non richiede e non riceve lo UUID del proponente; il server lo usa solo nella transazione di notifica esito.
 6. Le tre API pubbliche elencano **solo ID e titolo** di Attivisti/Organizzazioni approvati; testo e fonte restano nella coda Admin, con test contrattuale sulle pagine e verifica HTTP/PG17 sul catalogo condiviso.
 7. La cancellazione di un account rimuove le proposte con `ON DELETE CASCADE` e azzera `source_proposal_id` nelle voci approvate del catalogo Capo di Stato; questo **non** è un meccanismo completo per i diritti della persona nominata.
-8. Test automatici su PostgreSQL 17 **effimero** (non lo staging Supabase) controllano autorizzazioni, review, SQL, privacy e regressioni.
+8. **Ritiro cautelativo DRAFT** delle sole nomine approvate Attivisti e Organizzazioni: l'Admin apre su richiesta la scheda `Pubblicate`, inserisce una motivazione (3–500 caratteri, evitando dati personali) e conferma. Una transazione con `FOR UPDATE` imposta `status='withdrawn'` e registra separatamente `withdrawn_at`, `withdrawn_by`, `withdraw_note` preservando l'audit della prima approvazione. La directory pubblica include solo `status='approved'`; la risposta non deve essere memorizzata in cache dall'endpoint dedicato (`no-store`). La modifica non cancella automaticamente i dati storici: eventuale cancellazione/retention va autorizzata e progettata dal DPO.
+9. Il ritiro delle voci **Capo di Stato e Amnistia non è ancora supportato** da questo endpoint: i loro cataloghi e i voti richiedono un percorso separato e verificato. Anche Grazia resta nella propria coda. Non invocare l'endpoint generico per questi casi.
+10. Test automatici su PostgreSQL 17 **effimero** (non lo staging Supabase) controllano autorizzazioni, review, SQL, privacy, ritiro concorrente e regressioni.
 
 ## Condizioni di rilascio non soddisfatte
 
@@ -48,7 +50,7 @@ Non introdurre "consenso implicito" attribuito a terze persone, non considerare 
 - [ ] Informative e registro trattamenti, percorso DSAR e contestazione di un nominativo pubblicato; anche l'esposizione del solo titolo/identificativo resta subordinata alla revisione DPO.
 - [ ] Tabella formale della retention e cancellazione tecnica/test, senza introdurre scadenze arbitrarie.
 - [ ] Staging gratuito schema-completo (oggi 7 tabelle e 2 colonne mancanti + categoria Grazia ancora nel CHECK), senza copia di profili reali.
-- [ ] Test End-to-End con 2 identità sintetiche + Admin e verifica revoca/ritiro di una proposta approvata.
+- [ ] Test End-to-End sullo staging con 2 identità sintetiche + Admin, con verifica ritiro cautelativo Attivisti/Organizzazioni (test PG17 effimero disponibile), compatibilità degli elenchi aperti su altri dispositivi e richieste di rimozione. Progettare separatamente il ritiro Capo di Stato, Amnistia e Grazia con impatto su voti/cataloghi.
 - [ ] QA Android, controlli di autorizzazione effettivi e differenze rispetto al `main` corrente.
 - [ ] Autorizzazioni distinte per migrazione, merge e deploy. **Non** dedurre il via libera dai test verdi.
 
