@@ -52,16 +52,16 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   };
 
   return (
-    <Card className="overflow-hidden rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm sm:border-2 sm:shadow-xl lg:h-full lg:min-h-0 lg:flex lg:flex-col">
-      <CardHeader className="shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2.5 text-white sm:p-6 sm:pb-4 lg:py-3 lg:pb-3">
+    <Card className="overflow-hidden rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm lg:border-2 lg:shadow-xl lg:h-full lg:min-h-0 lg:flex lg:flex-col">
+      <CardHeader className="shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2.5 text-white lg:p-6 lg:pb-4 lg:py-3 lg:pb-3">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
-            <div className="hidden shrink-0 rounded-lg bg-white/20 p-2 backdrop-blur-sm sm:block lg:p-1.5">
+          <div className="flex min-w-0 items-start gap-2 lg:items-center lg:gap-3">
+            <div className="hidden shrink-0 rounded-lg bg-white/20 p-2 backdrop-blur-sm lg:block lg:p-1.5">
               <ThumbsUp className="h-6 w-6 lg:h-4 lg:w-4 text-white" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-base font-bold sm:text-2xl lg:text-lg">Il tuo voto</h2>
-              <CardDescription className="mt-0.5 text-xs leading-snug text-blue-100 sm:mt-1 sm:text-sm lg:mt-0.5 lg:line-clamp-2 lg:text-xs">
+              <h2 className="text-base font-bold lg:text-2xl lg:text-lg">Il tuo voto</h2>
+              <CardDescription className="mt-0.5 text-xs leading-snug text-blue-100 lg:mt-1 lg:text-sm lg:mt-0.5 lg:line-clamp-2 lg:text-xs">
                 Scegli dalla classifica o aggiungi un nome. Massimo {limit} voto{limit !== 1 ? 'i' : ''}.
               </CardDescription>
             </div>
@@ -69,7 +69,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           <div className="shrink-0">
             <Badge 
               variant={hasReachedLimit ? "destructive" : "secondary"} 
-              className={`flex items-center gap-1 px-2 py-1 text-xs font-semibold sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm ${
+              className={`flex items-center gap-1 px-2 py-1 text-xs font-semibold lg:gap-1.5 lg:px-3 lg:py-1.5 lg:text-sm ${
                 hasReachedLimit 
                   ? "bg-red-500 hover:bg-red-600 text-white" 
                   : "bg-white/20 backdrop-blur-sm text-white border-white/30"
@@ -81,16 +81,16 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           </div>
         </div>
         {hasReachedLimit && (
-          <div className="mt-2 rounded-lg border border-yellow-300/30 bg-yellow-500/20 p-2 backdrop-blur-sm sm:mt-3 sm:p-3">
-            <p className="flex items-center text-xs font-medium leading-snug text-yellow-100 sm:text-sm">
+          <div className="mt-2 rounded-lg border border-yellow-300/30 bg-yellow-500/20 p-2 backdrop-blur-sm lg:mt-3 lg:p-3">
+            <p className="flex items-center text-xs font-medium leading-snug text-yellow-100 lg:text-sm">
               <Info className="h-4 w-4 mr-2" />
               Hai già votato. Rimuovi il voto esistente per votarne uno diverso.
             </p>
           </div>
         )}
       </CardHeader>
-      <CardContent className="px-3 pb-2 pt-2.5 sm:px-6 sm:pb-6 sm:pt-6 lg:pt-3 lg:pb-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-        <form onSubmit={handleSubmit} className="mb-2 space-y-2 sm:mb-6 sm:space-y-4 lg:mb-3 lg:space-y-2">
+      <CardContent className="px-3 pb-2 pt-2.5 lg:px-6 lg:pb-6 lg:pt-6 lg:pt-3 lg:pb-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+        <form onSubmit={handleSubmit} className="mb-2 space-y-2 lg:mb-6 lg:space-y-4 lg:mb-3 lg:space-y-2">
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
               <Input
@@ -102,7 +102,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
                 }}
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                className="h-11 w-full min-w-0 text-base sm:text-sm"
+                className="h-11 w-full min-w-0 text-base lg:text-sm"
                 disabled={isBlocked}
               />
               {showSuggestions && getSuggestions().length > 0 && (
@@ -125,41 +125,41 @@ export const VotingForm: React.FC<VotingFormProps> = ({
             </div>
             <Button 
               type="submit"
-              className="h-11 shrink-0 px-3 text-sm sm:px-4"
+              className="h-11 shrink-0 px-3 text-sm lg:px-4"
               disabled={!nomeInput.trim() || isBlocked || hasReachedLimit}
             >
-              <Plus className="mr-1 h-4 w-4 sm:mr-2" />
+              <Plus className="mr-1 h-4 w-4 lg:mr-2" />
               Aggiungi
             </Button>
           </div>
         </form>
 
         {selectedVoti.length > 0 ? (
-          <div className="space-y-2 sm:space-y-3">
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-700 sm:mb-3 sm:text-sm">
+          <div className="space-y-2 lg:space-y-3">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-700 lg:mb-3 lg:text-sm">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <span>Il tuo Presidente della Repubblica ideale:</span>
             </div>
-            <div className="grid gap-2 sm:gap-3">
+            <div className="grid gap-2 lg:gap-3">
               {selectedVoti.map((voto) => (
                 <div
                   key={voto}
-                  className="group relative rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-2.5 shadow-sm transition-colors hover:border-green-400 sm:border-2 sm:p-4 sm:shadow-md"
+                  className="group relative rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-2.5 shadow-sm transition-colors hover:border-green-400 lg:border-2 lg:p-4 lg:shadow-md"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-                      <div className="shrink-0 rounded-full bg-green-500 p-1.5 sm:p-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-3">
+                      <div className="shrink-0 rounded-full bg-green-500 p-1.5 lg:p-2">
                         <CheckCircle2 className="h-5 w-5 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="break-words text-sm font-bold text-gray-900 transition-colors group-hover:text-green-700 sm:text-lg">
+                        <h3 className="break-words text-sm font-bold text-gray-900 transition-colors group-hover:text-green-700 lg:text-lg">
                           {voto}
                         </h3>
                       </div>
                     </div>
                     <button
                       onClick={() => onRemoveNome(voto)}
-                      className="group/btn ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-red-500 text-white transition-colors hover:bg-red-600 sm:ml-4"
+                      className="group/btn ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-red-500 text-white transition-colors hover:bg-red-600 lg:ml-4"
                       title="Rimuovi voto"
                     >
                       <X className="h-5 w-5 group-hover/btn:rotate-90 transition-transform duration-300" />
@@ -170,12 +170,12 @@ export const VotingForm: React.FC<VotingFormProps> = ({
             </div>
           </div>
         ) : (
-          <div className="rounded-lg bg-white/60 px-2 py-2 text-center sm:py-8 lg:py-3">
-            <div className="mx-auto mb-4 hidden h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-gray-200 to-gray-300 sm:flex lg:mb-2 lg:h-12 lg:w-12">
+          <div className="rounded-lg bg-white/60 px-2 py-2 text-center lg:py-8 lg:py-3">
+            <div className="mx-auto mb-4 hidden h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-gray-200 to-gray-300 lg:flex lg:mb-2 lg:h-12 lg:w-12">
               <ThumbsUp className="h-10 w-10 text-gray-400 lg:h-6 lg:w-6" />
             </div>
-            <p className="text-xs text-gray-600 sm:text-base sm:font-medium lg:text-sm">Nessun candidato selezionato</p>
-            <p className="mt-1 hidden text-sm text-gray-500 sm:block lg:text-xs">Scegli un candidato dalla classifica per votare</p>
+            <p className="text-xs text-gray-600 lg:text-base lg:font-medium lg:text-sm">Nessun candidato selezionato</p>
+            <p className="mt-1 hidden text-sm text-gray-500 lg:block lg:text-xs">Scegli un candidato dalla classifica per votare</p>
           </div>
         )}
       </CardContent>
