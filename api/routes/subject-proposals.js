@@ -139,8 +139,12 @@ router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) =
   if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || note.length < 3 || note.length > 500) {
     return res.status(400).json({ success: false, error: 'ID o motivazione del ritiro non valida (3–500 caratteri)' });
   }
-  const client = await pool.connect();
+  // An unavailable notifications table must never prevent urgent unpublishing.
+  // Commit and release the protected withdrawal before attempting a notification.
+  let client;
+  let withdrawn;
   try {
+    client = await pool.connect();
     await client.query('BEGIN');
     const found = await client.query(
       "SELECT id, category, proposer_user_id FROM subject_proposals WHERE id=$1 AND status='approved' AND category IN ('attivisti','organizzazioni') FOR UPDATE",
@@ -150,21 +154,33 @@ router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) =
       await client.query('ROLLBACK');
       return res.status(409).json({ success: false, error: 'Voce assente, non ritirabile o già ritirata' });
     }
-    const item = found.rows[0];
+    withdrawn = found.rows[0];
     await client.query(
       "UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now(), withdrawn_by=$2, withdraw_note=$3, published_ref=NULL WHERE id=$1 AND status='approved'",
-      [item.id, req.user.id, note]
+      [withdrawn.id, req.user.id, note]
     );
-    await notify(client, item.proposer_user_id, 'La pubblicazione della tua proposta in ' + item.category + ' è stata ritirata.');
     await client.query('COMMIT');
-    res.set('Cache-Control', 'private, no-store');
-    return res.json({ success: true, status: 'withdrawn' });
   } catch (_) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* connection may be lost */ }
+    }
     return res.status(503).json({ success: false, error: 'Ritiro temporaneamente non disponibile' });
   } finally {
-    client.release();
+    client?.release();
   }
+
+  // Best-effort private notice. The successful withdrawal must not be rolled
+  // back or reported as failed if this independent step cannot be delivered.
+  let notificationSent = false;
+  try {
+    await notify(pool, withdrawn.proposer_user_id,
+      'La pubblicazione della tua proposta in ' + withdrawn.category + ' è stata ritirata.');
+    notificationSent = true;
+  } catch (_) {
+    // Admin gets an explicit delivery flag; do not log a third-party name.
+  }
+  res.set('Cache-Control', 'private, no-store');
+  return res.json({ success: true, status: 'withdrawn', notification_sent: notificationSent });
 });
 
 // Atomic review: the canonical public list changes only inside an authorized approval transaction.
