@@ -55,7 +55,9 @@ router.get('/mine', verifyToken, async (req, res) => {
   }
 });
 
-// Approved directory nominations are read-only. Never impersonate an actual DEMOS account.
+// Approved directory nominations expose only the reviewed title, never raw user-submitted
+// narrative or source links. Admin moderation still retains the original evidence.
+// Never impersonate an actual DEMOS account.
 router.get('/approved', async (req, res) => {
   const category = String(req.query.category || '');
   if (category !== 'attivisti' && category !== 'organizzazioni') {
@@ -63,7 +65,7 @@ router.get('/approved', async (req, res) => {
   }
   try {
     const result = await pool.query(
-      "SELECT id, title, details, source_url FROM subject_proposals WHERE category=$1 AND status='approved' ORDER BY reviewed_at DESC LIMIT 100",
+      "SELECT id, title FROM subject_proposals WHERE category=$1 AND status='approved' ORDER BY reviewed_at DESC LIMIT 100",
       [category]
     );
     res.set('Cache-Control', 'public, max-age=60');
