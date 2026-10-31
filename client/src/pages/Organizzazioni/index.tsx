@@ -13,6 +13,7 @@ import OrganizzazioneModal from "@/components/OrganizzazioneModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiUrl } from "@/lib/api-config";
 import { useApprovedSubjectResumeRefresh } from "@/hooks/useApprovedSubjectResumeRefresh";
 
 interface TipologiaAttivismo {
@@ -63,7 +64,6 @@ interface OrganizzazioniResponse {
 export default function Organizzazioni() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const API_BASE = 'https://demos-c7k0.onrender.com';
   const [organizzazioni, setOrganizzazioni] = useState<organizzazione[]>([]);
   const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
   const [filteredOrganizzazioni, setFilteredOrganizzazioni] = useState<organizzazione[]>([]);
@@ -88,7 +88,7 @@ export default function Organizzazioni() {
   useEffect(() => {
     const fetchFiltri = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/organizzazioni/filtri`);
+        const response = await fetch(getApiUrl('/api/organizzazioni/filtri'));
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -140,7 +140,7 @@ export default function Organizzazioni() {
         if (selectedRegione && selectedRegione !== 'all') params.append('regione', selectedRegione);
         if (selectedTipologia && selectedTipologia !== 'all') params.append('tipologia', selectedTipologia);
         
-        const url = `${API_BASE}/api/organizzazioni${params.toString() ? '?' + params.toString() : ''}`;
+        const url = getApiUrl(`/api/organizzazioni${params.toString() ? '?' + params.toString() : ''}`);
         console.log('📡 fetchOrganizzazioni - Chiamata API:', url);
         
         const response = await fetch(url, { signal: controller.signal });
