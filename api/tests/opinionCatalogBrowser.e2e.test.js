@@ -190,6 +190,18 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     await details.getByText('Approfondimento: Fuochi d\'Artificio').waitFor();
     const readOnlyDetails = details.getByTestId('opinion-brief');
     await readOnlyDetails.getByText(/Irlanda/).first().waitFor({ timeout: 10000 });
+    // Readable semantic headings supplement the color contrast for accessibility.
+    await readOnlyDetails.getByRole('heading', { name: 'A favore' }).waitFor();
+    await readOnlyDetails.getByRole('heading', { name: 'Contro' }).waitFor();
+    const proConColors = await readOnlyDetails.evaluate(root => {
+      const color = selector => getComputedStyle(root.querySelector(selector)).backgroundColor;
+      return { pro: color('[data-testid="opinion-brief-pro"]'), con: color('[data-testid="opinion-brief-con"]') };
+    });
+    const rgb = value => (value.match(/[0-9]+/g) || []).slice(0, 3).map(Number);
+    const [proR, proG] = rgb(proConColors.pro);
+    const [conR, conG] = rgb(proConColors.con);
+    assert.ok(proG > proR, 'Pro card must visibly have a green background');
+    assert.ok(conR > conG, 'Con card must visibly have a red background');
     const richText = await readOnlyDetails.innerText();
     assert.match(richText, /🇮🇹 Italia/, 'Italy flag renders only in the detail view');
     assert.match(richText, /🇮🇪 Irlanda/, 'Ireland flag renders only in the detail view');
@@ -257,6 +269,10 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       const dialog = page.getByRole('dialog');
       const brief = dialog.getByTestId('opinion-brief');
       await brief.waitFor({ timeout: 12000 });
+      assert.equal(await brief.getByRole('heading', { name: 'A favore' }).count(), 1, title + ': clear green pro label');
+      assert.equal(await brief.getByRole('heading', { name: 'Contro' }).count(), 1, title + ': clear red con label');
+      assert.equal(await brief.getByTestId('opinion-brief-pro').count(), 1);
+      assert.equal(await brief.getByTestId('opinion-brief-con').count(), 1);
       assert.ok((await brief.innerText()).includes(fact), title + ': expected fact visible');
       assert.equal(await brief.locator('details').count(), 1, title + ': one source disclosure');
       assert.equal(await brief.locator('section').count() >= 2, true, title + ': pro and con shown');
