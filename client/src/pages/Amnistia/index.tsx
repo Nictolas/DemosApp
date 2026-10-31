@@ -7,10 +7,9 @@ import { PageContainer } from "@/components/PageContainer";
 import { useAmnistiaData } from "./hooks/useAmnistiaData";
 import { useAmnistiaVoting } from "./hooks/useAmnistiaVoting";
 import { Header } from "./components/Header";
+import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { AmnistiaForm } from "./components/AmnistiaForm";
 import { ClassificaLeggi } from "./components/ClassificaLeggi";
-import { CreateButton } from "./components/CreateButton";
-import { CarceratoForm } from "./components/CarceratoForm";
 import { getSuggestions } from "./utils/amnistiaUtils";
 
 export default function Amnistia() {
@@ -27,9 +26,6 @@ export default function Amnistia() {
     selectSuggestion,
     handleAddVote,
     handleRemoveVote,
-    showForm,
-    hideForm,
-    handleCreateAmnistia,
     currentVotes,
     limit,
     remainingVotes,
@@ -67,12 +63,17 @@ export default function Amnistia() {
 
 
   return (
-    <PageContainer className="overflow-hidden bg-gradient-to-br from-gray-50 via-white to-green-50/30">
-      <div className="container mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
-        {/* Titolo fisso, separato da ogni area scrollabile. */}
-        <div className="amnistia-page__fixed-header shrink-0">
+    <PageContainer className="overflow-hidden bg-gray-50">
+      {/* Stessa testata bianca, centrata e fissa delle directory pubbliche. */}
+      <div className="amnistia-page__fixed-header shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3 sm:px-6 sm:pt-4">
+        <div className="relative mx-auto w-full max-w-6xl">
           <Header />
+          <div className="absolute right-0 top-0 z-10">
+            <ProposeSubjectButton category="amnistia" />
+          </div>
         </div>
+      </div>
+      <div className="container mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 md:grid-cols-2 md:grid-rows-1 lg:gap-6">
           {/* Comandi di voto fissi; solo la lista sottostante scorre. */}
@@ -83,9 +84,6 @@ export default function Amnistia() {
               </div>
             ) : (
               <>
-                <div className="flex items-center">
-                  <CreateButton onClick={showForm} />
-                </div>
                 <AmnistiaForm
                   leggeInput={votingState.leggeInput}
                   showSuggestions={votingState.showSuggestions}
@@ -114,13 +112,6 @@ export default function Amnistia() {
                 onShowClassifica={showClassifica}
                 hasReachedLimit={hasReachedLimit}
                 mieiVoti={data?.mieiVoti || []}
-                proposalForm={votingState.showForm ? (
-                  <CarceratoForm
-                    onSubmit={handleCreateAmnistia}
-                    onCancel={hideForm}
-                    isLoading={false}
-                  />
-                ) : undefined}
               />
             )}
           </div>

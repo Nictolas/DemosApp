@@ -7,12 +7,11 @@ import { PageContainer } from "@/components/PageContainer";
 import { useGraziaData } from "./hooks/useGraziaData";
 import { useGraziaVoting } from "./hooks/useGraziaVoting";
 import { Header } from "./components/Header";
+import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { BlockedWarning } from "./components/BlockedWarning";
 import { GraziaForm } from "./components/GraziaForm";
 import { ClassificaCarcerati } from "./components/ClassificaCarcerati";
 import { ConfirmDialog } from "./components/ConfirmDialog";
-import { CreateButton } from "./components/CreateButton";
-import { CarceratoForm } from "./components/CarceratoForm";
 
 export default function Grazia() {
   const authReady = useAuthReady();
@@ -25,9 +24,6 @@ export default function Grazia() {
     addNomeLocal, 
     removeLocal, 
     toggleSelezioneClassifica, 
-    showForm,
-    hideForm,
-    handleCreateCarcerato,
     currentVotes,
     limit,
     remainingVotes,
@@ -53,15 +49,20 @@ export default function Grazia() {
 
 
   return (
-    <PageContainer className="overflow-hidden bg-gradient-to-b from-background to-secondary/20">
-      <div className="container mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
-        {/* Il titolo resta fermo: non appartiene allo scroller della classifica. */}
-        <div className="grazia-page__fixed-header shrink-0">
+    <PageContainer className="overflow-hidden bg-gray-50">
+      {/* Stessa testata bianca, centrata e fissa delle directory pubbliche. */}
+      <div className="grazia-page__fixed-header shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3 sm:px-6 sm:pt-4">
+        <div className="relative mx-auto w-full max-w-6xl">
           <Header />
+          <div className="absolute right-0 top-0 z-10">
+            <ProposeSubjectButton category="grazia" />
+          </div>
           {data?.blocco.isBlocked && (
             <BlockedWarning unlockDate={data.blocco.unlockDate} />
           )}
         </div>
+      </div>
+      <div className="container mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
 
         {error ? (
           <div className="rounded border-l-4 border-red-500 bg-red-100 p-4 text-red-800">
@@ -91,27 +92,17 @@ export default function Grazia() {
                     limit={limit}
                     remainingVotes={remainingVotes}
                   />
-                  <div className="flex items-center">
-                    <CreateButton onClick={showForm} />
-                  </div>
                 </>
               )}
             </div>
 
-            {/* Solo la classifica (e il modulo opzionale di proposta) scorre. */}
+            {/* Solo la classifica dei soggetti approvati scorre. */}
             <div
               className="app-page-scroll min-h-0 min-w-0 overflow-y-auto overscroll-contain pb-4"
               role="region"
               aria-label="Classifica Grazia"
               tabIndex={0}
             >
-              {votingState.showForm && (
-                <CarceratoForm
-                  onSubmit={handleCreateCarcerato}
-                  onCancel={hideForm}
-                  isLoading={false}
-                />
-              )}
               {!isLoadingData && (
                 <ClassificaCarcerati
                   classifica={data?.classifica || []}
