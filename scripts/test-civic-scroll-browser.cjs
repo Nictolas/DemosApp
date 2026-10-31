@@ -161,6 +161,9 @@ async function main() {
           };
         });
 
+        if (item.path === '/capo-stato' || item.path === '/capo-di-stato') {
+          console.log('CAPO PRECHECK ' + JSON.stringify({ viewport, first }));
+        }
         assert.ok(first.scroll, 'Missing scroll region: ' + item.path);
         assert.ok(first.scrollHeight > first.clientHeight + 50,
           'Expected overflowing content: ' + item.path + ' ' + viewport.width + 'x' + viewport.height);
