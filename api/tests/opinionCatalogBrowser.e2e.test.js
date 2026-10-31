@@ -197,6 +197,14 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     assert.equal(await details.getByRole('button', { name: 'Modifica approfondimento' }).count(), 0);
     for (const viewport of [{ width: 390, height: 844 }, { width: 360, height: 640 }]) {
       await page.setViewportSize(viewport);
+      // Playwright applies viewport resizing before Chrome necessarily repaints the dialog.
+      // Wait for the real responsive layout rather than measuring a stale previous frame.
+      await page.waitForFunction(size => {
+        const element = document.querySelector('[role="dialog"]');
+        if (!element) return false;
+        const box = element.getBoundingClientRect();
+        return Math.abs(box.width - size.width) <= 2 && Math.abs(box.height - size.height) <= 2;
+      }, viewport, { timeout: 7000 });
       const layout = await details.evaluate(element => {
         const root = element.getBoundingClientRect();
         const header = element.querySelector('h1, h2, h3')?.getBoundingClientRect();
