@@ -15,7 +15,7 @@ type Proposal = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  capo_stato: "Capo di Stato", grazia: "Grazia", amnistia: "Amnistia",
+  capo_stato: "Capo di Stato", amnistia: "Amnistia",
   attivisti: "Attivisti", organizzazioni: "Organizzazioni"
 };
 
