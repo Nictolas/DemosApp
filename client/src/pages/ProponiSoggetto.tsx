@@ -14,6 +14,7 @@ import {
   DEFAULT_SUBJECT_CATEGORY,
   categoryFromSearch,
   getProposalCategory,
+  proposalReturnPathFromSearch,
   type ProposalCategory,
 } from "@/config/subjectProposalCategories";
 
@@ -26,6 +27,8 @@ export default function ProponiSoggetto() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const [category, setCategory] = useState<ProposalCategory>(initialCategory);
+  const [returnPath, setReturnPath] = useState(() =>
+    typeof window === "undefined" ? "/capo-stato" : proposalReturnPathFromSearch(window.location.search));
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -38,6 +41,7 @@ export default function ProponiSoggetto() {
   useEffect(() => {
     const fromUrl = typeof window === "undefined" ? DEFAULT_SUBJECT_CATEGORY : categoryFromSearch(window.location.search);
     setCategory(fromUrl);
+    setReturnPath(proposalReturnPathFromSearch(window.location.search));
     setTitle("");
     setDetails("");
     setSourceUrl("");
@@ -119,13 +123,13 @@ export default function ProponiSoggetto() {
         <div className="mx-auto flex max-w-2xl items-start gap-3">
           <Button type="button" variant="ghost" size="icon"
             aria-label="Torna alla sezione" title="Torna alla sezione"
-            onClick={() => navigate(config.backPath)}>
+            onClick={() => navigate(returnPath)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Nuova proposta</h1>
+            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Proponi</h1>
             <p className="mt-1 text-xs text-slate-600 sm:text-sm">
-              Una sola pagina per proporre nuovi soggetti nelle cinque sezioni di DEMOS.
+              Proponi persone, organizzazioni o norme. Le proposte saranno verificate prima della pubblicazione.
             </p>
           </div>
         </div>
