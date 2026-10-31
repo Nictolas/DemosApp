@@ -130,6 +130,22 @@ router.get('/admin/approved', verifyToken, requireAdmin, async (_req, res) => {
   }
 });
 
+// Audit-only review of notifications that were not confirmed during a withdrawal.
+// Explicit Admin click only: no extra GET on opening Gestisci. Do not expose a
+// proposer UUID, title, source, note, or any other third-party personal content.
+// Legacy NULL after withdrawal is "unknown" and needs manual checking too.
+router.get('/admin/withdraw-notifications', verifyToken, requireAdmin, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      "SELECT id, category, withdrawn_at FROM subject_proposals WHERE status='withdrawn' AND category IN ('attivisti','organizzazioni') AND withdraw_notification_sent IS DISTINCT FROM TRUE ORDER BY withdrawn_at DESC NULLS LAST LIMIT 100"
+    );
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ success: true, withdrawals: r.rows });
+  } catch (_) {
+    return res.status(503).json({ success: false, error: 'Stato notifiche di ritiro temporaneamente non disponibile' });
+  }
+});
+
 // Emergency unpublish for the two title-only public directories. This is not
 // an erasure or a general-purpose DSAR endpoint: identity/grounds remain under DPO review.
 // Preserve the original approval reviewer/time/note and record a separate withdrawal audit.
@@ -156,7 +172,7 @@ router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) =
     }
     withdrawn = found.rows[0];
     await client.query(
-      "UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now(), withdrawn_by=$2, withdraw_note=$3, published_ref=NULL WHERE id=$1 AND status='approved'",
+      "UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now(), withdrawn_by=$2, withdraw_note=$3, published_ref=NULL, withdraw_notification_sent=FALSE WHERE id=$1 AND status='approved'",
       [withdrawn.id, req.user.id, note]
     );
     await client.query('COMMIT');
@@ -169,15 +185,30 @@ router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) =
     client?.release();
   }
 
-  // Best-effort private notice. The successful withdrawal must not be rolled
-  // back or reported as failed if this independent step cannot be delivered.
+  // Independent notification transaction. Either the private notification AND
+  // its durable delivery flag commit, or neither does; a crash before this
+  // transaction leaves FALSE for later authorized review. Never auto-resend:
+  // old/unknown delivery must be checked to avoid duplicate notifications.
   let notificationSent = false;
+  let noticeClient;
   try {
-    await notify(pool, withdrawn.proposer_user_id,
+    noticeClient = await pool.connect();
+    await noticeClient.query('BEGIN');
+    await notify(noticeClient, withdrawn.proposer_user_id,
       'La pubblicazione della tua proposta in ' + withdrawn.category + ' è stata ritirata.');
+    await noticeClient.query(
+      "UPDATE subject_proposals SET withdraw_notification_sent=TRUE WHERE id=$1 AND status='withdrawn' AND withdraw_notification_sent=FALSE",
+      [withdrawn.id]
+    );
+    await noticeClient.query('COMMIT');
     notificationSent = true;
   } catch (_) {
-    // Admin gets an explicit delivery flag; do not log a third-party name.
+    if (noticeClient) {
+      try { await noticeClient.query('ROLLBACK'); } catch (_) { /* disconnected */ }
+    }
+    // Do not log a third-party name or change the already-committed withdrawal.
+  } finally {
+    noticeClient?.release();
   }
   res.set('Cache-Control', 'private, no-store');
   return res.json({ success: true, status: 'withdrawn', notification_sent: notificationSent });
