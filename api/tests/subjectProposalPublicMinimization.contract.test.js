@@ -45,10 +45,14 @@ test('Admin withdrawal UI never treats a notification outage as failed unpublish
     .split("// Atomic review:")[0];
   assert.ok(withdrawal, 'withdrawal route exists');
   assert.ok(withdrawal.indexOf("await client.query('COMMIT')") <
-    withdrawal.indexOf('await notify(pool,'),
-    'emergency database withdrawal must commit BEFORE optional notification');
+    withdrawal.indexOf('await notify(noticeClient,'),
+    'emergency database withdrawal must commit BEFORE independent notification');
   assert.match(withdrawal,/notification_sent: notificationSent/);
-  assert.match(withdrawal,/try\s*\{\s*await notify\(pool,/);
+  assert.match(withdrawal,/await noticeClient\.query\('BEGIN'\)/);
+  assert.match(withdrawal,/await notify\(noticeClient,/);
+  assert.match(withdrawal,/UPDATE subject_proposals SET withdraw_notification_sent=TRUE/);
+  assert.match(withdrawal,/await noticeClient\.query\('COMMIT'\)/);
+  assert.match(withdrawal,/withdraw_notification_sent=FALSE WHERE id=\$1/);
   assert.match(ui,/result\.notification_sent !== true/);
   assert.match(ui,/setUndeliveredNotification\(true\)/);
   assert.match(ui,/role="alert"/);
