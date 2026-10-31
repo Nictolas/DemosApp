@@ -279,6 +279,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Ius Scholae', '931.323'],
       ['/opinioni-regionali', 'Nuove discariche', '4,43 mln t'],
       ['/opinioni-comunali', 'Nuovi asili nido comunali', '378.500'],
+      ['/opinioni-nazionali', 'Ius Soli', '49.002'],
+      ['/opinioni-regionali', 'Abbattimento dei cinghiali', '16.390'],
+      ['/opinioni-comunali', 'Tariffazione puntuale dei rifiuti', '89,7%'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -665,6 +668,51 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok(data.includes('NON quota di bambini esclusi'),
             'Waiting-list rate is per service, not children');
         }
+      } else if (['Ius Soli', 'Abbattimento dei cinghiali', 'Tariffazione puntuale dei rifiuti'].includes(title)) {
+        const evidence = brief.getByTestId('opinion-brief-measured-results');
+        await evidence.waitFor();
+        const data = await evidence.innerText();
+        const expectedCards = title === 'Ius Soli' ? 4 : 3;
+        assert.equal(await evidence.getByTestId('opinion-brief-result').count(), expectedCards,
+          title + ': quantified evidence with territory and period');
+        assert.equal(await evidence.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), expectedCards,
+          title + ': one visible official/source link per measured result');
+        const panels = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(key => root.querySelector('[data-testid="' + key + '"]')?.getBoundingClientRect().top));
+        assert.ok(panels.every(Number.isFinite) && panels[0] < panels[1] && panels[1] < panels[2],
+          title + ': explanation above comparison, evidence below, no conflation');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Abbattimento dei cinghiali' ? 0 : 1,
+          title + ': only actual policy transitions get an arrow');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no misleading international legality categorization');
+        if (title === 'Ius Soli') {
+          for (const n of ['49.002', '13,8%', '31.440', '80.442'])
+            assert.ok(data.includes(n), 'ISTAT 2025 births by parent nationality ' + n);
+          assert.ok(data.includes('NON è una stima di destinatari') &&
+            data.includes('Non identificano da sole il luogo effettivo di nascita'),
+            'Birth parent nationality does not determine Ius Soli eligibility');
+          assert.ok((await brief.innerText()).includes('Ius Scholae = percorso scolastico'),
+            'Ius Soli and Ius Scholae remain distinct');
+        }
+        if (title === 'Abbattimento dei cinghiali') {
+          for (const n of ['4.890', '16.390', 'oltre 20.000'])
+            assert.ok(data.includes(n), 'Piedmont controlled vs hunting removals ' + n);
+          assert.ok(data.includes('Più abbattimenti NON dimostrano automaticamente meno cinghiali'),
+            'Removals must not be represented as reduced damage or boar population');
+          assert.ok((await brief.innerText()).includes('non coincide con la caccia ricreativa'),
+            'Faunal management is separate from recreational hunting');
+        }
+        if (title === 'Tariffazione puntuale dei rifiuti') {
+          for (const n of ['89,7%', '42 kg/ab', '67,69%'])
+            assert.ok(data.includes(n), 'Contarina and ISPRA waste evidence ' + n);
+          assert.ok(data.includes('NON tutti i rifiuti prodotti') &&
+            data.includes('NON dimostra il solo effetto della tariffazione puntuale'),
+            'Residual waste not total waste and cross-year geographic comparisons are not causal');
+          assert.ok((await brief.innerText()).includes('raccolta porta a porta sono strumenti diversi'),
+            'Pay-as-you-throw is not the same as door-to-door collection');
+        }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
           title + ': only state-to-proposal comparisons have an arrow');
@@ -676,7 +724,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       await dialog.waitFor({ state: 'hidden' });
     }
     await page.goto(HEADLESS_ORIGIN + '/opinioni-nazionali', { waitUntil: 'domcontentloaded' });
-    const legacy = page.locator('button[title="Approfondimento: Ius Soli"]');
+    const legacy = page.locator('button[title="Approfondimento: Leva obbligatoria"]');
     await legacy.waitFor({ timeout: 25000 });
     await legacy.click();
     const legacyDialog = page.getByRole('dialog');
