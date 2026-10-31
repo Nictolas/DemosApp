@@ -105,7 +105,7 @@ router.post('/', verifyToken, async (req, res) => {
 router.get('/admin', verifyToken, requireAdmin, async (_req, res) => {
   try {
     const r = await pool.query(
-      "SELECT id, category, title, details, source_url, proposer_user_id, created_at FROM subject_proposals WHERE status='pending' AND category <> 'grazia' ORDER BY created_at ASC LIMIT 100"
+      "SELECT id, category, title, details, source_url, created_at FROM subject_proposals WHERE status='pending' AND category <> 'grazia' ORDER BY created_at ASC LIMIT 100"
     );
     res.set('Cache-Control', 'private, no-store');
     return res.json({ success: true, proposals: r.rows });
