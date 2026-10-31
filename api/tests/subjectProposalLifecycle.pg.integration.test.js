@@ -161,6 +161,57 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.deepEqual(Object.keys(publishedAfter.body.data[0]).sort(),['id','title'],
       'public approved listing must not disclose optional narratives, source URLs or proposer identities');
 
+    // Test actual unpublishing via authorized route and its transaction on PG17.
+    const orgId=org.body.proposal.id;
+    assert.equal((await req('/api/subject-proposals/admin/approved','a')).status,403);
+    assert.equal((await req('/api/subject-proposals/admin/approved',null)).status,401);
+    const adminPublished=await req('/api/subject-proposals/admin/approved','admin');
+    assert.equal(adminPublished.status,200);
+    assert.deepEqual(Object.keys(adminPublished.body.proposals[0]).sort(),['category','id','reviewed_at','title'],
+      'approved Admin listing must not return proponent UUID or narrative');
+    assert.equal(adminPublished.body.proposals[0].id,orgId);
+    assert.equal((await req('/api/subject-proposals/admin/'+orgId+'/withdraw','b','POST',{note:'Ritiro cautelativo'})).status,403);
+    assert.equal((await req('/api/subject-proposals/admin/'+orgId+'/withdraw','admin','POST',{note:''})).status,400);
+    assert.equal((await req('/api/subject-proposals/admin/'+capoId+'/withdraw','admin','POST',{note:'Ritiro cautelativo'})).status,409,
+      'Capo di Stato requires a separate catalog/vote review path');
+    assert.equal((await req('/api/subject-proposals/admin/'+amnistia.body.proposal.id+'/withdraw','admin','POST',{note:'Ritiro cautelativo'})).status,409,
+      'Amnistia requires a separate catalog/vote review path');
+    const beforeWithdraw=await pool.query(
+      'SELECT reviewed_at,reviewed_by,review_note FROM subject_proposals WHERE id=$1',[orgId]
+    );
+    const concurrentWithdraw=await Promise.all(Array.from({length:3},
+      ()=>req('/api/subject-proposals/admin/'+orgId+'/withdraw','admin','POST',{note:'Ritiro cautelativo'})));
+    assert.equal(concurrentWithdraw.filter(x=>x.status===200).length,1,
+      'exactly one concurrent withdrawal may commit');
+    assert.equal(concurrentWithdraw.filter(x=>x.status===409).length,2,
+      'repeat withdrawals must not change the audit record');
+    assert.equal(concurrentWithdraw.find(x=>x.status===200).body.status,'withdrawn');
+    const afterWithdraw=await pool.query(
+      'SELECT status,withdrawn_at,withdrawn_by,withdraw_note,published_ref,reviewed_at,reviewed_by,review_note FROM subject_proposals WHERE id=$1',[orgId]
+    );
+    const withdrawn=afterWithdraw.rows[0];
+    assert.equal(withdrawn.status,'withdrawn');
+    assert.ok(withdrawn.withdrawn_at);
+    assert.equal(withdrawn.withdrawn_by,ADMIN);
+    assert.equal(withdrawn.withdraw_note,'Ritiro cautelativo');
+    assert.equal(withdrawn.published_ref,null);
+    assert.deepEqual({
+      reviewed_at:withdrawn.reviewed_at,
+      reviewed_by:withdrawn.reviewed_by,
+      review_note:withdrawn.review_note
+    },beforeWithdraw.rows[0],'original approval audit is not overwritten');
+    const afterWithdrawDirectory=await req('/api/subject-proposals/approved?category=organizzazioni');
+    assert.equal(afterWithdrawDirectory.status,200);
+    assert.deepEqual(afterWithdrawDirectory.body.data,[],'withdrawn name must vanish from public directory');
+    assert.equal((await req('/api/subject-proposals/admin/approved','admin')).body.proposals.some(p=>p.id===orgId),false);
+    const afterWithdrawNotices=await pool.query(
+      "SELECT testo FROM notifiche_demos WHERE id_utente=$1 AND testo LIKE 'La pubblicazione%'",[B]
+    );
+    assert.equal(afterWithdrawNotices.rows.length,1,'proponent notified privately only once');
+    assert.equal(afterWithdrawNotices.rows[0].testo.includes(org.title),false,'withdrawal notice has no public third-party name');
+    const rePropose=await req('/api/subject-proposals','b','POST',proposal('organizzazioni',org.body.proposal.title));
+    assert.equal(rePropose.status,201,'withdrawal lifts the open-title uniqueness gate for a corrected resubmission');
+
     const activist=await req('/api/subject-proposals','b','POST',proposal('attivisti','Attivista sintetica rifiutata'));
     assert.equal(activist.status,201);
     assert.equal((await req('/api/subject-proposals/admin/'+activist.body.proposal.id+'/decision','a','POST',{decision:'approve'})).status,403);
