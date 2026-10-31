@@ -15,13 +15,19 @@ function cleanProposal(body) {
       details.length > 1000 || sourceUrl.length > 2048) {
     return { error: 'Campi della proposta non validi' };
   }
-  if (sourceUrl) {
-    try {
-      const url = new URL(sourceUrl);
-      if (url.protocol !== 'https:' || !url.hostname) return { error: 'URL fonte non valido' };
-    } catch (_) {
+  // Require a public source for third-party nominations. Never accept
+  // unstructured criminal/judicial details for Grazia.
+  if (!sourceUrl) return { error: 'Fonte pubblica HTTPS obbligatoria' };
+  if (category === 'grazia' && details) {
+    return { error: 'Per Grazia non sono ammessi dettagli giudiziari o dati personali aggiuntivi' };
+  }
+  try {
+    const url = new URL(sourceUrl);
+    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) {
       return { error: 'URL fonte non valido' };
     }
+  } catch (_) {
+    return { error: 'URL fonte non valido' };
   }
   return { category, title, details, sourceUrl: sourceUrl || null };
 }
@@ -83,7 +89,7 @@ router.post('/', verifyToken, async (req, res) => {
     // Private admin inbox notification; no proposer identity in the message.
     await client.query(
       "INSERT INTO notifiche_demos(id_utente,titolo,testo) SELECT id, 'DEMOS — Nuova proposta', $1 FROM users WHERE (is_admin = TRUE OR ruolo IN ('AD','Admin')) AND lower(status) = 'a'",
-      ['Nuova proposta ' + proposal.category + ': ' + proposal.title.slice(0, 120)]
+      ['Nuova proposta ricevuta in una categoria da moderare.']
     );
     await client.query('COMMIT');
     res.set('Cache-Control', 'private, no-store');
