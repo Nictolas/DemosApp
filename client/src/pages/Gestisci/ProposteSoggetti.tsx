@@ -14,6 +14,7 @@ type Proposal = {
   created_at: string;
 };
 type ApprovedSubject = { id: string; category: string; title: string; reviewed_at: string };
+type WithdrawalNotice = { id: string; category: string; withdrawn_at: string | null };
 
 const CATEGORY_LABELS: Record<string, string> = {
   capo_stato: "Capo di Stato", amnistia: "Amnistia",
@@ -26,6 +27,9 @@ export default function ProposteSoggetti() {
   const [pending, setPending] = useState<Proposal[]>([]);
   const [approved, setApproved] = useState<ApprovedSubject[]>([]);
   const [showApproved, setShowApproved] = useState(false);
+  const [showUndelivered, setShowUndelivered] = useState(false);
+  const [undelivered, setUndelivered] = useState<WithdrawalNotice[]>([]);
+  const [loadingUndelivered, setLoadingUndelivered] = useState(false);
   const [loadingApproved, setLoadingApproved] = useState(false);
   const [undeliveredNotification, setUndeliveredNotification] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -66,14 +70,39 @@ export default function ProposteSoggetti() {
     }
   }, [isAdmin]);
 
-  const switchApproved = () => {
-    if (showApproved) {
-      setShowApproved(false);
-      setError(null);
-    } else {
-      setShowApproved(true);
-      void refreshApproved();
+  const refreshUndelivered = useCallback(async () => {
+    if (!isAdmin) return;
+    setLoadingUndelivered(true);
+    setError(null);
+    try {
+      const r = await apiRequest("GET", "/api/subject-proposals/admin/withdraw-notifications");
+      const d = await r.json();
+      setUndelivered(d.withdrawals || []);
+      setUndeliveredNotification((d.withdrawals || []).length > 0);
+    } catch (_) {
+      // Do not display a stale "all sent" confirmation if the audit is unavailable.
+      setError("Impossibile verificare le notifiche dei ritiri.");
+    } finally {
+      setLoadingUndelivered(false);
     }
+  }, [isAdmin]);
+
+  const switchPending = () => {
+    setShowApproved(false);
+    setShowUndelivered(false);
+    setError(null);
+  };
+  const switchApproved = () => {
+    if (showApproved) return;
+    setShowApproved(true);
+    setShowUndelivered(false);
+    void refreshApproved();
+  };
+  const switchUndelivered = () => {
+    if (showUndelivered) return;
+    setShowApproved(false);
+    setShowUndelivered(true);
+    void refreshUndelivered();
   };
 
   const withdraw = async (p: ApprovedSubject) => {
@@ -139,7 +168,7 @@ export default function ProposteSoggetti() {
             <h1 className="text-xl font-bold">Proposte di nuovi soggetti</h1>
             <p className="text-sm text-slate-600">Solo l'admin può rendere pubbliche le proposte.</p>
           </div>
-          <Button variant="outline" onClick={() => showApproved ? void refreshApproved() : void refresh()} disabled={showApproved ? loadingApproved : loading} aria-label="Aggiorna proposte">
+          <Button variant="outline" onClick={() => showUndelivered ? void refreshUndelivered() : showApproved ? void refreshApproved() : void refresh()} disabled={showUndelivered ? loadingUndelivered : showApproved ? loadingApproved : loading} aria-label="Aggiorna proposte">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -149,20 +178,24 @@ export default function ProposteSoggetti() {
           </p>
         )}
         <div className="mb-3 flex shrink-0 gap-2">
-          <Button type="button" variant={showApproved ? "outline" : "default"} onClick={() => showApproved && switchApproved()} disabled={!!submittingId}>
+          <Button type="button" variant={!showApproved && !showUndelivered ? "default" : "outline"} onClick={switchPending} disabled={!!submittingId}>
             In attesa
           </Button>
-          <Button type="button" variant={showApproved ? "default" : "outline"} onClick={() => !showApproved && switchApproved()} disabled={!!submittingId}>
+          <Button type="button" variant={showApproved ? "default" : "outline"} onClick={switchApproved} disabled={!!submittingId}>
             Pubblicate
           </Button>
+          <Button type="button" variant={showUndelivered ? "default" : "outline"} onClick={switchUndelivered} disabled={!!submittingId}>
+            Avvisi da verificare
+          </Button>
         </div>
-        <div className="app-page-scroll min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-6" role="region" aria-label={showApproved ? "Pubblicazioni da gestire" : "Coda proposte"} tabIndex={0}>
-          {!showApproved && loading && <p className="text-sm">Aggiornamento...</p>}
+        <div className="app-page-scroll min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-6" role="region" aria-label={showUndelivered ? "Notifiche di ritiro da verificare" : showApproved ? "Pubblicazioni da gestire" : "Coda proposte"} tabIndex={0}>
+          {!showApproved && !showUndelivered && loading && <p className="text-sm">Aggiornamento...</p>}
           {showApproved && loadingApproved && <p className="text-sm">Aggiornamento pubblicazioni...</p>}
+          {showUndelivered && loadingUndelivered && <p className="text-sm">Verifica notifiche in corso...</p>}
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-          {!showApproved && !loading && !error && pending.length === 0 && <p className="text-sm text-slate-600">Nessuna proposta in attesa.</p>}
+          {!showApproved && !showUndelivered && !loading && !error && pending.length === 0 && <p className="text-sm text-slate-600">Nessuna proposta in attesa.</p>}
           {showApproved && !loadingApproved && !error && approved.length === 0 && <p className="text-sm text-slate-600">Nessuna pubblicazione gestibile qui. Capo di Stato e Amnistia richiedono un percorso separato.</p>}
-          {!showApproved && pending.map(p => (
+          {!showApproved && !showUndelivered && pending.map(p => (
             <article key={p.id} className="space-y-2 rounded-xl border bg-white p-3 shadow-sm">
               <p className="text-xs font-medium text-slate-600">{CATEGORY_LABELS[p.category]}</p>
               <h2 className="break-words text-lg font-semibold">{p.title}</h2>
@@ -180,6 +213,25 @@ export default function ProposteSoggetti() {
                   <X className="mr-1 h-4 w-4" /> Rifiuta
                 </Button>
               </div>
+            </article>
+          ))}
+          {showUndelivered && !loadingUndelivered && !error && undelivered.length === 0 && (
+            <p className="text-sm text-slate-600">Nessuna notifica di ritiro da verificare.</p>
+          )}
+          {showUndelivered && !loadingUndelivered && !error && (
+            <p className="text-sm text-slate-600">
+              Elenco caricato su richiesta. Le notifiche non confermate, incluse quelle storiche di esito sconosciuto,
+              richiedono verifica DPO: non verranno reinviate automaticamente.
+            </p>
+          )}
+          {showUndelivered && !loadingUndelivered && !error && undelivered.map(item => (
+            <article key={item.id} className="rounded-xl border bg-white p-3 shadow-sm">
+              <p className="text-sm font-medium">{CATEGORY_LABELS[item.category] || item.category}</p>
+              <p className="text-xs text-slate-600">
+                Ritiro: {item.withdrawn_at ? new Date(item.withdrawn_at).toLocaleDateString("it-IT") : "Data da verificare"}
+              </p>
+              <p className="break-all font-mono text-xs text-slate-500">Riferimento {item.id}</p>
+              <p className="text-xs text-slate-700">Verificare la comunicazione con il DPO. Non reinviare senza controllo.</p>
             </article>
           ))}
           {showApproved && approved.map(p => (
