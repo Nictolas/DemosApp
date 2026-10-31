@@ -87,7 +87,7 @@ test('mount has no extra GET; foreground refresh hides old name and copies only 
   assert.equal(app.calls.length,1);
   assert.equal(app.calls[0].method,'GET');
   assert.equal(app.calls[0].url,'/api/subject-proposals/approved?category=attivisti');
-  assert.deepEqual(app.state,[],'stale name removed synchronously, before fetch');
+  assert.equal(app.state.length,0,'stale name removed synchronously, before fetch');
   app.fire('document','visibilitychange');
   assert.equal(app.calls.length,1,'focus+visibility deduplicated without polling');
   app.success(app.calls[0],[{id:'new',title:'Approvato',details:'private',source_url:'https://example.org'}]);
@@ -110,10 +110,10 @@ test('a late previous response cannot put withdrawn title back into state',async
   const latest=app.calls[1];
   app.success(latest,[]);
   await flush();
-  assert.deepEqual(app.state,[],'withdrawn list stays empty');
+  assert.equal(app.state.length,0,'withdrawn list stays empty');
   app.success(first,[{id:'withdrawn',title:'Non pubblicabile'}]);
   await flush();
-  assert.deepEqual(app.state,[],'late response must never resurrect title');
+  assert.equal(app.state.length,0,'late response must never resurrect title');
   app.unmount();
 });
 
@@ -128,12 +128,12 @@ test('offline, invalid JSON and hidden background do not resurrect old entries',
   assert.equal(app.calls.length,1);
   app.failure(app.calls[0]);
   await flush();
-  assert.deepEqual(app.state,[],'fail closed on offline');
+  assert.equal(app.state.length,0,'fail closed on offline');
   app.advance(2000);
   app.fire('window','focus');
   app.invalid(app.calls[1]);
   await flush();
-  assert.deepEqual(app.state,[],'fail closed on invalid response');
+  assert.equal(app.state.length,0,'fail closed on invalid response');
   app.unmount();
 });
 
@@ -150,7 +150,7 @@ test('cleanup aborts pending GET and removes both listeners',async()=>{
   assert.equal(app.calls.length,1,'unmounted hook must not call API');
   app.success(first,[{id:'old',title:'Should not return'}]);
   await flush();
-  assert.deepEqual(app.state,[],'unmounted hook must not rehydrate personal data');
+  assert.equal(app.state.length,0,'unmounted hook must not rehydrate personal data');
 });
 
 test('disabled hook never registers listeners or runs queries',()=>{
