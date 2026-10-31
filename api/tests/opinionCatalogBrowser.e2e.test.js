@@ -216,7 +216,8 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         };
       });
       assert.ok(Math.abs(layout.root.x) <= 1 && Math.abs(layout.root.y) <= 1, 'Dialog starts at viewport origin');
-      assert.ok(Math.abs(layout.root.width - viewport.width) <= 2, 'Dialog fills viewport width');
+      assert.ok(Math.abs(layout.root.width - viewport.width) <= 2,
+        'Dialog fills viewport width: ' + JSON.stringify({ viewport, layout }));
       assert.ok(Math.abs(layout.root.height - viewport.height) <= 2, 'Dialog fills viewport height');
       assert.ok(layout.header && layout.header.top >= 0, 'Header remains visible');
       assert.ok(layout.footer && layout.footer.bottom <= viewport.height + 1, 'Close button remains visible');
