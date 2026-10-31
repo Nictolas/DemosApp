@@ -28,6 +28,7 @@ export default function Grazia() {
     showForm,
     hideForm,
     handleCreateCarcerato,
+    isSubmittingProposal,
     currentVotes,
     limit,
     remainingVotes,
@@ -109,7 +110,7 @@ export default function Grazia() {
                 <CarceratoForm
                   onSubmit={handleCreateCarcerato}
                   onCancel={hideForm}
-                  isLoading={false}
+                  isLoading={isSubmittingProposal}
                 />
               )}
               {!isLoadingData && (
