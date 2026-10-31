@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feat/unified-proposals-page-20261031
+      - feat/proposals-integration-20261031
   pull_request:
     branches:
       - feat/moderated-subject-proposals-20261031

@@ -82,6 +82,9 @@ export default function Amnistia() {
               </div>
             ) : (
               <>
+                <p className="text-xs text-muted-foreground" role="status">
+                  Le nuove voci vengono valutate prima della pubblicazione: usa + per proporle.
+                </p>
                 <AmnistiaForm
                   leggeInput={votingState.leggeInput}
                   showSuggestions={votingState.showSuggestions}
