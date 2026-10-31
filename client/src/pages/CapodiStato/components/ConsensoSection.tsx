@@ -64,17 +64,17 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
   const showResults = data.mioConsenso !== null && data.statistiche.totale > 0;
 
   return (
-    <Card className="mb-0 shrink-0 bg-white shadow-sm sm:mb-6 lg:mb-0">
-      <CardHeader className="px-3 pb-1 pt-2.5 sm:p-6 sm:pb-2 lg:py-3">
-        <CardTitle className="text-left text-base font-bold sm:text-center sm:text-xl lg:text-lg">
+    <Card className="mb-0 shrink-0 bg-white shadow-sm lg:mb-6 lg:mb-0">
+      <CardHeader className="px-3 pb-1 pt-2.5 lg:p-6 lg:pb-2 lg:py-3">
+        <CardTitle className="text-left text-base font-bold lg:text-center lg:text-xl lg:text-lg">
           Consenso
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-3 pb-3 pt-1 sm:px-6 sm:pb-6 sm:pt-0 lg:pb-3">
-        <div className="space-y-2 sm:space-y-4 lg:space-y-3">
+      <CardContent className="px-3 pb-3 pt-1 lg:px-6 lg:pb-6 lg:pt-0 lg:pb-3">
+        <div className="space-y-2 lg:space-y-4 lg:space-y-3">
           {/* Domanda */}
           <div className="text-center">
-            <h3 className="mb-2 text-sm font-semibold leading-snug text-gray-800 sm:mb-3 sm:text-lg lg:mb-2 lg:text-base">
+            <h3 className="mb-2 text-sm font-semibold leading-snug text-gray-800 lg:mb-3 lg:text-lg lg:mb-2 lg:text-base">
               Ti senti rappresentato dall'attuale Capo di Stato?
             </h3>
             
@@ -89,7 +89,7 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
                   <button
                     key={option.value}
                     type="button"
-                    className={`min-h-11 flex-1 py-2 text-sm font-medium sm:py-3 sm:text-base lg:py-2 lg:text-sm transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                    className={`min-h-11 flex-1 py-2 text-sm font-medium lg:py-3 lg:text-base lg:py-2 lg:text-sm transition-transform duration-150 focus:outline-none border border-gray-200 ${
                       idx === 0 ? 'rounded-l-full' : ''
                     } ${
                       idx === 2 ? 'rounded-r-full' : ''
@@ -110,8 +110,8 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
 
           {/* Torta a sinistra, statistiche a destra (PC) */}
           {showResults && (
-            <div className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)] items-center gap-2 sm:grid-cols-1 sm:gap-3 lg:grid-cols-2 lg:gap-4">
-              <div className="h-36 w-full sm:h-52 lg:h-40">
+            <div className="grid grid-cols-1 items-center gap-1 lg:grid-cols-2 lg:gap-4">
+              <div className="hidden h-36 w-full lg:block lg:h-40">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -135,11 +135,11 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
                 </ResponsiveContainer>
               </div>
 
-              <div className="min-w-0 space-y-1 text-left sm:space-y-2 sm:text-center lg:space-y-1.5 lg:text-left">
-                <p className="text-xs text-gray-600 sm:text-sm">
+              <div className="min-w-0 space-y-1 text-left lg:space-y-2 lg:text-center lg:space-y-1.5 lg:text-left">
+                <p className="text-xs text-gray-600 lg:text-sm">
                   Totale voti: <span className="font-semibold">{data.statistiche.totale}</span>
                 </p>
-                <div className="flex flex-col items-start gap-1 text-xs sm:items-center sm:text-sm lg:items-start">
+                <div className="flex flex-col items-start gap-1 text-xs lg:items-center lg:text-sm lg:items-start">
                   <span className="text-green-600 font-medium">
                     Sì: {data.statistiche['Sì']} ({percent(data.statistiche['Sì'])}%)
                   </span>
@@ -156,15 +156,15 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
 
           {/* Messaggio se non ci sono voti */}
           {data.statistiche.totale === 0 && (
-            <div className="py-1 text-center text-xs text-gray-500 sm:py-2 sm:text-base">
+            <div className="py-1 text-center text-xs text-gray-500 lg:py-2 lg:text-base">
               <p>Nessun voto di consenso ancora espresso.</p>
-              <p className="hidden text-sm sm:block">Sii il primo a esprimere la tua opinione!</p>
+              <p className="hidden text-sm lg:block">Sii il primo a esprimere la tua opinione!</p>
             </div>
           )}
 
           {/* Messaggio di blocco */}
           {data.blocco.isBlocked && (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-2 text-center sm:p-3">
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-2 text-center lg:p-3">
               <p className="text-yellow-800 font-medium text-sm">
                 Hai già votato per il consenso questa settimana
               </p>
