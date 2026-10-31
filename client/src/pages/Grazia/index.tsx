@@ -51,7 +51,7 @@ export default function Grazia() {
   return (
     <PageContainer className="overflow-hidden bg-gray-50">
       {/* Stessa testata bianca, centrata e fissa delle directory pubbliche. */}
-      <div className="grazia-page__fixed-header shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3 sm:px-6 sm:pt-4">
+      <div className="grazia-page__fixed-header shrink-0 border-b border-slate-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
         <div className="relative mx-auto w-full max-w-6xl">
           <Header />
           <div className="absolute right-0 top-0 z-10">
