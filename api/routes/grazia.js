@@ -203,6 +203,26 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
       });
     }
 
+    // New names must enter the canonical catalog by Admin review.
+    // Historical names with existing votes remain selectable for compatibility.
+    if (voti.length > 0) {
+      const newName = typeof voti[0] === 'string' ? voti[0].trim() : '';
+      if (newName.length < 3 || newName.length > 150) {
+        return res.status(422).json({ success: false, error: 'Nome non valido' });
+      }
+      const allowed = await pool.query(
+        `SELECT 1 FROM grazia_carcerati WHERE attivo=true AND lower(btrim(nome))=lower(btrim($1))
+          UNION SELECT 1 FROM voti_grazia WHERE lower(btrim(nome))=lower(btrim($1)) LIMIT 1`,
+        [newName]
+      );
+      if (allowed.rows.length === 0) {
+        return res.status(422).json({
+          success: false, error: 'SOGGETTO_NON_APPROVATO',
+          message: 'Per proporre una persona usa il pulsante + e attendi l’approvazione dell’admin.'
+        });
+      }
+    }
+
     // Limita a massimo 1 voto come da limite configurato
     if (voti.length > 1) {
       console.log('❌ DEBUG - Troppi voti:', voti.length);
