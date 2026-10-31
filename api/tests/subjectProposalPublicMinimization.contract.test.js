@@ -80,19 +80,19 @@ test('unconfirmed withdrawal notification audit is Admin-only, minimal and read 
 test('public activist and organization lists never log personal search filters or raw SQL errors', () => {
   for (const p of ['api/routes/attivisti.js', 'api/routes/organizzazioni.js']) {
     const source = file(p);
-    assert.doesNotMatch(source, /console\\.log\\s*\\(/,
+    assert.doesNotMatch(source, /console\.log\s*\(/,
       'search terms, user IDs, SQL parameters and list entries must not appear in debug logs: ' + p);
-    assert.doesNotMatch(source, /console\\.error\\s*\\([^;]*,\\s*error\\s*\\)/,
+    assert.doesNotMatch(source, /console\.error\s*\([^;]*,\s*error\s*\)/,
       'raw database errors can contain personal SQL values: ' + p);
     assert.match(source, /'Cache-Control': 'no-cache, no-store, must-revalidate'/,
       'public list with third-party approved titles must not be cached: ' + p);
-    assert.match(source, /SELECT id, title FROM subject_proposals WHERE status='approved' AND category=\\$1/,
+    assert.match(source, /SELECT id, title FROM subject_proposals WHERE status='approved' AND category=\$1/,
       'only minimal approved titles exposed in directory: ' + p);
   }
   const org = file('client/src/pages/Organizzazioni/index.tsx');
-  assert.match(org, /fetch\\(url, \\{ signal: controller\\.signal, cache: 'no-store' \\}\\)/,
+  assert.match(org, /fetch\(url, \{ signal: controller\.signal, cache: 'no-store' \}\)/,
     'client must not reuse an outdated organization response after a withdrawal');
   const activist = file('client/src/pages/Attivisti/index.tsx');
-  assert.match(activist, /apiRequest\\("GET", "\/api\/attivisti"\\)/,
+  assert.match(activist, /apiRequest\("GET", "\/api\/attivisti"\)/,
     'activist uses globally no-store API request');
 });
