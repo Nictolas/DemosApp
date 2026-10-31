@@ -534,7 +534,7 @@ export default function DataExport() {
             <Card>
               <CardHeader>
                 <CardTitle>Migrazione Neon → Axiom</CardTitle>
-                <CardDescription>Azioni amministrative esistenti, con conferme esplicite per le operazioni distruttive.</CardDescription>
+                <CardDescription>Le migrazioni restano disponibili; la cancellazione legacy è sospesa fino alla verifica GDPR/RP-10.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-2">
