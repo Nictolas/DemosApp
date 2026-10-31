@@ -1,7 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
-import { ChevronRight, FileText, Globe2, Vote } from "lucide-react";
+import { Link, Redirect } from "wouter";
+import { ChevronRight, FileText, Globe2, Vote, PlusCircle } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 
 const signatureOptions = [
@@ -88,6 +88,22 @@ export default function Proponi() {
                 </button>
               );
             })}
+          </section>
+
+          <section aria-label="Proponi nuovi soggetti" className="border-t border-slate-200 pt-3">
+            <Link
+              href="/proponi-soggetto"
+              className="flex min-h-16 w-full items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-left transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            >
+              <PlusCircle className="h-6 w-6 shrink-0 text-blue-700" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-slate-900">Proponi un soggetto</span>
+                <span className="block text-xs text-slate-600">
+                  Presidente della Repubblica, Grazia, Amnistia, Attivisti o Organizzazioni.
+                </span>
+              </span>
+              <ChevronRight className="h-5 w-5 text-blue-700" aria-hidden="true" />
+            </Link>
           </section>
         </div>
       </div>
