@@ -2,7 +2,7 @@
 // Read-only DEMOS staging preflight. System catalog metadata only: no user rows.
 const REQUIRED_COLUMNS = Object.freeze({
   users: ['id','ruolo','is_admin','status'],
-  subject_proposals: ['id','proposer_user_id','category','title','details','source_url','status','created_at','reviewed_at','reviewed_by','published_ref','review_note','withdrawn_at','withdrawn_by','withdraw_note'],
+  subject_proposals: ['id','proposer_user_id','category','title','details','source_url','status','created_at','reviewed_at','reviewed_by','published_ref','review_note','withdrawn_at','withdrawn_by','withdraw_note','withdraw_notification_sent'],
   capo_stato_soggetti_approvati: ['id','nome','active','source_proposal_id'],
   richieste_grazia: ['id','utente_id','nome','url_prova','status','data_creazione'],
   grazia_carcerati: ['id','nome','attivo'],
