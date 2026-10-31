@@ -59,6 +59,7 @@ import Gestisci from "./pages/Gestisci";
 import Strumenti from "./pages/Strumenti";
 import Sondaggi from "./pages/Sondaggi";
 import Proponi from "./pages/Proponi";
+import ProponiSoggetto from "./pages/ProponiSoggetto";
 import ProponiOpinione from "./pages/ProponiOpinione";
 import CapodiStato from "./pages/CapodiStato";
 import Amnistia from "./pages/Amnistia";
@@ -896,6 +897,11 @@ export default function App() {
               {/* Route firma */}
               <Route path="/firma">
                 <ProtectedRoute path="/firma" component={Proponi} />
+              </Route>
+
+              {/* Anteprima solo UI delle proposte: nessun invio a API o dati personali. */}
+              <Route path="/proponi-soggetto">
+                <ProtectedRoute path="/proponi-soggetto" component={ProponiSoggetto} />
               </Route>
 
               {/* Route proponi opinione */}
