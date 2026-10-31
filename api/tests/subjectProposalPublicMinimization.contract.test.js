@@ -33,7 +33,7 @@ test('both approved-catalogue cards only show title and are not presented as ver
     assert.match(s, /subject\.title/,'must preserve approved subject label in ' + p);
     assert.doesNotMatch(s, /subject\.details|subject\.source_url/,
       'public catalogue cannot render private narrative or source in ' + p);
-    assert.match(s, /non (?:è ancora un profilo|un account) DEMOS verificato/,
+    assert.match(s, /non (?:è ancora un profilo|un account) DEMOS verificato/i,
       'never imply public nomination is a verified DEMOS account');
   }
 });
