@@ -16,6 +16,23 @@ CREATE TABLE IF NOT EXISTS public.subject_proposals (
   review_note text CHECK (review_note IS NULL OR char_length(review_note) <= 500)
 );
 
+-- Existing staging copies may still have the old five-category CHECK. CREATE TABLE
+-- IF NOT EXISTS does not update it. Refuse to delete or silently migrate any
+-- legacy Grazia record: these belong in richieste_grazia after DPO review.
+-- This DO block is atomic: a failed check cannot leave the constraint dropped.
+DO $subject_category_guard$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.subject_proposals WHERE category = 'grazia' LIMIT 1) THEN
+    RAISE EXCEPTION 'Subject-proposal migration blocked: Grazia rows require explicit review and reconciliation';
+  END IF;
+  ALTER TABLE public.subject_proposals
+    DROP CONSTRAINT IF EXISTS subject_proposals_category_check;
+  ALTER TABLE public.subject_proposals
+    ADD CONSTRAINT subject_proposals_category_check
+      CHECK (category IN ('capo_stato', 'amnistia', 'attivisti', 'organizzazioni'));
+END
+$subject_category_guard$;
+
 CREATE UNIQUE INDEX IF NOT EXISTS subject_proposals_one_pending_per_user_category
  ON public.subject_proposals(proposer_user_id, category) WHERE status = 'pending';
 CREATE UNIQUE INDEX IF NOT EXISTS subject_proposals_no_duplicate_open_titles
