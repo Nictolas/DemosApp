@@ -282,6 +282,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Ius Soli', '49.002'],
       ['/opinioni-regionali', 'Abbattimento dei cinghiali', '16.390'],
       ['/opinioni-comunali', 'Tariffazione puntuale dei rifiuti', '89,7%'],
+      ['/opinioni-nazionali', 'Allevamenti Intensivi', '323,5 kt'],
+      ['/opinioni-regionali', 'Treni regionali gratuiti', '119.214'],
+      ['/opinioni-comunali', 'Nuova biblioteca comunale', '13.636'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -712,6 +715,51 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Residual waste not total waste and cross-year geographic comparisons are not causal');
           assert.ok((await brief.innerText()).includes('raccolta porta a porta sono strumenti diversi'),
             'Pay-as-you-throw is not the same as door-to-door collection');
+        }
+      } else if (['Allevamenti Intensivi', 'Treni regionali gratuiti', 'Nuova biblioteca comunale'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        const metrics = results.getByTestId('opinion-brief-result');
+        assert.equal(await metrics.count(), 4, title + ': four independently sourced metrics');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': every figure links to a source');
+        const blocks = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(blocks.every(Number.isFinite) && blocks[0] < blocks[1] && blocks[1] < blocks[2],
+          title + ': opening definition, policy alternatives and evidence must remain separate');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': do not invent a legal-vs-illegal jurisdiction comparison');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Treni regionali gratuiti' ? 1 : 0,
+          title + ': arrow only for transition from current rules to proposed universal trains');
+        if (title === 'Allevamenti Intensivi') {
+          for (const value of ['323,5 kt', '90,8%', '54,1%', '−24%'])
+            assert.ok(data.includes(value), 'ISPRA ammonia measurement ' + value);
+          assert.ok(data.includes('NON emissioni dei soli allevamenti intensivi') &&
+            data.includes('non identifica gli intensivi'),
+            'Agriculture and livestock national ammonia data must not be falsely isolated to intensive farms');
+          assert.ok((await brief.innerText()).includes('essere favorevoli a questa Opinione significa sostenere il mantenimento'),
+            'Support vote semantics must not be inverted');
+        }
+        if (title === 'Treni regionali gratuiti') {
+          for (const value of ['oltre 220 mila', '300–600 €', '119.214', '28,7 mln €'])
+            assert.ok(data.includes(value), 'Emilia-Romagna student transport figures ' + value);
+          assert.ok(data.includes('NON solo passeggeri ferroviari') &&
+            data.includes('NON il totale dei beneficiari'),
+            'Bus-train student schemes cannot be generalized to all regional passengers');
+          assert.ok(data.includes('NON costo stimato della gratuità ferroviaria per tutti'),
+            'Student 2026-28 funding is not a universal rail cost');
+        }
+        if (title === 'Nuova biblioteca comunale') {
+          for (const value of ['13.636', '15,1%', '30,9%', '17,7%'])
+            assert.ok(data.includes(value), 'ISTAT library usage and census figure ' + value);
+          assert.ok(data.includes('non soltanto comunali') &&
+            data.includes('forme di accesso differenti'),
+            'Do not equate all libraries with municipal services or physical with hybrid use');
+          assert.ok(data.includes('non dimostrano che costruirne una nuova aumenti lettura'),
+            'National usage does not forecast benefits of building an individual library');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
