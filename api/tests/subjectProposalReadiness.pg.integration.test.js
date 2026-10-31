@@ -47,6 +47,16 @@ test('read-only preflight: complete schema READY; drift and unsafe grants NO-GO'
       assert.doesNotMatch(statement,/\bSELECT\s+\*\s+FROM\s+users\b/i,'No user content reads');
     }
 
+    // Reproduce an older staging status CHECK; the preflight must reject it.
+    await client.query('ALTER TABLE '+SCHEMA+'.subject_proposals DROP CONSTRAINT subject_proposals_status_check');
+    await client.query("ALTER TABLE "+SCHEMA+".subject_proposals ADD CONSTRAINT subject_proposals_status_check CHECK (status IN ('pending','approved','rejected'))");
+    let oldStatus=await inspectSchema(observer,{schema:SCHEMA});
+    assert.equal(oldStatus.ready,false);
+    assert.ok(oldStatus.problems.some(p=>p.code==='STATUS_CHECK_DRIFT'));
+    await client.query(sql.replaceAll('public.',SCHEMA+'.'));
+    assert.equal((await inspectSchema(observer,{schema:SCHEMA})).ready,true,
+      're-applying draft migration must upgrade the old status check');
+
     await client.query('ALTER TABLE '+SCHEMA+'.users DROP COLUMN status');
     let result=await inspectSchema(observer,{schema:SCHEMA});
     assert.equal(result.ready,false);
