@@ -7,12 +7,11 @@ import { PageContainer } from "@/components/PageContainer";
 import { useGraziaData } from "./hooks/useGraziaData";
 import { useGraziaVoting } from "./hooks/useGraziaVoting";
 import { Header } from "./components/Header";
+import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { BlockedWarning } from "./components/BlockedWarning";
 import { GraziaForm } from "./components/GraziaForm";
 import { ClassificaCarcerati } from "./components/ClassificaCarcerati";
 import { ConfirmDialog } from "./components/ConfirmDialog";
-import { CreateButton } from "./components/CreateButton";
-import { CarceratoForm } from "./components/CarceratoForm";
 
 export default function Grazia() {
   const authReady = useAuthReady();
@@ -25,9 +24,6 @@ export default function Grazia() {
     addNomeLocal, 
     removeLocal, 
     toggleSelezioneClassifica, 
-    showForm,
-    hideForm,
-    handleCreateCarcerato,
     currentVotes,
     limit,
     remainingVotes,
@@ -57,7 +53,10 @@ export default function Grazia() {
       <div className="container mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
         {/* Il titolo resta fermo: non appartiene allo scroller della classifica. */}
         <div className="grazia-page__fixed-header shrink-0">
-          <Header />
+<div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1"><Header /></div>
+            <ProposeSubjectButton category="grazia" />
+          </div>
           {data?.blocco.isBlocked && (
             <BlockedWarning unlockDate={data.blocco.unlockDate} />
           )}
@@ -91,27 +90,17 @@ export default function Grazia() {
                     limit={limit}
                     remainingVotes={remainingVotes}
                   />
-                  <div className="flex items-center">
-                    <CreateButton onClick={showForm} />
-                  </div>
                 </>
               )}
             </div>
 
-            {/* Solo la classifica (e il modulo opzionale di proposta) scorre. */}
+            {/* Solo la classifica dei soggetti approvati scorre. */}
             <div
               className="app-page-scroll min-h-0 min-w-0 overflow-y-auto overscroll-contain pb-4"
               role="region"
               aria-label="Classifica Grazia"
               tabIndex={0}
             >
-              {votingState.showForm && (
-                <CarceratoForm
-                  onSubmit={handleCreateCarcerato}
-                  onCancel={hideForm}
-                  isLoading={false}
-                />
-              )}
               {!isLoadingData && (
                 <ClassificaCarcerati
                   classifica={data?.classifica || []}
