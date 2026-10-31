@@ -40,6 +40,25 @@ test('all contextual plus buttons navigate to shared proposal route without fetc
   }
 });
 
+test('civic headers use the centered fixed directory style and a single top-right proposal action', () => {
+  const roots = [
+    ['CapodiStato', 'capo_stato'],
+    ['Grazia', 'grazia'],
+    ['Amnistia', 'amnistia']
+  ];
+  for (const [page, category] of roots) {
+    const header = read('client/src/pages/' + page + '/components/Header.tsx');
+    const pageSource = read('client/src/pages/' + page + '/index.tsx');
+    assert.match(header, /text-center/);
+    assert.match(header, /text-2xl font-bold leading-tight text-gray-900 sm:text-3xl/);
+    assert.match(header, /text-blue-600/);
+    assert.match(pageSource, /shrink-0 border-b border-slate-200 bg-white/);
+    assert.match(pageSource, /absolute right-0 top-0 z-10/);
+    assert.match(pageSource, new RegExp('<ProposeSubjectButton category="' + category + '"'));
+    assert.doesNotMatch(pageSource, /<CarceratoForm/);
+  }
+});
+
 test('page is protected, retains Firma, and can be opened from a menu entry', () => {
   const app = read('client/src/App.tsx');
   const firma = read('client/src/pages/Proponi.tsx');
