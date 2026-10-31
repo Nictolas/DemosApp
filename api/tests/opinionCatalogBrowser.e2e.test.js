@@ -258,6 +258,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     const pilotCases = [
       ['/opinioni-nazionali', 'Abolizione Contante', 'Solo digitale'],
       ['/opinioni-nazionali', 'Legalizzazione canapa', '58,2% → 6,7%'],
+      ['/opinioni-nazionali', 'Salario minimo', '2.771 €'],
+      ['/opinioni-comunali', 'Città 30', '−43,6%'],
+      ['/opinioni-europee', 'Auto a emissioni zero dal 2035', '−28%'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -354,6 +357,48 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           'Intro, reform, legal status and observed outcomes must be distinct ordered sections');
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 1,
           'Arrow applies only to the Italian before/after, not to country comparisons');
+      } else if (['Salario minimo', 'Città 30', 'Auto a emissioni zero dal 2035'].includes(title)) {
+        const outcomes = brief.getByTestId('opinion-brief-measured-results');
+        await outcomes.waitFor();
+        const data = await outcomes.innerText();
+        assert.ok(await outcomes.getByTestId('opinion-brief-result').count() >= 2,
+          title + ': at least two visible source-linked results');
+        assert.ok(await outcomes.locator('a[href^="https://"]').count() >= 2,
+          title + ': every metric has a source link');
+        const panelPositions = await brief.evaluate(root => {
+          const nodes = [
+            root.querySelector('[data-testid="opinion-brief-intro"]'),
+            root.querySelector('[data-testid="opinion-brief-comparison"]'),
+            root.querySelector('[data-testid="opinion-brief-measured-results"]'),
+          ];
+          return nodes.map(el => el?.getBoundingClientRect().top);
+        });
+        assert.ok(panelPositions.every(Number.isFinite), title + ': all sections exist');
+        assert.ok(panelPositions[0] < panelPositions[1] && panelPositions[1] < panelPositions[2],
+          title + ': definition first, comparison second, data third');
+        if (title === 'Salario minimo') {
+          assert.ok(data.includes('22 su 27') && data.includes('620 €') && data.includes('2.771 €'),
+            'Eurostat July 2026 cross-country data visible');
+          assert.ok(data.includes('1 luglio 2026'), 'Observed wage dates are explicit');
+          assert.ok(data.includes('non prove degli effetti su occupazione o povertà'),
+            'No unsupported wage causality claim');
+        }
+        if (title === 'Città 30') {
+          assert.ok(data.includes('−12,5%') && data.includes('−7,2%') && data.includes('−43,6%'),
+            'Bologna 2022/23 vs 2024/25 data visible');
+          assert.ok(data.includes('non isolano l\'effetto del limite'), 'Causality caveat visible');
+        }
+        if (title === 'Auto a emissioni zero dal 2035') {
+          assert.ok(data.includes('−28%') && data.includes('14,5%'),
+            'EU 2019/24 emissions and 2024 new registrations visible');
+          assert.ok(data.includes('proposta, non la regola vigente'),
+            'Proposed 90 percent policy not confused with in-force 100 percent rule');
+        }
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Città 30' ? 0 : 1,
+          title + ': arrow only when a before-to-proposal transition exists');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': country status maps must not be invented for unrelated topics');
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
           title + ': only state-to-proposal comparisons have an arrow');
