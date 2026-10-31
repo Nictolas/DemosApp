@@ -68,7 +68,7 @@ export default function Grazia() {
             <strong>Errore nel caricamento dei dati:</strong> {error.message}
           </div>
         ) : (
-          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 lg:grid-cols-2 lg:grid-rows-1 lg:gap-6">
+          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 md:grid-cols-2 md:grid-rows-1 lg:gap-6">
             {/* I controlli di voto restano visibili quando si scorre la lista. */}
             <div className="grazia-page__fixed-controls min-h-0 shrink-0 space-y-1 lg:space-y-3">
               {isLoadingData ? (
@@ -137,7 +137,7 @@ export default function Grazia() {
           onConfirm={confirmRemove}
           isPending={saveVotiMutation.isPending}
           title="Rimuovere la richiesta?"
-          description={\`Vuoi rimuovere la richiesta di grazia per "\${votoToRemove}"?\`}
+          description={`Vuoi rimuovere la richiesta di grazia per "${votoToRemove}"?`}
         />
       )}
     </PageContainer>
