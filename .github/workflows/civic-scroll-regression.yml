@@ -6,6 +6,7 @@ on:
     paths:
       - 'client/src/pages/Avvistamenti/index.tsx'
       - 'client/src/pages/VotaIniziativaPopolare/index.tsx'
+      - 'client/src/pages/Grazia/index.tsx'
       - 'client/src/components/RobustAppLayout.tsx'
       - 'client/src/robust-layout.css'
       - 'api/tests/civicScrollContract.test.js'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'client/src/pages/Avvistamenti/index.tsx'
       - 'client/src/pages/VotaIniziativaPopolare/index.tsx'
+      - 'client/src/pages/Grazia/index.tsx'
       - 'client/src/components/RobustAppLayout.tsx'
       - 'client/src/robust-layout.css'
       - 'api/tests/civicScrollContract.test.js'
