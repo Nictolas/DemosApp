@@ -28,10 +28,11 @@ const DataRetention: React.FC = () => {
       setLoading(true);
       setError(null);
       const response = await apiRequest('GET', '/admin/data-retention/job/status');
-      if (!response.success || !response.data?.status) {
+      const payload = await response.json();
+      if (!payload.success || !payload.data?.status) {
         throw new Error('Stato del job non disponibile');
       }
-      setJobStatus(response.data.status);
+      setJobStatus(payload.data.status);
     } catch {
       setJobStatus(null);
       setError('Impossibile recuperare lo stato della retention.');
@@ -50,7 +51,8 @@ const DataRetention: React.FC = () => {
       setError(null);
       setSuccess(null);
       const response = await apiRequest('POST', '/admin/data-retention/job/stop');
-      if (!response.success) {
+      const payload = await response.json();
+      if (!payload.success) {
         throw new Error('Arresto non confermato');
       }
       setSuccess('Richiesta di arresto del job completata.');
