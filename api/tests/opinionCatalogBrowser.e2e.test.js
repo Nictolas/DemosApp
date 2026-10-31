@@ -257,8 +257,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       const dialog = page.getByRole('dialog');
       const brief = dialog.getByTestId('opinion-brief');
       await brief.waitFor({ timeout: 12000 });
-      assert.match(await brief.innerText(), new RegExp(fact.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\    await details.getByRole('button', { name: 'Chiudi', exact: true }).click();
-    await details.waitFor({ state: 'hidden' });')));
+      assert.ok((await brief.innerText()).includes(fact), title + ': expected fact visible');
       assert.equal(await brief.locator('details').count(), 1, title + ': one source disclosure');
       assert.equal(await brief.locator('section').count() >= 2, true, title + ': pro and con shown');
       await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
