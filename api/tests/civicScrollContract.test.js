@@ -12,10 +12,11 @@ test('only the intended civic routes use the bounded scroll shell', () => {
   const layout = read('client/src/components/RobustAppLayout.tsx');
   const css = read('client/src/robust-layout.css');
 
-  assert.match(layout, /location === '\\/avvistamenti' \\|\\| location === '\\/vota-iniziativa-popolare'/);
-  assert.match(layout, /isScrollableContentPage \\? ' app-main--scroll-content'/);
-  assert.match(css, /\\.app-main\\.app-main--scroll-content\\s*\\{\\s*overflow-y:\\s*hidden\\s*!important/);
-  assert.match(css, /\\.app-main\\.app-main--scroll-content \\.fade-up-transition\\s*\\{[^}]*height:\\s*100%;[^}]*min-height:\\s*0;[^}]*overflow:\\s*hidden/);
+  assert.ok(layout.includes("location === '/avvistamenti' || location === '/vota-iniziativa-popolare'"));
+  assert.ok(layout.includes("${isScrollableContentPage ? ' app-main--scroll-content' : ''}"));
+  assert.ok(css.includes('.app-main.app-main--scroll-content {\n  overflow-y: hidden !important;'));
+  assert.ok(css.includes('.app-main.app-main--scroll-content .fade-up-transition {'));
+  assert.ok(css.includes('  height: 100%;\n  min-height: 0;\n  overflow: hidden;'));
 });
 
 test('popular initiative voting can scroll all cards above the app navbar', () => {
