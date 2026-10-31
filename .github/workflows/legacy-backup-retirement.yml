@@ -1,0 +1,28 @@
+name: Legacy backup endpoints retirement (synthetic)
+on:
+  pull_request:
+    paths:
+      - 'api/routes/admin/backup.js'
+      - 'api/tests/legacyBackupRetirementHttp.test.js'
+      - '.github/workflows/legacy-backup-retirement.yml'
+permissions:
+  contents: read
+jobs:
+  backup-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies (no lifecycle scripts)
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Check syntax
+        run: |
+          node --check api/routes/admin/backup.js
+          node --check api/tests/legacyBackupRetirementHttp.test.js
+      - name: Verify HTTP authentication and no-side-effect retirement
+        run: node --test --test-concurrency=1 api/tests/legacyBackupRetirementHttp.test.js
