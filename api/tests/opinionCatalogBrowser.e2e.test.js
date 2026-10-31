@@ -257,6 +257,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     // legacy catalogue entries must continue to use their Markdown renderer.
     const pilotCases = [
       ['/opinioni-nazionali', 'Abolizione Contante', 'Solo digitale'],
+      ['/opinioni-nazionali', 'Legalizzazione canapa', '58,2% → 6,7%'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -294,11 +295,50 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         const fontSize = await intro.evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize));
         assert.ok(fontSize >= 16, 'In breve must be readable on mobile without zooming');
         assert.doesNotMatch(await brief.innerText(), /21 Paesi|Sentenza UE sul corso legale/);
+      } else if (title === 'Legalizzazione canapa') {
+        const legal = brief.getByTestId('opinion-brief-legal-status');
+        const outcomes = brief.getByTestId('opinion-brief-measured-results');
+        await legal.waitFor();
+        await outcomes.waitFor();
+        assert.equal(await legal.getByTestId('opinion-brief-country').count(), 4,
+          'Canada, Uruguay, Germany and Italy require separate legal statuses');
+        assert.equal(await outcomes.getByTestId('opinion-brief-result').count(), 4,
+          'Only four key results initially visible');
+        const labels = await legal.innerText();
+        for (const name of ['Canada', 'Uruguay', 'Germania', 'Italia']) {
+          assert.ok(labels.includes(name), 'Missing legal jurisdiction ' + name);
+        }
+        const measured = await outcomes.innerText();
+        assert.ok(measured.includes('2,5 mld CAD'), 'Public revenue is quantified');
+        assert.ok(measured.includes('37% → 72%'), 'Legal source trend is quantified');
+        assert.ok(measured.includes('16% → 3%'), 'Illegal source trend is quantified');
+        assert.ok(measured.includes('58,2% → 6,7%'), 'Uruguay traditional trade trend is quantified');
+        assert.ok(measured.includes('non dimostrano un calo della criminalità generale'),
+          'No causal crime reduction claim');
+        const caveat = outcomes.locator('details');
+        assert.equal(await caveat.evaluate(el => el.open), false, 'Supplementary data start collapsed');
+        await caveat.locator('summary').click();
+        assert.ok((await caveat.innerText()).includes('14% → 17%'), 'Health data appears on expansion');
+        const position = await brief.evaluate(root => {
+          const selectors = [
+            '[data-testid="opinion-brief-intro"]',
+            '[data-testid="opinion-brief-comparison"]',
+            '[data-testid="opinion-brief-legal-status"]',
+            '[data-testid="opinion-brief-measured-results"]',
+          ];
+          return selectors.map(q => root.querySelector(q)?.getBoundingClientRect().top);
+        });
+        assert.ok(position.every(Number.isFinite), 'All four modules must exist');
+        assert.ok(position.every((v, i) => i === 0 || position[i-1] < v),
+          'Intro, reform, legal status and observed outcomes must be distinct ordered sections');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 1,
+          'Arrow applies only to the Italian before/after, not to country comparisons');
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
           title + ': only state-to-proposal comparisons have an arrow');
       }
-      assert.equal(await brief.locator('details').count(), 1, title + ': one source disclosure');
+      assert.equal(await brief.locator('details').count(), title === 'Legalizzazione canapa' ? 2 : 1,
+        'Only cannabis adds a second, optional evidence disclosure');
       assert.equal(await brief.locator('section').count() >= 2, true, title + ': pro and con shown');
       await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
       await dialog.waitFor({ state: 'hidden' });

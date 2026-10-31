@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these five canonical IDs opt in; the other 89 use the original
+ * Only these six canonical IDs opt in; the other 88 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -9,6 +9,21 @@ export interface OpinionBrief {
   facts: ReadonlyArray<{ value: string; label: string }>;
   comparison: ReadonlyArray<{ label: string; title: string; text: string }>;
   comparisonMode?: "transition";
+  legalStatuses?: ReadonlyArray<{
+    place: string;
+    status: "regulated" | "limited" | "prohibited";
+    label: string;
+    rule: string;
+  }>;
+  measuredResults?: ReadonlyArray<{
+    place: string;
+    topic: string;
+    value: string;
+    period: string;
+    meaning: string;
+    sourceUrl: string;
+  }>;
+  evidenceCaveat?: string;
   advantage: string;
   concern: string;
   note?: string;
@@ -92,6 +107,77 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     note: "Le cifre IEA sono stime e obiettivi del 2022, non prezzi attuali italiani.",
     sources: [
       { label: "IEA · Nuclear Power and Secure Energy Transitions (2022)", url: "https://www.iea.org/reports/nuclear-power-and-secure-energy-transitions/executive-summary" },
+    ],
+    verified,
+  },
+  legalizzazione_canapa: {
+    intro: "Legalizzare e regolamentare la cannabis per adulti: produzione, vendita e controlli. Diversa dalla canapa industriale e dall'uso medico.",
+    facts: [],
+    comparisonMode: "transition",
+    comparison: [
+      { label: "🇮🇹 Italia oggi", title: "Vendita non legalizzata", text: "La vendita per uso ricreativo è vietata; il possesso personale segue regole differenti." },
+      { label: "Modifica proposta", title: "Mercato regolato", text: "Possibile vendita per adulti con licenze, controlli sulla qualità e limiti da definire per legge." },
+    ],
+    legalStatuses: [
+      { place: "🇨🇦 Canada", status: "regulated", label: "Vendita regolata", rule: "Dal 2018, negozi autorizzati e limiti per gli adulti." },
+      { place: "🇺🇾 Uruguay", status: "regulated", label: "Accesso regolato", rule: "Farmacie, club e coltivazione registrata; legge del 2013." },
+      { place: "🇩🇪 Germania", status: "limited", label: "Legalizzazione parziale", rule: "Dal 2024: possesso e coltivazione limitati; non vendita libera nei negozi." },
+      { place: "🇮🇹 Italia", status: "prohibited", label: "Vendita ricreativa vietata", rule: "Non esiste un mercato autorizzato per uso ricreativo." },
+    ],
+    measuredResults: [
+      {
+        place: "🇨🇦 Canada",
+        topic: "Entrate pubbliche dalla cannabis",
+        value: "2,5 mld CAD",
+        period: "2024/25 · +11,5% in un anno",
+        meaning: "Imposte, ricavi netti delle autorità e altre entrate: non solo tasse e non profitto privato.",
+        sourceUrl: "https://www150.statcan.gc.ca/n1/daily-quotidien/260305/dq260305b-eng.htm",
+      },
+      {
+        place: "🇨🇦 Canada",
+        topic: "Consumatori: fonte abituale legale",
+        value: "37% → 72%",
+        period: "2019 → 2024",
+        meaning: "Quota dei consumatori che dichiara di acquistare abitualmente da fonti legali.",
+        sourceUrl: "https://www.canada.ca/en/health-canada/services/drugs-medication/cannabis/research-data/canadian-cannabis-survey-2024-summary.html",
+      },
+      {
+        place: "🇨🇦 Canada",
+        topic: "Consumatori: fonte abituale illegale",
+        value: "16% → 3%",
+        period: "2019 → 2024",
+        meaning: "Acquisti dichiarati presso negozi o rivenditori illegali; non indica tutti i reati.",
+        sourceUrl: "https://www.canada.ca/en/health-canada/services/drugs-medication/cannabis/research-data/canadian-cannabis-survey-2024-summary.html",
+      },
+      {
+        place: "🇺🇾 Uruguay",
+        topic: "Ricorso al narcotraffico tradizionale",
+        value: "58,2% → 6,7%",
+        period: "2014 → 2024",
+        meaning: "Quota di consumatori che segnala il narcotraffico tradizionale come via di accesso: non è il tasso di criminalità.",
+        sourceUrl: "https://www.gub.uy/presidencia/comunicacion/noticias/cannabis-iirca-junta-de-drogas-informe",
+      },
+      {
+        place: "🇨🇦 Québec (Canada)",
+        topic: "Uso nell'ultimo anno",
+        value: "14% → 17%",
+        period: "Popolazione totale · 2018 → 2025",
+        meaning: "Tra 15 e 20 anni, invece: 28% → 19%. Differenze osservate, non prova causale.",
+        sourceUrl: "https://statistique.quebec.ca/en/communique/after-increasing-between-2018-and-2021-cannabis-use-now-on-downward-trend-quebec",
+      },
+    ],
+    evidenceCaveat: "I Paesi usano leggi e misure diverse. I dati descrivono vendite, fonti di acquisto o consumi: non dimostrano un calo della criminalità generale. Per l'Italia non esistono risultati di un mercato ricreativo legale da confrontare.",
+    advantage: "Entrate pubbliche, qualità controllata e possibile riduzione del mercato clandestino.",
+    concern: "Consumo problematico, guida alterata e persistenza di vendite illegali.",
+    note: "Uso ricreativo, terapeutico e canapa industriale sono regimi distinti.",
+    sources: [
+      { label: "🇮🇹 Italia · DPR 309/1990, Normattiva", url: "https://www.normattiva.it/eli/id/1990/10/31/090G0363/CONSOLIDATED/20260823" },
+      { label: "🇨🇦 Canada · Legalizzazione 2018, Health Canada", url: "https://www.canada.ca/en/health-canada/news/2018/10/canada-legalizes-and-strictly-regulates-cannabis.html" },
+      { label: "🇨🇦 Canada · Entrate pubbliche 2024/25, Statistics Canada", url: "https://www150.statcan.gc.ca/n1/daily-quotidien/260305/dq260305b-eng.htm" },
+      { label: "🇨🇦 Canada · Fonti di acquisto 2019–2024, Health Canada", url: "https://www.canada.ca/en/health-canada/services/drugs-medication/cannabis/research-data/canadian-cannabis-survey-2024-summary.html" },
+      { label: "🇺🇾 Uruguay · Monitoraggio mercato, Governo", url: "https://www.gub.uy/presidencia/comunicacion/noticias/cannabis-iirca-junta-de-drogas-informe" },
+      { label: "🇩🇪 Germania · Legge sulla cannabis, Ministero della salute", url: "https://www.bundesgesundheitsministerium.de/service/gesetze-und-verordnungen/detail/cannabisgesetz" },
+      { label: "🇨🇦 Québec · Consumi 2018–2025, Istituto di statistica", url: "https://statistique.quebec.ca/en/communique/after-increasing-between-2018-and-2021-cannabis-use-now-on-downward-trend-quebec" },
     ],
     verified,
   },

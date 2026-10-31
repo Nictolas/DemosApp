@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, CheckCircle2, XCircle, ChevronDown, Info, ArrowRight } from "lucide-react";
+import { BookOpen, CheckCircle2, XCircle, ChevronDown, Info, ArrowRight, Globe2, BarChart3, ExternalLink } from "lucide-react";
 import type { OpinionBrief } from "@/lib/opinionBriefs";
 
 /**
@@ -14,9 +14,9 @@ export function OpinionBriefCard({ brief }: { brief: OpinionBrief }) {
       aria-label="Approfondimento sintetico"
       className="mx-auto w-full max-w-3xl space-y-3 text-slate-900"
     >
-      <div className="rounded-xl border border-sky-200 bg-sky-100 px-4 py-4 sm:px-5">
-        <h3 className="mb-1 text-xs font-extrabold uppercase tracking-wide text-sky-900">In breve</h3>
-        <p className="text-base font-bold leading-6 text-sky-950 sm:text-lg sm:leading-7">{brief.intro}</p>
+      <div className="rounded-2xl border-2 border-sky-300 bg-sky-100 px-4 py-5 shadow-sm sm:px-5" data-testid="opinion-brief-intro">
+        <h3 className="mb-2 text-sm font-extrabold uppercase tracking-wide text-sky-900">Di cosa si parla</h3>
+        <p className="text-lg font-extrabold leading-7 text-sky-950 sm:text-xl sm:leading-8">{brief.intro}</p>
       </div>
 
       {brief.facts.length > 0 && (
@@ -68,6 +68,74 @@ export function OpinionBriefCard({ brief }: { brief: OpinionBrief }) {
           ))}
         </div>
       </div>
+
+      {brief.legalStatuses && brief.legalStatuses.length > 0 && (
+        <section data-testid="opinion-brief-legal-status" aria-label="Leggi nei diversi Paesi" className="space-y-2">
+          <h3 className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700">
+            <Globe2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Dove è consentita e dove no
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            {brief.legalStatuses.map((place) => (
+              <div data-testid="opinion-brief-country" key={place.place} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-sm font-extrabold text-slate-900">{place.place}</p>
+                <p className={place.status === "regulated"
+                  ? "my-1.5 inline-block rounded-md bg-teal-100 px-2 py-1 text-[11px] font-bold text-teal-900"
+                  : place.status === "limited"
+                    ? "my-1.5 inline-block rounded-md bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-950"
+                    : "my-1.5 inline-block rounded-md bg-slate-200 px-2 py-1 text-[11px] font-bold text-slate-800"}
+                >{place.label}</p>
+                <p className="text-xs leading-[1.4] text-slate-700">{place.rule}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {brief.measuredResults && brief.measuredResults.length > 0 && (
+        <section data-testid="opinion-brief-measured-results" aria-label="Risultati osservati nei Paesi" className="space-y-2">
+          <h3 className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700">
+            <BarChart3 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Risultati misurati
+          </h3>
+          <p className="text-xs leading-4 text-slate-600">Numeri reali, con luogo, periodo e fonte. Non sono previsioni per l'Italia.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {brief.measuredResults.slice(0, 4).map((result) => (
+              <div data-testid="opinion-brief-result" key={result.place + result.topic} className="min-w-0 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                <p className="text-[11px] font-bold leading-4 text-indigo-900">{result.place} · {result.topic}</p>
+                <p className="mt-1 break-words text-lg font-extrabold leading-6 tabular-nums text-indigo-950">{result.value}</p>
+                <p className="mt-1 text-[11px] font-semibold leading-4 text-indigo-900">{result.period}</p>
+                <p className="mt-1 text-xs leading-[1.4] text-slate-700">{result.meaning}</p>
+                <a href={result.sourceUrl} rel="noopener noreferrer" target="_blank"
+                  className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-800 underline underline-offset-2">
+                  Fonte <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                </a>
+              </div>
+            ))}
+          </div>
+          {brief.measuredResults.length > 4 && (
+            <details className="rounded-lg border border-indigo-200 bg-indigo-50/40">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-indigo-950">
+                Altri dati e possibili criticità ({brief.measuredResults.length - 4})
+              </summary>
+              <div className="space-y-3 border-t border-indigo-200 p-3">
+                {brief.measuredResults.slice(4).map((result) => (
+                  <div key={result.place + result.topic} className="space-y-1 text-xs leading-4">
+                    <p className="font-semibold text-slate-900">{result.place} · {result.topic}: {result.value}</p>
+                    <p className="text-slate-600">{result.period}. {result.meaning}</p>
+                    <a href={result.sourceUrl} rel="noopener noreferrer" target="_blank" className="font-medium text-blue-700 underline">Fonte ufficiale</a>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+          {brief.evidenceCaveat && (
+            <p className="border-l-2 border-indigo-300 pl-3 text-xs leading-4 text-slate-700">
+              {brief.evidenceCaveat}
+            </p>
+          )}
+        </section>
+      )}
 
       <div className="grid grid-cols-2 gap-2" aria-label="Argomenti a confronto">
         <section data-testid="opinion-brief-pro" className="min-w-0 rounded-xl border-2 border-emerald-300 bg-emerald-100 p-3">
