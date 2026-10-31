@@ -69,3 +69,79 @@ test('Blueprint Auto Sync risk is explicit before any merge or sync', () => {
   assert.match(runbook, /Non sincronizzare il Blueprint/);
   assert.match(runbook, /nessuna sincronizzazione Blueprint/i);
 });
+
+function blueprintEnvironmentVariables(block) {
+  const section = block.split(/^    envVars:\s*$/m)[1]?.split(/^    (?:customDomains|headers):\s*$/m)[0];
+  assert.ok(section, 'Blueprint environment variable section missing');
+  const entries = [...section.matchAll(/^      - key:\s+([A-Z][A-Z0-9_]*)\s*\n((?:^        [^\n]*(?:\n|$))*)/gm)];
+  assert.ok(entries.length > 0, 'no Blueprint environment variables');
+  return entries.map(entry => ({ key: entry[1], settings: entry[2] }));
+}
+
+test('Blueprint retains scoped domains and security headers', () => {
+  const blocks = serviceBlocks(yaml);
+  const backend = blocks.find(s => s.name === 'demos-backend');
+  const frontend = blocks.find(s => s.name === 'demos-frontend');
+  assert.ok(backend && frontend);
+  assert.match(backend.block, /^    customDomains:\s*$/m);
+  assert.match(backend.block, /^      - name: api\.demos\.community\s*$/m);
+  assert.match(frontend.block, /^    customDomains:\s*$/m);
+  assert.match(frontend.block, /^      - name: www\.demos\.community\s*$/m);
+  assert.match(frontend.block, /^    headers:\s*$/m);
+
+  for (const header of [
+    'Content-Security-Policy',
+    'Strict-Transport-Security',
+    'X-Content-Type-Options',
+    'Referrer-Policy',
+    'Permissions-Policy',
+    'X-Frame-Options'
+  ]) {
+    assert.match(frontend.block, new RegExp('^        name: ' + header + '\\s*$', 'm'),
+      'missing security header ' + header);
+  }
+  assert.match(frontend.block, /frame-ancestors 'none'/);
+  assert.match(frontend.block, /object-src 'none'/);
+  assert.match(frontend.block, /max-age=31536000; includeSubDomains/);
+  for (const route of ['/assets/*', '/index.html', '/firebase-messaging-sw.js', '/manifest.json']) {
+    assert.ok(frontend.block.includes('      - path: ' + route + '\n'),
+      'missing cache-control scope ' + route);
+  }
+});
+
+test('Blueprint preserves required env names and does not inline private credentials', () => {
+  const expected = {
+    'demos-backend': [
+      'NODE_ENV', 'NPM_CONFIG_OMIT', 'DATABASE_URL', 'DB_HOST', 'DB_USER',
+      'DB_PASSWORD', 'DB_DATABASE', 'DB_PORT', 'RESEND_API_KEY', 'JWT_SECRET',
+      'JWT_REFRESH_SECRET', 'FRONTEND_URL'
+    ],
+    'demos-frontend': [
+      'NODE_ENV', 'VITE_API_URL', 'VITE_FIREBASE_API_KEY',
+      'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID',
+      'VITE_FIREBASE_STORAGE_BUCKET', 'VITE_FIREBASE_MESSAGING_SENDER_ID',
+      'VITE_FIREBASE_APP_ID', 'VITE_FIREBASE_MEASUREMENT_ID',
+      'VITE_FIREBASE_VAPID_KEY'
+    ]
+  };
+  for (const service of serviceBlocks(yaml)) {
+    const entries = blueprintEnvironmentVariables(service.block);
+    const names = entries.map(x => x.key);
+    assert.equal(new Set(names).size, names.length, service.name + ': duplicated env key');
+    for (const required of expected[service.name]) {
+      assert.ok(names.includes(required), service.name + ': missing env key ' + required);
+    }
+    for (const { key, settings } of entries) {
+      if (
+        expected[service.name].includes(key) &&
+        !['NODE_ENV', 'NPM_CONFIG_OMIT', 'DB_PORT', 'FRONTEND_URL', 'VITE_API_URL'].includes(key)
+        || /(?:PASSWORD|TOKEN|SECRET|API_KEY|DATABASE_URL)$/.test(key)
+      ) {
+        assert.match(settings, /^\s+sync: false(?:\s+#.*)?$/m,
+          service.name + '/' + key + ': private value must be supplied by Render');
+        assert.doesNotMatch(settings, /^\s+value:/m,
+          service.name + '/' + key + ': never commit private credential values');
+      }
+    }
+  }
+});
