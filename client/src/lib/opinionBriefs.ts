@@ -1719,7 +1719,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
         value: "Art. 1929",
         period: "Disciplina vigente al 31/10/2026",
         meaning: "Possibile in specifiche condizioni di guerra o grave crisi internazionale, con ulteriori requisiti e procedura. NON è una chiamata ordinaria automatica.",
-        sourceUrl: "https://www.difesa.it/amministrazione-trasparente/previmil/riferimenti-normativi/1026.html",
+        sourceUrl: "https://www.normattiva.it/eli/stato/DECRETO_LEGISLATIVO/2010/03/15/66/CONSOLIDATED/",
       },
       {
         place: "🇮🇹 Italia · Esercito",
@@ -1744,7 +1744,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     note: "Leva obbligatoria sospesa, servizio volontario e servizio civile sono tre istituti diversi.",
     sources: [
       { label: "Ministero della Difesa · Legge 226/2004 e data di sospensione", url: "https://www.difesa.it/legislazione/repertorio-storico-hammurabi-difesa/2000-2010/39332.html" },
-      { label: "Ministero della Difesa · Articolo 1929, Codice ordinamento militare", url: "https://www.difesa.it/amministrazione-trasparente/previmil/riferimenti-normativi/1026.html" },
+      { label: "Ministero della Difesa · Articolo 1929, Codice ordinamento militare", url: "https://www.normattiva.it/eli/stato/DECRETO_LEGISLATIVO/2010/03/15/66/CONSOLIDATED/" },
       { label: "Esercito italiano · Volontari e legge 119/2022", url: "https://www.esercito.difesa.it/concorsi-e-arruolamenti/volontari/militari-di-truppa/75230.html" },
     ],
     verified,
