@@ -203,3 +203,68 @@ test('Blueprint env gate rejects fake secret literals, duplicate keys and unrevi
   );
   assert.throws(() => checkBlueprintEnv(unexpectedVariable, 'demos-backend'));
 });
+
+function blueprintHeaderEntries(frontendBlock) {
+  const parts = frontendBlock.split(/^    headers:\s*$/m);
+  assert.equal(parts.length, 2, 'expected exactly one frontend headers section');
+  const entries = [];
+  let current;
+  for (const line of parts[1].split('\n')) {
+    if (!line.trim() || /^\s*#/.test(line)) continue;
+    const pathMatch = line.match(/^      - path:\s+(.+?)\s*$/);
+    if (pathMatch) {
+      current = { path: pathMatch[1] };
+      entries.push(current);
+      continue;
+    }
+    const fieldMatch = line.match(/^        (name|value):\s+(.+?)\s*$/);
+    assert.ok(current && fieldMatch, 'unrecognized header field or indentation');
+    assert.equal(Object.hasOwn(current, fieldMatch[1]), false,
+      'duplicate header name or value field');
+    current[fieldMatch[1]] = fieldMatch[2];
+  }
+  for (const entry of entries) {
+    assert.equal(typeof entry.name, 'string');
+    assert.equal(typeof entry.value, 'string');
+  }
+  return entries;
+}
+
+function checkBlueprintHeaders(frontendBlock) {
+  const expected = [
+    ['/assets/*', 'Cache-Control', 'public, max-age=31536000, immutable'],
+    ['/index.html', 'Cache-Control', 'no-cache'],
+    ['/firebase-messaging-sw.js', 'Cache-Control', 'no-cache, no-store, must-revalidate'],
+    ['/manifest.json', 'Cache-Control', 'no-cache'],
+    ['/*', 'Content-Security-Policy', "default-src 'self'; script-src 'self' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; connect-src 'self' https:; font-src 'self' data: https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"],
+    ['/*', 'Strict-Transport-Security', 'max-age=31536000; includeSubDomains'],
+    ['/*', 'X-Content-Type-Options', 'nosniff'],
+    ['/*', 'Referrer-Policy', 'strict-origin-when-cross-origin'],
+    ['/*', 'Permissions-Policy', 'geolocation=(), microphone=(), camera=()'],
+    ['/*', 'X-Frame-Options', 'DENY']
+  ];
+  const actual = blueprintHeaderEntries(frontendBlock).map(e => [e.path, e.name, e.value]);
+  assert.deepEqual(actual.slice().sort((a,b)=>a.join('|').localeCompare(b.join('|'))),
+    expected.slice().sort((a,b)=>a.join('|').localeCompare(b.join('|'))),
+    'header names, values and scoped paths must retain reviewed Blueprint baseline');
+}
+
+test('Blueprint security and cache header values stay scoped to the expected paths', () => {
+  const frontend = serviceBlocks(yaml).find(s => s.name === 'demos-frontend').block;
+  checkBlueprintHeaders(frontend);
+
+  const weakerFramePolicy = frontend.replace('        value: DENY', '        value: SAMEORIGIN');
+  assert.notEqual(weakerFramePolicy, frontend, 'fixture must mutate');
+  assert.throws(() => checkBlueprintHeaders(weakerFramePolicy));
+
+  const wrongCacheScope = frontend.replace('      - path: /manifest.json', '      - path: /assets/*');
+  assert.notEqual(wrongCacheScope, frontend, 'fixture must mutate');
+  assert.throws(() => checkBlueprintHeaders(wrongCacheScope));
+
+  const missingCsp = frontend.replace(
+    "        value: default-src 'self'; script-src",
+    "        value: default-src *; script-src"
+  );
+  assert.notEqual(missingCsp, frontend, 'fixture must mutate');
+  assert.throws(() => checkBlueprintHeaders(missingCsp));
+});
