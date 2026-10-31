@@ -273,6 +273,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Patrimoniale', '36 mld NOK'],
       ['/opinioni-regionali', 'Nuove centrali geotermiche', '5.644,3 GWh'],
       ['/opinioni-comunali', 'Nuove piste ciclabili', '+28,8%'],
+      ['/opinioni-nazionali', 'Finanziamento scuole paritarie', '703,7 mln €'],
+      ['/opinioni-regionali', 'Nuove aree naturali protette', '6,53 mln ha'],
+      ['/opinioni-comunali', 'Imposta di soggiorno', '859 mln €'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -575,6 +578,47 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             assert.ok(data.includes(value), 'ISTAT bicycle network metric ' + value);
           assert.ok(data.includes('non automaticamente sicurezza stradale'),
             'Installed kilometers not misrepresented as safety impact');
+        }
+      } else if (['Finanziamento scuole paritarie', 'Nuove aree naturali protette', 'Imposta di soggiorno'].includes(title)) {
+        const evidence = brief.getByTestId('opinion-brief-measured-results');
+        await evidence.waitFor({ timeout: 12000 });
+        const data = await evidence.innerText();
+        assert.equal(await evidence.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four sourced metrics with defined units and periods');
+        assert.equal(await evidence.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': source linked under every metric');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': no false before-and-after arrow for a side-by-side policy comparison');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no invented jurisdictional legality badges');
+        const panels = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(k => root.querySelector('[data-testid="' + k + '"]')?.getBoundingClientRect().top));
+        assert.ok(panels.every(Number.isFinite) && panels[0] < panels[1] && panels[1] < panels[2],
+          title + ': explanation first, comparison second, evidence third');
+        if (title === 'Finanziamento scuole paritarie') {
+          for (const value of ['11.765', '790.460', '703,7 mln €', '113,4 mln €'])
+            assert.ok(data.includes(value), 'Ministry / Parliamentary school finance data: ' + value);
+          assert.ok(data.includes('NON va sommato una seconda volta'),
+            'Disability funding is already a component of the total');
+          assert.ok(data.includes('non calcolare una spesa annua per studente'),
+            'School-year pupil data and calendar-year spending differ');
+        }
+        if (title === 'Nuove aree naturali protette') {
+          for (const value of ['21,7%', '6,53 mln ha', '30%', '≈2,5 mln ha'])
+            assert.ok(data.includes(value), 'ISPRA protection data: ' + value);
+          assert.ok(data.includes('non dimostrano da soli un miglioramento della biodiversità'),
+            'Protected area size does not measure conservation results');
+          assert.ok(data.includes('senza contare due volte'),
+            'Natura 2000 / protected area overlap must be corrected');
+        }
+        if (title === 'Imposta di soggiorno') {
+          for (const value of ['1.531', '859 mln €', '109,3 mln €', '82,9 mln €'])
+            assert.ok(data.includes(value), '2025 municipal tourist tax receipts: ' + value);
+          assert.ok(data.includes('Roma esclusa') && data.includes('Roma usa un capitolo distinto'),
+            'Roma separate contribution must be excluded from comparable aggregate');
+          assert.ok(data.includes('non dimostrano che i servizi turistici siano migliorati'),
+            'Revenue does not measure public-service improvement');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
