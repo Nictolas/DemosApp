@@ -1,4 +1,13 @@
 require('dotenv').config();
+// Isolated staging has a separate readiness-only entrypoint. Deliberately
+// forbid loading the full app/routes/workers before independent provider
+// quarantine and an explicit later security review.
+if (process.env.DEMOS_DEPLOYMENT_SCOPE === 'isolated-staging') {
+  require('./staging/isolatedStagingGuard').assertIsolatedStagingEnvironment(process.env);
+  const error = new Error('DEMOS_STAGING_FULL_APP_NOT_AUTHORIZED');
+  error.code = 'DEMOS_STAGING_FULL_APP_NOT_AUTHORIZED';
+  throw error;
+}
 const express = require('express');
 require('express-async-errors'); // Cattura errori/rejection da route async e li passa al middleware di errore (evita crash)
 const cors = require('cors');
