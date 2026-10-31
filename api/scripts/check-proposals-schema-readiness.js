@@ -2,7 +2,7 @@
 // Read-only DEMOS staging preflight. System catalog metadata only: no user rows.
 const REQUIRED_COLUMNS = Object.freeze({
   users: ['id','ruolo','is_admin','status'],
-  subject_proposals: ['id','proposer_user_id','category','title','details','source_url','status','created_at','reviewed_at','reviewed_by','published_ref','review_note'],
+  subject_proposals: ['id','proposer_user_id','category','title','details','source_url','status','created_at','reviewed_at','reviewed_by','published_ref','review_note','withdrawn_at','withdrawn_by','withdraw_note'],
   capo_stato_soggetti_approvati: ['id','nome','active','source_proposal_id'],
   richieste_grazia: ['id','utente_id','nome','url_prova','status','data_creazione'],
   grazia_carcerati: ['id','nome','attivo'],
@@ -51,6 +51,12 @@ function assessMetadata({columns=[],tables=[],constraints=[],indexes=[],privileg
       if(!idx||!/CREATE UNIQUE INDEX/i.test(idx.definition)||!/pending/i.test(idx.definition))
         add('MISSING_UNIQUE_INDEX','subject_proposals.'+name,'PostgreSQL must enforce uniqueness');
     }
+    const withdrawalStatus=constraints.find(c=>c.table_name==='subject_proposals'&&c.constraint_name==='subject_proposals_status_check');
+    if(!withdrawalStatus||!withdrawalStatus.definition.includes("'withdrawn'"))
+      add('STATUS_CHECK_DRIFT','subject_proposals.status','Approved nominations require a withdrawn state');
+    const withdrawalFk=constraints.find(c=>c.table_name==='subject_proposals'&&c.constraint_name==='subject_proposals_withdrawn_by_fkey');
+    if(!withdrawalFk||!/ON DELETE SET NULL/i.test(withdrawalFk.definition))
+      add('WITHDRAWAL_AUDIT_FK','subject_proposals.withdrawn_by','Withdrawal actor deletion must set the audit reference to NULL');
     const fk=constraints.find(c=>c.table_name==='subject_proposals'&&c.constraint_name==='subject_proposals_proposer_user_id_fkey');
     if(!fk||!/ON DELETE CASCADE/i.test(fk.definition))
       add('OWNER_DELETE_FK','subject_proposals.proposer_user_id','Delete must not leave orphaned private proposals');
