@@ -10,20 +10,23 @@ const read = name => fs.readFileSync(path.join(root,name),'utf8');
 
 test('shared approved-subject foreground refresh is event-driven, not a polling loop', () => {
   const source=read('client/src/hooks/useApprovedSubjectResumeRefresh.ts');
-  assert.match(source,/document\.addEventListener\("visibilitychange", resume\)/);
-  assert.match(source,/window\.addEventListener\("focus", resume\)/);
-  assert.match(source,/document\.removeEventListener\("visibilitychange", resume\)/);
-  assert.match(source,/window\.removeEventListener\("focus", resume\)/);
+  assert.match(source,/document\.addEventListener\("visibilitychange", onResume\)/);
+  assert.match(source,/window\.addEventListener\("focus", onResume\)/);
+  assert.match(source,/document\.removeEventListener\("visibilitychange", onResume\)/);
+  assert.match(source,/window\.removeEventListener\("focus", onResume\)/);
   assert.match(source,/document\.visibilityState !== "visible"/);
   assert.doesNotMatch(source,/\bsetInterval\s*\(|\bsetTimeout\s*\(/);
-  assert.match(source,/now - lastResumeAt < 1500/,'deduplicate focus + visibility events');
-  assert.match(source,/current\?\.abort\(\)/,'cancel stale in-flight requests');
+  assert.match(source,/now - lastResumeAt\.current < 1500/,'deduplicate focus + visibility events');
+  assert.match(source,/currentRequest\.current\?\.abort\(\)/,'cancel stale in-flight requests');
   assert.match(source,/controller\.signal\.aborted/,'never apply aborted stale results');
+  assert.match(source,/pendingResume\.current = true/,'remember foreground while initial or filter loading');
+  assert.match(source,/if \(enabled && pendingResume\.current\) resume\(true\)/,
+    'replay one refresh as soon as directory is ready');
 });
 
 test('focus refresh uses only one category-specific read and hides old names first', () => {
   const source=read('client/src/hooks/useApprovedSubjectResumeRefresh.ts');
-  const relevant=source.match(/const resume = \(\) => \{([\s\S]+?)\n    \};/);
+  const relevant=source.match(/const resume = \(replay = false\) => \{([\s\S]+?)\n    \};/);
   assert.ok(relevant,'event handler must be present');
   assert.match(relevant[1],/setApprovedSubjects\(\[\]\)/,
     'remove old names immediately on resume before a network response');
