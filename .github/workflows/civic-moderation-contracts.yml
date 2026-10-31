@@ -25,6 +25,7 @@ on:
       - 'api/routes/organizzazioni.js'
       - 'api/tests/subjectProposalPublicMinimization.contract.test.js'
       - 'api/tests/approvedSubjectResumePrivacy.contract.test.js'
+      - 'api/tests/approvedSubjectResume.behavior.test.js'
       - 'client/src/hooks/useApprovedSubjectResumeRefresh.ts'
       - 'client/src/pages/Attivisti/**'
       - 'client/src/pages/Organizzazioni/**'
@@ -156,4 +157,6 @@ jobs:
           cache: npm
           cache-dependency-path: client/package-lock.json
       - run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Behavioral test — actual foreground hook with synthetic browser and network
+        run: node --test api/tests/approvedSubjectResume.behavior.test.js
       - run: npm run build --prefix client
