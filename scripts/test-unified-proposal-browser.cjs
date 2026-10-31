@@ -44,7 +44,7 @@ async function main() {
         return response(route,200,{success:true,data:[]});
       });
       await page.goto(BASE+'/proponi-soggetto?categoria=grazia',{waitUntil:'domcontentloaded'});
-      await page.getByRole('heading',{name:'Nuova proposta'}).waitFor({timeout:30000});
+      await page.getByRole('heading',{name:'Proponi',exact:true}).waitFor({timeout:30000});
       const select=page.getByLabel('Che cosa vuoi proporre?');
       assert.equal(await select.inputValue(),'grazia','contextual preselect from URL');
       assert.equal(await select.locator('option').count(),5,'all five categories in one dropdown');
@@ -84,6 +84,14 @@ async function main() {
       }));
       assert.ok(metrics.total<=metrics.viewport+2,'mobile page must not overflow horizontally: '+JSON.stringify(metrics));
       assert.equal(metrics.current,'organizzazioni');
+      // Changing the selected category must not change the origin of the Back button.
+      await page.getByRole('button',{name:'Torna alla sezione'}).click();
+      await page.waitForURL('**/grazia',{timeout:15000});
+      await page.goto(BASE+'/proponi-soggetto?da=firma',{waitUntil:'domcontentloaded'});
+      await page.getByRole('heading',{name:'Proponi',exact:true}).waitFor({timeout:30000});
+      await page.getByRole('button',{name:'Torna alla sezione'}).click();
+      await page.waitForURL('**/firma',{timeout:15000});
+      assert.equal(proposalReads.length,0,'navigation to source remains GET-free for proposals');
       await context.close();
       console.log('UNIFIED PROPOSALS browser PASS '+viewport.width+'x'+viewport.height+
         ': two submissions, no proposal-specific GET');
