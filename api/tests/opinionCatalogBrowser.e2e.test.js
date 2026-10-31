@@ -267,6 +267,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Reddito di Cittadinanza', '1,37 mln'],
       ['/opinioni-regionali', 'Nuovi parchi eolici', '21.360 GWh'],
       ['/opinioni-comunali', 'Raccolta rifiuti porta a porta', '71,34% → 80,93%'],
+      ['/opinioni-nazionali', 'Potenziare Rinnovabili', '44,3 TWh'],
+      ['/opinioni-regionali', 'Nuovi inceneritori', '5,5 mln t'],
+      ['/opinioni-comunali', 'Asili nido gratuiti', '527,27 €/mese'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -489,6 +492,49 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Parma and Italy collection shares with date ranges');
           assert.ok(stats.includes('NON equivale alla quota di rifiuti effettivamente riciclati'),
             'Source separation versus actual recycling must be distinguished');
+        }
+      } else if (['Potenziare Rinnovabili', 'Nuovi inceneritori', 'Asili nido gratuiti'].includes(title)) {
+        const evidence = brief.getByTestId('opinion-brief-measured-results');
+        await evidence.waitFor({ timeout: 12000 });
+        const stats = await evidence.innerText();
+        const cards = evidence.getByTestId('opinion-brief-result');
+        assert.ok(await cards.count() >= 3, title + ': at least 3 source-linked metrics visible');
+        assert.ok(await evidence.locator('a[href^="https://"]').count() >= 3,
+          title + ': each metric links to the underlying source');
+        const blocks = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(k => root.querySelector('[data-testid="' + k + '"]')?.getBoundingClientRect().top));
+        assert.ok(blocks.every(Number.isFinite) && blocks[0] < blocks[1] && blocks[1] < blocks[2],
+          title + ': clear explanation, comparison and evidence separation');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': do not invent an irrelevant cross-country legality section');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Nuovi inceneritori' ? 0 : 1,
+          title + ': directional arrow only for change in policy, not parallel types of treatment');
+
+        if (title === 'Potenziare Rinnovabili') {
+          assert.ok(stats.includes('41%') && stats.includes('44,3 TWh') &&
+            stats.includes('57,1 GW'), 'Renewables share, electricity generated and installed power');
+          assert.ok(stats.includes('42% nel 2024') && stats.includes('25,1% rispetto al 2024'),
+            'Observed dates and comparison periods displayed');
+          assert.ok(stats.includes('Potenza in GW e produzione in TWh non sono confrontabili direttamente'),
+            'Power and energy are distinguished, with source context');
+        }
+        if (title === 'Nuovi inceneritori') {
+          assert.ok(stats.includes('35') && stats.includes('5,5 mln t') &&
+            stats.includes('74,8%') && stats.includes('25 / 4 / 6'),
+            'ISPRA national waste incineration totals and geographic distribution');
+          assert.ok(stats.includes('non dimostrano che costruirne altri ridurrebbe emissioni'),
+            'Existing incinerator activity is not evidence of new plant benefits');
+        }
+        if (title === 'Asili nido gratuiti') {
+          assert.ok(stats.includes('40.000 €') && stats.includes('527,27 €/mese') &&
+            stats.includes('31,6') && stats.includes('59,5%'),
+            'Tuscany financial limits and ISTAT daycare capacity and waiting lists');
+          assert.ok(stats.includes('Percentuale di strutture con almeno una lista d\'attesa'),
+            'Waitlists are measured as facilities, not children');
+          assert.ok(stats.includes('non è gratuità universale'),
+            'Regional measure not conflated with universal free municipal nurseries');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
