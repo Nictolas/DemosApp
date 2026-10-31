@@ -60,6 +60,8 @@ test('organization initial load and resumed approved list share the configured A
   assert.match(org,/const url = getApiUrl\(`\/api\/organizzazioni/);
   assert.doesNotMatch(org,/demos-c7k0\.onrender\.com|\bAPI_BASE\b/,
     'organization must not bypass staging/native/production API configuration');
+  assert.doesNotMatch(org,/console\.log\s*\(/,
+    'do not log entire user directories, individual names or search terms to browser console');
   assert.match(hook,/await apiRequest\(/,'foreground refresh also resolves API base by central helper');
 });
 
