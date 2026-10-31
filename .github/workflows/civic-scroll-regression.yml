@@ -10,6 +10,7 @@ on:
       - 'client/src/components/RobustAppLayout.tsx'
       - 'client/src/robust-layout.css'
       - 'api/tests/civicScrollContract.test.js'
+      - 'scripts/test-civic-scroll-browser.cjs'
       - '.github/workflows/civic-scroll-regression.yml'
   push:
     branches: [main]
@@ -20,6 +21,7 @@ on:
       - 'client/src/components/RobustAppLayout.tsx'
       - 'client/src/robust-layout.css'
       - 'api/tests/civicScrollContract.test.js'
+      - 'scripts/test-civic-scroll-browser.cjs'
 
 permissions:
   contents: read
@@ -49,3 +51,17 @@ jobs:
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend
         run: npm run build --prefix client
+      - name: Install isolated Chromium browser runner
+        run: |
+          npm install --prefix /tmp/demos-civic-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          node /tmp/demos-civic-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Test the compiled DEMOS routes using synthetic browser data
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-civic-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/grazia >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-civic-browser/node_modules node scripts/test-civic-scroll-browser.cjs
