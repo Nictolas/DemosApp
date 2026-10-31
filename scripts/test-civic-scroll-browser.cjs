@@ -28,6 +28,10 @@ const GRAZIA = Array.from({ length: 28 }, (_, index) => ({
   nome: 'Persona sintetica ' + String(index + 1).padStart(2, '0'),
   richieste: 28 - index,
 }));
+const PRESIDENTS = Array.from({ length: 28 }, (_, index) => ({
+  nome: 'Candidato sintetico ' + String(index + 1).padStart(2, '0'),
+  voti: 28 - index,
+}));
 const INITIATIVES = Array.from({ length: 28 }, (_, index) => ({
   id: 'iniziativa-sintetica-' + String(index + 1).padStart(2, '0'),
   nome: 'Iniziativa sintetica ' + String(index + 1).padStart(2, '0'),
@@ -38,6 +42,8 @@ const INITIATIVES = Array.from({ length: 28 }, (_, index) => ({
 }));
 const ROUTES = [
   { path: '/grazia', region: 'Classifica Grazia', last: 'Persona sintetica 28' },
+  { path: '/capo-stato', region: 'Lista candidati Capo di Stato', last: 'Candidato sintetico 28' },
+  { path: '/capo-di-stato', region: 'Lista candidati Capo di Stato', last: 'Candidato sintetico 28' },
   { path: '/vota-iniziativa-popolare', region: 'Iniziative popolari', last: 'Iniziativa sintetica 28' },
   { path: '/avvistamenti', region: 'Categorie degli avvistamenti', last: null },
 ];
@@ -81,6 +87,21 @@ async function main() {
             id: USER_ID, email: 'civic-scroll@example.invalid', role: 'E',
             ruolo: 'E', status: 'A', account_type: 'E',
           }});
+        }
+        if (url.pathname === '/api/capo-stato') {
+          return respond(route, {
+            success: true, classifica: PRESIDENTS, mieiVoti: ['Candidato sintetico 1'],
+            blocco: { isBlocked: false },
+          });
+        }
+        if (url.pathname === '/api/capo-stato/consenso') {
+          return respond(route, {
+            success: true,
+            data: { mioConsenso: { risposta: 'Sì', timestamp: '2026-10-01T12:00:00Z' },
+              statistiche: { 'Sì': 12, 'Non so': 3, 'No': 5, totale: 20 },
+              blocco: { isBlocked: false, unlockDate: null },
+            },
+          });
         }
         if (url.pathname === '/api/grazia') {
           return respond(route, {
@@ -130,12 +151,19 @@ async function main() {
             scroll: r(scroller), nav: r(nav), heading: r(heading),
             fixedHeader: r(document.querySelector('.grazia-page__fixed-header')),
             fixedControls: r(document.querySelector('.grazia-page__fixed-controls')),
+            capoHeader: r(document.querySelector('.capo-stato__fixed-header')),
+            capoControls: r(document.querySelector('.capo-stato__fixed-controls')),
+            capoRankTitle: r(document.querySelector('.capo-di-stato-page .app-page-scroll')?.previousElementSibling),
+            capoBackLinkCount: document.querySelectorAll('.capo-stato__fixed-header a[href="/vota"]').length,
             graziaBackLinkCount: document.querySelectorAll('.grazia-page__fixed-header a[href="/vota"]').length,
             scrollHeight: scroller.scrollHeight, clientHeight: scroller.clientHeight,
             pageScrollTop: document.scrollingElement.scrollTop,
           };
         });
 
+        if (item.path === '/capo-stato' || item.path === '/capo-di-stato') {
+          console.log('CAPO PRECHECK ' + JSON.stringify({ viewport, first }));
+        }
         assert.ok(first.scroll, 'Missing scroll region: ' + item.path);
         assert.ok(first.scrollHeight > first.clientHeight + 50,
           'Expected overflowing content: ' + item.path + ' ' + viewport.width + 'x' + viewport.height);
@@ -198,6 +226,9 @@ async function main() {
             nav: r(nav), heading: r(heading),
             fixedHeader: r(document.querySelector('.grazia-page__fixed-header')),
             fixedControls: r(document.querySelector('.grazia-page__fixed-controls')),
+            capoHeader: r(document.querySelector('.capo-stato__fixed-header')),
+            capoControls: r(document.querySelector('.capo-stato__fixed-controls')),
+            capoRankTitle: r(document.querySelector('.capo-di-stato-page .app-page-scroll')?.previousElementSibling),
             documentScrollTop: document.scrollingElement.scrollTop };
         });
 
@@ -229,6 +260,21 @@ async function main() {
           if (viewport.width < 768) {
             assert.ok(first.scroll.top >= first.fixedControls.bottom - 2,
               'Ranking must start below fixed voting controls on a phone');
+          }
+        }
+        if (item.path === '/capo-stato' || item.path === '/capo-di-stato') {
+          assert.ok(first.capoHeader && first.capoControls && first.capoRankTitle,
+            'Missing fixed title, vote controls or list heading for Capo di Stato');
+          assert.equal(first.capoBackLinkCount, 0,
+            'Capo di Stato must not show a back-to-Vota link');
+          for (const key of ['capoHeader', 'capoControls', 'capoRankTitle']) {
+            assert.ok(Math.abs(first[key].top - after[key].top) <= 2 &&
+              Math.abs(first[key].bottom - after[key].bottom) <= 2,
+              key + ' moved while scrolling the ranking: ' + item.path);
+          }
+          if (viewport.width < 768) {
+            assert.ok(first.scroll.top >= first.capoControls.bottom - 2,
+              'Capo di Stato list must start below the stationary voting panel');
           }
         }
         if (item.path === '/avvistamenti' && first.heading && after.heading) {

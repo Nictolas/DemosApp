@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
+import { PageContainer } from "@/components/PageContainer";
 import { useCapoStatoData } from "./hooks/useCapoStatoData";
 import { useCapoStatoVoting } from "./hooks/useCapoStatoVoting";
 import { useConsensoData } from "./hooks/useConsensoData";
@@ -60,17 +61,21 @@ export default function CapodiStato() {
     return <Redirect to="/auth" />;
   }
 
-  return (
-    <div className="capo-di-stato-page min-h-screen bg-gradient-to-b from-background to-secondary/20 p-3 pb-5 sm:p-4 page-with-navbar">
-      <div className="w-full max-w-full mx-auto h-full min-h-0 lg:overflow-hidden flex flex-col">
-        {data?.blocco.isBlocked && (
-          <BlockedWarning unlockDate={data.blocco.unlockDate} />
-        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-6 lg:gap-4 items-start flex-1 min-h-0 lg:overflow-hidden">
-          {/* Colonna sinistra: Capo di Stato, Consenso, Il tuo voto */}
-          <div className="space-y-2 sm:space-y-6 lg:space-y-3 lg:h-full lg:min-h-0 lg:overflow-hidden lg:flex lg:flex-col">
-            <Header />
+  return (
+    <PageContainer className="capo-di-stato-page overflow-hidden bg-gradient-to-b from-background to-secondary/20">
+      <div className="container mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
+        {/* Intestazione fissa: non scorre insieme alla classifica. */}
+        <div className="capo-stato__fixed-header shrink-0">
+          <Header />
+        </div>
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 md:grid-cols-2 md:grid-rows-1 lg:gap-6">
+          {/* Consenso e voto sono fissi, sopra la lista su mobile. */}
+          <div className="capo-stato__fixed-controls min-h-0 min-w-0 space-y-1 lg:space-y-3">
+            {data?.blocco.isBlocked && (
+              <BlockedWarning unlockDate={data.blocco.unlockDate} />
+            )}
 
             {isLoadingData || isLoadingConsenso ? (
               <div className="flex items-center justify-center py-8">
@@ -86,26 +91,24 @@ export default function CapodiStato() {
                   />
                 )}
 
-                <div className="lg:min-h-0 lg:overflow-hidden lg:flex-1">
-                  <VotingForm
-                    selectedVoti={selectedVoti}
-                    classifica={data?.classifica || []}
-                    isBlocked={data?.blocco.isBlocked || false}
-                    onAddNome={handleAddNomeLocal}
-                    onRemoveNome={handleRemoveLocal}
-                    hasReachedLimit={hasReachedLimit}
-                    currentVotes={currentVotes}
-                    limit={limit}
-                    remainingVotes={remainingVotes}
-                  />
-                </div>
+                <VotingForm
+                  selectedVoti={selectedVoti}
+                  classifica={data?.classifica || []}
+                  isBlocked={data?.blocco.isBlocked || false}
+                  onAddNome={handleAddNomeLocal}
+                  onRemoveNome={handleRemoveLocal}
+                  hasReachedLimit={hasReachedLimit}
+                  currentVotes={currentVotes}
+                  limit={limit}
+                  remainingVotes={remainingVotes}
+                />
               </>
             )}
           </div>
 
-          {/* Colonna destra: Classifica candidati */}
-          {!isLoadingData && !isLoadingConsenso && (
-            <div className="lg:h-full lg:min-h-0 lg:overflow-hidden">
+          {/* Il solo elenco candidati scorre; titolo e comandi non scorrono. */}
+          <div className="min-h-0 min-w-0 overflow-hidden">
+            {!isLoadingData && !isLoadingConsenso && (
               <CandidatesRanking
                 classifica={data?.classifica || []}
                 selectedVoti={selectedVoti}
@@ -114,28 +117,24 @@ export default function CapodiStato() {
                 onToggleSelezione={toggleSelezione}
                 hasReachedLimit={hasReachedLimit}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Dialog di conferma rimozione voto */}
+      {/* Il dialogo di conferma è esterno alla regione di scroll. */}
       {showRemoveDialog && (
         <ConfirmDialog
           open={showRemoveDialog}
           onOpenChange={(open) => {
-            console.log('🔍 DEBUG CLIENT - Dialog onOpenChange chiamato con:', open);
             if (!open) cancelRemove();
           }}
-          onConfirm={() => {
-            console.log('🔍 DEBUG CLIENT - Dialog onConfirm chiamato');
-            confirmRemove();
-          }}
+          onConfirm={confirmRemove}
           isPending={saveVotiMutation.isPending}
           title="Rimuovere il voto?"
           description={`Vuoi rimuovere il voto per "${votoToRemove}"?`}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }
