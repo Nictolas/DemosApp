@@ -303,6 +303,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Carne coltivata', '16/12/2023'],
       ['/opinioni-regionali', 'Potenziamento trasporto pubblico', '101,6 mln km'],
       ['/opinioni-comunali', 'Nuove case popolari', '2.321'],
+      ['/opinioni-nazionali', 'Antifascismo', '645/1952'],
+      ['/opinioni-regionali', 'Chiusura ospedali di provincia', '3,7/1.000'],
+      ['/opinioni-comunali', 'Videosorveglianza in spazi pubblici', '72 ore'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1062,6 +1065,53 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok((await brief.innerText()).includes('non di nuove abitazioni costruite'),
             'Proposed assignable dwellings are not units actually built or delivered');
         }
+      } else if (['Antifascismo', 'Chiusura ospedali di provincia', 'Videosorveglianza in spazi pubblici'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four contextualized and source-linked legal or service criteria');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': every result independently cites an official institution');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': policy comparison is not presented as a before-after measurement');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': avoid inventing international permitted/prohibited status maps');
+        const pos = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(pos.every(Number.isFinite) && pos[0] < pos[1] && pos[1] < pos[2],
+          title + ': introduction, choices, then sourced evidence in reading order');
+        if (title === 'Antifascismo') {
+          for (const n of ['1/1/1948', 'XII', '645/1952', '205/1993'])
+            assert.ok(data.includes(n), 'Italian constitutional and legal background ' + n);
+          assert.ok(data.includes('NON qualsiasi opinione personale') &&
+            data.includes('NON definisce illecita ogni semplice espressione politica') &&
+            data.includes('ambito distinto'),
+            'Party reorganization crime must not become blanket prohibition of political views');
+          assert.ok((await brief.innerText()).includes('NON statistiche sulla diffusione del fascismo'),
+            'Legal provisions are not measured policy effects');
+        }
+        if (title === 'Chiusura ospedali di provincia') {
+          for (const n of ['3,7/1.000', '0,7/1.000', '80–150 mila', '150–300 mila'])
+            assert.ok(data.includes(n), 'DM 70/2015 planning threshold ' + n);
+          assert.ok(data.includes('NON quota di ospedali da chiudere') &&
+            data.includes('NON 0,7 posti aggiuntivi') &&
+            data.includes('NON soglia automatica'),
+            'Hospital planning standards must not be misread as automatic closure rules');
+          assert.ok((await brief.innerText()).includes('GIÀ COMPRESA in 3,7'),
+            'Post-acute bed ratio is included, not additive');
+        }
+        if (title === 'Videosorveglianza in spazi pubblici') {
+          for (const n of ['7 giorni', '72 ore', '2 livelli', 'Art. 35'])
+            assert.ok(data.includes(n), 'Italian/GDPR CCTV guarantee ' + n);
+          assert.ok(data.includes('NON limite generale'),
+            'Jurisdiction-specific retention limit must not be applied to every camera');
+          assert.ok(data.includes('72 ore NON sono una licenza automatica'),
+            '72 hours are not an automatic authorization to retain footage');
+          assert.ok((await brief.innerText()).includes('Nessuno di questi riferimenti misura riduzioni dei reati'),
+            'Legal retention and notices are not public-safety impact estimates');
+        }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
           title + ': only state-to-proposal comparisons have an arrow');
@@ -1073,7 +1123,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       await dialog.waitFor({ state: 'hidden' });
     }
     await page.goto(HEADLESS_ORIGIN + '/opinioni-nazionali', { waitUntil: 'domcontentloaded' });
-    const legacy = page.locator('button[title="Approfondimento: Antifascismo"]');
+    const legacy = page.locator('button[title="Approfondimento: Armi all\'Ucraina"]');
     await legacy.waitFor({ timeout: 25000 });
     await legacy.click();
     const legacyDialog = page.getByRole('dialog');
