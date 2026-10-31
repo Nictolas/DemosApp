@@ -35,7 +35,7 @@ test('all contextual plus buttons navigate to shared proposal route without fetc
     ['Organizzazioni', 'organizzazioni']
   ];
   for (const [page, category] of roots) {
-    const file = read('client/src/pages/' + page + '/index.tsx');
+    const file = read(page === 'Attivisti' ? 'client/src/pages/Attivisti.tsx' : 'client/src/pages/' + page + '/index.tsx');
     assert.match(file, new RegExp('<ProposeSubjectButton category="' + category + '"'));
   }
 });
