@@ -5,7 +5,7 @@ import { Scale } from "lucide-react";
 export const Header: React.FC = () => {
   return (
     <>
-      {/* Titolo compatto su smartphone e tablet: nessun pulsante Torna a Vota. */}
+      {/* Titolo compatto su smartphone e tablet, senza collegamenti di ritorno. */}
       <div className="flex items-center gap-2 py-1 lg:hidden">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-600">
           <Scale className="h-4 w-4 text-white" />
