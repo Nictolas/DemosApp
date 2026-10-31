@@ -12,7 +12,7 @@ test('only the intended civic routes use the bounded scroll shell', () => {
   const layout = read('client/src/components/RobustAppLayout.tsx');
   const css = read('client/src/robust-layout.css');
 
-  assert.ok(layout.includes("location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/capo-stato' || location === '/capo-di-stato'"));
+  assert.ok(layout.includes("location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/amnistia' || location === '/capo-stato' || location === '/capo-di-stato'"));
   assert.ok(layout.includes("${isScrollableContentPage ? ' app-main--scroll-content' : ''}"));
   assert.ok(css.includes('.app-main.app-main--scroll-content {\n  overflow-y: hidden !important;'));
   assert.ok(css.includes('.app-main.app-main--scroll-content .fade-up-transition {'));
@@ -72,6 +72,35 @@ test('Capo di Stato keeps title/consent/voting controls fixed while only ranking
   assert.ok(!header.includes('Torna a Vota'), 'No back-to-Vota text');
   assert.ok(!header.includes('<ArrowLeft'), 'No back arrow');
   assert.doesNotMatch(page, /min-h-screen bg-gradient|page-with-navbar/);
+});
+
+
+test('Amnistia fixes header and voting form; only offence rows scroll', () => {
+  const app = read('client/src/App.tsx');
+  const page = read('client/src/pages/Amnistia/index.tsx');
+  const header = read('client/src/pages/Amnistia/components/Header.tsx');
+  const ranking = read('client/src/pages/Amnistia/components/ClassificaLeggi.tsx');
+  assert.ok(app.includes('<Route path="/amnistia">'));
+  assert.match(page, /<PageContainer className="overflow-hidden/);
+  assert.match(page, /amnistia-page__fixed-header shrink-0/);
+  assert.match(page, /amnistia-page__fixed-controls min-h-0/);
+  assert.ok(page.indexOf('amnistia-page__fixed-header') < page.indexOf('amnistia-page__fixed-controls'));
+  assert.ok(page.indexOf('<AmnistiaForm') < page.indexOf('<ClassificaLeggi'));
+  assert.match(ranking, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto/);
+  assert.match(ranking, /aria-label="Lista reati Amnistia"/);
+  assert.ok(ranking.indexOf('<CardHeader') < ranking.indexOf('app-page-scroll min-h-0'));
+  assert.ok(!header.includes('<Link'), 'Amnistia must not show back-to-Vota links');
+  assert.ok(!header.includes('href="/vota"'), 'Amnistia must not link to Vota');
+  assert.doesNotMatch(page, /page-with-navbar|min-h-screen bg-gradient/);
+});
+
+test('Capo di Stato shows a real mobile pie alongside consent statistics', () => {
+  const consent = read('client/src/pages/CapodiStato/components/ConsensoSection.tsx');
+  assert.match(consent, /data-testid="capo-consenso-pie-mobile"/);
+  assert.match(consent, /aria-label="Grafico a torta consenso Capo di Stato"/);
+  assert.match(consent, /innerRadius=\{10\} outerRadius=\{25\}/);
+  assert.match(consent, /isAnimationActive=\{false\}/);
+  assert.match(consent, /PieChart/);
 });
 
 test('sightings header stays visible while all three categories scroll', () => {
