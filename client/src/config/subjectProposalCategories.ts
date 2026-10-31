@@ -33,7 +33,7 @@ export const SUBJECT_PROPOSAL_CATEGORIES = [
     nameLabel: "Nome della persona",
     placeholder: "Nome e cognome",
     sourceLabel: "Fonte pubblica HTTPS",
-    explanation: "Segnalare un attivista non crea un profilo utente né certifica la sua identità.",
+    explanation: "Proporre un attivista non crea un profilo utente né certifica la sua identità.",
     backPath: "/attivisti",
   },
   {
@@ -42,7 +42,7 @@ export const SUBJECT_PROPOSAL_CATEGORIES = [
     nameLabel: "Nome dell'organizzazione",
     placeholder: "Nome pubblico dell'organizzazione",
     sourceLabel: "Sito o fonte pubblica HTTPS",
-    explanation: "Segnalare un'organizzazione non equivale a registrare un account in suo nome.",
+    explanation: "Proporre un'organizzazione non equivale a registrare un account in suo nome.",
     backPath: "/organizzazioni",
   },
 ] as const;
@@ -57,6 +57,13 @@ export function isProposalCategory(value: string | null | undefined): value is P
 export function categoryFromSearch(search: string): ProposalCategory {
   const requested = new URLSearchParams(search.startsWith("?") ? search : "?" + search).get("categoria");
   return isProposalCategory(requested) ? requested : DEFAULT_SUBJECT_CATEGORY;
+}
+
+/** Only known internal destinations are allowed; never trust arbitrary return URLs. */
+export function proposalReturnPathFromSearch(search: string): string {
+  const params = new URLSearchParams(search.startsWith("?") ? search : "?" + search);
+  if (params.get("da") === "firma") return "/firma";
+  return getProposalCategory(categoryFromSearch(search)).backPath;
 }
 
 export function getProposalCategory(category: ProposalCategory) {
