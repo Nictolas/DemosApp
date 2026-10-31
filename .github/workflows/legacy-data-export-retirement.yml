@@ -80,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           security_head="00c36708eaa5d5575c5c27aaac394db47a4ef8e7"
-          export_head="f7df554f3f0f45ff212022a03f06ea85c24355ac"
+          export_head="${{ github.event.pull_request.head.sha }}"
           git fetch --no-tags origin "$security_head" "$export_head"
           git cat-file -e "$security_head^{commit}"
           git cat-file -e "$export_head^{commit}"
