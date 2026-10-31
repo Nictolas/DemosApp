@@ -217,6 +217,33 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal((await req('/api/subject-proposals','a','POST',
       proposal('organizzazioni',org.body.proposal.title.toUpperCase()))).status,409,
       'different account and case must not bypass a withdrawn title');
+    // Unicode: U+00E8 and e + U+0300 must not create separate records.
+    // Whitespace: do not allow direct database writers to bypass the API trim.
+    const unicode=await req('/api/subject-proposals','b','POST',
+      proposal('attivisti','Comunità Caffè'));
+    assert.equal(unicode.status,201);
+    assert.equal((await req('/api/subject-proposals/admin/'+unicode.body.proposal.id+'/decision',
+      'admin','POST',{decision:'approve'})).status,200);
+    assert.equal((await req('/api/subject-proposals/admin/'+unicode.body.proposal.id+'/withdraw',
+      'admin','POST',{note:'Ritiro sintetico'})).status,200);
+    const decomposed='Comunita\u0300 Caffe\u0300';
+    assert.equal((await req('/api/subject-proposals','a','POST',
+      proposal('attivisti',decomposed))).status,409,
+      'canonical Unicode variants cannot re-submit a withdrawn title');
+    const unicodeGuard=await pool.query(
+      "SELECT indexdef FROM pg_indexes WHERE schemaname=$1 AND indexname='subject_proposals_no_duplicate_open_titles'",
+      [SCHEMA]
+    );
+    assert.match(unicodeGuard.rows[0].indexdef,/normalize\s*\(/i);
+    assert.match(unicodeGuard.rows[0].indexdef,/regexp_replace\s*\(/i);
+    await assert.rejects(pool.query(
+      "INSERT INTO subject_proposals(proposer_user_id,category,title,source_url) VALUES($1,'attivisti',$2,'https://example.org')",
+      [A,'Comunità    Caffè']
+    ),e=>e.code==='23505','raw SQL repeated whitespace must not bypass the withdrawn title');
+    await assert.rejects(pool.query(
+      "INSERT INTO subject_proposals(proposer_user_id,category,title,source_url) VALUES($1,'attivisti',$2,'https://example.org')",
+      [A,decomposed]
+    ),e=>e.code==='23505','raw SQL decomposed accents must not bypass the withdrawn title');
     const freshOrg=await req('/api/subject-proposals','b','POST',
       proposal('organizzazioni','Nuova organizzazione sintetica distinta'));
     assert.equal(freshOrg.status,201,'unrelated nomination can still proceed');
