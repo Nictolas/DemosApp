@@ -285,8 +285,8 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       const dialog = page.getByRole('dialog');
       const brief = dialog.getByTestId('opinion-brief');
       await brief.waitFor({ timeout: 12000 });
-      assert.equal(await brief.getByRole('heading', { name: 'A favore' }).count(), 1, title + ': clear green pro label');
-      assert.equal(await brief.getByRole('heading', { name: 'Contro' }).count(), 1, title + ': clear red con label');
+      assert.equal(await brief.getByRole('heading', { name: 'A favore', exact: true }).count(), 1, title + ': clear green pro label');
+      assert.equal(await brief.getByRole('heading', { name: 'Contro', exact: true }).count(), 1, title + ': clear red con label');
       assert.equal(await brief.getByTestId('opinion-brief-pro').count(), 1);
       assert.equal(await brief.getByTestId('opinion-brief-con').count(), 1);
       assert.ok((await brief.innerText()).includes(fact), title + ': expected fact visible');
