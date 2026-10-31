@@ -302,6 +302,27 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         await outcomes.waitFor();
         assert.equal(await legal.getByTestId('opinion-brief-country').count(), 4,
           'Canada, Uruguay, Germany and Italy require separate legal statuses');
+        const colors = await legal.getByTestId('opinion-brief-country').evaluateAll(cards =>
+          cards.map(card => ({
+            country: card.querySelector('p')?.textContent?.trim(),
+            status: card.getAttribute('data-legal-status'),
+            bg: getComputedStyle(card).backgroundColor,
+          }))
+        );
+        const channels = color => (color.match(/[0-9]+/g) || []).slice(0, 3).map(Number);
+        const expected = [
+          ['Canada', 'regulated'], ['Uruguay', 'regulated'],
+          ['Germania', 'limited'], ['Italia', 'prohibited'],
+        ];
+        for (const [name, status] of expected) {
+          const card = colors.find(x => x.country?.includes(name));
+          assert.equal(card?.status, status, name + ': status classification');
+          const [red, green, blue] = channels(card.bg);
+          assert.ok([red, green, blue].every(Number.isFinite), name + ': visible color available');
+          if (status === 'regulated') assert.ok(green > red && green > blue, name + ': green background');
+          if (status === 'limited') assert.ok(red > blue && green > blue, name + ': amber background');
+          if (status === 'prohibited') assert.ok(red > green && red > blue, name + ': red background');
+        }
         assert.equal(await outcomes.getByTestId('opinion-brief-result').count(), 4,
           'Only four key results initially visible');
         const labels = await legal.innerText();
