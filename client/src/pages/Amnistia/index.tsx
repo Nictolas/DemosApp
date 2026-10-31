@@ -111,8 +111,6 @@ export default function Amnistia() {
                 hasReachedLimit={hasReachedLimit}
                 mieiVoti={data?.mieiVoti || []}
               />
-                ) : undefined}
-              />
             )}
           </div>
         </div>
