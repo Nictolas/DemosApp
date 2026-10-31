@@ -13,6 +13,7 @@ on:
       - 'client/src/components/ProposeSubjectButton.tsx'
       - 'client/src/pages/Proponi.tsx'
       - 'client/src/App.tsx'
+      - 'api/routes/subject-proposals.js'
       - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
       - '.github/workflows/unified-subject-proposal-page.yml'
 permissions:
@@ -28,6 +29,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
+      - name: Validate shared proposal backend syntax
+        run: node --check api/routes/subject-proposals.js
       - name: Test five routes, zero proposal-specific reads on open and private submission
         run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js
   client-build:
