@@ -54,7 +54,7 @@ interface organizzazione {
 interface OrganizzazioniResponse {
   success: boolean;
   data: organizzazione[];
-  approved_subjects?: Array<{ id: string; title: string; details: string; source_url: string | null }>;
+  approved_subjects?: Array<{ id: string; title: string }>;
   count: number;
   message: string;
 }
@@ -64,7 +64,7 @@ export default function Organizzazioni() {
   const { toast } = useToast();
   const API_BASE = 'https://demos-c7k0.onrender.com';
   const [organizzazioni, setOrganizzazioni] = useState<organizzazione[]>([]);
-  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string; details: string; source_url: string | null }>>([]);
+  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
   const [filteredOrganizzazioni, setFilteredOrganizzazioni] = useState<organizzazione[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegione, setSelectedRegione] = useState("all");
@@ -780,12 +780,6 @@ export default function Organizzazioni() {
                         <CardTitle className="break-words text-base">{subject.title}</CardTitle>
                         <p className="text-xs text-slate-600">Soggetto pubblico approvato, non un account DEMOS verificato.</p>
                       </CardHeader>
-                      {(subject.details || subject.source_url) && (
-                        <CardContent className="space-y-2 px-3 pb-3 text-sm">
-                          {subject.details && <p className="break-words">{subject.details}</p>}
-                          {subject.source_url?.startsWith("https://") && <a href={subject.source_url} rel="noopener noreferrer" target="_blank" className="text-blue-700 underline">Fonte pubblica</a>}
-                        </CardContent>
-                      )}
                     </Card>
                   ))}
                 </div>
