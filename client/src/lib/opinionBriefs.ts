@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these thirty-nine canonical IDs opt in; the other 55 use the original
+ * Only these forty-two canonical IDs opt in; the other 52 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -1851,6 +1851,173 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     note: "Efficienza dei LED, dimmerazione e spegnimento sono interventi differenti: valutarli separatamente.",
     sources: [
       { label: "ISTAT · Ambiente urbano 2024, pubblicato 9 settembre 2026", url: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/" },
+    ],
+    verified,
+  },
+
+
+  case_chiuse: {
+    intro: "Consentire l'apertura di strutture autorizzate in cui si svolgono servizi sessuali tra adulti consenzienti. In Italia la legge Merlin vieta le case di prostituzione; non rende però di per sé reato l'attività volontaria di una persona adulta.",
+    facts: [],
+    comparisonMode: "transition",
+    comparison: [
+      { label: "🇮🇹 Italia oggi", title: "Case di prostituzione vietate", text: "La legge n. 75 del 1958 proibisce l'esercizio di case di prostituzione e contrasta favoreggiamento e sfruttamento, senza vietare in generale l'attività autonoma e consensuale di adulti." },
+      { label: "Modifica proposta", title: "Strutture autorizzate", text: "Una nuova disciplina potrebbe ammettere locali regolamentati, con requisiti di sicurezza, tutela contro sfruttamento e tratta, controlli e protezione dei dati personali." },
+    ],
+    legalStatuses: [
+      { place: "🇩🇪 Germania", status: "regulated", label: "Strutture autorizzabili", rule: "Attività volontaria degli adulti lecita; dal 2017 i gestori devono ottenere autorizzazioni e rispettare requisiti." },
+      { place: "🇳🇱 Paesi Bassi", status: "regulated", label: "Lavoro sessuale legale", rule: "Tra adulti consenzienti, con regole per le imprese e autorizzazioni locali ove richieste." },
+      { place: "🇮🇹 Italia", status: "prohibited", label: "Case chiuse vietate", rule: "Vietate le case di prostituzione, NON criminalizzata automaticamente la prostituzione individuale di adulti." },
+    ],
+    measuredResultsTitle: "🇮🇹 / 🇩🇪 · norme e registrazioni amministrative",
+    measuredResults: [
+      {
+        place: "🇮🇹 Italia · Normattiva",
+        topic: "Legge di chiusura delle case di prostituzione",
+        value: "1958",
+        period: "Legge 20 febbraio 1958, n. 75",
+        meaning: "L'articolo 1 vieta l'esercizio di case di prostituzione; non è un divieto generale dei rapporti sessuali retribuiti consensuali tra adulti.",
+        sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=058U0075&atto.dataPubblicazioneGazzetta=1958-03-04",
+      },
+      {
+        place: "🇩🇪 Germania · Ministero federale",
+        topic: "Entrata in vigore delle regole di protezione",
+        value: "1/7/2017",
+        period: "Prostituiertenschutzgesetz",
+        meaning: "Registrazione per chi esercita e autorizzazione per le imprese del settore; non legalizzazione originaria di ogni forma di prostituzione.",
+        sourceUrl: "https://www.bmfsfj.de/bmfsfj/themen/gleichstellung/frauen-vor-gewalt-schuetzen/prostituiertenschutzgesetz/prostituiertenschutzgesetz-fragen-und-antworten",
+      },
+      {
+        place: "🇩🇪 Germania · Statistica ufficiale",
+        topic: "Persone registrate nel settore",
+        value: "30.636",
+        period: "Fine 2023",
+        meaning: "Persone amministrativamente registrate, NON numero totale stimato delle persone nel settore né indicatore del traffico di esseri umani.",
+        sourceUrl: "https://www.bmfsfj.de/bmfsfj/themen/gleichstellung/frauen-vor-gewalt-schuetzen/prostituiertenschutzgesetz/gesetzliche-regelungen-80646",
+      },
+      {
+        place: "🇩🇪 Germania · Statistica ufficiale",
+        topic: "Autorizzazioni valide per attività del settore",
+        value: "2.312",
+        period: "Fine 2023",
+        meaning: "Permessi delle imprese: non corrispondono necessariamente a singoli bordelli né a nuovi permessi emessi nel 2023.",
+        sourceUrl: "https://www.bmfsfj.de/bmfsfj/themen/gleichstellung/frauen-vor-gewalt-schuetzen/prostituiertenschutzgesetz/gesetzliche-regelungen-80646",
+      },
+    ],
+    evidenceCaveat: "La registrazione tedesca copre soltanto le persone emerse nei registri amministrativi. Né le 30.636 persone né i 2.312 permessi dimostrano da soli una riduzione della tratta, maggior gettito fiscale o migliore sicurezza. Germania, Paesi Bassi e Italia adottano discipline diverse: il verde riguarda la possibilità di esercizio regolato, il rosso soltanto il divieto italiano delle case chiuse.",
+    advantage: "Licenze e controlli potrebbero migliorare accesso a tutele, condizioni di sicurezza e contrasto allo sfruttamento.",
+    concern: "Rischio di tratta e coercizione, difficoltà di controllare il settore sommerso, gestione dei dati sensibili e tutela della salute.",
+    note: "Prostituzione volontaria individuale, sfruttamento della prostituzione, tratta e gestione di una struttura sono fattispecie diverse. Evitare stime economiche non verificabili.",
+    sources: [
+      { label: "🇮🇹 Normattiva · Legge 75/1958", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=058U0075&atto.dataPubblicazioneGazzetta=1958-03-04" },
+      { label: "🇩🇪 Ministero federale · Norme e statistiche 2023", url: "https://www.bmfsfj.de/bmfsfj/themen/gleichstellung/frauen-vor-gewalt-schuetzen/prostituiertenschutzgesetz/gesetzliche-regelungen-80646" },
+      { label: "🇩🇪 Ministero federale · FAQ legge 2017", url: "https://www.bmfsfj.de/bmfsfj/themen/gleichstellung/frauen-vor-gewalt-schuetzen/prostituiertenschutzgesetz/prostituiertenschutzgesetz-fragen-und-antworten" },
+      { label: "🇳🇱 Governo olandese · Norme sulla prostituzione", url: "https://www.government.nl/themes/justice-security-and-defence/prostitution" },
+    ],
+    verified,
+  },
+  incentivi_regionali_auto_elettriche: {
+    intro: "Prevedere contributi regionali per acquistare auto elettriche, con possibile rottamazione obbligatoria e requisiti economici. Non tutti i bandi per rinnovare veicoli finanziano esclusivamente auto elettriche.",
+    facts: [],
+    comparison: [
+      { label: "Incentivi selettivi", title: "Bandi per sostituire auto inquinanti", text: "Alcune Regioni offrono contributi a persone fisiche o imprese, con categorie di veicoli, fondi e scadenze differenti." },
+      { label: "Opzione dell'Opinione", title: "Sostegno specifico alle auto elettriche", text: "Rafforzare o introdurre incentivi per auto a zero emissioni allo scarico, definendo reddito, rottamazione e limiti di prezzo." },
+    ],
+    measuredResultsTitle: "🇮🇹 Lombardia · bandi regionali, platee diverse",
+    measuredResults: [
+      {
+        place: "🇮🇹 Lombardia · Persone fisiche",
+        topic: "Dotazione del bando Rinnova parco veicolare",
+        value: "20,74 mln €",
+        period: "Bando 2025 · 20.738.052,45 €",
+        meaning: "Stanziamento complessivo per rinnovo verso auto a zero o bassissime emissioni, NON fondi riservati solo ad auto elettriche e NON spesa osservata.",
+        sourceUrl: "https://bandi.regione.lombardia.it/servizi/servizio/catalogo/dettaglio/infrastrutture-trasporti-mobilita/mobilita-sostenibile/rinnova-parco-veicolare-2025-autovetture-linea-RLT12025044583",
+      },
+      {
+        place: "🇮🇹 Lombardia · Persone fisiche",
+        topic: "Scadenza prevista della linea per cittadini",
+        value: "31/10/2025",
+        period: "Domande aperte dal 3/4/2025",
+        meaning: "È una procedura del 2025, non un bando aperto a tutti i cittadini nel 2026.",
+        sourceUrl: "https://bandi.regione.lombardia.it/servizi/servizio/catalogo/dettaglio/infrastrutture-trasporti-mobilita/mobilita-sostenibile/rinnova-parco-veicolare-2025-autovetture-linea-RLT12025044583",
+      },
+      {
+        place: "🇮🇹 Lombardia · Imprese / enti ammessi",
+        topic: "Dotazione Rinnova Veicoli 2026–2027",
+        value: "3,94 mln €",
+        period: "Biennio 2026–2027",
+        meaning: "Somma destinata a un bando DIFFERENTE per imprese e organizzazioni ammesse, su più categorie di veicoli; non un incentivo universale ai privati.",
+        sourceUrl: "https://www.unioncamerelombardia.it/bandi-e-incentivi-alle-imprese/dettaglio-bando/bando-rinnova-veicoli-2026-2027",
+      },
+      {
+        place: "🇮🇹 Lombardia · Imprese / enti ammessi",
+        topic: "Chiusura della linea 2026 per esaurimento",
+        value: "1/7/2026",
+        period: "Determinazione 172/2026",
+        meaning: "Lo sportello della linea 2026 si è chiuso anticipatamente per fondi esauriti; non indica quanti veicoli elettrici siano stati acquistati.",
+        sourceUrl: "https://www.unioncamerelombardia.it/bandi-e-incentivi-alle-imprese/dettaglio-bando/bando-rinnova-veicoli-2026-2027",
+      },
+    ],
+    evidenceCaveat: "I 20,74 milioni del 2025 per cittadini e i 3,94 milioni del 2026–27 per imprese riguardano platee e veicoli differenti: NON sono confrontabili come crescita o riduzione degli incentivi alle auto elettriche. Fondi stanziati e sportelli chiusi non misurano immatricolazioni, emissioni evitate o beneficiari effettivi. Verificare sempre requisiti e disponibilità attuale per ogni bando.",
+    advantage: "Può facilitare il passaggio ad auto senza emissioni allo scarico e il ritiro di mezzi più inquinanti.",
+    concern: "Costa risorse pubbliche e può favorire soprattutto chi può già acquistare un'auto nuova; vanno considerati energia, materie prime e infrastrutture.",
+    note: "Auto elettrica, ibrida e altra auto a basse emissioni non sono categorie equivalenti; il titolo del bando non determina da solo le tecnologie ammesse.",
+    sources: [
+      { label: "Regione Lombardia · Rinnova parco veicolare 2025, persone fisiche", url: "https://bandi.regione.lombardia.it/servizi/servizio/catalogo/dettaglio/infrastrutture-trasporti-mobilita/mobilita-sostenibile/rinnova-parco-veicolare-2025-autovetture-linea-RLT12025044583" },
+      { label: "Unioncamere Lombardia · Rinnova veicoli 2026–27 e chiusura 2026", url: "https://www.unioncamerelombardia.it/bandi-e-incentivi-alle-imprese/dettaglio-bando/bando-rinnova-veicoli-2026-2027" },
+    ],
+    verified,
+  },
+  limitazioni_affitti_brevi: {
+    intro: "Limitare o autorizzare gli affitti turistici di breve durata in determinate zone comunali, distinguendo le locazioni turistiche dalle locazioni residenziali. Le competenze dei Comuni dipendono dalle leggi statali e regionali.",
+    facts: [],
+    comparison: [
+      { label: "Senza limiti urbanistici aggiuntivi", title: "Regole generali ed obblighi di registrazione", text: "Il proprietario può affittare per turismo quando rispetta le disposizioni applicabili, senza un blocco comunale mirato sulle nuove attività in alcune zone." },
+      { label: "Con limiti territoriali", title: "Nuove autorizzazioni ristrette", text: "Il Comune, se la legge lo consente, può limitare nuove locazioni brevi in quartieri con forte pressione turistica; restano condizioni ed eccezioni per le attività preesistenti." },
+    ],
+    measuredResultsTitle: "🇮🇹 Firenze · regole comunali 2025–2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 Firenze · Comune",
+        topic: "Entrata in vigore del primo regolamento",
+        value: "31/5/2025",
+        period: "Delibera comunale n. 27/2025",
+        meaning: "Introduce la disciplina locale delle locazioni turistiche brevi; non è la data di un divieto nazionale.",
+        sourceUrl: "https://www.comune.firenze.it/turismo/locazioni-turistiche-brevi",
+      },
+      {
+        place: "🇮🇹 Firenze · Comune",
+        topic: "Estensione dei limiti nelle sottozone A3–A4",
+        value: "21/6/2026",
+        period: "Delibera comunale n. 28 del 4/6/2026",
+        meaning: "Dal 21 giugno niente nuove attività nelle sottozone A1, A3 e A4 specificate; NON significa divieto generalizzato di locazioni in tutta Firenze.",
+        sourceUrl: "https://www.comune.firenze.it/turismo/locazioni-turistiche-brevi",
+      },
+      {
+        place: "🇮🇹 Firenze · Comune",
+        topic: "Durata di un'autorizzazione",
+        value: "5 anni",
+        period: "Regolamento vigente al 31/10/2026",
+        meaning: "Autorizzazione per ciascuna unità abitativa ammissibile, con requisiti ed eccezioni; non garantisce di per sé il rinnovo.",
+        sourceUrl: "https://www.comune.firenze.it/servizi/imprese-e-commercio-turismo/autorizzazione-allesercizio-dellattivita-di-locazione-turistica",
+      },
+      {
+        place: "🇮🇹 Firenze · Comune",
+        topic: "Superficie minima dell'abitazione",
+        value: "28 m²",
+        period: "Regolamento locale in vigore dal 2025",
+        meaning: "Requisito relativo alle abitazioni ammesse alla locazione turistica breve nel Comune; non misura case sottratte alla residenza.",
+        sourceUrl: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/modifica-al-regolamento-affitti-turistici-brevi-il-consiglio",
+      },
+    ],
+    evidenceCaveat: "La limitazione di Firenze riguarda specifiche sottozone e nuove autorizzazioni. Esistono disposizioni transitorie per immobili regolarmente locati nel 2024 (finestra indicata fino al 31 maggio 2028): non tutte le attività preesistenti devono chiudere. Le date, superfici e durate sono regole; NON provano un abbassamento dei canoni, un aumento di case disponibili o un calo turistico.",
+    advantage: "Può ridurre la pressione delle conversioni turistiche in aree residenziali e favorire controlli uniformi.",
+    concern: "Riduce le opportunità economiche di alcuni proprietari e ospiti; efficacia e applicabilità dipendono dalla disciplina legale e dai controlli.",
+    note: "Limiti alle nuove autorizzazioni non equivalgono a un divieto di affitto ordinario o alla chiusura automatica degli alloggi turistici esistenti.",
+    sources: [
+      { label: "Comune di Firenze · Norme vigenti sulle locazioni turistiche brevi", url: "https://www.comune.firenze.it/turismo/locazioni-turistiche-brevi" },
+      { label: "Comune di Firenze · Autorizzazione quinquennale", url: "https://www.comune.firenze.it/servizi/imprese-e-commercio-turismo/autorizzazione-allesercizio-dellattivita-di-locazione-turistica" },
+      { label: "Comune di Firenze · Delibera 4 giugno 2026 e requisiti", url: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/modifica-al-regolamento-affitti-turistici-brevi-il-consiglio" },
     ],
     verified,
   },
