@@ -291,6 +291,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Leva obbligatoria', '1/1/2005'],
       ['/opinioni-regionali', 'Gare per i treni regionali', '15 + 7,5'],
       ['/opinioni-comunali', "Riduzione dell'illuminazione notturna per risparmio energetico", '75,5%'],
+      ['/opinioni-nazionali', 'Case chiuse', '30.636'],
+      ['/opinioni-regionali', 'Incentivi regionali alle auto elettriche', '20,74 mln €'],
+      ['/opinioni-comunali', 'Limitazioni affitti brevi', '21/6/2026'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -857,6 +860,59 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             data.includes('non calo della bolletta'),
             'Lighting network size and LED adoption do not measure overnight dimming savings');
           assert.ok((await brief.innerText()).includes('Efficienza dei LED, dimmerazione e spegnimento'));
+        }
+      } else if (['Case chiuse', 'Incentivi regionali alle auto elettriche', 'Limitazioni affitti brevi'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        const metrics = results.getByTestId('opinion-brief-result');
+        assert.equal(await metrics.count(), 4, title + ': four sourced and contextualized figures');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': each figure needs an independent source link');
+        const positions = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(positions.every(Number.isFinite) && positions[0] < positions[1] && positions[1] < positions[2],
+          title + ': introductory explanation, choices and evidence in reading order');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Case chiuse' ? 1 : 0,
+          title + ': a transition arrow only for Italian law versus a proposed new regime');
+        if (title === 'Case chiuse') {
+          for (const n of ['1958', '1/7/2017', '30.636', '2.312'])
+            assert.ok(data.includes(n), 'Italy/Germany rules and administrative registration ' + n);
+          const countries = brief.getByTestId('opinion-brief-country');
+          assert.equal(await countries.count(), 3, 'green and red legal rules shown distinctly');
+          assert.equal(await countries.locator('[data-legal-status="regulated"]').count(), 2,
+            'Germany and Netherlands must have regulated-status coloration');
+          assert.equal(await countries.locator('[data-legal-status="prohibited"]').count(), 1,
+            'Only Italian brothel operation should be marked prohibited');
+          assert.ok(data.includes('NON numero totale stimato') &&
+            data.includes('non corrispondono necessariamente a singoli bordelli'),
+            'Administrative registration and permits do not equal total sex-worker population');
+          assert.ok((await brief.innerText()).includes('NON criminalizzata automaticamente la prostituzione individuale'),
+            'Prohibiting brothels is not prohibiting voluntary adult sex work');
+        } else {
+          assert.equal(await brief.getByTestId('opinion-brief-country').count(), 0,
+            title + ': no invented permitted/prohibited cross-country status map');
+        }
+        if (title === 'Incentivi regionali alle auto elettriche') {
+          for (const n of ['20,74 mln €', '31/10/2025', '3,94 mln €', '1/7/2026'])
+            assert.ok(data.includes(n), 'Lombardy incentives program parameter ' + n);
+          assert.ok(data.includes('NON fondi riservati solo ad auto elettriche') &&
+            data.includes('bando DIFFERENTE') &&
+            data.includes('non un incentivo universale ai privati'),
+            'Do not conflate citizen and enterprise funds or EV-only and low-emission programs');
+          assert.ok((await brief.innerText()).includes('NON sono confrontabili come crescita o riduzione'),
+            'Different applicant groups and vehicle categories cannot be compared as a trend');
+        }
+        if (title === 'Limitazioni affitti brevi') {
+          for (const n of ['31/5/2025', '21/6/2026', '5 anni', '28 m²'])
+            assert.ok(data.includes(n), 'Firenze short-term rental rule ' + n);
+          assert.ok(data.includes('NON significa divieto generalizzato') &&
+            data.includes('non misura case sottratte alla residenza'),
+            'Local zoning ban and housing-area requirement must not be misread as measured impact');
+          assert.ok((await brief.innerText()).includes('non tutte le attività preesistenti devono chiudere'),
+            'Existing 2024 registered rentals have transitional rules');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
