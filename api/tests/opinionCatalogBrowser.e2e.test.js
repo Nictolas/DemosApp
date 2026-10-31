@@ -294,6 +294,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Case chiuse', '30.636'],
       ['/opinioni-regionali', 'Incentivi regionali alle auto elettriche', '20,74 mln €'],
       ['/opinioni-comunali', 'Limitazioni affitti brevi', '21/6/2026'],
+      ['/opinioni-nazionali', 'Spese NATO al 5%', '3,5%'],
+      ['/opinioni-regionali', 'Aborto farmacologico nei consultori', '64,3%'],
+      ['/opinioni-comunali', 'Pedaggio urbano', '7,50 €'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -913,6 +916,53 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Local zoning ban and housing-area requirement must not be misread as measured impact');
           assert.ok((await brief.innerText()).includes('non tutte le attività preesistenti devono chiudere'),
             'Existing 2024 registered rentals have transitional rules');
+        }
+      } else if (['Spese NATO al 5%', 'Aborto farmacologico nei consultori', 'Pedaggio urbano'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four official facts and interpretive cautions');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': each fact retains its own official source link');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no unsupported country-level law classification');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': comparison of policy frameworks is not a before-and-after transition');
+        const pos = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(pos.every(Number.isFinite) && pos[0] < pos[1] && pos[1] < pos[2],
+          title + ': explanation, alternatives and evidence remain in reading order');
+        if (title === 'Spese NATO al 5%') {
+          for (const n of ['5% del PIL', '3,5%', 'fino a 1,5%', '2029'])
+            assert.ok(data.includes(n), 'NATO official defence investment objective ' + n);
+          assert.ok(data.includes('non la quota di PIL già spesa') &&
+            data.includes('non è automaticamente spesa militare') &&
+            data.includes('NON è la scadenza finale'),
+            '2035 commitment, core defence and wider security cannot be conflated');
+          assert.ok((await brief.innerText()).includes('OBIETTIVI da raggiungere entro il 2035'),
+            'Target is not a measured 2026 expenditure');
+        }
+        if (title === 'Aborto farmacologico nei consultori') {
+          for (const n of ['63 giorni', '29/6/2020', '39,4%', '64,3%'])
+            assert.ok(data.includes(n), 'Tuscany 2019/2024 or Health Ministry fact ' + n);
+          assert.ok(data.includes('NON un tempo medio di attesa') &&
+            data.includes('non apertura automatica di tutti i consultori') &&
+            data.includes('NON percentuale eseguita nei consultori'),
+            'National allowance, local organization and regional pharmacological share differ');
+          assert.ok((await brief.innerText()).includes('NON dimostra da solo che il protocollo 2020 ne sia stato la causa'),
+            'Do not attribute causal change without comparative evidence');
+        }
+        if (title === 'Pedaggio urbano') {
+          for (const n of ['7,50 €', '7:30–19:30', '50/anno', '3,00 €'])
+            assert.ok(data.includes(n), 'Milan Area C tariff, hours and resident rules ' + n);
+          assert.ok(data.includes('NON un costo per ogni passaggio') &&
+            data.includes('NON per ogni cittadino di Milano') &&
+            data.includes('NON sostituisce il ticket ordinario'),
+            'Daily ticket, resident entitlement and price are not interchangeable');
+          assert.ok((await brief.innerText()).includes('NON provano da soli l\'efficacia del pedaggio'),
+            'Rules and fares are not causal traffic outcomes');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
