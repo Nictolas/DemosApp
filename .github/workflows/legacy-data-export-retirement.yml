@@ -1,0 +1,145 @@
+name: Legacy data export retirement (CI only)
+on:
+  pull_request:
+    paths:
+      - 'api/routes/admin/data-export.js'
+      - 'api/routes/admin/axiom-migration.js'
+      - 'api/tests/legacyDataExportRetirement.test.js'
+      - 'api/tests/legacyAxiomMigrationGate.test.js'
+      - 'api/tests/noEmbeddedAdminSecretsInScripts.test.js'
+      - 'api/tests/passwordlessAuthRouteContract.test.js'
+      - 'api/routes/auth/**'
+      - 'api/app.js'
+      - 'scripts/**'
+      - 'api/services/legacyAxiomMigrationGate.js'
+      - 'api/services/axiomMigrationService.js'
+      - 'scripts/migrate-local.js'
+      - 'scripts/migrate-neon-to-axiom.js'
+      - 'scripts/migrate-neon-to-axiom-gdpr-only.js'
+      - 'scripts/migrate-direct-http.js'
+      - 'scripts/check-migration-config.js'
+      - 'scripts/start-migration-with-login.js'
+      - 'scripts/test-migration-direct.js'
+      - 'scripts/generate-admin-token.js'
+      - 'scripts/check-axiom-env-render.js'
+      - 'scripts/check-migration-status.js'
+      - 'scripts/run-migration.js'
+      - 'scripts/start-axiom-migration.js'
+      - 'api/tests/legacyDataExportAuthIntegration.test.js'
+      - 'client/src/pages/DataExport.tsx'
+      - '.github/workflows/legacy-data-export-retirement.yml'
+jobs:
+  express-http:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies without scripts
+        working-directory: api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run isolated real Express HTTP tests
+        working-directory: api
+        run: node --test tests/legacyDataExportRetirement.test.js tests/legacyDataExportAuthIntegration.test.js
+      - name: Verify 12 legacy CLI/diagnostic entrypoints and service functions fail closed
+        run: node --test api/tests/legacyAxiomMigrationGate.test.js
+      - name: Scan all maintenance scripts for Admin credentials and token output
+        run: node --test api/tests/noEmbeddedAdminSecretsInScripts.test.js
+      - name: Verify passwordless auth route contract
+        run: node --test api/tests/passwordlessAuthRouteContract.test.js
+
+  security-composition:
+    # CI-only integration rehearsal of this PR with the independent #487 dependency fix.
+    # Never commits/merges the dependency files to this branch or to main.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import pinned #487 dependency manifest in ephemeral CI workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="00c36708eaa5d5575c5c27aaac394db47a4ef8e7"
+          git fetch --no-tags --depth=1 origin "$pinned"
+          test "$(git rev-parse FETCH_HEAD)" = "$pinned"
+          git show "$pinned:api/package.json" > api/package.json
+          git show "$pinned:api/package-lock.json" > api/package-lock.json
+          node -e "const p=require('./api/package.json'); if(p.overrides['follow-redirects'] !== '1.16.2') process.exit(1)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install composed API dependencies without scripts
+        working-directory: api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Audit composed production dependencies
+        working-directory: api
+        run: npm audit --omit=dev --audit-level=high
+      - name: Test both legacy routes on actual Express with synthetic auth/providers
+        working-directory: api
+        run: node --test tests/legacyDataExportRetirement.test.js tests/legacyDataExportAuthIntegration.test.js
+      - name: Verify 12 legacy CLI/diagnostic entrypoints and service functions fail closed
+        run: node --test api/tests/legacyAxiomMigrationGate.test.js
+      - name: Scan all maintenance scripts for Admin credentials and token output
+        run: node --test api/tests/noEmbeddedAdminSecretsInScripts.test.js
+      - name: Verify passwordless auth route contract
+        run: node --test api/tests/passwordlessAuthRouteContract.test.js
+      - name: Install frontend dependencies without scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build composed frontend (non-release)
+        run: npm run build --prefix client
+
+  full-main-merge-rehearsal:
+    # A local-only Git merge rehearses current main, #487 and #490 together.
+    # No pushes, deployed services, DB access, or repository branch changes.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Rehearse both PR merges in the ephemeral checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          security_head="00c36708eaa5d5575c5c27aaac394db47a4ef8e7"
+          export_head="${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags origin "$security_head" "$export_head"
+          git cat-file -e "$security_head^{commit}"
+          git cat-file -e "$export_head^{commit}"
+          printf 'Main tested: %s\n' "$(git rev-parse HEAD)"
+          git -c user.name='DEMOS CI Rehearsal' -c user.email='ci@users.noreply.github.com' merge --no-ff --no-edit "$security_head"
+          git -c user.name='DEMOS CI Rehearsal' -c user.email='ci@users.noreply.github.com' merge --no-ff --no-edit "$export_head"
+          test -z "$(git status --porcelain)"
+          node -e "const p=require('./api/package.json'); if (p.overrides['follow-redirects'] !== '1.16.2') process.exit(1)"
+          test -f api/tests/legacyDataExportRetirement.test.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install merged API dependencies (no scripts)
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Audit high/critical production API dependencies
+        run: npm audit --prefix api --omit=dev --audit-level=high
+      - name: Run HTTP security regressions against merged Express source
+        run: node --test api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js api/tests/securityProductionHardening.test.js
+      - name: Verify 12 legacy CLI/diagnostic entrypoints and service functions fail closed
+        run: node --test api/tests/legacyAxiomMigrationGate.test.js
+      - name: Scan all maintenance scripts for Admin credentials and token output
+        run: node --test api/tests/noEmbeddedAdminSecretsInScripts.test.js
+      - name: Verify passwordless auth route contract
+        run: node --test api/tests/passwordlessAuthRouteContract.test.js
+      - name: Install merged frontend dependencies (no scripts)
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend with merged code (no release)
+        run: npm run build --prefix client
