@@ -377,3 +377,132 @@ test('RP-10: direct metrics, health and logging cleanup methods reject before SQ
     }
   }
 });
+
+
+test('retention destructive routes deny anonymous and non-admin requests before service calls', async () => {
+  const authSource = fs.readFileSync(path.join(__dirname, '../middleware/auth.js'), 'utf8');
+  const routeSource = fs.readFileSync(path.join(__dirname, '../routes/admin/data-retention.js'), 'utf8');
+  const syntheticPool = {};
+  let subjectLookups = 0;
+  let currentIsAdmin = false;
+  let destructiveCalls = 0;
+  const authModule = { exports: {} };
+
+  new Function('require', 'module', 'console', 'process', authSource)(
+    (name) => {
+      if (name === '../utils/jwt') {
+        return { verifyAccessToken: () => ({ userId: 'synthetic-account', jti: 'synthetic-session' }) };
+      }
+      if (name === '../config/database') return { getPool: () => syntheticPool };
+      if (name === '../services/redisCache') return { isEnabled: () => false };
+      if (name === '../config/cacheKeys') {
+        return { keys: { authUser: (id) => id }, ttl: { authUser: 0 } };
+      }
+      if (name === '../services/accountCapabilitiesService') {
+        return {
+          getAccountSubject: async (pool, id) => {
+            assert.equal(pool, syntheticPool);
+            assert.equal(id, 'synthetic-account');
+            subjectLookups++;
+            return {
+              id,
+              status: 'a',
+              legacyRole: currentIsAdmin ? 'A' : 'U',
+              capabilities: {
+                accountType: 'p',
+                isAdmin: currentIsAdmin,
+                isActivist: false,
+                isCandidate: false,
+                isPolitician: false
+              }
+            };
+          }
+        };
+      }
+      throw new Error('Unexpected auth dependency: ' + name);
+    },
+    authModule,
+    { log() {}, error() {} },
+    { env: { NODE_ENV: 'production' } }
+  );
+
+  const middleware = [];
+  const routes = new Map();
+  const router = {
+    use(handler) { middleware.push(handler); },
+    get() {},
+    delete(route, handler) { routes.set('DELETE ' + route, handler); },
+    post(route, handler) { routes.set('POST ' + route, handler); }
+  };
+  const blockedOperation = async () => {
+    destructiveCalls++;
+    throw new Error('SYNTHETIC_DESTRUCTIVE_PATH_MUST_NOT_RUN');
+  };
+  const routeModule = { exports: {} };
+  new Function('require', 'module', 'console', routeSource)(
+    (name) => {
+      if (name === 'express') return { Router: () => router };
+      if (name === '../../middleware/auth') return authModule.exports;
+      if (name === '../../services/dataRetentionService') {
+        return {
+          assertRetentionPolicyApproved: blockedOperation,
+          deleteExpiredData: blockedOperation,
+          deleteAllExpiredData: blockedOperation
+        };
+      }
+      if (name === '../../jobs/dataRetentionJob') {
+        return { start: blockedOperation, performImmediateCleanup: blockedOperation };
+      }
+      throw new Error('Unexpected route dependency: ' + name);
+    },
+    routeModule,
+    { warn() {}, error() {} }
+  );
+
+  assert.deepEqual(middleware, [
+    authModule.exports.verifyToken,
+    authModule.exports.requireAdmin
+  ], 'both real auth guards must protect every retention route');
+
+  const endpoints = [
+    'DELETE /cleanup/:userId',
+    'POST /cleanup-all',
+    'POST /job/start',
+    'POST /cleanup/immediate'
+  ];
+  async function dispatch(endpoint, authorization) {
+    const req = {
+      headers: authorization ? { authorization } : {},
+      body: {},
+      params: { userId: 'synthetic-target' },
+      url: '/api/admin/data-retention'
+    };
+    const res = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(body) { this.body = body; return this; }
+    };
+    for (const guard of middleware) {
+      let proceeded = false;
+      await guard(req, res, () => { proceeded = true; });
+      if (!proceeded) return res;
+    }
+    const handler = routes.get(endpoint);
+    assert.equal(typeof handler, 'function', endpoint);
+    await handler(req, res);
+    return res;
+  }
+
+  for (const endpoint of endpoints) {
+    const unauthenticated = await dispatch(endpoint);
+    assert.equal(unauthenticated.statusCode, 401, endpoint);
+    assert.equal(unauthenticated.body.success, false, endpoint);
+
+    currentIsAdmin = false;
+    const reader = await dispatch(endpoint, 'Bearer synthetic-valid');
+    assert.equal(reader.statusCode, 403, endpoint);
+    assert.equal(reader.body.error, 'Accesso negato', endpoint);
+  }
+  assert.equal(subjectLookups, endpoints.length, 'anonymous calls must not query account');
+  assert.equal(destructiveCalls, 0, 'denied requests must never reach retention operations');
+});
