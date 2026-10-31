@@ -12,6 +12,7 @@ on:
       - 'scripts/migrate-neon-to-axiom.js'
       - 'scripts/migrate-neon-to-axiom-gdpr-only.js'
       - 'scripts/migrate-direct-http.js'
+      - 'scripts/check-migration-config.js'
       - 'scripts/run-migration.js'
       - 'scripts/start-axiom-migration.js'
       - 'api/tests/legacyDataExportAuthIntegration.test.js'
@@ -35,7 +36,7 @@ jobs:
       - name: Run isolated real Express HTTP tests
         working-directory: api
         run: node --test tests/legacyDataExportRetirement.test.js tests/legacyDataExportAuthIntegration.test.js
-      - name: Verify six CLI and direct legacy service paths refuse all migrations
+      - name: Verify seven legacy CLI/diagnostic entrypoints and service functions fail closed
         run: node --test api/tests/legacyAxiomMigrationGate.test.js
 
   security-composition:
@@ -70,7 +71,7 @@ jobs:
       - name: Test both legacy routes on actual Express with synthetic auth/providers
         working-directory: api
         run: node --test tests/legacyDataExportRetirement.test.js tests/legacyDataExportAuthIntegration.test.js
-      - name: Verify six CLI and direct legacy service paths refuse all migrations
+      - name: Verify seven legacy CLI/diagnostic entrypoints and service functions fail closed
         run: node --test api/tests/legacyAxiomMigrationGate.test.js
       - name: Install frontend dependencies without scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
@@ -114,7 +115,7 @@ jobs:
         run: npm audit --prefix api --omit=dev --audit-level=high
       - name: Run HTTP security regressions against merged Express source
         run: node --test api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js api/tests/securityProductionHardening.test.js
-      - name: Verify six CLI and direct legacy service paths refuse all migrations
+      - name: Verify seven legacy CLI/diagnostic entrypoints and service functions fail closed
         run: node --test api/tests/legacyAxiomMigrationGate.test.js
       - name: Install merged frontend dependencies (no scripts)
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
