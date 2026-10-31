@@ -65,8 +65,8 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
 
   return (
     <Card className="mb-0 shrink-0 border border-slate-200 bg-white shadow-sm">
-      <CardContent className="space-y-3 px-3 py-3 sm:px-4 sm:py-4 [@media(max-height:650px)]:space-y-2 [@media(max-height:650px)]:py-2">
-        <h2 className="text-center text-sm font-semibold leading-snug text-slate-900 sm:text-base">
+      <CardContent className="space-y-3 px-3 py-3 sm:px-4 sm:py-4 [@media(max-height:650px)]:space-y-1 [@media(max-height:650px)]:py-1">
+        <h2 className="text-center text-sm font-semibold leading-snug text-slate-900 sm:text-base [@media(max-height:650px)]:text-xs">
           Ti senti rappresentato dall'attuale Capo di Stato?
         </h2>
 
@@ -80,7 +80,7 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
             <button
               key={option.value}
               type="button"
-              className={`min-h-11 flex-1 border border-slate-200 px-2 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:text-base ${
+              className={`min-h-11 flex-1 border border-slate-200 px-2 py-2 [@media(max-height:650px)]:min-h-9 [@media(max-height:650px)]:py-1 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:text-base ${
                 idx === 0 ? 'rounded-l-full' : ''
               } ${
                 idx === 2 ? 'rounded-r-full' : ''
@@ -102,7 +102,7 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
           <div className="mx-auto flex w-full max-w-lg min-w-0 items-center justify-center gap-3 sm:gap-5" aria-label="Grafico a torta consenso Capo di Stato">
             {/* Più grande su ogni schermo, ma adattabile ai telefoni bassi in orizzontale. */}
             <div
-              className="h-24 w-24 shrink-0 min-[390px]:h-28 min-[390px]:w-28 lg:h-44 lg:w-44 [@media(max-height:650px)]:!h-20 [@media(max-height:650px)]:!w-20"
+              className="h-24 w-24 shrink-0 min-[390px]:h-28 min-[390px]:w-28 lg:h-44 lg:w-44 [@media(max-height:650px)]:!h-[72px] [@media(max-height:650px)]:!w-[72px]"
               data-testid="capo-consenso-pie-mobile"
             >
               <ResponsiveContainer width="100%" height="100%">
