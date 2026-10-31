@@ -25,6 +25,23 @@
 - Il nuovo workflow è universale su PR verso `main` (senza `paths`): la presenza di un check **non protegge** il branch senza un ruleset/branch protection effettivamente abilitato su GitHub.
 - Lascia invariato il comportamento dei 9 servizi staging elencati nel workspace.
 
+## Attivazione con interfaccia web: controlli verificabili (31/10)
+
+**Questa è una procedura da eseguire nell'interfaccia autorizzata, non una modifica applicata automaticamente dalla PR.**
+
+- [ ] Aprire [Render — demos-backend](https://dashboard.render.com/web/srv-d2gt3dodl3ps73fmereg), **Settings → Auto-Deploy → Off**. Salvare, poi rileggere lo stato: `autoDeployTrigger=off`.
+- [ ] Aprire [Render — demos-frontend](https://dashboard.render.com/static/srv-d2nm5pmmcj7s73cophhg), **Settings → Auto-Deploy → Off**. Salvare, poi rileggere lo stato: `autoDeployTrigger=off`.
+- [ ] Accertare che nessuna delle due operazioni abbia avviato un nuovo deploy e che il commit LIVE sia invariato; non premere "Manual Deploy".
+- [ ] Aprire [GitHub — Repository rulesets](https://github.com/Nictolas/DemosApp/settings/rules). Creare un **branch ruleset attivo** con target esatto `main`: richiedere una Pull Request, bloccare force push e cancellazioni, evitando eccezioni che consentano push diretti non revisionati. Non imporre un secondo reviewer inesistente; nominare un reviewer prima di abilitare approvazioni obbligatorie.
+- [ ] Solo **quando il workflow `Release Blueprint Policy` è presente stabilmente su `main` e risulta eseguito su una PR ordinaria**, rendere obbligatorio il check `blueprint-policy`. Non applicare ai check con trigger `paths` (es. Android Alpha, Security Agent) la richiesta globale finché non siano disponibili su tutte le PR.
+- [ ] Eseguire un nuovo read-back: Render backend/frontend `off`, GitHub `main.protected=true` oppure ruleset attivo con vincoli effettivi, nessun nuovo deploy inatteso, PR #490/#504/#515 ancora in stato previsto. Aggiornare SHA e criteri di chiusura della CHECKLIST MASTER.
+
+### Limite di esecuzione della connessione corrente
+
+Al controllo del 31/10 il provider Render restituisce per **entrambi** i servizi di produzione `autoDeployTrigger=commit`; `main` GitHub restituisce `protected=false` e zero ruleset. Il connettore Render collegato non offre un'azione per aggiornare Auto-Deploy e il connettore GitHub collegato non offre la creazione di ruleset o la modifica della branch protection. Il PC remoto era offline e la connessione desktop alternativa non raggiungibile. **Nessuno di questi controlli è stato attivato da questa sessione**: non usare una variabile d'ambiente, un deploy o il semplice commit di `render.yaml` come surrogato della modifica dei provider.
+
+La scelta di `Off` è intenzionale: `After CI Checks Pass` permette ancora a Render di distribuire automaticamente dopo i check verdi. I test della PR #515 sono preparatori, non sostituiscono l'azione autorizzata nel dashboard.
+
 ## Riferimenti
 
 - Render: https://render.com/docs/deploys
