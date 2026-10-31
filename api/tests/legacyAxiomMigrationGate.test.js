@@ -12,10 +12,11 @@ const cliScripts = [
   'scripts/migrate-neon-to-axiom-gdpr-only.js',
   'scripts/start-axiom-migration.js',
   'scripts/run-migration.js',
-  'scripts/migrate-direct-http.js'
+  'scripts/migrate-direct-http.js',
+  'scripts/check-migration-config.js'
 ];
 
-test('six legacy CLI entrypoints reject before env, SQL or external I/O', () => {
+test('seven legacy CLI/diagnostic entrypoints reject before env, SQL or external I/O', () => {
   for (const relative of cliScripts) {
     const filename = path.join(repoRoot, relative);
     const source = readFileSync(filename, 'utf8');
