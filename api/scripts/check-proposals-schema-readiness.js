@@ -50,6 +50,9 @@ function assessMetadata({columns=[],tables=[],constraints=[],indexes=[],privileg
       const idx=indexes.find(i=>i.table_name==='subject_proposals'&&i.index_name===name);
       if(!idx||!/CREATE UNIQUE INDEX/i.test(idx.definition)||!/pending/i.test(idx.definition))
         add('MISSING_UNIQUE_INDEX','subject_proposals.'+name,'PostgreSQL must enforce uniqueness');
+      else if(name==='subject_proposals_no_duplicate_open_titles'&&!/withdrawn/i.test(idx.definition))
+        add('WITHDRAWN_TITLE_UNPROTECTED','subject_proposals.'+name,
+          'Withdrawn nominations must not be re-submitted before an explicit DPO review');
     }
     const withdrawalStatus=constraints.find(c=>c.table_name==='subject_proposals'&&c.constraint_name==='subject_proposals_status_check');
     if(!withdrawalStatus||!withdrawalStatus.definition.includes("'withdrawn'"))
