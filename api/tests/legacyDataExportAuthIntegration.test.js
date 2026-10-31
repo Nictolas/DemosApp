@@ -102,7 +102,7 @@ function loadRealAuthorizationWithSyntheticServices(effects) {
   }
 }
 
-test('real verifyToken and requireAdmin protect both retired POST routes without provider I/O', async () => {
+test('real verifyToken and requireAdmin protect all retired POST routes without provider I/O', async () => {
   const effects = { database: 0, accountLookups: 0, processes: 0, axiom: 0 };
   const { exportRouter, axiomRouter } = loadRealAuthorizationWithSyntheticServices(effects);
   const app = express();
@@ -119,7 +119,9 @@ test('real verifyToken and requireAdmin protect both retired POST routes without
     const base = 'http://127.0.0.1:' + server.address().port;
     const routes = [
       { url: '/api/admin/data-export/start', body: { tables: ['audit_logs'], deleteAfterExport: true } },
-      { url: '/api/admin/axiom-migration/delete-migrated', body: { tables: ['centralized_logs', 'audit_logs'], confirm: 'DELETE' } }
+      { url: '/api/admin/axiom-migration/delete-migrated', body: { tables: ['centralized_logs', 'audit_logs'], confirm: 'DELETE' } },
+      { url: '/api/admin/axiom-migration/migrate', body: { tables: ['centralized_logs', 'audit_logs'], dryRun: false } },
+      { url: '/api/admin/axiom-migration/migrate', body: { tables: ['audit_logs'], dryRun: true } }
     ];
     const accounts = [
       { name: 'missing Authorization', token: null, status: 401 },
@@ -157,7 +159,7 @@ test('real verifyToken and requireAdmin protect both retired POST routes without
   }
 });
 
-test('both endpoints are mounted under the actual app admin rate limiter', () => {
+test('both routers are mounted under the actual app admin rate limiter', () => {
   const app = fs.readFileSync(path.resolve(__dirname, '../app.js'), 'utf8');
   assert.match(app, /app\.use\('\/api\/admin\/data-export', adminLimiter, dataExportRoutes\)/);
   assert.match(app, /app\.use\('\/api\/admin\/axiom-migration', adminLimiter, axiomMigrationRoutes\)/);
