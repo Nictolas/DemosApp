@@ -209,6 +209,18 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     );
     assert.equal(afterWithdrawNotices.rows.length,1,'proponent notified privately only once');
     assert.equal(afterWithdrawNotices.rows[0].testo.includes(org.title),false,'withdrawal notice has no public third-party name');
+    const successfulNotice=await pool.query(
+      "SELECT withdraw_notification_sent FROM subject_proposals WHERE id=$1",[orgId]
+    );
+    assert.equal(successfulNotice.rows[0].withdraw_notification_sent,true,
+      'successful notification transaction must durably mark the withdrawn proposal');
+    assert.equal((await req('/api/subject-proposals/admin/withdraw-notifications',null)).status,401);
+    assert.equal((await req('/api/subject-proposals/admin/withdraw-notifications','b')).status,403);
+    const emptyNoticeAudit=await req('/api/subject-proposals/admin/withdraw-notifications','admin');
+    assert.equal(emptyNoticeAudit.status,200);
+    assert.deepEqual(emptyNoticeAudit.body.withdrawals,[],
+      'delivered notifications must not be flagged for manual review');
+
     // Privacy: withdrawing a person or organization must NOT allow a second
     // account to bring the same title straight back into the moderation queue.
     // A corrected nomination requires an explicit DPO/Admin process, not a new POST.
@@ -275,6 +287,20 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(emergencyRow.rows[0].status,'withdrawn','database withdrawal must remain committed');
     assert.ok(emergencyRow.rows[0].withdrawn_at);
     assert.equal(emergencyRow.rows[0].withdrawn_by,ADMIN);
+    const durableFlag=await pool.query(
+      'SELECT withdraw_notification_sent FROM subject_proposals WHERE id=$1',[emergencyId]
+    );
+    assert.equal(durableFlag.rows[0].withdraw_notification_sent,false,
+      'unconfirmed notification must persist on the existing withdrawal row');
+    const manualAudit=await req('/api/subject-proposals/admin/withdraw-notifications','admin');
+    assert.equal(manualAudit.status,200);
+    const reviewItem=manualAudit.body.withdrawals.find(x=>x.id===emergencyId);
+    assert.ok(reviewItem,'Admin can recover undelivered notice after any new GET/session');
+    assert.deepEqual(Object.keys(reviewItem).sort(),['category','id','withdrawn_at'],
+      'review list must not disclose name, proposer UUID or source narrative');
+    assert.equal(reviewItem.category,'organizzazioni');
+    assert.equal((await req('/api/subject-proposals/admin/withdraw-notifications','a')).status,403);
+
     const emergencyDirectory=await req('/api/subject-proposals/approved?category=organizzazioni');
     assert.equal(emergencyDirectory.status,200);
     assert.equal(emergencyDirectory.body.data.some(x=>x.id===emergencyId),false,
