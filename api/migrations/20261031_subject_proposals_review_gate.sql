@@ -1,9 +1,10 @@
 -- DEMOS: one active proposal per user and category; unpublished until an Admin review.
+-- Grazia is deliberately excluded: its sole queue is pre-existing public.richieste_grazia (PR #495).
 -- Intentionally private: application API accesses it only through authenticated server routes.
 CREATE TABLE IF NOT EXISTS public.subject_proposals (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   proposer_user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  category text NOT NULL CHECK (category IN ('capo_stato', 'grazia', 'amnistia', 'attivisti', 'organizzazioni')),
+  category text NOT NULL CHECK (category IN ('capo_stato', 'amnistia', 'attivisti', 'organizzazioni')),
   title text NOT NULL CHECK (char_length(btrim(title)) BETWEEN 3 AND 150),
   details text NOT NULL DEFAULT '' CHECK (char_length(details) <= 1000),
   source_url text CHECK (source_url IS NULL OR (char_length(source_url) <= 2048 AND source_url ~ '^https://')),

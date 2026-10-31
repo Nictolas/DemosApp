@@ -4,24 +4,28 @@ const { verifyToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 const pool = getPool();
-const CATEGORIES = new Set(['capo_stato', 'grazia', 'amnistia', 'attivisti', 'organizzazioni']);
+const CATEGORIES = new Set(['capo_stato', 'amnistia', 'attivisti', 'organizzazioni']);
 
 function cleanProposal(body) {
   const category = typeof body?.category === 'string' ? body.category : '';
   const title = typeof body?.title === 'string' ? body.title.trim().replace(/\s+/g, ' ') : '';
   const details = typeof body?.details === 'string' ? body.details.trim() : '';
   const sourceUrl = typeof body?.source_url === 'string' ? body.source_url.trim() : '';
+  if (category === 'grazia') return { error: 'Per Grazia utilizzare la coda dedicata', code: 'GRAZIA_CODA_UNICA' };
   if (!CATEGORIES.has(category) || title.length < 3 || title.length > 150 ||
       details.length > 1000 || sourceUrl.length > 2048) {
     return { error: 'Campi della proposta non validi' };
   }
-  if (sourceUrl) {
-    try {
-      const url = new URL(sourceUrl);
-      if (url.protocol !== 'https:' || !url.hostname) return { error: 'URL fonte non valido' };
-    } catch (_) {
+  // Require a public source for third-party nominations. Never accept
+  // unstructured criminal/judicial details for Grazia.
+  if (!sourceUrl) return { error: 'Fonte pubblica HTTPS obbligatoria' };
+  try {
+    const url = new URL(sourceUrl);
+    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) {
       return { error: 'URL fonte non valido' };
     }
+  } catch (_) {
+    return { error: 'URL fonte non valido' };
   }
   return { category, title, details, sourceUrl: sourceUrl || null };
 }
@@ -37,6 +41,7 @@ async function notify(client, userId, message) {
 // Fetch only on click (no new personal GET while browsing a voting page).
 router.get('/mine', verifyToken, async (req, res) => {
   const category = String(req.query.category || '');
+  if (category === 'grazia') return res.status(409).json({ success: false, error: 'GRAZIA_CODA_UNICA' });
   if (!CATEGORIES.has(category)) return res.status(400).json({ success: false, error: 'Categoria non valida' });
   try {
     const result = await pool.query(
@@ -71,7 +76,7 @@ router.get('/approved', async (req, res) => {
 // One outstanding proposal *per category*, protected by a partial unique database index.
 router.post('/', verifyToken, async (req, res) => {
   const proposal = cleanProposal(req.body);
-  if (proposal.error) return res.status(400).json({ success: false, error: proposal.error });
+  if (proposal.error) return res.status(proposal.code === 'GRAZIA_CODA_UNICA' ? 409 : 400).json({ success: false, error: proposal.code || proposal.error });
   const userId = req.user.id;
   const client = await pool.connect();
   try {
@@ -83,7 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
     // Private admin inbox notification; no proposer identity in the message.
     await client.query(
       "INSERT INTO notifiche_demos(id_utente,titolo,testo) SELECT id, 'DEMOS — Nuova proposta', $1 FROM users WHERE (is_admin = TRUE OR ruolo IN ('AD','Admin')) AND lower(status) = 'a'",
-      ['Nuova proposta ' + proposal.category + ': ' + proposal.title.slice(0, 120)]
+      ['Nuova proposta ricevuta in una categoria da moderare.']
     );
     await client.query('COMMIT');
     res.set('Cache-Control', 'private, no-store');
@@ -100,7 +105,7 @@ router.post('/', verifyToken, async (req, res) => {
 router.get('/admin', verifyToken, requireAdmin, async (_req, res) => {
   try {
     const r = await pool.query(
-      "SELECT id, category, title, details, source_url, proposer_user_id, created_at FROM subject_proposals WHERE status='pending' ORDER BY created_at ASC LIMIT 100"
+      "SELECT id, category, title, details, source_url, proposer_user_id, created_at FROM subject_proposals WHERE status='pending' AND category <> 'grazia' ORDER BY created_at ASC LIMIT 100"
     );
     res.set('Cache-Control', 'private, no-store');
     return res.json({ success: true, proposals: r.rows });
@@ -129,20 +134,14 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
       return res.status(409).json({ success: false, error: 'Proposta già valutata o inesistente' });
     }
     const p = pending.rows[0];
+    // Legacy/accidental Grazia rows must never be approved through the wrong queue.
+    if (p.category === 'grazia') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'GRAZIA_CODA_UNICA' });
+    }
     let publishedRef = null;
     if (decision === 'approve') {
-      if (p.category === 'grazia') {
-        const exists = await client.query(
-          'SELECT id FROM grazia_carcerati WHERE lower(btrim(nome))=lower(btrim($1)) LIMIT 1',
-          [p.title]
-        );
-        if (exists.rows.length) {
-          await client.query('ROLLBACK');
-          return res.status(409).json({ success: false, error: 'Soggetto già presente in Grazia' });
-        }
-        const r = await client.query('INSERT INTO grazia_carcerati(nome,attivo) VALUES($1,true) RETURNING id', [p.title]);
-        publishedRef = String(r.rows[0].id);
-      } else if (p.category === 'amnistia') {
+      if (p.category === 'amnistia') {
         const exists = await client.query('SELECT id FROM amnistia WHERE lower(btrim(legge))=lower(btrim($1)) LIMIT 1', [p.title]);
         if (exists.rows.length) {
           await client.query('ROLLBACK');

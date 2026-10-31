@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, Users, User, Search, X, Filter, ChevronDown } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
+import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -477,7 +478,10 @@ export default function Attivisti() {
       <div className="shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3 sm:px-6 sm:pt-4">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
             {/* Header */}
-            <div className="text-center mb-3">
+            <div className="relative mb-3 text-center">
+              <div className="absolute right-0 top-0 z-10">
+                <ProposeSubjectButton category="attivisti" />
+              </div>
               <div className="flex items-center justify-center mb-2">
                 <Users className="h-8 w-8 text-blue-600 mr-2" />
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Attivisti</h1>
