@@ -125,10 +125,8 @@ export default function Organizzazioni() {
   // Carica gli organizzazioni
   useEffect(() => {
     const controller = new AbortController();
-    console.log('🚀 Organizzazioni useEffect - Inizio');
     const fetchOrganizzazioni = async () => {
       try {
-        console.log('🔄 fetchOrganizzazioni - Inizio caricamento');
         setIsLoading(true);
         setIsError(false);
         // Clear stale approved names whenever filters or queries restart.
@@ -141,24 +139,18 @@ export default function Organizzazioni() {
         if (selectedTipologia && selectedTipologia !== 'all') params.append('tipologia', selectedTipologia);
         
         const url = getApiUrl(`/api/organizzazioni${params.toString() ? '?' + params.toString() : ''}`);
-        console.log('📡 fetchOrganizzazioni - Chiamata API:', url);
         
         const response = await fetch(url, { signal: controller.signal });
-        console.log('📡 fetchOrganizzazioni - Response status:', response.status);
         
         if (!response.ok) {
           throw new Error(`Errore ${response.status}: ${response.statusText}`);
         }
         
-        console.log('📡 fetchOrganizzazioni - Parsing JSON...');
         const data: OrganizzazioniResponse = await response.json();
         // Una ricerca precedente non deve sovrascrivere i risultati dell'ultima digitazione.
         if (controller.signal.aborted) return;
-        console.log('📊 fetchOrganizzazioni - Data ricevuta:', data);
         
               if (data.success) {
-                console.log('✅ fetchOrganizzazioni - Successo, organizzazioni:', data.data.length);
-                console.log('📊 fetchOrganizzazioni - Dati organizzazioni:', data.data);
                 
                 // I dati arrivano già ordinati per supporters_count DESC
                 setOrganizzazioni(data.data as any);
@@ -166,10 +158,8 @@ export default function Organizzazioni() {
                 setFilteredOrganizzazioni(data.data as any);
                 const next: Record<string, number> = {};
                 (data.data as any[]).forEach((a) => { 
-                  console.log(`📊 organizzazione ${a.nome} ${a.cognome}: supporters_count = ${a.supporters_count}`);
                   next[a.id] = (a as any).supporters_count ?? 0; 
                 });
-                console.log('📊 supportersCount finale:', next);
                 setSupportersCount(next);
               } else {
           throw new Error(data.message || 'Errore nel caricamento degli organizzazioni');
@@ -181,7 +171,6 @@ export default function Organizzazioni() {
         setIsError(true);
         setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
       } finally {
-        console.log('🏁 fetchOrganizzazioni - Completato, setIsLoading(false)');
         if (!controller.signal.aborted) setIsLoading(false);
       }
     };
@@ -459,12 +448,6 @@ export default function Organizzazioni() {
     return tipologie.map(t => `${t.emoji} ${t.nome}`).join(', ');
   };
 
-  console.log('🎨 Organizzazioni render - isLoading:', isLoading, 'isError:', isError, 'organizzazioni.length:', organizzazioni.length, 'filteredOrganizzazioni.length:', filteredOrganizzazioni.length);
-  console.log('🎨 Organizzazioni render - organizzazioni data:', organizzazioni);
-  console.log('🎨 Organizzazioni render - filteredOrganizzazioni data:', filteredOrganizzazioni);
-  console.log('🎨 Organizzazioni render - searchTerm:', searchTerm);
-  console.log('🎨 Organizzazioni render - should show table:', !isLoading && !isError && filteredOrganizzazioni.length > 0);
-  console.log('🎨 Organizzazioni render - RENDERING PAGE NOW!');
   
   return (
     <PageContainer className="directory-organizzazioni-page overflow-hidden bg-gray-50">
