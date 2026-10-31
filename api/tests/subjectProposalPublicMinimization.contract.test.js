@@ -37,3 +37,20 @@ test('both approved-catalogue cards only show title and are not presented as ver
       'never imply public nomination is a verified DEMOS account');
   }
 });
+
+test('Admin withdrawal UI never treats a notification outage as failed unpublishing', () => {
+  const api = file('api/routes/subject-proposals.js');
+  const ui = file('client/src/pages/Gestisci/ProposteSoggetti.tsx');
+  const withdrawal = api.split("router.post('/admin/:id/withdraw'")[1]
+    .split("// Atomic review:")[0];
+  assert.ok(withdrawal, 'withdrawal route exists');
+  assert.ok(withdrawal.indexOf("await client.query('COMMIT')") <
+    withdrawal.indexOf('await notify(pool,'),
+    'emergency database withdrawal must commit BEFORE optional notification');
+  assert.match(withdrawal,/notification_sent: notificationSent/);
+  assert.match(withdrawal,/try\s*\{\s*await notify\(pool,/);
+  assert.match(ui,/result\.notification_sent !== true/);
+  assert.match(ui,/setUndeliveredNotification\(true\)/);
+  assert.match(ui,/role="alert"/);
+  assert.match(ui,/segnalarlo al DPO/i);
+});
