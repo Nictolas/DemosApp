@@ -61,8 +61,11 @@ test('shared form does not perform personal proposal GET when opening or switchi
   assert.match(file, /SUBJECT_PROPOSAL_CATEGORIES\.map/);
   assert.doesNotMatch(file, /apiRequest\("GET"|fetch\(|\/subject-proposals\/mine/);
   const writes = file.match(/apiRequest\("POST", "\/api\/subject-proposals"/g) || [];
-  assert.equal(writes.length, 1, 'submission must be the only API call in the form');
-  assert.match(file, /response\?\.data\?\.status !== "pending"/);
+  assert.equal(writes.length, 1, 'one generic subject POST, with category-dependent route');
+  assert.match(file, /apiRequest\("POST", "\/api\/grazia"/);
+  assert.match(file, /response\?\.status === 202 && response\?\.data\?\.richiesta\?\.status === "pending"/);
+  assert.match(file, /category === "grazia" \? 2000 : 2048/);
+  assert.match(file, /response\?\.status === 201 && response\?\.data\?\.status === "pending"/);
   assert.match(file, /setSubmitted\(category\)/);
 });
 
@@ -70,7 +73,8 @@ test('sensitive proposal information is minimized in Grazia and never directly p
   const page = read('client/src/pages/ProponiSoggetto.tsx');
   const config = read('client/src/config/subjectProposalCategories.ts');
   assert.match(page, /category !== "grazia"/);
-  assert.match(page, /details: category === "grazia" \? "" : details\.trim\(\)/);
+  assert.match(page, /category === "grazia"/);
+  assert.doesNotMatch(page, /sentenza|reato.{0,30}Textarea/i);
   assert.match(page, /url\.protocol === "https:"/);
   assert.match(page, /sourceUrl\.trim\(\)/);
   assert.match(config, /Non inserire sentenze, reati, dati sanitari/);
@@ -81,11 +85,17 @@ test('sensitive proposal information is minimized in Grazia and never directly p
 test('backend enforces source HTTPS and avoids criminal details in admin notice', () => {
   const route = read('api/routes/subject-proposals.js');
   assert.match(route, /if \(!sourceUrl\) return \{ error: 'Fonte pubblica HTTPS obbligatoria' \}/);
-  assert.match(route, /category === 'grazia' && details/);
+  assert.match(route, /category === 'grazia'\) return \{ error: .*code: 'GRAZIA_CODA_UNICA' \}/);
+  assert.match(route, /category <> 'grazia'/);
+  assert.doesNotMatch(route, /INSERT INTO grazia_carcerati/);
+  const migration = read('api/migrations/20261031_subject_proposals_review_gate.sql');
+  assert.doesNotMatch(migration, /category IN \([^)]*'grazia'/);
+  assert.match(migration, /richieste_grazia/);
   assert.match(route, /url\.protocol !== 'https:'/);
   assert.match(route, /url\.username \|\| url\.password/);
   assert.match(route, /Nuova proposta ricevuta in una categoria da moderare/);
   assert.doesNotMatch(route, /proposal\.title\.slice\(0, 120\)/);
   assert.match(route, /INSERT INTO subject_proposals\(proposer_user_id,category,title,details,source_url,status\)/);
   assert.match(route, /if \(error\.code === '23505'\) return res\.status\(409\)/);
+  assert.match(route, /proposal\.code === 'GRAZIA_CODA_UNICA' \? 409 : 400/);
 });
