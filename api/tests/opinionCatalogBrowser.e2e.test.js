@@ -309,6 +309,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Adozioni omogenitoriali', '79/2022'],
       ['/opinioni-regionali', 'Sanità privata convenzionata', '85,1%'],
       ['/opinioni-comunali', 'Sicurezza strade scolastiche', '20 km/h'],
+      ['/opinioni-nazionali', 'MES', '433 mld €'],
+      ['/opinioni-regionali', 'Finanziamento delle RSA private', '57.440'],
+      ['/opinioni-comunali', 'Riduzione tasse rifiuti', '9.796 €'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1172,6 +1175,53 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Traffic-calming coverage, speed rules and planned construction cannot equal impact');
           assert.ok((await brief.innerText()).includes('non un confronto causale'),
             'Road works and school streets do not prove fewer accidents by themselves');
+        }
+      } else if (['MES', 'Finanziamento delle RSA private', 'Riduzione tasse rifiuti'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': exactly four grounded figures');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': a direct source link for each number');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': examples are not fictitious before/after effect comparisons');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no country-law color mapping for financial mechanisms');
+        const panels = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(panels.every(Number.isFinite) && panels[0] < panels[1] && panels[1] < panels[2],
+          title + ': definition, policy alternatives and evidence follow reading order');
+        if (title === 'MES') {
+          for (const n of ['21', '500 mld €', '433 mld €', '81,1 mld €'])
+            assert.ok(data.includes(n), 'ESM 2026 membership or lending figure ' + n);
+          assert.ok(data.includes('NON indica quanti Stati abbiano chiesto') &&
+            data.includes('NON fondi immediatamente erogati') &&
+            data.includes('NON liquidità depositata'),
+            'ESM membership and capacity must not be mistaken for loans paid');
+          assert.ok((await brief.innerText()).includes('NON sommarli'),
+            '500bn lending capacity and 433bn remaining capacity overlap');
+        }
+        if (title === 'Finanziamento delle RSA private') {
+          for (const n of ['738', '68.187', '64.015', '57.440'])
+            assert.ok(data.includes(n), '2025 FNP CISL Lombardy RSA volume or bed category ' + n);
+          assert.ok(data.includes('NON solo strutture private') &&
+            data.includes('NON posti tutti pagati') &&
+            data.includes('NON numero di contratti finanziati'),
+            'Licensed, accredited and contracted beds should not be conflated');
+          assert.ok((await brief.innerText()).includes('non tre insiemi da sommare'),
+            'Authorized, accredited and contracted beds are nested groups');
+        }
+        if (title === 'Riduzione tasse rifiuti') {
+          for (const n of ['25%', '9.796 €', '20.000 €', '6 €/anno'])
+            assert.ok(data.includes(n), 'ARERA national waste bonus figure ' + n);
+          assert.ok(data.includes('NON taglio generale') &&
+            data.includes('NON rimborso monetario') &&
+            data.includes('NON ammontare dello sconto'),
+            'National subsidy, ISEE eligibility and UR3 levy are different');
+          assert.ok((await brief.innerText()).includes("nell'ANNO SUCCESSIVO"),
+            'TARI bonus normally follows ISEE eligibility in the following year');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,

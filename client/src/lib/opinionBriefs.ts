@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these fifty-seven canonical IDs opt in; the other 37 use the original
+ * Only these sixty canonical IDs opt in; the other 34 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -2853,6 +2853,167 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Roma Mobilità · 6 cantieri avviati a ottobre 2026", url: "https://romamobilita.it/piani-e-progetti/strade-scolastiche/" },
     ],
     verified,
+  },
+
+
+  mes: {
+    intro: "Il Meccanismo europeo di stabilità (MES) è un'organizzazione intergovernativa permanente che può prestare assistenza finanziaria agli Stati dell'area euro in difficoltà, a condizioni concordate. Non è un trasferimento automatico di denaro né un prestito obbligatorio per l'Italia.",
+    facts: [],
+    comparison: [
+      { label: "🇪🇺 Strumento esistente", title: "Fondo di sicurezza per l'area euro", text: "Il MES raccoglie fondi sui mercati ed eroga prestiti o altri strumenti a Stati che chiedono assistenza. La concessione richiede condizioni, valutazioni e decisioni degli organi del MES." },
+      { label: "Scelta di politica economica", title: "Ricorrere o non ricorrere al MES", text: "Uno Stato può valutare un programma di assistenza oppure finanziarsi con altre modalità. Restare socio del MES non equivale ad aver contratto un prestito né ad accettare qualsiasi nuova riforma del Trattato." },
+    ],
+    measuredResultsTitle: "🇪🇺 MES · dimensioni e capacità, ottobre 2026",
+    measuredResults: [
+      {
+        place: "🌐 European Stability Mechanism",
+        topic: "Stati membri dopo l'adesione della Bulgaria",
+        value: "21",
+        period: "Dal 29 giugno 2026",
+        meaning: "La Bulgaria è diventata il 21° socio dopo l'adozione dell'euro; NON indica quanti Stati abbiano chiesto un prestito.",
+        sourceUrl: "https://www.esm.europa.eu/press-releases/bulgaria-joins-esm-its-21st-member",
+      },
+      {
+        place: "🌐 European Stability Mechanism",
+        topic: "Capacità massima di prestito del MES",
+        value: "500 mld €",
+        period: "Limite istituzionale di lending capacity",
+        meaning: "Tetto della capacità di finanziamento, NON fondi immediatamente erogati e NON somma pagata dall'Italia.",
+        sourceUrl: "https://www.esm.europa.eu/about-us/explainers",
+      },
+      {
+        place: "🌐 European Stability Mechanism",
+        topic: "Capacità ancora disponibile",
+        value: "433 mld €",
+        period: "Indicatore pubblicato dal MES nel 2026",
+        meaning: "Quota della capacità massima ancora libera da impegni (Forward Commitment Capacity), NON liquidità depositata né nuovi trasferimenti a beneficiari.",
+        sourceUrl: "https://www.esm.europa.eu/",
+      },
+      {
+        place: "🌐 European Stability Mechanism",
+        topic: "Capitale effettivamente versato dai soci",
+        value: "81,1 mld €",
+        period: "Dato aggregato pubblicato dal MES nel 2026",
+        meaning: "Capitale versato complessivamente dai membri, usato come presidio finanziario: NON si somma ai 500 mld € di capacità di prestito.",
+        sourceUrl: "https://www.esm.europa.eu/",
+      },
+    ],
+    evidenceCaveat: "I 21 membri sono gli Stati dell'area euro partecipanti al MES dopo l'ingresso della Bulgaria a giugno 2026. I 500 miliardi sono capacità MASSIMA di prestito, mentre 433 miliardi è la parte ancora disponibile: NON sommarli. Gli 81,1 miliardi di capitale versato sono un'altra voce e non significano nuovi prestiti effettuati. Le cifre fotografano dimensioni e disponibilità del meccanismo, non gli effetti di un eventuale prestito sull'economia italiana; la richiesta di assistenza e l'accettazione delle condizioni sono scelte separate dall'adesione.",
+    advantage: "Può offrire liquidità in una crisi di finanziamento e ridurre il rischio di instabilità finanziaria, a fronte di regole definite.",
+    concern: "I programmi di assistenza possono imporre impegni economici e controlli, influire sulle scelte di bilancio e suscitare rischi di stigma politico e finanziario.",
+    note: "MES ed EFSF sono entità distinte; l'EFSF è un dispositivo temporaneo che non concede nuovi prestiti dal luglio 2013. I valori del MES possono cambiare e non sono spese pubbliche annuali.",
+    sources: [
+      { label: "MES · Bulgaria 21° Stato membro, 29 giugno 2026", url: "https://www.esm.europa.eu/press-releases/bulgaria-joins-esm-its-21st-member" },
+      { label: "MES · Meccanismo e regole, spiegazione ufficiale", url: "https://www.esm.europa.eu/about-us/explainers" },
+      { label: "MES · Indicatori ufficiali: 433/500 miliardi e 81,1 miliardi", url: "https://www.esm.europa.eu/" },
+      { label: "Consiglio UE · Assistenza e strumenti MES", url: "https://www.consilium.europa.eu/en/policies/financial-assistance-eurozone-members/" },
+    ],
+    verified: "01/11/2026",
+  },
+  finanziamento_rsa_private: {
+    intro: "Finanziare con risorse regionali la componente sanitaria delle prestazioni in RSA private accreditate e contrattualizzate. Essere autorizzate, accreditate e avere un contratto di pagamento con il sistema regionale sono condizioni differenti: non ogni posto privato riceve automaticamente fondi pubblici.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Situazione esistente", title: "Finanziamento per posti contrattualizzati", text: "In Lombardia il sistema sociosanitario remunera le prestazioni sanitarie erogate da posti di RSA contrattualizzati con le ATS; restano rette e compartecipazioni a carico degli ospiti, secondo condizioni." },
+      { label: "Possibile scelta regionale", title: "Ampliare o ridurre contratti e fondi", text: "La Regione può modificare quote sanitarie o posti finanziati in base a fabbisogno, bilancio e requisiti. Va misurato chi ottiene assistenza, con quali tempi di accesso e a quale costo pubblico o familiare." },
+    ],
+    measuredResultsTitle: "🇮🇹 Lombardia · RSA, Osservatorio FNP CISL 2025",
+    measuredResults: [
+      {
+        place: "🇮🇹 Lombardia · Osservatorio RSA",
+        topic: "Residenze sanitarie assistenziali censite",
+        value: "738",
+        period: "Fine 2025, rete lombarda",
+        meaning: "Numero di RSA censite di qualsiasi natura giuridica: NON solo strutture private e NON alloggi o persone ospitate.",
+        sourceUrl: "https://polis.lombardia.it/wps/portal/site/polis/DettaglioRedazionale/pubblicazioni/lombardia%2B2026/2026-29-lombardia",
+      },
+      {
+        place: "🇮🇹 Lombardia · Osservatorio RSA",
+        topic: "Posti letto autorizzati",
+        value: "68.187",
+        period: "Al 31 dicembre 2025",
+        meaning: "Posti che hanno i requisiti per l'esercizio: NON posti tutti pagati dal servizio sanitario regionale.",
+        sourceUrl: "https://lombardiasociale.it/2026/07/06/non-autosufficienza-e-rsa-in-lombardia-anno-2025/",
+      },
+      {
+        place: "🇮🇹 Lombardia · Osservatorio RSA",
+        topic: "Posti letto accreditati",
+        value: "64.015",
+        period: "Al 31 dicembre 2025",
+        meaning: "Sottoinsieme dei posti autorizzati con accreditamento sociosanitario, NON numero di contratti finanziati.",
+        sourceUrl: "https://lombardiasociale.it/2026/07/06/non-autosufficienza-e-rsa-in-lombardia-anno-2025/",
+      },
+      {
+        place: "🇮🇹 Lombardia · Osservatorio RSA",
+        topic: "Posti letto contrattualizzati",
+        value: "57.440",
+        period: "Al 31 dicembre 2025",
+        meaning: "Posti con contratti nel sistema regionale per la componente sanitaria; NON coincide con ospiti unici, liste d'attesa o intero costo della retta.",
+        sourceUrl: "https://lombardiasociale.it/2026/07/06/non-autosufficienza-e-rsa-in-lombardia-anno-2025/",
+      },
+    ],
+    evidenceCaveat: "I 68.187 posti autorizzati, 64.015 accreditati e 57.440 contrattualizzati sono categorie NIDIFICATE dello stesso sistema, non tre insiemi da sommare. I dati provengono dall'Osservatorio FNP CISL 2025, richiamato da PoliS-Lombardia nel luglio 2026: NON sono una misurazione nuova dell'anno 2026. Il numero delle RSA comprende gestori pubblici e privati e non quantifica la spesa regionale. Accreditamento e contratto non garantiscono automaticamente posto disponibile o gratuità per gli ospiti.",
+    advantage: "Può ampliare l'offerta assistenziale utilizzando strutture già presenti, se contratti, qualità e necessità degli anziani sono verificati.",
+    concern: "Richiede copertura finanziaria e controlli sulla qualità; i posti non contrattualizzati e le rette possono restare costosi, creando disparità di accesso.",
+    note: "Valutare posti realmente occupati, liste d'attesa senza duplicazioni, quote sanitarie pagate dalla Regione, rette familiari e qualità delle cure prima di trarre conclusioni sul finanziamento.",
+    sources: [
+      { label: "PoliS-Lombardia · Lombardia 2026 n. 29, dati RSA FNP CISL", url: "https://polis.lombardia.it/wps/portal/site/polis/DettaglioRedazionale/pubblicazioni/lombardia%2B2026/2026-29-lombardia" },
+      { label: "Lombardia Sociale · Osservatorio FNP CISL RSA, 6 luglio 2026", url: "https://lombardiasociale.it/2026/07/06/non-autosufficienza-e-rsa-in-lombardia-anno-2025/" },
+      { label: "Regione Lombardia · Servizi e informazioni RSA, luglio 2026", url: "https://www.regione.lombardia.it/sanita/strutture-sanitarie-e-sociosanitarie/residenze-sanitarie-assistenziali-rsa" },
+    ],
+    verified: "01/11/2026",
+  },
+  riduzione_tasse_rifiuti: {
+    intro: "Ridurre il prelievo TARI o tariffa corrispettiva per i rifiuti, in via generale o per determinate famiglie e attività. Esiste già un bonus sociale nazionale del 25% per alcune utenze domestiche con ISEE basso: una riduzione comunale ulteriore è una scelta distinta.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Regola nazionale esistente", title: "Bonus sociale rifiuti per nuclei ammissibili", text: "ARERA prevede una riduzione automatica del 25% con DSU/ISEE sotto soglia, di norma nell'anno successivo a quello dell'attestazione ISEE. Non si applica indiscriminatamente a tutti i contribuenti." },
+      { label: "Scelta del Comune", title: "Riduzioni locali o rimodulazione delle tariffe", text: "Il Comune può valutare ulteriori agevolazioni e coperture nel rispetto delle norme e degli equilibri tariffari. L'abbattimento del tributo non riduce automaticamente il costo di raccolta e trattamento." },
+    ],
+    measuredResultsTitle: "🇮🇹 ARERA · bonus rifiuti e condizioni 2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 ARERA · utenze domestiche",
+        topic: "Riduzione nazionale prevista per beneficiari",
+        value: "25%",
+        period: "Bonus sociale rifiuti, riconosciuto una volta l'anno",
+        meaning: "Percentuale della TARI/tariffa dovuta, NON taglio generale delle tariffe del Comune e NON riduzione del volume dei rifiuti.",
+        sourceUrl: "https://www.arera.it/en/consumatori/bonus-sociale/bonus-sociale-per-disagio-economico/bonus-sociale-rifiuti-2-1",
+      },
+      {
+        place: "🇮🇹 ARERA · nuclei con massimo tre figli a carico",
+        topic: "Soglia ISEE per le agevolazioni nel 2026",
+        value: "9.796 €",
+        period: "Dal 1 gennaio 2026",
+        meaning: "Soglia ISEE massima ordinaria, NON rimborso monetario di 9.796 euro e NON automaticamente applicabile alla TARI di tutte le famiglie.",
+        sourceUrl: "https://www.arera.it/comunicati-stampa/dettaglio/bonus-sociali-arera-alza-a-9796-euro-la-soglia-isee-per-laccesso-alle-agevolazioni-per-acqua-luce-gas-e-rifiuti",
+      },
+      {
+        place: "🇮🇹 ARERA · nuclei con almeno quattro figli a carico",
+        topic: "Soglia ISEE per famiglie numerose",
+        value: "20.000 €",
+        period: "Soglia confermata nel 2026",
+        meaning: "Limite ISEE per un distinto gruppo di beneficiari, NON valore dell'agevolazione e NON somma alle altre soglie.",
+        sourceUrl: "https://www.arera.it/comunicati-stampa/dettaglio/bonus-sociali-arera-alza-a-9796-euro-la-soglia-isee-per-laccesso-alle-agevolazioni-per-acqua-luce-gas-e-rifiuti",
+      },
+      {
+        place: "🇮🇹 ARERA · sistema di finanziamento",
+        topic: "Componente perequativa UR3 nell'avviso rifiuti 2025",
+        value: "6 €/anno",
+        period: "Contributo tariffario 2025 per finanziare il bonus erogato nel 2026",
+        meaning: "Importo della componente UR3 nel 2025: NON ammontare dello sconto per ogni famiglia e NON tariffa annuale complessiva.",
+        sourceUrl: "https://www.arera.it/en/consumatori/bonus-sociale/bonus-sociale-per-disagio-economico/bonus-sociale-rifiuti-2-1",
+      },
+    ],
+    evidenceCaveat: "Il bonus nazionale del 25% per utenze domestiche con requisiti ISEE è diverso da una proposta di riduzione generalizzata comunale. La soglia 2026 di 9.796 euro (20.000 per almeno quattro figli) riguarda le attestazioni del relativo anno; lo sconto TARI viene di norma applicato nell'ANNO SUCCESSIVO a quello di presentazione della DSU, non immediatamente. I 6 euro UR3 sono una componente 2025 del finanziamento del bonus, non lo sconto. Per riduzioni locali servono coperture e verifica dei costi del servizio rifiuti; non è dimostrato un calo dei rifiuti da questi importi.",
+    advantage: "Può alleggerire la spesa delle famiglie più vulnerabili e incentivare comportamenti corretti se progettata con criteri chiari.",
+    concern: "Una riduzione non finanziata può trasferire costi su altri contribuenti o compromettere la copertura del servizio; servono regole e verifiche anti-duplicazione.",
+    note: "TARI, tariffa corrispettiva e bonus sociale non coincidono con la tariffazione puntuale in base ai conferimenti, che costituisce una diversa Opinione.",
+    sources: [
+      { label: "ARERA · Bonus sociale rifiuti, requisiti, tempi e UR3", url: "https://www.arera.it/en/consumatori/bonus-sociale/bonus-sociale-per-disagio-economico/bonus-sociale-rifiuti-2-1" },
+      { label: "ARERA · Soglie ISEE dal 1 gennaio 2026", url: "https://www.arera.it/comunicati-stampa/dettaglio/bonus-sociali-arera-alza-a-9796-euro-la-soglia-isee-per-laccesso-alle-agevolazioni-per-acqua-luce-gas-e-rifiuti" },
+    ],
+    verified: "01/11/2026",
   },
 
   caccia: {
