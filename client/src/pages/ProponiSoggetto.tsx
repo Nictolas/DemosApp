@@ -68,7 +68,7 @@ export default function ProponiSoggetto() {
     }
   })();
   const canSubmit = title.trim().length >= 3 &&
-    title.trim().length <= 150 && sourceIsValid && sourceUrl.length <= 2048 &&
+    title.trim().length <= 150 && sourceIsValid && sourceUrl.length <= (category === "grazia" ? 2000 : 2048) &&
     (category === "grazia" || details.length <= 1000) &&
     !submitting && submitted !== category;
 
@@ -78,15 +78,24 @@ export default function ProponiSoggetto() {
     setSubmitting(true);
     setError(null);
     try {
-      // Sole write for this UI: backend authorizes, enforces one pending per user/category
-      // and atomically stores the proposal. No preliminary SQL read from the browser.
-      const response = await apiRequest("POST", "/api/subject-proposals", {
-        category,
-        title: title.trim(),
-        details: category === "grazia" ? "" : details.trim(),
-        source_url: sourceUrl.trim(),
-      });
-      if (!response?.data?.success || response?.data?.status !== "pending") {
+      // One form, two existing moderation workflows: Grazia uses richieste_grazia
+      // (PR #495), all other categories use subject_proposals. Neither is published here.
+      // Only one POST on submission and no proposal-specific GET on form mount.
+      const response = category === "grazia"
+        ? await apiRequest("POST", "/api/grazia", {
+            nome: title.trim(),
+            urlProva: sourceUrl.trim(),
+          })
+        : await apiRequest("POST", "/api/subject-proposals", {
+            category,
+            title: title.trim(),
+            details: details.trim(),
+            source_url: sourceUrl.trim(),
+          });
+      const recorded = category === "grazia"
+        ? response?.status === 202 && response?.data?.richiesta?.status === "pending"
+        : response?.status === 201 && response?.data?.status === "pending";
+      if (!response?.data?.success || !recorded) {
         throw new Error("La proposta non è stata registrata.");
       }
       setSubmitted(category);
@@ -195,7 +204,7 @@ export default function ProponiSoggetto() {
                 <label htmlFor="subject-source" className="text-sm font-semibold text-slate-800">
                   {config.sourceLabel}
                 </label>
-                <Input id="subject-source" required type="url" inputMode="url" maxLength={2048}
+                <Input id="subject-source" required type="url" inputMode="url" maxLength={category === "grazia" ? 2000 : 2048}
                   autoComplete="off" placeholder="https://..."
                   value={sourceUrl} onChange={e => setSourceUrl(e.target.value)}
                   aria-describedby="subject-source-help" />
