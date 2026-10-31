@@ -33,6 +33,22 @@ test('Render Blueprint proposes manual deployment for both DEMOS production serv
   }
 });
 
+test('Blueprint preserves observed live Render build and publish paths', () => {
+  const services = serviceBlocks(yaml);
+  const backend = services.find(service => service.name === 'demos-backend');
+  const frontend = services.find(service => service.name === 'demos-frontend');
+  assert.ok(backend && frontend);
+
+  // Snapshot from Render service metadata, 31 October 2026.
+  // Refresh these expectations only after reviewing LIVE provider configuration.
+  assert.match(backend.block, /^\s+rootDir:\s+api\s*$/m);
+  assert.match(backend.block, /^\s+buildCommand:\s+npm install\s*$/m);
+  assert.match(backend.block, /^\s+startCommand:\s+node index\.js\s*$/m);
+  assert.match(frontend.block, /^\s+rootDir:\s+client\s*$/m);
+  assert.match(frontend.block, /^\s+buildCommand:\s+npm install; npm run build\s*$/m);
+  assert.match(frontend.block, /^\s+staticPublishPath:\s+dist\s*$/m);
+});
+
 test('release Blueprint policy check runs on every PR to main (no paths filters)', () => {
   assert.match(workflow, /^on:\s*\n\s+pull_request:\s*\n\s+branches:\s*\n\s+- main\s*$/m);
   assert.doesNotMatch(workflow, /^\s+paths(?:-ignore)?:/m);
