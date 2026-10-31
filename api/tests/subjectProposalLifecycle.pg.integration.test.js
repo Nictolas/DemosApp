@@ -257,7 +257,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal((await req('/api/subject-proposals/admin/'+emergencyId+'/decision',
       'admin','POST',{decision:'approve'})).status,200);
     await setup.query(
-      "CREATE FUNCTION "+SCHEMA+".reject_withdraw_notice() RETURNS trigger LANGUAGE plpgsql AS $ BEGIN IF NEW.testo LIKE 'La pubblicazione%' THEN RAISE EXCEPTION 'synthetic notice outage'; END IF; RETURN NEW; END $"
+      "CREATE FUNCTION "+SCHEMA+".reject_withdraw_notice() RETURNS trigger LANGUAGE plpgsql AS $notice$ BEGIN IF NEW.testo LIKE 'La pubblicazione%' THEN RAISE EXCEPTION 'synthetic notice outage'; END IF; RETURN NEW; END $notice$"
     );
     await setup.query(
       "CREATE TRIGGER reject_withdraw_notice BEFORE INSERT ON "+SCHEMA+
