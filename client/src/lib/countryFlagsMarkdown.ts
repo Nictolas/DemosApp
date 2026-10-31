@@ -46,7 +46,6 @@ const COUNTRIES: ReadonlyArray<readonly [string, string]> = [
   ["Messico","🇲🇽"],
   ["Argentina","🇦🇷"],
   ["Olanda","🇳🇱"],
-  ["USA","🇺🇸"],
 ];
 const flags = new Map(COUNTRIES.map(([name, flag]) => [name.toLocaleLowerCase("it"), flag]));
 // All names contain only letters, spaces and apostrophes (no regex metacharacters).
