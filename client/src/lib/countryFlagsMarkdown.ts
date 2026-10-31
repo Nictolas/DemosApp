@@ -46,6 +46,7 @@ const COUNTRIES: ReadonlyArray<readonly [string, string]> = [
   ["Messico","🇲🇽"],
   ["Argentina","🇦🇷"],
   ["Olanda","🇳🇱"],
+  ["USA","🇺🇸"],
 ];
 const flags = new Map(COUNTRIES.map(([name, flag]) => [name.toLocaleLowerCase("it"), flag]));
 // All names contain only letters, spaces and apostrophes (no regex metacharacters).
@@ -61,6 +62,8 @@ export function addCountryFlagsToMarkdown(markdown: string): string {
       if (index % 2 === 1) return part;
       return part.replace(countryMention, (match, prefix: string, name: string, offset: number, full: string) => {
         const key = name.toLocaleLowerCase("it");
+        // “usa” is also an Italian verb: only flag the uppercase acronym USA.
+        if (key === "usa" && name !== "USA") return match;
         const flag = flags.get(key);
         if (!flag || seen.has(key)) return match;
         seen.add(key);
