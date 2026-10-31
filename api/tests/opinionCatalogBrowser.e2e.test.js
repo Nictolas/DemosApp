@@ -306,6 +306,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Antifascismo', '645/1952'],
       ['/opinioni-regionali', 'Chiusura ospedali di provincia', '3,7/1.000'],
       ['/opinioni-comunali', 'Videosorveglianza in spazi pubblici', '72 ore'],
+      ['/opinioni-nazionali', 'Adozioni omogenitoriali', '79/2022'],
+      ['/opinioni-regionali', 'Sanità privata convenzionata', '85,1%'],
+      ['/opinioni-comunali', 'Sicurezza strade scolastiche', '20 km/h'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1111,6 +1114,64 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             '72 hours are not an automatic authorization to retain footage');
           assert.ok((await brief.innerText()).includes('Nessuno di questi riferimenti misura riduzioni dei reati'),
             'Legal retention and notices are not public-safety impact estimates');
+        }
+      } else if (['Adozioni omogenitoriali', 'Sanità privata convenzionata', 'Sicurezza strade scolastiche'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four contextualized official facts and dates');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': each figure links to its source');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': comparisons must not fake measured change');
+        const panels = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(panels.every(Number.isFinite) && panels[0] < panels[1] && panels[1] < panels[2],
+          title + ': concise definition, alternatives and documented figures in reading order');
+        if (title === 'Adozioni omogenitoriali') {
+          for (const n of ['2001', '3 anni', '79/2022', '68/2025'])
+            assert.ok(data.includes(n), 'NL/Italian adoption or recognition legal datum ' + n);
+          assert.ok(data.includes('NON è requisito italiano') &&
+            data.includes('NON ha aperto automaticamente') &&
+            data.includes("NON è una sentenza sull'adozione congiunta"),
+            'Dutch adoption, special adoption and birth recognition must remain distinct');
+          const countries = brief.getByTestId('opinion-brief-country');
+          assert.equal(await countries.count(), 2, 'NL and Italy statuses must be shown separately');
+          assert.equal(await brief.locator('[data-testid="opinion-brief-country"][data-legal-status="regulated"]').count(), 1,
+            'Netherlands national joint adoption is regulated');
+          assert.equal(await brief.locator('[data-testid="opinion-brief-country"][data-legal-status="limited"]').count(), 1,
+            'Italy is limited, not falsely marked as a universal adoption ban');
+          const [countryPos, resultsPos] = await brief.evaluate(root => [
+            root.querySelector('[data-testid="opinion-brief-legal-status"]')?.getBoundingClientRect().top,
+            root.querySelector('[data-testid="opinion-brief-measured-results"]')?.getBoundingClientRect().top,
+          ]);
+          assert.ok(Number.isFinite(countryPos) && countryPos < resultsPos,
+            'country rule map must precede underlying law/evidence');
+        } else {
+          assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+            title + ': do not invent geographic permission maps for health or street projects');
+        }
+        if (title === 'Sanità privata convenzionata') {
+          for (const n of ['996', '51,3%', '85,1%', '78,4%'])
+            assert.ok(data.includes(n), 'Ministry of Health SSN 2023 category figure ' + n);
+          assert.ok(data.includes('NON posti letto') &&
+            data.includes('Quota di STRUTTURE') &&
+            data.includes('non quota di spesa regionale'),
+            'Facility counts, beds, patients, expenditure and care quality cannot be conflated');
+          assert.ok((await brief.innerText()).includes('non sono sommabili né confrontabili come quota di spesa'),
+            'Different care settings have different denominators');
+        }
+        if (title === 'Sicurezza strade scolastiche') {
+          for (const n of ['circa 26%', '20 km/h', '15', '6'])
+            assert.ok(data.includes(n), 'Milan/Bologna/Rome school safety observation or plan ' + n);
+          assert.ok(data.includes('NON quota di strade chiuse') &&
+            data.includes('NON velocità media registrata') &&
+            data.includes('NON già conclusi'),
+            'Traffic-calming coverage, speed rules and planned construction cannot equal impact');
+          assert.ok((await brief.innerText()).includes('non un confronto causale'),
+            'Road works and school streets do not prove fewer accidents by themselves');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
