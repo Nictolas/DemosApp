@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these fifty-one canonical IDs opt in; the other 43 use the original
+ * Only these fifty-four canonical IDs opt in; the other 40 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -2524,6 +2524,166 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "Comune Milano · Piano servizi abitativi 2026, approvazione 3 marzo 2026", url: "https://www.comune.milano.it/w/consiglio-comunale.-approvato-il-piano-dell-offerta-dei-servizi-abitativi-2026" },
       { label: "Comune Milano · Bandi e graduatorie per case popolari, 16 giugno 2026", url: "https://www.comune.milano.it/servizi/casa/case-popolari-graduatorie" },
+    ],
+    verified,
+  },
+
+
+  antifascismo: {
+    intro: "L'antifascismo comprende la difesa culturale e istituzionale della democrazia contro il fascismo e la ricostituzione del partito fascista. La Costituzione vieta quest'ultima; opinioni politiche, comportamenti criminali e organizzazioni vietate non sono però sinonimi.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Principio costituzionale", title: "Divieto di ricostituzione del partito fascista", text: "La XII disposizione transitoria e finale della Costituzione proibisce la riorganizzazione, sotto qualsiasi forma, del disciolto partito fascista. La legge Scelba disciplina condotte e organizzazioni rilevanti." },
+      { label: "Applicazione nella società", title: "Educazione, memoria e tutela delle libertà", text: "La promozione dei valori democratici può comprendere iniziative civiche e culturali; i limiti penali devono rispettare legalità, proporzionalità e libertà costituzionali." },
+    ],
+    measuredResultsTitle: "🇮🇹 Italia · norme costituzionali e penali",
+    measuredResults: [
+      {
+        place: "🇮🇹 Costituzione della Repubblica",
+        topic: "Entrata in vigore del testo costituzionale",
+        value: "1/1/1948",
+        period: "Costituzione approvata nel 1947",
+        meaning: "La XII disposizione vieta la riorganizzazione del disciolto partito fascista, NON qualsiasi opinione personale critica verso un partito.",
+        sourceUrl: "https://www.senato.it/istituzione/la-costituzione/disposizioni-transitorie-e-finali/xii",
+      },
+      {
+        place: "🇮🇹 Costituzione della Repubblica",
+        topic: "Disposizione che sancisce il divieto",
+        value: "XII",
+        period: "Disposizione transitoria e finale",
+        meaning: "Numero della disposizione costituzionale, NON articolo sulla punibilità automatica di ogni espressione o simbolo.",
+        sourceUrl: "https://www.senato.it/istituzione/la-costituzione/disposizioni-transitorie-e-finali/xii",
+      },
+      {
+        place: "🇮🇹 Normattiva · legge Scelba",
+        topic: "Legge attuativa del divieto di ricostituzione",
+        value: "645/1952",
+        period: "Legge 20 giugno 1952, n. 645",
+        meaning: "L'art. 1 richiede specifiche condotte e finalità antidemocratiche; NON definisce illecita ogni semplice espressione politica.",
+        sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=052U0645&atto.dataPubblicazioneGazzetta=1952-06-23&tipoDettaglio=vigente",
+      },
+      {
+        place: "🇮🇹 Normattiva · legge Mancino",
+        topic: "Conversione delle misure contro la discriminazione",
+        value: "205/1993",
+        period: "In vigore dal 27 giugno 1993",
+        meaning: "Misure contro condotte di discriminazione razziale, etnica e religiosa: ambito distinto dalla sola riorganizzazione del partito fascista.",
+        sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=093G0275&atto.dataPubblicazioneGazzetta=1993-06-26",
+      },
+    ],
+    evidenceCaveat: "Date e numeri sono riferimenti legislativi, NON statistiche sulla diffusione del fascismo, sull'efficacia delle politiche antifasciste o sui reati. Il divieto costituzionale di riorganizzazione del partito fascista non comporta che ogni frase, simbologia o idea sia penalmente punibile in automatico: si applicano le fattispecie previste dalle leggi, la giurisprudenza e le garanzie costituzionali. La legge contro la discriminazione ha finalità parzialmente diverse.",
+    advantage: "Favorisce la memoria storica, la difesa delle istituzioni democratiche e il contrasto a violenza e discriminazione.",
+    concern: "Nell'applicazione delle misure occorre evitare definizioni vaghe e restrizioni sproporzionate della libertà di espressione o di associazione legittima.",
+    note: "La differenza non è tra Costituzione antifascista e neutralità della XII disposizione, ma tra un principio giuridico esistente e le modalità concrete di attuazione, educazione e prevenzione.",
+    sources: [
+      { label: "Senato · XII disposizione della Costituzione", url: "https://www.senato.it/istituzione/la-costituzione/disposizioni-transitorie-e-finali/xii" },
+      { label: "Normattiva · Legge Scelba 645/1952", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=052U0645&atto.dataPubblicazioneGazzetta=1952-06-23&tipoDettaglio=vigente" },
+      { label: "Normattiva · Legge 205/1993", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=093G0275&atto.dataPubblicazioneGazzetta=1993-06-26" },
+    ],
+    verified,
+  },
+  chiusura_ospedali_di_provincia: {
+    intro: "Chiudere, accorpare o riconvertire un ospedale provinciale può cambiare quali servizi restano vicino ai residenti. Il DM 70/2015 indica standard per programmare la rete ospedaliera, ma NON impone automaticamente la chiusura di ogni ospedale sotto una certa popolazione.",
+    facts: [],
+    comparison: [
+      { label: "Mantenimento dei presìdi", title: "Rete locale con servizi ospedalieri", text: "Conservare servizi vicino ai cittadini può ridurre distanze, ma occorrono personale, capacità di emergenza e volumi di attività adeguati." },
+      { label: "Riconversione o accorpamento", title: "Rete riorganizzata e servizi territoriali", text: "Concentrare le attività più complesse e rafforzare l'assistenza territoriale può modificare le prestazioni disponibili: richiede controlli su tempi di accesso, trasporti e continuità delle cure." },
+    ],
+    measuredResultsTitle: "🇮🇹 Ministero della Salute · standard della rete ospedaliera",
+    measuredResults: [
+      {
+        place: "🇮🇹 DM 70/2015",
+        topic: "Dotazione regionale complessiva di posti letto",
+        value: "3,7/1.000",
+        period: "Standard fissato dall'art. 1",
+        meaning: "Limite di programmazione posti letto per 1.000 abitanti, comprensivo di post-acuzie; NON quota di ospedali da chiudere.",
+        sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=15G00084&atto.dataPubblicazioneGazzetta=2015-06-04",
+      },
+      {
+        place: "🇮🇹 DM 70/2015",
+        topic: "Quota posti letto di riabilitazione e post-acuzie",
+        value: "0,7/1.000",
+        period: "Inclusa nei 3,7 posti letto complessivi",
+        meaning: "Sottoinsieme del tetto di 3,7 posti letto, NON 0,7 posti aggiuntivi per mille abitanti.",
+        sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=15G00084&atto.dataPubblicazioneGazzetta=2015-06-04",
+      },
+      {
+        place: "🇮🇹 Ministero della Salute",
+        topic: "Bacino di utenza previsto per presidio con pronto soccorso",
+        value: "80–150 mila",
+        period: "Criteri di rete emergenza-urgenza del DM 70/2015",
+        meaning: "Intervallo demografico di riferimento, NON soglia automatica per chiudere un ospedale in territori montani o disagiati.",
+        sourceUrl: "https://www.salute.gov.it/new/it/tema/livelli-essenziali-di-assistenza/pronto-soccorso/",
+      },
+      {
+        place: "🇮🇹 Ministero della Salute",
+        topic: "Bacino di utenza per DEA di I livello",
+        value: "150–300 mila",
+        period: "Reti per emergenze di maggiore complessità",
+        meaning: "Riferimento di pianificazione distinto dal pronto soccorso di base: non misura la distanza reale né l'efficacia delle cure.",
+        sourceUrl: "https://www.salute.gov.it/new/it/tema/livelli-essenziali-di-assistenza/pronto-soccorso/",
+      },
+    ],
+    evidenceCaveat: "I valori 3,7 e 0,7 per 1.000 sono standard normativi, NON dati sul numero effettivo di posti letto disponibili nel 2026. La componente da 0,7 è GIÀ COMPRESA in 3,7. I bacini da 80–150 mila e 150–300 mila sono criteri orientativi dei diversi livelli di pronto soccorso, non soglie di chiusura applicate automaticamente: il Ministero prevede eccezioni per aree particolarmente disagiate. Gli effetti di chiusure o riconversioni richiedono dati locali su tempi di ambulanza, accessi, esiti sanitari e distanze.",
+    advantage: "Può concentrare équipe ed apparecchiature per prestazioni complesse e sviluppare servizi territoriali quando il piano è adeguato e finanziato.",
+    concern: "Può aumentare tempi di raggiungimento, disuguaglianze fra centri e aree interne e carico sui presìdi rimasti aperti.",
+    note: "Non confondere chiusura completa, riconversione, accorpamento amministrativo e riduzione dei reparti; i servizi effettivi dipendono dagli atti regionali.",
+    sources: [
+      { label: "Normattiva · Decreto 70/2015, standard ospedalieri", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=15G00084&atto.dataPubblicazioneGazzetta=2015-06-04" },
+      { label: "Ministero Salute · Pronto soccorso, bacini ed eccezioni", url: "https://www.salute.gov.it/new/it/tema/livelli-essenziali-di-assistenza/pronto-soccorso/" },
+    ],
+    verified,
+  },
+  videosorveglianza_in_spazi_pubblici: {
+    intro: "Installare telecamere in strade, piazze o altri luoghi accessibili al pubblico per finalità definite. Non equivale ad autorizzare il riconoscimento facciale indiscriminato: ripresa, registrazione, accesso ai filmati e riconoscimento biometrico richiedono presupposti distinti.",
+    facts: [],
+    comparison: [
+      { label: "Senza nuovi impianti", title: "Controlli e interventi non basati su riprese aggiuntive", text: "Illuminazione, presidio territoriale e interventi mirati possono perseguire obiettivi di sicurezza senza introdurre altre registrazioni di persone." },
+      { label: "Con nuove telecamere", title: "Sorveglianza mirata, trasparente e limitata", text: "Il Comune deve definire finalità e base giuridica, informare gli interessati, minimizzare riprese e durata, proteggere l'accesso e valutare i rischi." },
+    ],
+    measuredResultsTitle: "🇮🇹 Garante / 🇪🇺 EDPB · tempi e garanzie",
+    measuredResults: [
+      {
+        place: "🇮🇹 Garante · sicurezza urbana dei Comuni",
+        topic: "Limite legale ordinario di conservazione in questo specifico ambito",
+        value: "7 giorni",
+        period: "Art. 6, comma 8, decreto-legge 11/2009",
+        meaning: "Per videosorveglianza comunale di sicurezza urbana, salvo speciali esigenze di ulteriore conservazione: NON limite generale valido per ogni telecamera pubblica o privata.",
+        sourceUrl: "https://www.garanteprivacy.it/faq/videosorveglianza",
+      },
+      {
+        place: "🇪🇺 EDPB · linee guida sulla videosorveglianza",
+        topic: "Soglia di durata che richiede una motivazione più approfondita",
+        value: "72 ore",
+        period: "Guidelines 3/2019, versione definitiva gennaio 2020",
+        meaning: "Superare 72 ore richiede giustificazione particolarmente rigorosa, ma 72 ore NON sono una licenza automatica a conservare i filmati.",
+        sourceUrl: "https://www.edpb.europa.eu/documents/guideline/guidelines-32019-on-processing-of-personal-data-through-video-devices_en",
+      },
+      {
+        place: "🇮🇹 Garante · informazione agli interessati",
+        topic: "Livelli raccomandati per l'informativa",
+        value: "2 livelli",
+        period: "Cartello prima dell'area sorvegliata + informativa estesa",
+        meaning: "Il cartello riassume gli elementi principali e rimanda al testo integrale; NON autorizza di per sé le riprese.",
+        sourceUrl: "https://www.garanteprivacy.it/faq/videosorveglianza",
+      },
+      {
+        place: "🇪🇺 GDPR · valutazione d'impatto",
+        topic: "Articolo per la DPIA nei trattamenti ad alto rischio",
+        value: "Art. 35",
+        period: "Regolamento UE 2016/679",
+        meaning: "Obbligo di valutazione d'impatto, in particolare per sorveglianza sistematica su larga scala di aree pubbliche; NON obbligo universale per qualsiasi singola videocamera.",
+        sourceUrl: "https://www.garanteprivacy.it/faq/videosorveglianza",
+      },
+    ],
+    evidenceCaveat: "I 7 giorni si riferiscono alla disciplina SPECIFICA della videosorveglianza comunale per sicurezza urbana, non a qualunque impianto. Le 72 ore EDPB sono una soglia che aumenta l'onere di giustificazione, NON un periodo minimo o massimo sempre consentito. Cartelli e valutazioni d'impatto non sostituiscono una base giuridica lecita, finalità necessarie e minimizzazione. Nessuno di questi riferimenti misura riduzioni dei reati o prova l'efficacia delle telecamere.",
+    advantage: "Può supportare ricostruzione di fatti e protezione di luoghi sensibili se la misura è necessaria e proporzionata.",
+    concern: "Rischi di sorveglianza eccessiva, accessi indebiti ai filmati, conservazione sproporzionata e discriminazioni se si impiegano sistemi di analisi automatica.",
+    note: "Prima di installare: finalità e base giuridica, valutazione necessità/proporzionalità, cartelli, tempi documentati e sicurezza; il riconoscimento facciale è una questione separata.",
+    sources: [
+      { label: "Garante Privacy · FAQ sulla videosorveglianza", url: "https://www.garanteprivacy.it/faq/videosorveglianza" },
+      { label: "EDPB · Guidelines 3/2019, versione definitiva 2020", url: "https://www.edpb.europa.eu/documents/guideline/guidelines-32019-on-processing-of-personal-data-through-video-devices_en" },
+      { label: "Conferenza Stato-Città · Videosorveglianza negli enti locali", url: "https://www.conferenzastatocitta.gov.it/home/approfondimenti/tematiche-di-interesse/videosorveglianza-negli-enti-locali/indicazioni-del-garante-per-la-privacy-e-adempimenti-per-gli-enti-locali/" },
     ],
     verified,
   },
