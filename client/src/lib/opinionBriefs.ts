@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these forty-eight canonical IDs opt in; the other 46 use the original
+ * Only these fifty-one canonical IDs opt in; the other 43 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -2342,6 +2342,188 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Comune di Milano · Area B e deroghe ottobre 2026", url: "https://www.comune.milano.it/argomenti/mobilita/area-b" },
       { label: "Comune di Milano · 188 varchi e 72% del territorio, 2022", url: "https://www2.comune.milano.it/-/mobilita.-attivate-tutte-le-telecamere-di-area-b.-ad-aprile-una-media-di-614mila-transiti-al-giorno" },
       { label: "Ministero delle infrastrutture e trasporti · Linee guida ZTL", url: "https://mit.gov.it/node/10821" },
+    ],
+    verified,
+  },
+
+
+  carne_coltivata: {
+    intro: "La carne coltivata si ottiene da cellule animali cresciute in ambienti controllati: non è una polpetta vegetale. In Italia è vietata dalla legge 172/2023; nell'UE gli alimenti nuovi richiedono una valutazione di sicurezza e un'autorizzazione prima della commercializzazione.",
+    facts: [],
+    comparison: [
+      {
+        label: "🇮🇹 Normativa italiana",
+        title: "Divieto di prodotti animali da colture cellulari",
+        text: "La legge n. 172/2023 vieta, tra l'altro, la produzione e l'immissione sul mercato di alimenti da colture cellulari o tessuti di vertebrati. Non vieta indistintamente gli alimenti vegetali.",
+      },
+      {
+        label: "🇪🇺 Normativa europea",
+        title: "Procedura per i novel food",
+        text: "Il regolamento UE 2015/2283 richiede autorizzazione per i nuovi alimenti: EFSA valuta la sicurezza, mentre Commissione e Stati membri decidono l'autorizzazione. Non è una libera vendita in assenza di approvazione.",
+      },
+    ],
+    measuredResultsTitle: "🇮🇹 / 🇪🇺 · normativa ed autorizzazioni, ottobre 2026",
+    measuredResults: [
+      {
+        place: "🇪🇺 Commissione europea",
+        topic: "Applicazione del regolamento novel food",
+        value: "1/1/2018",
+        period: "Regolamento UE 2015/2283",
+        meaning: "La data di applicazione del quadro autorizzativo europeo; NON la data di autorizzazione commerciale di una carne coltivata.",
+        sourceUrl: "https://food.ec.europa.eu/food-safety/novel-food/legislation_en",
+      },
+      {
+        place: "🇮🇹 Gazzetta Ufficiale",
+        topic: "Entrata in vigore del divieto italiano",
+        value: "16/12/2023",
+        period: "Legge n. 172 del 1 dicembre 2023",
+        meaning: "Divieto nazionale per alimenti e mangimi derivati da colture cellulari animali nei casi previsti dall'art. 2; non è la data di un divieto europeo.",
+        sourceUrl: "https://www.gazzettaufficiale.it/eli/id/2023/12/01/23G00188/sg",
+      },
+      {
+        place: "🇪🇺 EFSA · richiesta scientifica",
+        topic: "Prima domanda europea su alimento da cellule animali",
+        value: "9/2024",
+        period: "Domanda per prodotto a base di cellule d'anatra",
+        meaning: "Presentazione di una richiesta di valutazione, NON autorizzazione e NON ingresso sul mercato.",
+        sourceUrl: "https://www.efsa.europa.eu/en/topics/topic/novel-food",
+      },
+      {
+        place: "🇪🇺 EFSA · stato ufficiale",
+        topic: "Alimenti da cellule animali autorizzati alla vendita nell'UE",
+        value: "0",
+        period: "Situazione riportata da EFSA il 21/10/2026",
+        meaning: "Nessun alimento derivato da colture cellulari DI ORIGINE ANIMALE approvato nell'UE; EFSA distingue cinque prodotti ottenuti da cellule vegetali già sul mercato.",
+        sourceUrl: "https://www.efsa.europa.eu/en/topics/topic/novel-food",
+      },
+    ],
+    evidenceCaveat: "La legge italiana del 2023 e la procedura europea sui novel food sono regole differenti, non due statistiche di effetti economici o sanitari. La domanda per cellule d'anatra del settembre 2024 NON prova l'autorizzazione. Lo zero EFSA riguarda gli alimenti cell-based di origine ANIMALE nell'UE alla data verificata, non ogni prodotto coltivato da cellule vegetali né la situazione mondiale. Non si possono quantificare vantaggi climatici o sanitari specifici senza analisi comparabili.",
+    advantage: "Potrebbe ampliare le tecnologie alimentari, ridurre alcune necessità di macellazione e stimolare ricerca e innovazione, dopo controlli di sicurezza.",
+    concern: "Servono valutazioni tossicologiche e ambientali rigorose, controlli sulla produzione, trasparenza dei consumi energetici e tutela di agricoltori e consumatori.",
+    note: "Non confondere carne coltivata animale, alternative vegetali, richiesta EFSA e autorizzazione UE. Le regole possono cambiare: verifica editoriale del 31/10/2026.",
+    sources: [
+      { label: "Gazzetta Ufficiale · Legge 172/2023", url: "https://www.gazzettaufficiale.it/eli/id/2023/12/01/23G00188/sg" },
+      { label: "Commissione UE · Regolamento novel food", url: "https://food.ec.europa.eu/food-safety/novel-food/legislation_en" },
+      { label: "EFSA · Novel food, aggiornamento 21 ottobre 2026", url: "https://www.efsa.europa.eu/en/topics/topic/novel-food" },
+    ],
+    verified,
+  },
+  potenziamento_trasporto_pubblico: {
+    intro: "Aumentare corse, collegamenti, frequenze o accessibilità del trasporto pubblico regionale. La Toscana offre un esempio concreto del programma di autobus affidato dopo gara: i chilometri contrattuali previsti non sono automaticamente chilometri effettivamente percorsi.",
+    facts: [],
+    comparison: [
+      {
+        label: "Rete e contratto esistenti",
+        title: "🇮🇹 Toscana · servizio TPL su gomma",
+        text: "Il gestore unico Autolinee Toscane ha iniziato a operare il 1° novembre 2021; il contratto ha previsto fasi di attivazione del servizio regionale.",
+      },
+      {
+        label: "Esempio di potenziamento",
+        title: "Frequenze e copertura nei territori meno serviti",
+        text: "La fase T2, iniziata nel novembre 2023, prevede una quantità annua di servizio e percorrenze aggiuntive nelle reti cosiddette di lotti deboli. I benefici reali richiedono dati su puntualità, utilizzo e affidabilità.",
+      },
+    ],
+    measuredResultsTitle: "🇮🇹 Toscana · piano regionale TPL su gomma",
+    measuredResults: [
+      {
+        place: "🇮🇹 Regione Toscana",
+        topic: "Avvio del nuovo gestore del servizio regionale",
+        value: "1/11/2021",
+        period: "Autolinee Toscane · aggiudicazione dopo gara",
+        meaning: "Data di avvio della gestione, NON data di entrata in funzione di tutti i miglioramenti di rete.",
+        sourceUrl: "https://www.regione.toscana.it/tpl",
+      },
+      {
+        place: "🇮🇹 Regione Toscana",
+        topic: "Inizio seconda fase contrattuale T2",
+        value: "1/11/2023",
+        period: "Dopo i primi due anni della fase T1",
+        meaning: "Passaggio amministrativo e operativo del contratto, non una percentuale di passeggeri trasportati.",
+        sourceUrl: "https://www.regione.toscana.it/tpl",
+      },
+      {
+        place: "🇮🇹 Regione Toscana",
+        topic: "Percorrenza complessiva annua prevista per gli autobus",
+        value: "101,6 mln km",
+        period: "Fase T2 · livello di servizio contrattuale",
+        meaning: "Chilometri di servizio programmati in un anno per la rete regionale, NON chilometri certificati effettivamente percorsi né numero di utenti.",
+        sourceUrl: "https://www.regione.toscana.it/tpl",
+      },
+      {
+        place: "🇮🇹 Regione Toscana",
+        topic: "Incremento delle percorrenze dei lotti deboli rispetto alla gara",
+        value: "+4 mln km",
+        period: "Fase T2 · rete integrativa territoriale",
+        meaning: "Ulteriori chilometri annui PREVISTI rispetto alla gara, NON riduzione stimata delle emissioni o miglioramento della puntualità già dimostrato.",
+        sourceUrl: "https://www.regione.toscana.it/tpl",
+      },
+    ],
+    evidenceCaveat: "Il servizio previsto in Toscana per la fase T2 è di circa 101,6 milioni di km/anno; il +4 milioni riguarda la differenza contrattuale per lotti deboli, NON un aumento del 4% del totale. Sono livelli di servizio descritti dalla Regione, non un audit della percorrenza realmente erogata o dei passeggeri. Non si può attribuire al solo cambio di gestore un eventuale miglioramento senza dati comparativi su puntualità, accessibilità, sicurezza, frequenza e domanda.",
+    advantage: "Può aumentare l'accesso a scuola, lavoro e servizi, soprattutto nei territori meno collegati, e offrire un'alternativa all'auto.",
+    concern: "Richiede fondi stabili, mezzi e personale; aumentare corse poco usate senza un disegno di rete adeguato può generare costi elevati.",
+    note: "Contratto regionale TPL, chilometri programmati, chilometri realmente svolti, numero di passeggeri e risultati ambientali sono indicatori distinti.",
+    sources: [
+      { label: "Regione Toscana · TPL e fase T2, 101,6 milioni km/anno", url: "https://www.regione.toscana.it/tpl" },
+    ],
+    verified,
+  },
+  nuove_case_popolari: {
+    intro: "Realizzare, acquistare o recuperare alloggi di edilizia residenziale pubblica da assegnare secondo le graduatorie. Il piano milanese per il 2026 consente di distinguere alloggi programmati per l'assegnazione da case di nuova costruzione: NON sono la stessa cosa.",
+    facts: [],
+    comparison: [
+      {
+        label: "Offerta abitativa esistente",
+        title: "🇮🇹 Milano · case comunali e Aler",
+        text: "Una parte degli alloggi pubblici è già costruita ma necessita di assegnazione o ristrutturazione. Bandi e graduatorie distribuiscono abitazioni disponibili secondo requisiti.",
+      },
+      {
+        label: "Scelta del Comune",
+        title: "Costruire, acquisire o recuperare altri alloggi",
+        text: "Aumentare lo stock di abitazioni utilizzabili per il servizio pubblico, distinguendo nuove costruzioni, recupero di sfitti e assegnazioni del patrimonio esistente.",
+      },
+    ],
+    measuredResultsTitle: "🇮🇹 Milano · Piano dell'offerta abitativa 2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 Comune di Milano e Aler",
+        topic: "Unità abitative complessivamente assegnabili secondo il piano",
+        value: "2.321",
+        period: "Piano 2026 · approvato il 3 marzo",
+        meaning: "Alloggi potenzialmente assegnabili tramite bandi e graduatorie, NON 2.321 case nuove costruite né 2.321 contratti già firmati.",
+        sourceUrl: "https://www.comune.milano.it/w/consiglio-comunale.-approvato-il-piano-dell-offerta-dei-servizi-abitativi-2026",
+      },
+      {
+        place: "🇮🇹 Comune di Milano e Aler",
+        topic: "Quota destinata ai servizi abitativi pubblici (SAP)",
+        value: "2.047",
+        period: "Piano annuale 2026",
+        meaning: "897 alloggi comunali gestiti da MM e 1.150 Aler; sono una PARTE dei 2.321 e non vanno sommati nuovamente al totale.",
+        sourceUrl: "https://www.comune.milano.it/w/consiglio-comunale.-approvato-il-piano-dell-offerta-dei-servizi-abitativi-2026",
+      },
+      {
+        place: "🇮🇹 Comune di Milano e Aler",
+        topic: "Alloggi destinati a servizi abitativi transitori (SAT)",
+        value: "274",
+        period: "Piano annuale 2026",
+        meaning: "224 alloggi del Comune e 50 Aler per grave emergenza abitativa, compresi nel totale 2.321 e distinti dai SAP.",
+        sourceUrl: "https://www.comune.milano.it/w/consiglio-comunale.-approvato-il-piano-dell-offerta-dei-servizi-abitativi-2026",
+      },
+      {
+        place: "🇮🇹 Comune di Milano",
+        topic: "Quota massima di appartamenti SAP per nuclei in indigenza",
+        value: "40%",
+        period: "Piano 2026 · ISEE inferiore a 3.000 €",
+        meaning: "Quota di alloggi popolari assegnabili a nuclei con requisiti specifici, aumentata dal precedente 20%; NON quota di cittadini poveri né percentuale delle case già assegnate.",
+        sourceUrl: "https://www.comune.milano.it/w/consiglio-comunale.-approvato-il-piano-dell-offerta-dei-servizi-abitativi-2026",
+      },
+    ],
+    evidenceCaveat: "Il Comune parla di alloggi che Comune e Aler POTRANNO assegnare nel 2026, non di nuove abitazioni costruite nell'anno o di assegnazioni già avvenute. I 2.047 SAP e i 274 SAT sommano al totale 2.321 e non sono due quote aggiuntive. La soglia ISEE inferiore a 3.000 € e il 40% definiscono una priorità di assegnazione, non il numero di persone ospitate. Per misurare l'impatto della proposta servono dati di nuove costruzioni, recuperi, assegnazioni effettive, tempi d'attesa e costi.",
+    advantage: "Può ampliare l'accesso ad alloggi stabili per famiglie con difficoltà economiche, se le abitazioni sono effettivamente consegnate e mantenute.",
+    concern: "Richiede investimenti, disponibilità di terreni e immobili, tempi di realizzazione e manutenzione; il piano di assegnazione non garantisce nuove costruzioni.",
+    note: "SAP, SAT, nuove costruzioni, immobili recuperati, alloggi assegnabili e alloggi assegnati non coincidono.",
+    sources: [
+      { label: "Comune Milano · Piano servizi abitativi 2026, approvazione 3 marzo 2026", url: "https://www.comune.milano.it/w/consiglio-comunale.-approvato-il-piano-dell-offerta-dei-servizi-abitativi-2026" },
+      { label: "Comune Milano · Bandi e graduatorie per case popolari, 16 giugno 2026", url: "https://www.comune.milano.it/servizi/casa/case-popolari-graduatorie" },
     ],
     verified,
   },
