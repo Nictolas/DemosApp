@@ -143,6 +143,11 @@ async function main() {
           // Grazia deliberately renders separate mobile <p> and desktop <h4>
           // versions of every ranking row. Ignore display:none duplicates.
           last = region.locator('p:visible, h4:visible').filter({ hasText: item.last }).last();
+        } else if (item.path === '/amnistia') {
+          // An offence card can be taller than a short mobile scrollport.
+          // What must remain reachable is the last card's interactive vote action.
+          await region.getByText(item.last, { exact: true }).last().waitFor({ state: 'attached' });
+          last = region.getByRole('button', { name: 'Vota per ' + item.last });
         } else if (item.last) {
           last = region.getByText(item.last, { exact: true }).last();
         } else {
