@@ -67,7 +67,7 @@ jobs:
         run: |
           command -v google-chrome
           npm install --prefix /tmp/demos-unified-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
-      - name: Browser test: mobile five-category proposals, only POST on submit
+      - name: "Browser test: mobile five-category proposals, only POST on submit"
         run: |
           npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-unified-preview.log 2>&1 &
           PREVIEW_PID=$!
