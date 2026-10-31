@@ -7,10 +7,9 @@ import { PageContainer } from "@/components/PageContainer";
 import { useAmnistiaData } from "./hooks/useAmnistiaData";
 import { useAmnistiaVoting } from "./hooks/useAmnistiaVoting";
 import { Header } from "./components/Header";
+import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { AmnistiaForm } from "./components/AmnistiaForm";
 import { ClassificaLeggi } from "./components/ClassificaLeggi";
-import { CreateButton } from "./components/CreateButton";
-import { CarceratoForm } from "./components/CarceratoForm";
 import { getSuggestions } from "./utils/amnistiaUtils";
 
 export default function Amnistia() {
@@ -27,9 +26,6 @@ export default function Amnistia() {
     selectSuggestion,
     handleAddVote,
     handleRemoveVote,
-    showForm,
-    hideForm,
-    handleCreateAmnistia,
     currentVotes,
     limit,
     remainingVotes,
@@ -71,7 +67,10 @@ export default function Amnistia() {
       <div className="container mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
         {/* Titolo fisso, separato da ogni area scrollabile. */}
         <div className="amnistia-page__fixed-header shrink-0">
-          <Header />
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1"><Header /></div>
+            <ProposeSubjectButton category="amnistia" />
+          </div>
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 md:grid-cols-2 md:grid-rows-1 lg:gap-6">
@@ -83,9 +82,6 @@ export default function Amnistia() {
               </div>
             ) : (
               <>
-                <div className="flex items-center">
-                  <CreateButton onClick={showForm} />
-                </div>
                 <AmnistiaForm
                   leggeInput={votingState.leggeInput}
                   showSuggestions={votingState.showSuggestions}
@@ -114,12 +110,7 @@ export default function Amnistia() {
                 onShowClassifica={showClassifica}
                 hasReachedLimit={hasReachedLimit}
                 mieiVoti={data?.mieiVoti || []}
-                proposalForm={votingState.showForm ? (
-                  <CarceratoForm
-                    onSubmit={handleCreateAmnistia}
-                    onCancel={hideForm}
-                    isLoading={false}
-                  />
+              />
                 ) : undefined}
               />
             )}
