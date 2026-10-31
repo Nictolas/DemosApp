@@ -138,9 +138,17 @@ router.get('/', async (req, res) => {
     
     console.log(`✅ Trovati ${attivisti.length} attivisti`);
     
+    // One indexed read piggybacks on the directory response; no extra browser GET.
+    // Pending/rejected proposals and proposer identities are never exposed.
+    const approvedSubjects = await pool.query(
+      "SELECT id, title, details, source_url FROM subject_proposals WHERE status='approved' AND category=$1 ORDER BY reviewed_at DESC LIMIT 100",
+      ['attivisti']
+    );
+
     res.json({
       success: true,
       data: attivisti,
+      approved_subjects: approvedSubjects.rows,
       count: attivisti.length,
       message: attivisti.length === 0 ? 'Al momento non ci sono attivisti registrati' : `${attivisti.length} attivisti trovati`
     });
