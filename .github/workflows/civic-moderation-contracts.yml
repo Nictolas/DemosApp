@@ -14,6 +14,7 @@ on:
       - 'api/tests/civicPrivacyHttp.synthetic.test.js'
       - 'api/tests/graziaModerationContract.test.js'
       - 'api/tests/civicSubjectPublicationGate.test.js'
+      - 'api/tests/civicCatalogueRejectionHttp.synthetic.test.js'
       - 'client/src/pages/Grazia/**'
       - 'client/src/pages/Amnistia/**'
       - 'client/src/pages/GestisciGrazia.tsx'
@@ -47,7 +48,7 @@ jobs:
       - name: Privacy and reaction tests
         run: node --test api/tests/notificationRecipientAndReactionsSecurity.test.js
       - name: Install isolated HTTP testing dependencies (no database)
-        run: npm install --prefix /tmp/demos-http-test --no-save --ignore-scripts --no-audit --no-fund express@4.22.3 dotenv@16.3.1
+        run: npm install --prefix /tmp/demos-http-test --no-save --ignore-scripts --no-audit --no-fund express@4.22.3 dotenv@16.3.1 jsonwebtoken@9.0.2
       - name: Two-user privacy isolation via synthetic HTTP
         env:
           NODE_PATH: /tmp/demos-http-test/node_modules
@@ -55,6 +56,10 @@ jobs:
       - name: Grazia moderation tests (when branch contains repair)
         run: |
           if test -f api/tests/graziaModerationContract.test.js; then node --test api/tests/graziaModerationContract.test.js; fi
+      - name: Reject unreviewed Amnistia and Capo di Stato subjects via synthetic HTTP
+        env:
+          NODE_PATH: /tmp/demos-http-test/node_modules
+        run: node --test api/tests/civicCatalogueRejectionHttp.synthetic.test.js
       - name: Amnesty / head-of-state gates (when present)
         run: |
           if test -f api/tests/civicSubjectPublicationGate.test.js; then node --test api/tests/civicSubjectPublicationGate.test.js; fi
