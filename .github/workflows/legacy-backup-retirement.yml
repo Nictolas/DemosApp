@@ -4,6 +4,8 @@ on:
     paths:
       - 'api/routes/admin/backup.js'
       - 'api/tests/legacyBackupRetirementHttp.test.js'
+      - 'client/src/pages/BackupDashboard.tsx'
+      - 'client/tests/legacyBackupRetirementUi.test.mjs'
       - '.github/workflows/legacy-backup-retirement.yml'
 permissions:
   contents: read
@@ -26,3 +28,9 @@ jobs:
           node --check api/tests/legacyBackupRetirementHttp.test.js
       - name: Verify HTTP authentication and no-side-effect retirement
         run: node --test --test-concurrency=1 api/tests/legacyBackupRetirementHttp.test.js
+      - name: Check Admin backup UI has no legacy API calls
+        run: node --test client/tests/legacyBackupRetirementUi.test.mjs
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Compile frontend with retired backup page
+        run: npm run build --prefix client
