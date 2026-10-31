@@ -228,7 +228,7 @@
   overflow: hidden;
 }
 
-/* Avvistamenti e voto Iniziativa Popolare: scorre il contenuto, non la navbar. */
+/* Avvistamenti, Iniziativa Popolare e Grazia: scorre il contenuto, non la navbar. */
 .app-main.app-main--scroll-content {
   overflow-y: hidden !important;
 }
