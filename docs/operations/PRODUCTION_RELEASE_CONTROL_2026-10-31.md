@@ -19,14 +19,16 @@
 | Parametro | Backend LIVE Render | Backend `render.yaml` PR #515 |
 | --- | --- | --- |
 | `rootDir` | `api` | `api` |
-| Build command | `npm install` | `npm ci` |
+| Build command | `npm install` | `npm install` |
 | Start command | `node index.js` | `node index.js` |
 
 | Parametro | Frontend LIVE Render | Frontend `render.yaml` PR #515 |
 | --- | --- | --- |
-| `rootDir` | `client` | omesso (predefinito: root repository) |
-| Build command | `npm install; npm run build` | `cd client && npm ci --only=production && npm run build` |
-| Publish path | `dist` | `client/dist` |
+| `rootDir` | `client` | `client` |
+| Build command | `npm install; npm run build` | `npm install; npm run build` |
+| Publish path | `dist` | `dist` |
+
+**Allineamento preparatorio nel solo ramo Draft:** `render.yaml` è stato corretto per rispecchiare i campi sopra, e il test `releaseBlueprintPolicy.test.js` ora verifica questi sei parametri contro lo snapshot Render. Ciò riduce il drift noto, ma non certifica l'assenza di altri scostamenti tra tutte le impostazioni di produzione, né autorizza un Sync.
 
 Il risultato di una sincronizzazione può dipendere da come i servizi esistenti sono associati al Blueprint; **non è stato attestato alcun collegamento Blueprint né il suo valore Auto Sync**. Non assumere che una modifica a `render.yaml` controlli automaticamente i servizi esistenti, né che una sincronizzazione sia limitata ai campi Auto-Deploy.
 
@@ -34,7 +36,7 @@ Il risultato di una sincronizzazione può dipendere da come i servizi esistenti 
 
 1. Con l'accesso autorizzato a Render, verificare **se** `demos-backend` e `demos-frontend` sono gestiti da un Blueprint. Se sì, aprirlo e impostare **Blueprint Auto Sync → No**, con successivo read-back, **prima** di integrare PR #515. Non usare `Manual Sync`.
 2. Se i servizi non sono Blueprint-managed, non associare questa PR a un nuovo Blueprint e non creare duplicati dei servizi di produzione.
-3. Confrontare la configurazione effettiva di build, directory e pubblicazione con il Blueprint e decidere separatamente se conservarla o aggiornarla; non alterare build command, root directory, env var o publish path per il solo scopo di spegnere i deploy automatici.
+3. I comandi di build, rootDir e publish path del Blueprint sono ora allineati ai metadati LIVE letti il 31/10; prima di qualunque sync confermare nuovamente tali campi e **le altre configurazioni non verificate** (domini, variabili d'ambiente non segrete, build filter, preview, health check e associazione effettiva al Blueprint). Non mutare configurazioni applicative per il solo scopo di spegnere i deploy automatici.
 4. Verificare che **Auto-Deploy dei due servizi = Off**, **Blueprint Auto Sync = No se applicabile**, e che nessun deploy inatteso sia partito. Poi verificare la protezione GitHub `main`.
 5. Conservare il blocco `NO-GO` anche dopo questi passaggi finché DPO/GDPR, backup/restore, QA e approvazione della release non siano completati.
 
@@ -83,6 +85,8 @@ Verificato il 31/10 in **sola lettura**, nello stesso workspace Render e con gli
 - Le attuali connessioni consentono le letture Render/GitHub ma **non** espongono una mutazione autorizzata di `autoDeployTrigger` né un'azione GitHub di creazione dei ruleset. Per completare l'attivazione occorre accedere ai pannelli dei due provider con permessi adeguati, oppure disporre di un connettore che supporti esplicitamente tali operazioni.
 
 La configurazione `autoDeployTrigger: off` della PR è coerente con la [specifica ufficiale Blueprint Render](https://render.com/docs/blueprint-spec); `off` disabilita il deploy automatico, mentre `checksPass` continua a pubblicare dopo CI verdi. Le [regole dei required checks GitHub](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks) richiedono attenzione ai workflow con filtri `paths`: un check mai avviato resta pendente e può bloccare le PR.
+
+**Controllo revisione:** nuova verifica provider obbligatoria immediatamente prima del merge, anche dopo l'allineamento dei campi. Lo storico delle differenze pre-correzione è documentato nel corpo della PR #515 e nella CHECKLIST MASTER. Non è stata effettuata una sincronizzazione in produzione.
 
 ## Riferimenti
 
