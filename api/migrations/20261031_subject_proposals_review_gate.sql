@@ -16,7 +16,10 @@ CREATE TABLE IF NOT EXISTS public.subject_proposals (
   review_note text CHECK (review_note IS NULL OR char_length(review_note) <= 500),
   withdrawn_at timestamptz,
   withdrawn_by uuid REFERENCES public.users(id) ON DELETE SET NULL,
-  withdraw_note text CHECK (withdraw_note IS NULL OR char_length(withdraw_note) BETWEEN 3 AND 500)
+  withdraw_note text CHECK (withdraw_note IS NULL OR char_length(withdraw_note) BETWEEN 3 AND 500),
+  -- NULL: never withdrawn or legacy unknown; FALSE: withdrawn without confirmed notice;
+  -- TRUE: private notification and flag committed together.
+  withdraw_notification_sent boolean
 );
 
 -- Existing staging copies may still have the old five-category CHECK. CREATE TABLE
@@ -42,7 +45,8 @@ $subject_category_guard$;
 ALTER TABLE public.subject_proposals
   ADD COLUMN IF NOT EXISTS withdrawn_at timestamptz,
   ADD COLUMN IF NOT EXISTS withdrawn_by uuid REFERENCES public.users(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS withdraw_note text;
+  ADD COLUMN IF NOT EXISTS withdraw_note text,
+  ADD COLUMN IF NOT EXISTS withdraw_notification_sent boolean;
 
 DO $subject_withdrawal_guard$
 BEGIN
