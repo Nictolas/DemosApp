@@ -10,6 +10,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Opinione } from "../types";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import { addCountryFlagsToMarkdown } from "@/lib/countryFlagsMarkdown";
+import { getOpinionBrief } from "@/lib/opinionBriefs";
+import { OpinionBriefCard } from "@/components/OpinionBriefCard";
 
 interface ApprofondimentoDialogProps {
   opinione?: Opinione;
@@ -31,6 +33,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [approfondimento, setApprofondimento] = useState("");
+  const brief = getOpinionBrief(opinionId || opinione?.id);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
@@ -427,7 +430,9 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
               </div>
             ) : readOnly ? (
               <div className="h-full overflow-y-auto overscroll-contain px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 [-webkit-overflow-scrolling:touch]">
-                {approfondimento && approfondimento.trim() ? (
+                {brief ? (
+                  <OpinionBriefCard brief={brief} />
+                ) : approfondimento && approfondimento.trim() ? (
                   <div className="prose max-w-none break-words text-gray-900"
                     dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(renderMarkdown(addCountryFlagsToMarkdown(approfondimento))) }}
                   />

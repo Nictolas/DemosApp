@@ -188,13 +188,19 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     const details = page.getByRole('dialog');
     await details.waitFor({ timeout: 10000 });
     await details.getByText('Approfondimento: Fuochi d\'Artificio').waitFor();
-    const readOnlyDetails = details.locator('.prose').first();
+    const readOnlyDetails = details.getByTestId('opinion-brief');
     await readOnlyDetails.getByText(/Irlanda/).first().waitFor({ timeout: 10000 });
     const richText = await readOnlyDetails.innerText();
     assert.match(richText, /🇮🇹 Italia/, 'Italy flag renders only in the detail view');
     assert.match(richText, /🇮🇪 Irlanda/, 'Ireland flag renders only in the detail view');
+    assert.ok(richText.includes('2232/2025'), 'Verified legal fact remains readable');
     assert.doesNotMatch(richText, /📝/, 'Document emoji must not consume detail width');
     assert.equal(await details.getByRole('button', { name: 'Modifica approfondimento' }).count(), 0);
+    const sourceDisclosure = readOnlyDetails.locator('details');
+    assert.equal(await sourceDisclosure.evaluate(n => n.open), false, 'Sources start collapsed');
+    await sourceDisclosure.locator('summary').click();
+    assert.equal(await sourceDisclosure.evaluate(n => n.open), true, 'Sources expand on demand');
+    assert.ok(await sourceDisclosure.locator('a[href^="https://"]').count() >= 2);
     for (const viewport of [{ width: 390, height: 844 }, { width: 360, height: 640 }]) {
       await page.setViewportSize(viewport);
       // Playwright applies viewport resizing before Chrome necessarily repaints the dialog.
@@ -234,6 +240,38 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     }
     await details.getByRole('button', { name: 'Chiudi', exact: true }).click();
     await details.waitFor({ state: 'hidden' });
+
+    // The other four pilot topics share exactly the same visual renderer;
+    // legacy catalogue entries must continue to use their Markdown renderer.
+    const pilotCases = [
+      ['/opinioni-nazionali', 'Abolizione Contante', '2021'],
+      ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
+      ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
+      ['/opinioni-regionali', 'Caccia', '157/1992'],
+    ];
+    for (const [path, title, fact] of pilotCases) {
+      await page.goto(HEADLESS_ORIGIN + path, { waitUntil: 'domcontentloaded' });
+      const trigger = page.locator('button[title="Approfondimento: ' + title + '"]');
+      await trigger.waitFor({ timeout: 25000 });
+      await trigger.click();
+      const dialog = page.getByRole('dialog');
+      const brief = dialog.getByTestId('opinion-brief');
+      await brief.waitFor({ timeout: 12000 });
+      assert.ok((await brief.innerText()).includes(fact), title + ': expected fact visible');
+      assert.equal(await brief.locator('details').count(), 1, title + ': one source disclosure');
+      assert.equal(await brief.locator('section').count() >= 2, true, title + ': pro and con shown');
+      await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
+      await dialog.waitFor({ state: 'hidden' });
+    }
+    await page.goto(HEADLESS_ORIGIN + '/opinioni-nazionali', { waitUntil: 'domcontentloaded' });
+    const legacy = page.locator('button[title="Approfondimento: Ius Soli"]');
+    await legacy.waitFor({ timeout: 25000 });
+    await legacy.click();
+    const legacyDialog = page.getByRole('dialog');
+    await legacyDialog.locator('.prose').first().waitFor({ timeout: 10000 });
+    assert.equal(await legacyDialog.getByTestId('opinion-brief').count(), 0, 'Unconverted opinion keeps Markdown layout');
+    await legacyDialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
+    await legacyDialog.waitFor({ state: 'hidden' });
 
     assert.equal(outside.filter(x => x !== 'http://localhost:3000').length, outside.length);
     assert.ok(outside.every(x => !/demos\.community|onrender\.com/.test(x)),
