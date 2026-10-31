@@ -27,6 +27,9 @@ test('Amnistia user interface cannot submit a bypass proposal or claim success',
   assert.match(hook, /Proposte temporaneamente sospese/);
   assert.match(form, /disabled=\{true\}/);
   assert.match(form, /Proposte temporaneamente sospese/);
+  const page = read('client/src/pages/Amnistia/index.tsx');
+  assert.doesNotMatch(page, /<CreateButton|<CarceratoForm/, 'the unavailable form must not collect user input');
+  assert.match(page, /Nuove proposte temporaneamente sospese/, 'the pause must be explained on the page');
 });
 
 test('Capo di Stato cannot turn an arbitrary vote into a new public candidate', () => {
