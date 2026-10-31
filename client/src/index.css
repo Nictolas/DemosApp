@@ -386,7 +386,7 @@ body {
   flex-direction: column;
 }
 
-.demos-desktop-layout .capo-di-stato-page > div:first-child {
+.demos-desktop-layout .capo-di-stato-page > .container {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
