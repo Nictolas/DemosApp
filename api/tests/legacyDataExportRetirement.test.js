@@ -161,10 +161,12 @@ test('Legacy Axiom DELETE is retired over real Express HTTP without data or prov
   }
 });
 
-test('Legacy Axiom deletion is not reachable from the admin export UI', () => {
+test('Legacy Axiom migration and deletion are not reachable from the admin export UI', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../../client/src/pages/DataExport.tsx'), 'utf8');
-  assert.match(source, /Eliminazione da Neon sospesa/);
-  assert.doesNotMatch(source, /deleteMigratedData|\/admin\/axiom-migration\/delete-migrated/);
+  assert.match(source, /Migrazione legacy verso Axiom ed eliminazione da Neon sospese/);
+  assert.doesNotMatch(source, /deleteMigratedData|startAxiomMigration|\/admin\/axiom-migration\/(migrate|delete-migrated)/);
   const backend = fs.readFileSync(path.resolve(__dirname, '../routes/admin/axiom-migration.js'), 'utf8');
-  assert.doesNotMatch(backend, /TRUNCATE TABLE/);
+  assert.doesNotMatch(backend, /TRUNCATE TABLE|CREATE TABLE IF NOT EXISTS axiom_migration_stats/);
+  assert.match(backend, /router\.post\('\/migrate', verifyToken, requireAdmin/);
+  assert.match(backend, /Migrazione legacy verso Axiom sospesa/);
 });
