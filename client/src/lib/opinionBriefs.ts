@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these fifty-four canonical IDs opt in; the other 40 use the original
+ * Only these fifty-seven canonical IDs opt in; the other 37 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -2684,6 +2684,173 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Garante Privacy · FAQ sulla videosorveglianza", url: "https://www.garanteprivacy.it/faq/videosorveglianza" },
       { label: "EDPB · Guidelines 3/2019, versione definitiva 2020", url: "https://www.edpb.europa.eu/documents/guideline/guidelines-32019-on-processing-of-personal-data-through-video-devices_en" },
       { label: "Conferenza Stato-Città · Videosorveglianza negli enti locali", url: "https://www.conferenzastatocitta.gov.it/home/approfondimenti/tematiche-di-interesse/videosorveglianza-negli-enti-locali/indicazioni-del-garante-per-la-privacy-e-adempimenti-per-gli-enti-locali/" },
+    ],
+    verified,
+  },
+
+
+  adozioni_omogenitoriali: {
+    intro: "Consentire alle coppie dello stesso sesso l'accesso all'adozione con gli stessi controlli di idoneità e nell'interesse del minore. In Italia l'adozione piena congiunta non è generalmente aperta alle coppie unite civilmente, mentre esistono percorsi giudiziari di adozione in casi particolari: la seconda non equivale alla prima.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Italia oggi", title: "Adozione piena e casi particolari distinti", text: "La legge 184/1983 disciplina l'adozione piena; la giurisprudenza consente in determinate situazioni l'adozione in casi particolari del figlio del partner. La sentenza 68/2025 tutela uno specifico riconoscimento alla nascita dopo PMA estera: NON istituisce l'adozione piena congiunta." },
+      { label: "🇳🇱 Paesi Bassi", title: "Valutazione senza esclusione per sesso della coppia", text: "La legge consente dal 2001 alle coppie dello stesso sesso l'adozione nazionale alle condizioni previste anche per coppie di sesso diverso. Le regole variano per la partner della madre biologica e per l'adozione internazionale." },
+    ],
+    legalStatuses: [
+      { place: "🇳🇱 Paesi Bassi", status: "regulated", label: "Adozione nazionale aperta", rule: "Per coppie dello stesso o diverso sesso, con requisiti e decisione del giudice; condizioni diverse per la partner della madre biologica." },
+      { place: "🇮🇹 Italia", status: "limited", label: "Piena congiunta non generalmente aperta", rule: "Adozione in casi particolari possibile per il partner con decisione giudiziaria; distinto dal riconoscimento dello stato di figlio dopo PMA affrontato nel 2025." },
+    ],
+    measuredResultsTitle: "🇳🇱 / 🇮🇹 · regole e sentenze, non stime di esito",
+    measuredResults: [
+      {
+        place: "🇳🇱 Governo dei Paesi Bassi",
+        topic: "Accesso all'adozione da parte di coppie dello stesso sesso",
+        value: "2001",
+        period: "Normativa olandese",
+        meaning: "Anno da cui le coppie dello stesso sesso possono adottare; NON numero di bambini adottati né prova sull'esito delle adozioni.",
+        sourceUrl: "https://www.government.nl/themes/justice-security-and-defence/gender-equality/equal-rights-for-lgbtiq-people",
+      },
+      {
+        place: "🇳🇱 Governo dei Paesi Bassi",
+        topic: "Convivenza ordinaria prima della domanda",
+        value: "3 anni",
+        period: "Adozione nazionale da parte di coppie",
+        meaning: "In via generale sono richiesti almeno tre anni di convivenza e un anno di cura del minore; esistono eccezioni per la partner della madre biologica. NON è requisito italiano.",
+        sourceUrl: "https://www.government.nl/themes/family-health-and-care/adoption/adopting-a-dutch-child",
+      },
+      {
+        place: "🇮🇹 Corte costituzionale",
+        topic: "Parentela nell'adozione in casi particolari",
+        value: "79/2022",
+        period: "Sentenza depositata il 28 marzo 2022",
+        meaning: "Ha esteso la tutela ai rapporti civili con i parenti dell'adottante; NON ha aperto automaticamente l'adozione piena a tutte le coppie.",
+        sourceUrl: "https://www.cortecostituzionale.it/scheda-pronuncia/2022/79",
+      },
+      {
+        place: "🇮🇹 Corte costituzionale",
+        topic: "Tutela del figlio nato in Italia da PMA estera condivisa",
+        value: "68/2025",
+        period: "Sentenza depositata il 22 maggio 2025",
+        meaning: "Riconosce lo stato di figlio anche della madre intenzionale che aveva consentito alla PMA estera nel caso definito dalla sentenza; NON è una sentenza sull'adozione congiunta.",
+        sourceUrl: "https://www.cortecostituzionale.it/scheda-pronuncia/2025/68",
+      },
+    ],
+    evidenceCaveat: "Il modello olandese riguarda l'adozione di minori nei Paesi Bassi e NON consente di presumere identiche regole internazionali. In Italia l'adozione piena congiunta, l'adozione in casi particolari e il riconoscimento alla nascita dopo PMA sono istituti diversi: la sentenza 68/2025 non ha introdotto una legge generale sull'adozione per tutte le coppie dello stesso sesso. I quattro numeri sono date e requisiti giuridici, non tassi di adozione, di successo o di benessere dei minori.",
+    advantage: "Parità di accesso alla valutazione, maggiore tutela dei legami familiari esistenti e ampliamento delle famiglie idonee valutabili.",
+    concern: "Richiede procedure rigorose, tempi sostenibili e valutazioni individuali nell'interesse del minore; l'adozione internazionale può dipendere anche dalle leggi dello Stato d'origine.",
+    note: "L'idoneità deve essere verificata nel caso concreto. Non confondere il diritto di presentare domanda con un diritto automatico a ricevere un bambino in adozione.",
+    sources: [
+      { label: "Governo Paesi Bassi · Adozioni e diritti dal 2001", url: "https://www.government.nl/themes/justice-security-and-defence/gender-equality/equal-rights-for-lgbtiq-people" },
+      { label: "Governo Paesi Bassi · Condizioni adozione nazionale", url: "https://www.government.nl/themes/family-health-and-care/adoption/adopting-a-dutch-child" },
+      { label: "Corte costituzionale · Sentenza 79/2022", url: "https://www.cortecostituzionale.it/scheda-pronuncia/2022/79" },
+      { label: "Corte costituzionale · Sentenza 68/2025", url: "https://www.cortecostituzionale.it/scheda-pronuncia/2025/68" },
+    ],
+    verified,
+  },
+  sanita_privata_convenzionata: {
+    intro: "Aumentare il ricorso a prestazioni del Servizio sanitario regionale erogate da strutture private accreditate con accordi contrattuali. 'Privato accreditato', 'privato a pagamento' e 'servizio pubblico' non sono sinonimi: l'accreditamento da solo non garantisce un contratto di remunerazione.",
+    facts: [],
+    comparison: [
+      { label: "Sistema misto attuale", title: "Strutture pubbliche e privati accreditati", text: "Il SSN eroga prestazioni dei LEA tramite strutture pubbliche, equiparate e private accreditate con accordi. Le Regioni definiscono programmazione e contratti." },
+      { label: "Scelta regionale", title: "Più servizi acquistati da privati accreditati", text: "La Regione può stipulare o ampliare contratti mirati per volumi e prestazioni, mantenendo requisiti, controlli di qualità, tariffe e trasparenza sui tempi di attesa." },
+    ],
+    measuredResultsTitle: "🇮🇹 Ministero della Salute · Annuario SSN 2023",
+    measuredResults: [
+      {
+        place: "🇮🇹 Ministero della Salute",
+        topic: "Strutture di assistenza ospedaliera censite",
+        value: "996",
+        period: "Anno 2023 · tutte le nature giuridiche",
+        meaning: "Numero di strutture per assistenza ospedaliera, NON posti letto, prestazioni o pazienti e NON numero di ospedali privati.",
+        sourceUrl: "https://www.salute.gov.it/new/it/scheda-statistica/annuario-statistico/",
+      },
+      {
+        place: "🇮🇹 Ministero della Salute",
+        topic: "Quota delle strutture ospedaliere censite di natura pubblica",
+        value: "51,3%",
+        period: "Anno 2023 · categoria assistenza ospedaliera",
+        meaning: "Quota di STRUTTURE ospedaliere pubbliche, NON di posti letto, spesa pubblica o attività erogata; non indica la quota privata accreditata di ogni prestazione.",
+        sourceUrl: "https://www.salute.gov.it/new/it/scheda-statistica/annuario-statistico/",
+      },
+      {
+        place: "🇮🇹 Ministero della Salute",
+        topic: "Quota strutture private accreditate nel residenziale territoriale",
+        value: "85,1%",
+        period: "Anno 2023 · 8.114 strutture residenziali censite",
+        meaning: "Quota di STRUTTURE nel solo assistenziale territoriale residenziale; non quota di spesa regionale, pazienti o posti letto.",
+        sourceUrl: "https://www.salute.gov.it/new/it/scheda-statistica/annuario-statistico/",
+      },
+      {
+        place: "🇮🇹 Ministero della Salute",
+        topic: "Quota strutture private accreditate nella riabilitazione ex art. 26",
+        value: "78,4%",
+        period: "Anno 2023 · 1.203 strutture riabilitative censite",
+        meaning: "Quota di STRUTTURE nella categoria riabilitazione ex art. 26 legge 833/1978, diversa dalle strutture ospedaliere e residenziali.",
+        sourceUrl: "https://www.salute.gov.it/new/it/scheda-statistica/annuario-statistico/",
+      },
+    ],
+    evidenceCaveat: "Le percentuali 51,3%, 85,1% e 78,4% riguardano CATEGORIE DIVERSE di strutture e non sono sommabili né confrontabili come quota di spesa o di posti letto. La prevalenza di privati accreditati in alcune categorie non dimostra riduzione delle liste d'attesa, maggior qualità delle cure o risparmio per il SSN. L'accreditamento richiede requisiti; per erogare e ricevere remunerazione dal SSN occorrono anche accordi contrattuali e volumi definiti. L'Annuario 2023 non descrive automaticamente l'offerta regionale del 2026.",
+    advantage: "Può aumentare la capacità di offrire prestazioni dei LEA se i contratti integrano il servizio pubblico e i risultati sono monitorati.",
+    concern: "Può spostare risorse senza migliorare l'accesso, accentuare squilibri fra territori o prestazioni, e richiede controlli rigorosi su tariffe e selezione dei pazienti.",
+    note: "Confrontare volumi erogati, tempi d'attesa, esiti clinici, costi e ripartizione geografica, non solo percentuali di strutture per categoria.",
+    sources: [
+      { label: "Ministero Salute · Annuario statistico SSN 2023", url: "https://www.salute.gov.it/new/it/scheda-statistica/annuario-statistico/" },
+      { label: "Ministero Salute · LEA, erogatori e accordi contrattuali", url: "https://www.salute.gov.it/new/it/tema/livelli-essenziali-di-assistenza/lea-regioni-e-province-autonome/" },
+      { label: "Ministero Salute · Tariffe SSN, aggiornamento settembre 2026", url: "https://www.salute.gov.it/new/it/tema/programmazione-e-finanziamento-del-ssn/tariffari-nazionali-delle-prestazioni-del-ssn/" },
+    ],
+    verified,
+  },
+  sicurezza_strade_scolastiche: {
+    intro: "Realizzare attraversamenti protetti, percorsi accessibili e strade scolastiche con limitazioni dei veicoli nei pressi degli ingressi. Le esperienze di Milano, Bologna e Roma mostrano forme diverse di intervento: lavori realizzati, limiti di velocità e cantieri programmati non equivalgono a incidenti evitati.",
+    facts: [],
+    comparison: [
+      { label: "Gestione tradizionale", title: "Veicoli presenti davanti agli ingressi", text: "Circolazione e sosta sono regolate da segnaletica ordinaria, con eventuali attraversamenti e controlli puntuali." },
+      { label: "Strada scolastica protetta", title: "Spazi più sicuri per entrate e uscite", text: "Limitazioni temporanee o permanenti ai veicoli, protezioni pedonali, accessibilità, moderazione della velocità, deroghe per emergenze e servizi essenziali." },
+    ],
+    measuredResultsTitle: "🇮🇹 Milano, Bologna e Roma · misure locali 2025–2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 Milano · report mobilità",
+        topic: "Scuole primarie interessate da moderazione del traffico",
+        value: "circa 26%",
+        period: "Ranking Clean Cities 2025 riportato dal Comune nel 2026",
+        meaning: "Stima di scuole interessate da interventi, NON quota di strade chiuse sempre al traffico né riduzione misurata degli incidenti.",
+        sourceUrl: "https://www.comune.milano.it/w/mobilit%C3%A0.-milano-cambia-il-modo-di-muoversi-presentato-il-report-della-mobilit%C3%A0-2025",
+      },
+      {
+        place: "🇮🇹 Bologna · Parco Grosso",
+        topic: "Limite nella nuova zona residenziale scolastica",
+        value: "20 km/h",
+        period: "Zona attiva dal 6 luglio 2026",
+        meaning: "Limite di progetto in una zona specifica, associato a interventi sui marciapiedi e accessi; NON velocità media registrata dei veicoli.",
+        sourceUrl: "https://mandato-2021-2026.comune.bologna.it/azioni/nuova-zona-residenziale-scolastica-parco-grosso/",
+      },
+      {
+        place: "🇮🇹 Roma · Roma Servizi per la Mobilità",
+        topic: "Strade scolastiche già completate",
+        value: "15",
+        period: "Stato comunicato l'8 dicembre 2025",
+        meaning: "Numero di interventi indicato prima dei successivi cantieri. NON totale delle scuole romane e NON numero di incidenti evitati.",
+        sourceUrl: "https://romamobilita.it/primo-piano/dalla-giunta-comunale-ok-ai-progetti-per-altre-otto-strade-scolastiche/",
+      },
+      {
+        place: "🇮🇹 Roma · Roma Servizi per la Mobilità",
+        topic: "Nuovi cantieri per strade scolastiche",
+        value: "6",
+        period: "Avvio 27 ottobre 2026; completamento previsto entro dicembre",
+        meaning: "Interventi avviati e programmati in sei Municipi, NON già conclusi alla data di verifica e NON sei strade da sommare automaticamente a ogni altro annuncio.",
+        sourceUrl: "https://romamobilita.it/piani-e-progetti/strade-scolastiche/",
+      },
+    ],
+    evidenceCaveat: "Il circa 26% milanese si riferisce alla quota di scuole primarie toccate da INTERVENTI DI MODERAZIONE, non a tutte le strade permanentemente pedonali. Il limite di 20 km/h a Bologna è una regola della zona Parco Grosso, non un risultato di velocità osservata. Le 15 strade già completate a Roma a dicembre 2025 e i 6 cantieri avviati in ottobre 2026 descrivono momenti e programmi diversi, non un confronto causale. Per misurare sicurezza servono dati prima/dopo su incidenti, velocità, attraversamenti e accessibilità.",
+    advantage: "Può ridurre conflitti fra veicoli e bambini presso gli ingressi, favorire l'autonomia negli spostamenti e l'accesso pedonale.",
+    concern: "Deve prevedere accessibilità per disabilità, emergenze, trasporto scolastico e residenti; può richiedere controlli e ridisegnare il traffico nelle vie vicine.",
+    note: "Distinguere aree car-free temporanee, zone 20/30, marciapiedi protetti e strade pedonali permanenti. Le regole locali e le categorie esentate variano.",
+    sources: [
+      { label: "Comune Milano · Mobilità 2025, strade scolastiche", url: "https://www.comune.milano.it/w/mobilit%C3%A0.-milano-cambia-il-modo-di-muoversi-presentato-il-report-della-mobilit%C3%A0-2025" },
+      { label: "Comune Bologna · Parco Grosso attivo luglio 2026", url: "https://mandato-2021-2026.comune.bologna.it/azioni/nuova-zona-residenziale-scolastica-parco-grosso/" },
+      { label: "Roma Mobilità · 15 completate a dicembre 2025", url: "https://romamobilita.it/primo-piano/dalla-giunta-comunale-ok-ai-progetti-per-altre-otto-strade-scolastiche/" },
+      { label: "Roma Mobilità · 6 cantieri avviati a ottobre 2026", url: "https://romamobilita.it/piani-e-progetti/strade-scolastiche/" },
     ],
     verified,
   },
