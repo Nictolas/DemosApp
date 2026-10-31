@@ -431,84 +431,14 @@ router.get('/status', requireAdmin, async (req, res) => {
  * POST /api/admin/data-export/start
  * Avvia l'export dei dati
  */
-router.post('/start', requireAdmin, async (req, res) => {
-  try {
-    if (exportStatus.isRunning) {
-      return res.status(400).json({ error: 'Export già in corso' });
-    }
-
-    const { tables, deleteAfterExport = false, dryRun = false } = req.body;
-
-    if (!tables || tables.length === 0) {
-      return res.status(400).json({ error: 'Nessuna tabella selezionata' });
-    }
-
-    // Reset stato
-    exportStatus = {
-      isRunning: true,
-      progress: 0,
-      currentTable: '',
-      totalTables: tables.length,
-      exportedRecords: 0,
-      totalRecords: 0,
-      error: null
-    };
-
-    // Avvia processo export
-    const scriptPath = path.join(__dirname, '../../scripts/hard-disk-export.js');
-    const args = ['export'];
-    
-    if (deleteAfterExport) args.push('--delete');
-    if (dryRun) args.push('--dry-run');
-
-    exportProcess = spawn('node', [scriptPath, ...args], {
-      env: { ...process.env, EXPORT_TABLES: tables.join(',') }
-    });
-
-    exportProcess.stdout.on('data', (data) => {
-      const output = data.toString();
-      console.log('Export output:', output);
-      
-      // Parsing output per aggiornare stato
-      if (output.includes('Esportazione')) {
-        const match = output.match(/Esportazione (\w+)/);
-        if (match) {
-          exportStatus.currentTable = match[1];
-        }
-      }
-      
-      if (output.includes('Record esportati:')) {
-        const match = output.match(/Record esportati: (\d+)/);
-        if (match) {
-          exportStatus.exportedRecords = parseInt(match[1]);
-        }
-      }
-    });
-
-    exportProcess.stderr.on('data', (data) => {
-      console.error('Export error:', data.toString());
-      exportStatus.error = data.toString();
-    });
-
-    exportProcess.on('close', (code) => {
-      exportStatus.isRunning = false;
-      exportStatus.progress = 100;
-      
-      if (code !== 0) {
-        exportStatus.error = `Processo terminato con codice ${code}`;
-      }
-      
-      exportProcess = null;
-    });
-
-    res.json({ message: 'Export avviato', status: exportStatus });
-
-  } catch (error) {
-    console.error('Errore avvio export:', error);
-    exportStatus.isRunning = false;
-    exportStatus.error = error.message;
-    res.status(500).json({ error: 'Errore avvio export' });
-  }
+// Legacy disk export is retired until retention, delivery and deletion policy are approved.
+// Never spawn the old script or accept its --delete option via HTTP.
+router.post('/start', requireAdmin, (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.status(410).json({
+    success: false,
+    error: 'Export legacy non disponibile: verifica GDPR e conservazione dati in corso'
+  });
 });
 
 /**
