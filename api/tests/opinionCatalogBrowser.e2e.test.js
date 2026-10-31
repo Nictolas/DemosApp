@@ -758,7 +758,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok(data.includes('non soltanto comunali') &&
             data.includes('forme di accesso differenti'),
             'Do not equate all libraries with municipal services or physical with hybrid use');
-          assert.ok(data.includes('non dimostrano che costruirne una nuova aumenti lettura'),
+          assert.ok(data.includes('né dimostrano che costruirne una nuova aumenti lettura'),
             'National usage does not forecast benefits of building an individual library');
         }
       } else {
