@@ -31,13 +31,20 @@ export const VotingForm: React.FC<VotingFormProps> = ({
 }) => {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const nomePulito = nomeInput.trim();
     if (!nomePulito) return;
-    
-    onAddNome(nomePulito);
+    // Il voto non crea nuovi candidati: il nome deve già comparire nella lista.
+    const candidate = classifica.find(item => item.nome.toLocaleLowerCase('it') === nomePulito.toLocaleLowerCase('it'));
+    if (!candidate) {
+      setSearchError("Puoi votare soltanto candidati già presenti nella classifica.");
+      return;
+    }
+    setSearchError("");
+    onAddNome(candidate.nome);
     setNomeInput("");
   };
 
@@ -62,7 +69,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
             <div className="min-w-0">
               <h2 className="text-base font-bold lg:text-2xl lg:text-lg">Il tuo voto</h2>
               <CardDescription className="sr-only lg:not-sr-only lg:mt-0.5 lg:text-xs lg:leading-snug lg:text-blue-100">
-                Scegli dalla classifica o aggiungi un nome. Massimo {limit} voto{limit !== 1 ? 'i' : ''}.
+                Scegli dalla classifica o cerca un nome già presente. Massimo {limit} voto{limit !== 1 ? 'i' : ''}.
               </CardDescription>
             </div>
           </div>
@@ -94,10 +101,11 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
               <Input
-                placeholder="Nome del candidato..."
+                placeholder="Cerca tra i candidati..."
                 value={nomeInput}
                 onChange={(e) => { 
-                  setNomeInput(e.target.value); 
+                  setNomeInput(e.target.value);
+                  setSearchError("");
                   setShowSuggestions(true); 
                 }}
                 onFocus={() => setShowSuggestions(true)}
@@ -132,6 +140,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
               Aggiungi
             </Button>
           </div>
+          {searchError && <p role="alert" className="text-xs text-red-700">{searchError}</p>}
         </form>
 
         {selectedVoti.length > 0 ? (
