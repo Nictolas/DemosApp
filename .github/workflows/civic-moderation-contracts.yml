@@ -13,6 +13,7 @@ on:
       - 'api/tests/notificationRecipientAndReactionsSecurity.test.js'
       - 'api/tests/civicPrivacyHttp.synthetic.test.js'
       - 'api/tests/graziaModerationContract.test.js'
+      - 'api/tests/graziaModerationHttp.synthetic.test.js'
       - 'api/tests/civicSubjectPublicationGate.test.js'
       - 'client/src/pages/Grazia/**'
       - 'client/src/pages/Amnistia/**'
@@ -55,6 +56,13 @@ jobs:
       - name: Grazia moderation tests (when branch contains repair)
         run: |
           if test -f api/tests/graziaModerationContract.test.js; then node --test api/tests/graziaModerationContract.test.js; fi
+      - name: Synthetic Grazia moderation HTTP checks
+        env:
+          NODE_PATH: /tmp/demos-http-test/node_modules
+        run: |
+          if test -f api/tests/graziaModerationHttp.synthetic.test.js; then
+            node --test api/tests/graziaModerationHttp.synthetic.test.js
+          fi
       - name: Amnesty / head-of-state gates (when present)
         run: |
           if test -f api/tests/civicSubjectPublicationGate.test.js; then node --test api/tests/civicSubjectPublicationGate.test.js; fi
