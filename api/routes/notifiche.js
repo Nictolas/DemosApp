@@ -25,7 +25,7 @@ router.get('/', verifyToken, async (req, res) => {
     
     const userInfo = userInfoResult.rows[0] || null;
     // I privilegi admin derivano dal ruolo dell'utente autenticato, non da un ID fornito dal client.
-    const isAdmin = req.user.role === 'AD';
+    const isAdmin = Boolean(req.user?.isAdmin);
     const userComuneResidenza = userInfo ? userInfo.comune_residenza : null;
     
     let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult, opinionChangesResult;
@@ -200,7 +200,7 @@ router.get('/', verifyToken, async (req, res) => {
             NULL::TEXT as comune_residenza,
             'notifiche_demos' as tabella_origine
           FROM notifiche_demos
-          WHERE (titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = $1::uuid)
+          WHERE (id_utente IS NULL OR id_utente = $1::uuid)
           ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
           LIMIT 50
         `, [user_id]);
@@ -946,7 +946,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
           data_creazione,
           'notifiche_demos' as tabella_origine
         FROM notifiche_demos
-        WHERE (titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = $1::uuid)
+        WHERE (id_utente IS NULL OR id_utente = $1::uuid)
         ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
         LIMIT 1
       `, [userId]);
