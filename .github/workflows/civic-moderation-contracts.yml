@@ -11,6 +11,7 @@ on:
       - 'api/routes/amnistia.js'
       - 'api/routes/capo-stato.js'
       - 'api/tests/notificationRecipientAndReactionsSecurity.test.js'
+      - 'api/tests/civicPrivacyHttp.synthetic.test.js'
       - 'api/tests/graziaModerationContract.test.js'
       - 'api/tests/civicSubjectPublicationGate.test.js'
       - 'client/src/pages/Grazia/**'
@@ -45,6 +46,12 @@ jobs:
           node --check api/routes/capo-stato.js
       - name: Privacy and reaction tests
         run: node --test api/tests/notificationRecipientAndReactionsSecurity.test.js
+      - name: Install isolated HTTP testing dependencies (no database)
+        run: npm install --prefix /tmp/demos-http-test --no-save --ignore-scripts --no-audit --no-fund express@4.22.3 dotenv@16.3.1
+      - name: Two-user privacy isolation via synthetic HTTP
+        env:
+          NODE_PATH: /tmp/demos-http-test/node_modules
+        run: node --test api/tests/civicPrivacyHttp.synthetic.test.js
       - name: Grazia moderation tests (when branch contains repair)
         run: |
           if test -f api/tests/graziaModerationContract.test.js; then node --test api/tests/graziaModerationContract.test.js; fi
