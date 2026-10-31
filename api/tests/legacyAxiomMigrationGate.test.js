@@ -13,13 +13,21 @@ const cliScripts = [
   'scripts/start-axiom-migration.js',
   'scripts/run-migration.js',
   'scripts/migrate-direct-http.js',
-  'scripts/check-migration-config.js'
+  'scripts/check-migration-config.js',
+  'scripts/start-migration-with-login.js',
+  'scripts/test-migration-direct.js',
+  'scripts/generate-admin-token.js',
+  'scripts/check-axiom-env-render.js',
+  'scripts/check-migration-status.js'
 ];
 
-test('seven legacy CLI/diagnostic entrypoints reject before env, SQL or external I/O', () => {
+test('twelve legacy CLI/diagnostic entrypoints reject before env, SQL or external I/O', () => {
   for (const relative of cliScripts) {
     const filename = path.join(repoRoot, relative);
     const source = readFileSync(filename, 'utf8');
+    assert.doesNotMatch(source, /const\s+ADMIN_(?:EMAIL|PASSWORD)\s*=/, relative + ': embedded Admin credentials are forbidden');
+    assert.doesNotMatch(source, /generateTokenPair|Authorization:\s*Bearer\s*\$\{/,
+      relative + ': obsolete token generation/printing is forbidden');
     const guard = source.indexOf('exitRetiredLegacyAxiomMigration()');
     assert.ok(guard >= 0, relative + ': missing fail-closed guard');
     for (const marker of ["require('pg')", "require('axios')", "require('dotenv')"]) {
