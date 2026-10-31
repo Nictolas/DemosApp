@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const { readFileSync } = require('node:fs');
 
 // The router is exercised over loopback HTTP with invented auth and services.
 // No real users, databases, backups, files, credentials or providers are used.
@@ -129,4 +130,12 @@ test('all legacy backup HTTP endpoints return no-store 410 without service calls
     }
     assert.equal(sideEffects(), 0);
   });
+});
+
+test('retired backup router contains no legacy file, database or job implementation', () => {
+  const source = readFileSync(require.resolve('../routes/admin/backup'), 'utf8');
+  assert.doesNotMatch(source, /require\(['"]\.\.\/\.\.\/services\/backupService['"]\)/);
+  assert.doesNotMatch(source, /require\(['"]\.\.\/\.\.\/jobs\/backupJob['"]\)/);
+  assert.doesNotMatch(source, /readFile|writeFile|unlink|pg\.|pool\.query|restoreFromBackup/);
+  assert.match(source, /LEGACY_APP_BACKUP_RETIRED/);
 });
