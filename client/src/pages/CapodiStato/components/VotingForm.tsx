@@ -53,7 +53,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
 
   return (
     <Card className="overflow-hidden rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm lg:border-2 lg:shadow-xl lg:h-full lg:min-h-0 lg:flex lg:flex-col">
-      <CardHeader className="shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2.5 text-white lg:p-6 lg:pb-4 lg:py-3 lg:pb-3">
+      <CardHeader className="shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-2 py-1.5 text-white lg:px-6 lg:py-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-start gap-2 lg:items-center lg:gap-3">
             <div className="hidden shrink-0 rounded-lg bg-white/20 p-2 backdrop-blur-sm lg:block lg:p-1.5">
@@ -61,7 +61,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
             </div>
             <div className="min-w-0">
               <h2 className="text-base font-bold lg:text-2xl lg:text-lg">Il tuo voto</h2>
-              <CardDescription className="mt-0.5 text-xs leading-snug text-blue-100 lg:mt-1 lg:text-sm lg:mt-0.5 lg:line-clamp-2 lg:text-xs">
+              <CardDescription className="sr-only lg:not-sr-only lg:mt-0.5 lg:text-xs lg:leading-snug lg:text-blue-100">
                 Scegli dalla classifica o aggiungi un nome. Massimo {limit} voto{limit !== 1 ? 'i' : ''}.
               </CardDescription>
             </div>
@@ -89,8 +89,8 @@ export const VotingForm: React.FC<VotingFormProps> = ({
           </div>
         )}
       </CardHeader>
-      <CardContent className="px-3 pb-2 pt-2.5 lg:px-6 lg:pb-6 lg:pt-6 lg:pt-3 lg:pb-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-        <form onSubmit={handleSubmit} className="mb-2 space-y-2 lg:mb-6 lg:space-y-4 lg:mb-3 lg:space-y-2">
+      <CardContent className="px-2 pb-1 pt-1 lg:px-6 lg:pb-3 lg:pt-3">
+        <form onSubmit={handleSubmit} className="mb-0 space-y-1 lg:mb-3 lg:space-y-2">
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
               <Input
@@ -170,7 +170,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
             </div>
           </div>
         ) : (
-          <div className="rounded-lg bg-white/60 px-2 py-2 text-center lg:py-8 lg:py-3">
+          <div className="hidden rounded-lg bg-white/60 px-2 py-2 text-center lg:block lg:py-3">
             <div className="mx-auto mb-4 hidden h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-gray-200 to-gray-300 lg:flex lg:mb-2 lg:h-12 lg:w-12">
               <ThumbsUp className="h-10 w-10 text-gray-400 lg:h-6 lg:w-6" />
             </div>
