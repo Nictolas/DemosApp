@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - 'api/app.js'
       - 'api/routes/health.js'
       - 'api/routes/database.js'
       - 'api/routes/test-db.js'
