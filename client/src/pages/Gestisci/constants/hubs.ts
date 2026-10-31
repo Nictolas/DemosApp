@@ -17,7 +17,7 @@ export const gestisciHubs: GestisciHub[] = [
     description: "Account, statistiche e richieste di riconoscimento.",
     icon: Users,
     buttonColor: "bg-purple-600 hover:bg-purple-700",
-    sectionIds: ["utenti", "riconoscimenti", "proposte-soggetti"],
+    sectionIds: ["utenti", "riconoscimenti", "proposte-soggetti", "grazia-proposte"],
   },
   {
     id: "contenuti",

@@ -23,7 +23,6 @@ function queryOrganizations(sqlTemplate, values = []) {
 router.get('/', async (req, res) => {
   try {
     const { search, regione, tipologia, exclude_user_id } = req.query;
-    console.log('🔍 GET /api/organizzazioni - Lista organizzazioni richiesta', { search, regione, tipologia, exclude_user_id });
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -52,19 +51,16 @@ router.get('/', async (req, res) => {
     if (regione && regione.trim() && regione !== 'all') {
       // Converte nome regione in codice per la query database
       const regionCode = compressRegione(regione.trim());
-      console.log('🔍 Filtro regione:', { regione, regionCode });
       if (regionCode) {
         whereConditions.push(`u.regione_residenza = $${paramIndex}`);
         queryParams.push(regionCode);
         paramIndex++;
       } else {
-        console.log('⚠️ Regione non riconosciuta o non trovata:', regione);
       }
     }
 
     // Filtro per tipologia di attivismo (le organizzazioni possono avere tipologie)
     if (tipologia && tipologia.trim() && tipologia !== 'all') {
-      console.log('🔍 Filtro tipologia:', tipologia);
       whereConditions.push(`u.tipologie_attivismo @> $${paramIndex}`);
       queryParams.push(JSON.stringify([{ tipo: tipologia.trim() }]));
       paramIndex++;
@@ -79,12 +75,6 @@ router.get('/', async (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
-    // Log per debug
-    console.log('🔍 Query params:', { 
-      whereConditions, 
-      queryParams, 
-      whereClause 
-    });
 
     // Query per ottenere tutti gli utenti con ruolo "Organizzazione" con conteggio voti e ordinati
     const result = await queryOrganizations(`
@@ -127,12 +117,12 @@ router.get('/', async (req, res) => {
     
     const organizzazioni = result.rows;
     
-    console.log(`✅ Trovate ${organizzazioni.length} organizzazioni`);
     
     // One indexed read piggybacks on the directory response; no extra browser GET.
+    // Public directory shows only approved IDs and titles: user-submitted details and source links are private to moderation.
     // Pending/rejected proposals and proposer identities are never exposed.
     const approvedSubjects = await pool.query(
-      "SELECT id, title, details, source_url FROM subject_proposals WHERE status='approved' AND category=$1 ORDER BY reviewed_at DESC LIMIT 100",
+      "SELECT id, title FROM subject_proposals WHERE status='approved' AND category=$1 ORDER BY reviewed_at DESC LIMIT 100",
       ['organizzazioni']
     );
 
@@ -145,7 +135,7 @@ router.get('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero delle organizzazioni:', error);
+    console.error('❌ Errore nel recupero delle organizzazioni:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -157,7 +147,6 @@ router.get('/', async (req, res) => {
 // GET /api/organizzazioni/filtri - Ottieni regioni e tipologie disponibili per i filtri
 router.get('/filtri', async (req, res) => {
   try {
-    console.log('🔍 GET /api/organizzazioni/filtri - Filtri disponibili richiesti');
     
     // Ottieni regioni uniche e decompresse per il frontend
     const regioniResult = await queryOrganizations(`
@@ -187,9 +176,6 @@ router.get('/filtri', async (req, res) => {
     
     const tipologie = tipologieResult.rows.map(row => row.tipo);
     
-    console.log(`✅ Filtri disponibili: ${regioni.length} regioni, ${tipologie.length} tipologie`);
-    console.log('📍 Regioni disponibili:', regioni);
-    console.log('🎯 Tipologie disponibili:', tipologie);
     
     res.json({
       success: true,
@@ -201,7 +187,7 @@ router.get('/filtri', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero dei filtri:', error);
+    console.error('❌ Errore nel recupero dei filtri:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',

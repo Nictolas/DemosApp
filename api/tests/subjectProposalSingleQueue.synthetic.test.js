@@ -92,6 +92,7 @@ test('Admin generic queue explicitly excludes the Grazia category', async () => 
   await app.methods.get.get('/admin')({},res);
   assert.equal(res.statusCode, 200);
   assert.match(app.queries[0].sql, /status='pending' AND category <> 'grazia'/);
+  assert.doesNotMatch(app.queries[0].sql, /proposer_user_id/,'no proponent UUID in Admin list projection');
   assert.deepEqual(res.body.proposals, []);
 });
 

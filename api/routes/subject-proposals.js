@@ -8,7 +8,7 @@ const CATEGORIES = new Set(['capo_stato', 'amnistia', 'attivisti', 'organizzazio
 
 function cleanProposal(body) {
   const category = typeof body?.category === 'string' ? body.category : '';
-  const title = typeof body?.title === 'string' ? body.title.trim().replace(/\s+/g, ' ') : '';
+  const title = typeof body?.title === 'string' ? body.title.normalize('NFC').trim().replace(/\s+/g, ' ') : '';
   const details = typeof body?.details === 'string' ? body.details.trim() : '';
   const sourceUrl = typeof body?.source_url === 'string' ? body.source_url.trim() : '';
   if (category === 'grazia') return { error: 'Per Grazia utilizzare la coda dedicata', code: 'GRAZIA_CODA_UNICA' };
@@ -55,7 +55,9 @@ router.get('/mine', verifyToken, async (req, res) => {
   }
 });
 
-// Approved directory nominations are read-only. Never impersonate an actual DEMOS account.
+// Approved directory nominations expose only the reviewed title, never raw user-submitted
+// narrative or source links. Admin moderation still retains the original evidence.
+// Never impersonate an actual DEMOS account.
 router.get('/approved', async (req, res) => {
   const category = String(req.query.category || '');
   if (category !== 'attivisti' && category !== 'organizzazioni') {
@@ -63,10 +65,10 @@ router.get('/approved', async (req, res) => {
   }
   try {
     const result = await pool.query(
-      "SELECT id, title, details, source_url FROM subject_proposals WHERE category=$1 AND status='approved' ORDER BY reviewed_at DESC LIMIT 100",
+      "SELECT id, title FROM subject_proposals WHERE category=$1 AND status='approved' ORDER BY reviewed_at DESC LIMIT 100",
       [category]
     );
-    res.set('Cache-Control', 'public, max-age=60');
+    res.set('Cache-Control', 'no-store');
     return res.json({ success: true, data: result.rows });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Elenco temporaneamente non disponibile' });
@@ -105,13 +107,111 @@ router.post('/', verifyToken, async (req, res) => {
 router.get('/admin', verifyToken, requireAdmin, async (_req, res) => {
   try {
     const r = await pool.query(
-      "SELECT id, category, title, details, source_url, proposer_user_id, created_at FROM subject_proposals WHERE status='pending' AND category <> 'grazia' ORDER BY created_at ASC LIMIT 100"
+      "SELECT id, category, title, details, source_url, created_at FROM subject_proposals WHERE status='pending' AND category <> 'grazia' ORDER BY created_at ASC LIMIT 100"
     );
     res.set('Cache-Control', 'private, no-store');
     return res.json({ success: true, proposals: r.rows });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Coda moderazione non disponibile' });
   }
+});
+
+// Approved nominations are fetched only on demand in the Admin panel.
+// Never expose proposer UUID, private notes or the original source URL in this listing.
+router.get('/admin/approved', verifyToken, requireAdmin, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      "SELECT id, category, title, reviewed_at FROM subject_proposals WHERE status='approved' AND category IN ('attivisti','organizzazioni') ORDER BY reviewed_at DESC LIMIT 100"
+    );
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ success: true, proposals: r.rows });
+  } catch (_) {
+    return res.status(503).json({ success: false, error: 'Elenco approvati temporaneamente non disponibile' });
+  }
+});
+
+// Audit-only review of notifications that were not confirmed during a withdrawal.
+// Explicit Admin click only: no extra GET on opening Gestisci. Do not expose a
+// proposer UUID, title, source, note, or any other third-party personal content.
+// Legacy NULL after withdrawal is "unknown" and needs manual checking too.
+router.get('/admin/withdraw-notifications', verifyToken, requireAdmin, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      "SELECT id, category, withdrawn_at FROM subject_proposals WHERE status='withdrawn' AND category IN ('attivisti','organizzazioni') AND withdraw_notification_sent IS DISTINCT FROM TRUE ORDER BY withdrawn_at DESC NULLS LAST LIMIT 100"
+    );
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ success: true, withdrawals: r.rows });
+  } catch (_) {
+    return res.status(503).json({ success: false, error: 'Stato notifiche di ritiro temporaneamente non disponibile' });
+  }
+});
+
+// Emergency unpublish for the two title-only public directories. This is not
+// an erasure or a general-purpose DSAR endpoint: identity/grounds remain under DPO review.
+// Preserve the original approval reviewer/time/note and record a separate withdrawal audit.
+router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) => {
+  const id = String(req.params.id || '');
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || note.length < 3 || note.length > 500) {
+    return res.status(400).json({ success: false, error: 'ID o motivazione del ritiro non valida (3–500 caratteri)' });
+  }
+  // An unavailable notifications table must never prevent urgent unpublishing.
+  // Commit and release the protected withdrawal before attempting a notification.
+  let client;
+  let withdrawn;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const found = await client.query(
+      "SELECT id, category, proposer_user_id FROM subject_proposals WHERE id=$1 AND status='approved' AND category IN ('attivisti','organizzazioni') FOR UPDATE",
+      [id]
+    );
+    if (!found.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'Voce assente, non ritirabile o già ritirata' });
+    }
+    withdrawn = found.rows[0];
+    await client.query(
+      "UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now(), withdrawn_by=$2, withdraw_note=$3, published_ref=NULL, withdraw_notification_sent=FALSE WHERE id=$1 AND status='approved'",
+      [withdrawn.id, req.user.id, note]
+    );
+    await client.query('COMMIT');
+  } catch (_) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* connection may be lost */ }
+    }
+    return res.status(503).json({ success: false, error: 'Ritiro temporaneamente non disponibile' });
+  } finally {
+    client?.release();
+  }
+
+  // Independent notification transaction. Either the private notification AND
+  // its durable delivery flag commit, or neither does; a crash before this
+  // transaction leaves FALSE for later authorized review. Never auto-resend:
+  // old/unknown delivery must be checked to avoid duplicate notifications.
+  let notificationSent = false;
+  let noticeClient;
+  try {
+    noticeClient = await pool.connect();
+    await noticeClient.query('BEGIN');
+    await notify(noticeClient, withdrawn.proposer_user_id,
+      'La pubblicazione della tua proposta in ' + withdrawn.category + ' è stata ritirata.');
+    await noticeClient.query(
+      "UPDATE subject_proposals SET withdraw_notification_sent=TRUE WHERE id=$1 AND status='withdrawn' AND withdraw_notification_sent=FALSE",
+      [withdrawn.id]
+    );
+    await noticeClient.query('COMMIT');
+    notificationSent = true;
+  } catch (_) {
+    if (noticeClient) {
+      try { await noticeClient.query('ROLLBACK'); } catch (_) { /* disconnected */ }
+    }
+    // Do not log a third-party name or change the already-committed withdrawal.
+  } finally {
+    noticeClient?.release();
+  }
+  res.set('Cache-Control', 'private, no-store');
+  return res.json({ success: true, status: 'withdrawn', notification_sent: notificationSent });
 });
 
 // Atomic review: the canonical public list changes only inside an authorized approval transaction.

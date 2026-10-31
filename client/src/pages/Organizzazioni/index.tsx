@@ -13,6 +13,8 @@ import OrganizzazioneModal from "@/components/OrganizzazioneModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiUrl } from "@/lib/api-config";
+import { useApprovedSubjectResumeRefresh } from "@/hooks/useApprovedSubjectResumeRefresh";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -54,7 +56,7 @@ interface organizzazione {
 interface OrganizzazioniResponse {
   success: boolean;
   data: organizzazione[];
-  approved_subjects?: Array<{ id: string; title: string; details: string; source_url: string | null }>;
+  approved_subjects?: Array<{ id: string; title: string }>;
   count: number;
   message: string;
 }
@@ -62,9 +64,8 @@ interface OrganizzazioniResponse {
 export default function Organizzazioni() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const API_BASE = 'https://demos-c7k0.onrender.com';
   const [organizzazioni, setOrganizzazioni] = useState<organizzazione[]>([]);
-  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string; details: string; source_url: string | null }>>([]);
+  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
   const [filteredOrganizzazioni, setFilteredOrganizzazioni] = useState<organizzazione[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegione, setSelectedRegione] = useState("all");
@@ -80,11 +81,14 @@ export default function Organizzazioni() {
   const [supportersCount, setSupportersCount] = useState<Record<string, number>>({});
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
+  // No initial extra read or polling. On foreground resume, discard stale nominations.
+  useApprovedSubjectResumeRefresh("organizzazioni", setApprovedSubjects, !isLoading && !isError);
+
   // Carica filtri disponibili e stato following
   useEffect(() => {
     const fetchFiltri = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/organizzazioni/filtri`);
+        const response = await fetch(getApiUrl('/api/organizzazioni/filtri'));
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -121,12 +125,12 @@ export default function Organizzazioni() {
   // Carica gli organizzazioni
   useEffect(() => {
     const controller = new AbortController();
-    console.log('🚀 Organizzazioni useEffect - Inizio');
     const fetchOrganizzazioni = async () => {
       try {
-        console.log('🔄 fetchOrganizzazioni - Inizio caricamento');
         setIsLoading(true);
         setIsError(false);
+        // Clear stale approved names whenever filters or queries restart.
+        setApprovedSubjects([]);
         
         // Costruisci URL con parametri di ricerca
         const params = new URLSearchParams();
@@ -134,25 +138,19 @@ export default function Organizzazioni() {
         if (selectedRegione && selectedRegione !== 'all') params.append('regione', selectedRegione);
         if (selectedTipologia && selectedTipologia !== 'all') params.append('tipologia', selectedTipologia);
         
-        const url = `${API_BASE}/api/organizzazioni${params.toString() ? '?' + params.toString() : ''}`;
-        console.log('📡 fetchOrganizzazioni - Chiamata API:', url);
+        const url = getApiUrl(`/api/organizzazioni${params.toString() ? '?' + params.toString() : ''}`);
         
-        const response = await fetch(url, { signal: controller.signal });
-        console.log('📡 fetchOrganizzazioni - Response status:', response.status);
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
         
         if (!response.ok) {
           throw new Error(`Errore ${response.status}: ${response.statusText}`);
         }
         
-        console.log('📡 fetchOrganizzazioni - Parsing JSON...');
         const data: OrganizzazioniResponse = await response.json();
         // Una ricerca precedente non deve sovrascrivere i risultati dell'ultima digitazione.
         if (controller.signal.aborted) return;
-        console.log('📊 fetchOrganizzazioni - Data ricevuta:', data);
         
               if (data.success) {
-                console.log('✅ fetchOrganizzazioni - Successo, organizzazioni:', data.data.length);
-                console.log('📊 fetchOrganizzazioni - Dati organizzazioni:', data.data);
                 
                 // I dati arrivano già ordinati per supporters_count DESC
                 setOrganizzazioni(data.data as any);
@@ -160,21 +158,19 @@ export default function Organizzazioni() {
                 setFilteredOrganizzazioni(data.data as any);
                 const next: Record<string, number> = {};
                 (data.data as any[]).forEach((a) => { 
-                  console.log(`📊 organizzazione ${a.nome} ${a.cognome}: supporters_count = ${a.supporters_count}`);
                   next[a.id] = (a as any).supporters_count ?? 0; 
                 });
-                console.log('📊 supportersCount finale:', next);
                 setSupportersCount(next);
               } else {
           throw new Error(data.message || 'Errore nel caricamento degli organizzazioni');
         }
       } catch (error) {
         if (controller.signal.aborted) return;
+        setApprovedSubjects([]);
         console.error('❌ fetchOrganizzazioni - Errore:', error);
         setIsError(true);
         setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
       } finally {
-        console.log('🏁 fetchOrganizzazioni - Completato, setIsLoading(false)');
         if (!controller.signal.aborted) setIsLoading(false);
       }
     };
@@ -452,12 +448,6 @@ export default function Organizzazioni() {
     return tipologie.map(t => `${t.emoji} ${t.nome}`).join(', ');
   };
 
-  console.log('🎨 Organizzazioni render - isLoading:', isLoading, 'isError:', isError, 'organizzazioni.length:', organizzazioni.length, 'filteredOrganizzazioni.length:', filteredOrganizzazioni.length);
-  console.log('🎨 Organizzazioni render - organizzazioni data:', organizzazioni);
-  console.log('🎨 Organizzazioni render - filteredOrganizzazioni data:', filteredOrganizzazioni);
-  console.log('🎨 Organizzazioni render - searchTerm:', searchTerm);
-  console.log('🎨 Organizzazioni render - should show table:', !isLoading && !isError && filteredOrganizzazioni.length > 0);
-  console.log('🎨 Organizzazioni render - RENDERING PAGE NOW!');
   
   return (
     <PageContainer className="directory-organizzazioni-page overflow-hidden bg-gray-50">
@@ -780,12 +770,6 @@ export default function Organizzazioni() {
                         <CardTitle className="break-words text-base">{subject.title}</CardTitle>
                         <p className="text-xs text-slate-600">Soggetto pubblico approvato, non un account DEMOS verificato.</p>
                       </CardHeader>
-                      {(subject.details || subject.source_url) && (
-                        <CardContent className="space-y-2 px-3 pb-3 text-sm">
-                          {subject.details && <p className="break-words">{subject.details}</p>}
-                          {subject.source_url?.startsWith("https://") && <a href={subject.source_url} rel="noopener noreferrer" target="_blank" className="text-blue-700 underline">Fonte pubblica</a>}
-                        </CardContent>
-                      )}
                     </Card>
                   ))}
                 </div>

@@ -1,4 +1,5 @@
 const express = require('express');
+const { randomUUID } = require('crypto');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
@@ -8,10 +9,64 @@ const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceCh
 
 const router = express.Router();
 
-// POST /api/grazia - Crea richiesta di grazia
-router.post('/', verifyToken, (_req, res) => res.status(410).json({
-  success: false, error: 'Usa la sezione Proponi soggetto: ogni richiesta deve essere approvata dall’admin.'
-}));
+// POST /api/grazia - Registra una proposta privata, mai direttamente nel catalogo
+router.post('/', verifyToken, async (req, res) => {
+  const nome = typeof req.body?.nome === 'string' ? req.body.nome.trim() : '';
+  const urlProva = typeof req.body?.urlProva === 'string' ? req.body.urlProva.trim() : '';
+  if (nome.length < 3 || nome.length > 160) {
+    return res.status(400).json({ success: false, error: 'Nome non valido (3-160 caratteri)' });
+  }
+  // Accettiamo solo link a fonti HTTPS pubbliche; mai copia di sentenze o allegati.
+  try {
+    const url = new URL(urlProva);
+    if (url.protocol !== 'https:' || url.username || url.password || urlProva.length > 2000) throw new Error('URL non consentito');
+  } catch {
+    return res.status(400).json({ success: false, error: 'Inserisci un collegamento HTTPS pubblico valido' });
+  }
+  const userId = req.user.id;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Serializza gli invii concorrenti dello stesso account: max una pendente.
+    const owner = await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    if (!owner.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(401).json({ success: false, error: 'Utente non trovato' });
+    }
+    const pending = await client.query(
+      "SELECT id FROM richieste_grazia WHERE utente_id = $1 AND status = 'pending' LIMIT 1",
+      [userId]
+    );
+    if (pending.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'Hai già una proposta di Grazia in attesa' });
+    }
+    const duplicate = await client.query(
+      'SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome)) = LOWER($1) LIMIT 1', [nome]
+    );
+    if (duplicate.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'Questo soggetto è già presente' });
+    }
+    const id = randomUUID();
+    await client.query(
+      "INSERT INTO richieste_grazia (id, utente_id, nome, url_prova, status, data_creazione) VALUES ($1,$2,$3,$4,'pending',NOW())",
+      [id, userId, nome, urlProva]
+    );
+    // Notifica in-app, senza dati penali o nominativi in anteprima.
+    await client.query(
+      "INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data_creazione, data) SELECT gen_random_uuid(), id, 'DEMOS — Nuova proposta', 'Una proposta Grazia è in attesa di revisione.', NOW(), CURRENT_DATE FROM users WHERE is_admin = true AND status = 'a'"
+    );
+    await client.query('COMMIT');
+    return res.status(202).json({ success: true, richiesta: { id, status: 'pending' } });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Errore salvataggio richiesta Grazia:', error.code || error.message);
+    return res.status(500).json({ success: false, error: 'Impossibile registrare la proposta' });
+  } finally {
+    client.release();
+  }
+});
 
 // GET /api/grazia - Ottieni richieste di grazia
 router.get('/', async (req, res) => {
@@ -32,43 +87,17 @@ router.get('/', async (req, res) => {
       }
     }
 
-    // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
-    // Rimosso LIMIT per mostrare tutti i risultati (rimosso "Mostra Altro")
-    const query = `
-      SELECT *
-      FROM voti_grazia
-      ORDER BY created_at DESC
-    `;
-
-    const result = await pool.query(query);
-    console.log(`✅ Recuperati ${result.rows.length} record da voti_grazia`);
+    // Il feed pubblico espone soltanto risultati aggregati. I voti personali
+    // (userid, timestamp e preferenze) non devono essere restituiti a terzi.
 
     // La classifica include anche i carcerati inseriti dagli amministratori,
     // senza attribuire loro voti fittizi. Il catalogo è separato dalle preferenze.
-    const classificaQuery = `
-      WITH voti_per_nome AS (
-        SELECT BTRIM(nome) AS nome, COUNT(*)::bigint AS richieste
-        FROM voti_grazia
-        WHERE nome IS NOT NULL AND LENGTH(BTRIM(nome)) > 0
-        GROUP BY BTRIM(nome)
-      ), classificati AS (
-        SELECT v.nome, v.richieste
-        FROM voti_per_nome v
-        WHERE NOT EXISTS (
-          SELECT 1 FROM grazia_carcerati c
-          WHERE LOWER(BTRIM(c.nome)) = LOWER(v.nome) AND c.attivo = false
-        )
-        UNION ALL
-        SELECT nome, 0::bigint AS richieste
-        FROM grazia_carcerati
-        WHERE attivo = true
-      )
-      SELECT nome, SUM(richieste)::integer AS richieste
-      FROM classificati
-      GROUP BY nome
-      ORDER BY richieste DESC, nome ASC
-    `;
-
+    // Solo i soggetti esplicitamente approvati sono visibili; i voti legacy
+    // restano conservati per riconciliazione, ma non pubblicano nuove persone.
+    const classificaQuery =
+      'SELECT c.nome, COUNT(v.id)::integer AS richieste FROM grazia_carcerati c ' +
+      'LEFT JOIN voti_grazia v ON LOWER(BTRIM(v.nome)) = LOWER(BTRIM(c.nome)) ' +
+      'WHERE c.attivo = true GROUP BY c.id, c.nome ORDER BY richieste DESC, c.nome ASC';
     const classificaResult = await pool.query(classificaQuery);
     console.log(`✅ Classifica creata con ${classificaResult.rows.length} carcerati`);
 
@@ -139,7 +168,7 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       classifica: classificaResult.rows,
-      richieste: result.rows,
+      richieste: [], // Compatibilità legacy, senza esporre voti personali
       mieiVoti: mieiVoti,
       blocco
     });
@@ -153,28 +182,29 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/grazia/richieste - Ottieni richieste per gestione
-router.get('/richieste', verifyToken, requireAdmin, async (req, res) => {
+// GET /api/grazia/richieste - Solo Admin: coda privata reale
+router.get('/richieste', verifyToken, requireAdmin, async (_req, res) => {
   try {
-    // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
-    const query = `
-      SELECT *
-      FROM voti_grazia
-      ORDER BY created_at DESC
-    `;
-
-    const result = await pool.query(query);
-
-    res.json({
-      success: true,
-      richieste: result.rows
-    });
+    const result = await pool.query(
+      "SELECT id, nome, url_prova AS \"urlProva\", utente_id AS \"userId\", data_creazione AS \"createdAt\" FROM richieste_grazia WHERE status = 'pending' ORDER BY data_creazione ASC LIMIT 100"
+    );
+    return res.json(result.rows);
   } catch (error) {
-    console.error('❌ Errore nel recuperare richieste grazia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare richieste grazia'
-    });
+    console.error('Errore coda Grazia:', error.code || error.message);
+    return res.status(500).json({ success: false, error: 'Coda richieste non disponibile' });
+  }
+});
+
+// GET /api/grazia/mia-proposta - Stato della propria proposta, mai dati di altri
+router.get('/mia-proposta', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, status, data_creazione FROM richieste_grazia WHERE utente_id = $1 ORDER BY data_creazione DESC LIMIT 1',
+      [req.user.id]
+    );
+    return res.json({ success: true, richiesta: result.rows[0] || null });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Stato proposta non disponibile' });
   }
 });
 
@@ -201,26 +231,6 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
         success: false,
         error: 'I voti devono essere un array'
       });
-    }
-
-    // New names must enter the canonical catalog by Admin review.
-    // Historical names with existing votes remain selectable for compatibility.
-    if (voti.length > 0) {
-      const newName = typeof voti[0] === 'string' ? voti[0].trim() : '';
-      if (newName.length < 3 || newName.length > 150) {
-        return res.status(422).json({ success: false, error: 'Nome non valido' });
-      }
-      const allowed = await pool.query(
-        `SELECT 1 FROM grazia_carcerati WHERE attivo=true AND lower(btrim(nome))=lower(btrim($1))
-          UNION SELECT 1 FROM voti_grazia WHERE lower(btrim(nome))=lower(btrim($1)) LIMIT 1`,
-        [newName]
-      );
-      if (allowed.rows.length === 0) {
-        return res.status(422).json({
-          success: false, error: 'SOGGETTO_NON_APPROVATO',
-          message: 'Per proporre una persona usa il pulsante + e attendi l’approvazione dell’admin.'
-        });
-      }
     }
 
     // Limita a massimo 1 voto come da limite configurato
@@ -286,6 +296,16 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
     const currentVotes = existingResult.rows.map((row) => String(row.nome || '').trim()).filter(Boolean).slice(0, 1);
     const requestedVote = requestedVotes[0] || null;
     const currentVote = currentVotes[0] || null;
+
+    if (requestedVote) {
+      const allowed = await pool.query(
+        'SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome)) = LOWER($1) LIMIT 1',
+        [requestedVote]
+      );
+      if (!allowed.rows.length) {
+        return res.status(422).json({ success: false, error: 'Soggetto non approvato per la votazione' });
+      }
+    }
 
     if (requestedVote === currentVote) {
       return res.json({ success: true, message: 'Preferenza Grazia già aggiornata' });
@@ -381,24 +401,43 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
   }
 });
 
-// POST /api/grazia/richiesta/:id/:action - Gestisci richiesta grazia
+// POST /api/grazia/richiesta/:id/:action - Decisione moderazione solo Admin
 router.post('/richiesta/:id/:action', verifyToken, requireAdmin, async (req, res) => {
+  const action = req.params.action;
+  const approved = action === 'accetta' || action === 'approve';
+  if (!approved && action !== 'rifiuta' && action !== 'reject') {
+    return res.status(400).json({ success: false, error: 'Azione non valida' });
+  }
+  const client = await pool.connect();
   try {
-    const { id, action } = req.params;
-
-    if (action === 'approve') {
-      await pool.query('UPDATE voti_grazia SET stato = $1 WHERE id = $2', ['approvata', id]);
-    } else if (action === 'reject') {
-      await pool.query('UPDATE voti_grazia SET stato = $1 WHERE id = $2', ['rifiutata', id]);
+    await client.query('BEGIN');
+    const result = await client.query(
+      "SELECT id, nome, utente_id FROM richieste_grazia WHERE id = $1 AND status = 'pending' FOR UPDATE",
+      [req.params.id]
+    );
+    if (!result.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'Richiesta assente o già elaborata' });
     }
-
-    res.json({ success: true, message: `Richiesta ${action === 'approve' ? 'approvata' : 'rifiutata'}` });
+    const richiesta = result.rows[0];
+    if (approved) {
+      await client.query('INSERT INTO grazia_carcerati (nome, attivo) VALUES ($1,true) ON CONFLICT DO NOTHING', [richiesta.nome]);
+      await client.query('UPDATE grazia_carcerati SET attivo = true WHERE LOWER(BTRIM(nome)) = LOWER(BTRIM($1))', [richiesta.nome]);
+    }
+    const status = approved ? 'approved' : 'rejected';
+    await client.query("UPDATE richieste_grazia SET status = $1 WHERE id = $2 AND status = 'pending'", [status, richiesta.id]);
+    await client.query(
+      "INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data_creazione, data) SELECT gen_random_uuid(), id, 'DEMOS — Esito proposta', $2, NOW(), CURRENT_DATE FROM users WHERE id::text = $1",
+      [richiesta.utente_id, approved ? 'La tua proposta Grazia è stata approvata.' : 'La tua proposta Grazia non è stata approvata.']
+    );
+    await client.query('COMMIT');
+    return res.json({ success: true, status });
   } catch (error) {
-    console.error('❌ Errore nella gestione richiesta grazia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nella gestione richiesta grazia'
-    });
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Errore revisione richiesta Grazia:', error.code || error.message);
+    return res.status(500).json({ success: false, error: 'Decisione non applicata' });
+  } finally {
+    client.release();
   }
 });
 

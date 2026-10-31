@@ -97,40 +97,14 @@ export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
     }));
   };
 
-  const handleCreateAmnistia = async (data: any) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/amnistia', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Amnistia proposta",
-          description: "La proposta è stata inviata per la revisione."
-        });
-        hideForm();
-      } else {
-        const errorData = await response.json();
-        toast({
-          title: "Errore",
-          description: errorData.error || "Impossibile creare l'amnistia",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Errore nel creare amnistia:', error);
-      toast({
-        title: "Errore",
-        description: "Impossibile creare l'amnistia",
-        variant: "destructive"
-      });
-    }
+  const handleCreateAmnistia = async (_data: any) => {
+    // La creazione diretta è stata disattivata fino alla disponibilità
+    // di una coda di moderazione e dei controlli GDPR necessari.
+    toast({
+      title: "Proposte temporaneamente sospese",
+      description: "La funzione sarà ripristinata dopo l'attivazione dell'approvazione amministrativa.",
+      variant: "destructive",
+    });
   };
 
   // Informazioni sui limiti di voto

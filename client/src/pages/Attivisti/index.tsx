@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { useApprovedSubjectResumeRefresh } from "@/hooks/useApprovedSubjectResumeRefresh";
 
 interface Attivista {
   id: string;
@@ -43,7 +44,7 @@ export default function Attivisti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
-  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string; details: string; source_url: string | null }>>([]);
+  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +52,8 @@ export default function Attivisti() {
     const fetchAttivisti = async () => {
       try {
         setLoading(true);
+        // Do not retain older approved names while a replacement read is in flight.
+        setApprovedSubjects([]);
         const response = await apiRequest("GET", "/api/attivisti");
 
         if (!response.ok) {
@@ -66,6 +69,7 @@ export default function Attivisti() {
           throw new Error(data.error || "Errore nel caricamento");
         }
       } catch (err) {
+        setApprovedSubjects([]);
         console.error("Errore:", err);
         setError(err instanceof Error ? err.message : "Errore sconosciuto");
       } finally {
@@ -77,6 +81,9 @@ export default function Attivisti() {
       fetchAttivisti();
     }
   }, [user]);
+
+  // No extra read on first render. Revalidate only when a suspended page resumes.
+  useApprovedSubjectResumeRefresh("attivisti", setApprovedSubjects, !!user && !loading && !error);
 
   if (isAuthLoading || loading) {
     return <AttivistiLoading />;
@@ -210,12 +217,6 @@ export default function Attivisti() {
                         <CardTitle className="break-words text-base">{subject.title}</CardTitle>
                         <CardDescription>Soggetto pubblico segnalato e approvato. Non è ancora un profilo DEMOS verificato.</CardDescription>
                       </CardHeader>
-                      {(subject.details || subject.source_url) && (
-                        <CardContent className="space-y-2 px-3 pb-3 text-sm">
-                          {subject.details && <p className="break-words">{subject.details}</p>}
-                          {subject.source_url?.startsWith("https://") && <a className="text-blue-700 underline" target="_blank" rel="noopener noreferrer" href={subject.source_url}>Fonte pubblica</a>}
-                        </CardContent>
-                      )}
                     </Card>
                   ))}
                 </div>

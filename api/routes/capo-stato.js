@@ -23,16 +23,20 @@ const isIneligibleCandidate = (name) => INELIGIBLE_CANDIDATE_NAMES.has(normalize
 // GET /api/capo-stato - Lista candidati capo di stato con classifica voti
 router.get('/', async (req, res) => {
   try {
-    // Query per ottenere la classifica dei candidati basata sui voti ricevuti
+    // Una sola lettura aggregata: conserva i candidati legacy e rende visibili
+    // i soggetti approvati dall'Admin anche prima del primo voto.
+    // Richiede la migrazione DRAFT capo_stato_soggetti_approvati prima del deploy.
     const classificaQuery = `
-      WITH catalogo AS (
-        SELECT nome, COUNT(*)::bigint AS voti FROM voti_capo_stato GROUP BY nome
-        UNION ALL
-        SELECT nome, 0::bigint AS voti FROM capo_stato_soggetti_approvati WHERE active=true
+      WITH conteggi AS (
+        SELECT nome, COUNT(*) AS voti FROM voti_capo_stato GROUP BY nome
+      ), catalogo AS (
+        SELECT nome FROM conteggi
+        UNION
+        SELECT nome FROM capo_stato_soggetti_approvati WHERE active = true
       )
-      SELECT nome, SUM(voti)::bigint AS voti FROM catalogo
-      GROUP BY nome
-      ORDER BY voti DESC, nome ASC
+      SELECT catalogo.nome, COALESCE(conteggi.voti, 0) AS voti
+      FROM catalogo LEFT JOIN conteggi ON conteggi.nome = catalogo.nome
+      ORDER BY voti DESC, catalogo.nome ASC
     `;
 
     const classificaResult = await pool.query(classificaQuery);
@@ -180,26 +184,6 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
       });
     }
 
-    // A newly typed name must not become public simply by voting for it.
-    // Preserve the already-voted legacy list while new names require Admin approval.
-    if (voti.length > 0) {
-      const proposedName = typeof voti[0] === 'string' ? voti[0].trim() : '';
-      if (proposedName.length < 3 || proposedName.length > 150) {
-        return res.status(422).json({ success: false, error: 'Nome candidato non valido' });
-      }
-      const approved = await pool.query(
-        `SELECT 1 FROM voti_capo_stato WHERE lower(btrim(nome))=lower(btrim($1))
-          UNION SELECT 1 FROM capo_stato_soggetti_approvati WHERE active=true AND lower(btrim(nome))=lower(btrim($1)) LIMIT 1`,
-        [proposedName]
-      );
-      if (approved.rows.length === 0) {
-        return res.status(422).json({
-          success: false, error: 'CANDIDATO_NON_APPROVATO',
-          message: 'Per aggiungere un nuovo candidato, usa il pulsante + e attendi la conferma dell’admin.'
-        });
-      }
-    }
-
     // Controlla il limite di 1 voto massimo per Capo di Stato
     if (voti.length > 1) {
       console.log('❌ DEBUG - Troppi voti:', voti.length);
@@ -207,6 +191,27 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
         success: false,
         error: 'Puoi selezionare al massimo 1 candidato per Capo di Stato'
       });
+    }
+
+    // Il voto non può creare nomi nuovi: ammette solo candidati legacy o
+    // nuove voci già approvate dall'Admin nel catalogo dedicato.
+    if (voti.length === 1) {
+      if (typeof voti[0] !== 'string' || !voti[0].trim() || voti[0].length > 160) {
+        return res.status(400).json({ success: false, error: 'Nome candidato non valido' });
+      }
+      const allowed = await pool.query(
+        `SELECT 1 WHERE
+          EXISTS (SELECT 1 FROM voti_capo_stato WHERE nome = $1)
+          OR EXISTS (SELECT 1 FROM capo_stato_soggetti_approvati
+                     WHERE active = true AND nome = $1)`,
+        [voti[0]]
+      );
+      if (!allowed.rows.length) {
+        return res.status(422).json({
+          success: false,
+          error: 'Candidato non presente nel catalogo attuale. Le nuove proposte richiedono approvazione.',
+        });
+      }
     }
 
     const isAdmin = Boolean(req.user?.isAdmin);
