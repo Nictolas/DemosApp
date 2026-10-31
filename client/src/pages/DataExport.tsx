@@ -699,15 +699,16 @@ export default function DataExport() {
             <Card>
               <CardHeader><CardTitle>Opzioni export</CardTitle></CardHeader>
               <CardContent className="space-y-3">
+                <p className="text-sm text-amber-700">Export su disco temporaneamente non disponibile: verifica GDPR e conservazione dati in corso.</p>
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={deleteAfterExport} onChange={(event) => setDeleteAfterExport(event.target.checked)} />
+                  <input type="checkbox" checked={deleteAfterExport} disabled />
                   Elimina dal database dopo l'export
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} />
                   Modalità test (solo conteggi, nessun file creato)
                 </label>
-                <Button onClick={startExport} disabled={exportStatus.isRunning || selectedTables.length === 0}>
+                <Button onClick={startExport} disabled={true}>
                   <Download className="h-4 w-4 mr-2" />{dryRun ? 'Simula export' : 'Avvia export'}
                 </Button>
               </CardContent>
