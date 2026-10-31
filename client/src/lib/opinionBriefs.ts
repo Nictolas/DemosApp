@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these thirty-six canonical IDs opt in; the other 58 use the original
+ * Only these thirty-nine canonical IDs opt in; the other 55 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -1694,6 +1694,167 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     ],
     verified,
   },
+
+  leva_obbligatoria: {
+    intro: "Ripristinare in via ordinaria il servizio militare obbligatorio, oggi sospeso in Italia. Non equivale a un bando per volontari o al Servizio civile universale.",
+    facts: [],
+    comparisonMode: "transition",
+    comparison: [
+      { label: "🇮🇹 Regola attuale", title: "Servizio militare volontario", text: "Le chiamate ordinarie alla leva sono sospese dal 1° gennaio 2005. L'articolo 1929 del Codice dell'ordinamento militare prevede possibilità di ripristino soltanto in condizioni eccezionali definite." },
+      { label: "Modifica proposta", title: "Nuova leva ordinaria", text: "Prevedere una chiamata obbligatoria per categorie da stabilire, con durata, formazione, condizioni di esenzione, costi e alternative da definire con una legge." },
+    ],
+    measuredResultsTitle: "🇮🇹 Italia · norme e reclutamento",
+    measuredResults: [
+      {
+        place: "🇮🇹 Italia · Difesa",
+        topic: "Decorrenza della sospensione delle chiamate",
+        value: "1/1/2005",
+        period: "Legge 226/2004 e art. 1929 d.lgs. 66/2010",
+        meaning: "Le chiamate obbligatorie ordinarie sono SOSPESE, non cancellate definitivamente dall'ordinamento.",
+        sourceUrl: "https://www.difesa.it/legislazione/repertorio-storico-hammurabi-difesa/2000-2010/39332.html",
+      },
+      {
+        place: "🇮🇹 Italia · Codice dell'ordinamento militare",
+        topic: "Ripristino straordinario della leva",
+        value: "Art. 1929",
+        period: "Disciplina vigente al 31/10/2026",
+        meaning: "Possibile in specifiche condizioni di guerra o grave crisi internazionale, con ulteriori requisiti e procedura. NON è una chiamata ordinaria automatica.",
+        sourceUrl: "https://www.difesa.it/amministrazione-trasparente/previmil/riferimenti-normativi/1026.html",
+      },
+      {
+        place: "🇮🇹 Italia · Esercito",
+        topic: "Riforma del reclutamento volontario",
+        value: "2022",
+        period: "Legge 119/2022",
+        meaning: "Ha introdotto un modello di volontari in ferma iniziale e triennale: NON ha riattivato la leva obbligatoria.",
+        sourceUrl: "https://www.esercito.difesa.it/concorsi-e-arruolamenti/volontari/militari-di-truppa/75230.html",
+      },
+      {
+        place: "🇮🇹 Italia · Esercito",
+        topic: "Durata della ferma volontaria iniziale",
+        value: "3 anni",
+        period: "Modello VFI, reclutamento dopo la riforma 2022",
+        meaning: "Ferma del volontario iniziale, con possibili sviluppi di carriera; NON una durata prevista per la leva proposta.",
+        sourceUrl: "https://www.esercito.difesa.it/concorsi-e-arruolamenti/volontari/militari-di-truppa/75230.html",
+      },
+    ],
+    evidenceCaveat: "Questi numeri descrivono norme e durata di un percorso volontario, NON misurano l'efficacia, i costi o il numero futuro di coscritti di una nuova leva. Il ripristino ordinario richiederebbe regole specifiche; le ipotesi eccezionali del Codice non equivalgono a una reintroduzione generalizzata già deliberata.",
+    advantage: "Può ampliare la formazione di base e la disponibilità di personale addestrato, se sono garantite risorse e capacità.",
+    concern: "Impone un obbligo personale, richiede alloggi, istruttori e risorse e può interrompere studio e lavoro.",
+    note: "Leva obbligatoria sospesa, servizio volontario e servizio civile sono tre istituti diversi.",
+    sources: [
+      { label: "Ministero della Difesa · Legge 226/2004 e data di sospensione", url: "https://www.difesa.it/legislazione/repertorio-storico-hammurabi-difesa/2000-2010/39332.html" },
+      { label: "Ministero della Difesa · Articolo 1929, Codice ordinamento militare", url: "https://www.difesa.it/amministrazione-trasparente/previmil/riferimenti-normativi/1026.html" },
+      { label: "Esercito italiano · Volontari e legge 119/2022", url: "https://www.esercito.difesa.it/concorsi-e-arruolamenti/volontari/militari-di-truppa/75230.html" },
+    ],
+    verified,
+  },
+  gare_treni_regionali: {
+    intro: "Affidare i servizi ferroviari regionali tramite gare competitive tra gestori. Le gare sono già previste e usate: la scelta riguarda l'estensione o il mantenimento di procedure concorrenziali nei limiti del diritto europeo.",
+    facts: [],
+    comparison: [
+      { label: "Strumenti consentiti", title: "Gara e casi di affidamento diretto", text: "Il diritto UE privilegia la concorrenza e disciplina eccezioni specifiche all'aggiudicazione con gara. Non ogni contratto in vigore nasce oggi da una nuova gara." },
+      { label: "Scelta oggetto dell'Opinione", title: "Gare competitive per i servizi", text: "Impostare le assegnazioni dei contratti di trasporto regionale mediante una gara, con requisiti su corse, accessibilità, puntualità, investimenti e tutele degli utenti." },
+    ],
+    measuredResultsTitle: "🇮🇹 Emilia-Romagna e 🇪🇺 UE · affidamenti",
+    measuredResults: [
+      {
+        place: "🇮🇹 Emilia-Romagna · Regione",
+        topic: "Gara regionale conclusa",
+        value: "2016",
+        period: "Conclusione delle procedure della gara a evidenza pubblica",
+        meaning: "Affidamento in unico lotto al raggruppamento Trenitalia 70% e Tper 30%: una gara reale, NON un nuovo bando del 2026.",
+        sourceUrl: "https://mobilita.regione.emilia-romagna.it/ferrovie/contesto/estensione-gestione-rete",
+      },
+      {
+        place: "🇮🇹 Emilia-Romagna · Regione",
+        topic: "Avvio del nuovo contratto di servizio",
+        value: "1/6/2019",
+        period: "Contratto regionale stipulato dopo gara",
+        meaning: "Data iniziale del contratto, NON data dell'aggiudicazione: il gestore opera su rete statale e regionale.",
+        sourceUrl: "https://mobilita.regione.emilia-romagna.it/ferrovie/contesto/estensione-gestione-rete",
+      },
+      {
+        place: "🇮🇹 Emilia-Romagna · Regione",
+        topic: "Durata contrattuale prevista",
+        value: "15 + 7,5",
+        period: "Anni; 7,5 eventuali di rinnovo",
+        meaning: "Durata di base di 15 anni con opzione di rinnovo, NON 22,5 anni già effettuati né durata standard di ogni gara italiana.",
+        sourceUrl: "https://mobilita.regione.emilia-romagna.it/ferrovie/contesto/estensione-gestione-rete",
+      },
+      {
+        place: "🇪🇺 Unione europea · EUR-Lex",
+        topic: "Fine delle aggiudicazioni dirette ferroviarie incondizionate",
+        value: "25/12/2023",
+        period: "Transizione del regolamento 1370/2007",
+        meaning: "Non è il divieto di OGNI affidamento diretto: restano eccezioni disciplinate dal diritto UE.",
+        sourceUrl: "https://eur-lex.europa.eu/legal-content/IT/ALL/?uri=LEGISSUM:l24488",
+      },
+    ],
+    evidenceCaveat: "La procedura competitiva è già stata usata in Emilia-Romagna. Le date del contratto e della gara non misurano da sole puntualità, prezzi o soddisfazione dei passeggeri. La scadenza UE del 2023 riguarda le aggiudicazioni dirette incondizionate e non cancella le eccezioni legali. La scelta di fare gare non equivale a privatizzare obbligatoriamente binari e infrastrutture.",
+    advantage: "Consente di confrontare offerte e condizioni di servizio, stimolando investimenti e controllo sui costi.",
+    concern: "Procedure complesse, possibili pochi partecipanti e difficoltà di transizione o contenziosi.",
+    note: "Gestore del servizio ferroviario e proprietario/gestore dei binari non coincidono necessariamente.",
+    sources: [
+      { label: "Regione Emilia-Romagna · Rete e contratto ferroviario, aggiornamento 2025", url: "https://mobilita.regione.emilia-romagna.it/ferrovie/contesto/estensione-gestione-rete" },
+      { label: "Unione europea · Sintesi del regolamento 1370/2007", url: "https://eur-lex.europa.eu/legal-content/IT/ALL/?uri=LEGISSUM:l24488" },
+      { label: "Commissione UE · Orientamenti sull'affidamento dei trasporti, 2023", url: "https://eur-lex.europa.eu/legal-content/IT/TXT/?uri=CELEX:52023XC0626(01)" },
+    ],
+    verified,
+  },
+  riduzione_dell_illuminazione_notturna_per_risparmio_energetico: {
+    intro: "Diminuire orari o intensità dell'illuminazione pubblica di notte dove possibile, salvaguardando visibilità, attraversamenti e sicurezza. Non coincide con il semplice passaggio alle lampade LED.",
+    facts: [],
+    comparisonMode: "transition",
+    comparison: [
+      { label: "Situazione rilevata", title: "Rete comunale e LED", text: "I Comuni gestiscono i punti luce stradali, con graduale sostituzione dei corpi illuminanti e soluzioni di risparmio energetico." },
+      { label: "Modifica proposta", title: "Ridurre illuminazione in fasce orarie", text: "Adottare orari, intensità regolabili o sensori soltanto in zone e condizioni compatibili con norme, visibilità e tutela delle persone." },
+    ],
+    measuredResultsTitle: "🇮🇹 ISTAT · illuminazione urbana 2024",
+    measuredResults: [
+      {
+        place: "🇮🇹 Italia · Comuni capoluogo",
+        topic: "Punti luce di illuminazione stradale",
+        value: "oltre 2,4 mln",
+        period: "2024 · rete dei Comuni capoluogo",
+        meaning: "Numero complessivo dei punti luce: non kWh consumati né illuminazione accesa per tutta la notte.",
+        sourceUrl: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/",
+      },
+      {
+        place: "🇮🇹 Italia · Comuni capoluogo",
+        topic: "Quota dei punti luce con LED",
+        value: "75,5%",
+        period: "2024 · punti luce censiti",
+        meaning: "Quota LED del totale, non riduzione ottenuta con lo spegnimento notturno.",
+        sourceUrl: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/",
+      },
+      {
+        place: "🇮🇹 Italia · Comuni capoluogo",
+        topic: "Variazione nel numero di punti luce LED",
+        value: "+8,5%",
+        period: "2023 → 2024",
+        meaning: "Crescita nel numero dei punti luce LED, non calo della bolletta né dei consumi elettrici.",
+        sourceUrl: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/",
+      },
+      {
+        place: "🇮🇹 Italia · Comuni capoluogo",
+        topic: "Variazione totale dei punti luce",
+        value: "+0,6%",
+        period: "2023 → 2024",
+        meaning: "Incremento dell'intera rete luminosa; non misura quante luci sono spente o attenuate di notte.",
+        sourceUrl: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/",
+      },
+    ],
+    evidenceCaveat: "I dati ISTAT descrivono dimensioni e tecnologie dell'illuminazione pubblica nei capoluoghi. Non sono un esperimento di riduzione notturna e non quantificano risparmi, effetti sulla sicurezza stradale o inquinamento luminoso. Per stimare gli effetti servono potenze in watt, ore effettive di funzionamento e verifiche di rischio per strada.",
+    advantage: "Può ridurre consumi e inquinamento luminoso se la regolazione è calibrata e misurata.",
+    concern: "Ridurre indiscriminatamente può peggiorare la visibilità per pedoni, ciclisti e conducenti e creare difficoltà di accessibilità.",
+    note: "Efficienza dei LED, dimmerazione e spegnimento sono interventi differenti: valutarli separatamente.",
+    sources: [
+      { label: "ISTAT · Ambiente urbano 2024, pubblicato 9 settembre 2026", url: "https://www.istat.it/comunicato-stampa/ambiente-urbano-anno-2024/" },
+    ],
+    verified,
+  },
+
   caccia: {
     intro: "Consentire, limitare o abolire l'attività venatoria, distinta dal controllo faunistico.",
     facts: [
