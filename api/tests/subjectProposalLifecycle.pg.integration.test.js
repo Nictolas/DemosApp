@@ -247,6 +247,44 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const freshOrg=await req('/api/subject-proposals','b','POST',
       proposal('organizzazioni','Nuova organizzazione sintetica distinta'));
     assert.equal(freshOrg.status,201,'unrelated nomination can still proceed');
+
+    // Safety: an outage in notifiche_demos must NOT undo an urgent public
+    // unpublish. Raise a synthetic error only for withdrawal notifications.
+    const emergency=await req('/api/subject-proposals','a','POST',
+      proposal('organizzazioni','Organizzazione con notifica non disponibile'));
+    assert.equal(emergency.status,201,'independent proposer can create a distinct nomination');
+    const emergencyId=emergency.body.proposal.id;
+    assert.equal((await req('/api/subject-proposals/admin/'+emergencyId+'/decision',
+      'admin','POST',{decision:'approve'})).status,200);
+    await setup.query(
+      "CREATE FUNCTION "+SCHEMA+".reject_withdraw_notice() RETURNS trigger LANGUAGE plpgsql AS $ BEGIN IF NEW.testo LIKE 'La pubblicazione%' THEN RAISE EXCEPTION 'synthetic notice outage'; END IF; RETURN NEW; END $"
+    );
+    await setup.query(
+      "CREATE TRIGGER reject_withdraw_notice BEFORE INSERT ON "+SCHEMA+
+      ".notifiche_demos FOR EACH ROW EXECUTE FUNCTION "+SCHEMA+".reject_withdraw_notice()"
+    );
+    const emergencyWithdrawal=await req('/api/subject-proposals/admin/'+emergencyId+
+      '/withdraw','admin','POST',{note:'Ritiro urgente sintetico'});
+    assert.equal(emergencyWithdrawal.status,200,'an unavailable notification must not block unpublishing');
+    assert.equal(emergencyWithdrawal.body.status,'withdrawn');
+    assert.equal(emergencyWithdrawal.body.notification_sent,false,
+      'Admin must know the proponent was not notified');
+    const emergencyRow=await pool.query(
+      'SELECT status, withdrawn_at, withdrawn_by FROM subject_proposals WHERE id=$1',[emergencyId]
+    );
+    assert.equal(emergencyRow.rows[0].status,'withdrawn','database withdrawal must remain committed');
+    assert.ok(emergencyRow.rows[0].withdrawn_at);
+    assert.equal(emergencyRow.rows[0].withdrawn_by,ADMIN);
+    const emergencyDirectory=await req('/api/subject-proposals/approved?category=organizzazioni');
+    assert.equal(emergencyDirectory.status,200);
+    assert.equal(emergencyDirectory.body.data.some(x=>x.id===emergencyId),false,
+      'name must be hidden even when recipient notification cannot be inserted');
+    assert.equal((await req('/api/subject-proposals/admin/'+emergencyId+
+      '/withdraw','admin','POST',{note:'Ritiro di nuovo'})).status,409,
+      'failed notification must never permit reapplying a committed withdrawal');
+    await setup.query('DROP TRIGGER reject_withdraw_notice ON '+SCHEMA+'.notifiche_demos');
+    await setup.query('DROP FUNCTION '+SCHEMA+'.reject_withdraw_notice()');
+
     const guardedIndex=await setup.query(
       "SELECT indexdef FROM pg_indexes WHERE schemaname=$1 AND indexname='subject_proposals_no_duplicate_open_titles'",
       [SCHEMA]
