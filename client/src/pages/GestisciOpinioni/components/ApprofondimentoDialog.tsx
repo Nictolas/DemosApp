@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { Opinione } from "../types";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
+import { addCountryFlagsToMarkdown } from "@/lib/countryFlagsMarkdown";
 
 interface ApprofondimentoDialogProps {
   opinione?: Opinione;
@@ -428,7 +429,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
               <div className="h-full overflow-y-auto overscroll-contain px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 [-webkit-overflow-scrolling:touch]">
                 {approfondimento && approfondimento.trim() ? (
                   <div className="prose max-w-none break-words text-gray-900"
-                    dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(renderMarkdown(approfondimento)) }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(renderMarkdown(addCountryFlagsToMarkdown(approfondimento))) }}
                   />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
