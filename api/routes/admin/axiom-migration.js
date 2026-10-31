@@ -304,8 +304,8 @@ router.get('/status', verifyToken, requireAdmin, async (req, res) => {
 
 /**
  * POST /api/admin/axiom-migration/delete-migrated
- * Elimina i dati migrati da Neon dopo verifica su Axiom
- * ATTENZIONE: Questa operazione è IRREVERSIBILE
+ * Azione legacy ritirata: non eliminare dati senza prove indipendenti di
+ * archivio completo, retention approvata e percorso offline autorizzato.
  */
 // Legacy log migration deletion is disabled until Axiom export completeness,
 // independent receipts and RP-10 retention are reviewed.
