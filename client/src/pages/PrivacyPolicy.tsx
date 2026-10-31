@@ -275,31 +275,34 @@ export default function PrivacyPolicy() {
 
             <h3 id="eliminazione-account" className="text-xl font-medium mb-2 mt-6">5.5 Come richiedere l'eliminazione dell'account (DemosApp)</h3>
             <p className="text-gray-700 mb-3">
-              Se utilizzi l'app <strong>DemosApp</strong> (sviluppata da Demos / DemosApp Team) e desideri eliminare il tuo account e i dati associati, puoi farlo nel seguente modo.
+              Se utilizzi DEMOS e desideri richiedere l'eliminazione dell'account e dei dati personali associati,
+              puoi utilizzare la procedura disponibile nell'app oppure il recapito privacy indicato sotto.
             </p>
-            <p className="text-gray-700 font-medium mb-2">Passaggi per richiedere l'eliminazione:</p>
+            <p className="text-gray-700 font-medium mb-2">Come presentare la richiesta:</p>
             <ol className="list-decimal pl-6 mb-4 text-gray-700 space-y-2">
-              <li>Accedi all'app DemosApp con le tue credenziali (email e password).</li>
-              <li>Vai in <strong>Impostazioni</strong> (icona ingranaggio) e seleziona <strong>Cancella account</strong>.</li>
-              <li>Segui le istruzioni a schermo: puoi prima scaricare una copia dei tuoi dati (Scarica i tuoi dati), poi confermare la tua identità con la password e confermare di aver compreso che la cancellazione è irreversibile.</li>
-              <li>Conferma la cancellazione definitiva. L'account e i dati associati verranno eliminati in modo permanente.</li>
-              <li><strong>Alternativa:</strong> Puoi anche richiedere la cancellazione scrivendo a <strong>privacy@demos.community</strong> indicando l'email dell'account da eliminare; provvederemo entro i termini di legge.</li>
+              <li>Accedi all'app con il tuo metodo di accesso (Google, Apple o passkey). Un account senza password non deve creare o comunicare una password per chiedere la cancellazione.</li>
+              <li>Apri le impostazioni dell'account e utilizza la funzione <strong>Cancella account</strong> se disponibile nella versione in uso. Se non puoi accedere o la funzione non è disponibile, utilizza il recapito alternativo.</li>
+              <li>Segui la verifica della titolarità proposta dall'app e leggi le informazioni prima di confermare. Se disponibile, puoi prima richiedere una copia dei tuoi dati.</li>
+              <li>Considera completata la cancellazione soltanto quando ricevi un esito confermato. Un errore, un'interruzione o una richiesta ancora in elaborazione non costituiscono conferma dell'eliminazione.</li>
+              <li><strong>Alternativa:</strong> Puoi scrivere a <strong>privacy@demos.community</strong> anche da un indirizzo email non associato al tuo account. La sola email non dimostra la titolarità: potrebbe essere necessaria una verifica sicura prima di procedere. Non inviare password, codici di accesso, passkey o documenti nel primo messaggio.</li>
             </ol>
-            <p className="text-gray-700 font-medium mb-2">Dati che vengono eliminati:</p>
+            <p className="text-gray-700 font-medium mb-2">Dati interessati dalla richiesta:</p>
             <ul className="list-disc pl-6 mb-2 text-gray-700">
-              <li>Profilo utente (nome, cognome, email, residenza, cittadinanza, anno di nascita, genere, avatar, preferenze).</li>
-              <li>Opinioni politiche e voti espressi (referendum, iniziative, capo stato, ecc.).</li>
-              <li>Cronologia attività, notifiche, consensi registrati, token di sessione.</li>
-              <li>Accesso all'account: non sarà più possibile accedere con quelle credenziali.</li>
+              <li>Dati del profilo effettivamente conservati, come comune di residenza, cittadinanza, anno di nascita, sesso, avatar e preferenze, se presenti.</li>
+              <li>Risposte alle Opinioni e altre selezioni politiche personali collegate all'account, secondo le regole di cancellazione applicabili.</li>
+              <li>Dati di sessione, notifiche e altri dati personali associati nei sistemi attivi, entro il perimetro verificato della richiesta.</li>
+              <li>Una volta completata la cancellazione, l'accesso al profilo DEMOS viene disabilitato. Gli account Google o Apple utilizzati per accedere non sono eliminati da DEMOS.</li>
             </ul>
-            <p className="text-gray-700 font-medium mb-2">Dati che possono essere conservati (solo se richiesto dalla legge):</p>
+            <p className="text-gray-700 font-medium mb-2">Dati che possono essere conservati in presenza di una base giuridica applicabile:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li>Dati soggetti a obblighi di conservazione fiscale o contabile (es. Art. 2220 Codice Civile) per il periodo previsto dalla legge.</li>
-              <li>Dati anonimizzati o aggregati già utilizzati per statistiche, che non consentono l'identificazione della persona.</li>
-              <li>Log di audit e sicurezza per il periodo necessario a garantire la sicurezza del servizio e l'adempimento legale.</li>
+              <li>Dati per i quali sussiste un obbligo di conservazione specifico, per il periodo effettivamente richiesto.</li>
+              <li>Dati già resi effettivamente anonimi e non più riconducibili a persone identificabili.</li>
+              <li>Registrazioni minime eventualmente necessarie a documentare la gestione della richiesta o la sicurezza, per finalità e periodi giustificati.</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              La cancellazione è <strong>irreversibile</strong> per i dati personali eliminati. Per ulteriori dettagli sui periodi di conservazione, vedi le sezioni 5.1 e 5.2 di questa informativa.
+              Le copie tecniche e i backup richiedono procedure distinte di gestione e verifica. La sola ricezione
+              di una richiesta non dimostra che ogni copia sia stata eliminata; la gestione dei diritti segue il
+              GDPR e le eventuali eccezioni previste dalla legge.
             </p>
 
             <div className="bg-blue-50 p-4 rounded-lg mt-4 border-l-4 border-blue-500">
