@@ -25,7 +25,6 @@ import {
   Play,
   RefreshCw,
   Search,
-  Trash2,
 } from 'lucide-react';
 
 interface ExportStatus {
@@ -406,34 +405,6 @@ export default function DataExport() {
     }
   };
 
-  const deleteMigratedData = async () => {
-    if (!window.confirm('ATTENZIONE: stai per eliminare da Neon i dati già migrati. Hai verificato che siano presenti su Axiom?')) return;
-    const confirmation = window.prompt('Per confermare, digita DELETE (tutto maiuscolo):');
-    if (confirmation !== 'DELETE') {
-      toast({ title: 'Operazione annullata', description: 'I dati non sono stati eliminati.' });
-      return;
-    }
-
-    setMigrating(true);
-    try {
-      const response = await apiRequest.post('/admin/axiom-migration/delete-migrated', {
-        tables: ['centralized_logs', 'audit_logs'],
-        confirm: 'DELETE',
-      });
-      if (!response.success) throw new Error(response.error || response.message || 'Impossibile eliminare i dati');
-      toast({ title: 'Dati eliminati', description: 'I dati migrati sono stati eliminati da Neon.' });
-      await Promise.all([loadDatabaseAnalysis(), loadAxiomAnalysis(), loadTableInfo()]);
-    } catch (error) {
-      toast({
-        title: 'Errore eliminazione',
-        description: error instanceof Error ? error.message : 'Impossibile eliminare i dati',
-        variant: 'destructive',
-      });
-    } finally {
-      setMigrating(false);
-    }
-  };
-
   const statusIcon = (status: ExportHistory['status']) => {
     if (status === 'completed') return <CheckCircle className="h-4 w-4 text-green-500" />;
     if (status === 'failed') return <AlertCircle className="h-4 w-4 text-red-500" />;
@@ -570,11 +541,9 @@ export default function DataExport() {
                   <Button variant="outline" onClick={testAuth}>Verifica sessione Admin</Button>
                   <Button onClick={() => startAxiomMigration(false)} disabled={migrating}>Migra log verso Axiom</Button>
                   <Button variant="outline" onClick={() => startAxiomMigration(true)} disabled={migrating}>Migra solo centralized_logs</Button>
-                  {axiomAnalysis && axiomAnalysis.totalEvents > 0 && (
-                    <Button variant="destructive" onClick={deleteMigratedData} disabled={migrating}>
-                      <Trash2 className="h-4 w-4 mr-2" /> Elimina da Neon dopo verifica
-                    </Button>
-                  )}
+                  <p className="text-sm text-amber-700" role="status">
+                    Eliminazione da Neon sospesa: verifica indipendente dell'archivio Axiom e policy RP-10 non approvate.
+                  </p>
                 </div>
 
                 {axiomAnalysis?.datasets?.length ? (
