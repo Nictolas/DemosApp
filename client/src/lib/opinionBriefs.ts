@@ -8,6 +8,7 @@ export interface OpinionBrief {
   intro: string;
   facts: ReadonlyArray<{ value: string; label: string }>;
   comparison: ReadonlyArray<{ label: string; title: string; text: string }>;
+  comparisonMode?: "transition";
   advantage: string;
   concern: string;
   note?: string;
@@ -40,21 +41,20 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     verified,
   },
   abolizione_contante: {
-    intro: "Sostituire banconote e monete con pagamenti esclusivamente elettronici.",
-    facts: [
-      { value: "21", label: "Paesi dell'area euro nel 2026" },
-      { value: "2021", label: "Sentenza UE sul corso legale del contante" },
-    ],
+    intro: "Eliminare banconote e monete dai pagamenti: si potrebbe pagare solo con strumenti digitali.",
+    // Irrelevant and cryptic numbers are omitted on purpose.
+    facts: [],
+    comparisonMode: "transition",
     comparison: [
-      { label: "Situazione attuale", title: "🇪🇺 Area euro", text: "Contante a corso legale; accettazione di norma obbligatoria, con eccezioni." },
-      { label: "Modifica proposta", title: "Solo digitale", text: "Pagamenti tramite strumenti elettronici, senza denaro fisico." },
+      { label: "Situazione attuale", title: "🇪🇺 Contanti e digitale", text: "Banconote e monete in euro hanno corso legale: in generale devono essere accettate, salvo eccezioni." },
+      { label: "Modifica proposta", title: "Solo digitale", text: "Niente pagamenti con banconote o monete; soltanto carte, bonifici e app." },
     ],
-    advantage: "Maggiore tracciabilità e minori rischi legati al trasporto di denaro.",
-    concern: "Privacy, esclusione digitale e dipendenza da rete ed energia.",
-    note: "Un limite ai pagamenti in contanti non è un'abolizione.",
+    advantage: "Maggiore tracciabilità e meno denaro fisico da custodire.",
+    concern: "Meno privacy e difficoltà per chi non usa strumenti digitali.",
+    note: "Limitare l'importo dei pagamenti in contanti non significa abolirli.",
     sources: [
-      { label: "Commissione europea · Corso legale del contante", url: "https://finance.ec.europa.eu/digital-finance/digital-euro/frequently-asked-questions-digital-euro-and-legal-tender-cash_en" },
-      { label: "UE · Paesi dell'area euro", url: "https://european-union.europa.eu/institutions-law-budget/euro/official-eu-currency_en" },
+      { label: "BCE · Il contante è mezzo di pagamento legale", url: "https://www.ecb.europa.eu/euro/cash_strategy/acceptance-cash/html/index.en.html" },
+      { label: "Commissione UE · Cosa ha stabilito la Corte nel 2021", url: "https://finance.ec.europa.eu/digital-finance/digital-euro/frequently-asked-questions-digital-euro-and-legal-tender-cash_en" },
     ],
     verified,
   },
