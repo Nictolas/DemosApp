@@ -1,0 +1,20 @@
+name: Release Blueprint Policy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  blueprint-policy:
+    name: blueprint-policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout proposed PR merge
+        uses: actions/checkout@v4
+      - name: Validate production Blueprint and universal PR trigger
+        run: node --test api/tests/releaseBlueprintPolicy.test.js
