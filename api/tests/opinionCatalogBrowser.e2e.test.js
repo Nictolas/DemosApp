@@ -990,7 +990,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok(data.includes('NON di forze armate unificate') &&
             data.includes('non prova automaticamente maggiore sicurezza'),
             'NATO member counts and accession dates are not causal security outcomes');
-          assert.ok((await brief.innerText()).includes('l’impiego della forza non è automatico'),
+          assert.ok((await brief.innerText()).includes("l'impiego della forza non è automatico"),
             'Article 5 does not automatically mandate sending troops');
         }
         if (title === 'Reddito minimo regionale') {
