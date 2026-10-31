@@ -43,7 +43,7 @@ export default function Attivisti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
-  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string; details: string; source_url: string | null }>>([]);
+  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -210,12 +210,6 @@ export default function Attivisti() {
                         <CardTitle className="break-words text-base">{subject.title}</CardTitle>
                         <CardDescription>Soggetto pubblico segnalato e approvato. Non è ancora un profilo DEMOS verificato.</CardDescription>
                       </CardHeader>
-                      {(subject.details || subject.source_url) && (
-                        <CardContent className="space-y-2 px-3 pb-3 text-sm">
-                          {subject.details && <p className="break-words">{subject.details}</p>}
-                          {subject.source_url?.startsWith("https://") && <a className="text-blue-700 underline" target="_blank" rel="noopener noreferrer" href={subject.source_url}>Fonte pubblica</a>}
-                        </CardContent>
-                      )}
                     </Card>
                   ))}
                 </div>
