@@ -8,12 +8,12 @@
 | --- | --- | --- | --- |
 | Proposta Capo di Stato | utente autenticato: UUID interno, nome di terzo, breve testo facoltativo, fonte HTTPS | Admin legge titolo/testo/fonte; approvazione in elenco pubblico con nome e voto possibile | POST unico, `pending`, unique partial index, review Admin atomica |
 | Amnistia | stesse colonne; titolo di una proposta normativa e testo facoltativo | Admin; catalogo pubblico `amnistia` dopo approvazione | nome nuovo non pubblicabile/votabile tramite endpoint legacy |
-| Attivisti e Organizzazioni | titolo, dettagli facoltativi e URL di fonte; possono contenere dati su persone terze | Admin; directory pubblica `GET /approved` restituisce titolo, testo e URL soltanto dopo approvazione | nessun account/ruolo fittizio; approvazione esplicita, ma nessuna verifica automatica del contenuto |
+| Attivisti e Organizzazioni | titolo, dettagli facoltativi e URL di fonte; possono contenere dati su persone terze | Admin vede anche testo e URL della fonte; directory pubblica `GET /approved` espone solo ID e titolo dopo approvazione | nessun account/ruolo fittizio; approvazione esplicita, ma nessuna verifica automatica del contenuto |
 | Grazia | UUID proponente, nome di terzo, fonte HTTPS; **nessun campo libero su reati/sentenze** | **solo** coda `richieste_grazia` e moderazione dedicata | `/api/grazia`; la coda generica rifiuta categoria Grazia con 409 prima di SQL |
 | Esito e avvisi | ID proponente nel database, categoria, stato e testo neutro | notifica privata al proponente; avviso neutro all'Admin | non includere nomi di terzi nei banner |
 | Pannello generale Admin | ID proposta, categoria, titolo, dettagli, fonte, data | solo Admin autenticato | **escluso** `proposer_user_id` dalla risposta `GET /api/subject-proposals/admin`; il server lo conserva per inviare la notifica post-review |
 
-Il catalogo "approvati" di Attivisti/Organizzazioni attualmente restituisce anche `details` e `source_url`: la revisione GDPR deve stabilire quali informazioni possono essere rese pubbliche e con quale verifica. La fonte accessibile pubblicamente **non** autorizza di per sé l'ulteriore pubblicazione o la raccolta di dati sensibili.
+Il catalogo "approvati" di Attivisti/Organizzazioni restituisce **solo ID e titolo**. `details` e `source_url` rimangono accessibili alla moderazione Admin e non sono trasmessi dalle tre API pubbliche (`/api/subject-proposals/approved`, `/api/attivisti`, `/api/organizzazioni`). Anche un semplice titolo contenente il nome di una persona **può costituire un dato personale**: la revisione GDPR deve comunque stabilire se e a quali condizioni può essere reso pubblico. Una fonte online non autorizza automaticamente la ripubblicazione di dati di terzi.
 
 ## Decisioni obbligatorie del DPO prima del GO
 
@@ -38,13 +38,14 @@ Non introdurre "consenso implicito" attribuito a terze persone, non considerare 
 3. Le richieste generiche impediscono duplicati in sospeso con indici `UNIQUE` parziali e validano una fonte HTTPS.
 4. Il controllo `api/scripts/check-proposals-schema-readiness.js` legge soltanto metadati PG e segnala mancanze, RLS eccessivamente permissiva, vincoli e indici.
 5. **Minimizzazione applicata ora:** la lista Admin generica non richiede e non riceve lo UUID del proponente; il server lo usa solo nella transazione di notifica esito.
-6. La cancellazione di un account rimuove le proposte con `ON DELETE CASCADE` e azzera `source_proposal_id` nelle voci approvate del catalogo Capo di Stato; questo **non** è un meccanismo completo per i diritti della persona nominata.
-7. Test automatici su PostgreSQL 17 **effimero** (non lo staging Supabase) controllano autorizzazioni, review, SQL, privacy e regressioni.
+6. Le tre API pubbliche elencano **solo ID e titolo** di Attivisti/Organizzazioni approvati; testo e fonte restano nella coda Admin, con test contrattuale sulle pagine e verifica HTTP/PG17 sul catalogo condiviso.
+7. La cancellazione di un account rimuove le proposte con `ON DELETE CASCADE` e azzera `source_proposal_id` nelle voci approvate del catalogo Capo di Stato; questo **non** è un meccanismo completo per i diritti della persona nominata.
+8. Test automatici su PostgreSQL 17 **effimero** (non lo staging Supabase) controllano autorizzazioni, review, SQL, privacy e regressioni.
 
 ## Condizioni di rilascio non soddisfatte
 
 - [ ] Decisioni motivate del DPO e revisione legale per le categorie (in particolare artt. 9/10/14).
-- [ ] Informative e registro trattamenti, percorso DSAR e contestazione di un nominativo pubblicato.
+- [ ] Informative e registro trattamenti, percorso DSAR e contestazione di un nominativo pubblicato; anche l'esposizione del solo titolo/identificativo resta subordinata alla revisione DPO.
 - [ ] Tabella formale della retention e cancellazione tecnica/test, senza introdurre scadenze arbitrarie.
 - [ ] Staging gratuito schema-completo (oggi 7 tabelle e 2 colonne mancanti + categoria Grazia ancora nel CHECK), senza copia di profili reali.
 - [ ] Test End-to-End con 2 identità sintetiche + Admin e verifica revoca/ritiro di una proposta approvata.
