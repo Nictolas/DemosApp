@@ -10,12 +10,42 @@
 - Il workspace elenca 11 servizi (web/static), nessun servizio di tipo `cron_job`; non esclude processi schedulati dentro il backend o fuori Render.
 - PR #490 (export/migrazione legacy) e #504 (backup legacy) sono ancora Draft. In produzione i percorsi legacy sono montati dietro autenticazione e permessi Admin, ma non applicano i blocchi 410 proposti. Nessun accesso non autorizzato è stato dimostrato.
 
+## Gate P0 aggiuntivo — Blueprint Auto Sync e differenze dalla produzione
+
+**ATTENZIONE: disabilitare l'Auto-Deploy dei due servizi non basta se sono gestiti da un Render Blueprint con `Auto Sync` attivo.** Secondo [Render Infrastructure as Code](https://render.com/docs/infrastructure-as-code), la sincronizzazione automatica di un Blueprint può **ridistribuire i servizi interessati** per applicare la configurazione modificata. Il Blueprint è separato dalla modalità `autoDeployTrigger=off` del singolo servizio. Il solo commit della PR #515 che modifica `render.yaml` non è automaticamente innocuo.
+
+### Differenze osservate, senza leggere segreti
+
+| Parametro | Backend LIVE Render | Backend `render.yaml` PR #515 |
+| --- | --- | --- |
+| `rootDir` | `api` | `api` |
+| Build command | `npm install` | `npm ci` |
+| Start command | `node index.js` | `node index.js` |
+
+| Parametro | Frontend LIVE Render | Frontend `render.yaml` PR #515 |
+| --- | --- | --- |
+| `rootDir` | `client` | omesso (predefinito: root repository) |
+| Build command | `npm install; npm run build` | `cd client && npm ci --only=production && npm run build` |
+| Publish path | `dist` | `client/dist` |
+
+Il risultato di una sincronizzazione può dipendere da come i servizi esistenti sono associati al Blueprint; **non è stato attestato alcun collegamento Blueprint né il suo valore Auto Sync**. Non assumere che una modifica a `render.yaml` controlli automaticamente i servizi esistenti, né che una sincronizzazione sia limitata ai campi Auto-Deploy.
+
+### Condizioni aggiuntive prima dell'integrazione
+
+1. Con l'accesso autorizzato a Render, verificare **se** `demos-backend` e `demos-frontend` sono gestiti da un Blueprint. Se sì, aprirlo e impostare **Blueprint Auto Sync → No**, con successivo read-back, **prima** di integrare PR #515. Non usare `Manual Sync`.
+2. Se i servizi non sono Blueprint-managed, non associare questa PR a un nuovo Blueprint e non creare duplicati dei servizi di produzione.
+3. Confrontare la configurazione effettiva di build, directory e pubblicazione con il Blueprint e decidere separatamente se conservarla o aggiornarla; non alterare build command, root directory, env var o publish path per il solo scopo di spegnere i deploy automatici.
+4. Verificare che **Auto-Deploy dei due servizi = Off**, **Blueprint Auto Sync = No se applicabile**, e che nessun deploy inatteso sia partito. Poi verificare la protezione GitHub `main`.
+5. Conservare il blocco `NO-GO` anche dopo questi passaggi finché DPO/GDPR, backup/restore, QA e approvazione della release non siano completati.
+
+La CI `blueprint-policy` controlla esclusivamente il codice versionato, **non** legge né modifica Auto Sync, root directory o build command dei servizi Render. Nessuna sincronizzazione Blueprint è stata eseguita.
+
 ## Piano di attivazione controllata — da eseguire soltanto con autorizzazione
 
 1. **Prima del merge di questa PR**, disabilitare manualmente `Auto-Deploy` su entrambi i servizi principali nel dashboard Render, scegliendo **Off**. Non toccare gli staging. Verificare con successivo read-back che entrambi siano effettivamente `off`. Non confondere `After CI Checks Pass` con approvazione manuale del rilascio: in quella modalità Render distribuisce comunque automaticamente dopo CI verdi.
 2. Su GitHub, predisporre una regola che si applichi a `main`: richiedere modifiche tramite PR, evitare push diretti, imporre controlli di stato verificabili e non consentire bypass non autorizzati. Valutare la regola sui review obbligatori: con un unico manutentore e nessun revisore indipendente, richiedere un'approvazione altrui può rendere impossibile procedere. Prima occorre organizzare il reviewer.
 3. Una volta disponibile su `main`, verificare che il workflow **Release Blueprint Policy** produca su *ogni* PR a `main` il check `blueprint-policy`; solo allora selezionarlo come check richiesto, assieme ad altri check **che non siano limitati a certi file**. Workflow con `paths:` come Security Agent Validation e Android Alpha Validation **non devono essere imposti a tutte le PR senza adeguare i trigger**, altrimenti alcune PR resteranno bloccate senza eseguire il controllo.
-4. Dopo conferma provider/off e regole GitHub, effettuare la revisione del diff di questa PR, valutare la sincronizzazione Blueprint e integrarla solo con autorizzazione esplicita. Verificare nuovamente che backend e frontend conservino auto-deploy OFF nel provider.
+4. Dopo conferma provider/off, verifica di **Blueprint Auto Sync=No se applicabile**, differenze di build/rootDir/publish path e regole GitHub, effettuare la revisione del diff di questa PR. **Non sincronizzare il Blueprint** finché la configurazione di produzione non sia stata riconciliata e la sincronizzazione non sia stata autorizzata separatamente. Integrare solo con autorizzazione esplicita e verificare ancora che backend e frontend conservino Auto-Deploy OFF.
 5. **Non distribuire DEMOS soltanto perché i check sono verdi.** Occorrono gate SQL/RLS, DPO e retention, ripristino isolato/rollback, privacy URL pubblici, QA/E2E e release Android firmata. Il rilascio successivo deve essere manuale e verificato su un commit approvato, con piano di rollback e registrazione dello SHA live.
 
 ## Questa PR
