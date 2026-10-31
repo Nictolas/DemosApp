@@ -17,6 +17,8 @@ test('five native category options live in one static client bundle', () => {
   assert.match(file, /new URLSearchParams\(search/);
   assert.match(file, /isProposalCategory\(requested\)/);
   assert.match(file, /DEFAULT_SUBJECT_CATEGORY/);
+  assert.match(file, /proposalReturnPathFromSearch\(search: string\)/);
+  assert.match(file, /params\.get\("da"\) === "firma"/);
   assert.doesNotMatch(file, /apiRequest|fetch\(/);
 });
 
@@ -44,13 +46,18 @@ test('page is protected, retains Firma, and can be opened from a menu entry', ()
   assert.match(app, /<Route path="\/proponi-soggetto">/);
   assert.match(app, /<ProtectedRoute path="\/proponi-soggetto" component=\{ProponiSoggetto\}/);
   assert.match(app, /<Route path="\/firma">/);
-  assert.match(firma, /href="\/proponi-soggetto"/);
+  assert.match(firma, /href="\/proponi-soggetto\?da=firma"/);
+  assert.match(app, /<Route path="\/proponi-opinione">/);
+  assert.match(app, /<Route path="\/governo\/:slug">/);
 });
 
 test('shared form does not perform personal proposal GET when opening or switching category', () => {
   const file = read('client/src/pages/ProponiSoggetto.tsx');
   assert.match(file, /categoryFromSearch\(window\.location\.search\)/);
   assert.match(file, /<select/);
+  assert.match(file, /navigate\(returnPath\)/);
+  assert.match(file, /setReturnPath\(proposalReturnPathFromSearch\(window\.location\.search\)\)/);
+  assert.match(file, />Proponi<\/h1>/);
   assert.match(file, /SUBJECT_PROPOSAL_CATEGORIES\.map/);
   assert.doesNotMatch(file, /apiRequest\("GET"|fetch\(|\/subject-proposals\/mine/);
   const writes = file.match(/apiRequest\("POST", "\/api\/subject-proposals"/g) || [];
