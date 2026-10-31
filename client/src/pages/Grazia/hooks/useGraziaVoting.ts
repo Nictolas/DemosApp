@@ -63,8 +63,18 @@ export const useGraziaVoting = (
 
   const addNomeLocal = (e: React.FormEvent) => {
     e.preventDefault();
-    const nomePulito = votingState.nomeInput.trim();
-    if (!nomePulito) return;
+    const input = votingState.nomeInput.trim();
+    if (!input) return;
+    const approved = data?.classifica?.find(item => item.nome.toLocaleLowerCase('it') === input.toLocaleLowerCase('it'));
+    if (!approved) {
+      toast({
+        title: "Nome non presente nella classifica",
+        description: "Puoi votare solo persone già approvate. Usa Proponi per chiedere una nuova valutazione.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const nomePulito = approved.nome;
     if (votingState.selectedVoti.includes(nomePulito)) {
       toast({ title: "Richiesta già selezionata" });
       return;
