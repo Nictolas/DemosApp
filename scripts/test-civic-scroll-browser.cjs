@@ -111,7 +111,8 @@ async function main() {
         } else {
           last = region.getByRole('button').last();
         }
-        await last.waitFor({ timeout: 30000 });
+        // Last item starts below the clipping boundary; attached is expected, visible is not.
+        await last.waitFor({ state: 'attached', timeout: 30000 });
 
         const first = await page.evaluate(() => {
           const scroller = document.querySelector('.app-main--scroll-content .app-page-scroll');
