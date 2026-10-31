@@ -54,6 +54,7 @@ interface organizzazione {
 interface OrganizzazioniResponse {
   success: boolean;
   data: organizzazione[];
+  approved_subjects?: Array<{ id: string; title: string; details: string; source_url: string | null }>;
   count: number;
   message: string;
 }
@@ -63,6 +64,7 @@ export default function Organizzazioni() {
   const { toast } = useToast();
   const API_BASE = 'https://demos-c7k0.onrender.com';
   const [organizzazioni, setOrganizzazioni] = useState<organizzazione[]>([]);
+  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string; details: string; source_url: string | null }>>([]);
   const [filteredOrganizzazioni, setFilteredOrganizzazioni] = useState<organizzazione[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegione, setSelectedRegione] = useState("all");
@@ -154,6 +156,7 @@ export default function Organizzazioni() {
                 
                 // I dati arrivano già ordinati per supporters_count DESC
                 setOrganizzazioni(data.data as any);
+                setApprovedSubjects(data.approved_subjects || []);
                 setFilteredOrganizzazioni(data.data as any);
                 const next: Record<string, number> = {};
                 (data.data as any[]).forEach((a) => { 
@@ -766,6 +769,27 @@ export default function Organizzazioni() {
                   ))}
                 </div>
               </div>
+            )}
+            {approvedSubjects.filter(s => !searchTerm.trim() || s.title.toLowerCase().includes(searchTerm.trim().toLowerCase())).length > 0 && (
+              <section className="mt-5 space-y-3" aria-label="Organizzazioni segnalate e approvate">
+                <h2 className="text-lg font-semibold">Organizzazioni segnalate e approvate</h2>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {approvedSubjects.filter(s => !searchTerm.trim() || s.title.toLowerCase().includes(searchTerm.trim().toLowerCase())).map(subject => (
+                    <Card key={subject.id} className="bg-white">
+                      <CardHeader className="p-3">
+                        <CardTitle className="break-words text-base">{subject.title}</CardTitle>
+                        <p className="text-xs text-slate-600">Soggetto pubblico approvato, non un account DEMOS verificato.</p>
+                      </CardHeader>
+                      {(subject.details || subject.source_url) && (
+                        <CardContent className="space-y-2 px-3 pb-3 text-sm">
+                          {subject.details && <p className="break-words">{subject.details}</p>}
+                          {subject.source_url?.startsWith("https://") && <a href={subject.source_url} rel="noopener noreferrer" target="_blank" className="text-blue-700 underline">Fonte pubblica</a>}
+                        </CardContent>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              </section>
             )}
           </div>
         </section>
