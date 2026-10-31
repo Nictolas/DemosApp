@@ -56,6 +56,7 @@ import NotificheTotali from "./pages/NotificheTotali";
 import Vota from "./pages/Vota";
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
+import ProposteSoggetti from "./pages/Gestisci/ProposteSoggetti";
 import Strumenti from "./pages/Strumenti";
 import Sondaggi from "./pages/Sondaggi";
 import Proponi from "./pages/Proponi";
@@ -733,6 +734,10 @@ export default function App() {
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci" component={Gestisci} />
                 </PageTransition>
+              </Route>
+
+              <Route path="/gestisci/proposte-soggetti">
+                <ProtectedRoute path="/gestisci/proposte-soggetti" component={ProposteSoggetti} />
               </Route>
 
               {/* Route riconoscimenti (admin) */}
