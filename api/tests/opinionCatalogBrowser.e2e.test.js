@@ -1105,8 +1105,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         if (title === 'Videosorveglianza in spazi pubblici') {
           for (const n of ['7 giorni', '72 ore', '2 livelli', 'Art. 35'])
             assert.ok(data.includes(n), 'Italian/GDPR CCTV guarantee ' + n);
-          assert.ok(data.includes('NON limite generale') &&
-            data.includes('NON sono una licenza automatica') === false,
+          assert.ok(data.includes('NON limite generale'),
             'Jurisdiction-specific retention limit must not be applied to every camera');
           assert.ok(data.includes('72 ore NON sono una licenza automatica'),
             '72 hours are not an automatic authorization to retain footage');
