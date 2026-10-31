@@ -264,6 +264,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Settimana lavorativa di 32 ore', '92%'],
       ['/opinioni-nazionali', 'Matrimonio gay', '2.936'],
       ['/opinioni-comunali', 'Trasporto pubblico gratuito', '+88%'],
+      ['/opinioni-nazionali', 'Reddito di Cittadinanza', '1,37 mln'],
+      ['/opinioni-regionali', 'Nuovi parchi eolici', '21.360 GWh'],
+      ['/opinioni-comunali', 'Raccolta rifiuti porta a porta', '71,34% → 80,93%'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -447,6 +450,45 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Dunkerque and Luxembourg use exact periods and results');
           assert.ok(data.includes('non attribuisce alla sola gratuità'),
             'Service expansion and pandemic caveat must be visible');
+        }
+      } else if (['Reddito di Cittadinanza', 'Nuovi parchi eolici', 'Raccolta rifiuti porta a porta'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const stats = await results.innerText();
+        const cards = results.getByTestId('opinion-brief-result');
+        assert.ok(await cards.count() >= 3, title + ': measurable sourced data cards');
+        assert.ok(await results.locator('a[href^="https://"]').count() >= 3,
+          title + ': metric links should be inspectable');
+        const blocks = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(k => root.querySelector('[data-testid="' + k + '"]')?.getBoundingClientRect().top));
+        assert.ok(blocks.every(Number.isFinite) && blocks[0] < blocks[1] && blocks[1] < blocks[2],
+          title + ': intro first, comparison second, data third');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': do not invent legally classified countries');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Reddito di Cittadinanza' ? 1 : 0,
+          title + ': only actual current-to-proposed policy has an arrow');
+        if (title === 'Reddito di Cittadinanza') {
+          assert.ok(stats.includes('1,37 mln') && stats.includes('562,75 €')
+            && stats.includes('690 mila') && stats.includes('672 €'),
+            'INPS data must keep distinct programmes and dates');
+          assert.ok(stats.includes('l\'intero 2023') && stats.includes('solo giugno 2026'),
+            'Do not treat annual and monthly beneficiaries as directly comparable');
+        }
+        if (title === 'Nuovi parchi eolici') {
+          assert.ok(stats.includes('13,5 GW') && stats.includes('21.360 GWh')
+            && stats.includes('3.674 MW') && stats.includes('2.512 MW'),
+            'Installed capacity, electricity generation and regional capacity distinct');
+          assert.ok(stats.includes('non prevedono produzione o impatti'),
+            'Observed generation cannot forecast a specific new site');
+        }
+        if (title === 'Raccolta rifiuti porta a porta') {
+          assert.ok(stats.includes('71,34% → 80,93%') && stats.includes('67,69%')
+            && stats.includes('52,55% → 67,69%'),
+            'Parma and Italy collection shares with date ranges');
+          assert.ok(stats.includes('NON equivale alla quota di rifiuti effettivamente riciclati'),
+            'Source separation versus actual recycling must be distinguished');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
