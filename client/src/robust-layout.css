@@ -228,6 +228,29 @@
   overflow: hidden;
 }
 
+/* Avvistamenti, Iniziativa Popolare e Grazia: scorre il contenuto, non la navbar. */
+.app-main.app-main--scroll-content {
+  overflow-y: hidden !important;
+}
+
+.app-main.app-main--scroll-content > .app-main__inner {
+  overflow: hidden;
+}
+
+.app-main.app-main--scroll-content .fade-up-transition {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-main.app-main--scroll-content .app-page-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
 /* Attivisti e Organizzazioni: come Eventi/Notifiche, scroll limitato
    all'elenco sotto l'intestazione e i filtri, sopra la navbar mobile. */
 .app-main.app-main--directory {

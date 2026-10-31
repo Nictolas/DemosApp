@@ -1,0 +1,67 @@
+name: Civic pages vertical scrolling regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/pages/Avvistamenti/index.tsx'
+      - 'client/src/pages/VotaIniziativaPopolare/index.tsx'
+      - 'client/src/pages/Grazia/index.tsx'
+      - 'client/src/components/RobustAppLayout.tsx'
+      - 'client/src/robust-layout.css'
+      - 'api/tests/civicScrollContract.test.js'
+      - 'scripts/test-civic-scroll-browser.cjs'
+      - '.github/workflows/civic-scroll-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'client/src/pages/Avvistamenti/index.tsx'
+      - 'client/src/pages/VotaIniziativaPopolare/index.tsx'
+      - 'client/src/pages/Grazia/index.tsx'
+      - 'client/src/components/RobustAppLayout.tsx'
+      - 'client/src/robust-layout.css'
+      - 'api/tests/civicScrollContract.test.js'
+      - 'scripts/test-civic-scroll-browser.cjs'
+
+permissions:
+  contents: read
+
+jobs:
+  civic-scroll-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Verify civic scroll and fixed-header / no-scroll regressions
+        run: |
+          node --test \
+            api/tests/civicScrollContract.test.js \
+            api/tests/eventiScrollContract.test.js \
+            api/tests/notificheScrollContract.test.js \
+            api/tests/directoryFixedHeaderScroll.smoke.test.js \
+            client/tests/selectionGridNoScroll.test.mjs
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend
+        run: npm run build --prefix client
+      - name: Install isolated Chromium browser runner
+        run: |
+          npm install --prefix /tmp/demos-civic-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+          node /tmp/demos-civic-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Test the compiled DEMOS routes using synthetic browser data
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-civic-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/grazia >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-civic-browser/node_modules node scripts/test-civic-scroll-browser.cjs

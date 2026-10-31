@@ -403,10 +403,10 @@ export default function Avvistamenti() {
   };
 
   return (
-    <PageContainer className="bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-      <div className="container mx-auto px-4 py-8 h-full flex flex-col">
+    <PageContainer className="overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      <div className="container mx-auto h-full min-h-0 w-full flex flex-col px-4 pt-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 shrink-0">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
               <Phone className="h-6 w-6 text-white" />
@@ -423,7 +423,12 @@ export default function Avvistamenti() {
         </div>
 
         {/* Sezioni con pulsanti disposti in tre colonne */}
-        <div className="flex-1 overflow-y-auto space-y-8">
+        <div
+          className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-8 pb-8"
+          role="region"
+          aria-label="Categorie degli avvistamenti"
+          tabIndex={0}
+        >
           {emergencySections.map((section) => (
             <div key={section.id}>
               <h2 className="text-xl font-semibold text-gray-800 mb-4 text-center">

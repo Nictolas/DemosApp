@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
+import { PageContainer } from "@/components/PageContainer";
 import { useIniziativeData } from "./hooks/useIniziativeData";
 import { useIniziativeVoting } from "./hooks/useIniziativeVoting";
 import { Header } from "./components/Header";
@@ -59,8 +60,14 @@ export default function VotaIniziativaPopolare() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
-      <div className="w-full max-w-full mx-auto">
+    <PageContainer className="overflow-hidden bg-gradient-to-b from-background to-secondary/20">
+      <div
+        className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-6"
+        role="region"
+        aria-label="Iniziative popolari"
+        tabIndex={0}
+      >
+        <div className="w-full max-w-full mx-auto">
         {error ? (
           <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded">
             <b>Errore nel caricamento dei dati:</b><br />
@@ -110,6 +117,7 @@ export default function VotaIniziativaPopolare() {
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* Dialog di visualizzazione iniziativa */}
@@ -117,6 +125,6 @@ export default function VotaIniziativaPopolare() {
         iniziativa={viewIniziativa}
         onClose={handleCloseView}
       />
-    </div>
+    </PageContainer>
   );
 }

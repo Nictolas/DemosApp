@@ -32,6 +32,7 @@ function shouldShowAppNav(location: string): boolean {
 
 export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) => {
   const [location] = useLocation();
+  const isScrollableContentPage = location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia';
   const isMobileLayout = useMobileLayout();
   const showAppNav = shouldShowAppNav(location);
   const showMobileNavbar = isMobileLayout && showAppNav;
@@ -55,7 +56,7 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
 
         {showDesktopHeader && <DesktopAppHeader />}
 
-        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : location === '/profilo' || location.startsWith('/profilo/') ? ' app-main--profile' : ''}`}>
+        <main className={`app-main${location === '/notifiche' ? ' app-main--notifiche' : location === '/eventi' ? ' app-main--eventi' : location === '/attivisti' || location === '/organizzazioni' ? ' app-main--directory' : location === '/profilo' || location.startsWith('/profilo/') ? ' app-main--profile' : ''}${isScrollableContentPage ? ' app-main--scroll-content' : ''}`}>
           <ErrorBoundary>
             <div className="app-main__inner">{children}</div>
           </ErrorBoundary>
