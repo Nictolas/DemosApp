@@ -270,6 +270,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Potenziare Rinnovabili', '44,3 TWh'],
       ['/opinioni-regionali', 'Nuovi inceneritori', '5,5 mln t'],
       ['/opinioni-comunali', 'Asili nido gratuiti', '527,27 €/mese'],
+      ['/opinioni-nazionali', 'Patrimoniale', '36 mld NOK'],
+      ['/opinioni-regionali', 'Nuove centrali geotermiche', '5.644,3 GWh'],
+      ['/opinioni-comunali', 'Nuove piste ciclabili', '+28,8%'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -282,8 +285,8 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       const dialog = page.getByRole('dialog');
       const brief = dialog.getByTestId('opinion-brief');
       await brief.waitFor({ timeout: 12000 });
-      assert.equal(await brief.getByRole('heading', { name: 'A favore' }).count(), 1, title + ': clear green pro label');
-      assert.equal(await brief.getByRole('heading', { name: 'Contro' }).count(), 1, title + ': clear red con label');
+      assert.equal(await brief.getByRole('heading', { name: 'A favore', exact: true }).count(), 1, title + ': clear green pro label');
+      assert.equal(await brief.getByRole('heading', { name: 'Contro', exact: true }).count(), 1, title + ': clear red con label');
       assert.equal(await brief.getByTestId('opinion-brief-pro').count(), 1);
       assert.equal(await brief.getByTestId('opinion-brief-con').count(), 1);
       assert.ok((await brief.innerText()).includes(fact), title + ': expected fact visible');
@@ -535,6 +538,43 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Waitlists are measured as facilities, not children');
           assert.ok(stats.includes('non è gratuità universale'),
             'Regional measure not conflated with universal free municipal nurseries');
+        }
+      } else if (['Patrimoniale', 'Nuove centrali geotermiche', 'Nuove piste ciclabili'].includes(title)) {
+        const evidence = brief.getByTestId('opinion-brief-measured-results');
+        await evidence.waitFor({ timeout: 12000 });
+        const data = await evidence.innerText();
+        const resultCards = evidence.getByTestId('opinion-brief-result');
+        assert.equal(await resultCards.count(), 4,
+          title + ': four quantified, dated, attributable measurements');
+        assert.equal(await evidence.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': one traceable source per metric');
+        const blocks = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(k => root.querySelector('[data-testid="' + k + '"]')?.getBoundingClientRect().top));
+        assert.ok(blocks.every(Number.isFinite) && blocks[0] < blocks[1] && blocks[1] < blocks[2],
+          title + ': intro first, comparison second, measurements third');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Patrimoniale' ? 1 : 0,
+          title + ': directional arrow only for an actual policy change');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': do not create a false legal/illegal comparison');
+        if (title === 'Patrimoniale') {
+          for (const value of ['1,0%', '1,9 mln NOK', '36 mld NOK', '15,2%'])
+            assert.ok(data.includes(value), 'Norwegian wealth tax measurement ' + value);
+          assert.ok(data.includes('una previsione per il 2026'), 'Forecast is not labeled as collected revenue');
+          assert.ok(data.includes('non degli abitanti'), 'Taxpayer denominator is explicit');
+        }
+        if (title === 'Nuove centrali geotermiche') {
+          for (const value of ['5.644,3 GWh', '9.008,3 GWh', '33', '15 su 15'])
+            assert.ok(data.includes(value), 'Regional geothermal data ' + value);
+          assert.ok(data.includes('13 stabilimenti nel 2025, non tutte le 33 centrali'),
+            'Controlled sample not conflated with all plants');
+        }
+        if (title === 'Nuove piste ciclabili') {
+          for (const value of ['oltre 6.000 km', '+5,6%', '+28,8%', '3 su 4'])
+            assert.ok(data.includes(value), 'ISTAT bicycle network metric ' + value);
+          assert.ok(data.includes('non automaticamente sicurezza stradale'),
+            'Installed kilometers not misrepresented as safety impact');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
