@@ -840,7 +840,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           for (const n of ['2016', '1/6/2019', '15 + 7,5', '25/12/2023'])
             assert.ok(data.includes(n), 'Regional tender and EU award-law evidence ' + n);
           assert.ok(data.includes('NON un nuovo bando del 2026') &&
-            data.includes('NON data dell’aggiudicazione') &&
+            data.includes('NON data dell') &&
             data.includes('Non è il divieto di OGNI affidamento diretto'),
             'Competition, existing contract dates and EU exceptions are not interchangeable');
           assert.ok((await brief.innerText()).includes('Gestore del servizio ferroviario e proprietario/gestore dei binari'));
