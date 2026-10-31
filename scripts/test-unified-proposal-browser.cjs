@@ -21,7 +21,7 @@ async function main() {
       const context=await browser.newContext({viewport,serviceWorkers:'block',reducedMotion:'reduce'});
       await context.addInitScript(token=>localStorage.setItem('auth_token',token),TOKEN);
       const page=await context.newPage();
-      const posts=[], proposalReads=[];
+      const posts=[], graziaPosts=[], proposalReads=[];
       await page.route('**/*',route=>{
         const url=new URL(route.request().url());
         if(url.origin!==BASE)return route.abort();
@@ -29,6 +29,11 @@ async function main() {
         if(url.pathname==='/api/auth/me')return response(route,200,{
           success:true,user:{id:ID,email:'',status:'a',ruolo:'E',role:'E',account_type:'E',
           political_consent:{granted:true,timestamp:'2026-10-01T00:00:00Z'}}});
+        if(url.pathname==='/api/grazia'&&route.request().method()==='POST'){
+          const data=route.request().postDataJSON();
+          graziaPosts.push(data);
+          return response(route,202,{success:true,richiesta:{id:'grazia-synthetic-'+graziaPosts.length,status:'pending'}});
+        }
         if(url.pathname.startsWith('/api/subject-proposals')){
           if(route.request().method()==='GET'){
             proposalReads.push(url.pathname);
@@ -59,10 +64,11 @@ async function main() {
       assert.equal(await submit.isDisabled(),false);
       await submit.click();
       await page.getByText('Proposta registrata.',{exact:false}).waitFor({timeout:15000});
-      assert.equal(posts.length,1);
-      assert.equal(posts[0].category,'grazia');
-      assert.equal(posts[0].details,'');
-      assert.equal(posts[0].source_url,'https://example.org/pubblica');
+      assert.equal(graziaPosts.length,1,'Grazia uses the existing dedicated queue');
+      assert.equal(graziaPosts[0].nome,'Persona completamente sintetica');
+      assert.equal(graziaPosts[0].urlProva,'https://example.org/pubblica');
+      assert.equal(Object.keys(graziaPosts[0]).length,2,'no judicial details in Grazia');
+      assert.equal(posts.length,0,'Grazia never writes the generic subject proposals queue');
       assert.equal(proposalReads.length,0,'no proposal query after submission');
 
       await select.selectOption('organizzazioni');
@@ -72,9 +78,9 @@ async function main() {
       await page.locator('#subject-source').fill('https://example.org/organizzazione');
       await submit.click();
       await page.getByText('Proposta registrata.',{exact:false}).waitFor({timeout:15000});
-      assert.equal(posts.length,2);
-      assert.equal(posts[1].category,'organizzazioni');
-      assert.equal(posts[1].details,'Fonte pubblica, senza dati privati');
+      assert.equal(posts.length,1);
+      assert.equal(posts[0].category,'organizzazioni');
+      assert.equal(posts[0].details,'Fonte pubblica, senza dati privati');
       assert.equal(proposalReads.length,0,'category switches do not hit proposal API');
       const metrics=await page.evaluate(()=>({
         total:document.documentElement.scrollWidth,
@@ -94,7 +100,7 @@ async function main() {
       assert.equal(proposalReads.length,0,'navigation to source remains GET-free for proposals');
       await context.close();
       console.log('UNIFIED PROPOSALS browser PASS '+viewport.width+'x'+viewport.height+
-        ': two submissions, no proposal-specific GET');
+        ': one Grazia POST + one generic POST; no proposal-specific GET');
     }
   }finally{await browser.close();}
 }
