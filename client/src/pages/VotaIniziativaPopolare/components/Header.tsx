@@ -1,18 +1,10 @@
 import React from "react";
-import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Scale } from "lucide-react";
+import { Scale } from "lucide-react";
 
 export const Header: React.FC = () => {
   return (
     <>
-      <Link href="/vota" className="lg:hidden">
-        <Button variant="ghost" className="mb-4 flex items-center">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Vota
-        </Button>
-      </Link>
-
       <Card className="mb-6">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
