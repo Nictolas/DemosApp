@@ -297,8 +297,8 @@ app.head('/', (req, res) => {
 });
 
 
-// Logging middleware di debug - solo in sviluppo (evita accumulo log in produzione)
-if (process.env.NODE_ENV !== 'production') {
+// Request debug logging (including request headers) is permitted only in explicitly opted-in local development.
+if (mountDevApiSurface) {
   app.use((req, res, next) => {
     console.log(`ðŸ“¡ ${req.method} ${req.path} - ${new Date().toISOString()}`);
     console.log(`ðŸŒ Origin: ${req.headers.origin || 'Nessuna'}`);
