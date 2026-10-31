@@ -125,3 +125,13 @@ test('dev API surface requires development and an explicit opt-in even for migra
       'expected audited dev mount to remain present: ' + route);
   }
 });
+
+test('request and header debug logging is absent unless the central dev guard is enabled', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const appSource = fs.readFileSync(path.resolve(__dirname, '../app.js'), 'utf8');
+  assert.match(appSource,
+    /\/\/ Request debug logging \(including request headers\)[^\n]*\nif \(mountDevApiSurface\) \{/);
+  assert.doesNotMatch(appSource, /if\s*\(process\.env\.NODE_ENV\s*!==\s*'production'\)/,
+    'staging and unset NODE_ENV must not enable request debug logging');
+});
