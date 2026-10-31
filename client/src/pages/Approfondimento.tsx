@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
+import { addCountryFlagsToMarkdown } from "@/lib/countryFlagsMarkdown";
 
 interface ApprofondimentoData {
   id: string;
@@ -133,7 +134,7 @@ export default function Approfondimento() {
               <div 
                 className="prose prose-lg max-w-none"
                 dangerouslySetInnerHTML={{ 
-                  __html: sanitizeRichHtml(renderMarkdown(approfondimento.approfondimento))
+                  __html: sanitizeRichHtml(renderMarkdown(addCountryFlagsToMarkdown(approfondimento.approfondimento)))
                 }}
               />
             ) : (

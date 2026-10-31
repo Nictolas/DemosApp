@@ -179,6 +179,62 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       savedByGrade.set(grade, { id: selectedId, answer: answerCode });
     }
     assert.equal(savedByGrade.size, 4, 'Four real UI save/readback cycles must succeed');
+    // Also exercise the real, shared opinion-detail dialog on a mobile viewport.
+    // All requests still go to the loopback-only synthetic catalog API.
+    await page.goto(HEADLESS_ORIGIN + '/opinioni-comunali', { waitUntil: 'domcontentloaded' });
+    const fireworksButton = page.locator('button[title="Approfondimento: Fuochi d\'Artificio"]');
+    await fireworksButton.waitFor({ timeout: 25000 });
+    await fireworksButton.click();
+    const details = page.getByRole('dialog');
+    await details.waitFor({ timeout: 10000 });
+    await details.getByText('Approfondimento: Fuochi d\'Artificio').waitFor();
+    const readOnlyDetails = details.locator('.prose').first();
+    await readOnlyDetails.getByText(/Irlanda/).first().waitFor({ timeout: 10000 });
+    const richText = await readOnlyDetails.innerText();
+    assert.match(richText, /🇮🇹 Italia/, 'Italy flag renders only in the detail view');
+    assert.match(richText, /🇮🇪 Irlanda/, 'Ireland flag renders only in the detail view');
+    assert.doesNotMatch(richText, /📝/, 'Document emoji must not consume detail width');
+    assert.equal(await details.getByRole('button', { name: 'Modifica approfondimento' }).count(), 0);
+    for (const viewport of [{ width: 390, height: 844 }, { width: 360, height: 640 }]) {
+      await page.setViewportSize(viewport);
+      // Playwright applies viewport resizing before Chrome necessarily repaints the dialog.
+      // Wait for the real responsive layout rather than measuring a stale previous frame.
+      await page.waitForFunction(size => {
+        const element = document.querySelector('[role="dialog"]');
+        if (!element) return false;
+        const box = element.getBoundingClientRect();
+        return Math.abs(box.width - size.width) <= 2 && Math.abs(box.height - size.height) <= 2;
+      }, viewport, { timeout: 7000 });
+      const layout = await details.evaluate(element => {
+        const root = element.getBoundingClientRect();
+        const header = element.querySelector('h1, h2, h3')?.getBoundingClientRect();
+        const footer = Array.from(element.querySelectorAll('button')).find(b => b.textContent?.trim() === 'Chiudi')?.getBoundingClientRect();
+        const scrolling = Array.from(element.querySelectorAll('*')).find(n => {
+          const style = getComputedStyle(n);
+          return style.overflowY === 'auto' && n.scrollHeight > n.clientHeight;
+        });
+        if (!scrolling) return { root: { x: root.x, y: root.y, width: root.width, height: root.height }, header, footer, scrollable: false };
+        scrolling.scrollTop = scrolling.scrollHeight;
+        return {
+          root: { x: root.x, y: root.y, width: root.width, height: root.height },
+          header: header ? { top: header.top, bottom: header.bottom } : null,
+          footer: footer ? { top: footer.top, bottom: footer.bottom } : null,
+          scrollable: true,
+          scrollBottomReached: scrolling.scrollTop > 0,
+        };
+      });
+      assert.ok(Math.abs(layout.root.x) <= 1 && Math.abs(layout.root.y) <= 1, 'Dialog starts at viewport origin');
+      assert.ok(Math.abs(layout.root.width - viewport.width) <= 2,
+        'Dialog fills viewport width: ' + JSON.stringify({ viewport, layout }));
+      assert.ok(Math.abs(layout.root.height - viewport.height) <= 2, 'Dialog fills viewport height');
+      assert.ok(layout.header && layout.header.top >= 0, 'Header remains visible');
+      assert.ok(layout.footer && layout.footer.bottom <= viewport.height + 1, 'Close button remains visible');
+      assert.equal(layout.scrollable, true, 'Content scroll container must exist');
+      assert.equal(layout.scrollBottomReached, true, 'Long details can scroll to the end');
+    }
+    await details.getByRole('button', { name: 'Chiudi', exact: true }).click();
+    await details.waitFor({ state: 'hidden' });
+
     assert.equal(outside.filter(x => x !== 'http://localhost:3000').length, outside.length);
     assert.ok(outside.every(x => !/demos\.community|onrender\.com/.test(x)),
       'No request may escape to DEMOS production');

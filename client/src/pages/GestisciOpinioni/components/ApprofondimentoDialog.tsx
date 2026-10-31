@@ -3,13 +3,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Save, Eye } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { Opinione } from "../types";
-import { useAuth } from "@/hooks/use-auth";
 import { sanitizeRichHtml } from "@/lib/sanitize-html";
+import { addCountryFlagsToMarkdown } from "@/lib/countryFlagsMarkdown";
 
 interface ApprofondimentoDialogProps {
   opinione?: Opinione;
@@ -28,15 +28,11 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   onOpenChange,
   readOnly = true
 }) => {
-  const { user } = useAuth();
-  const isAdmin = user?.ruolo === 'AD' || user?.role === 'AD';
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [approfondimento, setApprofondimento] = useState("");
-  const [editApprofondimento, setEditApprofondimento] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isQuickSaving, setIsQuickSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [customId, setCustomId] = useState(""); // ID personalizzato per nuove opinioni
   const [gradiProposta, setGradiProposta] = useState({
@@ -55,8 +51,6 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   
   const [descrizioneAbilitata, setDescrizioneAbilitata] = useState(false);
   const [descrizione, setDescrizione] = useState('');
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [loadedGradi, setLoadedGradi] = useState<string[]>([]);
 
   // Carica l'approfondimento esistente quando si apre il dialog
   useEffect(() => {
@@ -115,7 +109,6 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
             Comunale: payload.gradi_opinione.includes('CO')
           };
           setGradiProposta(gradi);
-          setLoadedGradi(payload.gradi_opinione);
         } else {
           // Se non ci sono gradi specifici, inizializza tutto a false
           setGradiProposta({
@@ -180,7 +173,6 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         
           // Mantieni anche l'approfondimento generale per compatibilità
         setApprofondimento(approfondimentoGenerale);
-        setEditApprofondimento(approfondimentoGenerale);
         } else {
           console.log('⚠️ DEBUG loadApprofondimento - Nessun dato nella risposta, inizializzo vuoto');
           setApprofondimento("");
@@ -366,59 +358,6 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
     }
   };
 
-  const handleQuickSave = async () => {
-    try {
-      setIsQuickSaving(true);
-      const currentOpinionId = opinionId || opinione?.id;
-      if (!currentOpinionId) return;
-
-      const gradiToSend = (loadedGradi && loadedGradi.length > 0)
-        ? loadedGradi
-        : Object.entries(gradiProposta)
-            .filter(([_, isSelected]) => isSelected)
-            .map(([grado]) => {
-              const map: Record<string, string> = {
-                Europeo: 'E',
-                Nazionale: 'N',
-                Regionale: 'R',
-                Comunale: 'CO',
-              };
-              return map[grado];
-            });
-
-      const body = {
-        approfondimento: editApprofondimento.trim(),
-        gradi_opinione: gradiToSend,
-      };
-
-      console.log('🔍 DEBUG quickSave - URL ID:', currentOpinionId);
-      console.log('🔍 DEBUG quickSave - Body:', body);
-
-      const res = await apiRequest("PUT", `/api/opinioni/${currentOpinionId}/approfondimento`, body);
-      if (res && (res as any).success === false) {
-        throw new Error((res as any).message || (res as any).error || 'Errore nel salvataggio');
-      }
-
-      setApprofondimento(editApprofondimento.trim());
-      toast({
-        title: "Salvato",
-        description: "Approfondimento aggiornato con successo.",
-        variant: "default",
-      });
-      setIsEditDialogOpen(false);
-    } catch (error) {
-      console.error('❌ Errore nel salvataggio rapido approfondimento:', error);
-      const message = error instanceof Error ? error.message : 'Impossibile salvare l\'approfondimento.';
-      toast({
-        title: "Errore",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsQuickSaving(false);
-    }
-  };
-
   const renderMarkdown = (text: string) => {
     return text
       // Link stile pulsante
@@ -439,9 +378,9 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col bg-white">
-        <DialogHeader className="bg-white">
-          <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="!fixed !inset-0 !left-0 !top-0 !flex !h-[100dvh] !max-h-[100dvh] !w-screen !max-w-none !translate-x-0 !translate-y-0 !flex-col !gap-0 !overflow-hidden !rounded-none !border-0 !bg-white !p-0 [&>button]:top-[calc(env(safe-area-inset-top)+1rem)]">
+        <DialogHeader className="shrink-0 border-b bg-white px-4 pb-3 pr-14 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-6 sm:pr-14">
+          <DialogTitle className="flex min-w-0 flex-wrap items-center gap-2 break-words text-base !leading-snug sm:text-lg">
             <span>Approfondimento: {opinionText || opinione?.text}</span>
             {!readOnly && (
               <span className="text-sm text-muted-foreground">
@@ -449,7 +388,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
               </span>
             )}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={readOnly ? "sr-only" : undefined}>
             {readOnly 
               ? "Visualizza le informazioni dettagliate e gli approfondimenti per questa opinione."
               : "Aggiungi informazioni dettagliate e approfondimenti per questa opinione. Puoi utilizzare il formato Markdown per formattare il testo."
@@ -457,7 +396,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden flex flex-col bg-white">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
 
           {/* Campo ID personalizzato - Solo per opinioni "da approvare" (solo admin) */}
           {!readOnly && opinione?.gradi_opinione?.includes('da approvare') && (
@@ -480,39 +419,18 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
           )}
 
           {/* Contenuto */}
-          <div className="flex-1 overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden">
             {isLoading ? (
               <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin" />
                 <span className="ml-2">Caricamento approfondimento...</span>
               </div>
             ) : readOnly ? (
-              <div className="h-full overflow-y-auto">
+              <div className="h-full overflow-y-auto overscroll-contain px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 [-webkit-overflow-scrolling:touch]">
                 {approfondimento && approfondimento.trim() ? (
-                  <div className="space-y-3">
-                    {isAdmin && (
-                      <div className="flex justify-end mb-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditDialogOpen(true)}
-                        >
-                          Modifica approfondimento
-                        </Button>
-                      </div>
-                    )}
-                    <div className="flex items-start space-x-3">
-                      <span className="text-2xl mt-1">📝</span>
-                      <div className="flex-1">
-                        <div className="bg-gray-50 p-4 rounded-lg border">
-                          <div
-                            className="prose max-w-none text-gray-900"
-                            dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(renderMarkdown(approfondimento)) }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <div className="prose max-w-none break-words text-gray-900"
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(renderMarkdown(addCountryFlagsToMarkdown(approfondimento))) }}
+                  />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <p>Nessun approfondimento disponibile per questa opinione.</p>
@@ -521,7 +439,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
               </div>
             ) : (
               // Modalità admin: UI completa con descrizione e sezioni per grado
-              <div className="h-full overflow-y-auto space-y-6">
+              <div className="h-full overflow-y-auto overscroll-contain space-y-6 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 [-webkit-overflow-scrolling:touch]">
                 {(() => {
                   // Sezione Descrizione
                   const descrizioneSection = (
@@ -644,7 +562,7 @@ Puoi aggiungere:
 
         {/* Footer */}
         {!readOnly && (
-          <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
+          <div className="flex shrink-0 justify-end gap-2 border-t bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:px-6">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Annulla
             </Button>
@@ -670,7 +588,7 @@ Puoi aggiungere:
         )}
         
         {readOnly && (
-          <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
+          <div className="flex shrink-0 justify-end gap-2 border-t bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:px-6">
             <Button onClick={() => onOpenChange(false)} className="min-w-[120px]">
               Chiudi
             </Button>
@@ -679,54 +597,7 @@ Puoi aggiungere:
       </DialogContent>
       </Dialog>
 
-      {/* Dialog secondario per modifica rapida dell'approfondimento (solo admin) */}
-      {isAdmin && (
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-3xl bg-white">
-            <DialogHeader>
-              <DialogTitle>
-                Modifica approfondimento: {opinionText || opinione?.text}
-              </DialogTitle>
-              <DialogDescription>
-                Modifica il testo completo dell&apos;approfondimento. Puoi usare il Markdown (link, grassetto, elenchi, ecc.).
-              </DialogDescription>
-            </DialogHeader>
 
-            <div className="space-y-3">
-              <Textarea
-                value={editApprofondimento}
-                onChange={(e) => setEditApprofondimento(e.target.value)}
-                className="min-h-[250px] resize-none bg-white"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
-              <Button
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(false)}
-                disabled={isQuickSaving}
-              >
-                Annulla
-              </Button>
-              <Button
-                type="button"
-                onClick={handleQuickSave}
-                disabled={isQuickSaving}
-                className="min-w-[120px]"
-              >
-                {isQuickSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Salvataggio...
-                  </>
-                ) : (
-                  "Salva"
-                )}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 };
