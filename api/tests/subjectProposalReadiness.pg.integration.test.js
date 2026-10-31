@@ -47,6 +47,24 @@ test('read-only preflight: complete schema READY; drift and unsafe grants NO-GO'
       assert.doesNotMatch(statement,/\bSELECT\s+\*\s+FROM\s+users\b/i,'No user content reads');
     }
 
+    // Reproduce the old index which excluded withdrawn names. A full schema
+    // checker must reject it and the draft migration must upgrade it atomically.
+    await client.query('DROP INDEX '+SCHEMA+'.subject_proposals_no_duplicate_open_titles');
+    await client.query(
+      "CREATE UNIQUE INDEX subject_proposals_no_duplicate_open_titles ON "+SCHEMA+
+      ".subject_proposals(category,lower(btrim(title))) WHERE status IN ('pending','approved')"
+    );
+    const unprotected=await inspectSchema(observer,{schema:SCHEMA});
+    assert.equal(unprotected.ready,false);
+    assert.ok(unprotected.problems.some(p=>p.code==='WITHDRAWN_TITLE_UNPROTECTED'));
+    await client.query(sql.replaceAll('public.',SCHEMA+'.'));
+    assert.equal((await inspectSchema(observer,{schema:SCHEMA})).ready,true,
+      'reapplying the migration must restore withdrawal-aware uniqueness');
+    const upgradedIndex=await client.query(
+      "SELECT indexdef FROM pg_indexes WHERE schemaname=$1 AND indexname='subject_proposals_no_duplicate_open_titles'",[SCHEMA]
+    );
+    assert.match(upgradedIndex.rows[0].indexdef,/withdrawn/i);
+
     // Reproduce an older staging status CHECK; the preflight must reject it.
     await client.query('ALTER TABLE '+SCHEMA+'.subject_proposals DROP CONSTRAINT subject_proposals_status_check');
     await client.query("ALTER TABLE "+SCHEMA+".subject_proposals ADD CONSTRAINT subject_proposals_status_check CHECK (status IN ('pending','approved','rejected'))");
