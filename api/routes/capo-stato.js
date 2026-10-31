@@ -187,6 +187,24 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
       });
     }
 
+    // Gate temporaneo: nessun nuovo nome nasce dal voto. Sino al catalogo
+    // moderato si accettano solo nomi già presenti nella classifica storica.
+    // Questo NON attribuisce ufficialità ai nomi legacy.
+    if (voti.length === 1) {
+      if (typeof voti[0] !== 'string' || !voti[0].trim() || voti[0].length > 160) {
+        return res.status(400).json({ success: false, error: 'Nome candidato non valido' });
+      }
+      const allowed = await pool.query(
+        'SELECT 1 FROM voti_capo_stato WHERE nome = $1 LIMIT 1', [voti[0]]
+      );
+      if (!allowed.rows.length) {
+        return res.status(422).json({
+          success: false,
+          error: 'Candidato non presente nel catalogo attuale. Le nuove proposte richiedono approvazione.',
+        });
+      }
+    }
+
     const isAdmin = Boolean(req.user?.isAdmin);
     let userIdColumn = 'userid';
     let idType = 'uuid';
