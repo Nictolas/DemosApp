@@ -40,3 +40,16 @@ test('release Blueprint policy check runs on every PR to main (no paths filters)
   assert.doesNotMatch(workflow, /push:\s*\n/);
   assert.doesNotMatch(workflow, /workflow_dispatch:/);
 });
+
+test('Blueprint Auto Sync risk is explicit before any merge or sync', () => {
+  const runbook = fs.readFileSync(
+    path.join(repositoryRoot, 'docs/operations/PRODUCTION_RELEASE_CONTROL_2026-10-31.md'),
+    'utf8'
+  );
+  assert.match(runbook, /Blueprint Auto Sync/);
+  assert.match(runbook, /Auto Sync.*No/);
+  assert.match(runbook, /npm install; npm run build/);
+  assert.match(runbook, /`rootDir`/);
+  assert.match(runbook, /Non sincronizzare il Blueprint/);
+  assert.match(runbook, /nessuna sincronizzazione Blueprint/i);
+});
