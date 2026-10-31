@@ -13,6 +13,7 @@ import OrganizzazioneModal from "@/components/OrganizzazioneModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useApprovedSubjectResumeRefresh } from "@/hooks/useApprovedSubjectResumeRefresh";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -79,6 +80,9 @@ export default function Organizzazioni() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [supportersCount, setSupportersCount] = useState<Record<string, number>>({});
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
+
+  // No initial extra read or polling. On foreground resume, discard stale nominations.
+  useApprovedSubjectResumeRefresh("organizzazioni", setApprovedSubjects, !isLoading && !isError);
 
   // Carica filtri disponibili e stato following
   useEffect(() => {
