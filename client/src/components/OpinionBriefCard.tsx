@@ -18,7 +18,7 @@ export function OpinionBriefCard({ brief }: { brief: OpinionBrief }) {
         <p className="text-sm font-medium leading-5 sm:text-base">{brief.intro}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Dati chiave">
+      <div className={`grid gap-2 ${brief.facts.length === 3 ? "grid-cols-3" : "grid-cols-2"}`} aria-label="Dati chiave">
         {brief.facts.map((fact) => (
           <div key={fact.value} className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-3">
             <p className="break-words text-base font-bold leading-tight tabular-nums text-slate-900 sm:text-lg">
