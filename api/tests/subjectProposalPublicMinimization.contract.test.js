@@ -58,3 +58,20 @@ test('Admin withdrawal UI never treats a notification outage as failed unpublish
   assert.match(ui,/role="alert"/);
   assert.match(ui,/segnalarlo al DPO/i);
 });
+
+test('unconfirmed withdrawal notification audit is Admin-only, minimal and read on demand', () => {
+  const api = file('api/routes/subject-proposals.js');
+  const ui = file('client/src/pages/Gestisci/ProposteSoggetti.tsx');
+  assert.match(api, /router\.get\('\/admin\/withdraw-notifications', verifyToken, requireAdmin/);
+  assert.match(api, /SELECT id, category, withdrawn_at FROM subject_proposals WHERE status='withdrawn'/);
+  assert.match(api, /withdraw_notification_sent IS DISTINCT FROM TRUE/);
+  assert.match(api, /Cache-Control', 'private, no-store'/);
+  assert.doesNotMatch(api.split("router.get('/admin/withdraw-notifications'")[1]
+    .split("router.post('/admin/:id/withdraw'")[0], /SELECT[^\n]+(?:proposer_user_id|title|source_url|withdraw_note)/,
+    'no third-party title, proposer identity or private notes in the audit');
+  assert.match(ui, /const switchUndelivered = \(\) => \{/);
+  assert.match(ui, /void refreshUndelivered\(\)/);
+  assert.match(ui, /"\/api\/subject-proposals\/admin\/withdraw-notifications"/);
+  assert.match(ui, /Avvisi da verificare/);
+  assert.match(ui, /non verranno reinviate automaticamente/);
+});
