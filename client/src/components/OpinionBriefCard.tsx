@@ -77,13 +77,22 @@ export function OpinionBriefCard({ brief }: { brief: OpinionBrief }) {
           </h3>
           <div className="grid grid-cols-2 gap-2">
             {brief.legalStatuses.map((place) => (
-              <div data-testid="opinion-brief-country" key={place.place} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div
+                data-testid="opinion-brief-country"
+                data-legal-status={place.status}
+                key={place.place}
+                className={place.status === "regulated"
+                  ? "min-w-0 rounded-xl border-2 border-emerald-300 bg-emerald-100 p-3"
+                  : place.status === "limited"
+                    ? "min-w-0 rounded-xl border-2 border-amber-300 bg-amber-100 p-3"
+                    : "min-w-0 rounded-xl border-2 border-rose-300 bg-rose-100 p-3"}
+              >
                 <p className="text-sm font-extrabold text-slate-900">{place.place}</p>
                 <p className={place.status === "regulated"
-                  ? "my-1.5 inline-block rounded-md bg-teal-100 px-2 py-1 text-[11px] font-bold text-teal-900"
+                  ? "my-1.5 inline-block rounded-md bg-emerald-200 px-2 py-1 text-[11px] font-bold text-emerald-950"
                   : place.status === "limited"
-                    ? "my-1.5 inline-block rounded-md bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-950"
-                    : "my-1.5 inline-block rounded-md bg-slate-200 px-2 py-1 text-[11px] font-bold text-slate-800"}
+                    ? "my-1.5 inline-block rounded-md bg-amber-200 px-2 py-1 text-[11px] font-bold text-amber-950"
+                    : "my-1.5 inline-block rounded-md bg-rose-200 px-2 py-1 text-[11px] font-bold text-rose-950"}
                 >{place.label}</p>
                 <p className="text-xs leading-[1.4] text-slate-700">{place.rule}</p>
               </div>
