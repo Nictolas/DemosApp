@@ -44,7 +44,10 @@ test('Grazia keeps title and voting controls fixed; only ranking scrolls', () =>
   assert.ok(page.indexOf('<GraziaForm') < page.indexOf('app-page-scroll min-h-0'));
   assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('<ClassificaCarcerati'));
   assert.ok(page.indexOf('<ClassificaCarcerati') < page.indexOf('{/* Dialog separato dalla classifica scorrevole. */}'));
-  assert.doesNotMatch(header, /<Link|href="\/vota"|Torna a Vota|<ArrowLeft|\bVota\s*<\/Button>/);
+  assert.ok(!header.includes('<Link'), 'Header must not contain navigation links');
+  assert.ok(!header.includes('href="/vota"'), 'No back-to-Vota route');
+  assert.ok(!header.includes('Torna a Vota'), 'No back-to-Vota button');
+  assert.ok(!header.includes('<ArrowLeft'), 'No back arrow');
   assert.doesNotMatch(page, /page-with-navbar/);
 });
 
