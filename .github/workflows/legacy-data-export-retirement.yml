@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'api/routes/admin/data-export.js'
+      - 'api/routes/admin/axiom-migration.js'
       - 'api/tests/legacyDataExportRetirement.test.js'
       - 'client/src/pages/DataExport.tsx'
       - '.github/workflows/legacy-data-export-retirement.yml'
