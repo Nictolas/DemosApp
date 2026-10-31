@@ -69,7 +69,7 @@ jobs:
       - name: Reject unreviewed new subjects via isolated HTTP
         env:
           NODE_PATH: /tmp/demos-http-test/node_modules
-        run: node --test api/tests/civicCatalogueRejectionHttp.synthetic.test.js
+        run: node api/tests/civicCatalogueRejectionHttp.synthetic.test.js
       - name: Amnesty / head-of-state gates (when present)
         run: |
           if test -f api/tests/civicSubjectPublicationGate.test.js; then node --test api/tests/civicSubjectPublicationGate.test.js; fi
