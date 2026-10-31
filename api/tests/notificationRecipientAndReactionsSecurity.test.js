@@ -35,3 +35,12 @@ test('both personal reaction readers require JWT and enforce self ownership', ()
   // Aggregate public reaction totals do not contain a personal identifier.
   assert.match(source, /router\.get\('\/batch', async/);
 });
+
+test('public Grazia ranking never returns raw voter rows', () => {
+  const source = read('api/routes/grazia.js');
+  const publicRoute = source.split("router.get('/', async (req, res) => {")[1]?.split("// GET /api/grazia/richieste")[0];
+  assert.ok(publicRoute, 'public route must exist');
+  assert.doesNotMatch(publicRoute, /SELECT \\*\\s+FROM voti_grazia/, 'no SELECT * of personal preferences in public feed');
+  assert.doesNotMatch(publicRoute, /richieste: result\\.rows/, 'no personal vote rows in JSON');
+  assert.match(publicRoute, /COUNT\\(\\*\\)::bigint AS richieste/, 'aggregated ranking is preserved');
+});
