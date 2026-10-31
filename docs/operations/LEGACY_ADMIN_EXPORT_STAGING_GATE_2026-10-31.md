@@ -27,9 +27,23 @@ Il blocco HTTP 410 non è sufficiente: alcuni script storici eseguono direttamen
 - `scripts/start-axiom-migration.js`
 - `scripts/check-migration-config.js` (l'helper mostrava anche prefissi delle credenziali e invitava all'avvio)
 
-Il codice condiviso `api/services/legacyAxiomMigrationGate.js` fa uscire i programmi con **codice 78** e identificatore `LEGACY_AXIOM_MIGRATION_RETIRED`, senza richiedere variabili di autorizzazione. Le tre funzioni esportate da `api/services/axiomMigrationService.js` rifiutano le chiamate prima di inizializzare SQL o Axiom. La CI esercita le sette entrypoint e le tre funzioni con valori fittizi e zero accessi ai provider.
+- `scripts/start-migration-with-login.js` e `scripts/test-migration-direct.js` (contienevano email/password Admin scritte nel codice)
+- `scripts/check-axiom-env-render.js` e `scripts/check-migration-status.js` (stesso problema nel login diagnostico)
+- `scripts/generate-admin-token.js` (generava e stampava un token Admin in console)
+
+
+Il codice condiviso `api/services/legacyAxiomMigrationGate.js` fa uscire i programmi con **codice 78** e identificatore `LEGACY_AXIOM_MIGRATION_RETIRED`, senza richiedere variabili di autorizzazione. Le tre funzioni esportate da `api/services/axiomMigrationService.js` rifiutano le chiamate prima di inizializzare SQL o Axiom. La CI esercita le dodici entrypoint e le tre funzioni con valori fittizi e zero accessi ai provider.
 
 **Ambito:** non è disabilitato il logging applicativo ordinario, né l'integrazione separata Axiom→B2. Il blocco non dimostra che nessuna vecchia versione dei programmi sia già installata in ambienti esterni, job Render, computer amministrativi o pianificazioni fuori dal repository; verificare provider e job in sola lettura. Nessuna operazione reale di migrazione viene eseguita in questo gate.
+
+
+### Trattamento delle credenziali storicamente presenti — incidente da valutare
+
+La revisione ha individuato quattro script storici con **email/password amministrative hardcoded** e un quinto che poteva **stampare token JWT**. Nel HEAD della PR #490 i file non contengono più quei valori o codice operativo; sono sostituiti da piccoli stub fail-closed.
+
+**La correzione NON elimina il segreto dalla cronologia Git, da eventuali fork/cloni, cache CI o versioni già distribuite.** Evitare di copiare email, password, token o stringhe di connessione nella roadmap, nelle issue, nei log e nella PR.
+
+Azioni per il titolare in ambiente autorizzato: stabilire se la password hardcoded corrisponde a un account effettivo; **se sì, cambiarla subito in modo indipendente da questa PR**, invalidare sessioni/token correlati ove supportato, verificare eventuali login inattesi e accessi al repository, e valutare la notifica/registrazione dell'evento con DPO secondo le evidenze. L'eventuale riscrittura della storia Git richiede un piano separato e coordinato (non è stata eseguita). Non eseguire tentativi di login con la credenziale trovata.
 
 ## Ambiente esistente verificato su Render (metadati API, sola lettura)
 | Servizio | Branch | Auto-deploy | Uso ammesso adesso |
