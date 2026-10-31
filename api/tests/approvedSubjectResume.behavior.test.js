@@ -23,7 +23,8 @@ function deferred() {
 
 function setup(initial = [{id:'old',title:'Nome da ritirare'}]) {
   let now=10000, state=initial, cleanup;
-  const history=[], calls=[];
+  const history=[], calls=[], refs=[];
+  let refIndex=0;
   const byTarget = new Map();
   const eventTarget = name => ({
     addEventListener(event, fn) {
@@ -36,7 +37,17 @@ function setup(initial = [{id:'old',title:'Nome da ritirare'}]) {
   const document=Object.assign(eventTarget('document'),{visibilityState:'visible'});
   const window=eventTarget('window');
   const fakeModule={exports:{}};
-  const react={useEffect: effect=>{cleanup=effect();}};
+  const react={
+    useRef(initialValue) {
+      const index=refIndex++;
+      if (!refs[index]) refs[index]={current:initialValue};
+      return refs[index];
+    },
+    useEffect(effect) {
+      cleanup?.();
+      cleanup=effect();
+    }
+  };
   const apiRequest=(method,url,body,headers,signal)=>{
     const response=deferred();
     calls.push({method,url,body,headers,signal,response});
@@ -60,8 +71,14 @@ function setup(initial = [{id:'old',title:'Nome da ritirare'}]) {
     calls, history, document, window,
     get state(){return state;},
     mount(category='attivisti',enabled=true){
+      refIndex=0;
       fakeModule.exports.useApprovedSubjectResumeRefresh(category,update,enabled);
     },
+    rerender(category='attivisti',enabled=true){
+      refIndex=0;
+      fakeModule.exports.useApprovedSubjectResumeRefresh(category,update,enabled);
+    },
+    initialResponse(items){update(items);},
     fire(target,event){
       for(const fn of [...(byTarget.get(target+':'+event)||[])])fn();
     },
@@ -159,4 +176,52 @@ test('disabled hook never registers listeners or runs queries',()=>{
   app.fire('window','focus');
   app.fire('document','visibilitychange');
   assert.equal(app.calls.length,0);
+});
+
+test('foreground event during the initial GET is remembered and rechecked once after load',async()=>{
+  const app=setup([]);
+  app.mount('organizzazioni',false); // initial directory GET is still in progress
+  app.fire('window','focus');
+  app.fire('document','visibilitychange');
+  assert.equal(app.calls.length,0,'no extra GET while initial list is loading');
+
+  // An old server response can still contain a subject withdrawn during load.
+  app.initialResponse([{id:'withdrawn',title:'Vecchia organizzazione'}]);
+  app.rerender('organizzazioni',true);
+  assert.equal(app.calls.length,1,'one deferred revalidation on ready transition');
+  assert.equal(app.calls[0].url,'/api/subject-proposals/approved?category=organizzazioni');
+  assert.equal(app.state.length,0,'stale initial data hidden immediately');
+  app.success(app.calls[0],[]);
+  await flush();
+  assert.equal(app.state.length,0,'the withdrawn name must not return');
+  app.unmount();
+});
+
+test('becoming ready without a preceding focus event does not add SQL reads',()=>{
+  const app=setup([]);
+  app.mount('organizzazioni',false);
+  app.initialResponse([{id:'approved',title:'Soggetto approvato'}]);
+  app.rerender('organizzazioni',true);
+  assert.equal(app.calls.length,0,'normal mount/ready must not double-fetch');
+  app.unmount();
+});
+
+test('filter reload aborts foreground GET but rechecks after its older response',async()=>{
+  const app=setup([]);
+  app.mount('organizzazioni',true);
+  app.fire('window','focus');
+  assert.equal(app.calls.length,1);
+  const first=app.calls[0];
+  app.rerender('organizzazioni',false); // new search/filter load
+  assert.equal(first.signal.aborted,true,'in-flight foreground GET canceled on reload');
+  app.initialResponse([{id:'withdrawn',title:'Voce ritirata durante la ricerca'}]);
+  app.rerender('organizzazioni',true);
+  assert.equal(app.calls.length,2,'one new GET after stale filter response');
+  assert.equal(app.state.length,0,'old filter result hidden before network response');
+  app.success(app.calls[1],[]);
+  await flush();
+  app.success(first,[{id:'withdrawn',title:'Vecchia risposta focus'}]);
+  await flush();
+  assert.equal(app.state.length,0,'older foreground response cannot reintroduce name');
+  app.unmount();
 });
