@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { useApprovedSubjectResumeRefresh } from "@/hooks/useApprovedSubjectResumeRefresh";
 
 interface Attivista {
   id: string;
@@ -77,6 +78,9 @@ export default function Attivisti() {
       fetchAttivisti();
     }
   }, [user]);
+
+  // No extra read on first render. Revalidate only when a suspended page resumes.
+  useApprovedSubjectResumeRefresh("attivisti", setApprovedSubjects, !!user && !loading && !error);
 
   if (isAuthLoading || loading) {
     return <AttivistiLoading />;
