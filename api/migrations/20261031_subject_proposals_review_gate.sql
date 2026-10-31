@@ -67,11 +67,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS subject_proposals_one_pending_per_user_categor
  ON public.subject_proposals(proposer_user_id, category) WHERE status = 'pending';
 -- Safety gate for public withdrawals: a withdrawn subject must not be silently
 -- re-nominated by another account. No new personal data or separate denylist.
+-- Canonical-equivalent Unicode and repeated whitespace must compare alike.
+-- PostgreSQL normalize(..., NFC) requires UTF8 (as used by Supabase/PG17).
 -- Build the stricter index BEFORE replacing the old one. If legacy withdrawn
 -- duplicates exist, the unique CREATE fails and leaves existing rows untouched.
 -- The migration must be applied transactionally, never statement-by-statement.
 CREATE UNIQUE INDEX IF NOT EXISTS subject_proposals_no_duplicate_open_titles_guard
- ON public.subject_proposals(category, lower(btrim(title)))
+ ON public.subject_proposals(category, lower(btrim(regexp_replace(normalize(title, NFC), '[[:space:]]+', ' ', 'g'))))
  WHERE status IN ('pending','approved','withdrawn');
 DROP INDEX IF EXISTS public.subject_proposals_no_duplicate_open_titles;
 ALTER INDEX public.subject_proposals_no_duplicate_open_titles_guard
