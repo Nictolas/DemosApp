@@ -90,15 +90,15 @@ async function main() {
         }
         if (url.pathname === '/api/capo-stato') {
           return respond(route, {
-            success: true, classifica: PRESIDENTS, mieiVoti: [],
+            success: true, classifica: PRESIDENTS, mieiVoti: ['Candidato sintetico 1'],
             blocco: { isBlocked: false },
           });
         }
         if (url.pathname === '/api/capo-stato/consenso') {
           return respond(route, {
             success: true,
-            data: { mioConsenso: null,
-              statistiche: { 'Sì': 0, 'Non so': 0, 'No': 0, totale: 0 },
+            data: { mioConsenso: { risposta: 'Sì', timestamp: '2026-10-01T12:00:00Z' },
+              statistiche: { 'Sì': 12, 'Non so': 3, 'No': 5, totale: 20 },
               blocco: { isBlocked: false, unlockDate: null },
             },
           });
