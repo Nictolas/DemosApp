@@ -193,7 +193,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     const richText = await readOnlyDetails.innerText();
     assert.match(richText, /🇮🇹 Italia/, 'Italy flag renders only in the detail view');
     assert.match(richText, /🇮🇪 Irlanda/, 'Ireland flag renders only in the detail view');
-    assert.match(richText, /2232\\/2025/, 'Verified legal fact remains readable');
+    assert.ok(richText.includes('2232/2025'), 'Verified legal fact remains readable');
     assert.doesNotMatch(richText, /📝/, 'Document emoji must not consume detail width');
     assert.equal(await details.getByRole('button', { name: 'Modifica approfondimento' }).count(), 0);
     const sourceDisclosure = readOnlyDetails.locator('details');
