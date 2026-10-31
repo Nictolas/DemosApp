@@ -9,31 +9,9 @@ const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceCh
 const router = express.Router();
 
 // POST /api/grazia - Crea richiesta di grazia
-router.post('/', verifyToken, validateInput(['nome_carcerato', 'motivo']), async (req, res) => {
-  try {
-    const { nome_carcerato, motivo } = req.body;
-    const userId = req.userId;
-
-    const query = `
-      INSERT INTO richieste_grazia (utente_id, nome_carcerato, motivo, stato, created_at)
-      VALUES ($1, $2, $3, 'in_attesa', NOW())
-      RETURNING *
-    `;
-
-    const result = await pool.query(query, [userId, nome_carcerato, motivo]);
-
-    res.json({
-      success: true,
-      richiesta: result.rows[0]
-    });
-  } catch (error) {
-    console.error('❌ Errore nella creazione richiesta grazia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nella creazione richiesta grazia'
-    });
-  }
-});
+router.post('/', verifyToken, (_req, res) => res.status(410).json({
+  success: false, error: 'Usa la sezione Proponi soggetto: ogni richiesta deve essere approvata dall’admin.'
+}));
 
 // GET /api/grazia - Ottieni richieste di grazia
 router.get('/', async (req, res) => {
