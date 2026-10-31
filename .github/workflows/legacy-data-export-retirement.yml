@@ -7,6 +7,9 @@ on:
       - 'api/tests/legacyDataExportRetirement.test.js'
       - 'api/tests/legacyAxiomMigrationGate.test.js'
       - 'api/tests/noEmbeddedAdminSecretsInScripts.test.js'
+      - 'api/tests/passwordlessAuthRouteContract.test.js'
+      - 'api/routes/auth/**'
+      - 'api/app.js'
       - 'scripts/**'
       - 'api/services/legacyAxiomMigrationGate.js'
       - 'api/services/axiomMigrationService.js'
@@ -47,6 +50,8 @@ jobs:
         run: node --test api/tests/legacyAxiomMigrationGate.test.js
       - name: Scan all maintenance scripts for Admin credentials and token output
         run: node --test api/tests/noEmbeddedAdminSecretsInScripts.test.js
+      - name: Verify passwordless auth route contract
+        run: node --test api/tests/passwordlessAuthRouteContract.test.js
 
   security-composition:
     # CI-only integration rehearsal of this PR with the independent #487 dependency fix.
@@ -84,6 +89,8 @@ jobs:
         run: node --test api/tests/legacyAxiomMigrationGate.test.js
       - name: Scan all maintenance scripts for Admin credentials and token output
         run: node --test api/tests/noEmbeddedAdminSecretsInScripts.test.js
+      - name: Verify passwordless auth route contract
+        run: node --test api/tests/passwordlessAuthRouteContract.test.js
       - name: Install frontend dependencies without scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build composed frontend (non-release)
@@ -130,6 +137,8 @@ jobs:
         run: node --test api/tests/legacyAxiomMigrationGate.test.js
       - name: Scan all maintenance scripts for Admin credentials and token output
         run: node --test api/tests/noEmbeddedAdminSecretsInScripts.test.js
+      - name: Verify passwordless auth route contract
+        run: node --test api/tests/passwordlessAuthRouteContract.test.js
       - name: Install merged frontend dependencies (no scripts)
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build frontend with merged code (no release)
