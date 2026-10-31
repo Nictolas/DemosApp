@@ -134,9 +134,10 @@ const {
   publicLimiter
 } = require('./middleware/rateLimiting');
 
-/** In produzione le route test/migrate/cleanup/debug non sono montate salvo ALLOW_DEV_API_SURFACE=true */
+/** La superficie dev/test/migrate/cleanup/debug è accessibile solo con opt-in nello sviluppo. */
 const isProductionApp = process.env.NODE_ENV === 'production';
-const mountDevApiSurface = !isProductionApp || process.env.ALLOW_DEV_API_SURFACE === 'true';
+const mountDevApiSurface = process.env.NODE_ENV === 'development' &&
+  process.env.ALLOW_DEV_API_SURFACE === 'true';
 
 const app = express();
 
@@ -336,7 +337,7 @@ app.use('/api', compatibilityRoutes);
 // Route per servizi
 app.use('/api', servicesRoutes);
 
-// Route di test (non in produzione senza ALLOW_DEV_API_SURFACE)
+// Route di test: solo sviluppo con opt-in esplicito
 if (mountDevApiSurface) {
   app.use('/api/test-opinioni-endpoints', testOpinioniRoutes);
   app.use('/api/test-add-opinione', testAddOpinioneRoutes);
@@ -488,7 +489,7 @@ if (process.env.SECURITY_CENTER_RUNTIME_ENABLED === 'true') {
   });
 }
 
-// Route per migrazioni database / cleanup / test (non in produzione senza ALLOW_DEV_API_SURFACE)
+// Route migrazioni/cleanup/test: solo sviluppo con opt-in esplicito
 if (mountDevApiSurface) {
   app.use('/api/migrations', migrationsRoutes);
   app.use('/api/cleanup', cleanupRoutes);
@@ -498,7 +499,7 @@ if (mountDevApiSurface) {
 
 if (isProductionApp && !mountDevApiSurface) {
   console.log(
-    'ðŸ”’ Route API dev/test/migrate/cleanup non esposte. Per abilitarle: ALLOW_DEV_API_SURFACE=true'
+    'ðŸ”’ Route dev/test/migrate/cleanup non esposte in produzione'
   );
 }
 
