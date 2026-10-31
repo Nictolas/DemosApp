@@ -62,3 +62,45 @@ jobs:
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Build composed frontend (non-release)
         run: npm run build --prefix client
+
+  full-main-merge-rehearsal:
+    # A local-only Git merge rehearses current main, #487 and #490 together.
+    # No pushes, deployed services, DB access, or repository branch changes.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Rehearse both PR merges in the ephemeral checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          security_head="00c36708eaa5d5575c5c27aaac394db47a4ef8e7"
+          export_head="f7df554f3f0f45ff212022a03f06ea85c24355ac"
+          git fetch --no-tags origin "$security_head" "$export_head"
+          git cat-file -e "$security_head^{commit}"
+          git cat-file -e "$export_head^{commit}"
+          printf 'Main tested: %s\n' "$(git rev-parse HEAD)"
+          git -c user.name='DEMOS CI Rehearsal' -c user.email='ci@users.noreply.github.com' merge --no-ff --no-edit "$security_head"
+          git -c user.name='DEMOS CI Rehearsal' -c user.email='ci@users.noreply.github.com' merge --no-ff --no-edit "$export_head"
+          test -z "$(git status --porcelain)"
+          node -e "const p=require('./api/package.json'); if (p.overrides['follow-redirects'] !== '1.16.2') process.exit(1)"
+          test -f api/tests/legacyDataExportRetirement.test.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install merged API dependencies (no scripts)
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Audit high/critical production API dependencies
+        run: npm audit --prefix api --omit=dev --audit-level=high
+      - name: Run HTTP security regressions against merged Express source
+        run: node --test api/tests/legacyDataExportRetirement.test.js api/tests/securityProductionHardening.test.js
+      - name: Install merged frontend dependencies (no scripts)
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend with merged code (no release)
+        run: npm run build --prefix client
