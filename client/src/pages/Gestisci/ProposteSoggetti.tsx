@@ -11,7 +11,7 @@ import { Check, X, RefreshCw } from "lucide-react";
 
 type Proposal = {
   id: string; category: string; title: string; details: string; source_url: string | null;
-  proposer_user_id: string; created_at: string;
+  created_at: string;
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
