@@ -522,4 +522,6 @@ test('retention UI exposes only read-only status and emergency stop during RP-10
   assert.match(source, /Politica di retention non approvata/);
   assert.doesNotMatch(source, /handleStartJob|handleImmediateCleanup/);
   assert.doesNotMatch(source, /Il sistema di data retention cancella automaticamente/);
+  assert.equal((source.match(/await response\.json\(\)/g) || []).length, 2,
+    'status and emergency stop must decode apiRequest response wrappers before reading success');
 });
