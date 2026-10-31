@@ -158,6 +158,8 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const publishedAfter=await req('/api/subject-proposals/approved?category=organizzazioni');
     assert.equal(publishedAfter.body.data.length,1);
     assert.equal(publishedAfter.body.data[0].title,'Organizzazione sintetica');
+    assert.deepEqual(Object.keys(publishedAfter.body.data[0]).sort(),['id','title'],
+      'public approved listing must not disclose optional narratives, source URLs or proposer identities');
 
     const activist=await req('/api/subject-proposals','b','POST',proposal('attivisti','Attivista sintetica rifiutata'));
     assert.equal(activist.status,201);
