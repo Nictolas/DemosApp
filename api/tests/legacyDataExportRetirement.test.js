@@ -8,9 +8,8 @@ const fs = require('node:fs');
 const http = require('node:http');
 const express = require('express');
 
-const routePath = require.resolve('../routes/admin/data-export');
-
-function loadIsolatedRouter(effects) {
+function loadIsolatedRouter(effects, relativePath = '../routes/admin/data-export') {
+  const routePath = require.resolve(relativePath);
   const originalLoad = Module._load;
   const cached = require.cache[routePath];
 
@@ -36,6 +35,9 @@ function loadIsolatedRouter(effects) {
       if (request === 'pg') return { Pool: BlockedPool };
       if (request === 'child_process') return {
         spawn() { effects.spawn++; throw new Error('Unexpected process spawn'); }
+      };
+      if (request === 'axios') return {
+        get() { effects.axiom = (effects.axiom || 0) + 1; throw new Error('Unexpected Axiom HTTP request'); }
       };
     }
     return originalLoad.apply(this, arguments);
@@ -111,4 +113,58 @@ test('Legacy export frontend cannot start or select destructive export', () => {
   assert.match(source, /Export su disco temporaneamente non disponibile/);
   assert.match(source, /checked=\{deleteAfterExport\} disabled/);
   assert.match(source, /<Button onClick=\{startExport\} disabled=\{true\}>/);
+});
+
+test('Legacy Axiom DELETE is retired over real Express HTTP without data or provider access', async () => {
+  const effects = { sql: 0, spawn: 0, axiom: 0 };
+  const app = express();
+  app.use(express.json());
+  app.use('/api/admin/axiom-migration', loadIsolatedRouter(effects, '../routes/admin/axiom-migration'));
+
+  const server = http.createServer(app);
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+
+  try {
+    const base = 'http://127.0.0.1:' + server.address().port;
+    const cases = [
+      { name: 'anonymous destructive', token: null, payload: { tables: ['centralized_logs'], confirm: 'DELETE' }, status: 401 },
+      { name: 'non-admin destructive', token: 'Bearer synthetic-user', payload: { tables: ['centralized_logs'], confirm: 'DELETE' }, status: 403 },
+      { name: 'admin confirmed both datasets', token: 'Bearer synthetic-admin', payload: { tables: ['centralized_logs', 'audit_logs'], confirm: 'DELETE' }, status: 410 },
+      { name: 'admin legacy confirm', token: 'Bearer synthetic-admin', payload: { tables: ['audit_logs'], confirm: 'DELETE' }, status: 410 },
+      { name: 'admin no confirmation', token: 'Bearer synthetic-admin', payload: { tables: ['centralized_logs'] }, status: 410 },
+      { name: 'admin malformed payload', token: 'Bearer synthetic-admin', payload: { tables: 'all', confirm: 'DELETE' }, status: 410 },
+      { name: 'admin without request body', token: 'Bearer synthetic-admin', status: 410 }
+    ];
+
+    for (const entry of cases) {
+      const headers = { 'content-type': 'application/json' };
+      if (entry.token) headers.authorization = entry.token;
+      const response = await fetch(base + '/api/admin/axiom-migration/delete-migrated', {
+        method: 'POST', headers,
+        ...(entry.payload === undefined ? {} : { body: JSON.stringify(entry.payload) })
+      });
+      assert.equal(response.status, entry.status, entry.name);
+      const body = await response.json();
+      assert.equal(body.success, false, entry.name);
+      if (entry.status === 410) {
+        assert.equal(response.headers.get('cache-control'), 'no-store', entry.name);
+        assert.match(body.error, /Eliminazione legacy da Neon disabilitata/);
+      }
+    }
+
+    assert.deepEqual(effects, { sql: 0, spawn: 0, axiom: 0 }, 'no PostgreSQL, child processes or Axiom calls');
+  } finally {
+    await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});
+
+test('Legacy Axiom deletion is not reachable from the admin export UI', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../../client/src/pages/DataExport.tsx'), 'utf8');
+  assert.match(source, /Eliminazione da Neon sospesa/);
+  assert.doesNotMatch(source, /deleteMigratedData|\/admin\/axiom-migration\/delete-migrated/);
+  const backend = fs.readFileSync(path.resolve(__dirname, '../routes/admin/axiom-migration.js'), 'utf8');
+  assert.doesNotMatch(backend, /TRUNCATE TABLE/);
 });
