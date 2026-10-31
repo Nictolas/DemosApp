@@ -8,6 +8,7 @@ import { useCapoStatoData } from "./hooks/useCapoStatoData";
 import { useCapoStatoVoting } from "./hooks/useCapoStatoVoting";
 import { useConsensoData } from "./hooks/useConsensoData";
 import { Header } from "./components/Header";
+import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { BlockedWarning } from "./components/BlockedWarning";
 import { ConsensoSection } from "./components/ConsensoSection";
 import { VotingForm } from "./components/VotingForm";
@@ -63,12 +64,17 @@ export default function CapodiStato() {
 
 
   return (
-    <PageContainer className="capo-di-stato-page overflow-hidden bg-gradient-to-b from-background to-secondary/20">
-      <div className="container mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
-        {/* Intestazione fissa: non scorre insieme alla classifica. */}
-        <div className="capo-stato__fixed-header shrink-0">
+    <PageContainer className="capo-di-stato-page overflow-hidden bg-gray-50">
+      {/* Stessa testata bianca, centrata e fissa delle directory pubbliche. */}
+      <div className="capo-stato__fixed-header shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3 sm:px-6 sm:pt-4">
+        <div className="relative mx-auto w-full max-w-6xl">
           <Header />
+          <div className="absolute right-0 top-0 z-10">
+            <ProposeSubjectButton category="capo_stato" />
+          </div>
         </div>
+      </div>
+      <div className="container mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 md:grid-cols-2 md:grid-rows-1 lg:gap-6">
           {/* Consenso e voto sono fissi, sopra la lista su mobile. */}
