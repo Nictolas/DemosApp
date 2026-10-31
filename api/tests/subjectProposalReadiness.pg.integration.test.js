@@ -84,6 +84,16 @@ test('read-only preflight: complete schema READY; drift and unsafe grants NO-GO'
     assert.match(normalizedIndex.rows[0].indexdef,/normalize\s*\(/i);
     assert.match(normalizedIndex.rows[0].indexdef,/regexp_replace\s*\(/i);
 
+    // Old staging can have all withdrawal audit fields but no durable
+    // delivery outcome. The migration must add it idempotently.
+    await client.query('ALTER TABLE '+SCHEMA+'.subject_proposals DROP COLUMN withdraw_notification_sent');
+    const missingDelivery=await inspectSchema(observer,{schema:SCHEMA});
+    assert.equal(missingDelivery.ready,false);
+    assert.ok(missingDelivery.problems.some(p=>p.code==='MISSING_COLUMN'&&
+      p.object==='subject_proposals.withdraw_notification_sent'));
+    await client.query(sql.replaceAll('public.',SCHEMA+'.'));
+    assert.equal((await inspectSchema(observer,{schema:SCHEMA})).ready,true);
+
     // Reproduce an older staging status CHECK; the preflight must reject it.
     await client.query('ALTER TABLE '+SCHEMA+'.subject_proposals DROP CONSTRAINT subject_proposals_status_check');
     await client.query("ALTER TABLE "+SCHEMA+".subject_proposals ADD CONSTRAINT subject_proposals_status_check CHECK (status IN ('pending','approved','rejected'))");
