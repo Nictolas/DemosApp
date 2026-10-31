@@ -303,6 +303,10 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       const dialog = page.getByRole('dialog');
       const brief = dialog.getByTestId('opinion-brief');
       await brief.waitFor({ timeout: 12000 });
+      // The brief shell can mount before React finishes populating the modal.
+      // Wait for both accessible headings, then verify uniqueness.
+      await brief.getByRole('heading', { name: 'A favore', exact: true }).waitFor({ timeout: 15000 });
+      await brief.getByRole('heading', { name: 'Contro', exact: true }).waitFor({ timeout: 15000 });
       assert.equal(await brief.getByRole('heading', { name: 'A favore', exact: true }).count(), 1, title + ': clear green pro label');
       assert.equal(await brief.getByRole('heading', { name: 'Contro', exact: true }).count(), 1, title + ': clear red con label');
       assert.equal(await brief.getByTestId('opinion-brief-pro').count(), 1);
