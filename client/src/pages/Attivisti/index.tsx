@@ -43,6 +43,7 @@ export default function Attivisti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
+  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string; details: string; source_url: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +61,7 @@ export default function Attivisti() {
 
         if (data.success) {
           setAttivisti(data.data || []);
+          setApprovedSubjects(data.approved_subjects || []);
         } else {
           throw new Error(data.error || "Errore nel caricamento");
         }
@@ -197,6 +199,27 @@ export default function Attivisti() {
                   </Card>
                 ))}
               </div>
+            )}
+            {approvedSubjects.length > 0 && (
+              <section className="mt-5 space-y-3" aria-label="Attivisti segnalati e approvati">
+                <h2 className="text-lg font-semibold">Attivisti segnalati e approvati</h2>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {approvedSubjects.map(subject => (
+                    <Card key={subject.id}>
+                      <CardHeader className="p-3">
+                        <CardTitle className="break-words text-base">{subject.title}</CardTitle>
+                        <CardDescription>Soggetto pubblico segnalato e approvato. Non è ancora un profilo DEMOS verificato.</CardDescription>
+                      </CardHeader>
+                      {(subject.details || subject.source_url) && (
+                        <CardContent className="space-y-2 px-3 pb-3 text-sm">
+                          {subject.details && <p className="break-words">{subject.details}</p>}
+                          {subject.source_url?.startsWith("https://") && <a className="text-blue-700 underline" target="_blank" rel="noopener noreferrer" href={subject.source_url}>Fonte pubblica</a>}
+                        </CardContent>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              </section>
             )}
           </div>
         </div>
