@@ -123,6 +123,8 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(pending.status,200);
     assert.equal(pending.body.proposals.length,1);
     assert.equal(pending.body.proposals[0].id,capoId);
+    assert.equal(Object.hasOwn(pending.body.proposals[0],'proposer_user_id'),false,'admin listing must not send proposer UUID');
+    assert.equal(pending.body.proposals[0].title,capo.title,'review information is still available');
     const notices=await pool.query('SELECT id_utente,testo FROM notifiche_demos');
     assert.equal(notices.rows.length,1,'one Admin notification for one accepted proposal');
     assert.equal(notices.rows[0].id_utente,ADMIN);
