@@ -8,6 +8,7 @@ import { useCapoStatoData } from "./hooks/useCapoStatoData";
 import { useCapoStatoVoting } from "./hooks/useCapoStatoVoting";
 import { useConsensoData } from "./hooks/useConsensoData";
 import { Header } from "./components/Header";
+import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { BlockedWarning } from "./components/BlockedWarning";
 import { ConsensoSection } from "./components/ConsensoSection";
 import { VotingForm } from "./components/VotingForm";
@@ -67,7 +68,10 @@ export default function CapodiStato() {
       <div className="container mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
         {/* Intestazione fissa: non scorre insieme alla classifica. */}
         <div className="capo-stato__fixed-header shrink-0">
-          <Header />
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1"><Header /></div>
+            <ProposeSubjectButton category="capo_stato" />
+          </div>
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 md:grid-cols-2 md:grid-rows-1 lg:gap-6">
