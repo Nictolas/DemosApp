@@ -15,6 +15,8 @@ on:
       - 'client/src/App.tsx'
       - 'api/routes/subject-proposals.js'
       - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
+      - 'api/tests/subjectProposalSingleQueue.synthetic.test.js'
+      - 'api/migrations/20261031_subject_proposals_review_gate.sql'
       - 'scripts/test-unified-proposal-browser.cjs'
       - '.github/workflows/unified-subject-proposal-page.yml'
 permissions:
@@ -32,8 +34,8 @@ jobs:
           node-version: '22'
       - name: Validate shared proposal backend syntax
         run: node --check api/routes/subject-proposals.js
-      - name: Test five routes, zero proposal-specific reads on open and private submission
-        run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js
+      - name: Test five routes, zero proposal-specific reads, and reject duplicate Grazia queue
+        run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js
   client-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
