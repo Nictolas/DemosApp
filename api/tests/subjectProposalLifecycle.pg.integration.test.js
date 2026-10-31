@@ -209,8 +209,23 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     );
     assert.equal(afterWithdrawNotices.rows.length,1,'proponent notified privately only once');
     assert.equal(afterWithdrawNotices.rows[0].testo.includes(org.title),false,'withdrawal notice has no public third-party name');
+    // Privacy: withdrawing a person or organization must NOT allow a second
+    // account to bring the same title straight back into the moderation queue.
+    // A corrected nomination requires an explicit DPO/Admin process, not a new POST.
     const rePropose=await req('/api/subject-proposals','b','POST',proposal('organizzazioni',org.body.proposal.title));
-    assert.equal(rePropose.status,201,'withdrawal lifts the open-title uniqueness gate for a corrected resubmission');
+    assert.equal(rePropose.status,409,'withdrawn title must remain protected');
+    assert.equal((await req('/api/subject-proposals','a','POST',
+      proposal('organizzazioni',org.body.proposal.title.toUpperCase()))).status,409,
+      'different account and case must not bypass a withdrawn title');
+    const freshOrg=await req('/api/subject-proposals','b','POST',
+      proposal('organizzazioni','Nuova organizzazione sintetica distinta'));
+    assert.equal(freshOrg.status,201,'unrelated nomination can still proceed');
+    const guardedIndex=await setup.query(
+      "SELECT indexdef FROM pg_indexes WHERE schemaname=$1 AND indexname='subject_proposals_no_duplicate_open_titles'",
+      [SCHEMA]
+    );
+    assert.equal(guardedIndex.rows.length,1);
+    assert.match(guardedIndex.rows[0].indexdef,/withdrawn/i,'withdrawn gate must be enforced by PostgreSQL');
 
     const activist=await req('/api/subject-proposals','b','POST',proposal('attivisti','Attivista sintetica rifiutata'));
     assert.equal(activist.status,201);
