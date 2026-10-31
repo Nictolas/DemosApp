@@ -32,7 +32,7 @@ function shouldShowAppNav(location: string): boolean {
 
 export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) => {
   const [location] = useLocation();
-  const isScrollableContentPage = location === '/avvistamenti' || location === '/vota-iniziativa-popolare';
+  const isScrollableContentPage = location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia';
   const isMobileLayout = useMobileLayout();
   const showAppNav = shouldShowAppNav(location);
   const showMobileNavbar = isMobileLayout && showAppNav;
