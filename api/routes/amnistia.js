@@ -221,44 +221,9 @@ router.delete('/vota', verifyToken, validateInput(['legge']), async (req, res) =
 });
 
 // POST /api/amnistia - Crea nuova amnistia
-router.post('/', verifyToken, validateInput(['legge', 'articolo', 'descrizione']), async (req, res) => {
-  try {
-    const { legge, articolo, descrizione } = req.body;
-    
-    // Prima crea la tabella se non esiste
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS amnistia (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        legge VARCHAR(255) NOT NULL,
-        articolo VARCHAR(255) NOT NULL,
-        descrizione TEXT NOT NULL,
-        data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    
-    // Inserisci la nuova amnistia
-    const result = await pool.query(
-      'INSERT INTO amnistia (legge, articolo, descrizione) VALUES ($1, $2, $3) RETURNING *',
-      [legge, articolo, descrizione]
-    );
-    
-    console.log('✅ Nuova amnistia creata:', result.rows[0]);
-    
-    res.json({
-      success: true,
-      message: 'Amnistia creata con successo',
-      amnistia: result.rows[0]
-    });
-  } catch (error) {
-    console.error('❌ Errore nel creare amnistia:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel creare amnistia'
-    });
-  }
-});
+router.post('/', verifyToken, (_req, res) => res.status(410).json({
+  success: false, error: 'Usa la sezione Proponi soggetto: ogni richiesta deve essere approvata dall’admin.'
+}));
 
 // POST /api/amnistia/migrate - Migra dati da voti_amnistia
 router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
