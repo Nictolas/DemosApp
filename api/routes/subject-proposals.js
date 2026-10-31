@@ -68,7 +68,7 @@ router.get('/approved', async (req, res) => {
       "SELECT id, title FROM subject_proposals WHERE category=$1 AND status='approved' ORDER BY reviewed_at DESC LIMIT 100",
       [category]
     );
-    res.set('Cache-Control', 'public, max-age=60');
+    res.set('Cache-Control', 'no-store');
     return res.json({ success: true, data: result.rows });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Elenco temporaneamente non disponibile' });
@@ -113,6 +113,57 @@ router.get('/admin', verifyToken, requireAdmin, async (_req, res) => {
     return res.json({ success: true, proposals: r.rows });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Coda moderazione non disponibile' });
+  }
+});
+
+// Approved nominations are fetched only on demand in the Admin panel.
+// Never expose proposer UUID, private notes or the original source URL in this listing.
+router.get('/admin/approved', verifyToken, requireAdmin, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      "SELECT id, category, title, reviewed_at FROM subject_proposals WHERE status='approved' AND category IN ('attivisti','organizzazioni') ORDER BY reviewed_at DESC LIMIT 100"
+    );
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ success: true, proposals: r.rows });
+  } catch (_) {
+    return res.status(503).json({ success: false, error: 'Elenco approvati temporaneamente non disponibile' });
+  }
+});
+
+// Emergency unpublish for the two title-only public directories. This is not
+// an erasure or a general-purpose DSAR endpoint: identity/grounds remain under DPO review.
+// Preserve the original approval reviewer/time/note and record a separate withdrawal audit.
+router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) => {
+  const id = String(req.params.id || '');
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || note.length < 3 || note.length > 500) {
+    return res.status(400).json({ success: false, error: 'ID o motivazione del ritiro non valida (3–500 caratteri)' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const found = await client.query(
+      "SELECT id, category, proposer_user_id FROM subject_proposals WHERE id=$1 AND status='approved' AND category IN ('attivisti','organizzazioni') FOR UPDATE",
+      [id]
+    );
+    if (!found.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'Voce assente, non ritirabile o già ritirata' });
+    }
+    const item = found.rows[0];
+    await client.query(
+      "UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now(), withdrawn_by=$2, withdraw_note=$3, published_ref=NULL WHERE id=$1 AND status='approved'",
+      [item.id, req.user.id, note]
+    );
+    await notify(client, item.proposer_user_id, 'La pubblicazione della tua proposta in ' + item.category + ' è stata ritirata.');
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ success: true, status: 'withdrawn' });
+  } catch (_) {
+    await client.query('ROLLBACK');
+    return res.status(503).json({ success: false, error: 'Ritiro temporaneamente non disponibile' });
+  } finally {
+    client.release();
   }
 });
 
