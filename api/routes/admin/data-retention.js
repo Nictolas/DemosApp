@@ -18,6 +18,50 @@ function respondRetentionCleanupError(res, error) {
   return res.status(500).json({ success: false, error: 'Errore interno del server' });
 }
 
+
+// A result with category-level errors can mean that some records have already
+// changed. Never report completion or expose raw SQL/provider error messages.
+// A retry is unsafe until an administrator reconciles the partial outcome.
+function respondRetentionCleanupResult(res, result, message, extraData = {}) {
+  const validResult =
+    result &&
+    Array.isArray(result.errors) &&
+    Number.isSafeInteger(result.totalDeleted) &&
+    result.totalDeleted >= 0 &&
+    result.deletedCounts &&
+    typeof result.deletedCounts === 'object' &&
+    !Array.isArray(result.deletedCounts);
+
+  if (!validResult) {
+    console.error('RETENTION_CLEANUP_INVALID_RESULT');
+    return res.status(500).json({
+      success: false,
+      error: 'RETENTION_CLEANUP_FAILED',
+      reconciliation_required: true
+    });
+  }
+
+  if (result.errors.length > 0) {
+    console.warn('RETENTION_CLEANUP_PARTIAL_FAILURE');
+    return res.status(500).json({
+      success: false,
+      error: 'RETENTION_PARTIAL_FAILURE',
+      reconciliation_required: true
+    });
+  }
+
+  return res.json({
+    success: true,
+    message,
+    data: {
+      ...extraData,
+      deleted_counts: result.deletedCounts,
+      total_deleted: result.totalDeleted,
+      errors: []
+    }
+  });
+}
+
 // Middleware per tutti gli endpoint
 router.use(verifyToken);
 router.use(requireAdmin);
@@ -111,16 +155,9 @@ router.delete('/cleanup/:userId', async (req, res) => {
     
     const result = await DataRetentionService.deleteExpiredData(userId, dataTypes);
     
-    res.json({
-      success: true,
-      message: `Pulizia completata per utente ${userId}`,
-      data: {
-        user_id: userId,
-        deleted_counts: result.deletedCounts,
-        total_deleted: result.totalDeleted,
-        errors: result.errors
-      }
-    });
+    return respondRetentionCleanupResult(
+      res, result, `Pulizia completata per utente ${userId}`, { user_id: userId }
+    );
     
   } catch (error) {
     return respondRetentionCleanupError(res, error);
@@ -137,15 +174,7 @@ router.post('/cleanup-all', async (req, res) => {
     
     const result = await DataRetentionService.deleteAllExpiredData(dataTypes);
     
-    res.json({
-      success: true,
-      message: 'Pulizia completa eseguita',
-      data: {
-        deleted_counts: result.deletedCounts,
-        total_deleted: result.totalDeleted,
-        errors: result.errors
-      }
-    });
+    return respondRetentionCleanupResult(res, result, 'Pulizia completa eseguita');
     
   } catch (error) {
     return respondRetentionCleanupError(res, error);
@@ -260,15 +289,7 @@ router.post('/cleanup/immediate', async (req, res) => {
   try {
     const result = await dataRetentionJob.performImmediateCleanup();
     
-    res.json({
-      success: true,
-      message: 'Pulizia immediata completata',
-      data: {
-        deleted_counts: result.deletedCounts,
-        total_deleted: result.totalDeleted,
-        errors: result.errors
-      }
-    });
+    return respondRetentionCleanupResult(res, result, 'Pulizia immediata completata');
     
   } catch (error) {
     return respondRetentionCleanupError(res, error);
