@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these forty-two canonical IDs opt in; the other 52 use the original
+ * Only these forty-five canonical IDs opt in; the other 49 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -2018,6 +2018,167 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Comune di Firenze · Norme vigenti sulle locazioni turistiche brevi", url: "https://www.comune.firenze.it/turismo/locazioni-turistiche-brevi" },
       { label: "Comune di Firenze · Autorizzazione quinquennale", url: "https://www.comune.firenze.it/servizi/imprese-e-commercio-turismo/autorizzazione-allesercizio-dellattivita-di-locazione-turistica" },
       { label: "Comune di Firenze · Delibera 4 giugno 2026 e requisiti", url: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/modifica-al-regolamento-affitti-turistici-brevi-il-consiglio" },
+    ],
+    verified,
+  },
+
+
+  spese_nato_5_percento: {
+    intro: "Sostenere l'impegno NATO concordato all'Aia nel 2025 di arrivare entro il 2035 al 5% del PIL per difesa e sicurezza. Non significa destinare tutti i cinque punti percentuali alle sole Forze armate.",
+    facts: [],
+    comparison: [
+      { label: "Precedente riferimento", title: "Obiettivo NATO del 2%", text: "L'impegno del vertice del Galles del 2014 indicava il 2% del PIL per la difesa, poi ribadito a Vilnius nel 2023." },
+      { label: "Nuovo impegno, 2025", title: "5% del PIL entro il 2035", text: "Almeno 3,5% per esigenze di difesa in senso stretto e fino a 1,5% per spese connesse alla sicurezza e resilienza, secondo le categorie concordate." },
+    ],
+    measuredResultsTitle: "🇪🇺 NATO · obiettivi del vertice dell'Aia, 2025",
+    measuredResults: [
+      {
+        place: "🌐 NATO · vertice dell'Aia",
+        topic: "Obiettivo totale annuo di investimento",
+        value: "5% del PIL",
+        period: "Da raggiungere entro il 2035",
+        meaning: "È un impegno programmatico degli Alleati, non la quota di PIL già spesa dall'Italia nel 2026.",
+        sourceUrl: "https://www.nato.int/en/what-we-do/introduction-to-nato/defence-expenditures-and-natos-5-commitment",
+      },
+      {
+        place: "🌐 NATO · spesa difesa",
+        topic: "Quota minima per capacità militari essenziali",
+        value: "3,5%",
+        period: "Obiettivo annuo 2035 · definizione NATO",
+        meaning: "Almeno questa quota del PIL deve riguardare requisiti di difesa di base, secondo la definizione concordata, non qualunque progetto civile.",
+        sourceUrl: "https://www.nato.int/en/what-we-do/introduction-to-nato/defence-expenditures-and-natos-5-commitment",
+      },
+      {
+        place: "🌐 NATO · resilienza",
+        topic: "Quota ammissibile per spese connesse",
+        value: "fino a 1,5%",
+        period: "Obiettivo annuo 2035 · infrastrutture, reti e preparazione",
+        meaning: "Può includere sicurezza di infrastrutture critiche, resilienza e industria della difesa; non è automaticamente spesa militare.",
+        sourceUrl: "https://www.nato.int/en/what-we-do/introduction-to-nato/defence-expenditures-and-natos-5-commitment",
+      },
+      {
+        place: "🌐 NATO · monitoraggio",
+        topic: "Revisione programmata del piano",
+        value: "2029",
+        period: "Dichiarazione dell'Aia · 25 giugno 2025",
+        meaning: "Anno della verifica intermedia della traiettoria e del bilanciamento delle spese; NON è la scadenza finale del 5%.",
+        sourceUrl: "https://www.nato.int/en/news-and-events/articles/news/2025/06/27/nato-concludes-historic-summit-in-the-hague",
+      },
+    ],
+    evidenceCaveat: "Il 5% comprende due categorie distinte: almeno 3,5% di spesa per difesa di base e fino a 1,5% di investimenti legati a difesa e sicurezza. Le cifre indicano OBIETTIVI da raggiungere entro il 2035, non consuntivi dell'Italia. Confrontare direttamente il 5% con il precedente 2% senza distinguere le definizioni gonfierebbe l'aumento della spesa militare in senso stretto.",
+    advantage: "Può sostenere capacità difensive, interoperabilità e resilienza delle infrastrutture, se gli investimenti sono efficaci.",
+    concern: "Richiede risorse ingenti e pone scelte di bilancio rispetto ad altre priorità pubbliche; la qualità della spesa va verificata.",
+    note: "I valori sono percentuali del PIL annuo: non equivalgono alla quota percentuale del bilancio statale né a somme in euro già stanziate.",
+    sources: [
+      { label: "NATO · Impegno del 5%, aggiornato al 29 giugno 2026", url: "https://www.nato.int/en/what-we-do/introduction-to-nato/defence-expenditures-and-natos-5-commitment" },
+      { label: "NATO · Vertice dell'Aia e categorie di spesa, giugno 2025", url: "https://www.nato.int/en/news-and-events/articles/news/2025/06/27/nato-concludes-historic-summit-in-the-hague" },
+      { label: "NATO · Dichiarazione dell'Aia, 25 giugno 2025", url: "https://www.ncia.nato.int/newsroom/news/the-hague-summit-declaration" },
+    ],
+    verified,
+  },
+  aborto_farmacologico_consultori: {
+    intro: "Consentire l'IVG farmacologica nei consultori familiari adeguatamente attrezzati e autorizzati, con valutazione medica e collegamento funzionale all'ospedale. Non significa poter effettuare l'intervento in ogni consultorio, senza assistenza clinica.",
+    facts: [],
+    comparison: [
+      { label: "Quadro nazionale", title: "Percorsi territoriali già ammessi", text: "Le linee ministeriali del 2020 consentono l'IVG farmacologica fino a nove settimane compiute anche presso consultori o ambulatori pubblici autorizzati, con requisiti organizzativi." },
+      { label: "Scelta regionale", title: "Rendere effettivo l'accesso", text: "Le Regioni possono organizzare sedi, collegamenti ospedalieri e personale per offrire il percorso sul territorio; disponibilità e numeri variano fra strutture." },
+    ],
+    measuredResultsTitle: "🇮🇹 Ministero della Salute e 🇮🇹 Toscana",
+    measuredResults: [
+      {
+        place: "🇮🇹 Italia · Ministero della Salute",
+        topic: "Limite di età gestazionale per il metodo farmacologico",
+        value: "63 giorni",
+        period: "Linee di indirizzo nazionali · agosto 2020",
+        meaning: "Pari a 9 settimane compiute: prima dell'aggiornamento il limite ordinario indicato era 49 giorni. È un limite clinico-normativo, NON un tempo medio di attesa.",
+        sourceUrl: "https://www.salute.gov.it/new/it/tema/salute-della-donna/interruzione-volontaria-di-gravidanza/",
+      },
+      {
+        place: "🇮🇹 Toscana · Regione",
+        topic: "Protocollo regionale per l'offerta ambulatoriale",
+        value: "29/6/2020",
+        period: "DGR Toscana n. 827/2020",
+        meaning: "Data dell'approvazione di un protocollo per prestazioni IVG farmacologiche in ambulatori pubblici attrezzati e collegati all'ospedale; non apertura automatica di tutti i consultori.",
+        sourceUrl: "https://www.regione.toscana.it/documents/10180/25391279/All%2BA%2BDecisione%2B17_2020%2B-%2BIVG.Farmac.pdf/356ab884-c76b-32af-2eb3-1960065b2a85?t=1596525020030",
+      },
+      {
+        place: "🇮🇹 Toscana · ARS/Regione",
+        topic: "Quota di IVG farmacologiche sul totale",
+        value: "39,4%",
+        period: "Anno 2019 · prima del protocollo regionale",
+        meaning: "Percentuale delle procedure IVG con metodo farmacologico in Toscana nel 2019, NON percentuale eseguita nei consultori.",
+        sourceUrl: "https://www.regione.toscana.it/documents/d/guest/wes_vol1_2025",
+      },
+      {
+        place: "🇮🇹 Toscana · ARS/Regione",
+        topic: "Quota di IVG farmacologiche sul totale",
+        value: "64,3%",
+        period: "Anno 2024 · Regione Toscana",
+        meaning: "Percentuale di procedure con metodo farmacologico in tutta la Toscana; NON dice quante si siano svolte fisicamente nei consultori.",
+        sourceUrl: "https://www.regione.toscana.it/documents/d/guest/wes_vol1_2025",
+      },
+    ],
+    evidenceCaveat: "I valori 39,4% (2019) e 64,3% (2024) descrivono la quota regionale di IVG effettuata con metodo farmacologico, non quella svolta nei consultori. Il cambiamento avviene in anni diversi e NON dimostra da solo che il protocollo 2020 ne sia stato la causa. La possibilità nazionale del 2020 non rende automaticamente idonei o operativi tutti i consultori: occorrono autorizzazioni e organizzazione sanitaria.",
+    advantage: "Può agevolare accesso, continuità assistenziale e riservatezza, soprattutto se si riducono spostamenti inutili.",
+    concern: "Richiede personale formato, locali adeguati, percorsi di emergenza e reale disponibilità di prestazioni, evitando offerte solo formali.",
+    note: "Le percentuali descrivono il metodo farmacologico in Toscana, non la quota di IVG realizzate fuori dall'ospedale.",
+    sources: [
+      { label: "Ministero della Salute · IVG farmacologica e consultori, 2020", url: "https://www.salute.gov.it/new/it/tema/salute-della-donna/interruzione-volontaria-di-gravidanza/" },
+      { label: "Regione Toscana · Protocollo clinico DGR 827/2020", url: "https://www.regione.toscana.it/documents/10180/25391279/All%2BA%2BDecisione%2B17_2020%2B-%2BIVG.Farmac.pdf/356ab884-c76b-32af-2eb3-1960065b2a85?t=1596525020030" },
+      { label: "ARS e Regione Toscana · Welfare e salute 2025, dati IVG 2019/2024", url: "https://www.regione.toscana.it/documents/d/guest/wes_vol1_2025" },
+    ],
+    verified,
+  },
+  pedaggio_urbano: {
+    intro: "Applicare un pagamento per accedere con veicoli a determinate aree cittadine. Non equivale a vietare tutti gli autoveicoli: vi possono essere autorizzazioni, esenzioni e tariffe ridotte.",
+    facts: [],
+    comparison: [
+      { label: "Alternativa", title: "ZTL senza tariffa di ingresso", text: "Regolare l'accesso con limiti orari e categorie autorizzate, ma senza un prezzo giornaliero generalizzato per i veicoli ammessi." },
+      { label: "Esempio di pedaggio urbano", title: "🇮🇹 Milano · Area C", text: "La zona a traffico limitato della Cerchia dei Bastioni applica un ticket giornaliero ai veicoli ammessi, con tariffe ed esenzioni differenziate." },
+    ],
+    measuredResultsTitle: "🇮🇹 Milano · Area C, regole verificate al 31/10/2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 Milano · Comune",
+        topic: "Ticket ordinario per i veicoli ammessi",
+        value: "7,50 €",
+        period: "Tariffario dal 30 ottobre 2023",
+        meaning: "Pagamento giornaliero ordinario, NON un costo per ogni passaggio dal varco e NON una tariffa valida per i veicoli vietati.",
+        sourceUrl: "https://www.comune.milano.it/servizi/mobilita/area-c-acquista-il-ticket",
+      },
+      {
+        place: "🇮🇹 Milano · Comune",
+        topic: "Orario ordinario di attivazione dei varchi",
+        value: "7:30–19:30",
+        period: "Lunedì–venerdì, esclusi festivi",
+        meaning: "Fascia oraria dell'Area C: non è un pedaggio h24 né si applica normalmente il sabato o la domenica.",
+        sourceUrl: "https://www.comune.milano.it/argomenti/mobilita/area-c",
+      },
+      {
+        place: "🇮🇹 Milano · Residenti Area C",
+        topic: "Ingressi gratuiti per residenti registrati",
+        value: "50/anno",
+        period: "Agevolazione in vigore dal 1° gennaio 2024",
+        meaning: "Numero di ingressi gratuiti per residenti ed equiparati con requisiti; NON per ogni cittadino di Milano.",
+        sourceUrl: "https://www.comune.milano.it/servizi/mobilita/area-c-agevolazioni-per-residenti-ed-equiparati",
+      },
+      {
+        place: "🇮🇹 Milano · Residenti Area C",
+        topic: "Tariffa giornaliera dal 51° ingresso",
+        value: "3,00 €",
+        period: "Residenti/equiparati registrati, dal 2024",
+        meaning: "Prezzo agevolato dopo i 50 ingressi gratuiti; NON sostituisce il ticket ordinario da 7,50 € per gli altri veicoli.",
+        sourceUrl: "https://www.comune.milano.it/servizi/mobilita/area-c-agevolazioni-per-residenti-ed-equiparati",
+      },
+    ],
+    evidenceCaveat: "Questi importi e orari sono caratteristiche delle regole milanesi: non sono dati su traffico, smog o incidenti, quindi NON provano da soli l'efficacia del pedaggio. Il ticket vale per un giorno e per un veicolo ammesso, con deroghe; l'accesso vietato a certe categorie non diventa permesso pagando. Le condizioni possono cambiare nel tempo.",
+    advantage: "Può incentivare un uso più selettivo dell'auto nel centro e fornire risorse per mobilità e controlli, se la misura è ben progettata.",
+    concern: "Può pesare su persone che hanno poche alternative di trasporto e richiede un sistema chiaro di deroghe, controlli e protezione dei dati di targa.",
+    note: "Distinguere pedaggio di accesso, tariffa della sosta, ZTL ambientale e divieto di circolazione.",
+    sources: [
+      { label: "Comune di Milano · Area C, condizioni e orari aggiornati al 15/10/2026", url: "https://www.comune.milano.it/argomenti/mobilita/area-c" },
+      { label: "Comune di Milano · Acquisto ticket e tariffario", url: "https://www.comune.milano.it/servizi/mobilita/area-c-acquista-il-ticket" },
+      { label: "Comune di Milano · Agevolazioni residenti", url: "https://www.comune.milano.it/servizi/mobilita/area-c-agevolazioni-per-residenti-ed-equiparati" },
     ],
     verified,
   },
