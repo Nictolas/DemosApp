@@ -70,12 +70,73 @@ test('Blueprint Auto Sync risk is explicit before any merge or sync', () => {
   assert.match(runbook, /nessuna sincronizzazione Blueprint/i);
 });
 
+// Strict, intentionally small parser for this Blueprint's envVars layout.
+// Reject unexpected YAML indentation/fields rather than silently skipping them.
 function blueprintEnvironmentVariables(block) {
-  const section = block.split(/^    envVars:\s*$/m)[1]?.split(/^    (?:customDomains|headers):\s*$/m)[0];
-  assert.ok(section, 'Blueprint environment variable section missing');
-  const entries = [...section.matchAll(/^      - key:\s+([A-Z][A-Z0-9_]*)\s*\n((?:^        [^\n]*(?:\n|$))*)/gm)];
-  assert.ok(entries.length > 0, 'no Blueprint environment variables');
-  return entries.map(entry => ({ key: entry[1], settings: entry[2] }));
+  const parts = block.split(/^    envVars:\s*$/m);
+  assert.equal(parts.length, 2, 'expected exactly one envVars section');
+  const section = parts[1].split(/^    (?:customDomains|headers):\s*$/m)[0];
+  const entries = [];
+  let current;
+  for (const line of section.split('\n')) {
+    if (!line.trim() || /^\s*#/.test(line)) continue;
+    const key = line.match(/^      - key:\s+([A-Z][A-Z0-9_]*)\s*$/);
+    if (key) {
+      current = { key: key[1], settings: [] };
+      entries.push(current);
+      continue;
+    }
+    assert.ok(current && /^        (?:sync|value):/.test(line),
+      'unrecognized envVars item or indentation');
+    current.settings.push(line);
+  }
+  assert.ok(entries.length > 0, 'empty envVars section');
+  return entries;
+}
+
+const permittedBlueprintEnv = {
+  'demos-backend': {
+    NODE_ENV: 'value: production',
+    NPM_CONFIG_OMIT: 'value: dev',
+    DATABASE_URL: 'sync: false',
+    DB_HOST: 'sync: false',
+    DB_USER: 'sync: false',
+    DB_PASSWORD: 'sync: false',
+    DB_DATABASE: 'sync: false',
+    DB_PORT: 'value: "5432"',
+    RESEND_API_KEY: 'sync: false',
+    JWT_SECRET: 'sync: false',
+    JWT_REFRESH_SECRET: 'sync: false',
+    FRONTEND_URL: 'value: https://www.demos.community'
+  },
+  'demos-frontend': {
+    NODE_ENV: 'value: production',
+    VITE_API_URL: 'value: https://api.demos.community',
+    VITE_FIREBASE_API_KEY: 'sync: false',
+    VITE_FIREBASE_AUTH_DOMAIN: 'sync: false',
+    VITE_FIREBASE_PROJECT_ID: 'sync: false',
+    VITE_FIREBASE_STORAGE_BUCKET: 'sync: false',
+    VITE_FIREBASE_MESSAGING_SENDER_ID: 'sync: false',
+    VITE_FIREBASE_APP_ID: 'sync: false',
+    VITE_FIREBASE_MEASUREMENT_ID: 'sync: false',
+    VITE_FIREBASE_VAPID_KEY: 'sync: false'
+  }
+};
+
+function checkBlueprintEnv(block, serviceName) {
+  const expected = permittedBlueprintEnv[serviceName];
+  assert.ok(expected, 'unknown production service');
+  const entries = blueprintEnvironmentVariables(block);
+  const names = entries.map(e => e.key);
+  assert.equal(new Set(names).size, names.length, 'duplicate env key');
+  assert.deepEqual(names.slice().sort(), Object.keys(expected).sort(),
+    'unreviewed env key, removed env key, or extra env configuration');
+  for (const { key, settings } of entries) {
+    assert.equal(settings.length, 1, serviceName + '/' + key + ': one setting required');
+    const actual = settings[0].trim().replace(/\s+#.*$/, '');
+    assert.equal(actual, expected[key],
+      serviceName + '/' + key + ': unexpected literal or secret source');
+  }
 }
 
 test('Blueprint retains scoped domains and security headers', () => {
@@ -109,39 +170,36 @@ test('Blueprint retains scoped domains and security headers', () => {
   }
 });
 
-test('Blueprint preserves required env names and does not inline private credentials', () => {
-  const expected = {
-    'demos-backend': [
-      'NODE_ENV', 'NPM_CONFIG_OMIT', 'DATABASE_URL', 'DB_HOST', 'DB_USER',
-      'DB_PASSWORD', 'DB_DATABASE', 'DB_PORT', 'RESEND_API_KEY', 'JWT_SECRET',
-      'JWT_REFRESH_SECRET', 'FRONTEND_URL'
-    ],
-    'demos-frontend': [
-      'NODE_ENV', 'VITE_API_URL', 'VITE_FIREBASE_API_KEY',
-      'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID',
-      'VITE_FIREBASE_STORAGE_BUCKET', 'VITE_FIREBASE_MESSAGING_SENDER_ID',
-      'VITE_FIREBASE_APP_ID', 'VITE_FIREBASE_MEASUREMENT_ID',
-      'VITE_FIREBASE_VAPID_KEY'
-    ]
-  };
+test('Blueprint uses exactly reviewed env keys with private values externalized', () => {
   for (const service of serviceBlocks(yaml)) {
-    const entries = blueprintEnvironmentVariables(service.block);
-    const names = entries.map(x => x.key);
-    assert.equal(new Set(names).size, names.length, service.name + ': duplicated env key');
-    for (const required of expected[service.name]) {
-      assert.ok(names.includes(required), service.name + ': missing env key ' + required);
-    }
-    for (const { key, settings } of entries) {
-      if (
-        expected[service.name].includes(key) &&
-        !['NODE_ENV', 'NPM_CONFIG_OMIT', 'DB_PORT', 'FRONTEND_URL', 'VITE_API_URL'].includes(key)
-        || /(?:PASSWORD|TOKEN|SECRET|API_KEY|DATABASE_URL)$/.test(key)
-      ) {
-        assert.match(settings, /^\s+sync: false(?:\s+#.*)?$/m,
-          service.name + '/' + key + ': private value must be supplied by Render');
-        assert.doesNotMatch(settings, /^\s+value:/m,
-          service.name + '/' + key + ': never commit private credential values');
-      }
-    }
+    checkBlueprintEnv(service.block, service.name);
   }
+});
+
+test('Blueprint env gate rejects fake secret literals, duplicate keys and unreviewed fields', () => {
+  const backend = serviceBlocks(yaml).find(s => s.name === 'demos-backend').block;
+  const fakeSecret = backend.replace(
+    '      - key: JWT_SECRET\n        sync: false',
+    '      - key: JWT_SECRET\n        value: fake-test-only'
+  );
+  assert.notEqual(fakeSecret, backend, 'fixture must mutate');
+  assert.throws(() => checkBlueprintEnv(fakeSecret, 'demos-backend'));
+
+  const duplicate = backend.replace(
+    '      - key: JWT_SECRET\n        sync: false',
+    '      - key: JWT_SECRET\n        sync: false\n      - key: JWT_SECRET\n        sync: false'
+  );
+  assert.throws(() => checkBlueprintEnv(duplicate, 'demos-backend'));
+
+  const unreviewedField = backend.replace(
+    '      - key: JWT_SECRET\n        sync: false',
+    '      - key: JWT_SECRET\n        sync: false\n        generateValue: true'
+  );
+  assert.throws(() => checkBlueprintEnv(unreviewedField, 'demos-backend'));
+
+  const unexpectedVariable = backend.replace(
+    '      - key: JWT_SECRET\n        sync: false',
+    '      - key: JWT_SECRET\n        sync: false\n      - key: TEST_NEW_PRIVATE_KEY\n        value: fake-test-only'
+  );
+  assert.throws(() => checkBlueprintEnv(unexpectedVariable, 'demos-backend'));
 });
