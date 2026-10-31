@@ -39,8 +39,12 @@ test('Capo di Stato cannot turn an arbitrary vote into a new public candidate', 
   const end = source.indexOf("// POST /api/capo-stato - endpoint legacy", start);
   assert.ok(start >= 0 && end > start);
   const vote = source.slice(start, end);
-  assert.match(vote, /SELECT 1 FROM voti_capo_stato WHERE nome = \$1 LIMIT 1/);
+  assert.match(vote, /EXISTS \(SELECT 1 FROM voti_capo_stato WHERE nome = \$1\)/);
+  assert.match(vote, /EXISTS \(SELECT 1 FROM capo_stato_soggetti_approvati/);
+  assert.match(vote, /WHERE active = true AND nome = \$1/);
   assert.match(vote, /return res\.status\(422\)\.json/);
-  assert.ok(vote.indexOf("SELECT 1 FROM voti_capo_stato") < vote.indexOf("DELETE FROM voti_capo_stato"),
+  assert.ok(vote.indexOf("EXISTS (SELECT 1 FROM voti_capo_stato") < vote.indexOf("DELETE FROM voti_capo_stato"),
     'catalogue gate must precede any destructive vote write');
+  assert.match(source, /SELECT nome FROM capo_stato_soggetti_approvati WHERE active = true/);
+  assert.match(source, /COALESCE\(conteggi\.voti, 0\) AS voti/);
 });
