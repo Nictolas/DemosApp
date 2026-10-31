@@ -37,7 +37,7 @@ const INITIATIVES = Array.from({ length: 28 }, (_, index) => ({
   esito: 'In Attesa',
 }));
 const ROUTES = [
-  { path: '/grazia', region: 'Contenuti della pagina Grazia', last: 'Persona sintetica 28' },
+  { path: '/grazia', region: 'Classifica Grazia', last: 'Persona sintetica 28' },
   { path: '/vota-iniziativa-popolare', region: 'Iniziative popolari', last: 'Iniziativa sintetica 28' },
   { path: '/avvistamenti', region: 'Categorie degli avvistamenti', last: null },
 ];
@@ -128,6 +128,9 @@ async function main() {
           })() : null;
           return {
             scroll: r(scroller), nav: r(nav), heading: r(heading),
+            fixedHeader: r(document.querySelector('.grazia-page__fixed-header')),
+            fixedControls: r(document.querySelector('.grazia-page__fixed-controls')),
+            graziaBackLinkCount: document.querySelectorAll('.grazia-page__fixed-header a[href="/vota"]').length,
             scrollHeight: scroller.scrollHeight, clientHeight: scroller.clientHeight,
             pageScrollTop: document.scrollingElement.scrollTop,
           };
@@ -193,6 +196,8 @@ async function main() {
           })() : null;
           return { scrollTop: scroll.scrollTop, scroll: r(scroll),
             nav: r(nav), heading: r(heading),
+            fixedHeader: r(document.querySelector('.grazia-page__fixed-header')),
+            fixedControls: r(document.querySelector('.grazia-page__fixed-controls')),
             documentScrollTop: document.scrollingElement.scrollTop };
         });
 
@@ -209,6 +214,22 @@ async function main() {
             'Bottom navigation moved with scroll: ' + item.path);
           assert.ok(lastRect.bottom <= after.nav.top + 2,
             'Last entry obscured by navbar: ' + item.path);
+        }
+        if (item.path === '/grazia') {
+          assert.ok(first.fixedHeader && first.fixedControls,
+            'Grazia must expose fixed title and vote controls');
+          assert.equal(first.graziaBackLinkCount, 0,
+            'Grazia must not link back to Vota in the header');
+          assert.ok(Math.abs(first.fixedHeader.top - after.fixedHeader.top) <= 2,
+            'Grazia title moved while ranking scrolled');
+          assert.ok(Math.abs(first.fixedControls.top - after.fixedControls.top) <= 2,
+            'Grazia voting controls moved while ranking scrolled');
+          assert.ok(Math.abs(first.fixedControls.bottom - after.fixedControls.bottom) <= 2,
+            'Grazia voting controls shifted while ranking scrolled');
+          if (viewport.width < 768) {
+            assert.ok(first.scroll.top >= first.fixedControls.bottom - 2,
+              'Ranking must start below fixed voting controls on a phone');
+          }
         }
         if (item.path === '/avvistamenti' && first.heading && after.heading) {
           assert.ok(Math.abs(first.heading.top - after.heading.top) <= 2,
