@@ -1,0 +1,59 @@
+name: GDPR recovery maintenance and signed ledger replay
+
+on:
+  pull_request:
+    paths:
+      - 'api/app.js'
+      - 'api/middleware/privacyRecoveryMaintenance.js'
+      - 'api/services/privacyRecoveryGateService.js'
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/services/politicalConsentService.js'
+      - 'api/tests/privacyRecoveryGate.test.js'
+      - 'api/scripts/verify-privacy-recovery-gate-ci.js'
+      - '.github/workflows/privacy-recovery-gate-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  recovery-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: privacy_recovery_gate_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d privacy_recovery_gate_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies without lifecycle scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Unit-test fail-closed maintenance and authenticated manifests
+        run: |
+          node --check api/services/privacyRecoveryGateService.js
+          node --check api/scripts/verify-privacy-recovery-gate-ci.js
+          node --test --test-concurrency=1 api/tests/privacyRecoveryGate.test.js
+      - name: Replay externally signed revocations on synthetic PostgreSQL 17
+        env:
+          GITHUB_ACTIONS: 'true'
+          PRIVACY_RECOVERY_CI: isolated
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: privacy_recovery_gate_ci
+          PGUSER: postgres
+          PGPASSWORD: synthetic-only
+        run: node api/scripts/verify-privacy-recovery-gate-ci.js
