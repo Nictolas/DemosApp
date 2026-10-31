@@ -15,6 +15,7 @@ on:
       - 'client/src/App.tsx'
       - 'api/routes/subject-proposals.js'
       - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
+      - 'scripts/test-unified-proposal-browser.cjs'
       - '.github/workflows/unified-subject-proposal-page.yml'
 permissions:
   contents: read
@@ -47,3 +48,32 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - run: npm run build --prefix client
+
+  mobile-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - run: npm run build --prefix client
+      - name: Use local Chrome with isolated Playwright library
+        run: |
+          command -v google-chrome
+          npm install --prefix /tmp/demos-unified-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.58.2
+      - name: Browser test: mobile five-category proposals, only POST on submit
+        run: |
+          npm run preview --prefix client -- --host localhost --port 4173 --strictPort > /tmp/demos-unified-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4173/proponi-soggetto >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-unified-proposal-browser.cjs
