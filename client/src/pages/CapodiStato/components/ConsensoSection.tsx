@@ -111,10 +111,26 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
           {/* Torta a sinistra, statistiche a destra (PC) */}
           {showResults && (
             <>
-              {/* On phones preserve the exact numerical information without the tall chart. */}
-              <p className="text-center text-[11px] leading-tight text-gray-700 lg:hidden">
-                Totale {data.statistiche.totale} · Sì {data.statistiche['Sì']} ({percent(data.statistiche['Sì'])}%) · Non so {data.statistiche['Non so']} ({percent(data.statistiche['Non so'])}%) · No {data.statistiche['No']} ({percent(data.statistiche['No'])}%)
-              </p>
+              {/* Restore the real pie chart on mobile, scaled to fit fixed controls. */}
+              <div className="flex min-w-0 items-center gap-1 lg:hidden" aria-label="Grafico a torta consenso Capo di Stato">
+                <div className="h-14 w-14 shrink-0" data-testid="capo-consenso-pie-mobile">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={chartData} dataKey="value" cx="50%" cy="50%"
+                        innerRadius={10} outerRadius={25} paddingAngle={2} isAnimationActive={false}>
+                        {chartData.map((entry, index) => (
+                          <Cell key={`mobile-cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => [`${value} voti`, '']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="min-w-0 text-[10px] leading-tight text-gray-700">
+                  Totale {data.statistiche.totale}
+                  <span className="block">Sì {data.statistiche['Sì']} ({percent(data.statistiche['Sì'])}%) · Non so {data.statistiche['Non so']} ({percent(data.statistiche['Non so'])}%) · No {data.statistiche['No']} ({percent(data.statistiche['No'])}%)</span>
+                </p>
+              </div>
               <div className="hidden items-center gap-1 lg:grid lg:grid-cols-2 lg:gap-4">
               <div className="hidden h-36 w-full lg:block lg:h-40">
                 <ResponsiveContainer width="100%" height="100%">

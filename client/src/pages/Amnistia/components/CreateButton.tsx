@@ -10,7 +10,7 @@ export const CreateButton: React.FC<CreateButtonProps> = ({ onClick }) => {
   return (
     <Button 
       onClick={onClick} 
-      className="mb-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+      variant="ghost" className="h-9 px-1.5 text-sm text-purple-700 hover:text-purple-800 lg:h-11 lg:px-3"
     >
       <Plus className="h-4 w-4 mr-2" />
       Proponi Amnistia

@@ -28,6 +28,12 @@ const GRAZIA = Array.from({ length: 28 }, (_, index) => ({
   nome: 'Persona sintetica ' + String(index + 1).padStart(2, '0'),
   richieste: 28 - index,
 }));
+const OFFENCES = Array.from({ length: 28 }, (_, index) => ({
+  legge: 'Reato sintetico ' + String(index + 1).padStart(2, '0'),
+  voti: 28 - index,
+  articolo: 'Art. test ' + (index + 1),
+  descrizione: 'Voce artificiale di prova, non corrisponde a un reato reale.',
+}));
 const PRESIDENTS = Array.from({ length: 28 }, (_, index) => ({
   nome: 'Candidato sintetico ' + String(index + 1).padStart(2, '0'),
   voti: 28 - index,
@@ -42,6 +48,7 @@ const INITIATIVES = Array.from({ length: 28 }, (_, index) => ({
 }));
 const ROUTES = [
   { path: '/grazia', region: 'Classifica Grazia', last: 'Persona sintetica 28' },
+  { path: '/amnistia', region: 'Lista reati Amnistia', last: 'Reato sintetico 28' },
   { path: '/capo-stato', region: 'Lista candidati Capo di Stato', last: 'Candidato sintetico 28' },
   { path: '/capo-di-stato', region: 'Lista candidati Capo di Stato', last: 'Candidato sintetico 28' },
   { path: '/vota-iniziativa-popolare', region: 'Iniziative popolari', last: 'Iniziativa sintetica 28' },
@@ -88,6 +95,11 @@ async function main() {
             ruolo: 'E', status: 'A', account_type: 'E',
           }});
         }
+        if (url.pathname === '/api/amnistia') {
+          return respond(route, {
+            success: true, classifica: OFFENCES, mieiVoti: ['Reato sintetico 1'],
+          });
+        }
         if (url.pathname === '/api/capo-stato') {
           return respond(route, {
             success: true, classifica: PRESIDENTS, mieiVoti: ['Candidato sintetico 1'],
@@ -131,6 +143,11 @@ async function main() {
           // Grazia deliberately renders separate mobile <p> and desktop <h4>
           // versions of every ranking row. Ignore display:none duplicates.
           last = region.locator('p:visible, h4:visible').filter({ hasText: item.last }).last();
+        } else if (item.path === '/amnistia') {
+          // An offence card can be taller than a short mobile scrollport.
+          // What must remain reachable is the last card's interactive vote action.
+          await region.getByText(item.last, { exact: true }).last().waitFor({ state: 'attached' });
+          last = region.getByRole('button', { name: 'Vota per ' + item.last });
         } else if (item.last) {
           last = region.getByText(item.last, { exact: true }).last();
         } else {
@@ -151,6 +168,11 @@ async function main() {
             scroll: r(scroller), nav: r(nav), heading: r(heading),
             fixedHeader: r(document.querySelector('.grazia-page__fixed-header')),
             fixedControls: r(document.querySelector('.grazia-page__fixed-controls')),
+            amnistiaHeader: r(document.querySelector('.amnistia-page__fixed-header')),
+            amnistiaControls: r(document.querySelector('.amnistia-page__fixed-controls')),
+            amnistiaRankTitle: r(document.querySelector('.amnistia-page__fixed-controls')?.parentElement?.querySelector('.app-page-scroll')?.previousElementSibling),
+            amnistiaBackLinkCount: document.querySelectorAll('.amnistia-page__fixed-header a[href="/vota"]').length,
+            pieSectors: Array.from(document.querySelectorAll('[data-testid="capo-consenso-pie-mobile"] .recharts-sector')).filter(el => el.getBoundingClientRect().width > 0).length,
             capoHeader: r(document.querySelector('.capo-stato__fixed-header')),
             capoControls: r(document.querySelector('.capo-stato__fixed-controls')),
             capoRankTitle: r(document.querySelector('.capo-di-stato-page .app-page-scroll')?.previousElementSibling),
@@ -226,6 +248,9 @@ async function main() {
             nav: r(nav), heading: r(heading),
             fixedHeader: r(document.querySelector('.grazia-page__fixed-header')),
             fixedControls: r(document.querySelector('.grazia-page__fixed-controls')),
+            amnistiaHeader: r(document.querySelector('.amnistia-page__fixed-header')),
+            amnistiaControls: r(document.querySelector('.amnistia-page__fixed-controls')),
+            amnistiaRankTitle: r(document.querySelector('.amnistia-page__fixed-controls')?.parentElement?.querySelector('.app-page-scroll')?.previousElementSibling),
             capoHeader: r(document.querySelector('.capo-stato__fixed-header')),
             capoControls: r(document.querySelector('.capo-stato__fixed-controls')),
             capoRankTitle: r(document.querySelector('.capo-di-stato-page .app-page-scroll')?.previousElementSibling),
@@ -262,7 +287,24 @@ async function main() {
               'Ranking must start below fixed voting controls on a phone');
           }
         }
+        if (item.path === '/amnistia') {
+          assert.ok(first.amnistiaHeader && first.amnistiaControls && first.amnistiaRankTitle,
+            'Missing fixed Amnistia header, controls or ranking title');
+          assert.equal(first.amnistiaBackLinkCount, 0, 'Amnistia must not navigate back to Vota');
+          for (const key of ['amnistiaHeader', 'amnistiaControls', 'amnistiaRankTitle']) {
+            assert.ok(Math.abs(first[key].top - after[key].top) <= 2 &&
+              Math.abs(first[key].bottom - after[key].bottom) <= 2,
+              key + ' moved when swiping Amnistia list');
+          }
+          if (viewport.width < 768) {
+            assert.ok(first.scroll.top >= first.amnistiaControls.bottom - 2,
+              'Amnistia ranking must begin below fixed vote controls');
+          }
+        }
         if (item.path === '/capo-stato' || item.path === '/capo-di-stato') {
+          if (viewport.mobile) {
+            assert.ok(first.pieSectors > 0, 'Consent pie chart missing on Capo di Stato mobile');
+          }
           assert.ok(first.capoHeader && first.capoControls && first.capoRankTitle,
             'Missing fixed title, vote controls or list heading for Capo di Stato');
           assert.equal(first.capoBackLinkCount, 0,
