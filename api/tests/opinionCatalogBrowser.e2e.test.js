@@ -724,7 +724,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       await dialog.waitFor({ state: 'hidden' });
     }
     await page.goto(HEADLESS_ORIGIN + '/opinioni-nazionali', { waitUntil: 'domcontentloaded' });
-    const legacy = page.locator('button[title="Approfondimento: Ius Soli"]');
+    const legacy = page.locator('button[title="Approfondimento: Leva obbligatoria"]');
     await legacy.waitFor({ timeout: 25000 });
     await legacy.click();
     const legacyDialog = page.getByRole('dialog');
