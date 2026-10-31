@@ -160,6 +160,7 @@ async function main() {
             documentScrollTop: document.scrollingElement.scrollTop };
         });
 
+        console.log('MEASURE ' + JSON.stringify({ route: item.path, viewport, before: first, after, lastRect }));
         assert.ok(after.scrollTop > 50, 'Scroll did not move in ' + item.path);
         assert.ok(lastRect.bottom <= after.scroll.bottom + 2,
           'Last entry clipped below scrollport: ' + item.path);
