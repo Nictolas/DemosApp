@@ -16,6 +16,9 @@ on:
       - 'api/tests/graziaModerationHttp.synthetic.test.js'
       - 'api/tests/graziaPostgresConcurrency.integration.test.js'
       - 'api/tests/capoApprovedCatalogue.pg.integration.test.js'
+      - 'api/tests/subjectProposalLifecycle.pg.integration.test.js'
+      - 'api/migrations/20261031_subject_proposals_review_gate.sql'
+      - 'api/routes/subject-proposals.js'
       - 'api/tests/civicSubjectPublicationGate.test.js'
       - 'api/tests/civicCatalogueRejectionHttp.synthetic.test.js'
       - 'client/src/pages/Grazia/**'
@@ -112,6 +115,12 @@ jobs:
           CIVIC_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_civic_ci
           CIVIC_TEST_MODE: isolated-synthetic
         run: node --test api/tests/capoApprovedCatalogue.pg.integration.test.js
+      - name: Verify proposal migration, unique pending, moderation and deletion on isolated PG17
+        env:
+          NODE_PATH: /tmp/demos-civic-pg/node_modules
+          CIVIC_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_civic_ci
+          CIVIC_TEST_MODE: isolated-synthetic
+        run: node --test api/tests/subjectProposalLifecycle.pg.integration.test.js
   frontend-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
