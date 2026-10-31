@@ -67,7 +67,10 @@ test('Capo di Stato keeps title/consent/voting controls fixed while only ranking
   assert.match(ranking, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto/);
   assert.match(ranking, /aria-label="Lista candidati Capo di Stato"/);
   assert.ok(ranking.indexOf('<CardHeader') < ranking.indexOf('app-page-scroll min-h-0'));
-  assert.doesNotMatch(header, /<Link|href="\\/vota"|Torna a Vota|<ArrowLeft|\\bVota\\s*<\\/Button>/);
+  assert.ok(!header.includes('<Link'), 'Capo di Stato header must have no links');
+  assert.ok(!header.includes('href="/vota"'), 'No back-to-Vota route');
+  assert.ok(!header.includes('Torna a Vota'), 'No back-to-Vota text');
+  assert.ok(!header.includes('<ArrowLeft'), 'No back arrow');
   assert.doesNotMatch(page, /min-h-screen bg-gradient|page-with-navbar/);
 });
 
