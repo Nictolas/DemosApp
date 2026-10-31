@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these six canonical IDs opt in; the other 88 use the original
+ * Only these nine canonical IDs opt in; the other 85 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -15,6 +15,7 @@ export interface OpinionBrief {
     label: string;
     rule: string;
   }>;
+  measuredResultsTitle?: string;
   measuredResults?: ReadonlyArray<{
     place: string;
     topic: string;
@@ -178,6 +179,134 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "🇺🇾 Uruguay · Monitoraggio mercato, Governo", url: "https://www.gub.uy/presidencia/comunicacion/noticias/cannabis-iirca-junta-de-drogas-informe" },
       { label: "🇩🇪 Germania · Legge sulla cannabis, Ministero della salute", url: "https://www.bundesgesundheitsministerium.de/service/gesetze-und-verordnungen/detail/cannabisgesetz" },
       { label: "🇨🇦 Québec · Consumi 2018–2025, Istituto di statistica", url: "https://statistique.quebec.ca/en/communique/after-increasing-between-2018-and-2021-cannabis-use-now-on-downward-trend-quebec" },
+    ],
+    verified,
+  },
+  salario_minimo: {
+    intro: "Stabilire per legge una paga minima nazionale sotto la quale i datori di lavoro non possono scendere. In Italia oggi prevalgono i contratti collettivi.",
+    facts: [],
+    comparisonMode: "transition",
+    comparison: [
+      { label: "🇮🇹 Oggi", title: "Contratti collettivi", text: "Non c'è un minimo salariale unico fissato per legge; le paghe variano per settore." },
+      { label: "Modifica proposta", title: "Soglia legale nazionale", text: "Una paga minima obbligatoria per legge, da definire nell'importo e nelle eccezioni." },
+    ],
+    measuredResultsTitle: "Confronto europeo · luglio 2026",
+    measuredResults: [
+      {
+        place: "🇪🇺 UE",
+        topic: "Paesi con un minimo nazionale",
+        value: "22 su 27",
+        period: "1 luglio 2026",
+        meaning: "Gli altri cinque usano sistemi fondati sulla contrattazione collettiva.",
+        sourceUrl: "https://ec.europa.eu/eurostat/statistics-explained/SEPDF/cache/1568.pdf",
+      },
+      {
+        place: "🇱🇺 Lussemburgo",
+        topic: "Minimo mensile lordo",
+        value: "2.771 €",
+        period: "1 luglio 2026",
+        meaning: "Importo nazionale lordo: non è la retribuzione netta.",
+        sourceUrl: "https://ec.europa.eu/eurostat/statistics-explained/SEPDF/cache/1568.pdf",
+      },
+      {
+        place: "🇧🇬 Bulgaria",
+        topic: "Minimo mensile lordo",
+        value: "620 €",
+        period: "1 luglio 2026",
+        meaning: "Le differenze di prezzo tra Paesi riducono la comparabilità diretta.",
+        sourceUrl: "https://ec.europa.eu/eurostat/statistics-explained/SEPDF/cache/1568.pdf",
+      },
+    ],
+    evidenceCaveat: "Questi sono importi e regole, non prove degli effetti su occupazione o povertà. Il potere d'acquisto e la copertura dei contratti cambiano tra Paesi.",
+    advantage: "Può proteggere dalle paghe più basse e rafforzare la trasparenza salariale.",
+    concern: "Se mal calibrato può aumentare i costi in settori e imprese a bassa produttività.",
+    note: "La direttiva UE sul salario minimo non obbliga l'Italia a introdurre una soglia legale.",
+    sources: [
+      { label: "Eurostat · Salari minimi, luglio 2026", url: "https://ec.europa.eu/eurostat/statistics-explained/SEPDF/cache/1568.pdf" },
+      { label: "Eurostat · Serie dati sui salari minimi", url: "https://ec.europa.eu/eurostat/databrowser/product/view/earn_mw_cur" },
+      { label: "Commissione UE · Cosa prevede la direttiva 2022/2041", url: "https://employment-social-affairs.ec.europa.eu/policies-and-activities/rights-work/labour-law/working-conditions/adequate-minimum-wages-eu/questions-answers-adequate-minimum-wages-eu_en" },
+    ],
+    verified,
+  },
+  citta_30: {
+    intro: "Estendere il limite di 30 km/h nelle strade cittadine, con eccezioni per alcune arterie. L'obiettivo è ridurre la gravità degli incidenti.",
+    facts: [],
+    comparison: [
+      { label: "Regole esistenti", title: "Limiti differenziati", text: "In molte strade urbane vale 50 km/h; il 30 è già previsto in alcune zone." },
+      { label: "Modello Città 30", title: "30 km/h diffuso", text: "Limite più basso su molte strade, con eccezioni, segnaletica e controlli." },
+    ],
+    measuredResultsTitle: "Bologna · prima e dopo",
+    measuredResults: [
+      {
+        place: "🇮🇹 Bologna",
+        topic: "Incidenti rilevati",
+        value: "−12,5%",
+        period: "2022–23 → 2024–25",
+        meaning: "Da 5.653 a 4.944 incidenti nei due bienni.",
+        sourceUrl: "https://www.comune.bologna.it/novita/comunicati-stampa/bologna-citta-30-il-report-del-2025",
+      },
+      {
+        place: "🇮🇹 Bologna",
+        topic: "Persone decedute",
+        value: "−43,6%",
+        period: "2022–23 → 2024–25",
+        meaning: "Da 39 a 22 vittime sulle strade considerate.",
+        sourceUrl: "https://www.comune.bologna.it/novita/comunicati-stampa/bologna-citta-30-il-report-del-2025",
+      },
+      {
+        place: "🇮🇹 Bologna",
+        topic: "Persone ferite",
+        value: "−7,2%",
+        period: "2022–23 → 2024–25",
+        meaning: "Da 4.848 a 4.500 feriti nei due bienni.",
+        sourceUrl: "https://www.comune.bologna.it/novita/comunicati-stampa/bologna-citta-30-il-report-del-2025",
+      },
+    ],
+    evidenceCaveat: "Confronti temporali dai dati della Polizia Locale pubblicati dal Comune: non isolano l'effetto del limite di velocità da altri interventi o cambiamenti nel traffico. Le strade considerate escludono autostrade e tangenziale.",
+    advantage: "Può ridurre gravità e frequenza degli scontri, soprattutto per gli utenti vulnerabili.",
+    concern: "Possibili tempi di viaggio maggiori su alcune tratte e costi di adeguamento e controllo.",
+    note: "Città 30 non significa che ogni strada abbia lo stesso limite: sono previste eccezioni.",
+    sources: [
+      { label: "Comune di Bologna · Report 2025 (27 gennaio 2026)", url: "https://www.comune.bologna.it/novita/comunicati-stampa/bologna-citta-30-il-report-del-2025" },
+      { label: "Città metropolitana di Bologna · Dati incidenti 2025", url: "https://www.cittametropolitana.bo.it/statistica/Home/incidentalita_stradale_citta_metropolitana_comuni_2025" },
+    ],
+    verified,
+  },
+  auto_emissioni_zero_2035: {
+    intro: "Regole europee sulle emissioni di CO₂ delle auto nuove dal 2035. Non è un divieto di usare le automobili già acquistate.",
+    facts: [],
+    comparisonMode: "transition",
+    comparison: [
+      { label: "🇪🇺 Norma vigente", title: "Obiettivo 100%", text: "Riduzione del 100% della CO₂ allo scarico per le nuove auto e i furgoni dal 2035." },
+      { label: "Revisione proposta", title: "Obiettivo 90%", text: "La Commissione ha proposto nel 2025 maggiore flessibilità, con compensazioni per il restante 10%." },
+    ],
+    measuredResultsTitle: "Mercato UE · dati osservati",
+    measuredResults: [
+      {
+        place: "🇪🇺 Unione europea",
+        topic: "CO₂ media delle auto nuove",
+        value: "−28%",
+        period: "2019 → 2024",
+        meaning: "Riduzione della media delle emissioni dei veicoli di nuova immatricolazione.",
+        sourceUrl: "https://climate.ec.europa.eu/areas-action/transport-decarbonisation/road-transport/cars-and-vans_en",
+      },
+      {
+        place: "🇪🇺 UE + Norvegia e Islanda",
+        topic: "Auto nuove a zero emissioni",
+        value: "14,5%",
+        period: "2024",
+        meaning: "Quota delle nuove immatricolazioni nella popolazione geografica dichiarata dalla Commissione.",
+        sourceUrl: "https://climate.ec.europa.eu/areas-action/transport-decarbonisation/road-transport/cars-and-vans_en",
+      },
+    ],
+    evidenceCaveat: "La riduzione osservata precede il 2035 e non misura l'effetto futuro delle norme. La quota 14,5% comprende anche Norvegia e Islanda. La revisione al 90% è una proposta, non la regola vigente.",
+    advantage: "Stimola auto con minori emissioni dirette e investimenti in tecnologie alternative.",
+    concern: "Prezzi d'acquisto, rete di ricarica e investimenti necessari per la filiera produttiva.",
+    note: "L'obiettivo è per le nuove auto, non per tutte quelle già in circolazione.",
+    sources: [
+      { label: "Commissione UE · Cars and vans, regole e risultati", url: "https://climate.ec.europa.eu/areas-action/transport-decarbonisation/road-transport/cars-and-vans_en" },
+      { label: "Commissione UE · Automotive Package, dicembre 2025", url: "https://transport.ec.europa.eu/transport-themes/action-plan-future-automotive-sector/automotive-package_en" },
+      { label: "EUR-Lex · Regolamento (UE) 2023/851", url: "https://eur-lex.europa.eu/eli/reg/2023/851/oj" },
     ],
     verified,
   },
