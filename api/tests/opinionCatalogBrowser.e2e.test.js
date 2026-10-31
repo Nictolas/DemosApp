@@ -1109,7 +1109,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Jurisdiction-specific retention limit must not be applied to every camera');
           assert.ok(data.includes('72 ore NON sono una licenza automatica'),
             '72 hours are not an automatic authorization to retain footage');
-          assert.ok((await brief.innerText()).includes('NON misurano riduzioni dei reati'),
+          assert.ok((await brief.innerText()).includes('Nessuno di questi riferimenti misura riduzioni dei reati'),
             'Legal retention and notices are not public-safety impact estimates');
         }
       } else {
