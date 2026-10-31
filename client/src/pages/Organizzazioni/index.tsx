@@ -131,6 +131,8 @@ export default function Organizzazioni() {
         console.log('🔄 fetchOrganizzazioni - Inizio caricamento');
         setIsLoading(true);
         setIsError(false);
+        // Clear stale approved names whenever filters or queries restart.
+        setApprovedSubjects([]);
         
         // Costruisci URL con parametri di ricerca
         const params = new URLSearchParams();
@@ -174,6 +176,7 @@ export default function Organizzazioni() {
         }
       } catch (error) {
         if (controller.signal.aborted) return;
+        setApprovedSubjects([]);
         console.error('❌ fetchOrganizzazioni - Errore:', error);
         setIsError(true);
         setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
