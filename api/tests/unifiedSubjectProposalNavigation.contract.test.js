@@ -70,3 +70,15 @@ test('sensitive proposal information is minimized in Grazia and never directly p
   assert.match(page, /non rende automaticamente pubblico alcun nominativo/);
   assert.match(page, /status === 409/);
 });
+
+test('backend enforces source HTTPS and avoids criminal details in admin notice', () => {
+  const route = read('api/routes/subject-proposals.js');
+  assert.match(route, /if \(!sourceUrl\) return \{ error: 'Fonte pubblica HTTPS obbligatoria' \}/);
+  assert.match(route, /category === 'grazia' && details/);
+  assert.match(route, /url\.protocol !== 'https:'/);
+  assert.match(route, /url\.username \|\| url\.password/);
+  assert.match(route, /Nuova proposta ricevuta in una categoria da moderare/);
+  assert.doesNotMatch(route, /proposal\.title\.slice\(0, 120\)/);
+  assert.match(route, /INSERT INTO subject_proposals\(proposer_user_id,category,title,details,source_url,status\)/);
+  assert.match(route, /if \(error\.code === '23505'\) return res\.status\(409\)/);
+});
