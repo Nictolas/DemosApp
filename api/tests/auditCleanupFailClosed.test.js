@@ -506,3 +506,20 @@ test('retention destructive routes deny anonymous and non-admin requests before 
   assert.equal(subjectLookups, endpoints.length, 'anonymous calls must not query account');
   assert.equal(destructiveCalls, 0, 'denied requests must never reach retention operations');
 });
+
+
+test('retention UI exposes only read-only status and emergency stop during RP-10 block', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../../client/src/pages/DataRetention.tsx'), 'utf8');
+  // Contract-level regression: this is a source check, not a rendered browser test.
+  const requests = [...source.matchAll(/apiRequest\(\s*['"]([A-Z]+)['"]\s*,\s*['"]([^'"]+)['"]/g)]
+    .map(([, method, endpoint]) => [method, endpoint]);
+  assert.deepEqual(requests, [
+    ['GET', '/admin/data-retention/job/status'],
+    ['POST', '/admin/data-retention/job/stop']
+  ], 'the screen must never call unapproved cleanup, scheduler-start, or legacy statistics endpoints');
+  assert.match(source, /jobStatus\.isRunning && \(/, 'only show stop if job is running');
+  assert.match(source, /onClick=\{handleStopJob\}/);
+  assert.match(source, /Politica di retention non approvata/);
+  assert.doesNotMatch(source, /handleStartJob|handleImmediateCleanup/);
+  assert.doesNotMatch(source, /Il sistema di data retention cancella automaticamente/);
+});
