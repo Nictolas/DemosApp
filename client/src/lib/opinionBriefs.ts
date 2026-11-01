@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these ninety canonical IDs opt in; the other 4 use the original
+ * All ninety-four canonical IDs opt in; none use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -4348,6 +4348,129 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "Presidenza Consiglio · CIPESS infrastrutture strategiche", url: "https://www.programmazioneeconomica.pcm.gov.it/it/cipess/le-politiche-pubbliche/infrastrutture-strategiche/" },
       { label: "Stretto di Messina SpA · Progetto definitivo", url: "https://strettodimessina.it/web/il-progetto-definitivo/" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  riconoscimento_palestina: {
+    intro: "Decidere se l'Italia debba riconoscere formalmente lo Stato di Palestina. Il riconoscimento bilaterale è distinto dall'ammissione come membro a pieno titolo delle Nazioni Unite.",
+    facts: [
+      { value: "2012", label: "Anno del riconoscimento ONU come Stato osservatore non membro" },
+      { value: "67/19", label: "Risoluzione Assemblea generale sullo status di osservatore" },
+      { value: "2025", label: "Nuova serie di riconoscimenti diplomatici europei e non" },
+      { value: "142", label: "Voti a favore della Dichiarazione di New York all'ONU" },
+    ],
+    comparison: [
+      { label: "Riconoscimento formale", title: "Decisione diplomatica italiana", text: "L'Italia riconoscerebbe lo Stato di Palestina tramite una decisione sovrana, senza determinare da sola confini o futura composizione del governo." },
+      { label: "Mantenere posizione attuale", title: "Sostegno senza riconoscimento", text: "Sostegno diplomatico e umanitario alla soluzione dei due Stati senza adottare ora l'atto formale di riconoscimento." },
+    ],
+    measuredResultsTitle: "Dati istituzionali, non soluzione del conflitto",
+    measuredResults: [
+      { place: "ONU", topic: "Status di Stato osservatore non membro", value: "2012", period: "Risoluzione Assemblea generale 67/19 del 29 novembre 2012", meaning: "Lo status di osservatore NON coincide con il seggio di membro ONU a pieno titolo.", sourceUrl: "https://www.un.org/en/about-us/non-member-states" },
+      { place: "ONU", topic: "Numero della risoluzione sullo status", value: "67/19", period: "29 novembre 2012", meaning: "Identificativo di una deliberazione, NON numero di Stati che riconoscono bilateralmente Palestina.", sourceUrl: "https://www.un.org/en/about-us/non-member-states" },
+      { place: "Francia", topic: "Riconoscimento diplomatico annunciato", value: "22/09/2025", period: "80ª Assemblea generale ONU", meaning: "Data della dichiarazione francese; non implica automaticamente il riconoscimento italiano.", sourceUrl: "https://www.diplomatie.gouv.fr/en/the-ministry-in-action/action-for-peace-and-respect-for-human-rights/security-disarmament-and-non-proliferation/crises-and-conflicts/understanding-france-s-recognition-of-the-state-of-palestine" },
+      { place: "ONU", topic: "Voti favorevoli alla Dichiarazione di New York", value: "142", period: "Assemblea generale, 12 settembre 2025", meaning: "Voti per la Dichiarazione sui due Stati, NON 142 nuovi riconoscimenti diplomatici.", sourceUrl: "https://www.un.org/unispal/history/" },
+    ],
+    evidenceCaveat: "Riconoscimento da parte di uno Stato, status di osservatore ONU, piena adesione all'ONU e accordo sui confini sono passaggi differenti. I voti ONU e i riconoscimenti del 2025 non dimostrano automaticamente la fine delle ostilità o l'esistenza di una soluzione negoziata.",
+    advantage: "Può rafforzare la rappresentanza diplomatica palestinese e il sostegno alla soluzione dei due Stati.",
+    concern: "Sono dibattuti tempi, condizioni di sicurezza reciproca, istituzioni responsabili e possibili effetti sul negoziato.",
+    note: "Non sommare voti ONU e riconoscimenti bilaterali come se fossero la stessa statistica.",
+    sources: [
+      { label: "ONU · Stati osservatori", url: "https://www.un.org/en/about-us/non-member-states" },
+      { label: "Francia · Riconoscimento del 2025", url: "https://www.diplomatie.gouv.fr/en/the-ministry-in-action/action-for-peace-and-respect-for-human-rights/security-disarmament-and-non-proliferation/crises-and-conflicts/understanding-france-s-recognition-of-the-state-of-palestine" },
+      { label: "ONU · Cronologia questione palestinese", url: "https://www.un.org/unispal/history/" },
+    ],
+    verified: "01/11/2026",
+  },
+  sionismo: {
+    intro: "Esprimere un giudizio politico sul sionismo: movimento nazionale ebraico moderno sorto nell'Ottocento, storicamente legato alla creazione di una patria e poi dello Stato d'Israele. Esistono correnti diverse e valutazioni divergenti sulle sue conseguenze per i palestinesi.",
+    facts: [
+      { value: "XIX sec.", label: "Origine del movimento nazionale moderno in Europa" },
+      { value: "1897", label: "Primo congresso sionista a Basilea" },
+      { value: "1948", label: "Fondazione dello Stato d'Israele" },
+      { value: "1917", label: "Anno della Dichiarazione Balfour britannica" },
+    ],
+    comparison: [
+      { label: "Lettura favorevole", title: "Autodeterminazione e sicurezza ebraica", text: "Per i sostenitori, il movimento rispondeva a persecuzioni e antisemitismo e mirava a una patria nazionale ebraica." },
+      { label: "Lettura critica", title: "Diritti e autodeterminazione palestinesi", text: "Per i critici, nazionalismo, insediamenti, espulsioni e disuguaglianze devono essere valutati rispetto ai diritti della popolazione palestinese." },
+    ],
+    measuredResultsTitle: "Cronologia storica, non misura di consenso",
+    measuredResults: [
+      { place: "Europa", topic: "Nascita del sionismo politico moderno", value: "Fine XIX sec.", period: "Storia del movimento", meaning: "Periodo storico; NON descrizione uniforme di ogni persona ebrea o posizione politica contemporanea.", sourceUrl: "https://encyclopedia.ushmm.org/content/it/article/postwar-refugee-crisis-and-the-establishment-of-the-state-of-israel" },
+      { place: "Basilea", topic: "Primo congresso sionista convocato da Herzl", value: "1897", period: "Fine Ottocento", meaning: "Data del congresso, NON nascita della presenza ebraica storica nella regione.", sourceUrl: "https://encyclopedia.ushmm.org/content/en/article/postwar-refugee-crisis-and-the-establishment-of-the-state-of-israel" },
+      { place: "Israele", topic: "Fondazione dello Stato", value: "1948", period: "14 maggio 1948", meaning: "Data della fondazione statale, distinta dalla storia del movimento e dall'esperienza palestinese della Nakba.", sourceUrl: "https://encyclopedia.ushmm.org/content/it/article/postwar-refugee-crisis-and-the-establishment-of-the-state-of-israel" },
+      { place: "Regno Unito", topic: "Dichiarazione Balfour", value: "1917", period: "Prima guerra mondiale", meaning: "Documento politico britannico sulla patria nazionale ebraica, NON trattato di pace conclusivo né riconoscimento di confini definitivi.", sourceUrl: "https://www.un.org/unispal/history/" },
+    ],
+    evidenceCaveat: "Criticare il sionismo come ideologia o specifiche politiche israeliane non significa automaticamente ostilità verso gli ebrei; viceversa attribuire agli ebrei in quanto gruppo le scelte di Israele sarebbe scorretto e discriminatorio. Il movimento comprende storicamente correnti religiose, secolari e politiche diverse. Questa Opinione deve discutere idee e politiche, NON identità o appartenenze etniche.",
+    advantage: "Per i sostenitori, valorizza autodeterminazione, memoria delle persecuzioni e diritto alla sicurezza del popolo ebraico.",
+    concern: "Per i critici, alcune sue applicazioni e interpretazioni sono associate a espropriazioni, sfollamento e limitazioni dei diritti palestinesi.",
+    note: "L'etichetta politica non descrive automaticamente ogni cittadino israeliano o ogni persona ebrea.",
+    sources: [
+      { label: "USHMM · Storia del sionismo e fondazione di Israele", url: "https://encyclopedia.ushmm.org/content/it/article/postwar-refugee-crisis-and-the-establishment-of-the-state-of-israel" },
+      { label: "ONU · Storia della questione palestinese", url: "https://www.un.org/unispal/history/" },
+    ],
+    verified: "01/11/2026",
+  },
+  test_antidroga_per_politici: {
+    intro: "Proporre controlli tossicologici per candidati o titolari di cariche politiche. Occorre definire finalità, base legislativa, qualità dei test, tutela dei dati e conseguenze proporzionate.",
+    facts: [
+      { value: "Art. 51", label: "Costituzione: accesso alle cariche elettive in condizioni di eguaglianza" },
+      { value: "Art. 65", label: "Costituzione: ineleggibilità e incompatibilità stabilite dalla legge" },
+      { value: "2006", label: "Intervento del Garante su test senza consenso a parlamentari" },
+      { value: "2007", label: "Intesa per accertamenti in particolari mansioni a rischio" },
+    ],
+    comparison: [
+      { label: "Controllo sanitario regolamentato", title: "Proposta di test per incarichi politici", text: "Richiederebbe regole su consenso o altra valida base, conferma dei risultati, conservazione e ricorsi." },
+      { label: "Norme per altre mansioni", title: "Accertamenti in attività a rischio", text: "Esistono discipline per specifiche mansioni lavorative pericolose, ma non si applicano automaticamente ai parlamentari." },
+    ],
+    measuredResultsTitle: "Garanzie e precedenti, non test sui politici",
+    measuredResults: [
+      { place: "Italia", topic: "Accesso alle cariche elettive", value: "Art. 51", period: "Costituzione", meaning: "Accesso eguale secondo requisiti di legge, NON obbligo vigente di test antidroga per tutti i candidati.", sourceUrl: "https://www.senato.it/istituzione/la-costituzione/parte-i/titolo-iv/articolo-51" },
+      { place: "Italia", topic: "Casi di ineleggibilità e incompatibilità", value: "Art. 65", period: "Costituzione", meaning: "La disciplina richiede legge, NON è introdotta da un sondaggio o da una valutazione informale.", sourceUrl: "https://www.senato.it/istituzione/la-costituzione/parte-ii/titolo-i/sezione-i/articolo-65" },
+      { place: "Garante Privacy", topic: "Blocco di trattamenti illeciti legati a test", value: "2006", period: "Comunicazione del 20 ottobre 2006", meaning: "L'Autorità ha richiamato un test su 50 parlamentari condotto senza consenso; NON stima di consumo nella popolazione politica.", sourceUrl: "https://garanteprivacy.it/web/guest/home/docweb/-/docweb-display/docweb/1350812" },
+      { place: "Ministero Salute", topic: "Intesa per mansioni lavorative a rischio", value: "2007", period: "Intesa Stato–Regioni del 30 ottobre 2007", meaning: "Riguarda lavoratori con mansioni specifiche; NON legge sui politici.", sourceUrl: "https://www.salute.gov.it/imgs/C_17_pubblicazioni_925_allegato.pdf" },
+    ],
+    evidenceCaveat: "Un esame tossicologico non prova automaticamente incapacità decisionale, dipendenza o uso durante l'esercizio della carica. Esiti preliminari, conferma analitica e giudizio medico non sono la stessa cosa. Dati sulla salute richiedono forti garanzie; il Garante ha già contestato test occulti su parlamentari.",
+    advantage: "I sostenitori propongono un controllo di trasparenza e prevenzione in relazione a responsabilità pubbliche.",
+    concern: "Rischi di falsi positivi, esposizione di dati sanitari e esclusione sproporzionata o discriminatoria.",
+    note: "Una proposta di controlli non è un requisito nazionale vigente per l'eleggibilità.",
+    sources: [
+      { label: "Senato · Costituzione art.51", url: "https://www.senato.it/istituzione/la-costituzione/parte-i/titolo-iv/articolo-51" },
+      { label: "Senato · Costituzione art.65", url: "https://www.senato.it/istituzione/la-costituzione/parte-ii/titolo-i/sezione-i/articolo-65" },
+      { label: "Garante · Test illeciti su parlamentari", url: "https://garanteprivacy.it/web/guest/home/docweb/-/docweb-display/docweb/1350812" },
+      { label: "Ministero Salute · Intesa 2007", url: "https://www.salute.gov.it/imgs/C_17_pubblicazioni_925_allegato.pdf" },
+    ],
+    verified: "01/11/2026",
+  },
+  test_psichiatrico_per_politici: {
+    intro: "Proporre valutazioni della salute mentale per chi ricopre cariche politiche. Una diagnosi psichiatrica da sola non misura competenza, integrità o capacità di governo e non deve diventare uno strumento di stigmatizzazione.",
+    facts: [
+      { value: "Art. 51", label: "Costituzione italiana: eguaglianza nell'accesso alle cariche" },
+      { value: "Art. 65", label: "Costituzione: ineleggibilità definite dalla legge" },
+      { value: "Art. 29", label: "Convenzione ONU sui diritti delle persone con disabilità: partecipazione politica" },
+      { value: "2023", label: "Scheda OMS sui diritti in salute mentale" },
+    ],
+    comparison: [
+      { label: "Proposta di screening", title: "Valutazioni cliniche obbligatorie", text: "Richiederebbero una finalità dimostrabile, criteri pertinenti alla funzione, garanzie mediche, proporzionalità e una valida base giuridica." },
+      { label: "Alternativa istituzionale", title: "Responsabilità e controlli delle condotte", text: "Valutare atti pubblici e responsabilità con strumenti costituzionali, senza inferire inidoneità dalla semplice presenza di una diagnosi." },
+    ],
+    measuredResultsTitle: "Principi giuridici, non diagnosi collettive",
+    measuredResults: [
+      { place: "Italia", topic: "Accesso paritario alle cariche", value: "Art. 51", period: "Costituzione", meaning: "Requisiti stabiliti dalla legge: NON esiste in questo articolo un obbligo di esame psichiatrico.", sourceUrl: "https://www.senato.it/istituzione/la-costituzione/parte-i/titolo-iv/articolo-51" },
+      { place: "Italia", topic: "Disciplina delle incompatibilità", value: "Art. 65", period: "Costituzione", meaning: "Rinvio alla legge: NON giudizio clinico automatico sulla capacità di una persona.", sourceUrl: "https://www.senato.it/istituzione/la-costituzione/parte-ii/titolo-i/sezione-i/articolo-65" },
+      { place: "ONU", topic: "Diritto di partecipare alla vita politica", value: "Art. 29", period: "Convenzione diritti persone con disabilità", meaning: "Tutela la partecipazione politica senza discriminazioni; NON autorizza esclusioni per sola diagnosi.", sourceUrl: "https://www.ohchr.org/sites/default/files/Ch_IV_15.pdf" },
+      { place: "OMS", topic: "Tutela dei diritti in salute mentale", value: "06/10/2023", period: "Scheda informativa sui diritti umani", meaning: "Le condizioni di salute mentale non giustificano automaticamente la privazione dei diritti.", sourceUrl: "https://www.who.int/news-room/questions-and-answers/item/mental-health-promoting-and-protecting-human-rights" },
+    ],
+    evidenceCaveat: "La semplice diagnosi di un disturbo mentale non equivale a incapacità di esercitare incarichi pubblici. Una valutazione clinica non garantisce prevedibilità delle decisioni politiche, correttezza o assenza di abuso di potere. Test obbligatori richiederebbero giustificazioni rigorose per efficacia, diritto di candidatura, privacy, consenso, controllo indipendente e non discriminazione.",
+    advantage: "I sostenitori mirano a riconoscere eventuali condizioni acute che compromettano specifiche funzioni.",
+    concern: "Rischio elevato di esclusione discriminatoria, uso politico della diagnosi, falsi allarmi e divulgazione di dati sanitari.",
+    note: "Non usare categorie diagnostiche come sinonimi di pericolosità o inidoneità politica.",
+    sources: [
+      { label: "Senato · Costituzione art.51", url: "https://www.senato.it/istituzione/la-costituzione/parte-i/titolo-iv/articolo-51" },
+      { label: "Senato · Costituzione art.65", url: "https://www.senato.it/istituzione/la-costituzione/parte-ii/titolo-i/sezione-i/articolo-65" },
+      { label: "ONU · Convenzione diritti persone con disabilità", url: "https://www.ohchr.org/sites/default/files/Ch_IV_15.pdf" },
+      { label: "OMS · Salute mentale e diritti", url: "https://www.who.int/news-room/questions-and-answers/item/mental-health-promoting-and-protecting-human-rights" },
     ],
     verified: "01/11/2026",
   },
