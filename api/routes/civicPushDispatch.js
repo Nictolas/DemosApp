@@ -29,7 +29,13 @@ router.post('/dispatch', async (req, res) => {
 
   try {
     const summary = await dispatchCivicNewInitiatives(getPool());
-    res.json({ success: true, ...summary });
+    if (summary.blocked) {
+      return res.status(423).json({ success: false, error: 'CIVIC_DELIVERY_BLOCKED' });
+    }
+    if (summary.failed > 0) {
+      return res.status(503).json({ success: false, error: 'CIVIC_DELIVERY_UNCERTAIN' });
+    }
+    return res.json({ success: true, ...summary });
   } catch {
     // Never reflect database errors or Firebase configuration into the response.
     res.status(503).json({ success: false, error: 'CIVIC_DISPATCH_UNAVAILABLE' });
