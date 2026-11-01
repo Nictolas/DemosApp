@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import apiRequest from "@/lib/api-request";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface PreferenzeNotifiche {
   eurodeputato: boolean;
@@ -46,6 +47,7 @@ export default function NotifichePreferenze() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const push = usePushNotifications();
   
   const [preferenze, setPreferenze] = useState<PreferenzeNotifiche>({
     eurodeputato: false,
@@ -138,6 +140,12 @@ export default function NotifichePreferenze() {
     return <Redirect to="/auth" />;
   }
 
+  const wantsCivicPush = preferenze.iniziative_popolari ||
+    preferenze.referendum_abrogativi || preferenze.eci;
+  const needsPushPermission = wantsCivicPush && (
+    !push.enabled || push.permission !== 'granted'
+  );
+
   const sezioni = [
     {
       title: "Rappresentanti Istituzionali",
@@ -206,6 +214,30 @@ export default function NotifichePreferenze() {
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {!isLoading && needsPushPermission && (
+          <Alert className="mb-5 border-amber-300 bg-amber-50">
+            <Bell className="h-4 w-4 text-amber-700" />
+            <AlertDescription className="text-sm text-amber-900">
+              {push.permission === 'denied'
+                ? 'Hai attivato notifiche in DEMOS, ma il dispositivo le blocca. Abilitale nelle impostazioni del dispositivo per poterle ricevere.'
+                : !push.enabled || push.permission === null
+                  ? 'Le notifiche push non risultano disponibili su questo dispositivo o browser. Puoi salvare le preferenze, ma non riceverai gli avvisi push qui.'
+                  : 'Hai attivato una categoria, ma devi ancora consentire le notifiche sul dispositivo.'}
+              {push.enabled && push.permission === 'default' && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 block"
+                  onClick={() => void push.requestPermission()}
+                >
+                  Consenti notifiche
+                </Button>
+              )}
+            </AlertDescription>
           </Alert>
         )}
 
