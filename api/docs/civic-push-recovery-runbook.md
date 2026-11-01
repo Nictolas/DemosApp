@@ -66,6 +66,38 @@
   payload FCM nei log. Se compaiono duplicati, revoche incerte o errori,
   tornare al processo STOP.
 
+## Gate identità database e staging (N-007 / N-038)
+
+- L'installazione autorizzata della migrazione crea una riga privata
+  `civic_runtime_identity` con UUID casuale, non accessibile ai client
+  (RLS attivo e nessun privilegio `PUBLIC`). La migrazione è idempotente:
+  una riesecuzione non cambia l'identificativo.
+- **Prima di abilitare `CIVIC_NEW_INITIATIVE_EVENTS_ENABLED` o
+  `CIVIC_NEW_INITIATIVE_PUSH_ENABLED`**, verificare che Render e l'Action
+  ECI siano effettivamente collegati allo stesso database. Un operatore
+  autorizzato legge l'UUID solo in una console sicura, lo configura
+  separatamente come `CIVIC_RUNTIME_DATABASE_ID` nei due ambienti e
+  prova la verifica di corrispondenza. Non inserirlo in issue, log,
+  URL, risposte HTTP o fogli di lavoro.
+- ECI verifica l'UUID *prima di sostituire la cache* quando la
+  raccolta civica è abilitata; il collector Ministero verifica prima
+  di accodare, il dispatcher verifica prima di inviare.
+  Mancanza/disaccordo della configurazione genera errore fail-closed.
+- Un database di staging clonato dalla produzione può ereditare la
+  stessa UUID: il controllo non è una prova crittografica dell'identità
+  fisica dopo un clone. Verificare separatamente connessioni, provider,
+  schema, ambiente e rigenerare l'identità di staging con procedura
+  approvata prima di utilizzarlo. **Non eseguire alcun DDL/DML in questa PR.**
+- Usare `api/scripts/civicStagingReadOnlyPreflight.sql` *solo sul
+  database di staging autorizzato*. Esso legge esclusivamente cataloghi
+  PostgreSQL, non dati utente; deve restituire `STRUCTURE_OK` per
+  tutte le sette tabelle previste. È testato su PostgreSQL effimero,
+  non è stato eseguito sullo staging reale tramite questo ramo.
+- Stato attuale (lettura indipendente): in produzione sono presenti
+  quattro tabelle di origine; **Demos-Staging non contiene ancora
+  le quattro tabelle**, né la migrazione notifiche civiche. Entrambi
+  restano NO-GO per la nuova funzione senza approvazione esplicita.
+
 ## Limiti dichiarati
 
 Un messaggio già accettato da FCM non può essere richiamato. Il TTL di un'ora
