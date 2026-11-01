@@ -3,9 +3,11 @@ const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const {
+  isCivicPushEnabled,
   reconcileCivicTopicsForUser,
   unsubscribeDisabledCivicTopicsForUser,
 } = require('../services/civicPushTopics');
+const { withCivicPushDeliveryLock } = require('../services/civicPushDeliveryGuard');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -837,17 +839,18 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     // Opt-out prima del salvataggio: se Firebase non conferma la revoca,
     // non presentiamo un consenso falso come aggiornato con successo.
     const disabledCategories = civicKeys.filter(key => civicValue(key) === false);
+    let savedPrefs;
     try {
-      await unsubscribeDisabledCivicTopicsForUser(pool, user_id, disabledCategories);
-    } catch {
-      return res.status(503).json({
-        success: false,
-        error: 'Impossibile disattivare le notifiche push. Riprova.'
-      });
-    }
+      // One lock covers Firebase opt-out, the authoritative preference write
+      // and the final topic reconciliation. Bootstrap/dispatch cannot observe
+      // an intermediate state and cannot re-add a topic after an opt-out.
+      savedPrefs = await withCivicPushDeliveryLock(pool, async (db) => {
+        await unsubscribeDisabledCivicTopicsForUser(db, user_id, disabledCategories, {
+          lockedClient: db
+        });
 
     // Usa UPSERT per inserire o aggiornare le preferenze nella nuova tabella
-    const result = await pool.query(
+    const result = await db.query(
       `INSERT INTO notifiche_preferenze (user_id, eurodeputato, senatore, deputato, 
                                          consigliere_regionale, consigliere_comunale, 
                                          attivisti, demos, scuola, animali, organizzazioni,
@@ -879,23 +882,15 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     );
     
     if (result.rows.length === 0) {
-      return res.status(500).json({
-        success: false,
-        error: 'Errore nel salvataggio delle preferenze'
-      });
+      throw new Error('CIVIC_PREFERENCE_SAVE_EMPTY');
     }
-    
-    const savedPrefs = result.rows[0];
-
-    // Le iscrizioni FCM sono derivate dalle preferenze salvate nel DB.
-    // Se il relativo flag di rilascio e' OFF non viene effettuata alcuna chiamata a Firebase.
-    // Con flag ON, un errore restituisce 503: non confermiamo consegne non sincronizzate.
-    try {
-      await reconcileCivicTopicsForUser(pool, user_id);
+    await reconcileCivicTopicsForUser(db, user_id, { lockedClient: db });
+    return result.rows[0];
+      }, { enabled: isCivicPushEnabled() });
     } catch {
       return res.status(503).json({
         success: false,
-        error: 'Preferenze registrate, sincronizzazione push non riuscita. Riprova il salvataggio.'
+        error: 'Impossibile confermare il salvataggio delle preferenze push. Riprova.'
       });
     }
     
