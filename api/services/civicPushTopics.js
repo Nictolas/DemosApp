@@ -30,7 +30,11 @@ async function changeTopic(messaging, token, topic, subscribe) {
     const result = subscribe
       ? await messaging.subscribeToTopic([token], topic)
       : await messaging.unsubscribeFromTopic([token], topic);
-    if (result?.failureCount > 0) throw new Error('FCM_SUBSCRIPTION_REJECTED');
+    // An absent or incomplete SDK response is not evidence of a successful
+    // unsubscribe. Treat it as uncertain and let the caller fail closed.
+    if (!result || result.failureCount !== 0 || result.successCount !== 1) {
+      throw new Error('FCM_SUBSCRIPTION_UNCONFIRMED');
+    }
   } catch {
     // Firebase may include token identifiers in diagnostics: do not expose them.
     const error = new Error('CIVIC_TOPIC_SYNC_FAILED');
