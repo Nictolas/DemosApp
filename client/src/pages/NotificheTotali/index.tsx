@@ -133,11 +133,14 @@ export default function NotificheTotali() {
       if (!userTitle.trim() || !userMessage.trim()) throw new Error("Titolo e messaggio sono obbligatori");
       return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: selectedUser.id, titolo: userTitle.trim(), messaggio: userMessage.trim() })).data;
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       setSelectedUser(null); setUserSearchValue(""); setUserTitle(""); setUserMessage("");
       queryClient.invalidateQueries({ queryKey: ["notifiche-totali"] });
       queryClient.invalidateQueries({ queryKey: ["notificationBadge"] });
-      toast({ title: "Notifica inviata" });
+      toast({
+        title: result?.data?.push_inviato === true ? "Notifica salvata e push inviato" : "Notifica salvata nell'app",
+        description: result?.message || "La notifica è disponibile nell'app."
+      });
     },
     onError: (error: any) => toast({ title: "Invio fallito", description: error?.message || "Errore di invio", variant: "destructive" }),
   });
@@ -147,7 +150,11 @@ export default function NotificheTotali() {
       if (!user?.id) throw new Error("Utente non autenticato");
       return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: user.id, titolo: "Test Firebase Admin", messaggio: "Notifica di test DEMOS per verificare la consegna push." })).data;
     },
-    onSuccess: () => toast({ title: "Test inviato", description: "Controlla il dispositivo associato al tuo account." }),
+    onSuccess: (result: any) => toast({
+      title: result?.data?.push_inviato === true ? "Test push inviato" : "Push di test non inviato",
+      description: result?.message || "Controlla lo stato del dispositivo.",
+      variant: result?.data?.push_inviato === true ? "default" : "destructive"
+    }),
     onError: (error: any) => toast({ title: "Test fallito", description: error?.message || "Errore di invio", variant: "destructive" }),
   });
 
