@@ -646,9 +646,10 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok(data.includes('non degli abitanti'), 'Taxpayer denominator is explicit');
         }
         if (title === 'Nuove centrali geotermiche') {
-          for (const value of ['5.644,3 GWh', '9.008,3 GWh', '33', '15 su 15'])
+          for (const value of ['5.675 GWh', '8.519,5 GWh', '33', '15 su 15'])
             assert.ok(data.includes(value), 'Regional geothermal data ' + value);
-          assert.ok(data.includes('13 stabilimenti nel 2025, non tutte le 33 centrali'),
+          assert.ok(data.includes('13 stabilimenti nel 2025, non tutte le 33 centrali') &&
+            data.includes('Produzione geotermica annuale 2024 pubblicata'),
             'Controlled sample not conflated with all plants');
         }
         if (title === 'Nuove piste ciclabili') {
