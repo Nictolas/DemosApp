@@ -299,6 +299,17 @@ router.post('/send-user-notification', (req, res, next) => {
       });
     }
 
+    // The client must reuse this key for retries of the same explicit send.
+    // Without a client key the server cannot distinguish retries from new sends.
+    const idempotencyKey = req.body.idempotencyKey;
+    if (typeof idempotencyKey !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Chiave di invio mancante o non valida'
+      });
+    }
+
     // Verifica che l'utente destinatario esista
     const userResult = await pool.query(
       'SELECT id, email, nome, cognome, status FROM users WHERE id = $1',
@@ -315,15 +326,45 @@ router.post('/send-user-notification', (req, res, next) => {
     const destinatario = userResult.rows[0];
     const commento = messaggio || titolo;
 
-    // Persist the app inbox before best-effort FCM delivery.
+    // A partial unique index on idempotency_key makes retries/concurrent requests
+    // atomic across processes. A replay never triggers a second FCM attempt.
     let notificaId;
     try {
       const saved = await pool.query(
-        `INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data, data_creazione)
-         VALUES (gen_random_uuid(), $1, $2, $3, CURRENT_DATE, NOW())
+        `INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data, data_creazione, idempotency_key)
+         VALUES (gen_random_uuid(), $1, $2, $3, CURRENT_DATE, NOW(), $4::uuid)
+         ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
          RETURNING id`,
-        [userId, titolo, commento]
+        [userId, titolo, commento, idempotencyKey]
       );
+      if (saved.rows.length === 0) {
+        const previous = await pool.query(
+          'SELECT id, id_utente, titolo, testo FROM notifiche_demos WHERE idempotency_key = $1::uuid',
+          [idempotencyKey]
+        );
+        const original = previous.rows[0];
+        if (!original) throw new Error('idempotency_lookup_missing');
+        if (String(original.id_utente) !== String(userId) ||
+            original.titolo !== titolo || original.testo !== commento) {
+          return res.status(409).json({
+            success: false,
+            error: 'Chiave di invio già utilizzata per una notifica differente'
+          });
+        }
+        return res.json({
+          success: true,
+          message: 'Notifica già salvata nell’app; nessun nuovo tentativo push',
+          data: {
+            id_notifica: original.id,
+            inbox_salvata: true,
+            push_inviato: false,
+            push_non_ritentato: true,
+            duplicata_evitata: true,
+            notifiche_inviate: 0,
+            notifiche_fallite: 0
+          }
+        });
+      }
       notificaId = saved.rows[0].id;
     } catch (_saveError) {
       console.error('USER_NOTIFICATION_INBOX_WRITE_FAILED');
@@ -495,6 +536,8 @@ router.post('/send-user-notification', (req, res, next) => {
         id_notifica: notificaId,
         inbox_salvata: true,
         push_inviato: pushDelivered,
+        push_non_ritentato: false,
+        duplicata_evitata: false,
         notifiche_inviate: successCount,
         notifiche_fallite: failureCount,
         token_rimossi: invalidTokens.length,
