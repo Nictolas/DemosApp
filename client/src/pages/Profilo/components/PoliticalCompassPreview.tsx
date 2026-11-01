@@ -65,20 +65,26 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
                 viewBox="0 0 360 350"
                 className="mx-auto block h-auto w-full max-w-sm"
                 role="img"
-                aria-label="Posizione stimata su due assi: intervento pubblico verso ruolo del mercato, restrizioni verso libertà individuali"
+                aria-label="Posizione stimata su due assi: intervento pubblico a sinistra, mercato a destra, restrizioni in alto e libertà individuali in basso"
               >
-                <rect x="55" y="35" width="250" height="250" fill="#f8fafc" stroke="#cbd5e1" />
-                <line x1="180" y1="35" x2="180" y2="285" stroke="#64748b" strokeWidth="1.5" />
-                <line x1="55" y1="160" x2="305" y2="160" stroke="#64748b" strokeWidth="1.5" />
-                <line x1="117.5" y1="35" x2="117.5" y2="285" stroke="#e2e8f0" />
-                <line x1="242.5" y1="35" x2="242.5" y2="285" stroke="#e2e8f0" />
-                <line x1="55" y1="97.5" x2="305" y2="97.5" stroke="#e2e8f0" />
-                <line x1="55" y1="222.5" x2="305" y2="222.5" stroke="#e2e8f0" />
+                {/* Disposizione CLASSICA del Political Compass: rosso/blu sopra, verde/viola sotto.
+                    L'asse verticale resta metodologicamente esplorativo, non una diagnosi ideologica. */}
+                <rect x="55" y="35" width="125" height="125" fill="#ef4444" data-quadrant="restrizioni-interventi-pubblici" />
+                <rect x="180" y="35" width="125" height="125" fill="#3b82f6" data-quadrant="restrizioni-soluzioni-private" />
+                <rect x="55" y="160" width="125" height="125" fill="#22c55e" data-quadrant="liberta-interventi-pubblici" />
+                <rect x="180" y="160" width="125" height="125" fill="#a855f7" data-quadrant="liberta-soluzioni-private" />
+                <rect x="55" y="35" width="250" height="250" fill="none" stroke="#334155" strokeWidth="1" />
+                <line x1="180" y1="35" x2="180" y2="285" stroke="#334155" strokeWidth="1.75" />
+                <line x1="55" y1="160" x2="305" y2="160" stroke="#334155" strokeWidth="1.75" />
+                <line x1="117.5" y1="35" x2="117.5" y2="285" stroke="#ffffff" strokeOpacity="0.55" />
+                <line x1="242.5" y1="35" x2="242.5" y2="285" stroke="#ffffff" strokeOpacity="0.55" />
+                <line x1="55" y1="97.5" x2="305" y2="97.5" stroke="#ffffff" strokeOpacity="0.55" />
+                <line x1="55" y1="222.5" x2="305" y2="222.5" stroke="#ffffff" strokeOpacity="0.55" />
                 <text x="180" y="20" fontSize="12" textAnchor="middle" fill="#334155">
-                  Maggiori libertà individuali
+                  Maggiori restrizioni
                 </text>
                 <text x="180" y="305" fontSize="12" textAnchor="middle" fill="#334155">
-                  Maggiori restrizioni
+                  Maggiori libertà individuali
                 </text>
                 <text x="55" y="330" fontSize="11" fill="#334155">Interventi pubblici</text>
                 <text x="305" y="345" fontSize="11" fill="#334155" textAnchor="end">
@@ -86,8 +92,8 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
                 </text>
                 <circle
                   cx={180 + (compass.economy.score || 0) * 1.25}
-                  cy={160 - (compass.freedom.score || 0) * 1.25}
-                  r="9" fill="#4338ca" stroke="white" strokeWidth="3"
+                  cy={160 + (compass.freedom.score || 0) * 1.25}
+                  r="9" fill="#111827" stroke="#ffffff" strokeWidth="3"
                 />
               </svg>
               <figcaption className="mt-1 text-center text-xs text-slate-600">
