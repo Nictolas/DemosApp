@@ -165,6 +165,30 @@ class MigrationContract(unittest.TestCase):
             SELECT blocked FROM civic_push_delivery_guard WHERE id = 1
         """), [(True,)])
 
+    def test_staging_preflight_sql_is_read_only_and_schema_complete_only_after_migration(self):
+        preflight = (
+            ROOT / "api/scripts/civicStagingReadOnlyPreflight.sql"
+        ).read_text(encoding="utf8")
+        self.assertNotRegex(preflight, r"(?im)^\\s*(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE)\\s")
+        before = self.query(preflight)
+        self.assertEqual(len(before), 7)
+        by_name = {row[0]: row for row in before}
+        for name in (
+            "civic_new_initiative_notifications",
+            "civic_push_delivery_guard",
+            "civic_runtime_identity",
+        ):
+            self.assertEqual(by_name[name][-1], "MISSING_TABLE")
+        self.assertEqual(by_name["notifiche_preferenze"][-1], "MISSING_COLUMN")
+
+        # Disposable CI fixtures mimic the existing private production tables.
+        self.query("ALTER TABLE notifiche_preferenze ENABLE ROW LEVEL SECURITY")
+        self.query("ALTER TABLE user_devices ENABLE ROW LEVEL SECURITY")
+        self.apply_migration()
+        after = self.query(preflight)
+        self.assertEqual(len(after), 7)
+        self.assertTrue(all(row[-1] == "STRUCTURE_OK" for row in after), after)
+
     def test_delivery_guard_rejects_orphaned_active_device_and_null_status(self):
         self.apply_migration()
         guard_source = (
