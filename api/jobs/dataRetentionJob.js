@@ -42,7 +42,7 @@ class DataRetentionJob {
 
     this.notificationInterval = setInterval(() => {
       Promise.resolve(this.sendWeeklyNotifications()).catch(error => {
-        console.error('❌ Errore non gestito in sendWeeklyNotifications():', error);
+        console.error('RETENTION_CANDIDATE_SCAN_UNHANDLED');
       });
     }, this.notificationIntervalMs);
 
@@ -149,22 +149,27 @@ class DataRetentionJob {
       }
 
     } catch (error) {
-      console.error('Errore nella scansione candidati retention:', error);
+      console.error('RETENTION_CANDIDATE_SCAN_FAILED');
       
-      // Log dell'errore
-      await AuditService.logAction({
-        userId: 'system',
-        action: 'DATA_RETENTION_NOTIFICATION_CANDIDATE_SCAN',
-        resource: 'retention_candidates',
-        details: {
-          error_code: 'RETENTION_CANDIDATE_SCAN_FAILED',
-          sent_count: 0,
-          delivery_performed: false,
-          scan_date: new Date()
-        },
-        success: false,
-        errorMessage: 'RETENTION_CANDIDATE_SCAN_FAILED'
-      });
+      // La registrazione audit e best-effort: non propagare un secondo errore grezzo.
+      try {
+        // Log dell'errore
+        await AuditService.logAction({
+          userId: 'system',
+          action: 'DATA_RETENTION_NOTIFICATION_CANDIDATE_SCAN',
+          resource: 'retention_candidates',
+          details: {
+            error_code: 'RETENTION_CANDIDATE_SCAN_FAILED',
+            sent_count: 0,
+            delivery_performed: false,
+            scan_date: new Date()
+          },
+          success: false,
+          errorMessage: 'RETENTION_CANDIDATE_SCAN_FAILED'
+        });
+      } catch (_auditError) {
+        console.error('RETENTION_CANDIDATE_AUDIT_FAILED');
+      }
     }
   }
 
