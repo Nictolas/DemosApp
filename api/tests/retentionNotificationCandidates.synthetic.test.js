@@ -4,10 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function loadSyntheticJob({ candidates = [], fail = false, auditFail = false } = {}) {
+function loadSyntheticJob({ candidates = [], fail = false, auditFail = false, cleanupFail = false } = {}) {
   const actions = [];
   const messages = [];
   const service = {
+    async performFullCleanup() {
+      if (cleanupFail) throw new Error('synthetic-cleanup-secret-do-not-emit');
+      return { totalDeleted: 0, deletedCounts: {}, errors: [] };
+    },
     async sendRetentionNotifications(daysBefore) {
       assert.equal(daysBefore, 30);
       if (fail) throw new Error('synthetic-db-error-do-not-emit');
@@ -36,7 +40,7 @@ function loadSyntheticJob({ candidates = [], fail = false, auditFail = false } =
   return { job: sandbox.module.exports, actions, messages };
 }
 
-function loadSyntheticAdminRoute(candidates) {
+function loadSyntheticAdminRoute(candidates, { fail = false, logMessages = [] } = {}) {
   const handlers = {};
   const router = {
     use() { return this; },
@@ -52,11 +56,14 @@ function loadSyntheticAdminRoute(candidates) {
       if (name === '../../middleware/auth') return { verifyToken: () => {}, requireAdmin: () => {} };
       if (name === '../../jobs/dataRetentionJob') return {};
       if (name === '../../services/dataRetentionService') {
-        return { async sendRetentionNotifications() { return candidates; } };
+        return { async sendRetentionNotifications() {
+          if (fail) throw new Error('synthetic-api-secret-do-not-emit');
+          return candidates;
+        } };
       }
       throw new Error('Unexpected dependency ' + name);
     },
-    console: { error() {} },
+    console: { error(...args) { logMessages.push(args.map(String).join(' ')); } },
     Date
   }, { filename: 'data-retention.js' });
   return handlers;
@@ -145,4 +152,46 @@ test('audit failure after successful enumeration is not mistaken for delivery', 
   await assert.doesNotReject(() => job.sendWeeklyNotifications());
   assert.equal(messages.join(' ').includes('synthetic-audit-secret-do-not-emit'), false);
   assert.ok(messages.some(m => m.includes('RETENTION_CANDIDATE_AUDIT_FAILED')));
+});
+
+test('daily retention cleanup never writes raw SQL errors to console or audit', async () => {
+  const { job, actions, messages } = loadSyntheticJob({ cleanupFail: true });
+  await assert.doesNotReject(() => job.performDailyCleanup());
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].success, false);
+  assert.equal(actions[0].details.error_code, 'RETENTION_DAILY_CLEANUP_FAILED');
+  assert.equal(actions[0].errorMessage, 'RETENTION_DAILY_CLEANUP_FAILED');
+  assert.doesNotMatch(messages.join(' ') + JSON.stringify(actions), /synthetic-cleanup-secret-do-not-emit/);
+  assert.match(messages.join(' '), /RETENTION_DAILY_CLEANUP_FAILED/);
+});
+
+test('immediate cleanup preserves error behavior without logging private diagnostics', async () => {
+  const { job, messages } = loadSyntheticJob({ cleanupFail: true });
+  await assert.rejects(() => job.performImmediateCleanup(), /synthetic-cleanup-secret-do-not-emit/);
+  assert.doesNotMatch(messages.join(' '), /synthetic-cleanup-secret-do-not-emit/);
+  assert.match(messages.join(' '), /RETENTION_IMMEDIATE_CLEANUP_FAILED/);
+});
+
+test('admin candidate failure exposes only generic HTTP error and static log code', async () => {
+  const logs = [];
+  const handler = loadSyntheticAdminRoute([], { fail: true, logMessages: logs })['GET /notifications'];
+  let status, body;
+  const response = {
+    status(value) { status = value; return this; },
+    json(value) { body = value; return this; }
+  };
+  await handler({ query: { daysBefore: '30' } }, response);
+  assert.equal(status, 500);
+  assert.equal(body.success, false);
+  assert.doesNotMatch(logs.join(' ') + JSON.stringify(body), /synthetic-api-secret-do-not-emit/);
+  assert.match(logs.join(' '), /RETENTION_NOTIFICATION_CANDIDATES_FAILED/);
+});
+
+test('all retention route/job console error sites use static codes, no raw exception object', () => {
+  for (const file of ['../jobs/dataRetentionJob.js', '../routes/admin/data-retention.js']) {
+    const source = fs.readFileSync(path.join(__dirname, file), 'utf8');
+    assert.doesNotMatch(source, /console\.error\([^\n]*,\s*(?:error|err|e)(?:\.message)?\s*\)/);
+  }
+  const jobSource = fs.readFileSync(path.join(__dirname, '../jobs/dataRetentionJob.js'), 'utf8');
+  assert.doesNotMatch(jobSource, /errorMessage:\s*error\.message|error:\s*error\.message/);
 });
