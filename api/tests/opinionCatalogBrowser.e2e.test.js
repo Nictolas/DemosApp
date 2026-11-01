@@ -334,6 +334,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-comunali', 'Parcheggi gratuiti per residenti', 'Art. 7'],
       ['/opinioni-comunali', 'Limitazioni alla movida notturna', '12 zone'],
       ['/opinioni-comunali', 'Divieto di nuovi fast food nel centro storico', '71'],
+      ['/opinioni-nazionali', 'Educazione sessuo-affettiva', '11/03/2026'],
+      ['/opinioni-nazionali', "Legge contro l'omobitransfobia", '205/1993'],
+      ['/opinioni-comunali', 'Concessione spazi pubblici a centri sociali autogestiti', '30 anni'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1519,6 +1522,30 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             all.includes('divieto nazionale') &&
             all.includes('NON tutti i ristoranti'),
             'Florence zoning does not imply nationwide fast-food closure');
+        }
+      } else if (['Educazione sessuo-affettiva', "Legge contro l'omobitransfobia", 'Concessione spazi pubblici a centri sociali autogestiti'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four contextualized official evidence rows');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': every row opens an institutional source');
+        const all = await brief.innerText();
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': legal context is not a causal comparison');
+        if (title === 'Educazione sessuo-affettiva') {
+          assert.ok(all.includes('NON rapporti sessuali espliciti') &&
+            all.includes('NON attestano l\'esistenza di un obbligo'),
+            'Age-appropriate international guidance is not mandatory Italian curriculum');
+        } else if (title === "Legge contro l'omobitransfobia") {
+          assert.ok(all.includes('NON è entrata in vigore') &&
+            all.includes('NON è diventato legge'),
+            'Failed Zan bill must not be represented as enacted law');
+        } else {
+          assert.ok(all.includes('NON un diritto automatico') &&
+            all.includes('NON durata obbligatoria') &&
+            all.includes('NON un bene ceduto gratuitamente'),
+            'Public property use is conditional and is not a perpetual transfer');
         }
       } else if (['Autonomia Differenziata', 'Polizia locale armata', 'Sussidi comunali per famiglie numerose'].includes(title)) {
         const results = brief.getByTestId('opinion-brief-measured-results');
