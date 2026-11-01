@@ -272,7 +272,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-regionali', 'Nuovi inceneritori', '5,5 mln t'],
       ['/opinioni-comunali', 'Asili nido gratuiti', '527,27 €/mese'],
       ['/opinioni-nazionali', 'Patrimoniale', '36 mld NOK'],
-      ['/opinioni-regionali', 'Nuove centrali geotermiche', '5.644,3 GWh'],
+      ['/opinioni-regionali', 'Nuove centrali geotermiche', '5.675 GWh'],
       ['/opinioni-comunali', 'Nuove piste ciclabili', '+28,8%'],
       ['/opinioni-nazionali', 'Finanziamento scuole paritarie', '703,7 mln €'],
       ['/opinioni-regionali', 'Nuove aree naturali protette', '6,53 mln ha'],
