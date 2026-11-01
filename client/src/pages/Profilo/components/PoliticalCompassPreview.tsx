@@ -8,6 +8,7 @@ import {
 
 interface PoliticalCompassPreviewProps {
   answers: Record<string, string>;
+  standalone?: boolean;
 }
 
 const resultLabel = (result: CompassAxisResult) =>
@@ -19,8 +20,9 @@ const answerLabel = (value: unknown) => {
     answer === 0 ? "Indeciso" : "Non espresso";
 };
 
-export function PoliticalCompassPreview({ answers }: PoliticalCompassPreviewProps) {
-  const [visible, setVisible] = useState(false);
+export function PoliticalCompassPreview({ answers, standalone = false }: PoliticalCompassPreviewProps) {
+  // La navigazione verso questa pagina e una scelta esplicita di visualizzare il risultato.
+  const [visible, setVisible] = useState(standalone);
   // Nessuna richiesta di rete: si riusano ESCLUSIVAMENTE le Opinioni gia
   // caricate nel Profilo, dopo la verifica del consenso esistente.
   const compass = useMemo(
@@ -37,14 +39,16 @@ export function PoliticalCompassPreview({ answers }: PoliticalCompassPreviewProp
           <h3 className="text-sm font-bold text-slate-900">La tua posizione politica</h3>
           <p className="text-xs text-slate-600">Compasso sperimentale, privato e facoltativo</p>
         </div>
-        <button
-          type="button"
-          className="rounded-lg bg-indigo-700 px-3 py-2 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-          onClick={() => setVisible((current) => !current)}
-          aria-expanded={visible}
-        >
-          {visible ? "Nascondi compasso" : "Prova il compasso"}
-        </button>
+        {!standalone && (
+          <button
+            type="button"
+            className="rounded-lg bg-indigo-700 px-3 py-2 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+            onClick={() => setVisible((current) => !current)}
+            aria-expanded={visible}
+          >
+            {visible ? "Nascondi compasso" : "Prova il compasso"}
+          </button>
+        )}
       </div>
       {visible && compass && (
         <div className="mt-3 space-y-3">
