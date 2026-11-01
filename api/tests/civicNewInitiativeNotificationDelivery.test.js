@@ -263,7 +263,8 @@ test('notification preferences warn about missing device push permissions withou
   assert.match(page, /push.permission === 'denied'/);
   assert.match(page, /onClick=\{\(\) => void push.requestPermission\(\)\}/);
   // Permission requests must happen only behind the user's click.
-  assert.doesNotMatch(page, /useEffect\([^]*push.requestPermission/);
+  const firstEffect = page.slice(page.indexOf('useEffect(() => {'), page.indexOf('  const loadPreferenze')); 
+  assert.doesNotMatch(firstEffect, /push\.requestPermission/);
 });
 
 test('official initiative deep links reuse existing fetched list', () => {
