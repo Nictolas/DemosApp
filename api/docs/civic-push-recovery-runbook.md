@@ -151,6 +151,33 @@ due query dello stesso client arrivino alla stessa sessione PostgreSQL.
   sessione porta 5432 da quello transazionale porta 6543, che non supporta
   i lock legati alla sessione.
 
+## Preflight non distruttivo per l'affinità di sessione (N-050)
+
+È disponibile un controllo osservazionale senza lock SQL:
+`node api/scripts/checkCivicSessionAffinity.js`. Per default **non apre
+nemmeno una connessione** e restituisce `NOT_TESTED`.
+
+Solo dopo una specifica autorizzazione per lo **staging** e dopo averlo
+preparato con dati sintetici si potranno impostare insieme:
+
+- `CIVIC_SESSION_AFFINITY_PROBE_APPLY=true`
+- `CIVIC_SESSION_AFFINITY_PROBE_CONFIRM=I_APPROVE_READONLY_STAGING_PROBE`
+- `CIVIC_SESSION_AFFINITY_PROBE_ENV=staging`
+
+Il controllo interroga esclusivamente `SELECT pg_backend_pid()` su due
+connessioni mantenute aperte e non registra ID di sessione, segreti,
+token o identificativi utenti. Se la sessione cambia backend o due
+client simultanei vedono lo stesso backend, risponde
+`UNSAFE_AFFINITY_OBSERVED`. Se osserva backend distinti e stabili,
+risponde soltanto `INCONCLUSIVE`: **non è una prova di compatibilità**,
+non aggiorna `CIVIC_SESSION_LOCK_CONNECTION_VERIFIED` e non può
+autorizzare push o deploy. Restano necessari la verifica del tipo di
+pooler nel pannello del provider e il gate di sicurezza completo.
+
+Questo preflight non acquisisce `pg_advisory_lock`, non avvia
+transazioni, non invia FCM e non modifica il database. **Non l'abbiamo
+eseguito su alcun database reale.**
+
 ## Limiti dichiarati
 
 Un messaggio già accettato da FCM non può essere richiamato. Il TTL di un'ora
