@@ -1544,7 +1544,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         } else {
           assert.ok(all.includes('NON un diritto automatico') &&
             all.includes('NON durata obbligatoria') &&
-            all.includes('NON un bene ceduto gratuitamente'),
+            all.includes('NON è un bene ceduto gratuitamente'),
             'Public property use is conditional and is not a perpetual transfer');
         }
       } else if (['Autonomia Differenziata', 'Polizia locale armata', 'Sussidi comunali per famiglie numerose'].includes(title)) {
