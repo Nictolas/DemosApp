@@ -4264,30 +4264,30 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
 
 
   armi_ucraina: {
-    intro: "Decidere se continuare la fornitura italiana di materiali militari all'Ucraina, distinta da aiuti umanitari, prestiti e sanzioni alla Russia.",
+    intro: "Decidere se continuare la fornitura italiana di materiali militari all'Ucraina, distinguendo i contributi degli Stati membri, il Fondo europeo per la pace, l'addestramento e l'assistenza non militare.",
     facts: [
-      { value: "27/10/2026", label: "Nuove decisioni UE sul Fondo europeo per la pace" },
-      { value: "4,7 mld €", label: "Rimborsi parziali per aiuti militari già consegnati" },
-      { value: "230 mln €", label: "Finanziamento aggiuntivo missione di addestramento UE" },
-      { value: "10,8 mld €", label: "Sostegno UE cumulativo attraverso il Fondo, secondo EEAS" },
+      { value: "69,3 mld €", label: "Assistenza militare UE e Stati membri complessiva dal 2022" },
+      { value: "6,1 mld €", label: "Quota convogliata tramite il Fondo europeo per la pace" },
+      { value: "3,3 mld €", label: "Proventi di beni russi immobilizzati convogliati nel Fondo" },
+      { value: "≈85.000", label: "Militari ucraini addestrati tramite EUMAM, secondo la Commissione" },
     ],
     comparison: [
       { label: "Continuare gli invii", title: "Sostegno militare", text: "Forniture e addestramento per rafforzare la capacità difensiva ucraina, con costi e rischi geopolitici da valutare." },
       { label: "Interrompere gli invii", title: "Aiuti non militari", text: "Concentrarsi su assistenza umanitaria, diplomazia e ricostruzione; non implica automaticamente fermare tutti gli aiuti." },
     ],
-    measuredResultsTitle: "Atti UE e importi: non risultati militari",
+    measuredResultsTitle: "Dati europei distinti dalla spesa italiana",
     measuredResults: [
-      { place: "Unione europea", topic: "Data delle otto decisioni del Consiglio", value: "27/10/2026", period: "Comunicato Servizio europeo azione esterna", meaning: "Data delle decisioni, NON data di avvio di una missione italiana o fine della guerra.", sourceUrl: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
-      { place: "Unione europea", topic: "Rimborsi parziali per aiuti già consegnati", value: "4,7 mld €", period: "Otto decisioni del 27 ottobre 2026", meaning: "Rimborsi agli Stati membri, NON nuove armi per 4,7 miliardi già arrivate dopo la decisione e NON sola spesa italiana.", sourceUrl: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
-      { place: "Unione europea", topic: "Ulteriore sostegno all'addestramento EUMAM", value: "230 mln €", period: "Decisioni 27 ottobre 2026", meaning: "Finanziamento missione addestrativa, NON valore delle armi materialmente consegnate.", sourceUrl: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
-      { place: "Unione europea", topic: "Supporto cumulativo mediante EPF", value: "10,8 mld €", period: "Aggiornamento EEAS 27 ottobre 2026", meaning: "Totale UE del Fondo, comprensivo di contributi distinti; NON contributo del solo bilancio italiano.", sourceUrl: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
+      { place: "UE e Stati membri", topic: "Assistenza militare complessiva dal 2022", value: "69,3 mld €", period: "Relazione della Commissione UE 2026 sui dati 2025", meaning: "Somma aggregata dei contributi europei, NON spesa del solo Stato italiano né nuove consegne del 2026.", sourceUrl: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex%3A52026DC0824" },
+      { place: "Unione europea", topic: "Quota convogliata tramite European Peace Facility", value: "6,1 mld €", period: "Relazione della Commissione UE 2026", meaning: "Componente del sostegno militare aggregato, NON importo ulteriore da sommare nuovamente ai 69,3 miliardi.", sourceUrl: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex%3A52026DC0824" },
+      { place: "Unione europea", topic: "Proventi da beni russi immobilizzati assegnati al Fondo", value: "3,3 mld €", period: "Relazione della Commissione UE 2026", meaning: "Canale di finanziamento distinto; NON quantità di equipaggiamento militare né contributo italiano.", sourceUrl: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex%3A52026DC0824" },
+      { place: "Missione UE EUMAM", topic: "Militari ucraini formati", value: "≈85.000", period: "Relazione della Commissione UE 2026", meaning: "Persone addestrate secondo il documento, NON numero di combattenti attivi o risultati militari attribuibili.", sourceUrl: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex%3A52026DC0824" },
     ],
-    evidenceCaveat: "Il Fondo europeo per la pace rimborsa parzialmente agli Stati membri assistenza anche già consegnata: questi importi non sono la spesa italiana né un indicatore di avanzamento sul campo. Gli accordi UE non eliminano il bisogno di distinguere singoli decreti italiani, consegne, stanziamenti e risultati militari. Le cifre non misurano vittime evitate o efficacia causale.",
+    evidenceCaveat: "La Commissione distingue contributi degli Stati membri, strumenti finanziari e missioni di addestramento. Le cifre riportate sono aggregati europei e non equivalgono alle spese dell'Italia; inoltre le categorie possono sovrapporsi e non vanno sommate. Non misurano vittime evitate, risultati sul campo o nuove armi consegnate nel 2026.",
     advantage: "Può sostenere il diritto alla difesa dell'Ucraina e la sua posizione negoziale.",
     concern: "Può comportare costi, rischi di escalation e tensioni sulla destinazione delle risorse pubbliche.",
-    note: "Rimborsi EPF, finanziamento EUMAM e forniture dirette non sono somme intercambiabili.",
+    note: "I dati del Fondo e dell'addestramento non sono intercambiabili con i singoli decreti di aiuto italiani.",
     sources: [
-      { label: "EEAS · Decisioni EPF del 27 ottobre 2026", url: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
+      { label: "Commissione UE · Relazione finanziaria 2026, sostegno Ucraina", url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=celex%3A52026DC0824" },
       { label: "Consiglio UE · Sostegno militare all'Ucraina", url: "https://www.consilium.europa.eu/it/policies/military-support-ukraine/" },
     ],
     verified: "01/11/2026",
