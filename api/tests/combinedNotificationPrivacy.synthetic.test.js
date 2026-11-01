@@ -117,10 +117,10 @@ async function call(route, who, method = 'GET', body = null) {
     signal: AbortSignal.timeout(4000)
   });
   const raw = await res.text();
-  let body;
-  try { body = JSON.parse(raw); }
-  catch { body = { message: raw }; }
-  return { status: res.status, body };
+  let responseBody;
+  try { responseBody = JSON.parse(raw); }
+  catch { responseBody = { message: raw }; }
+  return { status: res.status, body: responseBody };
 }
 function send(who, key, title, message) {
   return call('/api/comunicazioni/send-user-notification', 'admin', 'POST',
