@@ -2,7 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
-const { reconcileCivicTopicsForUser } = require('../services/civicPushTopics');
+const {
+  reconcileCivicTopicsForUser,
+  unsubscribeDisabledCivicTopicsForUser,
+} = require('../services/civicPushTopics');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -830,6 +833,18 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     const civicInitiatives = civicValue('iniziative_popolari');
     const civicReferendums = civicValue('referendum_abrogativi');
     const civicEci = civicValue('eci');
+
+    // Opt-out prima del salvataggio: se Firebase non conferma la revoca,
+    // non presentiamo un consenso falso come aggiornato con successo.
+    const disabledCategories = civicKeys.filter(key => civicValue(key) === false);
+    try {
+      await unsubscribeDisabledCivicTopicsForUser(pool, user_id, disabledCategories);
+    } catch {
+      return res.status(503).json({
+        success: false,
+        error: 'Impossibile disattivare le notifiche push. Riprova.'
+      });
+    }
 
     // Usa UPSERT per inserire o aggiornare le preferenze nella nuova tabella
     const result = await pool.query(
