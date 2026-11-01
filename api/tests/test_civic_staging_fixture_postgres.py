@@ -71,6 +71,30 @@ class IsolatedStagingSchemaFixtureTests(unittest.TestCase):
             cur.execute("SELECT to_regclass('public.user_devices')")
             self.assertEqual(cur.fetchone(), (None,))
 
+    def test_rejects_existing_civic_target_before_creating_source_tables(self):
+        # CI database only. A partially prepared staging schema must fail closed.
+        sql = FIXTURE.read_text(encoding="utf8")
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "CREATE TABLE public.civic_push_delivery_guard (id SMALLINT PRIMARY KEY)"
+            )
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.fixture_environment = 'staging'")
+            cur.execute(
+                "SET LOCAL civic.fixture_approval = "
+                "'I_APPROVE_SYNTHETIC_CIVIC_STAGING_SCHEMA'"
+            )
+            with self.assertRaisesRegex(Exception, "TARGET_TABLE_ALREADY_EXISTS"):
+                cur.execute(sql)
+            cur.execute("ROLLBACK")
+            for source in SOURCES:
+                cur.execute(
+                    "SELECT to_regclass(%s)", (f"public.{source}",)
+                )
+                self.assertEqual(cur.fetchone(), (None,))
+            cur.execute("SELECT to_regclass('public.civic_push_delivery_guard')")
+            self.assertIsNotNone(cur.fetchone()[0])
+
     def test_source_fixture_and_real_migration_pass_seven_table_preflight(self):
         sql = FIXTURE.read_text(encoding="utf8")
         with self.conn.cursor() as cur:
