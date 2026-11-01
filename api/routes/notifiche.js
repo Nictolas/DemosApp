@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { reconcileCivicTopicsForUser } = require('../services/civicPushTopics');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -870,6 +871,18 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     }
     
     const savedPrefs = result.rows[0];
+
+    // Le iscrizioni FCM sono derivate dalle preferenze salvate nel DB.
+    // Se il relativo flag di rilascio e' OFF non viene effettuata alcuna chiamata a Firebase.
+    // Con flag ON, un errore restituisce 503: non confermiamo consegne non sincronizzate.
+    try {
+      await reconcileCivicTopicsForUser(pool, user_id);
+    } catch {
+      return res.status(503).json({
+        success: false,
+        error: 'Preferenze registrate, sincronizzazione push non riuscita. Riprova il salvataggio.'
+      });
+    }
     
     console.log(`✅ Preferenze notifiche salvate per utente ${user_id}:`, {
       eurodeputato: savedPrefs.eurodeputato,
