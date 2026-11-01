@@ -284,13 +284,13 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                     # the emergency rollback's guard UPDATE, even across jobs.
                     # Once STOP is committed, no catch-up push can be created.
                     cur.execute(
-                        "SELECT reason_code FROM civic_push_delivery_guard WHERE id=1 FOR SHARE"
+                        "SELECT blocked, reason_code FROM civic_push_delivery_guard WHERE id=1 FOR SHARE"
                     )
                     guard = cur.fetchone()
                     if guard is None:
                         raise RuntimeError("CIVIC_DELIVERY_GUARD_NOT_INITIALIZED")
                     event_status = (
-                        "suppressed" if guard[0] == "EMERGENCY_STOP" else "pending"
+                        "suppressed" if guard[0] is True or guard[1] == "EMERGENCY_STOP" else "pending"
                     )
                     new_records = [
                         ("eci", row[0], row[1], "/eci", event_status)
