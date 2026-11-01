@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these eighty-one canonical IDs opt in; the other 13 use the original
+ * Only these eighty-four canonical IDs opt in; the other 10 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -4077,6 +4077,96 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Comune Firenze · Proroga deliberata 13 aprile 2026", url: "https://www.comune.firenze.it/riscossioneonline/novita/area-stampa/comunicati-stampa/regolamento-unesco-e-regolamentazione-delle-attivita-0" },
       { label: "SUAP Firenze · Regolamento UNESCO", url: "https://suapfo.comune.firenze.it/documents/d/citta-di-firenze/regolamento-unesco-pdf" },
       { label: "SUAP Firenze · Eccezioni per nuove somministrazioni", url: "https://suapfo.comune.firenze.it/w/come-avviare-un-attivit%C3%A0-di-somministrazione-nel-centro-storico-di-firenze-" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  educazione_sessuale: {
+    intro: "Inserire a scuola un percorso strutturato e adatto all'età su corpo, affettività, consenso, relazioni e salute sessuale. Non significa proporre identici contenuti a bambini e adolescenti.",
+    facts: [
+      { value: "2026", label: "Aggiornamento della scheda OMS sulle evidenze" },
+      { value: "5 anni", label: "Età indicativa di avvio del quadro internazionale ONU, con contenuti appropriati" },
+      { value: "2018", label: "Edizione aggiornata della guida tecnica UNESCO" },
+      { value: "2023", label: "Domande e risposte OMS sulla formazione sessuo-affettiva" },
+    ],
+    comparison: [
+      { label: "Approccio integrato", title: "Curricolo progressivo", text: "Anatomia, pubertà, consenso, relazioni, sicurezza e salute con contenuti e linguaggio differenti secondo età e contesto." },
+      { label: "Approccio limitato", title: "Interventi occasionali", text: "Iniziative episodiche o prevalentemente biologiche, senza un percorso condiviso tra anni scolastici." },
+    ],
+    measuredResultsTitle: "Riferimenti e limiti delle evidenze",
+    measuredResults: [
+      { place: "OMS", topic: "Scheda aggiornata su educazione sessuale completa", value: "11/03/2026", period: "Pubblicazione OMS 2026", meaning: "Sintesi di studi: programmi ben implementati possono migliorare conoscenze e comportamenti protettivi; non un risultato quantitativo nazionale italiano.", sourceUrl: "https://www.who.int/news-room/fact-sheets/detail/comprehensive-sexuality-education" },
+      { place: "ONU / OMS", topic: "Inizio del curricolo nella guida internazionale", value: "5 anni", period: "Indicazione della guida tecnica ONU richiamata da OMS 2026", meaning: "Per i più piccoli si trattano emozioni, corpo, famiglia e sicurezza; NON rapporti sessuali espliciti.", sourceUrl: "https://www.who.int/news-room/fact-sheets/detail/comprehensive-sexuality-education" },
+      { place: "UNESCO", topic: "Revisione guida internazionale", value: "2018", period: "Guida internazionale UNESCO", meaning: "Riferimento per progettare curricoli; NON legge obbligatoria per tutte le scuole italiane.", sourceUrl: "https://www.who.int/news-room/questions-and-answers/item/comprehensive-sexuality-education/" },
+      { place: "OMS", topic: "Rassegna di definizioni, componenti e obiettivi", value: "18/05/2023", period: "Q&A OMS", meaning: "Definisce i temi della CSE; non implica che ogni programma raggiunga gli stessi effetti.", sourceUrl: "https://www.who.int/news-room/questions-and-answers/item/comprehensive-sexuality-education/" },
+    ],
+    evidenceCaveat: "OMS distingue un percorso adatto all'età da contenuti sessuali espliciti per bambini. Evidenze aggregate favorevoli non equivalgono a garanzia di risultati per qualsiasi corso: formazione dei docenti, qualità e valutazione restano decisive. Queste linee guida internazionali NON attestano l'esistenza di un obbligo scolastico nazionale italiano con quel programma.",
+    advantage: "Può migliorare informazioni scientifiche, riconoscimento del consenso e prevenzione di comportamenti rischiosi.",
+    concern: "Contenuti e metodi poco adeguati all'età o scarsamente concordati con le famiglie possono produrre conflitti e applicazioni disomogenee.",
+    note: "Le valutazioni delle ricerche non vanno confuse con percentuali di scuole italiane che applicano un curricolo.",
+    sources: [
+      { label: "OMS · Comprehensive sexuality education, 2026", url: "https://www.who.int/news-room/fact-sheets/detail/comprehensive-sexuality-education" },
+      { label: "OMS · Domande e risposte 2023", url: "https://www.who.int/news-room/questions-and-answers/item/comprehensive-sexuality-education/" },
+    ],
+    verified: "01/11/2026",
+  },
+  omobitransfobia: {
+    intro: "Estendere e precisare la tutela penale rispetto a violenze o discriminazioni motivate da orientamento sessuale e identità di genere; non equivale a punire qualsiasi opinione dissenziente.",
+    facts: [
+      { value: "205/1993", label: "Legge di conversione delle disposizioni antidiscriminatorie" },
+      { value: "1993", label: "Anno della disciplina conosciuta come legge Mancino" },
+      { value: "2021", label: "Anno dell'interruzione dell'iter del ddl Zan al Senato" },
+      { value: "Art. 3", label: "Aggravante nella disciplina storica antidiscriminatoria" },
+    ],
+    comparison: [
+      { label: "Normativa storica", title: "Discriminazione razziale, etnica e religiosa", text: "La legge n. 205/1993 interviene su condotte e aggravanti legate a quelle motivazioni." },
+      { label: "Proposta legislativa", title: "Tutela esplicita per ulteriori motivazioni", text: "Una proposta può disciplinare le condotte motivate da omofobia, bifobia o transfobia definendo con precisione fattispecie e garanzie." },
+    ],
+    measuredResultsTitle: "Riferimenti giuridici, non dati sulle aggressioni",
+    measuredResults: [
+      { place: "Italia", topic: "Legge di conversione del DL 122/1993", value: "205/1993", period: "Gazzetta Ufficiale 26 giugno 1993", meaning: "Riguarda originariamente discriminazione razziale, etnica e religiosa; NON una legge già approvata che include ogni fattispecie omobitransfobica.", sourceUrl: "https://www.gazzettaufficiale.it/eli/id/1993/06/26/093G0275/sg" },
+      { place: "Italia", topic: "Entrata in vigore della legge 205", value: "27/06/1993", period: "Legge pubblicata il 26 giugno 1993", meaning: "Data giuridica; NON anno di approvazione del ddl Zan.", sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=093G0275&atto.dataPubblicazioneGazzetta=1993-06-26" },
+      { place: "Italia", topic: "Arresto iter ddl Zan nella XVIII legislatura", value: "27/10/2021", period: "Votazione Senato 2021", meaning: "Il voto per non passare all'esame degli articoli NON è entrata in vigore della proposta.", sourceUrl: "https://www.senato.it/leg/18/BGT/Schede/Ddliter/53020.htm" },
+      { place: "Italia", topic: "Aggravante prevista dalla legge Mancino", value: "Art. 3", period: "Disciplina della legge 205/1993", meaning: "Riferimento ad aggravanti giuridiche; NON numero di episodi d'odio registrati.", sourceUrl: "https://www.gazzettaufficiale.it/eli/id/1993/06/26/093G0275/sg" },
+    ],
+    evidenceCaveat: "Il ddl Zan della XVIII legislatura NON è diventato legge. Le fattispecie generali di violenza o minaccia restano distinte dalla proposta di specifiche aggravanti. Le formulazioni penali devono tutelare insieme persone, libertà di espressione e determinatezza del reato; questi riferimenti normativi NON quantificano le aggressioni.",
+    advantage: "Una tutela esplicita può rendere più riconoscibili motivazioni discriminatorie e chiarire gli strumenti di contrasto.",
+    concern: "Formulazioni non sufficientemente determinate rischiano contenzioso interpretativo e tensioni sulla libertà di espressione.",
+    note: "Descrivere un disegno di legge come proposta non significa considerarlo legge vigente.",
+    sources: [
+      { label: "Gazzetta Ufficiale · Legge 205/1993", url: "https://www.gazzettaufficiale.it/eli/id/1993/06/26/093G0275/sg" },
+      { label: "Normattiva · Legge 205/1993", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=093G0275&atto.dataPubblicazioneGazzetta=1993-06-26" },
+      { label: "Senato XVIII legislatura · Iter ddl Zan", url: "https://www.senato.it/leg/18/BGT/Schede/Ddliter/53020.htm" },
+    ],
+    verified: "01/11/2026",
+  },
+  concessione_spazi_pubblici_a_centri_sociali_autogestiti: {
+    intro: "Consentire l'uso regolato di beni comunali non utilizzati a realtà associative e centri sociali autogestiti, distinguendo concessione, comodato e occupazione senza titolo.",
+    facts: [
+      { value: "Art. 71", label: "Codice del Terzo settore sui locali e comodato" },
+      { value: "30 anni", label: "Durata massima del comodato ex articolo 71, secondo comma" },
+      { value: "2017", label: "Anno del decreto legislativo 117" },
+      { value: "ETS", label: "Qualifica soggettiva richiesta per lo specifico comodato agevolato" },
+    ],
+    comparison: [
+      { label: "Uso regolato", title: "Comodato a ente del Terzo settore", text: "Beni non utilizzati per fini istituzionali; condizioni di legge e obblighi di manutenzione del beneficiario." },
+      { label: "Situazione differente", title: "Occupazione senza titolo", text: "Mancanza di un valido provvedimento o contratto: non diventa legale automaticamente per la finalità sociale svolta." },
+    ],
+    measuredResultsTitle: "Norme di accesso, non esiti dei progetti",
+    measuredResults: [
+      { place: "Italia", topic: "Riferimento sui locali degli ETS", value: "Art. 71", period: "D.lgs. 117/2017, disciplina aggiornata 2026", meaning: "L'articolo riguarda una possibilità legale regolata; NON un diritto automatico a ottenere un immobile.", sourceUrl: "https://def.giustiziatributaria.gov.it/DocTribFrontend/executePrintArticolo.do?codiceOrdinamento=0000000000000710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&id=%7BBC0BCAA0-F745-407D-A2B6-0C3EC1E48102%7D&idAttoNormativo=%7B11E8A11F-F215-4B21-9EAA-60707A2C6864%7D" },
+      { place: "Italia", topic: "Durata massima del comodato agevolato", value: "30 anni", period: "Art. 71, comma 2", meaning: "Massimo previsto, NON durata obbligatoria né trasferimento della proprietà.", sourceUrl: "https://def.giustiziatributaria.gov.it/DocTribFrontend/executePrintArticolo.do?codiceOrdinamento=0000000000000710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&id=%7BBC0BCAA0-F745-407D-A2B6-0C3EC1E48102%7D&idAttoNormativo=%7B11E8A11F-F215-4B21-9EAA-60707A2C6864%7D" },
+      { place: "Italia", topic: "Codice del Terzo settore", value: "117/2017", period: "Entrato in vigore 3 agosto 2017", meaning: "Fonte normativa nazionale: la qualifica di centro sociale non conferisce automaticamente lo status ETS.", sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.articolo.numero=0&atto.codiceRedazionale=17G00128&atto.dataPubblicazioneGazzetta=2017-08-02" },
+      { place: "Italia", topic: "Soggetti interessati al comodato ex art. 71", value: "ETS", period: "Art. 71, comma 2", meaning: "Il comodato agevolato esclude le imprese sociali ed è distinto da altri possibili strumenti pubblici; NON riguarda ogni gruppo informale.", sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.articolo.numero=0&atto.codiceRedazionale=17G00128&atto.dataPubblicazioneGazzetta=2017-08-02" },
+    ],
+    evidenceCaveat: "L'articolo 71 consente, non impone, l'assegnazione in comodato di immobili pubblici non usati per fini istituzionali a specifici ETS, escluse le imprese sociali, con oneri di manutenzione. Altri soggetti possono rientrare in altri regimi, da valutare separatamente. Il massimo di 30 anni NON è un bene ceduto gratuitamente per sempre, e non prova benefici sociali effettivi.",
+    advantage: "Può riattivare immobili inutilizzati e favorire iniziative culturali, mutualistiche e sociali.",
+    concern: "Richiede trasparenza nella selezione, controllo dell'uso del bene, sicurezza degli edifici e pari opportunità per altri soggetti.",
+    note: "Autogestione è un modello organizzativo; ETS è una qualifica giuridica specifica.",
+    sources: [
+      { label: "Normattiva · Codice Terzo settore", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.articolo.numero=0&atto.codiceRedazionale=17G00128&atto.dataPubblicazioneGazzetta=2017-08-02" },
+      { label: "Ministero Economia · Art. 71", url: "https://def.giustiziatributaria.gov.it/DocTribFrontend/executePrintArticolo.do?codiceOrdinamento=0000000000000710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&id=%7BBC0BCAA0-F745-407D-A2B6-0C3EC1E48102%7D&idAttoNormativo=%7B11E8A11F-F215-4B21-9EAA-60707A2C6864%7D" },
     ],
     verified: "01/11/2026",
   },
