@@ -9,6 +9,7 @@ on:
       - 'api/routes/health.js'
       - 'api/routes/database.js'
       - 'api/routes/test-db.js'
+      - 'api/routes/comunicazioni.js'
       - 'api/tests/devDbDiagnosticsExposure.test.js'
       - '.github/workflows/sql-diagnostics-production-guard.yml'
 
