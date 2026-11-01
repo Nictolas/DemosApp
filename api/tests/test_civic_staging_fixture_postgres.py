@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "api/database/20261101_civic_staging_source_fixture.sql"
 MIGRATION = ROOT / "api/database/20261101_civic_new_initiative_notifications.sql"
 PREFLIGHT = ROOT / "api/scripts/civicStagingReadOnlyPreflight.sql"
+USERS_PREFLIGHT = ROOT / "api/scripts/civicStagingUsersReadOnlyPreflight.sql"
 
 SOURCES = ("eci", "iniziative_ministero", "notifiche_preferenze", "user_devices")
 NEW_TABLES = (
@@ -47,12 +48,12 @@ class IsolatedStagingSchemaFixtureTests(unittest.TestCase):
     def setUp(self):
         # Destructive cleanup is restricted to the isolated civic_ci CI service.
         with self.conn.cursor() as cur:
-            for name in (*NEW_TABLES, *SOURCES):
+            for name in (*NEW_TABLES, *SOURCES, "users"):
                 cur.execute(f"DROP TABLE IF EXISTS public.{name} CASCADE")
 
     def tearDown(self):
         with self.conn.cursor() as cur:
-            for name in (*NEW_TABLES, *SOURCES):
+            for name in (*NEW_TABLES, *SOURCES, "users"):
                 cur.execute(f"DROP TABLE IF EXISTS public.{name} CASCADE")
 
     def test_requires_separate_approval_before_any_schema_change(self):
@@ -94,6 +95,40 @@ class IsolatedStagingSchemaFixtureTests(unittest.TestCase):
                 self.assertEqual(cur.fetchone(), (None,))
             cur.execute("SELECT to_regclass('public.civic_push_delivery_guard')")
             self.assertIsNotNone(cur.fetchone()[0])
+
+    def test_users_status_dependency_preflight_is_read_only_and_fail_closed(self):
+        """Metadata-only prerequisite used by topic bootstrap and delivery guard."""
+        query = USERS_PREFLIGHT.read_text(encoding="utf8")
+        with self.conn.cursor() as cur:
+            cur.execute(query)
+            missing_table = cur.fetchone()
+            self.assertEqual(missing_table[0], "users")
+            self.assertFalse(missing_table[1])
+            self.assertEqual(missing_table[2], ["id", "status"])
+            self.assertEqual(missing_table[4], "MISSING_TABLE")
+
+            # Reproduce actual Demos-Staging shape in ephemeral civic_ci.
+            cur.execute("CREATE TABLE public.users (id UUID PRIMARY KEY)")
+            cur.execute("ALTER TABLE public.users ENABLE ROW LEVEL SECURITY")
+            cur.execute(query)
+            missing_status = cur.fetchone()
+            self.assertTrue(missing_status[1])
+            self.assertEqual(missing_status[2], ["status"])
+            self.assertTrue(missing_status[3])
+            self.assertEqual(missing_status[4], "MISSING_COLUMN")
+
+            # Reproduce production's status field; still no account records.
+            cur.execute("ALTER TABLE public.users ADD COLUMN status VARCHAR(10)")
+            cur.execute(query)
+            ready = cur.fetchone()
+            self.assertEqual(ready[2], [])
+            self.assertEqual(ready[4], "STRUCTURE_OK")
+
+            cur.execute("ALTER TABLE public.users DISABLE ROW LEVEL SECURITY")
+            cur.execute(query)
+            self.assertEqual(cur.fetchone()[4], "RLS_DISABLED")
+            cur.execute("SELECT count(*) FROM public.users")
+            self.assertEqual(cur.fetchone(), (0,))
 
     def test_source_fixture_and_real_migration_pass_seven_table_preflight(self):
         sql = FIXTURE.read_text(encoding="utf8")
