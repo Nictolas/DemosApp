@@ -71,8 +71,10 @@ async function dispatchCivicNewInitiatives(pool, {
   // message after a deletion/failed revocation has committed.
   const client = await pool.connect();
   let locked = false;
+  let lockAttempted = false;
   let discard = false;
   try {
+    lockAttempted = true;
     await acquireCivicPushDeliveryLock(client);
     locked = true;
     const safety = await readCivicDeliveryBarrier(client);
@@ -124,6 +126,10 @@ async function dispatchCivicNewInitiatives(pool, {
         // A pooled DB session with an uncertain session lock is unsafe to reuse.
         discard = true;
       }
+    } else if (lockAttempted) {
+      // The lock may have been acquired before a network error. Destroy the
+      // connection rather than returning a possibly locked session to the pool.
+      discard = true;
     }
     client.release(discard);
   }
