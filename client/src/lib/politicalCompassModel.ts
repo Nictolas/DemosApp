@@ -12,8 +12,10 @@ export interface CompassQuestion {
 
 // Una piccola selezione delle 94 Opinioni. Questioni territoriali o con
 // significati trasversali non vengono tradotte forzatamente in coordinate.
-// direction -1: intervento pubblico (economia) / maggiori restrizioni (liberta).
-// direction +1: ruolo del mercato (economia) / maggiori liberta (liberta).
+// direction -1: sostegno a interventi economico-sociali pubblici
+// (economia) / maggiori restrizioni (liberta).
+// direction +1: sostegno a soluzioni private/concorrenziali (economia)
+// / maggiori liberta (liberta). NON indica un'identita ideologica.
 export const COMPASS_QUESTIONS: readonly CompassQuestion[] = [
   { id: "patrimoniale", label: "Patrimoniale", axis: "economia", direction: -1 },
   { id: "salario_minimo", label: "Salario minimo", axis: "economia", direction: -1 },
@@ -87,9 +89,10 @@ export function scoreCompassAxis(
   }
 
   const answered = negative.length + positive.length;
-  // Gate: campione minimo E almeno una posizione espressa per ciascun polo.
-  // In assenza di un polo, il grafico non deve inventare la coordinata.
-  const qualified = answered >= 5 && negative.length > 0 && positive.length > 0;
+  // Gate conservativo: >= 8 risposte nette E almeno 2 per ciascun polo.
+  // Un solo voto nel polo meno rappresentato non deve determinare l'asse.
+  // Soglia operativa di PROTOTIPO, non stima di attendibilita scientifica.
+  const qualified = answered >= 8 && negative.length >= 2 && positive.length >= 2;
   const mean = (values: number[]) => values.reduce((sum, n) => sum + n, 0) / values.length;
   // Pesi uguali ai due gruppi di domande, per evitare che il numero diverso di
   // proposte in ciascun polo sposti artificiosamente il punteggio.
