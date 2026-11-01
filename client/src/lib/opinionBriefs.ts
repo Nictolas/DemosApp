@@ -4370,7 +4370,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { place: "ONU", topic: "Status di Stato osservatore non membro", value: "2012", period: "Risoluzione Assemblea generale 67/19 del 29 novembre 2012", meaning: "Lo status di osservatore NON coincide con il seggio di membro ONU a pieno titolo.", sourceUrl: "https://www.un.org/en/about-us/non-member-states" },
       { place: "ONU", topic: "Numero della risoluzione sullo status", value: "67/19", period: "29 novembre 2012", meaning: "Identificativo di una deliberazione, NON numero di Stati che riconoscono bilateralmente Palestina.", sourceUrl: "https://www.un.org/en/about-us/non-member-states" },
       { place: "Francia", topic: "Riconoscimento diplomatico annunciato", value: "22/09/2025", period: "80ª Assemblea generale ONU", meaning: "Data della dichiarazione francese; non implica automaticamente il riconoscimento italiano.", sourceUrl: "https://www.diplomatie.gouv.fr/en/the-ministry-in-action/action-for-peace-and-respect-for-human-rights/security-disarmament-and-non-proliferation/crises-and-conflicts/understanding-france-s-recognition-of-the-state-of-palestine" },
-      { place: "ONU", topic: "Voti favorevoli alla Dichiarazione di New York", value: "142", period: "Assemblea generale, 12 settembre 2025", meaning: "Voti per la Dichiarazione sui due Stati, NON 142 nuovi riconoscimenti diplomatici.", sourceUrl: "https://www.un.org/unispal/history/" },
+      { place: "ONU", topic: "Voti favorevoli alla Dichiarazione di New York", value: "142", period: "Assemblea generale, 12 settembre 2025", meaning: "Voti per la Dichiarazione sui due Stati, NON 142 nuovi riconoscimenti diplomatici.", sourceUrl: "https://www.un.org/unispal/document/ga-meeting-coverage-12sep25/" },
     ],
     evidenceCaveat: "Riconoscimento da parte di uno Stato, status di osservatore ONU, piena adesione all'ONU e accordo sui confini sono passaggi differenti. I voti ONU e i riconoscimenti del 2025 non dimostrano automaticamente la fine delle ostilità o l'esistenza di una soluzione negoziata.",
     advantage: "Può rafforzare la rappresentanza diplomatica palestinese e il sostegno alla soluzione dei due Stati.",
@@ -4379,7 +4379,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "ONU · Stati osservatori", url: "https://www.un.org/en/about-us/non-member-states" },
       { label: "Francia · Riconoscimento del 2025", url: "https://www.diplomatie.gouv.fr/en/the-ministry-in-action/action-for-peace-and-respect-for-human-rights/security-disarmament-and-non-proliferation/crises-and-conflicts/understanding-france-s-recognition-of-the-state-of-palestine" },
-      { label: "ONU · Cronologia questione palestinese", url: "https://www.un.org/unispal/history/" },
+      { label: "ONU · Cronologia questione palestinese", url: "https://www.un.org/unispal/document/ga-meeting-coverage-12sep25/" },
     ],
     verified: "01/11/2026",
   },
@@ -4428,7 +4428,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     measuredResults: [
       { place: "Italia", topic: "Accesso alle cariche elettive", value: "Art. 51", period: "Costituzione", meaning: "Accesso eguale secondo requisiti di legge, NON obbligo vigente di test antidroga per tutti i candidati.", sourceUrl: "https://www.senato.it/istituzione/la-costituzione/parte-i/titolo-iv/articolo-51" },
       { place: "Italia", topic: "Casi di ineleggibilità e incompatibilità", value: "Art. 65", period: "Costituzione", meaning: "La disciplina richiede legge, NON è introdotta da un sondaggio o da una valutazione informale.", sourceUrl: "https://www.senato.it/istituzione/la-costituzione/parte-ii/titolo-i/sezione-i/articolo-65" },
-      { place: "Garante Privacy", topic: "Blocco di trattamenti illeciti legati a test", value: "2006", period: "Comunicazione del 20 ottobre 2006", meaning: "L'Autorità ha richiamato un test su 50 parlamentari condotto senza consenso; NON stima di consumo nella popolazione politica.", sourceUrl: "https://garanteprivacy.it/web/guest/home/docweb/-/docweb-display/docweb/1350812" },
+      { place: "Garante Privacy", topic: "Blocco di trattamenti illeciti legati a test", value: "2006", period: "Comunicazione del 20 ottobre 2006", meaning: "L'Autorità ha richiamato un test su 50 parlamentari condotto senza consenso; NON stima di consumo nella popolazione politica.", sourceUrl: "https://www.garanteprivacy.it/web/guest/home/docweb/-/docweb-display/docweb/1345564" },
       { place: "Ministero Salute", topic: "Intesa per mansioni lavorative a rischio", value: "2007", period: "Intesa Stato–Regioni del 30 ottobre 2007", meaning: "Riguarda lavoratori con mansioni specifiche; NON legge sui politici.", sourceUrl: "https://www.salute.gov.it/imgs/C_17_pubblicazioni_925_allegato.pdf" },
     ],
     evidenceCaveat: "Un esame tossicologico non prova automaticamente incapacità decisionale, dipendenza o uso durante l'esercizio della carica. Esiti preliminari, conferma analitica e giudizio medico non sono la stessa cosa. Dati sulla salute richiedono forti garanzie; il Garante ha già contestato test occulti su parlamentari.",
@@ -4438,7 +4438,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "Senato · Costituzione art.51", url: "https://www.senato.it/istituzione/la-costituzione/parte-i/titolo-iv/articolo-51" },
       { label: "Senato · Costituzione art.65", url: "https://www.senato.it/istituzione/la-costituzione/parte-ii/titolo-i/sezione-i/articolo-65" },
-      { label: "Garante · Test illeciti su parlamentari", url: "https://garanteprivacy.it/web/guest/home/docweb/-/docweb-display/docweb/1350812" },
+      { label: "Garante · Test illeciti su parlamentari", url: "https://www.garanteprivacy.it/web/guest/home/docweb/-/docweb-display/docweb/1345564" },
       { label: "Ministero Salute · Intesa 2007", url: "https://www.salute.gov.it/imgs/C_17_pubblicazioni_925_allegato.pdf" },
     ],
     verified: "01/11/2026",
