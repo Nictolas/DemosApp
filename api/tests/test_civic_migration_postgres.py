@@ -59,7 +59,8 @@ class MigrationContract(unittest.TestCase):
                 INSERT INTO iniziative_ministero (id_ministero,titolo,tipo,stato,data_fine)
                 VALUES
                 ('111','Proposta storica','Iniziativa popolare','in_corso',CURRENT_DATE + 30),
-                ('222','Referendum storico','Referendum abrogativo','in_corso',CURRENT_DATE + 30)
+                ('222','Referendum storico','Referendum  abrogativo','in_corso',CURRENT_DATE + 30),
+                ('999','Referendum costituzionale','Referendum costituzionale','in_corso',CURRENT_DATE + 30)
             """)
             cur.execute("""
                 INSERT INTO eci (id,title,status) VALUES
@@ -139,7 +140,8 @@ class MigrationContract(unittest.TestCase):
                 VALUES
                 ('333','Nuova iniziativa','Iniziativa popolare','in_corso',CURRENT_DATE + 30),
                 ('444','Nuovo referendum','Referendum abrogativo','in_corso',CURRENT_DATE + 30),
-                ('555','Referendum scaduto','Referendum abrogativo','conclusa',CURRENT_DATE - 5)
+                ('555','Referendum scaduto','Referendum abrogativo','conclusa',CURRENT_DATE - 5),
+                ('666','Costituzionale nuovo','Referendum costituzionale','in_corso',CURRENT_DATE + 30)
             """)
         code = COLLECTOR.read_text(encoding="utf8")
         actual_sql = re.search(
@@ -159,6 +161,10 @@ class MigrationContract(unittest.TestCase):
             ("111", "suppressed"), ("222", "suppressed"),
             ("333", "pending"), ("444", "pending")
         ])
+        self.assertEqual(self.query("""
+            SELECT count(*) FROM civic_new_initiative_notifications
+            WHERE official_id IN ('999', '666')
+        """), [(0,)])
         # Updating a title / signatures does not change the official ID.
         self.query("""
             UPDATE iniziative_ministero SET titolo = 'Titolo cambiato'
