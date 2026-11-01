@@ -6,6 +6,9 @@ const { reconcileAllCivicTopics } = require('../services/civicPushTopicBootstrap
 const { CIVIC_TOPIC_BY_CATEGORY } = require('../services/civicPushTopics');
 const TEST_DB_ID = '00000000-0000-4000-8000-000000000539';
 process.env.CIVIC_RUNTIME_DATABASE_ID = TEST_DB_ID;
+// Synthetic URL is used only by mocked pg clients, never contacted by these tests.
+process.env.DATABASE_URL = 'postgresql://postgres:ci-fake@127.0.0.1:5432/civic_ci';
+process.env.CIVIC_SESSION_LOCK_CONNECTION_VERIFIED = 'true';
 
 const items = [
   { id: '1', fcm_token: 'token-1', is_active: true, user_status: 'a',
