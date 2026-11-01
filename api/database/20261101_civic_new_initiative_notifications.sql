@@ -58,12 +58,12 @@ REVOKE ALL ON civic_push_delivery_guard FROM PUBLIC;
 INSERT INTO civic_new_initiative_notifications
   (category, official_id, title, target_path, status)
 SELECT
-  CASE WHEN lower(m.tipo) LIKE '%referendum%'
+  CASE WHEN lower(regexp_replace(btrim(m.tipo), '[[:space:]]+', ' ', 'g')) = 'referendum abrogativo'
     THEN 'referendum_abrogativi'
     ELSE 'iniziative_popolari' END,
   btrim(m.id_ministero::text),
   m.titolo,
-  CASE WHEN lower(m.tipo) LIKE '%referendum%'
+  CASE WHEN lower(regexp_replace(btrim(m.tipo), '[[:space:]]+', ' ', 'g')) = 'referendum abrogativo'
     THEN '/referendum-abrogativi'
     ELSE '/iniziative-popolari' END,
   'suppressed'
@@ -71,8 +71,11 @@ FROM iniziative_ministero AS m
 WHERE m.id_ministero IS NOT NULL
   AND btrim(m.id_ministero::text) <> ''
   AND m.titolo IS NOT NULL
-  AND (lower(m.tipo) LIKE '%referendum%'
-    OR lower(m.tipo) LIKE '%iniziativa%')
+  AND lower(regexp_replace(btrim(m.tipo), '[[:space:]]+', ' ', 'g')) IN (
+    'referendum abrogativo',
+    'legge di iniziativa popolare',
+    'iniziativa popolare'
+  )
 ON CONFLICT (category, official_id) DO NOTHING;
 
 INSERT INTO civic_new_initiative_notifications
