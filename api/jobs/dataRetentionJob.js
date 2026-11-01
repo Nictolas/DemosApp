@@ -36,13 +36,13 @@ class DataRetentionJob {
 
     this.cleanupInterval = setInterval(() => {
       Promise.resolve(this.performDailyCleanup()).catch(error => {
-        console.error('❌ Errore non gestito in performDailyCleanup():', error);
+        console.error('RETENTION_DAILY_CLEANUP_UNHANDLED');
       });
     }, this.cleanupIntervalMs);
 
     this.notificationInterval = setInterval(() => {
       Promise.resolve(this.sendWeeklyNotifications()).catch(error => {
-        console.error('❌ Errore non gestito in sendWeeklyNotifications():', error);
+        console.error('RETENTION_CANDIDATE_SCAN_UNHANDLED');
       });
     }, this.notificationIntervalMs);
 
@@ -100,7 +100,7 @@ class DataRetentionJob {
       });
 
     } catch (error) {
-      console.error('❌ Errore nella pulizia giornaliera:', error);
+      console.error('RETENTION_DAILY_CLEANUP_FAILED');
       
       // Log dell'errore
       await AuditService.logAction({
@@ -108,57 +108,68 @@ class DataRetentionJob {
         action: 'DATA_RETENTION_DAILY_CLEANUP',
         resource: 'all',
         details: {
-          error: error.message,
+          error_code: 'RETENTION_DAILY_CLEANUP_FAILED',
           cleanup_date: new Date()
         },
         success: false,
-        errorMessage: error.message
+        errorMessage: 'RETENTION_DAILY_CLEANUP_FAILED'
       });
     }
   }
 
   /**
-   * Invia notifiche settimanali
+   * Scansione settimanale dei candidati a notifiche di retention.
+   * Il nome pubblico e mantenuto per compatibilita, ma NON viene effettuato un invio.
    */
   async sendWeeklyNotifications() {
     try {
-      console.log('📧 Invio notifiche settimanali data retention...');
+      console.log('Scansione settimanale candidati notifiche retention (nessun invio)');
       
       const notifications = await DataRetentionService.sendRetentionNotifications(30);
       
       if (notifications.length > 0) {
-        console.log(`📧 Inviate ${notifications.length} notifiche di retention`);
+        console.log(`Candidati notifiche retention individuati: ${notifications.length} (inviate: 0)`);
         
         // Log delle notifiche
         await AuditService.logAction({
           userId: 'system',
-          action: 'DATA_RETENTION_NOTIFICATIONS',
-          resource: 'notifications',
+          action: 'DATA_RETENTION_NOTIFICATION_CANDIDATE_SCAN',
+          resource: 'retention_candidates',
           details: {
-            notification_count: notifications.length,
-            notification_date: new Date()
+            candidate_count: notifications.length,
+            sent_count: 0,
+            delivery_performed: false,
+            scan_date: new Date()
           },
+          // Success means candidate enumeration succeeded, not notification delivery.
           success: true
         });
       } else {
-        console.log('✅ Nessuna notifica di retention da inviare');
+        console.log('Nessun candidato a notifiche retention individuato (inviate: 0)');
       }
 
     } catch (error) {
-      console.error('❌ Errore nell\'invio notifiche:', error);
+      console.error('RETENTION_CANDIDATE_SCAN_FAILED');
       
-      // Log dell'errore
-      await AuditService.logAction({
-        userId: 'system',
-        action: 'DATA_RETENTION_NOTIFICATIONS',
-        resource: 'notifications',
-        details: {
-          error: error.message,
-          notification_date: new Date()
-        },
-        success: false,
-        errorMessage: error.message
-      });
+      // La registrazione audit e best-effort: non propagare un secondo errore grezzo.
+      try {
+        // Log dell'errore
+        await AuditService.logAction({
+          userId: 'system',
+          action: 'DATA_RETENTION_NOTIFICATION_CANDIDATE_SCAN',
+          resource: 'retention_candidates',
+          details: {
+            error_code: 'RETENTION_CANDIDATE_SCAN_FAILED',
+            sent_count: 0,
+            delivery_performed: false,
+            scan_date: new Date()
+          },
+          success: false,
+          errorMessage: 'RETENTION_CANDIDATE_SCAN_FAILED'
+        });
+      } catch (_auditError) {
+        console.error('RETENTION_CANDIDATE_AUDIT_FAILED');
+      }
     }
   }
 
@@ -175,7 +186,7 @@ class DataRetentionJob {
       
       return result;
     } catch (error) {
-      console.error('❌ Errore nella pulizia immediata:', error);
+      console.error('RETENTION_IMMEDIATE_CLEANUP_FAILED');
       throw error;
     }
   }
