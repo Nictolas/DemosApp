@@ -346,7 +346,7 @@ router.post('/send-user-notification', (req, res, next) => {
       fcmTokens = [];
     }
 
-        // Log dettagliato per debug
+    // Log dettagliato per debug
     debugLog(`   📊 Token FCM nel database per ${destinatario.email}:`);
     debugLog(`      - Numero token: ${fcmTokens.length}`);
     if (fcmTokens.length > 0) {
@@ -466,7 +466,7 @@ router.post('/send-user-notification', (req, res, next) => {
       }
     }
 
-        debugLog('\n');
+    debugLog('\n');
     debugLog(`📊 ========== RISULTATO INVIO NOTIFICA ==========`);
     debugLog(`✅ Notifiche inviate: ${successCount} successi, ${failureCount} fallimenti`);
     debugLog(`📋 Token totali disponibili: ${fcmTokens.length}`);
