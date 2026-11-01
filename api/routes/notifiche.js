@@ -894,19 +894,9 @@ router.post('/preferenze', verifyToken, async (req, res) => {
       });
     }
     
-    console.log(`✅ Preferenze notifiche salvate per utente ${user_id}:`, {
-      eurodeputato: savedPrefs.eurodeputato,
-      senatore: savedPrefs.senatore,
-      deputato: savedPrefs.deputato,
-      consigliere_regionale: savedPrefs.consigliere_regionale,
-      consigliere_comunale: savedPrefs.consigliere_comunale,
-      attivisti: savedPrefs.attivisti,
-      demos: savedPrefs.demos,
-      scuola: savedPrefs.scuola,
-      animali: savedPrefs.animali,
-      organizzazioni: savedPrefs.organizzazioni
-    });
-    
+    // Non registrare user ID o scelte di notifica nei log applicativi.
+    console.log('[notifiche] preferenze aggiornate (dettagli omessi)');
+
     res.json({
       success: true,
       message: 'Preferenze salvate con successo',
@@ -931,7 +921,7 @@ router.post('/preferenze', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel salvataggio preferenze notifiche:', error);
+    console.error('[notifiche] salvataggio preferenze non riuscito (dettagli omessi)');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
