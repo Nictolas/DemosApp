@@ -673,10 +673,10 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       },
       {
         place: "🇮🇹 Nord Italia · ISPRA",
-        topic: "Quota di rifiuti urbani inceneriti",
+        topic: "Quota dell'incenerimento nazionale trattata al Nord",
         value: "74,8%",
-        period: "2024 · quota nazionale",
-        meaning: "Percentuale delle tonnellate incenerite in Italia, non quota di impianti né di rifiuti prodotti.",
+        period: "2024 · quota delle tonnellate incenerite in Italia",
+        meaning: "Il 74,8% delle tonnellate di rifiuti urbani inceneriti in Italia è trattato in impianti del Nord: NON indica che il 74,8% dei rifiuti prodotti in Italia venga incenerito.",
         sourceUrl: "https://indicatoriambientali.isprambiente.it/it/rifiuti/quantita-di-rifiuti-urbani-inceneriti-e-numero-di-impianti-di-incenerimento",
       },
       {
