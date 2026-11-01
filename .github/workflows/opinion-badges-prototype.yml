@@ -6,6 +6,8 @@ on:
     paths:
       - 'client/src/lib/opinionBadgesModel.ts'
       - 'api/tests/opinionBadgesPrototype.smoke.test.js'
+      - 'api/tests/opinionBadgePanel.smoke.test.js'
+      - 'client/src/pages/Profilo/components/OpinionBadgesPanel.tsx'
       - '.github/workflows/opinion-badges-prototype.yml'
       - 'api/catalog/opinions-part-*.json'
   workflow_dispatch:
@@ -48,3 +50,25 @@ jobs:
           NODE
       - name: Verify model semantics, privacy gates and canonical opinion IDs
         run: BADGE_MODEL_BUNDLE=/tmp/demos-opinion-badges.cjs node --test api/tests/opinionBadgesPrototype.smoke.test.js
+
+      - name: Build the isolated evidence UI for server-side rendering tests
+        run: |
+          node - <<'NODE'
+          const esbuild = require('./client/node_modules/esbuild');
+          esbuild.buildSync({
+            entryPoints: ['client/src/pages/Profilo/components/OpinionBadgesPanel.tsx'],
+            outfile: 'client/.demos-badges-panel-ci.cjs',
+            bundle: true,
+            format: 'cjs',
+            platform: 'node',
+            target: 'node22',
+            jsx: 'automatic',
+            external: ['react', 'react-dom'],
+            logLevel: 'error',
+          });
+          NODE
+      - name: Validate that the UI stays invisible until all privacy gates pass
+        run: BADGE_PANEL_BUNDLE="$PWD/client/.demos-badges-panel-ci.cjs" node --test api/tests/opinionBadgePanel.smoke.test.js
+      - name: Remove temporary UI bundle
+        if: always()
+        run: rm -f client/.demos-badges-panel-ci.cjs
