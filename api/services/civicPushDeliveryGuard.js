@@ -17,8 +17,9 @@ async function readCivicDeliveryBarrier(client) {
   const inactive = await client.query(`
     SELECT EXISTS (
       SELECT 1 FROM user_devices d
-      JOIN users u ON u.id = d.user_id
-      WHERE d.is_active = TRUE AND u.status <> 'a'
+      LEFT JOIN users u ON u.id = d.user_id
+      WHERE d.is_active = TRUE
+        AND COALESCE(u.status, '') <> 'a'
       LIMIT 1
     ) AS unsafe
   `);
