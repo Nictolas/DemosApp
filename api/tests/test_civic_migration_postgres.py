@@ -183,6 +183,10 @@ class MigrationContract(unittest.TestCase):
         ):
             self.assertEqual(by_name[name][-1], "MISSING_TABLE")
         self.assertEqual(by_name["notifiche_preferenze"][-1], "MISSING_COLUMN")
+        # Source caches are public-schema tables too: before enabling RLS they
+        # must fail the privacy gate, not show a misleading STRUCTURE_OK.
+        self.assertEqual(by_name["eci"][-1], "RLS_DISABLED")
+        self.assertEqual(by_name["iniziative_ministero"][-1], "RLS_DISABLED")
 
         # Disposable CI fixtures mimic the existing private production tables.
         self.query("ALTER TABLE notifiche_preferenze ENABLE ROW LEVEL SECURITY")
