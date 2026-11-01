@@ -243,6 +243,7 @@ class MigrationContract(unittest.TestCase):
 
     def test_collector_creates_only_new_official_ids_once(self):
         self.apply_migration()
+        self.query("UPDATE civic_push_delivery_guard SET blocked=FALSE, reason_code='ROLLOUT_APPROVED' WHERE id=1")
         with self.conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO iniziative_ministero (id_ministero,titolo,tipo,stato,data_fine)
@@ -283,6 +284,7 @@ class MigrationContract(unittest.TestCase):
 
     def test_emergency_stop_prevents_catchup_after_restart(self):
         self.apply_migration()
+        self.query("UPDATE civic_push_delivery_guard SET blocked=FALSE, reason_code='ROLLOUT_APPROVED' WHERE id=1")
         self.query("""
             INSERT INTO iniziative_ministero (id_ministero,titolo,tipo,stato,data_fine)
             VALUES ('333','Nuova raccolta da sopprimere','Iniziativa popolare',
