@@ -20,7 +20,9 @@ async function collectMinisteroNewInitiatives(pool, { enabled = isCivicEventColl
       (category, official_id, title, target_path, status)
     SELECT DISTINCT ON (category, official_id)
       category, official_id, title, target_path,
-      CASE WHEN guard.reason_code = 'EMERGENCY_STOP'
+      -- A blocked guard never queues catch-up pushes: first rollout,
+      -- emergency stop, or recovery hold all suppress newly discovered items.
+      CASE WHEN guard.blocked = TRUE OR guard.reason_code = 'EMERGENCY_STOP'
         THEN 'suppressed' ELSE 'pending' END
     FROM (
       SELECT
@@ -47,7 +49,7 @@ async function collectMinisteroNewInitiatives(pool, { enabled = isCivicEventColl
     -- SELECT FOR SHARE serializes with the emergency stop guard UPDATE.
     -- A sync completing after STOP cannot create pending catch-up events.
     CROSS JOIN (
-      SELECT reason_code FROM civic_push_delivery_guard WHERE id = 1 FOR SHARE
+      SELECT blocked, reason_code FROM civic_push_delivery_guard WHERE id = 1 FOR SHARE
     ) AS guard
     ORDER BY category, official_id, title
     ON CONFLICT (category, official_id) DO NOTHING
