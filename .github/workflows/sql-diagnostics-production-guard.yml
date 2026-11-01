@@ -13,6 +13,7 @@ on:
       - 'api/tests/devDbDiagnosticsExposure.test.js'
       - 'api/tests/individualNotificationInbox.synthetic.test.js'
       - 'api/tests/notificationIdempotency.postgres.test.js'
+      - 'api/tests/combinedNotificationPrivacy.synthetic.test.js'
       - 'sql/manual/20261101_notifications_inbox_idempotency.sql'
       - 'client/src/pages/NotificheDemos.tsx'
       - 'client/src/pages/NotificheTotali/index.tsx'
@@ -58,3 +59,19 @@ jobs:
           CI: 'true'
           DEMOS_TEST_DATABASE_URL: postgresql://demos_ci:ci_only_not_production@127.0.0.1:5432/demos_ci_notifiche
         run: node --test api/tests/notificationIdempotency.postgres.test.js
+      - name: Verify PR 525 inbox writing against PR 494 recipient reads (ephemeral overlay)
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin refs/pull/494/head:refs/remotes/origin/pr-494-notifications
+          pinned='6b33e8306293eee532163a7238026b386e8aff45'
+          actual="$(git rev-parse refs/remotes/origin/pr-494-notifications)"
+          if [ "$actual" != "$pinned" ]; then
+            echo 'PR #494 head changed: review and update pin before trusting integration result' >&2
+            exit 1
+          fi
+          # Only a disposable GitHub runner is modified; no commits, PR merges or deploys.
+          for file in api/routes/notifiche.js api/routes/reazioni-comunicazioni.js api/routes/grazia.js api/tests/civicPrivacyHttp.synthetic.test.js api/tests/notificationRecipientAndReactionsSecurity.test.js; do
+            git show "refs/remotes/origin/pr-494-notifications:$file" > "$file"
+          done
+          node --test api/tests/combinedNotificationPrivacy.synthetic.test.js
+          node --test api/tests/civicPrivacyHttp.synthetic.test.js api/tests/notificationRecipientAndReactionsSecurity.test.js
