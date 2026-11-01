@@ -1,6 +1,7 @@
 const ministeroSync = require('../services/ministeroSync');
 const logger = require('../services/centralizedLogger');
 const { collectMinisteroNewInitiatives } = require('../services/civicNewInitiativeEventCollector');
+const { dispatchCivicNewInitiatives } = require('../services/civicNewInitiativePushDispatcher');
 
 /**
  * Job periodico per sincronizzare iniziative/referendum dal Ministero
@@ -81,6 +82,18 @@ class MinisteroSyncJob {
         const events = await collectMinisteroNewInitiatives(require('../config/database').getPool());
         if (events.recorded > 0) {
           console.log('[civic-new] nuove raccolte ufficiali registrate:', events.recorded);
+        }
+        // Controlla anche eventuali eventi in coda da cicli precedenti.
+        // Il dispatcher non viene eseguito se il gate dedicato e' disattivo.
+        try {
+          const delivery = await dispatchCivicNewInitiatives(require('../config/database').getPool());
+          if (delivery.enabled && (delivery.accepted || delivery.failed)) {
+            console.log('[civic-push] esiti FCM aggregati:', {
+              accepted: delivery.accepted, failed: delivery.failed
+            });
+          }
+        } catch {
+          console.warn('[civic-push] dispatch non disponibile; coda preservata');
         }
       }
       if (errors > 0) {
