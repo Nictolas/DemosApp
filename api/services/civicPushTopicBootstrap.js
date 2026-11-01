@@ -5,6 +5,7 @@
 // This does not send notifications or unlock the delivery guard.
 
 const { getFirebaseAdmin } = require('./firebaseAdmin');
+const { assertCivicDatabaseIdentity } = require('./civicRuntimeDatabaseIdentity');
 const { CIVIC_TOPIC_BY_CATEGORY, isCivicPushEnabled } = require('./civicPushTopics');
 const {
   acquireCivicPushDeliveryLock,
@@ -40,6 +41,8 @@ async function reconcileAllCivicTopics(pool, {
     if (gate.rows.length !== 1 || gate.rows[0].blocked !== true) {
       throw new Error('CIVIC_BOOTSTRAP_REQUIRES_BLOCKED_DELIVERY');
     }
+    // Also protect dry-run from reporting another database's subscriptions.
+    await assertCivicDatabaseIdentity(db);
 
     // A dry run must never instantiate Firebase or alter subscriptions.
     const firebase = dryRun ? null : messaging || getFirebaseAdmin()?.messaging();
