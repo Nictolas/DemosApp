@@ -149,13 +149,13 @@ class MigrationContract(unittest.TestCase):
         route = (ROOT / "api/routes/notifiche.js").read_text(encoding="utf8")
         post = route.split("// POST /api/notifiche/preferenze", 1)[1]
         match = re.search(
-            r"const result = await pool\\.query\\(\\s*`(INSERT INTO notifiche_preferenze[\\s\\S]*?)`,\\s*\\[user_id",
+            r"const result = await pool\.query\(\s*`(INSERT INTO notifiche_preferenze[\s\S]*?)`,\s*\[user_id",
             post,
         )
         self.assertIsNotNone(match, "Preference UPSERT SQL not found")
         sql = match.group(1)
-        indexes = [int(number) - 1 for number in re.findall(r"\\$(\\d+)", sql)]
-        query = re.sub(r"\\$\\d+", "%s", sql)
+        indexes = [int(number) - 1 for number in re.findall(r"\$(\d+)", sql)]
+        query = re.sub(r"\$\d+", "%s", sql)
 
         user = str(uuid4())
         def save(civic):
