@@ -8,6 +8,8 @@ const { collectMinisteroNewInitiatives, isCivicEventCollectionEnabled } =
   require('../services/civicNewInitiativeEventCollector');
 
 const ROOT = path.resolve(__dirname, '../..');
+const TEST_DB_ID = '00000000-0000-4000-8000-000000000539';
+process.env.CIVIC_RUNTIME_DATABASE_ID = TEST_DB_ID;
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
 test('event discovery is disabled by default and does not read DB', async () => {
@@ -24,7 +26,13 @@ test('event discovery is disabled by default and does not read DB', async () => 
 test('Ministero collection queries only official ongoing records and is idempotent', async () => {
   let sql = '';
   const pool = {
-    query: async (query) => { sql = query; return { rowCount: 2, rows: [{ id: 1 }, { id: 2 }] }; }
+    query: async (query) => {
+      if (query.includes('FROM civic_runtime_identity')) {
+        return { rows: [{ db_identity: TEST_DB_ID }] };
+      }
+      sql = query;
+      return { rowCount: 2, rows: [{ id: 1 }, { id: 2 }] };
+    }
   };
   const result = await collectMinisteroNewInitiatives(pool, { enabled: true });
   assert.deepEqual(result, { enabled: true, recorded: 2 });
