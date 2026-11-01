@@ -708,7 +708,8 @@ router.get('/preferenze', verifyToken, async (req, res) => {
     // Recupera le preferenze dalla nuova tabella notifiche_preferenze
     const result = await pool.query(
       `SELECT eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
-              attivisti, demos, scuola, animali, organizzazioni, updated_at
+              attivisti, demos, scuola, animali, organizzazioni,
+              iniziative_popolari, referendum_abrogativi, eci, updated_at
        FROM notifiche_preferenze
        WHERE user_id = $1`,
       [user_id]
@@ -722,7 +723,8 @@ router.get('/preferenze', verifyToken, async (req, res) => {
                                           attivisti, demos, scuola, animali, organizzazioni)
          VALUES ($1, false, false, false, false, false, false, false, false, true, false)
          RETURNING eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
-                   attivisti, demos, scuola, animali, organizzazioni, updated_at`,
+                   attivisti, demos, scuola, animali, organizzazioni,
+              iniziative_popolari, referendum_abrogativi, eci, updated_at`,
         [user_id]
       );
       
@@ -741,7 +743,10 @@ router.get('/preferenze', verifyToken, async (req, res) => {
             demos: prefs.demos,
             scuola: prefs.scuola,
             animali: prefs.animali,
-            organizzazioni: prefs.organizzazioni
+            organizzazioni: prefs.organizzazioni,
+            iniziative_popolari: false,
+            referendum_abrogativi: false,
+            eci: false
           },
           updated_at: prefs.updated_at
         }
@@ -764,7 +769,10 @@ router.get('/preferenze', verifyToken, async (req, res) => {
           demos: prefs.demos ?? false,
           scuola: prefs.scuola ?? false,
           animali: prefs.animali ?? true,
-          organizzazioni: prefs.organizzazioni ?? false
+          organizzazioni: prefs.organizzazioni ?? false,
+          iniziative_popolari: prefs.iniziative_popolari ?? false,
+          referendum_abrogativi: prefs.referendum_abrogativi ?? false,
+          eci: prefs.eci ?? false
         },
         updated_at: prefs.updated_at
       }
@@ -804,12 +812,33 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     const animali = preferenze.animali !== false && preferenze.animali !== 'false';
     const organizzazioni = preferenze.organizzazioni === true || preferenze.organizzazioni === 'true';
     
+    // Omissione dei nuovi campi da client legacy = non modificare il valore.
+    // Accettiamo solo booleani espliciti per le nuove preferenze civiche.
+    const civicKeys = ['iniziative_popolari', 'referendum_abrogativi', 'eci'];
+    for (const key of civicKeys) {
+      const value = preferenze[key];
+      if (value !== undefined && value !== null &&
+          value !== true && value !== false && value !== 'true' && value !== 'false') {
+        return res.status(400).json({ success: false, error: 'Preferenza civica non valida' });
+      }
+    }
+    const civicValue = (key) => {
+      const value = preferenze[key];
+      return value === undefined || value === null ? null : value === true || value === 'true';
+    };
+    const civicInitiatives = civicValue('iniziative_popolari');
+    const civicReferendums = civicValue('referendum_abrogativi');
+    const civicEci = civicValue('eci');
+
     // Usa UPSERT per inserire o aggiornare le preferenze nella nuova tabella
     const result = await pool.query(
       `INSERT INTO notifiche_preferenze (user_id, eurodeputato, senatore, deputato, 
                                          consigliere_regionale, consigliere_comunale, 
-                                         attivisti, demos, scuola, animali, organizzazioni)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                                         attivisti, demos, scuola, animali, organizzazioni,
+                                         iniziative_popolari, referendum_abrogativi, eci)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+               COALESCE($12::boolean, FALSE), COALESCE($13::boolean, FALSE),
+               COALESCE($14::boolean, FALSE))
        ON CONFLICT (user_id) 
        DO UPDATE SET 
          eurodeputato = EXCLUDED.eurodeputato,
@@ -822,11 +851,15 @@ router.post('/preferenze', verifyToken, async (req, res) => {
          scuola = EXCLUDED.scuola,
          animali = EXCLUDED.animali,
          organizzazioni = EXCLUDED.organizzazioni,
+         iniziative_popolari = COALESCE($12::boolean, notifiche_preferenze.iniziative_popolari),
+         referendum_abrogativi = COALESCE($13::boolean, notifiche_preferenze.referendum_abrogativi),
+         eci = COALESCE($14::boolean, notifiche_preferenze.eci),
          updated_at = NOW()
        RETURNING user_id, eurodeputato, senatore, deputato, consigliere_regionale, 
-                 consigliere_comunale, attivisti, demos, scuola, animali, organizzazioni, updated_at`,
+                 consigliere_comunale, attivisti, demos, scuola, animali, organizzazioni,
+              iniziative_popolari, referendum_abrogativi, eci, updated_at`,
       [user_id, eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale, 
-       attivisti, demos, scuola, animali, organizzazioni]
+       attivisti, demos, scuola, animali, organizzazioni, civicInitiatives, civicReferendums, civicEci]
     );
     
     if (result.rows.length === 0) {
@@ -866,7 +899,10 @@ router.post('/preferenze', verifyToken, async (req, res) => {
           demos: savedPrefs.demos,
           scuola: savedPrefs.scuola,
           animali: savedPrefs.animali,
-          organizzazioni: savedPrefs.organizzazioni
+          organizzazioni: savedPrefs.organizzazioni,
+          iniziative_popolari: savedPrefs.iniziative_popolari,
+          referendum_abrogativi: savedPrefs.referendum_abrogativi,
+          eci: savedPrefs.eci
         },
         updated_at: savedPrefs.updated_at
       }
