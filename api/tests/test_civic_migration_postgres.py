@@ -44,7 +44,18 @@ class MigrationContract(unittest.TestCase):
             cur.execute("DROP TABLE IF EXISTS notifiche_preferenze")
             cur.execute("""
                 CREATE TABLE notifiche_preferenze (
-                    user_id UUID PRIMARY KEY
+                    user_id UUID PRIMARY KEY,
+                    eurodeputato BOOLEAN NOT NULL DEFAULT FALSE,
+                    senatore BOOLEAN NOT NULL DEFAULT FALSE,
+                    deputato BOOLEAN NOT NULL DEFAULT FALSE,
+                    consigliere_regionale BOOLEAN NOT NULL DEFAULT FALSE,
+                    consigliere_comunale BOOLEAN NOT NULL DEFAULT FALSE,
+                    attivisti BOOLEAN NOT NULL DEFAULT FALSE,
+                    demos BOOLEAN NOT NULL DEFAULT FALSE,
+                    scuola BOOLEAN NOT NULL DEFAULT FALSE,
+                    animali BOOLEAN NOT NULL DEFAULT TRUE,
+                    organizzazioni BOOLEAN NOT NULL DEFAULT FALSE,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
                 CREATE TABLE iniziative_ministero (
                     id_ministero VARCHAR(100), titolo TEXT NOT NULL,
@@ -131,6 +142,59 @@ class MigrationContract(unittest.TestCase):
         self.assertEqual(self.query("""
             SELECT blocked FROM civic_push_delivery_guard WHERE id = 1
         """), [(True,)])
+
+    def test_real_preference_upsert_retains_opt_in_from_older_clients(self):
+        # Executes the actual prepared SQL from the API route on the ephemeral DB.
+        self.apply_migration()
+        route = (ROOT / "api/routes/notifiche.js").read_text(encoding="utf8")
+        post = route.split("// POST /api/notifiche/preferenze", 1)[1]
+        match = re.search(
+            r"const result = await pool\\.query\\(\\s*`(INSERT INTO notifiche_preferenze[\\s\\S]*?)`,\\s*\\[user_id",
+            post,
+        )
+        self.assertIsNotNone(match, "Preference UPSERT SQL not found")
+        sql = match.group(1)
+        indexes = [int(number) - 1 for number in re.findall(r"\\$(\\d+)", sql)]
+        query = re.sub(r"\\$\\d+", "%s", sql)
+
+        user = str(uuid4())
+        def save(civic):
+            values = [
+                user, False, False, False, False, False,
+                False, False, False, True, False, *civic
+            ]
+            parameters = [values[index] for index in indexes]
+            self.query(query, parameters)
+
+        # New client opts in only to popular initiatives and ECI.
+        save([True, False, True])
+        self.assertEqual(self.query("""
+            SELECT iniziative_popolari, referendum_abrogativi, eci
+            FROM notifiche_preferenze WHERE user_id=%s
+        """, [user]), [(True, False, True)])
+
+        # Legacy client sends no new keys: do not reset explicit opt-ins.
+        save([None, None, None])
+        self.assertEqual(self.query("""
+            SELECT iniziative_popolari, referendum_abrogativi, eci
+            FROM notifiche_preferenze WHERE user_id=%s
+        """, [user]), [(True, False, True)])
+
+        # An explicit opt-out of ECI affects only ECI.
+        save([None, None, False])
+        self.assertEqual(self.query("""
+            SELECT iniziative_popolari, referendum_abrogativi, eci
+            FROM notifiche_preferenze WHERE user_id=%s
+        """, [user]), [(True, False, False)])
+
+        # First save from a legacy-only client starts all three OFF.
+        other = str(uuid4())
+        user = other
+        save([None, None, None])
+        self.assertEqual(self.query("""
+            SELECT iniziative_popolari, referendum_abrogativi, eci
+            FROM notifiche_preferenze WHERE user_id=%s
+        """, [other]), [(False, False, False)])
 
     def test_collector_creates_only_new_official_ids_once(self):
         self.apply_migration()
