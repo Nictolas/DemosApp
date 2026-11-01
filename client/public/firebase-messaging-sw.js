@@ -27,6 +27,12 @@ if (hasRequiredFirebaseConfig) {
   const messaging = firebase.messaging();
 
   messaging.onBackgroundMessage((payload) => {
+    // FCM already displays background messages with a notification payload.
+    // Showing it again here would create a duplicate civic notification.
+    // The webpush.fcmOptions.link supplied by the server remains actionable.
+    if (payload.data?.type === 'civic_new_initiative' && payload.notification) {
+      return;
+    }
     const notificationTitle = payload.notification?.title || payload.data?.titolo || 'Nuova notifica';
     const notificationBody = payload.notification?.body || payload.data?.messaggio || '';
     const notificationTag = payload.data?.notificationTag
