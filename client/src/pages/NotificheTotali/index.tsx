@@ -81,6 +81,9 @@ export default function NotificheTotali() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isAdmin = hasAdminCapability(user);
+  // Legacy Firebase diagnostic GET can send a push: never fetch on page mount.
+  const localDiagnosticsEnabled = import.meta.env.DEV &&
+    import.meta.env.VITE_ENABLE_NOTIFICATION_DIAGNOSTICS === "true";
 
   const [demosTitle, setDemosTitle] = useState("");
   const [demosMessage, setDemosMessage] = useState("");
@@ -107,7 +110,7 @@ export default function NotificheTotali() {
   const firebaseStatus = useQuery({
     queryKey: ["admin-notification-firebase-status"],
     queryFn: async () => (await apiRequest("GET", "/api/comunicazioni/debug-firebase-admin")).data,
-    enabled: isAdmin,
+    enabled: false, // Diagnostic GET only after an explicit local user action
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -115,7 +118,7 @@ export default function NotificheTotali() {
   const demosStatus = useQuery({
     queryKey: ["admin-notification-demos-status"],
     queryFn: async () => (await apiRequest("GET", "/api/comunicazioni/debug-notifiche-demos")).data,
-    enabled: isAdmin,
+    enabled: false, // Diagnostic GET only after an explicit local user action
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -206,8 +209,8 @@ export default function NotificheTotali() {
 
           <TabsContent value="diagnostica" className="space-y-5">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Firebase Admin</CardTitle><CardDescription>Verifica il backend usato per la consegna delle notifiche push.</CardDescription></CardHeader><CardContent className="space-y-3">{firebaseStatus.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : firebaseStatus.isError ? <Alert variant="destructive"><AlertDescription>Diagnostica Firebase non disponibile.</AlertDescription></Alert> : <div className="flex items-center gap-2 text-sm text-green-700"><CheckCircle className="h-5 w-5" />Endpoint diagnostico raggiungibile.</div>}<Button variant="outline" onClick={() => firebaseStatus.refetch()} disabled={firebaseStatus.isFetching}>Aggiorna stato</Button></CardContent></Card>
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" />Preferenze Demos</CardTitle><CardDescription>Verifica il percorso di selezione dei destinatari Demos.</CardDescription></CardHeader><CardContent className="space-y-3">{demosStatus.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : demosStatus.isError ? <Alert variant="destructive"><AlertDescription>Diagnostica Demos non disponibile.</AlertDescription></Alert> : <div className="flex items-center gap-2 text-sm text-green-700"><CheckCircle className="h-5 w-5" />Endpoint diagnostico raggiungibile.</div>}<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => demosStatus.refetch()} disabled={demosStatus.isFetching}>Aggiorna stato</Button><Button variant="outline" onClick={() => testSelfMutation.mutate()} disabled={testSelfMutation.isPending}>{testSelfMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}Invia test a me</Button></div></CardContent></Card>
+              <Card><CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Firebase Admin</CardTitle><CardDescription>Verifica il backend usato per la consegna delle notifiche push.</CardDescription></CardHeader><CardContent className="space-y-3">{!localDiagnosticsEnabled ? <Alert><AlertDescription>Diagnostica disponibile solo nello sviluppo locale autorizzato.</AlertDescription></Alert> : firebaseStatus.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : firebaseStatus.isError ? <Alert variant="destructive"><AlertDescription>Diagnostica Firebase non disponibile.</AlertDescription></Alert> : <div className="flex items-center gap-2 text-sm text-green-700"><CheckCircle className="h-5 w-5" />Endpoint diagnostico raggiungibile.</div>}<Button variant="outline" onClick={() => firebaseStatus.refetch()} disabled={!localDiagnosticsEnabled || firebaseStatus.isFetching}>Aggiorna stato</Button></CardContent></Card>
+              <Card><CardHeader><CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" />Preferenze Demos</CardTitle><CardDescription>Verifica il percorso di selezione dei destinatari Demos.</CardDescription></CardHeader><CardContent className="space-y-3">{!localDiagnosticsEnabled ? <Alert><AlertDescription>Diagnostica disponibile solo nello sviluppo locale autorizzato.</AlertDescription></Alert> : demosStatus.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : demosStatus.isError ? <Alert variant="destructive"><AlertDescription>Diagnostica Demos non disponibile.</AlertDescription></Alert> : <div className="flex items-center gap-2 text-sm text-green-700"><CheckCircle className="h-5 w-5" />Endpoint diagnostico raggiungibile.</div>}<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => demosStatus.refetch()} disabled={!localDiagnosticsEnabled || demosStatus.isFetching}>Aggiorna stato</Button><Button variant="outline" onClick={() => testSelfMutation.mutate()} disabled={testSelfMutation.isPending}>{testSelfMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}Invia test a me</Button></div></CardContent></Card>
             </div>
           </TabsContent>
         </Tabs>
