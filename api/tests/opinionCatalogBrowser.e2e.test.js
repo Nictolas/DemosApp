@@ -26,7 +26,8 @@ async function waitForLocal(url, timeoutMs = 45000) {
 
 test('real Chromium DOM: four official Opinions pages + verified save through candidate HTTP routes', {
   skip: !browserModule,
-  timeout: 120000
+  // Full catalog grows by opt-in; 63 browser cases can exceed the previous 120s suite cap.
+  timeout: 180000
 }, async () => {
   // An isolated process and loopback Vite proxy are mandatory: no real DB URL,
   // real credentials, Render services or production traffic are involved.
@@ -312,6 +313,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'MES', '433 mld €'],
       ['/opinioni-regionali', 'Finanziamento delle RSA private', '57.440'],
       ['/opinioni-comunali', 'Riduzione tasse rifiuti', '9.796 €'],
+      ['/opinioni-europee', 'Sperimentazione animale', '7.974.226'],
+      ['/opinioni-regionali', 'Sostegno commercio locale', '2,95 mln €'],
+      ['/opinioni-comunali', 'Riduzione parcheggi a pagamento', '50 €/mese'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1222,6 +1226,53 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'National subsidy, ISEE eligibility and UR3 levy are different');
           assert.ok((await brief.innerText()).includes("nell'ANNO SUCCESSIVO"),
             'TARI bonus normally follows ISEE eligibility in the following year');
+        }
+      } else if (['Sperimentazione animale', 'Sostegno commercio locale', 'Riduzione parcheggi a pagamento'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four figures contextualized by time, measure and source');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': every numeric fact is linked to its primary source');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': no false causal before/after comparison');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no fake legal-country heatmap for policy tradeoffs');
+        const order = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(order.every(Number.isFinite) && order[0] < order[1] && order[1] < order[2],
+          title + ': definition, policy options, then evidence in reading order');
+        if (title === 'Sperimentazione animale') {
+          for (const n of ['7.974.226', '8.385.397', '−4,9%', 'meno del 9%'])
+            assert.ok(data.includes(n), 'European Commission EU+Norway animal use fact ' + n);
+          assert.ok(data.includes('NON totale degli animali allevati') &&
+            data.includes('NON numero delle singole procedure') &&
+            data.includes('NON prova da sola'),
+            'First-time animal numbers and measured change are not total animal uses or causation');
+          assert.ok((await brief.innerText()).includes('denominatore è diverso'),
+            'Severe use share has a different denominator from first-time animals');
+        }
+        if (title === 'Sostegno commercio locale') {
+          for (const n of ['2,95 mln €', '80%', '40.000 €', '20.000 €'])
+            assert.ok(data.includes(n), 'Lombardy 2026 locality commerce grant condition ' + n);
+          assert.ok(data.includes('NON denaro interamente già erogato') &&
+            data.includes('non 80% del fatturato') &&
+            data.includes('NON cifra da sommare'),
+            'Budget, reimbursement rate and mutually exclusive caps cannot be conflated');
+          assert.ok((await brief.innerText()).includes('CASI DISTINTI'),
+            '40k and 20k maximum grants must not be added');
+        }
+        if (title === 'Riduzione parcheggi a pagamento') {
+          for (const n of ['0 €', '250 €', '50 €/mese', '40 €/mese'])
+            assert.ok(data.includes(n), 'Milan permits and paid parking subscription costs ' + n);
+          assert.ok(data.includes('NON tutta la sosta blu') &&
+            data.includes('NON tariffa oraria') &&
+            data.includes('NON sconto automatico'),
+            'Free resident permit must not imply citywide free parking or discounted subscription');
+          assert.ok((await brief.innerText()).includes('tariffe ALTERNATIVE'),
+            'Monthly subscriptions must not be falsely added together');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
