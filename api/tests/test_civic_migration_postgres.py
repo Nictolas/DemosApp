@@ -37,6 +37,7 @@ class MigrationContract(unittest.TestCase):
 
     def setUp(self):
         with self.conn.cursor() as cur:
+            cur.execute("DROP TABLE IF EXISTS civic_push_delivery_guard")
             cur.execute("DROP TABLE IF EXISTS civic_new_initiative_notifications")
             cur.execute("DROP TABLE IF EXISTS iniziative_ministero")
             cur.execute("DROP TABLE IF EXISTS eci")
@@ -164,6 +165,42 @@ class MigrationContract(unittest.TestCase):
             WHERE id_ministero = '333'
         """)
         self.assertEqual(self.query(actual_sql.group(1)), [])
+
+    def test_global_guard_serializes_erasure_with_in_flight_dispatch(self):
+        self.apply_migration()
+        first = psycopg2.connect(os.environ["CIVIC_TEST_DATABASE_URL"])
+        second = psycopg2.connect(os.environ["CIVIC_TEST_DATABASE_URL"])
+        first.autocommit = True
+        second.autocommit = True
+        try:
+            with first.cursor() as cur:
+                cur.execute("SELECT pg_advisory_lock(60423, 539)")
+            with second.cursor() as cur:
+                cur.execute("BEGIN")
+                # Deletion must wait while a topic send holds the session lock.
+                cur.execute("SELECT pg_try_advisory_xact_lock(60423, 539)")
+                self.assertEqual(cur.fetchone(), (False,))
+            with first.cursor() as cur:
+                cur.execute("SELECT pg_advisory_unlock(60423, 539)")
+                self.assertEqual(cur.fetchone(), (True,))
+            with second.cursor() as cur:
+                cur.execute("SELECT pg_try_advisory_xact_lock(60423, 539)")
+                self.assertEqual(cur.fetchone(), (True,))
+                cur.execute("""
+                    UPDATE civic_push_delivery_guard
+                    SET blocked = TRUE, reason_code='REVOCATION_UNCERTAIN'
+                    WHERE id=1
+                """)
+                cur.execute("COMMIT")
+            self.assertEqual(self.query("""
+                SELECT blocked, reason_code FROM civic_push_delivery_guard
+                WHERE id=1
+            """), [(True, "REVOCATION_UNCERTAIN")])
+        finally:
+            with second.cursor() as cur:
+                cur.execute("ROLLBACK")
+            first.close()
+            second.close()
 
     def test_no_public_read_even_when_role_has_table_select(self):
         self.apply_migration()
