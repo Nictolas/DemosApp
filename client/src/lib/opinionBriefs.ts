@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these sixty-three canonical IDs opt in; the other 31 use the original
+ * Only these sixty-six canonical IDs opt in; the other 28 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -3175,6 +3175,167 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Comune Milano · Abbonamenti blu mensili, giugno 2026", url: "https://servizicrm.comune.milano.it/centro-supporto/KA-01199/Costo-abbonamento-sosta-strisce-blu-Milano" },
       { label: "Comune Milano · Sosta regolamentata, colori, orari, ambiti", url: "https://www.comune.milano.it/servizi/mobilita/sosta-regolamentata-non-residenziale/" },
       { label: "ATM · Pass e regole per la sosta", url: "https://www.atm.it/it/AltriServizi/Auto/Pagine/SostaStrada.aspx" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  gare_concessioni_balneari: {
+    intro: "Le concessioni di spiagge e altre aree demaniali per attività turistico-ricreative devono essere assegnate mediante procedure trasparenti e imparziali. Le regole transitorie del 2024 non obbligano i Comuni ad aspettare il 2027: il Consiglio di Stato lo ha ribadito nel 2026.",
+    facts: [],
+    comparison: [
+      { label: "Regime precedente", title: "Proroghe e gestori già insediati", text: "Le proroghe automatiche delle concessioni sono state contestate alla luce del diritto UE; l'assetto transitorio deve consentire il passaggio a selezioni pubbliche con parità di trattamento." },
+      { label: "Nuove procedure", title: "Bandi e valutazione delle offerte", text: "L'amministrazione avvia procedure competitive con criteri di selezione, durata e tutela degli investimenti secondo la legge. La sentenza 6539/2026 chiarisce che aggiudicazioni valide possono avvenire prima del limite transitorio del 2027." },
+    ],
+    measuredResultsTitle: "🇮🇹 Concessioni balneari · termini di legge e giurisprudenza 2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 Legge 118/2022, modificata dalla 166/2024",
+        topic: "Termine massimo per avviare le gare in prima applicazione",
+        value: "30/6/2027",
+        period: "Art. 4, comma 3, quadro nazionale",
+        meaning: "Termine di avvio delle procedure selettive, NON data da attendere necessariamente prima di bandire una gara.",
+        sourceUrl: "https://www.senato.it/show-doc?id=1431067&leg=19&part=dossier_dossier1-sezione_sezione9-h4_h41&tipodoc=DOSSIER",
+      },
+      {
+        place: "🇮🇹 Legge 166/2024 e Consiglio di Stato",
+        topic: "Termine ordinario del regime transitorio di efficacia",
+        value: "30/9/2027",
+        period: "Art. 3 legge 118/2022 e sentenza 6539/2026",
+        meaning: "Limite massimo di efficacia previsto nel quadro transitorio, NON proroga obbligatoria per ogni concessione e NON divieto di gare precedenti.",
+        sourceUrl: "https://www.conferenzastatocitta.gov.it/home/notizie-e-comunicati/2026/concessioni-balneari-il-consiglio-di-stato-chiarisce-che-il-termine-del-2027-non-blocca-le-gare-gia-avviate-ne-impedisce-le-nuove-assegnazioni/",
+      },
+      {
+        place: "🇮🇹 Legge 166/2024",
+        topic: "Ultimo limite possibile del differimento eccezionale motivato",
+        value: "31/3/2028",
+        period: "Art. 3, comma 3, impedimenti oggettivi",
+        meaning: "Differimento AMMESSO solo in presenza di motivi oggettivi e con atto motivato; NON proroga generale automatica per tutti.",
+        sourceUrl: "https://www.gazzettaufficiale.it/atto/serie_generale/caricaArticoloDefault/originario?atto.codiceRedazionale=24A06077&atto.dataPubblicazioneGazzetta=2024-11-14&atto.tipoProvvedimento=TESTO+COORDINATO+DEL+DECRETO-LEGGE",
+      },
+      {
+        place: "🇮🇹 Legge 118/2022 e successive modifiche",
+        topic: "Durata prevista per i nuovi affidamenti",
+        value: "5–20 anni",
+        period: "Art. 4, comma 5, secondo caratteristiche della concessione",
+        meaning: "Intervallo normativo per la nuova concessione, NON durata identica in ogni bando né numero di gare effettivamente concluse.",
+        sourceUrl: "https://www.gazzettaufficiale.it/atto/serie_generale/caricaArticoloDefault/originario?atto.codiceRedazionale=24A06077&atto.dataPubblicazioneGazzetta=2024-11-14&atto.tipoProvvedimento=TESTO+COORDINATO+DEL+DECRETO-LEGGE",
+      },
+    ],
+    evidenceCaveat: "Le date 30 giugno 2027 (avvio gare), 30 settembre 2027 (efficacia transitoria) e 31 marzo 2028 (eventuale differimento MOTIVATO e circoscritto) hanno funzioni diverse: non indicano tre proroghe generali. La sentenza 6539/2026 consente le gare e le assegnazioni prima del 2027 e interpreta il termine come massimo, non come attesa obbligatoria. Cinque–venti anni è un intervallo legale per i nuovi titoli, non un dato medio rilevato. Le cifre non misurano concorrenza effettiva, canoni incassati, spiagge libere o risultati turistici.",
+    advantage: "La selezione aperta può favorire concorrenza, trasparenza e qualità dei servizi su beni pubblici.",
+    concern: "Servono criteri chiari, gestione degli investimenti non ammortizzati, tempi amministrativi realistici e tutela di accessibilità e ambiente costiero.",
+    note: "Non confondere scadenza dei titoli, avvio della gara, conclusione della gara, durata dei nuovi affidamenti e indennizzi. Verificare l'atto del Comune competente.",
+    sources: [
+      { label: "Conferenza Stato-Città · Consiglio di Stato 6539/2026 e gare prima del 2027", url: "https://www.conferenzastatocitta.gov.it/home/notizie-e-comunicati/2026/concessioni-balneari-il-consiglio-di-stato-chiarisce-che-il-termine-del-2027-non-blocca-le-gare-gia-avviate-ne-impedisce-le-nuove-assegnazioni/" },
+      { label: "Senato · Dossier n.203, concessioni balneari e termini", url: "https://www.senato.it/show-doc?id=1431067&leg=19&part=dossier_dossier1-sezione_sezione9-h4_h41&tipodoc=DOSSIER" },
+      { label: "Gazzetta Ufficiale · Testo coordinato legge 166/2024", url: "https://www.gazzettaufficiale.it/atto/serie_generale/caricaArticoloDefault/originario?atto.codiceRedazionale=24A06077&atto.dataPubblicazioneGazzetta=2024-11-14&atto.tipoProvvedimento=TESTO+COORDINATO+DEL+DECRETO-LEGGE" },
+    ],
+    verified: "01/11/2026",
+  },
+  cassonetti_intelligenti_con_tessera: {
+    intro: "I cassonetti intelligenti si aprono mediante tessera, chiavetta elettronica o app e possono registrare utenza, volume conferito e stato di riempimento. Firenze è un esempio di rete già attiva, ma installazione di sensori non equivale automaticamente a tariffa puntuale o minori rifiuti.",
+    facts: [],
+    comparison: [
+      { label: "Sistema tradizionale", title: "Contenitori senza controllo digitale d'accesso", text: "I contenitori stradali sono accessibili secondo le regole locali; il gestore può programmare svuotamenti periodici senza informazioni individuali sui conferimenti." },
+      { label: "Esempio digitale", title: "🇮🇹 Firenze · accessi e monitoraggio volumetrico", text: "Plures Alia usa dispositivi elettronici e sensori per identificare i conferimenti e seguire il riempimento. La previsione degli svuotamenti dinamici indicata per il 2026 è un progetto organizzativo, non la prova di una riduzione già ottenuta." },
+    ],
+    measuredResultsTitle: "🇮🇹 Firenze · rete dei cassonetti digitali, dati comunali 2025",
+    measuredResults: [
+      {
+        place: "🇮🇹 Comune Firenze · Plures Alia",
+        topic: "Cassonetti digitali operativi sul territorio",
+        value: "8.728",
+        period: "Comunicazione del Comune, 11 dicembre 2025",
+        meaning: "Contenitori digitali attivi con sensori e identificazione, NON numero delle utenze o degli svuotamenti effettuati.",
+        sourceUrl: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/firenze-diventa-citta-digitale-il-ciclo-dei-rifiuti",
+      },
+      {
+        place: "🇮🇹 Comune Firenze · totale contenitori",
+        topic: "Contenitori stradali complessivi indicati dal Comune",
+        value: "oltre 11.000",
+        period: "Comunicazione dell'11 dicembre 2025",
+        meaning: "Totale dei contenitori di più tipologie, compresi quelli digitali: NON 11.000 ulteriori unità da sommare agli 8.728.",
+        sourceUrl: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/firenze-diventa-citta-digitale-il-ciclo-dei-rifiuti",
+      },
+      {
+        place: "🇮🇹 Firenze · Viesseux, Leopoldo, Statuto",
+        topic: "Cassonetti ad apertura elettronica attivati in questa fase",
+        value: "oltre 390",
+        period: "Attivazione dal 20 gennaio 2025",
+        meaning: "Unità in una fase territoriale specifica, già parte della rete cittadina: NON ulteriori 390 cassonetti rispetto al totale di dicembre.",
+        sourceUrl: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/firenze-citta-circolare-da-lunedi-al-lattivazione-dei",
+      },
+      {
+        place: "🇮🇹 Firenze · Viesseux, Leopoldo, Statuto",
+        topic: "Utenze interessate dall'attivazione locale",
+        value: "oltre 8.300",
+        period: "Gennaio 2025, apertura con chiavetta o Aliapp",
+        meaning: "Utenze interessate dal nuovo accesso elettronico, NON utenti unici che hanno davvero conferito né quantità di rifiuti raccolta.",
+        sourceUrl: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/firenze-citta-circolare-da-lunedi-al-lattivazione-dei",
+      },
+    ],
+    evidenceCaveat: "Gli 8.728 cassonetti digitali sono inclusi negli oltre 11.000 contenitori totali del 2025. Le oltre 390 unità attivate in tre quartieri a gennaio 2025 sono un sottoinsieme delle installazioni cittadine: non vanno sommate una seconda volta. Le 8.300 utenze sono potenziali utilizzatori, non prove di conferimenti effettuati. Il piano Firenze Città Circolare prevede ottimizzare itinerari nel 2026, ma queste cifre non dimostrano da sole riduzione di emissioni, spesa, abbandoni o aumento della differenziata attribuibile ai sensori. La registrazione dei conferimenti richiede privacy e accessibilità per chi non usa smartphone.",
+    advantage: "Può permettere informazioni sui riempimenti, servizi meglio organizzati e dati utili a una futura tariffa commisurata ai conferimenti.",
+    concern: "Introduce costi di manutenzione, rischi di guasti o esclusione digitale, e dati sulle abitudini di conferimento da minimizzare e proteggere.",
+    note: "Tessera/chiavetta elettronica, Aliapp, registrazione dei conferimenti e tariffazione puntuale sono quattro aspetti distinti: non implicano uno l'altro automaticamente.",
+    sources: [
+      { label: "Comune Firenze · 8.728 digitali su oltre 11.000, 11/12/2025", url: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/firenze-diventa-citta-digitale-il-ciclo-dei-rifiuti" },
+      { label: "Comune Firenze · 390 contenitori e 8.300 utenze, gennaio 2025", url: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/firenze-citta-circolare-da-lunedi-al-lattivazione-dei" },
+      { label: "Comune Firenze · Piano TARI 2026/2027 e prospettiva tariffa puntuale", url: "https://www.comune.firenze.it/novita/area-stampa/comunicati-stampa/approvato-il-piano-economico-finanziario-di-ato-toscana-centro" },
+    ],
+    verified: "01/11/2026",
+  },
+  rilascio_di_palloncini: {
+    intro: "Il rilascio volontario di palloncini durante feste o cerimonie disperde oggetti nell'ambiente. La direttiva europea 2019/904 disciplina alcuni prodotti di plastica monouso, inclusi i palloncini per consumatori, ma NON impone automaticamente un divieto uniforme di lancio in ogni Comune d'Europa.",
+    facts: [],
+    comparison: [
+      { label: "🇪🇺 Quadro già vigente", title: "Limitazioni ai prodotti monouso e responsabilità dei produttori", text: "La direttiva 2019/904 tratta palloncini, asticelle e relativi rifiuti con strumenti differenti. Le asticelle monouso di plastica per consumatori sono soggette a restrizioni di mercato; i palloncini monouso hanno regole su responsabilità del produttore e sensibilizzazione." },
+      { label: "Possibile divieto comunale", title: "Vietare rilasci intenzionali in cielo", text: "Un Comune può valutare misure contro l'abbandono nell'ambiente, con delimitazione dei comportamenti, alternative per le cerimonie, controlli e possibili eccezioni conformi alle norme. Va accertata la disciplina locale effettivamente approvata." },
+    ],
+    measuredResultsTitle: "🇪🇺 Unione europea · norme sulla plastica monouso e palloncini",
+    measuredResults: [
+      {
+        place: "🇪🇺 Parlamento e Consiglio UE",
+        topic: "Direttiva che include palloncini e aste di sostegno",
+        value: "2019/904",
+        period: "Direttiva del 5 giugno 2019 sulla plastica monouso",
+        meaning: "Numero della direttiva che differenzia prodotti e obblighi; NON una legge che vieta sempre di possedere o lanciare ogni tipo di palloncino.",
+        sourceUrl: "https://environment.ec.europa.eu/topics/plastics/single-use-plastics_en",
+      },
+      {
+        place: "🇪🇺 Commissione europea",
+        topic: "Decorrenza delle restrizioni UE di mercato per le asticelle monouso",
+        value: "7/2021",
+        period: "Applicazione dell'articolo 5 della direttiva",
+        meaning: "Divieto di immissione sul mercato per aste di plastica monouso destinate ai consumatori; NON divieto generale di vendita dei palloncini o del loro lancio.",
+        sourceUrl: "https://environment.ec.europa.eu/topics/plastics/single-use-plastics_en",
+      },
+      {
+        place: "🇪🇺 Direttiva 2019/904",
+        topic: "Termine generale di attuazione della responsabilità estesa del produttore",
+        value: "31/12/2024",
+        period: "Articolo 8 e termini dell'articolo 17, con eccezioni previste",
+        meaning: "Termine UE per gli schemi di responsabilità estesa del produttore, incluso l'ambito dei palloncini; NON il termine entro cui tutti i Comuni devono vietarne il rilascio.",
+        sourceUrl: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32019L0904",
+      },
+      {
+        place: "🇪🇺 Commissione europea",
+        topic: "Nuove linee guida interpretative sui palloncini",
+        value: "8/9/2026",
+        period: "Comunicazione C/2026/4813",
+        meaning: "Chiariscono che anche i palloncini monouso in lattice destinati ai consumatori rientrano nell'ambito SUP; è una guida interpretativa, NON un nuovo divieto comunale.",
+        sourceUrl: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=OJ:C_202604813",
+      },
+    ],
+    evidenceCaveat: "La restrizione europea da luglio 2021 riguarda le ASTICELLE di plastica monouso per palloncini distribuiti ai consumatori, non il palloncino in sé. Il 31 dicembre 2024 riguarda il quadro di responsabilità estesa del produttore, con eccezioni, non un obbligo municipale di vietare i lanci. Le linee guida del settembre 2026 chiariscono l'inclusione anche del lattice monouso (non automaticamente biodegradabile), ma NON introducono un divieto generalizzato di rilascio. Le date sono norme, non una misurazione delle quantità di palloncini raccolti, di fauna danneggiata o degli effetti di specifiche ordinanze.",
+    advantage: "Limitare i rilasci deliberati può evitare dispersione di oggetti e frammenti e incentivare alternative riutilizzabili nelle celebrazioni.",
+    concern: "Serve una definizione precisa del comportamento vietato, per evitare confusione con decorazioni controllate, usi professionali leciti o prodotti diversi.",
+    note: "Il problema politico è il rilascio INTENZIONALE nell'ambiente. Vendita del palloncino, vendita delle asticelle e utilizzo di palloni professionali seguono regole differenti.",
+    sources: [
+      { label: "Commissione UE · Direttiva plastica monouso, categorie e restrizioni", url: "https://environment.ec.europa.eu/topics/plastics/single-use-plastics_en" },
+      { label: "EUR-Lex · Direttiva 2019/904, articoli 5, 8 e 17", url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32019L0904" },
+      { label: "Commissione UE · Linee guida C/2026/4813, 8 settembre 2026", url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=OJ:C_202604813" },
     ],
     verified: "01/11/2026",
   },
