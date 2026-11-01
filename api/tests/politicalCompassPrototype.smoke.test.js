@@ -8,6 +8,8 @@ const modelSource = fs.readFileSync(path.join(root, "client/src/lib/politicalCom
 const component = fs.readFileSync(
   path.join(root, "client/src/pages/Profilo/components/PoliticalCompassPreview.tsx"), "utf8");
 const profile = fs.readFileSync(path.join(root, "client/src/pages/Profilo/index.tsx"), "utf8");
+const compassPage = fs.readFileSync(path.join(root, "client/src/pages/CompassoPolitico.tsx"), "utf8");
+const app = fs.readFileSync(path.join(root, "client/src/App.tsx"), "utf8");
 
 const catalog = Array.from({ length: 6 }, (_, index) =>
   JSON.parse(fs.readFileSync(
@@ -37,13 +39,26 @@ test("ogni asse contiene proposte in entrambe le direzioni", () => {
   }
 });
 
-test("il grafico non espone risposte di altri utenti e non scrive nuove informazioni", () => {
+test("il grafico e privato, locale e richiede consenso verificato", () => {
   assert.match(component, /calculatePoliticalCompass\(answers\)/);
-  assert.match(component, /setVisible/);
   assert.doesNotMatch(component, /fetch\s*\(|apiRequest\s*\(|localStorage|sessionStorage|indexedDB|postMessage/);
-  assert.match(profile, /isViewingOwnProfile[\s\S]*?<PoliticalCompassPreview answers=\{userOpinions\}/);
-  assert.match(profile, /!consentGranted/);
+  assert.match(compassPage, /useProfileData\(undefined, \{ \.\.\.CLOSED_PROFILE_PANELS, opinions: true \}\)/);
+  assert.match(compassPage, /!consentChecked/);
+  assert.match(compassPage, /!consentGranted/);
+  assert.match(compassPage, /<PoliticalCompassPreview answers=\{userOpinions\} standalone/);
+  assert.match(compassPage, /overflow-y-auto/);
   assert.match(component, /non un test scientificamente validato/);
+});
+
+test("il pulsante e in fondo al Profilo personale e apre una route protetta", () => {
+  assert.match(profile, /isViewingOwnProfile && !isEditing && displayUserInfo/);
+  assert.match(profile, /href="\/compasso-politico"/);
+  assert.match(profile, /data-testid="profilo-compasso-politico-link"/);
+  assert.ok(profile.indexOf('href="/compasso-politico"') > profile.indexOf('<ProfileOpinions '));
+  assert.doesNotMatch(profile, /<PoliticalCompassPreview/);
+  assert.match(app, /import CompassoPolitico from "\.\/pages\/CompassoPolitico"/);
+  assert.match(app, /<Route path="\/compasso-politico">\s*<ProtectedRoute path="\/compasso-politico" component=\{CompassoPolitico\}/);
+  assert.match(compassPage, /href="\/profilo"/);
 });
 
 test("indecisione e scarsita di risposte non diventano coordinate", () => {
