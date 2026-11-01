@@ -126,7 +126,9 @@ test('rollback does not erase preferences, tokens or already handled outbox rows
   const source = read('api/services/civicPushRollback.js');
   assert.match(source, /WHERE status = 'pending'/);
   assert.doesNotMatch(source, /DELETE FROM|TRUNCATE|FROM user_devices|UPDATE notifiche_preferenze/);
-  assert.match(source, /pg_advisory_xact_lock/);
+  assert.match(source, /lockCivicPushDuringAccountErasure\(db\)/);
+  const guard = read('api/services/civicPushDeliveryGuard.js');
+  assert.match(guard, /pg_advisory_xact_lock/);
   const dispatcher = read('api/services/civicNewInitiativePushDispatcher.js');
   assert.match(dispatcher, /readCivicDeliveryBarrier/);
   assert.match(dispatcher, /if \(safety\.blocked\)/);
