@@ -26,7 +26,8 @@ async function waitForLocal(url, timeoutMs = 45000) {
 
 test('real Chromium DOM: four official Opinions pages + verified save through candidate HTTP routes', {
   skip: !browserModule,
-  timeout: 120000
+  // Full catalog grows by opt-in; 63 browser cases can exceed the previous 120s suite cap.
+  timeout: 180000
 }, async () => {
   // An isolated process and loopback Vite proxy are mandatory: no real DB URL,
   // real credentials, Render services or production traffic are involved.
