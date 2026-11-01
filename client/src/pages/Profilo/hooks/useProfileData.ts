@@ -315,6 +315,7 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     chosenVotesLoading: politicalAllowed && preferences.isPending,
     chosenVotesError: politicalAllowed && preferences.isError,
     userOpinions: storedOpinions,
+    opinionsError: politicalAllowed && panels.opinions && opinions.isError,
     opinionQuestions: politicalAllowed && panels.opinions ? (opinions.data?.questions || []) : [],
     avatarConfig: avatarFrom(userInfo),
     governoIdeale: politicalAllowed && panels.government ? (government.data || {}) : {},
