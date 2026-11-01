@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these eighty-four canonical IDs opt in; the other 10 use the original
+ * Only these eighty-seven canonical IDs opt in; the other 7 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -4167,6 +4167,97 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "Normattiva · Codice Terzo settore", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.articolo.numero=0&atto.codiceRedazionale=17G00128&atto.dataPubblicazioneGazzetta=2017-08-02" },
       { label: "Ministero Economia · Art. 71", url: "https://def.giustiziatributaria.gov.it/DocTribFrontend/executePrintArticolo.do?codiceOrdinamento=0000000000000710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&id=%7BBC0BCAA0-F745-407D-A2B6-0C3EC1E48102%7D&idAttoNormativo=%7B11E8A11F-F215-4B21-9EAA-60707A2C6864%7D" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  metabo_law: {
+    intro: "Valutare un sistema di controlli periodici per prevenire sindrome metabolica e malattie croniche, prendendo come riferimento le visite preventive del Giappone. Il sistema giapponese non criminalizza le persone in sovrappeso.",
+    facts: [
+      { value: "40–74", label: "Fascia d'età dei controlli sanitari specifici giapponesi" },
+      { value: "1/anno", label: "Frequenza proposta dagli enti sanitari giapponesi" },
+      { value: "2008", label: "Avvio del sistema di controlli specifici in Giappone" },
+      { value: "2024–29", label: "Quarto periodo di programmazione dei controlli e delle indicazioni" },
+    ],
+    comparison: [
+      { label: "Modello giapponese", title: "Controlli offerti dagli assicuratori", text: "Visite e supporto preventivo per gli assicurati tra 40 e 74 anni, con indicatori tra cui circonferenza vita, pressione e profilo metabolico." },
+      { label: "Proposta per l'Italia", title: "Percorsi di prevenzione rafforzati", text: "Introdurre o potenziare monitoraggi periodici e assistenza, con criteri per consenso, protezione dei dati sanitari ed equità." },
+    ],
+    measuredResultsTitle: "Regole e target: non sanzioni individuali",
+    measuredResults: [
+      { place: "Giappone", topic: "Età della popolazione destinataria", value: "40–74 anni", period: "Ministero Salute Giappone, programma vigente", meaning: "Fascia target dei controlli; NON tutti i cittadini senza eccezioni né minori.", sourceUrl: "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000161103.html" },
+      { place: "Giappone", topic: "Cadenza indicata dei controlli specifici", value: "Annuale", period: "Programma nazionale", meaning: "Raccomandazione attuativa per assicuratori; NON una multa automatica al paziente che non raggiunge un girovita prefissato.", sourceUrl: "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000161103.html" },
+      { place: "Giappone", topic: "Avvio delle prime regole attuative", value: "2008", period: "Prima fase 2008–2012", meaning: "Data di avvio del programma, non riduzione documentata di diabete.", sourceUrl: "https://kennet.mhlw.go.jp/information/information/policy/metabolic" },
+      { place: "Giappone", topic: "Quarta fase del programma", value: "2024–2029", period: "Piano di controllo/consulenza", meaning: "Periodo di programmazione; NON prevalenza di sindrome metabolica.", sourceUrl: "https://kennet.mhlw.go.jp/information/information/policy/metabolic" },
+    ],
+    evidenceCaveat: "La cosiddetta Metabo Law è un sistema di check-up e consulenza sanitaria per assicurati; gli obblighi organizzativi riguardano gli assicuratori. I dati non dimostrano che una singola misura del girovita definisca lo stato di salute. Qualsiasi proposta italiana richiede valutazioni su consenso, riservatezza e possibili discriminazioni.",
+    advantage: "Può rendere più tempestiva l'identificazione di fattori di rischio modificabili e l'accesso al supporto sanitario.",
+    concern: "Controlli mal progettati possono stigmatizzare il peso corporeo, avere falsi positivi e trattare dati medici sensibili.",
+    note: "Non presentare la disciplina come tassa o multa individuale per essere sovrappeso.",
+    sources: [
+      { label: "Ministero Salute Giappone · Check-up", url: "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000161103.html" },
+      { label: "Ministero Salute Giappone · Programma e fasi", url: "https://kennet.mhlw.go.jp/information/information/policy/metabolic" },
+      { label: "Giappone e-Gov · Decreto controlli sanitari", url: "https://laws.e-gov.go.jp/law/419M60000100157" },
+    ],
+    verified: "01/11/2026",
+  },
+  premierato: {
+    intro: "Introdurre l'elezione diretta del Presidente del Consiglio attraverso una modifica costituzionale. Non equivale all'elezione diretta del Presidente della Repubblica.",
+    facts: [
+      { value: "S. 935", label: "Disegno di legge costituzionale al Senato" },
+      { value: "18/06/2024", label: "Prima approvazione al Senato" },
+      { value: "C. 1921", label: "Numero dell'atto trasmesso alla Camera" },
+      { value: "4", label: "Articoli della Costituzione richiamati nel testo iniziale" },
+    ],
+    comparison: [
+      { label: "Assetto costituzionale vigente", title: "Nomina e fiducia parlamentare", text: "Il Presidente della Repubblica nomina il Presidente del Consiglio; il Governo deve ottenere la fiducia delle Camere." },
+      { label: "Riforma proposta", title: "Elezione diretta del Presidente del Consiglio", text: "Il disegno di legge rivede il rapporto tra elettori, Governo e Parlamento, ma non è in vigore finché non termina l'iter costituzionale." },
+    ],
+    measuredResultsTitle: "Iter parlamentare, non applicazione",
+    measuredResults: [
+      { place: "Senato", topic: "Atto costituzionale", value: "S. 935", period: "Presentato il 15 novembre 2023", meaning: "Identificativo del disegno di legge, NON legge costituzionale vigente.", sourceUrl: "https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=57694" },
+      { place: "Senato", topic: "Prima deliberazione approvata", value: "18/06/2024", period: "Prima lettura Senato", meaning: "L'approvazione in una Camera NON conclude la procedura di revisione costituzionale.", sourceUrl: "https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=57694" },
+      { place: "Camera", topic: "Testo trasmesso alla Camera", value: "C. 1921", period: "In esame in commissione nella scheda parlamentare consultata", meaning: "Identificativo Camera, NON secondo voto finale approvato.", sourceUrl: "https://www.camera.it/leg19/126?idDocumento=1921&leg=19" },
+      { place: "Senato", topic: "Articoli richiamati nella versione originaria", value: "59, 88, 92, 94", period: "Titolo del testo originario", meaning: "Sono articoli della Costituzione, NON numero di parlamentari o elezioni già avvenute.", sourceUrl: "https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=57694" },
+    ],
+    evidenceCaveat: "Il Senato ha approvato in prima deliberazione il 18 giugno 2024; l'atto C.1921 risultava ancora in commissione nelle schede parlamentari consultate il 1 novembre 2026. Il testo definitivo potrebbe cambiare: non attribuire alla proposta effetti reali sulla stabilità prima dell'entrata in vigore e non confondere elezione diretta del premier con elezione presidenziale.",
+    advantage: "Può accrescere la visibilità del mandato elettorale e la prevedibilità delle coalizioni.",
+    concern: "Può accentuare la personalizzazione del potere e complicare i rapporti tra Parlamento e Governo.",
+    note: "Iter costituzionale ancora aperto: NON riforma già applicata.",
+    sources: [
+      { label: "Senato · S. 935", url: "https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=57694" },
+      { label: "Camera · C.1921", url: "https://www.camera.it/leg19/126?idDocumento=1921&leg=19" },
+    ],
+    verified: "01/11/2026",
+  },
+  nuovo_stadio_comunale: {
+    intro: "Costruire un nuovo stadio con risorse o iniziativa comunale, eventualmente insieme a soggetti privati, valutando alternative di ammodernamento e riuso.",
+    facts: [
+      { value: "38/2021", label: "Decreto legislativo sugli impianti sportivi" },
+      { value: "03/04/2021", label: "Entrata in vigore originaria del decreto" },
+      { value: "2025", label: "Edizione del bando Sport e Periferie" },
+      { value: "≈70 mln €", label: "Ulteriore finanziamento nazionale per interventi sportivi 2025" },
+    ],
+    comparison: [
+      { label: "Nuova infrastruttura", title: "Nuovo stadio", text: "Richiede costi di costruzione, aree accessibili, gestione continuativa e soluzioni di mobilità." },
+      { label: "Alternativa", title: "Ristrutturare l'impianto esistente", text: "Può ridurre consumo di suolo ma resta subordinata a condizioni tecniche, sicurezza e costi comparativi." },
+    ],
+    measuredResultsTitle: "Quadro normativo e finanziamenti distinti",
+    measuredResults: [
+      { place: "Italia", topic: "Normativa su sicurezza e realizzazione degli impianti", value: "D.lgs. 38/2021", period: "Testo aggiornato nel 2026", meaning: "Regole per la costruzione e gestione; NON autorizzazione automatica di uno stadio specifico.", sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=21G00045&atto.dataPubblicazioneGazzetta=2021-03-19" },
+      { place: "Italia", topic: "Entrata in vigore originaria", value: "03/04/2021", period: "Normativa 2021", meaning: "Data della disciplina generale; NON avvio di lavori comunali.", sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=21G00045&atto.dataPubblicazioneGazzetta=2021-03-19" },
+      { place: "Italia", topic: "Avviso pubblico per impiantistica sportiva", value: "2025", period: "Bando Sport e Periferie 2025", meaning: "Bando nazionale per infrastrutture sportive; NON esclusivamente nuovi stadi.", sourceUrl: "https://www.sport.governo.it/it/bandi-e-avvisi/sport-e-periferie/2025/" },
+      { place: "Italia", topic: "Risorse aggiuntive da scorrimento", value: "≈70 mln €", period: "Sport e Periferie 2025, aggiornamento successivo", meaning: "Fondi annunciati per ulteriori interventi sportivi; NON costo di un nuovo stadio e NON spesa comunale liquidata.", sourceUrl: "https://www.sport.governo.it/it/bandi-e-avvisi/sport-e-periferie/2025/sport-e-periferie-2025-scorrimento-dei-progetti-ammessi-al-contributo/" },
+    ],
+    evidenceCaveat: "Il bando Sport e Periferie comprende riqualificazione e potenziamento di impianti di diversa natura: gli importi non sono stanziamenti per un unico stadio. La scelta nuova costruzione/riuso necessita di studio ambientale, economico, urbanistico e di accessibilità, oltre a una distinzione tra fondi assegnati, spese e gestione futura.",
+    advantage: "Può migliorare sicurezza, accessibilità e utilizzo dello sport come servizio collettivo.",
+    concern: "Può comportare costi pubblici elevati, consumo di suolo e benefici concentrati sugli utilizzatori dell'impianto.",
+    note: "Un contributo nazionale ammesso non dimostra che un Comune abbia costruito o aperto uno stadio.",
+    sources: [
+      { label: "Normattiva · D.lgs. 38/2021", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=21G00045&atto.dataPubblicazioneGazzetta=2021-03-19" },
+      { label: "Dipartimento Sport · Sport e Periferie 2025", url: "https://www.sport.governo.it/it/bandi-e-avvisi/sport-e-periferie/2025/" },
+      { label: "Dipartimento Sport · Scorrimenti", url: "https://www.sport.governo.it/it/bandi-e-avvisi/sport-e-periferie/2025/sport-e-periferie-2025-scorrimento-dei-progetti-ammessi-al-contributo/" },
     ],
     verified: "01/11/2026",
   },
