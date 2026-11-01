@@ -1,9 +1,10 @@
-name: DB Runtime Role Attestation — offline contracts
+name: DB Runtime Role Attestation — offline and sandbox
 on:
   pull_request:
     paths:
       - 'api/scripts/attest-db-writer-role.js'
       - 'api/tests/dbWriterRoleAttestation.test.js'
+      - 'api/tests/dbWriterRoleAttestation.postgres.test.js'
       - '.github/workflows/db-runtime-role-attestation.yml'
   workflow_dispatch:
 permissions:
@@ -19,3 +20,36 @@ jobs:
           node-version: '22'
       - name: Fail-closed role contracts (no database, credentials or writes)
         run: node --test api/tests/dbWriterRoleAttestation.test.js
+
+  disposable-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture-only-ci-password
+          POSTGRES_DB: demos_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d demos_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      GITHUB_ACTIONS: "true"
+      CI_EPHEMERAL_PG: "YES_THIS_IS_CI_ONLY"
+      PGTEST_URL: "postgresql://postgres:fixture-only-ci-password@127.0.0.1:5432/demos_ci"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install locked API dependencies
+        run: npm ci --prefix api --no-audit --no-fund
+      - name: Verify actual RLS isolation with three fake users
+        run: node --test api/tests/dbWriterRoleAttestation.postgres.test.js
