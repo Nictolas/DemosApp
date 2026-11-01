@@ -346,6 +346,38 @@ class MigrationContract(unittest.TestCase):
         """), [(0,)])
         self.assertEqual(self.query(collector_sql), [])
 
+    def test_blocked_recovery_hold_suppresses_new_civic_events(self):
+        self.apply_migration()
+        sql = re.search(
+            r"const result = await pool\.query\(`([\s\S]*?)`\);",
+            COLLECTOR.read_text(encoding="utf8"),
+        ).group(1)
+        self.query("""
+            INSERT INTO iniziative_ministero (id_ministero,titolo,tipo,stato,data_fine)
+            VALUES ('333','Nuova durante guard','Iniziativa popolare',
+                    'in_corso',CURRENT_DATE + 30)
+        """)
+        self.assertEqual(len(self.query(sql)), 1)
+        self.assertEqual(self.query("""
+            SELECT status FROM civic_new_initiative_notifications
+            WHERE official_id='333'
+        """), [('suppressed',)])
+
+        self.query("""
+            UPDATE civic_push_delivery_guard
+            SET blocked=TRUE, reason_code='RECOVERY_HOLD' WHERE id=1
+        """)
+        self.query("""
+            INSERT INTO iniziative_ministero (id_ministero,titolo,tipo,stato,data_fine)
+            VALUES ('444','Referendum in recovery','Referendum abrogativo',
+                    'in_corso',CURRENT_DATE + 30)
+        """)
+        self.assertEqual(len(self.query(sql)), 1)
+        self.assertEqual(self.query("""
+            SELECT status FROM civic_new_initiative_notifications
+            WHERE official_id='444'
+        """), [('suppressed',)])
+
     def test_global_guard_serializes_erasure_with_in_flight_dispatch(self):
         self.apply_migration()
         first = psycopg2.connect(os.environ["CIVIC_TEST_DATABASE_URL"])
