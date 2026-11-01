@@ -4,6 +4,7 @@ on:
     paths:
       - 'api/middleware/security.js'
       - 'api/tests/securityLogMinimization.synthetic.test.js'
+      - 'api/tests/securityRequestOrder.synthetic.test.js'
       - '.github/workflows/security-log-minimization.yml'
 permissions:
   contents: read
@@ -17,5 +18,5 @@ jobs:
           node-version: '20'
       - run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: api
-      - run: node --test tests/securityLogMinimization.synthetic.test.js tests/securityProductionHardening.test.js
+      - run: node --test tests/securityLogMinimization.synthetic.test.js tests/securityProductionHardening.test.js tests/securityRequestOrder.synthetic.test.js
         working-directory: api
