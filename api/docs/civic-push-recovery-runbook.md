@@ -121,6 +121,36 @@
   La futura preparazione staging richiede autorizzazione distinta e
   dataset esclusivamente sintetici.
 
+## Gate obbligatorio: connessione PostgreSQL con affinità di sessione
+
+Il dispatcher e il riallineamento FCM usano `pg_advisory_lock` / `pg_advisory_unlock`
+per impedire invii dopo la revoca o durante l'eliminazione degli account.
+Il pooler **Supavisor/PgBouncer in modalità transazionale** non garantisce che
+due query dello stesso client arrivino alla stessa sessione PostgreSQL.
+
+- **NON** abilitare i push su una `DATABASE_URL` Supabase con porta
+  **6543** (transaction pooling), neppure configurando manualmente il flag.
+  `?pgbouncer=true` è anch'esso rifiutato dal codice.
+- Utilizzare soltanto una connessione **direct** o Supavisor **session mode**
+  (per Supabase porta **5432**) confermata da un operatore autorizzato.
+  Non basta cambiare `6543` in `5432` nel testo della variabile:
+  verificare nel pannello DB che l'endpoint sia quello corretto.
+- Dopo verifica reale del collegamento, e **soltanto** con il consenso
+  al rollout/staging, il backend può ricevere
+  `CIVIC_SESSION_LOCK_CONNECTION_VERIFIED=true`. Il flag **non bypassa**
+  il rifiuto della porta 6543. Senza flag tutti gli invii/modifiche topic
+  che richiedono il lock di sessione falliscono chiusi.
+- Se l'app deve conservare il pooler transazionale per le altre query,
+  progettare e testare un **pool session-only dedicato** alle operazioni
+  di sincronizzazione prima di qualsiasi abilitazione. La PR corrente
+  non cambia il pool condiviso, i segreti o Render.
+- Verificare su staging l'acquisizione/rilascio del lock sulla medesima
+  connessione in modo sicuro, e la concorrenza con revoca, cancellazione
+  e bootstrap. Non usare account o token reali e non inviare FCM.
+- La documentazione ufficiale Supabase distingue il pooler condiviso
+  sessione porta 5432 da quello transazionale porta 6543, che non supporta
+  i lock legati alla sessione.
+
 ## Limiti dichiarati
 
 Un messaggio già accettato da FCM non può essere richiamato. Il TTL di un'ora
