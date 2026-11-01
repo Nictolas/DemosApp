@@ -194,7 +194,7 @@ class MigrationContract(unittest.TestCase):
         route = (ROOT / "api/routes/notifiche.js").read_text(encoding="utf8")
         post = route.split("// POST /api/notifiche/preferenze", 1)[1]
         match = re.search(
-            r"const result = await pool\.query\(\s*`(INSERT INTO notifiche_preferenze[\s\S]*?)`,\s*\[user_id",
+            r"const result = await (?:pool|db)\.query\(\s*`(INSERT INTO notifiche_preferenze[\s\S]*?)`,\s*\[user_id",
             post,
         )
         self.assertIsNotNone(match, "Preference UPSERT SQL not found")
