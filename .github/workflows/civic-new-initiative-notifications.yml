@@ -19,6 +19,9 @@ on:
       - 'api/services/civicPushDeliveryGuard.js'
       - 'api/services/civicSessionLockSafety.js'
       - 'api/tests/civicSessionLockSafety.test.js'
+      - 'api/services/civicSessionAffinityProbe.js'
+      - 'api/scripts/checkCivicSessionAffinity.js'
+      - 'api/tests/civicSessionAffinityProbe.test.js'
       - 'api/services/civicNewInitiativePushDispatcher.js'
       - 'api/routes/civicPushDispatch.js'
       - 'api/routes/fcm-tokens.js'
@@ -75,6 +78,8 @@ jobs:
           node --check api/scripts/reconcileCivicPushTopics.js
           node --check api/services/civicPushDeliveryGuard.js
           node --check api/services/civicSessionLockSafety.js
+          node --check api/services/civicSessionAffinityProbe.js
+          node --check api/scripts/checkCivicSessionAffinity.js
           node --check api/routes/user/delete-account.js
           node --check api/services/civicNewInitiativePushDispatcher.js
           node --check api/routes/civicPushDispatch.js
@@ -83,7 +88,7 @@ jobs:
           node --check api/services/ministeroSync.js
           node --check api/services/ministeroPaginationSafety.js
           node --check api/routes/notifiche.js
-          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js
+          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js
       - name: Python ECI source tests (no real API, DB or push)
         run: |
           python -m pip install requests
