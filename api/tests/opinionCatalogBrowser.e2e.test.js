@@ -319,6 +319,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Gare concessioni balneari', '30/9/2027'],
       ['/opinioni-regionali', 'Cassonetti intelligenti con tessera', '8.728'],
       ['/opinioni-comunali', 'Rilascio di Palloncini', '2019/904'],
+      ['/opinioni-europee', 'Esercito Comune Europeo', '7,95 mld €'],
+      ['/opinioni-comunali', 'Finanziamento eventi culturali gratuiti', '1.268 eventi'],
+      ['/opinioni-comunali', 'Pedonalizzazione del centro storico', '886.032 m²'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1323,6 +1326,55 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'EU bans balloon sticks, not automatically all balloons or releases');
           assert.ok((await brief.innerText()).includes('NON introducono un divieto generalizzato di rilascio'),
             '2026 guidance is not a blanket municipal ban');
+        }
+      } else if (['Esercito Comune Europeo', 'Finanziamento eventi culturali gratuiti', 'Pedonalizzazione del centro storico'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        const all = await brief.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four facts with explicit meanings');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': every fact has a source link');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': funding and area totals do not prove causality');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no invented geographic status for a policy scenario');
+        const positions = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(positions.every(Number.isFinite) && positions[0] < positions[1] && positions[1] < positions[2],
+          title + ': summary, alternatives, then sourced data');
+        if (title === 'Esercito Comune Europeo') {
+          for (const fact of ['26 Stati', '75 progetti', '7,95 mld €', '150 mld €'])
+            assert.ok(data.includes(fact), 'EU defence instrument fact ' + fact);
+          assert.ok(data.includes('NON eserciti fusi') &&
+            data.includes('NON 75 brigate europee') &&
+            data.includes('Massimale di PRESTITI'),
+            'PESCO, EDF and SAFE must not be presented as one European army');
+          assert.ok(all.includes('Non sommare i due strumenti'),
+            'SAFE loans cannot simply be added to EDF research grants as new-army funding');
+        }
+        if (title === 'Finanziamento eventi culturali gratuiti') {
+          for (const fact of ['quasi 1,9 mln €', '800.000 €', '1.268 eventi', '162 soggetti'])
+            assert.ok(data.includes(fact), 'Florence 2026 programme announcement ' + fact);
+          assert.ok(data.includes('NON spesa consuntiva') &&
+            data.includes('NON ulteriore importo') &&
+            data.includes('NON 1.268 eventi certamente gratuiti'),
+            'Programme figures cannot imply realized expenditure or universally free entry');
+          assert.ok(all.includes('INCLUSI nel finanziamento complessivo'),
+            'PN Metro funding is included in overall budget, not additional');
+        }
+        if (title === 'Pedonalizzazione del centro storico') {
+          for (const fact of ['oltre 20.000 m²', '886.032 m²', '+11,2%', '7 piazze'])
+            assert.ok(data.includes(fact), 'Milan citywide pedestrian-area observation ' + fact);
+          assert.ok(data.includes('NON solo nel centro storico') &&
+            data.includes('NON 886.032 metri quadrati di interventi aggiuntivi') &&
+            data.includes('NON riduzione rilevata degli incidenti'),
+            'Citywide totals and before/after area figures must be correctly scoped');
+          assert.ok(all.includes("all'INTERA CITTÀ") &&
+            all.includes('già contenuti negli 886.032 m²'),
+            'Historic-centre proposal must not be supported by mislabelled citywide totals');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,

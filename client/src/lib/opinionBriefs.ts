@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these sixty-six canonical IDs opt in; the other 28 use the original
+ * Only these sixty-nine canonical IDs opt in; the other 25 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -3336,6 +3336,166 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Commissione UE · Direttiva plastica monouso, categorie e restrizioni", url: "https://environment.ec.europa.eu/topics/plastics/single-use-plastics_en" },
       { label: "EUR-Lex · Direttiva 2019/904, articoli 5, 8 e 17", url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32019L0904" },
       { label: "Commissione UE · Linee guida C/2026/4813, 8 settembre 2026", url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=OJ:C_202604813" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  esercito_europeo: {
+    intro: "Un esercito comune europeo richiederebbe decisioni condivise su comando, impiego delle forze, controllo democratico e bilancio. L'UE ha già programmi di cooperazione militare e industriale, ma PESCO, Fondo europeo per la difesa e prestiti SAFE NON costituiscono un esercito unico sotto comando europeo.",
+    facts: [],
+    comparison: [
+      { label: "🇪🇺 Assetto esistente", title: "Cooperazione fra eserciti nazionali", text: "Gli Stati partecipano a PESCO e sviluppano capacità comuni, tecnologie e acquisti. Le loro forze armate restano sotto autorità nazionali secondo le competenze previste dai Trattati." },
+      { label: "Possibile integrazione", title: "Forze militari europee con comando condiviso", text: "Un vero esercito comune richiederebbe regole su reclutamento, catena di comando, impiego, finanziamento e responsabilità politica: non nasce automaticamente aumentando fondi e progetti di collaborazione." },
+    ],
+    measuredResultsTitle: "🇪🇺 Difesa europea · strumenti esistenti, non un esercito unico",
+    measuredResults: [
+      {
+        place: "🇪🇺 Consiglio dell'Unione europea · PESCO",
+        topic: "Stati UE che partecipano alla cooperazione strutturata",
+        value: "26 Stati",
+        period: "Dal maggio 2023, con l'adesione della Danimarca",
+        meaning: "Numero di Stati partecipanti alla cooperazione PESCO, NON eserciti fusi o unità militari poste sotto un comandante unico europeo.",
+        sourceUrl: "https://www.consilium.europa.eu/en/policies/pesco/",
+      },
+      {
+        place: "🇪🇺 Consiglio dell'Unione europea · PESCO",
+        topic: "Progetti di cooperazione militare fra Stati",
+        value: "75 progetti",
+        period: "Sesta ondata approvata il 27 maggio 2025",
+        meaning: "Progetti collaborativi di formazione, capacità, cyber e mobilità: NON 75 brigate europee né missioni operative.",
+        sourceUrl: "https://www.consilium.europa.eu/en/press/press-releases/2025/05/27/eu-defence-readiness-council-launches-6th-wave-of-new-pesco-projects/",
+      },
+      {
+        place: "🇪🇺 Commissione europea · Fondo europeo per la difesa",
+        topic: "Dotazione per ricerca e sviluppo collaborativi",
+        value: "7,95 mld €",
+        period: "Bilancio complessivo 2021–2027, prezzi correnti",
+        meaning: "Programma pluriennale di ricerca e sviluppo della difesa, NON spesa annuale per mantenere un esercito europeo.",
+        sourceUrl: "https://commission.europa.eu/funding-and-tenders/find-funding/eu-funding-programmes/european-defence-fund_en",
+      },
+      {
+        place: "🇪🇺 Consiglio UE · strumento SAFE",
+        topic: "Capacità massima di prestiti per acquisti comuni",
+        value: "150 mld €",
+        period: "Regolamento entrato in vigore il 29 maggio 2025",
+        meaning: "Massimale di PRESTITI agli Stati per appalti comuni, NON sovvenzioni del Fondo europeo per la difesa e NON spesa già effettuata.",
+        sourceUrl: "https://www.consilium.europa.eu/it/policies/safe/",
+      },
+    ],
+    evidenceCaveat: "I 26 Stati e i 75 progetti sono riferiti a PESCO, non a un comando unico o a soldati arruolati dall'UE. I 7,95 miliardi del Fondo europeo per la difesa sono un bilancio PLURIENNALE 2021–2027 per ricerca e sviluppo collaborativi. I 150 miliardi di SAFE rappresentano un massimo di PRESTITI per acquisti congiunti, non sovvenzioni a fondo perduto o fondi già spesi. Non sommare i due strumenti come se finanziassero una nuova forza armata. Non si può dedurre da questi dati un risparmio o una maggiore efficacia militare causata dall'istituzione di un esercito unico.",
+    advantage: "Un'integrazione maggiore potrebbe coordinare gli investimenti, ridurre duplicazioni e rendere più interoperabili capacità militari, se sostenuta da istituzioni democratiche adeguate.",
+    concern: "Restano questioni difficili su sovranità nazionale, chi decide l'uso della forza, controllo parlamentare, costi di transizione e compatibilità con alleanze e neutralità di alcuni Stati.",
+    note: "PESCO è cooperazione tra Stati, EDF sostiene ricerca e sviluppo, SAFE finanzia tramite prestiti gli acquisti comuni. Nessuno di questi tre strumenti istituisce di per sé un esercito federale.",
+    sources: [
+      { label: "Consiglio UE · PESCO, partecipanti e progetti", url: "https://www.consilium.europa.eu/en/policies/pesco/" },
+      { label: "Consiglio UE · 75 progetti al maggio 2025", url: "https://www.consilium.europa.eu/en/press/press-releases/2025/05/27/eu-defence-readiness-council-launches-6th-wave-of-new-pesco-projects/" },
+      { label: "Commissione UE · European Defence Fund 2021–2027", url: "https://commission.europa.eu/funding-and-tenders/find-funding/eu-funding-programmes/european-defence-fund_en" },
+      { label: "Consiglio UE · SAFE, prestiti fino a 150 miliardi", url: "https://www.consilium.europa.eu/it/policies/safe/" },
+    ],
+    verified: "01/11/2026",
+  },
+  finanziamento_eventi_culturali_gratuiti: {
+    intro: "Finanziare concerti, cinema, festival e iniziative culturali senza biglietto mediante bandi e risorse pubbliche. L'Estate Fiorentina 2026 comprende una sezione dedicata a eventi diffusi con ingresso gratuito, ma il numero complessivo degli appuntamenti della rassegna NON rappresenta soltanto eventi gratuiti.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Firenze · Estate Fiorentina", title: "Programma diffuso con contributi pubblici", text: "Il Comune finanzia e coordina progetti culturali tra giugno e settembre, inclusi eventi gratuiti selezionati con avvisi pubblici. La rassegna completa include anche altri format e non permette di inferire gratuitamente l'accesso a tutti gli appuntamenti." },
+      { label: "Scelta comunale", title: "Più eventi gratuiti con monitoraggio dei costi", text: "Ampliare la sezione a ingresso libero con criteri trasparenti, accessibilità, condizioni per artisti e organizzatori e verifica di pubblico effettivo e costi per partecipante." },
+    ],
+    measuredResultsTitle: "🇮🇹 Firenze · programma Estate Fiorentina 2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 Comune di Firenze · Estate Fiorentina",
+        topic: "Investimento pubblico annunciato per la rassegna",
+        value: "quasi 1,9 mln €",
+        period: "Programma culturale giugno–settembre 2026",
+        meaning: "Importo complessivo annunciato dal Comune, NON spesa consuntiva e NON stanziamento destinato esclusivamente a eventi gratuiti.",
+        sourceUrl: "https://cultura.comune.firenze.it/dalle-redazioni/estate-fiorentina-2026",
+      },
+      {
+        place: "🇮🇹 Comune di Firenze · PN Metro Plus",
+        topic: "Quota del finanziamento della rassegna da fondi PN Metro Plus",
+        value: "800.000 €",
+        period: "Risorse PN Metro Plus 2021–2027 annunciate per Estate Fiorentina 2026",
+        meaning: "Parte dei quasi 1,9 milioni complessivi, NON ulteriore importo da sommare al totale.",
+        sourceUrl: "https://cultura.comune.firenze.it/dalle-redazioni/estate-fiorentina-2026",
+      },
+      {
+        place: "🇮🇹 Comune di Firenze · calendario 2026",
+        topic: "Appuntamenti della rassegna annunciati",
+        value: "1.268 eventi",
+        period: "Programma presentato il 26 maggio 2026",
+        meaning: "Eventi previsti in tutta la rassegna, NON 1.268 eventi certamente gratuiti e NON presenze effettive di pubblico.",
+        sourceUrl: "https://cultura.comune.firenze.it/dalle-redazioni/estate-fiorentina-2026",
+      },
+      {
+        place: "🇮🇹 Comune di Firenze · organizzazione culturale",
+        topic: "Soggetti organizzatori indicati nel programma",
+        value: "162 soggetti",
+        period: "Programmazione Estate Fiorentina 2026",
+        meaning: "Organizzatori nel programma, NON 162 enti tutti destinatari di contributo, né visitatori o artisti coinvolti.",
+        sourceUrl: "https://cultura.comune.firenze.it/dalle-redazioni/estate-fiorentina-2026",
+      },
+    ],
+    evidenceCaveat: "La rassegna nel suo complesso prevede 1.268 eventi curati da 162 soggetti, ma NON tutti gli eventi sono necessariamente gratuiti: l'avviso comunale distingue specificamente una sezione per eventi diffusi a ingresso gratuito. Gli 800.000 euro PN Metro Plus sono INCLUSI nel finanziamento complessivo annunciato di quasi 1,9 milioni. I valori sono programmazione comunicata nel maggio 2026, non rendicontazione finale, numero di partecipanti, accessibilità realmente verificata o benefici economici attribuibili al finanziamento.",
+    advantage: "Può ampliare l'accesso alla cultura, raggiungere quartieri e persone con minore disponibilità economica e sostenere iniziative locali.",
+    concern: "Richiede selezione equa, bilanci e rendiconti trasparenti, attenzione alle condizioni degli operatori e verifica delle effettive presenze per evitare spese poco utili.",
+    note: "Un evento senza biglietto non è senza costo: il costo è coperto da organizzatori, contributi pubblici o altre risorse. Non confondere il calendario annunciato con il consuntivo.",
+    sources: [
+      { label: "Comune Firenze · Estate Fiorentina 2026, finanziamento e calendario", url: "https://cultura.comune.firenze.it/dalle-redazioni/estate-fiorentina-2026" },
+      { label: "Comune Firenze · Contributi e avviso Estate Fiorentina 2026", url: "https://amministrazionetrasparente.comune.firenze.it/pagina/amministrazione-trasparente/sovvenzioni-contributi-sussidi-e-vantaggi-economici" },
+    ],
+    verified: "01/11/2026",
+  },
+  pedonalizzazione_centro_storico: {
+    intro: "Estendere le strade e le piazze riservate ai pedoni nei centri storici, prevedendo accessi per residenti, carico e scarico, disabilità ed emergenze. Milano offre dati sugli interventi cittadini, ma i suoi totali comprendono aree di tutta la città e NON misurano soltanto la pedonalizzazione del centro storico.",
+    facts: [],
+    comparison: [
+      { label: "Assetto esistente", title: "Aree pedonali e traffico regolato", text: "Zone pedonali, ZTL e zone a velocità ridotta sono strumenti differenti; una ZTL consente alcuni veicoli, mentre la zona pedonale limita più radicalmente il traffico secondo i cartelli e le deroghe." },
+      { label: "Possibile intervento", title: "Più spazio pedonale nel centro storico", text: "Ampliare vie e piazze pedonali, coordinando consegne, trasporto pubblico, accessibilità e attività commerciali. Gli effetti su sicurezza, aria e vendite richiedono misure prima e dopo." },
+    ],
+    measuredResultsTitle: "🇮🇹 Milano · trasformazioni di spazi pedonali nel 2025",
+    measuredResults: [
+      {
+        place: "🇮🇹 Comune di Milano · aree pedonali cittadine",
+        topic: "Superficie diventata pedonale durante l'anno",
+        value: "oltre 20.000 m²",
+        period: "Nuove aree pedonali, anno 2025",
+        meaning: "Superficie aggiunta nel 2025 in varie parti della città, NON solo nel centro storico e NON totale di tutte le zone pedonali.",
+        sourceUrl: "https://www.comune.milano.it/w/mobilit%C3%A0.-milano-cambia-il-modo-di-muoversi-presentato-il-report-della-mobilit%C3%A0-2025",
+      },
+      {
+        place: "🇮🇹 Comune di Milano · rete pedonale",
+        topic: "Superficie totale delle aree pedonali",
+        value: "886.032 m²",
+        period: "Bilancio 2025 · intera città",
+        meaning: "Totale cittadino comprensivo delle aree esistenti e delle nuove: NON 886.032 metri quadrati di interventi aggiuntivi del 2025.",
+        sourceUrl: "https://www.comune.milano.it/w/mobilit%C3%A0.-milano-cambia-il-modo-di-muoversi-presentato-il-report-della-mobilit%C3%A0-2025",
+      },
+      {
+        place: "🇮🇹 Comune di Milano · variazione pluriennale",
+        topic: "Crescita delle aree pedonali nel quinquennio",
+        value: "+11,2%",
+        period: "2025 rispetto a cinque anni prima",
+        meaning: "Incremento percentuale della superficie di aree pedonali cittadine, NON riduzione rilevata degli incidenti o del traffico.",
+        sourceUrl: "https://www.comune.milano.it/w/mobilit%C3%A0.-milano-cambia-il-modo-di-muoversi-presentato-il-report-della-mobilit%C3%A0-2025",
+      },
+      {
+        place: "🇮🇹 Comune di Milano · Piazze Aperte",
+        topic: "Nuove Piazze Aperte realizzate",
+        value: "7 piazze",
+        period: "Anno 2025",
+        meaning: "Numero di interventi Piazze Aperte del 2025: NON sette nuovi centri storici pedonalizzati e NON prova che tutte le piazze siano pedonali permanenti.",
+        sourceUrl: "https://www.comune.milano.it/w/mobilit%C3%A0.-milano-cambia-il-modo-di-muoversi-presentato-il-report-della-mobilit%C3%A0-2025",
+      },
+    ],
+    evidenceCaveat: "I dati di Milano si riferiscono all'INTERA CITTÀ e non isolano il centro storico. Gli oltre 20.000 m² trasformati nel 2025 sono già contenuti negli 886.032 m² totali: non vanno sommati. L'aumento dell'11,2% riguarda la superficie pedonale in cinque anni e NON incidenti evitati o qualità dell'aria. Le sette Piazze Aperte del 2025 sono iniziative specifiche e non tutte equivalgono a nuove zone pedonali permanenti. Per valutare una pedonalizzazione del centro storico servono perimetro, date, accessi e dati locali prima/dopo.",
+    advantage: "Può migliorare fruibilità pedonale e accessibilità dello spazio pubblico e ridurre alcuni conflitti con i veicoli se correttamente progettata.",
+    concern: "Deve garantire consegne e accesso a persone con disabilità, residenti e mezzi di emergenza, evitando di spostare traffico e inquinamento nelle strade limitrofe.",
+    note: "Una zona 30, una ZTL, una piazza tattica e un'area pedonale permanente NON hanno lo stesso regime di circolazione.",
+    sources: [
+      { label: "Comune Milano · Report Mobilità 2025, aree pedonali e Piazze Aperte", url: "https://www.comune.milano.it/w/mobilit%C3%A0.-milano-cambia-il-modo-di-muoversi-presentato-il-report-della-mobilit%C3%A0-2025" },
+      { label: "Comune Milano · Milano Bene Comune, programma Piazze Aperte", url: "https://www2.comune.milano.it/-/forum-partecipazione.-presentato-milano-bene-comune-il-masterplan-che-ridisegna-lo-spazio-pubblico-a-misura-di-persona" },
     ],
     verified: "01/11/2026",
   },
