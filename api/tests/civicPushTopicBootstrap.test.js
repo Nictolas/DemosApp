@@ -4,6 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcileAllCivicTopics } = require('../services/civicPushTopicBootstrap');
 const { CIVIC_TOPIC_BY_CATEGORY } = require('../services/civicPushTopics');
+const TEST_DB_ID = '00000000-0000-4000-8000-000000000539';
+process.env.CIVIC_RUNTIME_DATABASE_ID = TEST_DB_ID;
 
 const items = [
   { id: '1', fcm_token: 'token-1', is_active: true, user_status: 'a',
@@ -27,6 +29,7 @@ function pool({ blocked = true, lockError = false } = {}) {
       }
       if (sql.includes('pg_advisory_unlock(')) return { rows: [{ unlocked: true }] };
       if (sql.includes('civic_push_delivery_guard')) return { rows: [{ blocked }] };
+      if (sql.includes('FROM civic_runtime_identity')) return { rows: [{ db_identity: TEST_DB_ID }] };
       if (!sql.includes('FROM user_devices d')) throw new Error('unexpected query');
       const [cursor, batchSize] = params;
       return { rows: items.filter(r => Number(r.id) > Number(cursor)).slice(0, batchSize) };
