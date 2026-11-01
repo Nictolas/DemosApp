@@ -34,7 +34,8 @@ function buildCivicPush(event) {
   const destination = DESTINATION_BY_CATEGORY[event.category];
   const topic = CIVIC_TOPIC_BY_CATEGORY[event.category];
   if (!destination || !topic) throw new Error('CIVIC_UNSUPPORTED_CATEGORY');
-  const publicUrl = 'https://www.demos.community' + destination.path;
+  const publicUrl = 'https://www.demos.community' + destination.path
+    + '?initiative=' + encodeURIComponent(String(event.official_id));
   return {
     topic,
     notification: {

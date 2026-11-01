@@ -154,7 +154,7 @@ test('one accepted topic send per event, never a send per user', async () => {
   assert.deepEqual(Object.keys(messages[0].data).sort(), [
     'category','event_id','link','official_id','type'
   ]);
-  assert.equal(messages[0].data.link, 'https://www.demos.community/eci');
+  assert.equal(messages[0].data.link, 'https://www.demos.community/eci?initiative=2026-000011');
   assert.ok(!('token' in messages[0]));
   assert.ok(!('user_id' in messages[0].data));
 });
@@ -185,6 +185,20 @@ test('dispatcher has a hard batch cap and only explicit category routes', () => 
   assert.match(router, /crypto\.timingSafeEqual\(a, b\)/);
   assert.match(router, /expected\.length < 32/);
   assert.match(router, /!isCivicPushEnabled\(\)/);
+});
+
+test('official initiative deep links reuse existing fetched list', () => {
+  const paths = [
+    'client/src/pages/ECI/index.tsx',
+    'client/src/pages/IniziativePopolari/index.tsx',
+    'client/src/pages/ReferendumAbrogativi/index.tsx',
+  ];
+  for (const path of paths) {
+    const source = read(path);
+    assert.match(source, /new URLSearchParams/);
+    assert.match(source, /get\("initiative"\)/);
+    assert.match(source, /deepLinkHandled.current = true/);
+  }
 });
 
 test('ECI dispatch requires explicitly enabled GitHub Action and two secrets', () => {

@@ -16,6 +16,7 @@ export type ReferendumFormData = z.infer<typeof referendumSchema>;
 // Interfaccia per i referendum
 export interface Referendum extends ReferendumFormData {
   id: string;
+  id_ministero?: string | number;
   quorum: 'ok' | 'pending' | 'no' | 'proposta';
   data_creazione: string;
   votiices?: number;

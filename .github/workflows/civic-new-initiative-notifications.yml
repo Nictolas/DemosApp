@@ -16,6 +16,10 @@ on:
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
       - 'api/routes/notifiche.js'
       - 'client/src/pages/NotifichePreferenze.tsx'
+      - 'client/src/pages/ECI/index.tsx'
+      - 'client/src/pages/IniziativePopolari/index.tsx'
+      - 'client/src/pages/ReferendumAbrogativi/index.tsx'
+      - 'client/src/pages/ReferendumAbrogativi/types/index.ts'
       - '.github/workflows/eci_sync.yml'
       - '.github/workflows/civic-new-initiative-notifications.yml'
   workflow_dispatch:
