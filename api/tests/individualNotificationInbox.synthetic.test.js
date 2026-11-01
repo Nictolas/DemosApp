@@ -21,6 +21,7 @@ async function withSyntheticInbox({ tokens = [], firebase = true, pushFails = fa
   const events = [];
   let saved = 0;
   let sends = 0;
+  const savedByKey = new Map();
   const fakePool = {
     async query(sql, params) {
       if (/SELECT id, email, nome, cognome, status FROM users/.test(sql)) {
@@ -29,9 +30,17 @@ async function withSyntheticInbox({ tokens = [], firebase = true, pushFails = fa
       if (/INSERT INTO notifiche_demos/.test(sql)) {
         events.push('save');
         if (saveFails) throw new Error('synthetic_db_failure');
-        assert.deepEqual(params, ['user-synthetic', 'Titolo sintetico', 'Testo sintetico']);
+        assert.deepEqual(params.slice(0, 3), ['user-synthetic', 'Titolo sintetico', 'Testo sintetico']);
+        const key = params[3];
+        assert.match(key, /^[0-9a-f-]{36}$/);
+        if (savedByKey.has(key)) return { rows: [] };
         saved++;
-        return { rows: [{ id: 'notification-synthetic' }] };
+        const record = { id: 'notification-synthetic-' + saved, id_utente: params[0], titolo: params[1], testo: params[2] };
+        savedByKey.set(key, record);
+        return { rows: [{ id: record.id }] };
+      }
+      if (/SELECT id, id_utente, titolo, testo FROM notifiche_demos WHERE idempotency_key/.test(sql)) {
+        return { rows: savedByKey.has(params[0]) ? [savedByKey.get(params[0])] : [] };
       }
       if (/SELECT DISTINCT d.fcm_token/.test(sql)) return { rows: tokens.map(fcm_token => ({ fcm_token })) };
       if (/SELECT COALESCE\(fcm_tokens/.test(sql)) return { rows: [{ fcm_tokens: [] }] };
@@ -82,7 +91,9 @@ async function withSyntheticInbox({ tokens = [], firebase = true, pushFails = fa
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           userId: 'user-synthetic', titolo: 'Titolo sintetico',
-          messaggio: 'Testo sintetico', ...overrides
+          messaggio: 'Testo sintetico',
+          idempotencyKey: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          ...overrides
         }),
         signal: AbortSignal.timeout(3000)
       });
@@ -172,6 +183,53 @@ test('invalid request: does not persist inbox or attempt push', async () => {
   await withSyntheticInbox({}, async ({ request, getSaved, getSends }) => {
     const result = await request({ userId: '' });
     assert.equal(result.status, 400);
+    assert.equal(getSaved(), 0);
+    assert.equal(getSends(), 0);
+  });
+});
+
+test('retry with the same UUID does not duplicate inbox or re-send Firebase push', async () => {
+  await withSyntheticInbox({ tokens: ['fake-device-token'] }, async ({ request, events, getSaved, getSends }) => {
+    const first = await request();
+    const retry = await request();
+    assert.equal(first.status, 200);
+    assert.equal(retry.status, 200);
+    assert.equal(first.body.data.id_notifica, retry.body.data.id_notifica);
+    assert.equal(retry.body.data.duplicata_evitata, true);
+    assert.equal(retry.body.data.push_inviato, false);
+    assert.equal(retry.body.data.push_non_ritentato, true);
+    assert.equal(getSaved(), 1);
+    assert.equal(getSends(), 1);
+    assert.deepEqual(events, ['save', 'push', 'save']);
+  });
+});
+
+test('concurrent requests with the same UUID produce only one inbox row and one push', async () => {
+  await withSyntheticInbox({ tokens: ['fake-device-token'] }, async ({ request, getSaved, getSends }) => {
+    const [a, b] = await Promise.all([request(), request()]);
+    assert.equal(a.status, 200);
+    assert.equal(b.status, 200);
+    assert.equal(getSaved(), 1);
+    assert.equal(getSends(), 1);
+    assert.equal([a.body.data.duplicata_evitata, b.body.data.duplicata_evitata].filter(Boolean).length, 1);
+  });
+});
+
+test('reusing a UUID for a changed payload is rejected without push', async () => {
+  await withSyntheticInbox({ tokens: ['fake-device-token'] }, async ({ request, getSaved, getSends }) => {
+    assert.equal((await request()).status, 200);
+    const replay = await request({ titolo: 'Altro titolo' });
+    assert.equal(replay.status, 409);
+    assert.equal(replay.body.success, false);
+    assert.equal(getSaved(), 1);
+    assert.equal(getSends(), 1);
+  });
+});
+
+test('missing or malformed idempotency UUID rejects before writing or pushing', async () => {
+  await withSyntheticInbox({ tokens: ['fake-device-token'] }, async ({ request, getSaved, getSends }) => {
+    assert.equal((await request({ idempotencyKey: '' })).status, 400);
+    assert.equal((await request({ idempotencyKey: 'not-a-uuid' })).status, 400);
     assert.equal(getSaved(), 0);
     assert.equal(getSends(), 0);
   });
