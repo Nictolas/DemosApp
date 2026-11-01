@@ -98,6 +98,35 @@
   le quattro tabelle**, né la migrazione notifiche civiche. Entrambi
   restano NO-GO per la nuova funzione senza approvazione esplicita.
 
+## Preparazione delle quattro sorgenti civiche nello staging (N-038)
+
+- Il file `api/database/20261101_civic_staging_source_fixture.sql` è una
+  **bozza soltanto per lo staging isolato**. È stato costruito confrontando
+  *esclusivamente metadata di colonne e tipi*, senza esportare o copiare righe
+  dal database di produzione. Non rappresenta lo schema completo di DEMOS.
+- Crea solo `eci`, `iniziative_ministero`, `notifiche_preferenze` e
+  `user_devices` **vuote**, con RLS accesa e permessi pubblici revocati.
+  Non crea account, token Firebase, push, policy di accesso o processi di sync.
+  Le tre tabelle nuove della PR e i tre opt-in si aggiungerebbero
+  **separatamente**, soltanto con migrazione autorizzata.
+- La fixture **non** viene applicata dalla CI a Supabase o Render. La CI
+  utilizza soltanto un PostgreSQL16 locale e usa apposite variabili di
+  consenso per testare il rifiuto per default, il rifiuto su tabelle
+  già esistenti, la migrazione e il preflight 7/7.
+- Nessun operatore deve eseguire la fixture prima di un'approvazione
+  distinta per una modifica **solo a Demos-Staging**, della verifica del
+  progetto nel pannello del provider, di un inventario dei quattro nomi
+  già presenti, del backup/rollback e dell'assenza di dati reali.
+- La fixture rifiuta un'esecuzione senza i due flag di conferma locali
+  alla transazione, e rifiuta ambienti in cui una delle quattro tabelle
+  sorgenti esiste già. **Questi flag non identificano il database fisico**:
+  l'operatore deve verificare il progetto indipendentemente. Non usare il
+  file su produzione, né copiare token o utenti veri nello staging.
+- Il test sul PostgreSQL usa dati ufficiali **inventati** (ID prefissati
+  `synthetic-`) per verificare che il seed sia `suppressed`, che la
+  guardia resti bloccata e che i tre opt-in abbiano default `FALSE`.
+  Nessuno di questi dati viene distribuito ad ambienti DEMOS.
+
 ## Isolamento dei test SQL distruttivi (N-038)
 
 - I test di migrazione della PR contengono `DROP TABLE` e `CREATE TABLE`
