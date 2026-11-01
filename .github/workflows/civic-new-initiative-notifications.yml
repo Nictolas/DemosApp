@@ -11,6 +11,7 @@ on:
       - 'api/services/civicRuntimeDatabaseIdentity.js'
       - 'api/tests/civicRuntimeDatabaseIdentity.test.js'
       - 'api/scripts/civicStagingReadOnlyPreflight.sql'
+      - 'api/docs/civic-push-recovery-runbook.md'
       - 'api/scripts/civicPushEmergencyStop.js'
       - 'api/scripts/prepareCivicPushRecovery.js'
       - 'api/tests/civicPushRollback.test.js'
