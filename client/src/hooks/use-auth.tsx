@@ -180,15 +180,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const refreshTokenToRevoke = getRefreshToken();
       const pushTokenToRevoke = getStoredNativePushToken();
 
-      // Finché la sessione è ancora autenticata, disattiva il token push server-side.
-      if (pushTokenToRevoke && tokenToRevoke) {
+      // Prima di invalidare la sessione, chiediamo al server di revocare
+      // l'iscrizione push del dispositivo, anche nel web dove non memorizziamo
+      // necessariamente il token in localStorage.
+      if (tokenToRevoke) {
         try {
-          await fetch(getApiUrl(`/fcm-tokens/${encodeURIComponent(pushTokenToRevoke)}`), {
+          const endpoint = pushTokenToRevoke
+            ? `/fcm-tokens/${encodeURIComponent(pushTokenToRevoke)}`
+            : '/fcm-tokens/session';
+          const response = await fetch(getApiUrl(endpoint), {
             method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${tokenToRevoke}`,
-            },
+            headers: { Authorization: `Bearer ${tokenToRevoke}` },
           });
+          if (!response.ok) {
+            console.warn("Revoca push non confermata dal server (dettagli omessi)");
+          }
         } catch {
           console.warn("Impossibile disattivare il token push durante il logout (dettagli omessi)");
         }
