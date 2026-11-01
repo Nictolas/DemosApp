@@ -168,6 +168,12 @@ test('notification logs and HTTP failures never expose private titles or SQL sec
     assert.equal(preferences.status, 500);
     assert.doesNotMatch(await preferences.text(), /PRIVATE_DSN_TOKEN|DATABASE_URL|DB_HOST/);
 
+    const preferencesSave = await call('/api/notifiche/preferenze', 'a', 'POST', {
+      preferenze: { demos: true, animali: false }
+    });
+    assert.equal(preferencesSave.status, 500);
+    assert.doesNotMatch(await preferencesSave.text(), /PRIVATE_DSN_TOKEN|DATABASE_URL|DB_HOST/);
+
     const newest = await call('/api/notifiche/ultima', 'a');
     assert.equal(newest.status, 500);
     assert.doesNotMatch(await newest.text(), /PRIVATE_DSN_TOKEN|DATABASE_URL|DB_HOST/);
