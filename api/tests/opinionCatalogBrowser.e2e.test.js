@@ -340,7 +340,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Metabo Law', '40–74 anni'],
       ['/opinioni-nazionali', 'Premierato', 'S. 935'],
       ['/opinioni-comunali', 'Nuovo stadio comunale', '≈70 mln €'],
-      ['/opinioni-nazionali', "Armi all'Ucraina", '4,7 mld €'],
+      ['/opinioni-nazionali', "Armi all'Ucraina", '69,3 mld €'],
       ['/opinioni-nazionali', "Centri migranti all'estero", 'L. 14/2024'],
       ['/opinioni-nazionali', 'Ponte sullo Stretto', '13,532 mld €'],
       ['/opinioni-nazionali', 'Riconoscimento della Palestina', '142'],
@@ -1593,10 +1593,10 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
           title + ': different legal stages are not causal outcomes');
         if (title === "Armi all'Ucraina") {
-          assert.ok(all.includes('NON sola spesa italiana') &&
-            all.includes('NON nuove armi') &&
-            all.includes('non misurano vittime evitate'),
-            'EU reimbursements are not new Italian deliveries');
+          assert.ok(all.includes('NON spesa del solo Stato italiano') &&
+            all.includes('NON importo ulteriore da sommare') &&
+            all.includes('non equivalgono alle spese dell\'Italia'),
+            'EU aggregates must not be mistaken for or added to Italian spending');
         } else if (title === "Centri migranti all'estero") {
           assert.ok(all.includes('NON trasferimento automatico della sovranità') &&
             all.includes('NON sono una sentenza definitiva') &&
