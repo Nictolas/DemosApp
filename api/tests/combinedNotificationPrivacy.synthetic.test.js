@@ -116,7 +116,11 @@ async function call(route, who, method = 'GET', body = null) {
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(4000)
   });
-  return { status: res.status, body: await res.json() };
+  const raw = await res.text();
+  let body;
+  try { body = JSON.parse(raw); }
+  catch { body = { message: raw }; }
+  return { status: res.status, body };
 }
 function send(who, key, title, message) {
   return call('/api/comunicazioni/send-user-notification', 'admin', 'POST',
