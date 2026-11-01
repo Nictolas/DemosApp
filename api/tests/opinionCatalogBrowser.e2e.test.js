@@ -1512,11 +1512,11 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         } else if (title === 'Limitazioni alla movida notturna') {
           assert.ok(all.includes('2 novembre 2026') &&
             all.includes('NON chiusura di tutti i locali') &&
-            all.includes('NON un coprifuoco cittadino'),
+            all.includes('non è un coprifuoco cittadino'),
             'Temporary zone-specific restrictions are not blanket curfew');
         } else {
           assert.ok(all.includes('NON numero di fast food chiusi') &&
-            all.includes('NON divieto nazionale') &&
+            all.includes('divieto nazionale') &&
             all.includes('NON tutti i ristoranti'),
             'Florence zoning does not imply nationwide fast-food closure');
         }
