@@ -36,7 +36,7 @@ class DataRetentionJob {
 
     this.cleanupInterval = setInterval(() => {
       Promise.resolve(this.performDailyCleanup()).catch(error => {
-        console.error('❌ Errore non gestito in performDailyCleanup():', error);
+        console.error('RETENTION_DAILY_CLEANUP_UNHANDLED');
       });
     }, this.cleanupIntervalMs);
 
@@ -100,7 +100,7 @@ class DataRetentionJob {
       });
 
     } catch (error) {
-      console.error('❌ Errore nella pulizia giornaliera:', error);
+      console.error('RETENTION_DAILY_CLEANUP_FAILED');
       
       // Log dell'errore
       await AuditService.logAction({
@@ -108,11 +108,11 @@ class DataRetentionJob {
         action: 'DATA_RETENTION_DAILY_CLEANUP',
         resource: 'all',
         details: {
-          error: error.message,
+          error_code: 'RETENTION_DAILY_CLEANUP_FAILED',
           cleanup_date: new Date()
         },
         success: false,
-        errorMessage: error.message
+        errorMessage: 'RETENTION_DAILY_CLEANUP_FAILED'
       });
     }
   }
@@ -186,7 +186,7 @@ class DataRetentionJob {
       
       return result;
     } catch (error) {
-      console.error('❌ Errore nella pulizia immediata:', error);
+      console.error('RETENTION_IMMEDIATE_CLEANUP_FAILED');
       throw error;
     }
   }
