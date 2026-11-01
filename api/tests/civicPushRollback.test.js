@@ -130,6 +130,16 @@ test('device routes do not log FCM token prefixes, user IDs or raw errors', () =
   assert.doesNotMatch(saveLog, /console\.error\([^\n]*, error\)/);
 });
 
+test('notification API never logs raw SQL diagnostics or returns DB configuration', () => {
+  const route = read('api/routes/notifiche.js');
+  assert.doesNotMatch(route, /console\.error\('❌ Error details:'/);
+  assert.doesNotMatch(route, /console\.(?:warn|error)\([^\n]*,\s*(?:err|error|e\.message|queryText)\)/);
+  assert.doesNotMatch(route, /details: error\.message/);
+  assert.doesNotMatch(route, /db_host:\s*process\.env\.DB_HOST/);
+  assert.doesNotMatch(route, /database_url_present/);
+  assert.doesNotMatch(route, /ultimaNotifica\.titolo\);/);
+});
+
 test('rollback does not erase preferences, tokens or already handled outbox rows', () => {
   const source = read('api/services/civicPushRollback.js');
   assert.match(source, /WHERE status = 'pending'/);
