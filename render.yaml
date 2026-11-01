@@ -1,12 +1,12 @@
 services:
-  # Backend API (con auto-deploy)
+  # Backend API (deploy manuale proposto; attivare prima OFF nel dashboard Render)
   - type: web
     name: demos-backend
     env: node
     rootDir: api
-    buildCommand: npm ci
+    buildCommand: npm install
     startCommand: node index.js
-    autoDeploy: true
+    autoDeployTrigger: off
     envVars:
       - key: NODE_ENV
         value: production
@@ -35,13 +35,14 @@ services:
     customDomains:
       - name: api.demos.community
 
-  # Frontend (con auto-deploy)
+  # Frontend (deploy manuale proposto; attivare prima OFF nel dashboard Render)
   - type: web
     name: demos-frontend
     env: static
-    buildCommand: cd client && npm ci --only=production && npm run build
-    staticPublishPath: client/dist
-    autoDeploy: true
+    rootDir: client
+    buildCommand: npm install; npm run build
+    staticPublishPath: dist
+    autoDeployTrigger: off
     envVars:
       - key: NODE_ENV
         value: production
