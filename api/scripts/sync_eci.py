@@ -11,6 +11,8 @@ Per una verifica non distruttiva della sorgente:
 import argparse
 import html as html_lib
 import os
+import hmac
+import uuid
 import re
 import sys
 from datetime import datetime
@@ -240,6 +242,25 @@ def fetch_official_records(*, session=None) -> List[Tuple[str, str, int, str, st
     return records
 
 
+def _verify_civic_database_identity(cur, expected: Optional[str]) -> None:
+    """No DB writes are allowed before this check if civic events are enabled."""
+    try:
+        expected_id = str(uuid.UUID(expected or ""))
+    except (ValueError, AttributeError, TypeError):
+        raise RuntimeError("CIVIC_DATABASE_IDENTITY_NOT_CONFIGURED") from None
+    try:
+        cur.execute(
+            "SELECT db_identity::text FROM civic_runtime_identity WHERE id = 1"
+        )
+        rows = cur.fetchall()
+    except Exception:
+        raise RuntimeError("CIVIC_DATABASE_IDENTITY_UNAVAILABLE") from None
+    if len(rows) != 1 or not isinstance(rows[0][0], str):
+        raise RuntimeError("CIVIC_DATABASE_IDENTITY_MISMATCH")
+    if not hmac.compare_digest(rows[0][0].lower(), expected_id):
+        raise RuntimeError("CIVIC_DATABASE_IDENTITY_MISMATCH")
+
+
 def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
     if not database_url:
         raise RuntimeError("DATABASE_URL mancante")
@@ -256,6 +277,18 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
     try:
         with conn:
             with conn.cursor() as cur:
+                # La cache eci viene sostituita interamente a ogni sync.
+                # Non usare trigger INSERT per riconoscere le novita'.
+                collection_enabled = os.environ.get("CIVIC_NEW_INITIATIVE_EVENTS_ENABLED") == "true"
+                if collection_enabled:
+                    # Fail closed BEFORE deleting/replacing the existing ECI cache.
+                    _verify_civic_database_identity(
+                        cur, os.environ.get("CIVIC_RUNTIME_DATABASE_ID")
+                    )
+                previous_ids = set()
+                if collection_enabled:
+                    cur.execute("SELECT id FROM eci")
+                    previous_ids = {str(row[0]) for row in cur.fetchall()}
                 cur.execute("DELETE FROM eci")
                 execute_values(
                     cur,
@@ -272,6 +305,36 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                     raise RuntimeError(
                         f"Verifica cache ECI fallita: attesi {len(records)}, trovati {stored_count}"
                     )
+                if collection_enabled:
+                    # The guard row lock makes this source sync serializable with
+                    # the emergency rollback's guard UPDATE, even across jobs.
+                    # Once STOP is committed, no catch-up push can be created.
+                    cur.execute(
+                        "SELECT blocked, reason_code FROM civic_push_delivery_guard WHERE id=1 FOR SHARE"
+                    )
+                    guard = cur.fetchone()
+                    if guard is None:
+                        raise RuntimeError("CIVIC_DELIVERY_GUARD_NOT_INITIALIZED")
+                    event_status = (
+                        "suppressed" if guard[0] is True or guard[1] == "EMERGENCY_STOP" else "pending"
+                    )
+                    new_records = [
+                        ("eci", row[0], row[1], "/eci", event_status)
+                        for row in records if row[0] not in previous_ids
+                    ]
+                    if new_records:
+                        # La migrazione pre-carica gli ID storici come suppressed.
+                        # UNIQUE impedisce avvisi quando un'ECI sparisce e riappare.
+                        execute_values(
+                            cur,
+                            """
+                            INSERT INTO civic_new_initiative_notifications
+                              (category, official_id, title, target_path, status)
+                            VALUES %s
+                            ON CONFLICT (category, official_id) DO NOTHING
+                            """,
+                            new_records,
+                        )
     finally:
         conn.close()
 

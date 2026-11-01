@@ -97,6 +97,9 @@ router.delete('/', verifyToken, async (req, res) => {
       }
     }
 
+    // La revoca dei topic avviene nel servizio centrale di cancellazione,
+    // usato anche da percorsi admin e di riconciliazione, prima del cleanup DB.
+
     // Un problema del trasporto audit non deve impedire l'esercizio
     // del diritto di cancellazione. L'eventuale mancata consegna va
     // segnalata senza riportare payload o identificativi nel log tecnico.

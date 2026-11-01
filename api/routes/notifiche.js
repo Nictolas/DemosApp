@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const {
+  isCivicPushEnabled,
+  reconcileCivicTopicsForUser,
+  unsubscribeDisabledCivicTopicsForUser,
+} = require('../services/civicPushTopics');
+const { withCivicPushDeliveryLock } = require('../services/civicPushDeliveryGuard');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -73,7 +79,7 @@ router.get('/', verifyToken, async (req, res) => {
         votiParlamentoResult = { rows: [] };
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_voti_parlamento:', err);
+      console.error('❌ Errore query notifiche_voti_parlamento:');
       votiParlamentoResult = { rows: [] };
     }
     
@@ -133,7 +139,7 @@ router.get('/', verifyToken, async (req, res) => {
               politicoByKey.set(row.id, row);
             }
           } catch (e) {
-            console.warn('⚠️ Errore batch politici per UUID:', e.message);
+            console.warn('⚠️ Errore batch politici per UUID:');
           }
         }
         if (politicoNames.length > 0) {
@@ -149,7 +155,7 @@ router.get('/', verifyToken, async (req, res) => {
               if (row.id && !politicoByKey.has(row.id)) politicoByKey.set(row.id, row);
             }
           } catch (e) {
-            console.warn('⚠️ Errore batch politici per nome:', e.message);
+            console.warn('⚠️ Errore batch politici per nome:');
           }
         }
         for (const notifica of votiComuniResult.rows) {
@@ -167,12 +173,7 @@ router.get('/', verifyToken, async (req, res) => {
         console.warn('⚠️ Nessuna notifica voti comuni trovata nella tabella');
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_voti_comuni:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        detail: err.detail
-      });
+      console.error('❌ Errore query notifiche_voti_comuni:');
       votiComuniResult = { rows: [] };
     }
     
@@ -206,12 +207,7 @@ router.get('/', verifyToken, async (req, res) => {
         `, [user_id]);
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_demos:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        detail: err.detail
-      });
+      console.error('❌ Errore query notifiche_demos:');
       demosResult = { rows: [] };
     }
     
@@ -250,7 +246,7 @@ router.get('/', verifyToken, async (req, res) => {
       );
     } catch (err) {
       if (err?.code !== '42P01') {
-        console.error('❌ Errore query political_opinion_notifications:', err);
+        console.error('❌ Errore query political_opinion_notifications:');
       }
       opinionChangesResult = { rows: [] };
     }
@@ -331,12 +327,7 @@ router.get('/', verifyToken, async (req, res) => {
       
       comunaliResult = await pool.query(query);
     } catch (err) {
-      console.error('❌ Errore query notifiche_comunali:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        detail: err.detail
-      });
+      console.error('❌ Errore query notifiche_comunali:');
       comunaliResult = { rows: [] };
     }
     
@@ -407,7 +398,7 @@ router.get('/', verifyToken, async (req, res) => {
         // Verifica che 'testo' non sia presente nella query
         const queryText = `SELECT ${selectColumnsWithUser.join(', ')} FROM notifiche_avvistamenti na ${joinClause} ${whereClause} ORDER BY ${orderBy} LIMIT 50`;
         if (queryText.includes('testo')) {
-          console.error('❌ ERRORE: La query contiene ancora "testo"!', queryText);
+          console.error('❌ ERRORE: La query contiene ancora "testo"!');
           throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
         }
         avvistamentiResult = await pool.query(queryText, queryParams);
@@ -415,13 +406,7 @@ router.get('/', verifyToken, async (req, res) => {
         console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_avvistamenti:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        detail: err.detail,
-        position: err.position
-      });
+      console.error('❌ Errore query notifiche_avvistamenti:');
       avvistamentiResult = { rows: [] };
     }
     
@@ -643,27 +628,20 @@ router.get('/', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero notifiche:', error);
+    console.error('❌ Errore nel recupero notifiche:');
     
     // Se è un errore di connessione database, restituisci un messaggio più specifico
     if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
       return res.status(500).json({
         success: false,
         error: 'Errore connessione database',
-        details: 'Il server non riesce a connettersi al database. Controllare la configurazione DATABASE_URL su Render.',
-        debug: {
-          code: error.code,
-          message: error.message,
-          database_url_present: !!process.env.DATABASE_URL,
-          db_host: process.env.DB_HOST
-        }
+        details: 'Servizio temporaneamente non disponibile'
       });
     }
     
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -692,7 +670,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('❌ Errore nella creazione notifica:', error);
+    console.error('❌ Errore nella creazione notifica:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -708,7 +686,8 @@ router.get('/preferenze', verifyToken, async (req, res) => {
     // Recupera le preferenze dalla nuova tabella notifiche_preferenze
     const result = await pool.query(
       `SELECT eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
-              attivisti, demos, scuola, animali, organizzazioni, updated_at
+              attivisti, demos, scuola, animali, organizzazioni,
+              iniziative_popolari, referendum_abrogativi, eci, updated_at
        FROM notifiche_preferenze
        WHERE user_id = $1`,
       [user_id]
@@ -722,7 +701,8 @@ router.get('/preferenze', verifyToken, async (req, res) => {
                                           attivisti, demos, scuola, animali, organizzazioni)
          VALUES ($1, false, false, false, false, false, false, false, false, true, false)
          RETURNING eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
-                   attivisti, demos, scuola, animali, organizzazioni, updated_at`,
+                   attivisti, demos, scuola, animali, organizzazioni,
+              iniziative_popolari, referendum_abrogativi, eci, updated_at`,
         [user_id]
       );
       
@@ -741,7 +721,10 @@ router.get('/preferenze', verifyToken, async (req, res) => {
             demos: prefs.demos,
             scuola: prefs.scuola,
             animali: prefs.animali,
-            organizzazioni: prefs.organizzazioni
+            organizzazioni: prefs.organizzazioni,
+            iniziative_popolari: false,
+            referendum_abrogativi: false,
+            eci: false
           },
           updated_at: prefs.updated_at
         }
@@ -764,17 +747,19 @@ router.get('/preferenze', verifyToken, async (req, res) => {
           demos: prefs.demos ?? false,
           scuola: prefs.scuola ?? false,
           animali: prefs.animali ?? true,
-          organizzazioni: prefs.organizzazioni ?? false
+          organizzazioni: prefs.organizzazioni ?? false,
+          iniziative_popolari: prefs.iniziative_popolari ?? false,
+          referendum_abrogativi: prefs.referendum_abrogativi ?? false,
+          eci: prefs.eci ?? false
         },
         updated_at: prefs.updated_at
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero preferenze notifiche:', error);
+    console.error('❌ Errore nel recupero preferenze notifiche:');
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -804,12 +789,46 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     const animali = preferenze.animali !== false && preferenze.animali !== 'false';
     const organizzazioni = preferenze.organizzazioni === true || preferenze.organizzazioni === 'true';
     
+    // Omissione dei nuovi campi da client legacy = non modificare il valore.
+    // Accettiamo solo booleani espliciti per le nuove preferenze civiche.
+    const civicKeys = ['iniziative_popolari', 'referendum_abrogativi', 'eci'];
+    for (const key of civicKeys) {
+      const value = preferenze[key];
+      if (value !== undefined && value !== null &&
+          value !== true && value !== false && value !== 'true' && value !== 'false') {
+        return res.status(400).json({ success: false, error: 'Preferenza civica non valida' });
+      }
+    }
+    const civicValue = (key) => {
+      const value = preferenze[key];
+      return value === undefined || value === null ? null : value === true || value === 'true';
+    };
+    const civicInitiatives = civicValue('iniziative_popolari');
+    const civicReferendums = civicValue('referendum_abrogativi');
+    const civicEci = civicValue('eci');
+
+    // Opt-out prima del salvataggio: se Firebase non conferma la revoca,
+    // non presentiamo un consenso falso come aggiornato con successo.
+    const disabledCategories = civicKeys.filter(key => civicValue(key) === false);
+    let savedPrefs;
+    try {
+      // One lock covers Firebase opt-out, the authoritative preference write
+      // and the final topic reconciliation. Bootstrap/dispatch cannot observe
+      // an intermediate state and cannot re-add a topic after an opt-out.
+      savedPrefs = await withCivicPushDeliveryLock(pool, async (db) => {
+        await unsubscribeDisabledCivicTopicsForUser(db, user_id, disabledCategories, {
+          lockedClient: db
+        });
+
     // Usa UPSERT per inserire o aggiornare le preferenze nella nuova tabella
-    const result = await pool.query(
+    const result = await db.query(
       `INSERT INTO notifiche_preferenze (user_id, eurodeputato, senatore, deputato, 
                                          consigliere_regionale, consigliere_comunale, 
-                                         attivisti, demos, scuola, animali, organizzazioni)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                                         attivisti, demos, scuola, animali, organizzazioni,
+                                         iniziative_popolari, referendum_abrogativi, eci)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+               COALESCE($12::boolean, FALSE), COALESCE($13::boolean, FALSE),
+               COALESCE($14::boolean, FALSE))
        ON CONFLICT (user_id) 
        DO UPDATE SET 
          eurodeputato = EXCLUDED.eurodeputato,
@@ -822,35 +841,33 @@ router.post('/preferenze', verifyToken, async (req, res) => {
          scuola = EXCLUDED.scuola,
          animali = EXCLUDED.animali,
          organizzazioni = EXCLUDED.organizzazioni,
+         iniziative_popolari = COALESCE($12::boolean, notifiche_preferenze.iniziative_popolari),
+         referendum_abrogativi = COALESCE($13::boolean, notifiche_preferenze.referendum_abrogativi),
+         eci = COALESCE($14::boolean, notifiche_preferenze.eci),
          updated_at = NOW()
        RETURNING user_id, eurodeputato, senatore, deputato, consigliere_regionale, 
-                 consigliere_comunale, attivisti, demos, scuola, animali, organizzazioni, updated_at`,
+                 consigliere_comunale, attivisti, demos, scuola, animali, organizzazioni,
+              iniziative_popolari, referendum_abrogativi, eci, updated_at`,
       [user_id, eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale, 
-       attivisti, demos, scuola, animali, organizzazioni]
+       attivisti, demos, scuola, animali, organizzazioni, civicInitiatives, civicReferendums, civicEci]
     );
     
     if (result.rows.length === 0) {
-      return res.status(500).json({
+      throw new Error('CIVIC_PREFERENCE_SAVE_EMPTY');
+    }
+    await reconcileCivicTopicsForUser(db, user_id, { lockedClient: db });
+    return result.rows[0];
+      }, { enabled: isCivicPushEnabled() });
+    } catch {
+      return res.status(503).json({
         success: false,
-        error: 'Errore nel salvataggio delle preferenze'
+        error: 'Impossibile confermare il salvataggio delle preferenze push. Riprova.'
       });
     }
     
-    const savedPrefs = result.rows[0];
-    
-    console.log(`✅ Preferenze notifiche salvate per utente ${user_id}:`, {
-      eurodeputato: savedPrefs.eurodeputato,
-      senatore: savedPrefs.senatore,
-      deputato: savedPrefs.deputato,
-      consigliere_regionale: savedPrefs.consigliere_regionale,
-      consigliere_comunale: savedPrefs.consigliere_comunale,
-      attivisti: savedPrefs.attivisti,
-      demos: savedPrefs.demos,
-      scuola: savedPrefs.scuola,
-      animali: savedPrefs.animali,
-      organizzazioni: savedPrefs.organizzazioni
-    });
-    
+    // Non registrare user ID o scelte di notifica nei log applicativi.
+    console.log('[notifiche] preferenze aggiornate (dettagli omessi)');
+
     res.json({
       success: true,
       message: 'Preferenze salvate con successo',
@@ -866,17 +883,19 @@ router.post('/preferenze', verifyToken, async (req, res) => {
           demos: savedPrefs.demos,
           scuola: savedPrefs.scuola,
           animali: savedPrefs.animali,
-          organizzazioni: savedPrefs.organizzazioni
+          organizzazioni: savedPrefs.organizzazioni,
+          iniziative_popolari: savedPrefs.iniziative_popolari,
+          referendum_abrogativi: savedPrefs.referendum_abrogativi,
+          eci: savedPrefs.eci
         },
         updated_at: savedPrefs.updated_at
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel salvataggio preferenze notifiche:', error);
+    console.error('[notifiche] salvataggio preferenze non riuscito (dettagli omessi)');
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -930,7 +949,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
           });
         }
       } catch (err) {
-        console.error('Errore ultima notifica voto comunale:', err);
+        console.error('Errore ultima notifica voto comunale:');
       }
     }
     
@@ -962,7 +981,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
         });
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_demos:', err);
+      console.error('❌ Errore query notifiche_demos:');
     }
     
     // Recupera da notifiche_voti_parlamento (se l'utente ha rappresentanti scelti)
@@ -1003,7 +1022,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
           }
         }
       } catch (err) {
-        console.error('❌ Errore query notifiche_voti_parlamento:', err);
+        console.error('❌ Errore query notifiche_voti_parlamento:');
       }
     }
     
@@ -1039,7 +1058,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
       }
     } catch (err) {
       if (err?.code !== '42P01') {
-        console.error('❌ Errore ultima political_opinion_notification:', err);
+        console.error('❌ Errore ultima political_opinion_notification:');
       }
     }
 
@@ -1060,14 +1079,14 @@ router.get('/ultima', verifyToken, async (req, res) => {
     }
     
     const ultimaNotifica = comunicazioni[0];
-    console.log('✅ Ultima notifica trovata:', ultimaNotifica.titolo);
+    console.log('[notifiche] ultima notifica trovata (titolo omesso)');
     
     res.json({
       success: true,
       data: ultimaNotifica
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero ultima notifica:', error);
+    console.error('❌ Errore nel recupero ultima notifica:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

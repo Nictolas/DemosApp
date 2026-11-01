@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,7 @@ export default function IniziativePopolari() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("firme");
+  const deepLinkHandled = useRef(false);
 
   const { 
     listaIniziative, 
@@ -82,6 +83,16 @@ export default function IniziativePopolari() {
     return filtered;
   }, [iniziativeUfficiali, searchQuery, sortBy]);
 
+  useEffect(() => {
+    if (deepLinkHandled.current || isLoading || isError || !user) return;
+    const id = new URLSearchParams(window.location.search).get("initiative");
+    if (!id) return;
+    deepLinkHandled.current = true;
+    const item = filteredAndSortedIniziative.find(
+      entry => String(entry.id_ministero ?? entry.id) === id
+    );
+    if (item) startEditView(item);
+  }, [filteredAndSortedIniziative, isLoading, isError, user]);
 
   // Redirect se non autenticato
   if (isAuthLoading) {

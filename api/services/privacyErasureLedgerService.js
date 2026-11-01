@@ -1,4 +1,12 @@
 const crypto = require('crypto');
+const {
+  isCivicPushEnabled,
+  unsubscribeCivicTopicsForToken,
+} = require('./civicPushTopics');
+const {
+  lockCivicPushDuringAccountErasure,
+  blockCivicDeliveryOnRevocationFailure,
+} = require('./civicPushDeliveryGuard');
 
 class PrivacyErasureLedgerService {
   static EVENT_TYPES = Object.freeze({
@@ -257,6 +265,32 @@ class PrivacyErasureLedgerService {
   }
 
   static async enforceAccountDeletion(client, userId) {
+    // One canonical erasure path serves user self-deletion, admin deletion,
+    // politician deletion and reconciliation. The unsubscribe must happen
+    // BEFORE cleanupAdditionalAccountData removes user_devices.
+    if (isCivicPushEnabled()) {
+      await lockCivicPushDuringAccountErasure(client);
+      const devices = await client.query(
+        `SELECT DISTINCT fcm_token FROM user_devices
+         WHERE user_id::text = $1
+           AND fcm_token IS NOT NULL AND btrim(fcm_token) <> ''`,
+        [String(userId)]
+      );
+      let uncertain = false;
+      for (const { fcm_token } of devices.rows) {
+        try {
+          await unsubscribeCivicTopicsForToken(fcm_token);
+        } catch {
+          uncertain = true;
+        }
+      }
+      if (uncertain) {
+        // The surrounding deletion transaction commits the global stop
+        // together with account erasure; no token is retained for retry.
+        await blockCivicDeliveryOnRevocationFailure(client);
+        console.warn('CIVIC_PUSH_GLOBAL_DELIVERY_BLOCKED_AFTER_ERASURE');
+      }
+    }
     const additional = await this.cleanupAdditionalAccountData(client, userId);
     let dependentDeleted = additional.rowsDeleted;
 

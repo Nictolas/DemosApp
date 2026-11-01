@@ -17,12 +17,15 @@ import {
   School, 
   PawPrint, 
   Building2,
+  FileText,
+  Vote,
   ArrowLeft,
   Loader2,
   CheckCircle2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import apiRequest from "@/lib/api-request";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface PreferenzeNotifiche {
   eurodeputato: boolean;
@@ -35,12 +38,16 @@ interface PreferenzeNotifiche {
   scuola: boolean;
   animali: boolean;
   organizzazioni: boolean;
+  iniziative_popolari: boolean;
+  referendum_abrogativi: boolean;
+  eci: boolean;
 }
 
 export default function NotifichePreferenze() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const push = usePushNotifications();
   
   const [preferenze, setPreferenze] = useState<PreferenzeNotifiche>({
     eurodeputato: false,
@@ -53,6 +60,9 @@ export default function NotifichePreferenze() {
     scuola: false,
     animali: true,
     organizzazioni: false,
+    iniziative_popolari: false,
+    referendum_abrogativi: false,
+    eci: false,
   });
   
   const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +83,7 @@ export default function NotifichePreferenze() {
       const response = await apiRequest.get<{ preferenze: PreferenzeNotifiche }>("/notifiche/preferenze");
       
       if (response.success && response.data?.preferenze) {
-        setPreferenze(response.data.preferenze);
+        setPreferenze((previous) => ({ ...previous, ...response.data.preferenze }));
       } else {
         // Se non ci sono preferenze, usa i default
         console.log("Nessuna preferenza trovata, uso i default");
@@ -130,6 +140,12 @@ export default function NotifichePreferenze() {
     return <Redirect to="/auth" />;
   }
 
+  const wantsCivicPush = preferenze.iniziative_popolari ||
+    preferenze.referendum_abrogativi || preferenze.eci;
+  const needsPushPermission = wantsCivicPush && (
+    !push.enabled || push.permission !== 'granted'
+  );
+
   const sezioni = [
     {
       title: "Rappresentanti Istituzionali",
@@ -150,6 +166,15 @@ export default function NotifichePreferenze() {
         { key: "attivisti" as const, label: "Attivisti", description: "Notifiche da attivisti che segui", icon: Heart, color: "text-pink-600" },
         { key: "organizzazioni" as const, label: "Organizzazioni", description: "Notifiche da organizzazioni che segui", icon: Building2, color: "text-teal-600" },
       ]
+    },
+    {
+      title: "Partecipazione popolare",
+      icon: Vote,
+      items: [
+        { key: "iniziative_popolari" as const, label: "Iniziative popolari", description: "Avvisami quando inizia una nuova raccolta firme ufficiale in Italia", icon: FileText, color: "text-emerald-600" },
+        { key: "referendum_abrogativi" as const, label: "Referendum abrogativi", description: "Avvisami quando inizia una nuova raccolta firme per un referendum abrogativo", icon: Vote, color: "text-rose-600" },
+        { key: "eci" as const, label: "Iniziative dei cittadini europei (ECI)", description: "Avvisami quando parte una nuova iniziativa europea", icon: Globe, color: "text-blue-600" },
+      ],
     },
     {
       title: "Altro",
@@ -189,6 +214,30 @@ export default function NotifichePreferenze() {
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {!isLoading && needsPushPermission && (
+          <Alert className="mb-5 border-amber-300 bg-amber-50">
+            <Bell className="h-4 w-4 text-amber-700" />
+            <AlertDescription className="text-sm text-amber-900">
+              {push.permission === 'denied'
+                ? 'Hai attivato notifiche in DEMOS, ma il dispositivo le blocca. Abilitale nelle impostazioni del dispositivo per poterle ricevere.'
+                : !push.enabled || push.permission === null
+                  ? 'Le notifiche push non risultano disponibili su questo dispositivo o browser. Puoi salvare le preferenze, ma non riceverai gli avvisi push qui.'
+                  : 'Hai attivato una categoria, ma devi ancora consentire le notifiche sul dispositivo.'}
+              {push.enabled && push.permission === 'default' && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 block"
+                  onClick={() => void push.requestPermission()}
+                >
+                  Consenti notifiche
+                </Button>
+              )}
+            </AlertDescription>
           </Alert>
         )}
 
