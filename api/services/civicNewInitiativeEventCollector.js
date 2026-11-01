@@ -19,7 +19,9 @@ async function collectMinisteroNewInitiatives(pool, { enabled = isCivicEventColl
     INSERT INTO civic_new_initiative_notifications
       (category, official_id, title, target_path, status)
     SELECT DISTINCT ON (category, official_id)
-      category, official_id, title, target_path, 'pending'
+      category, official_id, title, target_path,
+      CASE WHEN guard.reason_code = 'EMERGENCY_STOP'
+        THEN 'suppressed' ELSE 'pending' END
     FROM (
       SELECT
         CASE WHEN lower(regexp_replace(btrim(m.tipo), '[[:space:]]+', ' ', 'g')) = 'referendum abrogativo'
@@ -42,6 +44,11 @@ async function collectMinisteroNewInitiatives(pool, { enabled = isCivicEventColl
           'iniziativa popolare'
         )
     ) AS valid_items
+    -- SELECT FOR SHARE serializes with the emergency stop guard UPDATE.
+    -- A sync completing after STOP cannot create pending catch-up events.
+    CROSS JOIN (
+      SELECT reason_code FROM civic_push_delivery_guard WHERE id = 1 FOR SHARE
+    ) AS guard
     ORDER BY category, official_id, title
     ON CONFLICT (category, official_id) DO NOTHING
     RETURNING id
