@@ -13,6 +13,8 @@ const {
 } = require('../services/civicPushTopics');
 const { buildCivicPush, dispatchCivicNewInitiatives } =
   require('../services/civicNewInitiativePushDispatcher');
+const { blockCivicDeliveryFromPool } =
+  require('../services/civicPushDeliveryGuard');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
@@ -99,6 +101,25 @@ test('FCM subscription failure is sanitized and never signals opt-out success', 
     e => e.message === 'CIVIC_TOPIC_SYNC_FAILED' &&
       !e.message.includes('SECRET_FCM_TOKEN_WOULD_APPEAR_HERE')
   );
+});
+
+test('an uncertain revocation blocks global topic sends with a transaction lock', async () => {
+  const queries = [];
+  const fakeClient = {
+    query: async (sql) => {
+      queries.push(sql);
+      if (sql.includes('UPDATE civic_push_delivery_guard')) return { rows: [{ id: 1 }] };
+      return { rows: [] };
+    },
+    release: () => {},
+  };
+  const pool = { connect: async () => fakeClient };
+  await blockCivicDeliveryFromPool(pool);
+  assert.deepEqual(queries.map(q => {
+    if (q.includes('pg_advisory_xact_lock')) return 'lock';
+    if (q.includes('UPDATE civic_push_delivery_guard')) return 'block';
+    return q;
+  }), ['BEGIN', 'lock', 'block', 'COMMIT']);
 });
 
 test('old tokens are revoked on rotation, cleanup and logout', () => {
