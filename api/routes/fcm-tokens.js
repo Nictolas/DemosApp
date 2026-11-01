@@ -7,10 +7,22 @@ const {
   reconcileCivicTopicsForUser,
   unsubscribeCivicTopicsForToken,
 } = require('../services/civicPushTopics');
+const { blockCivicDeliveryFromPool } = require('../services/civicPushDeliveryGuard');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
+ 
+async function unsubscribeCivicTokenOrBlock(token) {
+  try {
+    await unsubscribeCivicTopicsForToken(token);
+  } catch {
+    // If Firebase fails, do not allow new topic messages until a manual repair.
+    await blockCivicDeliveryFromPool(pool);
+    throw new Error('CIVIC_TOPIC_SYNC_FAILED');
+  }
+}
+
 
 function isValidFcmToken(token) {
   return !!(token && token.trim() && token.length > 100 && !token.startsWith('web_'));
@@ -97,7 +109,7 @@ async function revokeSupersededCivicTokens(userId, tokenToKeep, legacyTokens) {
     ...legacyTokens.filter((token) => token !== tokenToKeep),
   ]);
   for (const token of replaced) {
-    if (isValidFcmToken(token)) await unsubscribeCivicTopicsForToken(token);
+    if (isValidFcmToken(token)) await unsubscribeCivicTokenOrBlock(token);
   }
 }
 
@@ -273,7 +285,7 @@ router.post('/cleanup', verifyToken, async (req, res) => {
         ...oldDevices.rows.map(row => row.fcm_token).filter(t => !cleanedTokens.includes(t))
       ]);
       for (const previous of removed) {
-        if (isValidFcmToken(previous)) await unsubscribeCivicTopicsForToken(previous);
+        if (isValidFcmToken(previous)) await unsubscribeCivicTokenOrBlock(previous);
       }
     }
 
@@ -326,7 +338,7 @@ router.delete('/session', verifyToken, async (req, res) => {
 
     if (isCivicPushEnabled()) {
       for (const token of new Set([...registered.rows.map(r => r.fcm_token), ...legacy])) {
-        if (isValidFcmToken(token)) await unsubscribeCivicTopicsForToken(token);
+        if (isValidFcmToken(token)) await unsubscribeCivicTokenOrBlock(token);
       }
     }
     await pool.query(
@@ -367,7 +379,7 @@ router.delete('/:token', verifyToken, async (req, res) => {
       [userId, token]
     );
     const isOwned = existingTokens.includes(token) || device.rows.length > 0;
-    if (isOwned && isValidFcmToken(token)) await unsubscribeCivicTopicsForToken(token);
+    if (isOwned && isValidFcmToken(token)) await unsubscribeCivicTokenOrBlock(token);
 
     // Rimuovi il token
     const updatedTokens = existingTokens.filter(t => t !== token);
