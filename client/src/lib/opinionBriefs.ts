@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these seventy-two canonical IDs opt in; the other 22 use the original
+ * Only these seventy-five canonical IDs opt in; the other 19 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -3657,6 +3657,170 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "Milano Ristorazione · Menù ufficiale inverno 2025/26", url: "https://www.milanoristorazione.it/files/Famiglie/Cosa_si_mangia/Inverno_2025-26/Menu_scuole_inverno_2025-26_WEB.pdf" },
       { label: "Ministero della Salute · Linee indirizzo ristorazione collettiva 2021", url: "https://www.salute.gov.it/new/it/news-e-media/notizie/ristorazione-collettiva-linee-di-indirizzo-nazionale/" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  gestazione_per_altri: {
+    intro: "La gestazione per altri (GPA) è una gravidanza portata avanti da una persona per il progetto genitoriale di altri. In Italia la legge 40/2004 ne vieta la realizzazione, organizzazione e pubblicità; la legge 169/2024 estende la perseguibilità dei fatti all'estero commessi da cittadini italiani. Esistono modelli diversi in altri paesi, e le regole sul riconoscimento dei figli sono un tema distinto.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Italia", title: "Divieto penale anche per fatti all'estero di cittadini italiani", text: "L'art. 12 comma 6 della legge 40/2004 punisce la realizzazione, organizzazione o pubblicizzazione della GPA. Dal 3 dicembre 2024 la legge 169/2024 prevede espressamente la punibilità per il cittadino italiano anche quando i fatti siano commessi all'estero. La norma penale non sostituisce la valutazione dell'interesse del minore nelle questioni di filiazione." },
+      { label: "🇬🇧 Regno Unito", title: "Percorso regolato e trasferimento giudiziario della genitorialità", text: "La persona che partorisce è la madre legale alla nascita. Il trasferimento ai genitori intenzionali avviene attraverso un parental order o altri percorsi giuridici applicabili; il consenso, la tutela e gli aspetti economici sono regolati, non derivano automaticamente da un contratto." },
+    ],
+    measuredResultsTitle: "🇮🇹 / 🇬🇧 · norme vigenti e un dato clinico circoscritto",
+    measuredResults: [
+      {
+        place: "🇮🇹 Normattiva · legge 169/2024",
+        topic: "Entrata in vigore della perseguibilità di fatti all'estero",
+        value: "3/12/2024",
+        period: "Legge 4 novembre 2024, n. 169",
+        meaning: "Decorrenza della nuova previsione per il cittadino italiano, NON numero di processi o condanne e NON divieto universale di ogni paese.",
+        sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=24G00187&atto.dataPubblicazioneGazzetta=2024-11-18&tipoDettaglio=vigente",
+      },
+      {
+        place: "🇮🇹 Legge 40/2004 · art. 12 comma 6",
+        topic: "Reclusione prevista per la condotta vietata",
+        value: "3 mesi–2 anni",
+        period: "Cornice edittale per il reato, legge italiana vigente",
+        meaning: "Intervallo di pena previsto dalla legge per il reato, NON durata di pena effettivamente inflitta in ogni caso e NON misura contro il bambino nato.",
+        sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=24G00187&atto.dataPubblicazioneGazzetta=2024-11-18&tipoDettaglio=vigente",
+      },
+      {
+        place: "🇮🇹 Legge 40/2004 · art. 12 comma 6",
+        topic: "Multa penale prevista dalla legge italiana",
+        value: "600.000–1.000.000 €",
+        period: "Sanzione edittale della condotta vietata",
+        meaning: "Intervallo della multa penale del reato, NON costo di un percorso di GPA e NON compenso pagato alla gestante.",
+        sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=24G00187&atto.dataPubblicazioneGazzetta=2024-11-18&tipoDettaglio=vigente",
+      },
+      {
+        place: "🇬🇧 Human Fertilisation and Embryology Authority",
+        topic: "Incidenza della GPA nei trattamenti IVF in cliniche britanniche",
+        value: "0,4%",
+        period: "Anno 2022 · quota dei trattamenti IVF nel Regno Unito",
+        meaning: "Quota di cicli IVF di cliniche del Regno Unito riguardanti GPA; NON quota di bambini nati tramite GPA, NON tasso di successo e NON attività svolte all'estero.",
+        sourceUrl: "https://www.hfea.gov.uk/about-us/media-centre/surrogacy-a-factsheet",
+      },
+    ],
+    evidenceCaveat: "Il 3 dicembre 2024 è la data di entrata in vigore della legge 169/2024: riguarda il cittadino ITALIANO che commette all'estero la condotta vietata, non una giurisdizione mondiale su ogni persona. Reclusione 3 mesi–2 anni e multa 600.000–1.000.000 € sono SANZIONI previste, non dati di condanne né somme pagate alle gestanti. Lo 0,4% HFEA riguarda unicamente i trattamenti IVF in CLINICHE britanniche nel 2022 e non misura tutta la GPA. Nel Regno Unito la genitorialità legale non si trasferisce automaticamente per contratto. Divieto penale, diritto di filiazione, interesse del minore e regolazione della GPA altruistica o commerciale richiedono valutazioni distinte.",
+    advantage: "Una regolazione potrebbe definire tutele sanitarie, consenso informato, assistenza legale indipendente e certezza giuridica per i minori, riducendo il ricorso a percorsi opachi.",
+    concern: "Restano rischi di sfruttamento economico, pressioni sulla gestante, conflitti sulla responsabilità genitoriale e disuguaglianze transfrontaliere; servono garanzie verificabili.",
+    note: "La GPA altruistica con rimborsi documentati e quella commerciale remunerata non sono necessariamente trattate allo stesso modo nei diversi ordinamenti. Evitare di confondere GPA, adozione e procreazione medicalmente assistita ordinaria.",
+    sources: [
+      { label: "Normattiva · Legge 169/2024 e articolo 12 comma 6 legge 40/2004", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=24G00187&atto.dataPubblicazioneGazzetta=2024-11-18&tipoDettaglio=vigente" },
+      { label: "HFEA · Surrogacy factsheet e quota di IVF 2022", url: "https://www.hfea.gov.uk/about-us/media-centre/surrogacy-a-factsheet" },
+      { label: "HFEA · Surrogacy, madre legale e parental order", url: "https://www.hfea.gov.uk/treatments/explore-all-treatments/surrogacy/?oldfirst=yes" },
+      { label: "Canada · Assisted Human Reproduction Act, rimborsi e ricevute", url: "https://laws-lois.justice.gc.ca/eng/acts/A-13.4/section-12.html" },
+    ],
+    verified: "01/11/2026",
+  },
+  corrida: {
+    intro: "La corrida è uno spettacolo taurino praticato soprattutto in Spagna, distinto dagli altri festejos popolari con bovini. La Spagna riconosce la tauromachia come patrimonio culturale e la sua legge generale del 2023 sul benessere degli animali esclude dall'ambito gli animali impiegati negli spettacoli taurini previsti dalla legge; ciò non significa che ogni tipo di evento sia privo di regolazione.",
+    facts: [],
+    comparison: [
+      { label: "🇪🇸 Quadro spagnolo", title: "Tradizione riconosciuta e regolazione nazionale", text: "La legge spagnola 18/2013 riconosce la tauromachia quale patrimonio culturale. La legge 7/2023 esclude dal proprio ambito gli animali utilizzati negli spettacoli taurini secondo la disciplina specifica. Restano norme su autorizzazioni, sicurezza e competenze regionali." },
+      { label: "Scelta politica", title: "Limitare, riformare oppure vietare gli spettacoli con sofferenza animale", text: "Una riforma può intervenire su pratiche, requisiti e protezione degli animali. In Spagna i limiti alla potestà di vietare totalmente le corride a livello regionale dipendono anche dal riparto delle competenze stabilito dal Tribunale costituzionale." },
+    ],
+    measuredResultsTitle: "🇪🇸 Spagna · attività dichiarata e regole, dati 2024–2025",
+    measuredResults: [
+      {
+        place: "🇪🇸 Ministerio de Cultura",
+        topic: "Festejos taurini censiti in tutta la Spagna",
+        value: "1.457",
+        period: "Anno 2024 · diverse categorie di spettacolo",
+        meaning: "Totale di eventi registrati dalla statistica nazionale 2024, NON 1.457 corride tradizionali e NON pubblico pagante.",
+        sourceUrl: "https://www.cultura.gob.es/dam/jcr%3A0ded8914-774d-4f05-809e-8bd918450927/estadistica-de-asuntos-taurinos-2024.pdf",
+      },
+      {
+        place: "🇪🇸 Ministerio de Cultura",
+        topic: "Corride di tori tradizionali fra i festejos taurini",
+        value: "376",
+        period: "Anno 2024 · sottogruppo dei 1.457 eventi",
+        meaning: "Numero della categoria corrida de toros, già INCLUSO nel totale nazionale dei festejos taurini; non va sommato ad esso.",
+        sourceUrl: "https://www.cultura.gob.es/dam/jcr%3A0ded8914-774d-4f05-809e-8bd918450927/estadistica-de-asuntos-taurinos-2024.pdf",
+      },
+      {
+        place: "🇪🇸 Comunidad de Madrid · statistica regionale",
+        topic: "Festejos taurini di ogni tipo nella Comunità di Madrid",
+        value: "283",
+        period: "Anno 2025 · dati regionali pubblicati sulla serie storica",
+        meaning: "Numero di eventi taurini regionali del 2025, NON 283 sole corride, NON dato nazionale e NON confrontabile direttamente con il totale nazionale 2024 come crescita.",
+        sourceUrl: "https://gestiona.comunidad.madrid/desvan/desvan/AccionDatosUnaSerie.icm?codSerie=1015403",
+      },
+      {
+        place: "🇪🇸 Tribunal Constitucional",
+        topic: "Sentenza sul divieto catalano delle corride",
+        value: "177/2016",
+        period: "Decisione del 20 ottobre 2016",
+        meaning: "La Corte ha annullato lo specifico divieto della Catalogna per motivi di competenze e protezione culturale; NON ha stabilito che ogni limitazione del benessere animale sia vietata.",
+        sourceUrl: "https://hj.tribunalconstitucional.es/es-ES/Resolucion/Show/25131",
+      },
+    ],
+    evidenceCaveat: "I 1.457 festejos spagnoli del 2024 comprendono MOLTE CATEGORIE di spettacoli; le 376 corride tradizionali ne sono un SOTTOINSIEME, non eventi aggiuntivi. Il dato di Madrid 283 nel 2025 comprende diverse categorie ma si riferisce a una SOLA comunità autonoma e a un altro anno: non descrive l'intera Spagna 2025. Il Ministero ha reso consultabili anche dati nazionali del 2025, ma i numeri nazionali qui citati sono esplicitamente riferiti al 2024. La sentenza 177/2016 annulla uno specifico divieto regionale catalano e NON giudica le conseguenze sulla sofferenza animale. La legge sul benessere 7/2023 esclude le attività taurine indicate dal proprio ambito, NON da qualsiasi legge.",
+    advantage: "I sostenitori richiamano tradizione culturale, attività professionali e autonomia delle comunità locali; le attività restano soggette a discipline pubbliche.",
+    concern: "La ferita e la morte dell'animale nelle corride tradizionali sollevano problemi di benessere e sofferenza animale, oltre alla questione dei finanziamenti e dell'educazione dei minori.",
+    note: "Distinguere corrida con uccisione del toro, altri festejos, eventi senza uccisione, tradizioni locali e le competenze di Stato, regioni e Comuni.",
+    sources: [
+      { label: "BOE · Legge 18/2013, tauromachia come patrimonio culturale", url: "https://boe.es/buscar/act.php?id=BOE-A-2013-11837" },
+      { label: "BOE · Legge 7/2023, esclusioni art.1.3", url: "https://boe.es/diario_boe/txt.php?id=BOE-A-2023-7936" },
+      { label: "Ministerio de Cultura · Statistica ufficiale eventi 2024", url: "https://www.cultura.gob.es/dam/jcr%3A0ded8914-774d-4f05-809e-8bd918450927/estadistica-de-asuntos-taurinos-2024.pdf" },
+      { label: "Comunidad de Madrid · Serie festejos taurini 2007–2025", url: "https://gestiona.comunidad.madrid/desvan/desvan/AccionDatosUnaSerie.icm?codSerie=1015403" },
+      { label: "Tribunal Constitucional · Sentenza 177/2016", url: "https://hj.tribunalconstitucional.es/es-ES/Resolucion/Show/25131" },
+    ],
+    verified: "01/11/2026",
+  },
+  centri_comunali_accoglienza_migranti: {
+    intro: "I Comuni possono partecipare al Sistema di Accoglienza e Integrazione (SAI), gestendo o coordinando progetti territoriali anche con enti del terzo settore. I posti SAI, l'accoglienza prefettizia straordinaria (CAS) e i nuovi posti soltanto messi a bando sono sistemi e stati differenti.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Rete SAI già attiva", title: "Accoglienza con titolarità degli enti locali", text: "Il rapporto annuale SAI 2025 presenta progetti territoriali, posti attivi, percorsi di inserimento e più di 1.900 Comuni coinvolti. Non ogni Comune è titolare di un progetto e un posto finanziato non è necessariamente attivo." },
+      { label: "🇮🇹 Avvisi FAMI settembre 2026", title: "Possibile aumento dei posti con progetti candidati dai Comuni", text: "Tre avvisi del Ministero dell'Interno prevedono 2.402 nuovi posti ordinari, 500 per minori non accompagnati e 300 per persone con specifico disagio sanitario. Le domande degli enti locali sono previste entro il 10 novembre 2026: sono disponibilità a bando, non posti già aperti." },
+    ],
+    measuredResultsTitle: "🇮🇹 SAI · rete 2025 e avvisi nazionali 2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 Ministero Interno / ANCI · Rapporto SAI 2025",
+        topic: "Progetti territoriali di accoglienza attivi",
+        value: "867",
+        period: "Anno 2025, rete SAI italiana",
+        meaning: "Numero di PROGETTI attivi, non numero di Comuni, strutture o singole persone ospitate.",
+        sourceUrl: "https://www.integrazionemigranti.gov.it/Ricerca-news/Dettaglio-news/id/4794/Presentato-il-Rapporto-SAI-2025-la-rete-di-accoglienza-si-consolida",
+      },
+      {
+        place: "🇮🇹 Ministero Interno / ANCI · Rapporto SAI 2025",
+        topic: "Posti di accoglienza attivi a fine anno",
+        value: "41.289",
+        period: "Al 31 dicembre 2025 · su 44.209 posti finanziati",
+        meaning: "Capacità effettivamente attiva alla data, NON tutte le persone accolte nell'anno; i 44.209 finanziati sono un insieme più ampio.",
+        sourceUrl: "https://www.integrazionemigranti.gov.it/Ricerca-news/Dettaglio-news/id/4794/Presentato-il-Rapporto-SAI-2025-la-rete-di-accoglienza-si-consolida",
+      },
+      {
+        place: "🇮🇹 Ministero Interno / ANCI · Rapporto SAI 2025",
+        topic: "Persone accolte nel corso di tutto l'anno",
+        value: "55.779",
+        period: "Flusso 1 gennaio–31 dicembre 2025",
+        meaning: "Totale delle persone accolte nell'anno, NON numero di posti occupati contemporaneamente né persone tutte presenti a fine anno.",
+        sourceUrl: "https://www.integrazionemigranti.gov.it/Ricerca-news/Dettaglio-news/id/4794/Presentato-il-Rapporto-SAI-2025-la-rete-di-accoglienza-si-consolida",
+      },
+      {
+        place: "🇮🇹 Ministero dell'Interno · avvisi FAMI",
+        topic: "Nuovi posti programmati nei tre avvisi SAI",
+        value: "3.202",
+        period: "Avvisi pubblicati a settembre 2026; candidature entro il 10 novembre",
+        meaning: "2402 posti ordinari + 500 per minori non accompagnati + 300 sanitari: obiettivo dei BANDI, NON posti già finanziati, assegnati o occupati.",
+        sourceUrl: "https://www.statocitta.pcm.gov.it/home/notizie-e-comunicati/2026/sistema-di-accoglienza-sai-avvisi-per-3202-nuovi-posti/",
+      },
+    ],
+    evidenceCaveat: "Gli 867 sono PROGETTI SAI, non Comuni (il rapporto riporta 1.991 Comuni coinvolti). I 41.289 sono POSTI ATTIVI a fine 2025 e sono parte dei 44.209 POSTI FINANZIATI: non sono additivi. Le 55.779 sono PERSONE ACCOLTE NELL'INTERO ANNO, non presenze simultanee. I 3.202 posti sono previsti in AVVISI 2026 (2.402 ordinari + 500 minori + 300 sanitari), NON posti già aperti e non necessariamente già assegnati. SAI e CAS prefettizi sono istituti diversi; l'efficacia dell'integrazione richiede dati di esito individuali e follow-up, non solo capacità.",
+    advantage: "Può organizzare accoglienza diffusa con servizi sociali, scuola, formazione e coordinamento comunale, evitando concentrazioni eccessive.",
+    concern: "Richiede personale, alloggi idonei, servizi territoriali, responsabilità e trasparenza nella gestione, nonché tutela dei residenti e delle persone accolte.",
+    note: "La partecipazione degli enti locali al SAI, il ruolo delle Prefetture nei CAS e l'accoglienza di minori non accompagnati hanno regole e finanziamenti diversi.",
+    sources: [
+      { label: "Portale integrazione migranti · Rapporto SAI 2025, presentato giugno 2026", url: "https://www.integrazionemigranti.gov.it/Ricerca-news/Dettaglio-news/id/4794/Presentato-il-Rapporto-SAI-2025-la-rete-di-accoglienza-si-consolida" },
+      { label: "Conferenza Stato-Città · Avvisi per 3.202 posti SAI, settembre 2026", url: "https://www.statocitta.pcm.gov.it/home/notizie-e-comunicati/2026/sistema-di-accoglienza-sai-avvisi-per-3202-nuovi-posti/" },
+      { label: "Ministero Interno · Linee guida SAI DM 18 novembre 2019", url: "https://www.gazzettaufficiale.it/eli/id/2019/12/04/19A07582/sg" },
     ],
     verified: "01/11/2026",
   },
