@@ -120,6 +120,12 @@ test('device routes do not log FCM token prefixes, user IDs or raw errors', () =
   assert.doesNotMatch(deviceApi, /console\.(?:log|error|warn)\([^\n]*\.substring\(/);
   assert.doesNotMatch(deviceApi, /details: error\.message/);
   assert.doesNotMatch(deviceApi, /console\.error\([^\n]*, error\)/);
+  const prefs = read('api/routes/notifiche.js');
+  const saveLog = prefs.slice(prefs.indexOf('// POST /api/notifiche/preferenze'),
+    prefs.indexOf('// GET /api/notifiche/ultima'));
+  assert.doesNotMatch(saveLog, /console\.log\([^\n]*user_id/);
+  assert.doesNotMatch(saveLog, /console\.log\([^\n]*savedPrefs/);
+  assert.doesNotMatch(saveLog, /console\.error\([^\n]*, error\)/);
 });
 
 test('rollback does not erase preferences, tokens or already handled outbox rows', () => {
