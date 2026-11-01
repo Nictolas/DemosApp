@@ -114,6 +114,14 @@ test('all official collectors suppress new events during emergency stop', () => 
   assert.match(eci, /FOR SHARE/);
 });
 
+test('device routes do not log FCM token prefixes, user IDs or raw errors', () => {
+  const deviceApi = read('api/routes/fcm-tokens.js');
+  assert.doesNotMatch(deviceApi, /console\.(?:log|error|warn)\([^\n]*userId/);
+  assert.doesNotMatch(deviceApi, /console\.(?:log|error|warn)\([^\n]*\.substring\(/);
+  assert.doesNotMatch(deviceApi, /details: error\.message/);
+  assert.doesNotMatch(deviceApi, /console\.error\([^\n]*, error\)/);
+});
+
 test('rollback does not erase preferences, tokens or already handled outbox rows', () => {
   const source = read('api/services/civicPushRollback.js');
   assert.match(source, /WHERE status = 'pending'/);
