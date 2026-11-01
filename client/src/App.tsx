@@ -25,6 +25,7 @@ import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
 import RegistrazioneConsensiWizard from "./pages/registrazione-consensi";
 import RegistrazioneCreaPasskey from "./pages/registrazione-crea-passkey";
 import Profilo from "./pages/Profilo";
+import CompassoPolitico from "./pages/CompassoPolitico";
 import Impostazioni from "./pages/Impostazioni";
 import SegnalaProblema from "./pages/SegnalaProblema";
 import Avvistamenti from "./pages/Avvistamenti";
@@ -570,6 +571,11 @@ export default function App() {
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/profilo" component={Profilo} />
                 </PageTransition>
+              </Route>
+
+              {/* Compasso privato: la pagina e protetta come il Profilo. */}
+              <Route path="/compasso-politico">
+                <ProtectedRoute path="/compasso-politico" component={CompassoPolitico} />
               </Route>
 
               {/* Route del profilo - URL con menu */}
