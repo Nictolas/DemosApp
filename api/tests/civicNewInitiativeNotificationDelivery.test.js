@@ -103,6 +103,20 @@ test('FCM subscription failure is sanitized and never signals opt-out success', 
   );
 });
 
+test('missing Firebase confirmation or incomplete counts never count as a revoked topic', async () => {
+  for (const reply of [undefined, null, {}, { failureCount: 0 },
+    { failureCount: 0, successCount: 0 }, { failureCount: 1, successCount: 0 }]) {
+    const messaging = {
+      unsubscribeFromTopic: async () => reply,
+      subscribeToTopic: async () => reply,
+    };
+    await assert.rejects(
+      unsubscribeCivicTopicsForToken('fake-test-token', { enabled: true, messaging }),
+      error => error.message === 'CIVIC_TOPIC_SYNC_FAILED'
+    );
+  }
+});
+
 test('an uncertain revocation blocks global topic sends with a transaction lock', async () => {
   const queries = [];
   const fakeClient = {
