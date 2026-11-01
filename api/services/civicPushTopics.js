@@ -94,9 +94,41 @@ async function unsubscribeCivicTopicsForToken(token, {
   return { enabled: true };
 }
 
+/**
+ * Opt-out must happen BEFORE the database acknowledges disabled preferences.
+ * Otherwise an unavailable Firebase service could leave an unsubscribed state in
+ * Postgres while the actual device keeps receiving pushes.
+ */
+async function unsubscribeDisabledCivicTopicsForUser(pool, userId, disabledCategories, {
+  enabled = isCivicPushEnabled(),
+  messaging = null,
+} = {}) {
+  if (!enabled || !disabledCategories?.length) return { enabled, tokens: 0 };
+  if (!userId || !pool || typeof pool.query !== 'function') {
+    throw new TypeError('CIVIC_USER_CONTEXT_REQUIRED');
+  }
+  const categories = [...new Set(disabledCategories)];
+  if (categories.some(category => !Object.hasOwn(CIVIC_TOPIC_BY_CATEGORY, category))) {
+    throw new TypeError('CIVIC_CATEGORY_UNSUPPORTED');
+  }
+  const { rows } = await pool.query(
+    'SELECT fcm_token FROM user_devices WHERE user_id = $1 AND is_active = TRUE',
+    [userId]
+  );
+  if (!rows.length) return { enabled: true, tokens: 0 };
+  const client = getMessagingClient(messaging);
+  for (const row of rows) {
+    for (const category of categories) {
+      await changeTopic(client, row.fcm_token, CIVIC_TOPIC_BY_CATEGORY[category], false);
+    }
+  }
+  return { enabled: true, tokens: rows.length };
+}
+
 module.exports = {
   CIVIC_TOPIC_BY_CATEGORY,
   isCivicPushEnabled,
   reconcileCivicTopicsForUser,
   unsubscribeCivicTopicsForToken,
+  unsubscribeDisabledCivicTopicsForUser,
 };
