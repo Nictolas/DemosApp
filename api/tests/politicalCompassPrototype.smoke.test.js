@@ -70,6 +70,27 @@ test("indecisione e scarsita di risposte non diventano coordinate", () => {
   assert.match(component, /compass\?\.freedom\.score !== null/);
 });
 
+test("quattro colori classici e posizione convenzionale dei quadranti", () => {
+  // Il compasso classico ha restrizioni in alto e libertà in basso;
+  // il segno del punteggio di libertà resta invariato, cambia solo il verso Y del SVG.
+  const quadrants = [
+    ['restrizioni-interventi-pubblici', '55', '35', '#ef4444'],
+    ['restrizioni-soluzioni-private', '180', '35', '#3b82f6'],
+    ['liberta-interventi-pubblici', '55', '160', '#22c55e'],
+    ['liberta-soluzioni-private', '180', '160', '#a855f7'],
+  ];
+  for (const [name, x, y, fill] of quadrants) {
+    assert.ok(component.includes(
+      `<rect x="${x}" y="${y}" width="125" height="125" fill="${fill}" data-quadrant="${name}" />`
+    ), `Quadrante errato: ${name}`);
+  }
+  assert.match(component, /cy=\{160 \+ \(compass\.freedom\.score \|\| 0\) \* 1\.25\}/);
+  assert.ok(component.indexOf("Maggiori restrizioni\n") <
+    component.indexOf("Maggiori libertà individuali\n"),
+    "Il polo delle restrizioni deve stare sopra quello delle libertà");
+  assert.match(component, /r="9" fill="#111827" stroke="#ffffff" strokeWidth="3"/);
+});
+
 test("il Compasso richiede risposte private e non riusa la cache legacy del solo catalogo", () => {
   assert.match(profileHook, /\/api\/opinioni\/profile\?includeAnswers=1/);
   assert.match(profileHook, /snapshot\.opinions\?\.answersLoaded === true/);
