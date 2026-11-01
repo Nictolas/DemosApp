@@ -54,7 +54,14 @@ function buildCivicPush(event) {
       event_id: String(event.id),
       link: publicUrl,
     },
-    webpush: { fcmOptions: { link: publicUrl } },
+    // Short retention limits late delivery after an account has opted out.
+    // It cannot retract messages already accepted by FCM.
+    android: { ttl: 60 * 60 * 1000 },
+    webpush: {
+      headers: { TTL: '3600' },
+      notification: { tag: 'demos-civic-' + String(event.id) },
+      fcmOptions: { link: publicUrl },
+    },
   };
 }
 
