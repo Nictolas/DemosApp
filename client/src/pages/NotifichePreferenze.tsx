@@ -17,6 +17,8 @@ import {
   School, 
   PawPrint, 
   Building2,
+  FileText,
+  Vote,
   ArrowLeft,
   Loader2,
   CheckCircle2
@@ -35,6 +37,9 @@ interface PreferenzeNotifiche {
   scuola: boolean;
   animali: boolean;
   organizzazioni: boolean;
+  iniziative_popolari: boolean;
+  referendum_abrogativi: boolean;
+  eci: boolean;
 }
 
 export default function NotifichePreferenze() {
@@ -53,6 +58,9 @@ export default function NotifichePreferenze() {
     scuola: false,
     animali: true,
     organizzazioni: false,
+    iniziative_popolari: false,
+    referendum_abrogativi: false,
+    eci: false,
   });
   
   const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +81,7 @@ export default function NotifichePreferenze() {
       const response = await apiRequest.get<{ preferenze: PreferenzeNotifiche }>("/notifiche/preferenze");
       
       if (response.success && response.data?.preferenze) {
-        setPreferenze(response.data.preferenze);
+        setPreferenze((previous) => ({ ...previous, ...response.data.preferenze }));
       } else {
         // Se non ci sono preferenze, usa i default
         console.log("Nessuna preferenza trovata, uso i default");
@@ -150,6 +158,15 @@ export default function NotifichePreferenze() {
         { key: "attivisti" as const, label: "Attivisti", description: "Notifiche da attivisti che segui", icon: Heart, color: "text-pink-600" },
         { key: "organizzazioni" as const, label: "Organizzazioni", description: "Notifiche da organizzazioni che segui", icon: Building2, color: "text-teal-600" },
       ]
+    },
+    {
+      title: "Partecipazione popolare",
+      icon: Vote,
+      items: [
+        { key: "iniziative_popolari" as const, label: "Iniziative popolari", description: "Avvisami quando inizia una nuova raccolta firme ufficiale in Italia", icon: FileText, color: "text-emerald-600" },
+        { key: "referendum_abrogativi" as const, label: "Referendum abrogativi", description: "Avvisami quando inizia una nuova raccolta firme per un referendum abrogativo", icon: Vote, color: "text-rose-600" },
+        { key: "eci" as const, label: "Iniziative dei cittadini europei (ECI)", description: "Avvisami quando parte una nuova iniziativa europea", icon: Globe, color: "text-blue-600" },
+      ],
     },
     {
       title: "Altro",
