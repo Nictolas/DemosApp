@@ -119,7 +119,9 @@
   già presenti, del backup/rollback e dell'assenza di dati reali.
 - La fixture rifiuta un'esecuzione senza i due flag di conferma locali
   alla transazione, e rifiuta ambienti in cui una delle quattro tabelle
-  sorgenti esiste già. **Questi flag non identificano il database fisico**:
+  sorgenti **o una delle tre tabelle civiche di destinazione** esiste già.
+  Uno schema civico già parzialmente preparato deve essere esaminato
+  manualmente: non tentare di ripararlo con una seconda esecuzione cieca. **Questi flag non identificano il database fisico**:
   l'operatore deve verificare il progetto indipendentemente. Non usare il
   file su produzione, né copiare token o utenti veri nello staging.
 - Il test sul PostgreSQL usa dati ufficiali **inventati** (ID prefissati
