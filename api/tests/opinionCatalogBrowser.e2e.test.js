@@ -337,6 +337,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Educazione sessuo-affettiva', '11/03/2026'],
       ['/opinioni-nazionali', "Legge contro l'omobitransfobia", '205/1993'],
       ['/opinioni-comunali', 'Concessione spazi pubblici a centri sociali autogestiti', '30 anni'],
+      ['/opinioni-nazionali', 'Metabo Law', '40–74 anni'],
+      ['/opinioni-nazionali', 'Premierato', 'S. 935'],
+      ['/opinioni-comunali', 'Nuovo stadio comunale', '≈70 mln €'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1546,6 +1549,31 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             all.includes('NON durata obbligatoria') &&
             all.includes('NON è un bene ceduto gratuitamente'),
             'Public property use is conditional and is not a perpetual transfer');
+        }
+      } else if (['Metabo Law', 'Premierato', 'Nuovo stadio comunale'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four contextualized evidence rows');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': four source links required');
+        const all = await brief.innerText();
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': legal references and funds do not demonstrate policy outcomes');
+        if (title === 'Metabo Law') {
+          assert.ok(all.includes('NON una multa automatica') &&
+            all.includes('NON tutti i cittadini') &&
+            all.includes('NON una tassa'),
+            'Japanese checkups are not a universal overweight fine');
+        } else if (title === 'Premierato') {
+          assert.ok(all.includes('NON legge costituzionale vigente') &&
+            all.includes('NON riforma già applicata'),
+            'Constitutional proposal is not effective law');
+        } else {
+          assert.ok(all.includes('NON esclusivamente nuovi stadi') &&
+            all.includes('NON costo di un nuovo stadio') &&
+            all.includes('NON un unico stadio'),
+            'National sport infrastructure budget is not a stadium cost');
         }
       } else if (['Autonomia Differenziata', 'Polizia locale armata', 'Sussidi comunali per famiglie numerose'].includes(title)) {
         const results = brief.getByTestId('opinion-brief-measured-results');
