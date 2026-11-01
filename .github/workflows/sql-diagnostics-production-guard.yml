@@ -11,6 +11,9 @@ on:
       - 'api/routes/test-db.js'
       - 'api/routes/comunicazioni.js'
       - 'api/tests/devDbDiagnosticsExposure.test.js'
+      - 'api/tests/individualNotificationInbox.synthetic.test.js'
+      - 'client/src/pages/NotificheDemos.tsx'
+      - 'client/src/pages/NotificheTotali/index.tsx'
       - '.github/workflows/sql-diagnostics-production-guard.yml'
 
 permissions:
@@ -33,4 +36,4 @@ jobs:
         working-directory: api
         run: npm ci --ignore-scripts
       - name: Prove production diagnostic routes fail closed
-        run: node --test api/tests/devDbDiagnosticsExposure.test.js
+        run: node --test api/tests/devDbDiagnosticsExposure.test.js api/tests/individualNotificationInbox.synthetic.test.js
