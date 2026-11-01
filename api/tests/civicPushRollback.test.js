@@ -53,6 +53,7 @@ test('default rollback is only a preview and preserves all event statuses', asyn
   const r = await stopCivicPush(pool);
   assert.deepEqual(r, {
     dryRun: true, guardCurrentlyBlocked: false, wouldSuppressPending: 4,
+    eventsForManualReview: 1,
   });
   assert.equal(pool.state.pending, 4);
   assert.equal(pool.state.blocked, false);
@@ -76,7 +77,8 @@ test('emergency stop blocks delivery before suppressing pending events, idempote
   const pool = fakeDb({ pending: 3 });
   const result = await stopCivicPush(pool, { apply: true, confirmed: true });
   assert.deepEqual(result, {
-    dryRun: false, guardBlocked: true, suppressedPending: 3, pendingRequiresReview: 0,
+    dryRun: false, guardBlocked: true, suppressedPending: 3,
+    eventsForManualReview: 1,
   });
   assert.equal(pool.state.blocked, true);
   assert.equal(pool.state.reason_code, 'EMERGENCY_STOP');
