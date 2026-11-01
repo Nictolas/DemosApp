@@ -1,6 +1,7 @@
 'use strict';
 
 const { getFirebaseAdmin } = require('./firebaseAdmin');
+const { assertCivicDatabaseIdentity } = require('./civicRuntimeDatabaseIdentity');
 const { CIVIC_TOPIC_BY_CATEGORY, isCivicPushEnabled } = require('./civicPushTopics');
 const {
   readCivicDeliveryBarrier,
@@ -88,6 +89,9 @@ async function dispatchCivicNewInitiatives(pool, {
     if (safety.blocked) {
       return { enabled: true, blocked: true, accepted: 0, failed: 0 };
     }
+
+    // Fail closed if the dispatch target is not the verified ECI/Ministero DB.
+    await assertCivicDatabaseIdentity(client);
 
     // Check Firebase before claiming an event. Provider errors remain sanitized.
     const firebase = messaging || getFirebaseAdmin()?.messaging();
