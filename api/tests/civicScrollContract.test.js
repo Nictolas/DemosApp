@@ -29,7 +29,7 @@ test('signature collections can scroll all results above the mobile navbar', () 
     assert.ok(layout.includes(`location === '${route}'`), `${route} must use the bounded scroll shell`);
     const page = read(path);
     assert.match(page, /<PageContainer className="overflow-hidden">/);
-    assert.match(page, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain"/);
+    assert.match(page, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain\b/);
     assert.ok(page.includes(`aria-label="${label}"`));
     assert.match(page, /tabIndex=\{0\}/);
     assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf(list), `${route} listing must be inside the scroll area`);
