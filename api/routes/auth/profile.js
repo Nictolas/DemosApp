@@ -128,6 +128,16 @@ router.get('/me', async (req, res) => {
 
     const user = result.rows[0];
     const accountSubject = await getAccountSubject(pool, user.id);
+    // A valid signed access token is not proof that an account is still active.
+    // Pending OAuth tokens are handled above; revoked/deactivated real accounts
+    // must not receive their profile even during a storage-format migration.
+    if (!accountSubject || accountSubject.status !== 'a') {
+      return res.status(401).json({
+        success: false,
+        error: 'Account non attivo',
+        message: 'Effettua nuovamente il login'
+      });
+    }
     const emailDecrypted = decryptEmail(user.email);
     if (user.email != null) user.email = emailDecrypted;
     console.log('✅ Profilo utente recuperato:', emailDecrypted ? '(email presente)' : '(nessuna email)');

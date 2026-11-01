@@ -15,7 +15,7 @@ function isApprovalSchemaError(error) {
 function canRequestEvent(user) {
   if (!user) return false;
   if (user.isAdmin) return true;
-  if (user.accountType === 'INSTITUTION' || user.accountType === 'ORGANIZATION') return true;
+  if (['INSTITUTION', 'E', 'ORGANIZATION', 'O'].includes(user.accountType)) return true;
   return Boolean(user.isPolitician || user.isCandidate || user.isActivist);
 }
 

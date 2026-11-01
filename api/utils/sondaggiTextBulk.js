@@ -171,7 +171,7 @@ function buildDirectFilterTextAggregateQuery(columns, options = {}) {
     'FROM opinioni_risposte orr',
     'JOIN users u ON u.id = orr.user_id',
     'LEFT JOIN user_consents uc ON uc.user_id = u.id',
-    "WHERE u.account_type = 'PERSON'",
+    "WHERE u.account_type IN ('PERSON', 'P')",
     'AND COALESCE(uc.political_opinions_consent,',
     '             u.political_opinions_consent, false) IS TRUE',
     geo,
@@ -202,7 +202,7 @@ function buildNationalTextAggregateQuery(columns) {
       ${values}
     ) AS v(opinion_id, answer)
     WHERE v.answer IS NOT NULL
-      AND u.account_type = 'PERSON'
+      AND u.account_type IN ('PERSON', 'P')
       AND COALESCE(uc.political_opinions_consent,
                    u.political_opinions_consent, false) IS TRUE
     GROUP BY v.opinion_id
@@ -226,7 +226,7 @@ async function legacyNationalStatsFallback(pool, ids) {
         JOIN users u ON u.id = orr.user_id
         LEFT JOIN user_consents uc ON uc.user_id = u.id
         WHERE orr.${quoted} IS NOT NULL
-          AND u.account_type = 'PERSON'
+          AND u.account_type IN ('PERSON', 'P')
           AND COALESCE(uc.political_opinions_consent,
                        u.political_opinions_consent, false) IS TRUE
       `);
@@ -311,7 +311,7 @@ function buildTerritorialTextAggregateQuery(columns, { scope, params } = {}) {
     values,
     ') AS v(opinion_id, answer)',
     'WHERE v.answer IS NOT NULL',
-    "AND u.account_type = 'PERSON'",
+    "AND u.account_type IN ('PERSON', 'P')",
     'AND COALESCE(uc.political_opinions_consent,',
     '             u.political_opinions_consent, false) IS TRUE',
     filter,
@@ -337,7 +337,7 @@ async function legacyTerritorialStatsFallback(pool, ids, scope, params) {
         'JOIN users u ON u.id = orr.user_id',
         'LEFT JOIN user_consents uc ON uc.user_id = u.id',
         'WHERE orr.' + quoted + ' IS NOT NULL',
-        "AND u.account_type = 'PERSON'",
+        "AND u.account_type IN ('PERSON', 'P')",
         'AND COALESCE(uc.political_opinions_consent,',
         '             u.political_opinions_consent, false) IS TRUE',
         filter

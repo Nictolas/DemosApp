@@ -1,0 +1,87 @@
+name: Compact user account types P O E
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/accountCapabilitiesService.js'
+      - 'api/routes/opinioni/stats.js'
+      - 'api/utils/sondaggiTextBulk.js'
+      - 'api/routes/organizzazioni.js'
+      - 'api/routes/users/search.js'
+      - 'api/routes/auth/profile.js'
+      - 'api/services/privacyDataExportService.js'
+      - 'api/scripts/audit-political-duplicate-users-20261028.sql'
+      - 'api/database/create-account-capabilities-model.sql'
+      - 'api/tests/compactAccountTypesApiContract.test.js'
+      - 'api/tests/accountCapabilitiesMigration.test.js'
+      - 'api/tests/accountCapabilityAuthorization.smoke.test.js'
+      - 'api/tests/oauthRegistrationService.test.js'
+      - 'api/tests/webauthnLoginSessionPolicy.test.js'
+      - 'api/database/users-role-default-e-20261029.sql'
+      - 'api/database/users-account-type-poe-20261029.sql'
+      - 'api/database/users-account-type-poe-rollback-20261029.sql'
+      - 'api/tests/shortAccountTypeCodes.test.js'
+      - 'api/tests/shortAccountTypeMigration.integration.sh'
+      - 'api/tests/compactAccountTypes.pg17.integration.js'
+      - 'api/tests/compactAccountTypesHttp.pg17.integration.js'
+      - 'api/tests/compactAccountTypesSurvey.pg17.integration.js'
+      - 'api/tests/compactAccountTypesStagingContract.test.js'
+      - 'api/tests/shortAccountTypeRegistrationGate.test.js'
+      - 'api/services/oauthRegistrationService.js'
+      - 'api/services/passkeyRegistrationService.js'
+      - 'api/staging/f12_poe_isolated_synthetic_20261029.sql'
+      - 'api/staging/f12_poe_isolated_synthetic_index_20261029.sql'
+      - 'api/staging/f12_poe_readonly_smoke_20261029.sql'
+      - 'api/staging/f12_poe_canonical_profile_fixture_20261029.sql'
+      - 'api/docs/account-type-poe-cutover-20261029.md'
+      - 'client/src/pages/Utenti/index.tsx'
+      - '.github/workflows/compact-user-account-types.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compact-account-types:
+    name: P O E contracts and PostgreSQL 17 migration (synthetic only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Account-type semantics and legacy role regression
+        run: |
+          node --test api/tests/shortAccountTypeCodes.test.js api/tests/accountCapabilitiesService.test.js api/tests/accountCapabilitiesMigration.test.js api/tests/accountCapabilityAuthorization.smoke.test.js api/tests/compactAccountTypesApiContract.test.js api/tests/compactAccountTypesStagingContract.test.js api/tests/shortAccountTypeRegistrationGate.test.js
+      - name: Install API dependencies for OAuth and passkey regression
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: OAuth registration and passkey status policy
+        run: |
+          node --test api/tests/oauthRegistrationService.test.js api/tests/webauthnLoginSessionPolicy.test.js
+      - name: PostgreSQL 17 isolated migration test
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          bash api/tests/shortAccountTypeMigration.integration.sh

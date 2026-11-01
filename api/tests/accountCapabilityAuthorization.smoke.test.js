@@ -32,7 +32,7 @@ test('Attivisti and Organizzazioni directories prefer canonical account model wi
   const orgs = read('routes/organizzazioni.js');
   assert.match(activists, /u\.is_activist/);
   assert.match(activists, /queryWithAccountModelFallback/);
-  assert.match(orgs, /u\.account_type = 'ORGANIZATION'/);
+  assert.match(orgs, /u\.account_type IN \('ORGANIZATION', 'O'\)/);
   assert.match(orgs, /queryWithAccountModelFallback/);
 });
 
