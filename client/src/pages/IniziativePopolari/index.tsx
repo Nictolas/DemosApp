@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/PageContainer";
 import { Header } from "./components/Header";
 import { IniziativeTable } from "./components/IniziativeTable";
 import { ViewDialog } from "./components/ViewDialog";
@@ -96,34 +97,43 @@ export default function IniziativePopolari() {
   }
 
   return (
-    <div className="iniziative-popolari-page container mx-auto px-4 py-8">
-      <Card className="w-full rounded-2xl shadow-lg bg-white">
-        <CardContent className="p-6">
-          <Header />
-          
-          {/* Barra di ricerca e filtri */}
-          <SearchAndFilters
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortBy={sortBy}
-            onSortChange={setSortBy}
+    <PageContainer className="overflow-hidden">
+      <div
+        className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        role="region"
+        aria-label="Elenco iniziative popolari"
+        tabIndex={0}
+      >
+        <div className="iniziative-popolari-page container mx-auto px-4 py-8">
+          <Card className="w-full rounded-2xl shadow-lg bg-white">
+            <CardContent className="p-6">
+              <Header />
+              
+              {/* Barra di ricerca e filtri */}
+              <SearchAndFilters
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+              />
+              
+              {/* Iniziative Ufficiali */}
+              <IniziativeTable
+                listaIniziative={filteredAndSortedIniziative}
+                mieiVoti={mieiVoti}
+                isLoading={isLoading}
+                isError={isError}
+                onView={startEditView}
+              />
+            </CardContent>
+          </Card>
+    
+          <ViewDialog
+            iniziativa={state.viewIniziativa}
+            onClose={closeView}
           />
-          
-          {/* Iniziative Ufficiali */}
-          <IniziativeTable
-            listaIniziative={filteredAndSortedIniziative}
-            mieiVoti={mieiVoti}
-            isLoading={isLoading}
-            isError={isError}
-            onView={startEditView}
-          />
-        </CardContent>
-      </Card>
-
-      <ViewDialog
-        iniziativa={state.viewIniziativa}
-        onClose={closeView}
-      />
-    </div>
+        </div>
+      </div>
+    </PageContainer>
   );
 }
