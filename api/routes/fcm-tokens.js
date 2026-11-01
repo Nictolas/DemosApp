@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const {
+  isCivicPushEnabled,
+  reconcileCivicTopicsForUser,
+  unsubscribeCivicTopicsForToken,
+} = require('../services/civicPushTopics');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -74,6 +79,26 @@ async function deactivateUserDeviceToken(userId, token) {
      WHERE user_id = $1 AND fcm_token = $2`,
     [userId, token]
   );
+}
+
+// Unsubscribe dei vecchi token PRIMA di revocarli o associarli a un altro account.
+async function revokeSupersededCivicTokens(userId, tokenToKeep, legacyTokens) {
+  if (!isCivicPushEnabled()) return;
+  const result = await pool.query(
+    `SELECT fcm_token
+     FROM user_devices
+     WHERE is_active = TRUE
+       AND ((user_id = $1 AND fcm_token <> $2)
+         OR (user_id <> $1 AND fcm_token = $2))`,
+    [userId, tokenToKeep]
+  );
+  const replaced = new Set([
+    ...result.rows.map((row) => row.fcm_token),
+    ...legacyTokens.filter((token) => token !== tokenToKeep),
+  ]);
+  for (const token of replaced) {
+    if (isValidFcmToken(token)) await unsubscribeCivicTopicsForToken(token);
+  }
 }
 
 // POST /api/fcm-tokens - Salva o aggiorna token FCM per l'utente
@@ -165,13 +190,20 @@ router.post('/', verifyToken, async (req, res) => {
       }
     }
     
+    // La sostituzione degli ID dispositivo non deve lasciare topic su account vecchi.
+    // In caso di errore Firebase, non cambiamo proprietario al token.
+    await revokeSupersededCivicTokens(userId, token, validExistingTokens);
+
     // Salva su storage legacy (transitorio)
     await updateLegacyTokens(userId, updatedTokens);
 
     // Salva su nuovo storage (user_devices): mantieni un solo token attivo per utente
     await upsertUserDeviceToken(userId, token);
     await deactivateOtherUserDeviceTokens(userId, token);
-    
+
+    // Dopo il salvataggio il server legge le preferenze effettive dell'utente.
+    await reconcileCivicTopicsForUser(pool, userId);
+
     console.log(`✅ Token FCM salvato con successo per utente ${userId}`);
     
     res.json({
@@ -231,6 +263,20 @@ router.post('/cleanup', verifyToken, async (req, res) => {
       console.log(`   ℹ️ Nessun token duplicato trovato (${validTokens.length} token presente)`);
     }
     
+    if (isCivicPushEnabled()) {
+      const oldDevices = await pool.query(
+        'SELECT fcm_token FROM user_devices WHERE user_id = $1 AND is_active = TRUE',
+        [userId]
+      );
+      const removed = new Set([
+        ...validTokens.slice(0, -1),
+        ...oldDevices.rows.map(row => row.fcm_token).filter(t => !cleanedTokens.includes(t))
+      ]);
+      for (const previous of removed) {
+        if (isValidFcmToken(previous)) await unsubscribeCivicTopicsForToken(previous);
+      }
+    }
+
     // Salva i token puliti su storage legacy (transitorio)
     await updateLegacyTokens(userId, cleanedTokens);
 
@@ -242,7 +288,8 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     if (cleanedTokens.length > 0) {
       await upsertUserDeviceToken(userId, cleanedTokens[0]);
     }
-    
+    await reconcileCivicTopicsForUser(pool, userId);
+
     res.json({
       success: true,
       message: 'Token FCM puliti con successo',
@@ -260,6 +307,36 @@ router.post('/cleanup', verifyToken, async (req, res) => {
       error: 'Errore interno del server',
       details: error.message
     });
+  }
+});
+
+// DELETE /api/fcm-tokens/session - Logout web e native: revoca l'unico device
+// attivo del modello attuale, senza conoscere il token lato client.
+router.delete('/session', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id || req.user.userId;
+    if (!userId) return res.status(401).json({ success: false, error: 'Non autenticato' });
+
+    const registered = await pool.query(
+      'SELECT fcm_token FROM user_devices WHERE user_id = $1 AND is_active = TRUE',
+      [userId]
+    );
+    const legacy = await getLegacyTokens(userId);
+    if (legacy === null) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+
+    if (isCivicPushEnabled()) {
+      for (const token of new Set([...registered.rows.map(r => r.fcm_token), ...legacy])) {
+        if (isValidFcmToken(token)) await unsubscribeCivicTopicsForToken(token);
+      }
+    }
+    await pool.query(
+      'UPDATE user_devices SET is_active = FALSE, updated_at = NOW() WHERE user_id = $1',
+      [userId]
+    );
+    await updateLegacyTokens(userId, []);
+    res.json({ success: true });
+  } catch {
+    res.status(503).json({ success: false, error: 'Impossibile completare la revoca del dispositivo' });
   }
 });
 
@@ -283,6 +360,14 @@ router.delete('/:token', verifyToken, async (req, res) => {
         error: 'Utente non trovato'
       });
     }
+
+    // Mai agire su topic di un token che non appartiene all'utente autenticato.
+    const device = await pool.query(
+      'SELECT 1 FROM user_devices WHERE user_id = $1 AND fcm_token = $2 AND is_active = TRUE',
+      [userId, token]
+    );
+    const isOwned = existingTokens.includes(token) || device.rows.length > 0;
+    if (isOwned && isValidFcmToken(token)) await unsubscribeCivicTopicsForToken(token);
 
     // Rimuovi il token
     const updatedTokens = existingTokens.filter(t => t !== token);
