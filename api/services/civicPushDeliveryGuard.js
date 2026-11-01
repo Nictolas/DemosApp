@@ -4,6 +4,7 @@
 // erasure. It prevents a NEW topic send from starting after erasure commits.
 // FCM messages accepted earlier cannot be recalled from device queues.
 const ADVISORY_LOCK = '60423, 539';
+const { assertCivicDatabaseIdentity } = require('./civicRuntimeDatabaseIdentity');
 
 async function readCivicDeliveryBarrier(client) {
   const result = await client.query(
@@ -98,6 +99,8 @@ async function withCivicPushDeliveryLock(pool, callback, { enabled = false } = {
     attempted = true;
     await acquireCivicPushDeliveryLock(client);
     locked = true;
+    // Topic mutations must not operate on a different/unknown database.
+    await assertCivicDatabaseIdentity(client);
     return await callback(client);
   } finally {
     if (locked) {
