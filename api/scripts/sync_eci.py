@@ -280,8 +280,20 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                         f"Verifica cache ECI fallita: attesi {len(records)}, trovati {stored_count}"
                     )
                 if collection_enabled:
+                    # The guard row lock makes this source sync serializable with
+                    # the emergency rollback's guard UPDATE, even across jobs.
+                    # Once STOP is committed, no catch-up push can be created.
+                    cur.execute(
+                        "SELECT reason_code FROM civic_push_delivery_guard WHERE id=1 FOR SHARE"
+                    )
+                    guard = cur.fetchone()
+                    if guard is None:
+                        raise RuntimeError("CIVIC_DELIVERY_GUARD_NOT_INITIALIZED")
+                    event_status = (
+                        "suppressed" if guard[0] == "EMERGENCY_STOP" else "pending"
+                    )
                     new_records = [
-                        ("eci", row[0], row[1], "/eci", "pending")
+                        ("eci", row[0], row[1], "/eci", event_status)
                         for row in records if row[0] not in previous_ids
                     ]
                     if new_records:
