@@ -19,6 +19,24 @@ test('only the intended civic routes use the bounded scroll shell', () => {
   assert.ok(css.includes('  height: 100%;\n  min-height: 0;\n  overflow: hidden;'));
 });
 
+test('signature collections can scroll all results above the mobile navbar', () => {
+  const layout = read('client/src/components/RobustAppLayout.tsx');
+  for (const [route, path, label, list] of [
+    ['/iniziative-popolari', 'client/src/pages/IniziativePopolari/index.tsx', 'Elenco iniziative popolari', '<IniziativeTable'],
+    ['/eci', 'client/src/pages/ECI/index.tsx', 'Elenco ECI', 'displayList.map'],
+    ['/referendum-abrogativi', 'client/src/pages/ReferendumAbrogativi/index.tsx', 'Elenco referendum abrogativi', '<ReferendumTable'],
+  ]) {
+    assert.ok(layout.includes(`location === '${route}'`), `${route} must use the bounded scroll shell`);
+    const page = read(path);
+    assert.match(page, /<PageContainer className="overflow-hidden">/);
+    assert.match(page, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain"/);
+    assert.ok(page.includes(`aria-label="${label}"`));
+    assert.match(page, /tabIndex=\{0\}/);
+    assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf(list), `${route} listing must be inside the scroll area`);
+    assert.doesNotMatch(page, /page-with-navbar/);
+  }
+});
+
 test('popular initiative voting can scroll all cards above the app navbar', () => {
   const page = read('client/src/pages/VotaIniziativaPopolare/index.tsx');
   assert.match(page, /<PageContainer className="overflow-hidden/);
