@@ -153,7 +153,7 @@ router.post('/cleanup-all', async (req, res) => {
 
 /**
  * GET /api/admin/data-retention/notifications
- * Ottiene notifiche di retention da inviare
+ * Ottiene solo i candidati a una futura notifica di retention (nessun invio)
  */
 router.get('/notifications', async (req, res) => {
   try {
@@ -164,8 +164,12 @@ router.get('/notifications', async (req, res) => {
     res.json({
       success: true,
       data: {
-        notifications,
-        count: notifications.length,
+        notifications, // Alias legacy: questi record sono candidati, non invii effettuati.
+        count: notifications.length, // Alias legacy del conteggio candidati.
+        candidate_count: notifications.length,
+        sent_count: 0,
+        delivery_performed: false,
+        delivery_status: 'not_sent',
         days_before: parseInt(daysBefore)
       }
     });
