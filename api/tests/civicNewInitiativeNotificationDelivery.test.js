@@ -19,6 +19,8 @@ const {
 } = require('../services/civicPushDeliveryGuard');
 
 const ROOT = path.resolve(__dirname, '..', '..');
+const TEST_DB_ID = '00000000-0000-4000-8000-000000000539';
+process.env.CIVIC_RUNTIME_DATABASE_ID = TEST_DB_ID;
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 
 function fakeMessaging() {
@@ -235,6 +237,9 @@ function eventPool({ blocked = false, unsafe = false } = {}) {
     query: async (sql, params) => {
       if (sql.includes('pg_advisory_lock(')) return { rows: [] };
       if (sql.includes('pg_advisory_unlock(')) return { rows: [{ unlocked: true }] };
+      if (sql.includes('FROM civic_runtime_identity')) {
+        return { rows: [{ db_identity: TEST_DB_ID }] };
+      }
       if (sql.includes('SELECT blocked FROM civic_push_delivery_guard')) {
         return { rows: [{ blocked }] };
       }
