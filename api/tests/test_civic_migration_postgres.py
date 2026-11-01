@@ -37,6 +37,7 @@ class MigrationContract(unittest.TestCase):
 
     def setUp(self):
         with self.conn.cursor() as cur:
+            cur.execute("DROP TABLE IF EXISTS civic_runtime_identity")
             cur.execute("DROP TABLE IF EXISTS civic_push_delivery_guard")
             cur.execute("DROP TABLE IF EXISTS civic_new_initiative_notifications")
             cur.execute("DROP TABLE IF EXISTS iniziative_ministero")
@@ -125,6 +126,15 @@ class MigrationContract(unittest.TestCase):
             SELECT blocked, reason_code
             FROM civic_push_delivery_guard WHERE id = 1
         """), [(True, "ROLLOUT_NOT_APPROVED")])
+        marker = self.query("""
+            SELECT db_identity::text FROM civic_runtime_identity WHERE id=1
+        """)
+        self.assertEqual(len(marker), 1)
+        self.assertRegex(marker[0][0], r"^[0-9a-f]{8}-[0-9a-f-]{27}$")
+        self.assertEqual(self.query("""
+            SELECT relrowsecurity FROM pg_class
+            WHERE oid = 'civic_runtime_identity'::regclass
+        """), [(True,)])
         self.assertEqual(self.query("""
             SELECT relrowsecurity FROM pg_class
             WHERE oid = 'civic_push_delivery_guard'::regclass
@@ -144,6 +154,9 @@ class MigrationContract(unittest.TestCase):
 
         # Re-run verifies idempotency and no historical event is re-created.
         self.apply_migration()
+        self.assertEqual(self.query("""
+            SELECT db_identity::text FROM civic_runtime_identity WHERE id=1
+        """), marker)
         self.assertEqual(self.query("""
             SELECT COUNT(*), COUNT(*) FILTER (WHERE status='pending')
             FROM civic_new_initiative_notifications
