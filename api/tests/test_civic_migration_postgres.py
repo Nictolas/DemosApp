@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import unittest
 from uuid import uuid4
+from api.tests.civic_test_database_safety import require_ephemeral_civic_database_url
 
 try:
     import psycopg2
@@ -25,9 +26,11 @@ COLLECTOR = ROOT / "api/services/civicNewInitiativeEventCollector.js"
 class MigrationContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        url = os.environ["CIVIC_TEST_DATABASE_URL"]
-        if not ("127.0.0.1" in url or "localhost" in url):
-            raise RuntimeError("REFUSE_NONLOCAL_DB")
+        url = require_ephemeral_civic_database_url(
+            os.environ["CIVIC_TEST_DATABASE_URL"]
+        )
+        if os.environ.get("DATABASE_URL") == url:
+            raise RuntimeError("REFUSE_SHARED_DATABASE_URL")
         cls.conn = psycopg2.connect(url)
         cls.conn.autocommit = True
 
