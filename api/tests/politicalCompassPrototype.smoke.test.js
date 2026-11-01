@@ -50,8 +50,8 @@ test("indecisione e scarsita di risposte non diventano coordinate", () => {
   assert.match(modelSource, /if \(answer === 0\) \{/);
   assert.match(modelSource, /answered >= 8 && negative\.length >= 2 && positive\.length >= 2/);
   assert.match(modelSource, /score = qualified\s*\?/);
-  assert.match(component, /compass\.economy\.score !== null/);
-  assert.match(component, /compass\.freedom\.score !== null/);
+  assert.match(component, /compass\?\.economy\.score !== null/);
+  assert.match(component, /compass\?\.freedom\.score !== null/);
 });
 
 // Workflow CI: esbuild compila il modello TypeScript effettivamente importato
