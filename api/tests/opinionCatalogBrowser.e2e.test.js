@@ -1301,7 +1301,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             data.includes('NON proroga obbligatoria') &&
             data.includes('NON proroga generale automatica'),
             'Transitional deadlines cannot be misread as universal delay of auctions');
-          assert.ok((await brief.innerText()).includes('NON indicano tre proroghe generali'),
+          assert.ok((await brief.innerText()).includes('non indicano tre proroghe generali'),
             'Different tender dates must remain legally separate');
         }
         if (title === 'Cassonetti intelligenti con tessera') {
