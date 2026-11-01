@@ -1,6 +1,17 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
+const fs = require('node:fs');
+const path = require('node:path');
+
+// Derive synthetic answers from the actual versioned model. Every one of
+// the 28 mapped questions receives a definite response that scores +100.
+const modelSource = fs.readFileSync(path.join(__dirname, '../client/src/lib/politicalCompassModel.ts'), 'utf8');
+const fullCompassAnswers = Object.fromEntries(
+  Array.from(modelSource.matchAll(/\{\s*id:\s*"([^"]+)",\s*label:\s*"[^"]+",\s*axis:\s*"(economia|liberta)",\s*direction:\s*(-?1)\s*\}/g),
+    ([, id, , sign]) => [id, sign === '1' ? 'f' : 'c']),
+);
+assert.equal(Object.keys(fullCompassAnswers).length, 28);
 
 const ORIGIN = 'http://localhost:4173';
 const OWNER = '00000000-0000-4000-8000-000000000101';
@@ -69,8 +80,9 @@ async function test() {
           return fulfill(route, { success: true, data: { candidati: {} } });
         case '/api/opinioni/profile':
           return fulfill(route, { success: true, data: {
-            questions: [{ id: 'qa-opinion', text: 'Domanda inventata?' }],
-            userAnswers: { 'qa-opinion': 'f' },
+            questions: Object.keys(fullCompassAnswers).map(id => ({id,text:'Domanda sintetica '+id})),
+            ...(u.searchParams.get('includeAnswers') === '1'
+              ? {userAnswers:fullCompassAnswers} : {}),
           }});
         default:
           return fulfill(route, { success: true, data: {} });
@@ -183,9 +195,11 @@ async function test() {
     await compassLink.click();
     await page.waitForURL(ORIGIN + '/compasso-politico', { timeout: 15000 });
     await page.getByRole('heading', { name: 'Compasso politico' }).waitFor({ timeout: 15000 });
-    // This fixture contains only one answered question: the axis must not
-    // fabricate an ideological position from insufficient data.
-    await page.getByText('Dati insufficienti', { exact: true }).first().waitFor({ timeout: 15000 });
+    // A full set of already SAVED synthetic opinions must produce the dot.
+    // The old catalog-only response silently created a 0/16 + 0/12 screen.
+    await page.getByRole('img', { name: /Posizione stimata su due assi/ }).waitFor({ timeout: 15000 });
+    assert.equal(await page.getByText('100', { exact: true }).count(), 2,
+      'Both axes must calculate from saved answers, not from question metadata');
 
     // Expand the full methodology on a mobile viewport: every one of the
     // 28 mapped questions must remain reachable above the bottom navigation.
@@ -220,7 +234,7 @@ async function test() {
     await page.waitForURL(ORIGIN + '/profilo', { timeout: 15000 });
     await page.getByTestId('profilo-compasso-politico-link').click();
     await page.waitForURL(ORIGIN + '/compasso-politico', { timeout: 15000 });
-    await page.getByText('Dati insufficienti', { exact: true }).first().waitFor({ timeout: 15000 });
+    await page.getByRole('img', { name: /Posizione stimata su due assi/ }).waitFor({ timeout: 15000 });
     assert.equal(count.get('/api/opinioni/profile') || 0, answersGetAfterFirstOpen,
       'Reopening the compass under unchanged consent must not fetch opinions again');
 
@@ -230,7 +244,7 @@ async function test() {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.getByText('Per visualizzare il compasso è necessario il consenso',
       { exact: false }).waitFor({ timeout: 15000 });
-    assert.equal(await page.getByText('Dati insufficienti', { exact: true }).count(), 0,
+    assert.equal(await page.getByRole('img', { name: /Posizione stimata su due assi/ }).count(), 0,
       'Political compass must disappear after consent revocation');
     assert.deepEqual(errors, [], 'No uncaught browser errors');
     console.log(JSON.stringify({ kind: 'persistent-local-profile', result: 'PASS', first, after,

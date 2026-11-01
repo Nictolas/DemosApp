@@ -45,6 +45,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     isLoadingInfo,
     error,
     userOpinions,
+    opinionsError,
     avatarConfig,
     governoIdeale,
     opinionQuestions,
@@ -306,6 +307,8 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                     <p role="status" className="text-sm text-slate-500">Caricamento opinioni…</p>
                   ) : !consentGranted ? (
                     <p className="text-sm text-slate-500">Per visualizzare le opinioni è necessario il consenso politico.</p>
+                  ) : opinionsError ? (
+                    <p role="alert" className="text-sm text-red-700">Impossibile recuperare le risposte personali. Riprova dal Profilo.</p>
                   ) : (
                     <ProfileOpinions userOpinions={userOpinions} opinionQuestions={opinionQuestions} />
                   )}

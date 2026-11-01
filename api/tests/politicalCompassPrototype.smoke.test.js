@@ -8,6 +8,7 @@ const modelSource = fs.readFileSync(path.join(root, "client/src/lib/politicalCom
 const component = fs.readFileSync(
   path.join(root, "client/src/pages/Profilo/components/PoliticalCompassPreview.tsx"), "utf8");
 const profile = fs.readFileSync(path.join(root, "client/src/pages/Profilo/index.tsx"), "utf8");
+const profileHook = fs.readFileSync(path.join(root, "client/src/pages/Profilo/hooks/useProfileData.ts"), "utf8");
 const compassPage = fs.readFileSync(path.join(root, "client/src/pages/CompassoPolitico.tsx"), "utf8");
 const app = fs.readFileSync(path.join(root, "client/src/App.tsx"), "utf8");
 
@@ -67,6 +68,14 @@ test("indecisione e scarsita di risposte non diventano coordinate", () => {
   assert.match(modelSource, /score = qualified\s*\?/);
   assert.match(component, /compass\?\.economy\.score !== null/);
   assert.match(component, /compass\?\.freedom\.score !== null/);
+});
+
+test("il Compasso richiede risposte private e non riusa la cache legacy del solo catalogo", () => {
+  assert.match(profileHook, /\/api\/opinioni\/profile\?includeAnswers=1/);
+  assert.match(profileHook, /snapshot\.opinions\?\.answersLoaded === true/);
+  assert.match(profileHook, /Risposte personali non disponibili/);
+  assert.match(profileHook, /answersLoaded: true as const/);
+  assert.doesNotMatch(profileHook, /payload\.userAnswers \|\| \{\}/);
 });
 
 // Workflow CI: esbuild compila il modello TypeScript effettivamente importato

@@ -128,7 +128,9 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
           ["government", snapshot.government],
           ["representatives", snapshot.representatives],
           ["candidates", snapshot.candidates],
-          ["opinions", snapshot.opinions],
+          // Catalog-only snapshots created by older releases had no personal
+          // answers; never treat their empty map as a verified result.
+          ["opinions", snapshot.opinions?.answersLoaded === true ? snapshot.opinions : null],
           ["preferences", legacyInitiativeId ? null : snapshot.preferences || null],
         ] as const;
         for (const [section, payload] of sections) {
@@ -255,14 +257,21 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     staleTime: PROFILE_CACHE_FRESH,
     gcTime: PROFILE_CACHE_GC,
   });
-  const opinions = useQuery<{ questions: OpinionQuestion[]; userAnswers: Record<string, string> }>({
+  const opinions = useQuery<{ questions: OpinionQuestion[]; userAnswers: Record<string, string>; answersLoaded: true }>({
     queryKey: ["profilePolitical", ownerId, politicalEpoch, "opinions"],
     enabled: enabled && vaultReady && politicalAllowed && panels.opinions,
     queryFn: async () => {
       const revision = profileSectionRevision(ownerId, "opinions");
-      const payload = (await getPayload("/api/opinioni/profile")).data || {};
+      // The normal catalog endpoint intentionally excludes personal answers.
+      // Explicit opt-in is mandatory here; an old backend response lacking
+      // userAnswers must fail rather than silently showing all scores as zero.
+      const payload = (await getPayload("/api/opinioni/profile?includeAnswers=1")).data || {};
+      if (!payload.userAnswers || typeof payload.userAnswers !== "object" ||
+          Array.isArray(payload.userAnswers)) {
+        throw new Error("Risposte personali non disponibili");
+      }
       const result = { questions: Array.isArray(payload.questions) ? payload.questions : [],
-        userAnswers: payload.userAnswers || {} };
+        userAnswers: payload.userAnswers as Record<string, string>, answersLoaded: true as const };
       await patchEncryptedProfile(ownerId, { opinions: result }, { opinions: revision });
       return result;
     },
@@ -306,6 +315,7 @@ export const useProfileData = (userId?: string, panels: ProfilePanels = CLOSED_P
     chosenVotesLoading: politicalAllowed && preferences.isPending,
     chosenVotesError: politicalAllowed && preferences.isError,
     userOpinions: storedOpinions,
+    opinionsError: politicalAllowed && panels.opinions && opinions.isError,
     opinionQuestions: politicalAllowed && panels.opinions ? (opinions.data?.questions || []) : [],
     avatarConfig: avatarFrom(userInfo),
     governoIdeale: politicalAllowed && panels.government ? (government.data || {}) : {},
