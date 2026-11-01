@@ -343,6 +343,10 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', "Armi all'Ucraina", '4,7 mld €'],
       ['/opinioni-nazionali', "Centri migranti all'estero", 'L. 14/2024'],
       ['/opinioni-nazionali', 'Ponte sullo Stretto', '13,532 mld €'],
+      ['/opinioni-nazionali', 'Riconoscimento della Palestina', '142'],
+      ['/opinioni-nazionali', 'Sionismo', '1897'],
+      ['/opinioni-nazionali', 'Test Antidroga per Politici', '2006'],
+      ['/opinioni-nazionali', 'Test Psichiatrico per Politici', 'Art. 29'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1604,6 +1608,35 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             all.includes('NON spesa finale'),
             'CIPESS approval did not perfect effectiveness of the project');
         }
+      } else if (['Riconoscimento della Palestina', 'Sionismo', 'Test Antidroga per Politici', 'Test Psichiatrico per Politici'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four evidence rows with scoped meaning');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': each fact links to a public institutional source');
+        const all = await brief.innerText();
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': chronology does not demonstrate policy outcomes');
+        if (title === 'Riconoscimento della Palestina') {
+          assert.ok(all.includes('NON coincide con il seggio') &&
+            all.includes('NON 142 nuovi riconoscimenti'),
+            'UN observer status, votes and bilateral recognition are distinct');
+        } else if (title === 'Sionismo') {
+          assert.ok(all.includes('NON descrizione uniforme') &&
+            all.includes('NON identità o appartenenze etniche'),
+            'Historically diverse political ideology is not a group identity');
+        } else if (title === 'Test Antidroga per Politici') {
+          assert.ok(all.includes('NON obbligo vigente') &&
+            all.includes('NON stima di consumo') &&
+            all.includes('non prova automaticamente incapacità'),
+            'Toxicological test is not a candidacy requirement or capacity assessment');
+        } else {
+          assert.ok(all.includes('NON autorizza esclusioni per sola diagnosi') &&
+            all.includes('non equivale a incapacità') &&
+            all.includes('NON esiste in questo articolo'),
+            'Psychiatric diagnosis cannot equate to political incapacity');
+        }
       } else if (['Autonomia Differenziata', 'Polizia locale armata', 'Sussidi comunali per famiglie numerose'].includes(title)) {
         const results = brief.getByTestId('opinion-brief-measured-results');
         await results.waitFor();
@@ -1668,15 +1701,16 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
       await dialog.waitFor({ state: 'hidden' });
     }
-    await page.goto(HEADLESS_ORIGIN + '/opinioni-nazionali', { waitUntil: 'domcontentloaded' });
-    const legacy = page.locator('button[title="Approfondimento: Test Antidroga per Politici"]');
-    await legacy.waitFor({ timeout: 25000 });
-    await legacy.click();
-    const legacyDialog = page.getByRole('dialog');
-    await legacyDialog.locator('.prose').first().waitFor({ timeout: 10000 });
-    assert.equal(await legacyDialog.getByTestId('opinion-brief').count(), 0, 'Unconverted opinion keeps Markdown layout');
-    await legacyDialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
-    await legacyDialog.waitFor({ state: 'hidden' });
+    // The cumulative pilot now includes every canonical ID; no Markdown fallback remains.
+    const briefSource = await page.evaluate(async () => {
+      const module = await import('/src/lib/opinionBriefs.ts');
+      return Object.keys(module.OPINION_BRIEFS);
+    });
+    const allIds = ["abbattimento_cinghiali","abolizione_contante","abolizione_ticket_regionali","aborto_farmacologico_consultori","adozioni_omogenitoriali","allevamenti_intensivi","antifascismo","armi_ucraina","asili_nido_gratuiti","auto_emissioni_zero_2035","autonomia_differenziata","caccia","carne_coltivata","case_chiuse","cassonetti_intelligenti_con_tessera","centri_comunali_accoglienza_migranti","centri_migranti_estero","chiusura_ospedali_di_provincia","citta_30","concessione_spazi_pubblici_a_centri_sociali_autogestiti","corrida","divieto_di_nuovi_fast_food_nel_centro_storico","educazione_sessuale","energia_nucleare","esercito_europeo","estensione_delle_zone_a_traffico_limitato","eutanasia","finanziamento_eventi_culturali_gratuiti","finanziamento_rsa_private","finanziamento_scuole_paritarie","fuochi_d_artificio","gare_concessioni_balneari","gare_treni_regionali","gestazione_per_altri","imposta_di_soggiorno","incentivi_regionali_auto_elettriche","ius_scholae","ius_soli","legalizzazione_canapa","leva_obbligatoria","limitazioni_affitti_brevi","limitazioni_movida_notturna","matrimonio_gay","menu_vegetali_mense_scolastiche","mes","metabo_law","multe_in_base_al_reddito","nato","nuova_biblioteca_comunale","nuove_aree_naturali_protette","nuove_case_popolari","nuove_centrali_geotermiche","nuove_discariche","nuove_piste_ciclabili","nuovi_asili_nido_comunali","nuovi_inceneritori","nuovi_parchi_eolici","nuovo_stadio_comunale","omobitransfobia","parcheggi_gratuiti_per_residenti","patrimoniale","pedaggio_urbano","pedonalizzazione_centro_storico","polizia_locale_armata","ponte_sullo_stretto","potenziamento_trasporto_pubblico","potenziare_rinnovabili","premierato","premio_maggioranza","raccolta_rifiuti_porta_a_porta","reddito_di_cittadinanza","reddito_minimo_regionale","restrizioni_sale_gioco","riconoscimento_palestina","riduzione_dell_illuminazione_notturna_per_risparmio_energetico","riduzione_parcheggi_a_pagamento","riduzione_tasse_rifiuti","rilascio_di_palloncini","salario_minimo","sanita_privata_convenzionata","settimana_lavorativa_32_ore","sicurezza_strade_scolastiche","sionismo","sostegno_commercio_locale","sperimentazione_animale","spese_nato_5_percento","sussidi_comunali_per_famiglie_numerose","tariffazione_puntuale_rifiuti","test_antidroga_per_politici","test_psichiatrico_per_politici","trasporto_pubblico_gratuito","treni_regionali_gratuiti","verde_pubblico_e_giardini","videosorveglianza_in_spazi_pubblici"];
+    assert.equal(allIds.length, 94, 'Exactly 94 published canonical Opinions');
+    assert.equal(new Set(allIds).size, 94, 'Canonical Opinion IDs are unique');
+    assert.deepEqual([...briefSource].sort(), [...allIds].sort(),
+      'Every canonical Opinion has one structured brief and none remain in Markdown');
 
     assert.equal(outside.filter(x => x !== 'http://localhost:3000').length, outside.length);
     assert.ok(outside.every(x => !/demos\.community|onrender\.com/.test(x)),
