@@ -204,14 +204,14 @@ test('a blocked delivery guard or suspended subscriber prevents any topic send',
 });
 
 test('account erasure blocks delivery if any Firebase unsubscription fails', () => {
-  const handler = read('api/routes/user/delete-account.js');
+  const handler = read('api/services/privacyErasureLedgerService.js');
   const guard = read('api/services/civicPushDeliveryGuard.js');
   const migration = read('api/database/20261101_civic_new_initiative_notifications.sql');
   assert.match(handler, /lockCivicPushDuringAccountErasure\(client\)/);
-  assert.match(handler, /unsubscribeCivicTopicsForToken\(device.fcm_token\)/);
+  assert.match(handler, /unsubscribeCivicTopicsForToken\(fcm_token\)/);
   assert.match(handler, /blockCivicDeliveryOnRevocationFailure\(client\)/);
   assert.ok(handler.indexOf('blockCivicDeliveryOnRevocationFailure(client)') <
-    handler.indexOf('await PrivacyErasureLedgerService.enforceAccountDeletion(client, userId)'));
+    handler.indexOf('const additional = await this.cleanupAdditionalAccountData(client, userId)'));
   assert.match(guard, /pg_advisory_xact_lock/);
   assert.match(guard, /pg_advisory_lock/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS civic_push_delivery_guard/);
