@@ -135,3 +135,63 @@ test('request and header debug logging is absent unless the central dev guard is
   assert.doesNotMatch(appSource, /if\s*\(process\.env\.NODE_ENV\s*!==\s*'production'\)/,
     'staging and unset NODE_ENV must not enable request debug logging');
 });
+
+test('legacy FCM debug endpoints require explicit local opt-in', () => {
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.resolve(__dirname, '../routes/comunicazioni.js'), 'utf8');
+  const match = source.match(/const localNotificationDebug\s*=\s*([\s\S]*?);/);
+  assert.ok(match, 'local FCM debug guard missing');
+  assert.equal((source.match(/const localNotificationDebug\s*=/g) || []).length, 1);
+  const isEnabled = (environment, optIn) => vm.runInNewContext(match[1], {
+    process: { env: { NODE_ENV: environment, ALLOW_DEV_API_SURFACE: optIn } }
+  });
+  for (const environment of ['production', 'staging', 'test', '', undefined]) {
+    for (const optIn of ['true', undefined, 'false']) {
+      assert.equal(isEnabled(environment, optIn), false);
+    }
+  }
+  for (const optIn of [undefined, 'false', 'TRUE', '1']) {
+    assert.equal(isEnabled('development', optIn), false);
+  }
+  assert.equal(isEnabled('development', 'true'), true);
+
+  const debugStart = source.indexOf('// Legacy diagnostics may send real FCM pushes');
+  const afterDebug = source.indexOf('// GET /api/ultima-comunicazione', debugStart);
+  assert.ok(debugStart > 0 && afterDebug > debugStart);
+  const debugRouter = source.slice(debugStart, afterDebug);
+  assert.match(debugRouter, /^if \(localNotificationDebug\) \{/m);
+  assert.match(debugRouter, /router\.get\('\/debug-firebase-admin'/);
+  assert.match(debugRouter, /router\.get\('\/debug-notifiche-demos'/);
+  assert.match(debugRouter, /\n\}\s*$/);
+  assert.equal((source.match(/router\.get\('\/debug-firebase-admin'/g) || []).length, 1);
+  assert.equal((source.match(/router\.get\('\/debug-notifiche-demos'/g) || []).length, 1);
+});
+
+test('FCM push and notification errors never log raw token or exception contents outside debug routes', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.resolve(__dirname, '../routes/comunicazioni.js'), 'utf8');
+  const start = source.indexOf('// Legacy diagnostics may send real FCM pushes');
+  const end = source.indexOf('// GET /api/ultima-comunicazione', start);
+  assert.ok(start > 0 && end > start);
+
+  const productionSource = source.slice(0, start) + source.slice(end);
+  // Raw errors and parts of push tokens must not reach persistent console logs.
+  assert.doesNotMatch(productionSource,
+    /console\.(?:error|warn)\([^\n;]*(?:\.message\b|\.stack\b|fcmToken\b|saveError\b|sendError\b|pushError\b|messagingError\b|,\s*error\b)/);
+  assert.doesNotMatch(productionSource, /console\.error\([^;\n]*JSON\.stringify\(req\.body/);
+  for (const safeCode of [
+    'USER_NOTIFICATION_FCM_SEND_FAILED',
+    'USER_NOTIFICATION_INBOX_WRITE_FAILED',
+    'FCM_SEND_FAILED',
+    'FCM_PUSH_NOTIFICATION_FAILED',
+    'FCM_TOKEN_INVALIDATION_FAILED'
+  ]) {
+    assert.ok(productionSource.includes("console.error('" + safeCode + "')"),
+      'missing safe error code ' + safeCode);
+  }
+  assert.match(source, /if \(localNotificationDebug\) console\.log\(\.\.\.args\)/);
+  assert.match(source, /if \(localNotificationDebug\) console\.warn\(\.\.\.args\)/);
+});
