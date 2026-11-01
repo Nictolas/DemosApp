@@ -5,6 +5,7 @@
 // FCM messages accepted earlier cannot be recalled from device queues.
 const ADVISORY_LOCK = '60423, 539';
 const { assertCivicDatabaseIdentity } = require('./civicRuntimeDatabaseIdentity');
+const { assertCivicSessionLockCompatible } = require('./civicSessionLockSafety');
 
 async function readCivicDeliveryBarrier(client) {
   const result = await client.query(
@@ -49,6 +50,10 @@ async function lockCivicPushDuringAccountErasure(client) {
 }
 
 async function acquireCivicPushDeliveryLock(client) {
+  // A transaction-pooler connection cannot retain this session lock between
+  // acquisition, FCM/network work and subsequent unlock queries.
+  // Fail closed *before* taking any lock or sending a push.
+  assertCivicSessionLockCompatible();
   await client.query(`SELECT pg_advisory_lock(${ADVISORY_LOCK})`);
 }
 
