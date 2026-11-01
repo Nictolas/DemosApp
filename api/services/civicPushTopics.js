@@ -1,6 +1,7 @@
 'use strict';
 
 const { getFirebaseAdmin } = require('./firebaseAdmin');
+const { blockCivicDeliveryFromPool } = require('./civicPushDeliveryGuard');
 
 const CIVIC_TOPIC_BY_CATEGORY = Object.freeze({
   iniziative_popolari: 'demos_civic_it_popular_new',
@@ -67,11 +68,17 @@ async function reconcileCivicTopicsForUser(pool, userId, {
 
   if (result.rows.length === 0) return { enabled: true, tokens: 0 };
 
-  const client = getMessagingClient(messaging);
-  for (const row of result.rows) {
-    for (const [category, topic] of Object.entries(CIVIC_TOPIC_BY_CATEGORY)) {
-      await changeTopic(client, row.fcm_token, topic, row[category] === true);
+  try {
+    const client = getMessagingClient(messaging);
+    for (const row of result.rows) {
+      for (const [category, topic] of Object.entries(CIVIC_TOPIC_BY_CATEGORY)) {
+        await changeTopic(client, row.fcm_token, topic, row[category] === true);
+      }
     }
+  } catch {
+    // Partially applied topic changes are uncertain: stop new global sends.
+    await blockCivicDeliveryFromPool(pool);
+    throw new Error('CIVIC_TOPIC_SYNC_FAILED');
   }
   return { enabled: true, tokens: result.rows.length };
 }
@@ -116,11 +123,17 @@ async function unsubscribeDisabledCivicTopicsForUser(pool, userId, disabledCateg
     [userId]
   );
   if (!rows.length) return { enabled: true, tokens: 0 };
-  const client = getMessagingClient(messaging);
-  for (const row of rows) {
-    for (const category of categories) {
-      await changeTopic(client, row.fcm_token, CIVIC_TOPIC_BY_CATEGORY[category], false);
+  try {
+    const client = getMessagingClient(messaging);
+    for (const row of rows) {
+      for (const category of categories) {
+        await changeTopic(client, row.fcm_token, CIVIC_TOPIC_BY_CATEGORY[category], false);
+      }
     }
+  } catch {
+    // User asked to stop: never keep topic sending while revocation is uncertain.
+    await blockCivicDeliveryFromPool(pool);
+    throw new Error('CIVIC_TOPIC_SYNC_FAILED');
   }
   return { enabled: true, tokens: rows.length };
 }
