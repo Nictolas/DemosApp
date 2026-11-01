@@ -256,6 +256,16 @@ test('civic background webpush avoids a duplicate notification', () => {
     worker.indexOf('self.registration.showNotification'));
 });
 
+test('notification preferences warn about missing device push permissions without auto-prompting', () => {
+  const page = read('client/src/pages/NotifichePreferenze.tsx');
+  assert.match(page, /usePushNotifications\(\)/);
+  assert.match(page, /push.permission !== 'granted'/);
+  assert.match(page, /push.permission === 'denied'/);
+  assert.match(page, /onClick=\{\(\) => void push.requestPermission\(\)\}/);
+  // Permission requests must happen only behind the user's click.
+  assert.doesNotMatch(page, /useEffect\([^]*push.requestPermission/);
+});
+
 test('official initiative deep links reuse existing fetched list', () => {
   const paths = [
     'client/src/pages/ECI/index.tsx',
