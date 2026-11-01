@@ -76,7 +76,7 @@ async function clearLegacyUserOpinionColumns(db, userId) {
     .map((column) => `${PrivacyErasureLedgerService.quoteIdentifier(column)} = NULL`)
     .join(', ');
   const update = await db.query(
-    `UPDATE users SET ${assignments}, updated_at = NOW() WHERE id = $1`,
+    `UPDATE public.users SET ${assignments}, updated_at = NOW() WHERE id = $1`,
     [userId]
   );
   return update.rowCount > 0 ? columns.length : 0;
@@ -87,7 +87,7 @@ async function clearPendingProposalLink(db, userId) {
     return 0;
   }
   const update = await db.query(
-    `UPDATE users
+    `UPDATE public.users
      SET opinione_proposta_id = NULL, updated_at = NOW()
      WHERE id = $1 AND opinione_proposta_id IS NOT NULL`,
     [userId]
