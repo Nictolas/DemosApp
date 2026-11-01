@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
@@ -88,6 +88,14 @@ export default function NotificheTotali() {
   const [userSearchValue, setUserSearchValue] = useState("");
   const [userTitle, setUserTitle] = useState("");
   const [userMessage, setUserMessage] = useState("");
+  const pendingUserSend = useRef<{ signature: string; key: string } | null>(null);
+  const pendingSelfTestKey = useRef<string | null>(null);
+  const getUserSendKey = (signature: string) => {
+    if (pendingUserSend.current?.signature !== signature) {
+      pendingUserSend.current = { signature, key: crypto.randomUUID() };
+    }
+    return pendingUserSend.current.key;
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["notifiche-totali"],
@@ -131,9 +139,10 @@ export default function NotificheTotali() {
     mutationFn: async () => {
       if (!selectedUser?.id) throw new Error("Seleziona un utente");
       if (!userTitle.trim() || !userMessage.trim()) throw new Error("Titolo e messaggio sono obbligatori");
-      return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: selectedUser.id, titolo: userTitle.trim(), messaggio: userMessage.trim() })).data;
+      return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: selectedUser.id, titolo: userTitle.trim(), messaggio: userMessage.trim(), idempotencyKey: getUserSendKey(JSON.stringify([selectedUser.id, userTitle.trim(), userMessage.trim()])) })).data;
     },
     onSuccess: (result: any) => {
+      pendingUserSend.current = null;
       setSelectedUser(null); setUserSearchValue(""); setUserTitle(""); setUserMessage("");
       queryClient.invalidateQueries({ queryKey: ["notifiche-totali"] });
       queryClient.invalidateQueries({ queryKey: ["notificationBadge"] });
@@ -148,13 +157,16 @@ export default function NotificheTotali() {
   const testSelfMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
-      return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: user.id, titolo: "Test Firebase Admin", messaggio: "Notifica di test DEMOS per verificare la consegna push." })).data;
+      return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: user.id, titolo: "Test Firebase Admin", messaggio: "Notifica di test DEMOS per verificare la consegna push.", idempotencyKey: pendingSelfTestKey.current ?? (pendingSelfTestKey.current = crypto.randomUUID()) })).data;
     },
-    onSuccess: (result: any) => toast({
+    onSuccess: (result: any) => {
+      pendingSelfTestKey.current = null;
+      toast({
       title: result?.data?.push_inviato === true ? "Test push inviato" : "Push di test non inviato",
       description: result?.message || "Controlla lo stato del dispositivo.",
       variant: result?.data?.push_inviato === true ? "default" : "destructive"
-    }),
+      });
+    },
     onError: (error: any) => toast({ title: "Test fallito", description: error?.message || "Errore di invio", variant: "destructive" }),
   });
 
