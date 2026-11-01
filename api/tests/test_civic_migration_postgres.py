@@ -41,6 +41,8 @@ class MigrationContract(unittest.TestCase):
             cur.execute("DROP TABLE IF EXISTS civic_new_initiative_notifications")
             cur.execute("DROP TABLE IF EXISTS iniziative_ministero")
             cur.execute("DROP TABLE IF EXISTS eci")
+            cur.execute("DROP TABLE IF EXISTS user_devices")
+            cur.execute("DROP TABLE IF EXISTS users")
             cur.execute("DROP TABLE IF EXISTS notifiche_preferenze")
             cur.execute("""
                 CREATE TABLE notifiche_preferenze (
@@ -64,6 +66,13 @@ class MigrationContract(unittest.TestCase):
                 CREATE TABLE eci (
                     id VARCHAR(100) PRIMARY KEY, title TEXT NOT NULL,
                     status VARCHAR(40)
+                );
+                CREATE TABLE users (
+                    id UUID PRIMARY KEY, status VARCHAR(10)
+                );
+                CREATE TABLE user_devices (
+                    id BIGSERIAL PRIMARY KEY, user_id UUID,
+                    fcm_token TEXT NOT NULL, is_active BOOLEAN NOT NULL
                 );
             """)
             cur.execute("""
@@ -142,6 +151,42 @@ class MigrationContract(unittest.TestCase):
         self.assertEqual(self.query("""
             SELECT blocked FROM civic_push_delivery_guard WHERE id = 1
         """), [(True,)])
+
+    def test_delivery_guard_rejects_orphaned_active_device_and_null_status(self):
+        self.apply_migration()
+        guard_source = (
+            ROOT / "api/services/civicPushDeliveryGuard.js"
+        ).read_text(encoding="utf8")
+        match = re.search(
+            r"const inactive = await client\.query\(`([\s\S]*?)`\);",
+            guard_source,
+        )
+        self.assertIsNotNone(match, "Delivery guard SQL not found")
+        sql = match.group(1)
+
+        active_user = str(uuid4())
+        missing_user = str(uuid4())
+        null_status = str(uuid4())
+        self.query("INSERT INTO users (id,status) VALUES (%s,'a'),(%s,NULL)",
+                   [active_user, null_status])
+        self.query(
+            "INSERT INTO user_devices (user_id,fcm_token,is_active) VALUES (%s,'valid',TRUE)",
+            [active_user]
+        )
+        self.assertEqual(self.query(sql), [(False,)])
+        self.query(
+            "INSERT INTO user_devices (user_id,fcm_token,is_active) VALUES (%s,'orphan',FALSE)",
+            [missing_user]
+        )
+        self.assertEqual(self.query(sql), [(False,)])
+        self.query("UPDATE user_devices SET is_active = TRUE WHERE fcm_token='orphan'")
+        self.assertEqual(self.query(sql), [(True,)])
+        self.query("UPDATE user_devices SET is_active = FALSE WHERE fcm_token='orphan'")
+        self.query(
+            "INSERT INTO user_devices (user_id,fcm_token,is_active) VALUES (%s,'null-status',TRUE)",
+            [null_status]
+        )
+        self.assertEqual(self.query(sql), [(True,)])
 
     def test_real_preference_upsert_retains_opt_in_from_older_clients(self):
         # Executes the actual prepared SQL from the API route on the ephemeral DB.
