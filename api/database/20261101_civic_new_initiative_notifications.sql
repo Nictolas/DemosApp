@@ -53,6 +53,19 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE civic_push_delivery_guard ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON civic_push_delivery_guard FROM PUBLIC;
 
+-- Identità casuale creata UNA SOLA VOLTA nel database effettivo.
+-- GitHub Actions ECI e backend devono verificarne la stessa UUID prima
+-- di raccogliere o inviare notifiche. Un database differente crea una UUID
+-- distinta; NON esporre il valore nei log o nell'API pubblica.
+CREATE TABLE IF NOT EXISTS civic_runtime_identity (
+  id SMALLINT PRIMARY KEY CHECK (id = 1),
+  db_identity UUID NOT NULL DEFAULT gen_random_uuid()
+);
+INSERT INTO civic_runtime_identity (id) VALUES (1)
+ON CONFLICT (id) DO NOTHING;
+ALTER TABLE civic_runtime_identity ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE civic_runtime_identity FROM PUBLIC;
+
 -- Baseline: gli elementi già presenti non devono provocare notifiche retroattive.
 -- La categoria deriva dal tipo ufficiale; nessun titolo è usato come identificativo.
 INSERT INTO civic_new_initiative_notifications
