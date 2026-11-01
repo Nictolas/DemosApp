@@ -93,6 +93,18 @@
   PostgreSQL, non dati utente; deve restituire `STRUCTURE_OK` per
   tutte le sette tabelle previste. È testato su PostgreSQL effimero,
   non è stato eseguito sullo staging reale tramite questo ramo.
+- **Dipendenza runtime ulteriore:** il dispatcher e il bootstrap FCM
+  eseguono `LEFT JOIN public.users` e leggono `users.status` per
+  escludere dispositivi appartenenti ad account inattivi. Il controllo
+  aggiuntivo `api/scripts/civicStagingUsersReadOnlyPreflight.sql` legge
+  esclusivamente metadata SQL e deve restituire `STRUCTURE_OK` per
+  `users(id, status)` con RLS attiva. È indipendente dal preflight 7/7.
+  Il 1° novembre 2026, letture `pg_catalog` hanno confermato che
+  **Demos-Staging ha `users.id` ma non `users.status`**, mentre in
+  produzione sono presenti entrambi i campi. Senza correggere questa
+  divergenza con una procedura staging separatamente autorizzata,
+  l'integrazione della funzione non è testabile in modo rappresentativo.
+  Non aggiungere automaticamente la colonna a staging o produzione.
 - Stato attuale (lettura indipendente): in produzione sono presenti
   quattro tabelle di origine; **Demos-Staging non contiene ancora
   le quattro tabelle**, né la migrazione notifiche civiche. Entrambi
