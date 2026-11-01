@@ -26,4 +26,5 @@ jobs:
       - name: Sincronizza ECI su Neon
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CIVIC_NEW_INITIATIVE_EVENTS_ENABLED: ${{ vars.CIVIC_NEW_INITIATIVE_EVENTS_ENABLED }}
         run: python api/scripts/sync_eci.py
