@@ -99,6 +99,14 @@ class MigrationContract(unittest.TestCase):
             FROM pg_class
             WHERE oid = 'civic_new_initiative_notifications'::regclass
         """), [(True,)])
+        self.assertEqual(self.query("""
+            SELECT blocked, reason_code
+            FROM civic_push_delivery_guard WHERE id = 1
+        """), [(True, "ROLLOUT_NOT_APPROVED")])
+        self.assertEqual(self.query("""
+            SELECT relrowsecurity FROM pg_class
+            WHERE oid = 'civic_push_delivery_guard'::regclass
+        """), [(True,)])
         # PUBLIC is a PostgreSQL pseudo-role, not a named role for
         # has_table_privilege(). Inspect ACL grants for grantee OID 0 instead.
         self.assertEqual(self.query("""
@@ -118,6 +126,9 @@ class MigrationContract(unittest.TestCase):
             SELECT COUNT(*), COUNT(*) FILTER (WHERE status='pending')
             FROM civic_new_initiative_notifications
         """), [(3, 0)])
+        self.assertEqual(self.query("""
+            SELECT blocked FROM civic_push_delivery_guard WHERE id = 1
+        """), [(True,)])
 
     def test_collector_creates_only_new_official_ids_once(self):
         self.apply_migration()
