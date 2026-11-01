@@ -41,34 +41,27 @@ export default function ReferendumAbrogativi() {
 
   return (
     <PageContainer className="overflow-hidden">
-      <div
-        className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain"
-        role="region"
-        aria-label="Elenco referendum abrogativi"
-        tabIndex={0}
-      >
-        <div className="container mx-auto px-4 py-8">
-          <Card className="w-full rounded-2xl shadow-lg bg-white">
-            <CardContent className="p-6">
-              <Header />
-              
-              {/* Referendum Ufficiali */}
-              <ReferendumTable
-                listaReferendum={referendumUfficiali}
-                mieiVoti={mieiVoti}
-                isLoading={isLoading}
-                isError={isError}
-                onView={startEditView}
-              />
-            </CardContent>
-          </Card>
-    
-          <ViewDialog
-            referendum={state.viewReferendum}
-            onClose={closeView}
+    <div className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain container mx-auto px-4 py-8" role="region" aria-label="Elenco referendum abrogativi" tabIndex={0}>
+      <Card className="w-full rounded-2xl shadow-lg bg-white">
+        <CardContent className="p-6">
+          <Header />
+          
+          {/* Referendum Ufficiali */}
+          <ReferendumTable
+            listaReferendum={referendumUfficiali}
+            mieiVoti={mieiVoti}
+            isLoading={isLoading}
+            isError={isError}
+            onView={startEditView}
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
+
+      <ViewDialog
+        referendum={state.viewReferendum}
+        onClose={closeView}
+      />
+    </div>
     </PageContainer>
   );
 }
