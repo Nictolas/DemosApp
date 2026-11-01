@@ -29,6 +29,8 @@ on:
       - 'api/services/ministeroSync.js'
       - 'api/services/ministeroPaginationSafety.js'
       - 'api/tests/ministeroPaginationSafety.test.js'
+      - 'api/tests/civicMinisteroScheduler.test.js'
+      - '.github/workflows/civic-ministero-sync.yml'
       - 'api/scripts/sync_eci.py'
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
       - 'api/routes/notifiche.js'
@@ -71,7 +73,7 @@ jobs:
           node --check api/services/ministeroSync.js
           node --check api/services/ministeroPaginationSafety.js
           node --check api/routes/notifiche.js
-          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/ministeroPaginationSafety.test.js
+          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js
       - name: Python ECI source tests (no real API, DB or push)
         run: |
           python -m pip install requests
