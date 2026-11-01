@@ -325,6 +325,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Premio di maggioranza', '42%'],
       ['/opinioni-comunali', 'Restrizioni alle sale gioco', '500 m'],
       ['/opinioni-comunali', 'Menù vegetali nelle mense scolastiche', '4 settimane'],
+      ['/opinioni-nazionali', 'Gestazione per altri', '600.000–1.000.000 €'],
+      ['/opinioni-europee', 'Corrida', '1.457'],
+      ['/opinioni-comunali', 'Centri comunali di accoglienza migranti', '41.289'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1427,6 +1430,62 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok(all.includes('non si possono assumere pasti identici') &&
             all.includes('non significa necessariamente piatto VEGANO'),
             '2025/26 historic menu is not a claim about future menu or vegan certification');
+        }
+      } else if (['Gestazione per altri', 'Corrida', 'Centri comunali di accoglienza migranti'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        const fullText = await brief.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four sourced and contextualized facts');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': every figure must open an official source');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': laws and different yearly totals must not imply a measured causal transition');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no fabricated legal heatmap for these policy comparisons');
+        const ordering = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(ordering.every(Number.isFinite) && ordering[0] < ordering[1] && ordering[1] < ordering[2],
+          title + ': summary, alternatives and evidence are in reading order');
+        if (title === 'Gestazione per altri') {
+          for (const fact of ['3/12/2024', '3 mesi–2 anni', '600.000–1.000.000 €', '0,4%'])
+            assert.ok(data.includes(fact), 'Italian criminal statute / British IVF statistic ' + fact);
+          assert.ok(data.includes('NON numero di processi') &&
+            data.includes('NON durata di pena effettivamente inflitta') &&
+            data.includes('NON compenso pagato alla gestante') &&
+            data.includes('NON quota di bambini nati'),
+            'Law, penalty, compensation and UK IVF cycle ratio must not be conflated');
+          assert.ok(fullText.includes("QUESTA OPINIONE riguarda solo l'eventuale autorizzazione della GPA altruistica") &&
+            fullText.includes('NON risultati elettorali realizzati') === false,
+            'Canonical opinion covers altruistic surrogacy only, not commercialization');
+          assert.ok(fullText.includes("nel Regno Unito") || fullText.includes("Nel Regno Unito"),
+            'UK parental orders are not a universal legal parentage regime');
+        }
+        if (title === 'Corrida') {
+          for (const fact of ['1.457', '376', '283', '177/2016'])
+            assert.ok(data.includes(fact), 'Spanish national/regional events or constitutional ruling ' + fact);
+          assert.ok(data.includes('NON 1.457 corride tradizionali') &&
+            data.includes('già INCLUSO') &&
+            data.includes('NON dato nazionale') &&
+            data.includes('NON ha stabilito che ogni limitazione'),
+            'Bullfights must not equal all taurine events or falsely generalize Madrid');
+          assert.ok(fullText.includes('SOTTOINSIEME') &&
+            fullText.includes('una SOLA comunità autonoma'),
+            '2024 national and 2025 Madrid are separate denominators and periods');
+        }
+        if (title === 'Centri comunali di accoglienza migranti') {
+          for (const fact of ['867', '41.289', '55.779', '3.202'])
+            assert.ok(data.includes(fact), 'Italian SAI project capacity or 2026 call ' + fact);
+          assert.ok(data.includes('non numero di Comuni') &&
+            data.includes('NON tutte le persone accolte') &&
+            data.includes("NON numero di posti occupati contemporaneamente") &&
+            data.includes('NON posti già finanziati'),
+            'Projects, spots, unique people and future call positions must be distinct');
+          assert.ok(fullText.includes('1.991 Comuni') &&
+            fullText.includes('NON posti già aperti'),
+            'Local-authority participation and planned positions are not immediate openings');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
