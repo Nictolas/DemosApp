@@ -7,6 +7,8 @@ on:
       - 'client/src/lib/politicalCompassModel.ts'
       - 'client/src/pages/Profilo/components/PoliticalCompassPreview.tsx'
       - 'client/src/pages/Profilo/index.tsx'
+      - 'client/src/pages/CompassoPolitico.tsx'
+      - 'client/src/App.tsx'
       - 'api/tests/politicalCompassPrototype.smoke.test.js'
       - '.github/workflows/political-compass-prototype.yml'
   workflow_dispatch:
