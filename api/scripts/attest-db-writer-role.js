@@ -83,6 +83,59 @@ async function inspectPool(pool) {
   }
 }
 
+// Do not assume config/db.js is always a separate Pool. PR #375 changes it
+// to a frozen lazy proxy for the canonical singleton; calling .end() on that
+// proxy is invalid, and connecting through it can initialize an unmanaged pool.
+function classifyLegacyPool(legacyPool) {
+  if (!legacyPool || typeof legacyPool.connect !== 'function') {
+    return { mode: 'invalid', owned: false, inspect: false, gate: 'NO_GO_LEGACY_POOL_UNKNOWN' };
+  }
+  if (typeof legacyPool.end !== 'function') {
+    // PR #375's facade exposes only query/connect, never end.
+    // Shape inspection alone does not PROVE delegation; review it before release.
+    const expectedFacade = Object.isFrozen(legacyPool) && typeof legacyPool.query === 'function';
+    return {
+      mode: expectedFacade ? 'canonical-facade' : 'unknown-proxy',
+      owned: false,
+      inspect: false,
+      gate: expectedFacade ? 'INCOMPLETE_FACADE_CODE_REVIEW_REQUIRED' : 'NO_GO_LEGACY_PROXY_UNKNOWN'
+    };
+  }
+  // Legacy independent Pool on main currently disables certificate validation.
+  // Do not open a network connection through unverified TLS just to audit RLS.
+  const tls = legacyPool.options && legacyPool.options.ssl;
+  const verifiedTls = tls === true || Boolean(tls && typeof tls === 'object' && tls.rejectUnauthorized === true);
+  if (!verifiedTls) {
+    return { mode: 'independent-unverified-tls', owned: true, inspect: false, gate: 'NO_GO_LEGACY_TLS_UNVERIFIED' };
+  }
+  return { mode: 'independent-verified-tls', owned: true, inspect: true, gate: null };
+}
+
+async function attestConfiguredPools({ centralPool, legacyPool, inspect = inspectPool, emit = () => {} }) {
+  const legacy = classifyLegacyPool(legacyPool);
+  const owned = [centralPool];
+  if (legacy.owned && legacyPool !== centralPool) owned.push(legacyPool);
+  let anyNoGo = false;
+  try {
+    const canonicalEvidence = await inspect(centralPool);
+    emit({ pool: 'central', ...canonicalEvidence });
+    if (canonicalEvidence.gate !== 'ROLE_METADATA_OK_E2E_STILL_REQUIRED') anyNoGo = true;
+
+    if (!legacy.inspect) {
+      emit({ pool: 'legacy', mode: legacy.mode, gate: legacy.gate, independentlyVerified: false });
+      // An unverified proxy or TLS connection MUST NOT close the release gate.
+      return { anyNoGo: true };
+    }
+    const legacyEvidence = await inspect(legacyPool);
+    emit({ pool: 'legacy', ...legacyEvidence });
+    if (legacyEvidence.gate !== 'ROLE_METADATA_OK_E2E_STILL_REQUIRED') anyNoGo = true;
+    return { anyNoGo };
+  } finally {
+    // Only Pools created for this probe are owned. NEVER close a lazy facade.
+    await Promise.allSettled(owned.map(pool => pool.end()));
+  }
+}
+
 async function runCli() {
   // Explicit operator guard prevents accidental production DB access.
   if (process.env.CONFIRM_DB_ROLE_AUDIT !== 'READ_ONLY_NO_PRODUCTION_DATA') {
@@ -100,25 +153,29 @@ async function runCli() {
   const { Pool } = require('pg');
   const { poolConfig } = require('../config/database');
   const centralPool = new Pool(poolConfig);
-  const legacyPool = require('../config/db').pool;
-  let anyNoGo = false;
+  let legacyPool;
   try {
-    for (const [label, pool] of [['central', centralPool], ['legacy', legacyPool]]) {
-      // No query texts, personal records, DSNs or passwords are emitted.
-      const evidence = await inspectPool(pool);
-      process.stdout.write(JSON.stringify({ pool: label, ...evidence }) + '\n');
-      if (evidence.gate !== 'ROLE_METADATA_OK_E2E_STILL_REQUIRED') anyNoGo = true;
-    }
-    if (anyNoGo) process.exitCode = 3;
+    legacyPool = require('../config/db').pool;
+  } catch (_) {
+    await centralPool.end();
+    process.stderr.write('DB_ROLE_AUDIT_FAILED_NO_DETAILS\n');
+    process.exitCode = 4;
+    return;
+  }
+  try {
+    const result = await attestConfiguredPools({
+      centralPool, legacyPool,
+      emit: evidence => process.stdout.write(JSON.stringify(evidence) + '\n')
+    });
+    if (result.anyNoGo) process.exitCode = 3;
   } catch (_) {
     process.stderr.write('DB_ROLE_AUDIT_FAILED_NO_DETAILS\n');
     process.exitCode = 4;
-  } finally {
-    await Promise.allSettled([centralPool.end(), legacyPool.end()]);
   }
 }
+
 if (require.main === module) runCli().catch(() => {
   process.stderr.write('DB_ROLE_AUDIT_FAILED_NO_DETAILS\n');
   process.exitCode = 4;
 });
-module.exports = { IMPORTANT_TABLES, ROLE_SQL, TABLE_SQL, assess, inspectPool, runCli };
+module.exports = { IMPORTANT_TABLES, ROLE_SQL, TABLE_SQL, assess, inspectPool, classifyLegacyPool, attestConfiguredPools, runCli };
