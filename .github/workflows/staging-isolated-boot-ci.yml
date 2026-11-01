@@ -1,0 +1,29 @@
+name: Isolated Staging Boot Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api/staging/isolatedStaging*.js'
+      - 'api/tests/isolatedStagingGuard.test.js'
+      - 'api/app.js'
+      - 'api/server.js'
+      - '.github/workflows/staging-isolated-boot-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-provider-staging-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test strict staging project and provider isolation without database access
+        run: node --test api/tests/isolatedStagingGuard.test.js
