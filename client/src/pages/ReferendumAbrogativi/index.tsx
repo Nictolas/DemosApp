@@ -2,6 +2,7 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/PageContainer";
 import { Header } from "./components/Header";
 import { ReferendumTable } from "./components/ReferendumTable";
 import { ViewDialog } from "./components/ViewDialog";
@@ -39,7 +40,8 @@ export default function ReferendumAbrogativi() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <PageContainer className="overflow-hidden">
+    <div className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain container mx-auto px-4 py-8" role="region" aria-label="Elenco referendum abrogativi" tabIndex={0}>
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           <Header />
@@ -60,5 +62,6 @@ export default function ReferendumAbrogativi() {
         onClose={closeView}
       />
     </div>
+    </PageContainer>
   );
 }

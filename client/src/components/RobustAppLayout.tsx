@@ -32,7 +32,7 @@ function shouldShowAppNav(location: string): boolean {
 
 export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) => {
   const [location] = useLocation();
-  const isScrollableContentPage = location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/amnistia' || location === '/capo-stato' || location === '/capo-di-stato';
+  const isScrollableContentPage = location === '/avvistamenti' || location === '/vota-iniziativa-popolare' || location === '/grazia' || location === '/amnistia' || location === '/capo-stato' || location === '/capo-di-stato' || location === '/iniziative-popolari' || location === '/eci' || location === '/referendum-abrogativi';
   const isMobileLayout = useMobileLayout();
   const showAppNav = shouldShowAppNav(location);
   const showMobileNavbar = isMobileLayout && showAppNav;
