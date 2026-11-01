@@ -5,9 +5,11 @@ on:
       - 'api/database/20261101_civic_new_initiative_notifications.sql'
       - 'api/services/civicNewInitiativeEventCollector.js'
       - 'api/services/civicPushTopics.js'
+      - 'api/services/civicPushDeliveryGuard.js'
       - 'api/services/civicNewInitiativePushDispatcher.js'
       - 'api/routes/civicPushDispatch.js'
       - 'api/routes/fcm-tokens.js'
+      - 'api/routes/user/delete-account.js'
       - 'api/app.js'
       - 'client/src/hooks/use-auth.tsx'
       - 'api/tests/civicNewInitiativeNotificationDelivery.test.js'
@@ -40,6 +42,8 @@ jobs:
         run: |
           node --check api/services/civicNewInitiativeEventCollector.js
           node --check api/services/civicPushTopics.js
+          node --check api/services/civicPushDeliveryGuard.js
+          node --check api/routes/user/delete-account.js
           node --check api/services/civicNewInitiativePushDispatcher.js
           node --check api/routes/civicPushDispatch.js
           node --check api/routes/fcm-tokens.js
