@@ -167,9 +167,13 @@ export default function NotificheDemos() {
       return response.json();
     },
     onSuccess: (data) => {
+      const pushSent = data.data?.push_inviato === true;
       toast({
-        title: "✅ Test riuscito!",
-        description: data.message || "Notifica di test inviata con successo. Controlla il tuo dispositivo.",
+        title: pushSent ? "Test push riuscito" : "Test push non riuscito",
+        description: data.message || (pushSent
+          ? "Firebase ha accettato la notifica di test."
+          : "La notifica è stata salvata nell'app, ma il push non è stato inviato."),
+        variant: pushSent ? "default" : "destructive",
         duration: 5000
       });
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
@@ -205,14 +209,10 @@ export default function NotificheDemos() {
       return response.json();
     },
     onSuccess: (data) => {
-      const destinatario = data.data?.destinatario;
-      const message = destinatario 
-        ? `Notifica inviata con successo a ${destinatario.nome} ${destinatario.cognome}`
-        : "Notifica inviata con successo";
-      
-      toast({ 
-        title: "Notifica inviata", 
-        description: message,
+      const pushSent = data.data?.push_inviato === true;
+      toast({
+        title: pushSent ? "Notifica salvata e push inviato" : "Notifica salvata nell'app",
+        description: data.message || "La notifica è disponibile nell'app.",
         duration: 5000
       });
       userNotificationForm.reset();
