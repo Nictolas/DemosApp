@@ -138,3 +138,42 @@ test('reactions never reveal or alter another account personal preferences',asyn
   const afterB=await call(prefix+'/user/'+B+'/fixture','b');assert.equal((await afterB.json()).data,null);
   const afterA=await call(prefix+'/user/'+A+'/fixture','a');assert.equal((await afterA.json()).data,'dislike');
 });
+
+test('notification logs and HTTP failures never expose private titles or SQL secrets', async () => {
+  const originalQuery = fakePool.query;
+  const originalConsole = {};
+  const records = [];
+  for (const level of ['log', 'info', 'warn', 'error']) {
+    originalConsole[level] = console[level];
+    console[level] = (...args) => records.push(args.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' '));
+  }
+  try {
+    const latest = await call('/api/notifiche/ultima', 'a');
+    assert.equal(latest.status, 200);
+    assert.equal((await latest.json()).data.titolo, privateA.titolo);
+    assert.doesNotMatch(JSON.stringify(records), /Messaggio riservato|Solo utente A/);
+
+    const secret = 'PRIVATE_DSN_TOKEN_DO_NOT_LOG';
+    fakePool.query = async () => {
+      const error = new Error(secret);
+      error.code = 'ECONNREFUSED';
+      error.detail = secret;
+      throw error;
+    };
+    const feed = await call('/api/notifiche', 'a');
+    assert.equal(feed.status, 500);
+    assert.doesNotMatch(await feed.text(), /PRIVATE_DSN_TOKEN|DATABASE_URL|DB_HOST|database_url_present|db_host/);
+
+    const preferences = await call('/api/notifiche/preferenze', 'a');
+    assert.equal(preferences.status, 500);
+    assert.doesNotMatch(await preferences.text(), /PRIVATE_DSN_TOKEN|DATABASE_URL|DB_HOST/);
+
+    const newest = await call('/api/notifiche/ultima', 'a');
+    assert.equal(newest.status, 500);
+    assert.doesNotMatch(await newest.text(), /PRIVATE_DSN_TOKEN|DATABASE_URL|DB_HOST/);
+    assert.doesNotMatch(JSON.stringify(records), /PRIVATE_DSN_TOKEN|Messaggio riservato|Solo utente A/);
+  } finally {
+    fakePool.query = originalQuery;
+    for (const [level, fn] of Object.entries(originalConsole)) console[level] = fn;
+  }
+});
