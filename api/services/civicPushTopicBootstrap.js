@@ -80,7 +80,8 @@ async function reconcileAllCivicTopics(pool, {
           const response = subscribe
             ? await client.subscribeToTopic(tokens, topic)
             : await client.unsubscribeFromTopic(tokens, topic);
-          if (response?.failureCount > 0) {
+          if (!response || response.failureCount !== 0 ||
+              response.successCount !== tokens.length) {
             // Provider details may include FCM tokens, so never relay them.
             throw new Error('CIVIC_BOOTSTRAP_FCM_FAILED');
           }
