@@ -98,6 +98,29 @@
   le quattro tabelle**, né la migrazione notifiche civiche. Entrambi
   restano NO-GO per la nuova funzione senza approvazione esplicita.
 
+## Isolamento dei test SQL distruttivi (N-038)
+
+- I test di migrazione della PR contengono `DROP TABLE` e `CREATE TABLE`
+  **solo su PostgreSQL 16 effimero in GitHub Actions**.
+- `api/tests/civic_test_database_safety.py` rifiuta qualsiasi URL che
+  non punti esplicitamente a `localhost`, `127.0.0.1` o `::1`,
+  porta 5432, database **civic_ci**, utente **postgres**, senza
+  parametri URI (`host`, `hostaddr`, `service`, `options`).
+  La suite rifiuta anche `CIVIC_TEST_DATABASE_URL` uguale a
+  `DATABASE_URL`, oltre a non usare mai `DATABASE_URL` per default.
+- Il controllo non autorizza ad avviare un proxy locale verso
+  un database reale, e non garantisce la sicurezza di un
+  PostgreSQL non controllato sulla macchina: i test vanno eseguiti
+  **soltanto nel container usa-e-getta della CI**.
+- Il preflight `civicStagingReadOnlyPreflight.sql` verifica che la RLS
+  sia attiva per **tutte e sette** le tabelle pubbliche, comprese
+  `eci` e `iniziative_ministero`. Una tabella presente ma senza RLS
+  produce `RLS_DISABLED`, non `STRUCTURE_OK`.
+- Il preflight reale ha già confermato che Demos-Staging è privo delle
+  sette tabelle necessarie; **nessuna creazione o copia dati è stata eseguita**.
+  La futura preparazione staging richiede autorizzazione distinta e
+  dataset esclusivamente sintetici.
+
 ## Limiti dichiarati
 
 Un messaggio già accettato da FCM non può essere richiamato. Il TTL di un'ora
