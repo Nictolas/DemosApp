@@ -99,3 +99,89 @@ test('import never connects to a database', () => {
   assert.equal(typeof inspectPool, 'function');
   assert.equal(typeof assess, 'function');
 });
+
+
+const { classifyLegacyPool, attestConfiguredPools } = require('../scripts/attest-db-writer-role');
+
+test('legacy independent pool with unsafe or unknown TLS never opens a connection', async () => {
+  let touched = 0;
+  let closedCentral = 0;
+  let closedLegacy = 0;
+  const centralPool = { async end() { closedCentral++; } };
+  const legacyPool = {
+    options: { ssl: { rejectUnauthorized: false } },
+    async connect() { touched++; throw new Error('legacy pool should not connect'); },
+    async end() { closedLegacy++; }
+  };
+  const rows = [];
+  const result = await attestConfiguredPools({
+    centralPool,
+    legacyPool,
+    inspect: async (pool) => {
+      assert.equal(pool, centralPool);
+      return { gate: 'ROLE_METADATA_OK_E2E_STILL_REQUIRED' };
+    },
+    emit: row => rows.push(row)
+  });
+  assert.equal(result.anyNoGo, true);
+  assert.equal(touched, 0);
+  assert.equal(closedCentral, 1);
+  assert.equal(closedLegacy, 1);
+  assert.equal(rows[1].gate, 'NO_GO_LEGACY_TLS_UNVERIFIED');
+});
+
+test('PR #375 frozen lazy facade is not connected or closed by the probe', async () => {
+  let facadeConnected = 0;
+  const facade = Object.freeze({
+    query() { throw new Error('not an independent Pool'); },
+    connect() { facadeConnected++; throw new Error('unexpected shared pool initialization'); }
+  });
+  assert.equal(classifyLegacyPool(facade).mode, 'canonical-facade');
+  const central = { async end() { this.closed = true; }, closed: false };
+  const records = [];
+  const result = await attestConfiguredPools({
+    centralPool: central, legacyPool: facade,
+    inspect: async pool => { assert.equal(pool, central); return { gate: 'ROLE_METADATA_OK_E2E_STILL_REQUIRED' }; },
+    emit: item => records.push(item)
+  });
+  assert.equal(result.anyNoGo, true); // Requires code review and E2E.
+  assert.equal(facadeConnected, 0);
+  assert.equal(central.closed, true);
+  assert.equal(records[1].mode, 'canonical-facade');
+  assert.equal(records[1].gate, 'INCOMPLETE_FACADE_CODE_REVIEW_REQUIRED');
+});
+
+test('independent verified-TLS pool is inspected and both owned pools are closed', async () => {
+  const closed = [];
+  const central = { async end() { closed.push('central'); } };
+  const legacy = {
+    options: { ssl: { rejectUnauthorized: true } },
+    connect() {},
+    async end() { closed.push('legacy'); }
+  };
+  const visited = [];
+  const result = await attestConfiguredPools({
+    centralPool: central, legacyPool: legacy,
+    inspect: async pool => {
+      visited.push(pool === central ? 'central' : 'legacy');
+      return { gate: 'ROLE_METADATA_OK_E2E_STILL_REQUIRED' };
+    }
+  });
+  assert.equal(result.anyNoGo, false);
+  assert.deepEqual(visited, ['central','legacy']);
+  assert.deepEqual(closed.sort(), ['central','legacy']);
+});
+
+test('audit failure still closes only owned pools', async () => {
+  let closed = 0;
+  const central = { async end() { closed++; } };
+  const facade = Object.freeze({ query(){}, connect(){} });
+  await assert.rejects(
+    attestConfiguredPools({
+      centralPool: central, legacyPool: facade,
+      inspect: async () => { throw new Error('injected private failure'); }
+    }),
+    /injected private failure/
+  );
+  assert.equal(closed, 1);
+});
