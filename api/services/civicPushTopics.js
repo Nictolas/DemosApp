@@ -1,7 +1,10 @@
 'use strict';
 
 const { getFirebaseAdmin } = require('./firebaseAdmin');
-const { blockCivicDeliveryFromPool } = require('./civicPushDeliveryGuard');
+const {
+  blockCivicDeliveryFromPool,
+  blockCivicDeliveryOnRevocationFailure,
+} = require('./civicPushDeliveryGuard');
 
 const CIVIC_TOPIC_BY_CATEGORY = Object.freeze({
   iniziative_popolari: 'demos_civic_it_popular_new',
@@ -51,13 +54,14 @@ async function changeTopic(messaging, token, topic, subscribe) {
 async function reconcileCivicTopicsForUser(pool, userId, {
   enabled = isCivicPushEnabled(),
   messaging = null,
+  lockedClient = null,
 } = {}) {
   if (!enabled) return { enabled: false, tokens: 0 };
   if (!userId || !pool || typeof pool.query !== 'function') {
     throw new TypeError('CIVIC_USER_CONTEXT_REQUIRED');
   }
 
-  const result = await pool.query(`
+  const result = await (lockedClient || pool).query(`
     SELECT d.fcm_token,
            COALESCE(p.iniziative_popolari, FALSE) AS iniziative_popolari,
            COALESCE(p.referendum_abrogativi, FALSE) AS referendum_abrogativi,
@@ -80,8 +84,13 @@ async function reconcileCivicTopicsForUser(pool, userId, {
       }
     }
   } catch {
-    // Partially applied topic changes are uncertain: stop new global sends.
-    await blockCivicDeliveryFromPool(pool);
+    // Block while holding the same lock. Taking a second connection/lock
+    // from this callback would deadlock with the dispatcher or a small pool.
+    if (lockedClient) {
+      await blockCivicDeliveryOnRevocationFailure(lockedClient);
+    } else {
+      await blockCivicDeliveryFromPool(pool);
+    }
     throw new Error('CIVIC_TOPIC_SYNC_FAILED');
   }
   return { enabled: true, tokens: result.rows.length };
@@ -113,6 +122,7 @@ async function unsubscribeCivicTopicsForToken(token, {
 async function unsubscribeDisabledCivicTopicsForUser(pool, userId, disabledCategories, {
   enabled = isCivicPushEnabled(),
   messaging = null,
+  lockedClient = null,
 } = {}) {
   if (!enabled || !disabledCategories?.length) return { enabled, tokens: 0 };
   if (!userId || !pool || typeof pool.query !== 'function') {
@@ -122,7 +132,7 @@ async function unsubscribeDisabledCivicTopicsForUser(pool, userId, disabledCateg
   if (categories.some(category => !Object.hasOwn(CIVIC_TOPIC_BY_CATEGORY, category))) {
     throw new TypeError('CIVIC_CATEGORY_UNSUPPORTED');
   }
-  const { rows } = await pool.query(
+  const { rows } = await (lockedClient || pool).query(
     'SELECT fcm_token FROM user_devices WHERE user_id = $1 AND is_active = TRUE',
     [userId]
   );
@@ -135,8 +145,12 @@ async function unsubscribeDisabledCivicTopicsForUser(pool, userId, disabledCateg
       }
     }
   } catch {
-    // User asked to stop: never keep topic sending while revocation is uncertain.
-    await blockCivicDeliveryFromPool(pool);
+    // Even a partial unsubscribe failure halts future sends before unlocking.
+    if (lockedClient) {
+      await blockCivicDeliveryOnRevocationFailure(lockedClient);
+    } else {
+      await blockCivicDeliveryFromPool(pool);
+    }
     throw new Error('CIVIC_TOPIC_SYNC_FAILED');
   }
   return { enabled: true, tokens: rows.length };
