@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these eighty-seven canonical IDs opt in; the other 7 use the original
+ * Only these ninety canonical IDs opt in; the other 4 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -4258,6 +4258,96 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Normattiva · D.lgs. 38/2021", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=21G00045&atto.dataPubblicazioneGazzetta=2021-03-19" },
       { label: "Dipartimento Sport · Sport e Periferie 2025", url: "https://www.sport.governo.it/it/bandi-e-avvisi/sport-e-periferie/2025/" },
       { label: "Dipartimento Sport · Scorrimenti", url: "https://www.sport.governo.it/it/bandi-e-avvisi/sport-e-periferie/2025/sport-e-periferie-2025-scorrimento-dei-progetti-ammessi-al-contributo/" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  armi_ucraina: {
+    intro: "Decidere se continuare la fornitura italiana di materiali militari all'Ucraina, distinta da aiuti umanitari, prestiti e sanzioni alla Russia.",
+    facts: [
+      { value: "27/10/2026", label: "Nuove decisioni UE sul Fondo europeo per la pace" },
+      { value: "4,7 mld €", label: "Rimborsi parziali per aiuti militari già consegnati" },
+      { value: "230 mln €", label: "Finanziamento aggiuntivo missione di addestramento UE" },
+      { value: "10,8 mld €", label: "Sostegno UE cumulativo attraverso il Fondo, secondo EEAS" },
+    ],
+    comparison: [
+      { label: "Continuare gli invii", title: "Sostegno militare", text: "Forniture e addestramento per rafforzare la capacità difensiva ucraina, con costi e rischi geopolitici da valutare." },
+      { label: "Interrompere gli invii", title: "Aiuti non militari", text: "Concentrarsi su assistenza umanitaria, diplomazia e ricostruzione; non implica automaticamente fermare tutti gli aiuti." },
+    ],
+    measuredResultsTitle: "Atti UE e importi: non risultati militari",
+    measuredResults: [
+      { place: "Unione europea", topic: "Data delle otto decisioni del Consiglio", value: "27/10/2026", period: "Comunicato Servizio europeo azione esterna", meaning: "Data delle decisioni, NON data di avvio di una missione italiana o fine della guerra.", sourceUrl: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
+      { place: "Unione europea", topic: "Rimborsi parziali per aiuti già consegnati", value: "4,7 mld €", period: "Otto decisioni del 27 ottobre 2026", meaning: "Rimborsi agli Stati membri, NON nuove armi per 4,7 miliardi già arrivate dopo la decisione e NON sola spesa italiana.", sourceUrl: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
+      { place: "Unione europea", topic: "Ulteriore sostegno all'addestramento EUMAM", value: "230 mln €", period: "Decisioni 27 ottobre 2026", meaning: "Finanziamento missione addestrativa, NON valore delle armi materialmente consegnate.", sourceUrl: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
+      { place: "Unione europea", topic: "Supporto cumulativo mediante EPF", value: "10,8 mld €", period: "Aggiornamento EEAS 27 ottobre 2026", meaning: "Totale UE del Fondo, comprensivo di contributi distinti; NON contributo del solo bilancio italiano.", sourceUrl: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
+    ],
+    evidenceCaveat: "Il Fondo europeo per la pace rimborsa parzialmente agli Stati membri assistenza anche già consegnata: questi importi non sono la spesa italiana né un indicatore di avanzamento sul campo. Gli accordi UE non eliminano il bisogno di distinguere singoli decreti italiani, consegne, stanziamenti e risultati militari. Le cifre non misurano vittime evitate o efficacia causale.",
+    advantage: "Può sostenere il diritto alla difesa dell'Ucraina e la sua posizione negoziale.",
+    concern: "Può comportare costi, rischi di escalation e tensioni sulla destinazione delle risorse pubbliche.",
+    note: "Rimborsi EPF, finanziamento EUMAM e forniture dirette non sono somme intercambiabili.",
+    sources: [
+      { label: "EEAS · Decisioni EPF del 27 ottobre 2026", url: "https://www.eeas.europa.eu/delegations/ukraine/eu-support-ukraine-council-mobilises-eur49-billion-under-european-peace-facility_en" },
+      { label: "Consiglio UE · Sostegno militare all'Ucraina", url: "https://www.consilium.europa.eu/it/policies/military-support-ukraine/" },
+    ],
+    verified: "01/11/2026",
+  },
+  centri_migranti_estero: {
+    intro: "Gestire in strutture situate in altri Stati alcuni procedimenti di migrazione e asilo: giurisdizione, trasferimenti e tutela giudiziaria variano secondo il modello giuridico scelto.",
+    facts: [
+      { value: "14/2024", label: "Legge italiana di ratifica del protocollo con l'Albania" },
+      { value: "2023", label: "Anno della firma del protocollo italo-albanese" },
+      { value: "2026", label: "Relazione EUAA sui contenziosi e l'applicazione" },
+      { value: "Italia", label: "Stato titolare della giurisdizione nelle aree del protocollo" },
+    ],
+    comparison: [
+      { label: "Modello Italia–Albania", title: "Territorio albanese, giurisdizione italiana", text: "Il protocollo prevede aree in Albania con autorità e giudici italiani, nel rispetto delle regole applicabili: non è trasferimento di responsabilità dell'asilo all'Albania." },
+      { label: "Modello nazionale", title: "Procedure sul territorio italiano", text: "Accoglienza, esame della domanda e possibili rimpatri in strutture italiane, soggetti ai rispettivi provvedimenti e controlli." },
+    ],
+    measuredResultsTitle: "Quadro legale e monitoraggi",
+    measuredResults: [
+      { place: "Italia", topic: "Ratifica dell'accordo bilaterale", value: "L. 14/2024", period: "Normativa di ratifica 2024", meaning: "Legge di ratifica; NON prova che tutte le procedure extraterritoriali siano automaticamente legittime.", sourceUrl: "https://www.normattiva.it/eli/id/2024/02/22/24G00031/ORIGINAL" },
+      { place: "Italia e Albania", topic: "Protocollo tra i governi", value: "2023", period: "Protocollo firmato il 6 novembre 2023", meaning: "Accordo bilaterale, NON trasferimento automatico della sovranità delle aree.", sourceUrl: "https://www.euaa.europa.eu/asylum-report-2026/33-access-territory-and-asylum-procedure" },
+      { place: "Agenzia UE per l'asilo", topic: "Analisi dell'applicazione e dei contenziosi", value: "2026", period: "Asylum Report 2026, sezione 3.3", meaning: "Rassegna e monitoraggio, NON esito finale di ogni singola controversia.", sourceUrl: "https://www.euaa.europa.eu/asylum-report-2026/33-access-territory-and-asylum-procedure" },
+      { place: "Aree in Albania", topic: "Giurisdizione sui procedimenti", value: "Italiana", period: "Legge 14/2024 e protocollo", meaning: "Autorità e giudici italiani nelle aree definite, NON sistema giudiziario albanese sostitutivo.", sourceUrl: "https://eur-lex.europa.eu/legal-content/IT/TXT/?uri=CELEX:62025CC0706" },
+    ],
+    evidenceCaveat: "L'Agenzia UE per l'asilo riporta contestazioni giudiziarie, monitoraggi UNHCR e rilievi di organizzazioni civiche: non è corretto presentare il modello come validato definitivamente o come privo di criticità. Le conclusioni di un avvocato generale della Corte UE NON sono una sentenza definitiva. Numero di trasferimenti, capienza e costi effettivi richiedono statistiche distinte e verificabili.",
+    advantage: "I sostenitori puntano su controllo dei flussi e procedure più gestibili.",
+    concern: "I critici segnalano rischi per accesso alla difesa, tutela effettiva e costi dell'esternalizzazione.",
+    note: "Protocollo e legge di ratifica non equivalgono ad assenza di contenziosi o a trasferimento della responsabilità verso lo Stato ospitante.",
+    sources: [
+      { label: "EUAA · Asylum Report 2026, accesso all'asilo", url: "https://www.euaa.europa.eu/asylum-report-2026/33-access-territory-and-asylum-procedure" },
+      { label: "Normattiva · Legge 14/2024", url: "https://www.normattiva.it/eli/id/2024/02/22/24G00031/ORIGINAL" },
+      { label: "EUR-Lex · Conclusioni giuridiche sul protocollo", url: "https://eur-lex.europa.eu/legal-content/IT/TXT/?uri=CELEX:62025CC0706" },
+    ],
+    verified: "01/11/2026",
+  },
+  ponte_sullo_stretto: {
+    intro: "Realizzare un collegamento stradale e ferroviario stabile fra Sicilia e Calabria, valutandolo rispetto al miglioramento dei traghetti e della rete esistente.",
+    facts: [
+      { value: "41/2025", label: "Numero della delibera CIPESS sul progetto" },
+      { value: "13,532 mld €", label: "Costo dichiarato dal CIPESS nell'agosto 2025" },
+      { value: "3.300 m", label: "Campata unica nel progetto approvato dal Comitato" },
+      { value: "29/10/2025", label: "Data del diniego di registrazione della Corte dei conti" },
+    ],
+    comparison: [
+      { label: "Progetto di collegamento stabile", title: "Ponte stradale e ferroviario", text: "Nuova infrastruttura e opere collegate, con costi di costruzione, gestione, espropri, rischi sismici e impatti ambientali da valutare." },
+      { label: "Alternativa da valutare", title: "Traghetti e reti esistenti", text: "Investire in porti, collegamenti ferroviari, traghetti e manutenzione; richiede stime distinte sui tempi di viaggio e sui costi." },
+    ],
+    measuredResultsTitle: "Progetto e controlli: non ponte costruito",
+    measuredResults: [
+      { place: "Italia", topic: "Delibera sul progetto definitivo", value: "41/2025", period: "CIPESS 6 agosto 2025", meaning: "Atto approvato dal Comitato, ma successivamente ricusato dalla Corte dei conti: NON approvazione esecutiva perfezionata.", sourceUrl: "https://www.programmazioneeconomica.pcm.gov.it/it/cipess/le-politiche-pubbliche/infrastrutture-strategiche/" },
+      { place: "Italia", topic: "Costo dichiarato del progetto", value: "13,532 mld €", period: "Esito seduta CIPESS 6 agosto 2025", meaning: "Stima del progetto alla data, NON costo finale già sostenuto o consuntivato.", sourceUrl: "https://www.programmazioneeconomica.pcm.gov.it/it/cipess/le-politiche-pubbliche/infrastrutture-strategiche/" },
+      { place: "Italia", topic: "Lunghezza campata unica prevista", value: "3.300 m", period: "Progetto definitivo 2025", meaning: "Dimensione progettuale, NON infrastruttura già realizzata.", sourceUrl: "https://strettodimessina.it/web/il-progetto-definitivo/" },
+      { place: "Corte dei conti", topic: "Ricusazione della delibera CIPESS", value: "29/10/2025", period: "Controllo preventivo sull'atto n. 41/2025", meaning: "La fase di integrazione dell'efficacia NON si è perfezionata, secondo il portale CIPESS.", sourceUrl: "https://www.programmazioneeconomica.pcm.gov.it/it/cipess/le-politiche-pubbliche/infrastrutture-strategiche/" },
+    ],
+    evidenceCaveat: "Il CIPESS ha approvato la delibera nell'agosto 2025 ma la Corte dei conti ne ha negato la registrazione nell'ottobre 2025. Le informazioni ufficiali consultate non autorizzano a chiamare l'opera già avviata o completata: delibera, efficacia dell'atto, apertura dei cantieri e costruzione sono fasi distinte. Il costo indicato è una stima, NON spesa finale.",
+    advantage: "Potrebbe ridurre alcune discontinuità nei trasporti e favorire gli scambi tra Sicilia e continente.",
+    concern: "Implica investimenti elevati e rischi progettuali, ambientali e di costo-opportunità rispetto ad altre infrastrutture.",
+    note: "Non confondere approvazione CIPESS e registrazione dell'atto; non indicare il ponte come già costruito.",
+    sources: [
+      { label: "Presidenza Consiglio · CIPESS infrastrutture strategiche", url: "https://www.programmazioneeconomica.pcm.gov.it/it/cipess/le-politiche-pubbliche/infrastrutture-strategiche/" },
+      { label: "Stretto di Messina SpA · Progetto definitivo", url: "https://strettodimessina.it/web/il-progetto-definitivo/" },
     ],
     verified: "01/11/2026",
   },
