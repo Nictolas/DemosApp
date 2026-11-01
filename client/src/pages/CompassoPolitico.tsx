@@ -9,6 +9,7 @@ import { CLOSED_PROFILE_PANELS, useProfileData } from "./Profilo/hooks/useProfil
 export default function CompassoPolitico() {
   const {
     userOpinions,
+    opinionsError,
     consentChecked,
     consentGranted,
     isLoading,
@@ -49,6 +50,10 @@ export default function CompassoPolitico() {
             ) : error ? (
               <p role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">
                 Non è stato possibile caricare il profilo. Torna al Profilo e riprova.
+              </p>
+            ) : opinionsError ? (
+              <p role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-800">
+                Non è stato possibile recuperare le tue risposte. Il Compasso non può calcolare un risultato. Torna al Profilo e riprova.
               </p>
             ) : !consentGranted ? (
               <div className="rounded-xl border border-amber-200 bg-white p-4 text-sm text-slate-800">
