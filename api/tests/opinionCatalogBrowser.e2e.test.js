@@ -316,6 +316,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-europee', 'Sperimentazione animale', '7.974.226'],
       ['/opinioni-regionali', 'Sostegno commercio locale', '2,95 mln €'],
       ['/opinioni-comunali', 'Riduzione parcheggi a pagamento', '50 €/mese'],
+      ['/opinioni-nazionali', 'Gare concessioni balneari', '30/9/2027'],
+      ['/opinioni-regionali', 'Cassonetti intelligenti con tessera', '8.728'],
+      ['/opinioni-comunali', 'Rilascio di Palloncini', '2019/904'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1273,6 +1276,53 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Free resident permit must not imply citywide free parking or discounted subscription');
           assert.ok((await brief.innerText()).includes('tariffe ALTERNATIVE'),
             'Monthly subscriptions must not be falsely added together');
+        }
+      } else if (['Gare concessioni balneari', 'Cassonetti intelligenti con tessera', 'Rilascio di Palloncini'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four independently sourced and qualified figures');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': source link present for every figure');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': regulatory and infrastructure facts are not false before/after impact data');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no invented international prohibition heatmap');
+        const order = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(order.every(Number.isFinite) && order[0] < order[1] && order[1] < order[2],
+          title + ': definition, comparison, evidence appear in legible order');
+        if (title === 'Gare concessioni balneari') {
+          for (const n of ['30/6/2027', '30/9/2027', '31/3/2028', '5–20 anni'])
+            assert.ok(data.includes(n), 'Italian concession rule/transition date ' + n);
+          assert.ok(data.includes('NON data da attendere necessariamente') &&
+            data.includes('NON proroga obbligatoria') &&
+            data.includes('NON proroga generale automatica'),
+            'Transitional deadlines cannot be misread as universal delay of auctions');
+          assert.ok((await brief.innerText()).includes('NON indicano tre proroghe generali'),
+            'Different tender dates must remain legally separate');
+        }
+        if (title === 'Cassonetti intelligenti con tessera') {
+          for (const n of ['8.728', 'oltre 11.000', 'oltre 390', 'oltre 8.300'])
+            assert.ok(data.includes(n), 'Firenze 2025 smart waste-bin/network fact ' + n);
+          assert.ok(data.includes('NON numero delle utenze') &&
+            data.includes('NON 11.000 ulteriori unità') &&
+            data.includes('NON ulteriori 390 cassonetti'),
+            'Digital bins, total bins and local-stage bins must not be double counted');
+          assert.ok((await brief.innerText()).includes('non dimostrano da sole riduzione di emissioni'),
+            'Sensor rollout is not automatically measured waste or emissions reduction');
+        }
+        if (title === 'Rilascio di Palloncini') {
+          for (const n of ['2019/904', '7/2021', '31/12/2024', '8/9/2026'])
+            assert.ok(data.includes(n), 'European SUP directive, product scope or guidance date ' + n);
+          assert.ok(data.includes('NON una legge che vieta sempre') &&
+            data.includes('NON divieto generale di vendita') &&
+            data.includes('NON un nuovo divieto comunale'),
+            'EU bans balloon sticks, not automatically all balloons or releases');
+          assert.ok((await brief.innerText()).includes('NON introducono un divieto generalizzato di rilascio'),
+            '2026 guidance is not a blanket municipal ban');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
