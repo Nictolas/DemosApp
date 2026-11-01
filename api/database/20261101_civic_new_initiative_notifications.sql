@@ -37,6 +37,22 @@ ALTER TABLE civic_new_initiative_notifications ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE civic_new_initiative_notifications FROM PUBLIC;
 REVOKE ALL ON SEQUENCE civic_new_initiative_notifications_id_seq FROM PUBLIC;
 
+-- Barriera di sicurezza globale: nessun invio è consentito fino a un
+-- sblocco manuale esplicito dopo baseline, iscrizioni e test.
+-- Se la revoca dei topic non riesce durante la cancellazione di un account,
+-- il sistema rimane bloccato senza conservare il vecchio token dell'utente.
+CREATE TABLE IF NOT EXISTS civic_push_delivery_guard (
+  id SMALLINT PRIMARY KEY CHECK (id = 1),
+  blocked BOOLEAN NOT NULL DEFAULT TRUE,
+  reason_code TEXT NOT NULL DEFAULT 'ROLLOUT_NOT_APPROVED',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+INSERT INTO civic_push_delivery_guard (id, blocked, reason_code)
+VALUES (1, TRUE, 'ROLLOUT_NOT_APPROVED')
+ON CONFLICT (id) DO NOTHING;
+ALTER TABLE civic_push_delivery_guard ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON civic_push_delivery_guard FROM PUBLIC;
+
 -- Baseline: gli elementi già presenti non devono provocare notifiche retroattive.
 -- La categoria deriva dal tipo ufficiale; nessun titolo è usato come identificativo.
 INSERT INTO civic_new_initiative_notifications
