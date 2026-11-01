@@ -953,8 +953,11 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             title + ': no invented permitted/prohibited cross-country status map');
         }
         if (title === 'Incentivi regionali alle auto elettriche') {
-          for (const n of ['20,74 mln €', '31/10/2025', '3,94 mln €', '1/7/2026'])
+          for (const n of ['20,74 mln €', '3/9/2025', '3,94 mln €', '1/7/2026'])
             assert.ok(data.includes(n), 'Lombardy incentives program parameter ' + n);
+          assert.ok(data.includes('termine iniziale previsto 31/10/2025') &&
+            data.includes('prima della scadenza prevista'),
+            'Bando early September closure is distinguished from original October deadline');
           assert.ok(data.includes('NON fondi riservati solo ad auto elettriche') &&
             data.includes('bando DIFFERENTE') &&
             data.includes('non un incentivo universale ai privati'),
