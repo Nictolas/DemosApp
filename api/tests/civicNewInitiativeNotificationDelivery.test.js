@@ -160,6 +160,7 @@ test('delivery lock wrapper preserves order, releases the held connection, and f
   const calls = [];
   const db = {
     query: async (sql) => {
+      if (sql.includes('FROM civic_runtime_identity')) return { rows: [{ db_identity: TEST_DB_ID }] };
       if (sql.includes('pg_advisory_lock(')) calls.push('acquire');
       if (sql.includes('pg_advisory_unlock(')) {
         calls.push('unlock');
