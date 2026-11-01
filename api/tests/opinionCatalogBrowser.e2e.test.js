@@ -1372,7 +1372,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             data.includes('NON 886.032 metri quadrati di interventi aggiuntivi') &&
             data.includes('NON riduzione rilevata degli incidenti'),
             'Citywide totals and before/after area figures must be correctly scoped');
-          assert.ok(all.includes("dell'INTERA CITTÀ") &&
+          assert.ok(all.includes("all'INTERA CITTÀ") &&
             all.includes('già contenuti negli 886.032 m²'),
             'Historic-centre proposal must not be supported by mislabelled citywide totals');
         }
