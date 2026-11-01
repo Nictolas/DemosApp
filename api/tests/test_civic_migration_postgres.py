@@ -187,6 +187,8 @@ class MigrationContract(unittest.TestCase):
         # Disposable CI fixtures mimic the existing private production tables.
         self.query("ALTER TABLE notifiche_preferenze ENABLE ROW LEVEL SECURITY")
         self.query("ALTER TABLE user_devices ENABLE ROW LEVEL SECURITY")
+        self.query("ALTER TABLE eci ENABLE ROW LEVEL SECURITY")
+        self.query("ALTER TABLE iniziative_ministero ENABLE ROW LEVEL SECURITY")
         self.apply_migration()
         after = self.query(preflight)
         self.assertEqual(len(after), 7)
