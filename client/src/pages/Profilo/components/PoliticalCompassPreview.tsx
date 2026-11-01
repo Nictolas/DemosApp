@@ -49,7 +49,8 @@ export function PoliticalCompassPreview({ answers }: PoliticalCompassPreviewProp
       {visible && compass && (
         <div className="mt-3 space-y-3">
           <p className="text-xs leading-relaxed text-slate-700">
-            È una rappresentazione esplorativa, non un test scientificamente validato.
+            È una rappresentazione esplorativa, non un test scientificamente validato. I due assi rappresentano solo le proposte selezionate,
+            senza dedurre in modo certo un orientamento politico generale.
             Non assegna partiti, etichette personali o indicazioni di voto.
             Il calcolo avviene sul dispositivo e non viene salvato.
           </p>
@@ -75,9 +76,9 @@ export function PoliticalCompassPreview({ answers }: PoliticalCompassPreviewProp
                 <text x="180" y="305" fontSize="12" textAnchor="middle" fill="#334155">
                   Maggiori restrizioni
                 </text>
-                <text x="55" y="330" fontSize="11" fill="#334155">Intervento pubblico</text>
+                <text x="55" y="330" fontSize="11" fill="#334155">Interventi pubblici</text>
                 <text x="305" y="345" fontSize="11" fill="#334155" textAnchor="end">
-                  Maggior ruolo del mercato
+                  Soluzioni private / gare
                 </text>
                 <circle
                   cx={180 + (compass.economy.score || 0) * 1.25}
@@ -92,8 +93,8 @@ export function PoliticalCompassPreview({ answers }: PoliticalCompassPreviewProp
           ) : (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status">
               Non ci sono ancora risposte sufficienti per posizionare il punto:
-              servono almeno 5 risposte Favorevole/Contrario per ciascun asse,
-              comprese domande di entrambe le direzioni. Le risposte Indeciso
+              servono almeno 8 risposte Favorevole/Contrario per ciascun asse,
+              di cui almeno 2 per ciascun gruppo di proposte. Le risposte Indeciso
               non sono considerate posizioni centrali.
             </div>
           )}
@@ -101,7 +102,7 @@ export function PoliticalCompassPreview({ answers }: PoliticalCompassPreviewProp
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div className="rounded-lg border border-slate-200 bg-white p-3">
               <h4 className="font-semibold text-sm text-slate-900">Economia</h4>
-              <p className="mt-1 text-xs text-slate-600">Pubblico (−100) · Mercato (+100)</p>
+              <p className="mt-1 text-xs text-slate-600">Interventi pubblici (−100) · Soluzioni private/concorrenziali (+100)</p>
               <p className="mt-1 text-sm font-bold text-slate-900">{resultLabel(compass.economy)}</p>
               <p className="text-xs text-slate-600">
                 {compass.economy.answered} su {compass.economy.total} posizioni nette · {compass.economy.undecided} indecise
