@@ -44,6 +44,8 @@ test('schema starts all three opt-ins false and suppresses historical backfill',
   }
   assert.match(migration, /UNIQUE \(category, official_id\)/);
   assert.match(migration, /'suppressed'/);
+  assert.match(migration, /ALTER TABLE civic_new_initiative_notifications ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /REVOKE ALL ON TABLE civic_new_initiative_notifications FROM PUBLIC/);
   assert.match(migration, /ON CONFLICT \(category, official_id\) DO NOTHING/g);
   assert.doesNotMatch(migration, /messaging\(\)|sendEachForMulticast/);
 });

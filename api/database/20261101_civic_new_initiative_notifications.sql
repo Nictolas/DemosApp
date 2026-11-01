@@ -30,6 +30,13 @@ CREATE INDEX IF NOT EXISTS idx_civic_new_initiative_notifications_pending
   ON civic_new_initiative_notifications (discovered_at, id)
   WHERE status = 'pending';
 
+-- Nessun client web deve poter leggere la coda o forzare un evento push.
+-- L'API usa il collegamento DB server-side e conserva gli stessi principi RLS
+-- già attivi sulle tabelle notifiche_preferenze e user_devices in produzione.
+ALTER TABLE civic_new_initiative_notifications ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE civic_new_initiative_notifications FROM PUBLIC;
+REVOKE ALL ON SEQUENCE civic_new_initiative_notifications_id_seq FROM PUBLIC;
+
 -- Baseline: gli elementi già presenti non devono provocare notifiche retroattive.
 -- La categoria deriva dal tipo ufficiale; nessun titolo è usato come identificativo.
 INSERT INTO civic_new_initiative_notifications
