@@ -185,6 +185,9 @@ test('one accepted topic send per event, never a send per user', async () => {
     'category','event_id','link','official_id','type'
   ]);
   assert.equal(messages[0].data.link, 'https://www.demos.community/eci?initiative=2026-000011');
+  assert.equal(messages[0].android.ttl, 3600000);
+  assert.equal(messages[0].webpush.headers.TTL, '3600');
+  assert.equal(messages[0].webpush.notification.tag, 'demos-civic-22');
   assert.ok(!('token' in messages[0]));
   assert.ok(!('user_id' in messages[0].data));
 });
