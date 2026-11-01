@@ -118,46 +118,52 @@ class DataRetentionJob {
   }
 
   /**
-   * Invia notifiche settimanali
+   * Scansione settimanale dei candidati a notifiche di retention.
+   * Il nome pubblico e mantenuto per compatibilita, ma NON viene effettuato un invio.
    */
   async sendWeeklyNotifications() {
     try {
-      console.log('📧 Invio notifiche settimanali data retention...');
+      console.log('Scansione settimanale candidati notifiche retention (nessun invio)');
       
       const notifications = await DataRetentionService.sendRetentionNotifications(30);
       
       if (notifications.length > 0) {
-        console.log(`📧 Inviate ${notifications.length} notifiche di retention`);
+        console.log(`Candidati notifiche retention individuati: ${notifications.length} (inviate: 0)`);
         
         // Log delle notifiche
         await AuditService.logAction({
           userId: 'system',
-          action: 'DATA_RETENTION_NOTIFICATIONS',
-          resource: 'notifications',
+          action: 'DATA_RETENTION_NOTIFICATION_CANDIDATE_SCAN',
+          resource: 'retention_candidates',
           details: {
-            notification_count: notifications.length,
-            notification_date: new Date()
+            candidate_count: notifications.length,
+            sent_count: 0,
+            delivery_performed: false,
+            scan_date: new Date()
           },
+          // Success means candidate enumeration succeeded, not notification delivery.
           success: true
         });
       } else {
-        console.log('✅ Nessuna notifica di retention da inviare');
+        console.log('Nessun candidato a notifiche retention individuato (inviate: 0)');
       }
 
     } catch (error) {
-      console.error('❌ Errore nell\'invio notifiche:', error);
+      console.error('Errore nella scansione candidati retention:', error);
       
       // Log dell'errore
       await AuditService.logAction({
         userId: 'system',
-        action: 'DATA_RETENTION_NOTIFICATIONS',
-        resource: 'notifications',
+        action: 'DATA_RETENTION_NOTIFICATION_CANDIDATE_SCAN',
+        resource: 'retention_candidates',
         details: {
-          error: error.message,
-          notification_date: new Date()
+          error_code: 'RETENTION_CANDIDATE_SCAN_FAILED',
+          sent_count: 0,
+          delivery_performed: false,
+          scan_date: new Date()
         },
         success: false,
-        errorMessage: error.message
+        errorMessage: 'RETENTION_CANDIDATE_SCAN_FAILED'
       });
     }
   }
