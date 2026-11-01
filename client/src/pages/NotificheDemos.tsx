@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -75,6 +75,17 @@ export default function NotificheDemos() {
       messaggio: "",
     },
   });
+
+  // Preserve the same client-generated UUID after a timeout/network error.
+  // A new composition or a successful reply starts a new explicit send.
+  const pendingUserSend = useRef<{ signature: string; key: string } | null>(null);
+  const pendingSelfTestKey = useRef<string | null>(null);
+  const getUserSendKey = (signature: string) => {
+    if (pendingUserSend.current?.signature !== signature) {
+      pendingUserSend.current = { signature, key: crypto.randomUUID() };
+    }
+    return pendingUserSend.current.key;
+  };
 
   // Mutazione per testare le notifiche push
   const testPushNotification = useMutation({
@@ -156,7 +167,8 @@ export default function NotificheDemos() {
       const response = await apiRequest("POST", "/api/comunicazioni/send-user-notification", {
         userId: user.id,
         titolo: "Test Firebase Admin",
-        messaggio: "Questa è una notifica di test per verificare che Firebase Admin funzioni correttamente."
+        messaggio: "Questa è una notifica di test per verificare che Firebase Admin funzioni correttamente.",
+        idempotencyKey: pendingSelfTestKey.current ?? (pendingSelfTestKey.current = crypto.randomUUID())
       });
       
       if (!response.ok) {
@@ -167,6 +179,7 @@ export default function NotificheDemos() {
       return response.json();
     },
     onSuccess: (data) => {
+      pendingSelfTestKey.current = null;
       const pushSent = data.data?.push_inviato === true;
       toast({
         title: pushSent ? "Test push riuscito" : "Test push non riuscito",
@@ -199,6 +212,7 @@ export default function NotificheDemos() {
         userId: data.userId,
         titolo: data.titolo,
         messaggio: data.messaggio,
+        idempotencyKey: getUserSendKey(JSON.stringify([data.userId, data.titolo, data.messaggio])),
       });
       
       if (!response.ok) {
@@ -209,6 +223,7 @@ export default function NotificheDemos() {
       return response.json();
     },
     onSuccess: (data) => {
+      pendingUserSend.current = null;
       const pushSent = data.data?.push_inviato === true;
       toast({
         title: pushSent ? "Notifica salvata e push inviato" : "Notifica salvata nell'app",
