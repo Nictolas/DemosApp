@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these seventy-eight canonical IDs opt in; the other 16 use the original
+ * Only these eighty-one canonical IDs opt in; the other 13 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -3986,6 +3986,97 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       { label: "Comune Ancona · Interventi per le famiglie 2026", url: "https://comune.ancona.it/it/documenti_pubblici/interventi-per-le-famiglie-2026" },
       { label: "Comune Rimini · Contributi a famiglie con 4+ figli 2026", url: "https://www.comune.rimini.it/servizi/salute-benessere-e-assistenza/richiedere-contributi-famiglie-numerose-4-e-piu-figli" },
       { label: "Comune Castelbellino · Ambito sociale 9, bando 2026 per 3 figli minori", url: "https://www.comune.castelbellino.an.it/novita/avvisi/novita_184.html" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  parcheggi_gratuiti_per_residenti: {
+    intro: "Rendere gratuita la sosta per i residenti in zone comunali definite, tramite permessi e condizioni locali; non significa garantire un parcheggio libero.",
+    facts: [
+      { value: "Art. 7", label: "Codice della strada: competenze comunali sulla sosta" },
+      { value: "1", label: "Pass per richiedente previsto dal servizio residenti di Milano" },
+      { value: "0 €", label: "Rilascio del pass di sosta per residenti a Milano" },
+      { value: "Solo zona", label: "Validità vincolata all'ambito e alla segnaletica verticale" },
+    ],
+    comparison: [
+      { label: "Agevolazione circoscritta", title: "Milano: pass residenti", text: "Permesso gratuito per residenti nei rispettivi ambiti e negli stalli ammessi: non vale su qualsiasi striscia blu cittadina." },
+      { label: "Ipotesi più ampia", title: "Sosta gratuita in tutto il Comune", text: "Una proposta diversa e più estesa, da valutare per disponibilità degli stalli, costi e compatibilità con le regole di circolazione." },
+    ],
+    measuredResultsTitle: "Regole documentate, non impatto sulla mobilità",
+    measuredResults: [
+      { place: "Italia", topic: "Base legale per la disciplina comunale della sosta", value: "Art. 7", period: "Codice della strada, testo vigente nel 2026", meaning: "Potere di regolamentazione, NON quota dei posteggi riservati o esiti della politica.", sourceUrl: "https://www.normattiva.it/eli/id/1992/05/18/092G0306/CONSOLIDATED/20260924" },
+      { place: "Milano", topic: "Numero massimo di pass per il richiedente", value: "1", period: "Servizio comunale pubblicato nel 2026", meaning: "Condizione del servizio e non numero di stalli garantiti a ogni residente.", sourceUrl: "https://www.comune.milano.it/en/servizi/mobilita/pass-per-la-sosta-e-la-circolazione-di-residenti-e-dimoranti-a-milano" },
+      { place: "Milano", topic: "Costo di rilascio ai residenti", value: "Gratuito", period: "Servizio comunale, aggiornato marzo 2026", meaning: "Gratuità dell'emissione del pass per residenti; NON gratuità illimitata in tutta la città e NON necessariamente per dimoranti.", sourceUrl: "https://www.comune.milano.it/en/servizi/mobilita/pass-per-la-sosta-e-la-circolazione-di-residenti-e-dimoranti-a-milano" },
+      { place: "Milano", topic: "Ambito della sosta senza tariffa", value: "Zona del pass", period: "FAQ comunale aggiornata 17/10/2025", meaning: "Aree gialle o blu consentite nel proprio ambito quando indicato; NON diritto a qualsiasi posto auto.", sourceUrl: "https://servizicrm.comune.milano.it/centro-supporto/KA-00993/Validita-pass-sosta-gratuito-a-Milano" },
+    ],
+    evidenceCaveat: "Il pass di sosta, il pass ZTL e la disponibilità materiale di uno stallo sono cose distinte. I numeri qui rappresentano regole amministrative, NON una misura della riduzione del traffico o dell'aumento dei posti disponibili. Condizioni e tariffe possono cambiare per singolo Comune.",
+    advantage: "Può ridurre l'onere della sosta per chi abita in zone a pagamento.",
+    concern: "Può sottrarre rotazione agli stalli e favorire l'uso dell'auto dove lo spazio pubblico è scarso.",
+    note: "La gratuità del pass NON equivale alla disponibilità garantita di un parcheggio.",
+    sources: [
+      { label: "Normattiva · Codice della strada", url: "https://www.normattiva.it/eli/id/1992/05/18/092G0306/CONSOLIDATED/20260924" },
+      { label: "Comune Milano · Pass sosta residenti", url: "https://www.comune.milano.it/en/servizi/mobilita/pass-per-la-sosta-e-la-circolazione-di-residenti-e-dimoranti-a-milano" },
+      { label: "Comune Milano · Dove vale il pass", url: "https://servizicrm.comune.milano.it/centro-supporto/KA-00993/Validita-pass-sosta-gratuito-a-Milano" },
+    ],
+    verified: "01/11/2026",
+  },
+  limitazioni_movida_notturna: {
+    intro: "Porre limiti territoriali e orari ad asporto, alcolici e dehors per conciliare riposo dei residenti, socialità e attività economiche.",
+    facts: [
+      { value: "12", label: "Zone coperte dall'ordinanza Milano 30/2026" },
+      { value: "22:00", label: "Stop vendita alcolici al dettaglio nelle zone interessate" },
+      { value: "00:00", label: "Stop asporto di alcolici dagli esercizi interessati" },
+      { value: "02/11", label: "Scadenza prevista della misura 2026" },
+    ],
+    comparison: [
+      { label: "Misura locale temporanea", title: "Milano, estate-autunno 2026", text: "Limitazioni mirate per dodici zone, con orari differenziati per vendite, asporto e plateatici." },
+      { label: "Possibile alternativa", title: "Interventi senza limiti generalizzati", text: "Controlli sul rumore, gestione dei flussi e interventi specifici sui singoli esercizi, da verificare rispetto ai problemi documentati." },
+    ],
+    measuredResultsTitle: "Contenuto dell'ordinanza, non effetti dimostrati",
+    measuredResults: [
+      { place: "Milano", topic: "Zone soggette all'ordinanza 30/2026", value: "12 zone", period: "11 giugno – 2 novembre 2026", meaning: "Perimetro amministrativo, NON quota del territorio milanese o numero di violazioni.", sourceUrl: "https://www.comune.milano.it/w/palazzo-marino.-movida-pubblicate-le-ordinanze-per-la-regolamntazione-in-12-zone-della-citt%C3%A0-e-nell-area-lazzaretto-melzo" },
+      { place: "Milano", topic: "Stop vendita di alcolici al dettaglio", value: "22:00", period: "Ordinanza 30/2026 nelle dodici zone", meaning: "Orario per vendita al dettaglio e distributori automatici; NON chiusura di tutti i locali.", sourceUrl: "https://www.comune.milano.it/w/palazzo-marino.-movida-pubblicate-le-ordinanze-per-la-regolamntazione-in-12-zone-della-citt%C3%A0-e-nell-area-lazzaretto-melzo" },
+      { place: "Milano", topic: "Stop asporto di bevande alcoliche", value: "00:00", period: "Ordinanza 30/2026", meaning: "Limite all'asporto; NON divieto indiscriminato di somministrazione al tavolo.", sourceUrl: "https://www.comune.milano.it/w/palazzo-marino.-movida-pubblicate-le-ordinanze-per-la-regolamntazione-in-12-zone-della-citt%C3%A0-e-nell-area-lazzaretto-melzo" },
+      { place: "Milano", topic: "Termine di validità dichiarato", value: "02/11/2026", period: "Ordinanza 30, pubblicata giugno 2026", meaning: "Scadenza prevista dell'atto, NON prova che le restrizioni proseguiranno automaticamente.", sourceUrl: "https://fareimpresa.comune.milano.it/-/pubblicazione-ordinanze-sindacali-n.-29-e-30-del-9-6-2026-e-n.-54-del-22-09-2026-regolamentazione-movida-milano" },
+    ],
+    evidenceCaveat: "L'ordinanza n. 30 vale nelle zone indicate e fino al 2 novembre 2026, salvo modifiche ulteriori. Dehors: plateatici dalle ore 1 nei feriali e dalle 2 nel fine settimana, secondo il provvedimento. La diversa ordinanza 54/2026 è scaduta il 28 ottobre e NON va confusa con la 30. Nessuno degli orari prova da sé riduzione di rumore, reati o consumi.",
+    advantage: "Può contribuire a proteggere sonno e vivibilità in aree con disturbi documentati.",
+    concern: "Può ridurre incassi e occasioni di socialità e spostare il problema verso altre strade.",
+    note: "Zone, categorie di attività e periodi hanno limiti distinti; non è un coprifuoco cittadino.",
+    sources: [
+      { label: "Comune Milano · Ordinanze e orari 2026", url: "https://www.comune.milano.it/w/palazzo-marino.-movida-pubblicate-le-ordinanze-per-la-regolamntazione-in-12-zone-della-citt%C3%A0-e-nell-area-lazzaretto-melzo" },
+      { label: "SUAP Milano · Validità ordinanze 29, 30, 54", url: "https://fareimpresa.comune.milano.it/-/pubblicazione-ordinanze-sindacali-n.-29-e-30-del-9-6-2026-e-n.-54-del-22-09-2026-regolamentazione-movida-milano" },
+    ],
+    verified: "01/11/2026",
+  },
+  divieto_di_nuovi_fast_food_nel_centro_storico: {
+    intro: "Limitare nuove attività di ristorazione veloce in zone storiche tutelate, senza confondere l'intervento con il divieto di mangiare fast food o la chiusura automatica dei locali esistenti.",
+    facts: [
+      { value: "2031", label: "Anno fino al quale è stata prorogata la disciplina fiorentina" },
+      { value: "71", label: "Strade a maggior tutela indicate dal Comune di Firenze" },
+      { value: "13/04", label: "Approvazione consiliare della proroga nel 2026" },
+      { value: "100 m²", label: "Soglia prevista per specifici nuovi esercizi di consumo non assistito" },
+    ],
+    comparison: [
+      { label: "Regolamentazione mirata", title: "Centro UNESCO Firenze", text: "Vincoli sulle nuove aperture e sui trasferimenti in aree definite, con eccezioni amministrative previste." },
+      { label: "Alternativa meno restrittiva", title: "Autorizzazioni ordinarie", text: "Aperture secondo requisiti edilizi, sanitari e commerciali, senza un divieto territoriale aggiuntivo." },
+    ],
+    measuredResultsTitle: "Limiti deliberati, non impatti commerciali",
+    measuredResults: [
+      { place: "Firenze", topic: "Orizzonte della proroga della tutela", value: "2031", period: "Consiglio comunale, 13 aprile 2026", meaning: "Termine previsto della disciplina; NON prova della sua efficacia o durata di ogni singolo vincolo.", sourceUrl: "https://www.comune.firenze.it/riscossioneonline/novita/area-stampa/comunicati-stampa/regolamento-unesco-e-regolamentazione-delle-attivita-0" },
+      { place: "Firenze", topic: "Strade individuate come a maggior tutela", value: "71", period: "Comunicato del Consiglio, aprile 2026", meaning: "Conteggio delle vie sottoposte a speciale selezione delle attività, NON numero di fast food chiusi.", sourceUrl: "https://www.comune.firenze.it/riscossioneonline/novita/area-stampa/comunicati-stampa/regolamento-unesco-e-regolamentazione-delle-attivita-0" },
+      { place: "Firenze", topic: "Approvazione della disciplina prorogata", value: "13/04/2026", period: "Deliberazione consiliare 2026", meaning: "Data del voto del Consiglio, NON data di apertura o chiusura di un esercizio.", sourceUrl: "https://www.comune.firenze.it/riscossioneonline/novita/area-stampa/comunicati-stampa/regolamento-unesco-e-regolamentazione-delle-attivita-0" },
+      { place: "Firenze", topic: "Superficie per la regola sul consumo non assistito", value: "100 m²", period: "Regolamento UNESCO aggiornato nel 2026", meaning: "La condizione riguarda specifiche nuove attività con consumo sul posto e locali inferiori alla soglia; NON tutti i ristoranti né tutti i fast food.", sourceUrl: "https://suapfo.comune.firenze.it/documents/d/citta-di-firenze/regolamento-unesco-pdf" },
+    ],
+    evidenceCaveat: "Il regolamento fiorentino riguarda categorie e aree definite: nuova attività, subentro e trasferimento non sono sinonimi. Il Consiglio ha approvato la proroga il 13 aprile 2026; la disciplina non significa divieto nazionale dei fast food. Nessuna cifra qui indica numero di locali chiusi, effetto sul turismo, sulla concorrenza o sui rifiuti.",
+    advantage: "Può tutelare il tessuto commerciale tradizionale e limitare la concentrazione di esercizi in aree fragili.",
+    concern: "Può restringere concorrenza e scelta dei consumatori e favorire attività già insediate.",
+    note: "Tutela di zona e tipo di licenza: NON divieto generale di una specifica catena commerciale.",
+    sources: [
+      { label: "Comune Firenze · Proroga deliberata 13 aprile 2026", url: "https://www.comune.firenze.it/riscossioneonline/novita/area-stampa/comunicati-stampa/regolamento-unesco-e-regolamentazione-delle-attivita-0" },
+      { label: "SUAP Firenze · Regolamento UNESCO", url: "https://suapfo.comune.firenze.it/documents/d/citta-di-firenze/regolamento-unesco-pdf" },
+      { label: "SUAP Firenze · Eccezioni per nuove somministrazioni", url: "https://suapfo.comune.firenze.it/w/come-avviare-un-attivit%C3%A0-di-somministrazione-nel-centro-storico-di-firenze-" },
     ],
     verified: "01/11/2026",
   },
