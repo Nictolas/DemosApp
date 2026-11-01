@@ -770,11 +770,10 @@ router.get('/preferenze', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero preferenze notifiche:', error);
+    console.error('NOTIF_PREFERENCES_READ_FAILED');
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -838,18 +837,8 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     
     const savedPrefs = result.rows[0];
     
-    console.log(`✅ Preferenze notifiche salvate per utente ${user_id}:`, {
-      eurodeputato: savedPrefs.eurodeputato,
-      senatore: savedPrefs.senatore,
-      deputato: savedPrefs.deputato,
-      consigliere_regionale: savedPrefs.consigliere_regionale,
-      consigliere_comunale: savedPrefs.consigliere_comunale,
-      attivisti: savedPrefs.attivisti,
-      demos: savedPrefs.demos,
-      scuola: savedPrefs.scuola,
-      animali: savedPrefs.animali,
-      organizzazioni: savedPrefs.organizzazioni
-    });
+    // Log solo di esito, senza ID utente o categorie selezionate.
+    console.info('NOTIF_PREFERENCES_SAVED');
     
     res.json({
       success: true,
@@ -872,11 +861,10 @@ router.post('/preferenze', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel salvataggio preferenze notifiche:', error);
+    console.error('NOTIF_PREFERENCES_WRITE_FAILED');
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
