@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function loadSyntheticJob({ candidates = [], fail = false } = {}) {
+function loadSyntheticJob({ candidates = [], fail = false, auditFail = false } = {}) {
   const actions = [];
   const messages = [];
   const service = {
@@ -14,7 +14,7 @@ function loadSyntheticJob({ candidates = [], fail = false } = {}) {
       return candidates;
     }
   };
-  const audit = { async logAction(entry) { actions.push(entry); } };
+  const audit = { async logAction(entry) { if (auditFail) throw new Error('synthetic-audit-secret-do-not-emit'); actions.push(entry); } };
   const sandbox = {
     module: { exports: {} },
     require(name) {
@@ -120,4 +120,29 @@ test('source contains no retention-delivered audit event or positive sent count'
   assert.doesNotMatch(job, /action:\s*'DATA_RETENTION_NOTIFICATIONS'/);
   assert.doesNotMatch(job, /notification_count:\s*notifications\.length/);
   assert.doesNotMatch(job, /Inviate \$\{notifications\.length\}/);
+});
+
+
+test('scan failure does not disclose raw error in console or audit', async () => {
+  const { job, actions, messages } = loadSyntheticJob({ fail: true });
+  await job.sendWeeklyNotifications();
+  assert.equal(actions.length, 1);
+  assert.equal(messages.join(' ').includes('synthetic-db-error-do-not-emit'), false);
+  assert.ok(messages.some(m => m.includes('RETENTION_CANDIDATE_SCAN_FAILED')));
+});
+
+test('double failure: scan and audit both fail without leaking raw errors', async () => {
+  const { job, messages } = loadSyntheticJob({ fail: true, auditFail: true });
+  await assert.doesNotReject(() => job.sendWeeklyNotifications());
+  const output = messages.join(' ');
+  assert.equal(output.includes('synthetic-db-error-do-not-emit'), false);
+  assert.equal(output.includes('synthetic-audit-secret-do-not-emit'), false);
+  assert.match(output, /RETENTION_CANDIDATE_AUDIT_FAILED/);
+});
+
+test('audit failure after successful enumeration is not mistaken for delivery', async () => {
+  const { job, messages } = loadSyntheticJob({ candidates: [{ userId: 'fixture' }], auditFail: true });
+  await assert.doesNotReject(() => job.sendWeeklyNotifications());
+  assert.equal(messages.join(' ').includes('synthetic-audit-secret-do-not-emit'), false);
+  assert.ok(messages.some(m => m.includes('RETENTION_CANDIDATE_AUDIT_FAILED')));
 });
