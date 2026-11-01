@@ -246,6 +246,13 @@ test('dispatcher has a hard batch cap and only explicit category routes', () => 
   assert.match(router, /!isCivicPushEnabled\(\)/);
 });
 
+test('civic background webpush avoids a duplicate notification', () => {
+  const worker = read('client/public/firebase-messaging-sw.js');
+  assert.match(worker, /payload.data\?\.type === 'civic_new_initiative' && payload.notification/);
+  assert.ok(worker.indexOf("payload.data?.type === 'civic_new_initiative'") <
+    worker.indexOf('self.registration.showNotification'));
+});
+
 test('official initiative deep links reuse existing fetched list', () => {
   const paths = [
     'client/src/pages/ECI/index.tsx',
