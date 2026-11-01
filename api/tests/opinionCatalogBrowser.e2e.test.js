@@ -331,6 +331,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Autonomia Differenziata', '192/2024'],
       ['/opinioni-comunali', 'Polizia locale armata', '145/1987'],
       ['/opinioni-comunali', 'Sussidi comunali per famiglie numerose', '90.000 €'],
+      ['/opinioni-comunali', 'Parcheggi gratuiti per residenti', 'Art. 7'],
+      ['/opinioni-comunali', 'Limitazioni alla movida notturna', '12 zone'],
+      ['/opinioni-comunali', 'Divieto di nuovi fast food nel centro storico', '71'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1489,6 +1492,33 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok(fullText.includes('1.991 Comuni') &&
             fullText.includes('NON posti già aperti'),
             'Local-authority participation and planned positions are not immediate openings');
+        }
+      } else if (['Parcheggi gratuiti per residenti', 'Limitazioni alla movida notturna', 'Divieto di nuovi fast food nel centro storico'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four legally contextualized evidence rows');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': every factual row cites a source');
+        const all = await brief.innerText();
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': municipal rules do not prove a measured outcome');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': local ordinances are not a country-wide legal map');
+        if (title === 'Parcheggi gratuiti per residenti') {
+          assert.ok(all.includes('NON diritto a qualsiasi posto auto') &&
+            all.includes('NON una misura della riduzione del traffico'),
+            'Resident permit does not guarantee a spot or traffic reduction');
+        } else if (title === 'Limitazioni alla movida notturna') {
+          assert.ok(all.includes('2 novembre 2026') &&
+            all.includes('NON chiusura di tutti i locali') &&
+            all.includes('NON un coprifuoco cittadino'),
+            'Temporary zone-specific restrictions are not blanket curfew');
+        } else {
+          assert.ok(all.includes('NON numero di fast food chiusi') &&
+            all.includes('NON divieto nazionale') &&
+            all.includes('NON tutti i ristoranti'),
+            'Florence zoning does not imply nationwide fast-food closure');
         }
       } else if (['Autonomia Differenziata', 'Polizia locale armata', 'Sussidi comunali per famiglie numerose'].includes(title)) {
         const results = brief.getByTestId('opinion-brief-measured-results');
