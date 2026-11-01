@@ -53,3 +53,67 @@ jobs:
         run: npm ci --prefix api --no-audit --no-fund
       - name: Verify actual RLS isolation with three fake users
         run: node --test api/tests/dbWriterRoleAttestation.postgres.test.js
+
+  combined-gdpr-pr375:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: gdpr_legacy_rights_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gdpr_legacy_rights_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Locally combine audited PR #553 and pinned PR #375 (NO PUSH)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin refs/pull/375/head:refs/remotes/origin/pr375
+          test "$(git rev-parse refs/remotes/origin/pr375)" = "4f3aa92f410fff87d76ecb6a276a6108854e0ba4"
+          git -c user.name='DEMOS isolated CI' -c user.email='isolated-ci@invalid.example' merge --no-ff --no-edit refs/remotes/origin/pr375
+          test -z "$(git status --porcelain)"
+          echo "PR375_PR553_ISOLATED_MERGE_OK_NO_REMOTE_WRITE"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Verify actual PR #375 facade is safely recognized by PR #553
+        shell: bash
+        run: |
+          node --check api/config/db.js
+          node --check api/scripts/attest-db-writer-role.js
+          node - <<'NODE'
+          const assert = require('node:assert/strict');
+          const facade = require('./api/config/db').pool;
+          const { classifyLegacyPool } = require('./api/scripts/attest-db-writer-role');
+          assert.equal(classifyLegacyPool(facade).mode, 'canonical-facade');
+          assert.equal(classifyLegacyPool(facade).inspect, false);
+          assert.equal(typeof facade.end, 'undefined');
+          console.log('PR375_REAL_FACADE_FAIL_CLOSED_NO_DB_CONNECTION');
+          NODE
+      - name: Combined GDPR and role-attestation contract tests
+        run: |
+          node --test --test-concurrency=1 \
+            api/tests/gdprLegacyDbPoolCompat.test.js \
+            api/tests/gdprLegacyRequestsRoute.test.js \
+            api/tests/databaseTlsPolicy.test.js \
+            api/tests/dbWriterRoleAttestation.test.js
+      - name: Verify persistent GDPR requests and RLS using only synthetic records
+        env:
+          GDPR_LEGACY_PG_CI: isolated
+          TEST_DATABASE_URL: postgresql://postgres:synthetic-only@127.0.0.1:5432/gdpr_legacy_rights_ci
+        run: node --test --test-concurrency=1 api/tests/gdprLegacyRequestsPg17.test.js
