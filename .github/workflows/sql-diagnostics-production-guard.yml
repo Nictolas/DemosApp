@@ -80,7 +80,7 @@ jobs:
           # Overlay the #552 redaction update, which is stacked on #494.
           # An unreviewed change to either branch makes the composition FAIL CLOSED.
           git fetch --no-tags --depth=1 origin refs/pull/552/head:refs/remotes/origin/pr-552-privacy-logs
-          pinned_552='4119a864a81a895263874accd998b6d02e72a986'
+          pinned_552='f784b6fd41b7e3715a880641d84f667c4f8ed1b4'
           actual_552="$(git rev-parse refs/remotes/origin/pr-552-privacy-logs)"
           if [ "$actual_552" != "$pinned_552" ]; then
             echo 'PR #552 head changed: review and update pin before trusting integration result' >&2
