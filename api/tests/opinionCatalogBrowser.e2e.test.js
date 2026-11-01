@@ -340,6 +340,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Metabo Law', '40–74 anni'],
       ['/opinioni-nazionali', 'Premierato', 'S. 935'],
       ['/opinioni-comunali', 'Nuovo stadio comunale', '≈70 mln €'],
+      ['/opinioni-nazionali', "Armi all'Ucraina", '4,7 mld €'],
+      ['/opinioni-nazionali', "Centri migranti all'estero", 'L. 14/2024'],
+      ['/opinioni-nazionali', 'Ponte sullo Stretto', '13,532 mld €'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1575,6 +1578,32 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             all.includes('un unico stadio'),
             'National sport infrastructure budget is not a stadium cost');
         }
+      } else if (["Armi all'Ucraina", "Centri migranti all'estero", 'Ponte sullo Stretto'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four evidence rows');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': every fact has an official source');
+        const all = await brief.innerText();
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': different legal stages are not causal outcomes');
+        if (title === "Armi all'Ucraina") {
+          assert.ok(all.includes('NON sola spesa italiana') &&
+            all.includes('NON nuove armi') &&
+            all.includes('non misurano vittime evitate'),
+            'EU reimbursements are not new Italian deliveries');
+        } else if (title === "Centri migranti all'estero") {
+          assert.ok(all.includes('NON trasferimento automatico della sovranità') &&
+            all.includes('NON sono una sentenza definitiva') &&
+            all.includes('NON esito finale'),
+            'Treat extraterritoriality and contested jurisdiction accurately');
+        } else {
+          assert.ok(all.includes('NON approvazione esecutiva perfezionata') &&
+            all.includes('NON infrastruttura già realizzata') &&
+            all.includes('NON spesa finale'),
+            'CIPESS approval did not perfect effectiveness of the project');
+        }
       } else if (['Autonomia Differenziata', 'Polizia locale armata', 'Sussidi comunali per famiglie numerose'].includes(title)) {
         const results = brief.getByTestId('opinion-brief-measured-results');
         await results.waitFor();
@@ -1640,7 +1669,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       await dialog.waitFor({ state: 'hidden' });
     }
     await page.goto(HEADLESS_ORIGIN + '/opinioni-nazionali', { waitUntil: 'domcontentloaded' });
-    const legacy = page.locator('button[title="Approfondimento: Armi all\'Ucraina"]');
+    const legacy = page.locator('button[title="Approfondimento: Test Antidroga per Politici"]');
     await legacy.waitFor({ timeout: 25000 });
     await legacy.click();
     const legacyDialog = page.getByRole('dialog');
