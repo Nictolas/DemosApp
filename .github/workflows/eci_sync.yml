@@ -28,3 +28,18 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CIVIC_NEW_INITIATIVE_EVENTS_ENABLED: ${{ vars.CIVIC_NEW_INITIATIVE_EVENTS_ENABLED }}
         run: python api/scripts/sync_eci.py
+
+      - name: Dispatch notifiche civiche (solo dopo autorizzazione)
+        if: ${{ vars.CIVIC_NEW_INITIATIVE_PUSH_ENABLED == 'true' }}
+        env:
+          CIVIC_PUSH_DISPATCH_URL: ${{ secrets.CIVIC_PUSH_DISPATCH_URL }}
+          CIVIC_PUSH_DISPATCH_KEY: ${{ secrets.CIVIC_PUSH_DISPATCH_KEY }}
+        run: |
+          if [ -z "$CIVIC_PUSH_DISPATCH_URL" ] || [ -z "$CIVIC_PUSH_DISPATCH_KEY" ]; then
+            echo "CIVIC_DISPATCH_NOT_CONFIGURED" >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error --retry 2 --retry-delay 5 --max-time 120 \
+            --request POST \
+            --header "X-Civic-Dispatch-Key: ${CIVIC_PUSH_DISPATCH_KEY}" \
+            "$CIVIC_PUSH_DISPATCH_URL" > /dev/null
