@@ -111,14 +111,22 @@ test('old tokens are revoked on rotation, cleanup and logout', () => {
   assert.match(auth, /: '\/fcm-tokens\/session'/);
 });
 
-function eventPool() {
+function eventPool({ blocked = false, unsafe = false } = {}) {
   const event = {
     id: 22, category: 'eci', official_id: '2026-000011',
     title: 'Official ECI example', status: 'pending',
   };
-  return {
-    event,
+  const client = {
+    release: () => {},
     query: async (sql, params) => {
+      if (sql.includes('pg_advisory_lock(')) return { rows: [] };
+      if (sql.includes('pg_advisory_unlock(')) return { rows: [{ unlocked: true }] };
+      if (sql.includes('SELECT blocked FROM civic_push_delivery_guard')) {
+        return { rows: [{ blocked }] };
+      }
+      if (sql.includes('SELECT EXISTS (') && sql.includes('FROM user_devices')) {
+        return { rows: [{ unsafe }] };
+      }
       if (sql.includes('UPDATE civic_new_initiative_notifications AS e')) {
         if (event.status !== 'pending') return { rows: [] };
         event.status = 'dispatching';
@@ -137,6 +145,7 @@ function eventPool() {
       throw new Error('Unexpected SQL');
     },
   };
+  return { event, connect: async () => client };
 }
 
 test('one accepted topic send per event, never a send per user', async () => {
@@ -157,6 +166,35 @@ test('one accepted topic send per event, never a send per user', async () => {
   assert.equal(messages[0].data.link, 'https://www.demos.community/eci?initiative=2026-000011');
   assert.ok(!('token' in messages[0]));
   assert.ok(!('user_id' in messages[0].data));
+});
+
+test('a blocked delivery guard or suspended subscriber prevents any topic send', async () => {
+  for (const options of [{ blocked: true }, { unsafe: true }]) {
+    const pool = eventPool(options);
+    let sends = 0;
+    const summary = await dispatchCivicNewInitiatives(pool, {
+      enabled: true,
+      messaging: { send: async () => { sends++; } }
+    });
+    assert.deepEqual(summary, { enabled: true, blocked: true, accepted: 0, failed: 0 });
+    assert.equal(sends, 0);
+    assert.equal(pool.event.status, 'pending');
+  }
+});
+
+test('account erasure blocks delivery if any Firebase unsubscription fails', () => {
+  const handler = read('api/routes/user/delete-account.js');
+  const guard = read('api/services/civicPushDeliveryGuard.js');
+  const migration = read('api/database/20261101_civic_new_initiative_notifications.sql');
+  assert.match(handler, /lockCivicPushDuringAccountErasure\(client\)/);
+  assert.match(handler, /unsubscribeCivicTopicsForToken\(device.fcm_token\)/);
+  assert.match(handler, /blockCivicDeliveryOnRevocationFailure\(client\)/);
+  assert.ok(handler.indexOf('blockCivicDeliveryOnRevocationFailure(client)') <
+    handler.indexOf('await PrivacyErasureLedgerService.enforceAccountDeletion(client, userId)'));
+  assert.match(guard, /pg_advisory_xact_lock/);
+  assert.match(guard, /pg_advisory_lock/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS civic_push_delivery_guard/);
+  assert.match(migration, /VALUES \(1, TRUE, 'ROLLOUT_NOT_APPROVED'\)/);
 });
 
 test('uncertain FCM errors do not trigger retries or include provider messages', async () => {
