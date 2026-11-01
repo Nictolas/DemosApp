@@ -27,6 +27,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CIVIC_NEW_INITIATIVE_EVENTS_ENABLED: ${{ vars.CIVIC_NEW_INITIATIVE_EVENTS_ENABLED }}
+          CIVIC_RUNTIME_DATABASE_ID: ${{ secrets.CIVIC_RUNTIME_DATABASE_ID }}
         run: python api/scripts/sync_eci.py
 
       - name: Dispatch notifiche civiche (solo dopo autorizzazione)
