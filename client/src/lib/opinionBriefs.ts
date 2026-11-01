@@ -4127,7 +4127,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     measuredResults: [
       { place: "Italia", topic: "Legge di conversione del DL 122/1993", value: "205/1993", period: "Gazzetta Ufficiale 26 giugno 1993", meaning: "Riguarda originariamente discriminazione razziale, etnica e religiosa; NON una legge già approvata che include ogni fattispecie omobitransfobica.", sourceUrl: "https://www.gazzettaufficiale.it/eli/id/1993/06/26/093G0275/sg" },
       { place: "Italia", topic: "Entrata in vigore della legge 205", value: "27/06/1993", period: "Legge pubblicata il 26 giugno 1993", meaning: "Data giuridica; NON anno di approvazione del ddl Zan.", sourceUrl: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=093G0275&atto.dataPubblicazioneGazzetta=1993-06-26" },
-      { place: "Italia", topic: "Arresto iter ddl Zan nella XVIII legislatura", value: "27/10/2021", period: "Votazione Senato 2021", meaning: "Il voto per non passare all'esame degli articoli NON è entrata in vigore della proposta.", sourceUrl: "https://www.senato.it/leg/18/BGT/Schede/Ddliter/53020.htm" },
+      { place: "Italia", topic: "Arresto iter ddl Zan nella XVIII legislatura", value: "27/10/2021", period: "Votazione Senato 2021", meaning: "Il voto per non passare all'esame degli articoli NON è entrata in vigore della proposta.", sourceUrl: "https://www.senato.it/legislature/18/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=53457" },
       { place: "Italia", topic: "Aggravante prevista dalla legge Mancino", value: "Art. 3", period: "Disciplina della legge 205/1993", meaning: "Riferimento ad aggravanti giuridiche; NON numero di episodi d'odio registrati.", sourceUrl: "https://www.gazzettaufficiale.it/eli/id/1993/06/26/093G0275/sg" },
     ],
     evidenceCaveat: "Il ddl Zan della XVIII legislatura NON è diventato legge. Le fattispecie generali di violenza o minaccia restano distinte dalla proposta di specifiche aggravanti. Le formulazioni penali devono tutelare insieme persone, libertà di espressione e determinatezza del reato; questi riferimenti normativi NON quantificano le aggressioni.",
@@ -4137,7 +4137,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "Gazzetta Ufficiale · Legge 205/1993", url: "https://www.gazzettaufficiale.it/eli/id/1993/06/26/093G0275/sg" },
       { label: "Normattiva · Legge 205/1993", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=093G0275&atto.dataPubblicazioneGazzetta=1993-06-26" },
-      { label: "Senato XVIII legislatura · Iter ddl Zan", url: "https://www.senato.it/leg/18/BGT/Schede/Ddliter/53020.htm" },
+      { label: "Senato XVIII legislatura · Iter ddl Zan", url: "https://www.senato.it/legislature/18/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=53457" },
     ],
     verified: "01/11/2026",
   },
