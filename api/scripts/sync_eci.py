@@ -256,6 +256,13 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
     try:
         with conn:
             with conn.cursor() as cur:
+                # La cache eci viene sostituita interamente a ogni sync.
+                # Non usare trigger INSERT per riconoscere le novita'.
+                collection_enabled = os.environ.get("CIVIC_NEW_INITIATIVE_EVENTS_ENABLED") == "true"
+                previous_ids = set()
+                if collection_enabled:
+                    cur.execute("SELECT id FROM eci")
+                    previous_ids = {str(row[0]) for row in cur.fetchall()}
                 cur.execute("DELETE FROM eci")
                 execute_values(
                     cur,
@@ -272,6 +279,24 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                     raise RuntimeError(
                         f"Verifica cache ECI fallita: attesi {len(records)}, trovati {stored_count}"
                     )
+                if collection_enabled:
+                    new_records = [
+                        ("eci", row[0], row[1], "/eci", "pending")
+                        for row in records if row[0] not in previous_ids
+                    ]
+                    if new_records:
+                        # La migrazione pre-carica gli ID storici come suppressed.
+                        # UNIQUE impedisce avvisi quando un'ECI sparisce e riappare.
+                        execute_values(
+                            cur,
+                            """
+                            INSERT INTO civic_new_initiative_notifications
+                              (category, official_id, title, target_path, status)
+                            VALUES %s
+                            ON CONFLICT (category, official_id) DO NOTHING
+                            """,
+                            new_records,
+                        )
     finally:
         conn.close()
 
