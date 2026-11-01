@@ -63,3 +63,12 @@ test('Ministero and dispatcher reject unverifiable DB before outbox or FCM', () 
   assert.ok(dispatcher.indexOf('await assertCivicDatabaseIdentity(client)') <
             dispatcher.indexOf('const firebase = '));
 });
+
+test('token mutations and bulk FCM reconciliation also check the verified database', () => {
+  const guard=fs.readFileSync(path.resolve(__dirname,'../services/civicPushDeliveryGuard.js'),'utf8');
+  const bootstrap=fs.readFileSync(path.resolve(__dirname,'../services/civicPushTopicBootstrap.js'),'utf8');
+  assert.match(guard,/await assertCivicDatabaseIdentity\(client\)/);
+  assert.match(bootstrap,/await assertCivicDatabaseIdentity\(db\)/);
+  assert.ok(bootstrap.indexOf('await assertCivicDatabaseIdentity(db)') <
+    bootstrap.indexOf('const firebase = '));
+});
