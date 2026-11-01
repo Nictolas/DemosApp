@@ -281,6 +281,69 @@ class MigrationContract(unittest.TestCase):
         """)
         self.assertEqual(self.query(actual_sql.group(1)), [])
 
+    def test_emergency_stop_prevents_catchup_after_restart(self):
+        self.apply_migration()
+        self.query("""
+            INSERT INTO iniziative_ministero (id_ministero,titolo,tipo,stato,data_fine)
+            VALUES ('333','Nuova raccolta da sopprimere','Iniziativa popolare',
+                    'in_corso',CURRENT_DATE + 30)
+        """)
+        collector = COLLECTOR.read_text(encoding="utf8")
+        collector_sql = re.search(
+            r"const result = await pool\.query\(`([\s\S]*?)`\);",
+            collector,
+        ).group(1)
+        self.assertEqual(len(self.query(collector_sql)), 1)
+        self.assertEqual(self.query("""
+            SELECT status FROM civic_new_initiative_notifications
+            WHERE official_id='333'
+        """), [("pending",)])
+
+        rollback = (
+            ROOT / "api/services/civicPushRollback.js"
+        ).read_text(encoding="utf8")
+        guard_sql = re.search(
+            r"const update = await db\.query\(`([\s\S]*?)`\);",
+            rollback,
+        ).group(1)
+        suppression_sql = re.search(
+            r"const suppressed = await db\.query\(`([\s\S]*?)`\);",
+            rollback,
+        ).group(1)
+
+        with self.conn.cursor() as cur:
+            cur.execute("BEGIN")
+            cur.execute("SELECT pg_advisory_xact_lock(60423, 539)")
+            cur.execute(guard_sql)
+            cur.execute(suppression_sql)
+            self.assertEqual(cur.rowcount, 1)
+            cur.execute("COMMIT")
+
+        self.assertEqual(self.query("""
+            SELECT blocked,reason_code FROM civic_push_delivery_guard WHERE id=1
+        """), [(True, "EMERGENCY_STOP")])
+        self.assertEqual(self.query("""
+            SELECT status,last_error_code FROM civic_new_initiative_notifications
+            WHERE official_id='333'
+        """), [("suppressed", "EMERGENCY_STOP")])
+
+        # New Ministero records remain suppressed while emergency stop persists.
+        self.query("""
+            INSERT INTO iniziative_ministero (id_ministero,titolo,tipo,stato,data_fine)
+            VALUES ('444','Raccolta emersa dopo STOP','Referendum abrogativo',
+                    'in_corso',CURRENT_DATE + 30)
+        """)
+        self.assertEqual(len(self.query(collector_sql)), 1)
+        self.assertEqual(self.query("""
+            SELECT status FROM civic_new_initiative_notifications
+            WHERE official_id='444'
+        """), [("suppressed",)])
+        self.assertEqual(self.query("""
+            SELECT count(*) FROM civic_new_initiative_notifications
+            WHERE status='pending'
+        """), [(0,)])
+        self.assertEqual(self.query(collector_sql), [])
+
     def test_global_guard_serializes_erasure_with_in_flight_dispatch(self):
         self.apply_migration()
         first = psycopg2.connect(os.environ["CIVIC_TEST_DATABASE_URL"])
