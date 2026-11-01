@@ -1,0 +1,50 @@
+name: Opinion badges isolated prototype
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/lib/opinionBadgesModel.ts'
+      - 'api/tests/opinionBadgesPrototype.smoke.test.js'
+      - '.github/workflows/opinion-badges-prototype.yml'
+      - 'api/catalog/opinions-part-*.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  opinion-badges:
+    name: Static catalog, consent gates and local-only scoring
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install TypeScript from lockfile (no lifecycle scripts)
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Compile the real TypeScript model (no frontend wiring)
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const ts = require('./client/node_modules/typescript');
+          const fileName = 'client/src/lib/opinionBadgesModel.ts';
+          const source = fs.readFileSync(fileName, 'utf8');
+          const out = ts.transpileModule(source, {
+            compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+            fileName,
+            reportDiagnostics: true,
+          });
+          if (out.diagnostics?.length) {
+            console.error(ts.formatDiagnosticsWithColorAndContext(out.diagnostics, {
+              getCanonicalFileName: x => x, getCurrentDirectory: () => process.cwd(),
+              getNewLine: () => '\n',
+            }));
+            process.exit(1);
+          }
+          fs.writeFileSync('/tmp/demos-opinion-badges.cjs', out.outputText);
+          NODE
+      - name: Verify model semantics, privacy gates and canonical opinion IDs
+        run: BADGE_MODEL_BUNDLE=/tmp/demos-opinion-badges.cjs node --test api/tests/opinionBadgesPrototype.smoke.test.js
