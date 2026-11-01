@@ -34,14 +34,18 @@ async function stopCivicPush(pool, {
       FROM civic_new_initiative_notifications
       GROUP BY status
     `);
-    const pending = counts.rows.find(row => row.status === 'pending')?.total || 0;
+    const pending = Number(counts.rows.find(row => row.status === 'pending')?.total || 0);
+    const review = counts.rows
+      .filter(row => row.status === 'dispatching' || row.status === 'failed')
+      .reduce((total, row) => total + Number(row.total || 0), 0);
 
     if (!apply) {
       await db.query('ROLLBACK');
       txOpen = false;
       return {
         dryRun: true, guardCurrentlyBlocked: gate.rows[0].blocked,
-        wouldSuppressPending: Number(pending),
+        wouldSuppressPending: pending,
+        eventsForManualReview: review,
       };
     }
 
@@ -70,7 +74,7 @@ async function stopCivicPush(pool, {
     return {
       dryRun: false, guardBlocked: true,
       suppressedPending: suppressed.rowCount ?? suppressed.rows.length,
-      pendingRequiresReview: 0,
+      eventsForManualReview: review,
       // "dispatching" events may already have been accepted by FCM.
       // They are never retried automatically after a rollback.
     };
