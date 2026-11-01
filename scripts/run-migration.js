@@ -1,3 +1,8 @@
+'use strict';
+
+// Historical one-off migration tool. Disable before loading env, SQL or HTTP.
+require('../api/services/legacyAxiomMigrationGate').exitRetiredLegacyAxiomMigration();
+
 // Script per eseguire la migrazione da Neon a Axiom
 // Supporta sia migrazione locale (con DATABASE_URL) che remota (via Render API)
 
