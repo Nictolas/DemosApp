@@ -149,7 +149,7 @@ const securityLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.log(`🚨 SECURITY RATE LIMIT: IP ${req.ip} ha superato il limite di sicurezza`);
+    console.warn('SECURITY_RATE_LIMIT_REJECTED');
     res.status(429).json({
       success: false,
       error: 'Troppe richieste di sicurezza',
@@ -183,7 +183,7 @@ const securityMiddleware = (req, res, next) => {
       if (typeof value === 'string') {
         for (const pattern of sqlInjectionPatterns) {
           if (pattern.test(value)) {
-            console.log(`🚨 SQL INJECTION ATTEMPT: ${path}${key}`);
+            console.warn('SECURITY_INPUT_SQL_REJECTED');
             return res.status(400).json({
               success: false,
               error: 'Input non valido',
@@ -235,7 +235,7 @@ const securityMiddleware = (req, res, next) => {
       if (typeof value === 'string') {
         for (const pattern of xssPatterns) {
           if (pattern.test(value)) {
-            console.log(`🚨 XSS ATTEMPT: ${path}${key}`);
+            console.warn('SECURITY_INPUT_XSS_REJECTED');
             return res.status(400).json({
               success: false,
               error: 'Input non valido',
@@ -280,7 +280,7 @@ const securityMiddleware = (req, res, next) => {
       if (typeof value === 'string') {
         for (const pattern of pathTraversalPatterns) {
           if (pattern.test(value)) {
-            console.log(`🚨 PATH TRAVERSAL ATTEMPT: ${path}${key}`);
+            console.warn('SECURITY_INPUT_PATH_REJECTED');
             return res.status(400).json({
               success: false,
               error: 'Input non valido',
@@ -315,7 +315,7 @@ const securityMiddleware = (req, res, next) => {
   const maxSize = 10 * 1024 * 1024;
 
   if (contentLength > maxSize) {
-    console.log(`🚨 REQUEST TOO LARGE: ${contentLength} bytes from ${req.ip}`);
+    console.warn('SECURITY_REQUEST_SIZE_REJECTED');
     return res.status(413).json({
       success: false,
       error: 'Richiesta troppo grande',
@@ -344,7 +344,7 @@ const securityMiddleware = (req, res, next) => {
 
   for (const pattern of suspiciousUserAgents) {
     if (pattern.test(userAgent)) {
-      console.log(`🚨 SUSPICIOUS USER AGENT: ${userAgent} from ${req.ip}`);
+      console.warn('SECURITY_USER_AGENT_REJECTED');
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',
@@ -368,7 +368,7 @@ const securityLogger = (req, res, next) => {
 
   res.send = function(data) {
     if (res.statusCode >= 400) {
-      console.log(`🚨 SECURITY ALERT: ${req.method} ${req.originalUrl} - ${res.statusCode} - IP: ${req.ip} - UA: ${req.get('User-Agent')}`);
+      console.warn('SECURITY_HTTP_REJECTED', res.statusCode);
     }
 
     return originalSend.call(this, data);
