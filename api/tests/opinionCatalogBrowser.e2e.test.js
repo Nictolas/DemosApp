@@ -605,6 +605,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok(stats.includes('35') && stats.includes('5,5 mln t') &&
             stats.includes('74,8%') && stats.includes('25 / 4 / 6'),
             'ISPRA national waste incineration totals and geographic distribution');
+          assert.ok(stats.includes("Quota dell'incenerimento nazionale trattata al Nord") &&
+            stats.includes('NON indica che il 74,8% dei rifiuti prodotti in Italia'),
+            '74.8% is the northern share of incinerated tonnes, not overall share of waste incinerated');
           assert.ok(stats.includes('non dimostrano che costruirne altri ridurrebbe emissioni'),
             'Existing incinerator activity is not evidence of new plant benefits');
         }
