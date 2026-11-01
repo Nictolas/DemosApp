@@ -3663,7 +3663,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
 
 
   gestazione_per_altri: {
-    intro: "La gestazione per altri (GPA) è una gravidanza portata avanti da una persona per il progetto genitoriale di altri. In Italia la legge 40/2004 ne vieta la realizzazione, organizzazione e pubblicità; la legge 169/2024 estende la perseguibilità dei fatti all'estero commessi da cittadini italiani. Esistono modelli diversi in altri paesi, e le regole sul riconoscimento dei figli sono un tema distinto.",
+    intro: "La gestazione per altri (GPA) è una gravidanza portata avanti da una persona per il progetto genitoriale di altri. QUESTA OPINIONE riguarda solo l'eventuale autorizzazione della GPA altruistica, senza compenso commerciale e con rimborso di spese ragionevoli documentate. In Italia la legge 40/2004 ne vieta la realizzazione, organizzazione e pubblicità; la legge 169/2024 estende la perseguibilità dei fatti all'estero commessi da cittadini italiani. Esistono modelli diversi in altri paesi, e le regole sul riconoscimento dei figli sono un tema distinto.",
     facts: [],
     comparison: [
       { label: "🇮🇹 Italia", title: "Divieto penale anche per fatti all'estero di cittadini italiani", text: "L'art. 12 comma 6 della legge 40/2004 punisce la realizzazione, organizzazione o pubblicizzazione della GPA. Dal 3 dicembre 2024 la legge 169/2024 prevede espressamente la punibilità per il cittadino italiano anche quando i fatti siano commessi all'estero. La norma penale non sostituisce la valutazione dell'interesse del minore nelle questioni di filiazione." },
@@ -3705,7 +3705,7 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       },
     ],
     evidenceCaveat: "Il 3 dicembre 2024 è la data di entrata in vigore della legge 169/2024: riguarda il cittadino ITALIANO che commette all'estero la condotta vietata, non una giurisdizione mondiale su ogni persona. Reclusione 3 mesi–2 anni e multa 600.000–1.000.000 € sono SANZIONI previste, non dati di condanne né somme pagate alle gestanti. Lo 0,4% HFEA riguarda unicamente i trattamenti IVF in CLINICHE britanniche nel 2022 e non misura tutta la GPA. Nel Regno Unito la genitorialità legale non si trasferisce automaticamente per contratto. Divieto penale, diritto di filiazione, interesse del minore e regolazione della GPA altruistica o commerciale richiedono valutazioni distinte.",
-    advantage: "Una regolazione potrebbe definire tutele sanitarie, consenso informato, assistenza legale indipendente e certezza giuridica per i minori, riducendo il ricorso a percorsi opachi.",
+    advantage: "Una regolazione della sola GPA altruistica potrebbe definire tutele sanitarie, consenso informato, rimborsi documentati, assistenza legale indipendente e certezza giuridica per i minori, riducendo percorsi opachi.",
     concern: "Restano rischi di sfruttamento economico, pressioni sulla gestante, conflitti sulla responsabilità genitoriale e disuguaglianze transfrontaliere; servono garanzie verificabili.",
     note: "La GPA altruistica con rimborsi documentati e quella commerciale remunerata non sono necessariamente trattate allo stesso modo nei diversi ordinamenti. Evitare di confondere GPA, adozione e procreazione medicalmente assistita ordinaria.",
     sources: [
