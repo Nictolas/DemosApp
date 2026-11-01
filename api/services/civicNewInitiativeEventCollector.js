@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertCivicDatabaseIdentity } = require('./civicRuntimeDatabaseIdentity');
+
 /**
  * Rileva solo nuove raccolte firme presenti nella fonte ufficiale Ministero.
  * Non invia push: crea una riga per evento in una outbox a ID univoco.
@@ -12,6 +14,8 @@ function isCivicEventCollectionEnabled(env = process.env) {
 async function collectMinisteroNewInitiatives(pool, { enabled = isCivicEventCollectionEnabled() } = {}) {
   if (!enabled) return { enabled: false, recorded: 0 };
   if (!pool || typeof pool.query !== 'function') throw new TypeError('DATABASE_POOL_REQUIRED');
+  // Wrong or unproven database must never create an outbox event.
+  await assertCivicDatabaseIdentity(pool);
 
   // Gli ID ministeriali sono la chiave: titolo, firme e scadenza possono cambiare.
   // La baseline della migrazione contiene gia' tutti i record preesistenti.
