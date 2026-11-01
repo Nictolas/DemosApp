@@ -99,9 +99,17 @@ class MigrationContract(unittest.TestCase):
             FROM pg_class
             WHERE oid = 'civic_new_initiative_notifications'::regclass
         """), [(True,)])
+        # PUBLIC is a PostgreSQL pseudo-role, not a named role for
+        # has_table_privilege(). Inspect ACL grants for grantee OID 0 instead.
         self.assertEqual(self.query("""
-            SELECT has_table_privilege('PUBLIC',
-                'civic_new_initiative_notifications', 'SELECT')
+            SELECT EXISTS (
+              SELECT 1 FROM pg_class c,
+                LATERAL aclexplode(COALESCE(
+                  c.relacl, acldefault('r', c.relowner))) acl
+              WHERE c.oid = 'civic_new_initiative_notifications'::regclass
+                AND acl.grantee = 0
+                AND acl.privilege_type = 'SELECT'
+            )
         """), [(False,)])
 
         # Re-run verifies idempotency and no historical event is re-created.
