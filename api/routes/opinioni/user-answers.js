@@ -9,10 +9,62 @@ const { getAllOpinions, getOpinionById, findOpinionIdByText, sortOpinionsByText 
 
 const router = express.Router();
 
-// Read-only official questions from the versioned code catalog. No DB hit.
-router.get('/profile', verifyToken, (_req, res) => {
-  const questions = sortOpinionsByText(getAllOpinions()).map(({id,text})=>({id,text}));
-  res.json({success:true,data:{questions}});
+// Legacy /profile returns only public question metadata (zero SQL reads).
+// The owner profile can explicitly opt into one consent-guarded personal read.
+// Do not change the lightweight, catalog-only Android/client contract.
+router.get('/profile', verifyToken, async (req, res) => {
+  const catalog = sortOpinionsByText(getAllOpinions());
+  const questions = catalog.map(({id,text})=>({id,text}));
+  if (req.query.includeAnswers !== '1') {
+    return res.json({success:true,data:{questions}});
+  }
+
+  // This is a sensitive political-answer response. Never let intermediaries
+  // cache it, including errors, and never read another user's opinions.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  if (!req.userId) {
+    return res.status(401).json({success:false,error:'Autenticazione richiesta'});
+  }
+
+  try {
+    // IDs are published, lowercase catalog IDs, verified at startup; they
+    // cannot originate from request parameters. Only answer columns are read,
+    // excluding fonti_opinioni and other private account attributes.
+    const projection = catalog.map(({id}) => `a."${id}"`).join(', ');
+    const sql = `
+      SELECT COALESCE(uc.political_opinions_consent,
+                      u.political_opinions_consent, false) AS granted,
+             row_to_json(answers) AS selected_answers
+      FROM users u
+      LEFT JOIN user_consents uc ON uc.user_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT ${projection}
+        FROM opinioni_risposte a
+        WHERE a.user_id = u.id
+          AND COALESCE(uc.political_opinions_consent,
+                       u.political_opinions_consent, false) = true
+      ) answers ON true
+      WHERE u.id = $1
+    `;
+    const result = await pool.query(sql, [req.userId]);
+    if (!result.rows.length) {
+      return res.status(404).json({success:false,error:'Utente non trovato'});
+    }
+    if (result.rows[0].granted !== true) {
+      return res.status(403).json({success:false,error:'Consenso richiesto',consent_required:true});
+    }
+    const raw = result.rows[0].selected_answers || {};
+    const userAnswers = {};
+    for (const {id} of catalog) {
+      // Preserve only definite/indecisive answer codes; nulls remain absent.
+      const answer = raw[id];
+      if (answer === 'f' || answer === 'c' || answer === 'i') userAnswers[id] = answer;
+    }
+    return res.json({success:true,data:{questions,userAnswers}});
+  } catch (_error) {
+    // No SQL details, user IDs or political values in HTTP responses or logs.
+    return res.status(500).json({success:false,error:'Errore nel caricamento delle Opinioni'});
+  }
 });
 
 // POST /api/opinioni/salva - Salva le opinioni dell'utente  
