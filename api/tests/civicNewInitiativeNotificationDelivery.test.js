@@ -21,6 +21,9 @@ const {
 const ROOT = path.resolve(__dirname, '..', '..');
 const TEST_DB_ID = '00000000-0000-4000-8000-000000000539';
 process.env.CIVIC_RUNTIME_DATABASE_ID = TEST_DB_ID;
+// Synthetic URL is used only by mocked pg clients, never contacted by these tests.
+process.env.DATABASE_URL = 'postgresql://postgres:ci-fake@127.0.0.1:5432/civic_ci';
+process.env.CIVIC_SESSION_LOCK_CONNECTION_VERIFIED = 'true';
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
 
 function fakeMessaging() {
