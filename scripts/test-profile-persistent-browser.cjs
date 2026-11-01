@@ -176,6 +176,62 @@ async function test() {
     assert.equal(count.get('/api/user/profile-selections') || 0, emptyFirst,
       'Showing empty preference categories must not trigger any extra database reads');
 
+    // The compass is a separate, private page opened from the last
+    // section of the owner profile. Test a genuine mobile tap and navigation.
+    const compassLink = page.getByTestId('profilo-compasso-politico-link');
+    await compassLink.scrollIntoViewIfNeeded();
+    await compassLink.click();
+    await page.waitForURL(ORIGIN + '/compasso-politico', { timeout: 15000 });
+    await page.getByRole('heading', { name: 'Compasso politico' }).waitFor({ timeout: 15000 });
+    // This fixture contains only one answered question: the axis must not
+    // fabricate an ideological position from insufficient data.
+    await page.getByText('Dati insufficienti', { exact: true }).first().waitFor({ timeout: 15000 });
+
+    // Expand the full methodology on a mobile viewport: every one of the
+    // 28 mapped questions must remain reachable above the bottom navigation.
+    const compassMain = page.locator('main[aria-label="Compasso politico personale"]');
+    await compassMain.getByText('Quali Opinioni vengono usate e come?').click();
+    assert.equal(await compassMain.locator('li').count(), 28,
+      'The dedicated compass must disclose all 28 contributing questions');
+    const scrollMetrics = await compassMain.evaluate(element => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    assert.ok(scrollMetrics.scrollHeight > scrollMetrics.clientHeight,
+      'Expanded questionnaire must be scrollable in the mobile viewport');
+    assert.ok(scrollMetrics.scrollWidth <= scrollMetrics.clientWidth + 1,
+      'Compass must not create horizontal scroll on a mobile viewport');
+    await compassMain.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    const bottomLink = compassMain.getByRole('link', { name: 'Esprimi o modifica le tue Opinioni' });
+    await bottomLink.waitFor({ timeout: 10000 });
+    const bottomLinkVisible = await bottomLink.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      const parent = element.closest('main').getBoundingClientRect();
+      return rect.bottom <= parent.bottom + 1 && rect.top >= parent.top - 1;
+    });
+    assert.ok(bottomLinkVisible, 'The last action must be visible at the end of the scroll');
+
+    // Returning to the profile and reopening the compass must reuse the
+    // verified opinion data from the current consent epoch.
+    const answersGetAfterFirstOpen = count.get('/api/opinioni/profile') || 0;
+    await page.getByRole('link', { name: 'Torna al Profilo cittadino' }).click();
+    await page.waitForURL(ORIGIN + '/profilo', { timeout: 15000 });
+    await page.getByTestId('profilo-compasso-politico-link').click();
+    await page.waitForURL(ORIGIN + '/compasso-politico', { timeout: 15000 });
+    await page.getByText('Dati insufficienti', { exact: true }).first().waitFor({ timeout: 15000 });
+    assert.equal(count.get('/api/opinioni/profile') || 0, answersGetAfterFirstOpen,
+      'Reopening the compass under unchanged consent must not fetch opinions again');
+
+    // Revoking consent on another device must hide the graph even when
+    // the dedicated page is reloaded from a direct URL.
+    granted = false;
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByText('Per visualizzare il compasso è necessario il consenso',
+      { exact: false }).waitFor({ timeout: 15000 });
+    assert.equal(await page.getByText('Dati insufficienti', { exact: true }).count(), 0,
+      'Political compass must disappear after consent revocation');
     assert.deepEqual(errors, [], 'No uncaught browser errors');
     console.log(JSON.stringify({ kind: 'persistent-local-profile', result: 'PASS', first, after,
       additionalProfileGets: after.reduce((sum, n, i) => sum + n - first[i], 0) }));

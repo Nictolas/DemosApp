@@ -7,7 +7,7 @@ import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
 import { PageContainer } from "@/components/PageContainer";
 import { hasAdminCapability, hasDpoCapability } from "@/lib/admin-access";
-import { ChevronDown, Settings, RefreshCcw } from "lucide-react";
+import { ChevronDown, Settings, RefreshCcw, Compass, ArrowRight } from "lucide-react";
 
 // Componenti modulari
 import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
@@ -313,6 +313,19 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               </details>
             )}
           </>
+        )}
+
+        {/* Pulsante volutamente in fondo al contenuto scrollabile del profilo personale. */}
+        {isViewingOwnProfile && !isEditing && displayUserInfo && !isLoading && !isLoadingInfo && !error && (
+          <Link
+            href="/compasso-politico"
+            data-testid="profilo-compasso-politico-link"
+            className="flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-indigo-700 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+          >
+            <Compass aria-hidden="true" className="h-5 w-5 shrink-0" />
+            <span>Vai al compasso politico</span>
+            <ArrowRight aria-hidden="true" className="h-5 w-5 shrink-0" />
+          </Link>
         )}
 
         {/* Messaggio se nessuna informazione trovata */}

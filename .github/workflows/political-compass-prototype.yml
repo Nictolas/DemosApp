@@ -1,0 +1,54 @@
+name: Political compass prototype correctness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/lib/politicalCompassModel.ts'
+      - 'client/src/pages/Profilo/components/PoliticalCompassPreview.tsx'
+      - 'client/src/pages/Profilo/index.tsx'
+      - 'client/src/pages/CompassoPolitico.tsx'
+      - 'client/src/App.tsx'
+      - 'api/tests/politicalCompassPrototype.smoke.test.js'
+      - '.github/workflows/political-compass-prototype.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compass-prototype:
+    name: Validate mapping, computation, privacy and frontend build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend dependencies (no lifecycle scripts)
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Compile the production TypeScript model for actual computation tests
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const ts = require('./client/node_modules/typescript');
+          const source = fs.readFileSync('client/src/lib/politicalCompassModel.ts', 'utf8');
+          const compiled = ts.transpileModule(source, {
+            compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+            fileName: 'politicalCompassModel.ts',
+            reportDiagnostics: true,
+          });
+          if (compiled.diagnostics?.length) {
+            console.error(ts.formatDiagnosticsWithColorAndContext(compiled.diagnostics, {
+              getCanonicalFileName: name => name, getCurrentDirectory: () => process.cwd(),
+              getNewLine: () => '\n',
+            }));
+            process.exit(1);
+          }
+          fs.writeFileSync('/tmp/demos-political-compass.cjs', compiled.outputText);
+          NODE
+      - name: Test exact catalog IDs, score extremes, uncertainty and consent gating
+        run: COMPASS_MODEL_BUNDLE=/tmp/demos-political-compass.cjs node --test api/tests/politicalCompassPrototype.smoke.test.js
+      - name: Build frontend
+        run: npm run build --prefix client
