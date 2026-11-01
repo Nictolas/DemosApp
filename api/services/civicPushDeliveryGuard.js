@@ -80,6 +80,40 @@ async function blockCivicDeliveryFromPool(pool) {
   }
 }
 
+/**
+ * Serialize all topic-affecting writes (preferences, token rotation, logout)
+ * with bootstrap, dispatch and account erasure. Use the held client for every
+ * query in the callback: a second pooled connection can deadlock at poolSize=1.
+ * With push OFF, retain existing no-Firebase behavior without extra DB reads.
+ */
+async function withCivicPushDeliveryLock(pool, callback, { enabled = false } = {}) {
+  if (typeof callback !== 'function') throw new TypeError('CIVIC_LOCK_CALLBACK_REQUIRED');
+  if (!enabled) return callback(pool);
+  if (!pool || typeof pool.connect !== 'function') throw new TypeError('CIVIC_LOCK_POOL_REQUIRED');
+  const client = await pool.connect();
+  let attempted = false;
+  let locked = false;
+  let discard = false;
+  try {
+    attempted = true;
+    await acquireCivicPushDeliveryLock(client);
+    locked = true;
+    return await callback(client);
+  } finally {
+    if (locked) {
+      try {
+        await releaseCivicPushDeliveryLock(client);
+      } catch {
+        discard = true;
+      }
+    } else if (attempted) {
+      // Unknown lock acquisition outcome: never return this session to pool.
+      discard = true;
+    }
+    client.release(discard);
+  }
+}
+
 module.exports = {
   readCivicDeliveryBarrier,
   blockCivicDeliveryOnRevocationFailure,
@@ -87,4 +121,5 @@ module.exports = {
   lockCivicPushDuringAccountErasure,
   acquireCivicPushDeliveryLock,
   releaseCivicPushDeliveryLock,
+  withCivicPushDeliveryLock,
 };
