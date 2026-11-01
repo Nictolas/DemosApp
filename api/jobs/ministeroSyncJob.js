@@ -1,5 +1,6 @@
 const ministeroSync = require('../services/ministeroSync');
 const logger = require('../services/centralizedLogger');
+const { collectMinisteroNewInitiatives } = require('../services/civicNewInitiativeEventCollector');
 
 /**
  * Job periodico per sincronizzare iniziative/referendum dal Ministero
@@ -75,6 +76,13 @@ class MinisteroSyncJob {
     try {
       const result = await this.executeWithRetry();
       const errors = Number(result?.errors || 0);
+      if (errors === 0) {
+        // Outbox solo dopo una sincronizzazione completa, senza invii push.
+        const events = await collectMinisteroNewInitiatives(require('../config/database').getPool());
+        if (events.recorded > 0) {
+          console.log('[civic-new] nuove raccolte ufficiali registrate:', events.recorded);
+        }
+      }
       if (errors > 0) {
         console.warn(`⚠️ Sincronizzazione Ministero completata parzialmente: ${errors} errori (${new Date().toISOString()})`);
       } else {
