@@ -5,12 +5,6 @@ const AuditService = require('../../services/auditService');
 const { getPool } = require('../../config/database');
 const bcrypt = require('bcryptjs');
 const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
-const { isCivicPushEnabled, unsubscribeCivicTopicsForToken } =
-  require('../../services/civicPushTopics');
-const {
-  lockCivicPushDuringAccountErasure,
-  blockCivicDeliveryOnRevocationFailure,
-} = require('../../services/civicPushDeliveryGuard');
 
 /**
  * @route GET /api/user/delete-account/requirements
@@ -103,33 +97,8 @@ router.delete('/', verifyToken, async (req, res) => {
       }
     }
 
-    // Le notifiche FCM gia' accettate dal provider non sono revocabili.
-    // Prima della cancellazione irreversibile, blocchiamo le nuove trasmissioni
-    // durante la revoca dei topic. In caso di errore non tratteniamo i token
-    // del soggetto: disattiviamo GLOBALMENTE gli invii futuri e procediamo
-    // comunque con il diritto alla cancellazione.
-    if (isCivicPushEnabled()) {
-      await lockCivicPushDuringAccountErasure(client);
-      const devices = await client.query(
-        `SELECT DISTINCT fcm_token
-         FROM user_devices WHERE user_id = $1
-         AND fcm_token IS NOT NULL AND btrim(fcm_token) <> ''`,
-        [userId]
-      );
-      let revocationFailed = false;
-      for (const device of devices.rows) {
-        try {
-          await unsubscribeCivicTopicsForToken(device.fcm_token);
-        } catch {
-          revocationFailed = true;
-        }
-      }
-      if (revocationFailed) {
-        await blockCivicDeliveryOnRevocationFailure(client);
-        // Niente identificativi, token o errori Firebase nei log.
-        console.warn('CIVIC_PUSH_GLOBAL_DELIVERY_BLOCKED_AFTER_ERASURE');
-      }
-    }
+    // La revoca dei topic avviene nel servizio centrale di cancellazione,
+    // usato anche da percorsi admin e di riconciliazione, prima del cleanup DB.
 
     // Un problema del trasporto audit non deve impedire l'esercizio
     // del diritto di cancellazione. L'eventuale mancata consegna va
