@@ -285,19 +285,6 @@ router.post('/send-user-notification', (req, res, next) => {
     debugLog('📢 Request body completo:', JSON.stringify(req.body));
     debugLog('\n');
     
-    // Verifica Firebase Admin all'inizio
-    const { getFirebaseAdmin } = require('../services/firebaseAdmin');
-    const admin = getFirebaseAdmin();
-    debugLog(`🔥 Firebase Admin disponibile: ${admin ? '✅ Sì' : '❌ No'}`);
-    if (!admin) {
-      console.error('❌ Firebase Admin non configurato. Impossibile inviare notifiche push.');
-      return res.status(500).json({
-        success: false,
-        error: 'Firebase Admin non configurato. Verifica le variabili d\'ambiente FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.',
-        firebase_admin_configurato: false
-      });
-    }
-    
     if (!userId) {
       return res.status(400).json({
         success: false,
@@ -326,9 +313,40 @@ router.post('/send-user-notification', (req, res, next) => {
     }
 
     const destinatario = userResult.rows[0];
-    const fcmTokens = await getResolvedFcmTokensForUser(userId);
-    
-    // Log dettagliato per debug
+    const commento = messaggio || titolo;
+
+    // Persist the app inbox before best-effort FCM delivery.
+    let notificaId;
+    try {
+      const saved = await pool.query(
+        `INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data, data_creazione)
+         VALUES (gen_random_uuid(), $1, $2, $3, CURRENT_DATE, NOW())
+         RETURNING id`,
+        [userId, titolo, commento]
+      );
+      notificaId = saved.rows[0].id;
+    } catch (_saveError) {
+      console.error('USER_NOTIFICATION_INBOX_WRITE_FAILED');
+      return res.status(503).json({
+        success: false,
+        error: 'Notifica non salvata nell’app. Nessun invio eseguito.'
+      });
+    }
+
+    // Missing Firebase configuration or an inactive device never loses inbox mail.
+    const { getFirebaseAdmin } = require('../services/firebaseAdmin');
+    let admin = null;
+    let fcmTokens = [];
+    try {
+      admin = getFirebaseAdmin();
+      if (admin) fcmTokens = await getResolvedFcmTokensForUser(userId);
+    } catch (_setupError) {
+      console.error('USER_NOTIFICATION_PUSH_SETUP_FAILED');
+      admin = null;
+      fcmTokens = [];
+    }
+
+        // Log dettagliato per debug
     debugLog(`   📊 Token FCM nel database per ${destinatario.email}:`);
     debugLog(`      - Numero token: ${fcmTokens.length}`);
     if (fcmTokens.length > 0) {
@@ -337,19 +355,6 @@ router.post('/send-user-notification', (req, res, next) => {
       });
     } else {
       debugLog(`      - ⚠️ Nessun token FCM trovato nel database`);
-    }
-
-    if (fcmTokens.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'L\'utente destinatario non ha token FCM registrati. Non è possibile inviare notifiche push.',
-        data: {
-          userId: destinatario.id,
-          email: destinatario.email,
-          nome: destinatario.nome,
-          cognome: destinatario.cognome
-        }
-      });
     }
 
     debugLog(`📤 Invio notifica a ${destinatario.email} (${destinatario.nome} ${destinatario.cognome})`);
@@ -361,7 +366,6 @@ router.post('/send-user-notification', (req, res, next) => {
       });
     }
 
-    const commento = messaggio || titolo;
     let successCount = 0;
     let failureCount = 0;
     const invalidTokens = [];
@@ -372,7 +376,7 @@ router.post('/send-user-notification', (req, res, next) => {
     // TOKEN SOLO PER MOBILE: Dovrebbe esserci sempre solo 1 token
     // IMPORTANTE: Usa SEMPRE solo l'ULTIMO token (più recente) per evitare duplicati
     // Se ci sono più token, significa che c'è un token desktop vecchio che deve essere rimosso
-    const tokensToSend = fcmTokens.length > 0 ? [fcmTokens[fcmTokens.length - 1]] : [];
+    const tokensToSend = admin && fcmTokens.length > 0 ? [fcmTokens[fcmTokens.length - 1]] : [];
     
     debugLog(`    🔍 Invio notifica a ${fcmTokens.length} token FCM disponibili nel database (tag: ${notificationTag})...`);
     debugLog(`    📊 Strategia: Userò SOLO l'ULTIMO token (${tokensToSend.length} token selezionato)`);
@@ -455,11 +459,14 @@ router.post('/send-user-notification', (req, res, next) => {
 
     // Rimuovi token non validi dal database
     if (invalidTokens.length > 0) {
-      await invalidateUserFcmTokens(userId, invalidTokens);
-      debugLog(`🧹 Rimossi/invalidati ${invalidTokens.length} token FCM non validi per utente ${userId}`);
+      try {
+        await invalidateUserFcmTokens(userId, invalidTokens);
+      } catch (_invalidError) {
+        console.error('FCM_TOKEN_INVALIDATION_FAILED');
+      }
     }
 
-    debugLog('\n');
+        debugLog('\n');
     debugLog(`📊 ========== RISULTATO INVIO NOTIFICA ==========`);
     debugLog(`✅ Notifiche inviate: ${successCount} successi, ${failureCount} fallimenti`);
     debugLog(`📋 Token totali disponibili: ${fcmTokens.length}`);
@@ -470,81 +477,28 @@ router.post('/send-user-notification', (req, res, next) => {
       debugLog(`   💡 I token extra verranno rimossi automaticamente al prossimo salvataggio token.`);
     }
     
-    // Salva la notifica nella tabella notifiche_demos se almeno una notifica è stata inviata con successo
-    if (successCount > 0) {
-      try {
-        debugLog(`💾 Salvataggio notifica in notifiche_demos per utente ${userId}...`);
-        const saveResult = await pool.query(`
-          INSERT INTO notifiche_demos (
-            id, id_utente, titolo, testo, data, data_creazione
-          ) VALUES (
-            gen_random_uuid(), $1, $2, $3, CURRENT_DATE, NOW()
-          ) RETURNING id
-        `, [
-          userId,
-          titolo,
-          commento
-        ]);
-        
-        const notificaId = saveResult.rows[0].id;
-        debugLog(`✅ Notifica salvata in notifiche_demos con ID: ${notificaId}`);
-      } catch (saveError) {
-        console.error('USER_NOTIFICATION_INBOX_WRITE_FAILED');
-        // Non bloccare la risposta se il salvataggio fallisce
-      }
-    } else {
-      debugLog(`⚠️ Notifica non salvata in notifiche_demos (nessuna notifica inviata con successo)`);
-    }
-    
     debugLog(`🚨🚨🚨 ========== FINE INVIO NOTIFICA A UTENTE SPECIFICO ========== 🚨🚨🚨`);
     debugLog('\n\n');
 
-    if (successCount === 0) {
-      // Verifica se il problema è Firebase Admin non configurato
-      const adminCheck = getFirebaseAdmin();
-      
-      let errorMessage = 'Nessuna notifica inviata. Tutti i tentativi sono falliti.';
-      if (!adminCheck) {
-        errorMessage = 'Firebase Admin non configurato. Verifica le variabili d\'ambiente FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.';
-      }
-      
-      console.error(`❌ ${errorMessage}`);
-      console.error(`❌ Token FCM tentati: ${fcmTokens.length}`);
-      console.error(`❌ Successi: ${successCount}, Fallimenti: ${failureCount}`);
-      
-      return res.status(500).json({
-        success: false,
-        error: errorMessage,
-        data: {
-          destinatario: {
-            id: destinatario.id,
-            email: destinatario.email,
-            nome: destinatario.nome,
-            cognome: destinatario.cognome
-          },
-          notifiche_inviate: successCount,
-          notifiche_fallite: failureCount,
-          token_rimossi: invalidTokens.length,
-          firebase_admin_configurato: !!adminCheck
-        }
-      });
-    }
-
-    res.json({
+    const pushDelivered = successCount > 0;
+    return res.json({
       success: true,
-      message: `Notifica inviata con successo a ${destinatario.nome} ${destinatario.cognome}`,
+      message: pushDelivered
+        ? 'Notifica salvata nell’app e push accettato da Firebase'
+        : 'Notifica salvata nell’app; push non disponibile o non consegnato',
       data: {
         destinatario: {
           id: destinatario.id,
-          email: destinatario.email,
           nome: destinatario.nome,
           cognome: destinatario.cognome
         },
-        titolo,
-        messaggio: commento,
+        id_notifica: notificaId,
+        inbox_salvata: true,
+        push_inviato: pushDelivered,
         notifiche_inviate: successCount,
         notifiche_fallite: failureCount,
-        token_rimossi: invalidTokens.length
+        token_rimossi: invalidTokens.length,
+        firebase_admin_configurato: !!admin
       }
     });
   } catch (error) {
