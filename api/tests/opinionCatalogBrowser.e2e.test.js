@@ -328,6 +328,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Gestazione per altri', '600.000–1.000.000 €'],
       ['/opinioni-europee', 'Corrida', '1.457'],
       ['/opinioni-comunali', 'Centri comunali di accoglienza migranti', '41.289'],
+      ['/opinioni-nazionali', 'Autonomia Differenziata', '192/2024'],
+      ['/opinioni-comunali', 'Polizia locale armata', '145/1987'],
+      ['/opinioni-comunali', 'Sussidi comunali per famiglie numerose', '90.000 €'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1486,6 +1489,60 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok(fullText.includes('1.991 Comuni') &&
             fullText.includes('NON posti già aperti'),
             'Local-authority participation and planned positions are not immediate openings');
+        }
+      } else if (['Autonomia Differenziata', 'Polizia locale armata', 'Sussidi comunali per famiglie numerose'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        const fullText = await brief.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four fact rows with explanatory scope');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': four facts each linking to official source');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': dates and budgets do not prove policy impact');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': no invented country legal-permission map');
+        const positions = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(id => root.querySelector('[data-testid="' + id + '"]')?.getBoundingClientRect().top));
+        assert.ok(positions.every(Number.isFinite) && positions[0] < positions[1] && positions[1] < positions[2],
+          title + ': summary precedes alternatives and independent facts');
+        if (title === 'Autonomia Differenziata') {
+          for (const fact of ['Art. 116, c. 3', '13/07/2024', '192/2024', '10/2025'])
+            assert.ok(data.includes(fact), 'Italian constitutional/autonomy reference ' + fact);
+          assert.ok(data.includes('NON attribuzione automatica') &&
+            data.includes('non è una data di trasferimento') &&
+            data.includes("NON abrogato l'intero articolo") &&
+            data.includes('NON referendum svoltosi'),
+            'Constitution, court rulings and rejected referendum are distinct from transfers');
+          assert.ok(fullText.includes('NON ha cancellato l\'intera autonomia differenziata') &&
+            fullText.includes('gli elettori non hanno votato quel referendum'),
+            'Court did not abolish autonomy and referendum was never held');
+        }
+        if (title === 'Polizia locale armata') {
+          for (const fact of ['Art. 5', '145/1987', '5%', '1 ogni anno'])
+            assert.ok(data.includes(fact), 'Italian municipal police armament rule ' + fact);
+          assert.ok(data.includes('NON significa che ogni agente') &&
+            data.includes('NON conteggio di Comuni armati') &&
+            data.includes('NON 5% di agenti armati') &&
+            data.includes("NON un unico corso sufficiente"),
+            'Police qualification, legal model, backup arms and training are not safety outcomes');
+          assert.ok(fullText.includes('ALMENO UNO OGNI ANNO') &&
+            fullText.includes('NON percentuale di operatori'),
+            'Mandatory annual firearms training and reserve stock denominator');
+        }
+        if (title === 'Sussidi comunali per famiglie numerose') {
+          for (const fact of ['250 €', '90.000 €', '25.000 €', '4 figli'])
+            assert.ok(data.includes(fact), 'Ancona/Rimini 2026 family grant datum ' + fact);
+          assert.ok(data.includes('NON pagamento automatico') &&
+            data.includes('NON 90.000 euro già liquidati') &&
+            data.includes('NON importo individuale') &&
+            data.includes('NON tre figli come ad Ancona'),
+            'Grant amount, budget, eligibility and payment must not be conflated');
+          assert.ok(fullText.includes('TRE LINEE') &&
+            fullText.includes('SCADUTE alla data 01/11/2026'),
+            'Ancona fund budget covers three groups and 2026 application windows have closed');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
