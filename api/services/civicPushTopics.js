@@ -25,10 +25,13 @@ function getMessagingClient(override = null) {
 }
 
 async function changeTopic(messaging, token, topic, subscribe) {
-  const result = subscribe
-    ? await messaging.subscribeToTopic([token], topic)
-    : await messaging.unsubscribeFromTopic([token], topic);
-  if (result?.failureCount > 0) {
+  try {
+    const result = subscribe
+      ? await messaging.subscribeToTopic([token], topic)
+      : await messaging.unsubscribeFromTopic([token], topic);
+    if (result?.failureCount > 0) throw new Error('FCM_SUBSCRIPTION_REJECTED');
+  } catch {
+    // Firebase may include token identifiers in diagnostics: do not expose them.
     const error = new Error('CIVIC_TOPIC_SYNC_FAILED');
     error.code = 'CIVIC_TOPIC_SYNC_FAILED';
     throw error;
