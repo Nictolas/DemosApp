@@ -13,8 +13,10 @@ const {
 } = require('../services/civicPushTopics');
 const { buildCivicPush, dispatchCivicNewInitiatives } =
   require('../services/civicNewInitiativePushDispatcher');
-const { blockCivicDeliveryFromPool } =
-  require('../services/civicPushDeliveryGuard');
+const {
+  blockCivicDeliveryFromPool,
+  withCivicPushDeliveryLock,
+} = require('../services/civicPushDeliveryGuard');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
@@ -136,11 +138,88 @@ test('an uncertain revocation blocks global topic sends with a transaction lock'
   }), ['BEGIN', 'lock', 'block', 'COMMIT']);
 });
 
+test('shared delivery lock protects the entire preference write and all device mutations', () => {
+  const prefs = read('api/routes/notifiche.js');
+  const tokens = read('api/routes/fcm-tokens.js');
+  const lockedSave = prefs.indexOf('savedPrefs = await withCivicPushDeliveryLock(');
+  const unsubscribe = prefs.indexOf('await unsubscribeDisabledCivicTopicsForUser(', lockedSave);
+  const dbWrite = prefs.indexOf('INSERT INTO notifiche_preferenze', unsubscribe);
+  const reconcile = prefs.indexOf('await reconcileCivicTopicsForUser(db, user_id', dbWrite);
+  const end = prefs.indexOf('}, { enabled: isCivicPushEnabled() });', reconcile);
+  assert.ok(lockedSave >= 0 && unsubscribe > lockedSave &&
+    dbWrite > unsubscribe && reconcile > dbWrite && end > reconcile);
+  assert.equal((tokens.match(/return await withCivicPushDeliveryLock\(pool, async \(db\)/g) || []).length, 4);
+  assert.match(tokens, /await unsubscribeCivicTokenOrBlock\(token, db\)/);
+  assert.match(tokens, /await updateLegacyTokens\(userId, updatedTokens, db\)/);
+  assert.match(tokens, /await deactivateUserDeviceToken\(userId, token, db\)/);
+});
+
+test('delivery lock wrapper preserves order, releases the held connection, and fails safely', async () => {
+  const calls = [];
+  const db = {
+    query: async (sql) => {
+      if (sql.includes('pg_advisory_lock(')) calls.push('acquire');
+      if (sql.includes('pg_advisory_unlock(')) {
+        calls.push('unlock');
+        return { rows: [{ unlocked: true }] };
+      }
+      return { rows: [] };
+    },
+    release: (discard) => calls.push(discard ? 'discard' : 'release'),
+  };
+  const pool = { connect: async () => db };
+  const value = await withCivicPushDeliveryLock(pool, async (client) => {
+    assert.equal(client, db);
+    calls.push('mutate');
+    return 42;
+  }, { enabled: true });
+  assert.equal(value, 42);
+  assert.deepEqual(calls, ['acquire', 'mutate', 'unlock', 'release']);
+
+  calls.length = 0;
+  await assert.rejects(withCivicPushDeliveryLock(pool, async () => {
+    calls.push('mutation-failed');
+    throw new Error('expected write rejection');
+  }, { enabled: true }), /expected write rejection/);
+  assert.deepEqual(calls, ['acquire', 'mutation-failed', 'unlock', 'release']);
+
+  calls.length = 0;
+  const unprotected = await withCivicPushDeliveryLock(pool, async (client) => {
+    assert.equal(client, pool);
+    return 'flag-off';
+  }, { enabled: false });
+  assert.equal(unprotected, 'flag-off');
+  assert.deepEqual(calls, []);
+});
+
+test('an uncertain locked opt-out globally blocks delivery before releasing its lock', async () => {
+  const statements = [];
+  const db = {
+    query: async (sql) => {
+      statements.push(sql);
+      if (sql.includes('SELECT fcm_token FROM user_devices')) {
+        return { rows: [{ fcm_token: 'test-token' }] };
+      }
+      if (sql.includes('UPDATE civic_push_delivery_guard')) {
+        return { rows: [{ id: 1 }] };
+      }
+      throw new Error('Unexpected query');
+    }
+  };
+  const messaging = {
+    unsubscribeFromTopic: async () => { throw new Error('provider error with token'); },
+  };
+  await assert.rejects(unsubscribeDisabledCivicTopicsForUser(db, 'verified-user', ['eci'], {
+    enabled: true, messaging, lockedClient: db
+  }), e => e.message === 'CIVIC_TOPIC_SYNC_FAILED');
+  assert.ok(statements.some(sql => sql.includes('UPDATE civic_push_delivery_guard')));
+});
+
 test('old tokens are revoked on rotation, cleanup and logout', () => {
   const tokens = read('api/routes/fcm-tokens.js');
   const auth = read('client/src/hooks/use-auth.tsx');
-  assert.match(tokens, /revokeSupersededCivicTokens\(userId, token, validExistingTokens\)/);
-  assert.match(tokens, /await reconcileCivicTopicsForUser\(pool, userId\)/);
+  assert.match(tokens, /revokeSupersededCivicTokens\(userId, token, validExistingTokens, db\)/);
+  assert.match(tokens, /await reconcileCivicTopicsForUser\(db, userId, \{ lockedClient: db \}\)/);
   assert.match(tokens, /router\.delete\('\/session', verifyToken/);
   assert.match(tokens, /await unsubscribeCivicTopicsForToken\(token\)/);
   assert.match(auth, /: '\/fcm-tokens\/session'/);
