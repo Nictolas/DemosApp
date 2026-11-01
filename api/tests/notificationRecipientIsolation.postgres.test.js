@@ -81,7 +81,10 @@ test('real PostgreSQL HTTP: inbox writer retry and two-user private feed/latest 
         method,headers:{...(user?{authorization:'Bearer synthetic-'+user}:{}),...(body?{'content-type':'application/json'}:{})},
         body:body?JSON.stringify(body):undefined
       });
-      return {status:response.status,data:await response.json()};
+      const bodyText=await response.text();
+      let result;
+      try{result=JSON.parse(bodyText);}catch{result=bodyText;}
+      return {status:response.status,data:result};
     };
     assert.equal((await call('/api/notifiche',null)).status,401);
     assert.equal((await call('/api/notifiche/ultima',null)).status,401);
