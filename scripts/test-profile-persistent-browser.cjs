@@ -176,6 +176,25 @@ async function test() {
     assert.equal(count.get('/api/user/profile-selections') || 0, emptyFirst,
       'Showing empty preference categories must not trigger any extra database reads');
 
+    // The compass is a separate, private page opened from the last
+    // section of the owner profile. Test a genuine mobile tap and navigation.
+    const compassLink = page.getByTestId('profilo-compasso-politico-link');
+    await compassLink.scrollIntoViewIfNeeded();
+    await compassLink.click();
+    await page.waitForURL(ORIGIN + '/compasso-politico', { timeout: 15000 });
+    await page.getByRole('heading', { name: 'Compasso politico' }).waitFor({ timeout: 15000 });
+    // This fixture contains only one answered question: the axis must not
+    // fabricate an ideological position from insufficient data.
+    await page.getByText('Dati insufficienti', { exact: true }).first().waitFor({ timeout: 15000 });
+
+    // Revoking consent on another device must hide the graph even when
+    // the dedicated page is reloaded from a direct URL.
+    granted = false;
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByText('Per visualizzare il compasso è necessario il consenso',
+      { exact: false }).waitFor({ timeout: 15000 });
+    assert.equal(await page.getByText('Dati insufficienti', { exact: true }).count(), 0,
+      'Political compass must disappear after consent revocation');
     assert.deepEqual(errors, [], 'No uncaught browser errors');
     console.log(JSON.stringify({ kind: 'persistent-local-profile', result: 'PASS', first, after,
       additionalProfileGets: after.reduce((sum, n, i) => sum + n - first[i], 0) }));
