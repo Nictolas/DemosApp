@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these sixty-nine canonical IDs opt in; the other 25 use the original
+ * Only these seventy-two canonical IDs opt in; the other 22 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -3496,6 +3496,167 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "Comune Milano · Report Mobilità 2025, aree pedonali e Piazze Aperte", url: "https://www.comune.milano.it/w/mobilit%C3%A0.-milano-cambia-il-modo-di-muoversi-presentato-il-report-della-mobilit%C3%A0-2025" },
       { label: "Comune Milano · Milano Bene Comune, programma Piazze Aperte", url: "https://www2.comune.milano.it/-/forum-partecipazione.-presentato-milano-bene-comune-il-masterplan-che-ridisegna-lo-spazio-pubblico-a-misura-di-persona" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  premio_maggioranza: {
+    intro: "Un premio di maggioranza (o di governabilità) assegna seggi aggiuntivi alla lista o coalizione che raggiunge determinate condizioni per favorire stabilità. In Italia la legge n. 180 del 9 ottobre 2026, in vigore dal 24 ottobre, ha introdotto nuove regole: non è corretto descrivere il Rosatellum del 2017 come sistema tuttora immutato.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Legge vigente dal 24/10/2026", title: "Premio condizionato alla soglia nelle due Camere", text: "La legge 180/2026 prevede un premio di governabilità alla lista o coalizione che risulti prima in entrambe le Camere e raggiunga almeno il 42% dei voti validi in ciascuna. Alla Camera il premio riguarda fino a settanta seggi, con un tetto complessivo previsto dalla norma." },
+      { label: "Scelta politica", title: "Mantenere, modificare o abolire il premio", text: "Si possono discutere soglie, dimensioni del premio e garanzie di rappresentanza. Le sentenze 1/2014 e 35/2017 ricordano che il premio va bilanciato con eguaglianza del voto e rappresentatività; non ogni premio è automaticamente incostituzionale." },
+    ],
+    measuredResultsTitle: "🇮🇹 Nuova legge elettorale · premio di governabilità dal 2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 Normattiva · legge 180/2026",
+        topic: "Entrata in vigore della nuova legge elettorale",
+        value: "24/10/2026",
+        period: "Legge 9 ottobre 2026, n. 180",
+        meaning: "Data di efficacia della legge che modifica il sistema nazionale; NON data in cui si siano già tenute elezioni con il nuovo meccanismo.",
+        sourceUrl: "https://www.normattiva.it/eli/id/2026/10/09/26G00201/ORIGINAL",
+      },
+      {
+        place: "🇮🇹 Camera e Senato · legge 180/2026",
+        topic: "Soglia dei voti per ottenere il premio",
+        value: "42%",
+        period: "Richiesto in CIASCUNA delle due Camere",
+        meaning: "Soglia di voti validi per lista/coalizione arrivata prima in entrambe le Camere, NON percentuale di seggi assicurata e NON somma dei voti delle due Camere.",
+        sourceUrl: "https://www.normattiva.it/eli/id/2026/10/09/26G00201/ORIGINAL",
+      },
+      {
+        place: "🇮🇹 Camera dei deputati · legge 180/2026",
+        topic: "Dimensione del premio alla Camera",
+        value: "70 seggi",
+        period: "Articolo 1, premio di governabilità",
+        meaning: "Seggi del premio previsti per la CAMERA, distribuiti secondo le condizioni normative: NON 70 punti percentuali di voto e NON dati di seggi già assegnati.",
+        sourceUrl: "https://www.normattiva.it/eli/id/2026/10/09/26G00201/ORIGINAL",
+      },
+      {
+        place: "🇮🇹 Camera dei deputati · legge 180/2026",
+        topic: "Tetto complessivo per il vincitore alla Camera",
+        value: "220 seggi",
+        period: "Seggi interni, ESCLUSA la circoscrizione Estero",
+        meaning: "Limite massimo di seggi complessivi della lista o coalizione premiata alla Camera, non un bonus aggiuntivo di 220 seggi da sommare ai 70.",
+        sourceUrl: "https://www.normattiva.it/eli/id/2026/10/09/26G00201/ORIGINAL",
+      },
+    ],
+    evidenceCaveat: "La legge n. 180/2026 è entrata in vigore il 24 ottobre 2026: NON descriverla come proposta ancora in esame e NON riferirsi al Rosatellum del 2017 come immutato. Per il premio servono congiuntamente primo posto in ENTRAMBE le Camere e almeno il 42% dei voti validi in CIASCUNA. I 70 seggi sono il premio alla Camera mentre 220 è un TETTO complessivo di seggi per il vincitore nella Camera, esclusa la circoscrizione Estero: non sono due premi cumulabili. Questi sono parametri normativi, NON risultati elettorali realizzati. Le sentenze costituzionali del 2014 e del 2017 riguardavano meccanismi precedenti, non una decisione sul nuovo premio.",
+    advantage: "Può rendere più agevole costruire una maggioranza parlamentare, a condizioni di consenso dichiarate dalla legge.",
+    concern: "Può accrescere la differenza tra percentuali di voti e seggi, ridurre la rappresentatività delle minoranze e incentivare coalizioni elettorali poco coese.",
+    note: "Non confondere premio di governabilità con collegi uninominali, soglia di sbarramento, ballottaggio e voto di preferenza: sono meccanismi distinti.",
+    sources: [
+      { label: "Normattiva · Legge n. 180/2026, testo originario in vigore dal 24 ottobre", url: "https://www.normattiva.it/eli/id/2026/10/09/26G00201/ORIGINAL" },
+      { label: "Gazzetta Ufficiale · Legge 180/2026", url: "https://www.gazzettaufficiale.it/eli/id/2026/10/09/26G00201/sg" },
+      { label: "Corte costituzionale · Premio e sentenza 1/2014", url: "https://www.cortecostituzionale.it/scheda-pronuncia/2014/1" },
+      { label: "Corte costituzionale · Premio e sentenza 35/2017", url: "https://www.cortecostituzionale.it/scheda-pronuncia/2017/35" },
+    ],
+    verified: "01/11/2026",
+  },
+  restrizioni_sale_gioco: {
+    intro: "Limitare dove e quando possono operare sale giochi, sale scommesse e apparecchi con vincite in denaro. Lombardia e Piemonte applicano regole diverse: le distanze dai luoghi sensibili possono riguardare le nuove slot/VLT, mentre le fasce di spegnimento cambiano secondo il tipo di esercizio.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Lombardia", title: "Distanze per nuove installazioni di slot/VLT", text: "La legge regionale 8/2013 e la DGR 1274/2014 limitano le nuove collocazioni di apparecchi ex art. 110, comma 6, TULPS a meno di 500 metri da scuole e altri luoghi sensibili. Le apparecchiature già installate legittimamente sono trattate diversamente." },
+      { label: "🇮🇹 Piemonte", title: "Fasce giornaliere di interruzione", text: "L'art. 19 della legge regionale 19/2021, come modificato nel 2023, stabilisce fasce obbligatorie differenti per sale da gioco/scommesse e per altri punti di gioco. Non si tratta di un divieto assoluto di apertura delle sale in tutte le ore della giornata." },
+    ],
+    measuredResultsTitle: "🇮🇹 Regioni · limiti specifici a slot e gioco con vincite",
+    measuredResults: [
+      {
+        place: "🇮🇹 Lombardia · nuova collocazione slot/VLT",
+        topic: "Distanza minima dai luoghi sensibili",
+        value: "500 m",
+        period: "Legge regionale 8/2013 e DGR 1274/2014",
+        meaning: "Divieto di NUOVE installazioni entro il raggio regolamentato, NON chiusura automatica di ogni sala già esistente né divieto per giochi senza denaro.",
+        sourceUrl: "https://www.regione.lombardia.it/sanita/no-slot/prevenzione-e-azioni-di-contrasto/slot-teniamole-a-distanza-dai-luoghi-sensibili",
+      },
+      {
+        place: "🇮🇹 Lombardia · applicazione della distanza",
+        topic: "Data dalla quale vale la delibera sulle nuove installazioni",
+        value: "28/1/2014",
+        period: "Pubblicazione DGR 1274/2014 sul BURL",
+        meaning: "Riferimento della disciplina sulle NUOVE installazioni ex art.110, c.6, TULPS, NON data di una generale chiusura di sale giochi.",
+        sourceUrl: "https://www.regione.lombardia.it/sanita/no-slot/prevenzione-e-azioni-di-contrasto/slot-teniamole-a-distanza-dai-luoghi-sensibili",
+      },
+      {
+        place: "🇮🇹 Piemonte · sale giochi e scommesse",
+        topic: "Interruzione quotidiana obbligatoria per sale da gioco/scommesse",
+        value: "02–10",
+        period: "8 ore consecutive, art. 19 legge regionale 19/2021",
+        meaning: "Fascia in cui il gioco regolato deve essere interrotto per QUESTE categorie; NON orario universale di chiusura di qualsiasi esercizio commerciale.",
+        sourceUrl: "https://arianna.cr.piemonte.it/iterlegcoordweb/dettaglioLegge.do?urnLegge=urn%3Anir%3Aregione.piemonte%3Alegge%3A2021-07-15%3B19%402026-07-14",
+      },
+      {
+        place: "🇮🇹 Piemonte · altri punti per il gioco",
+        topic: "Fasce quotidiane di interruzione per altra categoria di esercizi",
+        value: "23–09:30 + 12:30–14:30",
+        period: "12 ore e 30 minuti complessivi, legge regionale vigente nel 2026",
+        meaning: "Due intervalli per specifici PUNTI GIOCO: 10,5 ore notturne e 2 ore diurne. NON obbligo identico per tutte le sale d'Italia.",
+        sourceUrl: "https://arianna.cr.piemonte.it/iterlegcoordweb/dettaglioLegge.do?urnLegge=urn%3Anir%3Aregione.piemonte%3Alegge%3A2021-07-15%3B19%402026-07-14",
+      },
+    ],
+    evidenceCaveat: "La distanza lombarda di 500 metri riguarda le NUOVE installazioni di slot e VLT della categoria prevista dalla legge, con eccezioni e norme transitorie: NON ogni gioco, bar o sala già esistente. Le fasce 02–10 e 23–09:30 + 12:30–14:30 si riferiscono a categorie DIVERSE nella legge piemontese. Le FAQ regionali riportano ancora per i punti gioco la versione ORIGINARIA 00–08 + 13–15: l’art. 19 è stato MODIFICATO nel 2023 e il testo consolidato del luglio 2026 richiede 12,5 ore. Le fasce non si sommano né sono orari nazionali. Le leggi regionali sono strumenti distinti e i loro limiti non indicano da soli quante dipendenze siano state evitate, quante sale siano chiuse o quanti giocatori si siano curati.",
+    advantage: "Può ridurre l'esposizione al gioco con vincite presso scuole e luoghi frequentati da persone vulnerabili e facilitare interventi di prevenzione.",
+    concern: "Richiede controlli coerenti e valutazione degli spostamenti di domanda verso altri esercizi o gioco online; limita l'attività economica di operatori autorizzati.",
+    note: "Nel Piemonte i limiti orari sono stabiliti dalla Regione e devono essere letti per tipo di punto gioco. Non trattare videogiochi senza premi, slot/VLT e scommesse come fossero lo stesso prodotto.",
+    sources: [
+      { label: "Regione Lombardia · FAQ sulle distanze da luoghi sensibili", url: "https://www.regione.lombardia.it/sanita/no-slot/prevenzione-e-azioni-di-contrasto/slot-teniamole-a-distanza-dai-luoghi-sensibili" },
+      { label: "Regione Lombardia · Legge 8/2013 e normativa GAP", url: "https://www.regione.lombardia.it/sanita/no-slot/normativa/normativa-sul-gioco-dazzardo-patologico" },
+      { label: "Regione Piemonte · Testo vigente legge 19/2021, art. 19", url: "https://arianna.cr.piemonte.it/iterlegcoordweb/dettaglioLegge.do?urnLegge=urn%3Anir%3Aregione.piemonte%3Alegge%3A2021-07-15%3B19%402026-07-14" },
+    ],
+    verified: "01/11/2026",
+  },
+  menu_vegetali_mense_scolastiche: {
+    intro: "Proporre più pasti scolastici fondati su legumi, cereali, verdure e altre fonti vegetali, con menù equilibrati e attenzione ad allergie e fabbisogni nutrizionali. Milano Ristorazione include già diversi piatti a base di legumi nel menù invernale 2025/26, ma vegetariano e vegano NON sono sinonimi.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Milano · menù esistente", title: "Rotazione settimanale con piatti vegetali", text: "Il menù invernale 2025/26 delle scuole d'infanzia, primarie e secondarie di primo grado contiene burger di legumi, lasagne al ragù di soia e minestra di lenticchie. Alcuni piatti possono comunque contenere uova, latte o altri ingredienti animali." },
+      { label: "Possibile scelta comunale", title: "Più alternative o giornate a prevalenza vegetale", text: "Ampliare piatti vegetali bilanciati, garantire la scelta per motivi etici o medici secondo le procedure, informare le famiglie sugli allergeni e misurare consumo effettivo e scarti alimentari." },
+    ],
+    measuredResultsTitle: "🇮🇹 Milano Ristorazione · menù scuole inverno 2025/26",
+    measuredResults: [
+      {
+        place: "🇮🇹 Milano Ristorazione · scuole",
+        topic: "Settimane della rotazione del menù invernale",
+        value: "4 settimane",
+        period: "Menù valido dal 10 novembre 2025",
+        meaning: "Ciclo del menù programmato per scuole d'infanzia, primarie e secondarie di primo grado; NON quattro giorni interamente vegani per settimana.",
+        sourceUrl: "https://www.milanoristorazione.it/files/Famiglie/Cosa_si_mangia/Inverno_2025-26/Menu_scuole_inverno_2025-26_WEB.pdf",
+      },
+      {
+        place: "🇮🇹 Milano Ristorazione · piatto con legumi",
+        topic: "Settimane che includono burger di legumi",
+        value: "1ª e 3ª",
+        period: "Rotazione invernale pubblicata per 2025/26",
+        meaning: "Burger con legumi presenti nel calendario delle prime e terze settimane, NON due pasti completi vegani garantiti per ciascuna settimana.",
+        sourceUrl: "https://www.milanoristorazione.it/files/Famiglie/Cosa_si_mangia/Inverno_2025-26/Menu_scuole_inverno_2025-26_WEB.pdf",
+      },
+      {
+        place: "🇮🇹 Milano Ristorazione · pietanza con soia",
+        topic: "Settimana con lasagne al ragù di soia",
+        value: "2ª",
+        period: "Menù invernale 2025/26",
+        meaning: "Il ragù di soia è un ingrediente vegetale, ma le lasagne complete possono contenere ingredienti animali: NON prova che l'intero pasto sia vegano.",
+        sourceUrl: "https://www.milanoristorazione.it/files/Famiglie/Cosa_si_mangia/Inverno_2025-26/Menu_scuole_inverno_2025-26_WEB.pdf",
+      },
+      {
+        place: "🇮🇹 Milano Ristorazione · piatto con lenticchie",
+        topic: "Settimana con minestra di lenticchie e pasta",
+        value: "4ª",
+        period: "Menù invernale 2025/26",
+        meaning: "Esempio programmato di legumi come parte del pasto; NON misura del consumo reale, delle proteine giornaliere o degli scarti.",
+        sourceUrl: "https://www.milanoristorazione.it/files/Famiglie/Cosa_si_mangia/Inverno_2025-26/Menu_scuole_inverno_2025-26_WEB.pdf",
+      },
+    ],
+    evidenceCaveat: "I quattro valori descrivono la ROTAZIONE DEL MENÙ pubblicata, non quantità di pasti consumati né dati sull'effetto sulla salute. Le settimane del burger con legumi sono la prima e la terza; le lasagne con ragù di soia e la minestra di lenticchie figurano rispettivamente nella seconda e nella quarta. Il menù è dell'inverno 2025/26, non si possono assumere pasti identici nel nuovo anno scolastico 2026/27. Una preparazione vegetale nella ricetta non significa necessariamente piatto VEGANO: gli ingredienti completi e gli allergeni vanno verificati. Per interventi su bambini, la pianificazione deve rispettare le linee guida nazionali di ristorazione scolastica 2021.",
+    advantage: "Può ampliare la varietà alimentare, permettere scelte etiche e promuovere il consumo di legumi in menù scolastici equilibrati.",
+    concern: "Richiede competenze nutrizionali, attenzione a ferro, vitamina B12 e allergeni nei menù strettamente vegani, gradimento dei bambini e monitoraggio degli sprechi.",
+    note: "Non confondere un piatto che contiene legumi, un menù vegetariano (possibili latticini e uova) e un menù vegano; non impone la stessa dieta a tutti gli alunni.",
+    sources: [
+      { label: "Milano Ristorazione · Menù ufficiale inverno 2025/26", url: "https://www.milanoristorazione.it/files/Famiglie/Cosa_si_mangia/Inverno_2025-26/Menu_scuole_inverno_2025-26_WEB.pdf" },
+      { label: "Ministero della Salute · Linee indirizzo ristorazione collettiva 2021", url: "https://www.salute.gov.it/new/it/news-e-media/notizie/ristorazione-collettiva-linee-di-indirizzo-nazionale/" },
     ],
     verified: "01/11/2026",
   },
