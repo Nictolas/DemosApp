@@ -8,7 +8,7 @@ const path = require('node:path');
 // the 28 mapped questions receives a definite response that scores +100.
 const modelSource = fs.readFileSync(path.join(__dirname, '../client/src/lib/politicalCompassModel.ts'), 'utf8');
 const fullCompassAnswers = Object.fromEntries(
-  Array.from(modelSource.matchAll(/\\{\\s*id:\\s*"([^"]+)",\\s*label:\\s*"[^"]+",\\s*axis:\\s*"(economia|liberta)",\\s*direction:\\s*(-?1)\\s*\\}/g),
+  Array.from(modelSource.matchAll(/\{\s*id:\s*"([^"]+)",\s*label:\s*"[^"]+",\s*axis:\s*"(economia|liberta)",\s*direction:\s*(-?1)\s*\}/g),
     ([, id, , sign]) => [id, sign === '1' ? 'f' : 'c']),
 );
 assert.equal(Object.keys(fullCompassAnswers).length, 28);
