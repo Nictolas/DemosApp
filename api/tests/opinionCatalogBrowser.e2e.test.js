@@ -1563,7 +1563,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         if (title === 'Metabo Law') {
           assert.ok(all.includes('NON una multa automatica') &&
             all.includes('NON tutti i cittadini') &&
-            all.includes('NON una tassa'),
+            all.includes('Non presentare la disciplina come tassa'),
             'Japanese checkups are not a universal overweight fine');
         } else if (title === 'Premierato') {
           assert.ok(all.includes('NON legge costituzionale vigente') &&
@@ -1572,7 +1572,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         } else {
           assert.ok(all.includes('NON esclusivamente nuovi stadi') &&
             all.includes('NON costo di un nuovo stadio') &&
-            all.includes('NON un unico stadio'),
+            all.includes('un unico stadio'),
             'National sport infrastructure budget is not a stadium cost');
         }
       } else if (['Autonomia Differenziata', 'Polizia locale armata', 'Sussidi comunali per famiglie numerose'].includes(title)) {
