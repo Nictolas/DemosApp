@@ -36,6 +36,22 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'CIVIC_STAGING_FIXTURE_SOURCE_TABLE_ALREADY_EXISTS';
   END IF;
+
+  -- Refuse half-prepared or mismatched staging databases. A source-only
+  -- fixture must never run when any downstream civic table already exists.
+  IF EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname IN (
+        'civic_new_initiative_notifications',
+        'civic_push_delivery_guard',
+        'civic_runtime_identity'
+      )
+  ) THEN
+    RAISE EXCEPTION 'CIVIC_STAGING_FIXTURE_TARGET_TABLE_ALREADY_EXISTS';
+  END IF;
 END
 $guard$;
 
