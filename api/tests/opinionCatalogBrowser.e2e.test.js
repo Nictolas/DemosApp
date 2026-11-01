@@ -322,6 +322,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-europee', 'Esercito Comune Europeo', '7,95 mld €'],
       ['/opinioni-comunali', 'Finanziamento eventi culturali gratuiti', '1.268 eventi'],
       ['/opinioni-comunali', 'Pedonalizzazione del centro storico', '886.032 m²'],
+      ['/opinioni-nazionali', 'Premio di maggioranza', '42%'],
+      ['/opinioni-comunali', 'Restrizioni alle sale gioco', '500 m'],
+      ['/opinioni-comunali', 'Menù vegetali nelle mense scolastiche', '4 settimane'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -1375,6 +1378,55 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           assert.ok(all.includes("all'INTERA CITTÀ") &&
             all.includes('già contenuti negli 886.032 m²'),
             'Historic-centre proposal must not be supported by mislabelled citywide totals');
+        }
+      } else if (['Premio di maggioranza', 'Restrizioni alle sale gioco', 'Menù vegetali nelle mense scolastiche'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        const all = await brief.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four figures with precise scope and source');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': link every fact to official data');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
+          title + ': law and menu are not before/after impact measurements');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0,
+          title + ': do not invent country-law heatmaps');
+        const positions = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(positions.every(Number.isFinite) && positions[0] < positions[1] && positions[1] < positions[2],
+          title + ': definition, alternatives, then sourced figures');
+        if (title === 'Premio di maggioranza') {
+          for (const fact of ['24/10/2026', '42%', '70 seggi', '220 seggi'])
+            assert.ok(data.includes(fact), 'Current Italian law 180/2026 electoral figure ' + fact);
+          assert.ok(data.includes('NON data in cui si siano già tenute elezioni') &&
+            data.includes('NON percentuale di seggi assicurata') &&
+            data.includes('non un bonus aggiuntivo di 220 seggi'),
+            'Effective date, vote threshold and winner seat cap must not be conflated');
+          assert.ok(all.includes('ENTRAMBE le Camere') && all.includes('NON risultati elettorali realizzati'),
+            'Electoral reward requires votes in both chambers and is not a realized outcome');
+        }
+        if (title === 'Restrizioni alle sale gioco') {
+          for (const fact of ['500 m', '28/1/2014', '02–10', '23–09:30 + 12:30–14:30'])
+            assert.ok(data.includes(fact), 'Lombardy/Piedmont gambling restriction ' + fact);
+          assert.ok(data.includes('NON chiusura automatica') &&
+            data.includes('NON data di una generale chiusura') &&
+            data.includes('NON obbligo identico'),
+            'New-slot installation limits and region-specific hours do not close every hall');
+          assert.ok(all.includes('MODIFICATO nel 2023') && all.includes('testo consolidato del luglio 2026'),
+            '2026 consolidated Piemonte law prevails over stale FAQ opening hours');
+        }
+        if (title === 'Menù vegetali nelle mense scolastiche') {
+          for (const fact of ['4 settimane', '1ª e 3ª', '2ª', '4ª'])
+            assert.ok(data.includes(fact), 'Milan school menu winter 2025/26 item ' + fact);
+          assert.ok(data.includes('NON quattro giorni interamente vegani') &&
+            data.includes('NON prova che l\'intero pasto sia vegano') &&
+            data.includes('NON misura del consumo reale'),
+            'Legume dish, vegan menu and actual consumption are different');
+          assert.ok(all.includes('non si possono assumere pasti identici') &&
+            all.includes('non significa necessariamente piatto VEGANO'),
+            '2025/26 historic menu is not a claim about future menu or vegan certification');
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
