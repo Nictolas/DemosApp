@@ -141,19 +141,16 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
     
-    console.log(`📱 Salvataggio token FCM per utente: ${userId}`);
     
     // Verifica se la richiesta viene da un dispositivo mobile
     // TOKEN SOLO PER MOBILE: Ignora i token da desktop/browser
     const userAgent = req.headers['user-agent'] || '';
     const isMobile = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
     
-    console.log(`   📱 User-Agent: ${userAgent.substring(0, 100)}...`);
-    console.log(`   📱 Dispositivo rilevato: ${isMobile ? 'Mobile ✅' : 'Desktop ❌ (ignorato)'}`);
     
     // Se non è mobile, ignora il token (non salvarlo)
     if (!isMobile) {
-      console.log(`   ⚠️ Token da desktop ignorato. Solo token mobile vengono salvati.`);
+      console.log('[fcm-tokens] dispositivo desktop ignorato');
       return res.json({
         success: true,
         message: 'Token desktop ignorato (solo token mobile vengono salvati)',
@@ -189,7 +186,6 @@ router.post('/', verifyToken, async (req, res) => {
       updatedTokens = [token];
       if (validExistingTokens.length > 1) {
         console.log(`   🧹 Rimossi ${validExistingTokens.length - 1} token extra (manteniamo solo questo token mobile)`);
-        console.log(`   📋 Token rimossi: ${validExistingTokens.filter(t => t !== token).map(t => t.substring(0, 30) + '...').join(', ')}`);
       } else {
         console.log('   ℹ️ Token già presente, nessuna modifica');
       }
@@ -199,7 +195,6 @@ router.post('/', verifyToken, async (req, res) => {
       
       if (validExistingTokens.length > 0) {
         console.log(`   🧹 Rimossi ${validExistingTokens.length} token vecchi (manteniamo solo 1 token mobile)`);
-        console.log(`   📋 Token rimossi: ${validExistingTokens.map(t => t.substring(0, 30) + '...').join(', ')}`);
       }
       
       console.log(`   ✅ Token mobile aggiunto. Totale token: 1 (solo mobile)`);
@@ -225,7 +220,6 @@ router.post('/', verifyToken, async (req, res) => {
     // Dopo il salvataggio il server legge le preferenze effettive dell'utente.
     await reconcileCivicTopicsForUser(db, userId, { lockedClient: db });
 
-    console.log(`✅ Token FCM salvato con successo per utente ${userId}`);
     
     res.json({
       success: true,
@@ -237,11 +231,11 @@ router.post('/', verifyToken, async (req, res) => {
     });
     }, { enabled: isCivicPushEnabled() });
   } catch (error) {
-    console.error('❌ Errore nel salvataggio token FCM:', error);
+    console.error('[fcm-tokens] registrazione non riuscita (dettagli omessi)');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      details: error.message
+      details: 'Operazione non completata'
     });
   }
 });
@@ -258,7 +252,6 @@ router.post('/cleanup', verifyToken, async (req, res) => {
       });
     }
     
-    console.log(`🧹 Pulizia token FCM duplicati per utente: ${userId}`);
     
     return await withCivicPushDeliveryLock(pool, async (db) => {
     const existingTokens = await getLegacyTokens(userId, db);
@@ -280,8 +273,6 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     if (validTokens.length > 1) {
       const removedCount = validTokens.length - 1;
       console.log(`   🧹 Rimossi ${removedCount} token duplicati`);
-      console.log(`   📋 Token rimossi: ${validTokens.slice(0, -1).map(t => t.substring(0, 30) + '...').join(', ')}`);
-      console.log(`   ✅ Mantenuto solo l'ultimo token: ${cleanedTokens[0].substring(0, 30)}...`);
     } else {
       console.log(`   ℹ️ Nessun token duplicato trovato (${validTokens.length} token presente)`);
     }
@@ -325,11 +316,11 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     });
     }, { enabled: isCivicPushEnabled() });
   } catch (error) {
-    console.error('❌ Errore nella pulizia token FCM:', error);
+    console.error('[fcm-tokens] pulizia non riuscita (dettagli omessi)');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      details: error.message
+      details: 'Operazione non completata'
     });
   }
 });
@@ -411,7 +402,7 @@ router.delete('/:token', verifyToken, async (req, res) => {
     });
     }, { enabled: isCivicPushEnabled() });
   } catch (error) {
-    console.error('❌ Errore nella rimozione token FCM:', error);
+    console.error('[fcm-tokens] revoca non riuscita (dettagli omessi)');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
