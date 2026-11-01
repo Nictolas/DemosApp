@@ -1,6 +1,6 @@
 /**
  * Pilot of the shared, scannable Opinion brief format.
- * Only these sixty canonical IDs opt in; the other 34 use the original
+ * Only these sixty-three canonical IDs opt in; the other 31 use the original
  * server-rendered Markdown unchanged. No new endpoint, SQL or local storage.
  * Dates describe editorial verification, not an automatic legal update.
  */
@@ -3012,6 +3012,169 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
     sources: [
       { label: "ARERA · Bonus sociale rifiuti, requisiti, tempi e UR3", url: "https://www.arera.it/en/consumatori/bonus-sociale/bonus-sociale-per-disagio-economico/bonus-sociale-rifiuti-2-1" },
       { label: "ARERA · Soglie ISEE dal 1 gennaio 2026", url: "https://www.arera.it/comunicati-stampa/dettaglio/bonus-sociali-arera-alza-a-9796-euro-la-soglia-isee-per-laccesso-alle-agevolazioni-per-acqua-luce-gas-e-rifiuti" },
+    ],
+    verified: "01/11/2026",
+  },
+
+
+  sperimentazione_animale: {
+    intro: "L'uso di animali vivi in procedure scientifiche è regolato nell'UE dalla direttiva 2010/63 e in Italia dal d.lgs. 26/2014. Il principio delle 3R richiede sostituzione quando possibile, riduzione del numero e perfezionamento per limitare la sofferenza: un progetto non è autorizzato automaticamente.",
+    facts: [],
+    comparison: [
+      { label: "🇪🇺 Sistema attuale", title: "Ricerca autorizzata e principio delle 3R", text: "Le procedure sono sottoposte a valutazione e autorizzazione, con verifica del rapporto tra beneficio atteso e danno agli animali e preferenza per metodi sostitutivi validati quando disponibili." },
+      { label: "Scelta di politica scientifica", title: "Ridurre ulteriormente o superare l'uso di animali", text: "Ampliare metodi alternativi, validazione e trasparenza, definendo dove sia possibile sostituire i modelli animali e dove permangano quesiti non ancora affrontabili con metodi equivalenti." },
+    ],
+    measuredResultsTitle: "🇪🇺 UE e Norvegia · dati 2023 pubblicati dalla Commissione nel 2026",
+    measuredResults: [
+      {
+        place: "🇪🇺 Commissione europea · UE+Norvegia",
+        topic: "Animali impiegati per la prima volta in procedure",
+        value: "7.974.226",
+        period: "Dati 2023 · rapporto SWD(2026) 100",
+        meaning: "Numero di animali al PRIMO utilizzo per ricerca, test, produzione ordinaria e istruzione, inclusa la Norvegia; NON totale degli animali allevati o soppressi e NON numero di procedure.",
+        sourceUrl: "https://data.consilium.europa.eu/doc/document/ST-7917-2026-INIT/en/pdf",
+      },
+      {
+        place: "🇪🇺 Commissione europea · UE+Norvegia",
+        topic: "Animali impiegati per la prima volta nell'anno precedente",
+        value: "8.385.397",
+        period: "Dati 2022 · stesso perimetro del rapporto",
+        meaning: "Base di confronto per i dati 2023, NON numero delle singole procedure e NON dati del 2026.",
+        sourceUrl: "https://data.consilium.europa.eu/doc/document/ST-7917-2026-INIT/en/pdf",
+      },
+      {
+        place: "🇪🇺 Commissione europea · UE+Norvegia",
+        topic: "Variazione dei primi impieghi rispetto al 2022",
+        value: "−4,9%",
+        period: "2023 rispetto al 2022",
+        meaning: "Variazione osservata nel numero degli animali al PRIMO utilizzo; NON prova da sola che il calo sia causato dalle norme o dai metodi sostitutivi.",
+        sourceUrl: "https://data.consilium.europa.eu/doc/document/ST-7917-2026-INIT/en/pdf",
+      },
+      {
+        place: "🇪🇺 Commissione europea · UE+Norvegia",
+        topic: "Procedure con classificazione di gravità severa",
+        value: "meno del 9%",
+        period: "2023 · quota di tutti gli UTILIZZI, non dei soli primi utilizzi",
+        meaning: "Quota delle procedure/usages classificate severe, NON percentuale di animali morti né quota di animali impiegati per la prima volta.",
+        sourceUrl: "https://data.consilium.europa.eu/doc/document/ST-7917-2026-INIT/en/pdf",
+      },
+    ],
+    evidenceCaveat: "I 7.974.226 e gli 8.385.397 sono animali impiegati per la PRIMA VOLTA, nel 2023 e nel 2022; un animale riutilizzato non compare nuovamente in queste cifre. Il 4,9% indica un calo osservato, non prova causale dell'efficacia di una singola politica. Il meno del 9% riguarda gli UTILIZZI classificati severi: il denominatore è diverso. La statistica comprende UE e Norvegia e NON cattura tutti gli animali allevati, soppressi o non coinvolti in procedure. La ricerca su animali resta sottoposta a controllo e autorizzazione.",
+    advantage: "Può sostenere ricerca biomedica e di sicurezza quando non esistono ancora metodi sostitutivi adeguati, sotto controlli etici e di benessere animale.",
+    concern: "Espone animali a dolore o sofferenza e pone limiti alla trasferibilità dei risultati all'uomo; necessita di investimenti continui in alternative validate.",
+    note: "Le 3R non sono sinonimo di abolizione immediata: replacement, reduction, refinement. Distinguere primi utilizzi, riutilizzi, creazione di linee geneticamente alterate e allevamento senza impiego in procedure.",
+    sources: [
+      { label: "Commissione europea · Statistiche 2023 SWD(2026) 100", url: "https://data.consilium.europa.eu/doc/document/ST-7917-2026-INIT/en/pdf" },
+      { label: "Commissione europea · Animali nella scienza e ALURES", url: "https://environment.ec.europa.eu/topics/chemicals/animals-science_en" },
+      { label: "Ministero Salute · Autorizzazioni e principio delle 3R", url: "https://www.salute.gov.it/new/it/tema/prevenzione-e-controllo-malattie-degli-animali/regole-limpiego-di-animali-fini-scientifici/" },
+      { label: "Normattiva · Decreto legislativo 26/2014", url: "https://www.normattiva.it/atto/caricaDettaglioAtto?atto.codiceRedazionale=14G00036&atto.dataPubblicazioneGazzetta=2014-03-14&tipoDettaglio=multivigenza" },
+    ],
+    verified: "01/11/2026",
+  },
+  sostegno_commercio_locale: {
+    intro: "Sostenere negozi, botteghe e servizi di prossimità con bandi, riqualificazione e incentivi locali o regionali. Il programma lombardo 2026 per i piccoli Comuni e le frazioni mostra un sostegno mirato all'apertura di negozi alimentari e di prima necessità dove mancano da almeno sei mesi.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Regione Lombardia · bando attivo", title: "Aprire negozi nei territori sprovvisti", text: "Il bando Nuova Impresa – Piccoli Comuni e Frazioni 2026 concede contributi a fondo perduto per attività nuove o nuove unità locali di alimentari e beni di prima necessità in piccoli Comuni fino a 3.000 abitanti e nelle frazioni, secondo requisiti." },
+      { label: "Alternativa locale o regionale", title: "Riqualificare e accompagnare l'offerta", text: "Si possono finanziare servizi, mercati e spazi commerciali, prevedendo limiti di aiuto, verifica della concorrenza, indicatori su negozi realmente aperti e capacità di restare operativi." },
+    ],
+    measuredResultsTitle: "🇮🇹 Lombardia · bando Nuova Impresa Piccoli Comuni 2026",
+    measuredResults: [
+      {
+        place: "🇮🇹 Regione Lombardia · bando RLO12025051423",
+        topic: "Dotazione finanziaria complessiva",
+        value: "2,95 mln €",
+        period: "Bando aperto dal 28 gennaio al 12 novembre 2026, salvo condizioni e fondi",
+        meaning: "Stanziamento di 2.948.682,38 €, NON denaro interamente già erogato a imprese e NON misura di nuovi posti di lavoro.",
+        sourceUrl: "https://ue.regione.lombardia.it/bando/RLO12025051423",
+      },
+      {
+        place: "🇮🇹 Regione Lombardia · bando 2026",
+        topic: "Quota massima di spesa ammissibile coperta",
+        value: "80%",
+        period: "Contributo a fondo perduto",
+        meaning: "Percentuale MASSIMA delle spese eleggibili, non 80% del fatturato del negozio e non copertura garantita per ogni domanda.",
+        sourceUrl: "https://ue.regione.lombardia.it/bando/RLO12025051423",
+      },
+      {
+        place: "🇮🇹 Regione Lombardia · bando 2026",
+        topic: "Contributo massimo ordinario",
+        value: "40.000 €",
+        period: "Nuovo negozio ammissibile dove mancano esercizi compatibili",
+        meaning: "Tetto di contributo per la situazione prevista dal bando, non un pagamento automatico; investimento minimo richiesto di 3.000 €.",
+        sourceUrl: "https://ue.regione.lombardia.it/bando/RLO12025051423",
+      },
+      {
+        place: "🇮🇹 Regione Lombardia · bando 2026",
+        topic: "Massimo quando sono presenti altri negozi di generi ammessi ma diversi",
+        value: "20.000 €",
+        period: "Caso particolare previsto dalla misura",
+        meaning: "Massimale RIDOTTO in una diversa situazione commerciale; NON cifra da sommare ai 40.000 € del massimale ordinario.",
+        sourceUrl: "https://ue.regione.lombardia.it/bando/RLO12025051423",
+      },
+    ],
+    evidenceCaveat: "I 2,95 milioni di euro sono la dotazione del bando e NON finanziamenti già assegnati né posti di lavoro creati. Il contributo fino all'80% è soggetto a spese eleggibili, massimali, criteri e disponibilità; il tetto ordinario 40.000 € e quello speciale 20.000 € si applicano a CASI DISTINTI, non sono cumulabili. Il bando richiede fra l'altro territorio privo dei negozi ammissibili da almeno sei mesi, apertura dell'attività dopo il 1° giugno 2025, investimento minimo 3.000 € e presentazione entro il 12 novembre 2026; la data è una scadenza, non un risultato.",
+    advantage: "Può ripristinare negozi di beni essenziali in piccoli centri e frazioni, offrendo servizi vicini e contrastando la desertificazione commerciale.",
+    concern: "Necessita fondi, criteri equi e controlli sulla sopravvivenza delle attività; un contributo iniziale non garantisce domanda sufficiente o occupazione stabile.",
+    note: "Le competenze possono essere comunali o regionali e le misure cambiano. Il bando lombardo è un esempio specifico, non un sussidio universale destinato a qualunque negozio d'Italia.",
+    sources: [
+      { label: "Regione Lombardia · Nuova Impresa Piccoli Comuni e Frazioni 2026", url: "https://ue.regione.lombardia.it/bando/RLO12025051423" },
+      { label: "Regione Lombardia · Bandi e Servizi, requisiti e date", url: "https://bandi.regione.lombardia.it/servizi/servizio/catalogo/dettaglio/attivita-produttive-imprese/start-up-impresa/nuova-impresa-piccoli-comuni-frazioni-2026-RLO12025051423" },
+      { label: "Regione Toscana · Contributi ai Comuni per i mercati rionali 2026", url: "https://www.regione.toscana.it/-/mercati-rionali-contributi-ai-comuni-per-ammodernamento-ampliamento-e-riqualificazione" },
+    ],
+    verified: "01/11/2026",
+  },
+  riduzione_parcheggi_a_pagamento: {
+    intro: "Diminuire tariffe, orari o numero di stalli di sosta a pagamento. Non significa automaticamente garantire nuovi posti liberi: più soste gratuite possono prolungare l'occupazione degli spazi. Milano distingue i parcheggi blu tariffati, i bianchi gratuiti e i gialli riservati a categorie autorizzate.",
+    facts: [],
+    comparison: [
+      { label: "🇮🇹 Milano · regole esistenti", title: "Tariffe variabili e pass di categoria", text: "Il Comune e ATM distinguono zone, orari e categorie di utenti. I pass per residenti abilitano particolari condizioni solo negli ambiti segnalati; non trasformano tutti gli stalli blu cittadini in posti gratuiti." },
+      { label: "Scelta comunale proposta", title: "Ridurre pagamento o aumentare gratuità", text: "Il Comune può rimodulare tariffe e aree, valutando rotazione, accessibilità, sosta irregolare, impatti sulle strade vicine e sostituzione degli introiti mancanti." },
+    ],
+    measuredResultsTitle: "🇮🇹 Milano · costi e agevolazioni della sosta su strada",
+    measuredResults: [
+      {
+        place: "🇮🇹 Comune di Milano · residenti",
+        topic: "Costo del pass sosta per residenti aventi diritto",
+        value: "0 €",
+        period: "Informazioni comunali aggiornate a ottobre 2025",
+        meaning: "È gratuito il RILASCIO del pass per residenti, NON tutta la sosta blu in qualsiasi zona, orario o condizione.",
+        sourceUrl: "https://servizicrm.comune.milano.it/centro-supporto/KA-01689/Costo-pass-sosta-a-Milano",
+      },
+      {
+        place: "🇮🇹 Comune di Milano · dimoranti",
+        topic: "Costo del pass sosta per dimoranti",
+        value: "250 €",
+        period: "Importo pubblicato dal Comune nell'ottobre 2025",
+        meaning: "Costo del pass per dimoranti, distinto da pass dei residenti: NON tariffa oraria della sosta e non costo obbligatorio per ogni automobilista.",
+        sourceUrl: "https://servizicrm.comune.milano.it/centro-supporto/KA-01689/Costo-pass-sosta-a-Milano",
+      },
+      {
+        place: "🇮🇹 Comune di Milano · cerchia extrafiloviaria",
+        topic: "Abbonamento ordinario mensile alle strisce blu",
+        value: "50 €/mese",
+        period: "Tariffa specifica pubblicata il 25 giugno 2026",
+        meaning: "Abbonamento mensile ordinario nella cerchia extrafiloviaria, NON tariffa valida per tutte le zone della città né per ogni singola ora.",
+        sourceUrl: "https://servizicrm.comune.milano.it/centro-supporto/KA-01199/Costo-abbonamento-sosta-strisce-blu-Milano",
+      },
+      {
+        place: "🇮🇹 Comune di Milano · cerchia extrafiloviaria",
+        topic: "Abbonamento mensile scontato con requisiti legati ai mezzi",
+        value: "40 €/mese",
+        period: "Tariffa ridotta pubblicata il 25 giugno 2026",
+        meaning: "Tariffa PER persone abbonate ai mezzi pubblici e in possesso dei requisiti previsti, NON sconto automatico per qualsiasi residente.",
+        sourceUrl: "https://servizicrm.comune.milano.it/centro-supporto/KA-01199/Costo-abbonamento-sosta-strisce-blu-Milano",
+      },
+    ],
+    evidenceCaveat: "Pass residenti gratuito NON significa parcheggio gratuito ovunque: bisogna rispettare ambito, cartelli, orari e categorie autorizzate. Il pass per dimoranti costa 250 € ed è un titolo diverso. I 50 € e 40 € mensili sono due tariffe ALTERNATIVE per abbonamenti nella cerchia extrafiloviaria, non costi cumulabili e non prezzi orari. Le tariffe riportate sono riferimenti amministrativi del 2025–2026, NON dati su rotazione o disponibilità degli stalli, congestione e introiti effettivi. Una riduzione generale potrebbe richiedere copertura finanziaria e valutazioni di mobilità.",
+    advantage: "Può diminuire i costi di sosta per cittadini e utenti frequenti e agevolare accesso a servizi, soprattutto in zone prive di valide alternative.",
+    concern: "Può ridurre la rotazione e occupare più a lungo gli stalli, complicando la ricerca di parcheggio e riducendo risorse comunali per trasporto e manutenzione.",
+    note: "Non confondere riduzione del numero di stalli blu, riduzione della tariffa, pass residenti, parcheggi per persone con disabilità e parcheggi bianchi gratuiti.",
+    sources: [
+      { label: "Comune di Milano · Costo pass sosta residenti e dimoranti", url: "https://servizicrm.comune.milano.it/centro-supporto/KA-01689/Costo-pass-sosta-a-Milano" },
+      { label: "Comune Milano · Abbonamenti blu mensili, giugno 2026", url: "https://servizicrm.comune.milano.it/centro-supporto/KA-01199/Costo-abbonamento-sosta-strisce-blu-Milano" },
+      { label: "Comune Milano · Sosta regolamentata, colori, orari, ambiti", url: "https://www.comune.milano.it/servizi/mobilita/sosta-regolamentata-non-residenziale/" },
+      { label: "ATM · Pass e regole per la sosta", url: "https://www.atm.it/it/AltriServizi/Auto/Pagine/SostaStrada.aspx" },
     ],
     verified: "01/11/2026",
   },
