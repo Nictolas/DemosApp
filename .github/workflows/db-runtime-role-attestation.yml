@@ -1,0 +1,21 @@
+name: DB Runtime Role Attestation — offline contracts
+on:
+  pull_request:
+    paths:
+      - 'api/scripts/attest-db-writer-role.js'
+      - 'api/tests/dbWriterRoleAttestation.test.js'
+      - '.github/workflows/db-runtime-role-attestation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fail-closed role contracts (no database, credentials or writes)
+        run: node --test api/tests/dbWriterRoleAttestation.test.js
