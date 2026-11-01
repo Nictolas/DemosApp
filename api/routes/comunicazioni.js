@@ -10,11 +10,14 @@ require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
+// Never print notification payloads, recipient identity or FCM tokens outside opted-in local development.
+const localNotificationDebug = process.env.NODE_ENV === 'development' &&
+  process.env.ALLOW_DEV_API_SURFACE === 'true';
 const debugLog = (...args) => {
-  if (process.env.NODE_ENV !== 'production') console.log(...args);
+  if (localNotificationDebug) console.log(...args);
 };
 const debugWarn = (...args) => {
-  if (process.env.NODE_ENV !== 'production') console.warn(...args);
+  if (localNotificationDebug) console.warn(...args);
 };
 
 // Status utente considerati bloccati per invio notifiche push
@@ -1272,6 +1275,9 @@ async function notifyAllUsers(titolo, commento) {
   }
 }
 
+// Legacy diagnostics may send real FCM pushes and disclose token/error metadata.
+// They must never be registered on a production/staging router.
+if (localNotificationDebug) {
 // GET /api/comunicazioni/debug-firebase-admin - Debug per verificare lo stato di Firebase Admin
 router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) => {
   try {
@@ -1624,6 +1630,7 @@ router.get('/debug-notifiche-demos', verifyToken, requireAdmin, async (req, res)
     });
   }
 });
+}
 
 // GET /api/ultima-comunicazione - Ultima comunicazione dell'utente
 router.get('/ultima-comunicazione', async (req, res) => {
