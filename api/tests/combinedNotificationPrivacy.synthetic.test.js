@@ -92,6 +92,11 @@ app.use(express.json());
 app.use('/api/comunicazioni', require('../routes/comunicazioni'));
 app.use('/api/notifiche', require('../routes/notifiche'));
 const server = app.listen(0, '127.0.0.1');
+const ready = new Promise((resolve, reject) => {
+  if (server.listening) resolve();
+  else server.once('listening', resolve);
+  server.once('error', reject);
+});
 after(async () => {
   await new Promise(resolve => server.close(resolve));
   cache.forEach(([id, old]) => {
@@ -101,6 +106,7 @@ after(async () => {
 });
 const base = () => 'http://127.0.0.1:' + server.address().port;
 async function call(route, who, method = 'GET', body = null) {
+  await ready;
   const res = await fetch(base() + route, {
     method,
     headers: {
