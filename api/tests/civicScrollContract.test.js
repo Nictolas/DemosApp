@@ -37,6 +37,25 @@ test('signature collections can scroll all results above the mobile navbar', () 
   }
 });
 
+test('notification preferences scroll independently of fixed save action and navbar', () => {
+  const layout = read('client/src/components/RobustAppLayout.tsx');
+  const page = read('client/src/pages/NotifichePreferenze.tsx');
+  const app = read('client/src/App.tsx');
+
+  assert.ok(layout.includes("location === '/notifiche/preferenze'"));
+  assert.ok(app.includes('<Route path="/notifiche/preferenze">'));
+  assert.match(page, /<PageContainer className="overflow-hidden/);
+  assert.match(page, /app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain/);
+  assert.match(page, /aria-label="Impostazioni preferenze notifiche"/);
+  assert.match(page, /tabIndex=\{0\}/);
+  assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('sezioni.map('));
+  assert.ok(page.indexOf('sezioni.map(') < page.indexOf('shrink-0 border-t border-gray-200'));
+  assert.ok(page.indexOf('shrink-0 border-t border-gray-200') < page.indexOf('onClick={handleSave}'));
+  assert.doesNotMatch(page, /sticky bottom-4/);
+  assert.ok(page.includes('onCheckedChange={(checked) => handleSwitch(item.key, checked)}'));
+  assert.ok(page.includes('disabled={isSaving}'));
+});
+
 test('popular initiative voting can scroll all cards above the app navbar', () => {
   const page = read('client/src/pages/VotaIniziativaPopolare/index.tsx');
   assert.match(page, /<PageContainer className="overflow-hidden/);

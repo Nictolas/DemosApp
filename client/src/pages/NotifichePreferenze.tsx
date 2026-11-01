@@ -162,8 +162,9 @@ export default function NotifichePreferenze() {
   ];
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto">
+    <PageContainer className="overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4" role="region" aria-label="Impostazioni preferenze notifiche" tabIndex={0}>
+        <div className="mx-auto w-full max-w-4xl">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
           <Button
@@ -247,8 +248,13 @@ export default function NotifichePreferenze() {
               })}
             </div>
 
-            {/* Pulsante Salva */}
-            <div className="sticky bottom-4 bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+          </>
+        )}
+        </div>
+      </div>
+      {!isLoading && (
+        <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3 shadow-lg">
+          <div className="mx-auto w-full max-w-4xl">
               <Button
                 onClick={handleSave}
                 disabled={isSaving}
@@ -269,10 +275,9 @@ export default function NotifichePreferenze() {
                   "💾 Salva Preferenze"
                 )}
               </Button>
-            </div>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
     </PageContainer>
   );
 }
