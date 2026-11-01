@@ -7,8 +7,11 @@ on:
       - 'api/services/civicPushTopics.js'
       - 'api/services/civicPushTopicBootstrap.js'
       - 'api/services/civicPushRollback.js'
+      - 'api/services/civicPushRecovery.js'
       - 'api/scripts/civicPushEmergencyStop.js'
+      - 'api/scripts/prepareCivicPushRecovery.js'
       - 'api/tests/civicPushRollback.test.js'
+      - 'api/tests/civicPushRecovery.test.js'
       - 'api/services/civicPushDeliveryGuard.js'
       - 'api/services/civicNewInitiativePushDispatcher.js'
       - 'api/routes/civicPushDispatch.js'
@@ -52,7 +55,9 @@ jobs:
           node --check api/services/civicPushTopics.js
           node --check api/services/civicPushTopicBootstrap.js
           node --check api/services/civicPushRollback.js
+          node --check api/services/civicPushRecovery.js
           node --check api/scripts/civicPushEmergencyStop.js
+          node --check api/scripts/prepareCivicPushRecovery.js
           node --check api/scripts/reconcileCivicPushTopics.js
           node --check api/services/civicPushDeliveryGuard.js
           node --check api/routes/user/delete-account.js
@@ -61,7 +66,7 @@ jobs:
           node --check api/routes/fcm-tokens.js
           node --check api/jobs/ministeroSyncJob.js
           node --check api/routes/notifiche.js
-          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js
+          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js
       - name: Python ECI source tests (no real API, DB or push)
         run: |
           python -m pip install requests
