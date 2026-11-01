@@ -59,9 +59,30 @@ async function releaseCivicPushDeliveryLock(client) {
   }
 }
 
+/**
+ * Globally stop NEW topic sends after an uncertain unsubscribe on logout,
+ * device change or user opt-out. The lock waits for an in-flight send to
+ * complete; failed delivery cannot be silently treated as a successful revoke.
+ */
+async function blockCivicDeliveryFromPool(pool) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await lockCivicPushDuringAccountErasure(client);
+    await blockCivicDeliveryOnRevocationFailure(client);
+    await client.query('COMMIT');
+  } catch {
+    try { await client.query('ROLLBACK'); } catch { /* connection already broken */ }
+    throw new Error('CIVIC_DELIVERY_BLOCK_FAILED');
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   readCivicDeliveryBarrier,
   blockCivicDeliveryOnRevocationFailure,
+  blockCivicDeliveryFromPool,
   lockCivicPushDuringAccountErasure,
   acquireCivicPushDeliveryLock,
   releaseCivicPushDeliveryLock,
