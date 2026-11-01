@@ -10,6 +10,7 @@ on:
       - 'api/services/civicPushRecovery.js'
       - 'api/services/civicRuntimeDatabaseIdentity.js'
       - 'api/tests/civicRuntimeDatabaseIdentity.test.js'
+      - 'api/scripts/civicStagingReadOnlyPreflight.sql'
       - 'api/scripts/civicPushEmergencyStop.js'
       - 'api/scripts/prepareCivicPushRecovery.js'
       - 'api/tests/civicPushRollback.test.js'
