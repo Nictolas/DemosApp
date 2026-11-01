@@ -1,10 +1,11 @@
 -- DEMOS civic-notification staging preflight. READ ONLY.
 -- Paste into an AUTHORIZED staging SQL console. Never run migration here.
 -- Reports only structural metadata; no accounts, tokens, UUID marker or secrets.
+-- RLS is mandatory on ALL seven public tables, including source caches.
 WITH required(table_name, required_columns, rls_required) AS (
   VALUES
-    ('eci', ARRAY['id','title']::text[], FALSE),
-    ('iniziative_ministero', ARRAY['id_ministero','titolo','tipo','stato','data_fine']::text[], FALSE),
+    ('eci', ARRAY['id','title']::text[], TRUE),
+    ('iniziative_ministero', ARRAY['id_ministero','titolo','tipo','stato','data_fine']::text[], TRUE),
     ('notifiche_preferenze', ARRAY['user_id','iniziative_popolari','referendum_abrogativi','eci']::text[], TRUE),
     ('user_devices', ARRAY['id','user_id','fcm_token','is_active']::text[], TRUE),
     ('civic_new_initiative_notifications', ARRAY['category','official_id','status']::text[], TRUE),
