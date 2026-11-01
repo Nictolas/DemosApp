@@ -13,18 +13,30 @@ const items = [
   { id: '3', fcm_token: 'token-3', is_active: true, user_status: 'a',
     iniziative_popolari: false, referendum_abrogativi: false, eci: true },
 ];
-function pool({ blocked = true } = {}) {
+function pool({ blocked = true, lockError = false } = {}) {
   const queries = [];
-  return {
+  const released = [];
+  const db = {
     queries,
+    released,
     query: async (sql, params) => {
       queries.push({ sql, params });
+      if (sql.includes('pg_advisory_lock(')) {
+        if (lockError) throw new Error('uncertain acquisition');
+        return { rows: [] };
+      }
+      if (sql.includes('pg_advisory_unlock(')) return { rows: [{ unlocked: true }] };
       if (sql.includes('civic_push_delivery_guard')) return { rows: [{ blocked }] };
       if (!sql.includes('FROM user_devices d')) throw new Error('unexpected query');
       const [cursor, batchSize] = params;
       return { rows: items.filter(r => Number(r.id) > Number(cursor)).slice(0, batchSize) };
-    }
+    },
   };
+  db.connect = async () => ({
+    query: db.query,
+    release: (discard) => released.push(Boolean(discard)),
+  });
+  return db;
 }
 function fcm() {
   const calls = [];
@@ -86,6 +98,40 @@ test('explicit apply reconciles all topics in batches with no send() call', asyn
     c.kind === 'subscribe' && c.tokens.includes('token-2')), false);
   assert.ok(firebase.calls.some(c =>
     c.kind === 'unsubscribe' && c.tokens.includes('token-2')));
+});
+
+test('bootstrap holds the delivery lock across every Firebase topic change', async () => {
+  const db = pool();
+  const firebase = fcm();
+  await reconcileAllCivicTopics(db, {
+    enabled: true, dryRun: false, messaging: firebase, batchSize: 2
+  });
+  const operations = db.queries.map(entry => entry.sql);
+  const acquired = operations.findIndex(x => x.includes('pg_advisory_lock('));
+  const gate = operations.findIndex(x => x.includes('FROM civic_push_delivery_guard'));
+  const released = operations.findIndex(x => x.includes('pg_advisory_unlock('));
+  assert.ok(acquired >= 0 && gate > acquired && released > gate);
+  assert.equal(released, operations.length - 1);
+  assert.deepEqual(db.released, [false]);
+  assert.ok(firebase.calls.length > 0);
+});
+
+test('bootstrap releases the delivery lock on blocked guard and provider error', async () => {
+  const blockedDb = pool({ blocked: false });
+  await assert.rejects(reconcileAllCivicTopics(blockedDb), /CIVIC_BOOTSTRAP_REQUIRES_BLOCKED_DELIVERY/);
+  assert.deepEqual(blockedDb.released, [false]);
+
+  const failedDb = pool();
+  const firebase = fcm();
+  firebase.unsubscribeFromTopic = async () => { throw new Error('token sensitive provider error'); };
+  await assert.rejects(reconcileAllCivicTopics(failedDb, {
+    enabled: true, dryRun: false, messaging: firebase
+  }), e => e.message === 'CIVIC_BOOTSTRAP_FCM_FAILED');
+  assert.deepEqual(failedDb.released, [false]);
+
+  const uncertainLock = pool({ lockError: true });
+  await assert.rejects(reconcileAllCivicTopics(uncertainLock), /uncertain acquisition/);
+  assert.deepEqual(uncertainLock.released, [true]);
 });
 
 test('provider failure stops the bootstrap without unlocking the barrier', async () => {
