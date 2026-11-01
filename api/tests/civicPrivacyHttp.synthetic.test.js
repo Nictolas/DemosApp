@@ -139,6 +139,71 @@ test('reactions never reveal or alter another account personal preferences',asyn
   const afterA=await call(prefix+'/user/'+A+'/fixture','a');assert.equal((await afterA.json()).data,'dislike');
 });
 
+test('notification preferences GET and POST never cross authenticated users', async () => {
+  const originalQuery = fakePool.query;
+  const keys = [
+    'eurodeputato', 'senatore', 'deputato', 'consigliere_regionale',
+    'consigliere_comunale', 'attivisti', 'demos', 'scuola', 'animali', 'organizzazioni'
+  ];
+  const store = new Map();
+  const calls = [];
+  fakePool.query = async (statement, values = []) => {
+    const sql = String(statement);
+    if (!sql.includes('notifiche_preferenze')) return originalQuery(statement, values);
+    const userId = values[0];
+    assert.ok(userId === A || userId === B, 'queries must use an authenticated synthetic user');
+    calls.push({ sql, values: [...values] });
+    if (/^\s*SELECT\b/.test(sql)) {
+      assert.match(sql, /WHERE user_id = \$1/);
+      return { rows: store.has(userId) ? [{ ...store.get(userId) }] : [] };
+    }
+    if (/^\s*INSERT INTO\b/.test(sql)) {
+      let prefs;
+      if (sql.includes('ON CONFLICT')) {
+        assert.equal(values.length, keys.length + 1);
+        prefs = Object.fromEntries(keys.map((key, i) => [key, values[i + 1]]));
+      } else {
+        assert.equal(values.length, 1);
+        prefs = Object.fromEntries(keys.map(key => [key, key === 'animali']));
+      }
+      store.set(userId, { ...prefs, updated_at: '2026-11-01T00:00:00Z' });
+      return { rows: [{ user_id: userId, ...store.get(userId) }] };
+    }
+    throw new Error('Unexpected preferences SQL');
+  };
+  try {
+    assert.equal((await call('/api/notifiche/preferenze', null)).status, 401);
+    assert.equal((await call('/api/notifiche/preferenze', null, 'POST', { preferenze: { demos: true } })).status, 401);
+
+    const beforeA = await call('/api/notifiche/preferenze', 'a');
+    const beforeB = await call('/api/notifiche/preferenze', 'b');
+    assert.equal(beforeA.status, 200);
+    assert.equal(beforeB.status, 200);
+    assert.equal((await beforeA.json()).data.preferenze.animali, true);
+    assert.equal((await beforeB.json()).data.preferenze.demos, false);
+
+    const forged = await call('/api/notifiche/preferenze', 'a', 'POST', {
+      user_id: B, preferenze: { demos: true, animali: false, organizzazioni: true }
+    });
+    assert.equal(forged.status, 200);
+    const saved = (await forged.json()).data;
+    assert.equal(saved.user_id, A, 'body user_id must never override authenticated identity');
+    assert.equal(saved.preferenze.demos, true);
+    assert.equal(saved.preferenze.animali, false);
+
+    const afterA = (await (await call('/api/notifiche/preferenze', 'a')).json()).data;
+    const afterB = (await (await call('/api/notifiche/preferenze', 'b')).json()).data;
+    assert.equal(afterA.user_id, A);
+    assert.equal(afterA.preferenze.organizzazioni, true);
+    assert.equal(afterB.user_id, B);
+    assert.equal(afterB.preferenze.demos, false);
+    assert.equal(afterB.preferenze.animali, true);
+    assert.ok(calls.every(x => x.values[0] === A || x.values[0] === B));
+  } finally {
+    fakePool.query = originalQuery;
+  }
+});
+
 test('notification logs and HTTP failures never expose private titles or SQL secrets', async () => {
   const originalQuery = fakePool.query;
   const originalConsole = {};
