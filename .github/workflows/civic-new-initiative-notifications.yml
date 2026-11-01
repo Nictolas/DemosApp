@@ -4,6 +4,13 @@ on:
     paths:
       - 'api/database/20261101_civic_new_initiative_notifications.sql'
       - 'api/services/civicNewInitiativeEventCollector.js'
+      - 'api/services/civicPushTopics.js'
+      - 'api/services/civicNewInitiativePushDispatcher.js'
+      - 'api/routes/civicPushDispatch.js'
+      - 'api/routes/fcm-tokens.js'
+      - 'api/app.js'
+      - 'client/src/hooks/use-auth.tsx'
+      - 'api/tests/civicNewInitiativeNotificationDelivery.test.js'
       - 'api/jobs/ministeroSyncJob.js'
       - 'api/scripts/sync_eci.py'
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
@@ -27,9 +34,13 @@ jobs:
       - name: Static syntax and isolated Node contracts
         run: |
           node --check api/services/civicNewInitiativeEventCollector.js
+          node --check api/services/civicPushTopics.js
+          node --check api/services/civicNewInitiativePushDispatcher.js
+          node --check api/routes/civicPushDispatch.js
+          node --check api/routes/fcm-tokens.js
           node --check api/jobs/ministeroSyncJob.js
           node --check api/routes/notifiche.js
-          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js
+          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js
       - name: Python ECI source tests (no real API, DB or push)
         run: |
           python -m pip install requests
