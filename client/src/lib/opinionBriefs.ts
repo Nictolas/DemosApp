@@ -1935,10 +1935,10 @@ export const OPINION_BRIEFS: Readonly<Record<string, OpinionBrief>> = {
       },
       {
         place: "🇮🇹 Lombardia · Persone fisiche",
-        topic: "Scadenza prevista della linea per cittadini",
-        value: "31/10/2025",
-        period: "Domande aperte dal 3/4/2025",
-        meaning: "È una procedura del 2025, non un bando aperto a tutti i cittadini nel 2026.",
+        topic: "Chiusura anticipata per esaurimento delle risorse",
+        value: "3/9/2025",
+        period: "Bando avviato il 3/4/2025; termine iniziale previsto 31/10/2025",
+        meaning: "La Regione ha chiuso lo sportello alle 19:06 del 3 settembre per esaurimento fondi, prima della scadenza prevista. NON è un bando aperto nel 2026.",
         sourceUrl: "https://bandi.regione.lombardia.it/servizi/servizio/catalogo/dettaglio/infrastrutture-trasporti-mobilita/mobilita-sostenibile/rinnova-parco-veicolare-2025-autovetture-linea-RLT12025044583",
       },
       {
