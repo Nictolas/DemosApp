@@ -253,8 +253,7 @@ router.post('/send-demos-notification', (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nell\'invio notifica Demos:', error);
-    console.error('❌ Stack:', error.stack);
+    console.error('DEMOS_NOTIFICATION_SEND_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -439,9 +438,7 @@ router.post('/send-user-notification', (req, res, next) => {
         }
       } catch (error) {
         failureCount++;
-        console.error(`    ❌ Eccezione durante invio notifica (token ${i + 1}/${tokensToSend.length}):`, error);
-        console.error(`    ❌ Error message: ${error.message}`);
-        console.error(`    ❌ Error stack: ${error.stack}`);
+        console.error('USER_NOTIFICATION_FCM_SEND_FAILED');
         // Non rimuovere il token se è un errore di configurazione (es. Firebase Admin non configurato)
         if (error.message && error.message.includes('Firebase Admin')) {
           debugLog(`    ⚠️ Errore di configurazione Firebase, token mantenuto`);
@@ -492,9 +489,7 @@ router.post('/send-user-notification', (req, res, next) => {
         const notificaId = saveResult.rows[0].id;
         debugLog(`✅ Notifica salvata in notifiche_demos con ID: ${notificaId}`);
       } catch (saveError) {
-        console.error(`❌ Errore nel salvataggio notifica in notifiche_demos:`, saveError);
-        console.error(`❌ Error message: ${saveError.message}`);
-        console.error(`❌ Error stack: ${saveError.stack}`);
+        console.error('USER_NOTIFICATION_INBOX_WRITE_FAILED');
         // Non bloccare la risposta se il salvataggio fallisce
       }
     } else {
@@ -553,8 +548,7 @@ router.post('/send-user-notification', (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nell\'invio notifica a utente specifico:', error);
-    console.error('❌ Stack:', error.stack);
+    console.error('USER_NOTIFICATION_HANDLER_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -574,7 +568,7 @@ router.get('/', async (req, res) => {
       data: result.rows
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero comunicazioni:', error);
+    console.error('COMMUNICATIONS_LIST_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -697,7 +691,7 @@ router.post('/', verifyToken, async (req, res) => {
         }
       });
     } catch (pushError) {
-      console.warn('Push ai sostenitori correnti non disponibile:', pushError?.message || pushError);
+      console.warn('CURRENT_SUPPORTERS_PUSH_FAILED');
     }
 
     return res.status(201).json({
@@ -708,7 +702,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
   } catch (error) {
     const status = Number(error?.status) || 500;
-    if (status >= 500) console.error('Errore nella comunicazione del voto istituzionale:', error);
+    if (status >= 500) console.error('INSTITUTIONAL_VOTE_COMMUNICATION_FAILED');
     return res.status(status).json({
       success: false,
       error: status >= 500 ? 'Errore interno del server' : error.message,
@@ -733,7 +727,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
     );
     return res.json({ success: true, comunicazione: result.rows[0] || null });
   } catch (error) {
-    console.error('Errore nel recupero dell\'ultima comunicazione istituzionale:', error);
+    console.error('LAST_INSTITUTIONAL_COMMUNICATION_FAILED');
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
@@ -754,7 +748,7 @@ async function notifySostenitori(utenteId, titolo, comunicazione) {
     // Le comunicazioni create/aggiornate sono visibili a tutti gli utenti tramite GET /api/notifiche
     debugLog(`✅ Comunicazione disponibile per ${sostenitoriResult.rows.length} sostenitori`);
   } catch (error) {
-    console.error('❌ Errore nell\'invio notifiche ai sostenitori:', error);
+    console.error('SUPPORTER_NOTIFICATIONS_FAILED');
   }
 }
 
@@ -783,7 +777,7 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       }
       debugLog('✅ admin.messaging() verificato e disponibile');
     } catch (messagingError) {
-      console.error('❌ Errore nell\'accesso a admin.messaging():', messagingError.message);
+      console.error('FCM_MESSAGING_UNAVAILABLE');
       return { success: false, error: `Errore Firebase messaging: ${messagingError.message}` };
     }
 
@@ -866,16 +860,11 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       
       return { success: true, messageId: response };
     } catch (sendError) {
-      console.error(`❌ Errore durante l'invio a Firebase:`);
-      console.error(`   Error name: ${sendError.name || 'N/A'}`);
-      console.error(`   Error message: ${sendError.message}`);
-      console.error(`   Error code: ${sendError.code || 'N/A'}`);
-      console.error(`   Error stack: ${sendError.stack ? sendError.stack.substring(0, 500) : 'N/A'}`);
-      console.error(`   Token: ${fcmToken?.substring(0, 30)}...`);
+      console.error('FCM_SEND_FAILED');
       
       // Log dettagliato per errori comuni
       if (sendError.code) {
-        console.error(`   📋 Error code specifico: ${sendError.code}`);
+        debugWarn('FCM_ERROR_CODE_RECORDED_LOCALLY');
         if (sendError.code.includes('invalid')) {
           console.error(`   ⚠️ Errore di validazione - verifica il formato del token o del messaggio`);
         }
@@ -899,9 +888,7 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
     }
   } catch (error) {
     // Gestisci altri errori
-    console.error('❌ Errore invio push notification:', error.message);
-    console.error('❌ Error code:', error.code || 'N/A');
-    console.error('❌ Token:', fcmToken?.substring(0, 30) || 'N/A');
+    console.error('FCM_PUSH_NOTIFICATION_FAILED');
     
     if (error.code === 'messaging/invalid-registration-token' || 
         error.code === 'messaging/registration-token-not-registered') {
@@ -1264,14 +1251,14 @@ async function notifyAllUsers(titolo, commento) {
           await invalidateUserFcmTokens(utente.id, invalidTokens.map(t => t.token));
           debugLog(`🧹 Rimossi ${fcmTokens.length - validTokens.length} token FCM non validi per utente ${utente.id}`);
         } catch (error) {
-          console.error(`❌ Errore nella rimozione token FCM per utente ${utente.id}:`, error);
+          console.error('FCM_TOKEN_INVALIDATION_FAILED');
         }
       }
     }
 
     debugLog(`✅ Push notifications Demos inviate: ${pushSuccessCount} successi, ${pushFailureCount} fallimenti a ${utentiConPushResult.rows.length} utenti`);
   } catch (error) {
-    console.error('❌ Errore nell\'invio notifiche Demos:', error);
+    console.error('BULK_DEMOS_NOTIFICATIONS_FAILED');
   }
 }
 
@@ -1496,7 +1483,7 @@ router.get('/debug-firebase-admin', verifyToken, requireAdmin, async (req, res) 
       data: debugInfo
     });
   } catch (error) {
-    console.error('❌ Errore nel debug Firebase Admin:', error);
+    console.error('FCM_DEBUG_DIAGNOSTIC_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -1623,7 +1610,7 @@ router.get('/debug-notifiche-demos', verifyToken, requireAdmin, async (req, res)
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel debug notifiche Demos:', error);
+    console.error('DEMO_NOTIFICATION_DEBUG_DIAGNOSTIC_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -1685,7 +1672,7 @@ router.get('/ultima-comunicazione', async (req, res) => {
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero ultima comunicazione:', error);
+    console.error('LAST_COMMUNICATION_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
