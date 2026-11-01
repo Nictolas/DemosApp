@@ -22,7 +22,7 @@ async function collectMinisteroNewInitiatives(pool, { enabled = isCivicEventColl
       category, official_id, title, target_path, 'pending'
     FROM (
       SELECT
-        CASE WHEN lower(m.tipo) LIKE '%referendum%'
+        CASE WHEN lower(regexp_replace(btrim(m.tipo), '[[:space:]]+', ' ', 'g')) = 'referendum abrogativo'
           THEN 'referendum_abrogativi'
           ELSE 'iniziative_popolari' END AS category,
         btrim(m.id_ministero::text) AS official_id,
@@ -36,8 +36,11 @@ async function collectMinisteroNewInitiatives(pool, { enabled = isCivicEventColl
         AND m.titolo IS NOT NULL AND btrim(m.titolo) <> ''
         AND lower(m.stato) = 'in_corso'
         AND (m.data_fine IS NULL OR m.data_fine >= CURRENT_DATE)
-        AND (lower(m.tipo) LIKE '%referendum%'
-          OR lower(m.tipo) LIKE '%iniziativa%')
+        AND lower(regexp_replace(btrim(m.tipo), '[[:space:]]+', ' ', 'g')) IN (
+          'referendum abrogativo',
+          'legge di iniziativa popolare',
+          'iniziativa popolare'
+        )
     ) AS valid_items
     ORDER BY category, official_id, title
     ON CONFLICT (category, official_id) DO NOTHING
