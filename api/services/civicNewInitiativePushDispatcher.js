@@ -2,6 +2,11 @@
 
 const { getFirebaseAdmin } = require('./firebaseAdmin');
 const { CIVIC_TOPIC_BY_CATEGORY, isCivicPushEnabled } = require('./civicPushTopics');
+const {
+  readCivicDeliveryBarrier,
+  acquireCivicPushDeliveryLock,
+  releaseCivicPushDeliveryLock,
+} = require('./civicPushDeliveryGuard');
 
 const DESTINATION_BY_CATEGORY = Object.freeze({
   iniziative_popolari: { title: 'Nuova iniziativa popolare', path: '/iniziative-popolari' },
@@ -59,44 +64,69 @@ async function dispatchCivicNewInitiatives(pool, {
   limit = 3,
 } = {}) {
   if (!enabled) return { enabled: false, accepted: 0, failed: 0 };
-  if (!pool || typeof pool.query !== 'function') throw new TypeError('CIVIC_POOL_REQUIRED');
+  if (!pool || typeof pool.connect !== 'function') throw new TypeError('CIVIC_POOL_REQUIRED');
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 10) throw new RangeError('CIVIC_BATCH_LIMIT');
 
-  // Verify Firebase before claiming a row. Never require or log provider secrets.
-  const client = messaging || getFirebaseAdmin()?.messaging();
-  if (!client || typeof client.send !== 'function') throw new Error('CIVIC_FIREBASE_UNAVAILABLE');
-
-  let accepted = 0;
-  let failed = 0;
-  for (let index = 0; index < limit; index++) {
-    const event = await claimPendingEvent(pool);
-    if (!event) break;
-    try {
-      const payload = buildCivicPush(event);
-      await client.send(payload);
-      // "sent" means accepted by FCM, not delivery to every subscriber.
-      await pool.query(
-        `UPDATE civic_new_initiative_notifications
-         SET status = 'sent', sent_at = NOW(), last_error_code = NULL
-         WHERE id = $1 AND status = 'dispatching'`,
-        [event.id]
-      );
-      accepted++;
-    } catch (error) {
-      // Do not automatically retry: a provider timeout might have delivered.
-      // Only record a safe diagnostic code. Do not log titles or FCM error objects.
-      const code = error?.message === 'CIVIC_UNSUPPORTED_CATEGORY'
-        ? 'CIVIC_UNSUPPORTED_CATEGORY' : 'FCM_DELIVERY_UNCERTAIN';
-      await pool.query(
-        `UPDATE civic_new_initiative_notifications
-         SET status = 'failed', last_error_code = $2
-         WHERE id = $1 AND status = 'dispatching'`,
-        [event.id, code]
-      );
-      failed++;
+  // Same exclusive DB advisory lock as account erasure. Do not send a NEW
+  // message after a deletion/failed revocation has committed.
+  const client = await pool.connect();
+  let locked = false;
+  let discard = false;
+  try {
+    await acquireCivicPushDeliveryLock(client);
+    locked = true;
+    const safety = await readCivicDeliveryBarrier(client);
+    if (safety.blocked) {
+      return { enabled: true, blocked: true, accepted: 0, failed: 0 };
     }
+
+    // Check Firebase before claiming an event. Provider errors remain sanitized.
+    const firebase = messaging || getFirebaseAdmin()?.messaging();
+    if (!firebase || typeof firebase.send !== 'function') {
+      throw new Error('CIVIC_FIREBASE_UNAVAILABLE');
+    }
+
+    let accepted = 0;
+    let failed = 0;
+    for (let index = 0; index < limit; index++) {
+      const event = await claimPendingEvent(client);
+      if (!event) break;
+      try {
+        const payload = buildCivicPush(event);
+        await firebase.send(payload);
+        // "sent" means accepted by FCM, not delivered to every device.
+        await client.query(
+          `UPDATE civic_new_initiative_notifications
+           SET status = 'sent', sent_at = NOW(), last_error_code = NULL
+           WHERE id = $1 AND status = 'dispatching'`,
+          [event.id]
+        );
+        accepted++;
+      } catch (error) {
+        // Never retry an uncertain provider outcome automatically.
+        const code = error?.message === 'CIVIC_UNSUPPORTED_CATEGORY'
+          ? 'CIVIC_UNSUPPORTED_CATEGORY' : 'FCM_DELIVERY_UNCERTAIN';
+        await client.query(
+          `UPDATE civic_new_initiative_notifications
+           SET status = 'failed', last_error_code = $2
+           WHERE id = $1 AND status = 'dispatching'`,
+          [event.id, code]
+        );
+        failed++;
+      }
+    }
+    return { enabled: true, blocked: false, accepted, failed };
+  } finally {
+    if (locked) {
+      try {
+        await releaseCivicPushDeliveryLock(client);
+      } catch {
+        // A pooled DB session with an uncertain session lock is unsafe to reuse.
+        discard = true;
+      }
+    }
+    client.release(discard);
   }
-  return { enabled: true, accepted, failed };
 }
 
 module.exports = {
