@@ -11,6 +11,8 @@ Per una verifica non distruttiva della sorgente:
 import argparse
 import html as html_lib
 import os
+import hmac
+import uuid
 import re
 import sys
 from datetime import datetime
@@ -240,6 +242,25 @@ def fetch_official_records(*, session=None) -> List[Tuple[str, str, int, str, st
     return records
 
 
+def _verify_civic_database_identity(cur, expected: Optional[str]) -> None:
+    """No DB writes are allowed before this check if civic events are enabled."""
+    try:
+        expected_id = str(uuid.UUID(expected or ""))
+    except (ValueError, AttributeError, TypeError):
+        raise RuntimeError("CIVIC_DATABASE_IDENTITY_NOT_CONFIGURED") from None
+    try:
+        cur.execute(
+            "SELECT db_identity::text FROM civic_runtime_identity WHERE id = 1"
+        )
+        rows = cur.fetchall()
+    except Exception:
+        raise RuntimeError("CIVIC_DATABASE_IDENTITY_UNAVAILABLE") from None
+    if len(rows) != 1 or not isinstance(rows[0][0], str):
+        raise RuntimeError("CIVIC_DATABASE_IDENTITY_MISMATCH")
+    if not hmac.compare_digest(rows[0][0].lower(), expected_id):
+        raise RuntimeError("CIVIC_DATABASE_IDENTITY_MISMATCH")
+
+
 def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
     if not database_url:
         raise RuntimeError("DATABASE_URL mancante")
@@ -259,6 +280,11 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                 # La cache eci viene sostituita interamente a ogni sync.
                 # Non usare trigger INSERT per riconoscere le novita'.
                 collection_enabled = os.environ.get("CIVIC_NEW_INITIATIVE_EVENTS_ENABLED") == "true"
+                if collection_enabled:
+                    # Fail closed BEFORE deleting/replacing the existing ECI cache.
+                    _verify_civic_database_identity(
+                        cur, os.environ.get("CIVIC_RUNTIME_DATABASE_ID")
+                    )
                 previous_ids = set()
                 if collection_enabled:
                     cur.execute("SELECT id FROM eci")
