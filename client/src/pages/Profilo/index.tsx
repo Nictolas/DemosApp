@@ -13,6 +13,7 @@ import { ChevronDown, Settings, RefreshCcw } from "lucide-react";
 import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
 import { ProfileInfo } from "./components/ProfileInfo";
 import { ProfileOpinions } from "./components/ProfileOpinions";
+import { PoliticalCompassPreview } from "./components/PoliticalCompassPreview";
 import { ProfileGovernoIdeale } from "./components/ProfileGovernoIdeale";
 import { ProfileChosenPreferences, type ChosenPreferencesStatus } from "./components/ProfileChosenPreferences";
 
@@ -307,7 +308,10 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                   ) : !consentGranted ? (
                     <p className="text-sm text-slate-500">Per visualizzare le opinioni è necessario il consenso politico.</p>
                   ) : (
-                    <ProfileOpinions userOpinions={userOpinions} opinionQuestions={opinionQuestions} />
+                    <>
+                      <PoliticalCompassPreview answers={userOpinions} />
+                      <ProfileOpinions userOpinions={userOpinions} opinionQuestions={opinionQuestions} />
+                    </>
                   )}
                 </div>
               </details>
