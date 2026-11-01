@@ -40,6 +40,10 @@ export default function NotificheDemos() {
   // Verifica che l'utente sia admin (prima delle query che lo usano)
   const userRole = user?.ruolo;
   const isAdmin = userRole === "AD";
+  // The debug GET may send a test FCM push; never call it on page mount.
+  // Backend debug APIs exist only under explicit opt-in local development.
+  const localDiagnosticsEnabled = import.meta.env.DEV &&
+    import.meta.env.VITE_ENABLE_NOTIFICATION_DIAGNOSTICS === "true";
 
   // Verifica lo stato delle preferenze dell'utente corrente
   const { data: debugData, isLoading: isLoadingDebug } = useQuery({
@@ -52,7 +56,7 @@ export default function NotificheDemos() {
       }
       return response.json();
     },
-    enabled: !!user?.id,
+    enabled: localDiagnosticsEnabled && !!user?.id && isAdmin,
     retry: false,
   });
 
@@ -152,7 +156,7 @@ export default function NotificheDemos() {
       }
       return response.json();
     },
-    enabled: !!user?.id && isAdmin, // Auto-verifica quando la pagina si carica
+    enabled: false, // Explicit local click only; debug GET can send a real FCM push
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -379,13 +383,18 @@ export default function NotificheDemos() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 flex-1 overflow-y-auto">
+            {!localDiagnosticsEnabled && (
+              <Alert>
+                <AlertDescription>Diagnostica avanzata disponibile solo nello sviluppo locale autorizzato. Il test individuale può essere avviato manualmente.</AlertDescription>
+              </Alert>
+            )}
             <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
                 className="flex-1"
                 onClick={() => refetchFirebaseDebug()}
-                disabled={isLoadingFirebaseDebug}
+                disabled={!localDiagnosticsEnabled || isLoadingFirebaseDebug}
               >
                 {isLoadingFirebaseDebug ? (
                   <>
@@ -404,7 +413,7 @@ export default function NotificheDemos() {
                 variant="default"
                 className="flex-1"
                 onClick={() => testSelfNotification.mutate()}
-                disabled={testSelfNotification.isPending || !firebaseDebugData?.data?.stato_inizializzazione?.admin_disponibile}
+                disabled={testSelfNotification.isPending}
               >
                 {testSelfNotification.isPending ? (
                   <>
