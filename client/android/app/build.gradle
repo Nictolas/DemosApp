@@ -57,7 +57,7 @@ android {
             }
             // Test IDs ufficiali Google: in debug soltanto, con opt-in esplicito.
             buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', demosDebugAppOpenAds.toString()
-            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '"${demosDebugAdMobAppId}"'
+            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', "\"${demosDebugAdMobAppId}\""
             buildConfigField 'boolean', 'DEMOS_UMP_DEBUG_EEA', demosDebugUmpEea.toString()
             manifestPlaceholders['demosAdMobAppId'] = demosDebugAdMobAppId
             buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544/9257395921"'
