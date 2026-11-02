@@ -11,4 +11,7 @@ test('admin notification history is loaded only on the history tab', () => {
   assert.match(source, /<Tabs value=\{activeTab\} onValueChange=\{setActiveTab\}/);
   assert.match(source, /queryKey: \["notifiche-totali"\],[\s\S]*?enabled: isAdmin && activeTab === "cronologia"/);
   assert.match(source, /refetchInterval: activeTab === "cronologia" \? 60000 : false/);
+  assert.match(source, /staleTime: 60000/);
+  assert.match(source, /refetchOnWindowFocus: false/);
+  assert.match(source, /refetchIntervalInBackground: false/);
 });
