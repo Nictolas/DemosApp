@@ -25,7 +25,6 @@ import {
   Play,
   RefreshCw,
   Search,
-  Trash2,
 } from 'lucide-react';
 
 interface ExportStatus {
@@ -140,7 +139,6 @@ export default function DataExport() {
   const [loadingAxiom, setLoadingAxiom] = useState(true);
   const [securityEventsStats, setSecurityEventsStats] = useState<any>(null);
   const [loadingSecurityEvents, setLoadingSecurityEvents] = useState(false);
-  const [migrating, setMigrating] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
@@ -363,77 +361,6 @@ export default function DataExport() {
     }
   };
 
-  const startAxiomMigration = async (onlyCentralizedLogs = false) => {
-    try {
-      const authTest = await apiRequest.get('/admin/axiom-migration/test-auth');
-      if (!authTest.success) {
-        toast({
-          title: 'Errore autenticazione',
-          description: 'La sessione Admin non è valida. Effettua di nuovo il login.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    } catch (_error) {
-      toast({ title: 'Errore autenticazione', description: 'Impossibile verificare la sessione Admin.', variant: 'destructive' });
-      return;
-    }
-
-    const label = onlyCentralizedLogs ? 'centralized_logs' : 'centralized_logs e audit_logs';
-    if (!window.confirm(`Vuoi avviare la migrazione di ${label} da Neon ad Axiom?`)) return;
-
-    setMigrating(true);
-    try {
-      const response = await apiRequest.post(
-        '/admin/axiom-migration/migrate',
-        { tables: onlyCentralizedLogs ? ['centralized_logs'] : ['centralized_logs', 'audit_logs'], dryRun: false },
-        { timeout: 30000 },
-      );
-      if (!response.success) throw new Error(response.error || response.message || 'Impossibile avviare la migrazione');
-      toast({ title: 'Migrazione avviata', description: response.message || 'Migrazione avviata in background.' });
-      window.setTimeout(() => {
-        loadAxiomAnalysis();
-        loadDatabaseAnalysis();
-      }, 10000);
-    } catch (error) {
-      toast({
-        title: 'Errore avvio migrazione',
-        description: error instanceof Error ? error.message : 'Impossibile avviare la migrazione',
-        variant: 'destructive',
-      });
-    } finally {
-      setMigrating(false);
-    }
-  };
-
-  const deleteMigratedData = async () => {
-    if (!window.confirm('ATTENZIONE: stai per eliminare da Neon i dati già migrati. Hai verificato che siano presenti su Axiom?')) return;
-    const confirmation = window.prompt('Per confermare, digita DELETE (tutto maiuscolo):');
-    if (confirmation !== 'DELETE') {
-      toast({ title: 'Operazione annullata', description: 'I dati non sono stati eliminati.' });
-      return;
-    }
-
-    setMigrating(true);
-    try {
-      const response = await apiRequest.post('/admin/axiom-migration/delete-migrated', {
-        tables: ['centralized_logs', 'audit_logs'],
-        confirm: 'DELETE',
-      });
-      if (!response.success) throw new Error(response.error || response.message || 'Impossibile eliminare i dati');
-      toast({ title: 'Dati eliminati', description: 'I dati migrati sono stati eliminati da Neon.' });
-      await Promise.all([loadDatabaseAnalysis(), loadAxiomAnalysis(), loadTableInfo()]);
-    } catch (error) {
-      toast({
-        title: 'Errore eliminazione',
-        description: error instanceof Error ? error.message : 'Impossibile eliminare i dati',
-        variant: 'destructive',
-      });
-    } finally {
-      setMigrating(false);
-    }
-  };
-
   const statusIcon = (status: ExportHistory['status']) => {
     if (status === 'completed') return <CheckCircle className="h-4 w-4 text-green-500" />;
     if (status === 'failed') return <AlertCircle className="h-4 w-4 text-red-500" />;
@@ -563,18 +490,15 @@ export default function DataExport() {
             <Card>
               <CardHeader>
                 <CardTitle>Migrazione Neon → Axiom</CardTitle>
-                <CardDescription>Azioni amministrative esistenti, con conferme esplicite per le operazioni distruttive.</CardDescription>
+                <CardDescription>Le migrazioni legacy dei log e la cancellazione sono sospese fino alla verifica GDPR, della minimizzazione e di RP-10.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={testAuth}>Verifica sessione Admin</Button>
-                  <Button onClick={() => startAxiomMigration(false)} disabled={migrating}>Migra log verso Axiom</Button>
-                  <Button variant="outline" onClick={() => startAxiomMigration(true)} disabled={migrating}>Migra solo centralized_logs</Button>
-                  {axiomAnalysis && axiomAnalysis.totalEvents > 0 && (
-                    <Button variant="destructive" onClick={deleteMigratedData} disabled={migrating}>
-                      <Trash2 className="h-4 w-4 mr-2" /> Elimina da Neon dopo verifica
-                    </Button>
-                  )}
+                  <p className="text-sm text-amber-700" role="status">
+                    Migrazione legacy verso Axiom ed eliminazione da Neon sospese: valutazione GDPR,
+                    minimizzazione dei log e verifica indipendente di archiviazione e retention ancora necessarie.
+                  </p>
                 </div>
 
                 {axiomAnalysis?.datasets?.length ? (
@@ -699,15 +623,16 @@ export default function DataExport() {
             <Card>
               <CardHeader><CardTitle>Opzioni export</CardTitle></CardHeader>
               <CardContent className="space-y-3">
+                <p className="text-sm text-amber-700">Export su disco temporaneamente non disponibile: verifica GDPR e conservazione dati in corso.</p>
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={deleteAfterExport} onChange={(event) => setDeleteAfterExport(event.target.checked)} />
+                  <input type="checkbox" checked={deleteAfterExport} disabled />
                   Elimina dal database dopo l'export
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} />
                   Modalità test (solo conteggi, nessun file creato)
                 </label>
-                <Button onClick={startExport} disabled={exportStatus.isRunning || selectedTables.length === 0}>
+                <Button onClick={startExport} disabled={true}>
                   <Download className="h-4 w-4 mr-2" />{dryRun ? 'Simula export' : 'Avvia export'}
                 </Button>
               </CardContent>
