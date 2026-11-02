@@ -75,3 +75,12 @@ La migrazione additiva `ops_stg_001_core_tables_20261102` è stata **applicata s
 - Il vecchio PostgreSQL Render rimane da esportare prima dell'8 novembre. Non eliminare né sovrascrivere fino a backup verificato.
 
 Il bootstrap Render è quindi **operativo ma non è ancora staging applicativo**. Il numero di tabelle minime presenti non è una metrica di completamento dell'ambiente.
+
+
+## Gate esecuzione SQL dopo consolidamento — controllo offline 02/11/2026
+
+La definizione `api/database/staging/ops_stg_001_missing_tables.sql` è ora protetta da una singola transazione SQL (`BEGIN` → DDL / RLS / REVOKE → `COMMIT`) e da un controllo preventivo su **tutte e sei** le tabelle. Un errore impedisce di lasciare solo una parte dello schema, quando lo script viene eseguito come unità atomica. I test statici in `api/tests/unifiedStagingSchemaContract.test.js` e la CI `unified-staging-offline-safety.yml` verificano questo contratto, senza eseguire SQL contro provider esterni.
+
+**Questa modifica è esclusivamente al file di migrazione nella PR #565.** Le sei tabelle risultano già presenti su `Demos-Staging` dalle verifiche documentate sopra: **non rieseguire** la migrazione su quel progetto. Il controllo sulle tabelle esistenti la bloccherebbe deliberatamente. Prima di qualsiasi ulteriore modifica schema serve una riconciliazione di stato, una procedura revisionata e autorizzazione esplicita del filone infrastrutturale. La presenza del marcatore `civic_runtime_identity` è una difesa aggiuntiva ma **non prova da sola l'identità del progetto**: confermarla esternamente, senza memorizzare credenziali o dati personali.
+
+Il prossimo intervento senza autorizzazione infrastrutturale resta **solo** revisione statica, test locali e CI isolata. La direttiva staging unico continua a vietare test applicativi sul bootstrap, modifiche ai vecchi staging e nuove istanze permanenti. Il vecchio Render PostgreSQL con scadenza indicata dell'8 novembre 2026 richiede coordinamento per un backup verificato; questo aggiornamento non lo esegue né lo autorizza.
