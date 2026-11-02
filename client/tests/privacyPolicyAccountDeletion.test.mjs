@@ -31,3 +31,26 @@ test('privacy deletion explains actual profile categories without legacy mandato
   assert.doesNotMatch(section, /Profilo utente \(nome, cognome, email/);
   assert.doesNotMatch(section, /genere, avatar/);
 });
+
+test('privacy describes the current citizen schema and optional passkey email', () => {
+  const registration = source.slice(source.indexOf('2.1 Dati di Registrazione'), source.indexOf('2.2 Dati Politici'));
+  assert.match(registration, /Per i cittadini, anno di nascita e sesso/);
+  assert.match(registration, /nome e cognome non sono richiesti/);
+  assert.match(registration, /account creato soltanto con passkey può non avere/);
+  assert.match(registration, /Comune di residenza/);
+  assert.doesNotMatch(registration, /anno di nascita, genere/);
+  assert.doesNotMatch(registration, /Nome, cognome, anno/);
+});
+
+test('privacy does not promise obsolete password, retention or backup mechanisms', () => {
+  const technical = source.slice(source.indexOf('2.3 Dati Tecnici'), source.indexOf('3. Finalità'));
+  assert.match(technical, /credenziali pubbliche passkey/);
+  assert.doesNotMatch(technical, /password \(hash\)/);
+  assert.doesNotMatch(source, /Hash della password/);
+  assert.doesNotMatch(source, /1 anno \(365 giorni\) dall'ultimo accesso/);
+  assert.doesNotMatch(source, /Auth\.js con token JWT/);
+  assert.doesNotMatch(source, /Backup regolari e crittografati/);
+  assert.doesNotMatch(source, /reset password e notifiche/);
+  assert.doesNotMatch(source, /ruoli P, C, CP/);
+  assert.match(source, /Backup e ripristino:/);
+});
