@@ -86,13 +86,22 @@ Riferimenti tecnici:
 - https://support.google.com/admob/answer/10114014
 - https://support.google.com/admob/answer/10113106
 
+## Verifica pubblica e blocco categorie — 02/11/2026
+- La verifica HTTP eseguita dal dispositivo Windows collegato (nessun browser Edge) su `https://demos.community/app-ads.txt` ha restituito `301` verso `https://www.demos.community/app-ads.txt`, poi **`200 OK`** con `Content-Type: text/plain` e la riga **`google.com, pub-7488681940015678, DIRECT, f08c47fec0942fa0`**. Il deploy frontend Render `ac9d79b` risulta `live`.
+- **Gate HTTP e pubblicazione del file: CHIUSO.** **Gate verifica AdMob: APERTO**; non è stata letta la console AdMob per sapere se il crawler ha associato il publisher al dominio sviluppatore indicato in Play. La scansione può richiedere almeno 24 ore.
+- Le informative Privacy/Cookie sono ora in `main` tramite PR #564 e nel frontend Render `live` al commit `ac9d79b`. Il comportamento della pagina nel browser va controllato, ma il suo deploy è completato.
+- In AdMob, agire a **livello di app**, non account: `App → DEMOS → Controlli di blocco → Gestisci le categorie sensibili → Politica → Blocca`. La categoria `Politics` è **standard** (per impostazione predefinita consentita), dunque non considerarla bloccata senza verifica nell'account. La configurazione richiede accesso autenticato ed è ancora **NON VERIFICATA**.
+- Non attivare indiscriminatamente tutti i blocchi sensibili: le categorie ristrette (come alcuni annunci per alcol o gioco d'azzardo) possono essere già bloccate in partenza e le categorie disponibili dipendono dal paese. Verificare eventuali ulteriori blocchi mirati in base al contenuto e all'audience di DEMOS.
+- Anche dopo il blocco `Politica`, Google specifica che la classificazione automatica non garantisce la rimozione di ogni annuncio politico. Controllare periodicamente il `Centro revisione annunci` e bloccare eventuali inserzionisti/URL indesiderati. Il filtro categoriale non sostituisce la moderazione.
+- Fonti: https://support.google.com/admob/answer/3150176?hl=it, https://support.google.com/admob/answer/3150953?hl=it, https://support.google.com/admob/answer/9363762, https://support.google.com/admob/answer/14538460
+
 ## Gate ancora aperti prima di attivare pubblicità nelle release
 1. **PARZIALE / ID ACQUISITI:** account AdMob attivo e ID dell'app e della unità App Open verificati nella console (vedi ADS-08). **Richiede revisione**: collegamento idoneo allo store e approvazione dell'app ancora aperti; verificare la corrispondenza con il package Android `community.demos`. Non usare ID di produzione per gli annunci di prova.
 2. Verificare se AdMob fornisce le unità per l'app in test chiuso. In sviluppo usare esclusivamente gli ID di test Google, senza mai generare impression reali di prova.
 3. **PARZIALE:** Next-Gen e UMP integrati solo in DEBUG; prima compilazione Android debug/release riuscita il 02/11/2026, verifiche JUnit successive in corso. Decidere condizioni e ID produzione dopo audit.
 4. **PARZIALE:** UMP nella sola variante DEBUG con fail-closed, `canRequestAds()` e stato `OBTAINED`; verificare la configurazione del messaggio dell'account AdMob e la gestione di revoca/rifiuto con test reali prima della variante release.
 5. **DEBUG IMPLEMENTATO, DA TESTARE:** entry point per rivedere il consenso UMP quando `getPrivacyOptionsRequirementStatus() == REQUIRED`, anche prima del login. Verificare disponibilità, revoca e gestione degli errori su Android reale prima della release.
-6. Configurare in AdMob esclusioni di categorie politiche e verificare la reale efficacia dei blocchi. La non-personalizzazione e il consenso non garantiscono da soli privacy completa o assenza di identificatori.
+6. **APERTO:** configurare in AdMob (a livello di DEMOS) la categoria sensibile **Politica → Blocca** e controllarne lo stato effettivo; la categoria è consentita per default, e il filtro non è perfetto. La non-personalizzazione e il consenso non garantiscono da soli privacy completa o assenza di identificatori.
 7. **PARZIALE:** il gestore nativo verifica root React vuota PRIMA sia della richiesta al network, sia del display. Validare su un dispositivo che rappresenti sempre un caricamento reale, senza interruzioni. Nessun timer per trattenere gli utenti.
 8. **DEBUG IMPLEMENTATO:** `SharedPreferences` non associata all'identità dell'utente, almeno tre avvii e 24 ore dall'ultimo `onAdShowedFullScreenContent`; nuovi test JUnit su limite, rollback e timestamp corrotti. QA dispositivo ancora aperto.
 9. **DEBUG IMPLEMENTATO:** ignorare e distruggere `AppOpenAd` caricati da oltre **quattro ore** e saltare se la pagina è già caricata; test dispositivi ancora necessari.
