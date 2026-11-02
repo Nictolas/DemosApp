@@ -6,6 +6,7 @@ const path = require('node:path');
 const {buildDatabaseSsl} = require('../utils/databaseTlsPolicy');
 
 const STAGING_REF = 'fkeayjzvtuvzesljhjbc';
+const STAGING_IDENTITY_HASH = '0cbb6ace68a9f11956904e2a37898ec8';
 const REQUIRED_TABLES = Object.freeze([
   'users', 'user_consents', 'opinioni_risposte', 'notifiche_preferenze',
   'eventi', 'programmi', 'civic_processes', 'iniziative_ministero', 'eci',
@@ -101,6 +102,10 @@ function evaluateCivicRuntimeColumns(rows) {
   return { ready: invalid.length === 0, checkedCount: CIVIC_RUNTIME_COLUMNS.length - invalid.length,
     requiredCount: CIVIC_RUNTIME_COLUMNS.length, invalid };
 }
+function evaluateStagingIdentity(rows) {
+  return Array.isArray(rows) && rows.length === 1 &&
+    rows[0]?.identity_hash === STAGING_IDENTITY_HASH;
+}
 function evaluateBlockedGuard(rows) {
   return Array.isArray(rows) && rows.length === 1 && rows[0].blocked === true;
 }
@@ -128,6 +133,12 @@ async function run(env = process.env) {
     await client.query('BEGIN READ ONLY');
     const identity = await client.query('SELECT current_database() AS db');
     if (identity.rows[0]?.db !== 'postgres') throw new Error('Connected to wrong database');
+    const stagingIdentity = await client.query(
+      'SELECT md5(db_identity::text) AS identity_hash FROM public.civic_runtime_identity WHERE id = 1'
+    );
+    if (!evaluateStagingIdentity(stagingIdentity.rows)) {
+      throw new Error('Connected to unauthorized database identity');
+    }
     const tables = await client.query(
       'SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = $2 AND table_name = ANY($3::text[])',
       ['public', 'BASE TABLE', [...REQUIRED_TABLES]]
@@ -176,6 +187,6 @@ if (require.main === module) {
   });
 }
 
-module.exports = {STAGING_REF, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, CIVIC_RUNTIME_COLUMNS,
+module.exports = {STAGING_REF, STAGING_IDENTITY_HASH, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, CIVIC_RUNTIME_COLUMNS,
   assertStagingTarget, evaluateSchema, evaluateCivicProtection,
-  evaluateCivicRuntimeColumns, evaluateBlockedGuard, run};
+  evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity, run};
