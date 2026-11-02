@@ -37,8 +37,8 @@ export function OpinionBadgeEvidenceCard({
     ? "Indicazione tematica disponibile"
     : "Risposte insufficienti o discordanti";
   const caption = result.eligible
-    ? "Queste risposte sono coerenti con alcune proposte del tema, non definiscono la tua identità."
-    : "Il sistema non ha elementi sufficienti per suggerire questa targhetta.";
+    ? "Hai espresso tutte le risposte previste in modo coerente. Questa corrispondenza non definisce la tua identità."
+    : "Per questa targhetta sono necessarie tutte le risposte previste, senza indecisi o posizioni discordanti.";
 
   return (
     <article
@@ -62,7 +62,8 @@ export function OpinionBadgeEvidenceCard({
         </summary>
         <p className="mt-2 text-xs leading-relaxed text-slate-600">
           Le risposte sono interpretate solo rispetto alle proposte indicate.
-          Favorevole e Contrario sono posizioni nette; Indeciso non è un voto contrario.
+          La targhetta richiede il 100% delle risposte indicate, tutte nella direzione prevista;
+          anche una risposta assente, indecisa o discordante ne impedisce l'assegnazione.
           Nessuna percentuale misura quanto una persona sia animalista, ambientalista
           o appartenga a una determinata corrente politica.
         </p>
