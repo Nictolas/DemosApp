@@ -7,6 +7,8 @@ package community.demos;
 final class DemosAppOpenAdsManager {
     DemosAppOpenAdsManager(MainActivity activity) {}
     void onCreate() {}
+    boolean arePrivacyOptionsRequired() { return false; }
+    void showPrivacyOptions(Runnable onSuccess, Runnable onError) { onError.run(); }
     void onResume() {}
     void onPause() {}
     void onDestroy() {}
