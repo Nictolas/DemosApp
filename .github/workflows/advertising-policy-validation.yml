@@ -20,6 +20,8 @@ on:
       - 'client/src/pages/auth-page.tsx'
       - 'client/src/pages/Impostazioni/components/AppOpenPrivacyOptions.tsx'
       - 'client/android/app/src/main/java/community/demos/AppOpenFrequencyPolicy.java'
+      - 'client/android/app/src/main/java/community/demos/AppOpenTcfConsentPolicy.java'
+      - 'client/android/app/src/test/java/community/demos/AppOpenTcfConsentPolicyTest.java'
       - 'client/android/app/src/test/java/community/demos/AppOpenFrequencyPolicyTest.java'
       - 'client/android/app/src/debug/java/community/demos/DemosAppOpenAdsManager.java'
       - 'client/android/app/src/release/java/community/demos/DemosAppOpenAdsManager.java'
