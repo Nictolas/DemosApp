@@ -60,3 +60,18 @@ Questa tabella NON autorizza la cancellazione di alcun servizio: prima preservar
 - Query diretta information_schema del progetto Supabase Demos-Staging: **6/9** tabelle applicative minime presenti. Mancano eventi, programmi e civic_processes. Il preflight non deve dichiarare pronto il backend finché non è risolta la divergenza.
 - Backup PostgreSQL Render: primo pg_dump non riuscito perché mancava un certificato CA locale; regola firewall temporanea limitata a un IP e poi **deny-all ripristinato**. Documentazione PostgreSQL 17 prevede PGSSLROOTCERT=system per TLS verify-full. Esecuzione automatica successiva bloccata dal sistema di sicurezza: **nessun backup verificato**. Priorità assoluta prima dell'8 novembre.
 - Stato: bootstrap Render LIVE; **non** app staging pronta. Produzione e gli altri servizi non modificati.
+
+
+## Stato schema effettivo dopo migrazione — 02/11/2026
+
+La migrazione additiva `ops_stg_001_core_tables_20261102` è stata **applicata soltanto** al progetto Supabase Demos-Staging (ref `fkeayjzvtuvzesljhjbc`).
+
+- Nuove tabelle vuote: `eventi`, `programmi`, `civic_processes`, `civic_process_identifiers`, `civic_process_source_records`, `civic_process_reconciliation_candidates`.
+- Verifica read-only 6/6 tabelle, RLS attiva 6/6, SELECT diretto per ruoli anon/authenticated negato 6/6. Nessun dato importato, nessuna modifica a produzione.
+- Stato `public`: **115** tabelle nella produzione, **25** nello staging, **93** nomi della produzione non presenti nello staging. Lo scarto include oggetti legacy e tabelle forse non necessarie: NON replicare indiscriminatamente né usare dati reali.
+- Il test del preflight che ora vede le nove tabelle minime NON costituisce un GO: lo script stampa esplicitamente `minimum_tables_present_not_app_ready`, mentre il bootstrap Render continua con `/health/ready = 503`.
+- 15/15 test locali Node su bootstrap, preflight e contratto SQL superati; necessaria CI e QA integrata con utenze sintetiche.
+- Prossima azione: classificare le 93 tabelle per necessità nelle route app attuali (P0), legacy di sola compatibilità (P1), archivi/strumenti indipendenti (P2). Portare in staging schema e vincoli necessari, ma NON righe della produzione.
+- Il vecchio PostgreSQL Render rimane da esportare prima dell'8 novembre. Non eliminare né sovrascrivere fino a backup verificato.
+
+Il bootstrap Render è quindi **operativo ma non è ancora staging applicativo**. Il numero di tabelle minime presenti non è una metrica di completamento dell'ambiente.
