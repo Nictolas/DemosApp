@@ -1,5 +1,12 @@
 const express = require('express');
 const router = express.Router();
+
+// Political preferences and authenticated results must never be browser/CDN cached,
+// including failures produced by JWT/consent middleware.
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
 const { verifyToken } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
@@ -35,7 +42,6 @@ router.get('/', async (req, res) => {
 
     const classificaResult = await pool.query(classificaQuery);
 
-    console.log('🔍 DEBUG /api/capo-stato - Candidati trovati:', classificaResult.rows.length);
 
     // Processa la classifica per il frontend
     const classifica = classificaResult.rows
@@ -105,7 +111,6 @@ router.get('/', async (req, res) => {
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
         mieiVoti = userVotiResult.rows.map(v => v.nome);
       } catch (authError) {
-        console.log('⚠️ Token non valido per capo di stato:', authError.message);
       }
     }
 
@@ -118,7 +123,6 @@ router.get('/', async (req, res) => {
 
     res.json(responseData);
   } catch (error) {
-    console.error('❌ Errore nel recupero candidati capo di stato:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -138,23 +142,15 @@ router.post('/test-vota', (_req, res) => {
 
 // POST /api/capo-stato/vota - Endpoint principale per voti (con autenticazione)
 router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  console.log('🚨🚨🚨 POST /api/capo-stato/vota - RICHIESTA RICEVUTA 🚨🚨🚨');
-  console.log('🚨🚨🚨 Request ID:', requestId);
-  console.log('🚨🚨🚨 Timestamp:', new Date().toISOString());
-  console.log('🚨🚨🚨 Method:', req.method);
-  console.log('🚨🚨🚨 URL:', req.url);
 
   let client = null;
   try {
-    console.log('🔍 DEBUG /api/capo-stato/vota - Richiesta ricevuta');
 
     const { voti } = req.body;
     // Usa req.userId con fallback a req.user.id per sicurezza
     const userId = req.userId || req.user?.id;
 
     if (!userId) {
-      console.log('❌ DEBUG - User ID non trovato');
       return res.status(401).json({
         success: false,
         error: 'Utente non autenticato'
@@ -163,7 +159,6 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
 
 
     if (!Array.isArray(voti)) {
-      console.log('❌ DEBUG - Voti non è un array:', typeof voti);
       return res.status(400).json({
         success: false,
         error: 'I voti devono essere un array'
@@ -180,7 +175,6 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
 
     // Controlla il limite di 1 voto massimo per Capo di Stato
     if (voti.length > 1) {
-      console.log('❌ DEBUG - Troppi voti:', voti.length);
       return res.status(400).json({
         success: false,
         error: 'Puoi selezionare al massimo 1 candidato per Capo di Stato'
@@ -225,7 +219,6 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
       const idColumn = tableInfo.rows.find((row) => row.column_name === 'id');
       if (idColumn) idType = idColumn.data_type;
     } catch (tableInfoError) {
-      console.warn('Impossibile rilevare struttura voti_capo_stato, uso schema canonico:', tableInfoError.message);
     }
 
     const existingResult = await pool.query(
@@ -249,21 +242,17 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
     });
 
     // Inizia una transazione
-    console.log('🔍 DEBUG - Inizio transazione');
     client = await pool.connect();
 
     try {
       await client.query('BEGIN');
 
       // Prima elimina tutti i voti esistenti dell'utente
-      console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userId);
       const deleteQuery = `DELETE FROM voti_capo_stato WHERE ${userIdColumn} = $1`;
       const deleteResult = await client.query(deleteQuery, [userId]);
-      console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
 
       // Poi inserisce i nuovi voti
       if (voti.length > 0) {
-        console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
 
         for (const nome of voti) {
           // Genera ID in base al tipo della colonna
@@ -286,19 +275,15 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
           const insertParams = [votoId, userId, nome];
 
           await client.query(insertQuery, insertParams);
-          console.log('✅ DEBUG - Voto inserito con successo');
         }
 
-        console.log('🔍 DEBUG - Tutti i voti inseriti con successo');
       }
 
       // Conferma la transazione
-      console.log('🔍 DEBUG - Commit transazione');
       await recordPreferenceChange(client, { userId, scope: 'capo-stato:preferenza' });
 
       await client.query('COMMIT');
 
-      console.log('✅ DEBUG - Voti salvati con successo');
       res.json({
         success: true,
         message: 'Voti salvati con successo',
@@ -306,42 +291,25 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
       });
     } catch (error) {
       // Rollback in caso di errore
-      console.error('❌ DEBUG - Errore nella transazione, rollback:', error.message);
-      console.error('❌ DEBUG - Stack trace:', error.stack);
-      console.error('❌ DEBUG - Error code:', error.code);
-      console.error('❌ DEBUG - Error detail:', error.detail);
-      console.error('❌ DEBUG - Error hint:', error.hint);
-      console.error('❌ DEBUG - Error name:', error.name);
       try {
         await client.query('ROLLBACK');
       } catch (rollbackError) {
-        console.error('❌ DEBUG - Errore durante rollback:', rollbackError.message);
       }
       throw error;
     } finally {
       if (client) {
         client.release();
         client = null;
-        console.log('🔍 DEBUG - Client rilasciato');
       }
     }
   } catch (error) {
     if (sendCooldownError(res, error)) return;
-    console.error('❌❌❌ ERRORE CRITICO nel salvataggio voti capo di stato ❌❌❌');
-    console.error('❌ Request ID:', requestId);
-    console.error('❌ Error message:', error.message);
-    console.error('❌ Error name:', error.name);
-    console.error('❌ Error code:', error.code);
-    console.error('❌ Error detail:', error.detail);
-    console.error('❌ Error hint:', error.hint);
-    console.error('❌ Error stack:', error.stack);
 
     // Rilascia il client se non è stato rilasciato
     if (client) {
       try {
         client.release();
       } catch (releaseError) {
-        console.error('❌ Errore nel rilasciare client:', releaseError.message);
       }
     }
 
@@ -350,12 +318,8 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
       res.status(500).json({
         success: false,
         error: 'Errore interno del server',
-        details: error.message,
-        code: error.code,
-        requestId: requestId
       });
     } else {
-      console.error('❌ Risposta già inviata, impossibile inviare errore');
     }
   }
 });
@@ -373,8 +337,6 @@ router.post('/', (_req, res) => {
 // GET /api/capo-stato/consenso - Ottieni i dati di consenso
 router.get('/consenso', async (req, res) => {
   try {
-    console.log('🔍 DEBUG /api/capo-stato/consenso GET - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
 
     // Ottieni i voti di consenso dell'utente corrente se autenticato
     let mioConsenso = null;
@@ -389,8 +351,6 @@ router.get('/consenso', async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.userId || decoded.email;
 
-        console.log('🔍 DEBUG - Token decodificato:', decoded);
-        console.log('🔍 DEBUG - User ID:', userId);
 
         // Controlla se l'utente ha già votato per il consenso
         const consensoQuery = `
@@ -417,7 +377,6 @@ router.get('/consenso', async (req, res) => {
         });
         blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
       } catch (error) {
-        console.log('🔍 DEBUG - Token non valido per consenso:', error.message);
       }
     }
 
@@ -454,7 +413,6 @@ router.get('/consenso', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero dati consenso:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -465,10 +423,6 @@ router.get('/consenso', async (req, res) => {
 // POST /api/capo-stato/consenso - Salva il voto di consenso
 router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
   try {
-    console.log('🔍 DEBUG /api/capo-stato/consenso - Richiesta ricevuta');
-    console.log('🔍 DEBUG - Headers:', req.headers);
-    console.log('🔍 DEBUG - Body:', req.body);
-    console.log('🔍 DEBUG - User:', req.user);
 
     const { risposta } = req.body;
     const userId = req.user.id;
@@ -541,7 +495,6 @@ router.post('/consenso', verifyToken, requireVerifiedCivicIdentity, requirePolit
     }
   } catch (error) {
     if (sendCooldownError(res, error)) return;
-    console.error('❌ Errore nel salvataggio consenso:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
