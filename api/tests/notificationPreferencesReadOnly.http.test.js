@@ -173,5 +173,5 @@ test('notifications feed uses one authorized data query instead of schema intros
   assert.ok(!block.includes('information_schema.columns'), 'no information_schema query per feed GET');
   assert.ok(block.includes('WHERE (id_utente IS NULL OR id_utente = $1::uuid)'), 'only global or authenticated-user notices');
   assert.match(block, /LIMIT 50/);
-  assert.match(block, /demosResult = \\{ rows: \\[\\] \\};/);
+  assert.ok(block.includes('demosResult = { rows: [] };'), 'Demos source fallback must remain isolated');
 });
