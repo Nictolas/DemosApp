@@ -31,11 +31,20 @@ function assertStagingTarget(value, env = process.env) {
   const database = decodeURIComponent(url.pathname.replace(/^\//, ''));
   if (database !== 'postgres') throw new Error('Unexpected staging database name');
   if (!url.password) throw new Error('Staging credentials missing');
+  // Only dedicated session endpoints are allowed: transaction-mode Supavisor
+  // (6543) cannot preserve the PostgreSQL session required by civic locks.
+  // The staging preflight is still read-only and NEVER proves session affinity.
   const isDirect = host === `db.${STAGING_REF}.supabase.co` && username === 'postgres' && (url.port === '' || url.port === '5432');
-  const isPooler = host.endsWith('.pooler.supabase.com') && username === `postgres.${STAGING_REF}` && ['5432', '6543'].includes(url.port);
-  if (!isDirect && !isPooler) throw new Error('Refusing non-staging Supabase project or endpoint');
-  // SSL configuration must come from verified databaseTlsPolicy, not URL options.
-  for (const key of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'sslaccept']) url.searchParams.delete(key);
+  const isPooler = host.endsWith('.pooler.supabase.com') && username === `postgres.${STAGING_REF}` && url.port === '5432';
+  if (!isDirect && !isPooler) throw new Error('Refusing non-session Supabase staging endpoint');
+  // Reject driver URI parameters that can silently override the validated
+  // host/port/user or force transaction pooling. TLS is centrally configured,
+  // so SSL URL overrides are discarded rather than trusted.
+  const ignoredSsl = new Set(['sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'sslaccept']);
+  for (const key of [...url.searchParams.keys()]) {
+    if (!ignoredSsl.has(key.toLowerCase())) throw new Error('Unsafe staging connection options');
+    url.searchParams.delete(key);
+  }
   return {sanitizedConnectionString: url.toString(), target: 'Demos-Staging'};
 }
 
