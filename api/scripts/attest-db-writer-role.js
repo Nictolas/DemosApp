@@ -5,7 +5,7 @@
 // This is NOT a release approval or a replacement for multi-user QA.
 const IMPORTANT_TABLES = Object.freeze([
   'users', 'user_consents', 'opinioni_risposte', 'political_selections',
-  'privacy_erasure_ledger', 'user_rights_requests'
+  'privacy_erasure_ledger', 'user_rights_requests', 'user_devices'
 ]);
 const ROLE_SQL = [
   'SELECT current_user::text AS current_role, session_user::text AS session_role,',
