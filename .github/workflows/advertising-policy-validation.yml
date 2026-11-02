@@ -11,6 +11,8 @@ on:
       - 'client/android/app/src/main/java/community/demos/NativeAppOpenPrivacyPlugin.java'
       - 'client/src/lib/native-app-open-privacy.ts'
       - 'client/src/pages/Impostazioni/index.tsx'
+      - 'client/src/pages/LandingPage.tsx'
+      - 'client/src/pages/auth-page.tsx'
       - 'client/src/pages/Impostazioni/components/AppOpenPrivacyOptions.tsx'
       - 'client/android/app/src/main/java/community/demos/AppOpenFrequencyPolicy.java'
       - 'client/android/app/src/test/java/community/demos/AppOpenFrequencyPolicyTest.java'
