@@ -6,12 +6,14 @@ on:
       - 'api/routes/admin/data-export.js'
       - 'api/routes/admin/axiom-migration.js'
       - 'api/routes/admin/data-retention.js'
+      - 'api/routes/admin/backup.js'
       - 'api/app.js'
       - 'client/src/pages/DataExport.tsx'
       - 'client/src/pages/DataRetention.tsx'
       - 'api/tests/legacyDataExportRetirement.test.js'
       - 'api/tests/legacyDataExportAuthIntegration.test.js'
       - 'api/tests/legacyRetentionMainExtraction.http.test.js'
+      - 'api/tests/legacyRetentionBackupSafety.http.test.js'
       - '.github/workflows/p0-legacy-admin-main-extract.yml'
 permissions:
   contents: read
@@ -36,8 +38,9 @@ jobs:
           node --check api/routes/admin/data-export.js
           node --check api/routes/admin/axiom-migration.js
           node --check api/routes/admin/data-retention.js
+          node --check api/routes/admin/backup.js
       - name: Real HTTP auth and disabled legacy writes (synthetic fixtures)
-        run: node --test --test-concurrency=1 api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js api/tests/legacyRetentionMainExtraction.http.test.js
+        run: node --test --test-concurrency=1 api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js api/tests/legacyRetentionMainExtraction.http.test.js api/tests/legacyRetentionBackupSafety.http.test.js
   frontend-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
