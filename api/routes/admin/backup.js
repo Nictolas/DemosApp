@@ -159,7 +159,7 @@ router.post('/restore/:fileName', legacyBackupActionUnavailable, async (req, res
  * GET /api/admin/backup/verify/:fileName
  * Verifica integrità di un backup
  */
-router.get('/verify/:fileName', async (req, res) => {
+router.get('/verify/:fileName', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const { fileName } = req.params;
     
