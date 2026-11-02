@@ -102,7 +102,8 @@ test('public directory SQL omits unnecessary profile PII while preserving visibl
   const forbidden = /\b(?:u\.)?(?:email|status|created_at|updated_at|genere|data_nascita|cittadinanza|paese_residenza|provincia_residenza|comune_residenza)\b/i;
   for (const endpoint of ['api/routes/attivisti.js', 'api/routes/organizzazioni.js']) {
     const source = file(endpoint);
-    const projections = Array.from(source.matchAll(/\bSELECT\s+([\s\S]*?)\s+FROM users u\b/g), match => match[1]);
+    const sqlTemplates = Array.from(source.matchAll(/\bquery(?:Activists|Organizations)\(\s*`([\s\S]*?)`/g), match => match[1]);
+    const projections = sqlTemplates.flatMap(sql => Array.from(sql.matchAll(/\bSELECT\s+([\s\S]*?)\s+FROM users u\b/g), match => match[1]));
     assert.ok(projections.length >= (endpoint.includes('attivisti') ? 2 : 1),
       'expected all public directory SELECT statements: ' + endpoint);
     for (const projection of projections) {
