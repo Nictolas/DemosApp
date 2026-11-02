@@ -204,6 +204,7 @@ test('minor/unknown-age users do not invoke UMP, initialize SDK or request App O
   assert.match(mainActivity, /runOnUiThread\(\(\) -> \{[\s\S]*?appOpenAdsManager\.setAdultEligible\(verifiedAdult\)/);
   assert.match(manager, /private boolean adultEligible = false/);
   assert.match(manager, /void setAdultEligible\(boolean confirmedAdult\)/);
+  assert.match(manager, /if \(BuildConfig\.DEMOS_QA_FORCE_ADULT && !confirmedAdult\) return/);
   assert.match(manager, /if \(!umpRequested\) \{[\s\S]*?requestAdultConsent\(\)/);
   assert.match(manager, /if \(!adultEligible \|\| activity\.isFinishing\(\) \|\| activity\.isDestroyed\(\)\) return/);
   assert.match(manager, /\|\| !adultEligible \|\| !hasExplicitTcfConsent\(\)/);
