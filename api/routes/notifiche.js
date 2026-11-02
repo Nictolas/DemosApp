@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { notificationSchemaCache } = require('../services/notificationSchemaCache');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 require('dotenv').config();
 
@@ -236,13 +237,8 @@ router.get('/', verifyToken, async (req, res) => {
 
     // Recupera da notifiche_comunali (gestisce sia struttura nuova che vecchia)
     try {
-      // Prima verifica quali colonne esistono
-      const columnCheck = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_comunali'
-      `);
-      const existingColumns = columnCheck.rows.map(r => r.column_name);
+      // Cache dei soli nomi delle colonne, mai di contenuto o identità utenti.
+      const existingColumns = await notificationSchemaCache.columns(pool, 'notifiche_comunali');
       // Costruisci la query in base alle colonne disponibili
       let selectParts = ['id', 'id_utente'];
       
@@ -310,6 +306,9 @@ router.get('/', verifyToken, async (req, res) => {
       
       comunaliResult = await pool.query(query);
     } catch (err) {
+      if (err?.code === '42703' || err?.code === '42P01') {
+        notificationSchemaCache.invalidate('notifiche_comunali');
+      }
       console.error('NOTIF_MUNICIPAL_FAILED');
       comunaliResult = { rows: [] };
     }
@@ -317,23 +316,11 @@ router.get('/', verifyToken, async (req, res) => {
     // Recupera da notifiche_avvistamenti
     let avvistamentiResult = { rows: [] };
     try {
-      const tableExists = await pool.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'notifiche_avvistamenti'
-        )
-      `);
-      
-      if (tableExists.rows[0]?.exists) {
-        // Verifica colonne disponibili per costruire la query dinamicamente
-        const columnsResult = await pool.query(`
-          SELECT column_name 
-          FROM information_schema.columns 
-          WHERE table_name = 'notifiche_avvistamenti'
-          AND table_schema = 'public'
-        `);
-        const availableColumns = columnsResult.rows.map(r => r.column_name);
+      // Per un utente senza comune nessun avvistamento può essere mostrato:
+      // evitare tutte le query di metadata e dati in questo caso.
+      if (userComuneResidenza) {
+        const availableColumns = await notificationSchemaCache.columns(pool, 'notifiche_avvistamenti');
+        if (availableColumns.length > 0) {
         // Costruisci la query solo con colonne esistenti (escludi esplicitamente 'testo' e 'titolo')
         const selectColumns = [
           'id',
@@ -385,10 +372,12 @@ router.get('/', verifyToken, async (req, res) => {
           throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
         }
         avvistamentiResult = await pool.query(queryText, queryParams);
-      } else {
-        console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
+        }
       }
     } catch (err) {
+      if (err?.code === '42703' || err?.code === '42P01') {
+        notificationSchemaCache.invalidate('notifiche_avvistamenti');
+      }
       console.error('NOTIF_SIGHTINGS_FAILED');
       avvistamentiResult = { rows: [] };
     }
