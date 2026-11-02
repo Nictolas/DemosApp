@@ -1,6 +1,5 @@
 package community.demos;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
@@ -40,9 +39,10 @@ final class DemosAppOpenAdsManager {
     private static final String PREFS = "demos_app_open_ads_device_only";
     private static final String LAUNCHES = "native_launch_count";
     private static final String LAST_SHOWN = "last_ad_shown_wall_clock_ms";
-    private static final long MIN_INTERVAL_MS = 24L * 60 * 60 * 1000;
+    // Read-only check, no URL, route, opinions or user information is read.
+    private static final String EMPTY_REACT_ROOT_JS =
+        "(function(){var r=document.getElementById('root');return !!r && r.children.length===0;})()";
     private static final long MAX_AD_AGE_MS = 4L * 60 * 60 * 1000;
-    private static final int FIRST_ALLOWED_LAUNCH = 3;
 
     private final MainActivity activity;
     private final SharedPreferences preferences;
@@ -64,8 +64,9 @@ final class DemosAppOpenAdsManager {
     void onCreate() {
         if (!BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG) return;
 
-        int launches = preferences.getInt(LAUNCHES, 0);
-        preferences.edit().putInt(LAUNCHES, Math.min(launches + 1, Integer.MAX_VALUE)).apply();
+        preferences.edit()
+            .putInt(LAUNCHES, AppOpenFrequencyPolicy.nextLaunchCount(readLaunchCount()))
+            .apply();
 
         // UMP MUST run before initializing Google Mobile Ads or requesting ads.
         consentInformation = UserMessagingPlatform.getConsentInformation(activity);
@@ -94,11 +95,41 @@ final class DemosAppOpenAdsManager {
 
     void onResume() {
         foreground = true;
+        if (initialized) loadOnlyTestAppOpenAd();
         maybeShowOnlyWhileReallyLoading();
     }
 
     void onPause() {
         foreground = false;
+    }
+
+    void onDestroy() {
+        foreground = false;
+        if (readyAd != null) {
+            readyAd.destroy();
+            readyAd = null;
+        }
+    }
+
+    private int readLaunchCount() {
+        try {
+            return Math.max(0, preferences.getInt(LAUNCHES, 0));
+        } catch (ClassCastException corruptValue) {
+            return 0; // Do not crash or count a corrupt preference as repeated use.
+        }
+    }
+
+    private long readLastShownAtMs() {
+        try {
+            return preferences.getLong(LAST_SHOWN, 0L);
+        } catch (ClassCastException corruptValue) {
+            return -1L; // Unreadable frequency cap: never request an ad.
+        }
+    }
+
+    private boolean hasIntervalElapsed() {
+        return AppOpenFrequencyPolicy.mayRequest(
+            readLaunchCount(), readLastShownAtMs(), System.currentTimeMillis());
     }
 
     private void initializeSdk() {
@@ -126,43 +157,56 @@ final class DemosAppOpenAdsManager {
 
     private void loadOnlyTestAppOpenAd() {
         if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
-        if (consentInformation == null || !consentInformation.canRequestAds()) return;
-        if (preferences.getInt(LAUNCHES, 0) < FIRST_ALLOWED_LAUNCH) return;
-        if (readyAd != null || loading || showing) return;
+        if (!foreground || loading || readyAd != null || showing) return;
+        if (consentInformation == null || !consentInformation.canRequestAds()
+            || consentInformation.getConsentStatus()
+                != ConsentInformation.ConsentStatus.OBTAINED) return;
         if (!hasIntervalElapsed()) return;
-        loading = true;
 
-        AppOpenAd.load(
-            new AdRequest.Builder(BuildConfig.DEMOS_APP_OPEN_UNIT_ID).build(),
-            new AdLoadCallback<AppOpenAd>() {
-                @Override
-                public void onAdLoaded(@NonNull AppOpenAd ad) {
-                    mainHandler.post(() -> {
-                        loading = false;
-                        readyAd = ad;
-                        readyAtElapsedMs = SystemClock.elapsedRealtime();
-                        maybeShowOnlyWhileReallyLoading();
-                    });
+        // Never contact the ad network if the app is already usable. This
+        // deliberately means many launches cause zero requests/impressions.
+        final WebView webView = activity.getAppOpenWebView();
+        if (webView == null) return;
+        webView.evaluateJavascript(EMPTY_REACT_ROOT_JS, result -> {
+            if (!"true".equals(result) || !foreground || loading || showing
+                || readyAd != null || activity.isFinishing() || activity.isDestroyed()
+                || !consentInformation.canRequestAds()
+                || consentInformation.getConsentStatus()
+                    != ConsentInformation.ConsentStatus.OBTAINED
+                || !hasIntervalElapsed()) return;
+
+            loading = true;
+            AppOpenAd.load(
+                new AdRequest.Builder(BuildConfig.DEMOS_APP_OPEN_UNIT_ID).build(),
+                new AdLoadCallback<AppOpenAd>() {
+                    @Override
+                    public void onAdLoaded(@NonNull AppOpenAd ad) {
+                        mainHandler.post(() -> {
+                            loading = false;
+                            if (!foreground || !hasIntervalElapsed()
+                                || !consentInformation.canRequestAds()
+                                || consentInformation.getConsentStatus()
+                                    != ConsentInformation.ConsentStatus.OBTAINED) {
+                                ad.destroy();
+                                return;
+                            }
+                            readyAd = ad;
+                            readyAtElapsedMs = SystemClock.elapsedRealtime();
+                            maybeShowOnlyWhileReallyLoading();
+                        });
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError error) {
+                        mainHandler.post(() -> loading = false);
+                    }
                 }
-
-                @Override
-                public void onAdFailedToLoad(@NonNull LoadAdError error) {
-                    mainHandler.post(() -> loading = false);
-                }
-            }
-        );
-    }
-
-    private boolean hasIntervalElapsed() {
-        long lastShown = preferences.getLong(LAST_SHOWN, 0L);
-        if (lastShown == 0L) return true;
-        long elapsed = System.currentTimeMillis() - lastShown;
-        return elapsed >= MIN_INTERVAL_MS;
+            );
+        });
     }
 
     private void maybeShowOnlyWhileReallyLoading() {
         if (!foreground || showing || readyAd == null || !hasIntervalElapsed()) return;
-        if (preferences.getInt(LAUNCHES, 0) < FIRST_ALLOWED_LAUNCH) return;
 
         long age = SystemClock.elapsedRealtime() - readyAtElapsedMs;
         if (age < 0 || age >= MAX_AD_AGE_MS) {
@@ -178,11 +222,14 @@ final class DemosAppOpenAdsManager {
         if (webView == null) return;
 
         webView.evaluateJavascript(
-            "(function(){var r=document.getElementById('root');return !!r && r.children.length===0;})()",
+            EMPTY_REACT_ROOT_JS,
             result -> {
                 if (!"true".equals(result)
                     || !foreground
                     || showing
+                    || !consentInformation.canRequestAds()
+                    || consentInformation.getConsentStatus()
+                        != ConsentInformation.ConsentStatus.OBTAINED
                     || !hasIntervalElapsed()
                     || activity.isFinishing()
                     || activity.isDestroyed()) return;
@@ -196,9 +243,10 @@ final class DemosAppOpenAdsManager {
                     @Override
                     public void onAdShowedFullScreenContent() {
                         // Frequency cap starts when the ad REALLY appears, never on load.
+                        // Persist synchronously before the impression callback returns.
                         preferences.edit()
                             .putLong(LAST_SHOWN, System.currentTimeMillis())
-                            .apply();
+                            .commit();
                     }
 
                     @Override
