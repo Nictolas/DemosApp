@@ -5,6 +5,8 @@ on:
       - 'api/scripts/attest-db-writer-role.js'
       - 'api/tests/dbWriterRoleAttestation.test.js'
       - 'api/tests/dbWriterRoleAttestation.postgres.test.js'
+      - 'api/tests/stagingGdprFixtureMigration.postgres.test.js'
+      - 'api/qa/sql/staging_gdpr_fixture_rights_devices_20261102.sql'
       - '.github/workflows/db-runtime-role-attestation.yml'
   workflow_dispatch:
 permissions:
@@ -53,6 +55,8 @@ jobs:
         run: npm ci --prefix api --no-audit --no-fund
       - name: Verify actual RLS isolation with three fake users
         run: node --test api/tests/dbWriterRoleAttestation.postgres.test.js
+      - name: Verify live-applied staging DDL on disposable PG17 and deny unknown subjects
+        run: node --test api/tests/stagingGdprFixtureMigration.postgres.test.js
 
   combined-gdpr-pr375:
     runs-on: ubuntu-latest
