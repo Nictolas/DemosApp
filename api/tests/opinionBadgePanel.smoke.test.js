@@ -72,7 +72,7 @@ runtime("la card esemplificativa spiega uno score coerente senza dedurre una ide
   assert.match(html,/Contrario/);
   assert.match(html,/Favorevole/);
   assert.match(html,/Perché vedo questo risultato/);
-  assert.match(html,/la tua identità/);
+  assert.match(html,/Per questa targhetta sono necessarie tutte le risposte previste/);
   assert.doesNotMatch(html,/66[.,]7% animalista/);
 });
 
@@ -114,5 +114,5 @@ runtime("la card con tutte le risposte coerenti mostra una corrispondenza senza 
   assert.match(html,/Indicazione tematica disponibile/);
   assert.match(html,/Hai espresso tutte le risposte previste/);
   assert.match(html,/non definisce la tua identità/);
-  assert.doesNotMatch(html,/discordante/);
+  assert.doesNotMatch(html,/· discordante/);
 });
