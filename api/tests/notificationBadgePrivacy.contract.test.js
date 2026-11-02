@@ -27,10 +27,11 @@ test('shared fetch reads apiRequest response.data, validates server envelope, om
   assert.match(shared, /payload\?\.success !== true/);
   assert.match(shared, /Array\.isArray\(payload\?\.notifiche\)/);
   assert.doesNotMatch(shared, /\?user_id=|console\.(?:log|warn|error)/);
-  for (const src of [badge, page]) {
-    assert.doesNotMatch(src, /apiRequest\("GET",\s*[`'"]\/api\/notifiche/);
-    assert.doesNotMatch(src, /\?user_id=/);
-  }
+  assert.doesNotMatch(badge, /\?user_id=/);
+  // The page still has an unrelated administrative DELETE request; do not
+  // confuse it with the shared, privacy-minimized notification GET.
+  const pageRead = page.split('// Mutazione per cancellare segnalazione')[0];
+  assert.doesNotMatch(pageRead, /apiRequest\("GET",\s*[`'"]\/api\/notifiche|\?user_id=/);
 });
 
 test('background polling disabled and page/badge share one 60s refresh policy', () => {
