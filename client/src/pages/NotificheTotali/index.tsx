@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
@@ -64,7 +64,7 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
                 <><TableCell className="font-medium">{notifica.titolo || "Nessun titolo"}</TableCell><TableCell className="max-w-md"><p className="text-sm text-gray-600 truncate">{notifica.testo || notifica.messaggio || "Nessun messaggio"}</p></TableCell><TableCell>{notifica.data ? new Date(notifica.data).toLocaleDateString("it-IT") : "N/A"}</TableCell></>
               )}
               {tipo === "voti_comuni" && <><TableCell>{notifica.voto || "-"}</TableCell><TableCell>{notifica.politico || "-"}</TableCell></>}
-              {tipo !== "demos" && <TableCell>{notifica.comune_residenza || "-"}</TableCell>}
+              {tipo !== "demos" && tipo !== "avvistamenti" && <TableCell>{notifica.comune_residenza || "-"}</TableCell>}
               {tipo === "voti_comuni" && <><TableCell>{notifica.likes || 0}</TableCell><TableCell>{notifica.dislikes || 0}</TableCell></>}
               <TableCell><Button variant="destructive" size="sm" onClick={() => handleDelete(notifica.id, tipo)} disabled={deleteMutation.isPending} aria-label="Cancella notifica"><Trash2 className="h-4 w-4" /></Button></TableCell>
             </TableRow>
@@ -81,6 +81,9 @@ export default function NotificheTotali() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isAdmin = hasAdminCapability(user);
+  // Legacy Firebase diagnostic GET can send a push: never fetch on page mount.
+  const localDiagnosticsEnabled = import.meta.env.DEV &&
+    import.meta.env.VITE_ENABLE_NOTIFICATION_DIAGNOSTICS === "true";
 
   const [demosTitle, setDemosTitle] = useState("");
   const [demosMessage, setDemosMessage] = useState("");
@@ -88,6 +91,14 @@ export default function NotificheTotali() {
   const [userSearchValue, setUserSearchValue] = useState("");
   const [userTitle, setUserTitle] = useState("");
   const [userMessage, setUserMessage] = useState("");
+  const pendingUserSend = useRef<{ signature: string; key: string } | null>(null);
+  const pendingSelfTestKey = useRef<string | null>(null);
+  const getUserSendKey = (signature: string) => {
+    if (pendingUserSend.current?.signature !== signature) {
+      pendingUserSend.current = { signature, key: crypto.randomUUID() };
+    }
+    return pendingUserSend.current.key;
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["notifiche-totali"],
@@ -99,7 +110,7 @@ export default function NotificheTotali() {
   const firebaseStatus = useQuery({
     queryKey: ["admin-notification-firebase-status"],
     queryFn: async () => (await apiRequest("GET", "/api/comunicazioni/debug-firebase-admin")).data,
-    enabled: isAdmin,
+    enabled: false, // Diagnostic GET only after an explicit local user action
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -107,7 +118,7 @@ export default function NotificheTotali() {
   const demosStatus = useQuery({
     queryKey: ["admin-notification-demos-status"],
     queryFn: async () => (await apiRequest("GET", "/api/comunicazioni/debug-notifiche-demos")).data,
-    enabled: isAdmin,
+    enabled: false, // Diagnostic GET only after an explicit local user action
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -131,13 +142,17 @@ export default function NotificheTotali() {
     mutationFn: async () => {
       if (!selectedUser?.id) throw new Error("Seleziona un utente");
       if (!userTitle.trim() || !userMessage.trim()) throw new Error("Titolo e messaggio sono obbligatori");
-      return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: selectedUser.id, titolo: userTitle.trim(), messaggio: userMessage.trim() })).data;
+      return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: selectedUser.id, titolo: userTitle.trim(), messaggio: userMessage.trim(), idempotencyKey: getUserSendKey(JSON.stringify([selectedUser.id, userTitle.trim(), userMessage.trim()])) })).data;
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
+      pendingUserSend.current = null;
       setSelectedUser(null); setUserSearchValue(""); setUserTitle(""); setUserMessage("");
       queryClient.invalidateQueries({ queryKey: ["notifiche-totali"] });
       queryClient.invalidateQueries({ queryKey: ["notificationBadge"] });
-      toast({ title: "Notifica inviata" });
+      toast({
+        title: result?.data?.push_inviato === true ? "Notifica salvata e push inviato" : "Notifica salvata nell'app",
+        description: result?.message || "La notifica è disponibile nell'app."
+      });
     },
     onError: (error: any) => toast({ title: "Invio fallito", description: error?.message || "Errore di invio", variant: "destructive" }),
   });
@@ -145,9 +160,16 @@ export default function NotificheTotali() {
   const testSelfMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
-      return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: user.id, titolo: "Test Firebase Admin", messaggio: "Notifica di test DEMOS per verificare la consegna push." })).data;
+      return (await apiRequest("POST", "/api/comunicazioni/send-user-notification", { userId: user.id, titolo: "Test Firebase Admin", messaggio: "Notifica di test DEMOS per verificare la consegna push.", idempotencyKey: pendingSelfTestKey.current ?? (pendingSelfTestKey.current = crypto.randomUUID()) })).data;
     },
-    onSuccess: () => toast({ title: "Test inviato", description: "Controlla il dispositivo associato al tuo account." }),
+    onSuccess: (result: any) => {
+      pendingSelfTestKey.current = null;
+      toast({
+      title: result?.data?.push_inviato === true ? "Test push inviato" : "Push di test non inviato",
+      description: result?.message || "Controlla lo stato del dispositivo.",
+      variant: result?.data?.push_inviato === true ? "default" : "destructive"
+      });
+    },
     onError: (error: any) => toast({ title: "Test fallito", description: error?.message || "Errore di invio", variant: "destructive" }),
   });
 
@@ -187,8 +209,8 @@ export default function NotificheTotali() {
 
           <TabsContent value="diagnostica" className="space-y-5">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Firebase Admin</CardTitle><CardDescription>Verifica il backend usato per la consegna delle notifiche push.</CardDescription></CardHeader><CardContent className="space-y-3">{firebaseStatus.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : firebaseStatus.isError ? <Alert variant="destructive"><AlertDescription>Diagnostica Firebase non disponibile.</AlertDescription></Alert> : <div className="flex items-center gap-2 text-sm text-green-700"><CheckCircle className="h-5 w-5" />Endpoint diagnostico raggiungibile.</div>}<Button variant="outline" onClick={() => firebaseStatus.refetch()} disabled={firebaseStatus.isFetching}>Aggiorna stato</Button></CardContent></Card>
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" />Preferenze Demos</CardTitle><CardDescription>Verifica il percorso di selezione dei destinatari Demos.</CardDescription></CardHeader><CardContent className="space-y-3">{demosStatus.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : demosStatus.isError ? <Alert variant="destructive"><AlertDescription>Diagnostica Demos non disponibile.</AlertDescription></Alert> : <div className="flex items-center gap-2 text-sm text-green-700"><CheckCircle className="h-5 w-5" />Endpoint diagnostico raggiungibile.</div>}<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => demosStatus.refetch()} disabled={demosStatus.isFetching}>Aggiorna stato</Button><Button variant="outline" onClick={() => testSelfMutation.mutate()} disabled={testSelfMutation.isPending}>{testSelfMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}Invia test a me</Button></div></CardContent></Card>
+              <Card><CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" />Firebase Admin</CardTitle><CardDescription>Verifica il backend usato per la consegna delle notifiche push.</CardDescription></CardHeader><CardContent className="space-y-3">{!localDiagnosticsEnabled ? <Alert><AlertDescription>Diagnostica disponibile solo nello sviluppo locale autorizzato.</AlertDescription></Alert> : firebaseStatus.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : firebaseStatus.isError ? <Alert variant="destructive"><AlertDescription>Diagnostica Firebase non disponibile.</AlertDescription></Alert> : <div className="flex items-center gap-2 text-sm text-green-700"><CheckCircle className="h-5 w-5" />Endpoint diagnostico raggiungibile.</div>}<Button variant="outline" onClick={() => firebaseStatus.refetch()} disabled={!localDiagnosticsEnabled || firebaseStatus.isFetching}>Aggiorna stato</Button></CardContent></Card>
+              <Card><CardHeader><CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" />Preferenze Demos</CardTitle><CardDescription>Verifica il percorso di selezione dei destinatari Demos.</CardDescription></CardHeader><CardContent className="space-y-3">{!localDiagnosticsEnabled ? <Alert><AlertDescription>Diagnostica disponibile solo nello sviluppo locale autorizzato.</AlertDescription></Alert> : demosStatus.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : demosStatus.isError ? <Alert variant="destructive"><AlertDescription>Diagnostica Demos non disponibile.</AlertDescription></Alert> : <div className="flex items-center gap-2 text-sm text-green-700"><CheckCircle className="h-5 w-5" />Endpoint diagnostico raggiungibile.</div>}<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => demosStatus.refetch()} disabled={!localDiagnosticsEnabled || demosStatus.isFetching}>Aggiorna stato</Button><Button variant="outline" onClick={() => testSelfMutation.mutate()} disabled={testSelfMutation.isPending}>{testSelfMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}Invia test a me</Button></div></CardContent></Card>
             </div>
           </TabsContent>
         </Tabs>

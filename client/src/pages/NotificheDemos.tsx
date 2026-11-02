@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -40,6 +40,10 @@ export default function NotificheDemos() {
   // Verifica che l'utente sia admin (prima delle query che lo usano)
   const userRole = user?.ruolo;
   const isAdmin = userRole === "AD";
+  // The debug GET may send a test FCM push; never call it on page mount.
+  // Backend debug APIs exist only under explicit opt-in local development.
+  const localDiagnosticsEnabled = import.meta.env.DEV &&
+    import.meta.env.VITE_ENABLE_NOTIFICATION_DIAGNOSTICS === "true";
 
   // Verifica lo stato delle preferenze dell'utente corrente
   const { data: debugData, isLoading: isLoadingDebug } = useQuery({
@@ -52,7 +56,7 @@ export default function NotificheDemos() {
       }
       return response.json();
     },
-    enabled: !!user?.id,
+    enabled: localDiagnosticsEnabled && !!user?.id && isAdmin,
     retry: false,
   });
 
@@ -76,6 +80,17 @@ export default function NotificheDemos() {
     },
   });
 
+  // Preserve the same client-generated UUID after a timeout/network error.
+  // A new composition or a successful reply starts a new explicit send.
+  const pendingUserSend = useRef<{ signature: string; key: string } | null>(null);
+  const pendingSelfTestKey = useRef<string | null>(null);
+  const getUserSendKey = (signature: string) => {
+    if (pendingUserSend.current?.signature !== signature) {
+      pendingUserSend.current = { signature, key: crypto.randomUUID() };
+    }
+    return pendingUserSend.current.key;
+  };
+
   // Mutazione per testare le notifiche push
   const testPushNotification = useMutation({
     mutationFn: async () => {
@@ -84,27 +99,13 @@ export default function NotificheDemos() {
         messaggio: "Questa è una notifica di test per verificare il funzionamento delle notifiche push. Se ricevi questa notifica, significa che le tue preferenze sono configurate correttamente!"
       };
       
-      console.log('🔵 FRONTEND: Invio richiesta POST /api/comunicazioni/send-demos-notification');
-      console.log('🔵 FRONTEND: Dati:', testData);
-      console.log('🔵 FRONTEND: Token presente:', !!localStorage.getItem('auth_token'));
-      
-      // Importa getApiUrl per vedere l'URL completo
-      const { getApiUrl } = await import("@/lib/api-config");
-      const fullUrl = getApiUrl("/api/comunicazioni/send-demos-notification");
-      console.log('🔵 FRONTEND: URL completo:', fullUrl);
-      
       const response = await apiRequest("POST", "/api/comunicazioni/send-demos-notification", testData);
-      
-      console.log('🔵 FRONTEND: Risposta ricevuta, status:', response.status, 'ok:', response.ok);
+      // Consume the response body once: a second response.json() throws after the first read.
       const responseData = await response.json().catch(() => ({}));
-      console.log('🔵 FRONTEND: Response body:', JSON.stringify(responseData));
-      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Errore nell'invio della notifica di test");
+        throw new Error(responseData.error || "Errore nell'invio della notifica di test");
       }
-      
-      return response.json();
+      return responseData;
     },
     onSuccess: (data) => {
       const stats = data.data?.statistiche;
@@ -141,7 +142,7 @@ export default function NotificheDemos() {
       }
       return response.json();
     },
-    enabled: !!user?.id && isAdmin, // Auto-verifica quando la pagina si carica
+    enabled: false, // Explicit local click only; debug GET can send a real FCM push
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -156,7 +157,8 @@ export default function NotificheDemos() {
       const response = await apiRequest("POST", "/api/comunicazioni/send-user-notification", {
         userId: user.id,
         titolo: "Test Firebase Admin",
-        messaggio: "Questa è una notifica di test per verificare che Firebase Admin funzioni correttamente."
+        messaggio: "Questa è una notifica di test per verificare che Firebase Admin funzioni correttamente.",
+        idempotencyKey: pendingSelfTestKey.current ?? (pendingSelfTestKey.current = crypto.randomUUID())
       });
       
       if (!response.ok) {
@@ -167,9 +169,14 @@ export default function NotificheDemos() {
       return response.json();
     },
     onSuccess: (data) => {
+      pendingSelfTestKey.current = null;
+      const pushSent = data.data?.push_inviato === true;
       toast({
-        title: "✅ Test riuscito!",
-        description: data.message || "Notifica di test inviata con successo. Controlla il tuo dispositivo.",
+        title: pushSent ? "Test push riuscito" : "Test push non riuscito",
+        description: data.message || (pushSent
+          ? "Firebase ha accettato la notifica di test."
+          : "La notifica è stata salvata nell'app, ma il push non è stato inviato."),
+        variant: pushSent ? "default" : "destructive",
         duration: 5000
       });
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
@@ -195,6 +202,7 @@ export default function NotificheDemos() {
         userId: data.userId,
         titolo: data.titolo,
         messaggio: data.messaggio,
+        idempotencyKey: getUserSendKey(JSON.stringify([data.userId, data.titolo, data.messaggio])),
       });
       
       if (!response.ok) {
@@ -205,14 +213,11 @@ export default function NotificheDemos() {
       return response.json();
     },
     onSuccess: (data) => {
-      const destinatario = data.data?.destinatario;
-      const message = destinatario 
-        ? `Notifica inviata con successo a ${destinatario.nome} ${destinatario.cognome}`
-        : "Notifica inviata con successo";
-      
-      toast({ 
-        title: "Notifica inviata", 
-        description: message,
+      pendingUserSend.current = null;
+      const pushSent = data.data?.push_inviato === true;
+      toast({
+        title: pushSent ? "Notifica salvata e push inviato" : "Notifica salvata nell'app",
+        description: data.message || "La notifica è disponibile nell'app.",
         duration: 5000
       });
       userNotificationForm.reset();
@@ -364,13 +369,18 @@ export default function NotificheDemos() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 flex-1 overflow-y-auto">
+            {!localDiagnosticsEnabled && (
+              <Alert>
+                <AlertDescription>Diagnostica avanzata disponibile solo nello sviluppo locale autorizzato. Il test individuale può essere avviato manualmente.</AlertDescription>
+              </Alert>
+            )}
             <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
                 className="flex-1"
                 onClick={() => refetchFirebaseDebug()}
-                disabled={isLoadingFirebaseDebug}
+                disabled={!localDiagnosticsEnabled || isLoadingFirebaseDebug}
               >
                 {isLoadingFirebaseDebug ? (
                   <>
@@ -389,7 +399,7 @@ export default function NotificheDemos() {
                 variant="default"
                 className="flex-1"
                 onClick={() => testSelfNotification.mutate()}
-                disabled={testSelfNotification.isPending || !firebaseDebugData?.data?.stato_inizializzazione?.admin_disponibile}
+                disabled={testSelfNotification.isPending}
               >
                 {testSelfNotification.isPending ? (
                   <>

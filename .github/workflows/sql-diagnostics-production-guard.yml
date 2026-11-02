@@ -1,0 +1,102 @@
+name: SQL Diagnostics Production Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api/app.js'
+      - 'api/routes/health.js'
+      - 'api/routes/database.js'
+      - 'api/routes/test-db.js'
+      - 'api/routes/comunicazioni.js'
+      - 'api/tests/devDbDiagnosticsExposure.test.js'
+      - 'api/tests/appPublicErrorRedaction.test.js'
+      - 'api/tests/individualNotificationInbox.synthetic.test.js'
+      - 'api/tests/notificationIdempotency.postgres.test.js'
+      - 'api/tests/notificationRecipientIsolation.postgres.test.js'
+      - 'api/tests/combinedNotificationPrivacy.synthetic.test.js'
+      - 'sql/manual/20261101_notifications_inbox_idempotency.sql'
+      - 'client/src/pages/NotificheDemos.tsx'
+      - 'client/src/pages/NotificheTotali/index.tsx'
+      - '.github/workflows/sql-diagnostics-production-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: demos_ci
+          POSTGRES_PASSWORD: ci_only_not_production
+          POSTGRES_DB: demos_ci_notifiche
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U demos_ci -d demos_ci_notifiche"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci --ignore-scripts
+      - name: Prove production diagnostic routes fail closed
+        run: node --test api/tests/devDbDiagnosticsExposure.test.js api/tests/appPublicErrorRedaction.test.js api/tests/individualNotificationInbox.synthetic.test.js
+      - name: Prova vincolo UNIQUE e retry simultanei su PostgreSQL temporaneo
+        env:
+          CI: 'true'
+          DEMOS_TEST_DATABASE_URL: postgresql://demos_ci:ci_only_not_production@127.0.0.1:5432/demos_ci_notifiche
+        run: node --test api/tests/notificationIdempotency.postgres.test.js
+      - name: Verify PR 525 inbox writing against PR 494 recipient reads (ephemeral overlay)
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin refs/pull/494/head:refs/remotes/origin/pr-494-notifications
+          pinned='6b33e8306293eee532163a7238026b386e8aff45'
+          actual="$(git rev-parse refs/remotes/origin/pr-494-notifications)"
+          if [ "$actual" != "$pinned" ]; then
+            echo 'PR #494 head changed: review and update pin before trusting integration result' >&2
+            exit 1
+          fi
+          # Only a disposable GitHub runner is modified; no commits, PR merges or deploys.
+          for file in api/routes/notifiche.js api/routes/reazioni-comunicazioni.js api/routes/grazia.js api/tests/civicPrivacyHttp.synthetic.test.js api/tests/notificationRecipientAndReactionsSecurity.test.js; do
+            git show "refs/remotes/origin/pr-494-notifications:$file" > "$file"
+          done
+          node --test api/tests/combinedNotificationPrivacy.synthetic.test.js
+          node --test api/tests/civicPrivacyHttp.synthetic.test.js api/tests/notificationRecipientAndReactionsSecurity.test.js
+
+          # Overlay the #552 redaction update, which is stacked on #494.
+          # An unreviewed change to either branch makes the composition FAIL CLOSED.
+          git fetch --no-tags --depth=1 origin refs/pull/552/head:refs/remotes/origin/pr-552-privacy-logs
+          pinned_552='f784b6fd41b7e3715a880641d84f667c4f8ed1b4'
+          actual_552="$(git rev-parse refs/remotes/origin/pr-552-privacy-logs)"
+          if [ "$actual_552" != "$pinned_552" ]; then
+            echo 'PR #552 head changed: review and update pin before trusting integration result' >&2
+            exit 1
+          fi
+          for file in api/routes/notifiche.js api/tests/civicPrivacyHttp.synthetic.test.js; do
+            git show "refs/remotes/origin/pr-552-privacy-logs:$file" > "$file"
+          done
+          # Tests re-run with PR #525's inbox-first writer and #552's
+          # recipient/privacy/logging readers, without real push or SQL data.
+          node --test api/tests/combinedNotificationPrivacy.synthetic.test.js
+          node --test api/tests/civicPrivacyHttp.synthetic.test.js api/tests/notificationRecipientAndReactionsSecurity.test.js
+
+      - name: Real PostgreSQL HTTP recipient isolation on PR 525 + 494 + 552
+        env:
+          CI: 'true'
+          DEMOS_TEST_DATABASE_URL: postgresql://demos_ci:ci_only_not_production@127.0.0.1:5432/demos_ci_notifiche
+        run: node --test api/tests/notificationRecipientIsolation.postgres.test.js

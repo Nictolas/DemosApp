@@ -134,9 +134,10 @@ const {
   publicLimiter
 } = require('./middleware/rateLimiting');
 
-/** In produzione le route test/migrate/cleanup/debug non sono montate salvo ALLOW_DEV_API_SURFACE=true */
+/** La superficie dev/test/migrate/cleanup/debug è accessibile solo con opt-in nello sviluppo. */
 const isProductionApp = process.env.NODE_ENV === 'production';
-const mountDevApiSurface = !isProductionApp || process.env.ALLOW_DEV_API_SURFACE === 'true';
+const mountDevApiSurface = process.env.NODE_ENV === 'development' &&
+  process.env.ALLOW_DEV_API_SURFACE === 'true';
 
 const app = express();
 
@@ -167,10 +168,8 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('âœ… CORS: Origin autorizzato:', origin);
       callback(null, true);
     } else {
-      console.log('ðŸš¨ CORS: Origin non autorizzato:', origin);
       callback(new Error('Non autorizzato da CORS'));
     }
   },
@@ -183,7 +182,6 @@ const corsOptions = {
 // Middleware CORS aggiuntivo per garantire che gli header siano sempre impostati
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  console.log('ðŸŒ CORS Middleware - Origin:', origin);
   
   // Lista degli origin consentiti
   const allowedOrigins = [
@@ -202,9 +200,6 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    console.log('âœ… CORS: Header impostati per origin:', origin);
-  } else if (origin) {
-    console.log('ðŸš¨ CORS: Origin non autorizzato:', origin);
   }
   
   next();
@@ -213,7 +208,6 @@ app.use((req, res, next) => {
 // Gestione esplicita delle richieste OPTIONS per CORS
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  console.log('ðŸ” CORS OPTIONS richiesta da:', origin);
   
   // Lista degli origin consentiti
   const allowedOrigins = [
@@ -232,9 +226,6 @@ app.options('*', (req, res) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    console.log('âœ… CORS OPTIONS: Header impostati per origin:', origin);
-  } else if (origin) {
-    console.log('ðŸš¨ CORS OPTIONS: Origin non autorizzato:', origin);
   }
   
   res.status(200).end();
@@ -242,8 +233,8 @@ app.options('*', (req, res) => {
 
 app.use(cors(corsOptions));
 
-// DEBUG: Middleware di logging universale - solo in sviluppo (evita accumulo log in produzione)
-if (process.env.NODE_ENV !== 'production') {
+// Universal request/notification debug logger: local development opt-in only.
+if (mountDevApiSurface) {
   app.use((req, res, next) => {
     console.log(`ðŸš¨ UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
     if (req.originalUrl.includes('send-demos-notification')) {
@@ -296,8 +287,8 @@ app.head('/', (req, res) => {
 });
 
 
-// Logging middleware di debug - solo in sviluppo (evita accumulo log in produzione)
-if (process.env.NODE_ENV !== 'production') {
+// Request debug logging (including request headers) is permitted only in explicitly opted-in local development.
+if (mountDevApiSurface) {
   app.use((req, res, next) => {
     console.log(`ðŸ“¡ ${req.method} ${req.path} - ${new Date().toISOString()}`);
     console.log(`ðŸŒ Origin: ${req.headers.origin || 'Nessuna'}`);
@@ -336,7 +327,7 @@ app.use('/api', compatibilityRoutes);
 // Route per servizi
 app.use('/api', servicesRoutes);
 
-// Route di test (non in produzione senza ALLOW_DEV_API_SURFACE)
+// Route di test: solo sviluppo con opt-in esplicito
 if (mountDevApiSurface) {
   app.use('/api/test-opinioni-endpoints', testOpinioniRoutes);
   app.use('/api/test-add-opinione', testAddOpinioneRoutes);
@@ -488,7 +479,7 @@ if (process.env.SECURITY_CENTER_RUNTIME_ENABLED === 'true') {
   });
 }
 
-// Route per migrazioni database / cleanup / test (non in produzione senza ALLOW_DEV_API_SURFACE)
+// Route migrazioni/cleanup/test: solo sviluppo con opt-in esplicito
 if (mountDevApiSurface) {
   app.use('/api/migrations', migrationsRoutes);
   app.use('/api/cleanup', cleanupRoutes);
@@ -498,38 +489,35 @@ if (mountDevApiSurface) {
 
 if (isProductionApp && !mountDevApiSurface) {
   console.log(
-    'ðŸ”’ Route API dev/test/migrate/cleanup non esposte. Per abilitarle: ALLOW_DEV_API_SURFACE=true'
+    'ðŸ”’ Route dev/test/migrate/cleanup non esposte in produzione'
   );
 }
 
-// Gestione errori 404
+// Gestione errori 404. Non riflettere URL o query string forniti dal chiamante.
 app.use('*', (req, res) => {
-  console.log(`âŒ Route non trovata: ${req.method} ${req.originalUrl}`);
+  res.set('Cache-Control', 'no-store');
   res.status(404).json({
     success: false,
     error: 'Route non trovata',
-    message: `La route ${req.method} ${req.originalUrl} non esiste`
+    message: 'La route richiesta non esiste'
   });
 });
 
-// Middleware gestione errori globale (riceve errori da route async grazie a express-async-errors)
+// Le eccezioni restano osservabili attraverso il logger centralizzato,
+// che minimizza il percorso: niente URL grezze, stack o errori nel console log.
 app.use((error, req, res, next) => {
-  console.error('ðŸ’¥ Errore globale:', error);
-  if (error && error.stack) console.error('ðŸ’¥ Stack:', error.stack);
-
   logger.logError(error, req, {
     globalError: true,
-    endpoint: req.originalUrl,
     method: req.method
-  }).catch(logError => {
-    console.error('âŒ Errore logging errore globale:', logError);
+  }).catch(() => {
+    console.error('GLOBAL_ERROR_LOGGING_FAILED');
   });
 
   if (!res.headersSent) {
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Si Ã¨ verificato un errore imprevisto'
+      message: 'Si è verificato un errore imprevisto'
     });
   }
 });
