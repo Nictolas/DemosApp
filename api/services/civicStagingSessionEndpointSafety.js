@@ -4,6 +4,11 @@
 // The operator must copy the EXACT pooler host from Supabase Dashboard Connect;
 // deriving an aws-N host from the project's region is explicitly prohibited.
 // No credential, URL, host, user name or IP is returned or logged.
+// Identity pinned to the single authorized Supabase Demos-Staging project.
+// Stage-scoped environment flags and user names are NOT sufficient: a caller
+// could otherwise provide credentials for another Supabase project.
+const DEMOS_STAGING_PROJECT_REF = 'fkeayjzvtuvzesljhjbc';
+
 function assertCivicStagingSessionEndpoint({
   connectionString,
   projectRef,
@@ -22,6 +27,10 @@ function assertCivicStagingSessionEndpoint({
       typeof expectedPoolerHost !== 'string' ||
       !/^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$/.test(expectedPoolerHost)) {
     throw new Error('CIVIC_STAGING_SESSION_EXACT_ENDPOINT_REQUIRED');
+  }
+
+  if (projectRef !== DEMOS_STAGING_PROJECT_REF) {
+    throw new Error('CIVIC_STAGING_SESSION_WRONG_PROJECT');
   }
 
   if (typeof connectionString !== 'string' || !connectionString) {
@@ -59,4 +68,4 @@ function assertCivicStagingSessionEndpoint({
   return true;
 }
 
-module.exports = { assertCivicStagingSessionEndpoint };
+module.exports = { DEMOS_STAGING_PROJECT_REF, assertCivicStagingSessionEndpoint };
