@@ -67,7 +67,7 @@ test('preflight is disabled before an explicit staging GO; never connects by def
   await assert.rejects(
     run({...env, DATABASE_URL: 'postgresql://postgres:synthetic@localhost:5432/postgres',
       DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: 'APPROVED_READ_ONLY_PREFLIGHT'}),
-    /Refusing non-staging Supabase project or endpoint/
+    /Refusing non-session Supabase staging endpoint/
   );
 });
 
