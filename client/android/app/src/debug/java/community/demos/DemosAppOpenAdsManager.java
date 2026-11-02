@@ -41,6 +41,7 @@ import com.google.android.libraries.ads.mobile.sdk.appopen.AppOpenAdEventCallbac
 final class DemosAppOpenAdsManager {
     private static final String PREFS = "demos_app_open_ads_device_only";
     private static final String QA_LOG_TAG = "DemosAdsQA";
+    private static final long MIN_LOAD_RETRY_MS = 15L * 60L * 1000L;
     private static final String PRIVACY_STATUS_CHANGED_JS =
         "window.dispatchEvent(new Event('demos:app-open-privacy-status-changed'))";
     private static final String LAUNCHES = "native_launch_count";
@@ -60,6 +61,7 @@ final class DemosAppOpenAdsManager {
     private boolean foreground = false;
     private boolean initialized = false;
     private boolean loading = false;
+    private long lastLoadAttemptElapsedMs = 0L;
     private boolean showing = false;
     private boolean privacyFormOpen = false;
     private boolean adultEligible = false; // First-party boolean, no birth year transmitted.
@@ -313,63 +315,62 @@ final class DemosAppOpenAdsManager {
         }, "demos-ads-test-initialization").start();
     }
 
+    // A single Google TEST ad may be preloaded after UMP + adult verification.
+    // Preloading is not an impression. Display is still forbidden once the
+    // application is usable; maybeShowOnlyWhileReallyLoading() rechecks root.
     private void loadOnlyTestAppOpenAd() {
         if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
-            || !adultEligible) return;
-        if (!foreground || loading || readyAd != null || showing || privacyFormOpen) return;
-        if (consentInformation == null || !adultEligible || !consentInformation.canRequestAds() || !adultEligible || !hasExplicitTcfConsent()
+            || !adultEligible || !foreground || loading || showing
+            || privacyFormOpen || activity.isFinishing() || activity.isDestroyed()) return;
+        if (consentInformation == null || !consentInformation.canRequestAds()
+            || !hasExplicitTcfConsent()
             || consentInformation.getConsentStatus()
-                != ConsentInformation.ConsentStatus.OBTAINED) return;
-        if (!hasIntervalElapsed()) return;
+                != ConsentInformation.ConsentStatus.OBTAINED
+            || !hasIntervalElapsed()) return;
 
-        // Never contact the ad network if the app is already usable. This
-        // deliberately means many launches cause zero requests/impressions.
-        final WebView webView = activity.getAppOpenWebView();
-        if (webView == null) return;
-        webView.evaluateJavascript(EMPTY_REACT_ROOT_JS, result -> {
-            if (!"true".equals(result) || !foreground || loading || showing
-                || privacyFormOpen || readyAd != null || activity.isFinishing() || activity.isDestroyed()
-                || !consentInformation.canRequestAds() || !adultEligible || !hasExplicitTcfConsent()
-                || consentInformation.getConsentStatus()
-                    != ConsentInformation.ConsentStatus.OBTAINED
-                || !hasIntervalElapsed()) return;
+        if (readyAd != null) {
+            long ageMs = SystemClock.elapsedRealtime() - readyAtElapsedMs;
+            if (ageMs >= 0 && ageMs < MAX_AD_AGE_MS) return;
+            readyAd.destroy();
+            readyAd = null;
+        }
 
-            loading = true;
-            final long requestConsentGeneration = consentGeneration;
-            if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-request-started");
-            AppOpenAd.load(
-                new AdRequest.Builder(BuildConfig.DEMOS_APP_OPEN_UNIT_ID).build(),
-                new AdLoadCallback<AppOpenAd>() {
-                    @Override
-                    public void onAdLoaded(@NonNull AppOpenAd ad) {
-                        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-loaded");
-                        mainHandler.post(() -> {
-                            loading = false;
-                            if (requestConsentGeneration != consentGeneration
-                                || privacyFormOpen
-                                || activity.isDestroyed()
-                                || activity.isFinishing()
-                                || !foreground || !hasIntervalElapsed()
-                                || !consentInformation.canRequestAds() || !adultEligible || !hasExplicitTcfConsent()
-                                || consentInformation.getConsentStatus()
-                                    != ConsentInformation.ConsentStatus.OBTAINED) {
-                                ad.destroy();
-                                return;
-                            }
-                            readyAd = ad;
-                            readyAtElapsedMs = SystemClock.elapsedRealtime();
-                            maybeShowOnlyWhileReallyLoading();
-                        });
-                    }
-
-                    @Override
-                    public void onAdFailedToLoad(@NonNull LoadAdError error) {
-                        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-load-failed");
-                        mainHandler.post(() -> loading = false);
-                    }
+        final long nowElapsedMs = SystemClock.elapsedRealtime();
+        if (lastLoadAttemptElapsedMs > 0 && nowElapsedMs >= lastLoadAttemptElapsedMs
+            && nowElapsedMs - lastLoadAttemptElapsedMs < MIN_LOAD_RETRY_MS) return;
+        lastLoadAttemptElapsedMs = nowElapsedMs;
+        loading = true;
+        final long requestConsentGeneration = consentGeneration;
+        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-request-started");
+        AppOpenAd.load(
+            new AdRequest.Builder(BuildConfig.DEMOS_APP_OPEN_UNIT_ID).build(),
+            new AdLoadCallback<AppOpenAd>() {
+                @Override
+                public void onAdLoaded(@NonNull AppOpenAd ad) {
+                    if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-loaded");
+                    mainHandler.post(() -> {
+                        loading = false;
+                        if (requestConsentGeneration != consentGeneration
+                            || !adultEligible || privacyFormOpen || activity.isDestroyed()
+                            || activity.isFinishing() || !foreground || !hasIntervalElapsed()
+                            || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
+                            || consentInformation.getConsentStatus()
+                                != ConsentInformation.ConsentStatus.OBTAINED) {
+                            ad.destroy();
+                            return;
+                        }
+                        readyAd = ad;
+                        readyAtElapsedMs = SystemClock.elapsedRealtime();
+                        maybeShowOnlyWhileReallyLoading();
+                    });
                 }
-            );
-        });
+                @Override
+                public void onAdFailedToLoad(@NonNull LoadAdError error) {
+                    if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-load-failed");
+                    mainHandler.post(() -> loading = false);
+                }
+            }
+        );
     }
 
     private void maybeShowOnlyWhileReallyLoading() {
