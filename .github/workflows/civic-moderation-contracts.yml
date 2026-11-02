@@ -24,6 +24,7 @@ on:
       - 'api/routes/attivisti.js'
       - 'api/routes/organizzazioni.js'
       - 'api/tests/subjectProposalPublicMinimization.contract.test.js'
+      - 'api/tests/publicDirectoryHttp.synthetic.test.js'
       - 'api/tests/approvedSubjectResumePrivacy.contract.test.js'
       - 'api/tests/approvedSubjectResume.behavior.test.js'
       - 'client/src/hooks/useApprovedSubjectResumeRefresh.ts'
@@ -89,6 +90,10 @@ jobs:
         run: node api/tests/civicCatalogueRejectionHttp.synthetic.test.js
       - name: Public directory privacy data-minimization contract
         run: node --test api/tests/subjectProposalPublicMinimization.contract.test.js
+      - name: Anonymous public directory HTTP privacy (synthetic database)
+        env:
+          NODE_PATH: /tmp/demos-http-test/node_modules
+        run: node --test api/tests/publicDirectoryHttp.synthetic.test.js
       - name: Directory foreground stale-title privacy contract
         run: node --test api/tests/approvedSubjectResumePrivacy.contract.test.js
       - name: Amnesty / head-of-state gates (when present)
