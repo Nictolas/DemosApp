@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.os.SystemClock;
 import android.util.Log;
 import android.webkit.WebView;
@@ -49,6 +50,7 @@ final class DemosAppOpenAdsManager {
 
     private final MainActivity activity;
     private final SharedPreferences preferences;
+    private final SharedPreferences tcfPreferences;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private ConsentInformation consentInformation;
@@ -65,6 +67,7 @@ final class DemosAppOpenAdsManager {
     DemosAppOpenAdsManager(MainActivity activity) {
         this.activity = activity;
         this.preferences = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        this.tcfPreferences = PreferenceManager.getDefaultSharedPreferences(activity);
     }
 
     void onCreate() {
@@ -105,7 +108,8 @@ final class DemosAppOpenAdsManager {
                         // distinguish every denied TCF purpose; test rejection explicitly.
                     if (consentInformation.canRequestAds()
                         && consentInformation.getConsentStatus()
-                            == ConsentInformation.ConsentStatus.OBTAINED) {
+                            == ConsentInformation.ConsentStatus.OBTAINED
+                        && hasExplicitTcfConsent()) {
                         initializeSdk();
                     }
                     });
@@ -126,10 +130,30 @@ final class DemosAppOpenAdsManager {
         Log.i(QA_LOG_TAG, stage
             + " status=" + consentInformation.getConsentStatus()
             + " canRequestAds=" + consentInformation.canRequestAds()
+            + " explicitTcf=" + hasExplicitTcfConsent()
             + " privacyOptions=" + consentInformation.getPrivacyOptionsRequirementStatus());
     }
 
+    // Per the IAB TCF specification, a negative choice may still leave UMP's
+    // general canRequestAds() true (limited ads). DEMOS expressly prohibits
+    // any advertising request without Purpose 1 AND Google vendor opt-in.
+    // This adds a stricter product gate; UMP still remains the CMP authority.
+    private boolean hasExplicitTcfConsent() {
+        try {
+            return AppOpenTcfConsentPolicy.allowsGoogleNonPersonalizedAdRequest(
+                tcfPreferences.getString("IABTCF_PurposeConsents", ""),
+                tcfPreferences.getString("IABTCF_VendorConsents", ""));
+        } catch (ClassCastException corruptConsentData) {
+            return false;
+        }
+    }
+
     void onResume() {
+        // A previously loaded ad must be discarded if permission disappeared.
+        if (!hasExplicitTcfConsent() && readyAd != null) {
+            readyAd.destroy();
+            readyAd = null;
+        }
         foreground = true;
         if (initialized) loadOnlyTestAppOpenAd();
         maybeShowOnlyWhileReallyLoading();
@@ -170,7 +194,8 @@ final class DemosAppOpenAdsManager {
             // We never initialize/request if the current consent is not sufficient.
             if (consentInformation.canRequestAds()
                 && consentInformation.getConsentStatus()
-                    == ConsentInformation.ConsentStatus.OBTAINED) {
+                    == ConsentInformation.ConsentStatus.OBTAINED
+                        && hasExplicitTcfConsent()) {
                 initializeSdk();
                 if (initialized) loadOnlyTestAppOpenAd();
             }
@@ -209,7 +234,9 @@ final class DemosAppOpenAdsManager {
     }
 
     private void initializeSdk() {
-        if (initialized || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG) return;
+        if (initialized || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG
+            || !hasExplicitTcfConsent()) return;
+        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "sdk-initialize-approved");
         initialized = true;
 
         // PPT disables personalized ads for the entire session before any load.
@@ -234,7 +261,7 @@ final class DemosAppOpenAdsManager {
     private void loadOnlyTestAppOpenAd() {
         if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
         if (!foreground || loading || readyAd != null || showing || privacyFormOpen) return;
-        if (consentInformation == null || !consentInformation.canRequestAds()
+        if (consentInformation == null || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
             || consentInformation.getConsentStatus()
                 != ConsentInformation.ConsentStatus.OBTAINED) return;
         if (!hasIntervalElapsed()) return;
@@ -246,7 +273,7 @@ final class DemosAppOpenAdsManager {
         webView.evaluateJavascript(EMPTY_REACT_ROOT_JS, result -> {
             if (!"true".equals(result) || !foreground || loading || showing
                 || privacyFormOpen || readyAd != null || activity.isFinishing() || activity.isDestroyed()
-                || !consentInformation.canRequestAds()
+                || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
                 || consentInformation.getConsentStatus()
                     != ConsentInformation.ConsentStatus.OBTAINED
                 || !hasIntervalElapsed()) return;
@@ -265,7 +292,7 @@ final class DemosAppOpenAdsManager {
                                 || activity.isDestroyed()
                                 || activity.isFinishing()
                                 || !foreground || !hasIntervalElapsed()
-                                || !consentInformation.canRequestAds()
+                                || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
                                 || consentInformation.getConsentStatus()
                                     != ConsentInformation.ConsentStatus.OBTAINED) {
                                 ad.destroy();
@@ -287,7 +314,8 @@ final class DemosAppOpenAdsManager {
     }
 
     private void maybeShowOnlyWhileReallyLoading() {
-        if (!foreground || showing || readyAd == null || !hasIntervalElapsed()) return;
+        if (!foreground || showing || readyAd == null || !hasIntervalElapsed()
+            || !hasExplicitTcfConsent()) return;
 
         long age = SystemClock.elapsedRealtime() - readyAtElapsedMs;
         if (age < 0 || age >= MAX_AD_AGE_MS) {
@@ -309,7 +337,7 @@ final class DemosAppOpenAdsManager {
                     || !foreground
                     || showing
                     || privacyFormOpen
-                    || !consentInformation.canRequestAds()
+                    || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
                     || consentInformation.getConsentStatus()
                         != ConsentInformation.ConsentStatus.OBTAINED
                     || !hasIntervalElapsed()
