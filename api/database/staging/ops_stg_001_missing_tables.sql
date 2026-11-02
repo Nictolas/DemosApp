@@ -2,13 +2,16 @@
 -- No production data, backfill, copy, drop, truncate or external calls.
 -- Project ref MUST be verified externally before execution: fkeayjzvtuvzesljhjbc.
 -- DO NOT RUN during shared staging bootstrap. An explicit operator GO is
--- required after consolidation; this file alone does not verify project identity.
+-- required after consolidation; database identity hash is checked in addition to external project selection.
 -- Run as a single atomic transaction, so an error cannot leave a partial schema.
 BEGIN;
 DO $$
 BEGIN
-  IF to_regclass('public.civic_runtime_identity') IS NULL THEN
-    RAISE EXCEPTION 'STOP: expected Demos-Staging identity marker is absent';
+  -- Both production and staging now have civic_runtime_identity.
+  -- The identity hash is specific to Demos-Staging; absence or mismatch fails closed.
+  IF (SELECT count(*) FROM public.civic_runtime_identity WHERE id = 1
+      AND md5(db_identity::text) = '0cbb6ace68a9f11956904e2a37898ec8') != 1 THEN
+    RAISE EXCEPTION 'STOP: database identity is not Demos-Staging';
   END IF;
   IF to_regclass('public.users') IS NULL THEN
     RAISE EXCEPTION 'STOP: existing staging users table is absent';
