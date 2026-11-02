@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const manager = read('../android/app/src/debug/java/community/demos/DemosAppOpenAdsManager.java');
+const gate = read('../android/app/src/main/java/community/demos/AppOpenFrequencyPolicy.java');
+const javaTest = read('../android/app/src/test/java/community/demos/AppOpenFrequencyPolicyTest.java');
 const gradle = read('../android/app/build.gradle');
 const manifest = read('../android/app/src/debug/AndroidManifest.xml');
 const mainManifest = read('../android/app/src/main/AndroidManifest.xml');
@@ -41,8 +43,26 @@ test('real loading is checked and no arbitrary wait or WebView overrides are add
   assert.match(manager, /SystemClock\.elapsedRealtime\(\)/);
   assert.match(manager, /MAX_AD_AGE_MS/);
   assert.match(manager, /onAdShowedFullScreenContent\(\)/);
-  assert.match(manager, /MIN_INTERVAL_MS/);
-  assert.match(manager, /FIRST_ALLOWED_LAUNCH = 3/);
+  assert.match(manager, /AppOpenFrequencyPolicy\.mayRequest/);
+  assert.match(gate, /MIN_INTERVAL_MS = 24L/);
+  assert.match(gate, /FIRST_ALLOWED_LAUNCH = 3/);
+  assert.match(javaTest, /clockRollbackAndCorruptedPreferencesFailClosed/);
+  assert.match(javaTest, /launchCounterIsOverflowSafe/);
   assert.doesNotMatch(manager, /setWebViewClient\(|setWebChromeClient\(/);
   assert.doesNotMatch(manager, /sleep\(|postDelayed\(/);
+});
+
+
+test('ad requests are suppressed BEFORE network activity once the app loads', () => {
+  const loadMethod = manager.slice(manager.indexOf('private void loadOnlyTestAppOpenAd()'));
+  const readRoot = loadMethod.indexOf('webView.evaluateJavascript(EMPTY_REACT_ROOT_JS');
+  const networkCall = loadMethod.indexOf('AppOpenAd.load(');
+  assert.ok(readRoot >= 0 && networkCall > readRoot, 'screen check precedes network request');
+  assert.match(manager, /!foreground \|\| loading \|\| readyAd != null \|\| showing/);
+  assert.match(manager, /!consentInformation.canRequestAds\(\)/);
+  assert.match(manager, /ConsentStatus\.OBTAINED/);
+  assert.match(manager, /catch \(ClassCastException corruptValue\)/);
+  assert.match(manager, /putLong\(LAST_SHOWN, System.currentTimeMillis\(\)\)\s*\.commit\(\)/);
+  assert.match(mainActivity, /appOpenAdsManager\.onDestroy\(\)/);
+  assert.match(releaseStub, /void onDestroy\(\) \{\}/);
 });
