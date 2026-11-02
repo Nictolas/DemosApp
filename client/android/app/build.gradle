@@ -51,6 +51,10 @@ android {
     }
     buildTypes {
         debug {
+            // Forced-EEA QA must never replace an installed DEMOS package.
+            if (demosDebugUmpEea) {
+                applicationIdSuffix '.qaopen'
+            }
             // Test IDs ufficiali Google: in debug soltanto, con opt-in esplicito.
             buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', demosDebugAppOpenAds.toString()
             buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '"${demosDebugAdMobAppId}"'
