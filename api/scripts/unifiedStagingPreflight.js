@@ -60,6 +60,42 @@ function evaluateCivicProtection(rows, required = CIVIC_PRIVATE_TABLES) {
   };
 }
 
+// Strict civic runtime schema contract, including the users.status field
+// required to exclude inactive accounts. Metadata only: no tokens or users.
+const CIVIC_RUNTIME_COLUMNS = Object.freeze([
+  ['users','id','uuid'], ['users','status','varchar'],
+  ['user_devices','user_id','uuid'], ['user_devices','fcm_token','text'],
+  ['user_devices','is_active','bool'],
+  ['notifiche_preferenze','user_id','uuid'],
+  ['notifiche_preferenze','eci','bool','false'],
+  ['notifiche_preferenze','iniziative_popolari','bool','false'],
+  ['notifiche_preferenze','referendum_abrogativi','bool','false'],
+  ['civic_push_delivery_guard','id','int2'],
+  ['civic_push_delivery_guard','blocked','bool','true'],
+  ['civic_push_delivery_guard','reason_code','text'],
+  ['civic_runtime_identity','id','int2'],
+  ['civic_runtime_identity','db_identity','uuid'],
+  ['civic_new_initiative_notifications','id','int8'],
+  ['civic_new_initiative_notifications','category','text'],
+  ['civic_new_initiative_notifications','official_id','text'],
+  ['civic_new_initiative_notifications','status','text'],
+]);
+function evaluateCivicRuntimeColumns(rows) {
+  const indexed = new Map(rows.map(row => [row.table_name + '.' + row.column_name, row]));
+  const invalid = CIVIC_RUNTIME_COLUMNS.filter(([table,column,type,defaultValue]) => {
+    const row = indexed.get(table + '.' + column);
+    if (!row || row.udt_name !== type) return true;
+    if (!(table === 'users' && column === 'status') && row.is_nullable !== 'NO') return true;
+    if (defaultValue && String(row.column_default || '').trim().toLowerCase() !== defaultValue) return true;
+    return false;
+  }).map(([table,column]) => table + '.' + column);
+  return { ready: invalid.length === 0, checkedCount: CIVIC_RUNTIME_COLUMNS.length - invalid.length,
+    requiredCount: CIVIC_RUNTIME_COLUMNS.length, invalid };
+}
+function evaluateBlockedGuard(rows) {
+  return Array.isArray(rows) && rows.length === 1 && rows[0].blocked === true;
+}
+
 async function run(env = process.env) {
   // The shared staging service is still in bootstrap. Target validation alone
   // does not authorize even a read-only network connection to Demos-Staging.
@@ -99,10 +135,22 @@ async function run(env = process.env) {
            AND c.relname = ANY($2::text[])`,
       ['public', [...CIVIC_PRIVATE_TABLES]]
     );
+    const columnRows = await client.query(
+      `SELECT table_name, column_name, udt_name, is_nullable, column_default
+         FROM information_schema.columns
+         WHERE table_schema = $1 AND table_name = ANY($2::text[])`,
+      ['public', [...new Set(CIVIC_RUNTIME_COLUMNS.map(([table]) => table))]]
+    );
+    const guard = await client.query(
+      'SELECT blocked FROM public.civic_push_delivery_guard WHERE id = 1'
+    );
     const schema = evaluateSchema(tables.rows.map(row => row.table_name));
     const civicProtection = evaluateCivicProtection(protectionRows.rows);
+    const civicColumns = evaluateCivicRuntimeColumns(columnRows.rows);
+    const deliveryBlocked = evaluateBlockedGuard(guard.rows);
     await client.query('ROLLBACK');
-    return { ...schema, ready: schema.ready && civicProtection.ready, civicProtection };
+    return { ...schema, ready: schema.ready && civicProtection.ready &&
+      civicColumns.ready && deliveryBlocked, civicProtection, civicColumns, deliveryBlocked };
   } finally {
     await client.end();
   }
@@ -119,4 +167,6 @@ if (require.main === module) {
   });
 }
 
-module.exports = {STAGING_REF, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, assertStagingTarget, evaluateSchema, evaluateCivicProtection, run};
+module.exports = {STAGING_REF, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, CIVIC_RUNTIME_COLUMNS,
+  assertStagingTarget, evaluateSchema, evaluateCivicProtection,
+  evaluateCivicRuntimeColumns, evaluateBlockedGuard, run};
