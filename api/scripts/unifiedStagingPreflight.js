@@ -42,6 +42,12 @@ function evaluateSchema(present, required = REQUIRED_TABLES) {
 }
 
 async function run(env = process.env) {
+  // The shared staging service is still in bootstrap. Target validation alone
+  // does not authorize even a read-only network connection to Demos-Staging.
+  // A separate, explicit operator GO must be granted after consolidation.
+  if (env.DEMOS_UNIFIED_STAGING_PREFLIGHT_GO !== 'APPROVED_READ_ONLY_PREFLIGHT') {
+    throw new Error('Unified staging preflight not authorized while bootstrap is incomplete');
+  }
   const {sanitizedConnectionString} = assertStagingTarget(env.DATABASE_URL, env);
   const ca = fs.readFileSync(path.join(__dirname, '..', 'certs', 'prod-ca-2021.crt'), 'utf8');
   const client = new Client({
