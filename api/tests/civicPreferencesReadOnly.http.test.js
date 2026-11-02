@@ -199,11 +199,11 @@ test('frontend never offers Save or editable switches until complete preference 
   assert.match(src,/const \[loadSucceeded, setLoadSucceeded\] = useState\(false\)/);
   assert.match(src,/hasCompletePreferences\(response\.data\?\.preferenze\)/);
   assert.match(src,/PREFERENCE_FIELDS\.every\(key => typeof/);
-  assert.match(src,/!loadSucceeded \? \(/);
+  assert.match(src,/!isCurrentOwnerLoaded \? \(/);
   assert.match(src,/Riprova caricamento/);
-  assert.match(src,/!isLoading && loadSucceeded && \(/);
-  assert.match(src,/disabled=\{isSaving \|\| !loadSucceeded\}/);
-  assert.match(src,/if \(!loadSucceeded \|\| isLoading \|\| isSaving\) return/);
+  assert.match(src,/!isLoading && isCurrentOwnerLoaded && \(/);
+  assert.match(src,/disabled=\{isSaving \|\| !isCurrentOwnerLoaded\}/);
+  assert.match(src,/if \(!isCurrentOwnerLoaded \|\| isLoading \|\| isSaving\) return/);
 });
 
 test('frontend ignores stale GET responses after account change or manual retry',()=>{
@@ -221,4 +221,13 @@ test('frontend masks network/server errors and never exposes raw diagnostics',()
   assert.doesNotMatch(src,/console\.(?:error|log)\([^\n]*(?:err|response|user|preferenze)/);
   assert.doesNotMatch(src,/setError\(err\.message\)|throw new Error\(response\.error/);
   assert.match(src,/Impossibile confermare il salvataggio/);
+});
+
+test('UI is never allowed to display previous account choices during an account switch',()=>{
+  const fs=require('node:fs');const path=require('node:path');
+  const src=fs.readFileSync(path.resolve(__dirname,'../../client/src/pages/NotifichePreferenze.tsx'),'utf8');
+  assert.match(src,/const \[loadedOwnerId, setLoadedOwnerId\] = useState<string \| null>\(null\)/);
+  assert.match(src,/loadedOwnerId === user\?\.id/);
+  assert.match(src,/setLoadedOwnerId\(requestingOwnerId \?\? null\)/);
+  assert.match(src,/setLoadedOwnerId\(null\)/);
 });
