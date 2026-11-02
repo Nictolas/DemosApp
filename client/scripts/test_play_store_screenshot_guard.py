@@ -20,7 +20,7 @@ def runner_factory(detail=GOOD, state=b"device\n", packages=b"package:community.
             payload = state
         elif argv[-5:] == ["shell", "pm", "list", "packages", EXPECTED_PACKAGE]:
             payload = packages
-        elif argv[-3:] == ["shell", "dumpsys", "package", EXPECTED_PACKAGE]:
+        elif argv[-4:] == ["shell", "dumpsys", "package", EXPECTED_PACKAGE]:
             payload = detail.encode()
         else:
             raise AssertionError("Unexpected ADB invocation " + repr(argv))
