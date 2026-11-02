@@ -6,6 +6,10 @@ on:
       - 'client/src/lib/advertising-policy.ts'
       - 'client/tests/advertisingPolicy.test.mjs'
       - 'client/tests/appOpenNativeContract.test.mjs'
+      - 'api/utils/adsAdultEligibility.js'
+      - 'api/tests/ads-adult-eligibility.test.js'
+      - 'api/routes/auth/profile.js'
+      - 'client/src/hooks/use-auth.tsx'
       - 'client/tests/advertisingPrivacyNotice.test.mjs'
       - 'client/public/app-ads.txt'
       - 'client/public/ads.txt'
@@ -49,6 +53,9 @@ jobs:
       - name: Test advertising deny-by-default policy
         working-directory: client
         run: node --test tests/advertisingPolicy.test.mjs tests/appOpenNativeContract.test.mjs tests/advertisingPrivacyNotice.test.mjs
+      - name: Test server-side conservative adult eligibility
+        working-directory: client
+        run: node --test ../api/tests/ads-adult-eligibility.test.js
 
   android-native-debug-compile:
     runs-on: ubuntu-latest
