@@ -61,7 +61,7 @@ class PlayScreenshotGuardTests(unittest.TestCase):
                          "installerPackageName=null"),
             GOOD.replace("initiatingPackageName=com.android.vending",
                          "initiatingPackageName=com.android.shell"),
-            GOOD.replace("    installerPackageName=com.android.vending\\n", ""),
+            GOOD.replace("    installerPackageName=com.android.vending\n", ""),
             GOOD.replace("    initiatingPackageName=com.android.vending", ""),
         ]
         for detail in cases:
