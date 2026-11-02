@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
@@ -78,6 +78,8 @@ export default function NotifichePreferenze() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [loadSucceeded, setLoadSucceeded] = useState(false);
+  // An older response must not update the next account's political preferences.
+  const loadGeneration = useRef(0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -86,10 +88,14 @@ export default function NotifichePreferenze() {
     if (user?.id) {
       setLoadSucceeded(false);
       void loadPreferenze();
+    } else {
+      loadGeneration.current += 1;
+      setLoadSucceeded(false);
     }
   }, [user?.id]);
 
   const loadPreferenze = async () => {
+    const generation = ++loadGeneration.current;
     try {
       setIsLoading(true);
       setLoadSucceeded(false);
@@ -101,13 +107,15 @@ export default function NotifichePreferenze() {
       if (!response.success || !hasCompletePreferences(response.data?.preferenze)) {
         throw new Error("PREFERENCES_RESPONSE_INCOMPLETE");
       }
+      if (generation !== loadGeneration.current) return;
       setPreferenze(response.data.preferenze);
       setLoadSucceeded(true);
     } catch {
+      if (generation !== loadGeneration.current) return;
       // Avoid logging or displaying raw provider/SQL errors or private choices.
       setError("Impossibile caricare le preferenze. Riprova prima di modificarle.");
     } finally {
-      setIsLoading(false);
+      if (generation === loadGeneration.current) setIsLoading(false);
     }
   };
 
