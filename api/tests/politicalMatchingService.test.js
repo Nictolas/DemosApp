@@ -33,6 +33,8 @@ function createPool({ rows, consentByUser={}, overrideByUser={}, outage=false })
       }
       const sqlConsent = /COALESCE\s*\(\s*uc\.political_opinions_consent\s*,\s*u\.political_opinions_consent\s*,\s*false\s*\)\s+IS\s+TRUE/i;
       assert.match(sql, /JOIN users u ON u.id = r.user_id/);
+      assert.doesNotMatch(sql, /SELECT\s+r\.\*/i, 'do not transfer all political opinions');
+      assert.match(sql, /SELECT\s+r\.user_id\s*,\s*r\."o1"/, 'project only grade columns');
       assert.match(sql, /LEFT JOIN user_consents uc ON uc.user_id = u.id/);
       assert.match(sql, sqlConsent);
       if (outage) throw Error('SYNTHETIC_DB_OUTAGE');
@@ -84,6 +86,7 @@ test('buildPoliticalMatches applica ranking DEMOS e carica le risposte in batch'
   const answerQueries = pool.calls.filter((call) => call.sql.includes('FROM opinioni_risposte'));
   assert.equal(questionQueries.length, 0, 'opinion catalog is static code and costs no SQL');
   assert.equal(answerQueries.length, 1);
+  assert.doesNotMatch(answerQueries[0].sql, /r\."other_grade"/);
 });
 
 test('utente incompleto non riceve alcun suggerimento', async () => {
