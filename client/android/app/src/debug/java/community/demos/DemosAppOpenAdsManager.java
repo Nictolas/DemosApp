@@ -62,6 +62,8 @@ final class DemosAppOpenAdsManager {
     private boolean loading = false;
     private boolean showing = false;
     private boolean privacyFormOpen = false;
+    private boolean adultEligible = false; // First-party boolean, no birth year transmitted.
+    private boolean umpRequested = false;
     // Invalidate any in-flight load when privacy choices change or Activity dies.
     private long consentGeneration = 0;
     private long readyAtElapsedMs = 0;
@@ -79,6 +81,37 @@ final class DemosAppOpenAdsManager {
             .putInt(LAUNCHES, AppOpenFrequencyPolicy.nextLaunchCount(readLaunchCount()))
             .apply();
 
+        // Test-only synthetic adult, explicitly enabled in Gradle.
+        if (BuildConfig.DEMOS_QA_FORCE_ADULT) setAdultEligible(true);
+    }
+
+    void setAdultEligible(boolean confirmedAdult) {
+        if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
+        if (adultEligible == confirmedAdult) return;
+        adultEligible = confirmedAdult;
+        consentGeneration++;
+        if (readyAd != null) {
+            readyAd.destroy();
+            readyAd = null;
+        }
+        if (!confirmedAdult) {
+            if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "adult-gate-closed");
+            return;
+        }
+        if (!umpRequested) {
+            umpRequested = true;
+            requestAdultConsent();
+        } else if (consentInformation != null
+            && consentInformation.canRequestAds()
+            && consentInformation.getConsentStatus() == ConsentInformation.ConsentStatus.OBTAINED
+            && hasExplicitTcfConsent()) {
+            initializeSdk();
+            if (initialized) loadOnlyTestAppOpenAd();
+        }
+    }
+
+    private void requestAdultConsent() {
+        if (!adultEligible || activity.isFinishing() || activity.isDestroyed()) return;
         // UMP MUST run before initializing Google Mobile Ads or requesting ads.
         consentInformation = UserMessagingPlatform.getConsentInformation(activity);
         ConsentRequestParameters.Builder paramsBuilder = new ConsentRequestParameters.Builder();
@@ -95,7 +128,7 @@ final class DemosAppOpenAdsManager {
             activity,
             params,
             () -> {
-                if (activity.isDestroyed() || activity.isFinishing()) return;
+                if (!adultEligible || activity.isDestroyed() || activity.isFinishing()) return;
                 logQaConsent("updated");
                 notifyPrivacyOptionsChanged();
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(
@@ -104,7 +137,7 @@ final class DemosAppOpenAdsManager {
                         if (BuildConfig.DEMOS_UMP_DEBUG_EEA) {
                             Log.i(QA_LOG_TAG, "form=" + (formError == null ? "ok" : formError.getErrorCode()));
                         }
-                        if (formError != null || activity.isDestroyed() || activity.isFinishing()) return;
+                        if (formError != null || !adultEligible || activity.isDestroyed() || activity.isFinishing()) return;
                         logQaConsent("form-complete");
                         notifyPrivacyOptionsChanged();
                         // Strict debug gate: require UMP to finish and allow ad requests.
@@ -147,6 +180,7 @@ final class DemosAppOpenAdsManager {
         Log.i(QA_LOG_TAG, stage
             + " status=" + consentInformation.getConsentStatus()
             + " canRequestAds=" + consentInformation.canRequestAds()
+            + " adultEligible=" + adultEligible
             + " explicitTcf=" + hasExplicitTcfConsent()
             + " privacyOptions=" + consentInformation.getPrivacyOptionsRequirementStatus());
     }
@@ -167,7 +201,7 @@ final class DemosAppOpenAdsManager {
 
     void onResume() {
         // A previously loaded ad must be discarded if permission disappeared.
-        if (!hasExplicitTcfConsent() && readyAd != null) {
+        if ((!adultEligible || !hasExplicitTcfConsent()) && readyAd != null) {
             readyAd.destroy();
             readyAd = null;
         }
@@ -253,7 +287,7 @@ final class DemosAppOpenAdsManager {
 
     private void initializeSdk() {
         if (initialized || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED || !BuildConfig.DEBUG
-            || !hasExplicitTcfConsent()) return;
+            || !adultEligible || !hasExplicitTcfConsent()) return;
         if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "sdk-initialize-approved");
         initialized = true;
 
@@ -277,9 +311,10 @@ final class DemosAppOpenAdsManager {
     }
 
     private void loadOnlyTestAppOpenAd() {
-        if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
+        if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
+            || !adultEligible) return;
         if (!foreground || loading || readyAd != null || showing || privacyFormOpen) return;
-        if (consentInformation == null || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
+        if (consentInformation == null || !adultEligible || !consentInformation.canRequestAds() || !adultEligible || !hasExplicitTcfConsent()
             || consentInformation.getConsentStatus()
                 != ConsentInformation.ConsentStatus.OBTAINED) return;
         if (!hasIntervalElapsed()) return;
@@ -291,18 +326,20 @@ final class DemosAppOpenAdsManager {
         webView.evaluateJavascript(EMPTY_REACT_ROOT_JS, result -> {
             if (!"true".equals(result) || !foreground || loading || showing
                 || privacyFormOpen || readyAd != null || activity.isFinishing() || activity.isDestroyed()
-                || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
+                || !consentInformation.canRequestAds() || !adultEligible || !hasExplicitTcfConsent()
                 || consentInformation.getConsentStatus()
                     != ConsentInformation.ConsentStatus.OBTAINED
                 || !hasIntervalElapsed()) return;
 
             loading = true;
             final long requestConsentGeneration = consentGeneration;
+            if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-request-started");
             AppOpenAd.load(
                 new AdRequest.Builder(BuildConfig.DEMOS_APP_OPEN_UNIT_ID).build(),
                 new AdLoadCallback<AppOpenAd>() {
                     @Override
                     public void onAdLoaded(@NonNull AppOpenAd ad) {
+                        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-loaded");
                         mainHandler.post(() -> {
                             loading = false;
                             if (requestConsentGeneration != consentGeneration
@@ -310,7 +347,7 @@ final class DemosAppOpenAdsManager {
                                 || activity.isDestroyed()
                                 || activity.isFinishing()
                                 || !foreground || !hasIntervalElapsed()
-                                || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
+                                || !consentInformation.canRequestAds() || !adultEligible || !hasExplicitTcfConsent()
                                 || consentInformation.getConsentStatus()
                                     != ConsentInformation.ConsentStatus.OBTAINED) {
                                 ad.destroy();
@@ -324,6 +361,7 @@ final class DemosAppOpenAdsManager {
 
                     @Override
                     public void onAdFailedToLoad(@NonNull LoadAdError error) {
+                        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-load-failed");
                         mainHandler.post(() -> loading = false);
                     }
                 }
@@ -333,7 +371,7 @@ final class DemosAppOpenAdsManager {
 
     private void maybeShowOnlyWhileReallyLoading() {
         if (!foreground || showing || readyAd == null || !hasIntervalElapsed()
-            || !hasExplicitTcfConsent()) return;
+            || !adultEligible || !hasExplicitTcfConsent()) return;
 
         long age = SystemClock.elapsedRealtime() - readyAtElapsedMs;
         if (age < 0 || age >= MAX_AD_AGE_MS) {
@@ -355,7 +393,7 @@ final class DemosAppOpenAdsManager {
                     || !foreground
                     || showing
                     || privacyFormOpen
-                    || !consentInformation.canRequestAds() || !hasExplicitTcfConsent()
+                    || !consentInformation.canRequestAds() || !adultEligible || !hasExplicitTcfConsent()
                     || consentInformation.getConsentStatus()
                         != ConsentInformation.ConsentStatus.OBTAINED
                     || !hasIntervalElapsed()
@@ -370,11 +408,17 @@ final class DemosAppOpenAdsManager {
                 ad.setAdEventCallback(new AppOpenAdEventCallback() {
                     @Override
                     public void onAdShowedFullScreenContent() {
+                        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-shown");
                         // Frequency cap starts when the ad REALLY appears, never on load.
                         // Persist synchronously before the impression callback returns.
                         preferences.edit()
                             .putLong(LAST_SHOWN, System.currentTimeMillis())
                             .commit();
+                    }
+
+                    @Override
+                    public void onAdImpression() {
+                        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) Log.i(QA_LOG_TAG, "app-open-test-impression");
                     }
 
                     @Override
