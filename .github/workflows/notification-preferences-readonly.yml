@@ -5,6 +5,11 @@ on:
     branches: [main]
     paths:
       - api/routes/notifiche.js
+      - api/services/notificationSchemaCache.js
+      - api/tests/notificationSchemaCache.test.js
+      - api/tests/notificationFeedSchemaPerf.http.test.js
+      - api/tests/notificationBadgePrivacy.contract.test.js
+      - client/src/hooks/useNotificationBadge.ts
       - api/tests/notificationPreferencesReadOnly.http.test.js
       - api/tests/civicPrivacyHttp.synthetic.test.js
       - api/tests/notificationRecipientAndReactionsSecurity.test.js
@@ -31,7 +36,11 @@ jobs:
         run: |
           node --check api/routes/notifiche.js
           node --check api/tests/notificationPreferencesReadOnly.http.test.js
+          node --check api/services/notificationSchemaCache.js
+          node --check api/tests/notificationSchemaCache.test.js
+          node --check api/tests/notificationFeedSchemaPerf.http.test.js
+          node --check api/tests/notificationBadgePrivacy.contract.test.js
       - name: Test preferences HTTP read-only defaults, auth and POST
-        run: node --test api/tests/notificationPreferencesReadOnly.http.test.js
+        run: node --test api/tests/notificationPreferencesReadOnly.http.test.js api/tests/notificationSchemaCache.test.js api/tests/notificationFeedSchemaPerf.http.test.js api/tests/notificationBadgePrivacy.contract.test.js
       - name: Verify recipient isolation and privacy regressions
         run: node --test api/tests/notificationRecipientAndReactionsSecurity.test.js api/tests/civicPrivacyHttp.synthetic.test.js
