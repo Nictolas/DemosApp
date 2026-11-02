@@ -78,6 +78,23 @@ class PlayScreenshotGuardTests(unittest.TestCase):
             with self.subTest(top=top), self.assertRaises(GateError):
                 convert_png_for_play(payload, top, bottom)
 
+    def test_real_rgba_png_requires_crop_and_becomes_rgb24(self):
+        import importlib.util
+        if importlib.util.find_spec("PIL") is None:
+            self.skipTest("Pillow not installed (image conversion tested on QA workstation)")
+        from PIL import Image
+        sample = io.BytesIO()
+        Image.new("RGBA", (1080, 2400), (10, 20, 30, 255)).save(sample, "PNG")
+        with self.assertRaisesRegex(GateError, "Google Play dimensions invalid"):
+            convert_png_for_play(sample.getvalue(), 0, 0)
+        result, before, after = convert_png_for_play(sample.getvalue(), 190, 290)
+        self.assertEqual(before, (1080, 2400))
+        self.assertEqual(after, (1080, 1920))
+        self.assertEqual(result[25], 2)  # PNG RGB24, no alpha
+        with Image.open(io.BytesIO(result)) as image:
+            self.assertEqual(image.mode, "RGB")
+            self.assertEqual(image.size, (1080, 1920))
+
     def test_check_only_has_no_screen_capture(self):
         import play_store_screenshot_guard as guard
         with patch.object(guard, "check_device", return_value=(lambda *a, **k: None,
