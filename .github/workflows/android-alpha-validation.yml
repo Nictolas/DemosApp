@@ -23,6 +23,8 @@ on:
       - 'client/public/icona.png'
       - 'client/package.json'
       - 'client/package-lock.json'
+      - 'client/scripts/play_store_screenshot_guard.py'
+      - 'client/scripts/test_play_store_screenshot_guard.py'
       - '.github/workflows/android-alpha-validation.yml'
   push:
     branches:
@@ -58,6 +60,9 @@ jobs:
       - name: Install API dependencies
         working-directory: api
         run: npm ci --ignore-scripts
+
+      - name: Fail-closed Google Play screenshot gate (no actual screenshots)
+        run: python3 -m unittest discover -s client/scripts -p test_play_store_screenshot_guard.py -v
 
       - name: Run OAuth registration and Android auth regression tests
         run: node --test api/tests/oauthRegistrationService.test.js api/tests/androidAuthNativePushIntegration.test.js
