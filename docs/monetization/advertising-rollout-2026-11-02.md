@@ -62,6 +62,21 @@ Fonti ufficiali:
 - https://support.google.com/admob/answer/10113106
 - https://support.google.com/admob/answer/12226986
 
+## Messaggio europeo AdMob e bozze legali (02/11/2026)
+- In `Privacy e messaggi → Regolamenti europei → Messaggi`, l'account mostra il messaggio **`DEMOS – Consenso pubblicitario UE`**, associato a DEMOS Android, **stato: Bozza**. La levetta `Pubblica` è disattivata: **non affermare che il messaggio sia già pubblicato**.
+- Il modulo di configurazione mostrato nella console presenta tre scelte: `Nega il consenso`, `Acconsenti`, `Gestisci le opzioni`, senza pulsante di chiusura sostitutivo. Targeting: **SEE, Regno Unito e Svizzera**. Lingua primaria: italiano. URL di riferimento inserito: `https://demos.community/privacy-policy`.
+- Impostazioni account della CMP: elenco automatico dei **198 partner comuni** mantenuto; questo **non** implica che tutti ricevano dati su ogni utente. Aggiunta automatica di ulteriori origini annunci disattivata, massimizzazione automatica dei messaggi disattivata, controllo consenso per creatività RTB attivato, controlli di interesse legittimo visibili ma **disattivati per impostazione predefinita**, modalità consenso altri prodotti Google disattivata, funzionalità speciale 2 disattivata, sincronizzazione delle scelte tra app non configurata, 0 finalità per uso proprio dichiarate nella CMP.
+- Nessuna verifica indipendente dell'effettiva pubblicazione CMP o del comportamento del messaggio su dispositivi: prima del rilascio occorre provarlo con il vero **AdMob App ID**, un dispositivo di test e la corretta configurazione UMP. L'app in AdMob risulta ancora `Richiede revisione`.
+- La PR #558 prepara **senza distribuire** una integrazione informativa in `client/src/pages/PrivacyPolicy.tsx` e `client/src/pages/CookiePolicy.tsx`. Il testo distingue sito web e Android, descrive il possibile trattamento di IP, identificatori, interazioni e diagnostica da parte di Google Mobile Ads, indica il futuro consenso/pubblicità non personalizzata e precisa che **nella release attuale non ci sono SDK pubblicitari**. Nessuna dichiarazione di assenza assoluta di dati per gli annunci non personalizzati.
+- È stato aggiunto `client/tests/advertisingPrivacyNotice.test.mjs` alla validazione pubblicitaria CI per prevenire affermazioni errate o cambiamenti non coordinati. **Attenzione:** anche dopo il merge, la pagina web effettiva va distribuita, verificata e revisionata dal DPO, prima di pubblicare il messaggio UMP o una release con annunci.
+- Restano da chiarire prima della pubblicazione definitiva: titolare e ruoli privacy dei partner, basi giuridiche effettive, finalità e retention dei dati SDK, informativa Google Play Data Safety, minori, eventuali trasferimenti extra-SEE, controllo delle categorie politiche/sensibili e verifica che UMP rispetti rifiuto/revoca.
+
+Riferimenti tecnici:
+- https://developers.google.com/admob/android/next-gen/privacy/play-data-disclosure
+- https://developers.google.com/admob/android/next-gen/targeting
+- https://support.google.com/admob/answer/10114014
+- https://support.google.com/admob/answer/10113106
+
 ## Gate ancora aperti prima di attivare pubblicità nelle release
 1. **PARZIALE / ID ACQUISITI:** account AdMob attivo e ID dell'app e della unità App Open verificati nella console (vedi ADS-08). **Richiede revisione**: collegamento idoneo allo store e approvazione dell'app ancora aperti; verificare la corrispondenza con il package Android `community.demos`. Non usare ID di produzione per gli annunci di prova.
 2. Verificare se AdMob fornisce le unità per l'app in test chiuso. In sviluppo usare esclusivamente gli ID di test Google, senza mai generare impression reali di prova.
@@ -74,7 +89,7 @@ Fonti ufficiali:
 9. **DEBUG IMPLEMENTATO:** ignorare e distruggere `AppOpenAd` caricati da oltre **quattro ore** e saltare se la pagina è già caricata; test dispositivi ancora necessari.
 10. Se manca qualsiasi gate, il contenuto parte normalmente, senza pubblicità.
 11. Verificare `app-ads.txt` sul dominio sviluppatore associato allo Store, separato da `ads.txt` web; recuperare la riga **reale** da AdMob.
-12. Prima del rilascio: aggiornare informativa privacy/cookie e registro dei trattamenti, Play Console Data Safety e dichiarazione Ads, controllo DPO, test reali (primo avvio, UMP rifiutato/revocato, offline, rotazione, background/foreground, voto, accessibilità e fallimenti rete).
+12. **PARZIALE:** bozze aggiornate delle informative Privacy/Cookie e test CI in PR #558; prima del rilascio restano pubblicazione della versione revisionata, aggiornamento del Registro dei trattamenti, Google Play Data Safety e dichiarazione Ads, controllo DPO, test reali (primo avvio, UMP rifiutato/revocato, offline, rotazione, background/foreground, voto, accessibilità e fallimenti rete).
 
 ## Situazione osservata
 - Su `main`, `client/android/app/build.gradle` non integra AdMob/UMP.
