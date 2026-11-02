@@ -1,6 +1,7 @@
 package community.demos;
 
 import android.os.Bundle;
+import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -16,6 +17,11 @@ public class MainActivity extends BridgeActivity {
             appOpenAdsManager = new DemosAppOpenAdsManager(this);
             appOpenAdsManager.onCreate();
         }
+    }
+
+    // Safe bridge access for the ad eligibility check; do not replace WebViewClient.
+    WebView getAppOpenWebView() {
+        return bridge == null ? null : bridge.getWebView();
     }
 
     @Override
