@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { notificationSchemaCache } = require('../services/notificationSchemaCache');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const {
   isCivicPushEnabled,
@@ -177,40 +178,23 @@ router.get('/', verifyToken, async (req, res) => {
       votiComuniResult = { rows: [] };
     }
     
-    // Recupera da notifiche_demos (senza comune_residenza)
+    // Evita una lettura information_schema per ogni GET, preservando il filtro JWT.
     try {
-      // Verifica colonne disponibili
-      const demosColumns = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_demos'
-      `);
-      const demosCols = demosColumns.rows.map(r => r.column_name);
-      if (!demosCols.includes('titolo') || !demosCols.includes('testo')) {
-        console.warn('⚠️ Colonne titolo o testo mancanti in notifiche_demos');
-        demosResult = { rows: [] };
-      } else {
-        demosResult = await pool.query(`
-          SELECT 
-            id,
-            id_utente,
-            titolo,
-            testo,
-            COALESCE(data, CURRENT_DATE) as data,
-            data_creazione,
-            NULL::TEXT as comune_residenza,
-            'notifiche_demos' as tabella_origine
-          FROM notifiche_demos
-          WHERE (id_utente IS NULL OR id_utente = $1::uuid)
-          ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
-          LIMIT 50
-        `, [user_id]);
-      }
-    } catch (err) {
+      demosResult = await pool.query(`
+        SELECT id, id_utente, titolo, testo,
+               COALESCE(data, CURRENT_DATE) AS data, data_creazione,
+               NULL::TEXT AS comune_residenza,
+               'notifiche_demos' AS tabella_origine
+        FROM notifiche_demos
+        WHERE (id_utente IS NULL OR id_utente = $1::uuid)
+        ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
+        LIMIT 50
+      `, [user_id]);
+    } catch {
       console.error('NOTIF_DEMOS_FAILED');
       demosResult = { rows: [] };
     }
-    
+
     // Cambi di Opinione di Politici/Candidati sostenuti correntemente dall'utente.
     try {
       opinionChangesResult = await pool.query(
@@ -253,13 +237,8 @@ router.get('/', verifyToken, async (req, res) => {
 
     // Recupera da notifiche_comunali (gestisce sia struttura nuova che vecchia)
     try {
-      // Prima verifica quali colonne esistono
-      const columnCheck = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_comunali'
-      `);
-      const existingColumns = columnCheck.rows.map(r => r.column_name);
+      // Cache TTL solo di metadata strutturali (mai contenuti o utenti).
+      const existingColumns = await notificationSchemaCache.columns(pool, 'notifiche_comunali');
       // Costruisci la query in base alle colonne disponibili
       let selectParts = ['id', 'id_utente'];
       
@@ -327,6 +306,9 @@ router.get('/', verifyToken, async (req, res) => {
       
       comunaliResult = await pool.query(query);
     } catch (err) {
+      if (err?.code === '42703' || err?.code === '42P01') {
+        notificationSchemaCache.invalidate('notifiche_comunali');
+      }
       console.error('NOTIF_MUNICIPAL_FAILED');
       comunaliResult = { rows: [] };
     }
@@ -334,23 +316,10 @@ router.get('/', verifyToken, async (req, res) => {
     // Recupera da notifiche_avvistamenti
     let avvistamentiResult = { rows: [] };
     try {
-      const tableExists = await pool.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'notifiche_avvistamenti'
-        )
-      `);
-      
-      if (tableExists.rows[0]?.exists) {
-        // Verifica colonne disponibili per costruire la query dinamicamente
-        const columnsResult = await pool.query(`
-          SELECT column_name 
-          FROM information_schema.columns 
-          WHERE table_name = 'notifiche_avvistamenti'
-          AND table_schema = 'public'
-        `);
-        const availableColumns = columnsResult.rows.map(r => r.column_name);
+      // Un utente senza comune non riceve avvistamenti: zero query in questo caso.
+      if (userComuneResidenza) {
+        const availableColumns = await notificationSchemaCache.columns(pool, 'notifiche_avvistamenti');
+        if (availableColumns.length > 0) {
         // Costruisci la query solo con colonne esistenti (escludi esplicitamente 'testo' e 'titolo')
         const selectColumns = [
           'id',
@@ -402,10 +371,12 @@ router.get('/', verifyToken, async (req, res) => {
           throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
         }
         avvistamentiResult = await pool.query(queryText, queryParams);
-      } else {
-        console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
+        }
       }
     } catch (err) {
+      if (err?.code === '42703' || err?.code === '42P01') {
+        notificationSchemaCache.invalidate('notifiche_avvistamenti');
+      }
       console.error('NOTIF_SIGHTINGS_FAILED');
       avvistamentiResult = { rows: [] };
     }
