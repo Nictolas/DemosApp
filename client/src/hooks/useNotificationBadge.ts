@@ -11,7 +11,7 @@ export const useNotificationBadge = () => {
       if (!user?.id) return 0;
       
       try {
-        const response = await apiRequest("GET", `/api/notifiche?user_id=${user.id}`);
+        const response = await apiRequest("GET", "/api/notifiche");
         if (!response || !response.success) return 0;
         
         const notifiche = response.notifiche || [];
@@ -21,15 +21,15 @@ export const useNotificationBadge = () => {
           notifica.status !== 'letta'
         );
         
-        console.log('🔔 Badge notifiche aggiornato:', unreadNotifications.length, 'non lette');
         return unreadNotifications.length;
-      } catch (error) {
-        console.error('Errore nel recupero notifiche per badge:', error);
+      } catch {
+        // Non stampare risposte o dettagli personali nei log del browser.
         return 0;
       }
     },
-    enabled: !!user,
-    refetchInterval: 45000, // 45 secondi: riduce carico backend
+    enabled: Boolean(user?.id),
+    refetchInterval: 45000, // Manteniamo la frequenza attuale in primo piano.
+    refetchIntervalInBackground: false, // Non scaricare l'intero feed a scheda nascosta.
     staleTime: 30000, // 30 secondi: evita refetch continui durante scroll
     refetchOnWindowFocus: true,
   });
