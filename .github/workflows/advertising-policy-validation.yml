@@ -72,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           ./gradlew :app:dependencies --configuration releaseRuntimeClasspath --no-daemon > /tmp/demos-release-runtime-deps.txt
-          if grep -E '(com\\.google\\.android\\.libraries\\.ads\\.mobile\\.sdk:ads-mobile-sdk|com\\.google\\.android\\.ump:user-messaging-platform)' /tmp/demos-release-runtime-deps.txt; then
+          if grep -F -e 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk' -e 'com.google.android.ump:user-messaging-platform' /tmp/demos-release-runtime-deps.txt; then
             echo 'ERROR: AdMob or UMP dependency leaked into Android release runtime'
             exit 1
           fi
