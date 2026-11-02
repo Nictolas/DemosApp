@@ -87,6 +87,9 @@ final class DemosAppOpenAdsManager {
 
     void setAdultEligible(boolean confirmedAdult) {
         if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
+        // QA-only synthetic adult must not be undone by the anonymous DEMOS
+        // authentication state on the test emulator. Flag is impossible in release.
+        if (BuildConfig.DEMOS_QA_FORCE_ADULT && !confirmedAdult) return;
         if (adultEligible == confirmedAdult) return;
         adultEligible = confirmedAdult;
         consentGeneration++;
