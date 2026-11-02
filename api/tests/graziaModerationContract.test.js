@@ -13,7 +13,7 @@ test('Grazia proposals are stored privately and one pending per owner via row lo
   assert.match(source, /FROM richieste_grazia WHERE utente_id = \$1 AND status = 'pending'/);
   assert.match(source, /INSERT INTO richieste_grazia \(id, utente_id, nome, url_prova, status, data_creazione\)/);
   assert.match(source, /return res\.status\(409\)/);
-  assert.match(source, /return res\.status\(202\)\.json\(\{ success: true/);
+  assert.match(source, /return res\.status\(202\)\.json\(\{\s*success: true/);
   assert.doesNotMatch(source, /INSERT INTO richieste_grazia \(utente_id, nome_carcerato, motivo, stato/);
 });
 
