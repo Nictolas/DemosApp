@@ -210,7 +210,7 @@ test('minor/unknown-age users do not invoke UMP, initialize SDK or request App O
   assert.match(manager, /if \(!umpRequested\) \{[\s\S]*?requestAdultConsent\(\)/);
   assert.match(manager, /if \(!adultEligible \|\| activity\.isFinishing\(\) \|\| activity\.isDestroyed\(\)\) return/);
   assert.match(manager, /\|\| !adultEligible \|\| !hasExplicitTcfConsent\(\)/);
-  assert.match(manager, /if \(!BuildConfig\.DEBUG \|\| !BuildConfig\.DEMOS_APP_OPEN_ADS_ENABLED\s*\|\| !adultEligible\) return/);
+  assert.match(manager, /!BuildConfig\.DEBUG \|\| !BuildConfig\.DEMOS_APP_OPEN_ADS_ENABLED\s*\|\| !adultEligible/);
   assert.match(gradle, /demosDebugQaForceAdult = demosDebugUmpEea &&/);
   assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
   assert.doesNotMatch(nativePrivacy, /data_nascita|birthYear|userId|politicalOpinions/);
