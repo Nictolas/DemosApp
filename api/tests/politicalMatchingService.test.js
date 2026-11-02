@@ -167,3 +167,19 @@ test('SQL outage cannot fall back to processing unconsented residual answers',as
     /SYNTHETIC_DB_OUTAGE/
   );
 });
+
+
+test('empty subjects and invalid opinion IDs do not broaden political-data reads', async () => {
+  const { getOpinionMapsByUserId } = require('../services/politicalMatchingService');
+  const pool = { calls: 0, async query() { this.calls++; throw Error('query should not run'); } };
+  const emptyUsers = await getOpinionMapsByUserId(pool, [], ['o1']);
+  const emptyGrade = await getOpinionMapsByUserId(pool, ['synthetic-user'], []);
+  assert.equal(emptyUsers.size, 0);
+  assert.deepEqual(emptyGrade.get('synthetic-user'), {});
+  assert.equal(pool.calls, 0);
+  await assert.rejects(
+    getOpinionMapsByUserId(pool, ['synthetic-user'], ['o1', 'bad"; DROP TABLE users; --']),
+    /Invalid opinion catalog ID/
+  );
+  assert.equal(pool.calls, 0, 'reject malformed catalogue IDs before SQL');
+});
