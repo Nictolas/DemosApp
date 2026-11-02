@@ -10,11 +10,17 @@ const STAGING_IDENTITY_HASH = '0cbb6ace68a9f11956904e2a37898ec8';
 const REQUIRED_TABLES = Object.freeze([
   'users', 'user_consents', 'opinioni_risposte', 'notifiche_preferenze',
   'eventi', 'programmi', 'civic_processes', 'iniziative_ministero', 'eci',
+  'user_profile', 'notifiche_demos', 'iniziative_popolari', 'referendum_abrogativi',
+  'active_sessions', 'ice', 'comunicazioni', 'unita_elettorale', 'candidati',
+  'political_candidacies', 'political_mandates', 'parlamento', 'votazioni_parlamento',
 ]);
-// These five internal tables must remain inaccessible to direct client roles.
+// Core staging tables deny direct client access, regardless of any broad Data API defaults.
 const CIVIC_PRIVATE_TABLES = Object.freeze([
   'notifiche_preferenze', 'user_devices', 'civic_new_initiative_notifications',
   'civic_push_delivery_guard', 'civic_runtime_identity',
+  'user_profile', 'notifiche_demos', 'iniziative_popolari', 'referendum_abrogativi',
+  'active_sessions', 'ice', 'comunicazioni', 'unita_elettorale', 'candidati',
+  'political_candidacies', 'political_mandates', 'parlamento', 'votazioni_parlamento',
 ]);
 
 function assertStagingTarget(value, env = process.env) {
