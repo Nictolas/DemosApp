@@ -1,6 +1,10 @@
 -- OPS-STG-001: additive schema for the existing Demos-Staging Supabase project only.
 -- No production data, backfill, copy, drop, truncate or external calls.
--- Project ref verified before execution: fkeayjzvtuvzesljhjbc.
+-- Project ref MUST be verified externally before execution: fkeayjzvtuvzesljhjbc.
+-- DO NOT RUN during shared staging bootstrap. An explicit operator GO is
+-- required after consolidation; this file alone does not verify project identity.
+-- Run as a single atomic transaction, so an error cannot leave a partial schema.
+BEGIN;
 DO $$
 BEGIN
   IF to_regclass('public.civic_runtime_identity') IS NULL THEN
@@ -11,7 +15,10 @@ BEGIN
   END IF;
   IF to_regclass('public.eventi') IS NOT NULL OR
      to_regclass('public.programmi') IS NOT NULL OR
-     to_regclass('public.civic_processes') IS NOT NULL THEN
+     to_regclass('public.civic_processes') IS NOT NULL OR
+     to_regclass('public.civic_process_identifiers') IS NOT NULL OR
+     to_regclass('public.civic_process_source_records') IS NOT NULL OR
+     to_regclass('public.civic_process_reconciliation_candidates') IS NOT NULL THEN
     RAISE EXCEPTION 'STOP: at least one target table already exists; reconcile before retry';
   END IF;
 END;
@@ -169,3 +176,6 @@ ALTER TABLE public.civic_process_reconciliation_candidates ENABLE ROW LEVEL SECU
 REVOKE ALL ON public.eventi, public.programmi, public.civic_processes,
  public.civic_process_identifiers, public.civic_process_source_records,
  public.civic_process_reconciliation_candidates FROM PUBLIC, anon, authenticated;
+
+-- Commit only when ALL tables, indexes, row security and grants succeed.
+COMMIT;
