@@ -9,6 +9,7 @@ test("policy and treatment register never pass today's date off as revision date
   for (const document of [privacy, register]) {
     assert.doesNotMatch(document, /Ultima modifica[^\n]*new Date\(/);
   }
+  // New disclosure added on 02/11; the older register was not revised.
   assert.match(privacy, /Ultima modifica del testo: 02\/11\/2026/);
   assert.match(register, /Ultima modifica del testo: 30\/10\/2026/);
 });
