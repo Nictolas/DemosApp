@@ -168,10 +168,8 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('âœ… CORS: Origin autorizzato:', origin);
       callback(null, true);
     } else {
-      console.log('ðŸš¨ CORS: Origin non autorizzato:', origin);
       callback(new Error('Non autorizzato da CORS'));
     }
   },
@@ -184,7 +182,6 @@ const corsOptions = {
 // Middleware CORS aggiuntivo per garantire che gli header siano sempre impostati
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  console.log('ðŸŒ CORS Middleware - Origin:', origin);
   
   // Lista degli origin consentiti
   const allowedOrigins = [
@@ -203,9 +200,6 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    console.log('âœ… CORS: Header impostati per origin:', origin);
-  } else if (origin) {
-    console.log('ðŸš¨ CORS: Origin non autorizzato:', origin);
   }
   
   next();
@@ -214,7 +208,6 @@ app.use((req, res, next) => {
 // Gestione esplicita delle richieste OPTIONS per CORS
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  console.log('ðŸ” CORS OPTIONS richiesta da:', origin);
   
   // Lista degli origin consentiti
   const allowedOrigins = [
@@ -233,9 +226,6 @@ app.options('*', (req, res) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    console.log('âœ… CORS OPTIONS: Header impostati per origin:', origin);
-  } else if (origin) {
-    console.log('ðŸš¨ CORS OPTIONS: Origin non autorizzato:', origin);
   }
   
   res.status(200).end();
@@ -503,34 +493,31 @@ if (isProductionApp && !mountDevApiSurface) {
   );
 }
 
-// Gestione errori 404
+// Gestione errori 404. Non riflettere URL o query string forniti dal chiamante.
 app.use('*', (req, res) => {
-  console.log(`âŒ Route non trovata: ${req.method} ${req.originalUrl}`);
+  res.set('Cache-Control', 'no-store');
   res.status(404).json({
     success: false,
     error: 'Route non trovata',
-    message: `La route ${req.method} ${req.originalUrl} non esiste`
+    message: 'La route richiesta non esiste'
   });
 });
 
-// Middleware gestione errori globale (riceve errori da route async grazie a express-async-errors)
+// Le eccezioni restano osservabili attraverso il logger centralizzato,
+// che minimizza il percorso: niente URL grezze, stack o errori nel console log.
 app.use((error, req, res, next) => {
-  console.error('ðŸ’¥ Errore globale:', error);
-  if (error && error.stack) console.error('ðŸ’¥ Stack:', error.stack);
-
   logger.logError(error, req, {
     globalError: true,
-    endpoint: req.originalUrl,
     method: req.method
-  }).catch(logError => {
-    console.error('âŒ Errore logging errore globale:', logError);
+  }).catch(() => {
+    console.error('GLOBAL_ERROR_LOGGING_FAILED');
   });
 
   if (!res.headersSent) {
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Si Ã¨ verificato un errore imprevisto'
+      message: 'Si è verificato un errore imprevisto'
     });
   }
 });
