@@ -145,6 +145,50 @@ test('opt-out removes old topic memberships on inactive devices too', async () =
     c.topic === CIVIC_TOPIC_BY_CATEGORY.eci));
 });
 
+test('an inactive token unsubscribe failure blocks all future civic delivery', async () => {
+  const sqlCalls = [];
+  const db = { async query(sql) {
+    sqlCalls.push(sql);
+    if (sql.includes('SELECT d.fcm_token')) return { rows: [{
+      fcm_token: 'stale-fixture-token', is_active: false, user_status: 'a',
+      iniziative_popolari: true, referendum_abrogativi: true, eci: true,
+    }] };
+    if (sql.includes('UPDATE civic_push_delivery_guard')) return { rows: [{ id: 1 }] };
+    throw new Error('Unexpected synthetic query');
+  } };
+  const messaging = fakeMessaging();
+  messaging.unsubscribeFromTopic = async () => { throw new Error('PRIVATE_FCM_DETAIL'); };
+  await assert.rejects(
+    reconcileCivicTopicsForUser(db, 'verified-user', {
+      enabled: true, messaging, lockedClient: db,
+    }),
+    e => e.message === 'CIVIC_TOPIC_SYNC_FAILED' && !e.message.includes('PRIVATE_FCM_DETAIL')
+  );
+  assert.ok(sqlCalls.some(sql => sql.includes('UPDATE civic_push_delivery_guard') &&
+    sql.includes('REVOCATION_UNCERTAIN')));
+});
+
+test('inactive token opt-out failure blocks delivery before accepting new preferences', async () => {
+  const sqlCalls = [];
+  const db = { async query(sql) {
+    sqlCalls.push(sql);
+    if (sql.includes('SELECT fcm_token FROM user_devices')) {
+      return { rows: [{ fcm_token: 'inactive-fixture-token' }] };
+    }
+    if (sql.includes('UPDATE civic_push_delivery_guard')) return { rows: [{ id: 1 }] };
+    throw new Error('Unexpected synthetic query');
+  } };
+  const messaging = fakeMessaging();
+  messaging.unsubscribeFromTopic = async () => { throw new Error('PRIVATE_FCM_DETAIL'); };
+  await assert.rejects(
+    unsubscribeDisabledCivicTopicsForUser(db, 'verified-user', ['eci'], {
+      enabled: true, messaging, lockedClient: db,
+    }), /CIVIC_TOPIC_SYNC_FAILED/
+  );
+  assert.ok(sqlCalls.some(sql => sql.includes('UPDATE civic_push_delivery_guard') &&
+    sql.includes('REVOCATION_UNCERTAIN')));
+});
+
 test('FCM subscription failure is sanitized and never signals opt-out success', async () => {
   const messaging = fakeMessaging();
   messaging.unsubscribeFromTopic = async () => {
