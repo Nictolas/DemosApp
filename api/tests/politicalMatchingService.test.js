@@ -1,31 +1,48 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const {
-  getUserOpinionCompletion,
-  buildPoliticalMatches
-} = require('../services/politicalMatchingService');
+// Stub only the static grade catalogue; exercise the REAL matching service
+// with minimal synthetic IDs, without any PostgreSQL or user data.
+const Module = require('node:module');
+const servicePath = require.resolve('../services/politicalMatchingService');
+const oldLoad = Module._load;
+Module._load = function(request, parent, isMain) {
+  if (parent?.filename === servicePath && request === './opinionCatalog') {
+    return { getOpinionIdsForGrade(grade) {
+      return grade === 'E' ? ['o1','o2'] : grade === 'R' ? ['o1','o2','o3'] : ['o1','o2','o3','o4'];
+    } };
+  }
+  return oldLoad.apply(this, arguments);
+};
+let getUserOpinionCompletion, buildPoliticalMatches;
+try {
+  ({getUserOpinionCompletion, buildPoliticalMatches} = require('../services/politicalMatchingService'));
+} finally {
+  Module._load = oldLoad;
+}
 
-function createPool({ opinionIds, rows }) {
+function createPool({ rows, consentByUser={}, overrideByUser={}, outage=false }) {
   const calls = [];
-
   return {
     calls,
     async query(sql, params) {
-      calls.push({ sql, params });
-
-      if (sql.includes('FROM opinioni_domande')) {
-        return { rows: opinionIds.map((id) => ({ id })) };
+      sql = String(sql);
+      calls.push({sql,params});
+      if (!sql.includes('FROM opinioni_risposte r')) {
+        throw Error('Unexpected extra SQL read');
       }
-
-      if (sql.includes('FROM opinioni_risposte')) {
-        const requestedIds = new Set((params?.[0] || []).map(String));
-        return {
-          rows: rows.filter((row) => requestedIds.has(String(row.user_id)))
-        };
-      }
-
-      throw new Error(`Query non prevista nel fake pool: ${sql}`);
+      const sqlConsent = /COALESCE\s*\(\s*uc\.political_opinions_consent\s*,\s*u\.political_opinions_consent\s*,\s*false\s*\)\s+IS\s+TRUE/i;
+      assert.match(sql, /JOIN users u ON u.id = r.user_id/);
+      assert.match(sql, /LEFT JOIN user_consents uc ON uc.user_id = u.id/);
+      assert.match(sql, sqlConsent);
+      if (outage) throw Error('SYNTHETIC_DB_OUTAGE');
+      const wanted = new Set((params?.[0]||[]).map(String));
+      const allowed = id => {
+        if (Object.hasOwn(overrideByUser,id)) return overrideByUser[id] === true;
+        if (Object.hasOwn(consentByUser,id)) return consentByUser[id] === true;
+        return true; // Existing ranking fixtures explicitly represent consented users.
+      };
+      return {rows:rows.filter(row=>wanted.has(String(row.user_id)) && allowed(String(row.user_id)))};
     }
   };
 }
@@ -65,7 +82,7 @@ test('buildPoliticalMatches applica ranking DEMOS e carica le risposte in batch'
 
   const questionQueries = pool.calls.filter((call) => call.sql.includes('FROM opinioni_domande'));
   const answerQueries = pool.calls.filter((call) => call.sql.includes('FROM opinioni_risposte'));
-  assert.equal(questionQueries.length, 1);
+  assert.equal(questionQueries.length, 0, 'opinion catalog is static code and costs no SQL');
   assert.equal(answerQueries.length, 1);
 });
 
@@ -81,7 +98,7 @@ test('utente incompleto non riceve alcun suggerimento', async () => {
   const result = await buildPoliticalMatches({
     pool,
     userId: 'user',
-    grade: 'N',
+    grade: 'R',
     subjects: [{ id: 'a', nome: 'Anna', cognome: 'Alberti' }]
   });
 
@@ -101,4 +118,49 @@ test('getUserOpinionCompletion considera Non lo so una risposta valida', async (
   assert.equal(result.isComplete, true);
   assert.equal(result.answeredOpinions, 2);
   assert.equal(result.completionPercentage, 100);
+});
+
+test('richiedente senza consenso: nessuna risposta residua viene usata per il matching',async()=>{
+  const pool=createPool({
+    rows:[{user_id:'user',o1:'f',o2:'f',o3:'f',o4:'f'},{user_id:'a',o1:'f',o2:'f',o3:'f',o4:'f'}],
+    consentByUser:{user:true,a:true},overrideByUser:{user:false}
+  });
+  const result=await buildPoliticalMatches({pool,userId:'user',grade:'N',subjects:[{id:'a',nome:'Anna'}]});
+  assert.equal(result.isComplete,false);
+  assert.deepEqual(result.userAnswers,{});
+  assert.deepEqual(result.matches,[]);
+  assert.equal(pool.calls.length,1);
+});
+
+test('candidato con consenso revocato: risposte residue non influiscono sul punteggio',async()=>{
+  const pool=createPool({
+    rows:[{user_id:'user',o1:'f',o2:'c',o3:'i',o4:'f'},{user_id:'a',o1:'f',o2:'c',o3:'i',o4:'f'}],
+    consentByUser:{user:true,a:true},overrideByUser:{a:false}
+  });
+  const result=await buildPoliticalMatches({pool,userId:'user',grade:'N',subjects:[{id:'a',nome:'Anna'}]});
+  assert.equal(result.isComplete,true);
+  assert.equal(result.matches.length,1);
+  assert.equal(result.matches[0].copertura_posizioni,0);
+  assert.equal(result.matches[0].matching_score,0);
+  assert.equal(result.matches[0].posizioni_mancanti,4);
+});
+
+test('consenso esplicito corrente prevale sul legacy, assenza = fail closed',async()=>{
+  const pool=createPool({
+    rows:[{user_id:'user',o1:'i',o2:'c'},{user_id:'other',o1:'f',o2:'f'}],
+    consentByUser:{user:false,other:null},overrideByUser:{user:true}
+  });
+  const ok=await getUserOpinionCompletion(pool,'user','E');
+  const missing=await getUserOpinionCompletion(pool,'other','E');
+  assert.equal(ok.isComplete,true);
+  assert.deepEqual(missing.userAnswers,{});
+  assert.equal(missing.isComplete,false);
+});
+
+test('SQL outage cannot fall back to processing unconsented residual answers',async()=>{
+  const pool=createPool({rows:[],outage:true});
+  await assert.rejects(
+    getUserOpinionCompletion(pool,'user','N'),
+    /SYNTHETIC_DB_OUTAGE/
+  );
 });
