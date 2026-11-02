@@ -46,7 +46,7 @@ const fakePool = {
       assert.doesNotMatch(projection, /\b(?:u\.)?\*\b|\bu\.\*/, 'no SELECT * from public user profiles');
       const row = {};
       for (const [column, value] of Object.entries(privatePerson)) {
-        const pattern = new RegExp('\\b(?:u\\.)?' + column + '\\b(?=\\s*,|\\s+FROM\\b)');
+        const pattern = new RegExp('\\b(?:u\\.)?' + column + '\\b(?=\\s*,|\\s+FROM\\b|\\s*$)');
         if (pattern.test(projection)) row[column] = value;
       }
       if (/\bAS supporters_count\b/i.test(projection)) row.supporters_count = 3;
