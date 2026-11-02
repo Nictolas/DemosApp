@@ -85,6 +85,7 @@ export default function NotificheTotali() {
   const localDiagnosticsEnabled = import.meta.env.DEV &&
     import.meta.env.VITE_ENABLE_NOTIFICATION_DIAGNOSTICS === "true";
 
+  const [activeTab, setActiveTab] = useState("invio");
   const [demosTitle, setDemosTitle] = useState("");
   const [demosMessage, setDemosMessage] = useState("");
   const [selectedUser, setSelectedUser] = useState<{ id: string; displayName: string } | null>(null);
@@ -103,8 +104,8 @@ export default function NotificheTotali() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["notifiche-totali"],
     queryFn: async () => (await apiRequest("GET", "/api/notifiche-totali")).data,
-    enabled: isAdmin,
-    refetchInterval: 60000,
+    enabled: isAdmin && activeTab === "cronologia",
+    refetchInterval: activeTab === "cronologia" ? 60000 : false,
   });
 
   const firebaseStatus = useQuery({
@@ -185,7 +186,7 @@ export default function NotificheTotali() {
           <div><h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3"><Bell className="h-8 w-8 text-pink-600" />Notifiche</h1><p className="text-gray-600 mt-1">Un'unica superficie Admin per invio, diagnostica e cronologia delle notifiche DEMOS.</p></div>
         </div>
 
-        <Tabs defaultValue="invio" className="space-y-5">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
           <TabsList className="grid w-full max-w-2xl grid-cols-3"><TabsTrigger value="invio">Invio</TabsTrigger><TabsTrigger value="cronologia">Cronologia</TabsTrigger><TabsTrigger value="diagnostica">Diagnostica</TabsTrigger></TabsList>
 
           <TabsContent value="invio" className="space-y-5">
