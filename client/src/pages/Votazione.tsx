@@ -296,8 +296,7 @@ const Votazione = React.memo(function Votazione() {
       // Reset del form
       setTitoloVotazione("");
       setVotiEntries([{ id: "1", nome: "", voto: "Favorevole" }]);
-      console.log('🔄 Invalidando notificationBadge dopo invio comunica voti');
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
     },
     onError: (error: any) => {
       toast({
@@ -355,8 +354,7 @@ const Votazione = React.memo(function Votazione() {
       toast({ title: "Comunicazione inviata", description: "La tua comunicazione è stata registrata." });
       form.reset();
       setExistingComunicazione(null);
-      console.log('🔄 Invalidando notificationBadge dopo invio comunicazione');
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
       setTimeout(() => setLocation("/preferiti"), 1000);
     },
     onError: (error: any) => {
