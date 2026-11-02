@@ -13,62 +13,66 @@ const js = ts.transpileModule(source, {
 }).outputText;
 const module = { exports: {} };
 runInNewContext(js, { module, exports: module.exports });
-const { canRequestCommercialAd, MIN_APP_OPEN_INTERVAL_MS } = module.exports;
 
-const web = {
-  placement: 'web_banner',
-  pathname: '/scopri-demos',
+const {
+  canRequestAppOpenAd,
+  MIN_APP_OPEN_INTERVAL_MS,
+  APP_OPEN_ADS_ENABLED_BY_DEFAULT,
+} = module.exports;
+
+const eligible = {
   enabled: true,
   privacyGatePassed: true,
+  nonPersonalizedAdsEnforced: true,
   providerApproved: true,
-  isNativeApp: false,
-};
-const app = {
-  placement: 'android_app_open',
-  pathname: '/',
-  enabled: true,
-  privacyGatePassed: true,
-  providerApproved: true,
-  isNativeApp: true,
+  isNativeAndroid: true,
+  isForeground: true,
   isLoadingScreen: true,
   isFirstUse: false,
+  hasSensitiveContentVisible: false,
+  lastShownAtMs: null,
   nowMs: 1_800_000_000_000,
 };
 
-test('fails closed until ads, privacy and provider are explicitly enabled', () => {
-  for (const key of ['enabled', 'privacyGatePassed', 'providerApproved']) {
-    assert.equal(canRequestCommercialAd({ ...web, [key]: false }), false);
-    assert.equal(canRequestCommercialAd({ ...app, [key]: false }), false);
-  }
-});
-
-test('web ads are allowed only on a public non-sensitive informational route', () => {
-  assert.equal(canRequestCommercialAd(web), true);
-  assert.equal(canRequestCommercialAd({ ...web, pathname: '/scopri-demos/' }), true);
-  for (const pathname of [
-    '/profilo', '/opinioni', '/opinioni-nazionali', '/vota', '/firma',
-    '/sondaggi', '/referendum-abrogativi', '/iniziative-popolari',
-    '/registrazione', '/privacy-policy', '/notifiche', '/eventi',
-    '/scopri-demos/private'
+test('App Open is off by default and gated by explicit approval', () => {
+  assert.equal(APP_OPEN_ADS_ENABLED_BY_DEFAULT, false);
+  for (const key of [
+    'enabled', 'privacyGatePassed', 'nonPersonalizedAdsEnforced',
+    'providerApproved', 'isNativeAndroid', 'isForeground', 'isLoadingScreen'
   ]) {
-    assert.equal(canRequestCommercialAd({ ...web, pathname }), false, pathname);
+    assert.equal(canRequestAppOpenAd({ ...eligible, [key]: false }), false, key);
+    assert.equal(canRequestAppOpenAd({ ...eligible, [key]: undefined }), false, key);
   }
-  assert.equal(canRequestCommercialAd({ ...web, isNativeApp: true }), false);
+  assert.equal(canRequestAppOpenAd(eligible), true);
 });
 
-test('App Open cannot appear on first use, during voting, or after the loading screen', () => {
-  assert.equal(canRequestCommercialAd(app), true);
-  assert.equal(canRequestCommercialAd({ ...app, isFirstUse: true }), false);
-  assert.equal(canRequestCommercialAd({ ...app, isLoadingScreen: false }), false);
-  assert.equal(canRequestCommercialAd({ ...app, pathname: '/sondaggi' }), false);
-  assert.equal(canRequestCommercialAd({ ...app, pathname: '/opinioni' }), false);
-  assert.equal(canRequestCommercialAd({ ...app, isNativeApp: false }), false);
-  assert.equal(canRequestCommercialAd({ ...app, nowMs: undefined }), false);
+test('does not interrupt the first use, or any visible sensitive screen', () => {
+  assert.equal(canRequestAppOpenAd({ ...eligible, isFirstUse: true }), false);
+  assert.equal(canRequestAppOpenAd({ ...eligible, isFirstUse: undefined }), false);
+  assert.equal(canRequestAppOpenAd({ ...eligible, hasSensitiveContentVisible: true }), false);
+  assert.equal(canRequestAppOpenAd({ ...eligible, hasSensitiveContentVisible: undefined }), false);
+  assert.equal(canRequestAppOpenAd({ ...eligible, isLoadingScreen: false }), false);
+  assert.equal(canRequestAppOpenAd({ ...eligible, isForeground: false }), false);
 });
 
-test('App Open is strictly at most once per rolling 24 hours', () => {
-  assert.equal(canRequestCommercialAd({ ...app, lastShownAtMs: app.nowMs - MIN_APP_OPEN_INTERVAL_MS + 1 }), false);
-  assert.equal(canRequestCommercialAd({ ...app, lastShownAtMs: app.nowMs - MIN_APP_OPEN_INTERVAL_MS }), true);
-  assert.equal(canRequestCommercialAd({ ...app, lastShownAtMs: app.nowMs + 1 }), false);
-  assert.equal(canRequestCommercialAd({ ...app, lastShownAtMs: Number.NaN }), false);
+test('never requests an ad twice in a rolling 24-hour interval', () => {
+  const time = eligible.nowMs;
+  assert.equal(canRequestAppOpenAd({ ...eligible, lastShownAtMs: time - MIN_APP_OPEN_INTERVAL_MS + 1 }), false);
+  assert.equal(canRequestAppOpenAd({ ...eligible, lastShownAtMs: time - MIN_APP_OPEN_INTERVAL_MS }), true);
+  assert.equal(canRequestAppOpenAd({ ...eligible, lastShownAtMs: time - MIN_APP_OPEN_INTERVAL_MS - 1 }), true);
+});
+
+test('clock anomalies or corrupt persisted timestamps fail closed', () => {
+  const time = eligible.nowMs;
+  for (const previous of [time + 1, Number.NaN, Number.POSITIVE_INFINITY, -1, undefined]) {
+    assert.equal(canRequestAppOpenAd({ ...eligible, lastShownAtMs: previous }), false);
+  }
+  for (const now of [Number.NaN, Number.POSITIVE_INFINITY, -1]) {
+    assert.equal(canRequestAppOpenAd({ ...eligible, nowMs: now }), false);
+  }
+});
+
+test('no ad SDK/identifiers or web-banner implementation in App Open policy module', () => {
+  assert.doesNotMatch(source, /AppOpenAd\.load\(|MobileAds\.initialize\(|adsbygoogle|AdSenseBanner/);
+  assert.doesNotMatch(source, /politicalOpinions|userId|accountId|voteAnswers|comuneResidenza/);
 });
