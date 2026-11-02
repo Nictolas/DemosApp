@@ -161,3 +161,17 @@ test('source GET contains no SQL mutations and no raw user preference logging', 
   assert.doesNotMatch(getter, /\b(?:INSERT|UPDATE|DELETE|TRUNCATE|CREATE)\s+INTO\b|INSERT\s+INTO|UPDATE\s+notifiche_preferenze/);
   assert.doesNotMatch(getter, /error\.message|console\.log\([^\n]*user_id/);
 });
+
+test('notifications feed uses one authorized data query instead of schema introspection', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.resolve(__dirname, '../routes/notifiche.js'), 'utf8');
+  const from = source.indexOf('// Recupera da notifiche_demos senza interrogare information_schema');
+  const to = source.indexOf('// Cambi di Opinione di Politici/Candidati', from);
+  assert.ok(from > 0 && to > from, 'notification Demos data query present');
+  const block = source.slice(from, to);
+  assert.ok(!block.includes('information_schema.columns'), 'no information_schema query per feed GET');
+  assert.match(block, /WHERE \\(id_utente IS NULL OR id_utente = \\$1::uuid\\)/);
+  assert.match(block, /LIMIT 50/);
+  assert.match(block, /demosResult = \\{ rows: \\[\\] \\};/);
+});
