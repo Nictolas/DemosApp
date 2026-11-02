@@ -54,6 +54,7 @@ final class DemosAppOpenAdsManager {
     private boolean initialized = false;
     private boolean loading = false;
     private boolean showing = false;
+    private boolean privacyFormOpen = false;
     private long readyAtElapsedMs = 0;
 
     DemosAppOpenAdsManager(MainActivity activity) {
@@ -101,6 +102,44 @@ final class DemosAppOpenAdsManager {
 
     void onPause() {
         foreground = false;
+    }
+
+    boolean arePrivacyOptionsRequired() {
+        return BuildConfig.DEBUG
+            && BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED
+            && consentInformation != null
+            && consentInformation.getPrivacyOptionsRequirementStatus()
+                == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED;
+    }
+
+    void showPrivacyOptions(Runnable onSuccess, Runnable onError) {
+        if (!arePrivacyOptionsRequired() || privacyFormOpen || showing
+            || activity.isFinishing() || activity.isDestroyed()) {
+            onError.run();
+            return;
+        }
+        // Do not keep an ad loaded under the previous choice.
+        if (readyAd != null) {
+            readyAd.destroy();
+            readyAd = null;
+        }
+        privacyFormOpen = true;
+        UserMessagingPlatform.showPrivacyOptionsForm(activity, formError -> {
+            privacyFormOpen = false;
+            if (formError != null) {
+                onError.run();
+                return;
+            }
+            // After a change, native eligibility checks current UMP state again.
+            // We never initialize/request if the current consent is not sufficient.
+            if (consentInformation.canRequestAds()
+                && consentInformation.getConsentStatus()
+                    == ConsentInformation.ConsentStatus.OBTAINED) {
+                initializeSdk();
+                if (initialized) loadOnlyTestAppOpenAd();
+            }
+            onSuccess.run();
+        });
     }
 
     void onDestroy() {
@@ -157,7 +196,7 @@ final class DemosAppOpenAdsManager {
 
     private void loadOnlyTestAppOpenAd() {
         if (!BuildConfig.DEBUG || !BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) return;
-        if (!foreground || loading || readyAd != null || showing) return;
+        if (!foreground || loading || readyAd != null || showing || privacyFormOpen) return;
         if (consentInformation == null || !consentInformation.canRequestAds()
             || consentInformation.getConsentStatus()
                 != ConsentInformation.ConsentStatus.OBTAINED) return;
@@ -169,7 +208,7 @@ final class DemosAppOpenAdsManager {
         if (webView == null) return;
         webView.evaluateJavascript(EMPTY_REACT_ROOT_JS, result -> {
             if (!"true".equals(result) || !foreground || loading || showing
-                || readyAd != null || activity.isFinishing() || activity.isDestroyed()
+                || privacyFormOpen || readyAd != null || activity.isFinishing() || activity.isDestroyed()
                 || !consentInformation.canRequestAds()
                 || consentInformation.getConsentStatus()
                     != ConsentInformation.ConsentStatus.OBTAINED
@@ -227,6 +266,7 @@ final class DemosAppOpenAdsManager {
                 if (!"true".equals(result)
                     || !foreground
                     || showing
+                    || privacyFormOpen
                     || !consentInformation.canRequestAds()
                     || consentInformation.getConsentStatus()
                         != ConsentInformation.ConsentStatus.OBTAINED
