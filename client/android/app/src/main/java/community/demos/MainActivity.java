@@ -33,6 +33,14 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onDestroy() {
+        if (appOpenAdsManager != null) {
+            appOpenAdsManager.onDestroy();
+        }
+        super.onDestroy();
+    }
+
+    @Override
     public void onPause() {
         if (appOpenAdsManager != null) {
             appOpenAdsManager.onPause();
