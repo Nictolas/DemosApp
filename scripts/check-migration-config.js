@@ -1,3 +1,8 @@
+'use strict';
+// Legacy helper printed partial credentials and advertised an unapproved migration.
+// Refuse before reading .env or revealing any connection-string/token prefix.
+require('../api/services/legacyAxiomMigrationGate').exitRetiredLegacyAxiomMigration();
+
 // Script per verificare la configurazione necessaria per la migrazione
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });

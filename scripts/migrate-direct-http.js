@@ -1,3 +1,8 @@
+'use strict';
+
+// Historical one-off migration tool. Disable before loading env, SQL or HTTP.
+require('../api/services/legacyAxiomMigrationGate').exitRetiredLegacyAxiomMigration();
+
 // Script per migrare dati da Neon a Axiom usando API HTTP diretta
 // Bypassa problemi di regione SDK locale
 const { Pool } = require('pg');

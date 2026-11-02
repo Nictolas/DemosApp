@@ -1,3 +1,8 @@
+'use strict';
+
+// Historical one-off migration tool. Disable before loading env, SQL or HTTP.
+require('../api/services/legacyAxiomMigrationGate').exitRetiredLegacyAxiomMigration();
+
 // Script per avviare la migrazione Axiom da Render
 // Uso: node scripts/start-axiom-migration.js [--dry-run] [--tables=centralized_logs,audit_logs]
 

@@ -1,3 +1,8 @@
+'use strict';
+
+// Historical one-off migration tool. Disable before loading env, SQL or HTTP.
+require('../api/services/legacyAxiomMigrationGate').exitRetiredLegacyAxiomMigration();
+
 // Script per migrare centralized_logs da Neon ad Axiom usando SOLO colonne GDPR obbligatorie
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
