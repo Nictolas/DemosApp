@@ -78,6 +78,8 @@ export default function NotifichePreferenze() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [loadSucceeded, setLoadSucceeded] = useState(false);
+  const [loadedOwnerId, setLoadedOwnerId] = useState<string | null>(null);
+  const isCurrentOwnerLoaded = loadSucceeded && loadedOwnerId === user?.id;
   // An older response must not update the next account's political preferences.
   const loadGeneration = useRef(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -87,15 +89,18 @@ export default function NotifichePreferenze() {
   useEffect(() => {
     if (user?.id) {
       setLoadSucceeded(false);
+      setLoadedOwnerId(null);
       void loadPreferenze();
     } else {
       loadGeneration.current += 1;
       setLoadSucceeded(false);
+      setLoadedOwnerId(null);
     }
   }, [user?.id]);
 
   const loadPreferenze = async () => {
     const generation = ++loadGeneration.current;
+    const requestingOwnerId = user?.id;
     try {
       setIsLoading(true);
       setLoadSucceeded(false);
@@ -109,6 +114,7 @@ export default function NotifichePreferenze() {
       }
       if (generation !== loadGeneration.current) return;
       setPreferenze(response.data.preferenze);
+      setLoadedOwnerId(requestingOwnerId ?? null);
       setLoadSucceeded(true);
     } catch {
       if (generation !== loadGeneration.current) return;
@@ -120,7 +126,7 @@ export default function NotifichePreferenze() {
   };
 
   const handleSwitch = (key: keyof PreferenzeNotifiche, value: boolean) => {
-    if (!loadSucceeded || isLoading || isSaving) return;
+    if (!isCurrentOwnerLoaded || isLoading || isSaving) return;
     setPreferenze(prev => ({
       ...prev,
       [key]: value
@@ -129,7 +135,7 @@ export default function NotifichePreferenze() {
   };
 
   const handleSave = async () => {
-    if (!loadSucceeded || isLoading || isSaving) return;
+    if (!isCurrentOwnerLoaded || isLoading || isSaving) return;
     try {
       setIsSaving(true);
       setError(null);
@@ -270,7 +276,7 @@ export default function NotifichePreferenze() {
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <span className="ml-3 text-gray-600">Caricamento preferenze...</span>
           </div>
-        ) : !loadSucceeded ? (
+        ) : !isCurrentOwnerLoaded ? (
           <div className="flex justify-center py-8">
             <Button type="button" variant="outline" onClick={() => void loadPreferenze()}>
               Riprova caricamento
@@ -314,7 +320,7 @@ export default function NotifichePreferenze() {
                               </span>
                               <Switch
                                 checked={isActive}
-                                disabled={isSaving || !loadSucceeded}
+                                disabled={isSaving || !isCurrentOwnerLoaded}
                                 onCheckedChange={(checked) => handleSwitch(item.key, checked)}
                                 className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-300"
                               />
@@ -332,7 +338,7 @@ export default function NotifichePreferenze() {
         )}
         </div>
       </div>
-      {!isLoading && loadSucceeded && (
+      {!isLoading && isCurrentOwnerLoaded && (
         <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3 shadow-lg">
           <div className="mx-auto w-full max-w-4xl">
               <Button
