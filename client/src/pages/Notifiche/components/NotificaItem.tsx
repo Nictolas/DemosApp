@@ -830,7 +830,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                   <h2 className="text-xl font-bold text-slate-900">In breve</h2>
                   <p className="text-sm leading-relaxed text-slate-800">
                     {dettagliVotazione.analisi_legge?.spiegazione_generale
-                      ? (dettagliVotazione.analisi_legge.spiegazione_generale.replace(/\\s+/g, ' ').trim().slice(0, 280) +
+                      ? (dettagliVotazione.analisi_legge.spiegazione_generale.replace(/\s+/g, ' ').trim().slice(0, 280) +
                         (dettagliVotazione.analisi_legge.spiegazione_generale.length > 280 ? '…' : ''))
                       : "Una spiegazione semplice non è ancora disponibile. Puoi consultare i dati ufficiali nei dettagli."}
                   </p>
