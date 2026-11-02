@@ -25,9 +25,9 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'API operativa',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    environment: process.env.NODE_ENV || 'development'
+    // Public liveness must not reveal runtime memory or deployment configuration.
+    // Detailed diagnostics belong in authenticated, explicitly enabled tooling.
+    status: 'ok'
   });
 });
 
