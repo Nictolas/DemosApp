@@ -1,0 +1,30 @@
+name: Advertising policy validation
+
+on:
+  pull_request:
+    paths:
+      - 'client/src/lib/advertising-policy.ts'
+      - 'client/tests/advertisingPolicy.test.mjs'
+      - '.github/workflows/advertising-policy-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  advertising-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Test advertising deny-by-default policy
+        working-directory: client
+        run: node --test tests/advertisingPolicy.test.mjs
