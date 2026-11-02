@@ -9,8 +9,6 @@ const STAGING_REF = 'fkeayjzvtuvzesljhjbc';
 const REQUIRED_TABLES = Object.freeze([
   'users', 'user_consents', 'opinioni_risposte', 'notifiche_preferenze',
   'eventi', 'programmi', 'civic_processes', 'iniziative_ministero', 'eci',
-  'user_devices', 'civic_new_initiative_notifications',
-  'civic_push_delivery_guard', 'civic_runtime_identity',
 ]);
 // These five internal tables must remain inaccessible to direct client roles.
 const CIVIC_PRIVATE_TABLES = Object.freeze([
