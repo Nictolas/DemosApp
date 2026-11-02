@@ -8,7 +8,7 @@ const migration = fs.readFileSync(path.join(__dirname, '..', 'database', 'stagin
 const sql = migration.replace(/^\s*--.*$/gm, '');
 
 test('schema migration is additive and locked to the staging marker', () => {
-  assert.match(sql, /to_regclass\('public\.civic_runtime_identity'\)\s+IS NULL/i);
+  assert.match(sql, /md5\(db_identity::text\)\s*=\s*'0cbb6ace68a9f11956904e2a37898ec8'/i);
   assert.doesNotMatch(sql, /\b(TRUNCATE|DROP\s+TABLE|DELETE\s+FROM|INSERT\s+INTO|UPDATE\s+[a-z_]+)\b/i);
 });
 
@@ -62,4 +62,25 @@ test('migration never silently bypasses bootstrap or operator GO', () => {
   assert.match(migration, /DO NOT RUN during shared staging bootstrap/);
   assert.match(migration, /explicit operator GO/);
   assert.match(migration, /MUST be verified externally/);
+});
+
+
+const p0Migration = fs.readFileSync(path.join(__dirname, '..','database','staging','ops_stg_001_p0_app_routes_20261103.sql'),'utf8');
+const p0Sql = p0Migration.replace(/^\s*--.*$/gm,'');
+
+test('P0 app tables migration is staging-identity-locked, atomic and additive',()=>{
+  assert.match(p0Sql, /^\s*BEGIN;\s*DO\s+\$\$/i);
+  assert.match(p0Sql, /md5\(db_identity::text\)\s*=\s*'0cbb6ace68a9f11956904e2a37898ec8'/i);
+  assert.match(p0Sql, /COMMIT;\s*$/i);
+  assert.equal((p0Sql.match(/CREATE TABLE public\./g)||[]).length,4);
+  assert.doesNotMatch(p0Sql, /\b(TRUNCATE|DROP\s+TABLE|DELETE\s+FROM|INSERT\s+INTO|UPDATE\s+public\.)\b/i);
+});
+
+test('P0 app tables deny direct client access and start with RLS enabled',()=>{
+  const names=['user_profile','notifiche_demos','iniziative_popolari','referendum_abrogativi'];
+  for(const name of names){
+    assert.match(p0Sql, new RegExp('CREATE TABLE public\\.'+name+'\\s*\\(', 'i'));
+    assert.match(p0Sql, new RegExp('ALTER TABLE public\\.'+name+'\\s+ENABLE ROW LEVEL SECURITY', 'i'));
+  }
+  assert.match(p0Sql, /REVOKE ALL ON TABLE[\s\S]*FROM PUBLIC,anon,authenticated/i);
 });
