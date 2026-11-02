@@ -11,6 +11,10 @@ const manifest = read('../android/app/src/debug/AndroidManifest.xml');
 const mainManifest = read('../android/app/src/main/AndroidManifest.xml');
 const releaseStub = read('../android/app/src/release/java/community/demos/DemosAppOpenAdsManager.java');
 const mainActivity = read('../android/app/src/main/java/community/demos/MainActivity.java');
+const nativePrivacy = read('../android/app/src/main/java/community/demos/NativeAppOpenPrivacyPlugin.java');
+const clientPrivacy = read('../src/lib/native-app-open-privacy.ts');
+const settings = read('../src/pages/Impostazioni/index.tsx');
+const uiPrivacy = read('../src/pages/Impostazioni/components/AppOpenPrivacyOptions.tsx');
 
 test('release App Open is permanently OFF and only debug contains sample App ID', () => {
   assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_APP_OPEN_ADS_ENABLED', 'false'/);
@@ -65,4 +69,22 @@ test('ad requests are suppressed BEFORE network activity once the app loads', ()
   assert.match(manager, /putLong\(LAST_SHOWN, System.currentTimeMillis\(\)\)\s*\.commit\(\)/);
   assert.match(mainActivity, /appOpenAdsManager\.onDestroy\(\)/);
   assert.match(releaseStub, /void onDestroy\(\) \{\}/);
+});
+test('required UMP privacy options are reachable from Android settings without release ads', () => {
+  assert.match(manager, /getPrivacyOptionsRequirementStatus\(\)/);
+  assert.match(manager, /PrivacyOptionsRequirementStatus\.REQUIRED/);
+  assert.match(manager, /UserMessagingPlatform\.showPrivacyOptionsForm\(/);
+  assert.match(manager, /readyAd\.destroy\(\)/);
+  assert.match(manager, /privacyFormOpen = true/);
+  assert.match(manager, /privacyFormOpen = false/);
+  assert.match(releaseStub, /arePrivacyOptionsRequired\(\) \{ return false; \}/);
+  assert.match(mainActivity, /registerPlugin\(NativeAppOpenPrivacyPlugin\.class\)/);
+  assert.match(mainActivity, /appOpenAdsManager\.showPrivacyOptions\(/);
+  assert.match(nativePrivacy, /@CapacitorPlugin\(name = "NativeAppOpenPrivacy"\)/);
+  assert.match(nativePrivacy, /result\.put\("required",/);
+  assert.match(clientPrivacy, /Capacitor\.isNativePlatform\(\)/);
+  assert.match(clientPrivacy, /Capacitor\.getPlatform\(\) === 'android'/);
+  assert.match(settings, /<AppOpenPrivacyOptions \/>/);
+  assert.match(uiPrivacy, /if \(!required\) return null/);
+  assert.doesNotMatch(nativePrivacy + clientPrivacy, /userId|opinions|voti|politicalAnswers|birthYear|locationId/i);
 });
