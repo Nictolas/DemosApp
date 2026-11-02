@@ -11,6 +11,7 @@ on:
       - 'api/routes/test-db.js'
       - 'api/routes/comunicazioni.js'
       - 'api/tests/devDbDiagnosticsExposure.test.js'
+      - 'api/tests/appPublicErrorRedaction.test.js'
       - 'api/tests/individualNotificationInbox.synthetic.test.js'
       - 'api/tests/notificationIdempotency.postgres.test.js'
       - 'api/tests/notificationRecipientIsolation.postgres.test.js'
@@ -54,7 +55,7 @@ jobs:
         working-directory: api
         run: npm ci --ignore-scripts
       - name: Prove production diagnostic routes fail closed
-        run: node --test api/tests/devDbDiagnosticsExposure.test.js api/tests/individualNotificationInbox.synthetic.test.js
+        run: node --test api/tests/devDbDiagnosticsExposure.test.js api/tests/appPublicErrorRedaction.test.js api/tests/individualNotificationInbox.synthetic.test.js
       - name: Prova vincolo UNIQUE e retry simultanei su PostgreSQL temporaneo
         env:
           CI: 'true'
