@@ -15,6 +15,9 @@ on:
       - 'api/database/staging/ops_stg_001_missing_tables.sql'
       - 'api/database/staging/ops_stg_001_p0_app_routes_20261103.sql'
       - 'api/tests/test_ops_stg_001_p0_migration_postgres.py'
+      - 'api/services/civicStagingSessionEndpointSafety.js'
+      - 'api/scripts/checkCivicStagingSessionOnRender.js'
+      - 'api/tests/civicStagingSessionOnRender.test.js'
       - 'docs/operations/DEMOS_UNIFIED_STAGING_2026-11-02.md'
       - '.github/workflows/unified-staging-offline-safety.yml'
   push:
@@ -29,6 +32,9 @@ on:
       - 'api/database/staging/ops_stg_001_missing_tables.sql'
       - 'api/database/staging/ops_stg_001_p0_app_routes_20261103.sql'
       - 'api/tests/test_ops_stg_001_p0_migration_postgres.py'
+      - 'api/services/civicStagingSessionEndpointSafety.js'
+      - 'api/scripts/checkCivicStagingSessionOnRender.js'
+      - 'api/tests/civicStagingSessionOnRender.test.js'
       - '.github/workflows/unified-staging-offline-safety.yml'
   workflow_dispatch:
 
@@ -58,7 +64,7 @@ jobs:
           node --check api/scripts/unifiedStagingPreflight.js
       - name: Offline bootstrap and preflight contracts (loopback only)
         run: |
-          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSchemaContract.test.js
+          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js
 
   p0-schema-postgres16:
     # Synthetic CI database only, never the shared Render/Supabase staging.
