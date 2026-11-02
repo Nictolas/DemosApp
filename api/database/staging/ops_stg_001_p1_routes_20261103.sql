@@ -156,35 +156,37 @@ CREATE TABLE public."votazioni_parlamento" (
  "sigla_atto" varchar(20),
  "numero_atto" integer
 );
+
+-- Required dependency order: primary/unique keys, checks, foreign keys.
 ALTER TABLE public."active_sessions" ADD CONSTRAINT "active_sessions_pkey" PRIMARY KEY (id);
-ALTER TABLE public."active_sessions" ADD CONSTRAINT "active_sessions_session_token_key" UNIQUE (session_token);
-ALTER TABLE public."candidati" ADD CONSTRAINT "candidati_evento_id_fkey" FOREIGN KEY (evento_id) REFERENCES eventi(id);
-ALTER TABLE public."candidati" ADD CONSTRAINT "candidati_unita_elettorale_id_fkey" FOREIGN KEY (unita_elettorale_id) REFERENCES unita_elettorale(id);
-ALTER TABLE public."candidati" ADD CONSTRAINT "candidati_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id);
 ALTER TABLE public."candidati" ADD CONSTRAINT "candidati_pkey" PRIMARY KEY (id);
+ALTER TABLE public."comunicazioni" ADD CONSTRAINT "comunicazioni_pkey1" PRIMARY KEY (id);
+ALTER TABLE public."ice" ADD CONSTRAINT "ice_pkey" PRIMARY KEY (id);
+ALTER TABLE public."parlamento" ADD CONSTRAINT "parlamento_pkey" PRIMARY KEY (id);
+ALTER TABLE public."political_candidacies" ADD CONSTRAINT "political_candidacies_pkey" PRIMARY KEY (id);
+ALTER TABLE public."political_mandates" ADD CONSTRAINT "political_mandates_pkey" PRIMARY KEY (id);
+ALTER TABLE public."unita_elettorale" ADD CONSTRAINT "unita_elettorale_pkey" PRIMARY KEY (id);
+ALTER TABLE public."votazioni_parlamento" ADD CONSTRAINT "votazioni_parlamento_pkey" PRIMARY KEY (id);
+ALTER TABLE public."active_sessions" ADD CONSTRAINT "active_sessions_session_token_key" UNIQUE (session_token);
+ALTER TABLE public."parlamento" ADD CONSTRAINT "parlamento_uri_key" UNIQUE (uri);
+ALTER TABLE public."votazioni_parlamento" ADD CONSTRAINT "votazioni_parlamento_votazione_hash_key" UNIQUE (votazione_hash);
 ALTER TABLE public."comunicazioni" ADD CONSTRAINT "comunicazioni_institutional_level_check" CHECK (((institutional_level IS NULL) OR ((institutional_level)::text = ANY ((ARRAY['EUROPEO'::character varying, 'CAMERA'::character varying, 'SENATO'::character varying, 'REGIONE'::character varying, 'COMUNE'::character varying])::text[]))));
 ALTER TABLE public."comunicazioni" ADD CONSTRAINT "comunicazioni_vincitore_check" CHECK (((vincitore IS NULL) OR ((vincitore)::text = ANY ((ARRAY['Favorevole'::character varying, 'Contrario'::character varying, 'Astenuto'::character varying])::text[]))));
 ALTER TABLE public."comunicazioni" ADD CONSTRAINT "comunicazioni_voto_dato_check" CHECK (((voto_dato IS NULL) OR ((voto_dato)::text = ANY ((ARRAY['Favorevole'::character varying, 'Contrario'::character varying, 'Astenuto'::character varying])::text[]))));
-ALTER TABLE public."comunicazioni" ADD CONSTRAINT "comunicazioni_id_utente_fkey" FOREIGN KEY (id_utente) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE public."comunicazioni" ADD CONSTRAINT "comunicazioni_pkey1" PRIMARY KEY (id);
-ALTER TABLE public."ice" ADD CONSTRAINT "ice_pkey" PRIMARY KEY (id);
 ALTER TABLE public."parlamento" ADD CONSTRAINT "parlamento_camera_check" CHECK (((camera)::text = ANY (ARRAY[('Camera'::character varying)::text, ('Senato'::character varying)::text])));
-ALTER TABLE public."parlamento" ADD CONSTRAINT "parlamento_pkey" PRIMARY KEY (id);
-ALTER TABLE public."parlamento" ADD CONSTRAINT "parlamento_uri_key" UNIQUE (uri);
 ALTER TABLE public."political_candidacies" ADD CONSTRAINT "political_candidacies_check" CHECK (((ends_at IS NULL) OR (ends_at >= starts_at)));
 ALTER TABLE public."political_candidacies" ADD CONSTRAINT "political_candidacies_result_check" CHECK (((result IS NULL) OR ((result)::text = ANY ((ARRAY['ELECTED'::character varying, 'NOT_ELECTED'::character varying, 'UNKNOWN'::character varying])::text[]))));
 ALTER TABLE public."political_candidacies" ADD CONSTRAINT "political_candidacies_status_check" CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACTIVE'::character varying, 'WITHDRAWN'::character varying, 'ENDED'::character varying, 'CANCELLED'::character varying])::text[])));
-ALTER TABLE public."political_candidacies" ADD CONSTRAINT "political_candidacies_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE public."political_candidacies" ADD CONSTRAINT "political_candidacies_pkey" PRIMARY KEY (id);
 ALTER TABLE public."political_mandates" ADD CONSTRAINT "political_mandates_check" CHECK (((ends_at IS NULL) OR (ends_at >= starts_at)));
 ALTER TABLE public."political_mandates" ADD CONSTRAINT "political_mandates_status_check" CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'ENDED'::character varying, 'CANCELLED'::character varying])::text[])));
-ALTER TABLE public."political_mandates" ADD CONSTRAINT "political_mandates_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE public."political_mandates" ADD CONSTRAINT "political_mandates_pkey" PRIMARY KEY (id);
-ALTER TABLE public."unita_elettorale" ADD CONSTRAINT "unita_elettorale_evento_id_fkey" FOREIGN KEY (evento_id) REFERENCES eventi(id);
-ALTER TABLE public."unita_elettorale" ADD CONSTRAINT "unita_elettorale_pkey" PRIMARY KEY (id);
 ALTER TABLE public."votazioni_parlamento" ADD CONSTRAINT "votazioni_parlamento_camera_check" CHECK (((camera)::text = ANY (ARRAY[('Camera'::character varying)::text, ('Senato'::character varying)::text])));
-ALTER TABLE public."votazioni_parlamento" ADD CONSTRAINT "votazioni_parlamento_pkey" PRIMARY KEY (id);
-ALTER TABLE public."votazioni_parlamento" ADD CONSTRAINT "votazioni_parlamento_votazione_hash_key" UNIQUE (votazione_hash);
+ALTER TABLE public."candidati" ADD CONSTRAINT "candidati_evento_id_fkey" FOREIGN KEY (evento_id) REFERENCES eventi(id);
+ALTER TABLE public."candidati" ADD CONSTRAINT "candidati_unita_elettorale_id_fkey" FOREIGN KEY (unita_elettorale_id) REFERENCES unita_elettorale(id);
+ALTER TABLE public."candidati" ADD CONSTRAINT "candidati_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id);
+ALTER TABLE public."comunicazioni" ADD CONSTRAINT "comunicazioni_id_utente_fkey" FOREIGN KEY (id_utente) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public."political_candidacies" ADD CONSTRAINT "political_candidacies_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE public."political_mandates" ADD CONSTRAINT "political_mandates_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE public."unita_elettorale" ADD CONSTRAINT "unita_elettorale_evento_id_fkey" FOREIGN KEY (evento_id) REFERENCES eventi(id);
 ALTER SEQUENCE public.parlamento_id_seq OWNED BY public."parlamento"."id";
 ALTER SEQUENCE public.votazioni_parlamento_id_seq OWNED BY public."votazioni_parlamento"."id";
 CREATE INDEX idx_active_sessions_expires_at ON public.active_sessions USING btree (expires_at);
