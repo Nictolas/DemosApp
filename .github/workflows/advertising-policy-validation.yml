@@ -6,6 +6,9 @@ on:
       - 'client/src/lib/advertising-policy.ts'
       - 'client/tests/advertisingPolicy.test.mjs'
       - 'client/tests/appOpenNativeContract.test.mjs'
+      - 'client/tests/advertisingPrivacyNotice.test.mjs'
+      - 'client/src/pages/PrivacyPolicy.tsx'
+      - 'client/src/pages/CookiePolicy.tsx'
       - 'client/android/app/build.gradle'
       - 'client/android/app/src/main/java/community/demos/MainActivity.java'
       - 'client/android/app/src/main/java/community/demos/NativeAppOpenPrivacyPlugin.java'
@@ -41,7 +44,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Test advertising deny-by-default policy
         working-directory: client
-        run: node --test tests/advertisingPolicy.test.mjs tests/appOpenNativeContract.test.mjs
+        run: node --test tests/advertisingPolicy.test.mjs tests/appOpenNativeContract.test.mjs tests/advertisingPrivacyNotice.test.mjs
 
   android-native-debug-compile:
     runs-on: ubuntu-latest
