@@ -29,3 +29,11 @@ test("policy does not promise unverified automatic deletion of every table", () 
   assert.doesNotMatch(privacy, /I dati vengono cancellati automaticamente alla scadenza/);
   assert.match(privacy, /effettivi meccanismi di cancellazione applicabili/);
 });
+
+test('public analytics copy matches the citizen sex field in both entry points', () => {
+  for (const name of ['LandingPage.tsx', 'ScopriDemos.tsx']) {
+    const page = load(name);
+    assert.match(page, /Analizza le preferenze per zona, sesso e fasce/);
+    assert.doesNotMatch(page, /Analizza le preferenze per zona, genere e fasce/);
+  }
+});
