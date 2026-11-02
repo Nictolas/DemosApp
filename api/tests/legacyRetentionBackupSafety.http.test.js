@@ -9,7 +9,7 @@ const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const effects = { deletion: 0, backupRead: 0, jobStart: 0, jobStop: 0 };
+const effects = { deletion: 0, backupRead: 0, backupInventory: 0, jobStart: 0, jobStop: 0 };
 const retentionRoute = require.resolve('../routes/admin/data-retention');
 const backupRoute = require.resolve('../routes/admin/backup');
 const originalLoad = Module._load;
@@ -53,9 +53,9 @@ const retentionJob = {
 const backupService = {
   assertLegacyBackupAvailable: retiredError,
   verifyBackupIntegrity() { effects.backupRead++; throw Error('BACKUP_FILE_READ_CALLED'); },
-  getBackupConfig: () => ({ backupDir: '/tmp/synthetic-backups' }),
-  getBackupStats: async () => ({}),
-  getBackupList: async () => []
+  getBackupConfig: () => { effects.backupInventory++; throw Error('BACKUP_CONFIG_READ_CALLED'); },
+  getBackupStats: async () => { effects.backupInventory++; throw Error('BACKUP_STATS_READ_CALLED'); },
+  getBackupList: async () => { effects.backupInventory++; throw Error('BACKUP_LIST_READ_CALLED'); }
 };
 const backupJob = {
   start: () => { effects.jobStart++; },
@@ -145,6 +145,23 @@ test('backup legacy verify never reaches path.join, filesystem or private backup
     assert.equal(json.error, 'LEGACY_APP_BACKUP_RETIRED');
   }
   assert.deepEqual(effects, baseline);
+});
+
+test('retired backup inventory and config cannot inspect disk or reveal configuration', async () => {
+  const baseline = frozen();
+  for (const uri of [
+    '/api/admin/backup/stats',
+    '/api/admin/backup/list',
+    '/api/admin/backup/config'
+  ]) {
+    assert.equal((await call('GET', uri, null)).status, 401, uri);
+    assert.equal((await call('GET', uri, 'synthetic-user')).status, 403, uri);
+    const response = await call('GET', uri, 'synthetic-admin');
+    assert.equal(response.status, 410, uri);
+    assert.match(response.headers.get('cache-control') || '', /no-store/);
+    assert.equal((await response.json()).error, 'LEGACY_APP_BACKUP_RETIRED');
+  }
+  assert.deepEqual(effects, baseline, 'no legacy filesystem or config reads');
 });
 
 test('Admin can still read policies/status and STOP the retention job without destructive calls', async () => {
