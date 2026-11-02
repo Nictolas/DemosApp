@@ -55,8 +55,10 @@ test('does not interrupt the first use, or any visible sensitive screen', () => 
   assert.equal(canRequestAppOpenAd({ ...eligible, isForeground: false }), false);
 });
 
-test('never requests an ad twice in a rolling 24-hour interval', () => {
+test('never requests an ad twice in a rolling 6-hour interval', () => {
   const time = eligible.nowMs;
+  assert.equal(MIN_APP_OPEN_INTERVAL_MS, 6 * 60 * 60 * 1000);
+  assert.equal(canRequestAppOpenAd({ ...eligible, lastShownAtMs: time - 5 * 60 * 60 * 1000 }), false);
   assert.equal(canRequestAppOpenAd({ ...eligible, lastShownAtMs: time - MIN_APP_OPEN_INTERVAL_MS + 1 }), false);
   assert.equal(canRequestAppOpenAd({ ...eligible, lastShownAtMs: time - MIN_APP_OPEN_INTERVAL_MS }), true);
   assert.equal(canRequestAppOpenAd({ ...eligible, lastShownAtMs: time - MIN_APP_OPEN_INTERVAL_MS - 1 }), true);
