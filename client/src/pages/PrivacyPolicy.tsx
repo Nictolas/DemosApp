@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             Informativa sulla Privacy
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Ultima modifica del testo: 30/10/2026
+            <strong>DemosApp</strong> - Ultima modifica del testo: 02/11/2026
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -37,10 +37,10 @@ export default function PrivacyPolicy() {
             
             <h3 className="text-xl font-medium mb-2">2.1 Dati di Registrazione</h3>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Dati anagrafici:</strong> Nome, cognome, anno di nascita, genere</li>
-              <li><strong>Dati di contatto:</strong> Indirizzo email</li>
-              <li><strong>Dati di residenza:</strong> Paese, regione, provincia, comune di residenza</li>
-              <li><strong>Dati di cittadinanza:</strong> Cittadinanza, paese di elezione</li>
+              <li><strong>Dati anagrafici:</strong> Per i cittadini, anno di nascita e sesso; nome e cognome non sono richiesti nella registrazione ordinaria. Per politici e candidati, nome e cognome sono trattati quando pertinenti al profilo.</li>
+              <li><strong>Dati di contatto:</strong> Indirizzo email quando presente o fornito dal metodo di accesso; un account creato soltanto con passkey può non avere un indirizzo email associato.</li>
+              <li><strong>Dati di residenza:</strong> Comune di residenza; provincia e regione possono essere ricavate dal comune per le funzionalità territoriali.</li>
+              <li><strong>Dati di cittadinanza:</strong> Cittadinanza; dati elettorali o di candidatura soltanto quando pertinenti al tipo di profilo.</li>
             </ul>
 
             <h3 className="text-xl font-medium mb-2">2.2 Dati Politici e di Voto</h3>
@@ -55,7 +55,7 @@ export default function PrivacyPolicy() {
             <h3 className="text-xl font-medium mb-2">2.3 Dati Tecnici</h3>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li><strong>Dati di navigazione:</strong> Indirizzo IP, user agent, cookie</li>
-              <li><strong>Dati di autenticazione:</strong> Token di sessione, password (hash)</li>
+              <li><strong>Dati di autenticazione:</strong> Token di sessione, identificativi dei provider di accesso Google/Apple e credenziali pubbliche passkey (WebAuthn), quando applicabili. Non è richiesta una password agli utenti che accedono mediante questi metodi.</li>
               <li><strong>Preferenze:</strong> Impostazioni notifiche, configurazione avatar</li>
             </ul>
           </section>
@@ -159,8 +159,7 @@ export default function PrivacyPolicy() {
                   <strong>Criterio:</strong> Per il tempo necessario a mantenere l'account e fino alla sua cancellazione, salvo dati specifici soggetti a obblighi di legge documentati.
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
-                  <strong>Dati inclusi:</strong> Nome, cognome, email, anno di nascita, cittadinanza, 
-                  dati di residenza, dati di elezione e candidatura
+                  <strong>Dati inclusi:</strong> Anno di nascita, sesso, cittadinanza e comune di residenza per gli account cittadini; email quando presente. Nome, cognome e dati elettorali soltanto per politici, candidati o profili per i quali siano pertinenti.
                 </p>
                 <p className="text-sm text-gray-600">
                   <strong>Motivo:</strong> Erogazione del servizio. Le scritture contabili, se presenti, sono trattate separatamente; l'art. 2220 c.c. non giustifica la conservazione generalizzata dei profili.
@@ -184,10 +183,10 @@ export default function PrivacyPolicy() {
               <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
                 <h4 className="font-semibold text-gray-800 mb-2">🔐 Dati di Autenticazione</h4>
                 <p className="text-gray-700 mb-2">
-                  <strong>Periodo:</strong> 1 anno (365 giorni) dall'ultimo accesso
+                  <strong>Criterio:</strong> Per il tempo necessario alla gestione delle sessioni, dei metodi di accesso e della sicurezza, secondo le scadenze tecniche effettivamente configurate. I periodi dei log sono trattati separatamente.
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
-                  <strong>Dati inclusi:</strong> Hash della password, ultimo accesso, tentativi di login
+                  <strong>Dati inclusi:</strong> Token e identificativi di sessione, credenziali pubbliche passkey o identificativi dei provider di accesso quando applicabili; eventi di accesso e sicurezza secondo le relative policy.
                 </p>
                 <p className="text-sm text-gray-600">
                   <strong>Motivo:</strong> Sicurezza e prevenzione frodi
@@ -320,10 +319,10 @@ export default function PrivacyPolicy() {
             <p className="text-gray-700 mb-3">Implementiamo misure tecniche e organizzative per proteggere i tuoi dati:</p>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
               <li><strong>Crittografia:</strong> Dati trasmessi e memorizzati in forma crittografata</li>
-              <li><strong>Autenticazione sicura:</strong> Auth.js con token JWT</li>
+              <li><strong>Autenticazione:</strong> Accesso Google, Apple o passkey (WebAuthn), con gestione dei token di sessione.</li>
               <li><strong>Database sicuro:</strong> PostgreSQL su Supabase (Frankfurt, UE — `eu-central-1`) con connessioni SSL</li>
               <li><strong>Accesso limitato:</strong> Solo personale autorizzato può accedere ai dati</li>
-              <li><strong>Backup sicuri:</strong> Backup regolari e crittografati</li>
+              <li><strong>Backup e ripristino:</strong> Procedure di sicurezza e conservazione distinte, sottoposte a verifica prima di attestare le garanzie di ripristino.</li>
               <li><strong>Monitoraggio:</strong> Log di accesso e monitoraggio delle attività</li>
             </ul>
 
@@ -333,14 +332,13 @@ export default function PrivacyPolicy() {
               degli utenti solo per le finalità e nei limiti di seguito indicati, nel rispetto del principio di minimizzazione 
               e della base giuridica applicabile.
             </p>
-            <p className="text-gray-700 mb-2 font-medium">Per politici, candidati e candidati-politici (ruoli P, C, CP):</p>
+            <p className="text-gray-700 mb-2 font-medium">Per i profili di politici e candidati:</p>
             <ul className="list-disc pl-6 mb-3 text-gray-700">
               <li>Gli account di queste categorie possono essere creati dagli amministratori per far funzionare la piattaforma; 
                   le opinioni e i voti associati hanno spesso una <strong>fonte esterna</strong> (documenti, dati ufficiali).</li>
               <li>Gli amministratori possono <strong>vedere e modificare</strong> opinioni e voti per questi ruoli per rendere 
                   più efficace il <strong>matching</strong> (confronto con cittadini ed elettori) e per gestire correttamente i profili.</li>
-              <li>Quando il politico o candidato contatta la piattaforma, l’account può essere attribuito a lui (es. cambio email, 
-                  password temporanea); da quel momento il titolare del dato è l’interessato.</li>
+              <li>L'attribuzione di un profilo alla persona interessata richiede una verifica appropriata della titolarità; l'eventuale aggiornamento dei metodi di accesso segue la procedura di sicurezza prevista.</li>
             </ul>
             <p className="text-gray-700 mb-2 font-medium">Per elettori e altre categorie di utenti (es. ruolo E):</p>
             <ul className="list-disc pl-6 mb-3 text-gray-700">
@@ -506,7 +504,7 @@ export default function PrivacyPolicy() {
               <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
                 <h4 className="font-semibold text-gray-800 mb-2">📧 Resend (Servizio Email)</h4>
                 <ul className="text-sm text-gray-700 space-y-1">
-                  <li><strong>Servizio:</strong> Invio email di verifica, reset password e notifiche</li>
+                  <li><strong>Servizio:</strong> Invio delle comunicazioni email operative e delle notifiche previste dal servizio, quando applicabili</li>
                   <li><strong>Ubicazione:</strong> Stati Uniti d'America (con possibili server in UE)</li>
                   <li><strong>Dati trattati:</strong> Indirizzi email, contenuti delle email inviate</li>
                   <li><strong>Garanzie:</strong> Standard Contractual Clauses (SCC) approvate dalla Commissione Europea</li>
