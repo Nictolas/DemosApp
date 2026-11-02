@@ -9,6 +9,17 @@ const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceCh
 
 const router = express.Router();
 
+// Legacy data/schema migration through public HTTP is retired. A privileged
+// SQL migration must be reviewed and executed outside request handling.
+function retiredAmnestyMaintenance(_req, res) {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  return res.status(410).json({
+    success: false,
+    code: 'AMNISTIA_MAINTENANCE_RETIRED',
+    error: 'Manutenzione schema disponibile solo tramite migrazione verificata'
+  });
+}
+
 // GET /api/amnistia - Ottieni leggi per amnistia
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -230,169 +241,12 @@ router.post('/', verifyToken, (_req, res) => {
   });
 });
 
-// POST /api/amnistia/migrate - Migra dati da voti_amnistia
-router.post('/migrate', verifyToken, requireAdmin, async (req, res) => {
-  try {
-    console.log('🔄 Avviando migrazione dati amnistia...');
-    
-    // 1. Aggiungi colonne se non esistono
-    await pool.query(`
-      ALTER TABLE amnistia 
-      ADD COLUMN IF NOT EXISTS articolo VARCHAR(255),
-      ADD COLUMN IF NOT EXISTS descrizione TEXT
-    `);
-    console.log('✅ Colonne aggiunte alla tabella amnistia');
-    
-    // 2. Ottieni leggi distinte da voti_amnistia
-    const votiData = await pool.query(`
-      SELECT DISTINCT legge, COUNT(*) as voti_count
-      FROM voti_amnistia 
-      GROUP BY legge
-      ORDER BY voti_count DESC
-    `);
-    
-    console.log(`📊 Trovate ${votiData.rows.length} leggi distinte in voti_amnistia`);
-    
-    let inserted = 0;
-    let skipped = 0;
-    
-    // 3. Inserisci i dati nella tabella amnistia
-    for (const row of votiData.rows) {
-      // Controlla se la legge esiste già in amnistia
-      const existing = await pool.query(
-        'SELECT id FROM amnistia WHERE legge = $1',
-        [row.legge]
-      );
-      
-      if (existing.rows.length === 0) {
-        // Inserisci la nuova legge
-        await pool.query(`
-          INSERT INTO amnistia (legge, articolo, descrizione) 
-          VALUES ($1, $2, $3)
-        `, [
-          row.legge,
-          'Art. 1', // Articolo di default
-          `Amnistia per ${row.legge}` // Descrizione di default
-        ]);
-        inserted++;
-        console.log(`✅ Inserita: ${row.legge}`);
-      } else {
-        skipped++;
-        console.log(`⚠️ Già esistente: ${row.legge}`);
-      }
-    }
-    
-    // 4. Verifica il risultato
-    const finalCount = await pool.query('SELECT COUNT(*) FROM amnistia');
-    
-    res.json({
-      success: true,
-      message: 'Migrazione completata con successo',
-      data: {
-        leggiTrovate: votiData.rows.length,
-        inserite: inserted,
-        saltate: skipped,
-        totaleInAmnistia: parseInt(finalCount.rows[0].count)
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Errore durante la migrazione:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore durante la migrazione'
-    });
-  }
-});
+// POST /api/amnistia/migrate - deprecated dangerous HTTP schema mutation
+router.post('/migrate', verifyToken, requireAdmin, retiredAmnestyMaintenance);
 
-// POST /api/amnistia/migrate-ids - Migra voti_amnistia per usare ID di amnistia
-router.post('/migrate-ids', verifyToken, requireAdmin, async (req, res) => {
-  try {
-    console.log('🔄 Migrando voti_amnistia per usare ID di amnistia...');
-    
-    // 1. Rimuovi colonna amnistia_id se esiste (per ricrearla con il tipo corretto)
-    try {
-      await pool.query(`
-        ALTER TABLE voti_amnistia 
-        DROP COLUMN IF EXISTS amnistia_id
-      `);
-      console.log('✅ Colonna amnistia_id rimossa (se esisteva)');
-    } catch (dropError) {
-      console.log('⚠️ Errore nel rimuovere colonna (probabilmente non esiste):', dropError.message);
-    }
-    
-    // 2. Aggiungi colonna amnistia_id come INTEGER (per corrispondere a amnistia.id)
-    await pool.query(`
-      ALTER TABLE voti_amnistia 
-      ADD COLUMN amnistia_id INTEGER
-    `);
-    console.log('✅ Colonna amnistia_id aggiunta come INTEGER');
-    
-    // 3. Popola la colonna amnistia_id con gli ID corretti
-    const votiData = await pool.query(`
-      SELECT DISTINCT legge FROM voti_amnistia
-    `);
-    
-    console.log(`📊 Trovate ${votiData.rows.length} leggi da aggiornare`);
-    
-    let updated = 0;
-    let notFound = 0;
-    
-    for (const row of votiData.rows) {
-      // Trova l'ID corrispondente in amnistia
-      const amnistiaResult = await pool.query(
-        'SELECT id FROM amnistia WHERE legge = $1',
-        [row.legge]
-      );
-      
-      if (amnistiaResult.rows.length > 0) {
-        // Aggiorna voti_amnistia con l'ID corretto
-        const updateResult = await pool.query(
-          'UPDATE voti_amnistia SET amnistia_id = $1 WHERE legge = $2',
-          [amnistiaResult.rows[0].id, row.legge]
-        );
-        updated += updateResult.rowCount;
-        console.log(`✅ Aggiornati ${updateResult.rowCount} voti per: ${row.legge}`);
-      } else {
-        notFound++;
-        console.log(`⚠️ Legge non trovata in amnistia: ${row.legge}`);
-      }
-    }
-    
-    // 3. Verifica il risultato
-    const finalCheck = await pool.query(`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(amnistia_id) as with_id,
-        COUNT(*) - COUNT(amnistia_id) as without_id
-      FROM voti_amnistia
-    `);
-    
-    const stats = finalCheck.rows[0];
-    
-    res.json({
-      success: true,
-      message: 'Migrazione ID completata con successo',
-      data: {
-        leggiProcessate: votiData.rows.length,
-        votiAggiornati: updated,
-        leggiNonTrovate: notFound,
-        totaleVoti: parseInt(stats.total),
-        conAmnistiaId: parseInt(stats.with_id),
-        senzaAmnistiaId: parseInt(stats.without_id)
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Errore durante la migrazione ID:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore durante la migrazione ID'
-    });
-  }
-});
+// POST /api/amnistia/migrate-ids - deprecated dangerous HTTP schema mutation
+router.post('/migrate-ids', verifyToken, requireAdmin, retiredAmnestyMaintenance);
 
-// GET /api/amnistia/test - Test endpoint per debug
 router.get('/test', verifyToken, requireAdmin, (req, res) => {
   console.log('🔍 Test endpoint amnistia chiamato');
   res.json({
@@ -468,56 +322,7 @@ router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/amnistia/fix-primary-key - Aggiungi primary key a voti_amnistia
-router.post('/fix-primary-key', verifyToken, requireAdmin, async (req, res) => {
-  try {
-    console.log('🔧 Aggiungendo primary key a voti_amnistia...');
-    
-    // 1. Verifica se esiste già una primary key
-    const existingPK = await pool.query(`
-      SELECT constraint_name 
-      FROM information_schema.table_constraints 
-      WHERE table_name = 'voti_amnistia' 
-      AND constraint_type = 'PRIMARY KEY'
-    `);
-    
-    if (existingPK.rows.length > 0) {
-      console.log('✅ Primary key già esistente:', existingPK.rows[0].constraint_name);
-      return res.json({
-        success: true,
-        message: 'Primary key già esistente',
-        constraint_name: existingPK.rows[0].constraint_name
-      });
-    }
-    
-    // 2. Aggiungi primary key alla colonna id
-    await pool.query(`
-      ALTER TABLE voti_amnistia 
-      ADD CONSTRAINT voti_amnistia_pkey PRIMARY KEY (id)
-    `);
-    console.log('✅ Primary key aggiunta alla colonna id');
-    
-    // 3. Verifica il risultato
-    const verifyPK = await pool.query(`
-      SELECT constraint_name, column_name 
-      FROM information_schema.key_column_usage 
-      WHERE table_name = 'voti_amnistia' 
-      AND constraint_name LIKE '%_pkey'
-    `);
-    
-    res.json({
-      success: true,
-      message: 'Primary key aggiunta con successo',
-      primary_key: verifyPK.rows[0]
-    });
-  } catch (error) {
-    console.error('❌ Errore nell\'aggiungere primary key:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nell\'aggiungere primary key',
-      details: error.message
-    });
-  }
-});
+// POST /api/amnistia/fix-primary-key - deprecated dangerous HTTP schema mutation
+router.post('/fix-primary-key', verifyToken, requireAdmin, retiredAmnestyMaintenance);
 
 module.exports = router;
