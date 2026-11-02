@@ -54,16 +54,8 @@ router.get('/', async (req, res) => {
       }
     }
 
-    // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
-    // Rimosso LIMIT per mostrare tutti i risultati (rimosso "Mostra Altro")
-    const query = `
-      SELECT *
-      FROM voti_grazia
-      ORDER BY created_at DESC
-    `;
-
-    const result = await pool.query(query);
-    console.log(`✅ Recuperati ${result.rows.length} record da voti_grazia`);
+    // Il feed pubblico espone soltanto risultati aggregati. I voti personali
+    // (userid, timestamp e preferenze) non devono essere restituiti a terzi.
 
     // La classifica include anche i carcerati inseriti dagli amministratori,
     // senza attribuire loro voti fittizi. Il catalogo è separato dalle preferenze.
@@ -161,7 +153,7 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       classifica: classificaResult.rows,
-      richieste: result.rows,
+      richieste: [], // Compatibilità legacy, senza esporre voti personali
       mieiVoti: mieiVoti,
       blocco
     });

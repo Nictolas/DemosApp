@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { verifyToken } = require('../middleware/auth');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -9,9 +10,11 @@ const pool = getPool();
 // ===== ENDPOINTS PER REAZIONI COMUNICAZIONI =====
 
 // POST /api/reazioni-comunicazioni - Aggiungi like/dislike
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   try {
-    const { comunicazione_id, utente_id, tipo } = req.body;
+    const { comunicazione_id, tipo } = req.body || {};
+    // Never trust the client-provided utente_id for an account action.
+    const utente_id = req.user.id;
     
     if (!comunicazione_id || !utente_id || !tipo) {
       return res.status(400).json({
@@ -117,9 +120,12 @@ router.get('/batch', async (req, res) => {
 });
 
 // GET /api/reazioni-comunicazioni/user/:utente_id/batch?ids=id1,id2,id3 - Reazione utente per più comunicazioni
-router.get('/user/:utente_id/batch', async (req, res) => {
+router.get('/user/:utente_id/batch', verifyToken, async (req, res) => {
   try {
-    const { utente_id } = req.params;
+    if (req.params.utente_id !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Accesso non autorizzato' });
+    }
+    const utente_id = req.user.id;
     const idsParam = req.query.ids;
     if (!idsParam || typeof idsParam !== 'string') {
       return res.json({ success: true, data: {} });
@@ -184,9 +190,13 @@ router.get('/:comunicazione_id', async (req, res) => {
 });
 
 // GET /api/reazioni-comunicazioni/user/:utente_id/:comunicazione_id - Verifica reazione utente
-router.get('/user/:utente_id/:comunicazione_id', async (req, res) => {
+router.get('/user/:utente_id/:comunicazione_id', verifyToken, async (req, res) => {
   try {
-    const { utente_id, comunicazione_id } = req.params;
+    if (req.params.utente_id !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Accesso non autorizzato' });
+    }
+    const { comunicazione_id } = req.params;
+    const utente_id = req.user.id;
     
     const result = await pool.query(
       'SELECT tipo FROM reazioni WHERE utente_id = $1 AND comunicazione_id = $2',
