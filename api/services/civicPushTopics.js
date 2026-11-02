@@ -62,16 +62,14 @@ async function reconcileCivicTopicsForUser(pool, userId, {
   }
 
   const result = await (lockedClient || pool).query(`
-    SELECT d.fcm_token,
+    SELECT d.fcm_token, d.is_active, COALESCE(u.status, '') AS user_status,
            COALESCE(p.iniziative_popolari, FALSE) AS iniziative_popolari,
            COALESCE(p.referendum_abrogativi, FALSE) AS referendum_abrogativi,
            COALESCE(p.eci, FALSE) AS eci
     FROM user_devices d
-    JOIN users u ON u.id = d.user_id
+    LEFT JOIN users u ON u.id = d.user_id
     LEFT JOIN notifiche_preferenze p ON p.user_id = d.user_id
     WHERE d.user_id = $1
-      AND d.is_active = TRUE
-      AND u.status = 'a'
   `, [userId]);
 
   if (result.rows.length === 0) return { enabled: true, tokens: 0 };
@@ -80,7 +78,11 @@ async function reconcileCivicTopicsForUser(pool, userId, {
     const client = getMessagingClient(messaging);
     for (const row of result.rows) {
       for (const [category, topic] of Object.entries(CIVIC_TOPIC_BY_CATEGORY)) {
-        await changeTopic(client, row.fcm_token, topic, row[category] === true);
+        // Stale/inactive devices must be unsubscribed, not silently ignored.
+        // Otherwise a prior FCM topic membership survives deactivation.
+        const allowed = row.is_active === true && row.user_status === 'a'
+          && row[category] === true;
+        await changeTopic(client, row.fcm_token, topic, allowed);
       }
     }
   } catch {
@@ -133,7 +135,8 @@ async function unsubscribeDisabledCivicTopicsForUser(pool, userId, disabledCateg
     throw new TypeError('CIVIC_CATEGORY_UNSUPPORTED');
   }
   const { rows } = await (lockedClient || pool).query(
-    'SELECT fcm_token FROM user_devices WHERE user_id = $1 AND is_active = TRUE',
+    // Opt-out must revoke old memberships on inactive tokens as well.
+    'SELECT fcm_token FROM user_devices WHERE user_id = $1',
     [userId]
   );
   if (!rows.length) return { enabled: true, tokens: 0 };
