@@ -140,8 +140,7 @@ export default function InformaCittadini() {
         title: "Comunicazione inviata",
         description: "L'avviso ai cittadini è stato registrato con successo.",
       });
-      console.log('🔄 Invalidando notificationBadge dopo invio Informa Cittadini');
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
       // Reset form
       setTipologia("");
       setDove("");

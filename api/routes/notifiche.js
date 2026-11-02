@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { notificationSchemaCache } = require('../services/notificationSchemaCache');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 require('dotenv').config();
 
@@ -171,40 +172,29 @@ router.get('/', verifyToken, async (req, res) => {
       votiComuniResult = { rows: [] };
     }
     
-    // Recupera da notifiche_demos (senza comune_residenza)
+    // Recupera da notifiche_demos senza interrogare information_schema a ogni GET.
+    // Se lo schema non è disponibile, il fallback resta isolato a questa sorgente.
     try {
-      // Verifica colonne disponibili
-      const demosColumns = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_demos'
-      `);
-      const demosCols = demosColumns.rows.map(r => r.column_name);
-      if (!demosCols.includes('titolo') || !demosCols.includes('testo')) {
-        console.warn('⚠️ Colonne titolo o testo mancanti in notifiche_demos');
-        demosResult = { rows: [] };
-      } else {
-        demosResult = await pool.query(`
-          SELECT 
-            id,
-            id_utente,
-            titolo,
-            testo,
-            COALESCE(data, CURRENT_DATE) as data,
-            data_creazione,
-            NULL::TEXT as comune_residenza,
-            'notifiche_demos' as tabella_origine
-          FROM notifiche_demos
-          WHERE (id_utente IS NULL OR id_utente = $1::uuid)
-          ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
-          LIMIT 50
-        `, [user_id]);
-      }
+      demosResult = await pool.query(`
+        SELECT
+          id,
+          id_utente,
+          titolo,
+          testo,
+          COALESCE(data, CURRENT_DATE) as data,
+          data_creazione,
+          NULL::TEXT as comune_residenza,
+          'notifiche_demos' as tabella_origine
+        FROM notifiche_demos
+        WHERE (id_utente IS NULL OR id_utente = $1::uuid)
+        ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
+        LIMIT 50
+      `, [user_id]);
     } catch (err) {
       console.error('NOTIF_DEMOS_FAILED');
       demosResult = { rows: [] };
     }
-    
+
     // Cambi di Opinione di Politici/Candidati sostenuti correntemente dall'utente.
     try {
       opinionChangesResult = await pool.query(
@@ -247,13 +237,8 @@ router.get('/', verifyToken, async (req, res) => {
 
     // Recupera da notifiche_comunali (gestisce sia struttura nuova che vecchia)
     try {
-      // Prima verifica quali colonne esistono
-      const columnCheck = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_comunali'
-      `);
-      const existingColumns = columnCheck.rows.map(r => r.column_name);
+      // Cache dei soli nomi delle colonne, mai di contenuto o identità utenti.
+      const existingColumns = await notificationSchemaCache.columns(pool, 'notifiche_comunali');
       // Costruisci la query in base alle colonne disponibili
       let selectParts = ['id', 'id_utente'];
       
@@ -321,6 +306,9 @@ router.get('/', verifyToken, async (req, res) => {
       
       comunaliResult = await pool.query(query);
     } catch (err) {
+      if (err?.code === '42703' || err?.code === '42P01') {
+        notificationSchemaCache.invalidate('notifiche_comunali');
+      }
       console.error('NOTIF_MUNICIPAL_FAILED');
       comunaliResult = { rows: [] };
     }
@@ -328,23 +316,11 @@ router.get('/', verifyToken, async (req, res) => {
     // Recupera da notifiche_avvistamenti
     let avvistamentiResult = { rows: [] };
     try {
-      const tableExists = await pool.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'notifiche_avvistamenti'
-        )
-      `);
-      
-      if (tableExists.rows[0]?.exists) {
-        // Verifica colonne disponibili per costruire la query dinamicamente
-        const columnsResult = await pool.query(`
-          SELECT column_name 
-          FROM information_schema.columns 
-          WHERE table_name = 'notifiche_avvistamenti'
-          AND table_schema = 'public'
-        `);
-        const availableColumns = columnsResult.rows.map(r => r.column_name);
+      // Per un utente senza comune nessun avvistamento può essere mostrato:
+      // evitare tutte le query di metadata e dati in questo caso.
+      if (userComuneResidenza) {
+        const availableColumns = await notificationSchemaCache.columns(pool, 'notifiche_avvistamenti');
+        if (availableColumns.length > 0) {
         // Costruisci la query solo con colonne esistenti (escludi esplicitamente 'testo' e 'titolo')
         const selectColumns = [
           'id',
@@ -396,10 +372,12 @@ router.get('/', verifyToken, async (req, res) => {
           throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
         }
         avvistamentiResult = await pool.query(queryText, queryParams);
-      } else {
-        console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
+        }
       }
     } catch (err) {
+      if (err?.code === '42703' || err?.code === '42P01') {
+        notificationSchemaCache.invalidate('notifiche_avvistamenti');
+      }
       console.error('NOTIF_SIGHTINGS_FAILED');
       avvistamentiResult = { rows: [] };
     }
@@ -671,12 +649,27 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/notifiche/preferenze - Ottieni preferenze notifiche utente
+// GET /api/notifiche/preferenze - sola lettura.
+// Non creare record durante GET: rende l'apertura della pagina idempotente e
+// riduce scritture, transazioni e carico PostgreSQL sul piano gratuito.
+// Per utenti senza riga, manteniamo gli stessi default della precedente INSERT.
+// La prima scrittura avviene soltanto nella POST esplicita.
+const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
+  eurodeputato: false,
+  senatore: false,
+  deputato: false,
+  consigliere_regionale: false,
+  consigliere_comunale: false,
+  attivisti: false,
+  demos: false,
+  scuola: false,
+  animali: true,
+  organizzazioni: false
+});
+
 router.get('/preferenze', verifyToken, async (req, res) => {
   try {
     const user_id = req.user.id;
-    
-    // Recupera le preferenze dalla nuova tabella notifiche_preferenze
     const result = await pool.query(
       `SELECT eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
               attivisti, demos, scuola, animali, organizzazioni, updated_at
@@ -684,67 +677,28 @@ router.get('/preferenze', verifyToken, async (req, res) => {
        WHERE user_id = $1`,
       [user_id]
     );
-    
-    if (result.rows.length === 0) {
-      // Se non esistono preferenze, crea record con valori di default
-      const defaultResult = await pool.query(
-        `INSERT INTO notifiche_preferenze (user_id, eurodeputato, senatore, deputato, 
-                                          consigliere_regionale, consigliere_comunale, 
-                                          attivisti, demos, scuola, animali, organizzazioni)
-         VALUES ($1, false, false, false, false, false, false, false, false, true, false)
-         RETURNING eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
-                   attivisti, demos, scuola, animali, organizzazioni, updated_at`,
-        [user_id]
-      );
-      
-      const prefs = defaultResult.rows[0];
-      return res.json({
-        success: true,
-        data: {
-          user_id,
-          preferenze: {
-            eurodeputato: prefs.eurodeputato,
-            senatore: prefs.senatore,
-            deputato: prefs.deputato,
-            consigliere_regionale: prefs.consigliere_regionale,
-            consigliere_comunale: prefs.consigliere_comunale,
-            attivisti: prefs.attivisti,
-            demos: prefs.demos,
-            scuola: prefs.scuola,
-            animali: prefs.animali,
-            organizzazioni: prefs.organizzazioni
-          },
-          updated_at: prefs.updated_at
-        }
-      });
-    }
-    
-    const prefs = result.rows[0];
-    
-    res.json({
+
+    const prefs = result.rows[0] || null;
+    const preferenze = Object.fromEntries(
+      Object.entries(DEFAULT_NOTIFICATION_PREFERENCES).map(([key, defaultValue]) => [
+        key, prefs?.[key] ?? defaultValue
+      ])
+    );
+
+    res.set('Cache-Control', 'no-store');
+    return res.json({
       success: true,
       data: {
         user_id,
-        preferenze: {
-          eurodeputato: prefs.eurodeputato ?? false,
-          senatore: prefs.senatore ?? false,
-          deputato: prefs.deputato ?? false,
-          consigliere_regionale: prefs.consigliere_regionale ?? false,
-          consigliere_comunale: prefs.consigliere_comunale ?? false,
-          attivisti: prefs.attivisti ?? false,
-          demos: prefs.demos ?? false,
-          scuola: prefs.scuola ?? false,
-          animali: prefs.animali ?? true,
-          organizzazioni: prefs.organizzazioni ?? false
-        },
-        updated_at: prefs.updated_at
+        preferenze,
+        updated_at: prefs?.updated_at ?? null
       }
     });
   } catch (error) {
     console.error('NOTIF_PREFERENCES_READ_FAILED');
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
+      error: 'Errore interno del server'
     });
   }
 });
