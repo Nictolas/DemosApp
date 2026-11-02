@@ -117,6 +117,7 @@ test('in-flight SDK ad requests are invalidated when consent changes or Activity
 test('debug-only EEA UMP test mode cannot leak a production ad ID or enable release SDK', () => {
   assert.match(gradle, /demosDebugAdMobAppId = \(project\.findProperty\('demosDebugAdMobAppId'\)/);
   assert.match(gradle, /demosDebugUmpEea = demosDebugAppOpenAds &&/);
+  assert.match(gradle, /if \(demosDebugUmpEea\) \{\s*applicationIdSuffix '\.qaopen'/);
   assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_UMP_DEBUG_EEA', 'false'/);
   assert.match(manager, /if \(BuildConfig\.DEMOS_UMP_DEBUG_EEA\)/);
   assert.match(manager, /new ConsentDebugSettings\.Builder\(activity\)/);
