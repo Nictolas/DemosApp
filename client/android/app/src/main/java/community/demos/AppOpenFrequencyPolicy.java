@@ -5,7 +5,7 @@ package community.demos;
  * political data. Used by debug App Open and tested in both build variants.
  */
 final class AppOpenFrequencyPolicy {
-    static final long MIN_INTERVAL_MS = 24L * 60L * 60L * 1000L;
+    static final long MIN_INTERVAL_MS = 6L * 60L * 60L * 1000L;
     static final int FIRST_ALLOWED_LAUNCH = 3;
 
     private AppOpenFrequencyPolicy() {}
