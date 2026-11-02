@@ -6,6 +6,7 @@ const path = require('node:path');
 const {buildDatabaseSsl} = require('../utils/databaseTlsPolicy');
 
 const STAGING_REF = 'fkeayjzvtuvzesljhjbc';
+const STAGING_PREFLIGHT_ROLE = 'demos_staging_preflight';
 const STAGING_IDENTITY_HASH = '0cbb6ace68a9f11956904e2a37898ec8';
 const REQUIRED_TABLES = Object.freeze([
   'users', 'user_consents', 'opinioni_risposte', 'notifiche_preferenze',
@@ -41,8 +42,8 @@ function assertStagingTarget(value, env = process.env) {
   // Only dedicated session endpoints are allowed: transaction-mode Supavisor
   // (6543) cannot preserve the PostgreSQL session required by civic locks.
   // The staging preflight is still read-only and NEVER proves session affinity.
-  const isDirect = host === `db.${STAGING_REF}.supabase.co` && username === 'postgres' && (url.port === '' || url.port === '5432');
-  const isPooler = host.endsWith('.pooler.supabase.com') && username === `postgres.${STAGING_REF}` && url.port === '5432';
+  const isDirect = host === `db.${STAGING_REF}.supabase.co` && username === STAGING_PREFLIGHT_ROLE && (url.port === '' || url.port === '5432');
+  const isPooler = host.endsWith('.pooler.supabase.com') && username === `${STAGING_PREFLIGHT_ROLE}.${STAGING_REF}` && url.port === '5432';
   if (!isDirect && !isPooler) throw new Error('Refusing non-session Supabase staging endpoint');
   // Reject driver URI parameters that can silently override the validated
   // host/port/user or force transaction pooling. TLS is centrally configured,
@@ -123,7 +124,7 @@ async function run(env = process.env) {
   if (env.DEMOS_UNIFIED_STAGING_PREFLIGHT_GO !== 'APPROVED_READ_ONLY_PREFLIGHT') {
     throw new Error('Unified staging preflight not authorized while bootstrap is incomplete');
   }
-  const {sanitizedConnectionString} = assertStagingTarget(env.DATABASE_URL, env);
+  const {sanitizedConnectionString} = assertStagingTarget(env.STAGING_PREFLIGHT_DATABASE_URL, env);
   // Delayed import: static checks and unit tests need no database driver.
   // No network-capable client is even constructed before both gates pass.
   const {Client} = require('pg');
@@ -146,8 +147,10 @@ async function run(env = process.env) {
       throw new Error('Connected to unauthorized database identity');
     }
     const tables = await client.query(
-      'SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = $2 AND table_name = ANY($3::text[])',
-      ['public', 'BASE TABLE', [...REQUIRED_TABLES]]
+      `SELECT c.relname AS table_name FROM pg_catalog.pg_class c
+       JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = $1 AND c.relkind IN ('r','p') AND c.relname = ANY($2::text[])`,
+      ['public', [...REQUIRED_TABLES]]
     );
     // Metadata-only authorization audit; this does not read any account or
     // notification row. A missing table, disabled RLS, or any direct client
@@ -162,9 +165,16 @@ async function run(env = process.env) {
       ['public', [...CIVIC_PRIVATE_TABLES]]
     );
     const columnRows = await client.query(
-      `SELECT table_name, column_name, udt_name, is_nullable, column_default
-         FROM information_schema.columns
-         WHERE table_schema = $1 AND table_name = ANY($2::text[])`,
+      `SELECT c.relname AS table_name, a.attname AS column_name,
+              t.typname AS udt_name,
+              CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END AS is_nullable,
+              pg_get_expr(d.adbin,d.adrelid) AS column_default
+         FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+         JOIN pg_catalog.pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped
+         JOIN pg_catalog.pg_type t ON t.oid=a.atttypid
+         LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid=c.oid AND d.adnum=a.attnum
+         WHERE n.nspname = $1 AND c.relkind IN ('r','p') AND c.relname = ANY($2::text[])`,
       ['public', [...new Set(CIVIC_RUNTIME_COLUMNS.map(([table]) => table))]]
     );
     const guard = await client.query(
@@ -193,6 +203,6 @@ if (require.main === module) {
   });
 }
 
-module.exports = {STAGING_REF, STAGING_IDENTITY_HASH, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, CIVIC_RUNTIME_COLUMNS,
+module.exports = {STAGING_REF, STAGING_PREFLIGHT_ROLE, STAGING_IDENTITY_HASH, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, CIVIC_RUNTIME_COLUMNS,
   assertStagingTarget, evaluateSchema, evaluateCivicProtection,
   evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity, run};
