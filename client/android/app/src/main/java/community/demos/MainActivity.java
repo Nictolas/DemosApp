@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeGoogleAuthPlugin.class);
+        registerPlugin(NativeAppOpenPrivacyPlugin.class);
         super.onCreate(savedInstanceState);
         // Flag false in release e in debug standard: non inizializza neppure UMP.
         if (BuildConfig.DEMOS_APP_OPEN_ADS_ENABLED) {
@@ -22,6 +23,18 @@ public class MainActivity extends BridgeActivity {
     // Safe bridge access for the ad eligibility check; do not replace WebViewClient.
     WebView getAppOpenWebView() {
         return bridge == null ? null : bridge.getWebView();
+    }
+
+    boolean areAppOpenPrivacyOptionsRequired() {
+        return appOpenAdsManager != null && appOpenAdsManager.arePrivacyOptionsRequired();
+    }
+
+    void showAppOpenPrivacyOptions(Runnable onSuccess, Runnable onError) {
+        if (appOpenAdsManager == null) {
+            onError.run();
+            return;
+        }
+        appOpenAdsManager.showPrivacyOptions(onSuccess, onError);
     }
 
     @Override
