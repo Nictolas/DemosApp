@@ -11,9 +11,9 @@ from play_store_screenshot_guard import (
     main, parse_package_metadata, validate_capture_name,
 )
 
-GOOD = ("Package [community.demos]\\nversionCode=14 minSdk=24 targetSdk=36\\n"
-        "versionName=1.0.11\\npkgFlags=[ HAS_CODE ]\\n"
-        "    installerPackageName=com.android.vending\\n"
+GOOD = ("Package [community.demos]\nversionCode=14 minSdk=24 targetSdk=36\n"
+        "versionName=1.0.11\npkgFlags=[ HAS_CODE ]\n"
+        "    installerPackageName=com.android.vending\n"
         "    initiatingPackageName=com.android.vending")
 
 
