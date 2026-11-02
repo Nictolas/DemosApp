@@ -12,6 +12,9 @@ on:
       - 'api/config/publicCachePolicy.js'
       - 'client/src/pages/GestisciOpinioni/**'
       - 'client/public/app-ads.txt'
+      - 'client/src/pages/PrivacyPolicy.tsx'
+      - 'client/src/pages/CookiePolicy.tsx'
+      - 'client/tests/privacyDisclosureIntegrity.test.mjs'
       - '.github/workflows/opinion-catalog-full-ci.yml'
 permissions:
   contents: read
