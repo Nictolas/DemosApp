@@ -81,8 +81,8 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     console.log('✅ Segnalazione salvata con successo');
-    console.log('📋 Segnalazione ID:', segnalazioneId);
-    console.log(`👥 Admin che riceveranno la notifica: ${adminQuery.rows.length}`);
+    // Non registrare identificativi di segnalazioni, potenzialmente sensibili.
+    console.info('SUPPORT_REPORT_ADMIN_NOTIFICATION_PREPARED');
 
     res.json({
       success: true,
@@ -92,7 +92,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore nell\'invio segnalazione:', error);
+    console.error('SUPPORT_REPORT_CREATE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -127,7 +127,7 @@ router.get('/admin/:adminId', verifyToken, requireAdmin, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore nel recupero segnalazioni:', error);
+    console.error('SUPPORT_REPORT_READ_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -159,7 +159,7 @@ router.put('/:id/read', verifyToken, requireAdmin, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento segnalazione:', error);
+    console.error('SUPPORT_REPORT_UPDATE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -184,7 +184,7 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
       });
     }
 
-    console.log(`✅ Segnalazione ${id} cancellata da admin ${req.user.id}`);
+    console.info('SUPPORT_REPORT_DELETED');
 
     res.json({
       success: true,
@@ -192,7 +192,7 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore nella cancellazione segnalazione:', error);
+    console.error('SUPPORT_REPORT_DELETE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
