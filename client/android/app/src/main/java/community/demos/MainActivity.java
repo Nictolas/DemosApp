@@ -30,11 +30,15 @@ public class MainActivity extends BridgeActivity {
     }
 
     void showAppOpenPrivacyOptions(Runnable onSuccess, Runnable onError) {
-        if (appOpenAdsManager == null) {
-            onError.run();
-            return;
-        }
-        appOpenAdsManager.showPrivacyOptions(onSuccess, onError);
+        // Capacitor @PluginMethod runs on its plugin thread. UMP requires the
+        // privacy form to be opened on Android's UI thread, otherwise it crashes.
+        runOnUiThread(() -> {
+            if (appOpenAdsManager == null || isFinishing() || isDestroyed()) {
+                onError.run();
+                return;
+            }
+            appOpenAdsManager.showPrivacyOptions(onSuccess, onError);
+        });
     }
 
     @Override
