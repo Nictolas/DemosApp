@@ -81,6 +81,15 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :app:testDebugUnitTest :app:testReleaseUnitTest :app:compileDebugJavaWithJavac :app:compileReleaseJavaWithJavac --no-daemon --stacktrace
+      - name: Compile explicit EEA UMP debug QA mode with Google sample App ID
+        working-directory: client/android
+        run: |
+          ./gradlew :app:compileDebugJavaWithJavac :app:compileReleaseJavaWithJavac \
+            -PdemosDebugAppOpenAds=true \
+            -PdemosDebugUmpEea=true \
+            -PdemosDebugAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon
+
       - name: Confirm release runtime does not include AdMob or UMP
         working-directory: client/android
         shell: bash
