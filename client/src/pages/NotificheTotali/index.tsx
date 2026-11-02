@@ -105,6 +105,9 @@ export default function NotificheTotali() {
     queryKey: ["notifiche-totali"],
     queryFn: async () => (await apiRequest("GET", "/api/notifiche-totali")).data,
     enabled: isAdmin && activeTab === "cronologia",
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    refetchIntervalInBackground: false,
     refetchInterval: activeTab === "cronologia" ? 60000 : false,
   });
 
