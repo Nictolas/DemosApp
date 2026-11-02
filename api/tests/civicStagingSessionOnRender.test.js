@@ -50,6 +50,31 @@ test('accepts only the exact stage pooler session endpoint (syntax check, not lo
   }
 });
 
+test('cannot redirect a staging-only diagnostic to the production project', async () => {
+  const productionRef = 'wxnblcqoyjqxktwkcqok';
+  const alternativeRef = 'aaaaaaaaaaaaaaaaaaaa';
+  for (const otherRef of [productionRef, alternativeRef]) {
+    const alteredConnection = CONNECTION.replace(PROJECT, otherRef);
+    assert.throws(
+      () => assertCivicStagingSessionEndpoint({
+        connectionString: alteredConnection, projectRef: otherRef,
+        expectedPoolerHost: HOST,
+      }),
+      error => error.message === 'CIVIC_STAGING_SESSION_WRONG_PROJECT' &&
+        !error.message.includes(otherRef)
+    );
+    let poolsCreated = 0;
+    await assert.rejects(runCivicStagingSessionCheck({
+      ...approved,
+      CIVIC_STAGING_PROJECT_REF: otherRef,
+      CIVIC_STAGING_SESSION_DATABASE_URL: alteredConnection,
+    }, {
+      createPool: () => { poolsCreated++; throw new Error('unexpected database access'); },
+    }), /CIVIC_STAGING_SESSION_WRONG_PROJECT/);
+    assert.equal(poolsCreated, 0, 'Invalid project must be rejected before DB connection');
+  }
+});
+
 test('refuses production DB variables, push flags and malformed staging metadata', () => {
   const badEnv = [
     {DATABASE_URL: 'postgresql://actual-prod-secret'},
