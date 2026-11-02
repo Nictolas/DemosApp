@@ -132,7 +132,7 @@ test('debug-only EEA UMP test mode cannot leak a production ad ID or enable rele
 });
 
 test('UMP configuration errors fail closed instead of using cached consent or initializing ads', () => {
-  const match = manager.match(/requestError -> \{([\s\S]*?)\n            \}\n        \);/);
+  const match = manager.match(/requestError -> \{([\s\S]*?)\r?\n            \}\r?\n        \);/);
   assert.ok(match, 'current-session UMP error handler must be present');
   const onFailure = match[1];
   assert.doesNotMatch(onFailure, /initializeSdk\(|MobileAds\.initialize\(|AppOpenAd\.load\(/);
