@@ -566,9 +566,10 @@ performanceOptimizer.start();
  * - Openpolis: OPENPOLIS_COSA_SUCCEDE_CRON, OPENPOLIS_VOTAZIONI_FINALI_CRON (default offset rispetto allâ€™ora)
  * Raggruppare sync meno frequenti o allineare le finestre riduce wake ripetuti del DB.
  */
-// Avvia job di data retention (solo se abilitato)
+// Legacy RP-10 retention job retired pending verified deletion/backup policy.
+// This must fail closed even if ENABLE_DATA_RETENTION=true in inherited Render settings.
 if (process.env.ENABLE_DATA_RETENTION === 'true') {
-  dataRetentionJob.start();
+  console.warn('Legacy retention scheduler disabled: use a separately reviewed GDPR cleanup flow.');
 }
 
 // Avvia job di monitoraggio violazioni (solo se abilitato)
