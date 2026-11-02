@@ -13,7 +13,7 @@ import {
  * On Android release the native gate always reports false, so the UI
  * remains unchanged until the separate, reviewed advertising release.
  */
-export function AppOpenPrivacyOptions() {
+export function AppOpenPrivacyOptions({ compact = false }: { compact?: boolean }) {
   const [required, setRequired] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -43,6 +43,20 @@ export function AppOpenPrivacyOptions() {
       setBusy(false);
     }
   };
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        className="text-sm underline underline-offset-2 text-indigo-700 disabled:opacity-50"
+        aria-label="Gestisci le scelte sulla privacy pubblicitaria"
+        disabled={busy}
+        onClick={() => void openOptions()}
+      >
+        Privacy pubblicitaria
+      </button>
+    );
+  }
 
   return (
     <Card>
