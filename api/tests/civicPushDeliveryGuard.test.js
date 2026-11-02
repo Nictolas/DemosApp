@@ -1,0 +1,51 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { readCivicDeliveryBarrier, blockCivicDeliveryOnRevocationFailure } = require('../services/civicPushDeliveryGuard');
+
+function db({ guard = [{ blocked: false }], inactive = [{ unsafe: false }], failAt = 0 } = {}) {
+  const calls = [];
+  return { calls, async query(sql) {
+    calls.push(String(sql));
+    if (failAt === calls.length) throw new Error('SYNTHETIC_DATABASE_OUTAGE');
+    return { rows: calls.length === 1 ? guard : inactive };
+  } };
+}
+
+test('delivery guard permits sends only with unblocked guard and no inactive devices', async () => {
+  const pool = db();
+  assert.deepEqual(await readCivicDeliveryBarrier(pool), { blocked: false, reason: 'CIVIC_DELIVERY_GUARD_BLOCKED' });
+  assert.equal(pool.calls.length, 2);
+  assert.match(pool.calls[1], /user_devices/);
+  assert.match(pool.calls[1], /u\.status/);
+});
+
+test('blocked or missing guard never queries recipients', async () => {
+  for (const guard of [[], [{ blocked: true }], [{ blocked: null }]]) {
+    const pool = db({ guard });
+    assert.equal((await readCivicDeliveryBarrier(pool)).blocked, true);
+    assert.equal(pool.calls.length, 1);
+  }
+});
+
+test('inactive, unknown or ambiguous device status fails closed', async () => {
+  for (const inactive of [[], [{ unsafe: true }], [{ unsafe: null }], [{ unsafe: false }, { unsafe: false }]]) {
+    const pool = db({ inactive });
+    assert.equal((await readCivicDeliveryBarrier(pool)).blocked, true);
+  }
+});
+
+test('database failures cannot be converted to a delivery approval', async () => {
+  for (const failAt of [1, 2]) {
+    await assert.rejects(readCivicDeliveryBarrier(db({ failAt })), /SYNTHETIC_DATABASE_OUTAGE/);
+  }
+});
+
+test('uncertain revocation globally blocks delivery; missing guard row is an error', async () => {
+  const calls = [];
+  const client = { async query(sql) { calls.push(sql); return { rows: [{ id: 1 }] }; } };
+  await blockCivicDeliveryOnRevocationFailure(client);
+  assert.match(calls[0], /SET blocked = TRUE/);
+  assert.match(calls[0], /REVOCATION_UNCERTAIN/);
+  await assert.rejects(blockCivicDeliveryOnRevocationFailure({ query: async () => ({ rows: [] }) }), /CIVIC_DELIVERY_GUARD_NOT_INITIALIZED/);
+});
