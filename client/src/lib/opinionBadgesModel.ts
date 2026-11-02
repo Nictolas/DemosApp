@@ -6,7 +6,7 @@
  * gating del proprietario e una release separatamente autorizzata.
  * Nessuna rete, database, memorizzazione, analytics o side effect.
  */
-export const BADGE_RULES_VERSION = "2026-11-01-draft-1";
+export const BADGE_RULES_VERSION = "2026-11-02-draft-2";
 export type BadgeId = "B01" | "B02" | "B03" | "B04" | "B05";
 export type Answer = "f" | "c" | "i";
 
@@ -30,35 +30,38 @@ const defineRule = (id: BadgeId, label: string, entries: readonly Mapping[]): Ba
   questions: entries.map(([opinionId, supportsBadge, topic]) => ({ opinionId, supportsBadge, topic })),
 });
 
-/** Solo le 24 associazioni candidate del piano: 2 escluse dal MVP e nessun tema identitario. */
+/** Bozza identitaria richiesta dal prodotto: 27 associazioni e 24 ID distinti.\n * I nomi sono ipotesi descrittive, non certificano l'identita politica dell'utente. */
 export const BADGE_RULES: readonly BadgeRule[] = [
-  defineRule("B01", "Tutela animale", [
+  defineRule("B01", "Animalista", [
     ["caccia", "c", "caccia"],
     ["abbattimento_cinghiali", "c", "controllo-fauna"],
     ["allevamenti_intensivi", "c", "allevamento"],
     ["sperimentazione_animale", "c", "ricerca"],
     ["corrida", "c", "spettacoli"],
   ]),
-  defineRule("B02", "Ambiente e natura", [
+  defineRule("B02", "Ambientalista", [
     ["nuove_aree_naturali_protette", "f", "biodiversita"],
     ["potenziare_rinnovabili", "f", "transizione-energetica"],
     ["nuovi_parchi_eolici", "f", "transizione-energetica"],
     ["verde_pubblico_e_giardini", "f", "verde-urbano"],
   ]),
-  defineRule("B03", "Mobilita sostenibile", [
-    ["nuove_piste_ciclabili", "f", "ciclabilita"],
-    ["potenziamento_trasporto_pubblico", "f", "trasporto-collettivo"],
-    ["pedonalizzazione_centro_storico", "f", "pedonalita"],
-    ["estensione_delle_zone_a_traffico_limitato", "f", "accesso-auto"],
+  defineRule("B03", "Conservatore", [
+    ["matrimonio_gay", "c", "famiglia"],
+    ["adozioni_omogenitoriali", "c", "famiglia"],
+    ["eutanasia", "c", "bioetica"],
+    ["legalizzazione_canapa", "c", "droghe"],
+    ["ius_soli", "c", "cittadinanza"],
+    ["ius_scholae", "c", "cittadinanza"],
+    ["educazione_sessuale", "c", "scuola"],
   ]),
-  defineRule("B04", "Diritti civili", [
+  defineRule("B04", "Progressista", [
     ["matrimonio_gay", "f", "matrimonio"],
     ["adozioni_omogenitoriali", "f", "adozioni"],
     ["omobitransfobia", "f", "antidiscriminazione"],
     ["educazione_sessuale", "f", "educazione"],
     ["aborto_farmacologico_consultori", "f", "diritti-riproduttivi"],
   ]),
-  defineRule("B05", "Welfare e servizi pubblici", [
+  defineRule("B05", "Socialdemocratico", [
     ["salario_minimo", "f", "lavoro"],
     ["reddito_di_cittadinanza", "f", "sostegno-reddito"],
     ["reddito_minimo_regionale", "f", "sostegno-reddito"],
