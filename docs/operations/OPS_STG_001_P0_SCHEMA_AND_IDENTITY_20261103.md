@@ -59,3 +59,11 @@ Un nuovo test `api/tests/test_ops_stg_001_p0_migration_postgres.py` esegue la **
 Il test verifica: errore e rollback su identità sbagliata prima di qualsiasi DDL; creazione corretta delle quattro tabelle, 73 colonne, 7 vincoli e 9 indici; zero righe; RLS attiva; accesso diretto negato ad `anon` e `authenticated`; rifiuto della riesecuzione a schema già presente. 
 
 **Esito GitHub Actions:** `Unified Staging Offline Safety` run **41546428877**; job `bootstrap-offline-contract` **SUCCESS**, job `p0-schema-postgres16` **SUCCESS**. Workflow `Recognition CIE evidence validation` dello stesso commit anch'esso **SUCCESS**. La PR resta DRAFT; la riuscita della DDL su PostgreSQL effimero non costituisce l'autorizzazione a usare il bootstrap Render per test applicativi o a sbloccare le notifiche Firebase.
+
+## T-55: controllo del progetto Supabase bloccato a Demos-Staging
+
+Il 3 novembre è stata rimossa una lacuna dalla funzione `assertCivicStagingSessionEndpoint` (usata dal verificatore read-only Render→Supavisor). Prima della correzione, la funzione validava il **formato** di `CIVIC_STAGING_PROJECT_REF` e che lo username URI contenesse lo stesso ref, ma non richiedeva che tale ref fosse quello di **Demos-Staging**. Una coppia coerente di progetto/username errata avrebbe potuto oltrepassare il controllo statico, pur restando subordinata ai gate di autorizzazione.
+
+Ora l'identificativo deve coincidere esattamente con `fkeayjzvtuvzesljhjbc`. Il test `api/tests/civicStagingSessionOnRender.test.js` include tentativi di usare il ref di produzione e un ref alternativo, anche quando URI e username sono coerenti: entrambi falliscono **prima** della creazione di un pool o socket PostgreSQL. `unified-staging-offline-safety.yml` esegue anche questi test in GitHub CI. **31/31 test locali Node PASS** sul commit `f82a60a9`; nessun collegamento remoto e nessuna chiamata Firebase.
+
+La verifica T-55 end-to-end su due connessioni **non è stata eseguita**: `demos-staging` resta bootstrap-only, `DATABASE_URL` vuota, flag push e sync OFF e l'avvio della prova reale richiede un GO separato. La funzione di affinità può rilevare incompatibilità ma da sola non certifica che il pooler sia sicuro. La PR #565 resta DRAFT e non autorizza invii.
