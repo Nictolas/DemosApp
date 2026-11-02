@@ -174,8 +174,7 @@ final class DemosAppOpenAdsManager {
         // Capacitor owns the WebView/WebViewClient. Do not override its handlers.
         // Evaluate a read-only condition; if the React root contains actual UI,
         // the app is already usable, so an App Open ad is forbidden.
-        if (activity.bridge == null) return;
-        final WebView webView = activity.bridge.getWebView();
+        final WebView webView = activity.getAppOpenWebView();
         if (webView == null) return;
 
         webView.evaluateJavascript(
