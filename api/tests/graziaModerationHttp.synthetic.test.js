@@ -12,10 +12,15 @@ const catalog=[{id:1,nome:'Persona già verificata',attivo:true}];
 const requests=[];
 const notices=[];
 let nextId=2;
+let failNotifications=false;
+let failConnect=false;
 
 const pool={
   async query(sql,params=[]){return respond(sql,params);},
-  async connect(){return {query:async(sql,params=[])=>respond(sql,params),release(){}};}
+  async connect(){
+    if(failConnect)throw Error('SYNTHETIC_POOL_CONNECT_FAILURE');
+    return {query:async(sql,params=[])=>respond(sql,params),release(){}};
+  }
 };
 function respond(statement,values){
   const sql=String(statement).trim();
@@ -31,6 +36,7 @@ function respond(statement,values){
     return {rows:[],rowCount:1};
   }
   if(sql.startsWith('INSERT INTO notifiche_demos')){
+    if(failNotifications)throw Error('SYNTHETIC_PRIVATE_NOTIFICATION_FAILURE');
     if(sql.includes('FROM users WHERE is_admin')){
       notices.push({to:ADMIN,text:'Una proposta Grazia è in attesa di revisione.'});
     }else{
@@ -124,4 +130,51 @@ test('Grazia moderation is Admin-only, atomic and does not publish rejected subj
   const publicView=await (await request('/api/grazia',null)).json();
   assert.ok(publicView.classifica.some(x=>x.nome==='Persona da verificare'));
   assert.deepEqual(publicView.richieste,[]);
+});
+
+test('Grazia proposal and Admin decision remain committed when notification fails',async()=>{
+  failNotifications=true;
+  try {
+    const create=await request('/api/grazia','b','POST',{nome:'Persona sintetica non verificata B',urlProva:'https://example.org/fonti-pubbliche'});
+    assert.equal(create.status,202,'persistence is independent of push/inbox');
+    assert.match(create.headers.get('cache-control')||'',/no-store/);
+    const payload=await create.json();
+    assert.equal(payload.success,true);
+    assert.equal(payload.notification_sent,false);
+    assert.equal(requests.filter(r=>r.utente_id===B&&r.status==='pending').length,1);
+    const adminList=await request('/api/grazia/richieste','admin');
+    assert.match(adminList.headers.get('cache-control')||'',/no-store/);
+    const pending=(await adminList.json()).find(r=>r.userId===B);
+    assert.ok(pending,'the pending proposal exists despite notification failure');
+    const approved=await request('/api/grazia/richiesta/'+pending.id+'/rifiuta','admin','POST');
+    assert.equal(approved.status,200);
+    const answer=await approved.json();
+    assert.equal(answer.status,'rejected');
+    assert.equal(answer.notification_sent,false);
+    assert.equal(requests.find(r=>r.id===pending.id).status,'rejected');
+    assert.equal((await request('/api/grazia/richiesta/'+pending.id+'/rifiuta','admin','POST')).status,409);
+    assert.equal(catalog.some(r=>r.nome==='Persona sintetica non verificata B'),false);
+  } finally {failNotifications=false;}
+});
+
+test('Grazia disabled SQL connector returns generic 500 with no raw error or stuck request',async()=>{
+  failConnect=true;
+  try {
+    const r=await request('/api/grazia','b','POST',{nome:'Terza persona sintetica',urlProva:'https://example.org/fonte'});
+    assert.equal(r.status,500);
+    assert.match(r.headers.get('cache-control')||'',/no-store/);
+    assert.doesNotMatch(JSON.stringify(await r.json()),/SYNTHETIC_POOL_CONNECT_FAILURE/);
+    const review=await request('/api/grazia/richiesta/unknown/accetta','admin','POST');
+    assert.equal(review.status,500);
+    assert.match(review.headers.get('cache-control')||'',/no-store/);
+    assert.doesNotMatch(JSON.stringify(await review.json()),/SYNTHETIC_POOL_CONNECT_FAILURE/);
+  } finally {failConnect=false;}
+});
+
+test('Grazia GET with optional token and personal status are private no-store',async()=>{
+  for(const [p,t] of [['/api/grazia',null],['/api/grazia/mia-proposta','a'],['/api/grazia/richieste','admin']]){
+    const r=await request(p,t);
+    assert.match(r.headers.get('cache-control')||'',/no-store/,p);
+    assert.match(r.headers.get('cache-control')||'',/private/,p);
+  }
 });
