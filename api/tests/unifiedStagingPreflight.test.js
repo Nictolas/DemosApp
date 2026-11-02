@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES} = require('../scripts/unifiedStagingPreflight');
+const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, run} = require('../scripts/unifiedStagingPreflight');
 
 const env = {NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'preflight'};
 const st = 'fkeayjzvtuvzesljhjbc';
@@ -39,4 +39,21 @@ test('missing application tables means NOT READY, never silently ready', () => {
   assert.ok(sample.missing.includes('eventi'));
   assert.ok(sample.missing.includes('programmi'));
   assert.deepEqual(evaluateSchema(REQUIRED_TABLES),{ready:true,presentCount:9,requiredCount:9,missing:[]});
+});
+
+test('preflight is disabled before an explicit staging GO; never connects by default', async () => {
+  const fakeUrl = 'postgresql://postgres:synthetic@db.' + st + '.supabase.co:5432/postgres';
+  await assert.rejects(
+    run({...env, DATABASE_URL: fakeUrl}),
+    /preflight not authorized while bootstrap is incomplete/
+  );
+  await assert.rejects(
+    run({...env, DATABASE_URL: fakeUrl, DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: 'true'}),
+    /preflight not authorized while bootstrap is incomplete/
+  );
+  await assert.rejects(
+    run({...env, DATABASE_URL: 'postgresql://postgres:synthetic@localhost:5432/postgres',
+      DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: 'APPROVED_READ_ONLY_PREFLIGHT'}),
+    /Refusing non-staging Supabase project or endpoint/
+  );
 });
