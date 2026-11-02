@@ -64,7 +64,7 @@ function NotificheTable({ notifiche, tipo }: { notifiche: any[]; tipo: string })
                 <><TableCell className="font-medium">{notifica.titolo || "Nessun titolo"}</TableCell><TableCell className="max-w-md"><p className="text-sm text-gray-600 truncate">{notifica.testo || notifica.messaggio || "Nessun messaggio"}</p></TableCell><TableCell>{notifica.data ? new Date(notifica.data).toLocaleDateString("it-IT") : "N/A"}</TableCell></>
               )}
               {tipo === "voti_comuni" && <><TableCell>{notifica.voto || "-"}</TableCell><TableCell>{notifica.politico || "-"}</TableCell></>}
-              {tipo !== "demos" && <TableCell>{notifica.comune_residenza || "-"}</TableCell>}
+              {tipo !== "demos" && tipo !== "avvistamenti" && <TableCell>{notifica.comune_residenza || "-"}</TableCell>}
               {tipo === "voti_comuni" && <><TableCell>{notifica.likes || 0}</TableCell><TableCell>{notifica.dislikes || 0}</TableCell></>}
               <TableCell><Button variant="destructive" size="sm" onClick={() => handleDelete(notifica.id, tipo)} disabled={deleteMutation.isPending} aria-label="Cancella notifica"><Trash2 className="h-4 w-4" /></Button></TableCell>
             </TableRow>
