@@ -3,6 +3,7 @@ on:
   push:
     branches: [performance/opinion-catalog-in-code-20261028, integration/opinioni-catalog-privacy-20261029]
   pull_request:
+    # Required check runs on every PR; only expensive integration is scoped below.
 permissions:
   contents: read
 jobs:

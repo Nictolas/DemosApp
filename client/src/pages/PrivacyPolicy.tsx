@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             Informativa sulla Privacy
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Ultima modifica del testo: 30/10/2026
+            <strong>DemosApp</strong> - Ultima modifica del testo: 02/11/2026
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -463,13 +463,97 @@ export default function PrivacyPolicy() {
               <li><strong>Cookie di preferenze:</strong> Per memorizzare le impostazioni dell'utente (es. stato sidebar)</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              <strong>Non utilizziamo cookie di marketing o di profilazione</strong> che richiederebbero il tuo consenso. 
-              I cookie tecnici utilizzati non richiedono consenso secondo la direttiva ePrivacy.
+              Sul sito web DEMOS, allo stato attuale, non utilizziamo cookie pubblicitari
+              di Google AdMob o Google AdSense. I cookie e gli strumenti strettamente necessari
+              al funzionamento del servizio sono trattati secondo le norme applicabili.
+              L'eventuale pubblicità nativa Android è distinta dai cookie del sito.
             </p>
             <p className="text-gray-700">
               Per maggiori dettagli, consulta la nostra{" "}
               <a href="/cookie-policy" className="text-blue-600 hover:text-blue-800 underline">
                 Cookie Policy
+              </a>.
+            </p>
+          </section>
+
+          {/* Preparazione trasparente, non attivazione di nuovi SDK nelle release */}
+          <section>
+            <h2 className="text-2xl font-semibold mb-3">
+              10.1 Pubblicità nell'app Android: integrazione prevista, non ancora attiva
+            </h2>
+            <p className="text-gray-700 mb-3">
+              DEMOS sta predisponendo unicamente annunci di tipo <strong>App Open</strong>
+              (all'apertura dell'app Android) tramite Google AdMob. <strong>Nelle versioni
+              Android attualmente distribuite questa integrazione pubblicitaria non è
+              attiva e gli SDK AdMob e UMP non sono inclusi nella variante di rilascio.</strong>
+              L'eventuale attivazione richiederà una nuova versione dell'app, la verifica
+              della conformità e l'aggiornamento delle informazioni nello store.
+              Non è prevista pubblicità sul sito web.
+            </p>
+            <p className="text-gray-700 mb-3">
+              Se l'integrazione verrà attivata, DEMOS intende richiedere soltanto
+              <strong> annunci non personalizzati</strong>. Questo non significa che gli
+              annunci siano privi di trattamento di dati personali: Google Mobile Ads
+              può raccogliere e condividere dati tecnici per la fornitura degli annunci,
+              la misurazione, la diagnostica e la prevenzione delle frodi.
+            </p>
+            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+              <li>
+                <strong>Dati tecnici potenzialmente trattati da Google:</strong> indirizzo IP
+                (anche per stimare la posizione approssimativa), interazioni con annunci e app,
+                informazioni diagnostiche e identificatori del dispositivo o pubblicitari,
+                secondo le impostazioni effettive e le condizioni dei servizi.
+              </li>
+              <li>
+                <strong>Nessun trasferimento intenzionale delle scelte civiche:</strong> DEMOS
+                non utilizzerà opinioni politiche, voti, firme, affinità politiche, dati del
+                profilo o identificativi dell'account per creare segmenti pubblicitari
+                o inviarli a Google AdMob. I dati tecnici raccolti autonomamente dagli SDK
+                devono comunque essere valutati separatamente.
+              </li>
+              <li>
+                <strong>Fornitori:</strong> Google e, se effettivamente coinvolti, i partner
+                pubblicitari indicati nel messaggio di consenso e nel relativo elenco
+                aggiornato. L'inclusione nell'elenco non implica che ogni partner riceva
+                dati da ogni utente.
+              </li>
+              <li>
+                <strong>Scelte dell'utente:</strong> prima di richiedere annunci laddove
+                richiesto verrà presentato il messaggio Google UMP, con le possibilità
+                di accettare, negare il consenso o gestire le opzioni. L'eventuale
+                interesse legittimo, ove applicabile, resta distinto dal consenso e
+                può essere oggetto di opposizione. Le opzioni privacy saranno
+                nuovamente accessibili nell'app quando richiesto dalle regole UMP.
+                Rifiutare il consenso pubblicitario non impedisce di usare DEMOS.
+              </li>
+              <li>
+                <strong>Informazioni e diritti:</strong> basi giuridiche, periodi di
+                conservazione, eventuali trasferimenti extra SEE e impostazioni
+                definitive dovranno essere verificati prima dell'attivazione,
+                assieme al Registro dei trattamenti e alla dichiarazione
+                Sicurezza dei dati di Google Play. Puoi contattare
+                <strong> privacy@demos.community</strong> per esercitare i tuoi diritti.
+              </li>
+            </ul>
+            <p className="text-gray-700 mb-3">
+              Per ulteriori informazioni sui trattamenti relativi ai servizi
+              pubblicitari Google, consulta la{' '}
+              <a
+                href="https://developers.google.com/admob/android/next-gen/privacy/play-data-disclosure"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                documentazione sui dati trattati da Google Mobile Ads
+              </a>
+              {' '}e le{' '}
+              <a
+                href="https://policies.google.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                norme sulla privacy di Google
               </a>.
             </p>
           </section>
