@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES,
   CIVIC_RUNTIME_COLUMNS, evaluateCivicProtection, evaluateCivicRuntimeColumns,
-  evaluateBlockedGuard, run} = require('../scripts/unifiedStagingPreflight');
+  evaluateBlockedGuard, evaluateStagingIdentity, STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
 
 const env = {NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'preflight'};
 const st = 'fkeayjzvtuvzesljhjbc';
@@ -109,4 +109,12 @@ test('staging delivery guard must have exactly one blocked row', () => {
   for(const rows of [[],[{blocked:false}],[{blocked:null}],[{blocked:true},{blocked:true}]]) {
     assert.equal(evaluateBlockedGuard(rows),false);
   }
+});
+
+
+test('read-only preflight additionally verifies actual database identity, not only host', () => {
+  assert.equal(evaluateStagingIdentity([{identity_hash:STAGING_IDENTITY_HASH}]),true);
+  assert.equal(evaluateStagingIdentity([{identity_hash:'00000000000000000000000000000000'}]),false);
+  assert.equal(evaluateStagingIdentity([]),false);
+  assert.equal(evaluateStagingIdentity([{identity_hash:STAGING_IDENTITY_HASH},{identity_hash:STAGING_IDENTITY_HASH}]),false);
 });
