@@ -1,25 +1,71 @@
 'use strict';
-// Static contract for the browser badge hook; API endpoint is checked in HTTP tests.
-const {test}=require('node:test');
-const assert=require('node:assert/strict');
-const fs=require('node:fs');
-const path=require('node:path');
-const source=fs.readFileSync(path.resolve(__dirname,'../../client/src/hooks/useNotificationBadge.ts'),'utf8');
 
-test('badge HTTP fetch does not put user IDs or notification content in URLs or browser logs',()=>{
-  assert.match(source,/apiRequest\("GET", "\/api\/notifiche"\)/);
-  assert.doesNotMatch(source,/\?user_id=|URLSearchParams|console\.(?:log|warn|error)/);
-  assert.match(source,/queryKey: \['notificationBadge', user\?\.id\]/);
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const read = file => fs.readFileSync(path.resolve(__dirname, '../../', file), 'utf8');
+const badge = read('client/src/hooks/useNotificationBadge.ts');
+const page = read('client/src/pages/Notifiche/hooks/useNotificheData.ts');
+const shared = read('client/src/lib/notificationFeed.ts');
+
+test('badge and page use one account-scoped React Query entry and the same fetcher', () => {
+  for (const src of [badge, page]) {
+    assert.match(src, /queryKey: notificationFeedKey\(user\?\.id\)/);
+    assert.match(src, /queryFn: fetchNotificationFeed/);
+    assert.match(src, /enabled: isValidNotificationUserId\(user\?\.id\)/);
+    assert.match(src, /\.\.\.notificationFeedQueryPolicy/);
+    assert.doesNotMatch(src, /queryKey: \['notificationBadge'/);
+  }
+  assert.match(shared, /\["notifiche", userId \?\? null\]/);
+  assert.match(shared, /UUID_PATTERN\.test\(id\)/);
 });
 
-test('badge refresh is disabled when signed out or in the background, keeps existing 45-second foreground cadence',()=>{
-  assert.match(source,/enabled: Boolean\(user\?\.id\)/);
-  assert.match(source,/refetchInterval: 45000/);
-  assert.match(source,/refetchIntervalInBackground: false/);
-  assert.match(source,/refetchOnWindowFocus: true/);
+test('shared fetch reads apiRequest response.data, validates server envelope, omits user ID', () => {
+  assert.match(shared, /apiRequest\("GET", "\/api\/notifiche"\)/);
+  assert.match(shared, /const payload = response\?\.data/);
+  assert.match(shared, /payload\?\.success !== true/);
+  assert.match(shared, /Array\.isArray\(payload\?\.notifiche\)/);
+  assert.doesNotMatch(shared, /\?user_id=|console\.(?:log|warn|error)/);
+  for (const src of [badge, page]) {
+    assert.doesNotMatch(src, /apiRequest\("GET",\s*[`'"]\/api\/notifiche/);
+    assert.doesNotMatch(src, /\?user_id=/);
+  }
 });
 
-test('badge still respects explicit read statuses and avoids reading with an absent identity',()=>{
-  assert.match(source,/if \(!user\?\.id\) return 0/);
-  assert.match(source,/notifica\.status !== 'letta'/);
+test('background polling disabled and page/badge share one 60s refresh policy', () => {
+  assert.match(shared, /refetchInterval:\s*60_000/);
+  assert.match(shared, /refetchIntervalInBackground:\s*false/);
+  assert.match(shared, /staleTime:\s*90_000/);
+  assert.match(shared, /refetchOnWindowFocus:\s*true/);
+  assert.doesNotMatch(badge, /refetchInterval: 45000/);
+  assert.doesNotMatch(page, /refetchInterval: 60000/);
+});
+
+test('badge does not falsely count missing notification status as unread', () => {
+  assert.match(badge, /n\.status === "non_letta"/);
+  assert.doesNotMatch(badge, /status !== ['"]letta['"]/);
+  assert.match(badge, /notificationCount = notifications\.length/);
+  assert.match(badge, /hasReliableReadState/);
+});
+
+test('notification write surfaces invalidate the shared feed cache instead of a dead badge key', () => {
+  const writers = [
+    'client/src/pages/NotificheDemos.tsx',
+    'client/src/pages/NotificheTotali/index.tsx',
+    'client/src/pages/Votazione.tsx',
+    'client/src/pages/InformaCittadini.tsx',
+    'client/src/pages/Notifiche/hooks/useNotificheData.ts',
+  ];
+  for (const file of writers) {
+    const src = read(file);
+    assert.doesNotMatch(src, /queryKey:\s*\[['"]notificationBadge['"]\]/, file);
+    assert.match(src, /invalidateQueries\(\{ queryKey:\s*\[['"]notifiche['"]\]/, file);
+  }
+});
+
+test('user identity never appears in the shared GET URL, but remains in cache key', () => {
+  const src = read('client/src/lib/notificationFeed.ts');
+  assert.match(src, /notificationFeedKey = \(userId\?/);
+  assert.doesNotMatch(src, /getAuthToken\(|userId.*apiRequest/);
 });
