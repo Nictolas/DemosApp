@@ -19,6 +19,9 @@ const settings = read('../src/pages/Impostazioni/index.tsx');
 const uiPrivacy = read('../src/pages/Impostazioni/components/AppOpenPrivacyOptions.tsx');
 const landing = read('../src/pages/LandingPage.tsx');
 const authPage = read('../src/pages/auth-page.tsx');
+const authProvider = read('../src/hooks/use-auth.tsx');
+const authBackend = read('../../api/routes/auth/profile.js');
+const adultEligibility = read('../../api/utils/adsAdultEligibility.js');
 
 test('release App Open is permanently OFF and only debug contains sample App ID', () => {
   assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_APP_OPEN_ADS_ENABLED', 'false'/);
@@ -140,7 +143,7 @@ test('UMP configuration errors fail closed instead of using cached consent or in
   assert.doesNotMatch(onFailure, /initializeSdk\(|MobileAds\.initialize\(|AppOpenAd\.load\(/);
   assert.match(onFailure, /requestError\.getErrorCode\(\)/);
   assert.doesNotMatch(onFailure, /requestError\.getMessage\(\)/);
-  assert.match(manager, /if \(formError != null \|\| activity\.isDestroyed\(\) \|\| activity\.isFinishing\(\)\) return/);
+  assert.match(manager, /if \(formError != null \|\| !adultEligible \|\| activity\.isDestroyed\(\) \|\| activity\.isFinishing\(\)\) return/);
 });
 
 test('explicit TCF consent gate blocks refusal before any SDK initialization or ad request', () => {
@@ -186,4 +189,26 @@ test('UMP privacy options dialog is always opened on the Android main thread', (
   assert.ok(method.indexOf('runOnUiThread') < method.indexOf('appOpenAdsManager.showPrivacyOptions('));
   assert.match(method, /isFinishing\(\) \|\| isDestroyed\(\)/);
   assert.match(nativePrivacy, /activity\.showAppOpenPrivacyOptions\(/);
+});
+
+
+test('minor/unknown-age users do not invoke UMP, initialize SDK or request App Open', () => {
+  assert.match(adultEligibility, /year <= now\.getUTCFullYear\(\) - 19/);
+  assert.match(authBackend, /ads_adult_eligible: isConfirmedAdultForAds\(user\.data_nascita\)/);
+  assert.match(authProvider, /userData\.ads_adult_eligible === true/);
+  assert.match(authProvider, /setNativeAppOpenAdultEligibility\(verifiedAdultForAds\)/);
+  assert.match(authProvider, /await setNativeAppOpenAdultEligibility\(false\)/);
+  assert.match(clientPrivacy, /setAdultEligibility\(\{ eligible: eligible === true \}\)/);
+  assert.match(nativePrivacy, /setAdultEligibility\(PluginCall call\)/);
+  assert.match(nativePrivacy, /Boolean\.TRUE\.equals\(confirmed\)/);
+  assert.match(mainActivity, /runOnUiThread\(\(\) -> \{[\s\S]*?appOpenAdsManager\.setAdultEligible\(verifiedAdult\)/);
+  assert.match(manager, /private boolean adultEligible = false/);
+  assert.match(manager, /void setAdultEligible\(boolean confirmedAdult\)/);
+  assert.match(manager, /if \(!umpRequested\) \{[\s\S]*?requestAdultConsent\(\)/);
+  assert.match(manager, /if \(!adultEligible \|\| activity\.isFinishing\(\) \|\| activity\.isDestroyed\(\)\) return/);
+  assert.match(manager, /\|\| !adultEligible \|\| !hasExplicitTcfConsent\(\)/);
+  assert.match(manager, /if \(!BuildConfig\.DEBUG \|\| !BuildConfig\.DEMOS_APP_OPEN_ADS_ENABLED\s*\|\| !adultEligible\) return/);
+  assert.match(gradle, /demosDebugQaForceAdult = demosDebugUmpEea &&/);
+  assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
+  assert.doesNotMatch(nativePrivacy, /data_nascita|birthYear|userId|politicalOpinions/);
 });
