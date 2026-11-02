@@ -12,6 +12,9 @@ if (!(demosDebugAdMobAppId ==~ /ca-app-pub-\d{16}~\d{10}/)) {
 }
 def demosDebugUmpEea = demosDebugAppOpenAds &&
     (project.findProperty('demosDebugUmpEea') ?: 'false').toString() == 'true'
+// Synthetic adult consent testing is opt-in, EEA-debug-only and NEVER a release capability.
+def demosDebugQaForceAdult = demosDebugUmpEea &&
+    (project.findProperty('demosDebugQaForceAdult') ?: 'false').toString() == 'true'
 
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -59,6 +62,7 @@ android {
             buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', demosDebugAppOpenAds.toString()
             buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', "\"${demosDebugAdMobAppId}\""
             buildConfigField 'boolean', 'DEMOS_UMP_DEBUG_EEA', demosDebugUmpEea.toString()
+            buildConfigField 'boolean', 'DEMOS_QA_FORCE_ADULT', demosDebugQaForceAdult.toString()
             manifestPlaceholders['demosAdMobAppId'] = demosDebugAdMobAppId
             buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544/9257395921"'
         }
@@ -67,6 +71,7 @@ android {
             buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', 'false'
             buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '""'
             buildConfigField 'boolean', 'DEMOS_UMP_DEBUG_EEA', 'false'
+            buildConfigField 'boolean', 'DEMOS_QA_FORCE_ADULT', 'false'
             buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '""'
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
