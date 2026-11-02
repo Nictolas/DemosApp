@@ -4,6 +4,14 @@ apply plugin: 'com.android.application'
 // Per provare su emulatore/dispositivo di sviluppo: -PdemosDebugAppOpenAds=true
 // Il publisher ID e le unità di produzione richiedono una PR separata e i gate privacy.
 def demosDebugAppOpenAds = (project.findProperty('demosDebugAppOpenAds') ?: 'false').toString() == 'true'
+// Allows testing DEMOS's UMP message without embedding its App ID in source.
+// The ad unit remains Google's sample unit, and release remains SDK-free.
+def demosDebugAdMobAppId = (project.findProperty('demosDebugAdMobAppId') ?: 'ca-app-pub-3940256099942544~3347511713').toString()
+if (!(demosDebugAdMobAppId ==~ /ca-app-pub-\d{16}~\d{10}/)) {
+    throw new GradleException('Invalid debug-only AdMob application ID format')
+}
+def demosDebugUmpEea = demosDebugAppOpenAds &&
+    (project.findProperty('demosDebugUmpEea') ?: 'false').toString() == 'true'
 
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -45,13 +53,16 @@ android {
         debug {
             // Test IDs ufficiali Google: in debug soltanto, con opt-in esplicito.
             buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', demosDebugAppOpenAds.toString()
-            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '"ca-app-pub-3940256099942544~3347511713"'
+            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '"${demosDebugAdMobAppId}"'
+            buildConfigField 'boolean', 'DEMOS_UMP_DEBUG_EEA', demosDebugUmpEea.toString()
+            manifestPlaceholders['demosAdMobAppId'] = demosDebugAdMobAppId
             buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544/9257395921"'
         }
         release {
             // Fail closed: nessuna pubblicità in build distribuite ai tester.
             buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', 'false'
             buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '""'
+            buildConfigField 'boolean', 'DEMOS_UMP_DEBUG_EEA', 'false'
             buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '""'
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
