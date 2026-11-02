@@ -1,7 +1,6 @@
 'use strict';
 
 // Read-only Supabase staging preflight. Nothing is written to the database.
-const {Client} = require('pg');
 const fs = require('node:fs');
 const path = require('node:path');
 const {buildDatabaseSsl} = require('../utils/databaseTlsPolicy');
@@ -49,6 +48,9 @@ async function run(env = process.env) {
     throw new Error('Unified staging preflight not authorized while bootstrap is incomplete');
   }
   const {sanitizedConnectionString} = assertStagingTarget(env.DATABASE_URL, env);
+  // Delayed import: static checks and unit tests need no database driver.
+  // No network-capable client is even constructed before both gates pass.
+  const {Client} = require('pg');
   const ca = fs.readFileSync(path.join(__dirname, '..', 'certs', 'prod-ca-2021.crt'), 'utf8');
   const client = new Client({
     connectionString: sanitizedConnectionString,
