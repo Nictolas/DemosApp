@@ -46,8 +46,24 @@ cd android
 ```
 Senza il parametro `-PdemosDebugAppOpenAds=true`, **nessuna inizializzazione UMP/GMA**. Non utilizzare ID pubblicitari reali per questo test.
 
+## Account AdMob e unità App Open — verifica 02/11/2026
+- Account Google AdMob operativo, profilo pagamenti mostrato come completato.
+- Applicazione Android **DEMOS** aggiunta in AdMob; stato osservato: **Richiede revisione**. La sola creazione dell'unità non significa approvazione dell'app e non permette di dichiarare la monetizzazione attiva.
+- Nuova unità **Apertura app** creata correttamente. È distinta dalla vecchia unità **Banner**, che resta fuori dal progetto App Open.
+- **Entrambi gli identificativi di produzione sono stati acquisiti** e trascritti nella roadmap privata `DEMOS – Strategia – Scalabilità e Finanziamento`, tab `ADS – MONETIZZAZIONE`, voce `ADS-08`. Non ripeterli inutilmente in GitHub, test, issue o log.
+- **Non sostituire gli ID ufficiali di test Google nel prototipo DEBUG** con quelli reali. Le dipendenze AdMob e UMP continuano a non essere incluse in RELEASE. Richieste vere prima della verifica dell'account e delle autorizzazioni non sono previste.
+- Passo account successivo: `Privacy e messaggi` → messaggio `Normative europee` associato a DEMOS, con collegamento alla policy privacy effettiva; poi verificare e configurare `Controlli di blocco`, limiti di età/posizionamento, conformità e revoca consenso. Evitare di dichiarare un messaggio pubblicato senza verifica nella console.
+- Per l'approvazione AdMob, la app deve risultare associata a uno store supportato e idonea a revisione. **Non pubblicare DEMOS prematuramente** soltanto per questo gate.
+- `app-ads.txt`: usare solo la riga autorizzata ottenuta dall'account AdMob, verificarla sul dominio sviluppatore indicato nello store, non generarla per supposizione.
+
+Fonti ufficiali:
+- https://support.google.com/admob/answer/10564477
+- https://support.google.com/admob/answer/10114014
+- https://support.google.com/admob/answer/10113106
+- https://support.google.com/admob/answer/12226986
+
 ## Gate ancora aperti prima di attivare pubblicità nelle release
-1. Ottenere account AdMob operativo e controllare che `community.demos` e il relativo dominio sviluppatore risultino corretti. Confermare **AdMob App ID** e **App Open Ad Unit ID**, senza inventarli o pubblicarli negli output.
+1. **PARZIALE / ID ACQUISITI:** account AdMob attivo e ID dell'app e della unità App Open verificati nella console (vedi ADS-08). **Richiede revisione**: collegamento idoneo allo store e approvazione dell'app ancora aperti; verificare la corrispondenza con il package Android `community.demos`. Non usare ID di produzione per gli annunci di prova.
 2. Verificare se AdMob fornisce le unità per l'app in test chiuso. In sviluppo usare esclusivamente gli ID di test Google, senza mai generare impression reali di prova.
 3. **PARZIALE:** Next-Gen e UMP integrati solo in DEBUG; prima compilazione Android debug/release riuscita il 02/11/2026, verifiche JUnit successive in corso. Decidere condizioni e ID produzione dopo audit.
 4. **PARZIALE:** UMP nella sola variante DEBUG con fail-closed, `canRequestAds()` e stato `OBTAINED`; verificare la configurazione del messaggio dell'account AdMob e la gestione di revoca/rifiuto con test reali prima della variante release.
@@ -86,4 +102,4 @@ Nel test limitato agli annunci Google di prova, la verifica UMP non garantisce c
 
 Piano: Google Sheet `DEMOS – Strategia – Scalabilità e Finanziamento`, tab `ADS – MONETIZZAZIONE`. PR: https://github.com/Nictolas/DemosApp/pull/558
 
-**Solo prototipo nativo DEBUG.** Per il rilascio reale mancano gli ID AdMob, configurazione CMP/UMP reale, opzioni privacy, controllo dei minori, esclusioni politiche, Play Console, app-ads.txt e prove end-to-end su dispositivi.
+**Solo prototipo nativo DEBUG.** Gli ID AdMob reali sono stati acquisiti ma non attivati. Per il rilascio reale mancano approvazione AdMob/store, configurazione CMP/UMP reale, controllo dei minori, esclusioni politiche, Play Console, app-ads.txt e prove end-to-end su dispositivi.
