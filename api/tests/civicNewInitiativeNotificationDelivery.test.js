@@ -62,6 +62,8 @@ test('topic reconciliation trusts only active registered devices and stored opt-
     assert.deepEqual(params, ['verified-user']);
     return { rows: [{
       fcm_token: 'real-test-device-token',
+      is_active: true,
+      user_status: 'a',
       iniziative_popolari: true,
       referendum_abrogativi: false,
       eci: false,
@@ -71,8 +73,9 @@ test('topic reconciliation trusts only active registered devices and stored opt-
     enabled: true, messaging
   });
   assert.deepEqual(result, { enabled: true, tokens: 1 });
-  assert.match(sql, /d\.is_active = TRUE/);
-  assert.match(sql, /u\.status = 'a'/);
+  assert.match(sql, /d\.is_active/);
+  assert.match(sql, /COALESCE\(u\.status, ''\)/);
+  assert.doesNotMatch(sql, /WHERE d\.user_id = \$1\s+AND d\.is_active/);
   assert.match(sql, /LEFT JOIN notifiche_preferenze/);
   assert.deepEqual(messaging.calls.map(c => [c.method, c.topic]), [
     ['subscribe', CIVIC_TOPIC_BY_CATEGORY.iniziative_popolari],
@@ -84,7 +87,8 @@ test('topic reconciliation trusts only active registered devices and stored opt-
 test('explicit opt-out revokes only requested subscriptions before write', async () => {
   const messaging = fakeMessaging();
   const pool = { query: async (sql, params) => {
-    assert.match(sql, /FROM user_devices WHERE user_id = \$1 AND is_active = TRUE/);
+    assert.match(sql, /FROM user_devices WHERE user_id = \$1/);
+    assert.doesNotMatch(sql, /AND is_active = TRUE/);
     assert.deepEqual(params, ['verified-user']);
     return { rows: [{ fcm_token: 'test-token' }] };
   } };
@@ -96,6 +100,49 @@ test('explicit opt-out revokes only requested subscriptions before write', async
   const beforeSave = route.indexOf('await unsubscribeDisabledCivicTopicsForUser(');
   const dbWrite = route.indexOf('INSERT INTO notifiche_preferenze', beforeSave);
   assert.ok(beforeSave >= 0 && dbWrite > beforeSave);
+});
+
+test('inactive or deactivated devices are unsubscribed even if their old preference is still ON', async () => {
+  const messaging = fakeMessaging();
+  const pool = { query: async (_sql, params) => {
+    assert.deepEqual(params, ['verified-user']);
+    return { rows: [
+      { fcm_token: 'active-token', is_active: true, user_status: 'a',
+        iniziative_popolari: true, referendum_abrogativi: true, eci: true },
+      { fcm_token: 'inactive-token', is_active: false, user_status: 'a',
+        iniziative_popolari: true, referendum_abrogativi: true, eci: true },
+      { fcm_token: 'deactivated-owner', is_active: true, user_status: 'suspended',
+        iniziative_popolari: true, referendum_abrogativi: true, eci: true },
+      { fcm_token: 'orphan-token', is_active: true, user_status: '',
+        iniziative_popolari: true, referendum_abrogativi: true, eci: true },
+    ] };
+  } };
+  const result = await reconcileCivicTopicsForUser(pool, 'verified-user', {
+    enabled: true, messaging,
+  });
+  assert.equal(result.tokens, 4);
+  const called = messaging.calls;
+  assert.equal(called.length, 12);
+  for (const call of called) {
+    assert.equal(call.method, call.tokens[0] === 'active-token' ? 'subscribe' : 'unsubscribe');
+  }
+});
+
+test('opt-out removes old topic memberships on inactive devices too', async () => {
+  const messaging = fakeMessaging();
+  const pool = { query: async (sql, params) => {
+    assert.match(sql, /FROM user_devices WHERE user_id = \$1/);
+    assert.doesNotMatch(sql, /AND is_active = TRUE/);
+    assert.deepEqual(params, ['verified-user']);
+    return { rows: [{fcm_token:'active'}, {fcm_token:'inactive'}] };
+  } };
+  const result = await unsubscribeDisabledCivicTopicsForUser(
+    pool, 'verified-user', ['eci'], { enabled: true, messaging }
+  );
+  assert.equal(result.tokens, 2);
+  assert.deepEqual(messaging.calls.map(c => c.tokens[0]), ['active','inactive']);
+  assert.ok(messaging.calls.every(c => c.method === 'unsubscribe' &&
+    c.topic === CIVIC_TOPIC_BY_CATEGORY.eci));
 });
 
 test('FCM subscription failure is sanitized and never signals opt-out success', async () => {
