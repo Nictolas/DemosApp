@@ -13,6 +13,8 @@ on:
       - 'api/tests/unifiedStagingPreflight.test.js'
       - 'api/tests/unifiedStagingSchemaContract.test.js'
       - 'api/database/staging/ops_stg_001_missing_tables.sql'
+      - 'api/database/staging/ops_stg_001_p0_app_routes_20261103.sql'
+      - 'api/tests/test_ops_stg_001_p0_migration_postgres.py'
       - 'docs/operations/DEMOS_UNIFIED_STAGING_2026-11-02.md'
       - '.github/workflows/unified-staging-offline-safety.yml'
   push:
@@ -25,6 +27,8 @@ on:
       - 'api/tests/unifiedStagingPreflight.test.js'
       - 'api/tests/unifiedStagingSchemaContract.test.js'
       - 'api/database/staging/ops_stg_001_missing_tables.sql'
+      - 'api/database/staging/ops_stg_001_p0_app_routes_20261103.sql'
+      - 'api/tests/test_ops_stg_001_p0_migration_postgres.py'
       - '.github/workflows/unified-staging-offline-safety.yml'
   workflow_dispatch:
 
@@ -55,3 +59,38 @@ jobs:
       - name: Offline bootstrap and preflight contracts (loopback only)
         run: |
           node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSchemaContract.test.js
+
+  p0-schema-postgres16:
+    # Synthetic CI database only, never the shared Render/Supabase staging.
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: civic_ci_only
+          POSTGRES_DB: civic_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d civic_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: ''
+      CIVIC_TEST_DATABASE_URL: postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated PostgreSQL driver
+        run: python -m pip install psycopg2-binary
+      - name: Exercise P0 staging DDL with synthetic identity, including negative gates
+        run: python -m unittest api.tests.test_ops_stg_001_p0_migration_postgres -v
