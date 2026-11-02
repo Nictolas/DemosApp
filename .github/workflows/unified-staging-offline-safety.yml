@@ -1,0 +1,53 @@
+name: Unified Staging Offline Safety
+
+# OPS-STG-001 / PR #565: temporary GitHub runner only, NO shared staging,
+# database, Render deploy, secret access, or new persistent infrastructure.
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'api/staging/unified_staging_bootstrap.js'
+      - 'api/scripts/unifiedStagingPreflight.js'
+      - 'api/tests/unifiedStagingBootstrap.test.js'
+      - 'api/tests/unifiedStagingPreflight.test.js'
+      - 'docs/operations/DEMOS_UNIFIED_STAGING_2026-11-02.md'
+      - '.github/workflows/unified-staging-offline-safety.yml'
+  push:
+    branches:
+      - ops/demos-unified-staging-20261102
+    paths:
+      - 'api/staging/unified_staging_bootstrap.js'
+      - 'api/scripts/unifiedStagingPreflight.js'
+      - 'api/tests/unifiedStagingBootstrap.test.js'
+      - 'api/tests/unifiedStagingPreflight.test.js'
+      - '.github/workflows/unified-staging-offline-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      # These tests must never receive credentials or touch cloud staging.
+      NODE_ENV: test
+      DATABASE_URL: ''
+      DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: ''
+      DEMOS_UNIFIED_STAGING_MODE: ''
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks (no dependencies)
+        run: |
+          node --check api/staging/unified_staging_bootstrap.js
+          node --check api/scripts/unifiedStagingPreflight.js
+      - name: Offline bootstrap and preflight contracts (loopback only)
+        run: |
+          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js
