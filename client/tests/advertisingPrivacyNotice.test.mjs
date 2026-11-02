@@ -40,3 +40,11 @@ test('public explanation separates political consent from UMP advertising choice
 test('real AdMob production IDs are not embedded in public disclosures', () => {
   assert.doesNotMatch(privacy + cookies, /ca-app-pub-7488681940015678/);
 });
+
+test('app-ads.txt declares only the existing verified-format Google publisher seller', () => {
+  const webSellers = read('../public/ads.txt').trim();
+  const appSellers = read('../public/app-ads.txt').trim();
+  assert.match(appSellers, /^google\.com, pub-\d{16}, DIRECT, f08c47fec0942fa0$/);
+  assert.equal(appSellers, webSellers);
+  assert.equal(appSellers.split(/\r?\n/).length, 1, 'no undeclared ad sellers');
+});
