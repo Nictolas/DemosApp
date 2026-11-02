@@ -8,8 +8,9 @@ const register = load("RegistroTrattamenti.tsx");
 test("policy and treatment register never pass today's date off as revision date", () => {
   for (const document of [privacy, register]) {
     assert.doesNotMatch(document, /Ultima modifica[^\n]*new Date\(/);
-    assert.match(document, /Ultima modifica del testo: 30\/10\/2026/);
   }
+  assert.match(privacy, /Ultima modifica del testo: 02\/11\/2026/);
+  assert.match(register, /Ultima modifica del testo: 30\/10\/2026/);
 });
 test("accounting record retention is not asserted as a legal basis for keeping political votes or ordinary profiles", () => {
   assert.doesNotMatch(privacy, /Conservazione per finalit[aà] di democrazia partecipativa e\s+trasparenza politica \(Art\. 2220/);
