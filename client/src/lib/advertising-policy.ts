@@ -1,68 +1,62 @@
 /**
- * DEMOS advertising policy. Pure, fail-closed eligibility checks.
+ * DEMOS: App Open Ad eligibility policy (Android only).
  *
- * This file does NOT fetch ads or read the citizen profile. CMP/UMP approval,
- * network eligibility, and the current loading state must be supplied by the
- * integration itself. No ad provider is imported here.
+ * This module never connects to an ad network and never reads user identity,
+ * vote selections, demographic data or political opinions.
+ *
+ * The native integration must supply VERIFIED UMP + non-personalization state,
+ * a confirmed AdMob app/unit configuration, and the actual loading-screen state.
+ * Missing context denies the ad.
  */
-export type AdPlacement = 'web_banner' | 'android_app_open';
-
-export interface AdvertisingContext {
-  placement: AdPlacement;
-  pathname: string;
-  enabled: boolean;
-  privacyGatePassed: boolean;
-  providerApproved: boolean;
-  isNativeApp: boolean;
-  isLoadingScreen?: boolean;
-  isFirstUse?: boolean;
-  lastShownAtMs?: number | null;
-  nowMs?: number;
-}
 
 export const MIN_APP_OPEN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+export const APP_OPEN_ADS_ENABLED_BY_DEFAULT = false;
 
-const WEB_BANNER_ALLOWLIST = new Set(['/scopri-demos']);
-
-function normalizedPath(pathname: string): string {
-  const onlyPath = pathname.split(/[?#]/, 1)[0];
-  const trimmed = onlyPath.replace(/\/+$/, '');
-  return trimmed || '/';
+export interface AppOpenAdContext {
+  enabled: boolean;
+  privacyGatePassed: boolean;
+  nonPersonalizedAdsEnforced: boolean;
+  providerApproved: boolean;
+  isNativeAndroid: boolean;
+  isForeground: boolean;
+  isLoadingScreen: boolean;
+  isFirstUse: boolean;
+  hasSensitiveContentVisible: boolean;
+  lastShownAtMs: number | null;
+  nowMs: number;
 }
 
 /**
- * No ads until all external privacy/provider gates are verified.
- * For web banners, only the public informational page is allowed initially.
- * App Open is allowed only on the native loading screen (never over content)
- * and never on first use or more than once in a rolling 24-hour window.
+ * A request is allowed ONLY while a genuine Android loading screen is visible,
+ * never on first use, and only after 24h have elapsed since the LAST displayed ad.
+ * Calling code must recheck this policy immediately before displaying an ad.
+ *
+ * Persist the last display timestamp on onAdShowedFullScreenContent, not on load
+ * or request: preloading is not an impression.
  */
-export function canRequestCommercialAd(context: AdvertisingContext): boolean {
-  if (!context.enabled || !context.privacyGatePassed || !context.providerApproved) {
+export function canRequestAppOpenAd(context: AppOpenAdContext): boolean {
+  if (
+    context.enabled !== true ||
+    context.privacyGatePassed !== true ||
+    context.nonPersonalizedAdsEnforced !== true ||
+    context.providerApproved !== true ||
+    context.isNativeAndroid !== true ||
+    context.isForeground !== true ||
+    context.isLoadingScreen !== true ||
+    context.isFirstUse !== false ||
+    context.hasSensitiveContentVisible !== false
+  ) {
     return false;
   }
 
-  const pathname = normalizedPath(context.pathname);
+  const now = context.nowMs;
+  if (!Number.isFinite(now) || now < 0) return false;
 
-  if (context.placement === 'web_banner') {
-    return !context.isNativeApp && WEB_BANNER_ALLOWLIST.has(pathname);
-  }
+  const previous = context.lastShownAtMs;
+  if (previous === null) return true;
+  if (!Number.isFinite(previous) || previous < 0) return false;
 
-  if (context.placement !== 'android_app_open') return false;
-  if (!context.isNativeApp || !context.isLoadingScreen || context.isFirstUse !== false) {
-    return false;
-  }
-
-  // The loading screen is the only permitted App Open placement.
-  if (pathname !== '/') return false;
-
-  const nowMs = context.nowMs;
-  if (typeof nowMs !== 'number' || !Number.isFinite(nowMs)) return false;
-
-  if (context.lastShownAtMs != null) {
-    if (!Number.isFinite(context.lastShownAtMs)) return false;
-    const elapsed = nowMs - context.lastShownAtMs;
-    if (elapsed < MIN_APP_OPEN_INTERVAL_MS) return false;
-  }
-
-  return true;
+  // Fail closed if the wall clock moved backward after the last ad.
+  const elapsed = now - previous;
+  return elapsed >= MIN_APP_OPEN_INTERVAL_MS;
 }
