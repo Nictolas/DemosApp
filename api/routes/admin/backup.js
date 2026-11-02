@@ -31,7 +31,7 @@ function legacyBackupActionUnavailable(req, res, next) {
  * GET /api/admin/backup/stats
  * Ottiene statistiche sui backup
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const stats = await BackupService.getBackupStats();
     
@@ -56,7 +56,7 @@ router.get('/stats', async (req, res) => {
  * GET /api/admin/backup/list
  * Ottiene lista dei backup disponibili
  */
-router.get('/list', async (req, res) => {
+router.get('/list', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const backups = await BackupService.getBackupList();
     
@@ -351,7 +351,7 @@ router.post('/test/integrity', legacyBackupActionUnavailable, async (req, res) =
  * GET /api/admin/backup/config
  * Ottiene la configurazione del backup
  */
-router.get('/config', async (req, res) => {
+router.get('/config', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const config = BackupService.getBackupConfig();
     
