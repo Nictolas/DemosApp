@@ -28,13 +28,13 @@ test("il prototipo resta isolato e non esegue rete, storage o log", () => {
   assert.match(source, /approved: false/);
 });
 
-test("catalogo canonico di 94 ID: mappatura 24 associata alle sole cinque etichette", () => {
+test("catalogo canonico di 94 ID: 27 associazioni, 24 Opinioni distinte, cinque etichette", () => {
   assert.equal(catalog.length, 94);
   assert.equal(new Set(catalog.map(x => x.id)).size, 94);
   const known = new Set(catalog.map(x => x.id));
   // Test statico sul testo: anche senza compilatore i riferimenti sono verificabili.
   const mapped = Array.from(source.matchAll(/\["([a-z0-9_]+)", "(f|c)", "[a-z0-9-]+"\]/g));
-  assert.equal(mapped.length, 24);
+  assert.equal(mapped.length, 27);
   assert.equal(new Set(mapped.map(x => x[1])).size, 24);
   for (const [, id] of mapped) assert.ok(known.has(id), "ID estraneo: " + id);
   for (const id of ["citta_30", "riduzione_dell_illuminazione_notturna_per_risparmio_energetico",
@@ -45,7 +45,7 @@ test("catalogo canonico di 94 ID: mappatura 24 associata alle sole cinque etiche
 
 run("nessuna regola e approvata ed il motore non produce alcuna inferenza di default", () => {
   assert.equal(model.BADGE_RULES.length, 5);
-  assert.deepEqual(model.BADGE_RULES.map(x => x.questions.length), [5, 4, 4, 5, 6]);
+  assert.deepEqual(model.BADGE_RULES.map(x => x.questions.length), [5, 4, 7, 5, 6]);
   for (const item of model.BADGE_RULES) {
     assert.equal(item.approved, false);
     assert.equal(model.evaluateOpinionBadge(item, {}, permitted), null);
@@ -139,10 +139,33 @@ run("ambiente: quattro domande valide; illuminazione esclusa", () => {
   assert.equal(model.evaluateOpinionBadge(r,onlyTwo,permitted).eligible,false);
 });
 
-run("mobilita: Citta 30 esclusa e tre risposte coerenti bastano", () => {
+run("conservatore: sette questioni sociali con risposta Contrario e almeno cinque decisive", () => {
   const r = rule("B03");
-  assert.ok(r.questions.every(q=>q.opinionId!=="citta_30"));
-  assert.equal(out(r,{0:"f",1:"f",2:"f"}).eligible,true);
+  assert.equal(r.label, "Conservatore");
+  assert.equal(r.questions.length, 7);
+  assert.ok(r.questions.every(q => q.supportsBadge === "c"));
+  assert.deepEqual(r.questions.map(q => q.opinionId), [
+    "matrimonio_gay", "adozioni_omogenitoriali", "eutanasia",
+    "legalizzazione_canapa", "ius_soli", "ius_scholae", "educazione_sessuale",
+  ]);
+  assert.equal(out(r, {0:"c",1:"c",2:"c",3:"c"}).eligible, false);
+  const five = out(r, {0:"c",1:"c",2:"c",3:"c",4:"c"});
+  assert.equal(five.eligible, true);
+  assert.equal(five.coherence, 1);
+  assert.equal(five.distinctTopics, 4);
+});
+
+run("etichette richieste e risposte controverse condivise ma di segno opposto", () => {
+  assert.deepEqual(model.BADGE_RULES.map(x => x.label), [
+    "Animalista", "Ambientalista", "Conservatore", "Progressista", "Socialdemocratico",
+  ]);
+  const conservative = rule("B03");
+  const progressive = rule("B04");
+  for (const opinionId of ["matrimonio_gay", "adozioni_omogenitoriali", "educazione_sessuale"]) {
+    assert.equal(conservative.questions.find(q => q.opinionId === opinionId)?.supportsBadge, "c");
+    assert.equal(progressive.questions.find(q => q.opinionId === opinionId)?.supportsBadge, "f");
+  }
+  assert.ok(model.BADGE_RULES.every(r => r.approved === false));
 });
 
 run("welfare: tre risposte su sei NON raggiungono copertura 60%", () => {
