@@ -21,7 +21,9 @@ const authPage = read('../src/pages/auth-page.tsx');
 test('release App Open is permanently OFF and only debug contains sample App ID', () => {
   assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_APP_OPEN_ADS_ENABLED', 'false'/);
   assert.match(gradle, /demosDebugAppOpenAds/);
-  assert.match(manifest, /ca-app-pub-3940256099942544~3347511713/);
+  assert.match(manifest, /android:value="\$\{demosAdMobAppId\}"/);
+  assert.match(gradle, /ca-app-pub-3940256099942544~3347511713/);
+  assert.match(gradle, /manifestPlaceholders\['demosAdMobAppId'\]/);
   assert.doesNotMatch(mainManifest, /com\.google\.android\.gms\.ads\.APPLICATION_ID/);
   assert.doesNotMatch(mainManifest, /ca-app-pub-/);
   assert.match(gradle, /debugImplementation 'com\.google\.android\.libraries\.ads\.mobile\.sdk:ads-mobile-sdk/);
@@ -110,4 +112,20 @@ test('in-flight SDK ad requests are invalidated when consent changes or Activity
   assert.match(loadMethod, /requestConsentGeneration != consentGeneration/);
   assert.match(loadMethod, /\|\| privacyFormOpen\s*\|\| activity\.isDestroyed\(\)/);
   assert.match(loadMethod, /ad\.destroy\(\)/);
+});
+
+test('debug-only EEA UMP test mode cannot leak a production ad ID or enable release SDK', () => {
+  assert.match(gradle, /demosDebugAdMobAppId = \(project\.findProperty\('demosDebugAdMobAppId'\)/);
+  assert.match(gradle, /demosDebugUmpEea = demosDebugAppOpenAds &&/);
+  assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_UMP_DEBUG_EEA', 'false'/);
+  assert.match(manager, /if \(BuildConfig\.DEMOS_UMP_DEBUG_EEA\)/);
+  assert.match(manager, /new ConsentDebugSettings\.Builder\(activity\)/);
+  assert.match(manager, /setDebugGeography\(ConsentDebugSettings\.DebugGeography\.DEBUG_GEOGRAPHY_EEA\)/);
+  assert.match(manager, /paramsBuilder\.setConsentDebugSettings\(/);
+  assert.match(manager, /logQaConsent\("form-complete"\)/);
+  assert.match(manager, /activity\.isDestroyed\(\) \|\| activity\.isFinishing\(\)/);
+  assert.doesNotMatch(gradle, /ca-app-pub-7488681940015678/);
+  assert.doesNotMatch(manifest, /ca-app-pub-7488681940015678/);
+  assert.match(gradle, /DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544\/9257395921"'/);
+  assert.doesNotMatch(releaseStub, /ConsentDebugSettings|MobileAds|UserMessagingPlatform/);
 });
