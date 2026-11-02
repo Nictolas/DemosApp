@@ -11,6 +11,7 @@ on:
       - 'api/tests/opinionCatalog*.test.js'
       - 'api/config/publicCachePolicy.js'
       - 'client/src/pages/GestisciOpinioni/**'
+      - 'client/public/app-ads.txt'
       - '.github/workflows/opinion-catalog-full-ci.yml'
 permissions:
   contents: read
