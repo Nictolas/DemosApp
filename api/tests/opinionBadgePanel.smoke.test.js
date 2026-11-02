@@ -56,7 +56,7 @@ runtime("la card esemplificativa spiega uno score coerente senza dedurre una ide
     {opinionId:"corrida",supportsBadge:"c",topic:"spettacoli"},
     {opinionId:"allevamenti_intensivi",supportsBadge:"c",topic:"allevamento"},
   ]};
-  const result={badgeId:"B01",version:"test",eligible:true,decisive:3,coherent:2,contradictory:1,
+  const result={badgeId:"B01",version:"test",eligible:false,decisive:3,coherent:2,contradictory:1,
     undecided:0,missing:0,coverage:1,coherence:2/3,distinctTopics:3,evidence:[
       {opinionId:"caccia",answer:"c",supportsBadge:true,topic:"caccia"},
       {opinionId:"corrida",answer:"c",supportsBadge:true,topic:"spettacoli"},
@@ -65,13 +65,14 @@ runtime("la card esemplificativa spiega uno score coerente senza dedurre una ide
   const html=render(React.createElement(Panel.OpinionBadgeEvidenceCard,{rule,result,
       opinionLabels:{caccia:"Caccia",corrida:"Corrida",allevamenti_intensivi:"Allevamenti intensivi"}}));
   assert.match(html,/Tutela animale/);
-  assert.match(html,/Indicazione tematica disponibile/);
+  assert.match(html,/Risposte insufficienti o discordanti/);
+  assert.match(html,/100% delle risposte indicate/);
   assert.match(html,/coerente/);
   assert.match(html,/discordante/);
   assert.match(html,/Contrario/);
   assert.match(html,/Favorevole/);
   assert.match(html,/Perché vedo questo risultato/);
-  assert.match(html,/non definiscono la tua identità/);
+  assert.match(html,/la tua identità/);
   assert.doesNotMatch(html,/66[.,]7% animalista/);
 });
 
@@ -97,4 +98,21 @@ runtime("le etichette delle Opinioni sono escaped e non possono introdurre marku
     opinionLabels:{caccia:'<img src=x onerror="alert(1)">'}}));
   assert.doesNotMatch(html,/<img/);
   assert.match(html,/&lt;img/);
+});
+
+runtime("la card con tutte le risposte coerenti mostra una corrispondenza senza identificare la persona", () => {
+  const rule={id:"B02",label:"Ambientalista",approved:true,questions:[
+    {opinionId:"nuove_aree_naturali_protette",supportsBadge:"f",topic:"biodiversita"},
+    {opinionId:"potenziare_rinnovabili",supportsBadge:"f",topic:"energia"},
+    {opinionId:"verde_pubblico_e_giardini",supportsBadge:"f",topic:"verde"},
+  ]};
+  const result={badgeId:"B02",version:"test",eligible:true,decisive:3,coherent:3,contradictory:0,
+    undecided:0,missing:0,coverage:1,coherence:1,distinctTopics:3,evidence:rule.questions.map(q=>({
+      opinionId:q.opinionId,answer:"f",supportsBadge:true,topic:q.topic,
+    }))};
+  const html=render(React.createElement(Panel.OpinionBadgeEvidenceCard,{rule,result}));
+  assert.match(html,/Indicazione tematica disponibile/);
+  assert.match(html,/Hai espresso tutte le risposte previste/);
+  assert.match(html,/non definisce la tua identità/);
+  assert.doesNotMatch(html,/discordante/);
 });
