@@ -130,3 +130,13 @@ test('debug-only EEA UMP test mode cannot leak a production ad ID or enable rele
   assert.match(gradle, /DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544\/9257395921"'/);
   assert.doesNotMatch(releaseStub, /ConsentDebugSettings|MobileAds|UserMessagingPlatform/);
 });
+
+test('UMP configuration errors fail closed instead of using cached consent or initializing ads', () => {
+  const match = manager.match(/requestError -> \{([\s\S]*?)\n            \}\n        \);/);
+  assert.ok(match, 'current-session UMP error handler must be present');
+  const onFailure = match[1];
+  assert.doesNotMatch(onFailure, /initializeSdk\(|MobileAds\.initialize\(|AppOpenAd\.load\(/);
+  assert.match(onFailure, /requestError\.getErrorCode\(\)/);
+  assert.doesNotMatch(onFailure, /requestError\.getMessage\(\)/);
+  assert.match(manager, /if \(formError != null \|\| activity\.isDestroyed\(\) \|\| activity\.isFinishing\(\)\) return/);
+});
