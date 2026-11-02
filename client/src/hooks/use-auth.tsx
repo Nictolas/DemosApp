@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { API_CONFIG, getApiUrl } from "@/lib/api-config";
 import { clearSessionTokens, getAuthToken, getRefreshToken } from "@/lib/auth-token";
 import { clearNativeGoogleCredentialState } from "@/lib/native-google-auth";
+import { setNativeAppOpenAdultEligibility } from "@/lib/native-app-open-privacy";
 import { clearStoredNativePushToken, getStoredNativePushToken, unregisterNativePush } from "@/lib/native-push";
 import { cleanupExpiredTokens } from "@/utils/token-cleanup";
 import { clearAllProfileSummaries } from "@/pages/Profilo/utils/profileSummaryCache";
@@ -19,6 +20,7 @@ type VerifiedPoliticalConsent = { granted: boolean; timestamp: string | null };
 interface User {
   id: string;
   political_consent?: VerifiedPoliticalConsent | null;
+  ads_adult_eligible?: boolean;
   email: string;
   name?: string;
   nome?: string;
@@ -135,6 +137,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isSessionVerified = !!userData && !isLoading && !isError && !isFetching &&
     typeof userData.political_consent?.granted === "boolean";
   const verifiedPoliticalConsent = isSessionVerified ? userData.political_consent! : null;
+  // Advertising is OFF for anonymous, unverified, minor or unknown-age users.
+  // This does not depend on political-opinion consent (a separate purpose).
+  // Pass a boolean ONLY to Android; never send birth year or opinion data.
+  const verifiedAdultForAds = !!token && !!userData && !isLoading && !isFetching && !isError
+    && userData.ads_adult_eligible === true;
+  useEffect(() => {
+    void setNativeAppOpenAdultEligibility(verifiedAdultForAds);
+  }, [verifiedAdultForAds]);
+
 
   // A verified revocation must delete the encrypted political snapshot,
   // not just hide it. Also reject in-flight query completions after revocation.
@@ -177,6 +188,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useMutation<void, Error, void>({
     mutationFn: async () => {
       const tokenToRevoke = token;
+      // Revoke native ad eligibility before starting any logout operations.
+      await setNativeAppOpenAdultEligibility(false);
       const refreshTokenToRevoke = getRefreshToken();
       const pushTokenToRevoke = getStoredNativePushToken();
 
