@@ -13,6 +13,18 @@ const router = express.Router();
 router.use(verifyToken);
 router.use(requireAdmin);
 
+// RP-10 gate: legacy retention actions must remain inaccessible until a
+// separately reviewed cleanup policy, rollback and provider recovery exist.
+// These endpoints are intentionally disabled even for an authenticated Admin.
+function legacyRetentionWriteUnavailable(_req, res) {
+  res.set('Cache-Control', 'private, no-store');
+  return res.status(410).json({
+    success: false,
+    error: 'RETENTION_LEGACY_CLEANUP_RETIRED',
+    message: 'Pulizia automatica legacy sospesa: richiede un flusso GDPR verificato'
+  });
+}
+
 /**
  * GET /api/admin/data-retention/policies
  * Ottiene le policy di retention configurate
@@ -95,7 +107,7 @@ router.get('/expired/:userId', async (req, res) => {
  * DELETE /api/admin/data-retention/cleanup/:userId
  * Cancella dati scaduti per un utente specifico
  */
-router.delete('/cleanup/:userId', async (req, res) => {
+router.delete('/cleanup/:userId', legacyRetentionWriteUnavailable, async (req, res) => {
   try {
     const { userId } = req.params;
     const { dataTypes } = req.body; // Array opzionale di tipi di dati da cancellare
@@ -126,7 +138,7 @@ router.delete('/cleanup/:userId', async (req, res) => {
  * POST /api/admin/data-retention/cleanup-all
  * Cancella dati scaduti per tutti gli utenti
  */
-router.post('/cleanup-all', async (req, res) => {
+router.post('/cleanup-all', legacyRetentionWriteUnavailable, async (req, res) => {
   try {
     const { dataTypes } = req.body; // Array opzionale di tipi di dati da cancellare
     
@@ -183,7 +195,7 @@ router.get('/notifications', async (req, res) => {
  * POST /api/admin/data-retention/job/start
  * Avvia il job di data retention
  */
-router.post('/job/start', async (req, res) => {
+router.post('/job/start', legacyRetentionWriteUnavailable, async (req, res) => {
   try {
     dataRetentionJob.start();
     
@@ -258,7 +270,7 @@ router.get('/job/status', async (req, res) => {
  * POST /api/admin/data-retention/cleanup/immediate
  * Esegue pulizia immediata
  */
-router.post('/cleanup/immediate', async (req, res) => {
+router.post('/cleanup/immediate', legacyRetentionWriteUnavailable, async (req, res) => {
   try {
     const result = await dataRetentionJob.performImmediateCleanup();
     
