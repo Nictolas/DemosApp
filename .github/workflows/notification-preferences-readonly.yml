@@ -10,6 +10,12 @@ on:
       - api/tests/notificationFeedSchemaPerf.http.test.js
       - api/tests/notificationBadgePrivacy.contract.test.js
       - client/src/hooks/useNotificationBadge.ts
+      - client/src/lib/notificationFeed.ts
+      - client/src/pages/Notifiche/hooks/useNotificheData.ts
+      - client/src/pages/NotificheDemos.tsx
+      - client/src/pages/NotificheTotali/index.tsx
+      - client/src/pages/Votazione.tsx
+      - client/src/pages/InformaCittadini.tsx
       - api/tests/notificationPreferencesReadOnly.http.test.js
       - api/tests/civicPrivacyHttp.synthetic.test.js
       - api/tests/notificationRecipientAndReactionsSecurity.test.js
