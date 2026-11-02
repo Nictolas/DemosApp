@@ -15,6 +15,7 @@ on:
       - 'api/tests/graziaModerationContract.test.js'
       - 'api/tests/civicSubjectPublicationGate.test.js'
       - 'api/tests/civicCatalogueRejectionHttp.synthetic.test.js'
+      - 'api/tests/amnistiaLegacyMaintenance.http.synthetic.test.js'
       - 'client/src/pages/Grazia/**'
       - 'client/src/pages/Amnistia/**'
       - 'client/src/pages/GestisciGrazia.tsx'
@@ -60,6 +61,10 @@ jobs:
         env:
           NODE_PATH: /tmp/demos-http-test/node_modules
         run: node --test api/tests/civicCatalogueRejectionHttp.synthetic.test.js
+      - name: Amnesty retired SQL maintenance — real HTTP + fake DB
+        env:
+          NODE_PATH: /tmp/demos-http-test/node_modules
+        run: node --test api/tests/amnistiaLegacyMaintenance.http.synthetic.test.js
       - name: Amnesty / head-of-state gates (when present)
         run: |
           if test -f api/tests/civicSubjectPublicationGate.test.js; then node --test api/tests/civicSubjectPublicationGate.test.js; fi
