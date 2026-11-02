@@ -7,7 +7,6 @@ import { PageContainer } from "@/components/PageContainer";
 import { useAmnistiaData } from "./hooks/useAmnistiaData";
 import { useAmnistiaVoting } from "./hooks/useAmnistiaVoting";
 import { Header } from "./components/Header";
-import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { AmnistiaForm } from "./components/AmnistiaForm";
 import { ClassificaLeggi } from "./components/ClassificaLeggi";
 import { getSuggestions } from "./utils/amnistiaUtils";
@@ -68,9 +67,9 @@ export default function Amnistia() {
       <div className="amnistia-page__fixed-header shrink-0 border-b border-slate-200 bg-white px-4 py-2 sm:px-6 sm:py-3">
         <div className="relative mx-auto w-full max-w-6xl">
           <Header />
-          <div className="absolute right-0 top-0 z-10">
-            <ProposeSubjectButton category="amnistia" />
-          </div>
+          <p role="status" className="text-xs text-muted-foreground">
+            Nuove proposte temporaneamente sospese, in attesa della moderazione.
+          </p>
         </div>
       </div>
       <div className="container mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
