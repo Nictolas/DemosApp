@@ -163,3 +163,16 @@ test('explicit TCF consent gate blocks refusal before any SDK initialization or 
   assert.match(show, /!hasExplicitTcfConsent\(\)/);
   assert.match(gradle, /buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', "/);
 });
+
+test('native UMP privacy status is observable after asynchronous startup and revocation', () => {
+  assert.match(manager, /PRIVACY_STATUS_CHANGED_JS/);
+  assert.match(manager, /window\.dispatchEvent\(new Event\('demos:app-open-privacy-status-changed'\)\)/);
+  assert.match(manager, /webView\.evaluateJavascript\(PRIVACY_STATUS_CHANGED_JS, null\)/);
+  assert.match(manager, /logQaConsent\("updated"\);\s*notifyPrivacyOptionsChanged\(\)/);
+  assert.match(manager, /logQaConsent\("form-complete"\);\s*notifyPrivacyOptionsChanged\(\)/);
+  assert.match(manager, /privacyFormOpen = false;\s*notifyPrivacyOptionsChanged\(\)/);
+  assert.match(uiPrivacy, /window\.addEventListener\('demos:app-open-privacy-status-changed', refresh\)/);
+  assert.match(uiPrivacy, /window\.removeEventListener\('demos:app-open-privacy-status-changed', refresh\)/);
+  assert.match(uiPrivacy, /document\.addEventListener\('visibilitychange', onVisibilityChange\)/);
+  assert.match(uiPrivacy, /currentRequestId === requestId/);
+});
