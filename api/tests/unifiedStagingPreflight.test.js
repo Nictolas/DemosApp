@@ -1,7 +1,9 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, run} = require('../scripts/unifiedStagingPreflight');
+const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES,
+  CIVIC_RUNTIME_COLUMNS, evaluateCivicProtection, evaluateCivicRuntimeColumns,
+  evaluateBlockedGuard, run} = require('../scripts/unifiedStagingPreflight');
 
 const env = {NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'preflight'};
 const st = 'fkeayjzvtuvzesljhjbc';
@@ -56,4 +58,44 @@ test('preflight is disabled before an explicit staging GO; never connects by def
       DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: 'APPROVED_READ_ONLY_PREFLIGHT'}),
     /Refusing non-staging Supabase project or endpoint/
   );
+});
+
+test('five private civic tables require RLS and zero direct client grants', () => {
+  const rows = CIVIC_PRIVATE_TABLES.map(table_name => ({
+    table_name, rls_enabled: true, anon_can_access: false, authenticated_can_access: false
+  }));
+  assert.equal(evaluateCivicProtection(rows).ready, true);
+  assert.equal(evaluateCivicProtection(rows.slice(1)).ready, false);
+  for (const unsafe of [
+    {rls_enabled:false}, {anon_can_access:true}, {authenticated_can_access:true},
+    {authenticated_can_access:undefined}
+  ]) {
+    assert.equal(evaluateCivicProtection([{...rows[0],...unsafe},...rows.slice(1)]).ready, false);
+  }
+});
+
+test('civic runtime schema requires 18 typed columns and opt-in defaults OFF', () => {
+  const rows = CIVIC_RUNTIME_COLUMNS.map(([table_name,column_name,udt_name,defaultValue]) => ({
+    table_name,column_name,udt_name,
+    is_nullable: table_name === 'users' && column_name === 'status' ? 'YES' : 'NO',
+    column_default: defaultValue || null
+  }));
+  assert.equal(evaluateCivicRuntimeColumns(rows).ready, true);
+  const failureCases = [
+    rows.slice(1),
+    rows.map((r,i) => i===1 ? {...r,udt_name:'int4'} : r),
+    rows.map((r,i) => i===2 ? {...r,is_nullable:'YES'} : r),
+    rows.map(r => r.table_name === 'notifiche_preferenze' && r.column_name === 'eci'
+      ? {...r,column_default:'true'} : r),
+    rows.map(r => r.table_name === 'civic_push_delivery_guard' && r.column_name === 'blocked'
+      ? {...r,column_default:'false'} : r)
+  ];
+  for(const example of failureCases) assert.equal(evaluateCivicRuntimeColumns(example).ready,false);
+});
+
+test('staging delivery guard must have exactly one blocked row', () => {
+  assert.equal(evaluateBlockedGuard([{blocked:true}]),true);
+  for(const rows of [[],[{blocked:false}],[{blocked:null}],[{blocked:true},{blocked:true}]]) {
+    assert.equal(evaluateBlockedGuard(rows),false);
+  }
 });
