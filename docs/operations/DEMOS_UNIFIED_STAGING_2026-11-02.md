@@ -34,3 +34,29 @@ Endpoint: /health risponde 200 con status bootstrap_only e ready_for_app_tests f
 La fonte canonica dello stato è il Google Sheet DEMOS – Roadmap – Tabella di Marcia, CHECKLIST MASTER, id OPS-STG-001 con peso zero. Le altre chat NON devono creare nuovi staging permanenti; fino al GO possono lavorare sul codice e su test locali/CI, senza usare il bootstrap come ambiente applicativo. Il filone di coordinamento è l'unico che cambia l'infrastruttura condivisa. Nessun merge o deploy di produzione è autorizzato da questa decisione.
 
 Evidenza al 02/11/2026: Render CLI autenticata, demos-functional-staging autoDeploy OFF sul vecchio ramo e senza log applicativi recenti nel periodo controllato; Supabase produzione/staging attivi e separati; 17/17 test storici staging/TLS locali PASS; 2/2 test nuovi del bootstrap PASS. Backup, credenziali isolate, schema completo, E2E e dismissione non ancora eseguiti.
+
+
+## Inventario consolidamento (10 servizi web → 1)
+
+| Servizio Render esistente | Verifica da preservare | Destinazione dopo il collaudo |
+| --- | --- | --- |
+| demos-staging (già demos-functional-staging) | E2E funzionale condiviso | **Unico backend staging permanente** |
+| demos-civic-deploy-probe-staging | Iniziative civiche, notifiche opt-in | Test su shared staging senza invio reale e suite CI |
+| demos-sondaggi-op37-http-staging | Sondaggi HTTP e OP37 | Suite CI + E2E senza distruggere fixture altrui |
+| demos-b2-readonly-restore-staging | Recupero B2 in sola lettura | Job isolato con credenziali ridotte; mai restore sul DB condiviso |
+| demos-outbox-readonly-staging | Audit outbox in sola lettura | Suite CI + smoke read-only |
+| demos-p07-rollback-dryrun-staging | Pianificazione rollback P07 | Test offline/CI, nessuna operazione sul provider di produzione |
+| demos-first-four-playbooks-staging | Playbook P01-P04 | Sandbox sintetica isolata, non sul DB condiviso |
+| demos-action-runner-sandbox-staging | Action-runner con client finti | Sandbox effimera senza credenziali reali |
+| demos-security-gates-staging | Quality/security gates | Suite CI + test staging non distruttivi |
+| demos-security-staging | Integrazioni security-agent | Suite di staging separata per namespace, solo dopo audit segreti |
+
+Questa tabella NON autorizza la cancellazione di alcun servizio: prima preservare equivalenza dei test, segreti minimi e rollback, poi dimettere uno alla volta verificando l'assenza di regressioni.
+
+## Verifiche aggiuntive — 2 novembre 2026
+
+- Nuovo script read-only api/scripts/unifiedStagingPreflight.js: richiede NODE_ENV=staging, DEMOS_UNIFIED_STAGING_MODE=preflight, riconosce **solo** progetto Supabase Demos-Staging tramite hostname o identificativo account pooler, e rifiuta progetto PROD e vecchio Render PG. Rimuove i parametri SSL dalla URI per applicare la policy TLS centralizzata. Non scrive dati e non invia notifiche.
+- Test locali Node su commit PR #565: **7/7 PASS** (2 bootstrap + 5 preflight).
+- Query diretta information_schema del progetto Supabase Demos-Staging: **6/9** tabelle applicative minime presenti. Mancano eventi, programmi e civic_processes. Il preflight non deve dichiarare pronto il backend finché non è risolta la divergenza.
+- Backup PostgreSQL Render: primo pg_dump non riuscito perché mancava un certificato CA locale; regola firewall temporanea limitata a un IP e poi **deny-all ripristinato**. Documentazione PostgreSQL 17 prevede PGSSLROOTCERT=system per TLS verify-full. Esecuzione automatica successiva bloccata dal sistema di sicurezza: **nessun backup verificato**. Priorità assoluta prima dell'8 novembre.
+- Stato: bootstrap Render LIVE; **non** app staging pronta. Produzione e gli altri servizi non modificati.
