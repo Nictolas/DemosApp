@@ -7,10 +7,10 @@ const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLE
 
 const env = {NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'preflight'};
 const st = 'fkeayjzvtuvzesljhjbc';
-test('accepts only configured staging project direct hostname or pooler identity', () => {
+test('accepts staging direct or 5432 session pooler without connection overrides', () => {
   const direct = assertStagingTarget('postgresql://postgres:dummy@db.'+st+'.supabase.co:5432/postgres',env);
   assert.equal(direct.target, 'Demos-Staging');
-  const pooled = assertStagingTarget('postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true',env);
+  const pooled = assertStagingTarget('postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:5432/postgres',env);
   assert.equal(pooled.target,'Demos-Staging');
 });
 test('rejects production and alternate or legacy Render staging', () => {
@@ -20,7 +20,9 @@ test('rejects production and alternate or legacy Render staging', () => {
     'postgresql://postgres.'+prod+':dummy@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
     'postgresql://postgres:dummy@dpg-db4id8id0e5s73cfb0cg-a:5432/demos_civic_staging_db',
     'postgresql://postgres:dummy@db.'+st+'.supabase.co:5432/other',
-    'postgresql://postgres.'+st+':dummy@localhost:6543/postgres'
+    'postgresql://postgres.'+st+':dummy@localhost:6543/postgres',
+    'postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
+    'postgresql://postgres:dummy@db.'+st+'.supabase.co:6543/postgres'
   ]) assert.throws(()=>assertStagingTarget(url,env));
 });
 test('refuses absent explicit staging mode and missing connection', () => {
@@ -29,11 +31,20 @@ test('refuses absent explicit staging mode and missing connection', () => {
   assert.throws(()=>assertStagingTarget(url,{NODE_ENV:'staging'}));
   assert.throws(()=>assertStagingTarget('',env));
 });
-test('drops URL SSL overrides and keeps remaining pooler parameters', () => {
-  const url='postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=disable&pgbouncer=true';
+test('drops SSL URL overrides and rejects driver host, port and pool mode overrides', () => {
+  const url='postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=disable&sslrootcert=fake';
   const checked=assertStagingTarget(url,env);
-  assert.equal(new URL(checked.sanitizedConnectionString).searchParams.has('sslmode'),false);
-  assert.equal(new URL(checked.sanitizedConnectionString).searchParams.get('pgbouncer'),'true');
+  assert.equal(new URL(checked.sanitizedConnectionString).searchParams.toString(),'');
+  const base='postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?';
+  for(const arg of [
+    'host=db.production.example', 'hostaddr=198.51.100.10', 'service=production',
+    'port=6543', 'user=postgres.prod', 'dbname=production', 'options=-c%20search_path%3Dpublic',
+    'pool_mode=transaction', 'poolmode=transaction', 'pgbouncer=true',
+    'pgbouncer=false', 'target_session_attrs=read-write',
+    'application_name=untrusted', 'sslmode=verify-full&host=unexpected.example'
+  ]) {
+    assert.throws(() => assertStagingTarget(base+arg,env), /Unsafe staging connection options/);
+  }
 });
 test('missing application tables means NOT READY, never silently ready', () => {
   const sample=evaluateSchema(['users','user_consents','opinioni_risposte']);
