@@ -13,7 +13,9 @@ on:
       - 'api/scripts/civicStagingRuntimeAccessReadOnlyPreflight.sql'
       - 'api/scripts/civicStagingCollectorRollbackSmoke.sql'
       - 'api/staging/civic_render_boot_probe.js'
+      - 'api/staging/civic_render_direct_dns_probe.js'
       - 'api/tests/civicRenderBootProbe.test.js'
+      - 'api/tests/civicRenderDirectDnsProbe.test.js'
       - 'api/tests/test_civic_staging_existing_devices_postgres.py'
       - 'api/tests/test_civic_staging_runtime_access_postgres.py'
       - 'api/tests/test_civic_staging_fixture_postgres.py'
@@ -129,7 +131,7 @@ jobs:
           node --check api/tests/notificationBadgePrivacy.contract.test.js
           node --check api/tests/notificationAdminReportPrivacy.http.test.js
           node --check api/routes/segnalazioni.js
-          node --test --test-concurrency=1 api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/civicPushDeliveryGuard.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js api/tests/civicRenderBootProbe.test.js api/tests/civicPreferencesReadOnly.http.test.js api/tests/notificationSchemaCache.test.js api/tests/notificationFeedSchemaPerf.http.test.js api/tests/notificationBadgePrivacy.contract.test.js api/tests/notificationAdminReportPrivacy.http.test.js
+          node --test --test-concurrency=1 api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/civicPushDeliveryGuard.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js api/tests/civicRenderBootProbe.test.js api/tests/civicRenderDirectDnsProbe.test.js api/tests/civicPreferencesReadOnly.http.test.js api/tests/notificationSchemaCache.test.js api/tests/notificationFeedSchemaPerf.http.test.js api/tests/notificationBadgePrivacy.contract.test.js api/tests/notificationAdminReportPrivacy.http.test.js
       - name: Verify private recipients independently without Node runner IPC
         run: node api/tests/civicRecipientIsolation.http.test.js
       - name: Python ECI source tests (no real API, DB or push)

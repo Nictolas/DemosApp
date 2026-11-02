@@ -1,10 +1,10 @@
 'use strict';
 
 // Deployment-only canary for DEMOS civic notifications.
-// NEVER import the production API, DB pool or Firebase, send a message,
-// load user data, or report GO. A later *separately authorized* read-only
-// database probe must use an explicit staging-only connection.
+// Never import the production API, DB pool or Firebase, send a message,
+// load user data or report GO. The optional DNS check is NOT a DB connection.
 const http = require('node:http');
+const { probeCivicStagingDirectDns } = require('./civic_render_direct_dns_probe');
 
 function assertDeploymentOnlyEnvironment(env = process.env) {
   if (env.CIVIC_STAGING_PROBE_ONLY !== 'true') {
@@ -29,7 +29,8 @@ function assertDeploymentOnlyEnvironment(env = process.env) {
   return true;
 }
 
-function createServer(env = process.env) {
+// State is updated once on boot; requests cannot initiate DNS or other I/O.
+function createServer(env = process.env, status = { directDns: 'NOT_TESTED' }) {
   assertDeploymentOnlyEnvironment(env);
   return http.createServer((req, res) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -47,6 +48,7 @@ function createServer(env = process.env) {
       database: 'NOT_TESTED',
       backend: 'NOT_STARTED',
       sessionAffinity: 'NOT_TESTED',
+      directDns: status.directDns,
       firebase: 'DISABLED',
       civicPush: 'DISABLED',
       releaseGate: 'NO_GO',
@@ -56,16 +58,24 @@ function createServer(env = process.env) {
 
 if (require.main === module) {
   try {
-    const server = createServer();
+    const status = { directDns: 'NOT_TESTED' };
+    const server = createServer(process.env, status);
     const port = Number(process.env.PORT || 10000);
     if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
       throw new Error('INVALID_PORT');
     }
     server.listen(port, '0.0.0.0', () => {
       console.log('CIVIC_STAGING_DEPLOY_PROBE_RUNNING_NO_DATABASE_NO_FCM');
+      probeCivicStagingDirectDns().then((outcome) => {
+        status.directDns = outcome;
+        console.log('CIVIC_STAGING_DIRECT_DNS_CHECK_' + outcome);
+      }).catch(() => {
+        status.directDns = 'DIRECT_DNS_UNAVAILABLE';
+        console.log('CIVIC_STAGING_DIRECT_DNS_CHECK_UNAVAILABLE');
+      });
     });
   } catch {
-    // Never log the environment or original provider errors.
+    // Never log the environment, host, IP address or provider errors.
     console.error('CIVIC_STAGING_DEPLOY_PROBE_REFUSED');
     process.exitCode = 1;
   }

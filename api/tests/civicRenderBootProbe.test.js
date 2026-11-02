@@ -48,6 +48,7 @@ test('HTTP endpoint reports only a non-GO, no-database no-Firebase status', asyn
       database: 'NOT_TESTED',
       backend: 'NOT_STARTED',
       sessionAffinity: 'NOT_TESTED',
+      directDns: 'NOT_TESTED',
       firebase: 'DISABLED',
       civicPush: 'DISABLED',
       releaseGate: 'NO_GO',
