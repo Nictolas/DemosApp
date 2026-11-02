@@ -90,6 +90,7 @@ const securityMetricsRoutes = require('./routes/admin/security-metrics');
 const dataExportRoutes = require('./routes/admin/data-export');
 const civicProcessReconciliationRoutes = require('./routes/admin/civic-process-reconciliation');
 const civicProcessAdminRoutes = require('./routes/admin/civic-processes');
+const civicPushDispatchRoutes = require('./routes/civicPushDispatch');
 const axiomMigrationRoutes = require('./routes/admin/axiom-migration');
 const axiomDataRoutes = require('./routes/admin/axiom-data');
 const migrationsRoutes = require('./routes/migrations');
@@ -356,6 +357,8 @@ app.use('/api/rappresentanti', publicLimiter, userLimiter, rappresentantiRoutes)
 app.use('/api/notifiche', publicLimiter, userLimiter, notificheRoutes);
 app.use('/api/notifiche-totali', userLimiter, notificheTotaliRoutes);
 app.use('/api/fcm-tokens', userLimiter, fcmTokensRoutes);
+// Always mounted; requires explicit delivery flag + long server-side dispatch key.
+app.use('/api/civic-push', publicLimiter, civicPushDispatchRoutes);
 if (mountDevApiSurface) {
   app.use('/api/test-db', publicLimiter, testDbRoutes);
 }
