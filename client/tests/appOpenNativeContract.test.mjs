@@ -4,10 +4,11 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
-const manager = read('../android/app/src/main/java/community/demos/DemosAppOpenAdsManager.java');
+const manager = read('../android/app/src/debug/java/community/demos/DemosAppOpenAdsManager.java');
 const gradle = read('../android/app/build.gradle');
 const manifest = read('../android/app/src/debug/AndroidManifest.xml');
 const mainManifest = read('../android/app/src/main/AndroidManifest.xml');
+const releaseStub = read('../android/app/src/release/java/community/demos/DemosAppOpenAdsManager.java');
 const mainActivity = read('../android/app/src/main/java/community/demos/MainActivity.java');
 
 test('release App Open is permanently OFF and only debug contains sample App ID', () => {
@@ -16,6 +17,10 @@ test('release App Open is permanently OFF and only debug contains sample App ID'
   assert.match(manifest, /ca-app-pub-3940256099942544~3347511713/);
   assert.doesNotMatch(mainManifest, /com\.google\.android\.gms\.ads\.APPLICATION_ID/);
   assert.doesNotMatch(mainManifest, /ca-app-pub-/);
+  assert.match(gradle, /debugImplementation 'com\\.google\\.android\\.libraries\\.ads\\.mobile\\.sdk:ads-mobile-sdk/);
+  assert.match(gradle, /debugImplementation 'com\\.google\\.android\\.ump:user-messaging-platform/);
+  assert.doesNotMatch(gradle, /\\n\\s+implementation 'com\\.google\\.android\\.libraries\\.ads\\.mobile\\.sdk/);
+  assert.doesNotMatch(releaseStub, /MobileAds|UserMessagingPlatform|AppOpenAd\\.load/);
   assert.match(mainActivity, /if \(BuildConfig\.DEMOS_APP_OPEN_ADS_ENABLED\)/);
 });
 
