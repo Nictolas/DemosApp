@@ -51,3 +51,11 @@ Controllo remoto mediante Supabase MCP sul solo progetto `Demos-Staging`:
 4. QA multiutente, regressione e piano di rollback; solo dopo GO eliminare nove web service staging ridondanti, verificare Key Value e dismettere il vecchio PostgreSQL Render senza spesa.
 
 **Il servizio `demos-staging` non è ancora utilizzabile dalle altre chat per test applicativi.** Tutto lo sviluppo deve proseguire in test locali/CI senza nuovi staging permanenti.
+
+## Prova DDL P0 su PostgreSQL 16 effimero — 03/11/2026
+
+Un nuovo test `api/tests/test_ops_stg_001_p0_migration_postgres.py` esegue la **migrazione SQL P0 vera** su PostgreSQL 16 in un servizio GitHub Actions temporaneo (`civic_ci`, solo loopback). L'unica sostituzione sul testo SQL in memoria è l'hash dell'identità del database, rimpiazzato con l'hash di una identità deliberatamente sintetica. Non usa la connessione di Demos-Staging né il suo identificatore effettivo, e non interroga produzione.
+
+Il test verifica: errore e rollback su identità sbagliata prima di qualsiasi DDL; creazione corretta delle quattro tabelle, 73 colonne, 7 vincoli e 9 indici; zero righe; RLS attiva; accesso diretto negato ad `anon` e `authenticated`; rifiuto della riesecuzione a schema già presente. 
+
+**Esito GitHub Actions:** `Unified Staging Offline Safety` run **41546428877**; job `bootstrap-offline-contract` **SUCCESS**, job `p0-schema-postgres16` **SUCCESS**. Workflow `Recognition CIE evidence validation` dello stesso commit anch'esso **SUCCESS**. La PR resta DRAFT; la riuscita della DDL su PostgreSQL effimero non costituisce l'autorizzazione a usare il bootstrap Render per test applicativi o a sbloccare le notifiche Firebase.
