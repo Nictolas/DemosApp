@@ -11,7 +11,10 @@ from play_store_screenshot_guard import (
     main, parse_package_metadata, validate_capture_name,
 )
 
-GOOD = "Package [community.demos]\nversionCode=14 minSdk=24 targetSdk=36\nversionName=1.0.11\npkgFlags=[ HAS_CODE ]"
+GOOD = ("Package [community.demos]\\nversionCode=14 minSdk=24 targetSdk=36\\n"
+        "versionName=1.0.11\\npkgFlags=[ HAS_CODE ]\\n"
+        "    installerPackageName=com.android.vending\\n"
+        "    initiatingPackageName=com.android.vending")
 
 
 def runner_factory(detail=GOOD, state=b"device\n", packages=b"package:community.demos\n"):
@@ -34,6 +37,7 @@ class PlayScreenshotGuardTests(unittest.TestCase):
         self.assertEqual(details["version_code"], 14)
         self.assertEqual(details["version_name"], "1.0.11")
         self.assertEqual(details["play_track_provenance"], "NOT_ATTESTED")
+        self.assertEqual(details["installer"], "com.android.vending")
         self.assertTrue(callable(invoke))
 
     def test_rejects_code13_even_when_version_name_matches(self):
@@ -50,6 +54,20 @@ class PlayScreenshotGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(GateError, "Debuggable"):
             check_device("adb", "emulator-5584",
                          runner=runner_factory(detail=GOOD.replace("HAS_CODE", "HAS_CODE DEBUGGABLE")))
+
+    def test_rejects_sideloaded_apk_with_matching_version(self):
+        cases = [
+            GOOD.replace("installerPackageName=com.android.vending",
+                         "installerPackageName=null"),
+            GOOD.replace("initiatingPackageName=com.android.vending",
+                         "initiatingPackageName=com.android.shell"),
+            GOOD.replace("    installerPackageName=com.android.vending\\n", ""),
+            GOOD.replace("    initiatingPackageName=com.android.vending", ""),
+        ]
+        for detail in cases:
+            with self.subTest(detail=detail[-70:]), self.assertRaisesRegex(
+                    GateError, "Not installed by Google Play"):
+                check_device("adb", "emulator-5584", runner=runner_factory(detail=detail))
 
     def test_rejects_missing_wrong_package_and_offline_device(self):
         for kwargs in (
