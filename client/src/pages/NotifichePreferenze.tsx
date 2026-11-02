@@ -295,6 +295,11 @@ export default function NotifichePreferenze() {
                         <SectionIcon className="h-5 w-5 text-blue-600" />
                         {sezione.title}
                       </CardTitle>
+                      {sezione.title === "Partecipazione popolare" && (
+                        <CardDescription>
+                          Puoi già salvare le tue preferenze. Gli avvisi automatici per nuove iniziative e referendum partiranno quando il servizio sarà attivato.
+                        </CardDescription>
+                      )}
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {sezione.items.map((item) => {
