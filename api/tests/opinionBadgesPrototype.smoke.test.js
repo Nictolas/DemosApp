@@ -81,14 +81,18 @@ run("due risposte animaliste non bastano", () => {
   assert.equal(res.coverage, 0.4);
 });
 
-run("tre risposte coerenti su cinque e tre temi distinti consentono soltanto la simulazione", () => {
+run("tre risposte coerenti su cinque non bastano anche se la coerenza e 100%", () => {
   const r = rule("B01");
   const res = out(r, {0:"c",1:"c",2:"c"});
-  assert.equal(res.eligible, true);
+  assert.equal(res.eligible, false);
   assert.equal(res.coverage, 0.6);
   assert.equal(res.coherence, 1);
   assert.equal(res.distinctTopics, 3);
   assert.equal(res.evidence.length, 3);
+  const complete = out(r, {0:"c",1:"c",2:"c",3:"c",4:"c"});
+  assert.equal(complete.eligible,true);
+  assert.equal(complete.coverage,1);
+  assert.equal(complete.coherence,1);
 });
 
 run("tre favorevoli e due contrari rispetto alla targhetta non superano coerenza 75%", () => {
@@ -99,11 +103,15 @@ run("tre favorevoli e due contrari rispetto alla targhetta non superano coerenza
   assert.equal(res.contradictory, 2);
 });
 
-run("tre posizioni coerenti e una contraria superano esattamente 75%", () => {
+run("una sola discordanza o una risposta mancante blocca anche con 75% di coerenza", () => {
   const r = rule("B01");
   const res = out(r, {0:"c",1:"c",2:"c",3:"f"});
   assert.equal(res.coherence, 0.75);
-  assert.equal(res.eligible, true);
+  assert.equal(res.eligible, false);
+  const oneContrary = out(r, {0:"c",1:"c",2:"c",3:"c",4:"f"});
+  assert.equal(oneContrary.coverage,1);
+  assert.equal(oneContrary.coherence,.8);
+  assert.equal(oneContrary.eligible,false);
 });
 
 run("indecisi e valori sconosciuti non contano come decisive", () => {
@@ -130,7 +138,8 @@ run("ambiente: quattro domande valide; illuminazione esclusa", () => {
   const r = rule("B02");
   assert.equal(r.questions.length,4);
   assert.ok(r.questions.every(q=>q.opinionId!=="riduzione_dell_illuminazione_notturna_per_risparmio_energetico"));
-  assert.equal(out(r,{0:"f",1:"f",2:"f"}).eligible,true);
+  assert.equal(out(r,{0:"f",1:"f",2:"f"}).eligible,false);
+  assert.equal(out(r,{0:"f",1:"f",2:"f",3:"f"}).eligible,true);
   const onlyTwo = {
     potenziare_rinnovabili:"f",
     verde_pubblico_e_giardini:"f",
@@ -139,7 +148,7 @@ run("ambiente: quattro domande valide; illuminazione esclusa", () => {
   assert.equal(model.evaluateOpinionBadge(r,onlyTwo,permitted).eligible,false);
 });
 
-run("conservatore: sette questioni sociali con risposta Contrario e almeno cinque decisive", () => {
+run("conservatore: tutte e sette le opinioni sociali devono essere Contrario", () => {
   const r = rule("B03");
   assert.equal(r.label, "Conservatore");
   assert.equal(r.questions.length, 7);
@@ -150,9 +159,11 @@ run("conservatore: sette questioni sociali con risposta Contrario e almeno cinqu
   ]);
   assert.equal(out(r, {0:"c",1:"c",2:"c",3:"c"}).eligible, false);
   const five = out(r, {0:"c",1:"c",2:"c",3:"c",4:"c"});
-  assert.equal(five.eligible, true);
+  assert.equal(five.eligible, false);
   assert.equal(five.coherence, 1);
   assert.equal(five.distinctTopics, 4);
+  const allSeven = out(r,{0:"c",1:"c",2:"c",3:"c",4:"c",5:"c",6:"c"});
+  assert.equal(allSeven.eligible,true);
 });
 
 run("etichette richieste e risposte controverse condivise ma di segno opposto", () => {
@@ -168,20 +179,22 @@ run("etichette richieste e risposte controverse condivise ma di segno opposto", 
   assert.ok(model.BADGE_RULES.every(r => r.approved === false));
 });
 
-run("welfare: tre risposte su sei NON raggiungono copertura 60%", () => {
+run("socialdemocratico: quattro o cinque su sei non bastano, tutte sei servono", () => {
   const r = rule("B05");
   assert.equal(out(r,{0:"f",1:"f",2:"f"}).eligible,false);
   const four = out(r,{0:"f",1:"f",2:"f",3:"f"});
-  assert.equal(four.eligible,true);
+  assert.equal(four.eligible,false);
   assert.equal(four.decisive,4);
   assert.ok(four.coverage>0.6);
+  assert.equal(out(r,{0:"f",1:"f",2:"f",3:"f",4:"f"}).eligible,false);
+  assert.equal(out(r,{0:"f",1:"f",2:"f",3:"f",4:"f",5:"f"}).eligible,true);
 });
 
 run("per la diversita nidi e sostegno al reddito costituiscono un solo sotto-tema ciascuno", () => {
   const r = rule("B05");
   const res = out(r,{1:"f",2:"f",4:"f",5:"f"});
   assert.equal(res.distinctTopics,2);
-  assert.equal(res.eligible,true);
+  assert.equal(res.eligible,false);
   const oneTopic = {...r,questions:r.questions.filter(q=>q.topic==="servizi-infanzia")};
   assert.equal(out(oneTopic,{0:"f",1:"f"}).eligible,false);
 });
@@ -196,8 +209,35 @@ run("non usare risposte estranee o cambiare l'ordine delle evidenze", () => {
 
 run("la versione delle regole e esplicita e il calcolo produce solo un oggetto in memoria", () => {
   assert.match(model.BADGE_RULES_VERSION,/^\d{4}-\d{2}-\d{2}-draft-\d+$/);
-  const res = out(rule("B04"),{0:"f",1:"f",2:"f"});
+  const res = out(rule("B04"),{0:"f",1:"f",2:"f",3:"f",4:"f"});
   assert.equal(res.version, model.BADGE_RULES_VERSION);
   assert.equal(res.badgeId, "B04");
   assert.equal(res.eligible, true);
+});
+
+run("per ogni targhetta nessun parziale, indeciso, assente o voto contrario", () => {
+  for (const base of model.BADGE_RULES) {
+    const r = {...base,approved:true};
+    const all = Object.fromEntries(r.questions.map(q => [q.opinionId,q.supportsBadge]));
+    const first = r.questions[0];
+    assert.equal(model.evaluateOpinionBadge(r,all,permitted).eligible,true,r.label+" 100%");
+    const incomplete = {...all};
+    delete incomplete[first.opinionId];
+    const absent = model.evaluateOpinionBadge(r,incomplete,permitted);
+    assert.equal(absent.eligible,false,r.label+" incompleto");
+    assert.equal(absent.missing,1);
+    const undecided = model.evaluateOpinionBadge(r,{...all,[first.opinionId]:"i"},permitted);
+    assert.equal(undecided.eligible,false,r.label+" indeciso");
+    assert.equal(undecided.undecided,1);
+    const opposite=first.supportsBadge==="c"?"f":"c";
+    const contrary = model.evaluateOpinionBadge(r,{...all,[first.opinionId]:opposite},permitted);
+    assert.equal(contrary.eligible,false,r.label+" una discordanza");
+    assert.equal(contrary.contradictory,1);
+    assert.equal(contrary.coverage,1);
+  }
+});
+
+run("regola senza opinioni non assegna mai un badge", () => {
+  const empty={...rule("B01"),questions:[]};
+  assert.equal(model.evaluateOpinionBadge(empty,{},permitted).eligible,false);
 });
