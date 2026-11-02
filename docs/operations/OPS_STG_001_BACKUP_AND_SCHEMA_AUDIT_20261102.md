@@ -27,3 +27,16 @@
 5. Solo dopo parità funzionale e piano di rollback, dimettere i nove web service superflui e verificare il Key Value. Il vecchio PG può scadere senza upgrade **solo dopo** aver escluso dipendenze critiche.
 
 **Regola permanente:** un unico staging cloud condiviso; non creare nuove istanze permanenti per ogni chat/PR. Nessuna cancellazione o merge di produzione implicita.
+
+## Revisione delle dipendenze API — inventario statico mirato
+
+Un secondo inventario offline ha confrontato 115 nomi di tabelle della produzione e 25 dello staging con i riferimenti SQL `FROM`, `JOIN`, `INTO`, `UPDATE` e `DELETE FROM` nei file JavaScript, TypeScript e Python sotto `api/routes`, `api/services`, `api/jobs`, `api/controllers` e `api/middleware` (esclusi i test). Tra le 93 tabelle assenti nello staging, **57** hanno almeno un riferimento nei file analizzati. È un indicatore testuale, non una prova che tutte siano eseguite in produzione o indispensabili; il conteggio differisce dall'audit precedente che aveva un perimetro di ricerca diverso.
+
+- **Profilo e autorizzazioni:** `user_profile` compare nelle route `auth/profile`, `users/profile`, `users/search` e `user/gdpr-rights`. Anche `political_mandates` è richiamata da route di utenti e voto; verificare prima i percorsi obbligatori di login, profilo e consenso.
+- **Notifiche e privacy:** `notifiche_demos`, `notifiche_avvistamenti`, `notifiche_comunali`, `notifiche_voti_comuni`, `notifiche_voti_parlamento`, `comunicazioni` e `reazioni` compaiono nelle route notifica o nei servizi collegati. Le cinque tabelle protette delle nuove push civiche risultano invece presenti e hanno RLS/grants verificati.
+- **Iniziative e referendum:** `iniziative_popolari`, `referendum_abrogativi`, `voti_iniziative_popolari`, `voti_referendum_abrogativi` risultano referenziate da route dedicate. Occorre distinguere i percorsi ancora necessari per la UI dalle vecchie tabelle di voto.
+- **Altri moduli:** candidature, Parlamento, elezioni e grafici possono richiedere tabelle aggiuntive. Non includerle per default in un test circoscritto alle notifiche civiche.
+
+**Decisione operativa:** prima di eventuali DDL, associare ogni scenario E2E autorizzato alle sue route effettivamente montate e alle dipendenze transitive, confrontare lo schema delle sole tabelle richieste e preparare migrazioni additive con RLS e privilegi minimi. Nessuna copia di record di produzione, nessun aggiornamento dello staging bootstrap o attivazione di Firebase è autorizzato dall'inventario. L'attuale preflight di base e quello per le tabelle civiche non sostituiscono l'E2E completo.
+
+Il backup Render locale è stato ricontrollato leggendo dimensione e SHA-256: **252.568 byte** e impronta coerente con l'evidenza sopra. Non è ancora dimostrato un ripristino riuscito; non eliminare il vecchio PostgreSQL finché tale gate non sarà chiuso.
