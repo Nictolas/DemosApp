@@ -66,8 +66,8 @@ def check_device(adb, serial, package=EXPECTED_PACKAGE,
     # A matching version can be side-loaded. Require the Android install
     # source to identify Play Store as both installing and initiating package.
     # This still does NOT attest the exact track or Play's signing certificate.
-    installer = re.search(r"(?m)^\\s*installerPackageName=([^\\s]+)\\s*$", detail)
-    initiator = re.search(r"(?m)^\\s*initiatingPackageName=([^\\s]+)\\s*$", detail)
+    installer = re.search(r"(?m)^\s*installerPackageName=([^\s]+)\s*$", detail)
+    initiator = re.search(r"(?m)^\s*initiatingPackageName=([^\s]+)\s*$", detail)
     if (not installer or installer.group(1) != "com.android.vending"
             or not initiator or initiator.group(1) != "com.android.vending"):
         raise GateError("Not installed by Google Play (installer/initiator mismatch)")
