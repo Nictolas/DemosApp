@@ -11,6 +11,8 @@ on:
       - 'api/scripts/unifiedStagingPreflight.js'
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
+      - 'api/tests/unifiedStagingSchemaContract.test.js'
+      - 'api/database/staging/ops_stg_001_missing_tables.sql'
       - 'docs/operations/DEMOS_UNIFIED_STAGING_2026-11-02.md'
       - '.github/workflows/unified-staging-offline-safety.yml'
   push:
@@ -21,6 +23,8 @@ on:
       - 'api/scripts/unifiedStagingPreflight.js'
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
+      - 'api/tests/unifiedStagingSchemaContract.test.js'
+      - 'api/database/staging/ops_stg_001_missing_tables.sql'
       - '.github/workflows/unified-staging-offline-safety.yml'
   workflow_dispatch:
 
@@ -50,4 +54,4 @@ jobs:
           node --check api/scripts/unifiedStagingPreflight.js
       - name: Offline bootstrap and preflight contracts (loopback only)
         run: |
-          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js
+          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSchemaContract.test.js
