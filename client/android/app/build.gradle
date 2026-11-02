@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+// Solo test Android: nessun annuncio reale o SDK inizializzato nelle release.
+// Per provare su emulatore/dispositivo di sviluppo: -PdemosDebugAppOpenAds=true
+// Il publisher ID e le unità di produzione richiedono una PR separata e i gate privacy.
+def demosDebugAppOpenAds = (project.findProperty('demosDebugAppOpenAds') ?: 'false').toString() == 'true'
+
+
 def keystorePropertiesFile = rootProject.file("keystore.properties")
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
@@ -9,6 +15,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace "community.demos"
     compileSdk rootProject.ext.compileSdkVersion
+    buildFeatures { buildConfig true }
 
     signingConfigs {
         release {
@@ -35,7 +42,17 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Test IDs ufficiali Google: in debug soltanto, con opt-in esplicito.
+            buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', demosDebugAppOpenAds.toString()
+            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '"ca-app-pub-3940256099942544~3347511713"'
+            buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '"ca-app-pub-3940256099942544/9257395921"'
+        }
         release {
+            // Fail closed: nessuna pubblicità in build distribuite ai tester.
+            buildConfigField 'boolean', 'DEMOS_APP_OPEN_ADS_ENABLED', 'false'
+            buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', '""'
+            buildConfigField 'String', 'DEMOS_APP_OPEN_UNIT_ID', '""'
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
@@ -57,6 +74,10 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+
+    // GMA Next-Gen e UMP: mai inizializzati senza il gate nativo di debug.
+    implementation 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0'
+    implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
 
     // Login Google nativo: Credential Manager restituisce un Google ID token
     // che viene verificato dal backend DEMOS esistente.
