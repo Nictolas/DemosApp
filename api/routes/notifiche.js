@@ -171,40 +171,29 @@ router.get('/', verifyToken, async (req, res) => {
       votiComuniResult = { rows: [] };
     }
     
-    // Recupera da notifiche_demos (senza comune_residenza)
+    // Recupera da notifiche_demos senza interrogare information_schema a ogni GET.
+    // Se lo schema non è disponibile, il fallback resta isolato a questa sorgente.
     try {
-      // Verifica colonne disponibili
-      const demosColumns = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_demos'
-      `);
-      const demosCols = demosColumns.rows.map(r => r.column_name);
-      if (!demosCols.includes('titolo') || !demosCols.includes('testo')) {
-        console.warn('⚠️ Colonne titolo o testo mancanti in notifiche_demos');
-        demosResult = { rows: [] };
-      } else {
-        demosResult = await pool.query(`
-          SELECT 
-            id,
-            id_utente,
-            titolo,
-            testo,
-            COALESCE(data, CURRENT_DATE) as data,
-            data_creazione,
-            NULL::TEXT as comune_residenza,
-            'notifiche_demos' as tabella_origine
-          FROM notifiche_demos
-          WHERE (id_utente IS NULL OR id_utente = $1::uuid)
-          ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
-          LIMIT 50
-        `, [user_id]);
-      }
+      demosResult = await pool.query(`
+        SELECT
+          id,
+          id_utente,
+          titolo,
+          testo,
+          COALESCE(data, CURRENT_DATE) as data,
+          data_creazione,
+          NULL::TEXT as comune_residenza,
+          'notifiche_demos' as tabella_origine
+        FROM notifiche_demos
+        WHERE (id_utente IS NULL OR id_utente = $1::uuid)
+        ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
+        LIMIT 50
+      `, [user_id]);
     } catch (err) {
       console.error('NOTIF_DEMOS_FAILED');
       demosResult = { rows: [] };
     }
-    
+
     // Cambi di Opinione di Politici/Candidati sostenuti correntemente dall'utente.
     try {
       opinionChangesResult = await pool.query(
