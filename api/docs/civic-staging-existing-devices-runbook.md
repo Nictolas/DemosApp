@@ -71,6 +71,40 @@ accessible to client SQL roles during the first 2 November staging apply; a
 separate staging migration revoked these grants before any push or test data
 was written. The draft production migration now revokes direct grants too.
 
+## Dedicated synthetic runtime permission stage
+
+A successful schema preflight does **not** guarantee the synthetic backend role
+can read or update civic tables. The earlier DEMOS GDPR staging fixture
+`demos_staging_runtime` login has RLS access only to the two synthetic user
+IDs; the new civic tables initially give it no privileges or policies.
+
+After confirming the source/schema baseline is empty, only the approved
+**Demos-Staging** project may run
+`api/database/20261102_civic_staging_runtime_access.sql` atomically:
+
+```sql
+BEGIN;
+SET LOCAL civic.runtime_access_environment = 'staging';
+SET LOCAL civic.runtime_access_approval = 'I_APPROVE_CIVIC_STAGING_RUNTIME_ACCESS';
+-- Execute the entire civic staging runtime access SQL file here.
+COMMIT;
+```
+
+The migration is designed to reject production, non-synthetic accounts,
+nonempty device/notification tables, an already-unblocked guard, missing RLS,
+and any existing civic policies. Do not override those rejections. It grants
+only the named staging runtime role, never `anon`/`authenticated`. Preference
+RLS is limited to the two existing synthetic users; the backend role may
+**stop** delivery but cannot change the guard to `blocked=FALSE`.
+The production schema/migration does not depend on this test-only role.
+
+Then run `api/scripts/civicStagingRuntimeAccessReadOnlyPreflight.sql`:
+all six new civic tables must report `STRUCTURE_OK`. Check it together with
+the seven-table structural preflight, users preflight, and the blocked guard.
+The synthetic PostgreSQL16 CI contract tests default-deny, valid role access,
+cross-account rejection and attempted unlock rejection. The CI does not
+prove Render's real runtime URL uses this role or a session-affine pool.
+
 ## Hard release gates still open
 
 - Verify the real backend database/session pooler, GitHub ECI DB identity and
