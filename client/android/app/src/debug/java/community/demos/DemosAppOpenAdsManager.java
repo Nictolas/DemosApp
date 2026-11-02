@@ -100,8 +100,9 @@ final class DemosAppOpenAdsManager {
                         }
                         if (formError != null || activity.isDestroyed() || activity.isFinishing()) return;
                         logQaConsent("form-complete");
-                    // Stricter than Google's canRequestAds() alone: require a completed
-                    // positive consent state in this debug-only experiment.
+                        // Strict debug gate: require UMP to finish and allow ad requests.
+                        // OBTAINED does NOT prove acceptance of personalized ads or
+                        // distinguish every denied TCF purpose; test rejection explicitly.
                     if (consentInformation.canRequestAds()
                         && consentInformation.getConsentStatus()
                             == ConsentInformation.ConsentStatus.OBTAINED) {
