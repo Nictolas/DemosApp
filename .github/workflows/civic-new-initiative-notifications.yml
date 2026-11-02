@@ -11,6 +11,7 @@ on:
       - 'api/database/20261102_civic_staging_existing_devices_fixture.sql'
       - 'api/database/20261102_civic_staging_runtime_access.sql'
       - 'api/scripts/civicStagingRuntimeAccessReadOnlyPreflight.sql'
+      - 'api/scripts/civicStagingCollectorRollbackSmoke.sql'
       - 'api/tests/test_civic_staging_existing_devices_postgres.py'
       - 'api/tests/test_civic_staging_runtime_access_postgres.py'
       - 'api/tests/test_civic_staging_fixture_postgres.py'

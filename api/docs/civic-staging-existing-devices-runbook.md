@@ -105,6 +105,27 @@ The synthetic PostgreSQL16 CI contract tests default-deny, valid role access,
 cross-account rejection and attempted unlock rejection. The CI does not
 prove Render's real runtime URL uses this role or a session-affine pool.
 
+## Synthetic collector-to-outbox dry-run in staging
+
+Use `api/scripts/civicStagingCollectorRollbackSmoke.sql` only after the
+staging schema and runtime access checks pass. This is a **single SQL
+transaction with an unconditional ROLLBACK**. It refuses any database
+without exactly the two known synthetic `pending` users, nonempty source
+tables, device tokens or outbox events, or with an unlocked delivery guard.
+It also refuses source/outbox triggers before inserting anything.
+
+The SQL mirrors the Ministero collector's category filter, URL destination
+and `FOR SHARE` guard semantics, and the ECI sync's new-ID upsert.
+It tests all three categories plus an excluded constitutional referendum,
+no duplicate events and `suppressed` rather than `pending` status during
+rollout. Its final query returns only post-rollback row counts and the guard
+flag. It does **not** call the backend, FCM, a real device, or official APIs.
+The matching CI unit test runs the same SQL in isolated PostgreSQL16 `civic_ci`,
+and confirms the script rejects a database with unexpected accounts.
+
+This smoke test verifies the real staging **SQL path**, not Render's live
+service, pooler session affinity, FCM credentials, or Android/PWA delivery.
+
 ## Hard release gates still open
 
 - Verify the real backend database/session pooler, GitHub ECI DB identity and

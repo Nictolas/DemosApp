@@ -19,6 +19,7 @@ SOURCE = (ROOT / 'api/database/20261102_civic_staging_existing_devices_fixture.s
 SCHEMA = (ROOT / 'api/database/20261101_civic_new_initiative_notifications.sql').read_text(encoding='utf8')
 ACCESS = (ROOT / 'api/database/20261102_civic_staging_runtime_access.sql').read_text(encoding='utf8')
 PREFLIGHT = (ROOT / 'api/scripts/civicStagingRuntimeAccessReadOnlyPreflight.sql').read_text(encoding='utf8')
+COLLECTOR_SMOKE = (ROOT / 'api/scripts/civicStagingCollectorRollbackSmoke.sql').read_text(encoding='utf8')
 A = '00000000-0000-4000-8000-000000000301'
 B = '00000000-0000-4000-8000-000000000302'
 OTHER = '33333333-3333-4333-8333-333333333333'
@@ -147,6 +148,24 @@ class StagingRuntimeAccessTest(unittest.TestCase):
             self.assertEqual(cur.fetchone(), (0,))
             cur.execute('SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1')
             self.assertEqual(cur.fetchone(), (True,))
+
+    def test_official_sources_create_only_suppressed_events_and_leave_no_rows(self):
+        """Run the collector-shaped SQL in civic_ci; the SQL itself rolls back."""
+        with self.conn.cursor() as cur:
+            cur.execute(COLLECTOR_SMOKE)
+            result = cur.fetchone()
+            self.assertEqual(result, (0, 0, 0, 0, True))
+            cur.execute('SELECT COUNT(*) FROM public.user_devices')
+            self.assertEqual(cur.fetchone(), (0,))
+
+    def test_smoke_refuses_non_synthetic_accounts(self):
+        with self.conn.cursor() as cur:
+            cur.execute('UPDATE public.users SET id=%s WHERE id=%s', (OTHER, A))
+            with self.assertRaisesRegex(Exception, 'CIVIC_STAGING_COLLECTOR_SMOKE_REFUSED'):
+                cur.execute(COLLECTOR_SMOKE)
+            cur.execute('ROLLBACK')
+            cur.execute('SELECT COUNT(*) FROM public.eci')
+            self.assertEqual(cur.fetchone(), (0,))
 
     def test_refuses_non_synthetic_staging(self):
         with self.conn.cursor() as cur:
