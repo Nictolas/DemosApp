@@ -176,3 +176,14 @@ test('native UMP privacy status is observable after asynchronous startup and rev
   assert.match(uiPrivacy, /document\.addEventListener\('visibilitychange', onVisibilityChange\)/);
   assert.match(uiPrivacy, /currentRequestId === requestId/);
 });
+
+test('UMP privacy options dialog is always opened on the Android main thread', () => {
+  const method = mainActivity.slice(
+    mainActivity.indexOf('void showAppOpenPrivacyOptions('),
+    mainActivity.indexOf('@Override', mainActivity.indexOf('void showAppOpenPrivacyOptions('))
+  );
+  assert.match(method, /runOnUiThread\(\(\) -> \{/);
+  assert.ok(method.indexOf('runOnUiThread') < method.indexOf('appOpenAdsManager.showPrivacyOptions('));
+  assert.match(method, /isFinishing\(\) \|\| isDestroyed\(\)/);
+  assert.match(nativePrivacy, /activity\.showAppOpenPrivacyOptions\(/);
+});
