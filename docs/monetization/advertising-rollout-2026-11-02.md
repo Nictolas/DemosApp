@@ -3,6 +3,12 @@
 Data: 2026-11-02. **Ambito prioritario esclusivo: App Open Ad Android.**
 Stato: preparazione tecnica in PR draft #558; **annunci non attivi**.
 
+## Approvazione DPO comunicata
+- **02/11/2026 — approvazione dichiarata dall'utente per conto del DPO**: configurazione di consenso e impostazione preliminare App Open Android, nonché preparazione dei testi Privacy/Cookie. Questa registrazione documenta la conferma ricevuta, non una verifica indipendente né un'autorizzazione a presumere superati controlli tecnici e di piattaforma.
+- **Gate DPO: approvazione preparatoria ricevuta.** Restano separati: test end-to-end su Android, comportamento di UMP al rifiuto/revoca, configurazione minori, controlli delle categorie pubblicitarie, Play Console e revisione dell'app da parte di AdMob. Eventuali modifiche sostanziali ai trattamenti effettivi richiedono riesame della documentazione.
+- **Non autorizzare automaticamente** un'unità pubblicitaria reale in una release, né modificare o pubblicare messaggi CMP sulla base della sola approvazione preliminare.
+
+
 ## Decisione di prodotto
 - Solo annunci **commerciali non personalizzati**.
 - Finestra mobile di **almeno 24 ore** tra due annunci effettivamente mostrati, non tra richieste/caricamenti.
@@ -54,7 +60,9 @@ Senza il parametro `-PdemosDebugAppOpenAds=true`, **nessuna inizializzazione UMP
 - **Non sostituire gli ID ufficiali di test Google nel prototipo DEBUG** con quelli reali. Le dipendenze AdMob e UMP continuano a non essere incluse in RELEASE. Richieste vere prima della verifica dell'account e delle autorizzazioni non sono previste.
 - Passo account successivo: `Privacy e messaggi` → messaggio `Normative europee` associato a DEMOS, con collegamento alla policy privacy effettiva; poi verificare e configurare `Controlli di blocco`, limiti di età/posizionamento, conformità e revoca consenso. Evitare di dichiarare un messaggio pubblicato senza verifica nella console.
 - Per l'approvazione AdMob, la app deve risultare associata a uno store supportato e idonea a revisione. **Non pubblicare DEMOS prematuramente** soltanto per questo gate.
-- `app-ads.txt`: usare solo la riga autorizzata ottenuta dall'account AdMob, verificarla sul dominio sviluppatore indicato nello store, non generarla per supposizione.
+- `client/public/app-ads.txt` preparato nella PR con **la stessa riga Google esistente** in `client/public/ads.txt` (publisher ID già visibile nel progetto), secondo il formato ufficiale di Google. La CI controlla contenuto, unico venditore e presenza in `client/dist/app-ads.txt` dopo la build; **non è ancora pubblicato né verificato dal crawler AdMob**.
+- Verificare nella console AdMob `App → Visualizza tutte le app → app-ads.txt → Come impostare` che lo snippet personalizzato corrisponda a questo file, quindi che il dominio dello sviluppatore nello Store sia quello desiderato. Solo dopo la pubblicazione sul sito e la scansione di AdMob si potrà chiudere il gate.
+- `ads.txt` web e `app-ads.txt` Android sono file distinti, anche se in questo caso riportano lo stesso venditore Google; non implicano attivazione di banner o annunci sul sito.
 
 Fonti ufficiali:
 - https://support.google.com/admob/answer/10564477
@@ -88,8 +96,8 @@ Riferimenti tecnici:
 8. **DEBUG IMPLEMENTATO:** `SharedPreferences` non associata all'identità dell'utente, almeno tre avvii e 24 ore dall'ultimo `onAdShowedFullScreenContent`; nuovi test JUnit su limite, rollback e timestamp corrotti. QA dispositivo ancora aperto.
 9. **DEBUG IMPLEMENTATO:** ignorare e distruggere `AppOpenAd` caricati da oltre **quattro ore** e saltare se la pagina è già caricata; test dispositivi ancora necessari.
 10. Se manca qualsiasi gate, il contenuto parte normalmente, senza pubblicità.
-11. Verificare `app-ads.txt` sul dominio sviluppatore associato allo Store, separato da `ads.txt` web; recuperare la riga **reale** da AdMob.
-12. **PARZIALE:** bozze aggiornate delle informative Privacy/Cookie e test CI in PR #558; prima del rilascio restano pubblicazione della versione revisionata, aggiornamento del Registro dei trattamenti, Google Play Data Safety e dichiarazione Ads, controllo DPO, test reali (primo avvio, UMP rifiutato/revocato, offline, rotazione, background/foreground, voto, accessibilità e fallimenti rete).
+11. **PARZIALE:** `client/public/app-ads.txt` preparato usando la riga Google già presente nel file web. Da confrontare con lo snippet personalizzato in console AdMob, pubblicare nel dominio sviluppatore dello Store e attendere verifica AdMob.
+12. **PARZIALE:** DPO ha comunicato assenso alla preparazione, informative Privacy/Cookie e test CI aggiornati nella PR #558. Prima di un rilascio con annunci restano la distribuzione e verifica delle informative, revisione del Registro trattamenti sulle operazioni effettive, Play Data Safety e dichiarazione Ads, test reali (primo avvio, rifiuto/revoca UMP, offline, rotazione, background/foreground, voto, accessibilità e fallimenti rete).
 
 ## Situazione osservata
 - Su `main`, `client/android/app/build.gradle` non integra AdMob/UMP.
@@ -117,4 +125,4 @@ Nel test limitato agli annunci Google di prova, la verifica UMP non garantisce c
 
 Piano: Google Sheet `DEMOS – Strategia – Scalabilità e Finanziamento`, tab `ADS – MONETIZZAZIONE`. PR: https://github.com/Nictolas/DemosApp/pull/558
 
-**Solo prototipo nativo DEBUG.** Gli ID AdMob reali sono stati acquisiti ma non attivati. Per il rilascio reale mancano approvazione AdMob/store, configurazione CMP/UMP reale, controllo dei minori, esclusioni politiche, Play Console, app-ads.txt e prove end-to-end su dispositivi.
+**Solo prototipo nativo DEBUG.** DPO: assenso preliminare comunicato. Gli ID AdMob reali sono stati acquisiti ma non attivati. Per il rilascio reale mancano approvazione AdMob/store, pubblicazione e test CMP/UMP, controllo dei minori, esclusioni politiche, Play Console, distribuzione/verifica app-ads.txt e prove end-to-end su dispositivi.
