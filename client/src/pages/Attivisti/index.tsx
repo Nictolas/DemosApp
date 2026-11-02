@@ -15,9 +15,7 @@ interface Attivista {
   id: string;
   nome: string;
   cognome: string;
-  email: string;
   ruolo: string;
-  status: string;
   regione_residenza?: string;
   tipologie_attivismo?: any[];
   supporters_count: number;
