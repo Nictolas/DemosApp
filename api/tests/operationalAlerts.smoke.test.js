@@ -75,8 +75,11 @@ test('technical alerts describe the incident without unsafe raw paths or stacks'
 
 test('operational alert feed is limited to recipient in both feed and latest endpoints', () => {
   const feed = read('api/routes/notifiche.js');
-  const restricted = feed.match(/WHERE \(titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = \$1::uuid\)/g) || [];
+  const restricted = feed.match(/WHERE \(id_utente IS NULL OR id_utente = \$1::uuid\)/g) || [];
   assert.equal(restricted.length, 2);
+  // Only explicitly global (NULL recipient) or authenticated-user notifications.
+  // Never infer global visibility from notification titles.
+  assert.doesNotMatch(feed, /WHERE \\(titolo IS NULL OR titolo NOT LIKE/);
   assert.match(feed, /LIMIT 50\s+`\s*,\s*\[user_id\]/);
   assert.match(feed, /LIMIT 1\s+`\s*,\s*\[userId\]/);
   const broadcast = read('api/routes/comunicazioni.js');
