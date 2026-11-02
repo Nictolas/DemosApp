@@ -5,10 +5,12 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.util.Log;
 import android.webkit.WebView;
 
 import androidx.annotation.NonNull;
 
+import com.google.android.ump.ConsentDebugSettings;
 import com.google.android.ump.ConsentInformation;
 import com.google.android.ump.ConsentRequestParameters;
 import com.google.android.ump.UserMessagingPlatform;
@@ -37,6 +39,7 @@ import com.google.android.libraries.ads.mobile.sdk.appopen.AppOpenAdEventCallbac
  */
 final class DemosAppOpenAdsManager {
     private static final String PREFS = "demos_app_open_ads_device_only";
+    private static final String QA_LOG_TAG = "DemosAdsQA";
     private static final String LAUNCHES = "native_launch_count";
     private static final String LAST_SHOWN = "last_ad_shown_wall_clock_ms";
     // Read-only check, no URL, route, opinions or user information is read.
@@ -73,14 +76,30 @@ final class DemosAppOpenAdsManager {
 
         // UMP MUST run before initializing Google Mobile Ads or requesting ads.
         consentInformation = UserMessagingPlatform.getConsentInformation(activity);
-        ConsentRequestParameters params = new ConsentRequestParameters.Builder().build();
+        ConsentRequestParameters.Builder paramsBuilder = new ConsentRequestParameters.Builder();
+        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) {
+            // Explicit DEBUG-only test geography, never enabled in a release build.
+            // Emulator devices are automatically considered test devices by UMP.
+            paramsBuilder.setConsentDebugSettings(
+                new ConsentDebugSettings.Builder(activity)
+                    .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
+                    .build());
+        }
+        ConsentRequestParameters params = paramsBuilder.build();
         consentInformation.requestConsentInfoUpdate(
             activity,
             params,
-            () -> UserMessagingPlatform.loadAndShowConsentFormIfRequired(
-                activity,
-                formError -> {
-                    if (formError != null) return;
+            () -> {
+                if (activity.isDestroyed() || activity.isFinishing()) return;
+                logQaConsent("updated");
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(
+                    activity,
+                    formError -> {
+                        if (BuildConfig.DEMOS_UMP_DEBUG_EEA) {
+                            Log.i(QA_LOG_TAG, "form=" + (formError == null ? "ok" : formError.getErrorCode()));
+                        }
+                        if (formError != null || activity.isDestroyed() || activity.isFinishing()) return;
+                        logQaConsent("form-complete");
                     // Stricter than Google's canRequestAds() alone: require a completed
                     // positive consent state in this debug-only experiment.
                     if (consentInformation.canRequestAds()
@@ -88,12 +107,25 @@ final class DemosAppOpenAdsManager {
                             == ConsentInformation.ConsentStatus.OBTAINED) {
                         initializeSdk();
                     }
-                }),
+                    });
+            },
             requestError -> {
                 // Fail closed even if the SDK has previous-session consent cached.
                 // Do not request ads when current UMP refresh fails.
+                if (BuildConfig.DEMOS_UMP_DEBUG_EEA) {
+                    Log.i(QA_LOG_TAG, "update-failed-code=" + requestError.getErrorCode());
+                }
             }
         );
+    }
+
+    // Non-identifying diagnostics, emitted only for explicit local debug EEA QA.
+    private void logQaConsent(String stage) {
+        if (!BuildConfig.DEMOS_UMP_DEBUG_EEA || consentInformation == null) return;
+        Log.i(QA_LOG_TAG, stage
+            + " status=" + consentInformation.getConsentStatus()
+            + " canRequestAds=" + consentInformation.canRequestAds()
+            + " privacyOptions=" + consentInformation.getPrivacyOptionsRequirementStatus());
     }
 
     void onResume() {
