@@ -1,4 +1,4 @@
-import { Users, BookOpen, BarChart3, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award } from "lucide-react";
+import { Users, BookOpen, BarChart3, HardDrive, Building2, Bell, Vote, Globe, FileSignature, Award, Heart } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -34,6 +34,17 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-cyan-500 hover:bg-cyan-600",
     route: "/gestisci-opinioni",
     buttonText: "Gestisci Opinioni"
+  },
+  {
+    id: "grazia-proposte",
+    category: "amministrazione",
+    title: "Proposte Grazia",
+    description: "Esamina e approva le richieste di nuovi soggetti prima di inserirli nel catalogo",
+    icon: Heart,
+    color: "text-rose-600 group-hover:text-rose-800",
+    buttonColor: "bg-rose-500 hover:bg-rose-600",
+    route: "/gestisci-grazia",
+    buttonText: "Esamina Proposte"
   },
   {
     id: "riconoscimenti",

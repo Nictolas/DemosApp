@@ -58,7 +58,7 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
             <div className="min-w-0">
               <h2 className="text-base font-bold lg:text-2xl">Il tuo voto</h2>
               <CardDescription className="mt-0.5 text-xs leading-snug text-blue-100 lg:mt-1 lg:text-sm">
-                {limit} voto{limit === 1 ? '' : 'i'} disponibile{limit === 1 ? '' : 'i'}. Scegli dalla classifica o cerca un nome.
+                {limit} voto{limit === 1 ? '' : 'i'} disponibile{limit === 1 ? '' : 'i'}. Scegli dalla classifica o cerca tra i nomi già approvati.
               </CardDescription>
             </div>
           </div>
@@ -90,7 +90,7 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
               <Input
-                placeholder="Nome del carcerato..."
+                placeholder="Cerca nella classifica..."
                 value={nomeInput}
                 onChange={(e) => { 
                   onUpdateField('nomeInput', e.target.value); 

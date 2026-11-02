@@ -25,7 +25,7 @@ export const gestisciHubs: GestisciHub[] = [
     description: "Opinioni e configurazione del Governo ideale.",
     icon: BookOpen,
     buttonColor: "bg-cyan-500 hover:bg-cyan-600",
-    sectionIds: ["opinioni", "governo"],
+    sectionIds: ["opinioni", "grazia-proposte", "governo"],
   },
   {
     id: "comunicazioni",
