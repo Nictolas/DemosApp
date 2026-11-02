@@ -1,34 +1,125 @@
 'use strict';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
-const {validateBootstrapEnvironment, createBootstrapServer} = require('../staging/unified_staging_bootstrap');
+const {
+  validateBootstrapEnvironment,
+  createBootstrapServer,
+} = require('../staging/unified_staging_bootstrap');
 
-test('rejects production and missing bootstrap authorization', () => {
-  assert.throws(() => validateBootstrapEnvironment({NODE_ENV:'production', DEMOS_UNIFIED_STAGING_MODE:'bootstrap'}), /explicit non-production/);
-  assert.throws(() => validateBootstrapEnvironment({NODE_ENV:'staging'}), /explicit non-production/);
-  assert.deepEqual(validateBootstrapEnvironment({NODE_ENV:'staging', DEMOS_UNIFIED_STAGING_MODE:'bootstrap',PORT:'10000'}), {port:10000});
-});
-test('bootstrap exposes no app route and is never application-ready', async (t) => {
+async function withBootstrap(t) {
+  // Loopback only: no Render, Supabase, Firebase, Redis or production I/O.
   const server = createBootstrapServer();
-  server.listen(0,'127.0.0.1');
-  await new Promise(resolve => server.once('listening',resolve));
+  server.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
   const port = server.address().port;
-  const get = (path,method='GET') => new Promise((resolve,reject) => {
-    const req = http.request({host:'127.0.0.1',port,path,method},res => {
-      let body=''; res.on('data',chunk=>body+=chunk);
-      res.on('end',()=>resolve({code:res.statusCode,body:JSON.parse(body),headers:res.headers}));
+
+  return (path, method = 'GET', headers = {}) => new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, path, method, headers }, res => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        resolve({ code: res.statusCode, body, headers: res.headers });
+      });
     });
-    req.on('error',reject);req.end();
+    req.on('error', reject);
+    req.end();
   });
-  const live=await get('/health');
-  assert.equal(live.code,200);
-  assert.equal(live.body.ready_for_app_tests,false);
-  assert.equal(live.body.database_connected,false);
-  assert.equal(live.body.notifications_enabled,false);
-  assert.equal(live.headers['cache-control'],'no-store');
-  assert.equal((await get('/health/ready')).code,503);
-  assert.equal((await get('/api/notifiche')).code,404);
-  assert.equal((await get('/health','POST')).code,405);
+}
+
+test('requires explicit non-production bootstrap authorization', () => {
+  assert.throws(
+    () => validateBootstrapEnvironment({ NODE_ENV: 'production', DEMOS_UNIFIED_STAGING_MODE: 'bootstrap' }),
+    /explicit non-production/
+  );
+  assert.throws(
+    () => validateBootstrapEnvironment({ NODE_ENV: 'staging' }),
+    /explicit non-production/
+  );
+  assert.throws(
+    () => validateBootstrapEnvironment({ NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'application' }),
+    /explicit non-production/
+  );
+  assert.deepEqual(
+    validateBootstrapEnvironment({ NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'bootstrap', PORT: '10000' }),
+    { port: 10000 }
+  );
+});
+
+test('rejects ephemeral, non-decimal, and out-of-range deployed ports', () => {
+  const env = { NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'bootstrap' };
+  assert.deepEqual(validateBootstrapEnvironment(env), { port: 10000 });
+  for (const invalid of ['0', '-1', '65536', '0x2710', '1e4', ' 10000', '10000 ', '10000.0', 'NaN', 'Infinity', '000000']) {
+    assert.throws(
+      () => validateBootstrapEnvironment({ ...env, PORT: invalid }),
+      /Invalid bootstrap port/,
+      `Unexpectedly accepted PORT=${invalid}`
+    );
+  }
+  for (const allowed of ['1', '80', '65535']) {
+    assert.equal(validateBootstrapEnvironment({ ...env, PORT: allowed }).port, Number(allowed));
+  }
+});
+
+test('bootstrap exposes no app route and is never application-ready', async t => {
+  const request = await withBootstrap(t);
+  for (const path of ['/health', '/health/live']) {
+    const response = await request(path);
+    assert.equal(response.code, 200);
+    const body = JSON.parse(response.body);
+    assert.equal(body.status, 'bootstrap_only');
+    assert.equal(body.environment, 'staging');
+    assert.equal(body.ready_for_app_tests, false);
+    assert.equal(body.database_connected, false);
+    assert.equal(body.production_access, false);
+    assert.equal(body.notifications_enabled, false);
+    assert.equal(response.headers['cache-control'], 'no-store');
+    assert.equal(response.headers['x-content-type-options'], 'nosniff');
+    assert.equal(response.headers['x-frame-options'], 'DENY');
+  }
+  const ready = await request('/health/ready');
+  assert.equal(ready.code, 503);
+  assert.equal(JSON.parse(ready.body).status, 'not_ready');
+  assert.equal(ready.headers['cache-control'], 'no-store');
+
+  for (const path of [
+    '/api/notifiche', '/api/auth/login', '/api/v1/opinioni',
+    '/api/users', '/metrics', '/debug', '/', '/admin', '/healthz',
+  ]) {
+    const response = await request(path);
+    assert.equal(response.code, 404, `Unexpected application route enabled: ${path}`);
+    assert.deepEqual(JSON.parse(response.body), { error: 'not_found' });
+  }
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']) {
+    const response = await request('/health', method);
+    assert.equal(response.code, 405);
+    assert.deepEqual(JSON.parse(response.body), { error: 'method_not_allowed' });
+  }
+});
+
+test('refuses absolute and network-path request targets', async t => {
+  const request = await withBootstrap(t);
+  for (const path of ['http://untrusted.invalid/health', '//untrusted.invalid/health']) {
+    const response = await request(path);
+    assert.equal(response.code, 400, `Accepted untrusted request target: ${path}`);
+    assert.deepEqual(JSON.parse(response.body), { error: 'invalid_request_target' });
+    assert.equal(response.headers['cache-control'], 'no-store');
+  }
+  assert.equal((await request('/health/ready?ready=true')).code, 503);
+  assert.equal((await request('/api/../api/notifiche')).code, 404);
+});
+
+test('never reflects authorization values or query parameters', async t => {
+  const request = await withBootstrap(t);
+  const secret = 'synthetic-not-a-real-token';
+  const response = await request(`/health?access_token=${secret}`, 'GET', {
+    authorization: `Bearer ${secret}`,
+    'x-api-key': secret,
+  });
+  assert.equal(response.code, 200);
+  assert.equal(response.body.includes(secret), false);
+  assert.equal(JSON.stringify(response.headers).includes(secret), false);
+  assert.equal(response.headers['cache-control'], 'no-store');
 });
