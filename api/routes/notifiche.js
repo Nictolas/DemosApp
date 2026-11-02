@@ -79,7 +79,7 @@ router.get('/', verifyToken, async (req, res) => {
         votiParlamentoResult = { rows: [] };
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_voti_parlamento:');
+      console.error('NOTIF_PARLIAMENT_FAILED');
       votiParlamentoResult = { rows: [] };
     }
     
@@ -139,7 +139,7 @@ router.get('/', verifyToken, async (req, res) => {
               politicoByKey.set(row.id, row);
             }
           } catch (e) {
-            console.warn('⚠️ Errore batch politici per UUID:');
+            console.warn('NOTIF_POLITICIAN_UUID_FAILED');
           }
         }
         if (politicoNames.length > 0) {
@@ -155,7 +155,7 @@ router.get('/', verifyToken, async (req, res) => {
               if (row.id && !politicoByKey.has(row.id)) politicoByKey.set(row.id, row);
             }
           } catch (e) {
-            console.warn('⚠️ Errore batch politici per nome:');
+            console.warn('NOTIF_POLITICIAN_NAME_FAILED');
           }
         }
         for (const notifica of votiComuniResult.rows) {
@@ -173,7 +173,7 @@ router.get('/', verifyToken, async (req, res) => {
         console.warn('⚠️ Nessuna notifica voti comuni trovata nella tabella');
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_voti_comuni:');
+      console.error('NOTIF_LOCAL_VOTES_FAILED');
       votiComuniResult = { rows: [] };
     }
     
@@ -201,13 +201,13 @@ router.get('/', verifyToken, async (req, res) => {
             NULL::TEXT as comune_residenza,
             'notifiche_demos' as tabella_origine
           FROM notifiche_demos
-          WHERE (titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = $1::uuid)
+          WHERE (id_utente IS NULL OR id_utente = $1::uuid)
           ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
           LIMIT 50
         `, [user_id]);
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_demos:');
+      console.error('NOTIF_DEMOS_FAILED');
       demosResult = { rows: [] };
     }
     
@@ -246,7 +246,7 @@ router.get('/', verifyToken, async (req, res) => {
       );
     } catch (err) {
       if (err?.code !== '42P01') {
-        console.error('❌ Errore query political_opinion_notifications:');
+        console.error('NOTIF_OPINION_CHANGES_FAILED');
       }
       opinionChangesResult = { rows: [] };
     }
@@ -327,7 +327,7 @@ router.get('/', verifyToken, async (req, res) => {
       
       comunaliResult = await pool.query(query);
     } catch (err) {
-      console.error('❌ Errore query notifiche_comunali:');
+      console.error('NOTIF_MUNICIPAL_FAILED');
       comunaliResult = { rows: [] };
     }
     
@@ -398,7 +398,7 @@ router.get('/', verifyToken, async (req, res) => {
         // Verifica che 'testo' non sia presente nella query
         const queryText = `SELECT ${selectColumnsWithUser.join(', ')} FROM notifiche_avvistamenti na ${joinClause} ${whereClause} ORDER BY ${orderBy} LIMIT 50`;
         if (queryText.includes('testo')) {
-          console.error('❌ ERRORE: La query contiene ancora "testo"!');
+          console.error('NOTIF_INVALID_QUERY_SHAPE');
           throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
         }
         avvistamentiResult = await pool.query(queryText, queryParams);
@@ -406,7 +406,7 @@ router.get('/', verifyToken, async (req, res) => {
         console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_avvistamenti:');
+      console.error('NOTIF_SIGHTINGS_FAILED');
       avvistamentiResult = { rows: [] };
     }
     
@@ -628,14 +628,13 @@ router.get('/', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero notifiche:');
+    console.error('NOTIF_FEED_FAILED');
     
     // Se è un errore di connessione database, restituisci un messaggio più specifico
     if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
       return res.status(500).json({
         success: false,
-        error: 'Errore connessione database',
-        details: 'Servizio temporaneamente non disponibile'
+        error: 'Errore connessione database'
       });
     }
     
@@ -670,7 +669,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('❌ Errore nella creazione notifica:');
+    console.error('NOTIF_CREATE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -832,7 +831,7 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     }
     
     // Non registrare user ID o scelte di notifica nei log applicativi.
-    console.log('[notifiche] preferenze aggiornate (dettagli omessi)');
+    console.info('NOTIF_PREFERENCES_SAVED');
 
     res.json({
       success: true,
@@ -858,7 +857,7 @@ router.post('/preferenze', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[notifiche] salvataggio preferenze non riuscito (dettagli omessi)');
+    console.error('NOTIF_PREFERENCES_WRITE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -915,7 +914,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
           });
         }
       } catch (err) {
-        console.error('Errore ultima notifica voto comunale:');
+        console.error('NOTIF_LATEST_LOCAL_FAILED');
       }
     }
     
@@ -931,7 +930,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
           data_creazione,
           'notifiche_demos' as tabella_origine
         FROM notifiche_demos
-        WHERE (titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = $1::uuid)
+        WHERE (id_utente IS NULL OR id_utente = $1::uuid)
         ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
         LIMIT 1
       `, [userId]);
@@ -947,7 +946,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
         });
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_demos:');
+      console.error('NOTIF_LATEST_DEMOS_FAILED');
     }
     
     // Recupera da notifiche_voti_parlamento (se l'utente ha rappresentanti scelti)
@@ -988,7 +987,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
           }
         }
       } catch (err) {
-        console.error('❌ Errore query notifiche_voti_parlamento:');
+        console.error('NOTIF_LATEST_PARLIAMENT_FAILED');
       }
     }
     
@@ -1024,7 +1023,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
       }
     } catch (err) {
       if (err?.code !== '42P01') {
-        console.error('❌ Errore ultima political_opinion_notification:');
+        console.error('NOTIF_LATEST_OPINION_FAILED');
       }
     }
 
@@ -1045,14 +1044,14 @@ router.get('/ultima', verifyToken, async (req, res) => {
     }
     
     const ultimaNotifica = comunicazioni[0];
-    console.log('[notifiche] ultima notifica trovata (titolo omesso)');
+    console.info('NOTIF_LATEST_FOUND');
     
     res.json({
       success: true,
       data: ultimaNotifica
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero ultima notifica:');
+    console.error('NOTIF_LATEST_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
