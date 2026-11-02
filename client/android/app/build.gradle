@@ -75,9 +75,9 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
 
-    // GMA Next-Gen e UMP: mai inizializzati senza il gate nativo di debug.
-    implementation 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0'
-    implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
+    // GMA Next-Gen e UMP sono presenti esclusivamente in build DEBUG.
+    debugImplementation 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0'
+    debugImplementation 'com.google.android.ump:user-messaging-platform:4.0.0'
 
     // Login Google nativo: Credential Manager restituisce un Google ID token
     // che viene verificato dal backend DEMOS esistente.
