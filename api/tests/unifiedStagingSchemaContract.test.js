@@ -84,3 +84,25 @@ test('P0 app tables deny direct client access and start with RLS enabled',()=>{
   }
   assert.match(p0Sql, /REVOKE ALL ON TABLE[\s\S]*FROM PUBLIC,anon,authenticated/i);
 });
+
+
+const p1Migration=fs.readFileSync(path.join(__dirname,'..','database','staging','ops_stg_001_p1_routes_20261103.sql'),'utf8');
+const p1Sql=p1Migration.replace(/^\s*--.*$/gm,'');
+test('P1 route schema is atomic, staging-identity-locked and purely additive',()=>{
+  assert.match(p1Sql,/^\s*BEGIN;[\s\S]*COMMIT;\s*$/i);
+  assert.match(p1Sql,/md5\(db_identity::text\)='0cbb6ace68a9f11956904e2a37898ec8'/i);
+  assert.equal((p1Sql.match(/CREATE TABLE public\./g)||[]).length,9);
+  assert.equal((p1Sql.match(/CREATE SEQUENCE public\./g)||[]).length,2);
+  assert.equal((p1Sql.match(/ADD CONSTRAINT/g)||[]).length,29);
+  assert.doesNotMatch(p1Sql,/\b(TRUNCATE|DROP\s+TABLE|DELETE\s+FROM|INSERT\s+INTO|UPDATE\s+public\.)\b/i);
+});
+test('P1 route schema creates primary keys before foreign keys, with RLS and revocations',()=>{
+  assert.ok(p1Sql.indexOf('ADD CONSTRAINT')<p1Sql.indexOf('FOREIGN KEY'));
+  assert.ok(p1Sql.lastIndexOf('PRIMARY KEY')<p1Sql.indexOf('FOREIGN KEY'));
+  for(const name of ['active_sessions','ice','comunicazioni','unita_elettorale','candidati',
+    'political_candidacies','political_mandates','parlamento','votazioni_parlamento']) {
+    assert.match(p1Sql,new RegExp('CREATE TABLE public\\."'+name+'"\\s*\\(','i'));
+    assert.match(p1Sql,new RegExp('ALTER TABLE public\\."'+name+'"\\s+ENABLE ROW LEVEL SECURITY','i'));
+  }
+  assert.match(p1Sql,/REVOKE ALL ON[\s\S]*FROM PUBLIC, anon, authenticated;/i);
+});
