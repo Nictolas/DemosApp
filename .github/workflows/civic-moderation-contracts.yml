@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - main
+      - feat/unified-proposals-page-20261031
       - fix/notification-recipient-reactions-auth-20261031
     paths:
       - 'api/routes/notifiche.js'
