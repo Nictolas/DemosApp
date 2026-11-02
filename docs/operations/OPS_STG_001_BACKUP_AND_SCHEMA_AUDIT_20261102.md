@@ -7,7 +7,7 @@
 - Copia locale compressa in formato `pg_dump -Fc` completata sul disco D: nella cartella `DEMOS-Preserved/Render-Archive`. Dimensione **252.568 byte**, SHA-256 `D2A3EC5E8D338BF906984013B96C05F7F399A793EF7FB6CF5A2075B575705FC1`. Verifica `pg_restore --list` riuscita, hash verificato in una seconda lettura.
 - Directory locale con ACL NTFS limitate all'utente corrente, Administrators e SYSTEM; **non condividere, caricare in repository, Drive o log questo file** perché può contenere credenziali/dispositivi di test.
 - La connessione esterna del database Render è tornata **deny-all** (`ipAllowList=[]`) dopo ispezione e backup; TLS cifrato con `sslmode=require`, che non autentica il server via certificato CA.
-- **Limite:** non è stata fatta una prova di ripristino. Il backup preserva i dati ma non dimostra automaticamente che tutta la piattaforma si possa ricostruire.
+- **Ripristino verificato il 02/11/2026:** il backup è stato ripristinato con successo in un PostgreSQL 17 locale temporaneo (pg_restore --exit-on-error, esito 0). Resta da collaudare il cutover completo del servizio condiviso; il vecchio Render PostgreSQL non deve ancora essere cancellato.
 - Render PG non cancellato; non attivato alcun piano a pagamento.
 
 ## Differenza database e utilizzo osservato dal codice
@@ -39,4 +39,13 @@ Un secondo inventario offline ha confrontato 115 nomi di tabelle della produzion
 
 **Decisione operativa:** prima di eventuali DDL, associare ogni scenario E2E autorizzato alle sue route effettivamente montate e alle dipendenze transitive, confrontare lo schema delle sole tabelle richieste e preparare migrazioni additive con RLS e privilegi minimi. Nessuna copia di record di produzione, nessun aggiornamento dello staging bootstrap o attivazione di Firebase è autorizzato dall'inventario. L'attuale preflight di base e quello per le tabelle civiche non sostituiscono l'E2E completo.
 
-Il backup Render locale è stato ricontrollato leggendo dimensione e SHA-256: **252.568 byte** e impronta coerente con l'evidenza sopra. Non è ancora dimostrato un ripristino riuscito; non eliminare il vecchio PostgreSQL finché tale gate non sarà chiuso.
+Il backup Render locale è stato ricontrollato leggendo dimensione e SHA-256: **252.568 byte** e impronta coerente con l'evidenza sopra. Ripristino locale riuscito e verificato; non eliminare il vecchio PostgreSQL finché cutover, dipendenze e autorizzazione non saranno completati.
+
+
+## Verifica di ripristino reale — 02/11/2026 (backup gate PASS)
+
+- Archivio PostgreSQL 17 custom-format verificato: 276 voci TOC; impronta SHA-256 invariata, file da 252.568 byte.
+- Eseguito `pg_restore --no-owner --no-acl --exit-on-error` su istanza PostgreSQL **17.10 locale e temporanea**, con database nuovo vuoto e listener **solo 127.0.0.1**. Il backup era stato generato dal server PostgreSQL 17.11; restore concluso con **exit code 0**.
+- Query di controllo sul database ripristinato: **33 tabelle**, **124 indici**, **26 chiavi esterne** nello schema public. Verificata anche la leggibilità degli aggregati: 3 account, 3 dispositivi, 87 iniziative ministeriali, 111 processi civici, 128 record sorgente. Non sono stati esportati o pubblicati dati personali.
+- Chiusura locale con `pg_ctl stop -m fast -w` riuscita; **directory temporanea con i dati ripristinati eliminata** e assenza di modifiche all'archivio originale confermata da nuovo hash. Nessun database in cloud creato o modificato; nessun servizio Render, staging condiviso o produzione toccato.
+- **Interpretazione:** la recuperabilità tecnica di questo singolo dump è ora dimostrata (PASS), a differenza del precedente controllo del solo TOC. **Non** dimostra ancora parità ambientale, isolamento dei segreti, assenza di dipendenze dal vecchio provider, backup automatici, E2E o readiness del futuro `demos-staging`. L'eliminazione del vecchio servizio resta vietata prima di cutover completo e autorizzato.
