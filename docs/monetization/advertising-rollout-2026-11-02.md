@@ -17,22 +17,37 @@ Stato: preparazione tecnica in PR draft #558; **annunci non attivi**.
 ## Ciò che rimane sospeso
 Banner AdSense web, banner Android e spazi sponsorizzati locali sono fuori dall'intervento e dalla PR corrente.
 
-## Base codice introdotta
-- `client/src/lib/advertising-policy.ts`: unica regola App Open Android fail-closed. Il flag predefinito è OFF e **nessun SDK o tracciamento è caricato**.
-- `client/tests/advertisingPolicy.test.mjs`: regressioni su consenso, configurazione, frequenza 24h, primo uso e schermate sensibili.
-- `.github/workflows/advertising-policy-validation.yml`: verifica automatica nelle PR.
-- Nessuna modifica a `AndroidManifest.xml`, `MainActivity.java`, Gradle, AAB o app live.
+## Integrazione disponibile nella PR #558 (solo DEBUG)
+- `client/android/app/build.gradle`: GMA **Next-Gen SDK 1.6.0** e UMP **4.0.0**, dipendenze `debugImplementation` soltanto; le build release non includono questi SDK. Il flag `DEMOS_APP_OPEN_ADS_ENABLED` è sempre `false` in release e `false` per impostazione predefinita anche in debug.
+- `client/android/app/src/debug/AndroidManifest.xml`: App ID di **test ufficiale** Google esclusivamente in debug.
+- `client/android/app/src/debug/java/community/demos/DemosAppOpenAdsManager.java`: aggiornamento UMP, richiesta del modulo necessario, verifica del consenso e di `canRequestAds()` prima dell'inizializzazione; personalizzazione disabilitata mediante Publisher Privacy Treatment; callback App Open Next-Gen; controllo della schermata realmente vuota prima di mostrare, nessuna attesa inserita artificialmente.
+- `client/android/app/src/release/java/community/demos/DemosAppOpenAdsManager.java`: implementazione vuota senza SDK.
+- `client/android/app/src/main/java/community/demos/MainActivity.java`: wiring al gestore nativo solo dietro flag; il WebViewClient Capacitor non viene sostituito.
+- `client/src/lib/advertising-policy.ts`: specifica fail-closed a livello web/TS; **non** è collegata direttamente all'SDK Android e non va dichiarata automaticamente applicata ai client nativi.
+- `client/tests/advertisingPolicy.test.mjs` e `client/tests/appOpenNativeContract.test.mjs`: test di policy e invarianti statiche; CI compila separatamente debug e release.
+- L'inserimento di un annuncio resta **molto improbabile** durante un cold start perché DEMOS non deve introdurre una schermata di caricamento fittizia. L'integrazione reale va provata su dispositivo.
+- **Nessuna release, AAB distribuito o sito è stato modificato da questa PR draft**.
 
-## Gate di sviluppo prima di collegare AdMob
+Test di sviluppo manuale, solo su dispositivo autorizzato e account/pubblicità di TEST:
+```bash
+cd client
+npm ci
+npm run android:sync
+cd android
+./gradlew :app:assembleDebug -PdemosDebugAppOpenAds=true
+```
+Senza il parametro `-PdemosDebugAppOpenAds=true`, **nessuna inizializzazione UMP/GMA**. Non utilizzare ID pubblicitari reali per questo test.
+
+## Gate ancora aperti prima di attivare pubblicità nelle release
 1. Ottenere account AdMob operativo e controllare che `community.demos` e il relativo dominio sviluppatore risultino corretti. Confermare **AdMob App ID** e **App Open Ad Unit ID**, senza inventarli o pubblicarli negli output.
 2. Verificare se AdMob fornisce le unità per l'app in test chiuso. In sviluppo usare esclusivamente gli ID di test Google, senza mai generare impression reali di prova.
-3. Integrare **Google Mobile Ads SDK** e **Google UMP SDK** nella parte **nativa Android**, non uno script AdSense all'interno della WebView Capacitor.
-4. Integrare UMP: `requestConsentInfoUpdate()` **a ogni avvio**, quindi `loadAndShowConsentFormIfRequired()`; consentire richieste solo dopo la verifica di `canRequestAds()` e ulteriori condizioni documentate per limitare rigorosamente la personalizzazione.
+3. **PARZIALE:** Next-Gen e UMP integrati solo in DEBUG, CI Android da verificare; decidere le condizioni e gli ID di produzione solo dopo audit.
+4. **PARZIALE:** UMP nella sola variante DEBUG con fail-closed, `canRequestAds()` e stato `OBTAINED`; verificare la configurazione del messaggio dell'account AdMob e la gestione di revoca/rifiuto con test reali prima della variante release.
 5. Definire un entry point per modificare/rivedere le scelte privacy, se richiesto da UMP.
 6. Configurare in AdMob esclusioni di categorie politiche e verificare la reale efficacia dei blocchi. La non-personalizzazione e il consenso non garantiscono da soli privacy completa o assenza di identificatori.
-7. La componentistica di `MainActivity` deve segnalare al gestore App Open **solo un loading screen vero**; non usare un timer fittizio, né l'evento activity start come autorizzazione automatica a mostrare un annuncio.
-8. Usare una persistente `SharedPreferences` o equivalente per primo uso e ultimo **onAdShowedFullScreenContent**, rispettando clock rollback.
-9. Scartare unità pubblicitarie precaricate oltre **quattro ore**; se caricamento o callback arriva tardi, non mostrare.
+7. **PARZIALE:** `MainActivity` controlla tramite JavaScript di sola lettura che la root React sia ancora vuota; validare su un dispositivo che questo rappresenti sempre un caricamento reale, senza interruzioni dell'app. Nessun timer per trattenere gli utenti.
+8. **DEBUG IMPLEMENTATO:** `SharedPreferences` non associata all'identità dell'utente, almeno tre avvii prima del primo annuncio e 24 ore dall'ultimo `onAdShowedFullScreenContent`; verificare correttamente sul dispositivo clock rollback e sessioni.
+9. **DEBUG IMPLEMENTATO:** ignorare e distruggere `AppOpenAd` caricati da oltre **quattro ore** e saltare se la pagina è già caricata; test dispositivi ancora necessari.
 10. Se manca qualsiasi gate, il contenuto parte normalmente, senza pubblicità.
 11. Verificare `app-ads.txt` sul dominio sviluppatore associato allo Store, separato da `ads.txt` web; recuperare la riga **reale** da AdMob.
 12. Prima del rilascio: aggiornare informativa privacy/cookie e registro dei trattamenti, Play Console Data Safety e dichiarazione Ads, controllo DPO, test reali (primo avvio, UMP rifiutato/revocato, offline, rotazione, background/foreground, voto, accessibilità e fallimenti rete).
@@ -47,15 +62,19 @@ Banner AdSense web, banner Android e spazi sponsorizzati locali sono fuori dall'
 ## QA locale
 ```bash
 cd client
-node --test tests/advertisingPolicy.test.mjs
+node --test tests/advertisingPolicy.test.mjs tests/appOpenNativeContract.test.mjs
 ```
 
+Il CI compila i sorgenti Java sia in debug sia in release. Questo non sostituisce i test di visualizzazione su un dispositivo Android.
+
 ## Documentazione
-- https://developers.google.com/admob/android/app-open
-- https://developers.google.com/admob/android/privacy
+- https://developers.google.com/admob/android/next-gen/app-open
+- https://developers.google.com/admob/android/next-gen/quick-start
+- https://developers.google.com/admob/android/next-gen/privacy
+- https://developers.google.com/admob/android/next-gen/targeting
 - https://developers.google.com/admob/android/test-ads
 - https://support.google.com/admob/answer/9363762
 
 Piano: Google Sheet `DEMOS – Strategia – Scalabilità e Finanziamento`, tab `ADS – MONETIZZAZIONE`. PR: https://github.com/Nictolas/DemosApp/pull/558
 
-**Non ancora un'integrazione SDK completa.** Per l'attivazione restano necessari account/ID, modulo UMP, implementazione Android effettiva e test.
+**Solo prototipo nativo DEBUG.** Per il rilascio reale mancano gli ID AdMob, configurazione CMP/UMP reale, opzioni privacy, controllo dei minori, esclusioni politiche, Play Console, app-ads.txt e prove end-to-end su dispositivi.
