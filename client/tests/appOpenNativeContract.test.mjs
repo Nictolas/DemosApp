@@ -91,5 +91,8 @@ test('required UMP privacy options are reachable from Android settings without r
   assert.match(uiPrivacy, /if \(compact\)/);
   assert.match(landing, /<AppOpenPrivacyOptions compact \/>/);
   assert.match(authPage, /<AppOpenPrivacyOptions compact \/>/);
-  assert.doesNotMatch(nativePrivacy + clientPrivacy, /userId|opinions|voti|politicalAnswers|birthYear|locationId/i);
+  // Inspect only actual JSObject output keys: comments mentioning political
+  // data must not be treated as an outbound payload.
+  const outputKeys = [...nativePrivacy.matchAll(/result\\.put\\("([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(outputKeys, ['required']);
 });
