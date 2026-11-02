@@ -54,6 +54,17 @@ test('missing RLS or missing table never grants approval', () => {
   assert.equal(assess(role(), tables().slice(1)).gate, 'INCOMPLETE_SCHEMA');
 });
 
+test('the GDPR probe includes user_devices and rejects staging schema gaps', () => {
+  assert.equal(IMPORTANT_TABLES.includes('user_devices'), true);
+  assert.equal(IMPORTANT_TABLES.includes('user_rights_requests'), true);
+  assert.equal(new Set(IMPORTANT_TABLES).size, IMPORTANT_TABLES.length);
+  const result = assess(role(), tables().filter(row =>
+    row.table_name !== 'user_devices' && row.table_name !== 'user_rights_requests'));
+  assert.equal(result.gate, 'INCOMPLETE_SCHEMA');
+  assert.deepEqual(result.missingTables.slice().sort(),
+    ['user_devices', 'user_rights_requests']);
+});
+
 test('safe role metadata cannot be mistaken for release approval', () => {
   const result = assess(role(), tables());
   assert.equal(result.gate, 'ROLE_METADATA_OK_E2E_STILL_REQUIRED');
