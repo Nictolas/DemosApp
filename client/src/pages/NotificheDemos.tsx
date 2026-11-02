@@ -99,27 +99,13 @@ export default function NotificheDemos() {
         messaggio: "Questa è una notifica di test per verificare il funzionamento delle notifiche push. Se ricevi questa notifica, significa che le tue preferenze sono configurate correttamente!"
       };
       
-      console.log('🔵 FRONTEND: Invio richiesta POST /api/comunicazioni/send-demos-notification');
-      console.log('🔵 FRONTEND: Dati:', testData);
-      console.log('🔵 FRONTEND: Token presente:', !!localStorage.getItem('auth_token'));
-      
-      // Importa getApiUrl per vedere l'URL completo
-      const { getApiUrl } = await import("@/lib/api-config");
-      const fullUrl = getApiUrl("/api/comunicazioni/send-demos-notification");
-      console.log('🔵 FRONTEND: URL completo:', fullUrl);
-      
       const response = await apiRequest("POST", "/api/comunicazioni/send-demos-notification", testData);
-      
-      console.log('🔵 FRONTEND: Risposta ricevuta, status:', response.status, 'ok:', response.ok);
+      // Consume the response body once: a second response.json() throws after the first read.
       const responseData = await response.json().catch(() => ({}));
-      console.log('🔵 FRONTEND: Response body:', JSON.stringify(responseData));
-      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Errore nell'invio della notifica di test");
+        throw new Error(responseData.error || "Errore nell'invio della notifica di test");
       }
-      
-      return response.json();
+      return responseData;
     },
     onSuccess: (data) => {
       const stats = data.data?.statistiche;
