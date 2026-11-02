@@ -66,19 +66,21 @@ test('real loading is checked and no arbitrary wait or WebView overrides are add
 });
 
 
-test('ad requests are suppressed BEFORE network activity once the app loads', () => {
-  const loadMethod = manager.slice(manager.indexOf('private void loadOnlyTestAppOpenAd()'));
-  const readRoot = loadMethod.indexOf('webView.evaluateJavascript(EMPTY_REACT_ROOT_JS');
-  const networkCall = loadMethod.indexOf('AppOpenAd.load(');
-  assert.ok(readRoot >= 0 && networkCall > readRoot, 'screen check precedes network request');
-  assert.match(manager, /!foreground \|\| loading \|\| readyAd != null \|\| showing/);
-  assert.match(manager, /!consentInformation.canRequestAds\(\)/);
-  assert.match(manager, /ConsentStatus\.OBTAINED/);
-  assert.match(manager, /catch \(ClassCastException corruptValue\)/);
-  assert.match(manager, /putLong\(LAST_SHOWN, System.currentTimeMillis\(\)\)\s*\.commit\(\)/);
+test('preload requires consent and ad display requires real loading', () => {
+  const load = manager.slice(manager.indexOf('private void loadOnlyTestAppOpenAd()'), manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
+  const show = manager.slice(manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
+  assert.match(load, /AppOpenAd\.load\(/);
+  assert.match(load, /MIN_LOAD_RETRY_MS/);
+  assert.match(load, /!adultEligible/);
+  assert.match(load, /!hasExplicitTcfConsent\(\)/);
+  assert.match(show, /EMPTY_REACT_ROOT_JS/);
+  assert.ok(show.indexOf('webView.evaluateJavascript(') < show.indexOf('ad.show(activity)'));
+  assert.match(show, /putLong\(LAST_SHOWN, System.currentTimeMillis\(\)\)\s*\.commit\(\)/);
+  assert.match(show, /onAdImpression\(\)/);
   assert.match(mainActivity, /appOpenAdsManager\.onDestroy\(\)/);
   assert.match(releaseStub, /void onDestroy\(\) \{\}/);
 });
+
 test('required UMP privacy options are reachable from Android settings without release ads', () => {
   assert.match(manager, /getPrivacyOptionsRequirementStatus\(\)/);
   assert.match(manager, /PrivacyOptionsRequirementStatus\.REQUIRED/);
