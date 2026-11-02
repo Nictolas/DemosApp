@@ -110,3 +110,32 @@ jobs:
             exit 1
           fi
           echo 'Verified: no advertising SDK in Android release runtime'
+
+      - name: Verify packaged unsigned release APK excludes ad ID and AdMob
+        working-directory: client/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:assembleRelease --no-daemon --console=plain
+          apk=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$apk"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -d "$sdk/build-tools"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          perms="$("$aapt" dump permissions "$apk")"
+          manifest="$("$aapt" dump xmltree "$apk" AndroidManifest.xml)"
+          badging="$("$aapt" dump badging "$apk")"
+          if ! grep -Fq "package: name='community.demos'" <<< "$badging"; then
+            echo 'ERROR: unexpected package name in release APK'
+            exit 1
+          fi
+          if grep -Fq "com.google.android.gms.permission.AD_ID" <<< "$perms"; then
+            echo 'ERROR: advertising ID permission leaked into current Ads-free release'
+            exit 1
+          fi
+          if grep -Fq "com.google.android.gms.ads.APPLICATION_ID" <<< "$manifest" || grep -Fq "ca-app-pub-" <<< "$manifest"; then
+            echo 'ERROR: AdMob manifest metadata or ID leaked into Ads-free release'
+            exit 1
+          fi
+          echo 'Verified: compiled release APK has no AdMob App ID or AD_ID permission'
