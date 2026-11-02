@@ -51,7 +51,7 @@ test('missing application tables means NOT READY, never silently ready', () => {
   assert.equal(sample.ready,false);
   assert.ok(sample.missing.includes('eventi'));
   assert.ok(sample.missing.includes('programmi'));
-  assert.deepEqual(evaluateSchema(REQUIRED_TABLES),{ready:true,presentCount:9,requiredCount:9,missing:[]});
+  assert.deepEqual(evaluateSchema(REQUIRED_TABLES),{ready:true,presentCount:REQUIRED_TABLES.length,requiredCount:REQUIRED_TABLES.length,missing:[]});
 });
 
 test('preflight is disabled before an explicit staging GO; never connects by default', async () => {
@@ -71,7 +71,7 @@ test('preflight is disabled before an explicit staging GO; never connects by def
   );
 });
 
-test('five private civic tables require RLS and zero direct client grants', () => {
+test('core staging private tables require RLS and zero direct client grants', () => {
   const rows = CIVIC_PRIVATE_TABLES.map(table_name => ({
     table_name, rls_enabled: true, anon_can_access: false, authenticated_can_access: false
   }));
@@ -117,4 +117,13 @@ test('read-only preflight additionally verifies actual database identity, not on
   assert.equal(evaluateStagingIdentity([{identity_hash:'00000000000000000000000000000000'}]),false);
   assert.equal(evaluateStagingIdentity([]),false);
   assert.equal(evaluateStagingIdentity([{identity_hash:STAGING_IDENTITY_HASH},{identity_hash:STAGING_IDENTITY_HASH}]),false);
+});
+
+test('preflight requires every protected P0/P1 route table, not only bootstrap baseline', () => {
+  for(const name of ['user_profile','notifiche_demos','active_sessions','political_candidacies',
+    'political_mandates','unita_elettorale','parlamento','votazioni_parlamento']) {
+    assert.equal(REQUIRED_TABLES.includes(name),true);
+    assert.equal(CIVIC_PRIVATE_TABLES.includes(name),true);
+    assert.equal(evaluateSchema(REQUIRED_TABLES.filter(x => x !== name)).ready,false);
+  }
 });
