@@ -118,11 +118,11 @@ export default function NotificheDemos() {
         description: message,
         duration: 5000
       });
-      console.log('🔄 Invalidando notificationBadge dopo invio notifica di test');
+      
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
     },
     onError: (error: any) => {
-      console.error("Errore nell'invio notifica di test:", error);
+      
       toast({ 
         title: "Errore", 
         description: error.message || "Invio fallito. Riprova più tardi.", 
@@ -226,7 +226,7 @@ export default function NotificheDemos() {
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
     },
     onError: (error: any) => {
-      console.error("Errore nell'invio notifica utente:", error);
+      
       
       // Estrai dettagli aggiuntivi dall'errore se disponibili
       let errorMessage = error.message || "Invio fallito. Riprova più tardi.";
@@ -281,11 +281,11 @@ export default function NotificheDemos() {
         description: "La notifica di Demos è stata inviata a tutti gli utenti con le preferenze attivate." 
       });
       demosForm.reset();
-      console.log('🔄 Invalidando notificationBadge dopo invio notifica Demos');
+      
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
     },
     onError: (error: any) => {
-      console.error("Errore nell'invio notifica Demos:", error);
+      
       
       // Estrai dettagli aggiuntivi dall'errore se disponibili
       let errorMessage = error.message || "Invio fallito. Riprova più tardi.";
