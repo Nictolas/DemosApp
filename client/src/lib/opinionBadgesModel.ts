@@ -6,7 +6,7 @@
  * gating del proprietario e una release separatamente autorizzata.
  * Nessuna rete, database, memorizzazione, analytics o side effect.
  */
-export const BADGE_RULES_VERSION = "2026-11-02-draft-2";
+export const BADGE_RULES_VERSION = "2026-11-02-draft-3";
 export type BadgeId = "B01" | "B02" | "B03" | "B04" | "B05";
 export type Answer = "f" | "c" | "i";
 
@@ -146,8 +146,13 @@ export function evaluateOpinionBadge(
 
   const coverage = rule.questions.length === 0 ? 0 : decisive / rule.questions.length;
   const coherence = decisive === 0 ? null : coherent / decisive;
-  const eligible = decisive >= 3 && coverage >= 0.6 &&
-    coherence !== null && coherence >= 0.75 && groups.size >= 2;
+  // Unanimita richiesta: ogni Opinione associata deve essere stata votata
+  // nella direzione prevista. Indecisi, mancanti e risposte discordanti
+  // impediscono l'assegnazione. Gruppi distinti evitano un tema ripetuto.
+  const eligible = rule.questions.length >= 3 &&
+    decisive === rule.questions.length &&
+    coherent === rule.questions.length &&
+    groups.size >= 2;
   return {
     badgeId: rule.id, version: BADGE_RULES_VERSION, eligible,
     decisive, coherent, contradictory: decisive - coherent, undecided, missing,
