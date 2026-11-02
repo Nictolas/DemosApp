@@ -1,0 +1,73 @@
+name: DEMOS unified staging branch sync ONCE
+
+# One-time, fail-closed reconciliation of PR #565 with main.
+# Uses only a GitHub-hosted ephemeral runner; no DB, Render, staging or secrets.
+on:
+  push:
+    branches:
+      - ops/demos-unified-staging-20261102
+    paths:
+      - '.github/workflows/staging-branch-sync-once.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: staging-branch-sync-once
+  cancel-in-progress: false
+
+jobs:
+  reconcile-pr-branch:
+    if: github.repository == 'Nictolas/DemosApp' && github.ref == 'refs/heads/ops/demos-unified-staging-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ''
+      DEMOS_UNIFIED_STAGING_MODE: ''
+      DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: ''
+      NODE_ENV: test
+      EXPECTED_BRANCH: ops/demos-unified-staging-20261102
+    steps:
+      - name: Checkout the PR branch, full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Set up Node 22 (offline contract tests only)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconcile main with no force push
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/${EXPECTED_BRANCH}"
+          git config user.name "DEMOS CI branch reconcile"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main
+          git merge --no-ff --no-edit origin/main
+          git diff --check origin/main HEAD
+
+          # PR #565 introduces only these new files. Abort if merge shadows any
+          # existing main path, deletes content, or adds unexpected files.
+          expected="$(mktemp)"
+          actual="$(mktemp)"
+          cat > "$expected" <<'EOF'
+          .github/workflows/staging-branch-sync-once.yml
+          .github/workflows/unified-staging-offline-safety.yml
+          api/database/staging/ops_stg_001_missing_tables.sql
+          api/scripts/unifiedStagingPreflight.js
+          api/staging/unified_staging_bootstrap.js
+          api/tests/unifiedStagingBootstrap.test.js
+          api/tests/unifiedStagingPreflight.test.js
+          api/tests/unifiedStagingSchemaContract.test.js
+          docs/operations/DEMOS_UNIFIED_STAGING_2026-11-02.md
+          EOF
+          git diff --name-status origin/main HEAD | awk -F '\t' '$1 != "A" { print "NOT_ADD_ONLY: " $0 > "/dev/stderr"; bad=1 } { print $2 } END { exit bad }' | sort > "$actual"
+          sort "$expected" -o "$expected"
+          diff -u "$expected" "$actual"
+          node --check api/staging/unified_staging_bootstrap.js
+          node --check api/scripts/unifiedStagingPreflight.js
+          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSchemaContract.test.js
+          # Never push if branch has moved concurrently; no --force.
+          git push origin "HEAD:refs/heads/${EXPECTED_BRANCH}"
