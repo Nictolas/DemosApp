@@ -18,7 +18,7 @@ def runner_factory(detail=GOOD, state=b"device\n", packages=b"package:community.
     def runner(argv, capture_output=False, check=False, timeout=None):
         if argv[-1] == "get-state":
             payload = state
-        elif argv[-4:] == ["shell", "pm", "list", "packages", EXPECTED_PACKAGE]:
+        elif argv[-5:] == ["shell", "pm", "list", "packages", EXPECTED_PACKAGE]:
             payload = packages
         elif argv[-3:] == ["shell", "dumpsys", "package", EXPECTED_PACKAGE]:
             payload = detail.encode()
