@@ -87,12 +87,10 @@ router.get('/', verifyToken, async (req, res) => {
     });
   } catch (error) {
     if (sendCooldownError(res, error)) return;
-    console.error('❌ Errore nel recuperare leggi amnistia:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('Amnesty catalogue read failed');
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare leggi amnistia',
-      details: error.message
+      error: 'Errore nel recuperare leggi amnistia'
     });
   }
 });
@@ -170,11 +168,10 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
     res.json({ success: true, message: 'Voto amnistia salvato' });
   } catch (error) {
     if (sendCooldownError(res, error)) return;
-    console.error('❌ Errore nel salvare voto amnistia:', error);
+    console.error('Amnesty vote write failed');
     res.status(500).json({
       success: false,
-      error: 'Errore nel salvare voto amnistia',
-      details: error.message
+      error: 'Errore nel salvare voto amnistia'
     });
   }
 });
@@ -247,80 +244,10 @@ router.post('/migrate', verifyToken, requireAdmin, retiredAmnestyMaintenance);
 // POST /api/amnistia/migrate-ids - deprecated dangerous HTTP schema mutation
 router.post('/migrate-ids', verifyToken, requireAdmin, retiredAmnestyMaintenance);
 
-router.get('/test', verifyToken, requireAdmin, (req, res) => {
-  console.log('🔍 Test endpoint amnistia chiamato');
-  res.json({
-    success: true,
-    message: 'Test endpoint funziona',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// GET /api/amnistia/debug - Debug endpoint per verificare database
-router.get('/debug', verifyToken, requireAdmin, async (req, res) => {
-  try {
-    console.log('🔍 Debug endpoint amnistia chiamato');
-    
-    // Test connessione database
-    const testQuery = await pool.query('SELECT NOW() as current_time');
-    console.log('✅ Database connesso:', testQuery.rows[0].current_time);
-    
-    // Test tabella amnistia
-    const amnistiaCount = await pool.query('SELECT COUNT(*) as count FROM amnistia');
-    console.log('✅ Righe in amnistia:', amnistiaCount.rows[0].count);
-    
-    // Test struttura tabella amnistia
-    const amnistiaStructure = await pool.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'amnistia'
-      ORDER BY ordinal_position
-    `);
-    console.log('📋 Colonne tabella amnistia:', amnistiaStructure.rows);
-    
-    // Test tabella voti_amnistia
-    const votiCount = await pool.query('SELECT COUNT(*) as count FROM voti_amnistia');
-    console.log('✅ Righe in voti_amnistia:', votiCount.rows[0].count);
-    
-    // Test colonna amnistia_id
-    let amnistiaIdExists = false;
-    try {
-      const amnistiaIdTest = await pool.query('SELECT amnistia_id FROM voti_amnistia LIMIT 1');
-      amnistiaIdExists = true;
-      console.log('✅ Colonna amnistia_id esiste');
-    } catch (error) {
-      console.log('⚠️ Colonna amnistia_id non esiste:', error.message);
-    }
-    
-    // Test primary key di voti_amnistia
-    const primaryKeyCheck = await pool.query(`
-      SELECT column_name 
-      FROM information_schema.key_column_usage 
-      WHERE table_name = 'voti_amnistia' 
-      AND constraint_name LIKE '%_pkey'
-    `);
-    console.log('🔑 Primary key voti_amnistia:', primaryKeyCheck.rows);
-    
-    res.json({
-      success: true,
-      database_connected: true,
-      amnistia_count: amnistiaCount.rows[0].count,
-      amnistia_columns: amnistiaStructure.rows,
-      voti_count: votiCount.rows[0].count,
-      amnistia_id_exists: amnistiaIdExists,
-      primary_key_exists: primaryKeyCheck.rows.length > 0,
-      primary_key_columns: primaryKeyCheck.rows,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Errore nel debug:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+// Introspection formerly available via Admin HTTP is retired: metadata and SQL
+// troubleshooting belong in authorized, isolated maintenance tooling.
+router.get('/test', verifyToken, requireAdmin, retiredAmnestyMaintenance);
+router.get('/debug', verifyToken, requireAdmin, retiredAmnestyMaintenance);
 
 // POST /api/amnistia/fix-primary-key - deprecated dangerous HTTP schema mutation
 router.post('/fix-primary-key', verifyToken, requireAdmin, retiredAmnestyMaintenance);
