@@ -27,11 +27,14 @@ function createQaApp() {
     if (/\bopinioni_domande\b/i.test(sql)) throw Error('Legacy catalog SQL is forbidden');
     if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK')
       return { rows: [], rowCount: 0 };
-    if (sql.includes('FROM users u LEFT JOIN LATERAL') && sql.includes('FROM opinioni_risposte a WHERE a.user_id = u.id')) {
+    if (sql.includes('FROM users u LEFT JOIN user_consents uc') && sql.includes('FROM opinioni_risposte a WHERE a.user_id = u.id')) {
+      if (!sql.includes('COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE')) {
+        throw Error('QA GET does not enforce political consent in the answer SELECT');
+      }
       if (sql.includes('fonti_opinioni') || sql.includes('SELECT *')) throw Error('QA GET must project only published answer columns');
       return { rows: validUser(params) ? [{
         id: USER_ID, status: 'a', ruolo: 'E',
-        opinion_answers: state.hasRow ? { ...state.answers } : null
+        opinion_answers: state.hasRow && state.consent ? { ...state.answers } : null
       }] : [] };
     }
     if (sql === 'SELECT id FROM users WHERE id = $1 FOR UPDATE') {
@@ -135,9 +138,9 @@ function createQaApp() {
     res.json({ success: true });
   });
   app.post('/qa/revoke', (_req, res) => {
+    // Deliberately keep the synthetic residual row: the read-side consent
+    // predicate, not a convenient fixture delete, must prevent disclosure.
     state.consent = false;
-    state.hasRow = false;
-    state.answers = Object.create(null);
     res.json({ success: true });
   });
   app.use('/api', require(compatPath));
