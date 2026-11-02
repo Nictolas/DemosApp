@@ -15,6 +15,8 @@ const nativePrivacy = read('../android/app/src/main/java/community/demos/NativeA
 const clientPrivacy = read('../src/lib/native-app-open-privacy.ts');
 const settings = read('../src/pages/Impostazioni/index.tsx');
 const uiPrivacy = read('../src/pages/Impostazioni/components/AppOpenPrivacyOptions.tsx');
+const landing = read('../src/pages/LandingPage.tsx');
+const authPage = read('../src/pages/auth-page.tsx');
 
 test('release App Open is permanently OFF and only debug contains sample App ID', () => {
   assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_APP_OPEN_ADS_ENABLED', 'false'/);
@@ -86,5 +88,8 @@ test('required UMP privacy options are reachable from Android settings without r
   assert.match(clientPrivacy, /Capacitor\.getPlatform\(\) === 'android'/);
   assert.match(settings, /<AppOpenPrivacyOptions \/>/);
   assert.match(uiPrivacy, /if \(!required\) return null/);
+  assert.match(uiPrivacy, /if \(compact\)/);
+  assert.match(landing, /<AppOpenPrivacyOptions compact \/>/);
+  assert.match(authPage, /<AppOpenPrivacyOptions compact \/>/);
   assert.doesNotMatch(nativePrivacy + clientPrivacy, /userId|opinions|voti|politicalAnswers|birthYear|locationId/i);
 });
