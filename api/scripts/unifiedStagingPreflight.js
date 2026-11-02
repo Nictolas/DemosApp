@@ -120,5 +120,3 @@ if (require.main === module) {
 }
 
 module.exports = {STAGING_REF, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, assertStagingTarget, evaluateSchema, evaluateCivicProtection, run};
-
-[executed on device: DESKTOP-JGK3C81 (827ebd50-ed62-4987-81cb-c2c7fa342364)]
