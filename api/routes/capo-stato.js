@@ -309,7 +309,8 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
     if (client) {
       try {
         client.release();
-      } catch (releaseError) {
+      } catch (_releaseError) {
+        // Do not expose database connection details in public HTTP responses.
       }
     }
 
@@ -319,7 +320,6 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
         success: false,
         error: 'Errore interno del server',
       });
-    } else {
     }
   }
 });
