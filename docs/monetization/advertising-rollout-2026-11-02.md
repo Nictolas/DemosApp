@@ -196,3 +196,29 @@ Piano: Google Sheet `DEMOS – Strategia – Scalabilità e Finanziamento`, tab 
 - Test di contratto estesi a nuova sessione, errori e callback tardivi. **Questa è una protezione del codice, non la prova manuale di cambio account su dispositivo reale.** Rimangono aperti QA fisica, Play Data Safety e revisione AdMob; nessun SDK pubblicitario in release.
 
 - La voce **Privacy pubblicitaria** rimane raggiungibile da schermata iniziale/login anche dopo logout, per consentire la revoca a chi abbia già espresso una scelta. Aprire volontariamente le opzioni UMP da anonimo non avvia SDK Ads o richieste pubblicitarie; un callback di modifica non crea eleggibilità adulta. Il test fisico di questo flusso resta aperto.
+
+
+## QA DOM Chrome headless — 02/11/2026
+
+- Verifica da Windows autorizzato **esclusivamente con Google Chrome** (percorso installato sotto Program Files (x86)), profilo isolato temporaneo su disco D:, eliminato dopo il test. Nessun Edge, nessun accesso ai dati utenti, nessun deploy e nessuna modifica a Render/Supabase.
+- `https://www.demos.community/privacy-policy`: DOM React renderizzato e ispezionato tramite `--headless=new --dump-dom`; 39.599 caratteri, presenti i riferimenti testuali **DEMOS**, **Android**, **Google AdMob** e **Google UMP**.
+- `https://www.demos.community/cookie-policy`: DOM React renderizzato e ispezionato analogamente; 11.919 caratteri, presenti gli stessi riferimenti.
+- **Conclusione limitata:** disponibilità del contenuto informativo Android sul sito verificata anche *dopo* rendering del DOM, non soltanto HTTP 200 o esistenza dei sorgenti. Non costituisce audit legale, verifica visuale con screenshot, accessibilità, audit rete/cookie o collaudo su dispositivo fisico. La revisione DPO e la conformità Google Play rimangono aperte.
+
+## Allineamento registro ADS-12: richiesta vs visualizzazione
+
+- Il manager DEBUG **può precaricare** una creatività Google di TEST dopo verifica adulta, UMP e consenso TCF anche con UI React già popolata (retry non prima di 15 minuti). NON è corretto dichiarare che la root vuota sia richiesta **prima di `AppOpenAd.load()`** nell'implementazione corrente.
+- La root React vuota viene invece verificata **prima di mostrare** (`ad.show()`) e rivalutata nell'azione asincrona. Nessun ritardo artificiale di caricamento. Una richiesta di preload non equivale a impression; non va dichiarato che nessuna richiesta avvenga mentre l'app è utilizzabile.
+- La roadmap ADS-12 è stata rettificata per riflettere questi fatti. Test fisico di contesto, performance e UX naturale non ancora svolto.
+
+## Sette gruppi di gate prima degli annunci reali (aperti)
+
+1. Collaudo Android fisico: consenso/rifiuto/revoca, account adulto/minore/anonimo, cambio account, offline e accessibilità.
+2. App Open in flussi naturali: cold start, foreground, no overlay su contenuto disponibile/voto, cap di 6 ore dopo impression effettiva.
+3. Revisione finale DPO: CMP e partner AdMob, trattamento dati tecnici/possibile localizzazione, revoca, Registro trattamenti e basi giuridiche.
+4. Google Play Console: dichiarazioni Ads/Data Safety, pubblico destinatario/età, eventuali autorizzazioni e coerenza con SDK effettivamente rilasciati.
+5. Collegamento DEMOS al Play Store pubblico e approvazione/review app da parte di AdMob (attualmente test chiuso e "Richiede revisione").
+6. Conferma scansione e verifica `app-ads.txt` nel pannello AdMob (file pubblico HTTP OK, crawler non ancora verificato).
+7. Nuova PR separata e verificata per variante release con ID di produzione, CI, test finali e autorizzazione esplicita al rilascio.
+
+**NO-GO:** i sette punti non possono essere dichiarati chiusi dai workflow GitHub. Non utilizzare `demos-staging` finché rimane in bootstrap; non creare altri staging permanenti.
