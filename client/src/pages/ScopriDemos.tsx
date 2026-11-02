@@ -15,7 +15,7 @@ const benefits = [
     title: "Come politico o candidato",
     items: [
       "Amplia il tuo bacino di elettori e sostenitori",
-      "Analizza le preferenze per zona, genere e fasce d'età",
+      "Analizza le preferenze per zona, sesso e fasce d'età",
       "Comunica eventi, votazioni e iniziative in tempo reale",
     ],
   },
