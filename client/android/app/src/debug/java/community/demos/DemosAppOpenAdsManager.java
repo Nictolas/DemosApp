@@ -55,6 +55,8 @@ final class DemosAppOpenAdsManager {
     private boolean loading = false;
     private boolean showing = false;
     private boolean privacyFormOpen = false;
+    // Invalidate any in-flight load when privacy choices change or Activity dies.
+    private long consentGeneration = 0;
     private long readyAtElapsedMs = 0;
 
     DemosAppOpenAdsManager(MainActivity activity) {
@@ -124,6 +126,7 @@ final class DemosAppOpenAdsManager {
             readyAd = null;
         }
         privacyFormOpen = true;
+        consentGeneration++;
         UserMessagingPlatform.showPrivacyOptionsForm(activity, formError -> {
             privacyFormOpen = false;
             if (formError != null) {
@@ -144,6 +147,7 @@ final class DemosAppOpenAdsManager {
 
     void onDestroy() {
         foreground = false;
+        consentGeneration++; // Prevent an async network callback from storing an ad.
         if (readyAd != null) {
             readyAd.destroy();
             readyAd = null;
@@ -215,6 +219,7 @@ final class DemosAppOpenAdsManager {
                 || !hasIntervalElapsed()) return;
 
             loading = true;
+            final long requestConsentGeneration = consentGeneration;
             AppOpenAd.load(
                 new AdRequest.Builder(BuildConfig.DEMOS_APP_OPEN_UNIT_ID).build(),
                 new AdLoadCallback<AppOpenAd>() {
@@ -222,7 +227,11 @@ final class DemosAppOpenAdsManager {
                     public void onAdLoaded(@NonNull AppOpenAd ad) {
                         mainHandler.post(() -> {
                             loading = false;
-                            if (!foreground || !hasIntervalElapsed()
+                            if (requestConsentGeneration != consentGeneration
+                                || privacyFormOpen
+                                || activity.isDestroyed()
+                                || activity.isFinishing()
+                                || !foreground || !hasIntervalElapsed()
                                 || !consentInformation.canRequestAds()
                                 || consentInformation.getConsentStatus()
                                     != ConsentInformation.ConsentStatus.OBTAINED) {
