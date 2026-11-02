@@ -96,3 +96,28 @@ test('public activist and organization lists never log personal search filters o
   assert.match(activist, /apiRequest\("GET", "\/api\/attivisti"\)/,
     'activist uses globally no-store API request');
 });
+
+test('public directory SQL omits unnecessary profile PII while preserving visible card fields', () => {
+  // Check every SELECT projection, including the alternate activist /tipologia route.
+  const forbidden = /\b(?:u\.)?(?:email|status|created_at|updated_at|genere|data_nascita|cittadinanza|paese_residenza|provincia_residenza|comune_residenza)\b/i;
+  for (const endpoint of ['api/routes/attivisti.js', 'api/routes/organizzazioni.js']) {
+    const source = file(endpoint);
+    const projections = Array.from(source.matchAll(/\bSELECT\s+([\s\S]*?)\s+FROM users u\b/g), match => match[1]);
+    assert.ok(projections.length >= (endpoint.includes('attivisti') ? 2 : 1),
+      'expected all public directory SELECT statements: ' + endpoint);
+    for (const projection of projections) {
+      assert.doesNotMatch(projection, forbidden, 'public projection must not read private profile columns: ' + endpoint);
+    }
+    assert.match(source, /u\.regione_residenza/, 'public region filter must remain usable');
+    assert.match(source, /supporters_count/, 'supporter counts remain available');
+    assert.match(source, /u\.avatar_config/, 'public avatar remains available');
+    assert.match(source, /u\.tipologie_attivismo/, 'public activism tags remain available');
+  }
+  const activist = file('client/src/pages/Attivisti/index.tsx');
+  const organization = file('client/src/pages/Organizzazioni/index.tsx');
+  const modal = file('client/src/components/OrganizzazioneModal.tsx');
+  for (const source of [activist, organization, modal]) {
+    assert.doesNotMatch(source, /^\s*(?:email|genere|data_nascita|cittadinanza|paese_residenza|provincia_residenza|comune_residenza|created_at|updated_at|status)\??:\s*string;/m,
+      'UI types should not advertise fields removed from the public contract');
+  }
+});
