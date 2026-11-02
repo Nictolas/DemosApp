@@ -31,7 +31,7 @@ router.get('/', verifyToken, async (req, res) => {
     
     const userInfo = userInfoResult.rows[0] || null;
     // I privilegi admin derivano dal ruolo dell'utente autenticato, non da un ID fornito dal client.
-    const isAdmin = req.user.role === 'AD';
+    const isAdmin = Boolean(req.user?.isAdmin);
     const userComuneResidenza = userInfo ? userInfo.comune_residenza : null;
     
     let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult, opinionChangesResult;
