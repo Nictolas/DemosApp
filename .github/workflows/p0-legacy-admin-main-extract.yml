@@ -1,0 +1,56 @@
+name: P0 legacy admin routes fail closed — main extraction
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/routes/admin/data-export.js'
+      - 'api/routes/admin/axiom-migration.js'
+      - 'api/routes/admin/data-retention.js'
+      - 'api/app.js'
+      - 'client/src/pages/DataExport.tsx'
+      - 'client/src/pages/DataRetention.tsx'
+      - 'api/tests/legacyDataExportRetirement.test.js'
+      - 'api/tests/legacyDataExportAuthIntegration.test.js'
+      - 'api/tests/legacyRetentionMainExtraction.http.test.js'
+      - '.github/workflows/p0-legacy-admin-main-extract.yml'
+permissions:
+  contents: read
+jobs:
+  safety-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Parse modified backend
+        run: |
+          node --check api/app.js
+          node --check api/routes/admin/data-export.js
+          node --check api/routes/admin/axiom-migration.js
+          node --check api/routes/admin/data-retention.js
+      - name: Real HTTP auth and disabled legacy writes (synthetic fixtures)
+        run: node --test --test-concurrency=1 api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js api/tests/legacyRetentionMainExtraction.http.test.js
+  frontend-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install frontend without scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Typecheck and Vite build without deploy
+        run: npm run build --prefix client
