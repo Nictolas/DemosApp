@@ -8,34 +8,34 @@ const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLE
 const env = {NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'preflight'};
 const st = 'fkeayjzvtuvzesljhjbc';
 test('accepts staging direct or 5432 session pooler without connection overrides', () => {
-  const direct = assertStagingTarget('postgresql://postgres:dummy@db.'+st+'.supabase.co:5432/postgres',env);
+  const direct = assertStagingTarget('postgresql://demos_staging_preflight:dummy@db.'+st+'.supabase.co:5432/postgres',env);
   assert.equal(direct.target, 'Demos-Staging');
-  const pooled = assertStagingTarget('postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:5432/postgres',env);
+  const pooled = assertStagingTarget('postgresql://demos_staging_preflight.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:5432/postgres',env);
   assert.equal(pooled.target,'Demos-Staging');
 });
 test('rejects production and alternate or legacy Render staging', () => {
   const prod='wxnblcqoyjqxktwkcqok';
   for(const url of [
-    'postgresql://postgres:dummy@db.'+prod+'.supabase.co:5432/postgres',
-    'postgresql://postgres.'+prod+':dummy@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
-    'postgresql://postgres:dummy@dpg-db4id8id0e5s73cfb0cg-a:5432/demos_civic_staging_db',
-    'postgresql://postgres:dummy@db.'+st+'.supabase.co:5432/other',
-    'postgresql://postgres.'+st+':dummy@localhost:6543/postgres',
-    'postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
-    'postgresql://postgres:dummy@db.'+st+'.supabase.co:6543/postgres'
+    'postgresql://demos_staging_preflight:dummy@db.'+prod+'.supabase.co:5432/postgres',
+    'postgresql://demos_staging_preflight.'+prod+':dummy@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
+    'postgresql://demos_staging_preflight:dummy@dpg-db4id8id0e5s73cfb0cg-a:5432/demos_civic_staging_db',
+    'postgresql://demos_staging_preflight:dummy@db.'+st+'.supabase.co:5432/other',
+    'postgresql://demos_staging_preflight.'+st+':dummy@localhost:6543/postgres',
+    'postgresql://demos_staging_preflight.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
+    'postgresql://demos_staging_preflight:dummy@db.'+st+'.supabase.co:6543/postgres'
   ]) assert.throws(()=>assertStagingTarget(url,env));
 });
 test('refuses absent explicit staging mode and missing connection', () => {
-  const url='postgresql://postgres:dummy@db.'+st+'.supabase.co:5432/postgres';
+  const url='postgresql://demos_staging_preflight:dummy@db.'+st+'.supabase.co:5432/postgres';
   assert.throws(()=>assertStagingTarget(url,{NODE_ENV:'production', DEMOS_UNIFIED_STAGING_MODE:'preflight'}));
   assert.throws(()=>assertStagingTarget(url,{NODE_ENV:'staging'}));
   assert.throws(()=>assertStagingTarget('',env));
 });
 test('drops SSL URL overrides and rejects driver host, port and pool mode overrides', () => {
-  const url='postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=disable&sslrootcert=fake';
+  const url='postgresql://demos_staging_preflight.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=disable&sslrootcert=fake';
   const checked=assertStagingTarget(url,env);
   assert.equal(new URL(checked.sanitizedConnectionString).searchParams.toString(),'');
-  const base='postgresql://postgres.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?';
+  const base='postgresql://demos_staging_preflight.'+st+':dummy@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?';
   for(const arg of [
     'host=db.production.example', 'hostaddr=198.51.100.10', 'service=production',
     'port=6543', 'user=postgres.prod', 'dbname=production', 'options=-c%20search_path%3Dpublic',
@@ -55,17 +55,17 @@ test('missing application tables means NOT READY, never silently ready', () => {
 });
 
 test('preflight is disabled before an explicit staging GO; never connects by default', async () => {
-  const fakeUrl = 'postgresql://postgres:synthetic@db.' + st + '.supabase.co:5432/postgres';
+  const fakeUrl = 'postgresql://demos_staging_preflight:synthetic@db.' + st + '.supabase.co:5432/postgres';
   await assert.rejects(
-    run({...env, DATABASE_URL: fakeUrl}),
+    run({...env, STAGING_PREFLIGHT_DATABASE_URL: fakeUrl}),
     /preflight not authorized while bootstrap is incomplete/
   );
   await assert.rejects(
-    run({...env, DATABASE_URL: fakeUrl, DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: 'true'}),
+    run({...env, STAGING_PREFLIGHT_DATABASE_URL: fakeUrl, DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: 'true'}),
     /preflight not authorized while bootstrap is incomplete/
   );
   await assert.rejects(
-    run({...env, DATABASE_URL: 'postgresql://postgres:synthetic@localhost:5432/postgres',
+    run({...env, STAGING_PREFLIGHT_DATABASE_URL: 'postgresql://demos_staging_preflight:synthetic@localhost:5432/postgres',
       DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: 'APPROVED_READ_ONLY_PREFLIGHT'}),
     /Refusing non-session Supabase staging endpoint/
   );
@@ -126,4 +126,12 @@ test('preflight requires every protected P0/P1 route table, not only bootstrap b
     assert.equal(CIVIC_PRIVATE_TABLES.includes(name),true);
     assert.equal(evaluateSchema(REQUIRED_TABLES.filter(x => x !== name)).ready,false);
   }
+});
+
+test('dedicated preflight credentials never reuse the application DATABASE_URL', async()=>{
+  await assert.rejects(
+    run({...env, DATABASE_URL:'postgresql://postgres:ignored@db.'+st+'.supabase.co:5432/postgres',
+      DEMOS_UNIFIED_STAGING_PREFLIGHT_GO:'APPROVED_READ_ONLY_PREFLIGHT'}),
+    /DATABASE_URL is missing/
+  );
 });
