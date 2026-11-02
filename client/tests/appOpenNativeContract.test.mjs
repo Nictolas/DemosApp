@@ -54,7 +54,7 @@ test('real loading is checked and no arbitrary wait or WebView overrides are add
   assert.match(manager, /MAX_AD_AGE_MS/);
   assert.match(manager, /onAdShowedFullScreenContent\(\)/);
   assert.match(manager, /AppOpenFrequencyPolicy\.mayRequest/);
-  assert.match(gate, /MIN_INTERVAL_MS = 24L/);
+  assert.match(gate, /MIN_INTERVAL_MS = 6L/);
   assert.match(gate, /FIRST_ALLOWED_LAUNCH = 3/);
   assert.match(javaTest, /clockRollbackAndCorruptedPreferencesFailClosed/);
   assert.match(javaTest, /launchCounterIsOverflowSafe/);
