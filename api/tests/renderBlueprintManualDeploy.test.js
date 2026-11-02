@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../..');
-const blueprint = readFileSync(path.join(root, 'render.yaml'), 'utf8');
+const blueprint = readFileSync(path.join(root, 'render.yaml'), 'utf8').replace(/\r\n/g, '\n');
 
 function readServices(source) {
   const chunks = source.split(/^  - type: web\s*$/m).slice(1);
