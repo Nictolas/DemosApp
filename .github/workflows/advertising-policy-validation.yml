@@ -5,6 +5,11 @@ on:
     paths:
       - 'client/src/lib/advertising-policy.ts'
       - 'client/tests/advertisingPolicy.test.mjs'
+      - 'client/tests/appOpenNativeContract.test.mjs'
+      - 'client/android/app/build.gradle'
+      - 'client/android/app/src/main/java/community/demos/MainActivity.java'
+      - 'client/android/app/src/main/java/community/demos/DemosAppOpenAdsManager.java'
+      - 'client/android/app/src/debug/AndroidManifest.xml'
       - '.github/workflows/advertising-policy-validation.yml'
   workflow_dispatch:
 
@@ -27,4 +32,30 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Test advertising deny-by-default policy
         working-directory: client
-        run: node --test tests/advertisingPolicy.test.mjs
+        run: node --test tests/advertisingPolicy.test.mjs tests/appOpenNativeContract.test.mjs
+
+  android-native-debug-compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Generate Capacitor Android build
+        working-directory: client
+        run: npm run android:sync
+      - name: Compile native Android debug (ads flag OFF)
+        working-directory: client/android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:compileDebugJavaWithJavac --no-daemon --stacktrace
