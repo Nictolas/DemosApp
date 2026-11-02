@@ -77,7 +77,7 @@ async function run(env = process.env) {
 
 if (require.main === module) {
   run().then(result => {
-    console.log(JSON.stringify({status: result.ready ? 'schema_ready' : 'schema_incomplete', ...result}));
+    console.log(JSON.stringify({status: result.ready ? 'minimum_tables_present_not_app_ready' : 'schema_incomplete', appReady: false, ...result}));
     if (!result.ready) process.exitCode = 2;
   }).catch(error => {
     console.error('Unified staging preflight blocked: ' + error.message);
