@@ -8,6 +8,8 @@ on:
     paths:
       - 'api/database/20261101_civic_new_initiative_notifications.sql'
       - 'api/database/20261101_civic_staging_source_fixture.sql'
+      - 'api/database/20261102_civic_staging_existing_devices_fixture.sql'
+      - 'api/tests/test_civic_staging_existing_devices_postgres.py'
       - 'api/tests/test_civic_staging_fixture_postgres.py'
       - 'api/services/civicNewInitiativeEventCollector.js'
       - 'api/services/civicPushTopics.js'
@@ -156,6 +158,7 @@ jobs:
       - name: PostgreSQL 16 migration, RLS and idempotency
         run: |
           python -m unittest api.tests.test_civic_staging_fixture_postgres -v
+          python -m unittest api.tests.test_civic_staging_existing_devices_postgres -v
           python -m unittest api.tests.test_civic_migration_postgres -v
   frontend-build:
     runs-on: ubuntu-latest
