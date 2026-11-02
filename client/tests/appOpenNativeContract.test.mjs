@@ -6,6 +6,8 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const manager = read('../android/app/src/debug/java/community/demos/DemosAppOpenAdsManager.java');
 const gate = read('../android/app/src/main/java/community/demos/AppOpenFrequencyPolicy.java');
 const javaTest = read('../android/app/src/test/java/community/demos/AppOpenFrequencyPolicyTest.java');
+const tcfPolicy = read('../android/app/src/main/java/community/demos/AppOpenTcfConsentPolicy.java');
+const tcfJUnit = read('../android/app/src/test/java/community/demos/AppOpenTcfConsentPolicyTest.java');
 const gradle = read('../android/app/build.gradle');
 const manifest = read('../android/app/src/debug/AndroidManifest.xml');
 const mainManifest = read('../android/app/src/main/AndroidManifest.xml');
@@ -139,4 +141,25 @@ test('UMP configuration errors fail closed instead of using cached consent or in
   assert.match(onFailure, /requestError\.getErrorCode\(\)/);
   assert.doesNotMatch(onFailure, /requestError\.getMessage\(\)/);
   assert.match(manager, /if \(formError != null \|\| activity\.isDestroyed\(\) \|\| activity\.isFinishing\(\)\) return/);
+});
+
+test('explicit TCF consent gate blocks refusal before any SDK initialization or ad request', () => {
+  assert.match(manager, /PreferenceManager\.getDefaultSharedPreferences\(activity\)/);
+  assert.match(manager, /getString\("IABTCF_PurposeConsents", ""\)/);
+  assert.match(manager, /getString\("IABTCF_VendorConsents", ""\)/);
+  assert.match(manager, /AppOpenTcfConsentPolicy\.allowsGoogleNonPersonalizedAdRequest\(/);
+  assert.match(tcfPolicy, /GOOGLE_GVL_VENDOR_ID = 755/);
+  assert.match(tcfPolicy, /purposeConsents\.charAt\(0\) != '1'/);
+  assert.match(tcfPolicy, /vendorConsents\.charAt\(GOOGLE_GVL_VENDOR_ID - 1\) != '1'/);
+  assert.match(tcfJUnit, /explicitDoNotConsentFailsClosedEvenIfUmpCanRequestAds/);
+  assert.match(tcfJUnit, /googleVendorConsentDeniedAlwaysBlocksRequests/);
+  assert.match(manager, /ConsentStatus\.OBTAINED\s*&& hasExplicitTcfConsent\(\)/);
+  const initialize = manager.slice(manager.indexOf('private void initializeSdk()'), manager.indexOf('private void loadOnlyTestAppOpenAd()'));
+  assert.match(initialize, /if \(initialized[\s\S]*?!hasExplicitTcfConsent\(\)\) return;/);
+  const load = manager.slice(manager.indexOf('private void loadOnlyTestAppOpenAd()'), manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
+  assert.match(load, /!hasExplicitTcfConsent\(\)/);
+  assert.ok(load.indexOf('!hasExplicitTcfConsent()') < load.indexOf('AppOpenAd.load('), 'explicit TCF gate must precede network requests');
+  const show = manager.slice(manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
+  assert.match(show, /!hasExplicitTcfConsent\(\)/);
+  assert.match(gradle, /buildConfigField 'String', 'DEMOS_ADMOB_APP_ID', "/);
 });
