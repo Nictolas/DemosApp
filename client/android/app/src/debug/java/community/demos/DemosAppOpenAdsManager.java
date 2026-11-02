@@ -41,6 +41,8 @@ import com.google.android.libraries.ads.mobile.sdk.appopen.AppOpenAdEventCallbac
 final class DemosAppOpenAdsManager {
     private static final String PREFS = "demos_app_open_ads_device_only";
     private static final String QA_LOG_TAG = "DemosAdsQA";
+    private static final String PRIVACY_STATUS_CHANGED_JS =
+        "window.dispatchEvent(new Event('demos:app-open-privacy-status-changed'))";
     private static final String LAUNCHES = "native_launch_count";
     private static final String LAST_SHOWN = "last_ad_shown_wall_clock_ms";
     // Read-only check, no URL, route, opinions or user information is read.
@@ -95,6 +97,7 @@ final class DemosAppOpenAdsManager {
             () -> {
                 if (activity.isDestroyed() || activity.isFinishing()) return;
                 logQaConsent("updated");
+                notifyPrivacyOptionsChanged();
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(
                     activity,
                     formError -> {
@@ -103,6 +106,7 @@ final class DemosAppOpenAdsManager {
                         }
                         if (formError != null || activity.isDestroyed() || activity.isFinishing()) return;
                         logQaConsent("form-complete");
+                        notifyPrivacyOptionsChanged();
                         // Strict debug gate: require UMP to finish and allow ad requests.
                         // OBTAINED does NOT prove acceptance of personalized ads or
                         // distinguish every denied TCF purpose; test rejection explicitly.
@@ -120,8 +124,21 @@ final class DemosAppOpenAdsManager {
                 if (BuildConfig.DEMOS_UMP_DEBUG_EEA) {
                     Log.i(QA_LOG_TAG, "update-failed-code=" + requestError.getErrorCode());
                 }
+                notifyPrivacyOptionsChanged();
             }
         );
+    }
+
+    // Updates only a UI visibility flag, never sends TCF strings or user data.
+    // The native form is asynchronous; React may have mounted before UMP finished.
+    private void notifyPrivacyOptionsChanged() {
+        mainHandler.post(() -> {
+            if (activity.isDestroyed() || activity.isFinishing()) return;
+            WebView webView = activity.getAppOpenWebView();
+            if (webView != null) {
+                webView.evaluateJavascript(PRIVACY_STATUS_CHANGED_JS, null);
+            }
+        });
     }
 
     // Non-identifying diagnostics, emitted only for explicit local debug EEA QA.
@@ -186,6 +203,7 @@ final class DemosAppOpenAdsManager {
         consentGeneration++;
         UserMessagingPlatform.showPrivacyOptionsForm(activity, formError -> {
             privacyFormOpen = false;
+            notifyPrivacyOptionsChanged();
             if (formError != null) {
                 onError.run();
                 return;
