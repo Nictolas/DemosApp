@@ -9,6 +9,13 @@ const STAGING_REF = 'fkeayjzvtuvzesljhjbc';
 const REQUIRED_TABLES = Object.freeze([
   'users', 'user_consents', 'opinioni_risposte', 'notifiche_preferenze',
   'eventi', 'programmi', 'civic_processes', 'iniziative_ministero', 'eci',
+  'user_devices', 'civic_new_initiative_notifications',
+  'civic_push_delivery_guard', 'civic_runtime_identity',
+]);
+// These five internal tables must remain inaccessible to direct client roles.
+const CIVIC_PRIVATE_TABLES = Object.freeze([
+  'notifiche_preferenze', 'user_devices', 'civic_new_initiative_notifications',
+  'civic_push_delivery_guard', 'civic_runtime_identity',
 ]);
 
 function assertStagingTarget(value, env = process.env) {
@@ -40,6 +47,21 @@ function evaluateSchema(present, required = REQUIRED_TABLES) {
   return {ready: missing.length === 0, presentCount: required.length - missing.length, requiredCount: required.length, missing};
 }
 
+function evaluateCivicProtection(rows, required = CIVIC_PRIVATE_TABLES) {
+  const byName = new Map(rows.map(row => [row.table_name, row]));
+  const unsafe = required.filter(name => {
+    const row = byName.get(name);
+    return !row || row.rls_enabled !== true ||
+      row.anon_can_access !== false || row.authenticated_can_access !== false;
+  });
+  return {
+    ready: unsafe.length === 0,
+    checkedCount: required.length - unsafe.length,
+    requiredCount: required.length,
+    unsafe,
+  };
+}
+
 async function run(env = process.env) {
   // The shared staging service is still in bootstrap. Target validation alone
   // does not authorize even a read-only network connection to Demos-Staging.
@@ -67,9 +89,22 @@ async function run(env = process.env) {
       'SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = $2 AND table_name = ANY($3::text[])',
       ['public', 'BASE TABLE', [...REQUIRED_TABLES]]
     );
-    const result = evaluateSchema(tables.rows.map(row => row.table_name));
+    // Metadata-only authorization audit; this does not read any account or
+    // notification row. A missing table, disabled RLS, or any direct client
+    // grant must fail the preflight even when all nine core tables exist.
+    const protectionRows = await client.query(
+      `SELECT c.relname AS table_name, c.relrowsecurity AS rls_enabled,
+              has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE') AS anon_can_access,
+              has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE') AS authenticated_can_access
+         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = $1 AND c.relkind IN ('r', 'p')
+           AND c.relname = ANY($2::text[])`,
+      ['public', [...CIVIC_PRIVATE_TABLES]]
+    );
+    const schema = evaluateSchema(tables.rows.map(row => row.table_name));
+    const civicProtection = evaluateCivicProtection(protectionRows.rows);
     await client.query('ROLLBACK');
-    return result;
+    return { ...schema, ready: schema.ready && civicProtection.ready, civicProtection };
   } finally {
     await client.end();
   }
@@ -77,12 +112,15 @@ async function run(env = process.env) {
 
 if (require.main === module) {
   run().then(result => {
-    console.log(JSON.stringify({status: result.ready ? 'minimum_tables_present_not_app_ready' : 'schema_incomplete', appReady: false, ...result}));
+    console.log(JSON.stringify({status: result.ready ? 'minimum_schema_protected_not_app_ready' : 'schema_or_civic_security_incomplete', appReady: false, ...result}));
     if (!result.ready) process.exitCode = 2;
-  }).catch(error => {
-    console.error('Unified staging preflight blocked: ' + error.message);
+  }).catch(() => {
+    // Provider errors may contain server names, connection strings, or tokens.
+    console.error('Unified staging preflight unavailable; operator review required');
     process.exitCode = 1;
   });
 }
 
-module.exports = {STAGING_REF, REQUIRED_TABLES, assertStagingTarget, evaluateSchema, run};
+module.exports = {STAGING_REF, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, assertStagingTarget, evaluateSchema, evaluateCivicProtection, run};
+
+[executed on device: DESKTOP-JGK3C81 (827ebd50-ed62-4987-81cb-c2c7fa342364)]
