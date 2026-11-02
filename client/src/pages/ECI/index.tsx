@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -146,7 +147,8 @@ export default function ECI() {
   }
 
   return (
-    <div className="eci-page container mx-auto px-4 py-8">
+    <PageContainer className="overflow-hidden">
+    <div className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain eci-page container mx-auto px-4 py-8" role="region" aria-label="Elenco ECI" tabIndex={0}>
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           {/* Top bar: refresh */}
@@ -389,5 +391,6 @@ export default function ECI() {
         </DialogContent>
       </Dialog>
     </div>
+    </PageContainer>
   );
 }

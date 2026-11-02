@@ -25,6 +25,7 @@ import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
 import RegistrazioneConsensiWizard from "./pages/registrazione-consensi";
 import RegistrazioneCreaPasskey from "./pages/registrazione-crea-passkey";
 import Profilo from "./pages/Profilo";
+import CompassoPolitico from "./pages/CompassoPolitico";
 import Impostazioni from "./pages/Impostazioni";
 import SegnalaProblema from "./pages/SegnalaProblema";
 import Avvistamenti from "./pages/Avvistamenti";
@@ -59,6 +60,7 @@ import Gestisci from "./pages/Gestisci";
 import Strumenti from "./pages/Strumenti";
 import Sondaggi from "./pages/Sondaggi";
 import Proponi from "./pages/Proponi";
+import ProponiSoggetto from "./pages/ProponiSoggetto";
 import ProponiOpinione from "./pages/ProponiOpinione";
 import CapodiStato from "./pages/CapodiStato";
 import Amnistia from "./pages/Amnistia";
@@ -571,6 +573,11 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Compasso privato: la pagina e protetta come il Profilo. */}
+              <Route path="/compasso-politico">
+                <ProtectedRoute path="/compasso-politico" component={CompassoPolitico} />
+              </Route>
+
               {/* Route del profilo - URL con menu */}
               <Route path="/menu/profilo">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
@@ -896,6 +903,11 @@ export default function App() {
               {/* Route firma */}
               <Route path="/firma">
                 <ProtectedRoute path="/firma" component={Proponi} />
+              </Route>
+
+              {/* Anteprima solo UI delle proposte: nessun invio a API o dati personali. */}
+              <Route path="/proponi-soggetto">
+                <ProtectedRoute path="/proponi-soggetto" component={ProponiSoggetto} />
               </Route>
 
               {/* Route proponi opinione */}

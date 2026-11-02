@@ -105,9 +105,9 @@ export function OpinionBriefCard({ brief }: { brief: OpinionBrief }) {
         <section data-testid="opinion-brief-measured-results" aria-label="Risultati osservati nei Paesi" className="space-y-2">
           <h3 className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700">
             <BarChart3 className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Risultati misurati
+            {brief.measuredResultsTitle || "Risultati misurati"}
           </h3>
-          <p className="text-xs leading-4 text-slate-600">Numeri reali, con luogo, periodo e fonte. Non sono previsioni per l'Italia.</p>
+          <p className="text-xs leading-4 text-slate-600">Dati con luogo, periodo e fonte. Le differenze osservate non dimostrano da sole un rapporto di causa-effetto.</p>
           <div className="grid grid-cols-2 gap-2">
             {brief.measuredResults.slice(0, 4).map((result) => (
               <div data-testid="opinion-brief-result" key={result.place + result.topic} className="min-w-0 rounded-xl border border-indigo-200 bg-indigo-50 p-3">

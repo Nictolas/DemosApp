@@ -55,7 +55,7 @@ export type PersistedProfile = {
   government: Record<string, string> | null;
   representatives: Record<string, unknown> | null;
   candidates: Record<string, unknown> | null;
-  opinions: { questions: unknown[]; userAnswers: Record<string, string> } | null;
+  opinions: { questions: unknown[]; userAnswers: Record<string, string>; answersLoaded?: boolean } | null;
   preferences?: ProfileChosenVotes | null;
   opinionE?: EncryptedOpinionCategory | null;
   opinionN?: EncryptedOpinionCategory | null;
