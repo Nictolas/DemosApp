@@ -188,3 +188,9 @@ Nel test limitato agli annunci Google di prova, la verifica UMP non garantisce c
 Piano: Google Sheet `DEMOS – Strategia – Scalabilità e Finanziamento`, tab `ADS – MONETIZZAZIONE`. PR: https://github.com/Nictolas/DemosApp/pull/558
 
 **Solo prototipo nativo DEBUG.** DPO: assenso preliminare comunicato. L'App ID DEMOS è stato usato esclusivamente per la diagnostica UMP su APK debug isolato; l'unità annunci è sempre di prova e nessun ID reale è abilitato in release. Per il rilascio reale mancano approvazione AdMob/store, pubblicazione e test CMP/UMP, controllo dei minori, esclusioni politiche, Play Console, distribuzione/verifica app-ads.txt e prove end-to-end su dispositivi.
+
+## Hardening UMP tra sessioni adulte — 02/11/2026
+
+- Nel prototipo **DEBUG**, il passaggio adulto → logout/account non idoneo → nuova sessione adulta invalida l'autorizzazione pubblicitaria precedente, scarta annunci precaricati e richiede nuovamente `requestConsentInfoUpdate` prima di qualsiasi nuova richiesta. La preferenza UMP sul dispositivo non è cancellata e non si afferma che equivalga a un consenso verificato per un diverso account.
+- Una risposta UMP o un callback del modulo privacy appartenente alla sessione precedente non può riabilitare gli annunci grazie al confronto della generazione; gli errori restano fail-closed anche se SDK già inizializzato in una sessione precedente.
+- Test di contratto estesi a nuova sessione, errori e callback tardivi. **Questa è una protezione del codice, non la prova manuale di cambio account su dispositivo reale.** Rimangono aperti QA fisica, Play Data Safety e revisione AdMob; nessun SDK pubblicitario in release.

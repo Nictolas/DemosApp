@@ -111,7 +111,7 @@ test('in-flight SDK ad requests are invalidated when consent changes or Activity
   const privacyStart = manager.indexOf('void showPrivacyOptions(');
   const privacyEnd = manager.indexOf('void onDestroy()', privacyStart);
   const privacyMethod = manager.slice(privacyStart, privacyEnd);
-  assert.match(privacyMethod, /privacyFormOpen = true;\s*consentGeneration\+\+/);
+  assert.match(privacyMethod, /privacyFormOpen = true;\s*consentVerifiedForAdultSession = false;\s*final long optionsGeneration = \+\+consentGeneration/);
   const destroyMethod = manager.slice(manager.indexOf('void onDestroy()'), manager.indexOf('private int readLaunchCount()'));
   assert.match(destroyMethod, /consentGeneration\+\+/);
   const loadMethod = manager.slice(manager.indexOf('private void loadOnlyTestAppOpenAd()'), manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
@@ -145,7 +145,7 @@ test('UMP configuration errors fail closed instead of using cached consent or in
   assert.doesNotMatch(onFailure, /initializeSdk\(|MobileAds\.initialize\(|AppOpenAd\.load\(/);
   assert.match(onFailure, /requestError\.getErrorCode\(\)/);
   assert.doesNotMatch(onFailure, /requestError\.getMessage\(\)/);
-  assert.match(manager, /if \(formError != null \|\| !adultEligible \|\| activity\.isDestroyed\(\) \|\| activity\.isFinishing\(\)\) return/);
+  assert.match(manager, /if \(formError != null \|\| requestGeneration != consentGeneration\s*\|\| !adultEligible \|\| activity\.isDestroyed\(\) \|\| activity\.isFinishing\(\)\) return/);
 });
 
 test('explicit TCF consent gate blocks refusal before any SDK initialization or ad request', () => {
@@ -214,4 +214,28 @@ test('minor/unknown-age users do not invoke UMP, initialize SDK or request App O
   assert.match(gradle, /demosDebugQaForceAdult = demosDebugUmpEea &&/);
   assert.match(gradle, /DEMOS_QA_FORCE_ADULT', 'false'/);
   assert.doesNotMatch(nativePrivacy, /data_nascita|birthYear|userId|politicalOpinions/);
+});
+
+test('new authenticated adult sessions revalidate UMP and stale callbacks cannot authorize ads', () => {
+  const adultMethod = manager.slice(manager.indexOf('void setAdultEligible('), manager.indexOf('private void requestAdultConsent()'));
+  const consentMethod = manager.slice(manager.indexOf('private void requestAdultConsent()'), manager.indexOf('// Updates only a UI visibility flag'));
+  const privacyMethod = manager.slice(manager.indexOf('void showPrivacyOptions('), manager.indexOf('void onDestroy()'));
+  const resumeMethod = manager.slice(manager.indexOf('void onResume()'), manager.indexOf('void onPause()'));
+  const initialize = manager.slice(manager.indexOf('private void initializeSdk()'), manager.indexOf('private void loadOnlyTestAppOpenAd()'));
+  const load = manager.slice(manager.indexOf('private void loadOnlyTestAppOpenAd()'), manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
+  const show = manager.slice(manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
+  assert.match(adultMethod, /consentVerifiedForAdultSession = false/);
+  assert.match(adultMethod, /umpRequested = false/);
+  assert.doesNotMatch(adultMethod, /else if \(consentInformation != null/);
+  assert.match(consentMethod, /final long requestGeneration = consentGeneration/);
+  assert.match(consentMethod, /requestGeneration != consentGeneration/g);
+  assert.match(consentMethod, /consentVerifiedForAdultSession = true/);
+  assert.match(consentMethod, /consentVerifiedForAdultSession = false/);
+  assert.match(privacyMethod, /final long optionsGeneration = \+\+consentGeneration/);
+  assert.match(privacyMethod, /optionsGeneration != consentGeneration/);
+  assert.match(privacyMethod, /consentVerifiedForAdultSession = true/);
+  assert.match(resumeMethod, /!consentVerifiedForAdultSession/);
+  assert.match(initialize, /!consentVerifiedForAdultSession/);
+  assert.match(load, /!consentVerifiedForAdultSession/g);
+  assert.match(show, /!consentVerifiedForAdultSession/g);
 });
