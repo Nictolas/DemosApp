@@ -671,12 +671,27 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/notifiche/preferenze - Ottieni preferenze notifiche utente
+// GET /api/notifiche/preferenze - sola lettura.
+// Non creare record durante GET: rende l'apertura della pagina idempotente e
+// riduce scritture, transazioni e carico PostgreSQL sul piano gratuito.
+// Per utenti senza riga, manteniamo gli stessi default della precedente INSERT.
+// La prima scrittura avviene soltanto nella POST esplicita.
+const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
+  eurodeputato: false,
+  senatore: false,
+  deputato: false,
+  consigliere_regionale: false,
+  consigliere_comunale: false,
+  attivisti: false,
+  demos: false,
+  scuola: false,
+  animali: true,
+  organizzazioni: false
+});
+
 router.get('/preferenze', verifyToken, async (req, res) => {
   try {
     const user_id = req.user.id;
-    
-    // Recupera le preferenze dalla nuova tabella notifiche_preferenze
     const result = await pool.query(
       `SELECT eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
               attivisti, demos, scuola, animali, organizzazioni, updated_at
@@ -684,67 +699,28 @@ router.get('/preferenze', verifyToken, async (req, res) => {
        WHERE user_id = $1`,
       [user_id]
     );
-    
-    if (result.rows.length === 0) {
-      // Se non esistono preferenze, crea record con valori di default
-      const defaultResult = await pool.query(
-        `INSERT INTO notifiche_preferenze (user_id, eurodeputato, senatore, deputato, 
-                                          consigliere_regionale, consigliere_comunale, 
-                                          attivisti, demos, scuola, animali, organizzazioni)
-         VALUES ($1, false, false, false, false, false, false, false, false, true, false)
-         RETURNING eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
-                   attivisti, demos, scuola, animali, organizzazioni, updated_at`,
-        [user_id]
-      );
-      
-      const prefs = defaultResult.rows[0];
-      return res.json({
-        success: true,
-        data: {
-          user_id,
-          preferenze: {
-            eurodeputato: prefs.eurodeputato,
-            senatore: prefs.senatore,
-            deputato: prefs.deputato,
-            consigliere_regionale: prefs.consigliere_regionale,
-            consigliere_comunale: prefs.consigliere_comunale,
-            attivisti: prefs.attivisti,
-            demos: prefs.demos,
-            scuola: prefs.scuola,
-            animali: prefs.animali,
-            organizzazioni: prefs.organizzazioni
-          },
-          updated_at: prefs.updated_at
-        }
-      });
-    }
-    
-    const prefs = result.rows[0];
-    
-    res.json({
+
+    const prefs = result.rows[0] || null;
+    const preferenze = Object.fromEntries(
+      Object.entries(DEFAULT_NOTIFICATION_PREFERENCES).map(([key, defaultValue]) => [
+        key, prefs?.[key] ?? defaultValue
+      ])
+    );
+
+    res.set('Cache-Control', 'no-store');
+    return res.json({
       success: true,
       data: {
         user_id,
-        preferenze: {
-          eurodeputato: prefs.eurodeputato ?? false,
-          senatore: prefs.senatore ?? false,
-          deputato: prefs.deputato ?? false,
-          consigliere_regionale: prefs.consigliere_regionale ?? false,
-          consigliere_comunale: prefs.consigliere_comunale ?? false,
-          attivisti: prefs.attivisti ?? false,
-          demos: prefs.demos ?? false,
-          scuola: prefs.scuola ?? false,
-          animali: prefs.animali ?? true,
-          organizzazioni: prefs.organizzazioni ?? false
-        },
-        updated_at: prefs.updated_at
+        preferenze,
+        updated_at: prefs?.updated_at ?? null
       }
     });
   } catch (error) {
     console.error('NOTIF_PREFERENCES_READ_FAILED');
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
+      error: 'Errore interno del server'
     });
   }
 });
