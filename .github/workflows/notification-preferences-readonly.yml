@@ -1,0 +1,37 @@
+name: Notification preferences read-only regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - api/routes/notifiche.js
+      - api/tests/notificationPreferencesReadOnly.http.test.js
+      - api/tests/civicPrivacyHttp.synthetic.test.js
+      - api/tests/notificationRecipientAndReactionsSecurity.test.js
+      - .github/workflows/notification-preferences-readonly.yml
+
+permissions:
+  contents: read
+
+jobs:
+  preferences-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install dependencies without lifecycle scripts
+        working-directory: api
+        run: npm ci --ignore-scripts
+      - name: Check notification router and HTTP test syntax
+        run: |
+          node --check api/routes/notifiche.js
+          node --check api/tests/notificationPreferencesReadOnly.http.test.js
+      - name: Test preferences HTTP read-only defaults, auth and POST
+        run: node --test api/tests/notificationPreferencesReadOnly.http.test.js
+      - name: Verify recipient isolation and privacy regressions
+        run: node --test api/tests/notificationRecipientAndReactionsSecurity.test.js api/tests/civicPrivacyHttp.synthetic.test.js
