@@ -7,6 +7,8 @@ on:
       - 'client/tests/advertisingPolicy.test.mjs'
       - 'client/tests/appOpenNativeContract.test.mjs'
       - 'client/tests/advertisingPrivacyNotice.test.mjs'
+      - 'client/public/app-ads.txt'
+      - 'client/public/ads.txt'
       - 'client/src/pages/PrivacyPolicy.tsx'
       - 'client/src/pages/CookiePolicy.tsx'
       - 'client/android/app/build.gradle'
@@ -66,6 +68,14 @@ jobs:
       - name: Generate Capacitor Android build
         working-directory: client
         run: npm run android:sync
+      - name: Verify app-ads.txt is included unchanged in built website assets
+        working-directory: client
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/app-ads.txt
+          diff -u public/app-ads.txt dist/app-ads.txt
+          echo "Verified app-ads.txt in build root"
       - name: Compile and unit-test Android debug/release (ads flag OFF)
         working-directory: client/android
         run: |
