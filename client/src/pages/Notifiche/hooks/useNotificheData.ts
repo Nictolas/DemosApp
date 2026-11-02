@@ -27,7 +27,7 @@ export const useNotificheData = (user: any) => {
       if (!user?.id || !isValidNotificationUserId(user.id)) {
         throw new Error("ID utente non valido");
       }
-      const response = await apiRequest("DELETE", `/api/segnalazioni/${segnalazioneId}?user_id=${user.id}`);
+      const response = await apiRequest("DELETE", `/api/segnalazioni/${segnalazioneId}`);
       if (!response?.ok || !response?.data) {
         const errorMsg = response?.data?.error || "Errore nella cancellazione segnalazione.";
         throw new Error(errorMsg);
