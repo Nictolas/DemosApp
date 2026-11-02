@@ -174,7 +174,7 @@ test('notification debug helpers are fail-closed and cannot be enabled in stagin
   const vm = require('node:vm');
   const path = require('node:path');
   const source = fs.readFileSync(path.resolve(__dirname, '../routes/comunicazioni.js'), 'utf8');
-  const gate = source.match(/const localNotificationDebug\\s*=\\s*([\\s\\S]*?);/);
+  const gate = source.match(/const localNotificationDebug\s*=\s*([\s\S]*?);/);
   assert.ok(gate, 'notification debug opt-in guard is required');
   const allowed = (nodeEnv, optIn) => vm.runInNewContext(gate[1], {
     process: { env: { NODE_ENV: nodeEnv, ALLOW_DEV_API_SURFACE: optIn } }
@@ -185,8 +185,8 @@ test('notification debug helpers are fail-closed and cannot be enabled in stagin
     }
   }
   assert.equal(allowed('development', 'true'), true);
-  assert.match(source, /const debugLog = \\(\\.\\.\\.args\\) => \\{\\s*if \\(localNotificationDebug\\) console\\.log\\(\\.\\.\\.args\\)/);
-  assert.match(source, /const debugWarn = \\(\\.\\.\\.args\\) => \\{\\s*if \\(localNotificationDebug\\) console\\.warn\\(\\.\\.\\.args\\)/);
+  assert.match(source, /const debugLog = \(\.\.\.args\) => \{\s*if \(localNotificationDebug\) console\.log\(\.\.\.args\)/);
+  assert.match(source, /const debugWarn = \(\.\.\.args\) => \{\s*if \(localNotificationDebug\) console\.warn\(\.\.\.args\)/);
 });
 
 test('FCM push and notification errors never log raw token or exception contents outside debug routes', () => {
