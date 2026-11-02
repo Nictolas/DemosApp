@@ -43,3 +43,20 @@ test('Capo di Stato cannot turn an arbitrary vote into a new public candidate', 
   assert.ok(vote.indexOf("SELECT 1 FROM voti_capo_stato") < vote.indexOf("DELETE FROM voti_capo_stato"),
     'catalogue gate must precede any destructive vote write');
 });
+
+test('Capo di Stato does not log political choices, identity headers or raw database errors', () => {
+  const source = read('api/routes/capo-stato.js');
+  assert.match(source, /router\.use\(\(_req, res, next\) =>/);
+  assert.match(source, /private, no-store, max-age=0/);
+  assert.doesNotMatch(source, /console\.(?:log|error|warn)\(/);
+  assert.doesNotMatch(source, /details:\s*error\.message|code:\s*error\.code|requestId:\s*requestId/);
+  assert.match(source, /SELECT 1 FROM voti_capo_stato WHERE nome = \$1 LIMIT 1/);
+});
+
+test('Capo di Stato client form rejects arbitrary new candidate names', () => {
+  const source = read('client/src/pages/CapodiStato/components/VotingForm.tsx');
+  assert.match(source, /classifica\.find\(item =>/);
+  assert.match(source, /onAddNome\(candidate\.nome\)/);
+  assert.match(source, /searchError/);
+  assert.doesNotMatch(source, /onAddNome\(nomePulito\)/);
+});
