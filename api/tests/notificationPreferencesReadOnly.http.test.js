@@ -171,7 +171,7 @@ test('notifications feed uses one authorized data query instead of schema intros
   assert.ok(from > 0 && to > from, 'notification Demos data query present');
   const block = source.slice(from, to);
   assert.ok(!block.includes('information_schema.columns'), 'no information_schema query per feed GET');
-  assert.match(block, /WHERE \\(id_utente IS NULL OR id_utente = \\$1::uuid\\)/);
+  assert.ok(block.includes('WHERE (id_utente IS NULL OR id_utente = $1::uuid)'), 'only global or authenticated-user notices');
   assert.match(block, /LIMIT 50/);
   assert.match(block, /demosResult = \\{ rows: \\[\\] \\};/);
 });
