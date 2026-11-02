@@ -5,7 +5,7 @@ import static org.junit.Assert.*;
 
 public class AppOpenFrequencyPolicyTest {
     private static final long NOW = 1_800_000_000_000L;
-    private static final long DAY = AppOpenFrequencyPolicy.MIN_INTERVAL_MS;
+    private static final long SIX_HOURS = 6L * 60L * 60L * 1000L;\n    private static final long HOUR = 60L * 60L * 1000L;
 
     @Test public void firstAndSecondLaunchNeverRequest() {
         assertFalse(AppOpenFrequencyPolicy.mayRequest(0, 0, NOW));
@@ -14,13 +14,13 @@ public class AppOpenFrequencyPolicyTest {
         assertTrue(AppOpenFrequencyPolicy.mayRequest(3, 0, NOW));
     }
 
-    @Test public void rollingDayLimitUsesActualLastImpression() {
-        assertFalse(AppOpenFrequencyPolicy.mayRequest(3, NOW - DAY + 1, NOW));
-        assertTrue(AppOpenFrequencyPolicy.mayRequest(3, NOW - DAY, NOW));
-        assertTrue(AppOpenFrequencyPolicy.mayRequest(3, NOW - DAY - 1, NOW));
+    @Test public void rollingSixHourLimitUsesActualLastImpression() {
+        assertFalse(AppOpenFrequencyPolicy.mayRequest(3, NOW - SIX_HOURS + 1, NOW));
+        assertTrue(AppOpenFrequencyPolicy.mayRequest(3, NOW - SIX_HOURS, NOW));
+        assertTrue(AppOpenFrequencyPolicy.mayRequest(3, NOW - SIX_HOURS - 1, NOW));
     }
 
-    @Test public void clockRollbackAndCorruptedPreferencesFailClosed() {
+    @Test public void exactSixHourBoundaryAndEarlierReopensAreRejected() {\n        assertEquals(SIX_HOURS, AppOpenFrequencyPolicy.MIN_INTERVAL_MS);\n        assertFalse(AppOpenFrequencyPolicy.mayRequest(3, NOW - HOUR, NOW));\n        assertFalse(AppOpenFrequencyPolicy.mayRequest(3, NOW - 3L * HOUR, NOW));\n        assertFalse(AppOpenFrequencyPolicy.mayRequest(3, NOW - 5L * HOUR, NOW));\n        assertTrue(AppOpenFrequencyPolicy.mayRequest(3, NOW - 6L * HOUR, NOW));\n        assertTrue(AppOpenFrequencyPolicy.mayRequest(3, NOW - 12L * HOUR, NOW));\n    }\n\n    @Test public void clockRollbackAndCorruptedPreferencesFailClosed() {
         assertFalse(AppOpenFrequencyPolicy.mayRequest(3, NOW + 1, NOW));
         assertFalse(AppOpenFrequencyPolicy.mayRequest(3, -1, NOW));
         assertFalse(AppOpenFrequencyPolicy.mayRequest(3, 0, -1));
