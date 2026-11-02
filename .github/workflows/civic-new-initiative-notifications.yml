@@ -1,5 +1,9 @@
 name: Civic new initiative notifications (draft)
 on:
+  # The PR currently has conflicts with main; validate the draft branch itself
+  # using only synthetic data and ephemeral PostgreSQL, without merge or deploy.
+  push:
+    branches: ['feat/civic-new-initiatives-push-20261101']
   pull_request:
     paths:
       - 'api/database/20261101_civic_new_initiative_notifications.sql'
@@ -49,6 +53,7 @@ on:
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/civicPreferencesReadOnly.http.test.js'
+      - 'api/tests/civicRecipientIsolation.http.test.js'
       - 'client/src/pages/NotifichePreferenze.tsx'
       - 'client/src/pages/ECI/index.tsx'
       - 'client/src/pages/IniziativePopolari/index.tsx'
@@ -94,7 +99,8 @@ jobs:
           node --check api/services/ministeroSync.js
           node --check api/services/ministeroPaginationSafety.js
           node --check api/routes/notifiche.js
-          node --check api/tests/civicPreferencesReadOnly.http.test.js
+          node --check api/tests/civicPreferencesReadOnly.http.test.js api/tests/civicRecipientIsolation.http.test.js
+          node --check api/tests/civicRecipientIsolation.http.test.js
           node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js api/tests/civicPreferencesReadOnly.http.test.js
       - name: Python ECI source tests (no real API, DB or push)
         run: |
