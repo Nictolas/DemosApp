@@ -16,6 +16,19 @@ public class NativeAppOpenPrivacyPlugin extends Plugin {
         return getActivity() instanceof MainActivity ? (MainActivity) getActivity() : null;
     }
 
+    // Trusted web code passes only a derived adult boolean from the verified
+    // first-party /auth/me session. No date, year or account ID crosses to SDK.
+    @PluginMethod
+    public void setAdultEligibility(PluginCall call) {
+        MainActivity activity = mainActivity();
+        if (activity == null) {
+            call.resolve();
+            return;
+        }
+        Boolean confirmed = call.getBoolean("eligible");
+        activity.setAppOpenAdultEligibility(Boolean.TRUE.equals(confirmed), call::resolve);
+    }
+
     @PluginMethod
     public void getStatus(PluginCall call) {
         MainActivity activity = mainActivity();
