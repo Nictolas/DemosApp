@@ -18,6 +18,7 @@ function legacyBackupActionUnavailable(req, res, next) {
     BackupService.assertLegacyBackupAvailable();
     return next();
   } catch (error) {
+    res.set('Cache-Control', 'private, no-store');
     return res.status(error.statusCode || 410).json({
       success: false,
       error: error.code || 'LEGACY_APP_BACKUP_RETIRED',
