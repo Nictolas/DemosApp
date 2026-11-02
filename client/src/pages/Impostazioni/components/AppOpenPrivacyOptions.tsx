@@ -19,10 +19,29 @@ export function AppOpenPrivacyOptions({ compact = false }: { compact?: boolean }
 
   useEffect(() => {
     let active = true;
-    void areAppOpenPrivacyOptionsRequired().then(value => {
-      if (active) setRequired(value);
-    });
-    return () => { active = false; };
+    let requestId = 0;
+    // The native UMP request may complete AFTER this component mounts.
+    // Subscribe before the initial read to avoid a missing privacy entry point.
+    const refresh = () => {
+      const currentRequestId = ++requestId;
+      void areAppOpenPrivacyOptionsRequired().then(value => {
+        if (active && currentRequestId === requestId) setRequired(value);
+      });
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener('demos:app-open-privacy-status-changed', refresh);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    refresh();
+    return () => {
+      active = false;
+      requestId++;
+      window.removeEventListener('demos:app-open-privacy-status-changed', refresh);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, []);
 
   if (!required) return null;
