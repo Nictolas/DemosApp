@@ -9,7 +9,7 @@
  * Missing context denies the ad.
  */
 
-export const MIN_APP_OPEN_INTERVAL_MS = 24 * 60 * 60 * 1000;
+export const MIN_APP_OPEN_INTERVAL_MS = 6 * 60 * 60 * 1000;
 export const APP_OPEN_ADS_ENABLED_BY_DEFAULT = false;
 
 export interface AppOpenAdContext {
@@ -28,7 +28,7 @@ export interface AppOpenAdContext {
 
 /**
  * A request is allowed ONLY while a genuine Android loading screen is visible,
- * never on first use, and only after 24h have elapsed since the LAST displayed ad.
+ * never on first use, and only after 6h have elapsed since the LAST displayed ad.
  * Calling code must recheck this policy immediately before displaying an ad.
  *
  * Persist the last display timestamp on onAdShowedFullScreenContent, not on load
