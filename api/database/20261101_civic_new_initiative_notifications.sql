@@ -66,6 +66,28 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE civic_runtime_identity ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE civic_runtime_identity FROM PUBLIC;
 
+-- Supabase can grant anon/authenticated directly on new public tables via
+-- default privileges. RLS alone is not an excuse to keep those grants:
+-- the outbox, delivery barrier and runtime DB marker are backend-only.
+DO $client_privileges$
+DECLARE role_name TEXT;
+BEGIN
+  FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = role_name) THEN
+      EXECUTE format(
+        'REVOKE ALL ON TABLE public.civic_new_initiative_notifications, ' ||
+        'public.civic_push_delivery_guard, public.civic_runtime_identity FROM %I',
+        role_name
+      );
+      EXECUTE format(
+        'REVOKE ALL ON SEQUENCE public.civic_new_initiative_notifications_id_seq FROM %I',
+        role_name
+      );
+    END IF;
+  END LOOP;
+END
+$client_privileges$;
+
 -- Baseline: gli elementi già presenti non devono provocare notifiche retroattive.
 -- La categoria deriva dal tipo ufficiale; nessun titolo è usato come identificativo.
 INSERT INTO civic_new_initiative_notifications

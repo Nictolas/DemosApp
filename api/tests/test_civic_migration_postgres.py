@@ -168,6 +168,93 @@ class MigrationContract(unittest.TestCase):
             SELECT blocked FROM civic_push_delivery_guard WHERE id = 1
         """), [(True,)])
 
+    def test_supabase_default_client_grants_are_revoked(self):
+        """Emulate Supabase default privileges on public tables in civic_ci only."""
+        created_roles = []
+        with self.conn.cursor() as cur:
+            for role in ("anon", "authenticated"):
+                cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,))
+                if cur.fetchone() is None:
+                    cur.execute(f"CREATE ROLE {role} NOLOGIN")
+                    created_roles.append(role)
+            cur.execute("""
+                ALTER DEFAULT PRIVILEGES IN SCHEMA public
+                GRANT ALL ON TABLES TO anon, authenticated
+            """)
+            cur.execute("""
+                ALTER DEFAULT PRIVILEGES IN SCHEMA public
+                GRANT ALL ON SEQUENCES TO anon, authenticated
+            """)
+        try:
+            self.apply_migration()
+            for role in ("anon", "authenticated"):
+                for table in (
+                    "civic_new_initiative_notifications",
+                    "civic_push_delivery_guard",
+                    "civic_runtime_identity",
+                ):
+                    for operation in ("SELECT", "INSERT", "UPDATE", "DELETE"):
+                        self.assertEqual(
+                            self.query(
+                                "SELECT has_table_privilege(%s, %s, %s)",
+                                (role, f"public.{table}", operation),
+                            ),
+                            [(False,)],
+                            f"{role} unexpectedly retains {operation} on {table}",
+                        )
+                self.assertEqual(
+                    self.query(
+                        "SELECT has_sequence_privilege(%s, %s, 'USAGE')",
+                        (role, "public.civic_new_initiative_notifications_id_seq"),
+                    ),
+                    [(False,)],
+                )
+
+            # The preflight must fail closed if Supabase grants a direct role
+            # permission later, even though all tables still have RLS.
+            preflight = (
+                ROOT / "api/scripts/civicStagingReadOnlyPreflight.sql"
+            ).read_text(encoding="utf8")
+            with self.conn.cursor() as cur:
+                cur.execute("GRANT SELECT ON civic_runtime_identity TO anon")
+                cur.execute(
+                    "GRANT USAGE ON SEQUENCE "
+                    "civic_new_initiative_notifications_id_seq TO authenticated"
+                )
+            try:
+                by_name = {row[0]: row[5] for row in self.query(preflight)}
+                self.assertEqual(
+                    by_name["civic_runtime_identity"], "CLIENT_ROLE_EXPOSED"
+                )
+                self.assertEqual(
+                    by_name["civic_new_initiative_notifications"],
+                    "CLIENT_ROLE_EXPOSED",
+                )
+            finally:
+                with self.conn.cursor() as cur:
+                    cur.execute("REVOKE SELECT ON civic_runtime_identity FROM anon")
+                    cur.execute(
+                        "REVOKE USAGE ON SEQUENCE "
+                        "civic_new_initiative_notifications_id_seq FROM authenticated"
+                    )
+            by_name = {row[0]: row[5] for row in self.query(preflight)}
+            self.assertEqual(by_name["civic_runtime_identity"], "STRUCTURE_OK")
+            self.assertEqual(
+                by_name["civic_new_initiative_notifications"], "STRUCTURE_OK"
+            )
+        finally:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    ALTER DEFAULT PRIVILEGES IN SCHEMA public
+                    REVOKE ALL ON TABLES FROM anon, authenticated
+                """)
+                cur.execute("""
+                    ALTER DEFAULT PRIVILEGES IN SCHEMA public
+                    REVOKE ALL ON SEQUENCES FROM anon, authenticated
+                """)
+                for role in reversed(created_roles):
+                    cur.execute(f"DROP ROLE {role}")
+
     def test_staging_preflight_sql_is_read_only_and_schema_complete_only_after_migration(self):
         preflight = (
             ROOT / "api/scripts/civicStagingReadOnlyPreflight.sql"

@@ -16,6 +16,23 @@ observed AS (
   SELECT r.table_name, r.required_columns, r.rls_required,
     c.oid IS NOT NULL AS table_present,
     coalesce(c.relrowsecurity, FALSE) AS rls_enabled,
+    EXISTS (
+      SELECT 1 FROM pg_catalog.pg_roles pr
+      WHERE pr.rolname IN ('anon', 'authenticated')
+        AND c.oid IS NOT NULL
+        AND (
+          has_table_privilege(pr.oid, c.oid, 'SELECT')
+          OR has_table_privilege(pr.oid, c.oid, 'INSERT')
+          OR has_table_privilege(pr.oid, c.oid, 'UPDATE')
+          OR has_table_privilege(pr.oid, c.oid, 'DELETE')
+          OR (r.table_name = 'civic_new_initiative_notifications'
+              AND has_sequence_privilege(
+                pr.oid,
+                to_regclass('public.civic_new_initiative_notifications_id_seq'),
+                'USAGE'
+              ))
+        )
+    ) AS client_role_exposed,
     coalesce(array_agg(a.attname) FILTER (WHERE a.attname IS NOT NULL), ARRAY[]::text[]) AS actual_columns
   FROM required r
   LEFT JOIN pg_namespace n ON n.nspname = 'public'
@@ -33,6 +50,7 @@ SELECT table_name, table_present,
        WHEN EXISTS (SELECT unnest(required_columns) EXCEPT SELECT unnest(actual_columns))
          THEN 'MISSING_COLUMN'
        WHEN rls_required AND NOT rls_enabled THEN 'RLS_DISABLED'
+       WHEN client_role_exposed THEN 'CLIENT_ROLE_EXPOSED'
        ELSE 'STRUCTURE_OK'
   END AS schema_gate
 FROM observed

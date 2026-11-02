@@ -62,8 +62,14 @@ Run both read-only preflights:
   `users.status` must be `STRUCTURE_OK`.
 
 Also check that the outbox is empty, the three opt-ins are OFF by default and
-the delivery guard remains blocked. Confirm role grants; the new backend-only
-tables must not become a public Data API.
+the delivery guard remains blocked. The preflight must report
+`CLIENT_ROLE_EXPOSED` if `anon` or `authenticated` retain direct table access
+(or outbox sequence USAGE), even while RLS is enabled. Confirm both roles have
+**no** SELECT/INSERT/UPDATE/DELETE on all seven tables, and no USAGE on the
+outbox sequence. Supabase default grants made the three civic-only tables
+accessible to client SQL roles during the first 2 November staging apply; a
+separate staging migration revoked these grants before any push or test data
+was written. The draft production migration now revokes direct grants too.
 
 ## Hard release gates still open
 
