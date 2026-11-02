@@ -96,3 +96,18 @@ test('required UMP privacy options are reachable from Android settings without r
   const outputKeys = [...nativePrivacy.matchAll(/result\.put\("([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(outputKeys, ['required']);
 });
+
+test('in-flight SDK ad requests are invalidated when consent changes or Activity closes', () => {
+  assert.match(manager, /private long consentGeneration = 0/);
+  const privacyStart = manager.indexOf('void showPrivacyOptions(');
+  const privacyEnd = manager.indexOf('void onDestroy()', privacyStart);
+  const privacyMethod = manager.slice(privacyStart, privacyEnd);
+  assert.match(privacyMethod, /privacyFormOpen = true;\s*consentGeneration\+\+/);
+  const destroyMethod = manager.slice(manager.indexOf('void onDestroy()'), manager.indexOf('private int readLaunchCount()'));
+  assert.match(destroyMethod, /consentGeneration\+\+/);
+  const loadMethod = manager.slice(manager.indexOf('private void loadOnlyTestAppOpenAd()'), manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
+  assert.match(loadMethod, /final long requestConsentGeneration = consentGeneration/);
+  assert.match(loadMethod, /requestConsentGeneration != consentGeneration/);
+  assert.match(loadMethod, /\|\| privacyFormOpen\s*\|\| activity\.isDestroyed\(\)/);
+  assert.match(loadMethod, /ad\.destroy\(\)/);
+});
