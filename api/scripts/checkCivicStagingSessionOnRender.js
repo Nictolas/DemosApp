@@ -19,6 +19,13 @@ async function runCivicStagingSessionCheck(env = process.env, {
       operatorReviewRequired: true,
     };
   }
+  // Unified staging bootstrap is intentionally NO-GO. Both milestones must
+  // be independently confirmed before any real PostgreSQL socket is opened.
+  // This does not mutate or inspect Render/Supabase infrastructure.
+  if (env.CIVIC_UNIFIED_STAGING_READY !== 'true' ||
+      env.CIVIC_UNIFIED_STAGING_TESTS_AUTHORIZED !== 'true') {
+    throw new Error('CIVIC_UNIFIED_STAGING_BOOTSTRAP_NOT_READY');
+  }
   if (env.CIVIC_STAGING_SESSION_CHECK_CONFIRM !==
       'I_APPROVE_READONLY_CIVIC_STAGING_SESSION_CHECK' ||
       env.CIVIC_STAGING_SESSION_CHECK_ENV !== 'staging') {

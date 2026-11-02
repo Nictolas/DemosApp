@@ -18,6 +18,8 @@ const options = {
 
 const approved = Object.freeze({
   CIVIC_STAGING_SESSION_CHECK_APPLY: 'true',
+  CIVIC_UNIFIED_STAGING_READY: 'true',
+  CIVIC_UNIFIED_STAGING_TESTS_AUTHORIZED: 'true',
   CIVIC_STAGING_SESSION_CHECK_CONFIRM:
     'I_APPROVE_READONLY_CIVIC_STAGING_SESSION_CHECK',
   CIVIC_STAGING_SESSION_CHECK_ENV: 'staging',
@@ -82,6 +84,21 @@ test('default preview never imports a PostgreSQL client or contacts a database',
   assert.equal(result.result, 'NOT_TESTED');
   assert.equal(result.compatible, false);
   assert.equal(calls, 0);
+});
+
+test('unified staging bootstrap always refuses live connections before pool creation', async () => {
+  let opened = 0;
+  for (const env of [
+    {...approved, CIVIC_UNIFIED_STAGING_READY: ''},
+    {...approved, CIVIC_UNIFIED_STAGING_READY: 'false'},
+    {...approved, CIVIC_UNIFIED_STAGING_TESTS_AUTHORIZED: undefined},
+    {...approved, CIVIC_UNIFIED_STAGING_TESTS_AUTHORIZED: 'false'},
+  ]) {
+    await assert.rejects(runCivicStagingSessionCheck(env, {
+      createPool: () => { opened++; throw new Error('forbidden database socket'); },
+    }), /CIVIC_UNIFIED_STAGING_BOOTSTRAP_NOT_READY/);
+  }
+  assert.equal(opened, 0);
 });
 
 test('required stage-only confirmation prevents any network access', async () => {

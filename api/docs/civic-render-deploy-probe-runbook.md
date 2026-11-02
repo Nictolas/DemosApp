@@ -1,4 +1,11 @@
-# DEMOS civic notifications — isolated Render deployment-only canary
+# DEMOS civic notifications — historical isolated Render deployment-only canary
+
+**INFRASTRUCTURE FREEZE — 2 November 2026 (OPS-STG-001):** Consolidating to
+ONE Render `demos-staging`, ONE Supabase `Demos-Staging`, optionally ONE shared
+Key Value. Do not create, deploy, reconfigure, reuse or delete staging cloud
+services, including this existing canary, until consolidation is complete and
+use is explicitly authorized. Work on code and run local/isolated CI tests
+only. This runbook records past results; it is not a deployment instruction.
 
 This runbook covers the Render **deployment gate** only. It is not a
 database connection or Firebase delivery test, and never grants permission to
@@ -6,11 +13,12 @@ enable civic pushes.
 
 ## Dedicated free Render canary
 
-Create a new isolated Node web service on the draft branch
-`feat/civic-new-initiatives-push-20261101`. Do **not** change the
-`demos-backend` production service or the existing
-`demos-functional-staging` service. Disable auto deploy. Choose the free
-plan only, and do not add a paid instance.
+**Historical configuration (do not repeat):** a free deploy-only service
+was previously created on draft branch
+`feat/civic-new-initiatives-push-20261101`. It is now frozen, along with
+all other existing staging services. Do **not** redeploy, reconfigure,
+delete or create a replacement. The target after consolidation is the single
+existing Render `demos-staging`; do not change production.
 
 - Build: `cd api && npm ci --ignore-scripts --no-audit --no-fund`
 - Start: `cd api && node staging/civic_render_boot_probe.js`
@@ -46,6 +54,8 @@ require session affinity. On Render, obtain the **project-specific Supavisor
 session pooler endpoint, port 5432**, from the Supabase Dashboard *Connect*
 button, and validate that exact host, role, TLS and database identity.
 A successful DNS-only check is not a Postgres login and cannot authorize GO.
+Existing deployed canaries are frozen by OPS-STG-001 and must not be
+reactivated or replaced during consolidation.
 
 Sources: https://supabase.com/docs/guides/database/connecting-to-postgres
 and https://render.com/articles/how-to-connect-a-render-service-to-supabase-postgres
@@ -60,7 +70,8 @@ and https://render.com/articles/how-to-connect-a-render-service-to-supabase-post
    `civic_runtime_identity` independently. Port 5432 by itself is
    insufficient to certify safe session-affinity locks; transaction pooler
    port 6543 is prohibited.
-3. Design and deploy a **separate** backend read-only probe with
+3. After OPS-STG-001 is completed and authorized, run a separately
+   isolated **process on the existing unified `demos-staging` backend** with
    transaction read-only and bounded two-session `pg_backend_pid()`
    observations, with results redacted. A stable result is
    `INCONCLUSIVE`, never `SAFE` or `GO`.

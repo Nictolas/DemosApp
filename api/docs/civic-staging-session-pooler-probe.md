@@ -1,4 +1,12 @@
-# DEMOS civic — T-55: session-pooler check on isolated Render backend
+# DEMOS civic — T-55: session-pooler check on unified staging backend
+
+**INFRASTRUCTURE FREEZE — 2 November 2026 (OPS-STG-001):** The consolidation
+into the ONE Render `demos-staging` and ONE Supabase `Demos-Staging` is not
+complete. Do not use either staging environment, create any new DB/Render
+service or separate cloud staging, modify/delete any existing staging service,
+change secrets, or run real probes until the migration is declared complete
+and authorized. Continue only offline/local and isolated CI tests. This
+runbook documents the future procedure; it is NOT permission to execute it.
 
 **Status:** Prepared and CI-tested, **not run against live Render/Postgres**
 until a dedicated *Demos-Staging* credential is securely configured. Never
@@ -22,17 +30,21 @@ are restricted to two test accounts. Verify its login credentials through the
 approved secret-management workflow; **do not reset the role password**
 without checking existing staging users of that role.
 
-## 2. Only on a separate, manually authorized staging runtime
+## 2. Only on the single unified backend, after consolidation
 
 Do **not** attach a database to
 `demos-civic-deploy-probe-staging`: that deploy-only probe is deliberately
-credential-free and must stay that way. Use a separately reviewed
-short-lived Render staging runtime, with auto-deploy disabled and no
-production environment groups.
+credential-free and must stay that way. Do not create a separate staging runtime. Once OPS-STG-001 is completed
+and the shared Render `demos-staging` is authorized for use, execute the
+read-only diagnostic as an isolated process on that existing backend with an
+explicitly sanitized staging-only environment, separate from the normal API
+process. No additional Render service, database, or Key Value may be created.
 
 Required environment entries (set through Render's protected environment
 settings, **never** in commits, scripts, logs, Sheet cells or chat):
 
+- `CIVIC_UNIFIED_STAGING_READY=true` (set **only after** OPS-STG-001 is completed)
+- `CIVIC_UNIFIED_STAGING_TESTS_AUTHORIZED=true` (separately authorize this test)
 - `CIVIC_STAGING_SESSION_CHECK_APPLY=true`
 - `CIVIC_STAGING_SESSION_CHECK_CONFIRM=I_APPROVE_READONLY_CIVIC_STAGING_SESSION_CHECK`
 - `CIVIC_STAGING_SESSION_CHECK_ENV=staging`
@@ -48,6 +60,10 @@ Forbidden on that process: `DATABASE_URL`, `PGHOST`, `PGUSER`,
 The check refuses them **before opening a socket**.
 
 Command: `node api/scripts/checkCivicStagingSessionOnRender.js`.
+
+While either unified-staging readiness or test authorization is missing,
+any attempt to apply the probe fails **before constructing a PostgreSQL pool**.
+Do not set those flags while the shared staging is in bootstrap mode.
 
 Without the explicit apply/confirmation flags, the command is a **preview**:
 it imports no PostgreSQL pool and reports `NOT_TESTED`.

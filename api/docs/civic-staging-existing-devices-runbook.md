@@ -1,4 +1,13 @@
-# DEMOS civic push — staging with an existing GDPR device table
+# DEMOS civic push — historical staging with an existing GDPR device table
+
+**INFRASTRUCTURE FREEZE — 2 November 2026 (OPS-STG-001):** Do NOT run any
+migration, SQL preflight or runtime verification on `Demos-Staging` while
+unified staging is being consolidated. Do NOT create a replacement database
+or service. The historical fixture below was designed for a previously
+incomplete schema and must NOT be reapplied to the already prepared schema.
+Preserve existing resources untouched; continue local/CI-only development.
+Reassess the canonical migration strategy only after the single shared
+staging backend/database is ready and expressly authorized.
 
 **Scope:** Demos-Staging only. No production change or real Firebase delivery.
 The civic draft stays unmerged until all real-device and security gates pass.
