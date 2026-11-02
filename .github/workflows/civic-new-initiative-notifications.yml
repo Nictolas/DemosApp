@@ -48,6 +48,7 @@ on:
       - 'api/scripts/sync_eci.py'
       - 'api/tests/civicNewInitiativeNotificationPreparation.test.js'
       - 'api/routes/notifiche.js'
+      - 'api/tests/civicPreferencesReadOnly.http.test.js'
       - 'client/src/pages/NotifichePreferenze.tsx'
       - 'client/src/pages/ECI/index.tsx'
       - 'client/src/pages/IniziativePopolari/index.tsx'
@@ -68,6 +69,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install isolated API dependencies for HTTP regression
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Static syntax and isolated Node contracts
         run: |
           node --check api/services/civicNewInitiativeEventCollector.js
@@ -91,7 +94,8 @@ jobs:
           node --check api/services/ministeroSync.js
           node --check api/services/ministeroPaginationSafety.js
           node --check api/routes/notifiche.js
-          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js
+          node --check api/tests/civicPreferencesReadOnly.http.test.js
+          node --test api/tests/civicNewInitiativeNotificationPreparation.test.js api/tests/civicNewInitiativeNotificationDelivery.test.js api/tests/civicPushTopicBootstrap.test.js api/tests/civicPushRollback.test.js api/tests/civicPushRecovery.test.js api/tests/ministeroPaginationSafety.test.js api/tests/civicMinisteroScheduler.test.js api/tests/civicRuntimeDatabaseIdentity.test.js api/tests/civicSessionLockSafety.test.js api/tests/civicSessionAffinityProbe.test.js api/tests/civicPreferencesReadOnly.http.test.js
       - name: Python ECI source tests (no real API, DB or push)
         run: |
           python -m pip install requests
