@@ -8,7 +8,8 @@ on:
       - 'client/tests/appOpenNativeContract.test.mjs'
       - 'client/android/app/build.gradle'
       - 'client/android/app/src/main/java/community/demos/MainActivity.java'
-      - 'client/android/app/src/main/java/community/demos/DemosAppOpenAdsManager.java'
+      - 'client/android/app/src/debug/java/community/demos/DemosAppOpenAdsManager.java'
+      - 'client/android/app/src/release/java/community/demos/DemosAppOpenAdsManager.java'
       - 'client/android/app/src/debug/AndroidManifest.xml'
       - '.github/workflows/advertising-policy-validation.yml'
   workflow_dispatch:
@@ -54,8 +55,8 @@ jobs:
       - name: Generate Capacitor Android build
         working-directory: client
         run: npm run android:sync
-      - name: Compile native Android debug (ads flag OFF)
+      - name: Compile native Android debug/release (ads flag OFF)
         working-directory: client/android
         run: |
           chmod +x gradlew
-          ./gradlew :app:compileDebugJavaWithJavac --no-daemon --stacktrace
+          ./gradlew :app:compileDebugJavaWithJavac :app:compileReleaseJavaWithJavac --no-daemon --stacktrace
