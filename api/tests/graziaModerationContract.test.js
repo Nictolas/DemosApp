@@ -8,7 +8,7 @@ const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 
 test('Grazia proposals are stored privately and one pending per owner via row lock', () => {
   const source = read('api/routes/grazia.js');
-  assert.match(source, /router\.post\('\/', verifyToken, async/);
+  assert.match(source, /router\.post\('\/', personalNoStore, verifyToken, async/);
   assert.match(source, /SELECT id FROM users WHERE id = \$1 FOR UPDATE/);
   assert.match(source, /FROM richieste_grazia WHERE utente_id = \$1 AND status = 'pending'/);
   assert.match(source, /INSERT INTO richieste_grazia \(id, utente_id, nome, url_prova, status, data_creazione\)/);
@@ -27,9 +27,9 @@ test('only approved Grazia subjects are publicly ranked and votable', () => {
 
 test('Grazia admin reviews requests, not personal votes', () => {
   const source = read('api/routes/grazia.js');
-  assert.match(source, /router\.get\('\/richieste', verifyToken, requireAdmin/);
+  assert.match(source, /router\.get\('\/richieste', personalNoStore, verifyToken, requireAdmin/);
   assert.match(source, /FROM richieste_grazia WHERE status = 'pending' ORDER BY/);
-  assert.match(source, /router\.post\('\/richiesta\/:id\/:action', verifyToken, requireAdmin/);
+  assert.match(source, /router\.post\('\/richiesta\/:id\/:action', personalNoStore, verifyToken, requireAdmin/);
   assert.match(source, /UPDATE richieste_grazia SET status = \$1/);
   assert.match(source, /INSERT INTO grazia_carcerati \(nome, attivo\)/);
   assert.doesNotMatch(source, /UPDATE voti_grazia SET stato/);
@@ -47,4 +47,16 @@ test('Grazia frontend never pretends an unsaved proposal succeeded or solicits s
   assert.match(app, /<Route path="\/gestisci-grazia">/);
   assert.match(admin, /hasAdminCapability\(user\)/);
   assert.match(admin, /queryKey: \["graziaRequests"\]/);
+});
+
+test('Grazia personal votes and third-party proposals never reach HTTP cache or raw SQL error payloads', () => {
+  const source = read('api/routes/grazia.js');
+  assert.match(source, /const personalNoStore/);
+  assert.match(source, /private, no-store, max-age=0/);
+  for (const path of ["'/'", "'/richieste'", "'/mia-proposta'", "'/vota'", "'/richiesta/:id/:action'"]) {
+    assert.ok(source.includes(path + ', personalNoStore'), 'missing cache guard '+path);
+  }
+  assert.doesNotMatch(source, /details:\s*error\.message|error:\s*error\.message/);
+  assert.doesNotMatch(source, /console\.(?:log|error)\([^\n]*(?:userId|error\.message|error\.stack|error\.detail|mieiVoti|voti\.length)/);
+  assert.match(source, /await client\.query\('COMMIT'\);\s*let notificationSent = false;/);
 });
