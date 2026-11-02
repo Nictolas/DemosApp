@@ -239,3 +239,12 @@ test('new authenticated adult sessions revalidate UMP and stale callbacks cannot
   assert.match(load, /!consentVerifiedForAdultSession/g);
   assert.match(show, /!consentVerifiedForAdultSession/g);
 });
+
+test('anonymous users retain a working privacy-revocation entry point without enabling ads', () => {
+  const method = manager.slice(manager.indexOf('void showPrivacyOptions('), manager.indexOf('void onDestroy()'));
+  assert.match(method, /optionsGeneration != consentGeneration/);
+  assert.match(method, /if \(adultEligible && consentInformation\.canRequestAds\(\)/);
+  assert.doesNotMatch(method, /optionsGeneration != consentGeneration\s*\|\| !adultEligible/);
+  assert.match(method, /onSuccess\.run\(\)/);
+  assert.match(method, /consentVerifiedForAdultSession = false/);
+});

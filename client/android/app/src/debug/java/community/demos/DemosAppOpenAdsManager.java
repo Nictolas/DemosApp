@@ -251,13 +251,13 @@ final class DemosAppOpenAdsManager {
             privacyFormOpen = false;
             notifyPrivacyOptionsChanged();
             if (formError != null || optionsGeneration != consentGeneration
-                || !adultEligible || activity.isFinishing() || activity.isDestroyed()) {
+                || activity.isFinishing() || activity.isDestroyed()) {
                 onError.run();
                 return;
             }
             // After a change, native eligibility checks current UMP state again.
             // We never initialize/request if the current consent is not sufficient.
-            if (consentInformation.canRequestAds()
+            if (adultEligible && consentInformation.canRequestAds()
                 && consentInformation.getConsentStatus()
                     == ConsentInformation.ConsentStatus.OBTAINED
                         && hasExplicitTcfConsent()) {
