@@ -43,6 +43,17 @@ interface PreferenzeNotifiche {
   eci: boolean;
 }
 
+const PREFERENCE_FIELDS: ReadonlyArray<keyof PreferenzeNotifiche> = [
+  "eurodeputato", "senatore", "deputato", "consigliere_regionale",
+  "consigliere_comunale", "attivisti", "demos", "scuola", "animali",
+  "organizzazioni", "iniziative_popolari", "referendum_abrogativi", "eci",
+];
+
+function hasCompletePreferences(input: unknown): input is PreferenzeNotifiche {
+  return typeof input === "object" && input !== null && !Array.isArray(input) &&
+    PREFERENCE_FIELDS.every(key => typeof (input as Record<string, unknown>)[key] === "boolean");
+}
+
 export default function NotifichePreferenze() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -66,37 +77,42 @@ export default function NotifichePreferenze() {
   });
   
   const [isLoading, setIsLoading] = useState(true);
+  const [loadSucceeded, setLoadSucceeded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      loadPreferenze();
+    if (user?.id) {
+      setLoadSucceeded(false);
+      void loadPreferenze();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const loadPreferenze = async () => {
     try {
       setIsLoading(true);
+      setLoadSucceeded(false);
       setError(null);
       const response = await apiRequest.get<{ preferenze: PreferenzeNotifiche }>("/notifiche/preferenze");
-      
-      if (response.success && response.data?.preferenze) {
-        setPreferenze((previous) => ({ ...previous, ...response.data.preferenze }));
-      } else {
-        // Se non ci sono preferenze, usa i default
-        console.log("Nessuna preferenza trovata, uso i default");
+
+      // Fail closed: an old/malformed backend response could otherwise turn
+      // existing opt-ins OFF when the user taps Save with fallback values.
+      if (!response.success || !hasCompletePreferences(response.data?.preferenze)) {
+        throw new Error("PREFERENCES_RESPONSE_INCOMPLETE");
       }
-    } catch (err) {
-      console.error("Errore nel caricamento preferenze:", err);
-      setError("Errore nel caricamento delle preferenze");
+      setPreferenze(response.data.preferenze);
+      setLoadSucceeded(true);
+    } catch {
+      // Avoid logging or displaying raw provider/SQL errors or private choices.
+      setError("Impossibile caricare le preferenze. Riprova prima di modificarle.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSwitch = (key: keyof PreferenzeNotifiche, value: boolean) => {
+    if (!loadSucceeded || isLoading || isSaving) return;
     setPreferenze(prev => ({
       ...prev,
       [key]: value
@@ -105,6 +121,7 @@ export default function NotifichePreferenze() {
   };
 
   const handleSave = async () => {
+    if (!loadSucceeded || isLoading || isSaving) return;
     try {
       setIsSaving(true);
       setError(null);
@@ -121,11 +138,10 @@ export default function NotifichePreferenze() {
         });
         setTimeout(() => setSaved(false), 3000);
       } else {
-        throw new Error(response.error || "Errore nel salvataggio");
+        throw new Error("PREFERENCES_SAVE_NOT_CONFIRMED");
       }
-    } catch (err: any) {
-      console.error("Errore nel salvataggio:", err);
-      setError(err.message || "Errore nel salvataggio delle preferenze");
+    } catch {
+      setError("Impossibile confermare il salvataggio. Le preferenze potrebbero non essere aggiornate.");
       toast({
         title: "Errore",
         description: "Impossibile salvare le preferenze",
@@ -246,6 +262,12 @@ export default function NotifichePreferenze() {
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <span className="ml-3 text-gray-600">Caricamento preferenze...</span>
           </div>
+        ) : !loadSucceeded ? (
+          <div className="flex justify-center py-8">
+            <Button type="button" variant="outline" onClick={() => void loadPreferenze()}>
+              Riprova caricamento
+            </Button>
+          </div>
         ) : (
           <>
             {/* Sezioni Preferenze */}
@@ -284,6 +306,7 @@ export default function NotifichePreferenze() {
                               </span>
                               <Switch
                                 checked={isActive}
+                                disabled={isSaving || !loadSucceeded}
                                 onCheckedChange={(checked) => handleSwitch(item.key, checked)}
                                 className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-300"
                               />
@@ -301,7 +324,7 @@ export default function NotifichePreferenze() {
         )}
         </div>
       </div>
-      {!isLoading && (
+      {!isLoading && loadSucceeded && (
         <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3 shadow-lg">
           <div className="mx-auto w-full max-w-4xl">
               <Button
