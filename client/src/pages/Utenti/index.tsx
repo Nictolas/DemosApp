@@ -132,7 +132,7 @@ export default function Utenti() {
     
     const usersBySesso = utenti.reduce((acc, user) => {
       // Solo persone: usa il campo M/F già salvato, anche se proveniente da dati storici.
-      if (user.account_type !== 'PERSON') return acc;
+      if (user.account_type !== 'PERSON' && user.account_type !== 'P') return acc;
       const sesso = user.sesso === 'M' || user.sesso === 'F'
         ? user.sesso
         : 'Non disponibile';
@@ -218,7 +218,7 @@ export default function Utenti() {
     // Età: esclusivamente le date di nascita realmente registrate delle persone.
     // Niente dati fittizi o inferenze dai nomi dei politici / account importati.
     const usersByAge = utenti.reduce((acc, user) => {
-      if (user.account_type !== 'PERSON') return acc;
+      if (user.account_type !== 'PERSON' && user.account_type !== 'P') return acc;
 
       const dateText = typeof user.data_nascita === 'string'
         ? user.data_nascita

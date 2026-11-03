@@ -1,6 +1,7 @@
 const { getPool } = require('../config/database');
 const { decrypt: decryptEmail } = require('../utils/emailCrypto');
 const AuditService = require('./auditService');
+const { normalizeAccountType } = require('./accountCapabilitiesService');
 
 const pool = getPool();
 
@@ -134,6 +135,7 @@ async function getUserCore(userId) {
   );
 
   const row = result.rows[0] || null;
+  if (row?.account_type) row.account_type = normalizeAccountType(row.account_type) || row.account_type;
   if (row?.email) {
     try {
       row.email = decryptEmail(row.email);
