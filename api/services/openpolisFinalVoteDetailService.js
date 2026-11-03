@@ -41,7 +41,9 @@ function parseOpenpolisFinalVoteDetail(html, expectedCamera) {
   if (!camera || (expectedCamera && camera !== expectedCamera)) throw new Error('OPENPOLIS_DETAIL_CHAMBER_MISMATCH');
   const seduta = beforeTables.match(/Votazione\s*n\.?\s*(\d+)\s*\/\s*Seduta\s*n\.?\s*(\d+)\s*del\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
   const dataVotazione = seduta ? seduta[5] + '-' + seduta[4].padStart(2, '0') + '-' + seduta[3].padStart(2, '0') : null;
-  const votoSegreto = /\bSEGRETO\b/i.test(beforeTables) || /Votante in voto segreto/i.test(body);
+  // Ignore filter legends/options lower in the page: they may mention secret votes
+  // even when this particular division is an ordinary nominal ballot.
+  const votoSegreto = /\bSEGRETO\b/i.test(beforeTables);
   const summary = {};
   for (const [key, label] of [['presenti', 'Presenti'], ['votanti', 'Votanti'], ['maggioranza', 'Maggioranza']]) {
     const match = beforeTables.match(new RegExp('(\\d{1,4})\\s*' + label + '(?![A-Za-zÀ-ÿ])', 'i'));
