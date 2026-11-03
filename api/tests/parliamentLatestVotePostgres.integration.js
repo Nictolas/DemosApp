@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Pool } = require('pg');
 const {
-  selectedRepresentatives, persistLatestForChamber, refreshLatestParliamentVoteNotifications
+  LATEST_FINAL_BALLOTS_SQL, selectedRepresentatives, persistLatestForChamber, refreshLatestParliamentVoteNotifications
 } = require('../services/parliamentLatestVoteNotificationsService');
 const { sendFinalBallotPush } = require('../services/parliamentFinalBallotPushService');
 
@@ -57,6 +57,28 @@ async function main(){
     await pool.query(fs.readFileSync(path.join(root,'api/create-notifiche-voti-parlamento-table.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261103_latest_parliament_votes.sql'),'utf8'));
     await pool.query(fs.readFileSync(path.join(root,'api/database/20261103_latest_parliament_votes.sql'),'utf8'));
+    // Regression: 65 new Camera votes must NOT push a less frequent Senate
+    // vote out of the bounded source window. Same-day numeric ordering matters.
+    await pool.query(
+      "INSERT INTO openpolis_votazioni_finali_decisive " +
+      "(openpolis_id,camera,titolo,url_dettaglio,esito,data_votazione) " +
+      "SELECT 'vs19_730_' || n::text, 'Camera', 'Camera synthetic final', " +
+      "'https://parlamento19.openpolis.it/votazioni/vs19_730_' || n::text, " +
+      "'Approvata', CURRENT_DATE FROM generate_series(1,65) n"
+    );
+    await pool.query(
+      "INSERT INTO openpolis_votazioni_finali_decisive " +
+      "(openpolis_id,camera,titolo,url_dettaglio,esito,data_votazione) " +
+      "VALUES ('19-469-6','Senato','Senate synthetic final'," +
+      "'https://parlamento19.openpolis.it/votazioni/19-469-6','Approvata',CURRENT_DATE)"
+    );
+    const window = (await pool.query(LATEST_FINAL_BALLOTS_SQL)).rows;
+    assert.equal(window.length,51,'50 Camera plus 1 Senate finalist; never globally truncate Senate');
+    assert.equal(window.filter(row=>row.camera==='Camera').length,50);
+    assert.equal(window.filter(row=>row.camera==='Senato').length,1);
+    assert.equal(window.find(row=>row.camera==='Senato').openpolis_id,'19-469-6');
+    assert.equal(window.filter(row=>row.camera==='Camera')[0].openpolis_id,'vs19_730_65',
+      'numeric ordering must beat lexicographic ordering for same-day IDs');
     const unique = await pool.query("SELECT indexname FROM pg_indexes WHERE tablename='notifiche_voti_parlamento' AND indexname='notifiche_voti_parlamento_latest_rep_camera'");
     assert.equal(unique.rows.length,1,'migration creates exactly one shared unique key');
 
@@ -150,7 +172,7 @@ async function main(){
     // Orchestration disabled means no DB writes even when this table exists.
     delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
     assert.equal((await refreshLatestParliamentVoteNotifications(pool)).enabled,false);
-    console.log('POSTGRES REAL PASS: migration x2, FK/unique/upsert monotonicity, reactions, source, selected MP, consent, token, opt-out locking.');
+    console.log('POSTGRES REAL PASS: fair per-chamber 50+50 source bounds, migration x2, FK/unique/upsert monotonicity, reactions, source, selected MP, consent, token, opt-out locking.');
   } finally {
     if(prevN===undefined)delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
     else process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED=prevN;
