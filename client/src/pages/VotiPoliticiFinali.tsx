@@ -156,27 +156,25 @@ export default function VotiPoliticiFinali() {
           ) : visible.length === 0 ? (
             <p role="status">Non ci sono votazioni finali recenti verificate da mostrare. Non vengono riproposte le vecchie votazioni.</p>
           ) : (
-            <div className="max-h-[68dvh] overflow-auto overscroll-contain" tabIndex={0} role="region" aria-label="Elenco votazioni finali recenti">
-              <table className="min-w-[640px] w-full text-left text-sm">
-                <thead className="sticky top-0 bg-white shadow-sm">
-                  <tr><th className="p-3">Data</th><th className="p-3">Camera</th><th className="p-3">Votazione finale</th><th className="p-3">Esito</th><th className="p-3">Fonte</th><th className="p-3">Voti nominali</th></tr>
-                </thead>
-                <tbody>
-                {visible.map(v => <tr key={v.openpolis_id} className="border-t align-top">
-                  <td className="p-3 whitespace-nowrap">{new Date(v.data_votazione!).toLocaleDateString("it-IT")}</td>
-                  <td className="p-3">{v.camera}</td>
-                  <td className="p-3">{v.titolo}</td>
-                  <td className="p-3">{v.esito}</td>
-                  <td className="p-3"><a className="text-blue-700 underline inline-flex items-center gap-1" href={v.url_dettaglio} target="_blank" rel="noopener noreferrer">Openpolis <ExternalLink className="h-3 w-3" /></a></td>
-                  <td className="p-3">
+            <div className="space-y-3" role="list" aria-label="Elenco votazioni finali recenti">
+              {visible.map(v => (
+                <article key={v.openpolis_id} role="listitem" className="rounded-lg border bg-white p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(v.data_votazione!).toLocaleDateString("it-IT")} · {v.camera} · {v.esito}
+                  </p>
+                  <h2 className="font-semibold break-words">{v.titolo}</h2>
+                  <div className="flex flex-wrap gap-2 items-center">
                     <Button variant="outline" size="sm" onClick={() => {
                       setSelectedVote(v);
                       setMemberSearch("");
                     }}>Vedi voti</Button>
-                  </td>
-                </tr>)}
-                </tbody>
-              </table>
+                    <a className="text-blue-700 underline text-sm inline-flex items-center gap-1"
+                      href={v.url_dettaglio} target="_blank" rel="noopener noreferrer">
+                      Openpolis <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
           {!isLoading && !error && <p className="text-xs text-muted-foreground">{visible.length} votazioni finali recenti disponibili.</p>}
