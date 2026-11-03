@@ -1,3 +1,11 @@
+'use strict';
+// GDPR/restore safety: block destructive legacy cleanup before loading DB,
+// environment variables, cloud tools or filesystem operations.
+if (require.main === module && process.argv[2] === 'cleanup') {
+  require('../api/services/legacyDataArchivalGate').exitRetiredLegacyDataArchival();
+}
+const { assertLegacyDataArchivalUnavailable } = require('../api/services/legacyDataArchivalGate');
+
 /**
  * Soluzione Ibrida: Backup Automatico Cloud + Export Manuale Hard Disk
  * 
@@ -289,8 +297,7 @@ async function checkExportNeeded() {
       <p>È necessario eseguire un export manuale su hard disk.</p>
       <p><strong>Comando:</strong></p>
       <pre>node scripts/hard-disk-export.js export --from-cloud</pre>
-      <p><strong>Dopo l'export:</strong></p>
-      <pre>node scripts/hybrid-cloud-backup.js cleanup --after-export</pre>
+      <p><strong>Importante:</strong> preservare tutti gli oggetti cloud. La rimozione è disabilitata fino a prova indipendente di ripristino e approvazione retention/GDPR.</p>
     `;
     
     await sendNotification('Export Manuale Richiesto - Log Cloud Storage', message);
@@ -309,27 +316,9 @@ async function checkExportNeeded() {
  * Rimuovi dati dal cloud dopo export
  */
 async function cleanupCloudAfterExport() {
-  console.log('🗑️ Rimozione dati dal cloud dopo export...');
-  
-  try {
-    switch (HYBRID_CONFIG.cloudProvider) {
-      case 'b2':
-        await execAsync(`b2 delete-file-version ${HYBRID_CONFIG.cloudBucket} ${HYBRID_CONFIG.cloudPrefix}/`);
-        break;
-        
-      case 's3':
-        await execAsync(`aws s3 rm s3://${HYBRID_CONFIG.cloudBucket}/${HYBRID_CONFIG.cloudPrefix}/ --recursive`);
-        break;
-        
-      case 'gcs':
-        await execAsync(`gsutil rm -r gs://${HYBRID_CONFIG.cloudBucket}/${HYBRID_CONFIG.cloudPrefix}/`);
-        break;
-    }
-    
-    console.log('   ✅ Dati rimossi dal cloud');
-  } catch (error) {
-    console.error('   ❌ Errore rimozione:', error.message);
-  }
+  // No environment variable or command line flag bypasses this gate.
+  // A verified restore and an explicitly approved GDPR retention plan are prerequisites.
+  assertLegacyDataArchivalUnavailable();
 }
 
 /**
