@@ -143,16 +143,25 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
     client.release();
   }
 }
-// A global LIMIT 50 can starve one chamber when the other has a busy week.
-// Rank separately by chamber and by numeric parliamentary vote sequence,
-// then read at most 50 final ballots for each house (max 100 rows total).
-// All source details are still checked by isRecentFinal and verified remotely.
-const LATEST_FINAL_BALLOTS_SQL =
-  "WITH ranked AS (" +
-  " SELECT openpolis_id, camera, titolo, url_dettaglio, esito, " +
-  " to_char(data_votazione, 'YYYY-MM-DD') AS data_votazione, " +
-  " ROW_NUMBER() OVER (PARTITION BY camera ORDER BY data_votazione DESC, " +
-  " substring(openpolis_id from '[^_-]+[_-]([0-9]+)[_-][0-9]+
+// A global LIMIT 50 can starve the quieter chamber.
+// Load up to 50 verified final-ballot candidates per chamber (100 total),
+// with numeric parliamentary sequence ordering. No new DB table or service.
+const LATEST_FINAL_BALLOTS_SQL = [
+  "WITH ranked AS (",
+  "SELECT openpolis_id, camera, titolo, url_dettaglio, esito,",
+  "to_char(data_votazione, 'YYYY-MM-DD') AS data_votazione,",
+  "ROW_NUMBER() OVER (PARTITION BY camera ORDER BY data_votazione DESC NULLS LAST,",
+  "COALESCE(NULLIF(regexp_replace(split_part(openpolis_id, CASE WHEN camera = 'Camera' THEN '_' ELSE '-' END, 2), '[^0-9]', '', 'g'), '')::integer, 0) DESC,",
+  "COALESCE(NULLIF(regexp_replace(split_part(openpolis_id, CASE WHEN camera = 'Camera' THEN '_' ELSE '-' END, 3), '[^0-9]', '', 'g'), '')::integer, 0) DESC) AS chamber_rank",
+  "FROM openpolis_votazioni_finali_decisive",
+  "WHERE data_votazione >= CURRENT_DATE - INTERVAL '120 days'",
+  "AND camera IN ('Camera', 'Senato')",
+  ") SELECT openpolis_id, camera, titolo, url_dettaglio, esito, data_votazione",
+  "FROM ranked WHERE chamber_rank <= 50",
+  "ORDER BY data_votazione DESC, camera, chamber_rank"
+].join(' ');
+
+async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
   // Disabled by default. Launch only after migration and release QA.
   if (process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED !== 'true') {
     return { enabled: false, checked: 0, changed: 0 };
