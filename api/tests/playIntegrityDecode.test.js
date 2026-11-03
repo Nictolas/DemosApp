@@ -8,7 +8,7 @@ const { createRequestHash } = require('../services/playIntegrityPolicy');
 const env = Object.freeze({
   PLAY_INTEGRITY_ENABLED: 'true',
   PLAY_INTEGRITY_ZERO_COST_CONFIRMED: 'true',
-  PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: '123456789012'
+  PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: '848085963511'
 });
 const token = 'a'.repeat(100);
 const now = 1_800_000_000_000;
@@ -35,6 +35,29 @@ test('disabled path NEVER requests credentials or contacts Google', async () => 
   });
   assert.deepEqual(result, { status: 'disabled' });
   assert.equal(touches, 0);
+});
+
+test('wrong Cloud project cannot reserve decode budget or touch Google credentials', async () => {
+  const { createLocalDecodeBudget } = require('../services/playIntegrityBudget');
+  const budget = createLocalDecodeBudget({ maxDaily: 1 });
+  const incorrect = {
+    ...env,
+    PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: '123456789012'
+  };
+  let touches = 0;
+  const result = await decodePlayIntegrity({
+    integrityToken: token,
+    action,
+    payload,
+    env: incorrect,
+    now,
+    budget,
+    getAccessToken: async () => { touches++; throw Error('must not be called'); },
+    fetchImpl: async () => { touches++; throw Error('must not be called'); }
+  });
+  assert.deepEqual(result, { status: 'disabled' });
+  assert.equal(touches, 0);
+  assert.equal(budget.remaining(now), 1);
 });
 
 test('malformed tokens do not trigger billing or external requests even if enabled', async () => {
