@@ -1077,12 +1077,24 @@ router.post('/sync-votazioni-finali-decisive', verifyToken, requireAdmin, async 
   try {
     console.log('🔄 POST /api/voti-politici/sync-votazioni-finali-decisive - Sync manuale votazioni finali decisive');
     const { runOpenpolisVotazioniFinaliSync } = require('../jobs/openpolisVotazioniFinaliJob');
-    await runOpenpolisVotazioniFinaliSync();
-    const rows = await loadOpenpolisVotazioniFinali(pool, 50);
+    const sync = await runOpenpolisVotazioniFinaliSync();
+    if (!sync?.success) {
+      // A valid cache is not proof that this request imported any votes.
+      return res.status(502).json({
+        success: false,
+        error: 'Fonte votazioni finali temporaneamente non disponibile',
+        message: 'Openpolis non ha restituito dati importabili. Nessun aggiornamento effettuato.',
+        reason: sync?.reason || 'SYNC_FAILED'
+      });
+    }
     return res.json({
       success: true,
-      message: 'Sync votazioni finali decisive completato',
-      count: rows.length
+      message: sync.added > 0
+        ? 'Importate nuove votazioni finali'
+        : 'Sincronizzazione riuscita: nessuna nuova votazione finale',
+      count: sync.total,
+      fetched: sync.fetched,
+      added: sync.added
     });
   } catch (error) {
     console.error('❌ Errore sync votazioni finali decisive:', error.message);

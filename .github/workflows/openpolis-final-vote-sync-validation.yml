@@ -1,0 +1,47 @@
+name: Openpolis Final Vote Sync Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/services/openpolisVotazioniFinaliService.js'
+      - 'api/jobs/openpolisVotazioniFinaliJob.js'
+      - 'api/routes/voti-politici.js'
+      - 'api/tests/openpolisFinalVoteSync.test.js'
+      - 'api/scripts/checkOpenpolisFinalVotes.js'
+      - 'client/src/pages/VotiPoliticiFinali.tsx'
+      - '.github/workflows/openpolis-final-vote-sync-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            api/package-lock.json
+            client/package-lock.json
+      - name: Install API and client dependencies
+        run: |
+          npm ci --prefix api --ignore-scripts --no-audit --no-fund
+          npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Syntax and final vote import regressions
+        run: |
+          node --check api/services/openpolisVotazioniFinaliService.js
+          node --check api/jobs/openpolisVotazioniFinaliJob.js
+          node --check api/routes/voti-politici.js
+          node --test api/tests/openpolisFinalVoteSync.test.js
+      - name: Live public feed smoke (no secrets or DB writes)
+        run: node api/scripts/checkOpenpolisFinalVotes.js
+      - name: Frontend build
+        run: npm run build --prefix client
