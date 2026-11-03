@@ -91,6 +91,29 @@ function evaluatePublicSequenceProtection(rows) {
   return {ready:unsafe.length===0,checkedCount:rows.length,unsafe};
 }
 
+// PostgreSQL views/materialized views/foreign tables are outside ordinary
+// table-RLS checks. Disallow any direct client grant, including column grants.
+function evaluatePublicViewExposure(rows) {
+  if (!Array.isArray(rows)) return {ready:false,checkedCount:0,unsafe:['metadata_unavailable']};
+  const unsafe = rows.filter(row =>
+    !row.object_name || !['v','m','f'].includes(row.relkind) ||
+    row.anon_can_access !== false || row.authenticated_can_access !== false
+  ).map(row => row.object_name || 'unknown');
+  return {ready:unsafe.length===0,checkedCount:rows.length,unsafe};
+}
+
+// Functions/procedures/aggregates are a separate PostgREST RPC surface.
+// EXECUTE defaults to PUBLIC on new PostgreSQL routines, and SECURITY DEFINER
+// can run with privileges which the API caller does not have.
+function evaluatePublicRoutineExposure(rows) {
+  if (!Array.isArray(rows)) return {ready:false,checkedCount:0,unsafe:['metadata_unavailable']};
+  const unsafe = rows.filter(row =>
+    !row.routine_name || row.anon_can_execute !== false ||
+    row.authenticated_can_execute !== false
+  ).map(row => row.routine_name || 'unknown');
+  return {ready:unsafe.length===0,checkedCount:rows.length,unsafe};
+}
+
 function evaluateCivicProtection(rows, required = CIVIC_PRIVATE_TABLES) {
   const byName = new Map(rows.map(row => [row.table_name, row]));
   const unsafe = required.filter(name => {
@@ -267,6 +290,30 @@ async function run(env = process.env) {
          JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
          WHERE n.nspname='public' AND c.relkind='S'`
     );
+    // Views and RPC routines are not covered by ordinary relkind r/p RLS.
+    // Inspect catalog metadata only; do not execute any view or routine.
+    const publicViewRows = await client.query(
+      `SELECT c.relname AS object_name, c.relkind,
+              (has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE')
+               OR has_any_column_privilege('anon', c.oid,
+                    'SELECT,INSERT,UPDATE,REFERENCES')) AS anon_can_access,
+              (has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE')
+               OR has_any_column_privilege('authenticated', c.oid,
+                    'SELECT,INSERT,UPDATE,REFERENCES')) AS authenticated_can_access
+         FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+         WHERE n.nspname='public' AND c.relkind IN ('v','m','f')`
+    );
+    const publicRoutineRows = await client.query(
+      `SELECT p.oid::regprocedure::text AS routine_name,
+              p.prosecdef AS security_definer,
+              has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_can_execute,
+              has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                AS authenticated_can_execute
+         FROM pg_catalog.pg_proc p
+         JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
+         WHERE n.nspname='public'`
+    );
     const columnRows = await client.query(
       `SELECT c.relname AS table_name, a.attname AS column_name,
               t.typname AS udt_name,
@@ -287,13 +334,17 @@ async function run(env = process.env) {
     const civicProtection = evaluateCivicProtection(protectionRows.rows);
     const allPublicTables = evaluateAllPublicStagingTables(protectionRows.rows);
     const publicSequenceProtection = evaluatePublicSequenceProtection(publicSequenceRows.rows);
+    const publicViewExposure = evaluatePublicViewExposure(publicViewRows.rows);
+    const publicRoutineExposure = evaluatePublicRoutineExposure(publicRoutineRows.rows);
     const civicColumns = evaluateCivicRuntimeColumns(columnRows.rows);
     const deliveryBlocked = evaluateBlockedGuard(guard.rows);
     await client.query('ROLLBACK');
     return { ...schema, ready: schema.ready && civicProtection.ready &&
       allPublicTables.ready && publicSequenceProtection.ready &&
+      publicViewExposure.ready && publicRoutineExposure.ready &&
       civicColumns.ready && deliveryBlocked,
-      civicProtection, allPublicTables, publicSequenceProtection, civicColumns, deliveryBlocked };
+      civicProtection, allPublicTables, publicSequenceProtection,
+      publicViewExposure, publicRoutineExposure, civicColumns, deliveryBlocked };
   } finally {
     await client.end();
   }
@@ -312,6 +363,6 @@ if (require.main === module) {
 
 module.exports = {STAGING_REF, STAGING_PREFLIGHT_ROLE, STAGING_IDENTITY_HASH, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, CIVIC_RUNTIME_COLUMNS,
   assertStagingTarget, evaluateSchema, evaluateCivicProtection, evaluateAllPublicStagingTables,
-  evaluatePublicSequenceProtection,
-  evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity,
+  evaluatePublicSequenceProtection, evaluatePublicViewExposure,
+  evaluatePublicRoutineExposure, evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity,
   evaluatePreflightRole, evaluatePreflightWriteGrants, run};

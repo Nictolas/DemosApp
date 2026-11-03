@@ -80,6 +80,13 @@ test('actual preflight SQL runs as least-privilege role; no schema GO or write a
       'missing CI private tables must fail closed');
     const sequences = await client.query(actualPreflightSQL('publicSequenceRows'));
     assert.equal(gate.evaluatePublicSequenceProtection(sequences.rows).ready,true);
+    const viewRows = await client.query(actualPreflightSQL('publicViewRows'));
+    assert.equal(gate.evaluatePublicViewExposure(viewRows.rows).ready,true,
+      'CI starts with no client-accessible public views/foreign tables');
+    const routineRows = await client.query(actualPreflightSQL('publicRoutineRows'));
+    assert.equal(gate.evaluatePublicRoutineExposure(routineRows.rows).ready,true,
+      'CI starts with no client-executable public RPC functions');
+
     const columnTables = [...new Set(gate.CIVIC_RUNTIME_COLUMNS.map(([table])=>table))];
     const columns = await client.query(actualPreflightSQL('columnRows'),
       ['public',columnTables]);
@@ -118,5 +125,47 @@ test('actual preflight SQL runs as least-privilege role; no schema GO or write a
     } finally {
       await client.end();
     }
+  }
+});
+
+
+test('real SQL denies newly exposed public view and default-EXECUTE RPC, with rollback', async () => {
+  assert.equal(process.env.CIVIC_TEST_DATABASE_URL,LOCAL,'DISALLOW_REMOTE_TEST_DB');
+  assert.equal(process.env.DATABASE_URL || '', '', 'DISALLOW_APPLICATION_DATABASE');
+  assert.equal(process.env.DEMOS_UNIFIED_STAGING_PREFLIGHT_GO || '', '', 'NO_REMOTE_GO');
+  const client=new Client({connectionString:LOCAL,connectionTimeoutMillis:5000});
+  await client.connect();
+  let pending=false;
+  try {
+    await client.query('BEGIN');
+    pending=true;
+    // Read only synthetic constants, not user data; rollback removes all objects.
+    await client.query('CREATE VIEW public.civic_ci_future_view AS SELECT 1::int AS id');
+    await client.query('GRANT SELECT ON public.civic_ci_future_view TO anon');
+    const views=await client.query(actualPreflightSQL('publicViewRows'));
+    assert.ok(views.rows.some(r=>r.object_name==='civic_ci_future_view' && r.anon_can_access===true));
+    assert.equal(gate.evaluatePublicViewExposure(views.rows).ready,false,
+      'RLS on every table is not sufficient when a view has a client grant');
+    await client.query('REVOKE SELECT ON public.civic_ci_future_view FROM anon');
+
+    await client.query(`CREATE FUNCTION public.civic_ci_future_rpc() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$`);
+    // PostgreSQL grants EXECUTE on a new function to PUBLIC by default.
+    const exposed=await client.query(actualPreflightSQL('publicRoutineRows'));
+    assert.ok(exposed.rows.some(r=>r.routine_name.includes('civic_ci_future_rpc') &&
+      (r.anon_can_execute || r.authenticated_can_execute)));
+    assert.equal(gate.evaluatePublicRoutineExposure(exposed.rows).ready,false,
+      'new RPC must never silently bypass protected tables');
+
+    await client.query('REVOKE ALL ON FUNCTION public.civic_ci_future_rpc() FROM PUBLIC, anon, authenticated');
+    const safeRoutines=await client.query(actualPreflightSQL('publicRoutineRows'));
+    assert.equal(gate.evaluatePublicRoutineExposure(safeRoutines.rows).ready,true);
+    const safeViews=await client.query(actualPreflightSQL('publicViewRows'));
+    assert.equal(gate.evaluatePublicViewExposure(safeViews.rows).ready,true);
+  } finally {
+    if(pending) await client.query('ROLLBACK');
+    try {
+      const after=await client.query(`SELECT count(*)::int AS leaked FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname='civic_ci_future_rpc'`);
+      assert.equal(after.rows[0].leaked,0,'future RPC fixture must roll back');
+    } finally { await client.end(); }
   }
 });

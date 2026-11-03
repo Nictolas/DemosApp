@@ -151,3 +151,29 @@ Il risultato di preparazione schema CI è intenzionalmente
 dello staging: non si finge un GO. Questo NON testa TLS, DNS/pooler,
 connessioni da Render, password/gestore di segreti o staging reale.
 Il ruolo condiviso resta **non creato**, senza GO.
+
+
+## Superficie API trascurata: viste e funzioni RPC (`public`)
+
+L'audit di sola lettura di **Demos-Staging** del 03/11/2026 conferma:
+**51 tabelle public**, **0 viste/materialized views/foreign tables public**
+e **0 routine nello schema public**. Non è stata rilevata un'esposizione
+effettiva attraverso questi oggetti.
+
+Il preflight controllava in precedenza tabelle ordinarie e sequenze,
+ma una vista PostgreSQL può bypassare la RLS della tabella sottostante,
+mentre le nuove funzioni PostgreSQL ricevono normalmente `EXECUTE`
+da `PUBLIC` e possono diventare RPC in PostgREST. Per evitare
+regressioni future, è stato aggiunto un audit **solo sui metadati**
+per tutte le viste, viste materializzate e foreign table dello schema
+`public`, comprese autorizzazioni per-colonna, e per tutte le routine
+`public`. Qualunque accesso per `anon` o `authenticated` blocca
+il risultato `ready`; assenza o dati catalogo malformati falliscono chiusi.
+Non viene invocata alcuna funzione né letta alcuna vista.
+
+Prove negative su PostgreSQL 16 e 17 CI: creare una vista fittizia e
+concederne `SELECT` ad `anon` causa NO-GO; creare una funzione SQL
+fittizia con `EXECUTE` implicito a `PUBLIC` causa NO-GO; le revoche
+rimuovono l'allarme. Tutto avviene nella transazione CI e viene
+annullato con `ROLLBACK`; nessun oggetto è creato su Supabase live.
+Il ruolo preflight sullo staging reale resta assente.

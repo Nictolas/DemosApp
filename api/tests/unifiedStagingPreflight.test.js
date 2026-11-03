@@ -3,7 +3,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES,
   CIVIC_RUNTIME_COLUMNS, evaluateCivicProtection, evaluateAllPublicStagingTables,
-  evaluatePublicSequenceProtection, evaluateCivicRuntimeColumns,
+  evaluatePublicSequenceProtection, evaluatePublicViewExposure,
+  evaluatePublicRoutineExposure, evaluateCivicRuntimeColumns,
   evaluateBlockedGuard, evaluateStagingIdentity, evaluatePreflightRole,
   evaluatePreflightWriteGrants, STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
 
@@ -300,4 +301,44 @@ test('P5 aggregate-only referendum forecast snapshots are mandatory and private'
   assert.ok(REQUIRED_TABLES.includes(name));
   assert.ok(CIVIC_PRIVATE_TABLES.includes(name));
   assert.equal(evaluateSchema(REQUIRED_TABLES.filter(x => x!==name)).ready,false);
+});
+
+
+test('views, materialized views and foreign tables never bypass direct client audit', () => {
+  const safe = [{object_name:'private_view',relkind:'v',
+    anon_can_access:false,authenticated_can_access:false}];
+  assert.equal(evaluatePublicViewExposure([]).ready,true);
+  assert.equal(evaluatePublicViewExposure(safe).ready,true);
+  for(const relkind of ['v','m','f']) {
+    for(const field of ['anon_can_access','authenticated_can_access']) {
+      assert.equal(evaluatePublicViewExposure([{...safe[0],relkind,[field]:true}]).ready,false);
+      assert.equal(evaluatePublicViewExposure([{...safe[0],relkind,[field]:undefined}]).ready,false);
+    }
+  }
+  assert.equal(evaluatePublicViewExposure(null).ready,false);
+  assert.equal(evaluatePublicViewExposure([{...safe[0],relkind:'r'}]).ready,false);
+  const fs=require('node:fs'),path=require('node:path');
+  const source=fs.readFileSync(path.join(__dirname,'..','scripts','unifiedStagingPreflight.js'),'utf8');
+  assert.match(source,/const publicViewRows = await client\.query/);
+  assert.match(source,/c\.relkind IN \('v','m','f'\)/);
+  assert.match(source,/publicViewExposure\.ready/);
+});
+
+test('PostgreSQL public RPC functions are denied EXECUTE even with table RLS', () => {
+  const safe = [{routine_name:'private_rpc()',security_definer:true,
+    anon_can_execute:false,authenticated_can_execute:false}];
+  assert.equal(evaluatePublicRoutineExposure([]).ready,true);
+  assert.equal(evaluatePublicRoutineExposure(safe).ready,true);
+  for(const field of ['anon_can_execute','authenticated_can_execute']) {
+    assert.equal(evaluatePublicRoutineExposure([{...safe[0],[field]:true}]).ready,false);
+    assert.equal(evaluatePublicRoutineExposure([{...safe[0],[field]:null}]).ready,false);
+  }
+  assert.equal(evaluatePublicRoutineExposure(null).ready,false);
+  assert.equal(evaluatePublicRoutineExposure([{...safe[0],routine_name:''}]).ready,false);
+  const fs=require('node:fs'),path=require('node:path');
+  const source=fs.readFileSync(path.join(__dirname,'..','scripts','unifiedStagingPreflight.js'),'utf8');
+  assert.match(source,/const publicRoutineRows = await client\.query/);
+  assert.match(source,/has_function_privilege\('anon'/);
+  assert.match(source,/has_function_privilege\('authenticated'/);
+  assert.match(source,/publicRoutineExposure\.ready/);
 });
