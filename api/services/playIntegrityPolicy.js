@@ -66,6 +66,13 @@ function analyzeDecodedVerdict(decodedResponse, { action, payload, now = Date.no
     return { status: 'untrusted', reason: 'hash_mismatch' };
   }
 
+  // The decoded app package is separate from requestDetails and may be present
+  // in Google's appIntegrity field. Reject contradictions in an attested token.
+  const binaryPackage = verdict.appIntegrity?.packageName;
+  if (typeof binaryPackage === 'string' && binaryPackage !== PACKAGE_NAME) {
+    return { status: 'untrusted', reason: 'app_binary_package_mismatch' };
+  }
+
   const appRecognized = verdict.appIntegrity?.appRecognitionVerdict === 'PLAY_RECOGNIZED';
   const recognizedLabels = verdict.deviceIntegrity?.deviceRecognitionVerdict;
   const deviceRecognized = Array.isArray(recognizedLabels) && recognizedLabels.some(
