@@ -1,6 +1,15 @@
 name: SQL Diagnostics Production Guard
 
 on:
+  push:
+    branches:
+      - fix/limit-db-diagnostics-to-dev-20261031
+    paths:
+      - 'api/**'
+      - 'client/src/pages/NotificheDemos.tsx'
+      - 'client/src/pages/NotificheTotali/index.tsx'
+      - 'sql/manual/20261101_notifications_inbox_idempotency.sql'
+      - '.github/workflows/sql-diagnostics-production-guard.yml'
   pull_request:
     branches:
       - main
