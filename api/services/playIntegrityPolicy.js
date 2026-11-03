@@ -71,7 +71,13 @@ function analyzeDecodedVerdict(decodedResponse, { action, payload, now = Date.no
   const deviceRecognized = Array.isArray(recognizedLabels) && recognizedLabels.some(
     label => label === 'MEETS_DEVICE_INTEGRITY' || label === 'MEETS_STRONG_INTEGRITY'
   );
+  const rawLicensing = verdict.accountDetails?.appLicensingVerdict;
+  const licensingVerdict = ['LICENSED', 'UNLICENSED', 'UNEVALUATED'].includes(rawLicensing)
+    ? rawLicensing : 'NOT_AVAILABLE';
+  // Observational signals only. Do not infer the person's identity or reject access.
   return {
+    licensingVerdict,
+    enforcement: 'none',
     status: appRecognized && deviceRecognized ? 'verified' : 'untrusted',
     reason: appRecognized && deviceRecognized ? 'recognized' : 'insufficient_integrity',
     appRecognized, deviceRecognized
