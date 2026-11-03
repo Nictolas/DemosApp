@@ -470,5 +470,98 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             cur.execute("ROLLBACK")
 
 
+    def test_zzz_parallel_first_votes_are_serialized_before_cooldown_check(self):
+        """Two real PG sessions cannot both read an unrecorded first vote.
+
+        Transaction-scoped advisory lock is acquired before the first SELECT
+        of the existing ballot position and cooldown record. The second
+        transaction must see the first one's committed vote/timestamp.
+        """
+        url = require_ephemeral_civic_database_url(os.environ["CIVIC_TEST_DATABASE_URL"])
+        ballot_id = None
+        first = second = None
+        with self.conn.cursor() as cur:
+            cur.execute("""INSERT INTO public.civic_ballots
+                (civic_process_id,ballot_kind,question_text,yes_meaning,no_meaning,
+                 opens_at,closes_at,timezone,source_id,source_url)
+                VALUES (%s,'referendum','Concurrent synthetic fixture','Yes','No',
+                        '2027-01-01T00:00:00Z','2027-02-01T00:00:00Z',
+                        'Europe/Rome','staging-fixture-concurrent-001',
+                        'https://example.invalid/concurrency-fixture')
+                RETURNING id""", (PROCESS,))
+            ballot_id = cur.fetchone()[0]
+        scope = "referendum-vote:" + str(ballot_id)
+        try:
+            first = psycopg2.connect(url)
+            second = psycopg2.connect(url)
+            with first.cursor() as a, second.cursor() as b:
+                a.execute("SET LOCAL ROLE demos_staging_runtime")
+                b.execute("SET LOCAL ROLE demos_staging_runtime")
+                a.execute("""SELECT pg_advisory_xact_lock(
+                     hashtext(%s::text),hashtext(%s::text))""",
+                          (USER_A, str(ballot_id)))
+                a.execute("""INSERT INTO public.civic_ballot_positions
+                      (civic_ballot_id,user_id,choice)
+                      VALUES (%s,%s,'YES')""", (ballot_id, USER_A))
+                a.execute("""INSERT INTO public.preference_change_cooldowns
+                      (user_id,scope,last_changed_at)
+                      VALUES (%s,%s,NOW())""", (USER_A, scope))
+
+                # An unrelated user should NOT block on the first user's lock.
+                b.execute("SET LOCAL lock_timeout='250ms'")
+                b.execute("""SELECT pg_advisory_xact_lock(
+                     hashtext(%s::text),hashtext(%s::text))""",
+                          (USER_B, str(ballot_id)))
+                second.rollback()  # release unrelated lock
+                b.execute("SET LOCAL ROLE demos_staging_runtime")
+                b.execute("SET LOCAL lock_timeout='250ms'")
+                # Same user and ballot MUST block; exception is lock timeout.
+                with self.assertRaises(psycopg2.Error) as rejected:
+                    b.execute("""SELECT pg_advisory_xact_lock(
+                         hashtext(%s::text),hashtext(%s::text))""",
+                              (USER_A, str(ballot_id)))
+                self.assertEqual(rejected.exception.pgcode, "55P03")
+                second.rollback()
+                first.commit()  # both vote and cooldown become visible together
+
+                b.execute("SET LOCAL ROLE demos_staging_runtime")
+                b.execute("SET LOCAL lock_timeout='750ms'")
+                b.execute("""SELECT pg_advisory_xact_lock(
+                     hashtext(%s::text),hashtext(%s::text))""",
+                          (USER_A, str(ballot_id)))
+                b.execute("""SELECT choice FROM public.civic_ballot_positions
+                      WHERE civic_ballot_id=%s AND user_id=%s""",
+                          (ballot_id, USER_A))
+                self.assertEqual(b.fetchone(), ("YES",))
+                b.execute("""SELECT last_changed_at FROM public.preference_change_cooldowns
+                      WHERE user_id=%s AND scope=%s""", (USER_A, scope))
+                self.assertIsNotNone(b.fetchone()[0],
+                    "Second transaction must see the first committed cooldown")
+                second.rollback()
+        finally:
+            if first:
+                first.rollback()
+                first.close()
+            if second:
+                second.rollback()
+                second.close()
+            if ballot_id is not None:
+                # No test rows may persist even inside the disposable CI DB.
+                with self.conn.cursor() as cleanup:
+                    cleanup.execute("""DELETE FROM public.preference_change_cooldowns
+                           WHERE user_id=%s AND scope=%s""", (USER_A, scope))
+                    cleanup.execute("""DELETE FROM public.civic_ballot_positions
+                           WHERE civic_ballot_id=%s""", (ballot_id,))
+                    cleanup.execute("DELETE FROM public.civic_ballots WHERE id=%s",
+                                    (ballot_id,))
+        with self.conn.cursor() as check:
+            check.execute("""SELECT count(*) FROM public.civic_ballot_positions
+                             WHERE civic_ballot_id=%s""", (ballot_id,))
+            self.assertEqual(check.fetchone(), (0,))
+            check.execute("""SELECT count(*) FROM public.preference_change_cooldowns
+                             WHERE scope=%s""", (scope,))
+            self.assertEqual(check.fetchone(), (0,))
+
+
 if __name__ == "__main__":
     unittest.main()
