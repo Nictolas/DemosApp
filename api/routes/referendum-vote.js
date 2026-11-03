@@ -276,6 +276,16 @@ router.post(
       await client.query('BEGIN');
       transactionStarted = true;
 
+      // Serialize choices for the SAME voter and referendum, including the
+      // first-ever vote when SELECT ... FOR UPDATE finds no existing row.
+      // Without this lock, two concurrent first votes could both pass the
+      // 24-hour preference cooldown before either INSERT becomes visible.
+      // Transaction-level advisory locks are released by COMMIT/ROLLBACK.
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtext($1::text), hashtext($2::text))',
+        [String(req.userId), ballotId],
+      );
+
       const ballotResult = await client.query(
         `SELECT id, status, opens_at, closes_at
          FROM civic_ballots
