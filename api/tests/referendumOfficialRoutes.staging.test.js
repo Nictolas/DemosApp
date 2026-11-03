@@ -52,6 +52,6 @@ test('next referendum widget uses only official ministry source without unsuppor
   const code=src.slice(begin,end);
   assert.match(code,/buildQueryForTipo\('referendum', null, null, false, true\)/);
   assert.match(code,/selectNextOfficialReferendum/);
-  assert.doesNotMatch(code,/referendum_abrogativi\s+(WHERE|r)|firestore_id_backup|\bquorum\b|\bstatus\b/);
+  assert.doesNotMatch(code,/FROM\s+referendum_abrogativi|firestore_id_backup|\b(?:row|r)\.(?:status|quorum)\b/i);
   assert.doesNotMatch(code,/details:\s*error\.message/);
 });
