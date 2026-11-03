@@ -79,18 +79,18 @@ function evaluateSchema(present, required = REQUIRED_TABLES) {
 function evaluateAllPublicStagingTables(rows) {
   if (!Array.isArray(rows)) return {ready:false,checkedCount:0,unsafe:['metadata_unavailable']};
   const unsafe = rows.filter(row =>
-    !row.table_name || row.rls_enabled !== true ||
+    !row || typeof row !== 'object' || !row.table_name || row.rls_enabled !== true ||
     row.anon_can_access !== false || row.authenticated_can_access !== false
-  ).map(row => row.table_name || 'unknown');
+  ).map(row => row?.table_name || 'unknown');
   return {ready:rows.length>0 && unsafe.length===0,checkedCount:rows.length,unsafe};
 }
 
 function evaluatePublicSequenceProtection(rows) {
   if (!Array.isArray(rows)) return {ready:false,checkedCount:0,unsafe:['metadata_unavailable']};
   const unsafe = rows.filter(row =>
-    !row.sequence_name || row.anon_can_access !== false ||
+    !row || typeof row !== 'object' || !row.sequence_name || row.anon_can_access !== false ||
     row.authenticated_can_access !== false
-  ).map(row => row.sequence_name || 'unknown');
+  ).map(row => row?.sequence_name || 'unknown');
   return {ready:unsafe.length===0,checkedCount:rows.length,unsafe};
 }
 
@@ -99,9 +99,9 @@ function evaluatePublicSequenceProtection(rows) {
 function evaluatePublicViewExposure(rows) {
   if (!Array.isArray(rows)) return {ready:false,checkedCount:0,unsafe:['metadata_unavailable']};
   const unsafe = rows.filter(row =>
-    !row.object_name || !['v','m','f'].includes(row.relkind) ||
+    !row || typeof row !== 'object' || !row.object_name || !['v','m','f'].includes(row.relkind) ||
     row.anon_can_access !== false || row.authenticated_can_access !== false
-  ).map(row => row.object_name || 'unknown');
+  ).map(row => row?.object_name || 'unknown');
   return {ready:unsafe.length===0,checkedCount:rows.length,unsafe};
 }
 
@@ -111,9 +111,9 @@ function evaluatePublicViewExposure(rows) {
 function evaluatePublicRoutineExposure(rows) {
   if (!Array.isArray(rows)) return {ready:false,checkedCount:0,unsafe:['metadata_unavailable']};
   const unsafe = rows.filter(row =>
-    !row.routine_name || row.anon_can_execute !== false ||
+    !row || typeof row !== 'object' || !row.routine_name || row.anon_can_execute !== false ||
     row.authenticated_can_execute !== false
-  ).map(row => row.routine_name || 'unknown');
+  ).map(row => row?.routine_name || 'unknown');
   return {ready:unsafe.length===0,checkedCount:rows.length,unsafe};
 }
 
@@ -176,7 +176,7 @@ function evaluateStagingIdentity(rows) {
     rows[0]?.identity_hash === STAGING_IDENTITY_HASH;
 }
 function evaluateBlockedGuard(rows) {
-  return Array.isArray(rows) && rows.length === 1 && rows[0].blocked === true;
+  return Array.isArray(rows) && rows.length === 1 && rows[0]?.blocked === true;
 }
 
 // Verify actual PostgreSQL session identity and capabilities, not just
@@ -195,7 +195,7 @@ function evaluatePreflightRole(rows) {
 }
 function evaluatePreflightWriteGrants(rows) {
   return Array.isArray(rows) && rows.length > 0 &&
-    rows.every(r => typeof r.table_name === 'string' &&
+    rows.every(r => r && typeof r === 'object' && typeof r.table_name === 'string' &&
       r.table_name.length > 0 && r.can_write === false);
 }
 
