@@ -17,6 +17,7 @@ export interface Notifica {
     ruolo: string;
   };
   voto?: string;
+  camera?: string;
   data?: string;
   comune_residenza?: string;
   politico?: string;
