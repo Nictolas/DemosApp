@@ -2,6 +2,8 @@
 const crypto = require('node:crypto');
 
 const PACKAGE_NAME = 'community.demos';
+// The existing Play Console-linked DEMOS Cloud project, not a new resource.
+const EXPECTED_CLOUD_PROJECT_NUMBER = '848085963511';
 const TOKEN_MAX_AGE_MS = 120_000;
 const FUTURE_SKEW_MS = 30_000;
 
@@ -9,7 +11,7 @@ const FUTURE_SKEW_MS = 30_000;
 function isActivationAuthorized(env = process.env) {
   return env.PLAY_INTEGRITY_ENABLED === 'true'
     && env.PLAY_INTEGRITY_ZERO_COST_CONFIRMED === 'true'
-    && /^[1-9]\d{5,19}$/.test(env.PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER || '');
+    && env.PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER === EXPECTED_CLOUD_PROJECT_NUMBER;
 }
 
 function stableJson(value) {
@@ -91,4 +93,4 @@ function analyzeDecodedVerdict(decodedResponse, { action, payload, now = Date.no
   };
 }
 
-module.exports = { PACKAGE_NAME, isActivationAuthorized, stableJson, createRequestHash, analyzeDecodedVerdict };
+module.exports = { PACKAGE_NAME, EXPECTED_CLOUD_PROJECT_NUMBER, isActivationAuthorized, stableJson, createRequestHash, analyzeDecodedVerdict };
