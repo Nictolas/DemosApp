@@ -3,6 +3,7 @@
 const Groq = require('groq-sdk');
 const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
 const { hasDocumentaryContext } = require('./parliamentGroundedAnalysis');
+const { requestFreeGroq } = require('./parliamentFreeGroqBudget');
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
@@ -16,7 +17,7 @@ let groqModel = null;
 if (isGroqConfigured()) {
   try {
     groqModel = resolveFreeGroqModel(process.env.GROQ_MODEL);
-    aiClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    aiClient = new Groq({ apiKey: process.env.GROQ_API_KEY, maxRetries: 0 });
     aiProvider = 'groq';
     console.log('Groq AI spiegazioni pronto (modello Free allowlisted)');
   } catch (_error) {
@@ -85,12 +86,17 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
     ];
 
     // Un solo provider e un modello allowlisted: non chiamare mai OpenAI a pagamento.
-    const completion = await aiClient.chat.completions.create({
+    const completion = await requestFreeGroq(aiClient, {
       model: groqModel,
       messages,
-      max_tokens: 300,
-      temperature: 0.7
+      max_completion_tokens: 450,
+      reasoning_effort: 'low',
+      temperature: 0.2
     });
+    if (!completion) {
+      console.warn('Spiegazione parlamentare rimandata: quota Groq Free o limite 429');
+      return null;
+    }
 
     const spiegazione = completion.choices[0]?.message?.content?.trim();
     if (spiegazione && spiegazione !== 'INFORMAZIONI_INSUFFICIENTI' && spiegazione.length <= 2000) {
