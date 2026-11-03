@@ -193,3 +193,51 @@ test('P5 synthetic runtime ACL preserves the ten-response publication limit', ()
   assert.doesNotMatch(p5FixtureAclSql, /GRANT (?:ALL|DELETE|TRUNCATE) ON public.civic_ballot_forecast_snapshots/);
   assert.match(p5FixtureAclSql, /CREATE POLICY p5_staging_synthetic_snapshot_update/);
 });
+
+test('P5 snapshot capture suppresses two-user fixture results without writing', async () => {
+  const {captureReferendumForecastSnapshots} = require('../services/referendumForecastSnapshotService');
+  const statements = [];
+  const pool = {query: async (statement) => {
+    statements.push(statement);
+    return {rows: [{
+      civic_ballot_id: '00000000-0000-4000-8000-00000000b001',
+      opens_at: '2026-11-06T00:00:00Z',
+      total_responses: 2, yes_count: 1, no_count: 1, abstain_count: 0,
+    }]};
+  }};
+  const result = await captureReferendumForecastSnapshots({
+    pool, now: new Date('2026-11-03T00:00:00Z'),
+  });
+  assert.equal(result.fetched, 1);
+  assert.equal(result.suppressed, 1);
+  assert.equal(result.captured, 0);
+  assert.equal(result.errors.length, 0);
+  assert.equal(statements.length, 1, 'Small fixture counts must not be saved');
+});
+
+test('P5 aggregate service writes only at ten responses; frozen snapshots stay immutable', async () => {
+  const {captureReferendumForecastSnapshots} = require('../services/referendumForecastSnapshotService');
+  for (const frozen of [false, true]) {
+    const queries = [];
+    const now = new Date('2026-11-03T00:00:00Z');
+    const pool = {query: async (sql, args) => {
+      queries.push({sql,args});
+      if (sql.includes('FROM civic_ballots cb')) {
+        return {rows: [{
+          civic_ballot_id: '00000000-0000-4000-8000-00000000b001',
+          opens_at: frozen ? '2026-11-02T00:00:00Z' : '2026-11-04T00:00:00Z',
+          total_responses: 10, yes_count: 6, no_count: 3, abstain_count: 1,
+        }]};
+      }
+      return {rowCount: 1};
+    }};
+    const result = await captureReferendumForecastSnapshots({pool,now});
+    assert.equal(result.captured,1);
+    assert.equal(result.suppressed,0);
+    assert.equal(queries.length,2);
+    assert.match(queries[1].sql, frozen ? /DO NOTHING/ :
+      /WHERE civic_ballot_forecast_snapshots.is_frozen = FALSE/);
+    assert.equal(queries[1].args[2],10);
+    assert.deepEqual(queries[1].args.slice(3),[6,3,1]);
+  }
+});
