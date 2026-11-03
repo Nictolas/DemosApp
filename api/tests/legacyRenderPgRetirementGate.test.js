@@ -88,3 +88,14 @@ test('invalid metric window and sample types fail closed even with other approva
     assert.equal(assess(e).readyForHumanRetirementReview, false);
   }
 });
+
+test('missing or malformed evidence never throws and always blocks retirement', () => {
+  for (const invalid of [null, undefined, false, 0, 'verified', [], NaN]) {
+    assert.doesNotThrow(() => assess(invalid));
+    const decision = assess(invalid);
+    assert.equal(decision.readyForHumanRetirementReview, false);
+    assert.equal(decision.canAutomaticallyDelete, false);
+    assert.ok(decision.blockers.includes('WRONG_RENDER_POSTGRES_RESOURCE'));
+    assert.ok(decision.blockers.includes('BACKUP_NOT_VERIFIED'));
+  }
+});
