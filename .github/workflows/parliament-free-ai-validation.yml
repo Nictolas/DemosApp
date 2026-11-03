@@ -1,0 +1,32 @@
+name: Parliament Free AI Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/services/parliamentFreeAiPolicy.js'
+      - 'api/services/aiExplanationService.js'
+      - 'api/services/leggeAnalysisService.js'
+      - 'api/tests/parliamentFreeAiPolicy.test.js'
+      - '.github/workflows/parliament-free-ai-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  free-only-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check without API keys
+        run: |
+          node --check api/services/parliamentFreeAiPolicy.js
+          node --check api/services/aiExplanationService.js
+          node --check api/services/leggeAnalysisService.js
+      - name: Free-only provider regression
+        run: node --test api/tests/parliamentFreeAiPolicy.test.js
