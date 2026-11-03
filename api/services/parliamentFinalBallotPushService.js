@@ -9,8 +9,8 @@ const BATCH = 250;
 const MAX_RECIPIENTS = 5000; // safety gate; scale delivery separately before broad rollout
 
 function resolvePushTarget(chamber) {
-  if (chamber === 'Camera') return { selection: 'rappresentante_camera', preference: 'deputato' };
-  if (chamber === 'Senato') return { selection: 'rappresentante_senato', preference: 'senatore' };
+  if (chamber === 'Camera') return { office: 'it.camera', preference: 'deputato' };
+  if (chamber === 'Senato') return { office: 'it.senato', preference: 'senatore' };
   return null;
 }
 
@@ -24,16 +24,18 @@ async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisI
   }
   const admin = options.firebaseAdmin || getFirebaseAdmin();
   if (!admin) return { enabled: true, sent: 0, failed: 0, available: false };
-  // This query checks the recipient's CURRENT representative, active state,
-  // explicit category consent, and active device at delivery time.
+  // Current canonical selection and category opt-in checked at dispatch time.
   const sql = ('SELECT DISTINCT d.fcm_token FROM users u ' +
+    'JOIN political_selections ps ON ps.user_id = u.id ' +
     'JOIN notifiche_preferenze p ON p.user_id = u.id ' +
     'JOIN user_devices d ON d.user_id = u.id AND d.is_active = TRUE ' +
-    'WHERE u.__REP__ = $1::text AND lower(coalesce(u.status, \'\')) = \'a\' ' +
+    "WHERE ps.selected_user_id = $1::uuid AND ps.selection_kind = 'representative' " +
+    'AND ps.political_office_id = $2 ' +
+    "AND lower(coalesce(u.status, '')) = 'a' " +
     'AND p.__PREF__ IS TRUE AND d.fcm_token IS NOT NULL ' +
-    'AND length(btrim(d.fcm_token)) > 100 ORDER BY d.fcm_token LIMIT $2')
-    .replace('__REP__', target.selection).replace('__PREF__', target.preference);
-  const { rows } = await pool.query(sql, [String(representativeId), MAX_RECIPIENTS + 1]);
+    'AND length(btrim(d.fcm_token)) > 100 ORDER BY d.fcm_token LIMIT $3')
+    .replace('__PREF__', target.preference);
+  const { rows } = await pool.query(sql, [String(representativeId), target.office, MAX_RECIPIENTS + 1]);
   if (rows.length > MAX_RECIPIENTS) {
     // Do not partly deliver if the volume exceeds reviewed free-tier capacity.
     return { enabled: true, sent: 0, failed: 0, capacityGate: true };
