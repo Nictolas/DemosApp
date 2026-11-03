@@ -125,6 +125,8 @@ class DataRetentionJob {
    * Invia notifiche settimanali
    */
   async sendWeeklyNotifications() {
+    // Direct scheduler invocation must not query potentially millions of accounts.
+    DataRetentionService.assertLegacyRetentionWriteUnavailable();
     try {
       console.log('📧 Invio notifiche settimanali data retention...');
       
