@@ -34,6 +34,9 @@ function createAppCheckLocalBudget({ maxDaily = DEFAULT_MAX_VERIFICATIONS_PER_PR
   function reserve(now = Date.now()) {
     if (!Number.isSafeInteger(now) || now < 0) return false;
     const day = new Date(now).toISOString().slice(0, 10);
+    // A backward clock adjustment must not reset an already-used budget.
+    // This is only a per-process safety brake, never a global Google quota.
+    if (utcDay && day < utcDay) return false;
     if (day !== utcDay) {
       utcDay = day;
       used = 0;
@@ -46,6 +49,7 @@ function createAppCheckLocalBudget({ maxDaily = DEFAULT_MAX_VERIFICATIONS_PER_PR
   function remaining(now = Date.now()) {
     if (!Number.isSafeInteger(now) || now < 0) return 0;
     const day = new Date(now).toISOString().slice(0, 10);
+    if (utcDay && day < utcDay) return 0;
     return day === utcDay ? Math.max(0, maxDaily - used) : maxDaily;
   }
 
