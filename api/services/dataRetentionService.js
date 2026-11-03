@@ -256,6 +256,9 @@ class DataRetentionService {
    * Invia notifiche prima della cancellazione
    */
   static async sendRetentionNotifications(daysBeforeDeletion = 30) {
+    // Legacy implementation performs up to seven unbounded SELECTs of PII.
+    // The historic retention basis has not been validated; do not inventory users.
+    this.assertLegacyRetentionWriteUnavailable();
     try {
       const policies = this.getRetentionPolicies();
       const notifications = [];
