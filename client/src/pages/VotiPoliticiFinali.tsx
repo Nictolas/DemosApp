@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link as WouterLink } from "wouter";
 import { ArrowLeft, ExternalLink, RefreshCw, Search } from "lucide-react";
@@ -50,6 +50,7 @@ function isRecentFinale(v: VotoFinale): boolean {
 export default function VotiPoliticiFinali() {
   const [search, setSearch] = useState("");
   const [selectedVote, setSelectedVote] = useState<VotoFinale | null>(null);
+  const [handledDeepLink, setHandledDeepLink] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
@@ -112,6 +113,20 @@ export default function VotiPoliticiFinali() {
     staleTime: 12 * 60 * 60 * 1000,
     retry: false
   });
+  // Old push messages still resolve in the archive after the single latest
+  // notification has been replaced. Only existing recent FINAL votes can open.
+  useEffect(() => {
+    if (handledDeepLink || data.length === 0 || typeof window === "undefined") return;
+    const id = new URLSearchParams(window.location.search).get("final_vote");
+    if (!id || !/^(?:vs19_\d{1,5}_\d{1,5}|19-\d{1,5}-\d{1,5})$/.test(id)) {
+      setHandledDeepLink(true);
+      return;
+    }
+    const match = data.find(v => v.openpolis_id === id && isRecentFinale(v));
+    if (match) setSelectedVote(match);
+    setHandledDeepLink(true);
+  }, [data, handledDeepLink]);
+
   const visibleMembers = useMemo(() => {
     const q = memberSearch.trim().toLocaleLowerCase("it");
     return (nominal.data?.members || []).filter(m =>
