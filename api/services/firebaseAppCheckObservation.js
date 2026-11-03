@@ -47,6 +47,12 @@ function createAppCheckLocalBudget({ maxDaily = DEFAULT_MAX_VERIFICATIONS_PER_PR
 
 const defaultVerificationBudget = createAppCheckLocalBudget();
 
+function isDiagnosticRouteEnabled(env = process.env) {
+  // A third gate is required in addition to observation + cost approval.
+  return env.FIREBASE_APP_CHECK_DIAGNOSTIC_ENABLED === 'true'
+    && isObservationEnabled(env);
+}
+
 function isObservationEnabled(env = process.env) {
   return env.FIREBASE_APP_CHECK_OBSERVE_ENABLED === 'true'
     && env.FIREBASE_APP_CHECK_COST_GUARD_APPROVED === 'true'
@@ -117,6 +123,7 @@ module.exports = {
   HEADER_NAME,
   EXPECTED_FIREBASE_PROJECT,
   isObservationEnabled,
+  isDiagnosticRouteEnabled,
   validTokenShape,
   createAppCheckLocalBudget,
   DEFAULT_MAX_VERIFICATIONS_PER_PROCESS_PER_DAY,
