@@ -206,3 +206,12 @@ test('preflight refuses any public table write grant, even a single one', () => 
     [{table_name:'',can_write:false}]
   ]) assert.equal(evaluatePreflightWriteGrants(bad),false);
 });
+
+test('P2 legacy opinion, referendum and parliamentary tables are mandatory and private', () => {
+  for (const name of ['opinioni_domande','voti_referendum_abrogativi','notifiche_voti_parlamento','voti_camera']) {
+    assert.equal(REQUIRED_TABLES.includes(name), true, 'required: '+name);
+    assert.equal(CIVIC_PRIVATE_TABLES.includes(name), true, 'private: '+name);
+    const subset = REQUIRED_TABLES.filter(x => x !== name);
+    assert.equal(evaluateSchema(subset).ready, false, 'missing table must block: '+name);
+  }
+});
