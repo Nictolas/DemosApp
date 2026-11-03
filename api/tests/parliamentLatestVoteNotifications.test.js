@@ -103,7 +103,8 @@ test('enabled orchestration uses only selected active representatives and one ve
   process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED='true';
   const queries = [];
   let fetches=0;
-  const vote=finalVote('Camera','vs19_730_097');
+  // PostgreSQL DATE is parsed as a JS Date by pg; the validator must get ISO.
+  const vote={...finalVote('Camera','vs19_730_097'), data_votazione:new Date(today+'T00:00:00Z')};
   const pool={
     query: async sql=>{
       queries.push(sql);
@@ -118,8 +119,9 @@ test('enabled orchestration uses only selected active representatives and one ve
   };
   try{
     const outcome=await refreshLatestParliamentVoteNotifications(pool,{
-      getVerifiedFinalBallots:async()=>{
+      getVerifiedFinalBallots:async sourceVote=>{
         fetches++;
+        assert.equal(sourceVote.data_votazione,today);
         return {voteId:vote.openpolis_id,chamber:vote.camera,date:today,
           source:{url:'https://documenti.camera.it/record'},members};
       }
