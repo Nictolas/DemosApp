@@ -17,6 +17,7 @@ const REQUIRED_TABLES = Object.freeze([
   'opinioni_domande', 'voti_referendum_abrogativi', 'notifiche_voti_parlamento', 'voti_camera',
   'civic_ballots', 'civic_ballot_positions', 'notifiche_avvistamenti', 'notifiche_comunali',
   'notifiche_voti_comuni', 'political_opinion_notifications', 'segnalazioni',
+  'preference_change_cooldowns',
 ]);
 // Core staging tables deny direct client access, regardless of any broad Data API defaults.
 const CIVIC_PRIVATE_TABLES = Object.freeze([
@@ -28,6 +29,7 @@ const CIVIC_PRIVATE_TABLES = Object.freeze([
   'opinioni_domande', 'voti_referendum_abrogativi', 'notifiche_voti_parlamento', 'voti_camera',
   'civic_ballots', 'civic_ballot_positions', 'notifiche_avvistamenti', 'notifiche_comunali',
   'notifiche_voti_comuni', 'political_opinion_notifications', 'segnalazioni',
+  'preference_change_cooldowns',
 ]);
 
 function assertStagingTarget(value, env = process.env) {
