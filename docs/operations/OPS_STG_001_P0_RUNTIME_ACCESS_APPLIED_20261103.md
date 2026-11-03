@@ -29,3 +29,11 @@ Dopo il controllo preliminare del database reale (tutti i gate veri), la migrazi
 Lo staging Render `demos-staging` è ancora **bootstrap-only**, con auto-deploy OFF e readiness applicativa 503. I permessi appena applicati non costituiscono un GO per altri test applicativi. Il gate T-55 richiede ancora connessione reale **Render → Supabase Demos-Staging in session mode**, TLS e identità del runtime verificata, senza utilizzare il pooler transaction-mode 6543. Restano inoltre test end-to-end con dati sintetici, consenso e revoca, Firebase e dispositivi reali, privacy/DPO, canary e rollback.
 
 **Non** cancellare i vecchi staging, il vecchio PostgreSQL Render o abilitare l'invio push sulla base di questo intervento. Il backup del vecchio database Render è stato ripristinato con successo in precedenza, ma il cutover non è concluso.
+
+## Controllo globale delle esposizioni RLS — 03/11/2026
+
+Audit read-only effettuato su **tutte le 38 tabelle `public`** presenti su Supabase Demos-Staging al momento della verifica: **38/38 con RLS attiva**, nessun privilegio diretto `SELECT/INSERT/UPDATE/DELETE` concesso ai ruoli `anon` o `authenticated`. Il provider non consente all'account di connessione di impostare `SET ROLE demos_staging_runtime` (permission denied); questo audit quindi **non è un test reale dell'esecuzione delle API come runtime**, né chiude T-55.
+
+Per impedire regressioni future, il preflight in `api/scripts/unifiedStagingPreflight.js` è stato esteso: invece di ispezionare soltanto una lista fissa di tabelle private, verifica RLS e grants client per **ogni tabella pubblica presente**, comprese quelle aggiunte successivamente, e rifiuta risultati sconosciuti o vuoti. Resta obbligatorio il controllo di identità DB e il GO separato per qualunque socket di rete. Test negativi in `api/tests/unifiedStagingPreflight.test.js` coprono nuove tabelle prive di RLS e privilegi pubblici non autorizzati. 
+
+**Risultati:** 37/37 test Node locali PASS (worktree temporanea rimossa); workflow `Unified Staging Offline Safety` sul commit `366f9160` completato **SUCCESS**. Nessun cambio a Render/Supabase o invio FCM per questa modifica di codice. **Staging ancora NO-GO per E2E applicativi e session-affinity T-55 non certificata.**
