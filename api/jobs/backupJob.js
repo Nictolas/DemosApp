@@ -237,7 +237,9 @@ class BackupJob {
       hasIncrementalBackupInterval: this.incrementalBackupInterval !== null,
       lastFullBackup: this.lastFullBackup,
       lastIncrementalBackup: this.lastIncrementalBackup,
-      // Admin job/status is intentionally readable, but must never serialize\n      // the raw BACKUP_ENCRYPTION_KEY. /config itself is retired.\n      config: this.getRedactedLegacyConfig()
+      // Admin job/status is intentionally readable, but must never serialize
+      // the raw BACKUP_ENCRYPTION_KEY. /config itself is retired.
+      config: this.getRedactedLegacyConfig()
     };
   }
 
