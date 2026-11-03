@@ -172,7 +172,12 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
           try {
             console.log('🤖 Generazione analisi AI per la votazione...');
             // Aggiungi timeout per evitare blocchi
-            const analisiPromise = generaAnalisiLegge(votazione.titolo, decodedUri);
+            const analisiPromise = generaAnalisiLegge(decodedUri, {
+              titolo: votazione.titolo,
+              descrizione: votazione.descrizione || '',
+              camera: 'Parlamento europeo',
+              data_votazione: votazione.data_votazione
+            });
             const timeoutPromise = new Promise((_, reject) => 
               setTimeout(() => reject(new Error('Timeout generazione analisi (20s)')), 20000)
             );
@@ -256,8 +261,22 @@ router.post('/rigenera-analisi/:uri', verifyToken, async (req, res) => {
     }
     
     // Genera nuova analisi
-    const analisiLegge = await generaAnalisiLegge(votazione.titolo, decodedUri);
+    const analisiLegge = await generaAnalisiLegge(decodedUri, {
+              titolo: votazione.titolo,
+              descrizione: votazione.descrizione || '',
+              camera: 'Parlamento europeo',
+              data_votazione: votazione.data_votazione
+            });
     
+    if (!analisiLegge) {
+      // Il testo ufficiale resta disponibile anche quando manca la spiegazione AI.
+      return res.status(503).json({
+        success: false,
+        error: 'Spiegazione AI temporaneamente non disponibile',
+        message: 'Non è disponibile un testo documentale sufficiente o è stata raggiunta la quota gratuita. Nessun addebito o dato di voto viene modificato.'
+      });
+    }
+
     res.json({
       success: true,
       data: {
