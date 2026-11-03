@@ -18,6 +18,10 @@ async function reconcileAllCivicTopics(pool, {
   messaging = null,
   batchSize = 500,
 } = {}) {
+  // A malformed CLI/options payload must never turn a preview into FCM writes.
+  if (typeof dryRun !== 'boolean' || typeof enabled !== 'boolean') {
+    throw new TypeError('CIVIC_BOOTSTRAP_FLAGS_INVALID');
+  }
   if (!pool || typeof pool.connect !== 'function') throw new TypeError('CIVIC_POOL_REQUIRED');
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 500) {
     throw new RangeError('CIVIC_BOOTSTRAP_BATCH_INVALID');
