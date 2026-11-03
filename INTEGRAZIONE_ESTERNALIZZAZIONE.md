@@ -1,5 +1,8 @@
 # 🔧 Integrazione Esternalizzazione Log con GDPR
 
+> **ATTENZIONE — DOCUMENTO STORICO NON OPERATIVO (03/11/2026).** Questa guida descrive una soluzione Neon/log/export legacy non autorizzata. **NON eseguire** gli esempi, non installare cron/Task Scheduler, non avviare esportazioni cloud e **non eliminare** file, versioni o righe SQL. La [PR #580](https://github.com/Nictolas/DemosApp/pull/580) contiene blocchi fail-closed **solo Draft, non distribuiti**; lo script `cloud-backup-export.js` è stato ritirato sulla stessa PR. L'archiviazione attuale Axiom→B2 è distinta. Il recupero GDPR da B2 (GH-296), l'integrità/versioning/Object Lock, la retention e il restore indipendente sono ancora **NO-GO**, subordinati a evidenze reali, revisione DPO e autorizzazione specifica. Stime di costi e dichiarazioni di conformità sottostanti sono storiche e non verificate.
+
+
 Questa guida spiega come integrare le funzionalità GDPR nello script di export esistente.
 
 ## 📋 File Creati
@@ -101,10 +104,10 @@ AWS_S3_REGION=eu-west-1
 
 ```bash
 # Backup completo
-node scripts/cloud-backup-export.js full
+# DISABILITATO: multi-cloud export legacy ritirato
 
 # Backup solo file nuovi
-node scripts/cloud-backup-export.js new 7
+# DISABILITATO: multi-cloud export legacy ritirato
 ```
 
 ### **Fase 5: Automazione Completa**
@@ -120,7 +123,7 @@ async function automatedExport() {
   
   // 1. Export su hard disk
   const result = await exportToHardDisk({
-    deleteAfterExport: true,
+    deleteAfterExport: false, // ESEMPIO STORICO NON ESEGUIBILE: script ritirato
     tables: ['audit_logs', 'centralized_logs']
   });
   
@@ -135,7 +138,7 @@ async function automatedExport() {
   console.log('\n🎉 Processo completato!');
 }
 
-automatedExport().catch(console.error);
+// DISABILITATO: non avviare il flusso legacy\n// automatedExport().catch(console.error);
 ```
 
 ## 📊 Schema di Funzionamento
@@ -208,7 +211,7 @@ node -e "
 "
 
 # 5. Test backup cloud
-node scripts/cloud-backup-export.js new 1
+# DISABILITATO: multi-cloud export legacy ritirato
 ```
 
 ## ⚠️ Note Importanti
