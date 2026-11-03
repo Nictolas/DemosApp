@@ -48,7 +48,7 @@ test('uses explicit current opt-in for each chamber and only active registered d
     assert.equal(resolvePushTarget('Parlamento europeo'),null);
     const outcome=await sendFinalBallotPush(pool,{
       representativeId:'rep-1',chamber:'Camera',openpolisId:'vs19_730_097',
-      title:'Voto finale',status:'Favorevole'
+      title:'DDL sensibile e tema non pubblicabile nel push',status:'Favorevole'
     },{firebaseAdmin:admin});
     assert.equal(outcome.sent,1);
     assert.match(calls[0].sql,/ps\.selected_user_id = \$1::uuid/);
@@ -59,6 +59,11 @@ test('uses explicit current opt-in for each chamber and only active registered d
     assert.equal(calls[0].args[2],MAX_RECIPIENTS+1);
     assert.equal(sent[0].data.type,'parliament_final_vote');
     assert.equal(sent[0].data.url,'/notifiche?final_vote=vs19_730_097');
+    assert.equal(sent[0].notification.body,
+      'Una nuova votazione finale è disponibile. Apri DEMOS per i dettagli.');
+    assert.ok(!sent[0].notification.body.includes('Favorevole'));
+    assert.ok(!sent[0].notification.body.includes('DDL sensibile'));
+    assert.equal(sent[0].notification.title,'Il tuo deputato: nuova votazione finale');
     assert.equal(sent[0].android.notification.channelId,'demos_notifications');
     assert.ok(calls.some(x=>x.sql.includes('FOR SHARE OF u, ps, p, d')));
     assert.ok(calls.some(x=>x.sql === 'COMMIT'));
@@ -71,6 +76,10 @@ test('uses explicit current opt-in for each chamber and only active registered d
     assert.ok(calls.some(x=>x.sql.includes('p.senatore IS TRUE')));
     assert.equal(calls.find(x=>x.sql.includes('p.senatore IS TRUE')).args[1],'it.senato');
     assert.equal(sent[1].data.url,'/notifiche?final_vote=19-469-3');
+    assert.equal(sent[1].notification.body,
+      'Una nuova votazione finale è disponibile. Apri DEMOS per i dettagli.');
+    assert.ok(!sent[1].notification.body.includes('Astenuto'));
+    assert.equal(sent[1].notification.title,'Il tuo senatore: nuova votazione finale');
   }finally{
     if(previous===undefined)delete process.env.PARLIAMENT_FINAL_PUSH_ENABLED;
     else process.env.PARLIAMENT_FINAL_PUSH_ENABLED=previous;
