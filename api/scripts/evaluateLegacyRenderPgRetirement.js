@@ -4,6 +4,25 @@
 // This contract never deletes infrastructure. It only identifies whether all
 // independent evidence is present for a separate human GO decision.
 const EXPECTED_PG_ID = 'dpg-db4id8id0e5s73cfb0cg-a';
+const EXPECTED_LEGACY_SERVICE_IDS = Object.freeze([
+  "srv-dbkcblss728c73conl60",
+  "srv-dbeeca5g1s2s73fb7pd0",
+  "srv-dbct3vmq1p3s73d7rhg0",
+  "srv-dbckvbivcj2c73f0i7e0",
+  "srv-db8i4d689jmc73drmhp0",
+  "srv-db8hdg8u01pc7387rbc0",
+  "srv-db8h8ubncjis73b26hu0",
+  "srv-db8h4uo473hc73eums60",
+  "srv-db2ho5jncjis73ep4ot0"
+]);
+
+function hasExactLegacyServiceCoverage(ids) {
+  if (!Array.isArray(ids) || ids.length !== EXPECTED_LEGACY_SERVICE_IDS.length ||
+      ids.some((id) => typeof id !== 'string') || new Set(ids).size !== ids.length) {
+    return false;
+  }
+  return EXPECTED_LEGACY_SERVICE_IDS.every((id) => ids.includes(id));
+}
 
 function evaluateLegacyRenderPgRetirement(evidence = {}) {
   // Malformed or absent evidence must produce a NO-GO decision, not crash an audit.
@@ -17,7 +36,8 @@ function evaluateLegacyRenderPgRetirement(evidence = {}) {
   reject(typeof evidence.backup?.sha256 === 'string' &&
     /^[a-f0-9]{64}$/i.test(evidence.backup.sha256), 'BACKUP_CHECKSUM_NOT_VERIFIED');
   reject(evidence.backup?.restoreTestPassed === true, 'BACKUP_RESTORE_NOT_TESTED');
-  reject(evidence.dependencies?.allNineServicesAudited === true,
+  reject(evidence.dependencies?.allNineServicesAudited === true &&
+    hasExactLegacyServiceCoverage(evidence.dependencies?.auditedServiceIds),
     'LEGACY_SERVICE_DEPENDENCIES_UNVERIFIED');
   reject(evidence.dependencies?.oldDbConnectionReferencesCleared === true,
     'POTENTIAL_LEGACY_DATABASE_CLIENTS');
@@ -49,4 +69,8 @@ function evaluateLegacyRenderPgRetirement(evidence = {}) {
   });
 }
 
-module.exports = { EXPECTED_PG_ID, evaluateLegacyRenderPgRetirement };
+module.exports = {
+  EXPECTED_PG_ID,
+  EXPECTED_LEGACY_SERVICE_IDS,
+  evaluateLegacyRenderPgRetirement,
+};
