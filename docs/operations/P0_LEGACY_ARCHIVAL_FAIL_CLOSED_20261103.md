@@ -114,3 +114,42 @@ Independent B2/SQL restore and erasure replay stay NO-GO under GH-296.
 
 No production data, credentials, provider resources, staging, account
 records, merge, deployment or paid resource are changed.
+
+
+## Legacy application backup helpers and status secret redaction (2026-11-03)
+
+The Admin legacy backup endpoints for list, create, restore, cleanup and
+config already returned 410. A deeper audit found two residual flaws:
+
+1. Imported `BackupService` methods such as `exportAllData`,
+   `exportIncrementalData`, `insertRecords`, `getBackupList`,
+   `verifyBackupIntegrity`, `cleanupOldBackups` and `logBackupOperation`
+   still operated directly on SQL, local backup files or audit actions.
+   In particular, `exportAllData` could read entire users, votes and
+   privacy tables, while `cleanupOldBackups` could unlink local archives.
+2. The remaining Admin `GET /api/admin/backup/job/status` returned
+   `backupJob.getStatus().config`, which embedded the raw
+   `BACKUP_ENCRYPTION_KEY` from `getBackupConfig`. The separate
+   `/config` route was retired, but status was not redacted.
+
+**Draft-only mitigation:** all 11 direct I/O-capable legacy
+`BackupService` helpers fail closed with `LEGACY_APP_BACKUP_RETIRED`
+before database, filesystem or audit operations. The seven
+corresponding executable `BackupJob` operations (including direct
+backup, cleanup, integrity test and system notifications) also reject
+before side effects. `BackupJob.start` was already retired.
+`backupJob.getStatus()` remains readable to Admin but now masks
+the key value as `***HIDDEN***` (or null when unset); `stop()` remains
+available. Configuration inspection from the job status remains
+historical/read-only and is not evidence that backup is running.
+
+**CI regression:** faked PostgreSQL pool, filesystem and notification
+sender all throw on access; test checks zero side effects on imported
+methods and verifies the serialized status does not contain a synthetic
+encryption secret. Test reports no conclusion about real provider B2.
+
+Modern PostgreSQL/provider backup and Axiom-to-B2 archiving were not
+modified. Before any release, review externally deployed schedulers
+and the GDPR backup/restore policy separately. GH-296 stays NO-GO.
+No merge, deployment, account read, provider request or real data
+mutation was performed.
