@@ -280,7 +280,7 @@ router.post(
         `SELECT id, status, opens_at, closes_at
          FROM civic_ballots
          WHERE id::text = $1
-         FOR UPDATE`,
+         FOR SHARE`,
         [ballotId],
       );
       const ballot = ballotResult.rows[0];
