@@ -126,3 +126,29 @@ test('P2 protects all four empty tables and the sequence from direct clients', (
   assert.match(p2Sql,/REVOKE ALL ON[\s\S]*FROM PUBLIC, anon, authenticated;/i);
   assert.match(p2Sql,/REVOKE ALL ON SEQUENCE public\.voti_camera_id_seq FROM PUBLIC, anon, authenticated;/i);
 });
+
+
+const p3Migration=fs.readFileSync(path.join(__dirname,'..','database','staging',
+  'ops_stg_001_p3_ballots_notifications_segnalazioni_20261103.sql'),'utf8');
+const p3Sql=p3Migration.replace(/^\s*--.*$/gm,'');
+test('P3 ballot, notification and incidents schema is staging-only, atomic and empty',()=>{
+  assert.match(p3Sql,/^\s*BEGIN;[\s\S]*COMMIT;\s*$/i);
+  assert.match(p3Sql,/md5\(db_identity::text\)='0cbb6ace68a9f11956904e2a37898ec8'/i);
+  assert.match(p3Sql,/civic_push_delivery_guard WHERE id=1/i);
+  assert.equal((p3Sql.match(/CREATE TABLE public\./g)||[]).length,7);
+  assert.equal((p3Sql.match(/ADD CONSTRAINT/g)||[]).length,33);
+  assert.equal((p3Sql.match(/ENABLE ROW LEVEL SECURITY/g)||[]).length,7);
+  assert.doesNotMatch(p3Sql,/\b(TRUNCATE|DROP\s+TABLE|DELETE\s+FROM|INSERT\s+INTO|UPDATE\s+public\.)\b/i);
+});
+test('P3 tables are all RLS-protected, private, and created before their FKs',()=>{
+  const names=['civic_ballots','civic_ballot_positions','notifiche_avvistamenti',
+    'notifiche_comunali','notifiche_voti_comuni',
+    'political_opinion_notifications','segnalazioni'];
+  for(const name of names){
+    assert.match(p3Sql,new RegExp('CREATE TABLE public\\."'+name+'"\\s*\\(','i'));
+    assert.match(p3Sql,new RegExp('ALTER TABLE public\\."'+name+'"\\s+ENABLE ROW LEVEL SECURITY','i'));
+    assert.match(p3Sql,new RegExp("to_regclass\\('public\\."+name+"'\\) IS NOT NULL",'i'));
+  }
+  assert.ok(p3Sql.lastIndexOf('PRIMARY KEY')<p3Sql.indexOf('FOREIGN KEY'));
+  assert.match(p3Sql,/REVOKE ALL ON[\s\S]*FROM PUBLIC, anon, authenticated;/i);
+});
