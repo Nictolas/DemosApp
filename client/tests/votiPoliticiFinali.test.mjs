@@ -32,8 +32,13 @@ test('source links use a strict allowlist; no generation for unverified rollcall
   assert.doesNotMatch(page,/generaSpiegazioneMutation|spiegazione\/|Genera Spiegazione/);
 });
 
-test('final list is keyboard accessible and clearly distinguishes vote final from full legislative enactment',()=>{
-  assert.match(page,/max-h-\[68dvh\] overflow-auto/);
-  assert.match(page,/tabIndex=\{0\} role="region"/);
+test('final list is keyboard accessible without nested scroll and distinguishes final vote from enactment',()=>{
+  assert.match(page,/PageContainer className="overflow-y-auto overscroll-contain/);
+  assert.match(page,/role="list" aria-label="Elenco votazioni finali recenti"/);
+  assert.match(page,/type="button" className="min-w-0 flex-1 text-left/);
+  assert.match(page,/aria-expanded=\{expandedId === v.openpolis_id\}/);
+  assert.match(page,/aria-controls=/);
+  assert.match(page,/VotoFinaleNominale id=\{v.openpolis_id\}/);
+  assert.doesNotMatch(page,/max-h-\[68dvh\] overflow-auto/);
   assert.match(page,/non significa necessariamente che una legge sia già definitivamente approvata/);
 });
