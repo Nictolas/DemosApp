@@ -45,6 +45,29 @@ test('reads a public certificate locally and matches only identical SHA-256', ()
   });
 });
 
+test('accepts Play Console and Firebase SHA-256 without certificate files', () => {
+  const sha = 'ab'.repeat(32);
+  assert.equal(comparePlayAndFirebase({ playSha256: sha, firebaseSha256: sha.toUpperCase() }).matches, true);
+  assert.equal(comparePlayAndFirebase({ playSha256: sha, firebaseSha256: '01'.repeat(32) }).matches, false);
+});
+
+test('refuses missing or conflicting Play signing evidence', () => {
+  const sha = 'ab'.repeat(32);
+  assert.throws(() => comparePlayAndFirebase({ firebaseSha256: sha }), TypeError);
+  assert.throws(() => comparePlayAndFirebase({ playSha256: sha, playCertPath: 'dummy.der', firebaseSha256: sha }), TypeError);
+  assert.throws(() => comparePlayAndFirebase({ playSha256: 'invalid', firebaseSha256: sha }), TypeError);
+});
+
+test('CLI returns 0, 1 or 2 for two pasted console fingerprints', () => {
+  const sha = 'ab'.repeat(32);
+  const lines = [];
+  const io = { log: (...v) => lines.push(v.join(' ')), error: (...v) => lines.push(v.join(' ')) };
+  assert.equal(main(['--play-sha256', sha, '--firebase-sha256', sha.toUpperCase()], io), 0);
+  assert.equal(main(['--play-sha256', sha, '--firebase-sha256', 'ef'.repeat(32)], io), 1);
+  assert.equal(main(['--play-sha256', 'not-a-sha', '--firebase-sha256', sha], io), 2);
+  assert.equal(main(['--play-sha256', sha, '--firebase-sha256', 'not-a-sha'], io), 2);
+});
+
 test('does not accept private keystores or nonexistent public certificates', () => {
   withPublicCertificate(({ file, pem }) => {
     const badPath = file.replace('.pem', '.jks');
@@ -75,5 +98,6 @@ test('offline verifier contains no Google services, auth, network or secret acce
   assert.doesNotMatch(source, /require\(['"](?:https?|axios|firebase-admin|google-auth-library|child_process)['"]\)/);
   assert.doesNotMatch(source, /fetch\(|process\.env\.|private_key|FIREBASE_PRIVATE_KEY/);
   assert.match(source, /--play-app-signing-cert/);
+  assert.match(source, /--play-sha256/);
   assert.match(source, /--firebase-sha256/);
 });
