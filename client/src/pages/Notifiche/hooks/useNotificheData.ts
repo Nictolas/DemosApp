@@ -19,6 +19,9 @@ export const useNotificheData = (user: any) => {
     queryFn: fetchNotificationFeed,
     enabled: isValidNotificationUserId(user?.id),
     ...notificationFeedQueryPolicy,
+    // Fetch the current feed once on entering Notifiche even when the shared
+    // bell cache is fresh. No periodic requests while merely staying open.
+    refetchOnMount: "always",
   });
 
   // Mutazione per cancellare segnalazione (solo per admin)

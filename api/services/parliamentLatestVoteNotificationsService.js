@@ -79,17 +79,22 @@ async function selectedRepresentatives(pool, chamber) {
     chamber === 'Senato' ? 'it.senato' : null;
   const mandateOffice = chamber === 'Camera' ? 'C' : 'S';
   if (!office) throw new Error('LATEST_VOTE_INVALID_CHAMBER');
-  // Authoritative current choices: do not read stale legacy TEXT projections
-  // or create one copy per follower. Active follower + active politician mandate.
+  // Bound work by active parliamentary mandates, not by follower count.
+  // EXISTS is a semi-join: a politician with 1M followers is evaluated once.
+  // Reuse idx_political_selections_selected_subject, defined in
+  // 20261009_political_selections.sql; do not add a duplicate production index.
+  // Only current canonical selections and ACTIVE user/mandate are eligible.
   const sql =
     "SELECT DISTINCT p.id, p.nome, p.cognome " +
-    "FROM users p JOIN political_selections ps ON ps.selected_user_id = p.id " +
-    "JOIN users follower ON follower.id = ps.user_id AND lower(follower.status) = 'a' " +
-    "WHERE ps.selection_kind = 'representative' AND ps.political_office_id = $1 " +
+    "FROM political_mandates m JOIN users p ON p.id = m.user_id " +
+    "WHERE m.status = 'ACTIVE' AND m.office_code = $2 " +
+    "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()) " +
+    "AND lower(coalesce(p.status, '')) = 'a' " +
     "AND p.nome IS NOT NULL AND p.cognome IS NOT NULL " +
-    "AND EXISTS (SELECT 1 FROM political_mandates m WHERE m.user_id = p.id " +
-    "AND m.status = 'ACTIVE' AND m.office_code = $2 " +
-    "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()))";
+    "AND EXISTS (SELECT 1 FROM political_selections ps " +
+    "JOIN users follower ON follower.id = ps.user_id AND lower(follower.status) = 'a' " +
+    "WHERE ps.selected_user_id = p.id " +
+    "AND ps.selection_kind = 'representative' AND ps.political_office_id = $1)";
   const { rows } = await pool.query(sql, [office, mandateOffice]);
   return rows;
 }
