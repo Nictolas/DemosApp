@@ -2,6 +2,17 @@
 
 Decisione del 2 novembre 2026: un solo ambiente di staging permanente e condiviso tra tutti i filoni DEMOS. Non creare servizi Render o database nuovi per ogni chat, PR o funzione. Eccezioni solo per test distruttivi o incompatibili, preferibilmente temporanee e isolate, con motivo, costo, durata e cleanup documentati.
 
+## Decisione confermata il 03/11/2026 — architettura ibrida, costo zero
+
+- **Un solo staging permanente per l'app integrata**: riutilizzare `demos-staging` su Render con database `Demos-Staging` su Supabase. Il servizio è ancora *bootstrap only* e non è abilitato ai test applicativi.
+- **Test di singole PR separati, ma temporanei**: preferire runner GitHub Actions con PostgreSQL 16/17 locale e fixture sintetiche; isolamento delle credenziali (nessun secret reale), durata delimitata dal job e cleanup automatico. L'indipendenza del test non richiede un nuovo Render o Supabase permanente.
+- **Eccezioni**: prove distruttive, di recovery, sicurezza o incompatibili con lo staging condiviso devono utilizzare sandbox effimere dedicate. Motivare motivo, durata, limiti di costo e rimozione; non riutilizzare dati reali o account di produzione.
+- **Mai eseguire più migrazioni concorrenti non compatibili sullo staging comune**. Il GO integrato è una decisione esplicita dopo verifica identità DB, minimi privilegi, ACL, auth, notifiche, consensi, QA e rollback.
+- **Conservare i 9 staging legacy e il PostgreSQL legacy** fino ad attribuzione dipendenze indirette e attestazione di recovery. Metadata Render: il PostgreSQL `demos-civic-staging-db` scade il **08/11/2026 17:38:42 UTC**; la scadenza non costituisce autorizzazione a cancellarlo o acquistare un piano.
+- **Barriera aggiuntiva bootstrap**: `unified_staging_bootstrap.js` rifiuta anche flag attivi per notifiche parlamentari, push di massa e probe/sessioni applicative, comprese varianti `TRUE/1/yes/on`. Test solo in CI; nessun deploy Render né scrittura Supabase da questa modifica.
+
+**GO effettivo: NO.** Restano aperti i quattro macro-gate isolamenti/secret, ACL e fixture, collegamento ed E2E, QA/rollback e ritiro. Tutto ciò preserva la distinzione tra *test green in CI* e *ambiente applicativo pronto*.
+
 ## Infrastruttura di destinazione
 
 - Backend: RIUTILIZZARE il web service Render Free demos-functional-staging, id srv-db52l1g473hc739ld250, come futuro demos-staging. Non creare una nuova istanza permanente.
