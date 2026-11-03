@@ -37,7 +37,10 @@ router.get('/policies', async (req, res) => {
       success: true,
       data: {
         policies,
-        total_policies: Object.keys(policies).length
+        total_policies: Object.keys(policies).length,
+        policy_status: 'legacy_unreviewed',
+        automated_cleanup_enabled: false,
+        valid_legal_basis_confirmed: false
       }
     });
     
@@ -167,7 +170,7 @@ router.post('/cleanup-all', legacyRetentionWriteUnavailable, async (req, res) =>
  * GET /api/admin/data-retention/notifications
  * Ottiene notifiche di retention da inviare
  */
-router.get('/notifications', async (req, res) => {
+router.get('/notifications', legacyRetentionWriteUnavailable, async (req, res) => {
   try {
     const { daysBefore = 30 } = req.query;
     
