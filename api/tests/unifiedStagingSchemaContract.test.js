@@ -163,3 +163,17 @@ test('P4 cooldown timestamp schema is staging-only, private and additive',()=>{
   assert.match(p4CooldownSQL,/REVOKE ALL ON public.preference_change_cooldowns FROM PUBLIC, anon, authenticated/);
   assert.doesNotMatch(p4CooldownSQL,/\b(?:INSERT INTO|DELETE FROM|TRUNCATE|DROP TABLE|UPDATE public\.)\b/i);
 });
+
+const p5SnapshotsSql=fs.readFileSync(path.join(__dirname,'..','database','staging',
+  'ops_stg_001_p5_forecast_snapshots_20261103.sql'),'utf8');
+test('P5 referendum snapshot table is additive, staging-only, aggregate and private',()=>{
+  assert.match(p5SnapshotsSql,/^\s*BEGIN;[\s\S]*COMMIT;\s*$/m);
+  assert.match(p5SnapshotsSql,/md5\(db_identity::text\)='0cbb6ace68a9f11956904e2a37898ec8'/);
+  assert.match(p5SnapshotsSql,/civic_push_delivery_guard/);
+  assert.equal((p5SnapshotsSql.match(/ADD CONSTRAINT/g)||[]).length,7);
+  assert.match(p5SnapshotsSql,/FOREIGN KEY \(civic_ballot_id\) REFERENCES public\.civic_ballots\(id\)/);
+  assert.match(p5SnapshotsSql,/ENABLE ROW LEVEL SECURITY/);
+  assert.match(p5SnapshotsSql,/REVOKE ALL ON public\.civic_ballot_forecast_snapshots[\s\S]*FROM PUBLIC, anon, authenticated/);
+  assert.doesNotMatch(p5SnapshotsSql,/\buser_id\s+(?:uuid|text)\b/i);
+  assert.doesNotMatch(p5SnapshotsSql,/\b(?:INSERT INTO|DELETE FROM|TRUNCATE|DROP TABLE|UPDATE public\.)\b/i);
+});
