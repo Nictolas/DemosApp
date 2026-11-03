@@ -276,11 +276,13 @@ test('legacy retention service and job reject direct writes before SQL or schedu
     await assert.rejects(Service.deleteExpiredData('synthetic-no-real-account',['votes_opinions']),errorMatcher);
     await assert.rejects(Service.deleteAllExpiredData(['user_profile']),errorMatcher);
     await assert.rejects(Service.performFullCleanup(),errorMatcher);
+    await assert.rejects(Service.sendRetentionNotifications(30),errorMatcher);
     assert.throws(()=>Service.assertLegacyRetentionWriteUnavailable(),errorMatcher);
     const job=require(jobFile);
     assert.throws(()=>job.start(),errorMatcher);
     await assert.rejects(job.performDailyCleanup(),errorMatcher);
     await assert.rejects(job.performImmediateCleanup(),errorMatcher);
+    await assert.rejects(job.sendWeeklyNotifications(),errorMatcher);
     assert.deepEqual(job.getStatus(),{
       isRunning:false,hasCleanupInterval:false,hasNotificationInterval:false
     });
