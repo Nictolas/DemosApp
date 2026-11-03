@@ -215,3 +215,16 @@ test('P2 legacy opinion, referendum and parliamentary tables are mandatory and p
     assert.equal(evaluateSchema(subset).ready, false, 'missing table must block: '+name);
   }
 });
+
+test('P3 notifications, incidents and real referendum ballot tables are required and private', () => {
+  for (const name of [
+    'civic_ballots', 'civic_ballot_positions', 'notifiche_avvistamenti',
+    'notifiche_comunali', 'notifiche_voti_comuni',
+    'political_opinion_notifications', 'segnalazioni'
+  ]) {
+    assert.ok(REQUIRED_TABLES.includes(name), 'schema missing required '+name);
+    assert.ok(CIVIC_PRIVATE_TABLES.includes(name), 'public protection missing '+name);
+    assert.equal(evaluateSchema(REQUIRED_TABLES.filter(x => x !== name)).ready, false,
+      'omitting '+name+' must keep the preflight fail-closed');
+  }
+});
