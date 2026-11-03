@@ -173,6 +173,74 @@ class SyncEciUnitTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "^CIVIC_DATABASE_IDENTITY_UNAVAILABLE$"):
             sync_eci._verify_civic_database_identity(cursor, expected)
 
+    def test_cache_replacement_rejects_missing_identity_without_any_write(self):
+        # No real database is used. A mocked connection proves that even when
+        # civic notifications are OFF, the ECI cache cannot be deleted.
+        from types import ModuleType
+        from unittest.mock import MagicMock
+        import os
+        import sys
+
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cur
+
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        records = [
+            ("2026-000011", "Test", 0, "eci-2026-000011", "ONGOING",
+             None, None, "https://example.test")
+        ]
+        for flag in ("false", "true"):
+            cur.reset_mock()
+            with patch.dict(sys.modules, {
+                "psycopg2": fake_pg,
+                "psycopg2.extras": fake_extras,
+            }), patch.dict(os.environ, {
+                "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": flag,
+                "CIVIC_RUNTIME_DATABASE_ID": "",
+            }):
+                with self.assertRaisesRegex(RuntimeError, "CIVIC_DATABASE_IDENTITY_NOT_CONFIGURED"):
+                    sync_eci._replace_cache("postgresql://fixture/eci", records)
+            cur.execute.assert_not_called()
+        self.assertEqual(fake_extras.execute_values.call_count, 0)
+        self.assertEqual(conn.close.call_count, 2)
+
+    def test_cache_replacement_rejects_wrong_identity_before_delete(self):
+        from types import ModuleType
+        from unittest.mock import MagicMock
+        import os
+        import sys
+
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cur
+        cur.fetchall.return_value = [("00000000-0000-4000-8000-000000000540",)]
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        with patch.dict(sys.modules, {
+            "psycopg2": fake_pg,
+            "psycopg2.extras": fake_extras,
+        }), patch.dict(os.environ, {
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "false",
+            "CIVIC_RUNTIME_DATABASE_ID": "00000000-0000-4000-8000-000000000539",
+        }):
+            with self.assertRaisesRegex(RuntimeError, "CIVIC_DATABASE_IDENTITY_MISMATCH"):
+                sync_eci._replace_cache("postgresql://fixture/eci", [
+                    ("2026-000011", "Test", 0, "eci-2026-000011", "ONGOING",
+                     None, None, "https://example.test")
+                ])
+        self.assertEqual(cur.execute.call_count, 1)
+        self.assertIn("civic_runtime_identity", cur.execute.call_args.args[0])
+        fake_extras.execute_values.assert_not_called()
+        conn.close.assert_called_once()
+
     def test_main_returns_nonzero_on_sync_failure(self):
         with patch.object(sync_eci, "sync", side_effect=RuntimeError("boom")):
             self.assertEqual(sync_eci.main(["--dry-run"]), 1)
