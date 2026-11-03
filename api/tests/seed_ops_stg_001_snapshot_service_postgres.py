@@ -1,4 +1,4 @@
-"""Seed a STRICTLY loopback-only PostgreSQL 16 fixture for the actual JS
+"""Seed a STRICTLY loopback-only PostgreSQL 16/17 fixture for the actual JS
 referendum snapshot service. No Supabase/Render credentials or network access.
 """
 import hashlib
@@ -26,6 +26,9 @@ def main():
         raise RuntimeError("REFUSE_NON_CI_POSTGRES")
     fake_hash = hashlib.md5(SYNTHETIC_ID.encode("ascii")).hexdigest()
     with psycopg2.connect(target) as conn:
+        expected_major = int(os.environ.get("CIVIC_CI_POSTGRES_MAJOR", "0"))
+        if conn.server_version // 10000 != expected_major or expected_major not in (16, 17):
+            raise RuntimeError("CIVIC_CI_POSTGRES_ENGINE_MISMATCH")
         conn.autocommit = True
         with conn.cursor() as cur:
             for role in ("anon", "authenticated", "demos_staging_runtime"):

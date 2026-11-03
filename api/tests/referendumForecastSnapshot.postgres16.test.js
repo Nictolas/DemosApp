@@ -1,6 +1,6 @@
 'use strict';
 
-// Runs the ACTUAL JavaScript snapshot service against disposable PostgreSQL 16.
+// Runs the ACTUAL JavaScript snapshot service against disposable PostgreSQL 16/17.
 // Never load an application .env file, production pool, or remote endpoints.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -17,6 +17,10 @@ test('real snapshot JS: 9 suppressed, 10 published, revote updates, freeze immut
   assert.equal(process.env.DEMOS_UNIFIED_STAGING_PREFLIGHT_GO || '', '', 'NO_STAGING_GO');
   const client = new Client({connectionString:CI_DATABASE,connectionTimeoutMillis:5000});
   await client.connect();
+  const versionResult = await client.query('SHOW server_version_num');
+  const pgMajor = Math.floor(Number(versionResult.rows[0].server_version_num) / 10000);
+  assert.ok([16,17].includes(pgMajor),'POSTGRES_ENGINE_UNSUPPORTED');
+  assert.equal(String(pgMajor),process.env.CIVIC_CI_POSTGRES_MAJOR,'POSTGRES_ENGINE_MISMATCH');
   let inTransaction = false;
   try {
     await client.query('BEGIN');

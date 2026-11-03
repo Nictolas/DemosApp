@@ -121,6 +121,11 @@ jobs:
           node --test api/tests/referendumOfficialRoutes.staging.test.js api/tests/referendumPriorityRetired.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/publicRouteHygiene.smoke.test.js
 
   p0-schema-postgres16:
+    name: p0-schema-postgres${{ matrix.pg-major }}
+    strategy:
+      fail-fast: false
+      matrix:
+        pg-major: ['16', '17']
     # Synthetic CI database only, never the shared Render/Supabase staging.
     runs-on: ubuntu-latest
     timeout-minutes: 7
@@ -128,7 +133,7 @@ jobs:
       contents: read
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ matrix.pg-major }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: civic_ci_only
@@ -143,6 +148,7 @@ jobs:
     env:
       DATABASE_URL: ''
       CIVIC_TEST_DATABASE_URL: postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci
+      CIVIC_CI_POSTGRES_MAJOR: ${{ matrix.pg-major }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -152,18 +158,23 @@ jobs:
           python-version: '3.11'
       - name: Install isolated PostgreSQL driver
         run: python -m pip install psycopg2-binary
-      - name: Exercise P0 staging DDL with synthetic identity, including negative gates
+      - name: Exercise P0 staging DDL on PostgreSQL ${{ matrix.pg-major }} with synthetic identity and negative gates
         run: python -m unittest api.tests.test_ops_stg_001_p0_migration_postgres -v
 
   p1-p3-schema-postgres16:
-    # Disposable PostgreSQL 16: never calls Supabase or Render or uses cloud secrets.
+    name: p1-p3-schema-postgres${{ matrix.pg-major }}
+    strategy:
+      fail-fast: false
+      matrix:
+        pg-major: ['16', '17']
+    # Disposable PostgreSQL 16/17: never calls Supabase or Render or uses cloud secrets.
     runs-on: ubuntu-latest
     timeout-minutes: 8
     permissions:
       contents: read
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ matrix.pg-major }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: civic_ci_only
@@ -178,6 +189,7 @@ jobs:
     env:
       DATABASE_URL: ''
       CIVIC_TEST_DATABASE_URL: postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci
+      CIVIC_CI_POSTGRES_MAJOR: ${{ matrix.pg-major }}
       DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: ''
     steps:
       - name: Checkout source
@@ -188,10 +200,15 @@ jobs:
           python-version: '3.11'
       - name: Install isolated PostgreSQL driver
         run: python -m pip install psycopg2-binary
-      - name: Exercise P1/P2/P3 DDL and explicitly gated synthetic ballot ACL on PostgreSQL 16
+      - name: Exercise P1-P5 DDL and synthetic ACL on PostgreSQL ${{ matrix.pg-major }}
         run: python -m unittest api.tests.test_ops_stg_001_p1_p2_p3_migrations_postgres -v
 
   snapshot-service-js-postgres16:
+    name: snapshot-service-js-postgres${{ matrix.pg-major }}
+    strategy:
+      fail-fast: false
+      matrix:
+        pg-major: ['16', '17']
     # Actual Node service + real SQL on disposable CI PostgreSQL only.
     # Never receives Supabase/Render secrets or makes an app deployment.
     runs-on: ubuntu-latest
@@ -200,7 +217,7 @@ jobs:
       contents: read
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ matrix.pg-major }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: civic_ci_only
@@ -216,6 +233,7 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: ''
       CIVIC_TEST_DATABASE_URL: postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci
+      CIVIC_CI_POSTGRES_MAJOR: ${{ matrix.pg-major }}
       DEMOS_UNIFIED_STAGING_PREFLIGHT_GO: ''
     steps:
       - name: Checkout source
@@ -236,5 +254,5 @@ jobs:
           python -m pip install psycopg2-binary
       - name: Seed empty fixture with real P1 to P5 migrations (fake identity)
         run: python -m api.tests.seed_ops_stg_001_snapshot_service_postgres
-      - name: Exercise actual JavaScript service and rollback all 10 synthetic votes
+      - name: Exercise actual JavaScript service on PostgreSQL ${{ matrix.pg-major }} and rollback all 10 synthetic votes
         run: node --test api/tests/referendumForecastSnapshot.postgres16.test.js

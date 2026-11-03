@@ -83,3 +83,12 @@ e `DATABASE_URL` e il flag di GO devono essere vuoti.
 **Limite**: è un E2E del servizio JS e del DB, NON un E2E dell'app Render,
 non prova TLS/identità runtime dal provider, non autorizza ACL applicative
 sullo staging condiviso e non modifica le percentuali dei gate di rilascio.
+
+
+## Parità versione database condiviso PostgreSQL 17 / CI (03/11/2026)
+
+Verificato tramite metadati live Supabase: il progetto `Demos-Staging` esegue **PostgreSQL 17**. Le suite precedenti usavano esclusivamente PostgreSQL 16; per evitare falsi positivi da differenze di versione, il workflow `Unified Staging Offline Safety` usa ora **matrix PG16 + PG17** sui tre job SQL/servizio JS, per un totale di **7 job** contando il contratto Node offline.
+
+Ogni job verifica che la versione **reale** del server PostgreSQL sia quella richiesta dalla matrice: `CIVIC_CI_POSTGRES_MAJOR=16` o `17`; un mismatch interrompe prima delle prove. Le migrazioni P0 e P1–P5, gli ACL sintetici, le garanzie privacy dei dieci voti e il servizio Node effettivo girano su database effimeri e isolati per entrambe le versioni.
+
+Questo collaudo corregge lo scarto di versione fra CI e staging senza autorizzare test su Render o creare nuove risorse persistenti. **Non conclude** la verifica di credenziali, TLS, ruoli o ACL applicativi dello staging condiviso; per tutti permane NO-GO.

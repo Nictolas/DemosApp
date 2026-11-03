@@ -57,6 +57,10 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
         if url == os.getenv("DATABASE_URL"):
             raise RuntimeError("REFUSE_SHARED_DATABASE_URL")
         cls.conn = psycopg2.connect(url)
+        expected_major = int(os.environ.get("CIVIC_CI_POSTGRES_MAJOR", "0"))
+        if cls.conn.server_version // 10000 != expected_major or expected_major not in (16, 17):
+            cls.conn.close()
+            raise RuntimeError("CIVIC_CI_POSTGRES_ENGINE_MISMATCH")
         cls.conn.autocommit = True
         with cls.conn.cursor() as cur:
             for role in ("anon", "authenticated", "demos_staging_runtime"):
