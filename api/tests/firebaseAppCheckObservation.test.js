@@ -7,6 +7,7 @@ const {
   isObservationEnabled,
   isDiagnosticRouteEnabled,
   validTokenShape,
+  isApprovedFirebaseAdminApp,
   createAppCheckLocalBudget,
   DEFAULT_MAX_VERIFICATIONS_PER_PROCESS_PER_DAY,
   observeAppCheckHeader,
@@ -563,4 +564,83 @@ test('manual App Check diagnostic pins HTTPS origin and rejects nonstandard port
     < source.indexOf('await requestNativeFirebaseAppCheckToken()'));
   assert.ok(source.indexOf('await requestNativeFirebaseAppCheckToken()')
     < source.indexOf('await fetch(endpoint.href'));
+});
+
+test('a reused Firebase Admin app from the wrong project cannot reach App Check SDK', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const vm = require('node:vm');
+  const source = fs.readFileSync(path.resolve(__dirname, '../services/firebaseAppCheckObservation.js'), 'utf8');
+  function mockService(app) {
+    let getAppCheckCalls = 0;
+    let tokenVerifyCalls = 0;
+    const fakeRequire = (name) => {
+      if (name === './firebaseAdmin') {
+        return { getFirebaseAdmin: () => ({ apps: app == null ? [] : [app] }) };
+      }
+      if (name === 'firebase-admin/app-check') {
+        return {
+          getAppCheck: () => {
+            getAppCheckCalls += 1;
+            return {
+              verifyToken: async () => {
+                tokenVerifyCalls += 1;
+                return { appId: validEnv.FIREBASE_APP_CHECK_ANDROID_APP_ID };
+              },
+            };
+          },
+        };
+      }
+      throw new Error('Unexpected module load');
+    };
+    const sandbox = { module: { exports: {} }, process: { env: {} } };
+    const load = vm.runInNewContext('(function(require,module,exports){\n' + source + '\n})', sandbox);
+    load(fakeRequire, sandbox.module, sandbox.module.exports);
+    return {
+      observe: () => sandbox.module.exports.observeAppCheckHeader(
+        { 'x-firebase-appcheck': token },
+        { env: validEnv, budget: createAppCheckLocalBudget({ maxDaily: 1 }) }
+      ),
+      counts: () => [getAppCheckCalls, tokenVerifyCalls],
+    };
+  }
+  for (const app of [
+    null,
+    { options: {} },
+    { options: { projectId: 'demos-oauth-e2e' } },
+    { options: { credential: { projectId: 'demos-oauth-e2e' } } },
+    { options: { projectId: 'demos-finale', credential: { projectId: 'demos-oauth-e2e' } } },
+  ]) {
+    const mocked = mockService(app);
+    const result = await mocked.observe();
+    assert.equal(result.status, 'invalid');
+    assert.deepEqual(mocked.counts(), [0, 0], 'No Firebase App Check SDK invocation for wrong project');
+  }
+  for (const app of [
+    { options: { projectId: 'demos-finale' } },
+    { options: { credential: { projectId: 'demos-finale' } } },
+    { options: { projectId: 'demos-finale', credential: { projectId: 'demos-finale' } } },
+  ]) {
+    const mocked = mockService(app);
+    const result = await mocked.observe();
+    assert.equal(result.status, 'verified');
+    assert.deepEqual(mocked.counts(), [1, 1]);
+  }
+});
+
+test('Firebase Admin project guard rejects missing and conflicting project metadata', () => {
+  const allowed = { projectId: 'demos-finale' };
+  assert.equal(isApprovedFirebaseAdminApp({ options: allowed }), true);
+  assert.equal(isApprovedFirebaseAdminApp({ options: { credential: allowed } }), true);
+  assert.equal(isApprovedFirebaseAdminApp({ options: { ...allowed, credential: allowed } }), true);
+  for (const app of [
+    null, {}, { options: {} },
+    { options: { credential: {} } },
+    { options: { projectId: 'untrusted' } },
+    { options: { credential: { projectId: 'untrusted' } } },
+    { options: { projectId: 'demos-finale', credential: { projectId: 'untrusted' } } },
+    { options: { projectId: 'untrusted', credential: { projectId: 'demos-finale' } } },
+  ]) {
+    assert.equal(isApprovedFirebaseAdminApp(app), false);
+  }
 });
