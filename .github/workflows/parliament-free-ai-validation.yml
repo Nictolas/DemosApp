@@ -7,12 +7,15 @@ on:
       - 'api/services/parliamentFreeAiPolicy.js'
       - 'api/services/parliamentGroundedAnalysis.js'
       - 'api/services/parliamentFreeGroqBudget.js'
+      - 'api/services/parliamentAiSingleflight.js'
       - 'api/services/aiExplanationService.js'
       - 'api/services/leggeAnalysisService.js'
       - 'api/routes/voti-camera.js'
+      - 'api/routes/voti-parlamento-europeo.js'
       - 'api/tests/parliamentFreeAiPolicy.test.js'
       - 'api/tests/parliamentGroundedAnalysis.test.js'
       - 'api/tests/parliamentFreeGroqBudget.test.js'
+      - 'api/tests/parliamentAiSingleflight.test.js'
       - '.github/workflows/parliament-free-ai-validation.yml'
   workflow_dispatch:
 
@@ -33,8 +36,10 @@ jobs:
           node --check api/services/parliamentFreeAiPolicy.js
           node --check api/services/parliamentGroundedAnalysis.js
           node --check api/services/parliamentFreeGroqBudget.js
+          node --check api/services/parliamentAiSingleflight.js
           node --check api/services/aiExplanationService.js
           node --check api/services/leggeAnalysisService.js
           node --check api/routes/voti-camera.js
+          node --check api/routes/voti-parlamento-europeo.js
       - name: Free-only provider regression
-        run: node --test api/tests/parliamentFreeAiPolicy.test.js api/tests/parliamentGroundedAnalysis.test.js api/tests/parliamentFreeGroqBudget.test.js
+        run: node --test api/tests/parliamentFreeAiPolicy.test.js api/tests/parliamentGroundedAnalysis.test.js api/tests/parliamentFreeGroqBudget.test.js api/tests/parliamentAiSingleflight.test.js
