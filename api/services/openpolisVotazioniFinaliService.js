@@ -32,7 +32,7 @@ async function fetchListaVotazioniFinali(page = 1) {
 const detailIdPattern = /^(?:vs19_[A-Za-z0-9_-]+|19-\d+-\d+)$/;
 const finalMarker = /votazion[e]?\s+final[e]?(?:\s+segreto)?/i;
 const completeDate = /Seduta\s*n\.?\s*\d+\s+del\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i;
-const resultMarker = /\b(Approvata|Respinta)\b/i;
+const resultMarker = /VOTAZIONE\s+FINALE(?:\s+SEGRETO)?\s*(Approvata|Respinta)/i;
 
 function parseListaVotazioniFinali(html) {
   const $ = cheerio.load(html);
@@ -70,7 +70,7 @@ function parseListaVotazioniFinali(html) {
       if (node.is('a[href]')) links.add(id);
       if (links.size !== 1 || !links.has(id)) continue;
 
-      if (/\b(?:Camera|Senato)\b/i.test(text) &&
+      if (/^(?:Camera|Senato)(?=Votazione|\b)/i.test(text) &&
           completeDate.test(text) && resultMarker.test(text) &&
           finalMarker.test(text)) {
         cardText = text;
@@ -79,7 +79,7 @@ function parseListaVotazioniFinali(html) {
     }
     if (!cardText) return;
 
-    const chamber = cardText.match(/\b(Camera|Senato)\b/i);
+    const chamber = cardText.match(/^(Camera|Senato)(?=Votazione|\b)/i);
     const date = cardText.match(completeDate);
     const result = cardText.match(resultMarker);
     if (!chamber || !date || !result) return;
