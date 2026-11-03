@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link as WouterLink } from "wouter";
-import { ArrowLeft, ExternalLink, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, ChevronDown, ExternalLink, RefreshCw, Search } from "lucide-react";
+import { VotoFinaleNominale } from "@/components/VotoFinaleNominale";
 import { apiRequest } from "@/lib/queryClient";
 import { PageContainer } from "@/components/PageContainer";
 import { useAuth } from "@/hooks/use-auth";
@@ -37,6 +38,7 @@ function isRecentFinale(v: VotoFinale): boolean {
 
 export default function VotiPoliticiFinali() {
   const [search, setSearch] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -104,7 +106,7 @@ export default function VotiPoliticiFinali() {
         </div>
         <div className="rounded-lg bg-white p-4 shadow-sm space-y-3">
           <p className="text-sm text-muted-foreground">Vengono mostrate soltanto le votazioni identificate come <strong>voto finale</strong> da Openpolis negli ultimi {maxAgeDays} giorni. Non compaiono articoli, emendamenti, ordini del giorno né vecchie votazioni.</p>
-          <p className="text-xs text-muted-foreground">Il voto finale in una Camera non significa necessariamente che una legge sia già definitivamente approvata da entrambe le Camere. I voti individuali e le spiegazioni AI saranno visibili soltanto dopo verifica delle fonti.</p>
+          <p className="text-xs text-muted-foreground">Il voto finale in una Camera non significa necessariamente che una legge sia già definitivamente approvata da entrambe le Camere. I voti individuali sono disponibili aprendo ogni votazione soltanto quando la fonte è verificabile. Le spiegazioni AI saranno aggiunte in una fase successiva.</p>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
             <Input aria-label="Cerca votazioni finali" placeholder="Cerca votazione, Camera, Senato o esito" className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
@@ -114,21 +116,35 @@ export default function VotiPoliticiFinali() {
           ) : visible.length === 0 ? (
             <p role="status">Non ci sono votazioni finali recenti verificate da mostrare. Non vengono riproposte le vecchie votazioni.</p>
           ) : (
-            <div className="max-h-[68dvh] overflow-auto overscroll-contain" tabIndex={0} role="region" aria-label="Elenco votazioni finali recenti">
-              <table className="min-w-[640px] w-full text-left text-sm">
-                <thead className="sticky top-0 bg-white shadow-sm">
-                  <tr><th className="p-3">Data</th><th className="p-3">Camera</th><th className="p-3">Votazione finale</th><th className="p-3">Esito</th><th className="p-3">Fonte</th></tr>
-                </thead>
-                <tbody>
-                {visible.map(v => <tr key={v.openpolis_id} className="border-t align-top">
-                  <td className="p-3 whitespace-nowrap">{new Date(v.data_votazione!).toLocaleDateString("it-IT")}</td>
-                  <td className="p-3">{v.camera}</td>
-                  <td className="p-3">{v.titolo}</td>
-                  <td className="p-3">{v.esito}</td>
-                  <td className="p-3"><a className="text-blue-700 underline inline-flex items-center gap-1" href={v.url_dettaglio} target="_blank" rel="noopener noreferrer">Openpolis <ExternalLink className="h-3 w-3" /></a></td>
-                </tr>)}
-                </tbody>
-              </table>
+            <div className="space-y-3" role="list" aria-label="Elenco votazioni finali recenti">
+              {visible.map(v => (
+                <article key={v.openpolis_id} role="listitem" className="rounded-lg border border-slate-200 bg-white">
+                  <div className="flex items-start justify-between gap-2 p-3">
+                    <button type="button" className="min-w-0 flex-1 text-left space-y-1"
+                      aria-expanded={expandedId === v.openpolis_id}
+                      aria-controls={"dettaglio-" + v.openpolis_id}
+                      onClick={() => setExpandedId(previous => previous === v.openpolis_id ? null : v.openpolis_id)}>
+                      <span className="block text-xs text-muted-foreground">
+                        {new Date(v.data_votazione!).toLocaleDateString("it-IT")} · {v.camera} · {v.esito}
+                      </span>
+                      <span className="block font-semibold break-words">{v.titolo}</span>
+                      <span className="inline-flex items-center gap-1 text-sm text-blue-700">
+                        {expandedId === v.openpolis_id ? "Chiudi dettaglio" : "Mostra voti dei parlamentari"}
+                        <ChevronDown className={expandedId === v.openpolis_id ? "h-4 w-4 rotate-180" : "h-4 w-4"} />
+                      </span>
+                    </button>
+                    <a href={v.url_dettaglio} target="_blank" rel="noopener noreferrer"
+                      className="shrink-0 inline-flex items-center gap-1 text-sm text-blue-700 underline">
+                      Openpolis <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  {expandedId === v.openpolis_id && (
+                    <div className="p-3 pt-0" id={"dettaglio-" + v.openpolis_id}>
+                      <VotoFinaleNominale id={v.openpolis_id} sourceUrl={v.url_dettaglio} />
+                    </div>
+                  )}
+                </article>
+              ))}
             </div>
           )}
           {!isLoading && !error && <p className="text-xs text-muted-foreground">{visible.length} votazioni finali recenti disponibili.</p>}
