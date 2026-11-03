@@ -13,6 +13,16 @@ Data verifica: 03/11/2026. Ambito: PR #558 **solo debug** e futura release pubbl
 - Workflow `Advertising policy validation` esteso per compilare un APK release unsigned ed eseguire automaticamente le tre verifiche manifest + ID: in caso di comparsa di annunci/ID pubblicitari in release, **fallisce**. Dopo il commit va atteso il suo esito CI.
 - **Limite:** questo controllo non certifica l'identità del bundle firmato installato dai tester e non verifica le dichiarazioni attualmente salvate in Play Console. Non prova assenza di altre raccolte di dati nell'app.
 
+
+## 1-bis. Evidenza AAB scaricato direttamente dalla CI GitHub (03/11/2026)
+
+- Run **Android Alpha Validation** [41548834153](https://github.com/Nictolas/DemosApp/actions/runs/41548834153), commit PR #558 `2119d90ef5a86fb6fc433075f5fb2e73d83366dc`, concluso con successo. Scaricato l'artefatto ufficiale GitHub Actions ID `13190541457` denominato `demos-android-current-UNSIGNED-aab`, senza firmarlo o installarlo.
+- ZIP artefatto: 4.489.487 byte, **SHA-256 `dcdae26d5e3d581c3d76b8a7970f49ae5b96a18c084869d7e09a7411c4781eaa`**, corrispondente al digest pubblicato da GitHub.
+- AAB interno `app-release.aab`: 4.891.204 byte, **SHA-256 `d90de1276c45ce0df0a3be4e3cf9ff85979f03db4bb4b0d29133572c78ad00a9`**, formato ZIP Android App Bundle con `BundleConfig.pb`, `base/manifest/AndroidManifest.xml`, `base/dex/classes.dex` e metadati dipendenze.
+- Controllo **sul binario reale generato dalla CI**, non soltanto Gradle o APK locale: package `community.demos` presente nel manifest compilato; **assenti** `com.google.android.gms.permission.AD_ID`, `com.google.android.gms.ads.APPLICATION_ID` e `ca-app-pub-` dal manifest. Nella DEX e nei metadati delle dipendenze non risultano le firme specifiche dei pacchetti GMA, UMP o Play Services Ads verificate dallo script.
+- Aggiunto `scripts/check-ads-free-aab.py`: lettura ZIP e verifica fail-closed con librerie standard Python, controllo di manifest, DEX, metadati dipendenze e firme Jar. **Test locale positivo PASS** su AAB GitHub e **test negativo PASS** (bundle temporaneo con `AD_ID` artificialmente inserito fa fallire il controllo). Aggiunto passo obbligatorio in `.github/workflows/android-alpha-validation.yml` per ogni prossimo `bundleRelease` da questa PR.
+- **Limiti fondamentali:** il binario esaminato è **UNSIGNED**. Non dimostra quale AAB firmato sia distribuito ai tester su Play, né la correttezza delle dichiarazioni Ads/Data Safety. È un controllo mirato di SDK pubblicitari/permesso `AD_ID`, non una certificazione di assenza di tutti i trattamenti dati o una scansione esaustiva di librerie terze. Per la futura release monetizzata, il guardrail dovrà essere sostituito/aggiornato deliberatamente nella PR release autorizzata.
+
 ## 2. Fonti ufficiali per la futura dichiarazione con GMA Next-Gen
 
 - GMA Next-Gen SDK 1.6.0 è presente *solo* in `debugImplementation` della PR #558, con `UMP` 4.0.0. Non deve essere dichiarato come già presente nella release disponibile ai tester.

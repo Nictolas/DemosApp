@@ -23,6 +23,7 @@ on:
       - 'client/public/icona.png'
       - 'client/package.json'
       - 'client/package-lock.json'
+      - 'scripts/check-ads-free-aab.py'
       - '.github/workflows/android-alpha-validation.yml'
   push:
     branches:
@@ -112,6 +113,9 @@ jobs:
           chmod +x gradlew
           ./gradlew :app:assembleDebug :app:bundleRelease --no-daemon --stacktrace
           test -f app/build/outputs/bundle/release/app-release.aab
+
+      - name: Verify generated release AAB excludes AdMob SDK and AD_ID
+        run: python3 scripts/check-ads-free-aab.py client/android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Archive UNSIGNED release candidate for authorized signing
         uses: actions/upload-artifact@v4
