@@ -86,9 +86,13 @@ const verifyToken = async (req, res, next) => {
           user = await getAccountSubject(pool, userIdFromToken);
           log('🔐 DEBUG verifyToken - Modello account caricato:', user ? 'OK' : 'NON TROVATO');
         } catch (dbError) {
-          logErr('Errore recupero account durante autenticazione');
-
-          throw dbError;
+          // Un guasto SQL non equivale a un token non valido (401):
+          // evitare cicli di login e non mostrare dettagli DB al chiamante.
+          logErr('Servizio account temporaneamente non disponibile');
+          return res.status(503).json({
+            success: false,
+            error: 'Servizio di autenticazione temporaneamente non disponibile'
+          });
         }
 
         if (!user) {
@@ -160,10 +164,6 @@ const verifyToken = async (req, res, next) => {
     }
   } catch (error) {
     console.error('Errore middleware autenticazione');
-    if (!isProduction) {
-
-
-    }
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
