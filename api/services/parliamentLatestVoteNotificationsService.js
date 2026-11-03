@@ -142,7 +142,10 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
     try {
       const reps = await selectedRepresentatives(pool, vote.camera);
       if (!reps.length) continue;
-      const verified = await (options.getVerifiedFinalBallots || getVerifiedFinalBallots)(vote);
+      // pg returns DATE columns as Date objects; source validation requires ISO YYYY-MM-DD.
+      const verified = await (options.getVerifiedFinalBallots || getVerifiedFinalBallots)({
+        ...vote, data_votazione: dateIso(vote.data_votazione)
+      });
       const result = await persistLatestForChamber(pool, vote, verified, reps);
       changed += result.changed;
       checked++;
