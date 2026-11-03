@@ -129,6 +129,24 @@ function evaluateBlockedGuard(rows) {
   return Array.isArray(rows) && rows.length === 1 && rows[0].blocked === true;
 }
 
+// Verify actual PostgreSQL session identity and capabilities, not just
+// a username in a connection URL. Refuse privileged or writable roles.
+function evaluatePreflightRole(rows) {
+  if (!Array.isArray(rows) || rows.length !== 1) return false;
+  const r = rows[0];
+  return r.username === STAGING_PREFLIGHT_ROLE &&
+    r.read_only === 'on' && r.rolcanlogin === true &&
+    r.rolsuper === false && r.rolbypassrls === false &&
+    r.rolcreatedb === false && r.rolcreaterole === false &&
+    r.rolinherit === false &&
+    r.can_create_schema === false && r.can_create_database === false;
+}
+function evaluatePreflightWriteGrants(rows) {
+  return Array.isArray(rows) && rows.length > 0 &&
+    rows.every(r => typeof r.table_name === 'string' &&
+      r.table_name.length > 0 && r.can_write === false);
+}
+
 async function run(env = process.env) {
   // The shared staging service is still in bootstrap. Target validation alone
   // does not authorize even a read-only network connection to Demos-Staging.
@@ -157,6 +175,31 @@ async function run(env = process.env) {
     );
     if (!evaluateStagingIdentity(stagingIdentity.rows)) {
       throw new Error('Connected to unauthorized database identity');
+    }
+    // A read-only transaction alone is not sufficient: the credential must
+    // itself have no elevated privileges for later transactions.
+    const roleCheck = await client.query(
+      `SELECT current_user AS username,
+              current_setting('transaction_read_only') AS read_only,
+              r.rolcanlogin, r.rolsuper, r.rolbypassrls,
+              r.rolcreatedb, r.rolcreaterole, r.rolinherit,
+              has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_schema,
+              has_database_privilege(current_user, current_database(), 'CREATE') AS can_create_database
+         FROM pg_catalog.pg_roles r WHERE r.rolname = current_user`
+    );
+    if (!evaluatePreflightRole(roleCheck.rows)) {
+      throw new Error('Staging preflight role is privileged or unauthorized');
+    }
+    const writeCheck = await client.query(
+      `SELECT c.relname AS table_name,
+              has_table_privilege(current_user, c.oid,
+                'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') AS can_write
+         FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind IN ('r','p')`
+    );
+    if (!evaluatePreflightWriteGrants(writeCheck.rows)) {
+      throw new Error('Staging preflight has unexpected table write grants');
     }
     const tables = await client.query(
       `SELECT c.relname AS table_name FROM pg_catalog.pg_class c
@@ -219,4 +262,5 @@ if (require.main === module) {
 
 module.exports = {STAGING_REF, STAGING_PREFLIGHT_ROLE, STAGING_IDENTITY_HASH, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, CIVIC_RUNTIME_COLUMNS,
   assertStagingTarget, evaluateSchema, evaluateCivicProtection, evaluateAllPublicStagingTables,
-  evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity, run};
+  evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity,
+  evaluatePreflightRole, evaluatePreflightWriteGrants, run};
