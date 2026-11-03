@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { estraiNumeroLegge, canSearchItalianBills } = require('../services/parliamentActIdentifier');
+const { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle } = require('../services/parliamentActIdentifier');
 
 const file = fs.readFileSync(path.join(__dirname, '..', 'services', 'leggeAnalysisService.js'), 'utf8');
 
@@ -41,9 +41,19 @@ test('European Parliament and non-numeric IDs must not search Italian bills', ()
   assert.equal(canSearchItalianBills('', 'Senato'), false);
 });
 
+test('chamber-labelled acts cannot cross-match an identically numbered bill in the other chamber', () => {
+  assert.equal(canSearchActTitle('61', 'S. 61 — voto finale', 'Senato'), true);
+  assert.equal(canSearchActTitle('61', 'S. 61 — voto finale', 'Camera'), false);
+  assert.equal(canSearchActTitle('2822', 'C. 2822-B — fiducia', 'Camera'), true);
+  assert.equal(canSearchActTitle('2822', 'C. 2822-B — fiducia', 'Senato'), false);
+  assert.equal(canSearchActTitle('61', 'S. 61', 'Parlamento europeo'), false);
+  assert.equal(canSearchActTitle('61', 'DDL 61', 'Senato'), true);
+});
+
 test('AI law source discovery must never attach hardcoded decree 175/2025 to DDL 1718', () => {
-  assert.match(file, /canSearchItalianBills\(numeroLegge, camera\)/);
+  assert.match(file, /canSearchActTitle\(numeroLegge, titolo, camera\)/);
   assert.doesNotMatch(file, /numeroLegge\s*===\s*['"]1718['"]/);
   assert.doesNotMatch(file, /DL1752025|21G00217|decreto\.legge:2025-11-21;175/);
   assert.match(file, /estraiNumeroLegge/);
+  assert.doesNotMatch(file, /urlOpenpolis|Descrizione da Openpolis:/);
 });
