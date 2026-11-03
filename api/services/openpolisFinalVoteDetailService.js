@@ -30,7 +30,12 @@ function parseOpenpolisFinalVoteDetail(html, expectedCamera) {
   const $ = cheerio.load(html);
   const body = normalize($('body').text());
   const beforeTables = body.split(/Come hanno votato i (?:gruppi|deputati|senatori|parlamentari)/i)[0].slice(0, 1800);
-  const cameraMatch = beforeTables.match(/\b(Camera|Senato)\b/i);
+  // HTML text() joins neighboring elements without spaces: use the chamber heading,
+  // not a word boundary that could miss <h3>Camera</h3><p>Votazione...</p>.
+  const headingCamera = $('h1,h2,h3,h4').toArray()
+    .map(el => normalize($(el).text()))
+    .find(text => /^(Camera|Senato)$/i.test(text));
+  const cameraMatch = headingCamera ? [headingCamera, headingCamera] : beforeTables.match(/(Camera|Senato)(?=Votazione)/i);
   const camera = cameraMatch && cameraMatch[1].toLowerCase() === 'camera' ? 'Camera'
     : cameraMatch && cameraMatch[1].toLowerCase() === 'senato' ? 'Senato' : null;
   if (!camera || (expectedCamera && camera !== expectedCamera)) throw new Error('OPENPOLIS_DETAIL_CHAMBER_MISMATCH');
