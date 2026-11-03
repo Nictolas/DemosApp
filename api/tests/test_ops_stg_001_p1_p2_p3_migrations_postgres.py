@@ -39,6 +39,9 @@ MIGRATIONS = (
     ("P4", "ops_stg_001_p4_preference_cooldowns_20261103.sql", (
         "preference_change_cooldowns",
     ), 3, 1, 2),
+    ("P5", "ops_stg_001_p5_forecast_snapshots_20261103.sql", (
+        "civic_ballot_forecast_snapshots",
+    ), 9, 7, 2),
 )
 USER_A = "00000000-0000-4000-8000-000000000301"
 USER_B = "00000000-0000-4000-8000-000000000302"
