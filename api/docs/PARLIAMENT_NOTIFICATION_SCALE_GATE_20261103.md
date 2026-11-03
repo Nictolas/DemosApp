@@ -27,3 +27,10 @@ E2E autenticata + schema effettivo, QA Android/Chrome, migrazione e rollback aut
 
 ## Privacy push in anteprima
 Il testo della notifica FCM nella PR #584 è fisso e neutro: non contiene titolo dell'atto, voto, stato personale o esito. La pagina interna verificata mostra i dettagli dopo l'apertura dell'app. Test mock su Camera/Senato, senza invii reali.
+
+
+## Gate rappresentante e mandato al dispatch
+- Un mandato `ACTIVE` non basta se il profilo del rappresentante risulta inattivo: `selectedRepresentatives` filtra anche `users.status='a'`.
+- In `sendFinalBallotPush` entrambe le query (scoperta e ricontrollo dei device nel batch) richiedono anche **rappresentante attivo** e **mandato attivo, corretto per Camera/Senato e non scaduto**; il ricontrollo include `FOR SHARE` sui record di rappresentante e mandato per serializzare eventuali revoche concorrenti.
+- PostgreSQL 16 effimero con 25.000 follower sintetici: 1 singolo token attivo per confermare che solo il caso valido invia una chiamata **al mock**; mandato `ENDED`, scadenza del mandato e profilo del rappresentante inattivo devono produrre zero chiamate aggiuntive. I casi negativi verificano soltanto il codice su database isolato.
+- Non equivale a prova di consegna FCM reale, cancellazione di push già accettati, consistenza multiistanza o rimozione delle notifiche storiche dalla pagina condivisa.
