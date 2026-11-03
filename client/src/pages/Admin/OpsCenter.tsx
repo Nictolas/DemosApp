@@ -103,7 +103,7 @@ const OpsCenter: React.FC = () => {
           </Card>
           <Card className="border-slate-200/70 bg-white/90 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database (Neon)</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database (Supabase)</CardTitle>
               <CardDescription>Ti aiuta a capire se il database e sotto stress o sta rallentando.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">

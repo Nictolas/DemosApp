@@ -127,11 +127,8 @@ export default function DataExport() {
   const [exportStatus, setExportStatus] = useState<ExportStatus>(EMPTY_STATUS);
   const [exportHistory, setExportHistory] = useState<ExportHistory[]>([]);
   const [tables, setTables] = useState<TableInfo[]>([]);
-  const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [tableSearch, setTableSearch] = useState('');
   const [tablesError, setTablesError] = useState<string | null>(null);
-  const [deleteAfterExport, setDeleteAfterExport] = useState(false);
-  const [dryRun, setDryRun] = useState(false);
   const [loadingTables, setLoadingTables] = useState(true);
   const [databaseAnalysis, setDatabaseAnalysis] = useState<DatabaseAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(true);
@@ -181,17 +178,14 @@ export default function DataExport() {
       const response = await apiRequest.get<TableInfo[]>('/admin/data-export/tables');
       if (!response.success || !Array.isArray(response.data)) {
         setTables([]);
-        setSelectedTables([]);
         setTablesError(response.error || 'Impossibile caricare le tabelle reali dal server.');
         return;
       }
 
       setTables(response.data);
-      setSelectedTables(response.data.filter((table) => table.enabled).map((table) => table.name));
     } catch (error) {
       console.error('Errore caricamento tabelle:', error);
       setTables([]);
-      setSelectedTables([]);
       setTablesError('Impossibile caricare le tabelle reali dal server.');
     } finally {
       setLoadingTables(false);
@@ -234,67 +228,6 @@ export default function DataExport() {
       setSecurityEventsStats(null);
     } finally {
       setLoadingSecurityEvents(false);
-    }
-  };
-
-  const pollExportStatus = () => {
-    const poll = async () => {
-      try {
-        const response = await apiRequest.get<ExportStatus>('/admin/data-export/status');
-        if (!response.success || !response.data) {
-          setExportStatus((previous) => ({ ...previous, isRunning: false, error: response.error || 'Errore lettura stato export' }));
-          return;
-        }
-
-        setExportStatus(response.data);
-        if (response.data.isRunning) {
-          window.setTimeout(poll, 2000);
-          return;
-        }
-
-        await loadExportHistory();
-        if (response.data.progress === 100 && !response.data.error) {
-          toast({
-            title: 'Export completato',
-            description: `Esportati ${Number(response.data.exportedRecords || 0).toLocaleString('it-IT')} record`,
-          });
-        }
-      } catch (error) {
-        console.error('Errore polling status:', error);
-        setExportStatus((previous) => ({ ...previous, isRunning: false, error: 'Errore comunicazione server' }));
-      }
-    };
-    poll();
-  };
-
-  const startExport = async () => {
-    if (selectedTables.length === 0) {
-      toast({
-        title: 'Nessuna tabella selezionata',
-        description: 'Seleziona almeno una tabella da esportare.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setExportStatus({ ...EMPTY_STATUS, isRunning: true, totalTables: selectedTables.length });
-    try {
-      const response = await apiRequest.post('/admin/data-export/start', {
-        tables: selectedTables,
-        deleteAfterExport,
-        dryRun,
-      });
-      if (!response.success) throw new Error(response.error || 'Errore avvio export');
-
-      toast({
-        title: 'Export avviato',
-        description: `Export di ${selectedTables.length} tabella/e avviato.`,
-      });
-      pollExportStatus();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Errore sconosciuto';
-      setExportStatus((previous) => ({ ...previous, isRunning: false, error: message }));
-      toast({ title: 'Errore avvio export', description: message, variant: 'destructive' });
     }
   };
 
@@ -347,20 +280,6 @@ export default function DataExport() {
     }
   };
 
-  const testAuth = async () => {
-    try {
-      const response = await apiRequest.get('/admin/axiom-migration/test-auth');
-      if (!response.success) throw new Error(response.error || 'Autenticazione fallita');
-      toast({ title: 'Autenticazione OK', description: 'Sessione Admin valida.' });
-    } catch (error) {
-      toast({
-        title: 'Errore autenticazione',
-        description: error instanceof Error ? error.message : 'Autenticazione fallita',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const statusIcon = (status: ExportHistory['status']) => {
     if (status === 'completed') return <CheckCircle className="h-4 w-4 text-green-500" />;
     if (status === 'failed') return <AlertCircle className="h-4 w-4 text-red-500" />;
@@ -382,7 +301,7 @@ export default function DataExport() {
           <div>
             <h1 className="text-3xl font-bold">Export Dati</h1>
             <p className="text-gray-600 mt-2">
-              Esporta dati reali dal database Neon e controlla le migrazioni verso Axiom.
+              Consulta i dati restituiti dal database Supabase e le statistiche Axiom, senza operazioni di migrazione o cancellazione legacy.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -401,7 +320,7 @@ export default function DataExport() {
         <Tabs defaultValue="analysis" className="space-y-6">
           <TabsList>
             <TabsTrigger value="analysis">Analisi</TabsTrigger>
-            <TabsTrigger value="export">Export</TabsTrigger>
+            <TabsTrigger value="export">Tabelle</TabsTrigger>
             <TabsTrigger value="history">Cronologia</TabsTrigger>
             <TabsTrigger value="settings">Impostazioni</TabsTrigger>
           </TabsList>
@@ -430,7 +349,7 @@ export default function DataExport() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Neon Database</CardTitle>
+                  <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database Supabase</CardTitle>
                   <CardDescription>Dimensione reale restituita dal backend DEMOS.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -470,7 +389,7 @@ export default function DataExport() {
             {databaseAnalysis && categoryRows.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Distribuzione dati su Neon</CardTitle>
+                  <CardTitle>Distribuzione dati su Supabase</CardTitle>
                   <CardDescription>Categorie e tabelle restituite dall'analisi del database.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -489,18 +408,10 @@ export default function DataExport() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Migrazione Neon → Axiom</CardTitle>
-                <CardDescription>Le migrazioni legacy dei log e la cancellazione sono sospese fino alla verifica GDPR, della minimizzazione e di RP-10.</CardDescription>
+                <CardTitle>Analisi log Axiom</CardTitle>
+                <CardDescription>Statistiche di consultazione: nessuna migrazione o cancellazione disponibile da questa pagina.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={testAuth}>Verifica sessione Admin</Button>
-                  <p className="text-sm text-amber-700" role="status">
-                    Migrazione legacy verso Axiom ed eliminazione da Neon sospese: valutazione GDPR,
-                    minimizzazione dei log e verifica indipendente di archiviazione e retention ancora necessarie.
-                  </p>
-                </div>
-
                 {axiomAnalysis?.datasets?.length ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {axiomAnalysis.datasets.map((dataset) => (
@@ -560,7 +471,7 @@ export default function DataExport() {
               <CardHeader>
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <CardTitle>Seleziona tabelle</CardTitle>
+                    <CardTitle>Tabelle nel database</CardTitle>
                     <CardDescription>Vengono mostrate esclusivamente le tabelle restituite dal backend.</CardDescription>
                   </div>
                   <div className="flex gap-2">
@@ -580,11 +491,6 @@ export default function DataExport() {
                   />
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setSelectedTables(tables.filter((table) => table.enabled).map((table) => table.name))}>Seleziona tutte</Button>
-                  <Button variant="outline" size="sm" onClick={() => setSelectedTables([])}>Deseleziona tutte</Button>
-                </div>
-
                 {loadingTables ? (
                   <p className="text-sm text-gray-500 py-6">Caricamento tabelle reali...</p>
                 ) : filteredTables.length === 0 ? (
@@ -594,14 +500,6 @@ export default function DataExport() {
                     {filteredTables.map((table) => (
                       <div key={table.name} className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
                         <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedTables.includes(table.name)}
-                            onChange={(event) => {
-                              setSelectedTables((current) => event.target.checked ? [...current, table.name] : current.filter((name) => name !== table.name));
-                            }}
-                            className="h-4 w-4 mt-1"
-                          />
                           <div>
                             <div className="font-medium">{table.name}</div>
                             <p className="text-sm text-gray-600">{Number(table.recordCount || 0).toLocaleString('it-IT')} record · {formatSize(table.sizeMB, table.sizeKB)}</p>
@@ -620,23 +518,10 @@ export default function DataExport() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader><CardTitle>Opzioni export</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-amber-700">Export su disco temporaneamente non disponibile: verifica GDPR e conservazione dati in corso.</p>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={deleteAfterExport} disabled />
-                  Elimina dal database dopo l'export
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} />
-                  Modalità test (solo conteggi, nessun file creato)
-                </label>
-                <Button onClick={startExport} disabled={true}>
-                  <Download className="h-4 w-4 mr-2" />{dryRun ? 'Simula export' : 'Avvia export'}
-                </Button>
-              </CardContent>
-            </Card>
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>Export su disco temporaneamente non disponibile: necessaria verifica GDPR, retention e ripristino. Puoi consultare le tabelle reali e scaricare soltanto gli export storici già disponibili.</AlertDescription>
+            </Alert>
           </TabsContent>
 
           <TabsContent value="history">

@@ -1,0 +1,110 @@
+name: P0 combined consent and Admin legacy — isolated CI
+on:
+  push:
+    branches: [integration/p0-consent-admin-export-20261103]
+  pull_request:
+    branches: [integration/p0-release-gates-20261102]
+permissions:
+  contents: read
+concurrency:
+  group: p0-combined-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  api-privacy-and-retirement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      NODE_ENV: test
+      DATABASE_URL: ''
+      STAGING_PREFLIGHT_DATABASE_URL: ''
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install locked API dependencies without lifecycle scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Verify exact integrated production JS parses
+        run: |
+          node --check api/app.js
+          node --check api/routes/users/profile.js
+          node --check api/routes/admin/axiom-migration.js
+          node --check api/routes/admin/data-export.js
+          node --check api/services/axiomMigrationService.js
+          node --check api/services/legacyAxiomMigrationGate.js
+      - name: Test consent, erasure, legacy HTTP, redaction and CLI together
+        run: |
+          node --test --test-concurrency=1 \
+            api/tests/legacyDataExportRetirement.test.js \
+            api/tests/legacyDataExportAuthIntegration.test.js \
+            api/tests/legacyAdminPrivacyReadContracts.test.js \
+            api/tests/legacyAxiomMigrationGate.test.js \
+            api/tests/adminLegacyErrorRedaction.contract.test.js \
+            api/tests/authAxiomReadSafety.contract.test.js \
+            api/tests/legacyRetentionMainExtraction.http.test.js \
+            api/tests/legacyRetentionBackupSafety.http.test.js \
+            api/tests/adminUserPrivacyCache.contract.test.js \
+            api/tests/gdprCanonicalAccountDeletionGate.synthetic.test.js \
+            api/tests/politicalConsentMainRead.synthetic.test.js \
+            api/tests/politicalMatchingService.test.js
+  frontend-canonical-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Verify admin UI contract (no Neon deletion or mock)
+        run: node --test api/tests/clientAdminCapability.smoke.test.js
+      - name: Install locked frontend dependencies without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Typecheck and Vite build
+        run: npm run build --prefix client
+  consent-postgres17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: demos_ci
+          POSTGRES_PASSWORD: synthetic_only
+          POSTGRES_DB: demos_political_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U demos_ci -d demos_political_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Install isolated PostgreSQL test driver
+        run: npm install --prefix /tmp/demos-political-ci --no-save --ignore-scripts --no-audit --no-fund pg@8.11.3
+      - name: Test consent isolation with disposable PostgreSQL 17
+        env:
+          NODE_PATH: /tmp/demos-political-ci/node_modules
+          DATABASE_URL: ''
+          CIVIC_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_political_ci
+          CIVIC_TEST_MODE: isolated-synthetic
+        run: node --test api/tests/politicalConsentMainRead.pg.integration.test.js
