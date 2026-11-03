@@ -12,6 +12,13 @@ on:
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
       - 'api/tests/unifiedStagingSchemaContract.test.js'
+      - 'api/routes/referendum.js'
+      - 'api/routes/referendum-abrogativi.js'
+      - 'api/utils/selectNextOfficialReferendum.js'
+      - 'api/tests/referendumOfficialRoutes.staging.test.js'
+      - 'api/tests/referendumRealVote.smoke.test.js'
+      - 'api/tests/referendumPriorityRetired.smoke.test.js'
+      - 'api/tests/publicRouteHygiene.smoke.test.js'
       - 'api/database/staging/ops_stg_001_missing_tables.sql'
       - 'api/database/staging/ops_stg_001_p0_app_routes_20261103.sql'
       - 'api/database/staging/ops_stg_001_p0_runtime_least_privilege_20261103.sql'
@@ -31,6 +38,13 @@ on:
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
       - 'api/tests/unifiedStagingSchemaContract.test.js'
+      - 'api/routes/referendum.js'
+      - 'api/routes/referendum-abrogativi.js'
+      - 'api/utils/selectNextOfficialReferendum.js'
+      - 'api/tests/referendumOfficialRoutes.staging.test.js'
+      - 'api/tests/referendumRealVote.smoke.test.js'
+      - 'api/tests/referendumPriorityRetired.smoke.test.js'
+      - 'api/tests/publicRouteHygiene.smoke.test.js'
       - 'api/database/staging/ops_stg_001_missing_tables.sql'
       - 'api/database/staging/ops_stg_001_p0_app_routes_20261103.sql'
       - 'api/database/staging/ops_stg_001_p0_runtime_least_privilege_20261103.sql'
@@ -66,9 +80,13 @@ jobs:
         run: |
           node --check api/staging/unified_staging_bootstrap.js
           node --check api/scripts/unifiedStagingPreflight.js
+          node --check api/routes/referendum.js
+          node --check api/routes/referendum-abrogativi.js
+          node --check api/utils/selectNextOfficialReferendum.js
       - name: Offline bootstrap and preflight contracts (loopback only)
         run: |
           node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js
+          node --test api/tests/referendumOfficialRoutes.staging.test.js api/tests/referendumPriorityRetired.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/publicRouteHygiene.smoke.test.js
 
   p0-schema-postgres16:
     # Synthetic CI database only, never the shared Render/Supabase staging.
