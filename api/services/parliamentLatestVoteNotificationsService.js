@@ -141,20 +141,43 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
     "WHERE data_votazione >= CURRENT_DATE - INTERVAL '120 days' " +
     "AND camera IN ('Camera', 'Senato') ORDER BY data_votazione DESC LIMIT 50"
   );
-  const votes = newestByChamber(rows);
+  // Latest vote is PER REPRESENTATIVE, not merely the most recent vote in
+  // each chamber. An MP can miss the newest roll call but appear in an older
+  // verified final vote. Search most-recent first, bounded to 50 source rows.
+  const votes = rows.filter(vote => isRecentFinal(vote))
+    .sort((a, b) => {
+      const date = dateIso(b.data_votazione).localeCompare(dateIso(a.data_votazione));
+      return date || voteOrder(b) - voteOrder(a);
+    });
+  const allByChamber = new Map();
+  const pendingByChamber = new Map();
+  for (const chamber of ['Camera', 'Senato']) {
+    const reps = await selectedRepresentatives(pool, chamber);
+    allByChamber.set(chamber, reps);
+    pendingByChamber.set(chamber, new Map(reps.map(rep => [String(rep.id), rep])));
+  }
   let changed = 0, checked = 0, unavailable = 0;
   for (const vote of votes) {
+    const pending = pendingByChamber.get(vote.camera);
+    if (!pending?.size) continue;
     try {
-      const reps = await selectedRepresentatives(pool, vote.camera);
-      if (!reps.length) continue;
-      // pg returns DATE columns as Date objects; source validation requires ISO YYYY-MM-DD.
       const verified = await (options.getVerifiedFinalBallots || getVerifiedFinalBallots)({
         ...vote, data_votazione: dateIso(vote.data_votazione)
       });
-      const result = await persistLatestForChamber(pool, vote, verified, reps);
+      // Avoid misattributing two same-name MPs to one ballot. A missing
+      // member/status remains unresolved and may be found in an older final.
+      const allReps = allByChamber.get(vote.camera);
+      const matched = [...pending.values()].filter(rep =>
+        matchUniqueMember(rep, verified.members || [], allReps)
+      );
+      if (!matched.length) {
+        checked++;
+        continue;
+      }
+      const result = await persistLatestForChamber(pool, vote, verified, matched);
       changed += result.changed;
       checked++;
-      // Delivery happens only after a committed change and is independently gated.
+      for (const rep of matched) pending.delete(String(rep.id));
       for (const updated of result.updated) {
         try {
           await sendFinalBallotPush(pool, {
@@ -163,11 +186,13 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
             title: vote.titolo, status: updated.status
           });
         } catch {
-          // Best effort: the in-app notification remains the durable record.
+          // Only real committed changes are eligible; failure does not
+          // erase the in-app notification.
         }
       }
     } catch {
-      // Failure must not overwrite a verified vote. Report counts, not user IDs.
+      // A failed source stays unresolved; an older verified final vote may
+      // still be shown, but its date and source remain explicit.
       unavailable++;
     }
   }
