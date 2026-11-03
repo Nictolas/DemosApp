@@ -89,3 +89,20 @@ Ricerca di backup accessibile attraverso la connessione Google Drive eseguita pe
 Il gate offline `api/scripts/evaluateLegacyRenderPgRetirement.js` è stato ulteriormente rafforzato: **`sourceAttributionVerified=true` è obbligatorio**, anche se qualcuno classificasse come «monitoraggio probabile» tutte le connessioni. Nuovo test sintetico in `api/tests/legacyRenderPgRetirementGate.test.js`: il pattern sonda non può sbloccare da solo la revisione umana e `canAutomaticallyDelete` rimane sempre `false`.
 
 **Esito: NO-GO alla cancellazione e al cleanup legacy.** Per sbloccare la decisione occorrono attribuzione indipendente del client, verifica/restore del backup prima dell'8 novembre, audit dei servizi e superamento dei gate di staging. Le verifiche di questo intervento sono read-only; produzione e configurazione Render/Supabase invariate.
+
+
+## Riconciliazione evidence al 03/11/2026 (successiva alle note precedenti)
+
+La Roadmap operativa `STAGING — DIRETTIVA` righe 40 e 43 conferma ora
+che il backup del vecchio PostgreSQL Render è stato **verificato e
+ripristinato su un cluster PG17 temporaneo**; il cluster è stato
+successivamente rimosso. La precedente dicitura in questo documento
+«backup/restore non validati» riflette uno stato **anteriore** e non
+deve essere usata come ultimo esito. L'archivio originale va
+comunque conservato e il database legacy non può essere dismesso finché
+le dipendenze e i gate applicativi non sono chiusi.
+
+Per la riconciliazione completa dei metadati Supabase, delle ACL,
+dei deploy dei 10 servizi Render e delle quattro macro-fasi NO-GO,
+consultare `docs/operations/OPS_STG_001_GATE_EVIDENCE_20261103.md`
+e il tab nativo Google Sheets `STAGING — GO GATES`.
