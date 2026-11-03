@@ -228,3 +228,10 @@ test('P3 notifications, incidents and real referendum ballot tables are required
       'omitting '+name+' must keep the preflight fail-closed');
   }
 });
+
+test('P4 preference cooldown table is mandatory and private', () => {
+  const name='preference_change_cooldowns';
+  assert.ok(REQUIRED_TABLES.includes(name));
+  assert.ok(CIVIC_PRIVATE_TABLES.includes(name));
+  assert.equal(evaluateSchema(REQUIRED_TABLES.filter(x => x!==name)).ready,false);
+});
