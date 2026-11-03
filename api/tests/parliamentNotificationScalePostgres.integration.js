@@ -132,6 +132,38 @@ async function run() {
     assert.equal(guarded.sent,0,'expired mandate blocks push');
     assert.equal(acceptedMocks,1);
     await pool.query("UPDATE political_mandates SET ends_at=NULL WHERE user_id=$1",[repId]);
+    // Race test: if a mandate revocation arrives while a mock FCM call is
+    // outstanding, FOR SHARE on political_mandates must defer that update
+    // until dispatch concludes. Once committed, no new push may begin.
+    let enteredDispatch;
+    let finishDispatch;
+    const entered = new Promise(resolve => { enteredDispatch = resolve; });
+    const holdDispatch = new Promise(resolve => { finishDispatch = resolve; });
+    let raceCalls = 0;
+    const blockedAdmin={messaging:()=>({sendEach:async messages=>{
+      raceCalls += messages.length;
+      enteredDispatch();
+      await holdDispatch;
+      return {successCount:messages.length,failureCount:0};
+    }})};
+    const ongoing = sendFinalBallotPush(pool,request,{firebaseAdmin:blockedAdmin});
+    await entered;
+    let revoked=false;
+    const revoke = pool.query(
+      "UPDATE political_mandates SET status='ENDED' WHERE user_id=$1",[repId]
+    ).then(()=>{revoked=true;});
+    // A fixed short pause verifies blocking, not throughput.
+    await new Promise(resolve=>setTimeout(resolve,100));
+    assert.equal(revoked,false,'mandate update must wait for in-flight FCM batch');
+    finishDispatch();
+    assert.equal((await ongoing).sent,1);
+    await revoke;
+    assert.equal(revoked,true);
+    guarded=await sendFinalBallotPush(pool,request,{firebaseAdmin:acceptingMock});
+    assert.equal(guarded.sent,0,'no push after mandate revocation commits');
+    assert.equal(acceptedMocks,1);
+    assert.equal(raceCalls,1);
+    console.log('SYNTHETIC_MANDATE_RACE_PASS revocation_deferred=1 post_revocation_push=0');
     console.log('SYNTHETIC_MANDATE_GUARD_PASS active=1 ended=0 inactive_rep=0 expired=0');
     // Only a currently ACTIVE follower makes the parliamentary selection eligible.
     // Update synthetic accounts only, after the FCM capacity test.
