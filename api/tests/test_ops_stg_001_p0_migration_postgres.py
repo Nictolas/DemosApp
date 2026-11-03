@@ -298,6 +298,65 @@ class P0StagingMigrationPostgresTest(unittest.TestCase):
                 cur.execute("REVOKE USAGE ON SCHEMA public FROM " + role)
                 cur.execute("DROP ROLE " + role)
 
+    def test_staging_auth_provider_sequence_revoke_is_guarded(self):
+        """Exact DCL on disposable PG16: approval, identity, revoke and repeat."""
+        import hashlib
+        path = (ROOT / "api/database/staging" /
+                "ops_stg_001_revoke_public_auth_provider_sequence_20261103.sql")
+        original = path.read_text(encoding="utf-8")
+        real_hash = "0cbb6ace68a9f11956904e2a37898ec8"
+        self.assertEqual(original.count(real_hash), 1)
+        sql = original.replace(real_hash,
+            hashlib.md5(SYNTHETIC_ID.encode("ascii")).hexdigest())
+        sequence = "public.user_auth_providers_id_seq"
+        with self.conn.cursor() as cur:
+            cur.execute("""CREATE TABLE public.user_auth_providers (
+                id SERIAL PRIMARY KEY, provider text NOT NULL)""")
+            cur.execute("ALTER TABLE public.user_auth_providers ENABLE ROW LEVEL SECURITY")
+            cur.execute("""REVOKE ALL ON public.user_auth_providers
+                FROM PUBLIC, anon, authenticated""")
+            cur.execute("GRANT ALL ON SEQUENCE " + sequence +
+                        " TO anon,authenticated")
+            try:
+                with self.assertRaisesRegex(psycopg2.Error,
+                        "STAGING_SEQUENCE_REVOKE_APPROVAL_REQUIRED"):
+                    cur.execute(sql)
+                cur.execute("ROLLBACK")
+                cur.execute("SELECT has_sequence_privilege('anon',%s,'UPDATE')",
+                            (sequence,))
+                self.assertEqual(cur.fetchone(), (True,))
+                cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                            (WRONG_ID,))
+                cur.execute("BEGIN")
+                cur.execute("""SET LOCAL civic.sequence_revoke_approval =
+                    'I_APPROVE_STAGING_SEQUENCE_REVOKE'""")
+                with self.assertRaisesRegex(psycopg2.Error,
+                        "STAGING_SEQUENCE_REVOKE_WRONG_DATABASE"):
+                    cur.execute(sql)
+                cur.execute("ROLLBACK")
+                cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                            (SYNTHETIC_ID,))
+                cur.execute("BEGIN")
+                cur.execute("""SET LOCAL civic.sequence_revoke_approval =
+                    'I_APPROVE_STAGING_SEQUENCE_REVOKE'""")
+                cur.execute(sql)
+                cur.execute("COMMIT")
+                for role in ("anon", "authenticated"):
+                    cur.execute("""SELECT has_sequence_privilege(
+                        %s,%s,'SELECT,USAGE,UPDATE')""", (role,sequence))
+                    self.assertEqual(cur.fetchone(), (False,))
+                cur.execute("BEGIN")
+                cur.execute("""SET LOCAL civic.sequence_revoke_approval =
+                    'I_APPROVE_STAGING_SEQUENCE_REVOKE'""")
+                with self.assertRaisesRegex(psycopg2.Error,
+                        "STAGING_SEQUENCE_REVOKE_UNEXPECTED_EXISTING_GRANTS"):
+                    cur.execute(sql)
+                cur.execute("ROLLBACK")
+                cur.execute("SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1")
+                self.assertEqual(cur.fetchone(), (True,))
+            finally:
+                cur.execute("DROP TABLE public.user_auth_providers CASCADE")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -82,6 +82,15 @@ function evaluateAllPublicStagingTables(rows) {
   return {ready:rows.length>0 && unsafe.length===0,checkedCount:rows.length,unsafe};
 }
 
+function evaluatePublicSequenceProtection(rows) {
+  if (!Array.isArray(rows)) return {ready:false,checkedCount:0,unsafe:['metadata_unavailable']};
+  const unsafe = rows.filter(row =>
+    !row.sequence_name || row.anon_can_access !== false ||
+    row.authenticated_can_access !== false
+  ).map(row => row.sequence_name || 'unknown');
+  return {ready:unsafe.length===0,checkedCount:rows.length,unsafe};
+}
+
 function evaluateCivicProtection(rows, required = CIVIC_PRIVATE_TABLES) {
   const byName = new Map(rows.map(row => [row.table_name, row]));
   const unsafe = required.filter(name => {
@@ -249,6 +258,15 @@ async function run(env = process.env) {
          WHERE n.nspname = $1 AND c.relkind IN ('r', 'p')`,
       ['public']
     );
+    // Table RLS does not constrain independent PostgreSQL sequences.
+    const publicSequenceRows = await client.query(
+      `SELECT c.relname AS sequence_name,
+              has_sequence_privilege('anon', c.oid, 'SELECT,USAGE,UPDATE') AS anon_can_access,
+              has_sequence_privilege('authenticated', c.oid, 'SELECT,USAGE,UPDATE') AS authenticated_can_access
+         FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+         WHERE n.nspname='public' AND c.relkind='S'`
+    );
     const columnRows = await client.query(
       `SELECT c.relname AS table_name, a.attname AS column_name,
               t.typname AS udt_name,
@@ -268,12 +286,14 @@ async function run(env = process.env) {
     const schema = evaluateSchema(tables.rows.map(row => row.table_name));
     const civicProtection = evaluateCivicProtection(protectionRows.rows);
     const allPublicTables = evaluateAllPublicStagingTables(protectionRows.rows);
+    const publicSequenceProtection = evaluatePublicSequenceProtection(publicSequenceRows.rows);
     const civicColumns = evaluateCivicRuntimeColumns(columnRows.rows);
     const deliveryBlocked = evaluateBlockedGuard(guard.rows);
     await client.query('ROLLBACK');
     return { ...schema, ready: schema.ready && civicProtection.ready &&
-      allPublicTables.ready && civicColumns.ready && deliveryBlocked,
-      civicProtection, allPublicTables, civicColumns, deliveryBlocked };
+      allPublicTables.ready && publicSequenceProtection.ready &&
+      civicColumns.ready && deliveryBlocked,
+      civicProtection, allPublicTables, publicSequenceProtection, civicColumns, deliveryBlocked };
   } finally {
     await client.end();
   }
@@ -292,5 +312,6 @@ if (require.main === module) {
 
 module.exports = {STAGING_REF, STAGING_PREFLIGHT_ROLE, STAGING_IDENTITY_HASH, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, CIVIC_RUNTIME_COLUMNS,
   assertStagingTarget, evaluateSchema, evaluateCivicProtection, evaluateAllPublicStagingTables,
+  evaluatePublicSequenceProtection,
   evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity,
   evaluatePreflightRole, evaluatePreflightWriteGrants, run};

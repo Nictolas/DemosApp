@@ -58,3 +58,29 @@ I ruoli/oggetti temporanei vengono eliminati dal runner. Nessun ruolo o
 permesso viene creato nello staging Supabase, nessun test E2E applicativo
 è autorizzato e il GO rimane bloccato fino al provisioning approvato della
 credenziale `demos_staging_preflight`.
+
+
+## Preflight: sequenze public e grant anon/authenticated (03/11/2026)
+
+Audit read-only di Demos-Staging: 51/51 tabelle public con RLS, 0 concessioni
+dirette ai client su tabelle e colonne; **una sequenza su sei**, denominata
+`public.user_auth_providers_id_seq`, conserva invece `SELECT/USAGE/UPDATE`
+concessi direttamente a `anon` e `authenticated`. Le sequenze hanno permessi
+separati dalla RLS della tabella. L'audit non dimostra che la sequenza sia
+raggiungibile tramite Data API o sfruttata in pratica.
+
+Il preflight controlla ora **tutte le sequenze public** e rifiuta il GO con
+qualsiasi `SELECT/USAGE/UPDATE` concesso ad `anon` o `authenticated`.
+La correzione DCL mirata è versionata in
+`api/database/staging/ops_stg_001_revoke_public_auth_provider_sequence_20261103.sql`:
+richiede approvazione esplicita di sessione, hash esatto dell'identità staging,
+push bloccati, due utenti esclusivamente sintetici, tabella con RLS e permessi
+pubblici non concessi. Revoca soltanto `PUBLIC`, `anon` e `authenticated`
+sulla singola sequenza, senza cambiare i grant a `postgres` o `service_role`.
+Un controllo successivo conferma la revoca; una seconda applicazione è rifiutata.
+
+Il test PostgreSQL16 su runner usa il vero SQL con identità fittizia:
+nega approvazione assente, nega database errato, revoca i grant
+deliberatamente aperti, verifica assenza di permessi e blocca una seconda
+esecuzione. Nessun test applicativo e nessuna apertura del runtime
+`demos-staging`; PR #565 resta Draft e lo staging applicativo NO-GO.

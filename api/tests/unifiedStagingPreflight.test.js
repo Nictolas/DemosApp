@@ -2,7 +2,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES,
-  CIVIC_RUNTIME_COLUMNS, evaluateCivicProtection, evaluateAllPublicStagingTables, evaluateCivicRuntimeColumns,
+  CIVIC_RUNTIME_COLUMNS, evaluateCivicProtection, evaluateAllPublicStagingTables,
+  evaluatePublicSequenceProtection, evaluateCivicRuntimeColumns,
   evaluateBlockedGuard, evaluateStagingIdentity, evaluatePreflightRole,
   evaluatePreflightWriteGrants, STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
 
@@ -113,6 +114,24 @@ test('global public staging audit fails closed for every newly added table', () 
   assert.equal(evaluateAllPublicStagingTables([{
     table_name:'unlisted',rls_enabled:false,anon_can_access:false,authenticated_can_access:false
   }]).ready,false);
+});
+
+test('public sequence grants to anon or authenticated prevent staging GO', () => {
+  assert.deepEqual(evaluatePublicSequenceProtection([]), {ready:true,checkedCount:0,unsafe:[]});
+  const safe=[{sequence_name:'safe_seq',anon_can_access:false,authenticated_can_access:false}];
+  assert.equal(evaluatePublicSequenceProtection(safe).ready,true);
+  for(const bad of [
+    {...safe[0],anon_can_access:true},
+    {...safe[0],authenticated_can_access:true},
+    {...safe[0],anon_can_access:null},
+    {...safe[0],sequence_name:undefined}
+  ]) assert.equal(evaluatePublicSequenceProtection([bad]).ready,false);
+  assert.equal(evaluatePublicSequenceProtection(null).ready,false);
+  const fs=require('node:fs'),path=require('node:path');
+  const src=fs.readFileSync(path.join(__dirname,'..','scripts','unifiedStagingPreflight.js'),'utf8');
+  assert.match(src,/has_sequence_privilege\('anon'/);
+  assert.match(src,/has_sequence_privilege\('authenticated'/);
+  assert.match(src,/publicSequenceProtection\.ready/);
 });
 
 test('preflight reads pg_catalog for ALL public tables without an allowlist filter', () => {
