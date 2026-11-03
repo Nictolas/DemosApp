@@ -115,7 +115,7 @@ export default function LandingPage() {
                 <h3 className="text-lg font-semibold mb-3 text-gray-900">Come politico o candidato</h3>
                 <ul className="list-disc list-inside text-gray-700 space-y-2 text-sm leading-relaxed">
                   <li>Amplia il tuo bacino di elettori e sostenitori</li>
-                  <li>Analizza le preferenze per zona, genere e fasce d&apos;età</li>
+                  <li>Analizza le preferenze per zona, sesso e fasce d&apos;età</li>
                   <li>Comunica eventi, votazioni e iniziative in tempo reale</li>
                 </ul>
               </div>
