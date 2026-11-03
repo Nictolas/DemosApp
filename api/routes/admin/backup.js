@@ -18,6 +18,7 @@ function legacyBackupActionUnavailable(req, res, next) {
     BackupService.assertLegacyBackupAvailable();
     return next();
   } catch (error) {
+    res.set('Cache-Control', 'private, no-store');
     return res.status(error.statusCode || 410).json({
       success: false,
       error: error.code || 'LEGACY_APP_BACKUP_RETIRED',
@@ -30,7 +31,7 @@ function legacyBackupActionUnavailable(req, res, next) {
  * GET /api/admin/backup/stats
  * Ottiene statistiche sui backup
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const stats = await BackupService.getBackupStats();
     
@@ -55,7 +56,7 @@ router.get('/stats', async (req, res) => {
  * GET /api/admin/backup/list
  * Ottiene lista dei backup disponibili
  */
-router.get('/list', async (req, res) => {
+router.get('/list', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const backups = await BackupService.getBackupList();
     
@@ -159,7 +160,7 @@ router.post('/restore/:fileName', legacyBackupActionUnavailable, async (req, res
  * GET /api/admin/backup/verify/:fileName
  * Verifica integrità di un backup
  */
-router.get('/verify/:fileName', async (req, res) => {
+router.get('/verify/:fileName', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const { fileName } = req.params;
     
@@ -350,7 +351,7 @@ router.post('/test/integrity', legacyBackupActionUnavailable, async (req, res) =
  * GET /api/admin/backup/config
  * Ottiene la configurazione del backup
  */
-router.get('/config', async (req, res) => {
+router.get('/config', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const config = BackupService.getBackupConfig();
     

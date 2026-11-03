@@ -4,14 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  Trash2, 
   Clock, 
   Shield, 
   Database, 
   AlertTriangle, 
   CheckCircle, 
   XCircle,
-  Play,
   Pause,
   RefreshCw,
   Info
@@ -81,18 +79,6 @@ const DataRetention: React.FC = () => {
     }
   };
 
-  const handleStartJob = async () => {
-    try {
-      const response = await apiRequest('POST', '/admin/data-retention/job/start');
-      if (response.success) {
-        setSuccess('Job di data retention avviato');
-        loadData();
-      }
-    } catch (err) {
-      setError('Errore nell\'avvio del job');
-    }
-  };
-
   const handleStopJob = async () => {
     try {
       const response = await apiRequest('POST', '/admin/data-retention/job/stop');
@@ -100,20 +86,8 @@ const DataRetention: React.FC = () => {
         setSuccess('Job di data retention fermato');
         loadData();
       }
-    } catch (err) {
+    } catch {
       setError('Errore nell\'arresto del job');
-    }
-  };
-
-  const handleImmediateCleanup = async () => {
-    try {
-      const response = await apiRequest('POST', '/admin/data-retention/cleanup/immediate');
-      if (response.success) {
-        setSuccess(`Pulizia completata: ${response.data.total_deleted} record cancellati`);
-        loadData();
-      }
-    } catch (err) {
-      setError('Errore nella pulizia immediata');
     }
   };
 
@@ -144,7 +118,7 @@ const DataRetention: React.FC = () => {
           Gestione Data Retention
         </h1>
         <p className="text-gray-600">
-          Gestisci la cancellazione automatica dei dati scaduti secondo il GDPR
+          Consulta le policy di conservazione. La pulizia legacy è sospesa fino a verifica delle garanzie di cancellazione e ripristino.
         </p>
       </div>
 
@@ -191,15 +165,8 @@ const DataRetention: React.FC = () => {
                     Ferma
                   </Button>
                 ) : (
-                  <Button onClick={handleStartJob} size="sm">
-                    <Play className="h-4 w-4 mr-2" />
-                    Avvia
-                  </Button>
+                  <Badge variant="secondary">Avvio sospeso</Badge>
                 )}
-                <Button onClick={handleImmediateCleanup} variant="outline" size="sm">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Pulizia Immediata
-                </Button>
               </div>
             </div>
           )}
@@ -285,9 +252,9 @@ const DataRetention: React.FC = () => {
                 Informazioni Data Retention
               </h3>
               <p className="text-sm text-blue-800">
-                Il sistema di data retention cancella automaticamente i dati scaduti secondo le policy configurate.
+                Le policy mostrate sono informative. Gli interventi di cancellazione legacy sono temporaneamente sospesi.
                 I dati vengono cancellati in base alla loro tipologia e al periodo di retention stabilito dal GDPR.
-                La cancellazione avviene automaticamente alla scadenza del periodo di conservazione.
+                Non è attestata alcuna cancellazione automatica in produzione; servono le verifiche del flusso GDPR e del ripristino.
               </p>
             </div>
           </div>
