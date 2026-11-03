@@ -614,7 +614,7 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
 
     // Genera la spiegazione
     console.log(`[DEBUG] Step 5: Caricamento servizio AI`);
-    console.log(`[DEBUG] Verifica variabili ambiente: GROQ_API_KEY=${!!process.env.GROQ_API_KEY}, OPENAI_API_KEY=${!!process.env.OPENAI_API_KEY}`);
+    console.log('[DEBUG] Verifica disponibilità servizio Groq Free per spiegazione parlamentare');
     
     const { generaSpiegazioneVotazione, verificaLimiteGiornaliero } = require('../services/aiExplanationService');
     
@@ -651,7 +651,7 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
       
       // Log dettagliato per errori specifici
       if (genError.message && genError.message.includes('decommissioned')) {
-        console.error(`❌ PROBLEMA: Modello Groq deprecato! Il codice su Render usa ancora llama-3.1-70b-versatile`);
+        console.error('Modello Groq non disponibile: verificare GROQ_MODEL e allowlist Free');
       }
       if (genError.message && genError.message.includes('API AI non configurata')) {
         console.error(`❌ PROBLEMA: Chiave API non caricata su Render! Verifica GROQ_API_KEY in Environment Variables`);
@@ -662,18 +662,17 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
       return res.status(500).json({
         success: false,
         error: 'Errore nella generazione',
-        message: `Errore durante la generazione: ${genError.message}. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato e che il servizio sia stato riavviato.`
+        message: 'Spiegazione AI temporaneamente non disponibile. I dati ufficiali della votazione restano consultabili.'
       });
     }
 
     if (!spiegazione) {
-      console.error(`[DEBUG] Spiegazione non generata (null o vuota) per votazione_id=${votazioneId}`);
-      const elapsed = Date.now() - startTime;
-      console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (FALLITA) ========== Tempo: ${elapsed}ms`);
-      return res.status(500).json({
+      // La mancanza di spiegazione non cambia il dato parlamentare ufficiale.
+      // Un 503 esplicito evita di far apparire una votazione come invalida.
+      return res.status(503).json({
         success: false,
-        error: 'Errore nella generazione',
-        message: 'Impossibile generare la spiegazione. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato e che l\'API sia raggiungibile.'
+        error: 'Spiegazione AI non disponibile',
+        message: 'La spiegazione non è disponibile: testo documentale insufficiente oppure limite del servizio gratuito. I dati ufficiali della votazione restano consultabili.'
       });
     }
 
