@@ -19,9 +19,11 @@ function evaluateLegacyRenderPgRetirement(evidence = {}) {
     'POTENTIAL_LEGACY_DATABASE_CLIENTS');
   reject(evidence.dependencies?.productionTargetsExcluded === true,
     'PRODUCTION_ISOLATION_NOT_VERIFIED');
-  reject(evidence.metrics?.windowHours >= 24 && evidence.metrics?.coverageComplete === true,
+  reject(Number.isFinite(evidence.metrics?.windowHours) &&
+    evidence.metrics.windowHours >= 24 && evidence.metrics.coverageComplete === true,
     'CONNECTION_METRICS_INSUFFICIENT');
-  reject(evidence.metrics?.unattributedNonzeroSamples === 0,
+  reject(Number.isSafeInteger(evidence.metrics?.unattributedNonzeroSamples) &&
+    evidence.metrics.unattributedNonzeroSamples === 0,
     'NONZERO_CONNECTIONS_NOT_ATTRIBUTED');
   // Repeated 3-second sessions from a private IP can be probe-like, but the
   // appearance of monitoring traffic is not independent client attribution.
