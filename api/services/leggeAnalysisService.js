@@ -42,22 +42,18 @@ if (isGroqConfigured()) {
  * - "Mozione n. 567" -> "567"
  */
 function estraiNumeroLegge(titolo) {
-  if (!titolo) return null;
-  
-  // Pattern: "n. 1718", "n.1718", "DDL 1718", "Mozione 123", ecc.
-  const patterns = [
-    /(?:n\.?\s*|numero\s*)?(\d{3,5})/i, // "n. 1718" o "numero 1718"
-    /(?:DDL|Mozione|Decreto|ODG|EM)\s*(?:n\.?\s*)?(\d{3,5})/i, // "DDL 1718"
-    /legge\s*(?:n\.?\s*)?(\d{3,5})/i // "legge n. 123"
+  if (typeof titolo !== 'string') return null;
+  // Non indovinare il DDL da anni, emendamenti, numeri di decreto o mozione.
+  // Una ricerca basata su un numero ambiguo può restituire il testo di un atto
+  // diverso da quello votato e produrre una spiegazione falsa.
+  const identifiers = [
+    /\b(?:disegno\s+di\s+legge|proposta\s+di\s+legge|ddl|atto\s+senato|atto\s+camera)\s*(?:n(?:umero)?\.?\s*)?(\d{1,5})\b/i,
+    /(?:^|[\s(])(?:S|C)\.\s*(\d{1,5})\b/i
   ];
-  
-  for (const pattern of patterns) {
+  for (const pattern of identifiers) {
     const match = titolo.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
+    if (match) return match[1];
   }
-  
   return null;
 }
 
@@ -291,7 +287,12 @@ function estraiArticoliETesto($) {
  * Cerca su Openpolis, Senato.it, Normattiva.it
  */
 async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) {
-  if (!numeroLegge) return null;
+  if (!numeroLegge || !/^\d{1,5}$/.test(String(numeroLegge)) ||
+      !['Senato', 'Camera'].includes(camera)) {
+    // Anche il Parlamento europeo non deve essere ricercato per numero sul
+    // catalogo dei DDL italiani: le due numerazioni sono indipendenti.
+    return null;
+  }
 
   try {
     const axios = require('axios');
@@ -337,94 +338,11 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
       }
     }
     
-    // 2. Cerca su Normattiva.it (per decreto-legge convertito)
-    try {
-      // Per legge 1718 che converte il DL 175/2025
-      if (numeroLegge === '1718') {
-        // Prova più URL possibili per Normattiva
-        const urlsNormattiva = [
-          `https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legge:2025-11-21;175`,
-          `https://www.normattiva.it/atto/caricaDettaglioAtto?atto.dataPubblicazioneGazzetta=2025-11-21&atto.codiceRedazionale=DL1752025`,
-          `https://www.normattiva.it/atto/caricaDettaglioAtto?atto.dataPubblicazioneGazzetta=2025-11-21&atto.codiceRedazionale=21G00217`
-        ];
-        
-        for (const urlNormattiva of urlsNormattiva) {
-          try {
-            console.log(`🔍 Ricerca su Normattiva.it: ${urlNormattiva}`);
-            const response = await axios.get(urlNormattiva, {
-              headers: {
-                'Accept': 'text/html',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-              },
-              timeout: 15000,
-              validateStatus: (status) => status < 500
-            });
-            
-            if (response.status === 200) {
-              const $ = cheerio.load(response.data);
-              const { articoli, testo, dettagliNumerici } = estraiArticoliETesto($);
-              
-              if (articoli.length > 0) {
-                infoTrovate.push(`ARTICOLI DEL DECRETO-LEGGE N. 175/2025 (da Normattiva.it):\n${articoli.join('\n\n---\n\n')}`);
-              }
-              
-              if (dettagliNumerici) {
-                infoTrovate.push(`DETTAGLI NUMERICI (da Normattiva.it):\n${dettagliNumerici}`);
-              }
-              
-              if (testo.length > 500) {
-                testoCompleto += `\n\nTESTO DEL DECRETO-LEGGE (da Normattiva.it):\n${testo.substring(0, 8000)}`;
-              }
-              
-              break; // Se trovato, esci dal loop
-            }
-          } catch (err) {
-            console.warn(`⚠️ Errore con URL Normattiva ${urlNormattiva}: ${err.message}`);
-            continue; // Prova il prossimo URL
-          }
-        }
-      }
-    } catch (error) {
-      console.warn(`⚠️ Errore ricerca Normattiva.it per legge n. ${numeroLegge}: ${error.message}`);
-    }
-    
-    // 2b. Cerca su Gazzetta Ufficiale (per DL 175/2025)
-    try {
-      if (numeroLegge === '1718') {
-        const urlGazzetta = `https://www.gazzettaufficiale.it/eli/id/2025/11/21/21G00217/sg`;
-        
-        console.log(`🔍 Ricerca su Gazzetta Ufficiale per DL 175/2025`);
-        const response = await axios.get(urlGazzetta, {
-          headers: {
-            'Accept': 'text/html',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          },
-          timeout: 15000,
-          validateStatus: (status) => status < 500
-        });
-        
-        if (response.status === 200) {
-          const $ = cheerio.load(response.data);
-          const { articoli, testo, dettagliNumerici } = estraiArticoliETesto($);
-          
-          if (articoli.length > 0) {
-            infoTrovate.push(`ARTICOLI DEL DECRETO-LEGGE N. 175/2025 (da Gazzetta Ufficiale):\n${articoli.join('\n\n---\n\n')}`);
-          }
-          
-          if (dettagliNumerici) {
-            infoTrovate.push(`DETTAGLI NUMERICI (da Gazzetta Ufficiale):\n${dettagliNumerici}`);
-          }
-          
-          if (testo.length > 500) {
-            testoCompleto += `\n\nTESTO DEL DECRETO-LEGGE (da Gazzetta Ufficiale):\n${testo.substring(0, 8000)}`;
-          }
-        }
-      }
-    } catch (error) {
-      console.warn(`⚠️ Errore ricerca Gazzetta Ufficiale per legge n. ${numeroLegge}: ${error.message}`);
-    }
-    
-    // 3. Cerca su Openpolis
+    // Non associare automaticamente un numero DDL a un decreto Normattiva o
+    // a una Gazzetta Ufficiale: il legame richiede un identificativo ufficiale
+    // verificato, non può essere dedotto dal solo titolo.
+
+    // 2. Cerca su Openpolis
     try {
       const prefissoCamera = camera === 'Senato' ? 'S_' : 'C_';
       const urlOpenpolis = `https://parlamento19.openpolis.it/attivita_legislativa/disegni_di_legge/${prefissoCamera}${numeroLegge}`;
