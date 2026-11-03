@@ -97,3 +97,54 @@ test('source documents why delete-after-fake-backup is disabled; modern Axiom/B2
   const modern=fs.readFileSync(path.join(ROOT,'api/services/axiomArchiveService.js'),'utf8');
   assert.doesNotMatch(modern,/legacyDataArchivalGate/);
 });
+
+
+test('hybrid cloud legacy cleanup is permanently disabled before loading providers', () => {
+  const script = 'scripts/hybrid-cloud-backup.js';
+  const source = fs.readFileSync(path.join(ROOT,script),'utf8');
+  const guard = source.indexOf('exitRetiredLegacyDataArchival()');
+  const dbImport = source.indexOf("require('pg')");
+  const dotenv = source.indexOf("require('dotenv')");
+  assert.ok(guard >= 0 && guard < dbImport && guard < dotenv);
+  assert.doesNotMatch(source,/b2 delete-file-version|aws s3 rm|gsutil rm/);
+  assert.match(source,/assertLegacyDataArchivalUnavailable\(\)/);
+  assert.doesNotMatch(source,/node scripts\/hybrid-cloud-backup\.js cleanup --after-export/);
+
+  const result = spawnSync(process.execPath,[path.join(ROOT,script),'cleanup','--after-export'],{
+    encoding:'utf8',env:unsafeEnv,timeout:3000,maxBuffer:32*1024
+  });
+  assert.equal(result.error,undefined);
+  assert.equal(result.status,78);
+  assert.match(result.stderr,/^LEGACY_DATA_ARCHIVAL_RETIRED:/);
+  assert.equal(result.stdout,'');
+  assert.doesNotMatch(result.stderr,/synthetic@|FAKE_NOT_A_REAL_KEY/);
+});
+
+test('hybrid cloud imported cleanup rejects without DB queries or cloud CLI', async () => {
+  const file = path.join(ROOT,'scripts/hybrid-cloud-backup.js');
+  const originalLoad = Module._load;
+  const previous = require.cache[file];
+  const touched = {dbQueries:0,exec:0,dotenv:0};
+  Module._load=function(request,parent,isMain){
+    if(parent?.filename === file) {
+      if(request==='pg')return {Pool:class {
+        query(){touched.dbQueries++;throw Error('FORBIDDEN_DB')}
+        end(){touched.dbQueries++;throw Error('FORBIDDEN_DB_END')}
+      }};
+      if(request==='dotenv')return {config(){touched.dotenv++;return {parsed:{}}}};
+      if(request==='child_process')return {exec(){touched.exec++;throw Error('FORBIDDEN_CLOUD_EXEC')}};
+    }
+    return originalLoad.apply(this,arguments);
+  };
+  try {
+    delete require.cache[file];
+    const hybrid = require(file);
+    await assert.rejects(hybrid.cleanupCloudAfterExport(),err=>err?.code==='LEGACY_DATA_ARCHIVAL_RETIRED');
+    assert.equal(touched.dbQueries,0);
+    assert.equal(touched.exec,0);
+  } finally {
+    Module._load=originalLoad;
+    delete require.cache[file];
+    if(previous) require.cache[file]=previous;
+  }
+});
