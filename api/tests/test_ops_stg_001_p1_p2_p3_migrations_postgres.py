@@ -695,7 +695,27 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
                   RETURNING id""", (process, source))
                 ballot_ids.append(cur.fetchone()[0])
             ts = "2027-01-01T00:00:00Z"
+            # Test read-side suppression independently of the INSERT policy:
+            # privileged fixture setup can create a historical sub-threshold row
+            # or a row for another process; neither may leak to the runtime role.
+            hidden_cases = (
+                (ballot_ids[0], "2027-01-03T00:00:00Z", 9, 5, 3, 1),
+                (ballot_ids[1], "2027-01-04T00:00:00Z", 10, 6, 3, 1),
+            )
+            for ballot, bucket, total, yes, no, abstain in hidden_cases:
+                cur.execute("""INSERT INTO public.civic_ballot_forecast_snapshots
+                    (civic_ballot_id,bucket_start,total_responses,
+                     yes_count,no_count,abstain_count)
+                    VALUES (%s,%s,%s,%s,%s,%s)""",
+                    (ballot, bucket, total, yes, no, abstain))
             cur.execute("SET LOCAL ROLE demos_staging_runtime")
+            for ballot, bucket, *_ in hidden_cases:
+                cur.execute("""SELECT total_responses
+                    FROM public.civic_ballot_forecast_snapshots
+                    WHERE civic_ballot_id=%s AND bucket_start=%s""",
+                    (ballot, bucket))
+                self.assertIsNone(cur.fetchone(),
+                    "Runtime must not read snapshots below 10 or from other processes")
             cur.execute("""INSERT INTO public.civic_ballot_forecast_snapshots
                 (civic_ballot_id,bucket_start,total_responses,yes_count,no_count,abstain_count)
                 VALUES (%s,%s,10,6,3,1)""", (ballot_ids[0], ts))
