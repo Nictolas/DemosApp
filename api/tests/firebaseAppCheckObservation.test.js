@@ -426,7 +426,7 @@ test('manual Android quota rejects backward UTC day and persists before touching
   assert.match(budget, /if \(storedDay > day\) return false;/);
   const clockRollbackAt = budget.indexOf('if (storedDay > day) return false;');
   const dayResetAt = budget.indexOf('storedDay == day ?');
-  const persistAt = budget.indexOf('.commit()');
+  const persistAt = budget.lastIndexOf('.commit();'); // Ignore comment mentioning commit().
   assert.ok(clockRollbackAt !== -1 && clockRollbackAt < dayResetAt && persistAt > dayResetAt,
     'Rollback rejection must precede daily reset and persistent reservation');
   assert.ok(!budget.includes('apply()'), 'Reservation must be persisted synchronously');
