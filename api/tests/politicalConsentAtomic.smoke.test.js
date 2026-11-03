@@ -227,3 +227,40 @@ test('opinion deletion failure rolls back revocation and never records a durable
   assert.equal(sequence.includes('ROLLBACK'), true);
   assert.equal(sequence.includes('COMMIT'), false);
 });
+
+
+// The status UI needs only grant+timestamp. The original audit IP/user-agent
+// remain stored for GDPR evidence but must not be re-fetched/transmitted in GET.
+test('GET consent minimizes audit metadata and disables caching without changing response keys', async () => {
+  const sequence = [];
+  const stamp = '2026-10-12T10:00:00Z';
+  const query = async (sql, params) => {
+    const statement = normalized(sql);
+    assert.match(statement, /^SELECT COALESCE\(uc\.political_opinions_consent,/);
+    assert.doesNotMatch(statement, /political_opinions_consent_ip_address|political_opinions_consent_user_agent/);
+    assert.deepEqual(params, ['u-consent']);
+    sequence.push('READ_CONSENT_STATUS_ONLY');
+    return {
+      rows: [{
+        political_opinions_consent: true,
+        political_opinions_consent_timestamp: stamp,
+        // If a DB mock accidentally includes private fields, the API still
+        // must fail closed rather than transmitting them to the WebView.
+        political_opinions_consent_ip_address: '198.51.100.23',
+        political_opinions_consent_user_agent: 'sensitive-audit-test'
+      }]
+    };
+  };
+  await serveConsentRoute({ query, sequence, ledgerEvents: [] }, async (base) => {
+    const response = await fetch(base, { headers: { 'cache-control': 'no-cache' } });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('cache-control') || '', /private.*no-store/);
+    const body = await response.json();
+    assert.deepEqual(body, {
+      success: true,
+      consent: { granted: true, timestamp: stamp, ipAddress: null, userAgent: null }
+    });
+    assert.doesNotMatch(JSON.stringify(body), /198\.51\.100\.23|sensitive-audit-test/);
+  });
+  assert.deepEqual(sequence, ['READ_CONSENT_STATUS_ONLY']);
+});
