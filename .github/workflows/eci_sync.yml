@@ -26,10 +26,40 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Installa dipendenze minime
-        run: python -m pip install --disable-pip-version-check requests psycopg2-binary
+      - name: Installa dipendenze
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests psycopg2-binary
 
-      - name: Sincronizza cache ECI ufficiale
+      - name: Verifica prerequisiti database senza esporre secret
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CIVIC_RUNTIME_DATABASE_ID: ${{ secrets.CIVIC_RUNTIME_DATABASE_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DATABASE_URL" ] || [ -z "$CIVIC_RUNTIME_DATABASE_ID" ]; then
+            echo "ECI_DATABASE_NOT_CONFIGURED" >&2
+            exit 1
+          fi
+
+      - name: Sincronizza ECI nel database DEMOS verificato
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CIVIC_NEW_INITIATIVE_EVENTS_ENABLED: ${{ vars.CIVIC_NEW_INITIATIVE_EVENTS_ENABLED }}
+          CIVIC_RUNTIME_DATABASE_ID: ${{ secrets.CIVIC_RUNTIME_DATABASE_ID }}
         run: python api/scripts/sync_eci.py
+
+      - name: Dispatch notifiche civiche (solo dopo autorizzazione)
+        if: ${{ vars.CIVIC_NEW_INITIATIVE_PUSH_ENABLED == 'true' }}
+        env:
+          CIVIC_PUSH_DISPATCH_URL: ${{ secrets.CIVIC_PUSH_DISPATCH_URL }}
+          CIVIC_PUSH_DISPATCH_KEY: ${{ secrets.CIVIC_PUSH_DISPATCH_KEY }}
+        run: |
+          if [ -z "$CIVIC_PUSH_DISPATCH_URL" ] || [ -z "$CIVIC_PUSH_DISPATCH_KEY" ]; then
+            echo "CIVIC_DISPATCH_NOT_CONFIGURED" >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error --retry 2 --retry-delay 5 --max-time 120 \
+            --request POST \
+            --header "X-Civic-Dispatch-Key: ${CIVIC_PUSH_DISPATCH_KEY}" \
+            "$CIVIC_PUSH_DISPATCH_URL" > /dev/null
