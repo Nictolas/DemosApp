@@ -121,6 +121,7 @@ function profile({ granted=true, override, target='owner', viewer='owner', authe
   assert.ok(start>=0 && end>start);
   let chain;
   const sqls=[];
+  const logLines=[];
   const pool={async query(sql,values){
     sql=String(sql);sqls.push(sql);
     assert.match(sql,/FROM opinioni_risposte r/);
@@ -139,7 +140,7 @@ function profile({ granted=true, override, target='owner', viewer='owner', authe
     router,verifyToken,userDataAuditMiddleware,
     getAccountSubject:async()=>exists?{id:'synthetic-target',capabilities:{isCandidate:target==='candidate',isPolitician:target==='politician'}}:null,
     pool,getOpinionsForGrade:()=>[question],getAllOpinions:()=>[question],sortOpinionsByText:x=>x,
-    console:{log(){},error(){}}
+    console:{log(){},error(...args){logLines.push(args.join(' '));}}
   },{filename:'profile-opinions-active-handler.js'});
   assert.equal(chain.length,4,'cache guard must be before auth and audit');
   return async()=>{
@@ -153,7 +154,7 @@ function profile({ granted=true, override, target='owner', viewer='owner', authe
     }
     if(res.body===undefined)await chain.at(-1)(req,res);
     assertNoStore(res);
-    return {res,sqls};
+    return {res,sqls,logLines};
   };
 }
 test('profile: consented owner obtains answer and source; single personal SELECT',async()=>{
@@ -187,4 +188,15 @@ test('profile: auth, missing target and DB failure never cache private data',asy
   const missing=await profile({exists:false})();assert.equal(missing.res.statusCode,404);
   const bad=await profile({dbError:true})();assert.equal(bad.res.statusCode,500);
   assert.doesNotMatch(JSON.stringify(bad.res.body),/SYNTHETIC_PRIVATE_SQL_ERROR/);
+  assert.doesNotMatch(bad.logLines.join(' '),/SYNTHETIC_PRIVATE_SQL_ERROR/);
+});
+
+test('profile routes never log personal identifiers, opinion filters or raw SQL exceptions',()=>{
+  const source=file('routes/users/profile.js');
+  const loggingLines=source.split(/\r?\n/).filter(line=>/^\s*console\.(?:log|warn|error)\s*\(/.test(line));
+  const privateData=/\b(?:userId|authenticatedUserId|rappresentanteId|queryError)\b|\b(?:user|updatedUser)\.email\b|\berror\.(?:message|stack|detail|constraint)\b|,\s*(?:error|e|grado|updateData\[)/;
+  assert.ok(loggingLines.length>0);
+  for(const line of loggingLines) assert.doesNotMatch(line,privateData);
+  assert.doesNotMatch(source,/console\.error\(\s*['"`]([^\n]*)(?:Stack trace|Dettagli errore)/);
+  assert.doesNotMatch(source,/console\.(?:log|warn|error)\([^;]*\{\s*\n\s*message:\s*error\.message/);
 });
