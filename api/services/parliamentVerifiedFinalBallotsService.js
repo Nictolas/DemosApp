@@ -65,7 +65,7 @@ function parseVerifiedFinalBallots(html, vote) {
   // A secret ballot cannot support attribution of a choice to a person.
   // Test only the division header; filters or legends may mention secret votes.
   const divisionHeading = text.split(/Come hanno votato i (?:gruppi|deputati|senatori|parlamentari)/i)[0].slice(0, 1800);
-  if (senate && /VOTO\\s+FINALE\\s*SEGRETO/i.test(divisionHeading)) {
+  if (senate && /VOTO\s+FINALE\s*SEGRETO/i.test(divisionHeading)) {
     throw new Error('VOTE_SOURCE_SECRET_BALLOT');
   }
 
