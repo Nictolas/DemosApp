@@ -64,7 +64,7 @@ async function selectedRepresentatives(pool, chamber) {
   if (!selection) throw new Error('LATEST_VOTE_INVALID_CHAMBER');
   // The dynamic column is selected from two hard-coded safe identifiers.
   const sql = ('SELECT DISTINCT p.id, p.nome, p.cognome FROM users p ' +
-    'JOIN users follower ON follower.__SELECTION__ = p.id ' +
+    'JOIN users follower ON follower.__SELECTION__ = p.id::text ' +
     'WHERE p.nome IS NOT NULL AND p.cognome IS NOT NULL AND EXISTS (' +
     "SELECT 1 FROM political_mandates m WHERE m.user_id = p.id AND m.status = 'ACTIVE' " +
     'AND m.office_code = $1 AND m.starts_at <= NOW() ' +
