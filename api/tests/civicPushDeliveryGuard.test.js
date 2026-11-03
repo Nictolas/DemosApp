@@ -59,3 +59,15 @@ test('advisory unlock failure is never silently treated as a successful push mut
   assert.match(lockScope, /catch\s*\{\s*discard = true;[\s\S]*?throw new Error\('CIVIC_DELIVERY_LOCK_RELEASE_FAILED'\)/);
   assert.match(lockScope, /client\.release\(discard\)/);
 });
+
+test('malformed database query results never authorize topic delivery', async () => {
+  for (const malformed of [null, undefined, {}, { rows: null }, { rows: [null] }, { rows: 'invalid' }]) {
+    const guardDb = { async query() { return malformed; } };
+    assert.equal((await readCivicDeliveryBarrier(guardDb)).blocked, true);
+    const inactiveDb = { calls: 0, async query() {
+      this.calls += 1;
+      return this.calls === 1 ? { rows: [{ blocked: false }] } : malformed;
+    } };
+    assert.equal((await readCivicDeliveryBarrier(inactiveDb)).blocked, true);
+  }
+});
