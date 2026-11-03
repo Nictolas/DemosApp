@@ -5,6 +5,8 @@ on:
     paths:
       - 'api/services/playIntegrityPolicy.js'
       - 'api/tests/playIntegrityPolicy.test.js'
+      - 'api/services/playIntegrityDecode.js'
+      - 'api/tests/playIntegrityDecode.test.js'
       - '.github/workflows/play-integrity-preflight.yml'
   workflow_dispatch:
 
@@ -21,4 +23,4 @@ jobs:
         with:
           node-version: '22'
       - name: Verify zero-cost Play Integrity policy without Google credentials
-        run: node --test api/tests/playIntegrityPolicy.test.js
+        run: node --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js
