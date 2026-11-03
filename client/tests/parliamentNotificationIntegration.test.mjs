@@ -54,3 +54,12 @@ test("superseded notification push links still offer and open a verified final-b
   assert.match(archive, /data\.find\(v => v\.openpolis_id === id && isRecentFinale\(v\)\)/);
   assert.match(archive, /handledDeepLink/);
 });
+
+test("the two verified MP vote cards are shown above generic notices without synthetic ballots", () => {
+  const list = read("client/src/pages/Notifiche/components/ListaNotifiche.tsx");
+  assert.match(list, /n\.tipo_notifica === 'voto_parlamento' && !!n\.openpolis_id/);
+  assert.match(list, /Ultime votazioni dei tuoi rappresentanti/);
+  assert.match(list, /finalParliament\.map\(renderItem\)/);
+  assert.match(list, /otherNotices\.map\(renderItem\)/);
+  assert.match(list, /finalParliament\.length > 0/);
+});
