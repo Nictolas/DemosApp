@@ -25,6 +25,8 @@ async function run() {
     await pool.query([
       'CREATE TABLE users (id uuid PRIMARY KEY, nome text, cognome text, status varchar(10) NOT NULL);',
       'CREATE TABLE political_selections (user_id uuid REFERENCES users(id), selected_user_id uuid REFERENCES users(id), selection_kind text, political_office_id text);',
+      // Mirrors the existing canonical index, not a new production migration.
+      'CREATE INDEX idx_political_selections_selected_subject ON political_selections(selected_user_id, selection_kind, political_office_id);',
       'CREATE TABLE political_mandates (user_id uuid REFERENCES users(id), status text, office_code text, starts_at timestamptz, ends_at timestamptz);',
       'CREATE TABLE notifiche_preferenze (user_id uuid REFERENCES users(id), deputato boolean, senatore boolean);',
       'CREATE TABLE user_devices (user_id uuid REFERENCES users(id), fcm_token text, is_active boolean);',
@@ -50,8 +52,18 @@ async function run() {
       "SELECT id,repeat('F',110)||id::text,TRUE FROM users WHERE id <> $1::uuid", [repId]);
     assert.equal((await pool.query('SELECT count(*)::int n FROM political_selections')).rows[0].n, followers);
 
-    const reps = await selectedRepresentatives(pool, 'Camera');
+    const executed = [];
+    const observedPool = {query:async(sql,args)=>{executed.push(sql);return pool.query(sql,args);}};
+    const reps = await selectedRepresentatives(observedPool, 'Camera');
     assert.equal(reps.length, 1, '25k followers should select one unique MP');
+    assert.match(executed[0], /EXISTS \(SELECT 1 FROM political_selections ps/);
+    assert.doesNotMatch(executed[0], /FROM users p JOIN political_selections ps/);
+    // Real PG16 query plan, without fragile wall-clock assertions or user data.
+    const explain = await pool.query('EXPLAIN (ANALYZE, FORMAT JSON) '+executed[0], ['it.camera','C']);
+    const plan = explain.rows[0]['QUERY PLAN'][0];
+    assert.equal(plan.Plan['Actual Rows'],1,'PG semijoin must select exactly one MP');
+    console.log('SYNTHETIC_SEMIJOIN_QUERY_PASS selected_representatives=1' +
+      ' execution_ms=' + Number(plan['Execution Time']).toFixed(2));
     assert.equal(reps[0].id, repId);
     const date = new Date().toISOString().slice(0, 10);
     const vote = {openpolis_id:'vs19_735_017',camera:'Camera',titolo:'Finale sintetica',
@@ -84,6 +96,13 @@ async function run() {
     assert.equal(result.sent,0);
     assert.equal(networkCalls,0);
     assert.equal((await pool.query('SELECT count(*)::int n FROM notifiche_voti_parlamento')).rows[0].n,1);
+    // Only a currently ACTIVE follower makes the parliamentary selection eligible.
+    // Update synthetic accounts only, after the FCM capacity test.
+    await pool.query("UPDATE users SET status='i' WHERE id <> $1::uuid", [repId]);
+    assert.deepEqual(await selectedRepresentatives(pool,'Camera'),[],
+      'revoked/inactive follower selection must not surface an MP');
+    assert.deepEqual(await selectedRepresentatives(pool,'Senato'),[],
+      'the other chamber must remain empty');
     console.log('SYNTHETIC_SCALE_PASS followers=25000 shared_rows=1 replay=0 push_attempts=0 cap=5000');
     console.log('25k synthetic PostgreSQL rows do not establish a one-million-user SLA.');
   } finally {
