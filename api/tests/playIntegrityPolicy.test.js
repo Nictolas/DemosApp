@@ -65,6 +65,59 @@ test('Android native Play Integrity gate pins exactly the same Cloud project as 
   assert.doesNotMatch(java, /PLAY_INTEGRITY_PROJECT_NUMBER > 0L/);
 });
 
+test('Android direct Play Integrity reserves persistent local allowance before Google SDK', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const java = fs.readFileSync(
+    path.resolve(__dirname, '../../client/android/app/src/main/java/community/demos/NativePlayIntegrityPlugin.java'),
+    'utf8'
+  );
+  const prepare = java.split('public void prepareToken(PluginCall call) {')[1]
+    ?.split('public void requestToken(PluginCall call) {')[0];
+  const request = java.split('public void requestToken(PluginCall call) {')[1];
+  assert.ok(prepare && request, 'Manual native prepare/request methods must exist');
+  assert.ok(prepare.indexOf('if (!isEnabled())') >= 0);
+  assert.ok(prepare.indexOf('!reserveLocalApiAttempt("preparations")')
+    > prepare.indexOf('if (!isEnabled())'));
+  assert.ok(prepare.indexOf('reserveLocalApiAttempt("preparations")')
+    < prepare.indexOf('IntegrityManagerFactory.createStandard(getContext())'));
+  assert.ok(request.indexOf('if (!isEnabled())') >= 0);
+  assert.ok(request.indexOf('!reserveLocalApiAttempt("tokenRequests")')
+    > request.indexOf('if (!isEnabled())'));
+  assert.ok(request.indexOf('reserveLocalApiAttempt("tokenRequests")')
+    < request.indexOf('provider.request('));
+  assert.match(java, /MAX_PREPARATIONS_PER_UTC_DAY = 2/);
+  assert.match(java, /MAX_TOKEN_REQUESTS_PER_UTC_DAY = 2/);
+});
+
+test('Android direct Play Integrity local budgets persist without identifiers and fail on UTC rollback', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const java = fs.readFileSync(
+    path.resolve(__dirname, '../../client/android/app/src/main/java/community/demos/NativePlayIntegrityPlugin.java'),
+    'utf8'
+  );
+  const method = java.split('private synchronized boolean reserveLocalApiAttempt(String counter) {')[1]
+    ?.split('private boolean isEnabled() {')[0];
+  assert.ok(method, 'Native quota must serialize concurrent calls');
+  assert.match(method, /getSharedPreferences\(BUDGET_PREFERENCES, Context\.MODE_PRIVATE\)/);
+  assert.match(method, /nowMillis \/ 86400000L/);
+  assert.match(method, /if \(storedDay > utcDay\) return false;/);
+  assert.match(method, /storedDay == utcDay \? prefs\.getInt\("preparations", 0\) : 0/);
+  assert.match(method, /storedDay == utcDay \? prefs\.getInt\("tokenRequests", 0\) : 0/);
+  assert.match(method, /if \(used >= maxDaily\) return false;/);
+  assert.ok(method.indexOf('if (storedDay > utcDay)') < method.indexOf('return prefs.edit()'),
+    'Reject UTC rollback before persisting any reset');
+  assert.match(method, /\.putLong\("utcDay", utcDay\)/);
+  assert.match(method, /\.putInt\("preparations", preparations/);
+  assert.match(method, /\.putInt\("tokenRequests", requests/);
+  assert.match(method, /\.commit\(\);/);
+  assert.doesNotMatch(method, /\.apply\(\)|token\.token\(|requestHash|userId|deviceId/);
+  const gradle = fs.readFileSync(path.resolve(__dirname, '../../client/android/app/build.gradle'), 'utf8');
+  assert.match(gradle, /buildConfigField "boolean", "PLAY_INTEGRITY_ENABLED", "false"/);
+  assert.match(gradle, /buildConfigField "long", "PLAY_INTEGRITY_PROJECT_NUMBER", "0L"/);
+});
+
 test('SHA-256 requestHash is canonical and hides plain input', () => {
   assert.equal(createRequestHash('profile_update', { b: 2, a: 1 }),
     createRequestHash('profile_update', { a: 1, b: 2 }));
