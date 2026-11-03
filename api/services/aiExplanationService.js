@@ -4,6 +4,8 @@ const Groq = require('groq-sdk');
 const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
 const { hasDocumentaryContext } = require('./parliamentGroundedAnalysis');
 const { requestFreeGroq, getSharedFreeQuotaStatus } = require('./parliamentFreeGroqBudget');
+const { createSingleflight } = require('./parliamentAiSingleflight');
+const singleflightSpiegazione = createSingleflight();
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
@@ -279,6 +281,15 @@ async function generaSpiegazioniMancanti(limit = 10) {
  * @returns {Promise<string|null>} La spiegazione generata o null
  */
 async function generaSpiegazioneVotazione(votazioneId, titoloVotazione, descrizioneVotazione, camera) {
+  if (votazioneId === null || votazioneId === undefined) {
+    return null;
+  }
+  return singleflightSpiegazione(votazioneId, () =>
+    generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, descrizioneVotazione, camera)
+  );
+}
+
+async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, descrizioneVotazione, camera) {
   try {
     // Verifica se esiste già una spiegazione per questa votazione
     const existingResult = await pool.query(
