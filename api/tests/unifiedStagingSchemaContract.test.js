@@ -177,3 +177,19 @@ test('P5 referendum snapshot table is additive, staging-only, aggregate and priv
   assert.doesNotMatch(p5SnapshotsSql,/\buser_id\s+(?:uuid|text)\b/i);
   assert.doesNotMatch(p5SnapshotsSql,/\b(?:INSERT INTO|DELETE FROM|TRUNCATE|DROP TABLE|UPDATE public\.)\b/i);
 });
+
+const p5FixtureAclSql = fs.readFileSync(path.join(__dirname, '..', 'database', 'staging',
+  'ops_stg_001_p5_synthetic_snapshot_acl_20261103.sql'), 'utf8');
+const {MIN_PUBLIC_RESPONSES} = require('../services/referendumForecastSnapshotService');
+test('P5 synthetic runtime ACL preserves the ten-response publication limit', () => {
+  assert.equal(MIN_PUBLIC_RESPONSES, 10);
+  assert.match(p5FixtureAclSql, /P5_SNAPSHOT_ACL_APPROVAL_REQUIRED/);
+  assert.match(p5FixtureAclSql, /P5_SNAPSHOT_ACL_WRONG_DATABASE/);
+  assert.match(p5FixtureAclSql, /P5_SNAPSHOT_ACL_DELIVERY_UNBLOCKED/);
+  assert.match(p5FixtureAclSql, /P5_SNAPSHOT_ACL_P3_NOT_APPROVED/);
+  assert.equal((p5FixtureAclSql.match(/total_responses >= 10/g) || []).length, 3);
+  assert.match(p5FixtureAclSql, /GRANT UPDATE \(total_responses,yes_count,no_count,abstain_count,updated_at\)/);
+  assert.doesNotMatch(p5FixtureAclSql, /GRANT UPDATE \(.*is_frozen/);
+  assert.doesNotMatch(p5FixtureAclSql, /GRANT (?:ALL|DELETE|TRUNCATE) ON public.civic_ballot_forecast_snapshots/);
+  assert.match(p5FixtureAclSql, /CREATE POLICY p5_staging_synthetic_snapshot_update/);
+});
