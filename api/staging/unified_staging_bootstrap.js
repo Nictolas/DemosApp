@@ -7,6 +7,28 @@ function validateBootstrapEnvironment(env) {
   if (env.NODE_ENV !== 'staging' || env.DEMOS_UNIFIED_STAGING_MODE !== 'bootstrap') {
     throw new Error('Unified staging bootstrap requires explicit non-production mode');
   }
+  // A bootstrap-only HTTP canary must not carry credentials that could
+  // accidentally connect it to the expiring legacy PostgreSQL, Supabase,
+  // Redis, Firebase or cloud archives. Runtime application staging uses a
+  // separately reviewed mode and must never inherit a bootstrap exception.
+  const forbiddenCredentials = [
+    'DATABASE_URL', 'DIRECT_URL', 'PGHOST', 'PGUSER', 'PGPASSWORD',
+    'SUPABASE_DB_URL', 'SUPABASE_SERVICE_ROLE_KEY',
+    'REDIS_URL', 'AXIOM_API_TOKEN', 'B2_S3_ACCESS_KEY_ID',
+    'B2_S3_SECRET_ACCESS_KEY', 'B2_APPLICATION_KEY',
+    'GDPR_LEDGER_B2_ACCESS_KEY_ID', 'GDPR_LEDGER_B2_SECRET_ACCESS_KEY',
+    'GOOGLE_APPLICATION_CREDENTIALS', 'FIREBASE_SERVICE_ACCOUNT',
+    'FIREBASE_SERVICE_ACCOUNT_JSON',
+  ];
+  if (forbiddenCredentials.some(key => env[key] != null &&
+      String(env[key]).trim() !== '')) {
+    throw new Error('STAGING_BOOTSTRAP_CREDENTIALS_FORBIDDEN');
+  }
+  if (['CIVIC_PUSH_ENABLED', 'AXIOM_ARCHIVE_ENABLED',
+    'GDPR_LEDGER_B2_ENABLED', 'GDPR_ERASURE_OUTBOX_WORKER_ENABLED']
+    .some(key => env[key] === 'true')) {
+    throw new Error('STAGING_BOOTSTRAP_ACTIVE_FLAGS_FORBIDDEN');
+  }
   // Reject port 0 (an ephemeral listener) and non-decimal values in a
   // deployed bootstrap. Local tests can still call server.listen(0) directly.
   const rawPort = env.PORT === undefined || env.PORT === '' ? '10000' : String(env.PORT);
