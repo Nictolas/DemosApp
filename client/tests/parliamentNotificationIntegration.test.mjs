@@ -44,3 +44,13 @@ test("FCM, Android, and the notification feed preserve the exact verified final-
   assert.match(native, /case 'parliament_final_vote':/);
   assert.match(native, /target\.pathname.*target\.search/);
 });
+
+test("superseded notification push links still offer and open a verified final-ballot archive record", () => {
+  const feed = read("client/src/pages/Notifiche/index.tsx");
+  const archive = read("client/src/pages/VotiPoliticiFinali.tsx");
+  assert.match(feed, /latestNotificationMatches/);
+  assert.match(feed, /voti-politici\?final_vote=/);
+  assert.match(archive, /new URLSearchParams\(window\.location\.search\)\.get\("final_vote"\)/);
+  assert.match(archive, /data\.find\(v => v\.openpolis_id === id && isRecentFinale\(v\)\)/);
+  assert.match(archive, /handledDeepLink/);
+});
