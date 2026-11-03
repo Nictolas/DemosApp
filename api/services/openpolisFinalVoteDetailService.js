@@ -92,8 +92,10 @@ async function fetchAndParse(record) {
     validateStatus: status => status >= 200 && status < 300
   });
   const detail = parseOpenpolisFinalVoteDetail(response.data, record.camera);
-  const expectedDate = record.data_votazione && String(record.data_votazione).slice(0, 10);
-  if (!detail.data_votazione || (expectedDate && !String(record.data_votazione).startsWith(detail.data_votazione) && expectedDate !== detail.data_votazione)) {
+  const expectedDate = record.data_votazione instanceof Date
+    ? record.data_votazione.toISOString().slice(0, 10)
+    : record.data_votazione ? String(record.data_votazione).slice(0, 10) : null;
+  if (!detail.data_votazione || (expectedDate && expectedDate !== detail.data_votazione)) {
     throw new Error('OPENPOLIS_DETAIL_DATE_MISMATCH');
   }
   // A tiny subset could indicate pagination, layout changes or an incomplete scrape.
