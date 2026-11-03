@@ -225,3 +225,107 @@ test('manual diagnostic is Admin-only, header-only, and not wired to normal flow
   assert.ok(client.includes("ALLOWED_API_HOSTS.has(base.hostname)"));
   assert.ok(!client.includes('setInterval') && !client.includes('setTimeout'));
 });
+
+test('admin diagnostic route enforces auth and role at runtime without Google calls', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const vm = require('node:vm');
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../routes/admin/firebase-app-check-diagnostic.js'),
+    'utf8'
+  );
+  let registered = null;
+  let verificationCalls = 0;
+  let middlewareCalls = 0;
+  let enabled = true;
+  const router = {
+    post(pathName, ...handlers) {
+      registered = { pathName, handlers };
+    },
+  };
+  const verifyToken = (req, res, next) => {
+    middlewareCalls++;
+    if (req.headers.authorization !== 'Bearer mock-admin-session') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+  };
+  const requireAdmin = (req, res, next) => {
+    middlewareCalls++;
+    if (req.admin !== true) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  };
+  const sandbox = {
+    module: { exports: {} },
+    require(specifier) {
+      if (specifier === 'express') return { Router: () => router };
+      if (specifier === '../../middleware/auth') return { verifyToken, requireAdmin };
+      if (specifier === '../../services/firebaseAppCheckObservation') {
+        return {
+          isDiagnosticRouteEnabled: () => enabled,
+          observeAppCheckHeader: async headers => {
+            verificationCalls++;
+            assert.equal(headers['x-firebase-appcheck'], token);
+            return { status: 'verified' };
+          },
+        };
+      }
+      throw new Error('Unexpected dependency: ' + specifier);
+    },
+  };
+  vm.runInNewContext(source, sandbox, { filename: 'firebase-app-check-diagnostic.js' });
+  assert.equal(registered.pathName, '/observe');
+  assert.equal(registered.handlers.length, 3);
+
+  async function simulate({ authorization, admin = false }) {
+    const req = { admin, headers: {
+      authorization,
+      'x-firebase-appcheck': token,
+    } };
+    const res = {
+      statusCode: 200,
+      headers: {},
+      body: undefined,
+      status(n) { this.statusCode = n; return this; },
+      set(k, v) { this.headers[k] = v; return this; },
+      json(value) { this.body = value; return this; },
+      end() { return this; },
+    };
+    // Run the actual registered router handler chain in order, without HTTP,
+    // Firebase SDK initialization, network requests or real account tokens.
+    let handlerIndex = 0;
+    async function advance() {
+      if (handlerIndex >= registered.handlers.length) return;
+      const handler = registered.handlers[handlerIndex++];
+      let nextCalled = false;
+      const result = handler(req, res, () => { nextCalled = true; });
+      await result;
+      if (nextCalled) await advance();
+    }
+    await advance();
+    return res;
+  }
+
+  const anonymous = await simulate({ authorization: undefined });
+  assert.equal(anonymous.statusCode, 401);
+  assert.equal(verificationCalls, 0);
+
+  const nonAdmin = await simulate({ authorization: 'Bearer mock-admin-session' });
+  assert.equal(nonAdmin.statusCode, 403);
+  assert.equal(verificationCalls, 0);
+
+  enabled = false;
+  const disabled = await simulate({ authorization: 'Bearer mock-admin-session', admin: true });
+  assert.equal(disabled.statusCode, 404);
+  assert.equal(verificationCalls, 0);
+
+  enabled = true;
+  const allowed = await simulate({ authorization: 'Bearer mock-admin-session', admin: true });
+  assert.equal(allowed.statusCode, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(allowed.body)), { status: 'verified' });
+  assert.equal(allowed.headers['Cache-Control'], 'no-store');
+  assert.equal(verificationCalls, 1);
+  assert.equal(middlewareCalls, 8);
+});
