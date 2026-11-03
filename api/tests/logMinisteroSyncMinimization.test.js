@@ -18,6 +18,11 @@ function makeService({ poolQuery = async () => ({ rowCount: 0, rows: [] }), env 
       info: async (name, meta) => info.push({ name, meta }),
       error: async (name, meta) => info.push({ name, meta })
     },
+    './ministeroPaginationSafety': {
+      inspectMinisteroPage: () => {
+        throw new Error('Pagination is not exercised by these logging privacy unit tests');
+      }
+    },
     './redisCache': { invalidateMinisteroIniziativeCache: async () => { invalidations++; } },
     '../utils/dateUtils': {},
     '../utils/iniziativeMinisteroMapper': {},
