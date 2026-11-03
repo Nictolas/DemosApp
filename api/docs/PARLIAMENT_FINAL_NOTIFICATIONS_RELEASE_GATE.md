@@ -1,7 +1,7 @@
 # DEMOS — Ultimo voto parlamentare verificato e notifiche (DRAFT / NO-GO)
 
 **Stato 03/11/2026:** PR #576, non distribuita. Staging condiviso ancora bootstrap.
-**Nessun invio push, migrazione SQL, deploy o generazione AI effettuato.**
+**Nessun invio push reale, migrazione SQL su Supabase, deploy o generazione AI effettuato.** Test consentiti esclusivamente in CI PostgreSQL temporaneo e Firebase simulato.
 
 ## Scelta di prodotto
 - Notifica interna nella pagina Notifiche, con dettaglio a schermo intero.
@@ -15,20 +15,22 @@
 ## Modifiche in bozza
 1. parliamentLatestVoteNotificationsService.js: sceglie l'ultima finale recente per Camera e Senato; verifica la fonte nominale, abbina il rappresentante in modo univoco, verifica mandato attivo e presenza follower; UPSERT con confronto data+numero votazione. Reazioni di un voto precedente non ereditate.
 2. 20261103_latest_parliament_votes.sql: migrazione da approvare; rileva duplicati/NULL senza cancellarli, aggiunge identificatore, ordinamento, stati e indice univoco. Non applicata alla produzione.
-3. API Notifiche: ramo legacy invariato quando feature OFF, nuovi ID ed esito disponibili soltanto quando feature ON.
+3. API Notifiche: ramo legacy invariato quando feature OFF; con feature ON usa soltanto la scelta corrente nella tabella canonica political_selections e controlla la Camera esatta, così una vecchia selezione non riceve il voto di un altro politico.
 4. Frontend: popup in Notifiche; Android e web link /notifiche?final_vote=ID; vecchio push con voto sostituito rimanda alle finali recenti.
-5. parliamentFinalBallotPushService.js: trasporto FCM separatamente disabilitato. Se abilitato, invio solo a dispositivi attivi degli utenti attivi che seguono il rappresentante e hanno consentito espressamente deputato/senatore nelle preferenze. Nessun record per follower; cap prudenziale 5000 destinatari per rappresentante. Best-effort, non garantito.
+5. parliamentFinalBallotPushService.js: trasporto FCM separatamente disabilitato. Se attivato, filtra per scelta canonica corrente, stato attivo, consenso esplicito deputato/senatore e dispositivo attivo; per ogni gruppo di 250 token riesamina questi dati dentro una transazione PostgreSQL con FOR SHARE fino al termine dell'invio. Cap prudenziale 5000 destinatari per evento. Best-effort: una volta accettato da FCM il messaggio non può essere richiamato.
 
 ## Interruttori OFF per default
 - PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED=true: dopo la migrazione, consente UPSERT ultima notifica nel job sync Openpolis.
 - PARLIAMENT_FINAL_PUSH_ENABLED=true: invio FCM dopo commit solo se il primo interruttore è attivo.
 
 ## Gate prima del rollout
-- [ ] Staging condiviso GO per OPS-STG-001, poi migrazione testata, SQL reale, reazioni e rollback.
+- [x] Migrazione ripetibile e UPSERT monotono, revoca FCM, FK, unicità, cancellazione reazioni e idempotenza collaudati su PostgreSQL 16 effimero GitHub Actions (nessun contatto con staging/produzione).
+- [ ] Staging condiviso GO per OPS-STG-001; quindi migrazione e rollback sullo schema effettivo, autorizzazione DPO, E2E sessione autenticata e QA release.
 - [ ] E2E autenticazione, titolarità scelta rappresentante, Camera/Senato, date, fonte, voti segreti e dati non disponibili.
 - [ ] QA Android/Chrome su scroll e modali, push corrente e push sostituito.
-- [ ] DPO/privacy: race di revoca preferenze durante dispatch FCM da risolvere; verifica permessi e token.
-- [ ] Costo zero documentato per Firebase/FCM, Render e Supabase. Cap 5000 implica NO-GO per un rollout a un milione: progettare un delivery sicuro a blocchi/outbox senza costi aggiuntivi.
+- [x] Race di revoca nel trasporto FCM affrontata con SELECT FOR SHARE su utente, scelta canonica, preferenze e device mantenuto fino a riscontro Firebase; verificata in PostgreSQL 16 temporaneo. Un messaggio già accettato da FCM non è richiamabile. Restano test HTTP con sessioni reali e revisione DPO.
+- [x] Firebase Cloud Messaging (FCM) è ufficialmente un prodotto senza costi anche nel piano Spark e con milioni di utenti: https://firebase.google.com/docs/projects/billing/firebase-pricing-plans . Non implica che il progetto Firebase sia su Spark, né che Render/Supabase/GitHub Actions siano a costo zero.
+- [ ] Verifica del piano e dei consumi del progetto Firebase effettivamente collegato, più Render/Supabase/GitHub Actions; cap 5000 = NO-GO per rollout a un milione: progettare consegna durabile e sicura senza costi aggiuntivi.
 - [ ] Coordinamento PR #568/#569/#575/#576, backend effettivamente distribuito e autorizzazione esplicita al merge/deploy.
 - [ ] Spiegazione basata su testo ufficiale separata: issue #578. Nessuna chiamata Groq automatica.
 
