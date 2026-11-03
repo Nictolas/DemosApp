@@ -406,8 +406,28 @@ test('manual Android App Check requests persist a small per-installation UTC bud
   assert.ok(requestMethod);
   const gateAt = requestMethod.indexOf('if (!isEnabled())');
   const quotaAt = requestMethod.indexOf('if (!reserveManualAttestationAttempt())');
+  const initAt = requestMethod.indexOf('getAppCheckIfConfigured()');
   const sdkAt = requestMethod.indexOf('getAppCheckToken(false)');
-  assert.ok(gateAt !== -1 && quotaAt > gateAt && sdkAt > quotaAt,
-    'Disabled gate and durable quota must execute before any App Check SDK request');
+  assert.ok(gateAt !== -1 && quotaAt > gateAt && initAt > quotaAt && sdkAt > initAt,
+    'Disabled gate and durable quota must execute before Firebase provider initialization and token SDK request');
   assert.doesNotMatch(java, /getAppCheckToken\(true\)/);
+});
+
+test('manual Android quota rejects backward UTC day and persists before touching SDK', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const java = fs.readFileSync(
+    path.resolve(__dirname, '../../client/android/app/src/main/java/community/demos/NativeFirebaseAppCheckPlugin.java'),
+    'utf8'
+  );
+  const budget = java.split('private boolean reserveManualAttestationAttempt() {')[1]
+    ?.split('private boolean isEnabled()')[0];
+  assert.ok(budget, 'Manual limit function must remain present');
+  assert.match(budget, /if \(storedDay > day\) return false;/);
+  const clockRollbackAt = budget.indexOf('if (storedDay > day) return false;');
+  const dayResetAt = budget.indexOf('storedDay == day ?');
+  const persistAt = budget.indexOf('.commit()');
+  assert.ok(clockRollbackAt !== -1 && clockRollbackAt < dayResetAt && persistAt > dayResetAt,
+    'Rollback rejection must precede daily reset and persistent reservation');
+  assert.ok(!budget.includes('apply()'), 'Reservation must be persisted synchronously');
 });
