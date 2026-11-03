@@ -24,9 +24,18 @@ function validateBootstrapEnvironment(env) {
       String(env[key]).trim() !== '')) {
     throw new Error('STAGING_BOOTSTRAP_CREDENTIALS_FORBIDDEN');
   }
-  if (['CIVIC_PUSH_ENABLED', 'AXIOM_ARCHIVE_ENABLED',
-    'GDPR_LEDGER_B2_ENABLED', 'GDPR_ERASURE_OUTBOX_WORKER_ENABLED']
-    .some(key => env[key] === 'true')) {
+  // The shared Render service is a liveness-only canary until OPS-STG-001
+  // receives a documented GO. No feature may silently opt into real app
+  // delivery, jobs, or a PostgreSQL session check while bootstrap is active.
+  const forbiddenActiveFlags = [
+    'CIVIC_PUSH_ENABLED', 'AXIOM_ARCHIVE_ENABLED',
+    'GDPR_LEDGER_B2_ENABLED', 'GDPR_ERASURE_OUTBOX_WORKER_ENABLED',
+    'PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED', 'PARLIAMENT_FINAL_PUSH_ENABLED',
+    'CIVIC_STAGING_SESSION_CHECK_APPLY',
+    'CIVIC_UNIFIED_STAGING_READY', 'CIVIC_UNIFIED_STAGING_TESTS_AUTHORIZED',
+  ];
+  if (forbiddenActiveFlags.some(key =>
+    ['true', '1', 'yes', 'on'].includes(String(env[key] ?? '').trim().toLowerCase()))) {
     throw new Error('STAGING_BOOTSTRAP_ACTIVE_FLAGS_FORBIDDEN');
   }
   // Reject port 0 (an ephemeral listener) and non-decimal values in a
