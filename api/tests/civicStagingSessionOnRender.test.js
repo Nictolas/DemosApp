@@ -258,3 +258,16 @@ test('unsafe affinity or driver error cannot become a GO and always closes pool'
   );
   assert.equal(failed.ended, 1);
 });
+
+test('malformed environment and percent-encoded credentials fail closed without leaking secrets', () => {
+  for (const env of [null, false, 'staging', [], 0]) {
+    assert.throws(() => assertCivicStagingSessionEndpoint({...options, env}),
+      err => err.message === 'CIVIC_STAGING_SESSION_UNSAFE_ENVIRONMENT');
+  }
+  for (const credential of ['bad%ZZ', '%E0%A4%A']) {
+    const connectionString = CONNECTION.replace('ci-FakePass', credential);
+    assert.throws(() => assertCivicStagingSessionEndpoint({...options, connectionString}),
+      err => err.message === 'CIVIC_STAGING_SESSION_URL_INVALID' &&
+        !err.message.includes(credential));
+  }
+});
