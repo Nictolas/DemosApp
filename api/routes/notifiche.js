@@ -39,16 +39,22 @@ router.get('/', verifyToken, async (req, res) => {
     
     // Recupera da notifiche_voti_parlamento (solo per i rappresentanti scelti dall'utente)
     try {
+      const latestParliamentEnabled = process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED === 'true';
       const rappresentantiIds = [];
-      if (userInfo && userInfo.rappresentante_camera) {
-        rappresentantiIds.push(userInfo.rappresentante_camera);
+      if (latestParliamentEnabled) {
+        // Only canonical current choices by this authenticated user.
+        const current = await pool.query(
+          "SELECT DISTINCT selected_user_id::text AS id FROM political_selections " +
+          "WHERE user_id = $1 AND selection_kind = 'representative' " +
+          "AND political_office_id IN ('it.camera', 'it.senato') AND selected_user_id IS NOT NULL",
+          [user_id]
+        );
+        rappresentantiIds.push(...current.rows.map(row => row.id));
+      } else {
+        if (userInfo && userInfo.rappresentante_camera) rappresentantiIds.push(userInfo.rappresentante_camera);
+        if (userInfo && userInfo.rappresentante_senato) rappresentantiIds.push(userInfo.rappresentante_senato);
       }
-      if (userInfo && userInfo.rappresentante_senato) {
-        rappresentantiIds.push(userInfo.rappresentante_senato);
-      }
-      
       if (rappresentantiIds.length > 0) {
-          const latestParliamentEnabled = process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED === 'true';
           const votiParlamentoQuery = `
             SELECT 
               nvp.id,
@@ -75,11 +81,17 @@ router.get('/', verifyToken, async (req, res) => {
             LEFT JOIN parlamento p ON ${latestParliamentEnabled ? 'nvp.openpolis_id IS NULL AND' : ''} LOWER(TRIM(p.titolo)) = LOWER(TRIM(nvp.titolo)) AND p.camera = nvp.camera
             ${latestParliamentEnabled ? 'LEFT JOIN openpolis_votazioni_finali_decisive vf ON vf.openpolis_id = nvp.openpolis_id AND vf.camera = nvp.camera' : ''}
             WHERE nvp.id_utente = ANY($1::uuid[])
+            ${latestParliamentEnabled ? "AND EXISTS (" +
+              "SELECT 1 FROM political_selections ps WHERE ps.user_id = $2::uuid " +
+              "AND ps.selection_kind = 'representative' AND ps.selected_user_id = nvp.id_utente " +
+              "AND ((ps.political_office_id = 'it.camera' AND nvp.camera = 'Camera') " +
+              "OR (ps.political_office_id = 'it.senato' AND nvp.camera = 'Senato')))" : ''}
             ORDER BY COALESCE(nvp.data_creazione, CURRENT_TIMESTAMP) DESC
             LIMIT 50
           `;
           
-          votiParlamentoResult = await pool.query(votiParlamentoQuery, [rappresentantiIds]);
+          votiParlamentoResult = await pool.query(votiParlamentoQuery,
+            latestParliamentEnabled ? [rappresentantiIds, user_id] : [rappresentantiIds]);
       } else {
         votiParlamentoResult = { rows: [] };
       }
