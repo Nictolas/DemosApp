@@ -65,6 +65,13 @@ async function run() {
     console.log('SYNTHETIC_SEMIJOIN_QUERY_PASS selected_representatives=1' +
       ' execution_ms=' + Number(plan['Execution Time']).toFixed(2));
     assert.equal(reps[0].id, repId);
+    // A valid mandate must not make an inactive representative eligible.
+    await pool.query("UPDATE users SET status='i' WHERE id=$1", [repId]);
+    assert.deepEqual(await selectedRepresentatives(pool, 'Camera'), [],
+      'inactive representative must not be selected');
+    await pool.query("UPDATE users SET status='a' WHERE id=$1", [repId]);
+    assert.equal((await selectedRepresentatives(pool, 'Camera')).length, 1,
+      'reactivating the representative restores canonical eligibility');
     const date = new Date().toISOString().slice(0, 10);
     const vote = {openpolis_id:'vs19_735_017',camera:'Camera',titolo:'Finale sintetica',
       esito:'Approvata',data_votazione:date,
@@ -96,6 +103,36 @@ async function run() {
     assert.equal(result.sent,0);
     assert.equal(networkCalls,0);
     assert.equal((await pool.query('SELECT count(*)::int n FROM notifiche_voti_parlamento')).rows[0].n,1);
+    // Reduce to exactly one synthetic token to exercise the guarded transport.
+    // All 25k canonical selections are retained; no real Firebase is called.
+    const firstFollower='00000000-0000-4000-8000-000000000001';
+    await pool.query('UPDATE user_devices SET is_active=FALSE WHERE user_id <> $1::uuid',[firstFollower]);
+    let acceptedMocks=0;
+    const acceptingMock={messaging:()=>({sendEach:async messages=>{
+      acceptedMocks+=messages.length;
+      return {successCount:messages.length,failureCount:0};
+    }})};
+    const request={representativeId:repId,chamber:'Camera',openpolisId:vote.openpolis_id,
+      title:vote.titolo,status:'In missione'};
+    let guarded=await sendFinalBallotPush(pool,request,{firebaseAdmin:acceptingMock});
+    assert.equal(guarded.sent,1,'active mandate and representative allow one synthetic delivery');
+    assert.equal(acceptedMocks,1);
+    await pool.query("UPDATE political_mandates SET status='ENDED' WHERE user_id=$1",[repId]);
+    guarded=await sendFinalBallotPush(pool,request,{firebaseAdmin:acceptingMock});
+    assert.equal(guarded.sent,0,'ended mandate blocks push');
+    assert.equal(acceptedMocks,1,'no new FCM mock invocation for ended mandate');
+    await pool.query("UPDATE political_mandates SET status='ACTIVE' WHERE user_id=$1",[repId]);
+    await pool.query("UPDATE users SET status='i' WHERE id=$1",[repId]);
+    guarded=await sendFinalBallotPush(pool,request,{firebaseAdmin:acceptingMock});
+    assert.equal(guarded.sent,0,'inactive representative blocks push even with active mandate');
+    assert.equal(acceptedMocks,1);
+    await pool.query("UPDATE users SET status='a' WHERE id=$1",[repId]);
+    await pool.query("UPDATE political_mandates SET ends_at=NOW()-INTERVAL '1 second' WHERE user_id=$1",[repId]);
+    guarded=await sendFinalBallotPush(pool,request,{firebaseAdmin:acceptingMock});
+    assert.equal(guarded.sent,0,'expired mandate blocks push');
+    assert.equal(acceptedMocks,1);
+    await pool.query("UPDATE political_mandates SET ends_at=NULL WHERE user_id=$1",[repId]);
+    console.log('SYNTHETIC_MANDATE_GUARD_PASS active=1 ended=0 inactive_rep=0 expired=0');
     // Only a currently ACTIVE follower makes the parliamentary selection eligible.
     // Update synthetic accounts only, after the FCM capacity test.
     await pool.query("UPDATE users SET status='i' WHERE id <> $1::uuid", [repId]);
