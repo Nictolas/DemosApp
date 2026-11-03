@@ -5,11 +5,12 @@ export type AppCheckDiagnosticStatus =
   | 'verified' | 'invalid' | 'missing' | 'malformed'
   | 'different_app' | 'limited' | 'unconfigured';
 
-// Tokens can only go to an existing, approved DEMOS endpoint.
-const ALLOWED_API_HOSTS = new Set([
-  'demos.community',
-  'www.demos.community',
-  'demos-c7k0.onrender.com',
+// Exact HTTPS origins only: checking only hostname would also permit an
+// arbitrary nonstandard port, which must never receive admin or App Check tokens.
+const ALLOWED_API_ORIGINS = new Set([
+  'https://demos.community',
+  'https://www.demos.community',
+  'https://demos-c7k0.onrender.com',
 ]);
 
 /**
@@ -30,7 +31,7 @@ export async function runManualNativeAppCheckDiagnostic(
   let endpoint: URL;
   try {
     const base = new URL(apiOrigin);
-    if (base.protocol !== 'https:' || !ALLOWED_API_HOSTS.has(base.hostname)
+    if (!ALLOWED_API_ORIGINS.has(base.origin)
         || base.username || base.password || base.search || base.hash) {
       return 'unavailable';
     }
