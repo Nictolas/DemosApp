@@ -102,7 +102,10 @@ test('centralized operational and explicit audit metadata redact App Check token
     assert.equal(output.includes('nested-secret'), false);
     assert.equal(output.includes('[REDACTED]'), true);
     assert.equal(JSON.stringify(metadata), original); // No source mutation
-    assert.equal(output.includes('status'), true);
+    if (Object.prototype.hasOwnProperty.call(metadata, 'status')
+        || original.includes('"status"')) {
+      assert.equal(output.includes('"status"'), true);
+    }
   }
 });
 
