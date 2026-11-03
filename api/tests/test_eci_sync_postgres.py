@@ -8,7 +8,7 @@ import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
-from urllib.parse import urlsplit, urlunsplit, urlencode
+from urllib.parse import urlsplit, urlunsplit, urlencode, quote
 from uuid import uuid4
 
 from api.scripts import sync_eci
@@ -40,7 +40,7 @@ class EciTransactionalLockPostgresTest(unittest.TestCase):
         query = urlencode({
             "options": "-c search_path=" + cls.schema,
             "application_name": "demos_eci_lock_ci",
-        })
+        }, quote_via=quote)
         cls.dsn = urlunsplit((
             parsed.scheme, parsed.netloc, parsed.path, query, ""
         ))
