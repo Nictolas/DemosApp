@@ -1,47 +1,51 @@
-# DEMOS — Play Integrity: preparazione a costo zero
+# DEMOS — Play Integrity: integrazione predisposta, disattivata
 
-Data: 03/11/2026. Stato: SOLO PREPARAZIONE, NON INTEGRATA.
+Data: 03/11/2026. Stato: **PR #572 DRAFT**. Nessuna attivazione Google Cloud né API richiesta da DEMOS in produzione.
 
-## Vincolo economico
+## Regola economica
 
-- Non attivare fatturazione o servizi Google Cloud a consumo.
-- La quota documentata da Google è 10.000 richieste token/giorno e 10.000 decodifiche/giorno. La quota non costituisce da sola una garanzia di costo zero.
-- Non collegare un progetto Cloud, creare nuovi progetti o richiedere aumenti finché l'assenza di costi non sia verificata e approvata.
-- Questa PR non richiede API, rete, credenziali, Render env, nuove risorse o modifiche AAB.
+- Attivare soltanto dopo verifica documentata di **costo obbligatorio €0** e approvazione esplicita dell'utente.
+- Non collegare progetto Google Cloud, abilitare billing, creare servizi o chiedere aumenti quota nel frattempo.
+- Google dichiara quota iniziale di 10.000 richieste/giorno per token/prepare e 10.000 decodifiche; la quota non dimostra assenza assoluta di costi.
+- Evitare campi opzionali o prodotti associati con costi potenziali (ad es. device recall su larga scala).
 
-## Struttura verificata
+## Componenti preparati sulla PR
 
-- Android: Capacitor 6, package community.demos, minSdk 24, targetSdk 36.
-- Client: client/android, registrazione bridge nativo in MainActivity.java.
-- Backend: Express/Node.js su Render, libreria google-auth-library già presente.
-- SDK Android ufficiale Google Play Integrity: com.google.android.play:integrity:1.6.0 (NON aggiunto ancora).
+- `client/android/app/build.gradle`: dipendenza ufficiale `com.google.android.play:integrity:1.6.0` e **BuildConfig.PLAY_INTEGRITY_ENABLED=false**, **PLAY_INTEGRITY_PROJECT_NUMBER=0L**.
+- `client/android/app/src/main/java/community/demos/NativePlayIntegrityPlugin.java`: plugin Capacitor per preparazione token e richieste standard. Tutte le chiamate che toccherebbero Google sono bloccate dal BuildConfig.
+- `client/android/app/src/main/java/community/demos/MainActivity.java`: plugin registrato, senza invocazione automatica.
+- `client/src/lib/nativePlayIntegrity.ts`: helper facoltativo e non importato dalle pagine; richiede anche `VITE_PLAY_INTEGRITY_ENABLED=true`, assente nelle build correnti.
+- `client/src/lib/playIntegrityHash.ts`: SHA-256 WebCrypto canonico, base64url, coerente con il server Node.
+- `api/services/playIntegrityPolicy.js`: verifica dell'hash, del package, della freschezza e classificazione dei verdict **già decodificati da Google**.
+- `api/services/playIntegrityDecode.js`: facade per chiamata al servizio Google con timeout di 5 secondi, nessun retry, errori sanitizzati. Non montata in alcuna route e disabilitata senza tre variabili di consenso.
+- `api/tests/playIntegrityPolicy.test.js`, `api/tests/playIntegrityDecode.test.js`, `api/tests/playIntegrityWebHash.test.mjs`: test offline e di parità dei digest.
+- `.github/workflows/play-integrity-preflight.yml`: test Node offline. Anche la workflow Android Alpha esistente può compilare la modifica Gradle su PR.
 
-## Codice preparato
+## Vincoli di sicurezza e privacy
 
-- api/services/playIntegrityPolicy.js: funzioni pure, nessuna chiamata Google.
-- api/tests/playIntegrityPolicy.test.js: test offline senza token, senza fatturazione.
-- Flag disabilitati per default: PLAY_INTEGRITY_ENABLED, PLAY_INTEGRITY_ZERO_COST_CONFIRMED, PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER.
-- Funzioni di serializzazione canonica, requestHash SHA-256, analisi di pacchetto, timestamp, hash e verdict.
-- Attenzione: il parser NON autentica token Play Integrity. Accetta soltanto esiti ottenuti direttamente da Google dopo decodifica server-side. Mai accettare un JSON arbitrario dal client.
-- Nessuna modifica a route, registrazioni, voti, opinioni, preferenze, web, login, AAB o deploy.
+- **Nessuna** modifica a login, opinioni, voti, firme, API pubbliche, trattamento dati o release Android installata.
+- Nessuna risposta di integrità è accettata come attestazione se arriva in JSON dal client: Google deve decodificare il token lato server.
+- Nessun token, contenuto delle opinioni, credenziale o dato personale deve finire nei log. Risposte del facade limitate a classificazioni e motivazioni generiche.
+- Il fallimento di Play Integrity non deve disattivare autenticazione, autorizzazione o rate limiting DEMOS; resta un controllo aggiuntivo.
+- Non usare `demos-staging`: staging condiviso ancora in bootstrap secondo OPS-STG-001; non crearne altri.
+- Qualsiasi API Google deve restare disattivata e non deve consumare quote finché il controllo di costo e l'autorizzazione non sono conclusi.
 
-## Test locale
+## Da completare (non dichiarare completa l'integrazione)
 
-    node --test api/tests/playIntegrityPolicy.test.js
+1. Confermare costo €0 e condizioni Cloud **prima** del collegamento in Play Console.
+2. Mappare e approvare gli endpoint ad alto rischio; niente richieste su ogni schermata o apertura.
+3. Collegare in modo sicuro il bridge alle azioni selezionate e il decoder ad una route autenticata e limitata.
+4. Provisioning di autenticazione Google con minimi permessi, solo se costo €0 dimostrato.
+5. Test Android e backend end-to-end con token reali, dispositivi vari e controlli di falsi positivi.
+6. Rollout solo monitoraggio e rollback; mantenere piena compatibilità web.
 
-## Prima di un'integrazione effettiva
+## Comandi CI offline
 
-1. Verificare se Play Integrity può essere utilizzata senza fatturazione o spese, nel progetto Cloud esistente.
-2. Mappare le azioni ad alto rischio da attestare, evitando verifiche su ogni schermata.
-3. Realizzare bridge Android Capacitor e requestHash identico lato client/server (vettori test).
-4. Decoder autenticato su Render con rate limiting e quota; nessun token grezzo nei log.
-5. Avviare in modalità osservazione, senza blocchi, mantenendo web pienamente funzionante.
-6. Eseguire test locali e CI; non usare demos-staging finché è in bootstrap.
-7. Non interferire con l'AAB corrente o la release in corso.
+    node --experimental-strip-types --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js api/tests/playIntegrityWebHash.test.mjs
 
-## Fonti
+## Fonti ufficiali
 
 - https://developer.android.com/google/play/integrity/setup
-- https://developer.android.com/google/play/integrity/overview
 - https://developer.android.com/google/play/integrity/standard
 - https://developer.android.com/google/play/integrity/verdicts
+- https://developer.android.com/google/play/integrity/overview
