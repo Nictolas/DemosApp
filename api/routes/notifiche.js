@@ -1,7 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { getPool } = require('../config/database');
+const { notificationSchemaCache } = require('../services/notificationSchemaCache');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const {
+  isCivicPushEnabled,
+  reconcileCivicTopicsForUser,
+  unsubscribeDisabledCivicTopicsForUser,
+} = require('../services/civicPushTopics');
+const { withCivicPushDeliveryLock } = require('../services/civicPushDeliveryGuard');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -25,7 +32,7 @@ router.get('/', verifyToken, async (req, res) => {
     
     const userInfo = userInfoResult.rows[0] || null;
     // I privilegi admin derivano dal ruolo dell'utente autenticato, non da un ID fornito dal client.
-    const isAdmin = req.user.role === 'AD';
+    const isAdmin = Boolean(req.user?.isAdmin);
     const userComuneResidenza = userInfo ? userInfo.comune_residenza : null;
     
     let votiComuniResult, demosResult, comunaliResult, votiParlamentoResult, opinionChangesResult;
@@ -73,7 +80,7 @@ router.get('/', verifyToken, async (req, res) => {
         votiParlamentoResult = { rows: [] };
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_voti_parlamento:', err);
+      console.error('NOTIF_PARLIAMENT_FAILED');
       votiParlamentoResult = { rows: [] };
     }
     
@@ -133,7 +140,7 @@ router.get('/', verifyToken, async (req, res) => {
               politicoByKey.set(row.id, row);
             }
           } catch (e) {
-            console.warn('⚠️ Errore batch politici per UUID:', e.message);
+            console.warn('NOTIF_POLITICIAN_UUID_FAILED');
           }
         }
         if (politicoNames.length > 0) {
@@ -149,7 +156,7 @@ router.get('/', verifyToken, async (req, res) => {
               if (row.id && !politicoByKey.has(row.id)) politicoByKey.set(row.id, row);
             }
           } catch (e) {
-            console.warn('⚠️ Errore batch politici per nome:', e.message);
+            console.warn('NOTIF_POLITICIAN_NAME_FAILED');
           }
         }
         for (const notifica of votiComuniResult.rows) {
@@ -167,54 +174,27 @@ router.get('/', verifyToken, async (req, res) => {
         console.warn('⚠️ Nessuna notifica voti comuni trovata nella tabella');
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_voti_comuni:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        detail: err.detail
-      });
+      console.error('NOTIF_LOCAL_VOTES_FAILED');
       votiComuniResult = { rows: [] };
     }
     
-    // Recupera da notifiche_demos (senza comune_residenza)
+    // Evita una lettura information_schema per ogni GET, preservando il filtro JWT.
     try {
-      // Verifica colonne disponibili
-      const demosColumns = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_demos'
-      `);
-      const demosCols = demosColumns.rows.map(r => r.column_name);
-      if (!demosCols.includes('titolo') || !demosCols.includes('testo')) {
-        console.warn('⚠️ Colonne titolo o testo mancanti in notifiche_demos');
-        demosResult = { rows: [] };
-      } else {
-        demosResult = await pool.query(`
-          SELECT 
-            id,
-            id_utente,
-            titolo,
-            testo,
-            COALESCE(data, CURRENT_DATE) as data,
-            data_creazione,
-            NULL::TEXT as comune_residenza,
-            'notifiche_demos' as tabella_origine
-          FROM notifiche_demos
-          WHERE (titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = $1::uuid)
-          ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
-          LIMIT 50
-        `, [user_id]);
-      }
-    } catch (err) {
-      console.error('❌ Errore query notifiche_demos:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        detail: err.detail
-      });
+      demosResult = await pool.query(`
+        SELECT id, id_utente, titolo, testo,
+               COALESCE(data, CURRENT_DATE) AS data, data_creazione,
+               NULL::TEXT AS comune_residenza,
+               'notifiche_demos' AS tabella_origine
+        FROM notifiche_demos
+        WHERE (id_utente IS NULL OR id_utente = $1::uuid)
+        ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
+        LIMIT 50
+      `, [user_id]);
+    } catch {
+      console.error('NOTIF_DEMOS_FAILED');
       demosResult = { rows: [] };
     }
-    
+
     // Cambi di Opinione di Politici/Candidati sostenuti correntemente dall'utente.
     try {
       opinionChangesResult = await pool.query(
@@ -250,20 +230,15 @@ router.get('/', verifyToken, async (req, res) => {
       );
     } catch (err) {
       if (err?.code !== '42P01') {
-        console.error('❌ Errore query political_opinion_notifications:', err);
+        console.error('NOTIF_OPINION_CHANGES_FAILED');
       }
       opinionChangesResult = { rows: [] };
     }
 
     // Recupera da notifiche_comunali (gestisce sia struttura nuova che vecchia)
     try {
-      // Prima verifica quali colonne esistono
-      const columnCheck = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'notifiche_comunali'
-      `);
-      const existingColumns = columnCheck.rows.map(r => r.column_name);
+      // Cache TTL solo di metadata strutturali (mai contenuti o utenti).
+      const existingColumns = await notificationSchemaCache.columns(pool, 'notifiche_comunali');
       // Costruisci la query in base alle colonne disponibili
       let selectParts = ['id', 'id_utente'];
       
@@ -331,35 +306,20 @@ router.get('/', verifyToken, async (req, res) => {
       
       comunaliResult = await pool.query(query);
     } catch (err) {
-      console.error('❌ Errore query notifiche_comunali:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        detail: err.detail
-      });
+      if (err?.code === '42703' || err?.code === '42P01') {
+        notificationSchemaCache.invalidate('notifiche_comunali');
+      }
+      console.error('NOTIF_MUNICIPAL_FAILED');
       comunaliResult = { rows: [] };
     }
     
     // Recupera da notifiche_avvistamenti
     let avvistamentiResult = { rows: [] };
     try {
-      const tableExists = await pool.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'notifiche_avvistamenti'
-        )
-      `);
-      
-      if (tableExists.rows[0]?.exists) {
-        // Verifica colonne disponibili per costruire la query dinamicamente
-        const columnsResult = await pool.query(`
-          SELECT column_name 
-          FROM information_schema.columns 
-          WHERE table_name = 'notifiche_avvistamenti'
-          AND table_schema = 'public'
-        `);
-        const availableColumns = columnsResult.rows.map(r => r.column_name);
+      // Un utente senza comune non riceve avvistamenti: zero query in questo caso.
+      if (userComuneResidenza) {
+        const availableColumns = await notificationSchemaCache.columns(pool, 'notifiche_avvistamenti');
+        if (availableColumns.length > 0) {
         // Costruisci la query solo con colonne esistenti (escludi esplicitamente 'testo' e 'titolo')
         const selectColumns = [
           'id',
@@ -407,21 +367,17 @@ router.get('/', verifyToken, async (req, res) => {
         // Verifica che 'testo' non sia presente nella query
         const queryText = `SELECT ${selectColumnsWithUser.join(', ')} FROM notifiche_avvistamenti na ${joinClause} ${whereClause} ORDER BY ${orderBy} LIMIT 50`;
         if (queryText.includes('testo')) {
-          console.error('❌ ERRORE: La query contiene ancora "testo"!', queryText);
+          console.error('NOTIF_INVALID_QUERY_SHAPE');
           throw new Error('La query contiene ancora un riferimento alla colonna "testo"');
         }
         avvistamentiResult = await pool.query(queryText, queryParams);
-      } else {
-        console.log('⚠️ Tabella notifiche_avvistamenti non trovata');
+        }
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_avvistamenti:', err);
-      console.error('❌ Error details:', {
-        message: err.message,
-        code: err.code,
-        detail: err.detail,
-        position: err.position
-      });
+      if (err?.code === '42703' || err?.code === '42P01') {
+        notificationSchemaCache.invalidate('notifiche_avvistamenti');
+      }
+      console.error('NOTIF_SIGHTINGS_FAILED');
       avvistamentiResult = { rows: [] };
     }
     
@@ -643,27 +599,19 @@ router.get('/', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero notifiche:', error);
+    console.error('NOTIF_FEED_FAILED');
     
     // Se è un errore di connessione database, restituisci un messaggio più specifico
     if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
       return res.status(500).json({
         success: false,
-        error: 'Errore connessione database',
-        details: 'Il server non riesce a connettersi al database. Controllare la configurazione DATABASE_URL su Render.',
-        debug: {
-          code: error.code,
-          message: error.message,
-          database_url_present: !!process.env.DATABASE_URL,
-          db_host: process.env.DB_HOST
-        }
+        error: 'Errore connessione database'
       });
     }
     
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -692,7 +640,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('❌ Errore nella creazione notifica:', error);
+    console.error('NOTIF_CREATE_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -700,81 +648,54 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/notifiche/preferenze - Ottieni preferenze notifiche utente
+// GET /api/notifiche/preferenze - sola lettura.
+// L'apertura della pagina non crea record né sottoscrive topic FCM.
+// I nuovi consensi civici sono sempre OFF finché l'utente non li salva via POST.
+const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
+  eurodeputato: false,
+  senatore: false,
+  deputato: false,
+  consigliere_regionale: false,
+  consigliere_comunale: false,
+  attivisti: false,
+  demos: false,
+  scuola: false,
+  animali: true,
+  organizzazioni: false,
+  iniziative_popolari: false,
+  referendum_abrogativi: false,
+  eci: false
+});
+
 router.get('/preferenze', verifyToken, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
     const user_id = req.user.id;
-    
-    // Recupera le preferenze dalla nuova tabella notifiche_preferenze
     const result = await pool.query(
       `SELECT eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
-              attivisti, demos, scuola, animali, organizzazioni, updated_at
+              attivisti, demos, scuola, animali, organizzazioni,
+              iniziative_popolari, referendum_abrogativi, eci, updated_at
        FROM notifiche_preferenze
        WHERE user_id = $1`,
       [user_id]
     );
-    
-    if (result.rows.length === 0) {
-      // Se non esistono preferenze, crea record con valori di default
-      const defaultResult = await pool.query(
-        `INSERT INTO notifiche_preferenze (user_id, eurodeputato, senatore, deputato, 
-                                          consigliere_regionale, consigliere_comunale, 
-                                          attivisti, demos, scuola, animali, organizzazioni)
-         VALUES ($1, false, false, false, false, false, false, false, false, true, false)
-         RETURNING eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale,
-                   attivisti, demos, scuola, animali, organizzazioni, updated_at`,
-        [user_id]
-      );
-      
-      const prefs = defaultResult.rows[0];
-      return res.json({
-        success: true,
-        data: {
-          user_id,
-          preferenze: {
-            eurodeputato: prefs.eurodeputato,
-            senatore: prefs.senatore,
-            deputato: prefs.deputato,
-            consigliere_regionale: prefs.consigliere_regionale,
-            consigliere_comunale: prefs.consigliere_comunale,
-            attivisti: prefs.attivisti,
-            demos: prefs.demos,
-            scuola: prefs.scuola,
-            animali: prefs.animali,
-            organizzazioni: prefs.organizzazioni
-          },
-          updated_at: prefs.updated_at
-        }
-      });
-    }
-    
-    const prefs = result.rows[0];
-    
-    res.json({
+
+    const prefs = result.rows[0] || null;
+    const preferenze = Object.fromEntries(
+      Object.entries(DEFAULT_NOTIFICATION_PREFERENCES).map(([key, defaultValue]) => [
+        key, prefs?.[key] ?? defaultValue
+      ])
+    );
+
+    return res.json({
       success: true,
-      data: {
-        user_id,
-        preferenze: {
-          eurodeputato: prefs.eurodeputato ?? false,
-          senatore: prefs.senatore ?? false,
-          deputato: prefs.deputato ?? false,
-          consigliere_regionale: prefs.consigliere_regionale ?? false,
-          consigliere_comunale: prefs.consigliere_comunale ?? false,
-          attivisti: prefs.attivisti ?? false,
-          demos: prefs.demos ?? false,
-          scuola: prefs.scuola ?? false,
-          animali: prefs.animali ?? true,
-          organizzazioni: prefs.organizzazioni ?? false
-        },
-        updated_at: prefs.updated_at
-      }
+      data: { user_id, preferenze, updated_at: prefs?.updated_at ?? null }
     });
-  } catch (error) {
-    console.error('❌ Errore nel recupero preferenze notifiche:', error);
-    res.status(500).json({
+  } catch {
+    console.error('NOTIF_PREFERENCES_READ_FAILED');
+    return res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -804,12 +725,46 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     const animali = preferenze.animali !== false && preferenze.animali !== 'false';
     const organizzazioni = preferenze.organizzazioni === true || preferenze.organizzazioni === 'true';
     
+    // Omissione dei nuovi campi da client legacy = non modificare il valore.
+    // Accettiamo solo booleani espliciti per le nuove preferenze civiche.
+    const civicKeys = ['iniziative_popolari', 'referendum_abrogativi', 'eci'];
+    for (const key of civicKeys) {
+      const value = preferenze[key];
+      if (value !== undefined && value !== null &&
+          value !== true && value !== false && value !== 'true' && value !== 'false') {
+        return res.status(400).json({ success: false, error: 'Preferenza civica non valida' });
+      }
+    }
+    const civicValue = (key) => {
+      const value = preferenze[key];
+      return value === undefined || value === null ? null : value === true || value === 'true';
+    };
+    const civicInitiatives = civicValue('iniziative_popolari');
+    const civicReferendums = civicValue('referendum_abrogativi');
+    const civicEci = civicValue('eci');
+
+    // Opt-out prima del salvataggio: se Firebase non conferma la revoca,
+    // non presentiamo un consenso falso come aggiornato con successo.
+    const disabledCategories = civicKeys.filter(key => civicValue(key) === false);
+    let savedPrefs;
+    try {
+      // One lock covers Firebase opt-out, the authoritative preference write
+      // and the final topic reconciliation. Bootstrap/dispatch cannot observe
+      // an intermediate state and cannot re-add a topic after an opt-out.
+      savedPrefs = await withCivicPushDeliveryLock(pool, async (db) => {
+        await unsubscribeDisabledCivicTopicsForUser(db, user_id, disabledCategories, {
+          lockedClient: db
+        });
+
     // Usa UPSERT per inserire o aggiornare le preferenze nella nuova tabella
-    const result = await pool.query(
+    const result = await db.query(
       `INSERT INTO notifiche_preferenze (user_id, eurodeputato, senatore, deputato, 
                                          consigliere_regionale, consigliere_comunale, 
-                                         attivisti, demos, scuola, animali, organizzazioni)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                                         attivisti, demos, scuola, animali, organizzazioni,
+                                         iniziative_popolari, referendum_abrogativi, eci)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+               COALESCE($12::boolean, FALSE), COALESCE($13::boolean, FALSE),
+               COALESCE($14::boolean, FALSE))
        ON CONFLICT (user_id) 
        DO UPDATE SET 
          eurodeputato = EXCLUDED.eurodeputato,
@@ -822,35 +777,33 @@ router.post('/preferenze', verifyToken, async (req, res) => {
          scuola = EXCLUDED.scuola,
          animali = EXCLUDED.animali,
          organizzazioni = EXCLUDED.organizzazioni,
+         iniziative_popolari = COALESCE($12::boolean, notifiche_preferenze.iniziative_popolari),
+         referendum_abrogativi = COALESCE($13::boolean, notifiche_preferenze.referendum_abrogativi),
+         eci = COALESCE($14::boolean, notifiche_preferenze.eci),
          updated_at = NOW()
        RETURNING user_id, eurodeputato, senatore, deputato, consigliere_regionale, 
-                 consigliere_comunale, attivisti, demos, scuola, animali, organizzazioni, updated_at`,
+                 consigliere_comunale, attivisti, demos, scuola, animali, organizzazioni,
+              iniziative_popolari, referendum_abrogativi, eci, updated_at`,
       [user_id, eurodeputato, senatore, deputato, consigliere_regionale, consigliere_comunale, 
-       attivisti, demos, scuola, animali, organizzazioni]
+       attivisti, demos, scuola, animali, organizzazioni, civicInitiatives, civicReferendums, civicEci]
     );
     
     if (result.rows.length === 0) {
-      return res.status(500).json({
+      throw new Error('CIVIC_PREFERENCE_SAVE_EMPTY');
+    }
+    await reconcileCivicTopicsForUser(db, user_id, { lockedClient: db });
+    return result.rows[0];
+      }, { enabled: isCivicPushEnabled() });
+    } catch {
+      return res.status(503).json({
         success: false,
-        error: 'Errore nel salvataggio delle preferenze'
+        error: 'Impossibile confermare il salvataggio delle preferenze push. Riprova.'
       });
     }
     
-    const savedPrefs = result.rows[0];
-    
-    console.log(`✅ Preferenze notifiche salvate per utente ${user_id}:`, {
-      eurodeputato: savedPrefs.eurodeputato,
-      senatore: savedPrefs.senatore,
-      deputato: savedPrefs.deputato,
-      consigliere_regionale: savedPrefs.consigliere_regionale,
-      consigliere_comunale: savedPrefs.consigliere_comunale,
-      attivisti: savedPrefs.attivisti,
-      demos: savedPrefs.demos,
-      scuola: savedPrefs.scuola,
-      animali: savedPrefs.animali,
-      organizzazioni: savedPrefs.organizzazioni
-    });
-    
+    // Non registrare user ID o scelte di notifica nei log applicativi.
+    console.info('NOTIF_PREFERENCES_SAVED');
+
     res.json({
       success: true,
       message: 'Preferenze salvate con successo',
@@ -866,17 +819,19 @@ router.post('/preferenze', verifyToken, async (req, res) => {
           demos: savedPrefs.demos,
           scuola: savedPrefs.scuola,
           animali: savedPrefs.animali,
-          organizzazioni: savedPrefs.organizzazioni
+          organizzazioni: savedPrefs.organizzazioni,
+          iniziative_popolari: savedPrefs.iniziative_popolari,
+          referendum_abrogativi: savedPrefs.referendum_abrogativi,
+          eci: savedPrefs.eci
         },
         updated_at: savedPrefs.updated_at
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel salvataggio preferenze notifiche:', error);
+    console.error('NOTIF_PREFERENCES_WRITE_FAILED');
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: error.message
+      error: 'Errore interno del server'
     });
   }
 });
@@ -930,7 +885,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
           });
         }
       } catch (err) {
-        console.error('Errore ultima notifica voto comunale:', err);
+        console.error('NOTIF_LATEST_LOCAL_FAILED');
       }
     }
     
@@ -946,7 +901,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
           data_creazione,
           'notifiche_demos' as tabella_origine
         FROM notifiche_demos
-        WHERE (titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = $1::uuid)
+        WHERE (id_utente IS NULL OR id_utente = $1::uuid)
         ORDER BY COALESCE(data_creazione, (COALESCE(data, CURRENT_DATE)::timestamp)) DESC
         LIMIT 1
       `, [userId]);
@@ -962,7 +917,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
         });
       }
     } catch (err) {
-      console.error('❌ Errore query notifiche_demos:', err);
+      console.error('NOTIF_LATEST_DEMOS_FAILED');
     }
     
     // Recupera da notifiche_voti_parlamento (se l'utente ha rappresentanti scelti)
@@ -1003,7 +958,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
           }
         }
       } catch (err) {
-        console.error('❌ Errore query notifiche_voti_parlamento:', err);
+        console.error('NOTIF_LATEST_PARLIAMENT_FAILED');
       }
     }
     
@@ -1039,7 +994,7 @@ router.get('/ultima', verifyToken, async (req, res) => {
       }
     } catch (err) {
       if (err?.code !== '42P01') {
-        console.error('❌ Errore ultima political_opinion_notification:', err);
+        console.error('NOTIF_LATEST_OPINION_FAILED');
       }
     }
 
@@ -1060,14 +1015,14 @@ router.get('/ultima', verifyToken, async (req, res) => {
     }
     
     const ultimaNotifica = comunicazioni[0];
-    console.log('✅ Ultima notifica trovata:', ultimaNotifica.titolo);
+    console.info('NOTIF_LATEST_FOUND');
     
     res.json({
       success: true,
       data: ultimaNotifica
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero ultima notifica:', error);
+    console.error('NOTIF_LATEST_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
