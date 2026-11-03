@@ -119,7 +119,7 @@ export default function NotificheDemos() {
         duration: 5000
       });
       
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
     },
     onError: (error: any) => {
       
@@ -179,7 +179,7 @@ export default function NotificheDemos() {
         variant: pushSent ? "default" : "destructive",
         duration: 5000
       });
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
     },
     onError: (error: any) => {
       toast({
@@ -223,7 +223,7 @@ export default function NotificheDemos() {
       userNotificationForm.reset();
       setSelectedUser(null);
       setUserSearchValue("");
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
     },
     onError: (error: any) => {
       
@@ -282,7 +282,7 @@ export default function NotificheDemos() {
       });
       demosForm.reset();
       
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
     },
     onError: (error: any) => {
       
