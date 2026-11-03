@@ -107,5 +107,9 @@ test('the source is not mounted into routes or coupled to direct Play Integrity 
   assert.match(java, /installAppCheckProviderFactory\([\s\S]*false/);
   assert.match(java, /getAppCheckToken\(false\)/);
   assert.match(ts, /VITE_FIREBASE_APP_CHECK_ENABLED !== 'true'/);
-  assert.doesNotMatch(java, /decodeIntegrityToken|requestHash|PLAY_INTEGRITY_PROJECT_NUMBER/);
+  // Reject direct-Integrity calls in executable Java, not explanatory comments.
+  const executableJava = java
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(executableJava, /decodeIntegrityToken|requestHash|PLAY_INTEGRITY_PROJECT_NUMBER/);
 });
