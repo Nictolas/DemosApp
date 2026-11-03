@@ -89,6 +89,7 @@ async function selectedRepresentatives(pool, chamber) {
     "FROM political_mandates m JOIN users p ON p.id = m.user_id " +
     "WHERE m.status = 'ACTIVE' AND m.office_code = $2 " +
     "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()) " +
+    "AND lower(coalesce(p.status, '')) = 'a' " +
     "AND p.nome IS NOT NULL AND p.cognome IS NOT NULL " +
     "AND EXISTS (SELECT 1 FROM political_selections ps " +
     "JOIN users follower ON follower.id = ps.user_id AND lower(follower.status) = 'a' " +
