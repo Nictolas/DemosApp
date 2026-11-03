@@ -44,7 +44,7 @@ const verifyToken = async (req, res, next) => {
 
     try {
       const decoded = verifyAccessToken(token);
-      log('🔐 DEBUG verifyToken - Token decodificato:', decoded);
+      // Non registrare claim del JWT nemmeno in debug locale.
       log('🔐 DEBUG verifyToken - Verifica utente nel database...');
 
       // In Demos le email non vengono più usate per l'autenticazione:
@@ -72,12 +72,18 @@ const verifyToken = async (req, res, next) => {
         if (
           cached &&
           cached.id != null &&
+          String(cached.id) === String(userIdFromToken) &&
           cached.status != null &&
           cached.legacyRole != null &&
-          cached.capabilities != null
+          cached.capabilities &&
+          typeof cached.capabilities === 'object' &&
+          // A revoked Admin must never retain elevated privileges via Redis.
+          // Current Admin authorization is always reloaded from PostgreSQL.
+          !cached.capabilities.isAdmin &&
+          cached.legacyRole !== 'AD'
         ) {
           user = cached;
-          log('🔐 DEBUG verifyToken - Cache auth hit per user:', userIdFromToken);
+          log('Cache autenticazione valida');
         }
       }
 
@@ -86,9 +92,13 @@ const verifyToken = async (req, res, next) => {
           user = await getAccountSubject(pool, userIdFromToken);
           log('🔐 DEBUG verifyToken - Modello account caricato:', user ? 'OK' : 'NON TROVATO');
         } catch (dbError) {
-          logErr('❌ DEBUG verifyToken - Errore database:', dbError.message);
-          if (!isProduction) logErr('❌ DEBUG verifyToken - Stack database:', dbError.stack);
-          throw dbError;
+          // Un guasto SQL non equivale a un token non valido (401):
+          // evitare cicli di login e non mostrare dettagli DB al chiamante.
+          logErr('Servizio account temporaneamente non disponibile');
+          return res.status(503).json({
+            success: false,
+            error: 'Servizio di autenticazione temporaneamente non disponibile'
+          });
         }
 
         if (!user) {
@@ -99,7 +109,14 @@ const verifyToken = async (req, res, next) => {
           });
         }
 
-        if (authCacheKey && authCacheTtlSec > 0) {
+        if (
+          authCacheKey &&
+          authCacheTtlSec > 0 &&
+          // Do not persist privileged snapshots: revocations must take effect
+          // on the next authenticated request, not after the auth-cache TTL.
+          !user.capabilities?.isAdmin &&
+          user.legacyRole !== 'AD'
+        ) {
           await redisCache.setJson(authCacheKey, user, authCacheTtlSec);
         }
       }
@@ -129,12 +146,12 @@ const verifyToken = async (req, res, next) => {
       req.userRole = user.legacyRole;
       req.userEmail = null;
 
-      log('🔐 DEBUG - Token verificato per utente:', req.user.id, 'ruolo:', req.user.role);
+      log('Token validato');
 
       next();
     } catch (jwtError) {
-      console.error('❌ Errore verifica JWT:', jwtError.message);
-      if (!isProduction) console.error('❌ Stack JWT:', jwtError.stack);
+      console.error('Errore validazione autenticazione');
+
 
       if (jwtError.message.includes('scaduto') || jwtError.message.includes('expired')) {
         return res.status(401).json({
@@ -159,15 +176,11 @@ const verifyToken = async (req, res, next) => {
       });
     }
   } catch (error) {
-    console.error('❌ Errore nel middleware verifyToken:', error.message);
-    if (!isProduction) {
-      console.error('❌ Stack trace verifyToken:', error.stack);
-      console.error('❌ Error details verifyToken:', { message: error.message, code: error.code, detail: error.detail, hint: error.hint });
-    }
+    console.error('Errore middleware autenticazione');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      details: error.message
+      message: 'Autenticazione temporaneamente non disponibile'
     });
   }
 };
@@ -200,7 +213,7 @@ const requireAdmin = async (req, res, next) => {
     if (!isProduction) console.log('👑 DEBUG - Accesso admin verificato per utente:', req.userId);
     next();
   } catch (error) {
-    if (!isProduction) console.error('❌ Errore nel middleware requireAdmin:', error);
+    if (!isProduction) console.error('Errore controllo Admin');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -223,7 +236,7 @@ const requireOwnProfile = async (req, res, next) => {
     
     next();
   } catch (error) {
-    console.error('❌ Errore nel middleware requireOwnProfile:', error);
+    console.error('Errore controllo accesso al profilo');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

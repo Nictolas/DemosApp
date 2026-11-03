@@ -18,10 +18,11 @@ function legacyBackupActionUnavailable(req, res, next) {
     BackupService.assertLegacyBackupAvailable();
     return next();
   } catch (error) {
+    res.set('Cache-Control', 'private, no-store');
     return res.status(error.statusCode || 410).json({
       success: false,
       error: error.code || 'LEGACY_APP_BACKUP_RETIRED',
-      message: error.message
+      message: 'Operazione di backup legacy non disponibile fino alla verifica GDPR'
     });
   }
 }
@@ -30,7 +31,7 @@ function legacyBackupActionUnavailable(req, res, next) {
  * GET /api/admin/backup/stats
  * Ottiene statistiche sui backup
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const stats = await BackupService.getBackupStats();
     
@@ -43,7 +44,7 @@ router.get('/stats', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero statistiche backup:', error);
+    console.error('❌ Errore nel recupero statistiche backup:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -55,7 +56,7 @@ router.get('/stats', async (req, res) => {
  * GET /api/admin/backup/list
  * Ottiene lista dei backup disponibili
  */
-router.get('/list', async (req, res) => {
+router.get('/list', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const backups = await BackupService.getBackupList();
     
@@ -69,7 +70,7 @@ router.get('/list', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero lista backup:', error);
+    console.error('❌ Errore nel recupero lista backup:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -92,10 +93,10 @@ router.post('/create/full', legacyBackupActionUnavailable, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella creazione backup completo:', error);
+    console.error('❌ Errore nella creazione backup completo:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server'
+      error: 'Errore interno del server'
     });
   }
 });
@@ -115,10 +116,10 @@ router.post('/create/incremental', legacyBackupActionUnavailable, async (req, re
     });
     
   } catch (error) {
-    console.error('❌ Errore nella creazione backup incrementale:', error);
+    console.error('❌ Errore nella creazione backup incrementale:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server'
+      error: 'Errore interno del server'
     });
   }
 });
@@ -147,10 +148,10 @@ router.post('/restore/:fileName', legacyBackupActionUnavailable, async (req, res
     });
     
   } catch (error) {
-    console.error('❌ Errore nel ripristino backup:', error);
+    console.error('❌ Errore nel ripristino backup:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server'
+      error: 'Errore interno del server'
     });
   }
 });
@@ -159,7 +160,7 @@ router.post('/restore/:fileName', legacyBackupActionUnavailable, async (req, res
  * GET /api/admin/backup/verify/:fileName
  * Verifica integrità di un backup
  */
-router.get('/verify/:fileName', async (req, res) => {
+router.get('/verify/:fileName', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const { fileName } = req.params;
     
@@ -186,10 +187,10 @@ router.get('/verify/:fileName', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella verifica backup:', error);
+    console.error('❌ Errore nella verifica backup:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server'
+      error: 'Errore interno del server'
     });
   }
 });
@@ -208,10 +209,10 @@ router.post('/cleanup', legacyBackupActionUnavailable, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella pulizia backup:', error);
+    console.error('❌ Errore nella pulizia backup:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server'
+      error: 'Errore interno del server'
     });
   }
 });
@@ -233,10 +234,10 @@ router.post('/job/start', legacyBackupActionUnavailable, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'avvio job backup:', error);
+    console.error('❌ Errore nell\'avvio job backup:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server'
+      error: 'Errore interno del server'
     });
   }
 });
@@ -258,10 +259,10 @@ router.post('/job/stop', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'arresto job backup:', error);
+    console.error('❌ Errore nell\'arresto job backup:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server'
+      error: 'Errore interno del server'
     });
   }
 });
@@ -283,7 +284,7 @@ router.get('/job/status', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero stato job backup:', error);
+    console.error('❌ Errore nel recupero stato job backup:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -315,10 +316,10 @@ router.post('/job/immediate', legacyBackupActionUnavailable, async (req, res) =>
     });
     
   } catch (error) {
-    console.error('❌ Errore nel backup immediato:', error);
+    console.error('❌ Errore nel backup immediato:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server'
+      error: 'Errore interno del server'
     });
   }
 });
@@ -338,10 +339,10 @@ router.post('/test/integrity', legacyBackupActionUnavailable, async (req, res) =
     });
     
   } catch (error) {
-    console.error('❌ Errore nel test di integrità:', error);
+    console.error('❌ Errore nel test di integrità:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server'
+      error: 'Errore interno del server'
     });
   }
 });
@@ -350,7 +351,7 @@ router.post('/test/integrity', legacyBackupActionUnavailable, async (req, res) =
  * GET /api/admin/backup/config
  * Ottiene la configurazione del backup
  */
-router.get('/config', async (req, res) => {
+router.get('/config', legacyBackupActionUnavailable, async (req, res) => {
   try {
     const config = BackupService.getBackupConfig();
     
@@ -369,7 +370,7 @@ router.get('/config', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero configurazione backup:', error);
+    console.error('❌ Errore nel recupero configurazione backup:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

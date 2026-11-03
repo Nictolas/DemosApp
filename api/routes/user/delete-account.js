@@ -5,6 +5,7 @@ const AuditService = require('../../services/auditService');
 const { getPool } = require('../../config/database');
 const bcrypt = require('bcryptjs');
 const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
+const { invalidateAuthUserCache } = require('../../services/redisCache');
 
 /**
  * @route GET /api/user/delete-account/requirements
@@ -51,9 +52,12 @@ router.get('/requirements', verifyToken, async (req, res) => {
  */
 router.delete('/', verifyToken, async (req, res) => {
   const pool = getPool();
-  const client = await pool.connect();
+  let client;
 
   try {
+    // Opening a DB connection can itself fail (provider outage). Keep it in
+    // the guarded region so account erasure returns a controlled HTTP error.
+    client = await pool.connect();
     const userId = req.user.id;
     const { password, confirmText } = req.body;
 
@@ -142,6 +146,15 @@ router.delete('/', verifyToken, async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Best-effort cache eviction only AFTER durable account erasure. Never
+    // return a false 500 or try to roll back a committed transaction if Redis
+    // becomes unavailable; the auth-cache TTL remains a residual risk.
+    try {
+      await invalidateAuthUserCache(userId);
+    } catch {
+      console.error('ACCOUNT_DELETION_CACHE_INVALIDATION_FAILED');
+    }
+
     // COMMIT gia' confermato: un errore nell'audit esterno non deve
     // trasformare una cancellazione riuscita in una falsa risposta HTTP 500.
     // Non copiare l'ID cancellato nei dettagli del log.
@@ -163,7 +176,7 @@ router.delete('/', verifyToken, async (req, res) => {
 
   } catch (error) {
     try {
-      await client.query('ROLLBACK');
+      if (client) await client.query('ROLLBACK');
     } catch {
       console.error('ACCOUNT_DELETION_ROLLBACK_FAILED');
     }
@@ -187,7 +200,7 @@ router.delete('/', verifyToken, async (req, res) => {
       message: 'Errore interno del server durante la cancellazione dell\'account'
     });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

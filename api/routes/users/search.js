@@ -42,7 +42,6 @@ router.get('/search', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    console.log('🔍 GET /api/users/search - Ricerca utenti per:', q);
     
     const searchQuery = `
       SELECT id, nome, cognome
@@ -71,7 +70,6 @@ router.get('/search', verifyToken, requireAdmin, async (req, res) => {
       displayName: `${user.nome} ${user.cognome}`.trim()
     }));
     
-    console.log(`✅ Trovati ${users.length} utenti per la ricerca`);
     
     res.json({
       success: true,
@@ -79,7 +77,7 @@ router.get('/search', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella ricerca utenti:', error);
+    console.error('❌ Errore nella ricerca utenti:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -115,7 +113,6 @@ router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
       });
     }
     
-    console.log('🔍 GET /api/users/consiglieri-comunali - Comune residenza:', comuneResidenza);
     
     // Il mandato comunale attivo è autorevole; il ruolo legacy è solo fallback pre-migrazione.
     const result = await queryWithAccountModelFallback(
@@ -151,7 +148,6 @@ router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
       comune_elezione: user.comune_elezione
     }));
     
-    console.log(`✅ Trovati ${consiglieri.length} consiglieri comunali per il comune ${comuneResidenza}`);
     
     res.json({
       success: true,
@@ -159,7 +155,7 @@ router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella ricerca consiglieri comunali:', error);
+    console.error('❌ Errore nella ricerca consiglieri comunali:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -171,7 +167,6 @@ router.get('/consiglieri-comunali', verifyToken, async (req, res) => {
 // GET /api/users/ - Lista tutti gli utenti (solo admin)
 router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
-    console.log('🔍 GET /api/users/ - Lista utenti richiesta da admin');
     
     const { page = 1, limit, search, status, ruolo } = req.query;
     const limitValue = limit ? parseInt(limit) : null; // Se non specificato, restituisce tutti gli utenti
@@ -278,7 +273,6 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       };
     });
     
-    console.log(`✅ Lista utenti recuperata: ${users.length} su ${totalUsers} totali`);
     
     res.json({
       success: true,
@@ -292,7 +286,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero lista utenti:', error);
+    console.error('❌ Errore nel recupero lista utenti:');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -302,28 +296,21 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
 
 // GET /api/users/:userId - Ottieni un utente specifico (solo admin)
 router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
-    console.log('🔍 GET /api/users/:userId - Richiesta utente specifico');
-    console.log('🔍 DEBUG - URL completa:', req.url);
-    console.log('🔍 DEBUG - Params:', req.params);
-    console.log('🔍 DEBUG - Query:', req.query);
     
     const { userId } = req.params;
-    console.log('🔍 DEBUG - userId ricevuto:', userId);
     
     // Verifica che userId sia valido (UUID o numero)
     if (!userId || (isNaN(parseInt(userId)) && !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i))) {
-      console.log('❌ DEBUG - userId non valido:', userId);
       return res.status(400).json({
         success: false,
         message: 'ID utente non valido'
       });
     }
     
-    console.log('✅ DEBUG - userId valido, procedo con la query');
     
     // Query per ottenere l'utente specifico
-    console.log('🔍 DEBUG - Eseguendo query per userId:', userId);
     const result = await pool.query(`
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
              sesso, account_type, genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
@@ -337,10 +324,8 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       WHERE id = $1
     `, [userId]);
     
-    console.log('🔍 DEBUG - Query completata, righe trovate:', result.rows.length);
     
     if (result.rows.length === 0) {
-      console.log('❌ DEBUG - Utente non trovato per userId:', userId);
       return res.status(404).json({
         success: false,
         message: 'Utente non trovato'
@@ -349,17 +334,6 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     const user = result.rows[0];
     
-    console.log('✅ Utente trovato:', user.email);
-    console.log('🔍 DEBUG - Dati utente completi:', {
-      id: user.id,
-      nome: user.nome,
-      cognome: user.cognome,
-      email: user.email,
-      genere: user.genere,
-      ruolo: user.ruolo,
-      data_nascita: user.data_nascita,
-      cittadinanza: user.cittadinanza
-    });
     
     // Formatta la data di nascita per il frontend (formato europeo DD/MM/YYYY)
     let dataNascitaFormattata = null;
@@ -383,7 +357,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
           avatarConfig = user.avatar_config;
         }
       } catch (e) {
-        console.warn('⚠️ Errore nella gestione avatar_config:', e);
+        console.warn('⚠️ Errore nella gestione avatar_config:');
         // Se non è JSON valido, imposta null
         avatarConfig = null;
       }
@@ -404,67 +378,25 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       }
     };
     
-    console.log('🔍 DEBUG - Dati di risposta:', {
-      success: responseData.success,
-      user: {
-        id: responseData.user.id,
-        nome: responseData.user.nome,
-        cognome: responseData.user.cognome,
-        email: responseData.user.email,
-        genere: decompressGender(responseData.user.genere),
-        ruolo: responseData.user.ruolo,
-        data_nascita: responseData.user.data_nascita,
-        cittadinanza: responseData.user.cittadinanza,
-        paese_residenza: responseData.user.paese_residenza,
-        regione_residenza: responseData.user.regione_residenza,
-        provincia_residenza: responseData.user.provincia_residenza,
-        comune_residenza: responseData.user.comune_residenza,
-        grado_elezione: responseData.user.grado_elezione,
-        paese_elezione: responseData.user.paese_elezione,
-        regione_elezione: responseData.user.regione_elezione,
-        provincia_elezione: responseData.user.provincia_elezione,
-        comune_elezione: responseData.user.comune_elezione,
-        grado_candidatura: responseData.user.grado_candidatura,
-        paese_candidatura: responseData.user.paese_candidatura,
-        regione_candidatura: responseData.user.regione_candidatura,
-        provincia_candidatura: responseData.user.provincia_candidatura,
-        comune_candidatura: responseData.user.comune_candidatura
-      }
-    });
     
     // Debug specifico per i dati geografici
-    console.log('🔍 DEBUG - Dati geografici specifici:', {
-      paese_residenza: responseData.user.paese_residenza,
-      regione_residenza: responseData.user.regione_residenza,
-      provincia_residenza: responseData.user.provincia_residenza,
-      comune_residenza: responseData.user.comune_residenza,
-      paese_elezione: responseData.user.paese_elezione,
-      regione_elezione: responseData.user.regione_elezione,
-      provincia_elezione: responseData.user.provincia_elezione,
-      comune_elezione: responseData.user.comune_elezione,
-      paese_candidatura: responseData.user.paese_candidatura,
-      regione_candidatura: responseData.user.regione_candidatura,
-      provincia_candidatura: responseData.user.provincia_candidatura,
-      comune_candidatura: responseData.user.comune_candidatura
-    });
     
     res.json(responseData);
     
   } catch (error) {
-    console.error('❌ Errore nel recupero utente specifico:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Errore nel recupero utente specifico:');
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',
-      error: error.message
+      error: 'Errore interno del server'
     });
   }
 });
 
 // PUT /api/users/:userId - Aggiorna utente specifico (solo admin)
 router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
-    console.log('✏️ PUT /api/users/:userId - Aggiornamento utente da admin');
     
     const { userId } = req.params;
     const updateData = req.body;
@@ -477,8 +409,6 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    console.log('🔍 DEBUG - userId:', userId);
-    console.log('🔍 DEBUG - updateData:', updateData);
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
@@ -508,7 +438,6 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
         if (key === 'grado_elezione' || key === 'grado_candidatura') {
           filteredData[key] = normalizeGrado(updateData[key]);
-          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
         } 
         else {
           filteredData[key] = updateData[key];
@@ -546,7 +475,6 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     }
     
     const updatedUser = result.rows[0];
-    console.log('✅ Utente aggiornato:', updatedUser.email);
     
     // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
     let dataNascitaFormattata = null;
@@ -570,28 +498,14 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       }
     };
     
-    console.log('🔍 DEBUG - Dati utente aggiornati restituiti:', {
-      id: responseData.user.id,
-      nome: responseData.user.nome,
-      cognome: responseData.user.cognome,
-      email: responseData.user.email,
-      genere: responseData.user.genere,
-      ruolo: responseData.user.ruolo,
-      paese_residenza: responseData.user.paese_residenza,
-      regione_residenza: responseData.user.regione_residenza,
-      paese_elezione: responseData.user.paese_elezione,
-      regione_elezione: responseData.user.regione_elezione
-    });
     
     res.json(responseData);
     
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento utente:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Errore nell\'aggiornamento utente:');
     res.status(500).json({
       success: false,
-      error: error.message || 'Errore interno del server',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: 'Errore interno del server'
     });
   }
 });

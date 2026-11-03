@@ -55,7 +55,10 @@ function makeHarness({ deletionError = null, auditErrorOn = null, rollbackError 
     '../../services/auditService': auditService,
     '../../config/database': { getPool: () => pool },
     bcryptjs: { compare: async () => true },
-    '../../services/privacyErasureLedgerService': ledger
+    '../../services/privacyErasureLedgerService': ledger,
+    // The canonical route evicts the auth cache AFTER the committed erasure.
+    // This mocked Redis provider must be present in privacy tests too.
+    '../../services/redisCache': { async invalidateAuthUserCache() {} }
   };
   vm.runInNewContext(routeSource, {
     module: { exports: {} },

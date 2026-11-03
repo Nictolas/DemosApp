@@ -1,0 +1,95 @@
+name: P0 legacy admin routes fail closed — main extraction
+on:
+  push:
+    branches: [integration/p0-release-gates-20261102]
+    paths:
+      - 'api/routes/admin/**'
+      - 'api/routes/users/admin.js'
+      - 'api/routes/users/search.js'
+      - 'api/routes/user/gdpr-rights.js'
+      - 'api/routes/user/delete-account.js'
+      - 'api/tests/gdprCanonicalAccountDeletionGate.synthetic.test.js'
+      - 'api/tests/adminUserPrivacyCache.contract.test.js'
+      - 'api/middleware/auth.js'
+      - 'api/tests/authAxiomReadSafety.contract.test.js'
+      - 'api/tests/adminLegacyErrorRedaction.contract.test.js'
+      - '.github/workflows/p0-legacy-admin-main-extract.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/routes/admin/data-export.js'
+      - 'api/routes/users/admin.js'
+      - 'api/routes/users/search.js'
+      - 'api/routes/user/gdpr-rights.js'
+      - 'api/routes/user/delete-account.js'
+      - 'api/tests/gdprCanonicalAccountDeletionGate.synthetic.test.js'
+      - 'api/tests/adminUserPrivacyCache.contract.test.js'
+      - 'api/middleware/auth.js'
+      - 'api/tests/authAxiomReadSafety.contract.test.js'
+      - 'api/routes/admin/axiom-migration.js'
+      - 'api/routes/admin/data-retention.js'
+      - 'api/routes/admin/backup.js'
+      - 'api/app.js'
+      - 'client/src/pages/DataExport.tsx'
+      - 'client/src/pages/DataRetention.tsx'
+      - 'api/tests/legacyDataExportRetirement.test.js'
+      - 'api/tests/legacyDataExportAuthIntegration.test.js'
+      - 'api/tests/legacyRetentionMainExtraction.http.test.js'
+      - 'api/tests/legacyRetentionBackupSafety.http.test.js'
+      - 'api/tests/adminLegacyErrorRedaction.contract.test.js'
+      - '.github/workflows/p0-legacy-admin-main-extract.yml'
+permissions:
+  contents: read
+jobs:
+  safety-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Parse modified backend
+        run: |
+          node --check api/app.js
+          node --check api/middleware/auth.js
+          node --check api/routes/users/admin.js
+          node --check api/routes/users/search.js
+          node --check api/routes/user/gdpr-rights.js
+          node --check api/routes/user/delete-account.js
+          node --check api/routes/admin/data-export.js
+          node --check api/routes/admin/axiom-migration.js
+          node --check api/routes/admin/data-retention.js
+          node --check api/routes/admin/backup.js
+      - name: Real HTTP auth and disabled legacy writes (synthetic fixtures)
+        run: node --test --test-concurrency=1 api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js api/tests/legacyRetentionMainExtraction.http.test.js api/tests/legacyRetentionBackupSafety.http.test.js
+      - name: Verify Admin error redaction and GDPR 410 holds
+        run: node --test api/tests/adminLegacyErrorRedaction.contract.test.js
+      - name: Validate auth error isolation, outage 503 and Axiom shared-pool privacy
+        run: node --test api/tests/authAxiomReadSafety.contract.test.js
+      - name: Validate Admin erasure invalidation and profile log minimization
+        run: node --test api/tests/adminUserPrivacyCache.contract.test.js
+      - name: Legacy GDPR erasure fail-closed and canonical account deletion contract
+        run: node --test api/tests/gdprCanonicalAccountDeletionGate.synthetic.test.js
+  frontend-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install frontend without scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Typecheck and Vite build without deploy
+        run: npm run build --prefix client

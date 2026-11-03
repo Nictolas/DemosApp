@@ -2,11 +2,13 @@ const express = require('express');
 const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
+const { invalidateAuthUserCache } = require('../../services/redisCache');
 
 const router = express.Router();
 
 // DELETE /api/users/:userId - Elimina utente (solo admin)
 router.delete('/:userId', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     const { userId } = req.params;
     if (String(userId) === String(req.userId)) {
@@ -35,6 +37,17 @@ router.delete('/:userId', verifyToken, requireAdmin, async (req, res) => {
       });
       const erased = await PrivacyErasureLedgerService.enforceAccountDeletion(client, userId);
       await client.query('COMMIT');
+      // An erased account must not remain authorized through a stale auth
+      // snapshot. Invalidation is best-effort if Redis is unavailable;
+      // the bounded cache TTL remains a documented residual risk.
+      try {
+        await invalidateAuthUserCache(userId);
+      } catch (_) {
+        // COMMIT has already succeeded. Never misreport a completed erasure
+        // as a failed database operation because Redis is temporarily down.
+        // The bounded auth-cache TTL is a residual risk until expiry.
+        console.warn('Cache account non invalidabile dopo cancellazione confermata');
+      }
 
       return res.json({
         success: true,
@@ -49,7 +62,7 @@ router.delete('/:userId', verifyToken, requireAdmin, async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error('Errore nell\'eliminazione utente:', error);
+    console.error('Errore eliminazione account amministrativa');
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
