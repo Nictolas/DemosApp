@@ -1,5 +1,14 @@
 name: P0 political consent read isolation — main extraction
 on:
+  # Run targeted synthetic privacy checks on this isolated branch even if a
+  # pull_request merge ref or base-branch workflow does not produce a run.
+  # No deployment, provider credentials, or live database access.
+  push:
+    branches: [integration/p0-release-gates-20261102]
+    paths:
+      - 'api/routes/users/profile.js'
+      - 'api/tests/politicalConsentMainRead.synthetic.test.js'
+      - '.github/workflows/p0-political-consent-read.yml'
   pull_request:
     branches:
       - main
