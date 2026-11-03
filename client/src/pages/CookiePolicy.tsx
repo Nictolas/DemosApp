@@ -10,7 +10,7 @@ export default function CookiePolicy() {
             Informativa sui Cookie
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Ultima modifica: {new Date().toLocaleDateString('it-IT')}
+            <strong>DemosApp</strong> - Ultima modifica del testo: 02/11/2026
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -38,7 +38,12 @@ export default function CookiePolicy() {
               Questi cookie sono essenziali per il funzionamento del sito e non possono essere disabilitati:
             </p>
             <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <table className="w-full text-sm">
+              <dl className="sm:hidden space-y-2 text-sm">
+                <div><dt className="font-semibold">Nome Cookie</dt><dd className="font-mono break-all">sidebar:state</dd></div>
+                <div><dt className="font-semibold">Scopo</dt><dd>Memorizza lo stato aperto/chiuso della barra laterale</dd></div>
+                <div><dt className="font-semibold">Durata</dt><dd>7 giorni</dd></div>
+              </dl>
+              <table className="hidden sm:table w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2">Nome Cookie</th>
@@ -65,7 +70,27 @@ export default function CookiePolicy() {
               al servizio possono beneficiare delle eccezioni previste:
             </p>
             <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <table className="w-full text-sm">
+              <dl className="sm:hidden space-y-3 text-sm">
+                <div className="border-b pb-2">
+                  <dt className="font-mono font-semibold break-all">auth_token</dt>
+                  <dd><strong>Tipo:</strong> localStorage</dd>
+                  <dd><strong>Scopo:</strong> Token JWT per autenticazione</dd>
+                  <dd><strong>Durata:</strong> Fino al logout</dd>
+                </div>
+                <div className="border-b pb-2">
+                  <dt className="font-mono font-semibold break-all">refresh_token</dt>
+                  <dd><strong>Tipo:</strong> localStorage</dd>
+                  <dd><strong>Scopo:</strong> Token di refresh per autenticazione</dd>
+                  <dd><strong>Durata:</strong> Fino al logout</dd>
+                </div>
+                <div>
+                  <dt className="font-mono font-semibold break-all">user_email, user_status, user_id</dt>
+                  <dd><strong>Tipo:</strong> localStorage</dd>
+                  <dd><strong>Scopo:</strong> Dati utente temporanei</dd>
+                  <dd><strong>Durata:</strong> Fino al logout</dd>
+                </div>
+              </dl>
+              <table className="hidden sm:table w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2">Nome</th>

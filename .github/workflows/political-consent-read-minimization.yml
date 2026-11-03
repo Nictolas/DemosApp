@@ -1,0 +1,33 @@
+name: Political consent GET minimization
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/routes/user/political-opinions-consent.js'
+      - 'api/tests/politicalConsentAtomic.smoke.test.js'
+      - '.github/workflows/political-consent-read-minimization.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  consent-get-privacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install API dependencies
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Verify GET minimization and grant/revocation transaction integrity
+        run: node --test api/tests/politicalConsentAtomic.smoke.test.js

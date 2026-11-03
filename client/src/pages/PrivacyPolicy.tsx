@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
             
             <h3 className="text-xl font-medium mb-2">2.1 Dati di Registrazione</h3>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Dati anagrafici:</strong> Nome, cognome, anno di nascita, genere</li>
+              <li><strong>Dati anagrafici:</strong> Anno di nascita e sesso; nome e cognome non sono richiesti agli utenti ordinari, ma possono essere trattati per candidati e rappresentanti quando pertinenti</li>
               <li><strong>Dati di contatto:</strong> Indirizzo email</li>
               <li><strong>Dati di residenza:</strong> Paese, regione, provincia, comune di residenza</li>
               <li><strong>Dati di cittadinanza:</strong> Cittadinanza, paese di elezione</li>
