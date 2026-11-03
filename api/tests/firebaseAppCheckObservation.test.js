@@ -83,6 +83,25 @@ test('bad signatures and verification errors expose no token or error details', 
   assert.equal(JSON.stringify(result).includes('sensitive'), false);
 });
 
+test('expired and wrong-project tokens remain untrusted without leaking claims', async () => {
+  for (const errorCode of ['app-check-token-expired', 'app-check-project-mismatch']) {
+    const result = await observeAppCheckHeader(
+      { 'x-firebase-appcheck': token },
+      {
+        env: validEnv,
+        budget: createAppCheckLocalBudget({ maxDaily: 2 }),
+        verifyToken: async () => {
+          const err = new Error('private-claims-and-token');
+          err.code = errorCode;
+          throw err;
+        },
+      }
+    );
+    assert.deepEqual(result, { status: 'invalid' });
+    assert.equal(JSON.stringify(result).includes('private'), false);
+  }
+});
+
 test('ordinary verification is NOT replay protection', async () => {
   let calls = 0;
   const verifyToken = async () => {
