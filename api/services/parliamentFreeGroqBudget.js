@@ -74,16 +74,16 @@ function createFreeBudgetGate({ now = Date.now, limits = LIMIT } = {}) {
 
 const sharedFreeGate = createFreeBudgetGate();
 
-async function requestFreeGroq(client, params) {
+async function requestFreeGroq(client, params, gate = sharedFreeGate) {
   const maxOutputTokens = params.max_completion_tokens || params.max_tokens;
-  const admission = sharedFreeGate.reserve(params.messages, maxOutputTokens);
+  const admission = gate.reserve(params.messages, maxOutputTokens);
   if (!admission.allowed) return null;
 
   try {
     return await client.chat.completions.create(params);
   } catch (error) {
     if (isProviderRateLimited(error)) {
-      sharedFreeGate.coolDownFrom429(error);
+      gate.coolDownFrom429(error);
       return null; // no retry, no paid fallback; use the official voting data.
     }
     throw error;
