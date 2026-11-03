@@ -191,3 +191,71 @@ test('password-protected accounts cannot be deleted without a valid password', a
   assert.ok(!fx.operations.includes('INVALIDATE'));
   assert.equal(fx.released(), 1);
 });
+
+
+test('GDPR CSV export neutralizes spreadsheet formulas in values and keys, retaining 0/false', () => {
+  const source = read('api/routes/user/gdpr-rights.js');
+  const begin = source.indexOf('function convertToCSV(data)');
+  const end = source.indexOf('/**\n * GET /api/user/data-export', begin);
+  assert.ok(begin >= 0 && end > begin, 'CSV conversion available');
+  // Evaluate the exact conversion function from the production router,
+  // without loading Express or making any provider calls.
+  const csv = vm.runInNewContext(
+    source.slice(begin, end) + '\nconvertToCSV;',
+    {},
+    { filename: 'gdpr-csv-only.js' },
+  );
+  const result = csv({
+    equal: '=HYPERLINK("https://invalid.example")',
+    plus: '+SUM(1,1)',
+    minus: '-1+2',
+    at: '@cmd',
+    tab: '\t=1+1',
+    spaces: '  =1+1',
+    quoted: 'a,"b"\nline',
+    zero: 0,
+    disabled: false,
+    blank: null,
+    ['=malicious-key']: 'literal',
+  });
+  assert.match(result, /"equal","'=HYPERLINK\(""https:\/\/invalid\.example""\)"/);
+  assert.match(result, /"plus","'\+SUM\(1,1\)"/);
+  assert.match(result, /"minus","'-1\+2"/);
+  assert.match(result, /"at","'@cmd"/);
+  assert.match(result, /"tab","'\t=1\+1"/);
+  assert.match(result, /"spaces","'  =1\+1"/);
+  assert.match(result, /"'=malicious-key","literal"/);
+  assert.ok(result.includes('"quoted","a,""b""\nline"'));
+  assert.match(result, /"zero","0"/);
+  assert.match(result, /"disabled","false"/);
+  assert.match(result, /"blank",""/);
+});
+
+test('all GDPR rights routes set no-store/nosniff before token validation', async () => {
+  const source = read('api/routes/user/gdpr-rights.js');
+  const logs = [];
+  const auth = (_req, _res, next) => next();
+  const routes = loadRoute(source, {
+    '../../middleware/auth': { verifyToken: auth, pool: { query() { throw Error('unexpected SQL'); } } },
+    '../../middleware/validation': { validateInput: () => (_req, _res, next) => next() },
+    '../../services/auditService': { logAction() { throw Error('unexpected audit'); } },
+    '../../utils/emailCrypto': { decrypt: () => null },
+    crypto: {},
+  }, logs);
+  const response = res();
+  for (const args of routes.use) {
+    for (const middleware of args) {
+      await new Promise((resolve, reject) => {
+        try { middleware({}, response, resolve); } catch (error) { reject(error); }
+      });
+    }
+  }
+  assert.equal(response.headers['cache-control'], 'private, no-store, max-age=0');
+  assert.equal(response.headers.pragma, 'no-cache');
+  assert.equal(response.headers['x-content-type-options'], 'nosniff');
+  assert.ok(routes.delete.has('/account'), 'legacy route remains retired');
+  assert.doesNotMatch(source, /console\.log\(/, 'no personal identifier logging');
+  assert.doesNotMatch(source, /console\.error\([^\n;]*,\s*error\)/, 'no raw SQL errors logged');
+  assert.doesNotMatch(source, /errorMessage:\s*error\.message/, 'no provider error in audit');
+  assert.doesNotMatch(source, /Content-Disposition[^\n]*\$\{userId\}/, 'download filename must not contain account identifier');
+});
