@@ -193,3 +193,53 @@ test('legacy multi-cloud exporter is disabled before cloud or secret access', as
     if(previous)require.cache[file]=previous;
   }
 });
+
+
+test('legacy hybrid cloud backup, inventory and cleanup all fail closed', async () => {
+  const file=path.join(ROOT,'scripts/hybrid-cloud-backup.js');
+  const source=fs.readFileSync(file,'utf8');
+  const guard=source.indexOf('exitRetiredLegacyDataArchival()');
+  const pg=source.indexOf("require('pg')");
+  const dotenv=source.indexOf("require('dotenv')");
+  assert.ok(guard>=0 && pg>guard && dotenv>guard);
+  for(const args of [[],['backup'],['check'],['stats'],['cleanup']]){
+    const proc=spawnSync(process.execPath,[file,...args],{
+      encoding:'utf8',env:unsafeEnv,timeout:3000,maxBuffer:32*1024
+    });
+    assert.equal(proc.error,undefined);
+    assert.equal(proc.status,78,'mode '+(args[0]||'default'));
+    assert.match(proc.stderr,/^LEGACY_DATA_ARCHIVAL_RETIRED:/);
+    assert.equal(proc.stdout,'');
+    assert.doesNotMatch(proc.stderr,/synthetic@|FAKE_NOT_A_REAL_KEY/);
+  }
+
+  const originalLoad=Module._load;
+  const previous=require.cache[file];
+  const touched={queries:0,cloudExec:0};
+  Module._load=function(request,parent,isMain){
+    if(parent?.filename===file){
+      if(request==='pg')return {Pool:class{
+        query(){touched.queries++;throw Error('FORBIDDEN_DB');}
+        end(){touched.queries++;throw Error('FORBIDDEN_DB_END');}
+      }};
+      if(request==='child_process')return {exec(){touched.cloudExec++;throw Error('FORBIDDEN_CLOUD_CLI');}};
+      if(request==='dotenv')return {config(){return {parsed:{}};}};
+    }
+    return originalLoad.apply(this,arguments);
+  };
+  try{
+    delete require.cache[file];
+    const legacy=require(file);
+    const rejectsRetired=err=>err?.code==='LEGACY_DATA_ARCHIVAL_RETIRED';
+    for(const name of ['dailyBackup','checkExportNeeded','getCloudStorageSize','cleanupCloudAfterExport']){
+      assert.equal(typeof legacy[name],'function');
+      await assert.rejects(legacy[name](),rejectsRetired,name);
+    }
+    assert.equal(touched.queries,0);
+    assert.equal(touched.cloudExec,0);
+  }finally{
+    Module._load=originalLoad;
+    delete require.cache[file];
+    if(previous)require.cache[file]=previous;
+  }
+});
