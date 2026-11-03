@@ -14,6 +14,8 @@ function allVerified() {
       oldDbConnectionReferencesCleared: true, productionTargetsExcluded: true},
     metrics: {windowHours: 36, coverageComplete: true,
       unattributedNonzeroSamples: 0, sourceAttributionVerified: true},
+    authenticationLogs: {windowHours: 36, coverageComplete: true,
+      unattributedAuthorizedSessions: 0, sourceAttributionVerified: true},
     staging: {functionalE2EGo: true, rollbackVerified: true},
     approval: {authorizedHumanReview: true},
   };
@@ -125,4 +127,40 @@ test('retirement needs exact service ID coverage, not only a blanket 9/9 checkbo
   full.dependencies.auditedServiceIds.reverse();
   assert.equal(assess(full).readyForHumanRetirementReview, true);
   assert.equal(assess(full).canAutomaticallyDelete, false);
+});
+
+test('authenticated sessions block retirement even when sampled active connections are zero', () => {
+  // Read-only Render evidence on 03 Nov: 24 authorized sessions while
+  // 43 one-minute active_connections observations were all zero.
+  const evidence = allVerified();
+  evidence.metrics.unattributedNonzeroSamples = 0;
+  evidence.authenticationLogs.unattributedAuthorizedSessions = 24;
+  const decision = assess(evidence);
+  assert.equal(decision.readyForHumanRetirementReview, false);
+  assert.equal(decision.canAutomaticallyDelete, false);
+  assert.ok(decision.blockers.includes('AUTHENTICATED_SESSIONS_NOT_ATTRIBUTED'));
+});
+
+test('authentication log coverage, attribution and types must be proven independently', () => {
+  const cases = [
+    [undefined, 'AUTHENTICATION_LOG_COVERAGE_INSUFFICIENT'],
+    [{windowHours: 1, coverageComplete: true, unattributedAuthorizedSessions: 0,
+      sourceAttributionVerified: true}, 'AUTHENTICATION_LOG_COVERAGE_INSUFFICIENT'],
+    [{windowHours: 36, coverageComplete: false, unattributedAuthorizedSessions: 0,
+      sourceAttributionVerified: true}, 'AUTHENTICATION_LOG_COVERAGE_INSUFFICIENT'],
+    [{windowHours: 36, coverageComplete: true, unattributedAuthorizedSessions: '0',
+      sourceAttributionVerified: true}, 'AUTHENTICATED_SESSIONS_NOT_ATTRIBUTED'],
+    [{windowHours: 36, coverageComplete: true, unattributedAuthorizedSessions: -1,
+      sourceAttributionVerified: true}, 'AUTHENTICATED_SESSIONS_NOT_ATTRIBUTED'],
+    [{windowHours: 36, coverageComplete: true, unattributedAuthorizedSessions: 0,
+      sourceAttributionVerified: false}, 'AUTHENTICATED_SESSIONS_NOT_ATTRIBUTED'],
+  ];
+  for (const [logs, expected] of cases) {
+    const evidence = allVerified();
+    evidence.authenticationLogs = logs;
+    const decision = assess(evidence);
+    assert.equal(decision.readyForHumanRetirementReview, false);
+    assert.equal(decision.canAutomaticallyDelete, false);
+    assert.ok(decision.blockers.includes(expected));
+  }
 });
