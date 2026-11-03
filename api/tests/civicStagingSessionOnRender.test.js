@@ -142,7 +142,7 @@ test('required stage-only confirmation prevents any network access', async () =>
 });
 
 function syntheticPool({
-  pids = [['101'], ['202']], throwError = false, identity = {},
+  pids = [['101'], ['202']], throwError = false, probeError = false, identity = {},
 } = {}) {
   let created = 0;
   const queries = [];
@@ -155,7 +155,8 @@ function syntheticPool({
       return {
         async query(sql) {
           queries.push(sql);
-          if (throwError) throw new Error('provider RAW PASSWORD ci-FakePass');
+          if (throwError || (probeError && sql.includes('pg_backend_pid()')))
+            throw new Error('provider RAW PASSWORD ci-FakePass');
           if (sql === 'BEGIN READ ONLY' || sql === 'ROLLBACK') return {rows: []};
           if (sql.includes('current_user::text AS role_name')) {
             return { rows: [{
@@ -249,7 +250,7 @@ test('unsafe affinity or driver error cannot become a GO and always closes pool'
   assert.equal(result.compatible, false);
   assert.equal(mismatch.ended, 1);
 
-  const failed = syntheticPool({throwError: true});
+  const failed = syntheticPool({probeError: true});
   await assert.rejects(
     runCivicStagingSessionCheck(approved, {createPool: () => failed.pool}),
     err => err.message === 'CIVIC_SESSION_PROBE_UNAVAILABLE' &&
