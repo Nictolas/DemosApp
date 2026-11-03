@@ -62,7 +62,7 @@ function parseVerifiedFinalBallots(html, vote) {
   // Official parliamentary pages use unpadded day/month (e.g. 23/9/2026).
   // Match either format, with the exact year, rather than changing the DB date.
   const dd = Number(iso.slice(8, 10)), mm = Number(iso.slice(5, 7));
-  const dateInSource = new RegExp('\\b0?' + dd + '/0?' + mm + '/' + iso.slice(0, 4) + '\\b');
+  const dateInSource = new RegExp('(?<!\\d)0?' + dd + '/0?' + mm + '/' + iso.slice(0, 4) + '(?!\\d)');
   if (!dateInSource.test(text.slice(0, 1800))) throw new Error('VOTE_SOURCE_DATE_MISMATCH');
 
   // A secret ballot cannot support attribution of a choice to a person.
