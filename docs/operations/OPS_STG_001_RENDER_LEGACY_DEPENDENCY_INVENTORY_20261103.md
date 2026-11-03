@@ -53,3 +53,19 @@ Per tutti e nove: stato **non sospeso**, `autoDeploy=no`, IP allow-list `0.0.0.0
 **GO per cleanup legacy:** BLOCCATO. **GO applicativo Render:** BLOCCATO. **Produzione:** invariata.
 
 Restano 4 gate principali complessivi, ma il lavoro di inventario del gate 1 è ora documentato. Valutazione dell'avanzamento di questo intervento: **6/10** — prepara una decisione sicura sulla dismissione ed evidenzia una scadenza, senza ancora risolvere credenziali né E2E.
+
+## Update telemetria Render PostgreSQL del 03/11/2026
+
+Verifica **in sola lettura** su `demos-civic-staging-db`, ID `dpg-db4id8id0e5s73cfb0cg-a`, senza modificare rete o variabili d'ambiente:
+
+- Render `active_connections`, 27/10/2026 00:00 UTC → 03/11/2026 12:00 UTC, campionamento **orario**: **181 campioni**, **12 campioni non zero** (valore massimo 1). I valori non indicano numero di clienti unici.
+- Render `active_connections`, 02/11/2026 00:00 UTC → 03/11/2026 12:00 UTC, campionamento **ogni 5 minuti**: **433 campioni**, **76 non zero** (valore massimo 1). Ultimo campione non zero **03/11/2026 11:10 UTC**, ossia **12:10 ora italiana**. Ultimo campione letto 12:00 UTC = 0. Potrebbero essere sonde/controlli automatici: **non attribuire un'utilizzazione applicativa senza identificare la sorgente**.
+- L'elenco Render conferma **una sola istanza PG legacy**, ancora `available`, PostgreSQL 17, piano `free`, **scadenza 08/11/2026 17:38:42 UTC**. La allow-list IP del database è vuota; il collegamento esterno di audit è stato respinto da Render. **Nessuna apertura della allow-list** e nessun aggiramento del blocco di rete.
+- GitHub code search sul branch di default trova l'identificativo Render `dpg-db4id8id0e5s73cfb0cg-a` dentro un **test TLS** (`api/tests/databaseTlsPolicy.test.js`), non dimostra di per sé una connessione attiva. Non è stato possibile leggere le configurazioni runtime effettive per attribuire i campioni non zero a un servizio concreto.
+- La copia del backup locale resta dichiarata in precedenti attività, ma **non verificata**: accesso Desktop negato perché fuori dal workspace approvato. Non spostarla né richiedere una deroga automatica. Nessun checksum SHA-256 o restore completo verificato.
+
+### Gate meccanico e suo limite
+
+Sono stati aggiunti `api/scripts/evaluateLegacyRenderPgRetirement.js` e `api/tests/legacyRenderPgRetirementGate.test.js`. Il validatore **offline**, senza rete o segreti, rifiuta il GO in assenza di una qualsiasi fra: backup e checksum verificati, prova di ripristino, audit effettivo dei 9 servizi, assenza/attribuzione di connessioni, isolamento produzione, GO E2E e rollback staging, revisione umana esplicita. Anche con tutto verificato produce solo **`readyForHumanRetirementReview`**, non un'azione di cancellazione (`canAutomaticallyDelete=false`). La CI `Unified Staging Offline Safety` ne controlla i contratti sintetici.
+
+**Decisione operativa al 03/11/2026: NO-GO cancellazione database Render**. Evidenza nuova e sostanziale: collegamenti non zero, non attribuiti; backup/restore non validati e E2E staging ancora sospesi. **Quattro gate OPS-STG-001 principali ancora aperti**. Nessuna modifica a servizi, database o ACL di produzione, nessuna nuova risorsa persistente.
