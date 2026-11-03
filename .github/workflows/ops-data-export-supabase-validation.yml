@@ -1,0 +1,43 @@
+name: Ops Center and Data Export — Supabase safety contract
+on:
+  pull_request:
+    paths:
+      - 'client/src/pages/Admin/OpsCenter.tsx'
+      - 'client/src/pages/DataExport.tsx'
+      - 'api/tests/clientAdminCapability.smoke.test.js'
+      - '.github/workflows/ops-data-export-supabase-validation.yml'
+  push:
+    branches: [fix/ops-data-export-supabase-20261103]
+    paths:
+      - 'client/src/pages/Admin/OpsCenter.tsx'
+      - 'client/src/pages/DataExport.tsx'
+      - 'api/tests/clientAdminCapability.smoke.test.js'
+      - '.github/workflows/ops-data-export-supabase-validation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ops-data-export-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  admin-frontend-safe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_ENV: test
+    steps:
+      - name: Checkout repository without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Contract - only Supabase, no legacy deletion/migration UI
+        run: node --test api/tests/clientAdminCapability.smoke.test.js
+      - name: Install frontend locked deps without scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Vite production frontend build in CI only
+        run: npm run build --prefix client
