@@ -6,6 +6,37 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+// Signing credentials are supplied OUTSIDE Git. A signed release must NOT be
+// produced with a missing/wrong google-services.json. GitHub CI intentionally
+// makes only unsigned artifacts and therefore does not require this file.
+// This gate reads PUBLIC Firebase identifiers only and never prints API keys.
+def verifyDemosSignedReleaseFirebaseConfig = {
+    def firebaseFile = file('google-services.json')
+    if (!firebaseFile.isFile()) {
+        throw new GradleException('DEMOS signed release: google-services.json mancante; firma bloccata')
+    }
+    def firebaseConfig
+    try {
+        firebaseConfig = new groovy.json.JsonSlurper().parse(firebaseFile)
+    } catch (Exception ignored) {
+        throw new GradleException('DEMOS signed release: configurazione Firebase non valida')
+    }
+    def approvedClient = firebaseConfig?.client instanceof Collection
+        && firebaseConfig.client.any { client ->
+            client?.client_info?.android_client_info?.package_name == 'community.demos'
+                && client?.client_info?.mobilesdk_app_id
+                    == '1:848085963511:android:8f8047e4c6a38b11d0b9f2'
+        }
+    if (firebaseConfig?.project_info?.project_id != 'demos-finale'
+        || firebaseConfig?.project_info?.project_number?.toString() != '848085963511'
+        || !approvedClient) {
+        throw new GradleException('DEMOS signed release: progetto Firebase o app Android non corrispondente')
+    }
+}
+if (keystorePropertiesFile.exists()) {
+    verifyDemosSignedReleaseFirebaseConfig()
+}
+
 android {
     namespace "community.demos"
     compileSdk rootProject.ext.compileSdkVersion
