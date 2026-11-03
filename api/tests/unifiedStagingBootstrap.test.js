@@ -68,11 +68,16 @@ test('bootstrap refuses sensitive provider configuration before opening any list
   for (const key of [
     'CIVIC_PUSH_ENABLED', 'AXIOM_ARCHIVE_ENABLED',
     'GDPR_LEDGER_B2_ENABLED', 'GDPR_ERASURE_OUTBOX_WORKER_ENABLED',
+    'PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED', 'PARLIAMENT_FINAL_PUSH_ENABLED',
+    'CIVIC_STAGING_SESSION_CHECK_APPLY',
+    'CIVIC_UNIFIED_STAGING_READY', 'CIVIC_UNIFIED_STAGING_TESTS_AUTHORIZED',
   ]) {
-    assert.throws(
-      () => validateBootstrapEnvironment({ ...safe, [key]: 'true' }),
-      /STAGING_BOOTSTRAP_ACTIVE_FLAGS_FORBIDDEN/, key
-    );
+    for (const active of ['true', 'TRUE', ' true ', '1', 'yes', 'ON']) {
+      assert.throws(
+        () => validateBootstrapEnvironment({ ...safe, [key]: active }),
+        /STAGING_BOOTSTRAP_ACTIVE_FLAGS_FORBIDDEN/, key + '=' + active
+      );
+    }
   }
   assert.deepEqual(validateBootstrapEnvironment({
     ...safe, DATABASE_URL: '', AXIOM_API_TOKEN: '  ',
