@@ -27,6 +27,24 @@ test('budget is conservative and shared across calls to the same gate', () => {
   assert.deepEqual(gate.reserve(messages, 300), { allowed: true });
 });
 
+test('status reports local Free quota and clears after 24 hours', () => {
+  let current = 1700000000000;
+  const gate = createFreeBudgetGate({
+    now: () => current,
+    limits: { requestsPerMinute: 5, requestsPerDay: 1, estimatedTokensPerMinute: 5000, estimatedTokensPerDay: 9000 }
+  });
+  assert.deepEqual(gate.status(), {
+    count: 0, limite: 1, rispettato: true, estimatedTokensToday: 0,
+    tokenLimit: 9000, scope: 'PROCESS_LOCAL_BEST_EFFORT'
+  });
+  assert.equal(gate.reserve([{ role: 'user', content: 'test' }], 450).allowed, true);
+  assert.equal(gate.status().count, 1);
+  assert.equal(gate.status().rispettato, false);
+  current += 86400001;
+  assert.equal(gate.status().count, 0);
+  assert.equal(gate.status().rispettato, true);
+});
+
 test('rejects oversize completion and excessive estimated prompt tokens without an API call', () => {
   const gate = createFreeBudgetGate({
     now: () => 1700000000000,
