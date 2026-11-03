@@ -39,11 +39,11 @@ router.get('/test-auth', verifyToken, requireAdmin, async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Errore test auth:', error);
+    console.error('❌ Errore test auth:');
     res.status(500).json({
       success: false,
       error: 'Errore test autenticazione',
-      message: error.message
+      message: 'Impossibile completare la richiesta'
     });
   }
 });
@@ -72,7 +72,7 @@ router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
         note: 'Verifica manualmente su Axiom Dashboard - le query APL restituiscono 403'
       };
     } catch (error) {
-      stats.centralized_logs = { error: error.message };
+      stats.centralized_logs = { error: 'Statistiche non disponibili' };
     }
     
     try {
@@ -93,7 +93,7 @@ router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
         note: 'Verifica manualmente su Axiom Dashboard - le query APL restituiscono 403'
       };
     } catch (error) {
-      stats.audit_logs = { error: error.message };
+      stats.audit_logs = { error: 'Statistiche non disponibili' };
     }
     
     await pool.end();
@@ -106,11 +106,11 @@ router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore recupero statistiche migrazione:', error);
+    console.error('❌ Errore recupero statistiche migrazione:');
     res.status(500).json({
       success: false,
       error: 'Errore recupero statistiche migrazione',
-      message: error.message
+      message: 'Impossibile completare la richiesta'
     });
   }
 });
@@ -138,7 +138,7 @@ router.get('/status', verifyToken, requireAdmin, async (req, res) => {
         destination: process.env.AXIOM_DATASET || 'centralized_logs'
       };
     } catch (error) {
-      stats.centralized_logs = { error: error.message };
+      stats.centralized_logs = { error: 'Statistiche non disponibili' };
     }
     
     // Conta audit_logs
@@ -161,7 +161,7 @@ router.get('/status', verifyToken, requireAdmin, async (req, res) => {
         destination: process.env.AXIOM_REALTIME_DATASET || 'real-time'
       };
     } catch (error) {
-      stats.audit_logs = { error: error.message };
+      stats.audit_logs = { error: 'Statistiche non disponibili' };
     }
     
     await pool.end();
@@ -179,11 +179,11 @@ router.get('/status', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore recupero statistiche:', error);
+    console.error('❌ Errore recupero statistiche:');
     res.status(500).json({
       success: false,
       error: 'Errore recupero statistiche',
-      message: error.message
+      message: 'Impossibile completare la richiesta'
     });
   }
 });
