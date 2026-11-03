@@ -566,5 +566,61 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             self.assertEqual(check.fetchone(), (0,))
 
 
+    def test_y_aggregate_snapshot_constraints_and_rollback(self):
+        """P5 stores only counts; reject inconsistent totals and duplicates."""
+        with self.conn.cursor() as cur:
+            cur.execute("""SELECT count(*) FROM information_schema.columns
+                WHERE table_schema='public'
+                  AND table_name='civic_ballot_forecast_snapshots'
+                  AND column_name IN ('user_id','email','choice','voter_id')""")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("BEGIN")
+            cur.execute("""INSERT INTO public.civic_ballots
+                (civic_process_id,ballot_kind,question_text,yes_meaning,no_meaning,
+                 opens_at,closes_at,timezone,source_id,source_url)
+                VALUES (%s,'referendum','Synthetic aggregate test','Yes','No',
+                        '2027-01-01T00:00:00Z','2027-02-01T00:00:00Z',
+                        'Europe/Rome','staging-fixture-aggregate-001',
+                        'https://example.invalid/aggregate-fixture')
+                RETURNING id""", (PROCESS,))
+            ballot_id = cur.fetchone()[0]
+            snapshot_time = "2027-01-01T00:00:00Z"
+            cur.execute("""INSERT INTO public.civic_ballot_forecast_snapshots
+                (civic_ballot_id,bucket_start,total_responses,
+                 yes_count,no_count,abstain_count,is_frozen)
+                VALUES (%s,%s,10,6,3,1,TRUE)""",
+                (ballot_id, snapshot_time))
+            cur.execute("""SELECT total_responses,yes_count,no_count,abstain_count,is_frozen
+                FROM public.civic_ballot_forecast_snapshots
+                WHERE civic_ballot_id=%s""", (ballot_id,))
+            self.assertEqual(cur.fetchone(), (10,6,3,1,True))
+
+            for total, yes, no, abstain in ((11,6,3,1), (10,-1,10,1)):
+                cur.execute("SAVEPOINT invalid_aggregate")
+                with self.assertRaises(psycopg2.Error) as e:
+                    cur.execute("""INSERT INTO public.civic_ballot_forecast_snapshots
+                        (civic_ballot_id,bucket_start,total_responses,
+                         yes_count,no_count,abstain_count)
+                        VALUES (%s,'2027-01-02T00:00:00Z',%s,%s,%s,%s)""",
+                        (ballot_id,total,yes,no,abstain))
+                self.assertEqual(e.exception.pgcode, "23514")
+                cur.execute("ROLLBACK TO SAVEPOINT invalid_aggregate")
+
+            cur.execute("SAVEPOINT duplicate_bucket")
+            with self.assertRaises(psycopg2.Error) as e:
+                cur.execute("""INSERT INTO public.civic_ballot_forecast_snapshots
+                    (civic_ballot_id,bucket_start,total_responses,
+                     yes_count,no_count,abstain_count)
+                    VALUES (%s,%s,10,6,3,1)""", (ballot_id,snapshot_time))
+            self.assertEqual(e.exception.pgcode, "23505")
+            cur.execute("ROLLBACK TO SAVEPOINT duplicate_bucket")
+            cur.execute("ROLLBACK")
+
+            cur.execute("SELECT count(*) FROM public.civic_ballot_forecast_snapshots")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("SELECT count(*) FROM public.civic_ballots")
+            self.assertEqual(cur.fetchone(), (0,))
+
+
 if __name__ == "__main__":
     unittest.main()
