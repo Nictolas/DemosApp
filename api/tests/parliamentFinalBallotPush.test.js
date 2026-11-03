@@ -55,8 +55,12 @@ test('uses explicit current opt-in for each chamber and only active registered d
     assert.match(calls[0].sql,/p\.deputato IS TRUE/);
     assert.match(calls[0].sql,/d\.is_active = TRUE/);
     assert.match(calls[0].sql,/lower\(coalesce\(u\.status/);
+    assert.match(calls[0].sql,/JOIN users representative ON representative.id = ps.selected_user_id/);
+    assert.match(calls[0].sql,/JOIN political_mandates m ON m.user_id = representative.id/);
+    assert.match(calls[0].sql,/m.status = 'ACTIVE' AND m.office_code = \$4/);
     assert.equal(calls[0].args[1],'it.camera');
     assert.equal(calls[0].args[2],MAX_RECIPIENTS+1);
+    assert.equal(calls[0].args[3],'C');
     assert.equal(sent[0].data.type,'parliament_final_vote');
     assert.equal(sent[0].data.url,'/notifiche?final_vote=vs19_730_097');
     assert.equal(sent[0].notification.body,
@@ -65,7 +69,9 @@ test('uses explicit current opt-in for each chamber and only active registered d
     assert.ok(!sent[0].notification.body.includes('DDL sensibile'));
     assert.equal(sent[0].notification.title,'Il tuo deputato: nuova votazione finale');
     assert.equal(sent[0].android.notification.channelId,'demos_notifications');
-    assert.ok(calls.some(x=>x.sql.includes('FOR SHARE OF u, ps, p, d')));
+    assert.ok(calls.some(x=>x.sql.includes('FOR SHARE OF u, ps, p, d, representative, m')));
+    assert.ok(calls.some(x=>x.sql.includes('FOR SHARE OF u, ps, p, d, representative, m')
+      && x.args[3] === 'C'));
     assert.ok(calls.some(x=>x.sql === 'COMMIT'));
     assert.ok(calls.some(x=>x.sql === 'RELEASE'));
     await sendFinalBallotPush(pool,{
@@ -75,6 +81,7 @@ test('uses explicit current opt-in for each chamber and only active registered d
     assert.match(calls.find(x=>x.sql.includes('p.senatore IS TRUE')).sql,/ps\.political_office_id = \$2/);
     assert.ok(calls.some(x=>x.sql.includes('p.senatore IS TRUE')));
     assert.equal(calls.find(x=>x.sql.includes('p.senatore IS TRUE')).args[1],'it.senato');
+    assert.equal(calls.find(x=>x.sql.includes('p.senatore IS TRUE')).args[3],'S');
     assert.equal(sent[1].data.url,'/notifiche?final_vote=19-469-3');
     assert.equal(sent[1].notification.body,
       'Una nuova votazione finale è disponibile. Apri DEMOS per i dettagli.');
