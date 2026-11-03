@@ -36,6 +36,19 @@ const endpoints = [
           examples: rows.slice(1,3).toArray().map(tr=>$(tr).find('td,th').toArray().map(e=>$(e).text().replace(/\s+/g,' ').trim().slice(0,65)).slice(0,6))
         };
       });
+      const nominalTable = $('table').toArray().find(t => {
+        const headers = $(t).find('tr').first().find('th,td').toArray().map(e=>$(e).text().replace(/\s+/g,' ').trim().toLowerCase());
+        return headers.includes('voto') && (headers.includes('nominativo') || headers.includes('senatore'));
+      });
+      const nominalData = nominalTable ? $(nominalTable).find('tr').slice(1).toArray().map(tr=>{
+        const cells=$(tr).find('td').toArray().map(td=>$(td).text().replace(/\s+/g,' ').trim());
+        return cells;
+      }).filter(c=>c.length>=3) : [];
+      const categoryCounts = {};
+      for (const row of nominalData) {
+        const status = p.id.startsWith('camera') ? row[2] : row[1];
+        categoryCounts[status]=(categoryCounts[status]||0)+1;
+      }
       const officialLinks = $('a[href]').toArray().map(e=>$(e).attr('href')||'')
         .filter(h=>/senato\.it|camera\.it/.test(h)).slice(0,8).map(h=>h.slice(0,210));
       const txt = main.text().replace(/\s+/g, ' ').trim();
@@ -44,7 +57,7 @@ const endpoints = [
         title:$('title').first().text().trim().slice(0,130),
         bodyIntro:txt.slice(0,600),
         nominativeIndicators:['Hanno votato a favore','Riepilogo dei voti espressi dai deputati','Nominativo','Favor'].filter(t=>txt.includes(t)),
-        tables:tables.slice(0,7),officialLinks
+        tables:tables.slice(0,7),officialLinks,nominalData:{rows:nominalData.length,categoryCounts,samples:nominalData.slice(0,3)}
       }));
     } catch(error) {
       console.error('OFFICIAL_VOTE_PROBE_FAILED',p.id,error.response?.status||error.message);
