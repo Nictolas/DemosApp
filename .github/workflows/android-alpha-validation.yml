@@ -154,13 +154,8 @@ jobs:
           disable-animations: true
           script: |
             adb shell svc wifi disable
-            # The API 35 google_apis image can have no telephony service.
-            # Wi-Fi remains disabled; only skip the cellular toggle if no phone service exists.
-            if adb shell service check phone | grep -q 'not found'; then
-              echo 'Emulator has no telephony service; skipping mobile-data toggle.'
-            else
-              adb shell svc data disable
-            fi
+            # Emulator runner executes each script line in a separate shell.
+            adb shell service check phone | grep -q 'not found' || adb shell svc data disable
             bash client/android/gradlew -p client/android :app:connectedDebugAndroidTest --no-daemon --stacktrace
 
       - name: Archive native emulator report
