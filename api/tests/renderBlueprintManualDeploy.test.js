@@ -14,20 +14,36 @@ function readServices(source) {
   }));
 }
 
-test('Blueprint disables automatic code deploys for both existing production services', () => {
-  const services = readServices(blueprint);
+function assertProductionDeploysDisabled(source) {
+  const services = readServices(source);
   assert.deepEqual(services.map(s => s.name), ['demos-backend', 'demos-frontend']);
-  assert.equal((blueprint.match(/^    autoDeployTrigger: off\s*$/gm) || []).length, 2);
-  // A global count alone can pass if both triggers are accidentally placed
-  // in one service while the other production service deploys on commits.
   for (const service of services) {
     assert.equal((service.content.match(/^    autoDeployTrigger: off\s*$/gm) || []).length, 1,
       `${service.name} must independently disable automatic deployments`);
     assert.doesNotMatch(service.content, /^    autoDeployTrigger:\s*(?:commit|checksPass)\s*$/m);
   }
+}
+
+test('Blueprint disables automatic code deploys for both existing production services', () => {
+  assertProductionDeploysDisabled(blueprint);
   assert.doesNotMatch(blueprint, /^\s*autoDeploy:/m, 'deprecated field can shadow runtime expectations');
   assert.doesNotMatch(blueprint, /^\s*autoDeployTrigger:\s*(?:commit|checksPass)/m);
   assert.doesNotMatch(blueprint, /^\s*(?:preDeployCommand|initialDeployHook):/m);
+});
+
+test('A misplaced deploy-off trigger cannot conceal an unprotected service', () => {
+  // Simulate a YAML edit that moves frontend's protection into the backend.
+  // Two global `off` entries would still exist, but frontend would be unsafe.
+  const mutated = blueprint.replace(
+    /(^  - type: web\s*\n    name: demos-frontend[\s\S]*?)^    autoDeployTrigger: off\s*$/m,
+    '$1'
+  ).replace(
+    /(^  - type: web\s*\n    name: demos-backend\s*$)/m,
+    '$1\n    autoDeployTrigger: off'
+  );
+  assert.notEqual(mutated, blueprint);
+  assert.equal((mutated.match(/^    autoDeployTrigger: off\s*$/gm) || []).length, 2);
+  assert.throws(() => assertProductionDeploysDisabled(mutated));
 });
 
 test('Blueprint build and publish fields match verified Render service metadata', () => {
