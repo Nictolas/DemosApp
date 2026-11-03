@@ -49,3 +49,13 @@ test('uncertain revocation globally blocks delivery; missing guard row is an err
   assert.match(calls[0], /REVOCATION_UNCERTAIN/);
   await assert.rejects(blockCivicDeliveryOnRevocationFailure({ query: async () => ({ rows: [] }) }), /CIVIC_DELIVERY_GUARD_NOT_INITIALIZED/);
 });
+
+test('advisory unlock failure is never silently treated as a successful push mutation', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '../services/civicPushDeliveryGuard.js'), 'utf8');
+  const lockScope = source.slice(source.indexOf('async function withCivicPushDeliveryLock('), source.indexOf('\nmodule.exports'));
+  assert.match(lockScope, /await releaseCivicPushDeliveryLock\(client\)/);
+  assert.match(lockScope, /catch\s*\{\s*discard = true;[\s\S]*?throw new Error\('CIVIC_DELIVERY_LOCK_RELEASE_FAILED'\)/);
+  assert.match(lockScope, /client\.release\(discard\)/);
+});
