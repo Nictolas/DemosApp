@@ -139,6 +139,8 @@ function evaluateBlockedGuard(rows) {
 
 // Verify actual PostgreSQL session identity and capabilities, not just
 // a username in a connection URL. Refuse privileged or writable roles.
+// PostgreSQL NOINHERIT does not disable SET ROLE to a granted parent role;
+// require absolutely no parent role memberships (even SET FALSE) to fail closed.
 function evaluatePreflightRole(rows) {
   if (!Array.isArray(rows) || rows.length !== 1) return false;
   const r = rows[0];
@@ -146,7 +148,7 @@ function evaluatePreflightRole(rows) {
     r.read_only === 'on' && r.rolcanlogin === true &&
     r.rolsuper === false && r.rolbypassrls === false &&
     r.rolcreatedb === false && r.rolcreaterole === false &&
-    r.rolinherit === false &&
+    r.rolinherit === false && r.has_role_memberships === false &&
     r.can_create_schema === false && r.can_create_database === false;
 }
 function evaluatePreflightWriteGrants(rows) {
@@ -191,6 +193,10 @@ async function run(env = process.env) {
               current_setting('transaction_read_only') AS read_only,
               r.rolcanlogin, r.rolsuper, r.rolbypassrls,
               r.rolcreatedb, r.rolcreaterole, r.rolinherit,
+              -- NOINHERIT still permits SET ROLE when any membership has SET TRUE.
+              -- Require zero parent memberships, even if they currently have SET FALSE.
+              EXISTS (SELECT 1 FROM pg_catalog.pg_auth_members m
+                      WHERE m.member = r.oid) AS has_role_memberships,
               has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_schema,
               has_database_privilege(current_user, current_database(), 'CREATE') AS can_create_database
          FROM pg_catalog.pg_roles r WHERE r.rolname = current_user`

@@ -192,6 +192,47 @@ class P0StagingMigrationPostgresTest(unittest.TestCase):
                 cur.execute("SELECT COUNT(*) FROM public." + name)
                 self.assertEqual(cur.fetchone(), (0,))
 
+    def test_role_membership_bypasses_noinherit_and_preflight_must_reject(self):
+        """PG16 proves NOINHERIT does not prohibit SET ROLE with a parent grant."""
+        source = (ROOT / "api/scripts/unifiedStagingPreflight.js").read_text(
+            encoding="utf-8")
+        self.assertIn("pg_catalog.pg_auth_members", source)
+        self.assertIn("m.member = r.oid", source)
+        self.assertIn("AS has_role_memberships", source)
+        member = "civic_ci_preflight_noinherit"
+        parent = "civic_ci_unsafe_parent"
+        with self.conn.cursor() as cur:
+            cur.execute("CREATE ROLE civic_ci_preflight_noinherit NOINHERIT")
+            cur.execute("CREATE ROLE civic_ci_unsafe_parent NOLOGIN")
+            try:
+                cur.execute(
+                    "GRANT civic_ci_unsafe_parent TO civic_ci_preflight_noinherit")
+                cur.execute("SELECT rolinherit FROM pg_catalog.pg_roles "
+                            "WHERE rolname=%s", (member,))
+                self.assertEqual(cur.fetchone(), (False,))
+                cur.execute("SELECT pg_has_role(%s,%s,'SET')", (member, parent))
+                self.assertEqual(cur.fetchone(), (True,),
+                    "NOINHERIT does not prevent SET ROLE to granted parent")
+                cur.execute("""SELECT EXISTS (
+                    SELECT 1 FROM pg_catalog.pg_auth_members m
+                    JOIN pg_catalog.pg_roles r ON r.oid=m.member
+                    WHERE r.rolname=%s)""", (member,))
+                self.assertEqual(cur.fetchone(), (True,),
+                    "Preflight must detect role membership despite NOINHERIT")
+                cur.execute("REVOKE civic_ci_unsafe_parent "
+                            "FROM civic_ci_preflight_noinherit")
+                cur.execute("""SELECT EXISTS (
+                    SELECT 1 FROM pg_catalog.pg_auth_members m
+                    JOIN pg_catalog.pg_roles r ON r.oid=m.member
+                    WHERE r.rolname=%s)""", (member,))
+                self.assertEqual(cur.fetchone(), (False,))
+            finally:
+                # The CI database/cluster is disposable; still remove roles.
+                cur.execute("REVOKE civic_ci_unsafe_parent "
+                            "FROM civic_ci_preflight_noinherit")
+                cur.execute("DROP ROLE civic_ci_preflight_noinherit")
+                cur.execute("DROP ROLE civic_ci_unsafe_parent")
+
 
 if __name__ == "__main__":
     unittest.main()

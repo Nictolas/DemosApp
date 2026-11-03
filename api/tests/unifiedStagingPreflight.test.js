@@ -185,6 +185,7 @@ test('preflight rejects privileged, inherited or writable PostgreSQL role capabi
     username: 'demos_staging_preflight', read_only: 'on',
     rolcanlogin: true, rolsuper: false, rolbypassrls: false,
     rolcreatedb: false, rolcreaterole: false, rolinherit: false,
+    has_role_memberships: false,
     can_create_schema: false, can_create_database: false
   };
   assert.equal(evaluatePreflightRole([leastPrivilege]), true);
@@ -194,9 +195,28 @@ test('preflight rejects privileged, inherited or writable PostgreSQL role capabi
     ['username','postgres'], ['read_only','off'], ['rolcanlogin',false],
     ['rolsuper',true], ['rolbypassrls',true], ['rolcreatedb',true],
     ['rolcreaterole',true], ['rolinherit',true],
+    ['has_role_memberships',true], ['has_role_memberships',undefined],
     ['can_create_schema',true], ['can_create_database',true]
   ]) assert.equal(evaluatePreflightRole([{...leastPrivilege, [key]: bad}]),false,key);
 });
+test('NOINHERIT cannot mask SET ROLE membership in PostgreSQL 16+ (fail closed)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname,'..','scripts','unifiedStagingPreflight.js'),'utf8');
+  assert.match(src,/pg_catalog\.pg_auth_members/);
+  assert.match(src,/m\.member = r\.oid/);
+  assert.match(src,/AS has_role_memberships/);
+  assert.match(src,/r\.has_role_memberships === false/);
+  const base = {
+    username:'demos_staging_preflight', read_only:'on',
+    rolcanlogin:true, rolsuper:false, rolbypassrls:false, rolcreatedb:false,
+    rolcreaterole:false, rolinherit:false, has_role_memberships:false,
+    can_create_schema:false,can_create_database:false
+  };
+  assert.equal(evaluatePreflightRole([base]), true);
+  assert.equal(evaluatePreflightRole([{...base,has_role_memberships:true}]),false);
+});
+
 test('preflight refuses any public table write grant, even a single one', () => {
   assert.equal(evaluatePreflightWriteGrants([{table_name:'users',can_write:false}]),true);
   for(const bad of [
