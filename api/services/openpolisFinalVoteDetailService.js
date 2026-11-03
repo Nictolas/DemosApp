@@ -43,7 +43,7 @@ function parseOpenpolisFinalVoteDetail(html, expectedCamera) {
   const dataVotazione = seduta ? seduta[5] + '-' + seduta[4].padStart(2, '0') + '-' + seduta[3].padStart(2, '0') : null;
   // Ignore filter legends/options lower in the page: they may mention secret votes
   // even when this particular division is an ordinary nominal ballot.
-  const votoSegreto = /\bSEGRETO\b/i.test(beforeTables);
+  let votoSegreto = /(?:FINALE|VOTO)\s*SEGRETO/i.test(beforeTables);
   const summary = {};
   for (const [key, label] of [['presenti', 'Presenti'], ['votanti', 'Votanti'], ['maggioranza', 'Maggioranza']]) {
     const match = beforeTables.match(new RegExp('(\\d{1,4})\\s*' + label + '(?![A-Za-zÀ-ÿ])', 'i'));
@@ -79,6 +79,8 @@ function parseOpenpolisFinalVoteDetail(html, expectedCamera) {
     }
   });
 
+  // Trust actual nominal statuses as well as the badge; never use labels in filters.
+  if (nominal.some(item => item.voto === 'Votante in voto segreto')) votoSegreto = true;
   if (votoSegreto && nominal.some(item => item.voto === 'Favorevole' || item.voto === 'Contrario')) {
     throw new Error('OPENPOLIS_SECRET_VOTE_CONFLICT');
   }
