@@ -11,6 +11,8 @@ on:
       - 'api/scripts/unifiedStagingPreflight.js'
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
+      - 'api/scripts/evaluateLegacyRenderPgRetirement.js'
+      - 'api/tests/legacyRenderPgRetirementGate.test.js'
       - 'api/tests/unifiedStagingSchemaContract.test.js'
       - 'api/routes/referendum.js'
       - 'api/routes/referendum-abrogativi.js'
@@ -46,6 +48,8 @@ on:
       - 'api/scripts/unifiedStagingPreflight.js'
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
+      - 'api/scripts/evaluateLegacyRenderPgRetirement.js'
+      - 'api/tests/legacyRenderPgRetirementGate.test.js'
       - 'api/tests/unifiedStagingSchemaContract.test.js'
       - 'api/routes/referendum.js'
       - 'api/routes/referendum-abrogativi.js'
@@ -98,13 +102,14 @@ jobs:
         run: |
           node --check api/staging/unified_staging_bootstrap.js
           node --check api/scripts/unifiedStagingPreflight.js
+          node --check api/scripts/evaluateLegacyRenderPgRetirement.js
           node --check api/routes/referendum.js
           node --check api/routes/referendum-abrogativi.js
           node --check api/routes/referendum-vote.js
           node --check api/utils/selectNextOfficialReferendum.js
       - name: Offline bootstrap and preflight contracts (loopback only)
         run: |
-          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js
+          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/legacyRenderPgRetirementGate.test.js
           node --test api/tests/referendumOfficialRoutes.staging.test.js api/tests/referendumPriorityRetired.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/publicRouteHygiene.smoke.test.js
 
   p0-schema-postgres16:
