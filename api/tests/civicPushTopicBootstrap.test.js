@@ -160,3 +160,22 @@ test('bootstrap caps batches to 500 devices and never handles per-user queries',
   assert.ok(queries.some(sql => sql.includes('LEFT JOIN notifiche_preferenze')));
   assert.ok(queries.every(sql => !sql.includes('SELECT * FROM users')));
 });
+
+test('malformed flags fail before database connection or Firebase side effects', async () => {
+  for (const options of [
+    { dryRun: 0, enabled: true },
+    { dryRun: 'false', enabled: true },
+    { dryRun: null, enabled: true },
+    { dryRun: false, enabled: 'true' },
+    { dryRun: true, enabled: 1 },
+  ]) {
+    const db = pool();
+    const firebase = fcm();
+    await assert.rejects(
+      reconcileAllCivicTopics(db, { ...options, messaging: firebase }),
+      /CIVIC_BOOTSTRAP_FLAGS_INVALID/
+    );
+    assert.equal(db.queries.length, 0);
+    assert.equal(firebase.calls.length, 0);
+  }
+});
