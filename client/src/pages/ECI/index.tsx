@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -50,6 +51,7 @@ export default function ECI() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("firme");
   const [viewItem, setViewItem] = useState<ECIItem | null>(null);
+  const deepLinkHandled = useRef(false);
 
   const {
     data: eciData,
@@ -133,6 +135,16 @@ export default function ECI() {
     return list;
   }, [baseList, searchQuery, sortBy]);
 
+  // Risolvi la notifica nella lista esistente, senza interrogazioni aggiuntive.
+  useEffect(() => {
+    if (deepLinkHandled.current || isLoading || isError || !user) return;
+    const id = new URLSearchParams(window.location.search).get("initiative");
+    if (!id) return;
+    deepLinkHandled.current = true;
+    const item = baseList.find(entry => String(entry.id) === id);
+    if (item) setViewItem(item);
+  }, [baseList, isLoading, isError, user]);
+
   if (isAuthLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -146,7 +158,8 @@ export default function ECI() {
   }
 
   return (
-    <div className="eci-page container mx-auto px-4 py-8">
+    <PageContainer className="overflow-hidden">
+    <div className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain eci-page container mx-auto px-4 py-8" role="region" aria-label="Elenco ECI" tabIndex={0}>
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           {/* Top bar: refresh */}
@@ -389,5 +402,6 @@ export default function ECI() {
         </DialogContent>
       </Dialog>
     </div>
+    </PageContainer>
   );
 }

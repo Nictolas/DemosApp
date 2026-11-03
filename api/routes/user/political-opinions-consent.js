@@ -11,15 +11,14 @@ const { cleanupConsentScopedPoliticalData } = require('../../services/politicalC
  * Verifica lo stato del consenso alle opinioni politiche
  */
 router.get('/', verifyToken, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     const userId = req.userId;
     
     const query = `
       SELECT 
         COALESCE(uc.political_opinions_consent, u.political_opinions_consent) AS political_opinions_consent,
-        COALESCE(uc.political_opinions_consent_timestamp, u.political_opinions_consent_timestamp) AS political_opinions_consent_timestamp,
-        COALESCE(uc.political_opinions_consent_ip_address, u.political_opinions_consent_ip_address) AS political_opinions_consent_ip_address,
-        COALESCE(uc.political_opinions_consent_user_agent, u.political_opinions_consent_user_agent) AS political_opinions_consent_user_agent
+        COALESCE(uc.political_opinions_consent_timestamp, u.political_opinions_consent_timestamp) AS political_opinions_consent_timestamp
       FROM users u
       LEFT JOIN user_consents uc ON uc.user_id = u.id
       WHERE u.id = $1
@@ -41,8 +40,10 @@ router.get('/', verifyToken, async (req, res) => {
       consent: {
         granted: userData.political_opinions_consent || false,
         timestamp: userData.political_opinions_consent_timestamp,
-        ipAddress: userData.political_opinions_consent_ip_address,
-        userAgent: userData.political_opinions_consent_user_agent
+        // Preserve response shape; audit metadata stays on the server for
+        // accountable GDPR records and is not needed for UI consent status.
+        ipAddress: null,
+        userAgent: null
       }
     });
     

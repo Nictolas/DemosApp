@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { PageContainer } from "@/components/PageContainer";
@@ -17,12 +17,15 @@ import {
   School, 
   PawPrint, 
   Building2,
+  FileText,
+  Vote,
   ArrowLeft,
   Loader2,
   CheckCircle2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import apiRequest from "@/lib/api-request";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface PreferenzeNotifiche {
   eurodeputato: boolean;
@@ -35,12 +38,27 @@ interface PreferenzeNotifiche {
   scuola: boolean;
   animali: boolean;
   organizzazioni: boolean;
+  iniziative_popolari: boolean;
+  referendum_abrogativi: boolean;
+  eci: boolean;
+}
+
+const PREFERENCE_FIELDS: ReadonlyArray<keyof PreferenzeNotifiche> = [
+  "eurodeputato", "senatore", "deputato", "consigliere_regionale",
+  "consigliere_comunale", "attivisti", "demos", "scuola", "animali",
+  "organizzazioni", "iniziative_popolari", "referendum_abrogativi", "eci",
+];
+
+function hasCompletePreferences(input: unknown): input is PreferenzeNotifiche {
+  return typeof input === "object" && input !== null && !Array.isArray(input) &&
+    PREFERENCE_FIELDS.every(key => typeof (input as Record<string, unknown>)[key] === "boolean");
 }
 
 export default function NotifichePreferenze() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const push = usePushNotifications();
   
   const [preferenze, setPreferenze] = useState<PreferenzeNotifiche>({
     eurodeputato: false,
@@ -53,40 +71,62 @@ export default function NotifichePreferenze() {
     scuola: false,
     animali: true,
     organizzazioni: false,
+    iniziative_popolari: false,
+    referendum_abrogativi: false,
+    eci: false,
   });
   
   const [isLoading, setIsLoading] = useState(true);
+  const [loadSucceeded, setLoadSucceeded] = useState(false);
+  const [loadedOwnerId, setLoadedOwnerId] = useState<string | null>(null);
+  const isCurrentOwnerLoaded = loadSucceeded && loadedOwnerId === user?.id;
+  // An older response must not update the next account's political preferences.
+  const loadGeneration = useRef(0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      loadPreferenze();
+    if (user?.id) {
+      setLoadSucceeded(false);
+      setLoadedOwnerId(null);
+      void loadPreferenze();
+    } else {
+      loadGeneration.current += 1;
+      setLoadSucceeded(false);
+      setLoadedOwnerId(null);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const loadPreferenze = async () => {
+    const generation = ++loadGeneration.current;
+    const requestingOwnerId = user?.id;
     try {
       setIsLoading(true);
+      setLoadSucceeded(false);
       setError(null);
       const response = await apiRequest.get<{ preferenze: PreferenzeNotifiche }>("/notifiche/preferenze");
-      
-      if (response.success && response.data?.preferenze) {
-        setPreferenze(response.data.preferenze);
-      } else {
-        // Se non ci sono preferenze, usa i default
-        console.log("Nessuna preferenza trovata, uso i default");
+
+      // Fail closed: an old/malformed backend response could otherwise turn
+      // existing opt-ins OFF when the user taps Save with fallback values.
+      if (!response.success || !hasCompletePreferences(response.data?.preferenze)) {
+        throw new Error("PREFERENCES_RESPONSE_INCOMPLETE");
       }
-    } catch (err) {
-      console.error("Errore nel caricamento preferenze:", err);
-      setError("Errore nel caricamento delle preferenze");
+      if (generation !== loadGeneration.current) return;
+      setPreferenze(response.data.preferenze);
+      setLoadedOwnerId(requestingOwnerId ?? null);
+      setLoadSucceeded(true);
+    } catch {
+      if (generation !== loadGeneration.current) return;
+      // Avoid logging or displaying raw provider/SQL errors or private choices.
+      setError("Impossibile caricare le preferenze. Riprova prima di modificarle.");
     } finally {
-      setIsLoading(false);
+      if (generation === loadGeneration.current) setIsLoading(false);
     }
   };
 
   const handleSwitch = (key: keyof PreferenzeNotifiche, value: boolean) => {
+    if (!isCurrentOwnerLoaded || isLoading || isSaving) return;
     setPreferenze(prev => ({
       ...prev,
       [key]: value
@@ -95,6 +135,7 @@ export default function NotifichePreferenze() {
   };
 
   const handleSave = async () => {
+    if (!isCurrentOwnerLoaded || isLoading || isSaving) return;
     try {
       setIsSaving(true);
       setError(null);
@@ -111,11 +152,10 @@ export default function NotifichePreferenze() {
         });
         setTimeout(() => setSaved(false), 3000);
       } else {
-        throw new Error(response.error || "Errore nel salvataggio");
+        throw new Error("PREFERENCES_SAVE_NOT_CONFIRMED");
       }
-    } catch (err: any) {
-      console.error("Errore nel salvataggio:", err);
-      setError(err.message || "Errore nel salvataggio delle preferenze");
+    } catch {
+      setError("Impossibile confermare il salvataggio. Le preferenze potrebbero non essere aggiornate.");
       toast({
         title: "Errore",
         description: "Impossibile salvare le preferenze",
@@ -129,6 +169,12 @@ export default function NotifichePreferenze() {
   if (!user) {
     return <Redirect to="/auth" />;
   }
+
+  const wantsCivicPush = preferenze.iniziative_popolari ||
+    preferenze.referendum_abrogativi || preferenze.eci;
+  const needsPushPermission = wantsCivicPush && (
+    !push.enabled || push.permission !== 'granted'
+  );
 
   const sezioni = [
     {
@@ -152,6 +198,15 @@ export default function NotifichePreferenze() {
       ]
     },
     {
+      title: "Partecipazione popolare",
+      icon: Vote,
+      items: [
+        { key: "iniziative_popolari" as const, label: "Iniziative popolari", description: "Avvisami quando inizia una nuova raccolta firme ufficiale in Italia", icon: FileText, color: "text-emerald-600" },
+        { key: "referendum_abrogativi" as const, label: "Referendum abrogativi", description: "Avvisami quando inizia una nuova raccolta firme per un referendum abrogativo", icon: Vote, color: "text-rose-600" },
+        { key: "eci" as const, label: "Iniziative dei cittadini europei (ECI)", description: "Avvisami quando parte una nuova iniziativa europea", icon: Globe, color: "text-blue-600" },
+      ],
+    },
+    {
       title: "Altro",
       icon: Bell,
       items: [
@@ -162,8 +217,9 @@ export default function NotifichePreferenze() {
   ];
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto">
+    <PageContainer className="overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4" role="region" aria-label="Impostazioni preferenze notifiche" tabIndex={0}>
+        <div className="mx-auto w-full max-w-4xl">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
           <Button
@@ -191,10 +247,40 @@ export default function NotifichePreferenze() {
           </Alert>
         )}
 
+        {!isLoading && needsPushPermission && (
+          <Alert className="mb-5 border-amber-300 bg-amber-50">
+            <Bell className="h-4 w-4 text-amber-700" />
+            <AlertDescription className="text-sm text-amber-900">
+              {push.permission === 'denied'
+                ? 'Hai attivato notifiche in DEMOS, ma il dispositivo le blocca. Abilitale nelle impostazioni del dispositivo per poterle ricevere.'
+                : !push.enabled || push.permission === null
+                  ? 'Le notifiche push non risultano disponibili su questo dispositivo o browser. Puoi salvare le preferenze, ma non riceverai gli avvisi push qui.'
+                  : 'Hai attivato una categoria, ma devi ancora consentire le notifiche sul dispositivo.'}
+              {push.enabled && push.permission === 'default' && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 block"
+                  onClick={() => void push.requestPermission()}
+                >
+                  Consenti notifiche
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <span className="ml-3 text-gray-600">Caricamento preferenze...</span>
+          </div>
+        ) : !isCurrentOwnerLoaded ? (
+          <div className="flex justify-center py-8">
+            <Button type="button" variant="outline" onClick={() => void loadPreferenze()}>
+              Riprova caricamento
+            </Button>
           </div>
         ) : (
           <>
@@ -209,6 +295,11 @@ export default function NotifichePreferenze() {
                         <SectionIcon className="h-5 w-5 text-blue-600" />
                         {sezione.title}
                       </CardTitle>
+                      {sezione.title === "Partecipazione popolare" && (
+                        <CardDescription>
+                          Puoi già salvare le tue preferenze. Gli avvisi automatici per nuove iniziative e referendum partiranno quando il servizio sarà attivato.
+                        </CardDescription>
+                      )}
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {sezione.items.map((item) => {
@@ -234,6 +325,7 @@ export default function NotifichePreferenze() {
                               </span>
                               <Switch
                                 checked={isActive}
+                                disabled={isSaving || !isCurrentOwnerLoaded}
                                 onCheckedChange={(checked) => handleSwitch(item.key, checked)}
                                 className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-300"
                               />
@@ -247,8 +339,13 @@ export default function NotifichePreferenze() {
               })}
             </div>
 
-            {/* Pulsante Salva */}
-            <div className="sticky bottom-4 bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+          </>
+        )}
+        </div>
+      </div>
+      {!isLoading && isCurrentOwnerLoaded && (
+        <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3 shadow-lg">
+          <div className="mx-auto w-full max-w-4xl">
               <Button
                 onClick={handleSave}
                 disabled={isSaving}
@@ -269,10 +366,9 @@ export default function NotifichePreferenze() {
                   "💾 Salva Preferenze"
                 )}
               </Button>
-            </div>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
     </PageContainer>
   );
 }
