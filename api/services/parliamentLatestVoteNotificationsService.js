@@ -61,18 +61,22 @@ function matchUniqueMember(rep, members, allReps) {
   return rows.length === 1 && ALLOWED.has(rows[0].vote) ? rows[0] : null;
 }
 async function selectedRepresentatives(pool, chamber) {
-  const selection = chamber === 'Camera' ? 'rappresentante_camera' :
-    chamber === 'Senato' ? 'rappresentante_senato' : null;
-  const office = chamber === 'Camera' ? 'C' : 'S';
-  if (!selection) throw new Error('LATEST_VOTE_INVALID_CHAMBER');
-  // The dynamic column is selected from two hard-coded safe identifiers.
-  const sql = ('SELECT DISTINCT p.id, p.nome, p.cognome FROM users p ' +
-    'JOIN users follower ON follower.__SELECTION__ = p.id::text ' +
-    'WHERE p.nome IS NOT NULL AND p.cognome IS NOT NULL AND EXISTS (' +
-    "SELECT 1 FROM political_mandates m WHERE m.user_id = p.id AND m.status = 'ACTIVE' " +
-    'AND m.office_code = $1 AND m.starts_at <= NOW() ' +
-    'AND (m.ends_at IS NULL OR m.ends_at > NOW()))').replace('__SELECTION__', selection);
-  const { rows } = await pool.query(sql, [office]);
+  const office = chamber === 'Camera' ? 'it.camera' :
+    chamber === 'Senato' ? 'it.senato' : null;
+  const mandateOffice = chamber === 'Camera' ? 'C' : 'S';
+  if (!office) throw new Error('LATEST_VOTE_INVALID_CHAMBER');
+  // Authoritative current choices: do not read stale legacy TEXT projections
+  // or create one copy per follower. Active follower + active politician mandate.
+  const sql =
+    "SELECT DISTINCT p.id, p.nome, p.cognome " +
+    "FROM users p JOIN political_selections ps ON ps.selected_user_id = p.id " +
+    "JOIN users follower ON follower.id = ps.user_id AND lower(follower.status) = 'a' " +
+    "WHERE ps.selection_kind = 'representative' AND ps.political_office_id = $1 " +
+    "AND p.nome IS NOT NULL AND p.cognome IS NOT NULL " +
+    "AND EXISTS (SELECT 1 FROM political_mandates m WHERE m.user_id = p.id " +
+    "AND m.status = 'ACTIVE' AND m.office_code = $2 " +
+    "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()))";
+  const { rows } = await pool.query(sql, [office, mandateOffice]);
   return rows;
 }
 async function persistLatestForChamber(pool, vote, verified, reps) {
