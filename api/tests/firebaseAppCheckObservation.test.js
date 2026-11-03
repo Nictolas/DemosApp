@@ -481,3 +481,43 @@ test('missing or wrong Firebase resources are rejected before quota and provider
   const gradle = fs.readFileSync(path.resolve(__dirname, '../../client/android/app/build.gradle'), 'utf8');
   assert.match(gradle, /buildConfigField "boolean", "FIREBASE_APP_CHECK_ENABLED", "false"/);
 });
+
+test('signed Android release fails closed on missing or wrong Firebase config', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const gradle = fs.readFileSync(
+    path.resolve(__dirname, '../../client/android/app/build.gradle'), 'utf8'
+  );
+  const verifyStart = gradle.indexOf('def verifyDemosSignedReleaseFirebaseConfig = {');
+  const attachStart = gradle.indexOf("tasks.matching { it.name == 'preReleaseBuild' }");
+  assert.ok(verifyStart !== -1 && attachStart > verifyStart,
+    'Release Firebase guard must exist and attach to preReleaseBuild');
+  const verifySource = gradle.slice(verifyStart, attachStart);
+  assert.match(verifySource, /file\('google-services\.json'\)/);
+  assert.match(verifySource, /if \(!firebaseFile\.isFile\(\)\)/);
+  assert.match(verifySource, /new groovy\.json\.JsonSlurper\(\)\.parse\(firebaseFile\)/);
+  assert.match(verifySource, /project_info\?\.project_id != 'demos-finale'/);
+  assert.match(verifySource, /project_info\?\.project_number\?\.toString\(\) != '848085963511'/);
+  assert.match(verifySource, /android_client_info\?\.package_name == 'community\.demos'/);
+  assert.match(verifySource, /mobilesdk_app_id\s*== '1:848085963511:android:8f8047e4c6a38b11d0b9f2'/);
+  assert.match(verifySource, /throw new GradleException\('DEMOS signed release:/);
+  assert.match(gradle.slice(attachStart), /if \(keystorePropertiesFile\.exists\(\)\)\s*\{\s*verifyDemosSignedReleaseFirebaseConfig\(\)/);
+  assert.doesNotMatch(verifySource, /logger\.|println\(|storePassword|keyPassword/);
+});
+
+test('Android local CI remains unsigned and never needs to upload Firebase or signing secrets', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.resolve(__dirname, '../..');
+  const gradle = fs.readFileSync(path.join(root, 'client/android/app/build.gradle'), 'utf8');
+  const workflow = fs.readFileSync(
+    path.join(root, '.github/workflows/android-alpha-validation.yml'), 'utf8'
+  );
+  const ignore = fs.readFileSync(path.join(root, 'client/android/.gitignore'), 'utf8');
+  assert.match(gradle, /if \(keystorePropertiesFile\.exists\(\)\)\s*\{\s*verifyDemosSignedReleaseFirebaseConfig\(\)/);
+  assert.match(workflow, /Build Android debug APK and release AAB \(unsigned in CI\)/);
+  assert.match(workflow, /Archive UNSIGNED release candidate for authorized signing/);
+  assert.match(ignore, /^google-services\.json$/m);
+  assert.match(ignore, /^keystore\.properties$/m);
+  assert.match(ignore, /^\*\.jks$/m);
+});
