@@ -241,6 +241,90 @@ class SyncEciUnitTests(unittest.TestCase):
         fake_extras.execute_values.assert_not_called()
         conn.close.assert_called_once()
 
+    def test_blocked_first_eci_import_suppresses_historical_events(self):
+        """First recovery of a previously empty ECI cache must not push old IDs."""
+        import os
+        import sys
+        from types import ModuleType
+        from unittest.mock import MagicMock
+
+        expected = "00000000-0000-4000-8000-000000000539"
+        records = [(
+            "2026-000011", "Synthetic existing initiative", 12,
+            "eci-2026-000011", "ONGOING", "2027-08-25", None,
+            "https://eci.ec.europa.eu/066/public/",
+        )]
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cur
+        # Verify identity, then see an empty cache on initial recovery.
+        cur.fetchall.side_effect = [[(expected,)], []]
+        # Cache has 1 record; the global delivery guard is blocked.
+        cur.fetchone.side_effect = [(1,), (True, "ROLLOUT_NOT_APPROVED")]
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        with patch.dict(sys.modules, {
+            "psycopg2": fake_pg,
+            "psycopg2.extras": fake_extras,
+        }), patch.dict(os.environ, {
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "true",
+            "CIVIC_RUNTIME_DATABASE_ID": expected,
+        }):
+            sync_eci._replace_cache("postgresql://fixture/eci", records)
+
+        self.assertEqual(fake_extras.execute_values.call_count, 2)
+        cache_call, event_call = fake_extras.execute_values.call_args_list
+        self.assertIn("INSERT INTO eci", cache_call.args[1])
+        self.assertIn("INSERT INTO civic_new_initiative_notifications", event_call.args[1])
+        self.assertIn("ON CONFLICT (category, official_id) DO NOTHING", event_call.args[1])
+        self.assertEqual(
+            event_call.args[2], [
+                ("eci", "2026-000011", "Synthetic existing initiative",
+                 "/eci", "suppressed")
+            ]
+        )
+        conn.close.assert_called_once()
+
+    def test_existing_eci_never_requeued_after_guard_unblocked(self):
+        """Refreshing an unchanged official ID is not a second notification."""
+        import os
+        import sys
+        from types import ModuleType
+        from unittest.mock import MagicMock
+
+        expected = "00000000-0000-4000-8000-000000000539"
+        records = [(
+            "2026-000011", "Updated title", 100,
+            "eci-2026-000011", "ONGOING", "2027-08-25", None,
+            "https://eci.ec.europa.eu/066/public/",
+        )]
+        conn = MagicMock()
+        cur = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cur
+        cur.fetchall.side_effect = [[(expected,)], [("2026-000011",)]]
+        cur.fetchone.side_effect = [(1,), (False, "ROLLOUT_APPROVED")]
+        fake_pg = ModuleType("psycopg2")
+        fake_pg.connect = Mock(return_value=conn)
+        fake_extras = ModuleType("psycopg2.extras")
+        fake_extras.execute_values = Mock()
+        with patch.dict(sys.modules, {
+            "psycopg2": fake_pg,
+            "psycopg2.extras": fake_extras,
+        }), patch.dict(os.environ, {
+            "CIVIC_NEW_INITIATIVE_EVENTS_ENABLED": "true",
+            "CIVIC_RUNTIME_DATABASE_ID": expected,
+        }):
+            sync_eci._replace_cache("postgresql://fixture/eci", records)
+
+        # The cache is refreshed, but there is no second outbox INSERT.
+        fake_extras.execute_values.assert_called_once()
+        self.assertIn("INSERT INTO eci", fake_extras.execute_values.call_args.args[1])
+        self.assertNotIn("civic_new_initiative_notifications",
+            fake_extras.execute_values.call_args.args[1])
+        conn.close.assert_called_once()
+
     def test_main_returns_nonzero_on_sync_failure(self):
         with patch.object(sync_eci, "sync", side_effect=RuntimeError("boom")):
             self.assertEqual(sync_eci.main(["--dry-run"]), 1)
