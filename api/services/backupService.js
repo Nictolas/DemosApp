@@ -226,6 +226,8 @@ class BackupService {
    * Esporta tutti i dati del database
    */
   static async exportAllData() {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     try {
       const tables = [
         'users', 'opinions', 'votes', 'audit_logs', 'user_rights_requests',
@@ -257,6 +259,8 @@ class BackupService {
    * Esporta solo i dati modificati dall'ultimo backup
    */
   static async exportIncrementalData(since) {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     try {
       const tables = [
         'users', 'opinions', 'votes', 'audit_logs', 'user_rights_requests',
@@ -363,6 +367,8 @@ class BackupService {
    * Verifica integrità del backup
    */
   static async verifyBackupIntegrity(backupPath) {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     try {
       const backupContent = await readFile(backupPath, 'utf8');
       const config = this.getBackupConfig();
@@ -476,6 +482,8 @@ class BackupService {
    * Inserisce record in una tabella
    */
   static async insertRecords(client, table, records) {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     if (records.length === 0) return;
     
     const columns = Object.keys(records[0]);
@@ -492,6 +500,8 @@ class BackupService {
    * Ottiene lista dei backup disponibili
    */
   static async getBackupList() {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     try {
       const config = this.getBackupConfig();
       await this.ensureBackupDirectory();
@@ -546,6 +556,8 @@ class BackupService {
    * Pulisce backup vecchi
    */
   static async cleanupOldBackups() {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     try {
       const config = this.getBackupConfig();
       const backups = await this.getBackupList();
@@ -595,6 +607,8 @@ class BackupService {
    * Ottiene l'ultimo backup
    */
   static async getLastBackup() {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     try {
       const backups = await this.getBackupList();
       return backups.length > 0 ? backups[0] : null;
@@ -608,6 +622,8 @@ class BackupService {
    * Crea directory backup se non esiste
    */
   static async ensureBackupDirectory() {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     const config = this.getBackupConfig();
     
     if (!fs.existsSync(config.backupDir)) {
@@ -620,6 +636,8 @@ class BackupService {
    * Ottiene dimensione file
    */
   static async getFileSize(filePath) {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     const stats = fs.statSync(filePath);
     return stats.size;
   }
@@ -628,6 +646,8 @@ class BackupService {
    * Log operazioni backup
    */
   static async logBackupOperation(type, fileName, success, error) {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     try {
       // Usa AuditService che gestisce automaticamente Axiom
       const AuditService = require('./auditService');
@@ -654,6 +674,8 @@ class BackupService {
    * Ottiene statistiche backup
    */
   static async getBackupStats() {
+    // Legacy app backup is not a GDPR-qualified or independently restorable source.
+    this.assertLegacyBackupAvailable();
     try {
       const backups = await this.getBackupList();
       const config = this.getBackupConfig();
