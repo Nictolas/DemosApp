@@ -276,7 +276,7 @@ test('manual diagnostic is Admin-only, header-only, and not wired to normal flow
   assert.ok(!route.includes('console.log') && !route.includes('console.error'));
   assert.ok(client.includes("VITE_FIREBASE_APP_CHECK_DIAGNOSTIC_ENABLED !== 'true'"));
   assert.ok(client.includes("'X-Firebase-AppCheck': token"));
-  assert.ok(client.includes("ALLOWED_API_HOSTS.has(base.hostname)"));
+  assert.ok(client.includes("ALLOWED_API_ORIGINS.has(base.origin)"));
   assert.ok(!client.includes('setInterval') && !client.includes('setTimeout'));
 });
 
@@ -520,4 +520,47 @@ test('Android local CI remains unsigned and never needs to upload Firebase or si
   assert.match(ignore, /^google-services\.json$/m);
   assert.match(ignore, /^keystore\.properties$/m);
   assert.match(ignore, /^\*\.jks$/m);
+});
+
+test('manual App Check diagnostic pins HTTPS origin and rejects nonstandard ports', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../../client/src/lib/nativeFirebaseAppCheckDiagnostic.ts'), 'utf8'
+  );
+  const block = source.match(/const ALLOWED_API_ORIGINS = new Set\(\[([\s\S]*?)\]\)/);
+  assert.ok(block, 'Approved origins must be an explicit static set');
+  const allowed = new Set(
+    [...block[1].matchAll(/'([^']+)'/g)].map(match => match[1])
+  );
+  assert.deepEqual([...allowed].sort(), [
+    'https://demos.community',
+    'https://www.demos.community',
+    'https://demos-c7k0.onrender.com',
+  ].sort());
+  assert.match(source, /ALLOWED_API_ORIGINS\.has\(base\.origin\)/);
+  assert.doesNotMatch(source, /ALLOWED_API_HOSTS\.has\(base\.hostname\)/);
+  assert.match(source, /base\.username \|\| base\.password \|\| base\.search \|\| base\.hash/);
+  assert.match(source, /redirect: 'error'/);
+  const accepted = [
+    'https://demos.community',
+    'https://demos.community:443',
+    'https://demos-c7k0.onrender.com',
+  ];
+  const rejected = [
+    'https://demos.community:8443',
+    'https://demos.community:444',
+    'http://demos.community',
+    'https://demos.community.evil.example',
+    'https://demos.community.',
+    'https://evil.example',
+    'https://demos-c7k0.onrender.com:8080',
+  ];
+  for (const origin of accepted) assert.equal(allowed.has(new URL(origin).origin), true, origin);
+  for (const origin of rejected) assert.equal(allowed.has(new URL(origin).origin), false, origin);
+  // The App Check and admin token are not read until after the origin check.
+  assert.ok(source.indexOf('ALLOWED_API_ORIGINS.has(base.origin)')
+    < source.indexOf('await requestNativeFirebaseAppCheckToken()'));
+  assert.ok(source.indexOf('await requestNativeFirebaseAppCheckToken()')
+    < source.indexOf('await fetch(endpoint.href'));
 });
