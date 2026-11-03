@@ -24,10 +24,15 @@ export async function fetchNotificationFeed(): Promise<NotificheData> {
   return payload as NotificheData;
 }
 
+// DEMOS cost-zero: no full-feed background polling. One query is shared by
+// notification bell and page; navigation to /notifiche refreshes explicitly.
+// Avoid broad synchronized DB refreshes when users focus the browser or
+// resume an application after a push is delivered.
 export const notificationFeedQueryPolicy = {
-  refetchInterval: 60_000,
+  refetchInterval: false,
   refetchIntervalInBackground: false,
-  staleTime: 90_000,
-  refetchOnWindowFocus: true,
+  staleTime: 5 * 60_000,
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
   retry: false,
 } as const;
