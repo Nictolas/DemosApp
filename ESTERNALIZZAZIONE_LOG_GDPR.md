@@ -118,7 +118,7 @@ node scripts/hard-disk-export.js export
 **Windows - Task Scheduler:**
 ```powershell
 # Crea task per export giornaliero alle 2:00 AM
-schtasks /create /tn "Export Log Giornaliero" /tr "node C:\path\to\scripts\hard-disk-export.js export --delete" /sc daily /st 02:00
+# DISABILITATO: non configurare il task legacy di esportazione con cancellazione
 ```
 
 **Linux/Mac - Cron:**
@@ -127,7 +127,7 @@ schtasks /create /tn "Export Log Giornaliero" /tr "node C:\path\to\scripts\hard-
 crontab -e
 
 # Export giornaliero alle 2:00 AM
-0 2 * * * cd /path/to/demosapp && # DISABILITATO: export con eliminazione non consentito
+# DISABILITATO: non configurare cron legacy di esportazione/cancellazione
 ```
 
 ### **Fase 3: Backup Cloud (Opzionale ma Consigliato)**
