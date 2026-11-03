@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'client/src/pages/PrivacyPolicy.tsx'
+      - 'client/src/pages/LandingPage.tsx'
+      - 'client/src/pages/ScopriDemos.tsx'
+      - 'client/tests/privacyDisclosureIntegrity.test.mjs'
       - 'client/tests/privacyPolicyAccountDeletion.test.mjs'
       - '.github/workflows/privacy-policy-account-deletion-ci.yml'
 permissions:
@@ -19,7 +22,7 @@ jobs:
           cache: npm
           cache-dependency-path: client/package-lock.json
       - name: Check policy language invariants
-        run: node --test client/tests/privacyPolicyAccountDeletion.test.mjs
+        run: node --test client/tests/privacyPolicyAccountDeletion.test.mjs client/tests/privacyDisclosureIntegrity.test.mjs
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Compile frontend
