@@ -8,6 +8,11 @@ on:
       - 'client/src/pages/PrivacyPolicy.tsx'
       - 'client/src/pages/LandingPage.tsx'
       - 'client/src/pages/ScopriDemos.tsx'
+      - 'client/src/pages/Impostazioni/InformazioniLegali/index.tsx'
+      - 'client/src/pages/Impostazioni/components/LinksSection.tsx'
+      - 'client/src/pages/registrazione-consensi.tsx'
+      - 'client/src/App.tsx'
+      - 'api/tests/legalPolicyLinks.smoke.test.js'
       - 'client/tests/privacyDisclosureIntegrity.test.mjs'
       - 'client/tests/privacyPolicyAccountDeletion.test.mjs'
       - '.github/workflows/privacy-policy-account-deletion-ci.yml'
@@ -16,6 +21,11 @@ on:
       - 'client/src/pages/PrivacyPolicy.tsx'
       - 'client/src/pages/LandingPage.tsx'
       - 'client/src/pages/ScopriDemos.tsx'
+      - 'client/src/pages/Impostazioni/InformazioniLegali/index.tsx'
+      - 'client/src/pages/Impostazioni/components/LinksSection.tsx'
+      - 'client/src/pages/registrazione-consensi.tsx'
+      - 'client/src/App.tsx'
+      - 'api/tests/legalPolicyLinks.smoke.test.js'
       - 'client/tests/privacyDisclosureIntegrity.test.mjs'
       - 'client/tests/privacyPolicyAccountDeletion.test.mjs'
       - '.github/workflows/privacy-policy-account-deletion-ci.yml'
@@ -34,6 +44,8 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - name: Check policy language invariants
         run: node --test client/tests/privacyPolicyAccountDeletion.test.mjs client/tests/privacyDisclosureIntegrity.test.mjs
+      - name: Verify legal navigation in registration, Settings, and public routes
+        run: node --test api/tests/legalPolicyLinks.smoke.test.js
       - name: Install frontend dependencies
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Compile frontend
