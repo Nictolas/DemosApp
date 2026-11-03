@@ -106,3 +106,23 @@ test('P1 route schema creates primary keys before foreign keys, with RLS and rev
   }
   assert.match(p1Sql,/REVOKE ALL ON[\s\S]*FROM PUBLIC, anon, authenticated;/i);
 });
+
+
+const p2Migration = fs.readFileSync(path.join(__dirname,'..','database','staging','ops_stg_001_p2_opinion_referendum_parliament_20261103.sql'),'utf8');
+const p2Sql = p2Migration.replace(/^\s*--.*$/gm,'');
+test('P2 legacy vote/opinion schema is additive, atomic and restricted to Demos-Staging', () => {
+  assert.match(p2Sql,/^\s*BEGIN;[\s\S]*COMMIT;\s*$/i);
+  assert.match(p2Sql,/md5\(db_identity::text\)='0cbb6ace68a9f11956904e2a37898ec8'/i);
+  assert.equal((p2Sql.match(/CREATE TABLE public\./g)||[]).length,4);
+  assert.equal((p2Sql.match(/CREATE SEQUENCE public\./g)||[]).length,1);
+  assert.equal((p2Sql.match(/ADD CONSTRAINT/g)||[]).length,14);
+  assert.doesNotMatch(p2Sql,/\b(TRUNCATE|DROP\s+TABLE|DELETE\s+FROM|INSERT\s+INTO|UPDATE\s+public\.)\b/i);
+});
+test('P2 protects all four empty tables and the sequence from direct clients', () => {
+  for(const name of ['opinioni_domande','voti_referendum_abrogativi','notifiche_voti_parlamento','voti_camera']){
+    assert.match(p2Sql,new RegExp('CREATE TABLE public\\."'+name+'"\\s*\\(','i'));
+    assert.match(p2Sql,new RegExp('ALTER TABLE public\\."'+name+'"\\s+ENABLE ROW LEVEL SECURITY','i'));
+  }
+  assert.match(p2Sql,/REVOKE ALL ON[\s\S]*FROM PUBLIC, anon, authenticated;/i);
+  assert.match(p2Sql,/REVOKE ALL ON SEQUENCE public\.voti_camera_id_seq FROM PUBLIC, anon, authenticated;/i);
+});
