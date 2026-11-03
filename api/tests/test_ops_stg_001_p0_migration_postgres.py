@@ -362,5 +362,120 @@ class P0StagingMigrationPostgresTest(unittest.TestCase):
                 cur.execute("DROP TABLE public.user_auth_providers CASCADE")
 
 
+    def test_z_disabled_preflight_role_is_strictly_read_only_and_requires_approval(self):
+        """Real PG16/17 role/policies, but passwordless and only in disposable CI."""
+        path = ROOT / "api/database/staging/ops_stg_001_preflight_role_disabled_20261103.sql"
+        source = path.read_text(encoding="utf-8")
+        self.assertEqual(source.count(STAGING_HASH), 1)
+        sql = source.replace(STAGING_HASH,
+                             hashlib.md5(SYNTHETIC_ID.encode("ascii")).hexdigest())
+        role = "demos_staging_preflight"
+        with self.conn.cursor() as cur:
+            # Real provider already has RLS; the disposable P0 fixture
+            # needs to enable it before exercising the exact guarded SQL.
+            for table in ("civic_runtime_identity", "civic_push_delivery_guard"):
+                cur.execute("ALTER TABLE public." + table + " ENABLE ROW LEVEL SECURITY")
+            with self.assertRaisesRegex(psycopg2.Error,
+                    "PREFLIGHT_ROLE_OPERATOR_APPROVAL_REQUIRED"):
+                cur.execute(sql)
+            cur.execute("ROLLBACK")
+            cur.execute("SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname=%s", (role,))
+            self.assertEqual(cur.fetchone(), (0,), "No role before explicit approval")
+
+            cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                        (WRONG_ID,))
+            cur.execute("BEGIN")
+            cur.execute("""SET LOCAL civic.preflight_role_approval =
+                'I_APPROVE_DISABLED_PREFLIGHT_ROLE'""")
+            with self.assertRaisesRegex(psycopg2.Error,
+                    "PREFLIGHT_ROLE_WRONG_DATABASE"):
+                cur.execute(sql)
+            cur.execute("ROLLBACK")
+            cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                        (SYNTHETIC_ID,))
+
+            cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=FALSE WHERE id=1")
+            cur.execute("BEGIN")
+            cur.execute("""SET LOCAL civic.preflight_role_approval =
+                'I_APPROVE_DISABLED_PREFLIGHT_ROLE'""")
+            with self.assertRaisesRegex(psycopg2.Error,
+                    "PREFLIGHT_ROLE_PUSH_MUST_REMAIN_BLOCKED"):
+                cur.execute(sql)
+            cur.execute("ROLLBACK")
+            cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=TRUE WHERE id=1")
+
+            cur.execute("BEGIN")
+            cur.execute("""SET LOCAL civic.preflight_role_approval =
+                'I_APPROVE_DISABLED_PREFLIGHT_ROLE'""")
+            cur.execute(sql)
+            cur.execute("COMMIT")
+
+            cur.execute("""SELECT rolcanlogin,rolinherit,rolsuper,rolbypassrls,
+                           rolcreatedb,rolcreaterole,rolreplication,rolconnlimit
+                           FROM pg_catalog.pg_roles WHERE rolname=%s""", (role,))
+            self.assertEqual(cur.fetchone(),
+                             (True,False,False,False,False,False,False,1))
+            cur.execute("SELECT rolpassword FROM pg_catalog.pg_authid WHERE rolname=%s",
+                        (role,))
+            self.assertEqual(cur.fetchone(), (None,),
+                             "Role must have no usable password or secret")
+            cur.execute("""SELECT setconfig FROM pg_catalog.pg_db_role_setting s
+                           JOIN pg_catalog.pg_roles r ON r.oid=s.setrole
+                           WHERE r.rolname=%s AND s.setdatabase=0""", (role,))
+            defaults = cur.fetchone()[0]
+            self.assertIn("default_transaction_read_only=on", defaults)
+            self.assertTrue(any(x.startswith("statement_timeout=") for x in defaults))
+            for table, allowed in (
+                ("civic_runtime_identity",("id","db_identity")),
+                ("civic_push_delivery_guard",("id","blocked"))
+            ):
+                cur.execute("""SELECT has_table_privilege(%s,%s,'SELECT'),
+                    has_any_column_privilege(%s,%s,'INSERT,UPDATE,REFERENCES')""",
+                    (role,"public."+table,role,"public."+table))
+                self.assertEqual(cur.fetchone(),(False,False))
+                for column in allowed:
+                    cur.execute("""SELECT has_column_privilege(%s,%s,%s,'SELECT')""",
+                                (role,"public."+table,column))
+                    self.assertEqual(cur.fetchone(),(True,))
+            cur.execute("""SELECT count(*) FROM pg_catalog.pg_auth_members m
+                JOIN pg_catalog.pg_roles r ON r.oid=m.member
+                WHERE r.rolname=%s""", (role,))
+            self.assertEqual(cur.fetchone(), (0,))
+
+            # SET LOCAL ROLE tests the real permission/RLS boundary.
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL ROLE demos_staging_preflight")
+            cur.execute("""SELECT md5(db_identity::text) FROM public.civic_runtime_identity
+                           WHERE id=1""")
+            self.assertEqual(cur.fetchone(),
+                             (hashlib.md5(SYNTHETIC_ID.encode("ascii")).hexdigest(),))
+            cur.execute("SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1")
+            self.assertEqual(cur.fetchone(), (True,))
+            cur.execute("SAVEPOINT forbidden_users")
+            with self.assertRaises(psycopg2.Error) as rejected:
+                cur.execute("SELECT count(*) FROM public.users")
+            self.assertEqual(rejected.exception.pgcode, "42501")
+            cur.execute("ROLLBACK TO SAVEPOINT forbidden_users")
+            cur.execute("SAVEPOINT forbidden_guard_update")
+            with self.assertRaises(psycopg2.Error) as rejected:
+                cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=FALSE")
+            self.assertEqual(rejected.exception.pgcode, "42501")
+            cur.execute("ROLLBACK TO SAVEPOINT forbidden_guard_update")
+            cur.execute("ROLLBACK")
+
+            cur.execute("BEGIN")
+            cur.execute("""SET LOCAL civic.preflight_role_approval =
+                'I_APPROVE_DISABLED_PREFLIGHT_ROLE'""")
+            with self.assertRaisesRegex(psycopg2.Error,
+                    "PREFLIGHT_ROLE_ALREADY_EXISTS"):
+                cur.execute(sql)
+            cur.execute("ROLLBACK")
+            cur.execute("SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1")
+            self.assertEqual(cur.fetchone(), (True,))
+            cur.execute("SELECT count(*) FROM public.users")
+            self.assertEqual(cur.fetchone(), (2,))
+
+
+
 if __name__ == "__main__":
     unittest.main()

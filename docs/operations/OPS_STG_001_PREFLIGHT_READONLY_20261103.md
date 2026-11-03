@@ -84,3 +84,43 @@ nega approvazione assente, nega database errato, revoca i grant
 deliberatamente aperti, verifica assenza di permessi e blocca una seconda
 esecuzione. Nessun test applicativo e nessuna apertura del runtime
 `demos-staging`; PR #565 resta Draft e lo staging applicativo NO-GO.
+
+
+## Provisioning sicuro del ruolo preflight: script approvabile, non applicato (03/11/2026)
+
+Verificato su **Supabase Demos-Staging** (read-only): il ruolo
+`demos_staging_preflight` non esiste; `civic_runtime_identity` e
+`civic_push_delivery_guard` hanno RLS attiva e policy esistenti per
+`demos_staging_runtime`, che devono rimanere inalterate. La versione
+database staging è PostgreSQL 17; la CI copre PostgreSQL 16 e 17.
+
+Nuovo script **preparatorio**, versionato in
+`api/database/staging/ops_stg_001_preflight_role_disabled_20261103.sql`,
+che richiede una separata attestazione di sessione
+`civic.preflight_role_approval='I_APPROVE_DISABLED_PREFLIGHT_ROLE'`,
+hash esatto del DB staging, guardia invii `blocked=true`, esattamente
+due utenti test sintetici, RLS sulle due tabelle di controllo, nessun grant
+diretto ai client `anon/authenticated` e nessuna collisione con policy/ruoli.
+Qualunque violazione interrompe la transazione prima di creare il ruolo.
+
+La creazione proposta è **LOGIN con PASSWORD NULL**: il ruolo rimane
+**senza credenziale operativa**, non è un login da abilitare su Render.
+Attributi: `NOINHERIT`, niente superuser/BYPASSRLS/CREATEDB/CREATEROLE
+o REPLICATION, limite di una connessione, default read-only e timeout di
+cinque secondi. Privilegi limitati a `USAGE` dello schema e a **sole
+colonne** `id,db_identity` e `id,blocked` delle due tabelle, con policy
+RLS che consentono solo `id=1`. Le policy del ruolo applicativo sono
+conservate. I test su database PostgreSQL effimero verificano rifiuto
+senza approvazione, rifiuto del DB errato e guard push disattivata,
+assenza password, impossibilità di leggere `users` o aggiornare
+`civic_push_delivery_guard`, lettura ammessa dei soli campi autorizzati,
+non ripetibilità e nessuna modifica agli utenti sintetici.
+
+**Nessuna esecuzione su Supabase-Staging né produzione.** Manca ancora
+l'autorizzazione di provisioning sul servizio condiviso, la generazione
+e registrazione di una password tramite un **gestore di segreti autorizzato**
+(senza copiarla in GitHub, Sheets, log o chat), la configurazione protetta
+di `STAGING_PREFLIGHT_DATABASE_URL` e il GO separato per una connessione
+remota read-only. Anche con un ruolo creato, l'app condivisa rimane
+bootstrap/NO-GO. Lo script non equivale al collaudo Render→Supabase e non
+chiude alcun macro-gate di rilascio.
