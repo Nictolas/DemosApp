@@ -12,6 +12,9 @@
  * node api/scripts/comparePlayAppSigningFingerprint.cjs
  *   --play-app-signing-cert <public-certificate.der>
  *   --firebase-sha256 <fingerprint-from-Firebase>
+ * OR, when Play Console displays the certificate's SHA-256 but no file:
+ *   --play-sha256 <app-signing-certificate-fingerprint>
+ *   --firebase-sha256 <fingerprint-from-Firebase>
  *
  * Exit 0 = match, 1 = mismatch, 2 = missing/invalid evidence.
  * Only local file reads; no Google calls, credentials, signing/private keys,
@@ -46,26 +49,34 @@ function fingerprintOfPublicCertificate(filePath) {
   return normalizeSha256(cert.fingerprint256);
 }
 
-function comparePlayAndFirebase({ playCertPath, firebaseSha256 }) {
-  const playSha256 = fingerprintOfPublicCertificate(playCertPath);
+function comparePlayAndFirebase({ playCertPath, playSha256, firebaseSha256 }) {
+  // Refuse ambiguous evidence, including conflicting file and pasted hash.
+  if (Boolean(playCertPath) === Boolean(playSha256)) {
+    throw new TypeError('Fornire esattamente una fonte Play: certificato pubblico O SHA-256 della firma app');
+  }
+  const normalizedPlaySha256 = playCertPath
+    ? fingerprintOfPublicCertificate(playCertPath)
+    : normalizeSha256(playSha256);
   const registeredSha256 = normalizeSha256(firebaseSha256);
   return {
-    playSha256,
+    playSha256: normalizedPlaySha256,
     registeredSha256,
-    matches: playSha256 === registeredSha256,
+    matches: normalizedPlaySha256 === registeredSha256,
   };
 }
 
 function main(argv = process.argv.slice(2), io = console) {
   try {
     if (argv.length !== 4
-      || argv[0] !== '--play-app-signing-cert'
+      || !['--play-app-signing-cert', '--play-sha256'].includes(argv[0])
       || argv[2] !== '--firebase-sha256') {
-      io.error('Uso: node comparePlayAppSigningFingerprint.cjs --play-app-signing-cert <cert.der> --firebase-sha256 <SHA-256 Firebase App Check>');
+      io.error('Uso: node comparePlayAppSigningFingerprint.cjs (--play-sha256 <SHA-256 Play> | --play-app-signing-cert <cert.der>) --firebase-sha256 <SHA-256 Firebase App Check>');
       return 2;
     }
     const result = comparePlayAndFirebase({
-      playCertPath: argv[1],
+      ...(argv[0] === '--play-sha256'
+        ? { playSha256: argv[1] }
+        : { playCertPath: argv[1] }),
       firebaseSha256: argv[3],
     });
     io.log('SHA-256 certificato Play App Signing:', result.playSha256);
