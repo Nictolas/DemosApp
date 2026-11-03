@@ -622,5 +622,141 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             self.assertEqual(cur.fetchone(), (0,))
 
 
+    def test_zzzz_snapshot_acl_enforces_minimum_count_and_freeze(self):
+        """Use SQL on ephemeral PG16; not a real capture with 10 voters."""
+        path = ROOT / "api/database/staging/ops_stg_001_p5_synthetic_snapshot_acl_20261103.sql"
+        original = path.read_text(encoding="utf-8")
+        self.assertEqual(original.count(STAGING_HASH), 1)
+        acl = original.replace(STAGING_HASH, SYNTHETIC_HASH)
+        with self.conn.cursor() as cur:
+            with self.assertRaisesRegex(psycopg2.Error, "P5_SNAPSHOT_ACL_APPROVAL_REQUIRED"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+            cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                        (WRONG_ID,))
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p5_runtime_approval='I_APPROVE_P5_SYNTHETIC_SNAPSHOT_ACL'")
+            with self.assertRaisesRegex(psycopg2.Error, "P5_SNAPSHOT_ACL_WRONG_DATABASE"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+            cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                        (SYNTHETIC_ID,))
+            cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=FALSE WHERE id=1")
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p5_runtime_approval='I_APPROVE_P5_SYNTHETIC_SNAPSHOT_ACL'")
+            with self.assertRaisesRegex(psycopg2.Error, "P5_SNAPSHOT_ACL_DELIVERY_UNBLOCKED"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+            cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=TRUE WHERE id=1")
+
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p5_runtime_approval='I_APPROVE_P5_SYNTHETIC_SNAPSHOT_ACL'")
+            cur.execute(acl)
+            cur.execute("COMMIT")
+            for action, allowed in (
+                ("SELECT", True), ("INSERT", True),
+                ("UPDATE", False), ("DELETE", False)
+            ):
+                cur.execute("""SELECT has_table_privilege(
+                  'demos_staging_runtime','public.civic_ballot_forecast_snapshots',%s)""",
+                            (action,))
+                self.assertEqual(cur.fetchone()[0], allowed, action)
+            for col, allowed in (
+                ("total_responses", True), ("yes_count", True),
+                ("no_count", True), ("abstain_count", True),
+                ("updated_at", True), ("civic_ballot_id", False),
+                ("bucket_start", False), ("is_frozen", False),
+                ("created_at", False)
+            ):
+                cur.execute("""SELECT has_column_privilege(
+                  'demos_staging_runtime','public.civic_ballot_forecast_snapshots',
+                  %s,'UPDATE')""", (col,))
+                self.assertEqual(cur.fetchone()[0], allowed, col)
+            for role in ("anon", "authenticated"):
+                cur.execute("""SELECT has_table_privilege(%s,
+                  'public.civic_ballot_forecast_snapshots',
+                  'SELECT,INSERT,UPDATE,DELETE')""", (role,))
+                self.assertEqual(cur.fetchone(), (False,))
+
+            cur.execute("BEGIN")
+            other_process = "00000000-0000-4000-8000-00000000b004"
+            cur.execute("INSERT INTO public.civic_processes(id) VALUES (%s)", (other_process,))
+            ballot_ids = []
+            for process, source in (
+                (PROCESS, "staging-fixture-aggregate-acl"),
+                (other_process, "staging-fixture-other-process")
+            ):
+                cur.execute("""INSERT INTO public.civic_ballots
+                  (civic_process_id,ballot_kind,question_text,yes_meaning,no_meaning,
+                   opens_at,closes_at,timezone,source_id,source_url)
+                  VALUES (%s,'referendum','Aggregate SQL test','Yes','No',
+                          '2027-01-01T00:00:00Z','2027-02-01T00:00:00Z',
+                          'Europe/Rome',%s,'https://example.invalid/fixture')
+                  RETURNING id""", (process, source))
+                ballot_ids.append(cur.fetchone()[0])
+            ts = "2027-01-01T00:00:00Z"
+            cur.execute("SET LOCAL ROLE demos_staging_runtime")
+            cur.execute("""INSERT INTO public.civic_ballot_forecast_snapshots
+                (civic_ballot_id,bucket_start,total_responses,yes_count,no_count,abstain_count)
+                VALUES (%s,%s,10,6,3,1)""", (ballot_ids[0], ts))
+            cur.execute("""INSERT INTO public.civic_ballot_forecast_snapshots
+                (civic_ballot_id,bucket_start,total_responses,yes_count,no_count,abstain_count)
+                VALUES (%s,%s,10,7,2,1)
+                ON CONFLICT (civic_ballot_id,bucket_start) DO UPDATE SET
+                  total_responses=EXCLUDED.total_responses,
+                  yes_count=EXCLUDED.yes_count, no_count=EXCLUDED.no_count,
+                  abstain_count=EXCLUDED.abstain_count,updated_at=NOW()
+                WHERE civic_ballot_forecast_snapshots.is_frozen=FALSE""",
+                        (ballot_ids[0], ts))
+            cur.execute("""SELECT yes_count,no_count,abstain_count
+                FROM public.civic_ballot_forecast_snapshots WHERE civic_ballot_id=%s""",
+                        (ballot_ids[0],))
+            self.assertEqual(cur.fetchone(), (7, 2, 1))
+
+            for target, total, yes, no, abstain in (
+                (ballot_ids[0], 9, 5, 3, 1),
+                (ballot_ids[1], 10, 6, 3, 1)
+            ):
+                cur.execute("SAVEPOINT rejected_snapshot")
+                with self.assertRaises(psycopg2.Error) as rejected:
+                    cur.execute("""INSERT INTO public.civic_ballot_forecast_snapshots
+                       (civic_ballot_id,bucket_start,total_responses,
+                        yes_count,no_count,abstain_count)
+                       VALUES (%s,'2027-01-02T00:00:00Z',%s,%s,%s,%s)""",
+                                (target,total,yes,no,abstain))
+                self.assertEqual(rejected.exception.pgcode, "42501")
+                cur.execute("ROLLBACK TO SAVEPOINT rejected_snapshot")
+
+            cur.execute("SAVEPOINT forbidden_freeze")
+            with self.assertRaises(psycopg2.Error) as rejected:
+                cur.execute("""UPDATE public.civic_ballot_forecast_snapshots
+                    SET is_frozen=TRUE WHERE civic_ballot_id=%s""",
+                            (ballot_ids[0],))
+            self.assertEqual(rejected.exception.pgcode, "42501")
+            cur.execute("ROLLBACK TO SAVEPOINT forbidden_freeze")
+            cur.execute("RESET ROLE")
+            cur.execute("""UPDATE public.civic_ballot_forecast_snapshots
+                SET is_frozen=TRUE WHERE civic_ballot_id=%s""",
+                        (ballot_ids[0],))
+            cur.execute("SET LOCAL ROLE demos_staging_runtime")
+            cur.execute("""UPDATE public.civic_ballot_forecast_snapshots
+                  SET yes_count=8,no_count=1
+                  WHERE civic_ballot_id=%s""", (ballot_ids[0],))
+            self.assertEqual(cur.rowcount, 0, "Frozen rows must be immutable")
+            cur.execute("ROLLBACK")
+
+            cur.execute("SELECT count(*) FROM public.civic_ballot_forecast_snapshots")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("SELECT count(*) FROM public.civic_ballots")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1")
+            self.assertEqual(cur.fetchone(), (True,))
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p5_runtime_approval='I_APPROVE_P5_SYNTHETIC_SNAPSHOT_ACL'")
+            with self.assertRaisesRegex(psycopg2.Error, "P5_SNAPSHOT_ACL_ALREADY_USED_OR_CONFIGURED"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+
+
 if __name__ == "__main__":
     unittest.main()
