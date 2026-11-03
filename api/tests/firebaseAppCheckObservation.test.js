@@ -644,3 +644,42 @@ test('Firebase Admin project guard rejects missing and conflicting project metad
     assert.equal(isApprovedFirebaseAdminApp(app), false);
   }
 });
+
+test('backend App Check process budget rejects backwards UTC clock without quota reset', () => {
+  const budget = createAppCheckLocalBudget({ maxDaily: 2 });
+  const start = Date.parse('2026-11-03T10:00:00Z');
+  const yesterday = Date.parse('2026-11-02T23:59:59Z');
+  const tomorrow = Date.parse('2026-11-04T10:00:00Z');
+
+  assert.equal(budget.reserve(start), true);
+  assert.equal(budget.remaining(start), 1);
+  assert.equal(budget.reserve(yesterday), false);
+  assert.equal(budget.remaining(yesterday), 0);
+  // The attempted backward shift cannot change the allowance for today.
+  assert.equal(budget.remaining(start), 1);
+  assert.equal(budget.reserve(start + 1000), true);
+  assert.equal(budget.reserve(start + 2000), false);
+  assert.equal(budget.reserve(yesterday), false);
+  assert.equal(budget.remaining(yesterday), 0);
+  assert.equal(budget.remaining(start), 0);
+  // Moving to a genuine following UTC day still resets the local counter.
+  assert.equal(budget.reserve(tomorrow), true);
+  assert.equal(budget.remaining(tomorrow), 1);
+  assert.equal(budget.reserve(start), false);
+  assert.equal(budget.remaining(start), 0);
+  assert.equal(budget.remaining(tomorrow), 1);
+});
+
+test('Render App Check quota rejects malformed timestamps without altering local usage', () => {
+  const budget = createAppCheckLocalBudget({ maxDaily: 1 });
+  const t = Date.parse('2026-11-03T08:00:00Z');
+  for (const invalid of [-1, NaN, Infinity, 1.2, '2026-11-03']) {
+    assert.equal(budget.reserve(invalid), false);
+    assert.equal(budget.remaining(invalid), 0);
+  }
+  assert.equal(budget.remaining(t), 1);
+  assert.equal(budget.reserve(t), true);
+  assert.equal(budget.remaining(t), 0);
+  assert.equal(budget.reserve(t - 86400000), false);
+  assert.equal(budget.reserve(t + 1000), false);
+});
