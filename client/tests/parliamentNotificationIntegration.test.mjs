@@ -55,11 +55,9 @@ test("superseded notification push links still offer and open a verified final-b
   assert.match(archive, /handledDeepLink/);
 });
 
-test("the two verified MP vote cards are shown above generic notices without synthetic ballots", () => {
+test("verified parliamentary ballots use the same chronological list as all notifications", () => {
   const list = read("client/src/pages/Notifiche/components/ListaNotifiche.tsx");
-  assert.match(list, /n\.tipo_notifica === 'voto_parlamento' && !!n\.openpolis_id/);
-  assert.match(list, /Ultime votazioni dei tuoi rappresentanti/);
-  assert.match(list, /finalParliament\.map\(renderItem\)/);
-  assert.match(list, /otherNotices\.map\(renderItem\)/);
-  assert.match(list, /finalParliament\.length > 0/);
+  assert.match(list, /data\.notifiche\.map\(\(notifica\) => \(/);
+  assert.doesNotMatch(list, /Le votazioni dei tuoi rappresentanti|Altre notifiche|finalParliament|otherNotices/);
+  assert.match(list, /<NotificaItem/);
 });
