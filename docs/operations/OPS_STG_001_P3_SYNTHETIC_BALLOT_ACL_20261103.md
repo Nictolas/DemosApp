@@ -33,3 +33,11 @@ Il workflow `.github/workflows/unified-staging-offline-safety.yml` monitora ques
 **Non autorizzare lo staging condiviso ai test applicativi**; bootstrap e `/health/ready=503` invariati.
 
 Importanza operativa dell'intervento: da valutare dopo l'esito CI; senza E2E non si chiude alcun gate principale.
+
+## Esito CI verificato
+
+**Commit collaudato:** `38591fb2eab32a9701b4fb302dfb6970f77ee641`. **Workflow Unified Staging Offline Safety** run `41619492048`: tutti e tre i job **SUCCESS** (`bootstrap-offline-contract`, `p0-schema-postgres16`, `p1-p3-schema-postgres16`). Gruppi Node **47/47 + 27/27 = 74/74**. Nel job PostgreSQL P1–P3 entrambe le prove Python risultano `ok`, inclusa la nuova `test_z_explicit_ballot_acl_requires_approval_and_only_exposes_fixtures`.
+
+Il primo tentativo CI ha individuato un test mal costruito: provava a creare due referendum con lo stesso `civic_process_id`, vietato dal vincolo univoco effettivo. Il fixture test è stato corretto introducendo un secondo processo **interamente sintetico e temporaneo**. La nuova esecuzione è verde. Non si sono cambiate le regole della produzione né introdotte eccezioni di schema per far passare il test.
+
+**Stato effettivo:** file SQL e prove automatiche pronti, ma la migrazione delle autorizzazioni **NON è stata applicata** a Supabase condiviso. L'account read-only `demos_staging_preflight`, la connettività Render → Supabase e gli E2E sono ancora gate aperti. Non confondere successo CI con GO applicativo.
