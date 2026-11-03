@@ -15,6 +15,9 @@ function assertCivicStagingSessionEndpoint({
   expectedPoolerHost,
   env = {},
 } = {}) {
+  if (!env || typeof env !== 'object' || Array.isArray(env)) {
+    throw new Error('CIVIC_STAGING_SESSION_UNSAFE_ENVIRONMENT');
+  }
   if (env.DATABASE_URL || env.PGHOST || env.PGUSER ||
       env.SUPABASE_SERVICE_ROLE_KEY ||
       env.CIVIC_PUSH_ENABLED === 'true' ||
@@ -61,8 +64,13 @@ function assertCivicStagingSessionEndpoint({
   if (username !== 'demos_staging_runtime.' + projectRef) {
     throw new Error('CIVIC_STAGING_SESSION_ROLE_MISMATCH');
   }
-  if (!url.password || /^(?:\[YOUR-PASSWORD\]|YOUR-PASSWORD|password)$/i.test(
-    decodeURIComponent(url.password))) {
+  let password;
+  try {
+    password = decodeURIComponent(url.password);
+  } catch {
+    throw new Error('CIVIC_STAGING_SESSION_URL_INVALID');
+  }
+  if (!password || /^(?:\[YOUR-PASSWORD\]|YOUR-PASSWORD|password)$/i.test(password)) {
     throw new Error('CIVIC_STAGING_SESSION_CREDENTIAL_REQUIRED');
   }
   return true;
