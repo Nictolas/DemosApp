@@ -1,8 +1,7 @@
 // Endpoint per migrare dati da Neon a Axiom
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../../middleware/auth');
-const { requireAdmin } = require('../../middleware/auth');
+const { verifyToken, requireAdmin, pool } = require('../../middleware/auth');
 
 // Nessuna migrazione di log legacy viene avviata da questo router.
 
@@ -27,13 +26,13 @@ router.post('/migrate', verifyToken, requireAdmin, (_req, res) => {
  * Endpoint di test per verificare autenticazione e permessi
  */
 router.get('/test-auth', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     res.json({
       success: true,
       message: 'Autenticazione e permessi admin verificati correttamente',
       user: {
         id: req.userId,
-        email: req.userEmail,
         role: req.userRole
       },
       timestamp: new Date().toISOString()
@@ -53,12 +52,8 @@ router.get('/test-auth', verifyToken, requireAdmin, async (req, res) => {
  * Ottiene statistiche sulla migrazione completata (basata sui log di migrazione)
  */
 router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
     
     // Conta quanti record sono stati migrati (basato sui log di migrazione o su una tabella di tracking)
     // Per ora, restituiamo i conteggi totali da Neon come riferimento
@@ -96,12 +91,13 @@ router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
       stats.audit_logs = { error: 'Statistiche non disponibili' };
     }
     
-    await pool.end();
+
     
     res.json({
       success: true,
       stats,
-      message: 'I dati sono stati migrati con successo. Verifica manualmente su Axiom Dashboard perché le query APL restituiscono 403.',
+      migrationVerified: false,
+      message: 'Migrazione NON verificata: confrontare i dati con Axiom prima di qualsiasi decisione di cancellazione.',
       axiomDashboardUrl: `https://app.axiom.co/${process.env.AXIOM_ORG_ID}/datasets`
     });
     
@@ -120,12 +116,8 @@ router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
  * Ottiene statistiche sui dati da migrare (dry-run)
  */
 router.get('/status', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
     
     const stats = {};
     
@@ -164,7 +156,7 @@ router.get('/status', verifyToken, requireAdmin, async (req, res) => {
       stats.audit_logs = { error: 'Statistiche non disponibili' };
     }
     
-    await pool.end();
+
     
     res.json({
       success: true,
