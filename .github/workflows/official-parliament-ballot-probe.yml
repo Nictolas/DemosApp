@@ -6,6 +6,7 @@ on:
     paths:
       - 'api/scripts/probeOfficialFinalBallots.js'
       - 'api/scripts/checkVerifiedFinalBallots.js'
+      - 'api/tests/parliamentVerifiedFinalBallots.test.js'
       - 'api/services/parliamentVerifiedFinalBallotsService.js'
       - 'api/routes/voti-politici.js'
       - 'client/src/pages/VotiPoliticiFinali.tsx'
@@ -34,6 +35,8 @@ jobs:
           node --check api/services/parliamentVerifiedFinalBallotsService.js
           node --check api/routes/voti-politici.js
           node --check api/scripts/checkVerifiedFinalBallots.js
+      - name: Fail-closed attribution and source validation tests
+        run: node --test api/tests/parliamentVerifiedFinalBallots.test.js
       - name: Live official Camera and Openpolis Senate roll-call smoke
         run: node api/scripts/checkVerifiedFinalBallots.js
       - name: Frontend build
