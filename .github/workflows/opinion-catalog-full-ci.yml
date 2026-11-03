@@ -3,7 +3,26 @@ on:
   push:
     branches: [performance/opinion-catalog-in-code-20261028, integration/opinioni-catalog-privacy-20261029]
   pull_request:
-    # Required check runs on every PR; only expensive integration is scoped below.
+    # Keep the required catalog-contract job on every PR; follow main's
+    # expanded paths as explicit documentation, plus a universal wildcard.
+    paths:
+      - '**'
+      - 'api/catalog/**'
+      - 'api/services/opinionCatalog.js'
+      - 'api/routes/**'
+      - 'api/services/**'
+      - 'api/tests/opinionCatalog*.test.js'
+      - 'api/config/publicCachePolicy.js'
+      - 'client/src/pages/GestisciOpinioni/**'
+      - 'client/public/app-ads.txt'
+      - 'client/android/app/build.gradle' # Android version bump must satisfy required catalog-contract on PRs
+      - '.github/workflows/android-alpha-validation.yml' # CI guard PRs must satisfy required catalog-contract
+      - 'scripts/check-ads-free-aab.py'
+      - 'scripts/test_ads_free_aab_guard.py'
+      - 'client/src/pages/PrivacyPolicy.tsx'
+      - 'client/src/pages/CookiePolicy.tsx'
+      - 'client/tests/privacyDisclosureIntegrity.test.mjs'
+      - '.github/workflows/opinion-catalog-full-ci.yml'
 permissions:
   contents: read
 jobs:
@@ -46,7 +65,7 @@ jobs:
             echo 'full=true' >> "$GITHUB_OUTPUT"
           else
             git diff --name-only "$PR_BASE_SHA" HEAD > "$RUNNER_TEMP/opinion-changed-paths"
-            if grep -Eq '^(api/catalog/|api/routes/|api/services/|api/qa/|api/config/publicCachePolicy[.]js$|api/tests/opinionCatalog[^/]*[.]test[.]js$|client/src/pages/(GestisciOpinioni|Opinioni|Sondaggi)/|client/src/lib/opinion|[.]github/workflows/opinion-catalog-full-ci[.]yml$)' "$RUNNER_TEMP/opinion-changed-paths"; then
+            if grep -Eq '^(api/catalog/|api/routes/|api/services/|api/qa/|api/config/publicCachePolicy[.]js$|api/tests/opinionCatalog[^/]*[.]test[.]js$|client/src/pages/(GestisciOpinioni|Opinioni|Sondaggi)/|client/src/lib/opinion|client/android/app/build[.]gradle$|scripts/(check-ads-free-aab[.]py|test_ads_free_aab_guard[.]py)$|[.]github/workflows/(opinion-catalog-full-ci|android-alpha-validation)[.]yml$)' "$RUNNER_TEMP/opinion-changed-paths"; then
               echo 'full=true' >> "$GITHUB_OUTPUT"
             else
               echo 'full=false' >> "$GITHUB_OUTPUT"
