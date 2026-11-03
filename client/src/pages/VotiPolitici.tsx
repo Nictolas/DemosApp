@@ -403,7 +403,7 @@ export default function VotiPolitici() {
                   </AlertDescription>
                 </Alert>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="max-h-[55dvh] overflow-auto overscroll-contain rounded-md border border-slate-200" role="region" aria-label="Elenco delle votazioni parlamentari" tabIndex={0}>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -578,7 +578,7 @@ export default function VotiPolitici() {
                             </AlertDescription>
                           </Alert>
                         ) : (
-                          <div className="overflow-x-auto">
+                          <div className="max-h-[55dvh] overflow-auto overscroll-contain rounded-md border border-slate-200" role="region" aria-label="Elenco delle votazioni parlamentari" tabIndex={0}>
                             <Table>
                               <TableHeader>
                                 <TableRow>
