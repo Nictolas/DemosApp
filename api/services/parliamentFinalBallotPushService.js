@@ -1,0 +1,76 @@
+'use strict';
+
+// Explicitly disabled until privacy, cost-zero, and Android release gates pass.
+// Sends an at-most-once, best-effort push only after a newly verified latest vote
+// has been committed. In-app notifications do not depend on this transport.
+const { getFirebaseAdmin } = require('./firebaseAdmin');
+
+const BATCH = 250;
+const MAX_RECIPIENTS = 5000; // safety gate; scale delivery separately before broad rollout
+
+function resolvePushTarget(chamber) {
+  if (chamber === 'Camera') return { selection: 'rappresentante_camera', preference: 'deputato' };
+  if (chamber === 'Senato') return { selection: 'rappresentante_senato', preference: 'senatore' };
+  return null;
+}
+
+async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisId, title, status }) {
+  if (process.env.PARLIAMENT_FINAL_PUSH_ENABLED !== 'true') {
+    return { enabled: false, sent: 0, failed: 0 };
+  }
+  const target = resolvePushTarget(chamber);
+  if (!target || !/^(vs19_\d+_\d+|19-\d+-\d+)$/.test(String(openpolisId || ''))) {
+    throw new Error('PARLIAMENT_PUSH_INVALID_TARGET');
+  }
+  const admin = getFirebaseAdmin();
+  if (!admin) return { enabled: true, sent: 0, failed: 0, available: false };
+  // This query checks the recipient's CURRENT representative, active state,
+  // explicit category consent, and active device at delivery time.
+  const sql = ('SELECT DISTINCT d.fcm_token FROM users u ' +
+    'JOIN notifiche_preferenze p ON p.user_id = u.id ' +
+    'JOIN user_devices d ON d.user_id = u.id AND d.is_active = TRUE ' +
+    'WHERE u.__REP__ = $1::text AND lower(coalesce(u.status, \'\')) = \'a\' ' +
+    'AND p.__PREF__ IS TRUE AND d.fcm_token IS NOT NULL ' +
+    'AND length(btrim(d.fcm_token)) > 100 ORDER BY d.fcm_token LIMIT $2')
+    .replace('__REP__', target.selection).replace('__PREF__', target.preference);
+  const { rows } = await pool.query(sql, [String(representativeId), MAX_RECIPIENTS + 1]);
+  if (rows.length > MAX_RECIPIENTS) {
+    // Do not partly deliver if the volume exceeds reviewed free-tier capacity.
+    return { enabled: true, sent: 0, failed: 0, capacityGate: true };
+  }
+  const url = 'https://www.demos.community/notifiche?final_vote=' + encodeURIComponent(openpolisId);
+  const data = {
+    type: 'parliament_final_vote',
+    openpolis_id: String(openpolisId),
+    link: url,
+    url: '/notifiche?final_vote=' + encodeURIComponent(openpolisId)
+  };
+  const notifTitle = chamber === 'Camera' ? 'Il tuo deputato: nuova votazione finale' :
+    'Il tuo senatore: nuova votazione finale';
+  const body = String(title || 'Votazione finale').slice(0, 110) +
+    (status ? ' · ' + String(status).slice(0, 40) : '');
+  const messaging = admin.messaging();
+  let sent = 0, failed = 0;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const slice = rows.slice(i, i + BATCH);
+    const messages = slice.map(row => ({
+      token: row.fcm_token,
+      notification: { title: notifTitle, body },
+      data,
+      android: { notification: { channelId: 'demos_notifications' } },
+      webpush: { fcmOptions: { link: url } }
+    }));
+    if (typeof messaging.sendEach === 'function') {
+      const result = await messaging.sendEach(messages);
+      sent += Number(result.successCount) || 0;
+      failed += Number(result.failureCount) || 0;
+    } else {
+      for (const message of messages) {
+        try { await messaging.send(message); sent++; } catch { failed++; }
+      }
+    }
+  }
+  return { enabled: true, sent, failed };
+}
+
+module.exports = { resolvePushTarget, sendFinalBallotPush, MAX_RECIPIENTS };
