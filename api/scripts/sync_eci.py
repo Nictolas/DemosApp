@@ -243,7 +243,7 @@ def fetch_official_records(*, session=None) -> List[Tuple[str, str, int, str, st
 
 
 def _verify_civic_database_identity(cur, expected: Optional[str]) -> None:
-    """No DB writes are allowed before this check if civic events are enabled."""
+    """No DB writes are allowed before this check, regardless of event flags."""
     try:
         expected_id = str(uuid.UUID(expected or ""))
     except (ValueError, AttributeError, TypeError):
@@ -284,6 +284,14 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                 # BEFORE the DELETE, not only when event collection is enabled.
                 _verify_civic_database_identity(
                     cur, os.environ.get("CIVIC_RUNTIME_DATABASE_ID")
+                )
+                # Two scheduled/manual syncs can overlap. Serialize the whole
+                # snapshot and event-deduplication transaction before reading
+                # previous_ids or deleting the cache. A transaction-scoped
+                # advisory lock works with PostgreSQL transaction pooling; it
+                # is released automatically on COMMIT or ROLLBACK.
+                cur.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended('demos:eci:replace_cache', 0))"
                 )
                 collection_enabled = os.environ.get("CIVIC_NEW_INITIATIVE_EVENTS_ENABLED") == "true"
                 previous_ids = set()
