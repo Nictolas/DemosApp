@@ -218,7 +218,7 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Errore ottenendo analisi Axiom',
-      error: 'Dettaglio non disponibile' 
+      message: 'Dettaglio non disponibile' 
     });
   }
 });
@@ -302,7 +302,7 @@ router.post('/axiom-stats-manual', requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore salvataggio statistiche manuali',
-      error: 'Dettaglio non disponibile'
+      message: 'Dettaglio non disponibile'
     });
   }
 });
@@ -635,7 +635,7 @@ router.get('/security-events-stats', requireAdmin, async (req, res) => {
     console.error('Errore ottenendo statistiche security events:');
     res.status(500).json({ 
       error: 'Errore ottenendo statistiche security events',
-      error: 'Dettaglio non disponibile'
+      message: 'Dettaglio non disponibile'
     });
   }
 });
@@ -718,7 +718,7 @@ router.get('/centralized-logs', requireAdmin, async (req, res) => {
     console.error('Errore ottenendo log centralizzati:');
     res.status(500).json({ 
       error: 'Errore ottenendo log centralizzati',
-      error: 'Dettaglio non disponibile'
+      message: 'Dettaglio non disponibile'
     });
   }
 });
