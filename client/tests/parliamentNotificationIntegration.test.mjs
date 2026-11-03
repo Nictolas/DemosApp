@@ -34,3 +34,13 @@ test("the client notification model retains both legacy and new verified ballot 
   assert.match(types, /openpolis_id\?: string \| null/);
   assert.match(types, /votazione_titolo\?: string \| null/);
 });
+
+test("FCM, Android, and the notification feed preserve the exact verified final-ballot deep link", () => {
+  const item = read("client/src/pages/Notifiche/components/NotificaItem.tsx");
+  const sw = read("client/public/firebase-messaging-sw.js");
+  const native = read("client/src/hooks/useNativePush.ts");
+  assert.match(item, /new URLSearchParams\(window\.location\.search\)\.get\('final_vote'\)/);
+  assert.match(sw, /parliament_final_vote/);
+  assert.match(native, /case 'parliament_final_vote':/);
+  assert.match(native, /target\.pathname.*target\.search/);
+});
