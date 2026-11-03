@@ -32,6 +32,16 @@ Il nuovo test con PostgreSQL16 temporaneo verifica su vere tabelle e ruoli:
 
 **Questo test non dimostra l'E2E reale della cattura su dieci utenti.** Per quest'ultimo occorre un ambiente CI isolato che generi dieci identità completamente fittizie, oppure un diverso piano E2E con autorizzazione e protezioni esplicite, senza trasformare lo staging condiviso in un ambiente con utenti reali.
 
+## Nuova verifica: dieci partecipanti distinti su PostgreSQL effimero (03/11/2026)
+
+- La suite CI estrae e usa la **stessa SELECT di aggregazione** da `api/services/referendumForecastSnapshotService.js`, adattando esclusivamente il parametro `$1` al driver Python.
+- In PostgreSQL 16 **effimero** crea dieci UUID totalmente fittizi, registra nove posizioni per una scheda sintetica (6 YES, 3 NO) e conferma che la query restituisce **9**; aggiunge il decimo utente (ABSTAIN) e conferma **10** (6 YES, 3 NO, 1 ABSTAIN).
+- Un `INSERT ... ON CONFLICT DO UPDATE` sulla posizione esistente cambia YES in NO, lasciando **10 votanti distinti** (5 YES, 4 NO, 1 ABSTAIN).
+- Registra uno snapshot aggregato con le 10 risposte; il `ROLLBACK` elimina otto account aggiuntivi, tutte le posizioni, la scheda e lo snapshot. Verifica `civic_push_delivery_guard.blocked=TRUE`.
+- Commit `5933303205d61a539cd58548c218e81ff7da38b8`, workflow [Unified Staging Offline Safety](https://github.com/Nictolas/DemosApp/actions/runs/41638515213): **3/3 job SUCCESS**, incluso PostgreSQL 16 P1–P5.
+
+**Limite probatorio:** la prova riguarda SQL/contatori/rollback sul runner isolato, **non invoca il servizio JS reale, non usa il runtime `demos_staging_runtime` per inserire dieci posizioni, e non costituisce E2E Render→Supabase**. Lo staging condiviso conserva solo **due identità** e i relativi ACL: non ampliarli o abbassare la soglia dei dieci per simulare un GO. Le ACL P5 restano NON APPLICATE allo staging.
+
 ## Stato operativo
 
 - Supabase `Demos-Staging`: 51 tabelle pubbliche, `civic_ballot_forecast_snapshots` vuota, nessuna policy/GRANT runtime P5, notifiche bloccate; ruolo dedicato read-only `demos_staging_preflight` ancora assente.
