@@ -129,6 +129,9 @@ test('enabled orchestration uses only selected active representatives and one ve
     assert.equal(fetches,1);
     assert.deepEqual(outcome,{enabled:true,checked:1,changed:1,unavailable:0});
     assert.ok(queries.some(sql=>sql.includes('political_mandates')));
+    assert.ok(queries.some(sql=>sql.includes('political_selections ps')));
+    assert.ok(queries.some(sql=>sql.includes('ps.selection_kind')));
+    assert.ok(queries.some(sql=>sql.includes('follower.status')));
   } finally {
     if(before===undefined) delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
     else process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED=before;
