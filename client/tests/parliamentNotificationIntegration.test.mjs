@@ -61,3 +61,11 @@ test("verified parliamentary ballots use the same chronological list as all noti
   assert.doesNotMatch(list, /Le votazioni dei tuoi rappresentanti|Altre notifiche|finalParliament|otherNotices/);
   assert.match(list, /<NotificaItem/);
 });
+
+test("selected Peppe De Cristofaro resolves verified Senate Giuseppe roll-call and still validates status", () => {
+  const dialog=read("client/src/pages/Notifiche/components/FinalParliamentBallotDialog.tsx");
+  assert.match(dialog, /representative === "peppe de cristofaro"/);
+  assert.match(dialog, /de cristofaro giuseppe/);
+  assert.match(dialog, /memberVariants\.has\(normalized\(m\.name\)\)/);
+  assert.match(dialog, /ownMatches\.length === 1 && ownMatches\[0\]\.vote === notifica\.voto/);
+});
