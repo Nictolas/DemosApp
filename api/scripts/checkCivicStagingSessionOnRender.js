@@ -8,6 +8,8 @@ const { assertCivicStagingSessionEndpoint } =
   require('../services/civicStagingSessionEndpointSafety');
 const { probeCivicSessionAffinity } =
   require('../services/civicSessionAffinityProbe');
+const { verifyCivicStagingRuntimeIdentity } =
+  require('../services/civicStagingSessionRuntimeIdentity');
 
 async function runCivicStagingSessionCheck(env = process.env, {
   createPool,
@@ -60,6 +62,10 @@ async function runCivicStagingSessionCheck(env = process.env, {
     throw new Error('CIVIC_STAGING_SESSION_POOL_INVALID');
   }
   try {
+    // The role/database identity is verified on the ACTUAL authenticated
+    // PostgreSQL connection, not inferred from a user-supplied URL. Failure
+    // never advances to PID sampling or enables any push.
+    await verifyCivicStagingRuntimeIdentity(pool);
     return await runProbe(pool, {
       apply: true, confirmed: true, environment: 'staging',
       databaseUrl: env.CIVIC_STAGING_SESSION_DATABASE_URL,
