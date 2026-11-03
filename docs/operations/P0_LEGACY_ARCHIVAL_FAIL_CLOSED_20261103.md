@@ -68,3 +68,49 @@ until actual provider versioning, Object Lock, independently verified
 GET/hash, SQL snapshot-to-journal binding, quarantined replay and DPO
 approval are evidenced. No provider access, backup operation, deploy,
 merge, production data, destructive action or paid resource was used.
+
+
+## Direct retention service bypass and unbounded user-notification inventory (2026-11-03)
+
+**RP-10 already protected the HTTP Admin write actions and disabled the normal startup
+scheduler, but did not protect imported methods.** An old worker or script
+could still call:
+- `DataRetentionService.deleteExpiredData`, `deleteAllExpiredData` or
+  `performFullCleanup`: dynamic `UPDATE users SET ... = NULL` over an old
+  seven-policy list, including sensitive political preferences; SQL columns
+  and legal bases are not confirmed against the current schema.
+- `dataRetentionJob.start`, `performDailyCleanup`, `performImmediateCleanup`:
+  direct scheduling and cleanup outside the HTTP handler.
+- `DataRetentionService.sendRetentionNotifications` and
+  `dataRetentionJob.sendWeeklyNotifications`: the legacy function **does not
+  send notices**; it runs up to seven unbounded
+  `SELECT id,email,nome,cognome FROM users` scans and collects account IDs
+  in memory, potentially exposing large volumes of PII to the Admin GET.
+
+**Draft-only mitigation:** new unconditional `RETENTION_LEGACY_CLEANUP_RETIRED`
+guard in three destructive service methods, the notifications method, and
+the four imported job methods (`start`, `performDailyCleanup`,
+`performImmediateCleanup`, `sendWeeklyNotifications`), before SQL, audit,
+or timers. GET `/api/admin/data-retention/notifications` is now
+410/no-store after normal authentication and Admin authorization.
+The read-only `/policies` response explicitly returns
+`policy_status: legacy_unreviewed`, `automated_cleanup_enabled: false`,
+and `valid_legal_basis_confirmed: false`. Admin stop/status remain available.
+
+**Regression:** synthetic faked DB/audit dependencies throw on contact; tests
+verify zero queries, audit writes or timers from every blocked function.
+HTTP contract checks anonymous 401, non-Admin 403, Admin 410/no-store for
+the notifications endpoint and the policy status metadata.
+
+**Legal and recovery limits:** historical defaults of five years for
+political opinions or seven years for generic user profiles and audit
+logs are **not** validated GDPR retention periods and should not be
+automatically justified by ordinary accounting records rules.
+Retention needs per-purpose documentation, current SQL schema mapping,
+lawful deletion mechanisms, data-subject rights, backup constraints,
+and DPO/controller approval. Retiring this legacy pathway does not
+implement a correctly approved periodic cleanup.
+Independent B2/SQL restore and erasure replay stay NO-GO under GH-296.
+
+No production data, credentials, provider resources, staging, account
+records, merge, deployment or paid resource are changed.
