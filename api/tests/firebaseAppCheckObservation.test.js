@@ -2,6 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  EXPECTED_FIREBASE_PROJECT_NUMBER,
   isObservationEnabled,
   isDiagnosticRouteEnabled,
   validTokenShape,
@@ -42,6 +43,34 @@ test('unconfigured Android App ID prevents any SDK verification', async () => {
   });
   assert.deepEqual(result, { status: 'unconfigured' });
   assert.equal(calls, 0);
+});
+
+test('a Firebase Android App ID from another numeric project cannot reach the SDK', async () => {
+  assert.equal(EXPECTED_FIREBASE_PROJECT_NUMBER, '848085963511');
+  const budget = createAppCheckLocalBudget({ maxDaily: 1 });
+  let calls = 0;
+  const badIds = [
+    '1:32555940559:android:abcdef012345',
+    '1:848085963512:android:abcdef012345',
+    '1:848085963511:web:abcdef012345',
+    '1:848085963511:android:abcdef012345-unsafe',
+  ];
+  for (const appId of badIds) {
+    const response = await observeAppCheckHeader(
+      { 'x-firebase-appcheck': token },
+      {
+        env: { ...validEnv, FIREBASE_APP_CHECK_ANDROID_APP_ID: appId },
+        budget,
+        verifyToken: async () => {
+          calls++;
+          throw Error('wrong project must not be queried');
+        },
+      },
+    );
+    assert.deepEqual(response, { status: 'unconfigured' });
+  }
+  assert.equal(calls, 0);
+  assert.equal(budget.remaining(), 1);
 });
 
 test('missing and malformed headers never hit the SDK', async () => {
