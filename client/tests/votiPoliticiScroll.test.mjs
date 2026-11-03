@@ -7,9 +7,9 @@ const source = readFileSync(new URL("../src/pages/VotiPolitici.tsx", import.meta
 test("Voti Politici page has its own vertical scroll container", () => {
   assert.match(source, /<PageContainer className="[^"]*overflow-y-auto[^"]*">/);
   assert.match(source, /<div className="w-full flex-none px-4 py-6">/);
-  assert.equal((source.match(/max-h-\\[55dvh\\] overflow-auto overscroll-contain/g) || []).length, 2);
-  assert.match(source, /aria-label="Elenco dei voti dei politici" tabIndex=\\{0\\}/);
-  assert.match(source, /aria-label="Elenco delle votazioni parlamentari" tabIndex=\\{0\\}/);
+  assert.equal(source.split('max-h-[55dvh] overflow-auto overscroll-contain').length - 1, 2);
+  assert.ok(source.includes('aria-label="Elenco dei voti dei politici" tabIndex={0}'));
+  assert.ok(source.includes('aria-label="Elenco delle votazioni parlamentari" tabIndex={0}'));
 });
 
 test("admin guidance identifies the Votazioni tab and explains how to generate AI explanations", () => {
