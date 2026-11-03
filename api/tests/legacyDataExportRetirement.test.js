@@ -170,3 +170,45 @@ test('Legacy Axiom migration and deletion are not reachable from the admin expor
   assert.match(backend, /router\.post\('\/migrate', verifyToken, requireAdmin/);
   assert.match(backend, /Migrazione legacy verso Axiom sospesa/);
 });
+
+
+test('Manual Axiom statistics POST is retired: only reads remain available', async () => {
+  const effects = { sql: 0, spawn: 0 };
+  const app = express();
+  app.use(express.json());
+  app.use('/api/admin/data-export', loadIsolatedRouter(effects));
+  const server = http.createServer(app);
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  try {
+    const base = 'http://127.0.0.1:' + server.address().port;
+    const checks = [
+      { token: undefined, status: 401 },
+      { token: 'Bearer synthetic-user', status: 403 },
+      { token: 'Bearer synthetic-admin', status: 410 }
+    ];
+    for (const check of checks) {
+      const response = await fetch(base + '/api/admin/data-export/axiom-stats-manual', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(check.token ? { Authorization: check.token } : {})
+        },
+        body: JSON.stringify({
+          datasets: [{ name: 'centralized_logs', events: 999, sizeMB: 1 }]
+        })
+      });
+      assert.equal(response.status, check.status);
+      assert.equal((await response.json()).success, false);
+      if (check.status === 410) assert.equal(response.headers.get('cache-control'), 'no-store');
+    }
+    assert.deepEqual(effects, { sql: 0, spawn: 0 }, 'no SQL and no subprocess');
+  } finally {
+    await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+  const code = fs.readFileSync(path.resolve(__dirname, '../routes/admin/data-export.js'), 'utf8');
+  assert.doesNotMatch(code, /CREATE TABLE IF NOT EXISTS axiom_manual_stats|INSERT INTO axiom_manual_stats/);
+  assert.match(code, /router\.get\('\/axiom-analysis'/);
+});
