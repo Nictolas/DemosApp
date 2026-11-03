@@ -50,3 +50,15 @@ Data: 03/11/2026. Stato: **PR #572 DRAFT**. Nessuna attivazione Google Cloud né
 - https://developer.android.com/google/play/integrity/standard
 - https://developer.android.com/google/play/integrity/verdicts
 - https://developer.android.com/google/play/integrity/overview
+## Aggiornamento sicurezza e privacy — 3 novembre 2026
+
+- Il decoder server usa `api/services/playIntegrityBudget.js`: riserva una chiamata prima di recuperare credenziali o contattare Google. Limite prudenziale 50/giorno **per processo Render**, non garantisce il rispetto delle quote GLOBALI di Google tra più istanze.
+- Su superamento del limite locale il decoder ritorna `unavailable/local_quota_exhausted`; non ripete la richiesta e **non modifica** autenticazione, autorizzazioni o accessibilità di DEMOS.
+- `api/services/playIntegrityAggregate.js` raccoglie solo quattro classi aggregate, conteggi totali e giorno UTC. Nessun ID utente, voto, opinione, IP, token, motivo libero, dato del dispositivo o orario del singolo evento. Mai persiste su log/DB; non espone risultati con meno di 20 campioni.
+- `docs/privacy/play-integrity-aggregate-privacy-dpo-draft-2026-11-03.md` contiene la bozza per la valutazione DPO. L'approvazione formale e le verifiche sull'eventuale middleware di log precedono qualunque attivazione.
+- Il validatore ora controlla anche l'eventuale packageName dell'app nell'esito decodificato e gestisce i verdetti svuotati da Google in caso di riutilizzo del token. Questo è un **test simulato**: non sostituisce una verifica reale anti-replay.
+- Test GitHub Actions `Play Integrity preflight (offline, zero cloud usage)` #41640642507 **PASS** per l'insieme delle modifiche di codice. Gli ulteriori test end-to-end e la configurazione Cloud rimangono sospesi.
+
+### Vincolo di rilascio
+
+Non abilitare `PLAY_INTEGRITY_ENABLED`, non associare progetti Cloud e non attivare billing. Prima di ogni eventuale rollout: documentare il costo €0, l'autorizzazione, la strategia quota **distribuita** tra più istanze, i test Play e il gate DPO. La PR rimane in bozza.
