@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  PACKAGE_NAME, isActivationAuthorized, stableJson, createRequestHash, analyzeDecodedVerdict
+  PACKAGE_NAME, EXPECTED_CLOUD_PROJECT_NUMBER, isActivationAuthorized, stableJson, createRequestHash, analyzeDecodedVerdict
 } = require('../services/playIntegrityPolicy');
 
 const NOW = 1_800_000_000_000;
@@ -30,8 +30,39 @@ test('activation defaults off and requires three independent gates', () => {
   }), false);
   assert.equal(isActivationAuthorized({
     PLAY_INTEGRITY_ENABLED: 'true', PLAY_INTEGRITY_ZERO_COST_CONFIRMED: 'true',
-    PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: '123456789012'
+    PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: EXPECTED_CLOUD_PROJECT_NUMBER
   }), true);
+});
+
+test('only the pre-existing DEMOS Cloud project can unlock direct Play Integrity', () => {
+  assert.equal(EXPECTED_CLOUD_PROJECT_NUMBER, '848085963511');
+  for (const projectNumber of ['', '123456789012', '0848085963511', '848085963512', '848085963511 ', 'demos-finale']) {
+    assert.equal(isActivationAuthorized({
+      PLAY_INTEGRITY_ENABLED: 'true',
+      PLAY_INTEGRITY_ZERO_COST_CONFIRMED: 'true',
+      PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: projectNumber
+    }), false, 'Wrong Cloud project must be disabled: ' + projectNumber);
+  }
+  assert.equal(isActivationAuthorized({
+    PLAY_INTEGRITY_ENABLED: 'true',
+    PLAY_INTEGRITY_ZERO_COST_CONFIRMED: 'true',
+    PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: EXPECTED_CLOUD_PROJECT_NUMBER
+  }), true);
+});
+
+test('Android native Play Integrity gate pins exactly the same Cloud project as backend', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const java = fs.readFileSync(
+    path.resolve(__dirname, '../../client/android/app/src/main/java/community/demos/NativePlayIntegrityPlugin.java'),
+    'utf8'
+  );
+  const match = java.match(/EXPECTED_CLOUD_PROJECT_NUMBER\s*=\s*(\d+)L;/);
+  assert.ok(match, 'Android must pin approved Cloud project');
+  assert.equal(match[1], EXPECTED_CLOUD_PROJECT_NUMBER);
+  assert.match(java, /BuildConfig\.PLAY_INTEGRITY_PROJECT_NUMBER == EXPECTED_CLOUD_PROJECT_NUMBER/);
+  assert.match(java, /BuildConfig\.PLAY_INTEGRITY_ENABLED/);
+  assert.doesNotMatch(java, /PLAY_INTEGRITY_PROJECT_NUMBER > 0L/);
 });
 
 test('SHA-256 requestHash is canonical and hides plain input', () => {
