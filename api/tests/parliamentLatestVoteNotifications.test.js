@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  normalizeName, voteOrder, isRecentFinal, newestByChamber, matchUniqueMember,
+  normalizeName, memberNameVariants, voteOrder, isRecentFinal, newestByChamber, matchUniqueMember,
   persistLatestForChamber, refreshLatestParliamentVoteNotifications
 } = require('../services/parliamentLatestVoteNotificationsService');
 
@@ -43,6 +43,28 @@ test('exact, accent-insensitive, order-insensitive name matching only', () => {
   assert.equal(matchUniqueMember(rep, members, [rep,{...rep,id:'duplicate'}]), null);
   assert.equal(matchUniqueMember(rep, [...members, {name:'MARIA DE LUCA',group:'GRUPPO',vote:'Contrario'}], [rep]), null);
   assert.equal(matchUniqueMember(rep, [{name:'DE LUCA MARIA',group:'GRUPPO',vote:'Ignoto'}], [rep]), null);
+});
+
+test('Peppe De Cristofaro (DEMOS) matches Giuseppe De Cristofaro (Senate) only by explicit vetted alias', () => {
+  const peppe={id:'00000000-0000-4000-8000-000000000021',nome:'Peppe',cognome:'De Cristofaro'};
+  const other={id:'00000000-0000-4000-8000-000000000022',nome:'Franco',cognome:'Alberti'};
+  assert.ok(memberNameVariants(peppe).has('de cristofaro giuseppe'));
+  assert.equal(matchUniqueMember(peppe,[
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario'}
+  ],[peppe,other])?.vote,'Contrario');
+  assert.equal(matchUniqueMember(peppe,[
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Assente'}
+  ],[peppe])?.vote,'Assente');
+  assert.equal(matchUniqueMember(peppe,[
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario'},
+    {name:'Giuseppe De Cristofaro',group:'Misto',vote:'Favorevole'}
+  ],[peppe]),null,'duplicates are ambiguous');
+  assert.equal(matchUniqueMember(peppe,[
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario'}
+  ],[peppe,{...peppe,id:'duplicate',nome:'Giuseppe'}]),null,'competing selected representative is ambiguous');
+  assert.equal(matchUniqueMember({...peppe,nome:'Peppo'},[
+    {name:'De Cristofaro Giuseppe',group:'Misto',vote:'Contrario'}
+  ],[{...peppe,nome:'Peppo'}]),null,'not a general nickname approximation');
 });
 
 test('verified identity, date, chamber and roster required before any write', async () => {
