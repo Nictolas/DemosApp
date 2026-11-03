@@ -37,12 +37,31 @@ const safeDiagnosticCode = value =>
   typeof value === 'string' && /^[A-Z][A-Z0-9_:-]{0,63}$/.test(value)
     ? value : 'UNCLASSIFIED';
 
+// App Check attestation values must never enter centralized logs, including
+// explicit audit/security events (which intentionally retain other metadata).
+// Preserve diagnostic codes and safe context while replacing sensitive keys.
+const APP_CHECK_SECRET_KEY = /(?:app[-_]?check|attestation)/i;
+const redactAppCheckHeaders = (value, seen = new WeakSet(), depth = 0) => {
+  if (!value || typeof value !== 'object') return value;
+  if (depth > 8 || seen.has(value)) return '[REDACTED]';
+  seen.add(value);
+  if (Array.isArray(value)) {
+    return value.map(item => redactAppCheckHeaders(item, seen, depth + 1));
+  }
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+    key,
+    APP_CHECK_SECRET_KEY.test(key)
+      ? '[REDACTED]'
+      : redactAppCheckHeaders(item, seen, depth + 1),
+  ]));
+};
+
 const isExplicitAuditOrSecurityEvent = (meta = {}) =>
   meta.auditEvent === true || meta.securityEvent === true;
 
 const sanitizeLogMeta = (meta = {}) => {
   if (!meta || typeof meta !== 'object') return {};
-  if (isExplicitAuditOrSecurityEvent(meta)) return { ...meta };
+  if (isExplicitAuditOrSecurityEvent(meta)) return redactAppCheckHeaders(meta);
 
   const output = Object.fromEntries(
     Object.entries(meta).filter(([key]) => !DIRECT_IDENTIFIER_KEYS.has(key))
@@ -55,7 +74,7 @@ const sanitizeLogMeta = (meta = {}) => {
   if (output.error && typeof output.error === 'object') {
     output.error = { code: safeDiagnosticCode(output.error.code) };
   }
-  return output;
+  return redactAppCheckHeaders(output);
 };
 
 module.exports = {
