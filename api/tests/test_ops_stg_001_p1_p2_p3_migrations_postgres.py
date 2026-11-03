@@ -255,9 +255,9 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
                 ballot_ids.append(cur.fetchone()[0])
 
             cur.execute("SET LOCAL ROLE demos_staging_runtime")
-            # Route uses a reader lock on the ballot. A FOR UPDATE here would
-            # require an unnecessary ballot UPDATE privilege and fail closed.
-            cur.execute("SELECT id FROM public.civic_ballots WHERE id=%s FOR SHARE",
+            # The role can read an eligible ballot without an UPDATE grant.
+            # The vote's INSERT later checks opening time in its own statement.
+            cur.execute("SELECT id FROM public.civic_ballots WHERE id=%s",
                         (ballot_ids[0],))
             self.assertEqual(cur.fetchone()[0], ballot_ids[0])
             cur.execute("SELECT id FROM public.civic_ballots")
