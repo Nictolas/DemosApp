@@ -50,6 +50,7 @@ test('unsupported request payloads and action names fail', () => {
 
 test('valid decoded verdict is classified without user blocking', () => {
   assert.deepEqual(analyzeDecodedVerdict(decoded(), { action: ACTION, payload: PAYLOAD, now: NOW }), {
+    licensingVerdict: 'NOT_AVAILABLE', enforcement: 'none',
     status: 'verified', reason: 'recognized', appRecognized: true, deviceRecognized: true
   });
 });
@@ -82,4 +83,22 @@ test('unrecognized app or device remains untrusted', () => {
   const wrongDevice = decoded();
   wrongDevice.tokenPayloadExternal.deviceIntegrity.deviceRecognitionVerdict = [];
   assert.equal(analyzeDecodedVerdict(wrongDevice, { action: ACTION, payload: PAYLOAD, now: NOW }).status, 'untrusted');
+});
+
+
+test('licensing verdict is a signal only, with no automatic block', () => {
+  const input = decoded();
+  input.tokenPayloadExternal.accountDetails = { appLicensingVerdict: 'UNLICENSED' };
+  const analyzed = analyzeDecodedVerdict(input, { action: ACTION, payload: PAYLOAD, now: NOW });
+  assert.equal(analyzed.licensingVerdict, 'UNLICENSED');
+  assert.equal(analyzed.enforcement, 'none');
+  assert.equal(analyzed.status, 'verified'); // App/device signals; not legal identity or entitlement.
+});
+
+test('unexpected account details are not echoed to client classifications', () => {
+  const input = decoded();
+  input.tokenPayloadExternal.accountDetails = { appLicensingVerdict: 'PERSONAL_ID_123', extra: 'private' };
+  const analyzed = analyzeDecodedVerdict(input, { action: ACTION, payload: PAYLOAD, now: NOW });
+  assert.equal(analyzed.licensingVerdict, 'NOT_AVAILABLE');
+  assert.doesNotMatch(JSON.stringify(analyzed), /PERSONAL_ID|private/);
 });
