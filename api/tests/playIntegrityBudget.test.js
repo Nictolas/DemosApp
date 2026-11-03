@@ -32,6 +32,27 @@ test('invalid quotas and clock values are rejected', () => {
   assert.ok(b.maxDaily < 10000);
 });
 
+test('UTC rollback never restores the per-process Play Integrity decode budget', () => {
+  const b = createLocalDecodeBudget({ maxDaily: 2 });
+  const dayOne = Date.parse('2026-11-03T12:00:00Z');
+  const dayBefore = Date.parse('2026-11-02T12:00:00Z');
+  const dayAfter = Date.parse('2026-11-04T12:00:00Z');
+  assert.equal(b.reserve(dayOne), true);
+  assert.equal(b.remaining(dayOne), 1);
+  assert.equal(b.reserve(dayBefore), false);
+  assert.equal(b.remaining(dayBefore), 0);
+  assert.equal(b.remaining(dayOne), 1);
+  assert.equal(b.reserve(dayOne + 1000), true);
+  assert.equal(b.reserve(dayOne + 2000), false);
+  assert.equal(b.reserve(dayBefore), false);
+  assert.equal(b.remaining(dayOne), 0);
+  assert.equal(b.reserve(dayAfter), true);
+  assert.equal(b.remaining(dayAfter), 1);
+  assert.equal(b.reserve(dayOne), false);
+  assert.equal(b.remaining(dayOne), 0);
+  assert.equal(b.remaining(dayAfter), 1);
+});
+
 test('parallel reservations cannot exceed the local cap', async () => {
   const b = createLocalDecodeBudget({ maxDaily: 5 });
   const time = Date.parse('2026-11-03');
