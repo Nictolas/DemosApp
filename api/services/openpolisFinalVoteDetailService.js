@@ -44,7 +44,7 @@ function parseOpenpolisFinalVoteDetail(html, expectedCamera) {
   const votoSegreto = /\bSEGRETO\b/i.test(beforeTables) || /Votante in voto segreto/i.test(body);
   const summary = {};
   for (const [key, label] of [['presenti', 'Presenti'], ['votanti', 'Votanti'], ['maggioranza', 'Maggioranza']]) {
-    const match = beforeTables.match(new RegExp('(\\d{1,4})\\s*' + label + '\\b', 'i'));
+    const match = beforeTables.match(new RegExp('(\\d{1,4})\\s*' + label + '(?![A-Za-zÀ-ÿ])', 'i'));
     summary[key] = match ? Number(match[1]) : null;
   }
 
