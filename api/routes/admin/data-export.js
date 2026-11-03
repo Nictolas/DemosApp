@@ -228,83 +228,12 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
  * Permette di inserire manualmente le statistiche reali da Axiom Dashboard
  * quando l'API non è disponibile
  */
-router.post('/axiom-stats-manual', requireAdmin, async (req, res) => {
-  try {
-    const { datasets } = req.body; // Array di { name, events, sizeMB }
-    
-    if (!datasets || !Array.isArray(datasets)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Formato dati non valido',
-        message: 'Fornisci un array di dataset con name, events e sizeMB'
-      });
-    }
-    
-    const { Pool } = require('pg');
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
-    
-    // Crea tabella se non esiste
-    try {
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS axiom_manual_stats (
-          id SERIAL PRIMARY KEY,
-          dataset_name VARCHAR(255) NOT NULL,
-          events_count BIGINT NOT NULL,
-          size_mb DECIMAL(10, 2) NOT NULL,
-          updated_at TIMESTAMP DEFAULT NOW(),
-          UNIQUE(dataset_name)
-        )
-      `);
-    } catch (createErr) {
-      // Ignora se già esiste
-    }
-    
-    const results = [];
-    
-    for (const ds of datasets) {
-      try {
-        await pool.query(`
-          INSERT INTO axiom_manual_stats (dataset_name, events_count, size_mb)
-          VALUES ($1, $2, $3)
-          ON CONFLICT (dataset_name) 
-          DO UPDATE SET 
-            events_count = EXCLUDED.events_count,
-            size_mb = EXCLUDED.size_mb,
-            updated_at = NOW()
-        `, [ds.name, ds.events || 0, ds.sizeMB || 0]);
-        
-        results.push({
-          name: ds.name,
-          success: true
-        });
-      } catch (err) {
-        results.push({
-          name: ds.name,
-          success: false,
-          error: 'Dettaglio non disponibile'
-        });
-      }
-    }
-    
-    await pool.end();
-    
-    res.json({
-      success: true,
-      message: 'Statistiche manuali salvate con successo',
-      results
-    });
-    
-  } catch (error) {
-    console.error('Errore salvataggio statistiche manuali:');
-    res.status(500).json({
-      success: false,
-      error: 'Errore salvataggio statistiche manuali',
-      message: 'Dettaglio non disponibile'
-    });
-  }
+router.post('/axiom-stats-manual', requireAdmin, (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.status(410).json({
+    success: false,
+    error: 'Scrittura statistiche legacy disabilitata: Data Export in sola lettura'
+  });
 });
 
 // Stato export globale
