@@ -124,3 +124,30 @@ di `STAGING_PREFLIGHT_DATABASE_URL` e il GO separato per una connessione
 remota read-only. Anche con un ruolo creato, l'app condivisa rimane
 bootstrap/NO-GO. Lo script non equivale al collaudo Render→Supabase e non
 chiude alcun macro-gate di rilascio.
+
+
+## Preflight PostgreSQL reale con ruolo minimo (CI PG16/PG17)
+
+Il CI collauda anche le query **effettivamente presenti** in
+`api/scripts/unifiedStagingPreflight.js`, anziché simularne i risultati.
+Sullo stesso PostgreSQL CI effimero che prepara le migrazioni P1–P5,
+lo script di provisioning del ruolo viene applicato **esclusivamente a
+una copia in memoria adattata a `civic_ci` e UUID sintetica**.
+La versione nel repository conserva i blocchi sul nome DB `postgres` e
+sull'identità Demos-Staging; la connessione CI è locale, senza password
+per il ruolo preflight e senza credenziali Render/Supabase.
+
+Il test Node `api/tests/unifiedStagingPreflight.postgres.test.js` usa
+`BEGIN READ ONLY`, `SET LOCAL ROLE demos_staging_preflight`,
+esegue le query SQL estratte dal vero preflight (identità, attributi
+ruolo e membership, grant su tutte le tabelle/colonne/sequenze, schema,
+metadata di RLS, contratti colonne e guardia push) e verifica le
+valutazioni reali. Dimostra il rifiuto di `SELECT public.users` e
+dell'aggiornamento della guardia push. Dopo rollback, due utenti
+sintetici, zero voti e push bloccate.
+
+Il risultato di preparazione schema CI è intenzionalmente
+`ready=false` perché il database sintetico **non replica le 51 tabelle**
+dello staging: non si finge un GO. Questo NON testa TLS, DNS/pooler,
+connessioni da Render, password/gestore di segreti o staging reale.
+Il ruolo condiviso resta **non creato**, senza GO.

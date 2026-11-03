@@ -36,6 +36,7 @@ on:
       - 'api/tests/test_ops_stg_001_p1_p2_p3_migrations_postgres.py'
       - 'api/tests/seed_ops_stg_001_snapshot_service_postgres.py'
       - 'api/tests/referendumForecastSnapshot.postgres16.test.js'
+      - 'api/tests/unifiedStagingPreflight.postgres.test.js'
       - 'api/services/referendumForecastSnapshotService.js'
       - 'api/database/staging/ops_stg_001_p1_routes_20261103.sql'
       - 'api/database/staging/ops_stg_001_p2_opinion_referendum_parliament_20261103.sql'
@@ -78,6 +79,7 @@ on:
       - 'api/tests/test_ops_stg_001_p1_p2_p3_migrations_postgres.py'
       - 'api/tests/seed_ops_stg_001_snapshot_service_postgres.py'
       - 'api/tests/referendumForecastSnapshot.postgres16.test.js'
+      - 'api/tests/unifiedStagingPreflight.postgres.test.js'
       - 'api/services/referendumForecastSnapshotService.js'
       - 'api/database/staging/ops_stg_001_p1_routes_20261103.sql'
       - 'api/database/staging/ops_stg_001_p2_opinion_referendum_parliament_20261103.sql'
@@ -256,5 +258,7 @@ jobs:
           python -m pip install psycopg2-binary
       - name: Seed empty fixture with real P1 to P5 migrations (fake identity)
         run: python -m api.tests.seed_ops_stg_001_snapshot_service_postgres
+      - name: Execute actual preflight metadata SQL as passwordless least-privilege role
+        run: node --test api/tests/unifiedStagingPreflight.postgres.test.js
       - name: Exercise actual JavaScript service on PostgreSQL ${{ matrix.pg-major }} and rollback all 10 synthetic votes
         run: node --test api/tests/referendumForecastSnapshot.postgres16.test.js
