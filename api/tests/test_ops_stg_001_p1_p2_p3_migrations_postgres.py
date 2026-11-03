@@ -53,10 +53,12 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
         cls.conn = psycopg2.connect(url)
         cls.conn.autocommit = True
         with cls.conn.cursor() as cur:
-            for role in ("anon", "authenticated"):
+            for role in ("anon", "authenticated", "demos_staging_runtime"):
                 cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,))
                 if cur.fetchone() is None:
-                    cur.execute("CREATE ROLE " + role + " NOLOGIN")
+                    cur.execute("CREATE ROLE " + role + (
+                        " LOGIN NOINHERIT" if role == "demos_staging_runtime" else " NOLOGIN"
+                    ))
             # Deliberately minimal synthetic upstream tables: only the FK targets
             # needed for P1–P3. These are not copies of real users or processes.
             cur.execute("CREATE TABLE public.users (id uuid PRIMARY KEY)")
@@ -165,6 +167,115 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             self.assertEqual(cur.fetchone(), (0,))
             cur.execute("SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1")
             self.assertEqual(cur.fetchone(), (True,))
+
+
+    def test_z_explicit_ballot_acl_requires_approval_and_only_exposes_fixtures(self):
+        acl_path = ROOT / "api/database/staging/ops_stg_001_p3_synthetic_ballot_acl_20261103.sql"
+        acl_original = acl_path.read_text(encoding="utf-8")
+        self.assertEqual(acl_original.count(STAGING_HASH), 1)
+        acl = acl_original.replace(STAGING_HASH, SYNTHETIC_HASH)
+        with self.conn.cursor() as cur:
+            # No implicit opt-in, even on an otherwise valid synthetic database.
+            with self.assertRaisesRegex(psycopg2.Error, "P3_BALLOT_ACL_APPROVAL_REQUIRED"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+
+            cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                        (WRONG_ID,))
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p3_runtime_approval='I_APPROVE_P3_SYNTHETIC_BALLOT_ACL'")
+            with self.assertRaisesRegex(psycopg2.Error, "P3_BALLOT_ACL_WRONG_DATABASE"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+            cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                        (SYNTHETIC_ID,))
+
+            cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=FALSE WHERE id=1")
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p3_runtime_approval='I_APPROVE_P3_SYNTHETIC_BALLOT_ACL'")
+            with self.assertRaisesRegex(psycopg2.Error, "P3_BALLOT_ACL_DELIVERY_UNBLOCKED"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+            cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=TRUE WHERE id=1")
+
+            for table in ("civic_ballots", "civic_ballot_positions"):
+                cur.execute("SELECT has_table_privilege('demos_staging_runtime',%s,'SELECT,INSERT,UPDATE,DELETE')",
+                            ("public." + table,))
+                self.assertEqual(cur.fetchone(), (False,))
+
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p3_runtime_approval='I_APPROVE_P3_SYNTHETIC_BALLOT_ACL'")
+            cur.execute(acl)
+            cur.execute("COMMIT")
+
+            for name, operations in (
+                ("civic_ballots", ("SELECT",)),
+                ("civic_ballot_positions", ("SELECT", "INSERT")),
+            ):
+                for action in ("SELECT", "INSERT", "UPDATE", "DELETE"):
+                    cur.execute("SELECT has_table_privilege('demos_staging_runtime',%s,%s)",
+                                ("public." + name, action))
+                    self.assertEqual(cur.fetchone()[0], action in operations, name + "/" + action)
+                for role in ("anon", "authenticated"):
+                    cur.execute("SELECT has_table_privilege(%s,%s,'SELECT,INSERT,UPDATE,DELETE')",
+                                (role, "public." + name))
+                    self.assertEqual(cur.fetchone(), (False,))
+
+            # The test inserts a legitimate synthetic referendum and a second
+            # synthetic row with an unapproved source prefix (must be invisible).
+            cur.execute("BEGIN")
+            ballot_ids = []
+            for source in ("staging-fixture-official-001", "other-source-test-002"):
+                cur.execute("""INSERT INTO public.civic_ballots
+                    (civic_process_id,ballot_kind,question_text,yes_meaning,no_meaning,
+                     opens_at,closes_at,timezone,source_id,source_url)
+                    VALUES (%s,'referendum','Synthetic question','Yes','No',
+                            '2027-01-01T00:00:00Z','2027-02-01T00:00:00Z',
+                            'Europe/Rome',%s,'https://example.invalid/fixture')
+                    RETURNING id""", (PROCESS, source))
+                ballot_ids.append(cur.fetchone()[0])
+
+            cur.execute("SET LOCAL ROLE demos_staging_runtime")
+            cur.execute("SELECT id FROM public.civic_ballots")
+            self.assertEqual([row[0] for row in cur.fetchall()], [ballot_ids[0]])
+            cur.execute("""INSERT INTO public.civic_ballot_positions
+                           (civic_ballot_id,user_id,choice) VALUES (%s,%s,'YES')""",
+                        (ballot_ids[0], USER_A))
+            cur.execute("SELECT user_id,choice FROM public.civic_ballot_positions")
+            visible = cur.fetchall()
+            self.assertEqual(len(visible), 1)
+            self.assertEqual(visible[0][1], "YES")
+
+            cur.execute("SAVEPOINT invalid_ballot_source")
+            with self.assertRaises(psycopg2.Error) as rejected:
+                cur.execute("""INSERT INTO public.civic_ballot_positions
+                    (civic_ballot_id,user_id,choice) VALUES (%s,%s,'NO')""",
+                    (ballot_ids[1], USER_B))
+            self.assertEqual(rejected.exception.pgcode, "42501")
+            cur.execute("ROLLBACK TO SAVEPOINT invalid_ballot_source")
+
+            cur.execute("SAVEPOINT outside_fixture_user")
+            with self.assertRaises(psycopg2.Error) as rejected:
+                cur.execute("""INSERT INTO public.civic_ballot_positions
+                    (civic_ballot_id,user_id,choice) VALUES (%s,%s,'NO')""",
+                    (ballot_ids[0], "33333333-3333-4333-8333-333333333333"))
+            self.assertEqual(rejected.exception.pgcode, "42501")
+            cur.execute("ROLLBACK TO SAVEPOINT outside_fixture_user")
+            cur.execute("ROLLBACK")
+
+            cur.execute("SELECT count(*) FROM public.civic_ballots")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("SELECT count(*) FROM public.civic_ballot_positions")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1")
+            self.assertEqual(cur.fetchone(), (True,))
+
+            # Applying an ACL twice is never a no-op: it must be rejected.
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p3_runtime_approval='I_APPROVE_P3_SYNTHETIC_BALLOT_ACL'")
+            with self.assertRaisesRegex(psycopg2.Error, "P3_BALLOT_ACL_POLICIES_ALREADY_EXIST"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
 
 
 if __name__ == "__main__":
