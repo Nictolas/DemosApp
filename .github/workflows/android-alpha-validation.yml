@@ -10,6 +10,8 @@ on:
       - 'api/services/oauthRegistrationService.js'
       - 'api/tests/oauthRegistrationService.test.js'
       - 'api/tests/androidAuthNativePushIntegration.test.js'
+      - 'client/scripts/play_store_screenshot_guard.py'
+      - 'client/scripts/test_play_store_screenshot_guard.py'
       - 'api/catalog/**'
       - 'api/services/opinionCatalog.js'
       - 'api/routes/compatibility.js'
@@ -31,8 +33,6 @@ on:
       - 'client/package-lock.json'
       - 'scripts/check-ads-free-aab.py'
       - 'scripts/test_ads_free_aab_guard.py'
-      - 'client/scripts/play_store_screenshot_guard.py'
-      - 'client/scripts/test_play_store_screenshot_guard.py'
       - '.github/workflows/android-alpha-validation.yml'
   push:
     branches:
