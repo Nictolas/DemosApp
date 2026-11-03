@@ -327,5 +327,5 @@ test('admin diagnostic route enforces auth and role at runtime without Google ca
   assert.deepEqual(JSON.parse(JSON.stringify(allowed.body)), { status: 'verified' });
   assert.equal(allowed.headers['Cache-Control'], 'no-store');
   assert.equal(verificationCalls, 1);
-  assert.equal(middlewareCalls, 8);
+  assert.equal(middlewareCalls, 7);
 });
