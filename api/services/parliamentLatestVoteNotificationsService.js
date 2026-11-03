@@ -47,19 +47,33 @@ function newestByChamber(votes, now = new Date()) {
   }
   return [...byChamber.values()];
 }
-function matchUniqueMember(rep, members, allReps) {
+// Exact, source-confirmed parliamentary name aliases. This is NOT a general
+// nickname heuristic: Peppe De Cristofaro is recorded by the Senate/Openpolis
+// as Giuseppe De Cristofaro. Never change the public representative's name.
+function memberNameVariants(rep) {
   const firstLast = normalizeName(rep.nome + ' ' + rep.cognome);
   const lastFirst = normalizeName(rep.cognome + ' ' + rep.nome);
-  if (!firstLast || !lastFirst) return null;
   const variants = new Set([firstLast, lastFirst]);
-  // Ambiguous politician identity -> no notification.
-  if (allReps.filter(other => {
-    return variants.has(normalizeName(other.nome + ' ' + other.cognome)) ||
-      variants.has(normalizeName(other.cognome + ' ' + other.nome));
-  }).length !== 1) return null;
+  if (firstLast === 'peppe de cristofaro') {
+    variants.add('giuseppe de cristofaro');
+    variants.add('de cristofaro giuseppe');
+  }
+  return variants;
+}
+
+function matchUniqueMember(rep, members, allReps) {
+  const variants = memberNameVariants(rep);
+  if ([...variants].some(name => !name)) return null;
+  // Reject two selected politicians who could map to the same official
+  // roll-call name, including aliases.
+  const ambiguous = allReps.filter(other =>
+    [...memberNameVariants(other)].some(name => variants.has(name))
+  ).length !== 1;
+  if (ambiguous) return null;
   const rows = members.filter(row => variants.has(normalizeName(row.name)));
   return rows.length === 1 && ALLOWED.has(rows[0].vote) ? rows[0] : null;
 }
+
 async function selectedRepresentatives(pool, chamber) {
   const office = chamber === 'Camera' ? 'it.camera' :
     chamber === 'Senato' ? 'it.senato' : null;
@@ -198,6 +212,6 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
   }
   return { enabled: true, checked, changed, unavailable };
 }
-module.exports = { normalizeName, voteOrder, isRecentFinal, newestByChamber,
+module.exports = { normalizeName, memberNameVariants, voteOrder, isRecentFinal, newestByChamber,
   matchUniqueMember, selectedRepresentatives, persistLatestForChamber,
   refreshLatestParliamentVoteNotifications };
