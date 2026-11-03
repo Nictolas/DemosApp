@@ -119,3 +119,10 @@ test('history and trend expose frozen forecast comparison without individual his
   assert.match(page, /Risultato ufficiale/);
   assert.match(page, /Territori e andamento/);
 });
+
+test('referendum route locks ballot with read privilege, not update privilege', () => {
+  assert.match(route, /FROM civic_ballots[\\s\\S]*?FOR SHARE/);
+  assert.match(route, /FROM civic_ballot_positions[\\s\\S]*?FOR UPDATE/);
+  assert.match(route, /ON CONFLICT \\(civic_ballot_id, user_id\\)/);
+  assert.doesNotMatch(route, /FROM civic_ballots[\\s\\S]*?FOR UPDATE[\\s\\S]*?const ballot/);
+});
