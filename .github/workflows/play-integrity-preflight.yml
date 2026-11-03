@@ -21,6 +21,7 @@ on:
       - 'api/tests/firebaseAppCheckObservation.test.js'
       - 'api/tests/securityAppCheckHeaderRedaction.test.js'
       - 'api/middleware/security.js'
+      - 'api/utils/logPrivacy.js'
       - 'client/src/lib/nativeFirebaseAppCheck.ts'
       - 'client/android/app/src/main/java/community/demos/NativeFirebaseAppCheckPlugin.java'
       - 'client/android/app/src/main/java/community/demos/MainActivity.java'
