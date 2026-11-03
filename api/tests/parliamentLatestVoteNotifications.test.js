@@ -138,6 +138,59 @@ test('enabled orchestration uses only selected active representatives and one ve
   }
 });
 
+test('each selected deputy gets their own latest verified final vote, even if missing the chamber latest', async () => {
+  const old=process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
+  process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED='true';
+  const rep2={id:'00000000-0000-4000-8000-000000000010',nome:'Paolo',cognome:'Rossi'};
+  const latest=finalVote('Camera','vs19_732_003',today);
+  const previous=finalVote('Camera','vs19_731_002',today);
+  let fetched=0, committed=0;
+  const inserts=[];
+  const baseMembers=Array.from({length:125},(_,i)=>({
+    name:'UNRELATED NOMINAL MEMBER '+i,group:'GRUPPO',vote:'Favorevole'
+  }));
+  const rosterA=[...baseMembers,{name:'DE LUCA MARIA',group:'GRUPPO',vote:'Favorevole'}];
+  const rosterB=[...baseMembers,{name:'ROSSI PAOLO',group:'GRUPPO',vote:'Contrario'}];
+  const pool={
+    query:async (sql,params=[])=>{
+      if(sql.includes('SELECT openpolis_id'))return {rows:[previous,latest]};
+      if(sql.includes('SELECT DISTINCT p.id'))return {rows:params[0]==='it.camera'?[rep,rep2]:[]};
+      throw new Error('unexpected query');
+    },
+    connect:async()=>({
+      query:async (sql,params)=>{
+        if(sql.includes('INSERT INTO notifiche_voti_parlamento')){
+          inserts.push({id:params[0],vote:params[5],source:params[8]});
+          return {rows:[{id:'synthetic'}]};
+        }
+        if(sql==='COMMIT')committed++;
+        return {rows:[]};
+      },
+      release:()=>{}
+    })
+  };
+  try{
+    const result=await refreshLatestParliamentVoteNotifications(pool,{
+      getVerifiedFinalBallots:async(vote)=>{
+        fetched++;
+        return {voteId:vote.openpolis_id,chamber:vote.camera,date:today,
+          source:{type:'official',url:'https://documenti.camera.it/verified'},
+          members:vote.openpolis_id===latest.openpolis_id?rosterA:rosterB};
+      }
+    });
+    assert.equal(fetched,2,'search must continue beyond most recent Chamber roll call');
+    assert.equal(committed,2);
+    assert.deepEqual(result,{enabled:true,checked:2,changed:2,unavailable:0});
+    assert.deepEqual(inserts,[
+      {id:rep.id,vote:'Favorevole',source:latest.openpolis_id},
+      {id:rep2.id,vote:'Contrario',source:previous.openpolis_id}
+    ]);
+  } finally {
+    if(old===undefined)delete process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED;
+    else process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED=old;
+  }
+});
+
 test('migration preserves old rows, requires unique representative/chamber, and extends absence statuses', () => {
   const fs=require('node:fs'),path=require('node:path');
   const root=path.join(__dirname,'../..');
