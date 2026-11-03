@@ -6,6 +6,7 @@
 const cron = require('node-cron');
 const { getPool } = require('../config/database');
 const { fetchVotazioniFinaliDecisive, saveToDb } = require('../services/openpolisVotazioniFinaliService');
+const { refreshLatestParliamentVoteNotifications } = require('../services/parliamentLatestVoteNotificationsService');
 
 async function ensureTable(pool) {
   await pool.query(`
@@ -42,6 +43,14 @@ async function runOpenpolisVotazioniFinaliSync() {
     const saved = await saveToDb(items, pool);
     const { rows: afterRows } = await pool.query('SELECT COUNT(*)::int AS count FROM openpolis_votazioni_finali_decisive');
     const added = Math.max(0, afterRows[0].count - beforeRows[0].count);
+    // Only an explicitly enabled, reviewed release may update latest vote notifications.
+    // This feature never sends push messages; public ballot source checks fail closed.
+    try {
+      const latest = await refreshLatestParliamentVoteNotifications(pool);
+      if (latest.enabled) console.log('[parliamentFinalNotifications] Result', latest);
+    } catch {
+      console.warn('[parliamentFinalNotifications] Refresh unavailable; vote list sync remains independent');
+    }
     console.log('[openpolisVotazioniFinali] Sync completed', { fetched: items.length, saved, added });
     return { success: true, fetched: items.length, added, total: afterRows[0].count };
   } catch (error) {
