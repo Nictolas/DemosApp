@@ -24,7 +24,7 @@ Data 03/11/2026. PR #572. **Proposta di selezione**, non approvazione all'uso n�
 
 ## Impatto quota (con ipotesi editabili nello Sheet)
 
-Google documenta 10.000 richieste token e 10.000 decodifiche al giorno. Anche un solo controllo per utente su 100.000 utenti attivi al giorno supererebbe il limite; non attestare l'intera base utenti. La simulazione nello Sheet è orientativa.
+Google documenta 10.000 richieste classiche/preparazioni standard e 10.000 decodifiche al giorno. Una preparazione standard può essere riutilizzata per più richieste di token su azioni diverse; le decodifiche restano conteggiate individualmente. Anche un solo controllo per utente su 100.000 utenti attivi al giorno supererebbe il limite; non attestare l'intera base utenti. La simulazione nello Sheet è orientativa.
 
 ## Stato validazione
 
