@@ -94,7 +94,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         throw queryError;
       }
 
-      console.warn('⚠️ Fallback query /users/me su users (schema nuovo non disponibile):', queryError.message);
+      console.warn('Fallback schema profilo non disponibile');
       result = await pool.query(
         `SELECT * FROM users WHERE id = $1`,
         [userId]
@@ -109,7 +109,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const user = result.rows[0];
-    console.log('✅ Profilo utente recuperato:', user.email);
+    console.log('Profilo utente recuperato');
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR), altrimenti DD/MM/YYYY
     let dataNascitaFormattata = null;
@@ -137,7 +137,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
           avatarConfig = user.avatar_config;
         }
       } catch (e) {
-        console.warn('⚠️ Errore nella gestione avatar_config:', e);
+        console.warn('Configurazione avatar non valida');
         // Se non è JSON valido, imposta null
         avatarConfig = null;
       }
@@ -197,7 +197,7 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero profilo:', error);
+    console.error('Errore nel recupero profilo');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -211,7 +211,7 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
     const userId = req.user.id;
     const { avatar_config } = req.body;
     
-    console.log('🎨 POST /api/users/me/avatar - Aggiornamento avatar per utente:', userId);
+    console.log('Richiesta aggiornamento avatar');
     
     if (!avatar_config) {
       return res.status(400).json({
@@ -252,7 +252,7 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
       });
     }
     
-    console.log('✅ Avatar aggiornato per utente:', userId);
+    console.log('Avatar aggiornato');
     
     res.json({
       success: true,
@@ -261,7 +261,7 @@ router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res)
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento avatar:', error);
+    console.error('Errore aggiornamento avatar');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -306,7 +306,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         // Normalizza i gradi di elezione e candidatura
         if (key === 'grado_elezione' || key === 'grado_candidatura') {
           filteredData[key] = normalizeGrado(updateData[key]);
-          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
+          // Non registrare nei log valori del profilo o delle preferenze.
         }
         // Applica compressione per i campi paese
         else if (key === 'paese_residenza' || key === 'paese_elezione' || key === 'paese_candidatura') {
@@ -392,7 +392,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     }
     
     const updatedUser = result.rows[0];
-    console.log('✅ Profilo utente aggiornato:', updatedUser.email);
+    console.log('Profilo utente aggiornato');
     
     // Data/anno di nascita: se è 1º gennaio restituiamo solo l'anno (GDPR)
     let dataNascitaFormattata = null;
@@ -439,7 +439,7 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento profilo:', error);
+    console.error('Errore aggiornamento profilo');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -456,10 +456,10 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivi
     const { campo, rappresentanteId, source = 'matching' } = req.body;
     const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
     
-    console.log('🔍 DEBUG - userId dal parametro:', userId);
-    console.log('🔍 DEBUG - authenticatedUserId dal token:', authenticatedUserId);
-    console.log('🔍 DEBUG - campo:', campo);
-    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    
+    
+    
     
     // Verifica che l'utente autenticato possa modificare questo profilo
     if (authenticatedUserId !== userId) {
@@ -568,7 +568,7 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivi
     });
     
   } catch (error) {
-    console.error('❌ Errore nella selezione:', error);
+    console.error('Errore selezione rappresentante');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -641,7 +641,7 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
     if (client) {
       try { await client.query('ROLLBACK'); } catch (_) {}
     }
-    console.error('Errore selezione politica canonica:', error);
+    console.error('Errore selezione politica canonica');
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   } finally {
     if (client) client.release();
@@ -745,7 +745,7 @@ router.get('/:userId/opinioni', (_req, res, next) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    console.error('Errore lettura opinioni utente');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -762,7 +762,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     const { userId } = req.params;
     const { opinioni, fonti } = req.body;
     
-    console.log('👤 User ID:', userId);
+    
     console.log('📋 Aggiornamento opinioni politiche ricevuto (valori non registrati nei log)');
     
     if (!opinioni || typeof opinioni !== 'object') {
@@ -828,12 +828,12 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       // Verifica che l'ID esista in opinioni_domande e che la colonna esista in opinioni_risposte
       if (!validOpinionIds.has(opinionId)) {
-        console.warn(`⚠️ Opinione ID non valido ignorato: ${opinionId}`);
+        console.warn('ID opinione non valido ignorato');
         continue;
       }
       
       if (!validColumns.has(opinionId)) {
-        console.warn(`⚠️ Colonna non trovata in opinioni_risposte ignorata: ${opinionId}`);
+        console.warn('Colonna opinione non disponibile');
         continue;
       }
       
@@ -979,14 +979,7 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
         message: 'Impossibile aggiornare le opinioni'
       });
     }
-    console.error('❌ Errore nel salvare opinioni utente:', error);
-    console.error('❌ Stack trace:', error.stack);
-    console.error('❌ Dettagli errore:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      constraint: error.constraint
-    });
+    console.error('Errore salvataggio opinioni utente');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
