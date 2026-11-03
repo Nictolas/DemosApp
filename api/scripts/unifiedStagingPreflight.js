@@ -65,6 +65,9 @@ function assertStagingTarget(value, env = process.env) {
 }
 
 function evaluateSchema(present, required = REQUIRED_TABLES) {
+  if (!Array.isArray(present) || !Array.isArray(required)) {
+    return {ready:false,presentCount:0,requiredCount:REQUIRED_TABLES.length,missing:[...REQUIRED_TABLES]};
+  }
   const set = new Set(present);
   const missing = required.filter(name => !set.has(name));
   return {ready: missing.length === 0, presentCount: required.length - missing.length, requiredCount: required.length, missing};
@@ -115,7 +118,10 @@ function evaluatePublicRoutineExposure(rows) {
 }
 
 function evaluateCivicProtection(rows, required = CIVIC_PRIVATE_TABLES) {
-  const byName = new Map(rows.map(row => [row.table_name, row]));
+  if (!Array.isArray(rows) || !Array.isArray(required)) {
+    return {ready:false,checkedCount:0,requiredCount:CIVIC_PRIVATE_TABLES.length,unsafe:[...CIVIC_PRIVATE_TABLES]};
+  }
+  const byName = new Map(rows.filter(row => row && typeof row === 'object').map(row => [row.table_name, row]));
   const unsafe = required.filter(name => {
     const row = byName.get(name);
     return !row || row.rls_enabled !== true ||
@@ -150,7 +156,11 @@ const CIVIC_RUNTIME_COLUMNS = Object.freeze([
   ['civic_new_initiative_notifications','status','text'],
 ]);
 function evaluateCivicRuntimeColumns(rows) {
-  const indexed = new Map(rows.map(row => [row.table_name + '.' + row.column_name, row]));
+  if (!Array.isArray(rows)) {
+    return {ready:false,checkedCount:0,requiredCount:CIVIC_RUNTIME_COLUMNS.length,
+      invalid:CIVIC_RUNTIME_COLUMNS.map(([table,column]) => table + '.' + column)};
+  }
+  const indexed = new Map(rows.filter(row => row && typeof row === 'object').map(row => [row.table_name + '.' + row.column_name, row]));
   const invalid = CIVIC_RUNTIME_COLUMNS.filter(([table,column,type,defaultValue]) => {
     const row = indexed.get(table + '.' + column);
     if (!row || row.udt_name !== type) return true;
