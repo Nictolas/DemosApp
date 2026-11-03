@@ -71,6 +71,8 @@ $p3_acl_guard$;
 GRANT USAGE ON SCHEMA public TO demos_staging_runtime;
 GRANT SELECT ON public.civic_ballots TO demos_staging_runtime;
 GRANT SELECT, INSERT ON public.civic_ballot_positions TO demos_staging_runtime;
+-- Only the two columns changed by the real route's ON CONFLICT DO UPDATE.
+GRANT UPDATE (choice, updated_at) ON public.civic_ballot_positions TO demos_staging_runtime;
 
 -- Only the single synthetic process and deliberately prefixed fixture ballots
 -- are readable. Not even other staging rows are exposed.
@@ -96,4 +98,18 @@ CREATE POLICY p3_staging_synthetic_position_insert ON public.civic_ballot_positi
     AND EXISTS (
       SELECT 1 FROM public.civic_ballots b WHERE b.id=civic_ballot_id
     )
+  );
+-- The real route locks an existing position and writes only choice/updated_at.
+-- UPDATE never permits changing ownership, ballot ID or creation timestamp.
+CREATE POLICY p3_staging_synthetic_position_update ON public.civic_ballot_positions
+  FOR UPDATE TO demos_staging_runtime
+  USING (
+    user_id IN ('00000000-0000-4000-8000-000000000301'::uuid,
+                '00000000-0000-4000-8000-000000000302'::uuid)
+    AND EXISTS (SELECT 1 FROM public.civic_ballots b WHERE b.id=civic_ballot_id)
+  )
+  WITH CHECK (
+    user_id IN ('00000000-0000-4000-8000-000000000301'::uuid,
+                '00000000-0000-4000-8000-000000000302'::uuid)
+    AND EXISTS (SELECT 1 FROM public.civic_ballots b WHERE b.id=civic_ballot_id)
   );
