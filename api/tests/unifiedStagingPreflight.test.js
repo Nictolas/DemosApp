@@ -342,3 +342,21 @@ test('PostgreSQL public RPC functions are denied EXECUTE even with table RLS', (
   assert.match(source,/has_function_privilege\('authenticated'/);
   assert.match(source,/publicRoutineExposure\.ready/);
 });
+
+test('malformed metadata never grants schema or civic protection readiness', () => {
+  for (const malformed of [null, undefined, false, 'users', {}, 7]) {
+    const schema = evaluateSchema(malformed);
+    assert.equal(schema.ready, false);
+    assert.equal(schema.presentCount, 0);
+    const civic = evaluateCivicProtection(malformed);
+    assert.equal(civic.ready, false);
+    assert.equal(civic.checkedCount, 0);
+    const columns = evaluateCivicRuntimeColumns(malformed);
+    assert.equal(columns.ready, false);
+    assert.equal(columns.checkedCount, 0);
+  }
+  assert.equal(evaluateCivicProtection([null, ...CIVIC_PRIVATE_TABLES.map(table_name => ({
+    table_name, rls_enabled:true, anon_can_access:false, authenticated_can_access:false
+  }))]).ready, true);
+  assert.equal(evaluateCivicRuntimeColumns([null]).ready, false);
+});
