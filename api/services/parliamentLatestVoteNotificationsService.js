@@ -135,7 +135,8 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
     return { enabled: false, checked: 0, changed: 0 };
   }
   const { rows } = await pool.query(
-    "SELECT openpolis_id, camera, titolo, url_dettaglio, esito, data_votazione " +
+    "SELECT openpolis_id, camera, titolo, url_dettaglio, esito, " +
+    "to_char(data_votazione, 'YYYY-MM-DD') AS data_votazione " +
     "FROM openpolis_votazioni_finali_decisive " +
     "WHERE data_votazione >= CURRENT_DATE - INTERVAL '120 days' " +
     "AND camera IN ('Camera', 'Senato') ORDER BY data_votazione DESC LIMIT 50"
