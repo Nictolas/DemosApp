@@ -62,6 +62,18 @@ function evaluateSchema(present, required = REQUIRED_TABLES) {
   return {ready: missing.length === 0, presentCount: required.length - missing.length, requiredCount: required.length, missing};
 }
 
+// Every new public table in the shared Supabase staging must opt into RLS
+// and deny direct anon/authenticated grants. This prevents future route
+// migrations from silently expanding the public Data API attack surface.
+function evaluateAllPublicStagingTables(rows) {
+  if (!Array.isArray(rows)) return {ready:false,checkedCount:0,unsafe:['metadata_unavailable']};
+  const unsafe = rows.filter(row =>
+    !row.table_name || row.rls_enabled !== true ||
+    row.anon_can_access !== false || row.authenticated_can_access !== false
+  ).map(row => row.table_name || 'unknown');
+  return {ready:rows.length>0 && unsafe.length===0,checkedCount:rows.length,unsafe};
+}
+
 function evaluateCivicProtection(rows, required = CIVIC_PRIVATE_TABLES) {
   const byName = new Map(rows.map(row => [row.table_name, row]));
   const unsafe = required.filter(name => {
@@ -152,17 +164,17 @@ async function run(env = process.env) {
        WHERE n.nspname = $1 AND c.relkind IN ('r','p') AND c.relname = ANY($2::text[])`,
       ['public', [...REQUIRED_TABLES]]
     );
-    // Metadata-only authorization audit; this does not read any account or
-    // notification row. A missing table, disabled RLS, or any direct client
-    // grant must fail the preflight even when all nine core tables exist.
+    // Audit ALL public tables, including future P0/P1 migrations; a
+    // previously unlisted table must not bypass RLS/client-grant checks.
+    // pg_catalog metadata only: no account or notification rows read.
     const protectionRows = await client.query(
       `SELECT c.relname AS table_name, c.relrowsecurity AS rls_enabled,
               has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE') AS anon_can_access,
               has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE') AS authenticated_can_access
-         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-         WHERE n.nspname = $1 AND c.relkind IN ('r', 'p')
-           AND c.relname = ANY($2::text[])`,
-      ['public', [...CIVIC_PRIVATE_TABLES]]
+         FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = $1 AND c.relkind IN ('r', 'p')`,
+      ['public']
     );
     const columnRows = await client.query(
       `SELECT c.relname AS table_name, a.attname AS column_name,
@@ -182,11 +194,13 @@ async function run(env = process.env) {
     );
     const schema = evaluateSchema(tables.rows.map(row => row.table_name));
     const civicProtection = evaluateCivicProtection(protectionRows.rows);
+    const allPublicTables = evaluateAllPublicStagingTables(protectionRows.rows);
     const civicColumns = evaluateCivicRuntimeColumns(columnRows.rows);
     const deliveryBlocked = evaluateBlockedGuard(guard.rows);
     await client.query('ROLLBACK');
     return { ...schema, ready: schema.ready && civicProtection.ready &&
-      civicColumns.ready && deliveryBlocked, civicProtection, civicColumns, deliveryBlocked };
+      allPublicTables.ready && civicColumns.ready && deliveryBlocked,
+      civicProtection, allPublicTables, civicColumns, deliveryBlocked };
   } finally {
     await client.end();
   }
@@ -204,5 +218,5 @@ if (require.main === module) {
 }
 
 module.exports = {STAGING_REF, STAGING_PREFLIGHT_ROLE, STAGING_IDENTITY_HASH, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES, CIVIC_RUNTIME_COLUMNS,
-  assertStagingTarget, evaluateSchema, evaluateCivicProtection,
+  assertStagingTarget, evaluateSchema, evaluateCivicProtection, evaluateAllPublicStagingTables,
   evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity, run};
