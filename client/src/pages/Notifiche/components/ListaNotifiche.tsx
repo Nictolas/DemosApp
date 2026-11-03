@@ -21,6 +21,24 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
   reazioniMap,
   userReazioniMap,
 }) => {
+  // Keep each verified MP's current last vote prominent above generic
+  // announcements. Never render a synthetic ballot just to fill an empty slot.
+  const finalParliament = (data?.notifiche || []).filter(n =>
+    n.tipo_notifica === 'voto_parlamento' && !!n.openpolis_id
+  );
+  const otherNotices = (data?.notifiche || []).filter(n =>
+    n.tipo_notifica !== 'voto_parlamento' || !n.openpolis_id
+  );
+  const renderItem = (notifica: NonNullable<NotificheData['notifiche']>[number]) => (
+    <NotificaItem
+      key={notifica.id}
+      notifica={notifica}
+      deleteSegnalazioneMutation={deleteSegnalazioneMutation}
+      initialReazioni={reazioniMap?.[notifica.id]}
+      initialUserReaction={userReazioniMap?.[notifica.id] ?? undefined}
+    />
+  );
+
   return (
     <section className="mx-auto w-full max-w-3xl" aria-label="Notifiche ricevute">
       {isLoading ? (
@@ -41,16 +59,23 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
           <p className="mt-1 text-sm">Le tue notifiche appariranno qui</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {data.notifiche.map((notifica) => (
-            <NotificaItem
-              key={notifica.id}
-              notifica={notifica}
-              deleteSegnalazioneMutation={deleteSegnalazioneMutation}
-              initialReazioni={reazioniMap?.[notifica.id]}
-              initialUserReaction={userReazioniMap?.[notifica.id] ?? undefined}
-            />
-          ))}
+        <div className="space-y-5">
+          {finalParliament.length > 0 && (
+            <section aria-label="Ultime votazioni dei tuoi rappresentanti" className="space-y-3">
+              <h2 className="px-1 text-sm font-semibold text-slate-700">
+                Le votazioni dei tuoi rappresentanti
+              </h2>
+              {finalParliament.map(renderItem)}
+            </section>
+          )}
+          {otherNotices.length > 0 && (
+            <section aria-label="Altre notifiche" className="space-y-3">
+              {finalParliament.length > 0 && (
+                <h2 className="px-1 text-sm font-semibold text-slate-700">Altre notifiche</h2>
+              )}
+              {otherNotices.map(renderItem)}
+            </section>
+          )}
         </div>
       )}
     </section>
