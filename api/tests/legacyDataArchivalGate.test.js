@@ -103,9 +103,9 @@ test('hybrid cloud legacy cleanup is permanently disabled before loading provide
   const script = 'scripts/hybrid-cloud-backup.js';
   const source = fs.readFileSync(path.join(ROOT,script),'utf8');
   const guard = source.indexOf('exitRetiredLegacyDataArchival()');
-  const dbImport = source.indexOf("require('pg')");
-  const dotenv = source.indexOf("require('dotenv')");
-  assert.ok(guard >= 0 && guard < dbImport && guard < dotenv);
+  assert.ok(guard >= 0, 'Executable CLI must exit before any provider I/O');
+  assert.doesNotMatch(source, /require\(['"](?:pg|dotenv|child_process)['"]\)/);
+  assert.doesNotMatch(source, /process\.env|new Pool\s*\(/);
   assert.doesNotMatch(source,/b2 delete-file-version|aws s3 rm|gsutil rm/);
   assert.match(source,/assertLegacyDataArchivalUnavailable\(\)/);
   assert.doesNotMatch(source,/node scripts\/hybrid-cloud-backup\.js cleanup --after-export/);
@@ -199,9 +199,9 @@ test('legacy hybrid cloud backup, inventory and cleanup all fail closed', async 
   const file=path.join(ROOT,'scripts/hybrid-cloud-backup.js');
   const source=fs.readFileSync(file,'utf8');
   const guard=source.indexOf('exitRetiredLegacyDataArchival()');
-  const pg=source.indexOf("require('pg')");
-  const dotenv=source.indexOf("require('dotenv')");
-  assert.ok(guard>=0 && pg>guard && dotenv>guard);
+  assert.ok(guard >= 0, 'All CLI modes fail closed');
+  assert.doesNotMatch(source, /require\(['"](?:pg|dotenv|child_process)['"]\)/);
+  assert.doesNotMatch(source, /process\.env|new Pool\s*\(/);
   for(const args of [[],['backup'],['check'],['stats'],['cleanup']]){
     const proc=spawnSync(process.execPath,[file,...args],{
       encoding:'utf8',env:unsafeEnv,timeout:3000,maxBuffer:32*1024
