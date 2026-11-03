@@ -123,11 +123,11 @@ test('history and trend expose frozen forecast comparison without individual his
 test('vote checks ballot freeze at the write, with read-only ballot access', () => {
   const write = route.slice(route.indexOf("router.post("));
   const read = write.slice(write.indexOf("SELECT id, status, opens_at, closes_at"), write.indexOf("const ballot ="));
-  assert.match(read, /FROM civic_ballots\\s+WHERE/);
+  assert.match(read, /FROM civic_ballots\s+WHERE/);
   assert.doesNotMatch(read, /FOR UPDATE|FOR SHARE/);
-  assert.match(write, /FROM civic_ballot_positions[\\s\\S]*?FOR UPDATE/);
-  assert.match(write, /INSERT INTO civic_ballot_positions[\\s\\S]*?FROM civic_ballots cb/);
-  assert.match(write, /cb\\.opens_at > clock_timestamp\\(\\)/);
-  assert.match(write, /ON CONFLICT \\(civic_ballot_id, user_id\\)/);
-  assert.match(write, /saved\\.rowCount !== 1/);
+  assert.match(write, /FROM civic_ballot_positions[\s\S]*?FOR UPDATE/);
+  assert.match(write, /INSERT INTO civic_ballot_positions[\s\S]*?FROM civic_ballots cb/);
+  assert.match(write, /cb\.opens_at > clock_timestamp\(\)/);
+  assert.match(write, /ON CONFLICT \(civic_ballot_id, user_id\)/);
+  assert.match(write, /saved\.rowCount !== 1/);
 });
