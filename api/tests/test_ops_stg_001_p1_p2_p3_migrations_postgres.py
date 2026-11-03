@@ -566,6 +566,97 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             self.assertEqual(check.fetchone(), (0,))
 
 
+
+    def test_x_actual_snapshot_aggregation_counts_distinct_synthetic_voters(self):
+        """Exercise the production snapshot SELECT on ten ephemeral PG voters.
+
+        This proves SQL counting and uniqueness, not app E2E with staging ACL:
+        Demos-Staging deliberately permits only two fixture identities.
+        """
+        source = (ROOT / "api" / "services" /
+                  "referendumForecastSnapshotService.js").read_text(encoding="utf-8")
+        self.assertIn("const MIN_PUBLIC_RESPONSES = 10;", source)
+        self.assertIn("if (total < MIN_PUBLIC_RESPONSES)", source)
+        statement = source.split("const aggregates = await pool.query(", 1)[1]
+        aggregate_sql = statement.split(chr(96), 2)[1]
+        self.assertIn("COUNT(p.user_id)::int AS total_responses", aggregate_sql)
+        self.assertIn("LEFT JOIN civic_ballot_positions p", aggregate_sql)
+        # Only translate the Node pg bind syntax for psycopg2; same SQL body.
+        aggregate_sql = aggregate_sql.replace("$1::int", "%s::int")
+        users = [USER_A, USER_B] + [
+            f"00000000-0000-4000-8000-{index:012x}"
+            for index in range(0x303, 0x30b)
+        ]
+        self.assertEqual(len(users), len(set(users)))
+        self.assertEqual(len(users), 10)
+        with self.conn.cursor() as cur:
+            try:
+                cur.execute("BEGIN")
+                for user in users[2:]:
+                    cur.execute("INSERT INTO public.users(id) VALUES (%s)", (user,))
+                cur.execute("""INSERT INTO public.civic_ballots
+                    (civic_process_id,ballot_kind,question_text,yes_meaning,no_meaning,
+                     status,opens_at,closes_at,timezone,source_id,source_url)
+                    VALUES (%s,'referendum','CI ten-voter aggregate','Yes','No',
+                            'scheduled',NOW()+INTERVAL '30 days',
+                            NOW()+INTERVAL '60 days','Europe/Rome',
+                            'staging-fixture-ten-voters',
+                            'https://example.invalid/ten-voter-fixture')
+                    RETURNING id""", (PROCESS,))
+                ballot_id = cur.fetchone()[0]
+
+                def read_counts():
+                    cur.execute(aggregate_sql, (730,))
+                    matched = [row for row in cur.fetchall() if row[0] == ballot_id]
+                    self.assertEqual(len(matched), 1)
+                    # Returned columns: ballot ID, opening time, total, YES, NO, ABSTAIN.
+                    return tuple(matched[0][2:])
+
+                for user, choice in zip(users[:9], ["YES"] * 6 + ["NO"] * 3):
+                    cur.execute("""INSERT INTO public.civic_ballot_positions
+                        (civic_ballot_id,user_id,choice) VALUES (%s,%s,%s)""",
+                        (ballot_id, user, choice))
+                self.assertEqual(read_counts(), (9, 6, 3, 0))
+                # Nine distinct positions must remain below the published minimum.
+                cur.execute("""INSERT INTO public.civic_ballot_positions
+                    (civic_ballot_id,user_id,choice) VALUES (%s,%s,'ABSTAIN')""",
+                    (ballot_id, users[9]))
+                self.assertEqual(read_counts(), (10, 6, 3, 1))
+                cur.execute("""SELECT COUNT(DISTINCT user_id)
+                    FROM public.civic_ballot_positions
+                    WHERE civic_ballot_id=%s""", (ballot_id,))
+                self.assertEqual(cur.fetchone(), (10,))
+
+                # Rewriting a choice must not manufacture an eleventh voter.
+                cur.execute("""INSERT INTO public.civic_ballot_positions
+                    (civic_ballot_id,user_id,choice) VALUES (%s,%s,'NO')
+                    ON CONFLICT (civic_ballot_id,user_id)
+                    DO UPDATE SET choice=EXCLUDED.choice""",
+                    (ballot_id, users[0]))
+                self.assertEqual(read_counts(), (10, 5, 4, 1))
+
+                # A real aggregate may be inserted only at the privacy threshold;
+                # no individual user identifier enters the snapshot row.
+                cur.execute("""INSERT INTO public.civic_ballot_forecast_snapshots
+                    (civic_ballot_id,bucket_start,total_responses,
+                     yes_count,no_count,abstain_count)
+                    VALUES (%s,NOW(),10,5,4,1)""", (ballot_id,))
+                cur.execute("""SELECT total_responses,yes_count,no_count,abstain_count
+                    FROM public.civic_ballot_forecast_snapshots
+                    WHERE civic_ballot_id=%s""", (ballot_id,))
+                self.assertEqual(cur.fetchone(), (10, 5, 4, 1))
+            finally:
+                cur.execute("ROLLBACK")
+            for table, expected in (
+                ("users", 2), ("civic_ballots", 0),
+                ("civic_ballot_positions", 0),
+                ("civic_ballot_forecast_snapshots", 0)
+            ):
+                cur.execute("SELECT COUNT(*) FROM public." + table)
+                self.assertEqual(cur.fetchone(), (expected,), table)
+            cur.execute("SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1")
+            self.assertEqual(cur.fetchone(), (True,))
+
     def test_y_aggregate_snapshot_constraints_and_rollback(self):
         """P5 stores only counts; reject inconsistent totals and duplicates."""
         with self.conn.cursor() as cur:
