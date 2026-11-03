@@ -47,7 +47,8 @@ test('legacy client voting URL redirects to official referendum collection', () 
 
 test('active navigation no longer advertises referendum priority', () => {
   assert.doesNotMatch(voteHub, /vota-referendum-abrogativo|Referendum<br \/>Abrogativo/);
-  assert.doesNotMatch(desktop, /vota-referendum|Quale referendum ha la priorità|Vota Referendum/);
+  assert.doesNotMatch(desktop, /vota-referendum-abrogativo|Quale referendum ha la priorità|Vota Referendum Abrogativo/);
+  assert.match(desktop, /path: "\/vota-referendum"/); // The real ballot remains available.
   assert.doesNotMatch(mobile, /path\.startsWith\("\/vota-referendum"\)/);
 });
 
