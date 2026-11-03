@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { decodePlayIntegrity, validToken, DECODER_URL, PLAY_INTEGRITY_SCOPE } = require('../services/playIntegrityDecode');
 const { createRequestHash } = require('../services/playIntegrityPolicy');
+const { createLocalDecodeBudget } = require('../services/playIntegrityBudget');
 
 const env = Object.freeze({
   PLAY_INTEGRITY_ENABLED: 'true',
@@ -81,6 +82,7 @@ test('enabled decoder sends token only to official package-scoped Google endpoin
   const observed = {};
   const result = await decodePlayIntegrity({
     integrityToken: token, action, payload, env, now,
+    budget: createLocalDecodeBudget({ maxDaily: 5 }),
     getAccessToken: async () => 'fake-access-token',
     fetchImpl: async (url, options) => {
       observed.url = url;
@@ -104,6 +106,7 @@ test('enabled decoder sends token only to official package-scoped Google endpoin
 test('tampered decoded content fails classification', async () => {
   const result = await decodePlayIntegrity({
     integrityToken: token, action, payload: { year: 2001 }, env, now,
+    budget: createLocalDecodeBudget({ maxDaily: 5 }),
     getAccessToken: async () => 'fake',
     fetchImpl: async () => ({ ok: true, json: async () => goodResponse })
   });
@@ -113,7 +116,8 @@ test('tampered decoded content fails classification', async () => {
 test('HTTP 429 or error produces unavailable without retry', async () => {
   let calls = 0;
   const result = await decodePlayIntegrity({
-    integrityToken: token, action, payload, env,
+    integrityToken: token, action, payload, env, now,
+    budget: createLocalDecodeBudget({ maxDaily: 5 }),
     getAccessToken: async () => 'fake',
     fetchImpl: async () => { calls++; return { ok: false, status: 429 }; }
   });
@@ -123,13 +127,15 @@ test('HTTP 429 or error produces unavailable without retry', async () => {
 
 test('network, auth and malformed response fail without leaking errors', async () => {
   const x = await decodePlayIntegrity({
-    integrityToken: token, env,
+    integrityToken: token, env, now,
+    budget: createLocalDecodeBudget({ maxDaily: 5 }),
     getAccessToken: async () => { throw Error('secret credential'); }
   });
   assert.deepEqual(x, { status: 'unavailable', reason: 'google_unavailable' });
   assert.doesNotMatch(JSON.stringify(x), /secret/);
   const y = await decodePlayIntegrity({
-    integrityToken: token, env,
+    integrityToken: token, env, now,
+    budget: createLocalDecodeBudget({ maxDaily: 5 }),
     getAccessToken: async () => 'fake',
     fetchImpl: async () => ({ ok: true, json: async () => { throw Error('secret token'); } })
   });
