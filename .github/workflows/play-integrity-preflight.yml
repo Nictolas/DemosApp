@@ -14,6 +14,11 @@ on:
       - 'api/services/playIntegrityAggregate.js'
       - 'api/tests/playIntegrityAggregate.test.js'
       - 'api/tests/playIntegrityWebHash.test.mjs'
+      - 'api/services/firebaseAppCheckObservation.js'
+      - 'api/tests/firebaseAppCheckObservation.test.js'
+      - 'client/src/lib/nativeFirebaseAppCheck.ts'
+      - 'client/android/app/src/main/java/community/demos/NativeFirebaseAppCheckPlugin.java'
+      - 'client/android/app/src/main/java/community/demos/MainActivity.java'
       - 'client/src/lib/playIntegrityHash.ts'
       - 'client/src/lib/nativePlayIntegrity.ts'
       - 'client/android/app/src/main/java/community/demos/NativePlayIntegrityPlugin.java'
@@ -34,4 +39,4 @@ jobs:
         with:
           node-version: '22'
       - name: Verify zero-cost Play Integrity policy without Google credentials
-        run: node --experimental-strip-types --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js api/tests/playIntegrityQuotaPlanner.test.js api/tests/playIntegrityBudget.test.js api/tests/playIntegrityAggregate.test.js api/tests/playIntegrityWebHash.test.mjs
+        run: node --experimental-strip-types --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js api/tests/playIntegrityQuotaPlanner.test.js api/tests/playIntegrityBudget.test.js api/tests/playIntegrityAggregate.test.js api/tests/playIntegrityWebHash.test.mjs api/tests/firebaseAppCheckObservation.test.js
