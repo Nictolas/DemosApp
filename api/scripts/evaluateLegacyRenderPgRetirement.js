@@ -53,6 +53,17 @@ function evaluateLegacyRenderPgRetirement(evidence = {}) {
   // appearance of monitoring traffic is not independent client attribution.
   reject(evidence.metrics?.sourceAttributionVerified === true,
     'CONNECTION_SOURCE_NOT_INDEPENDENTLY_VERIFIED');
+  // Short authorized sessions can occur between active_connections samples.
+  // A full, independently attributed authentication-log review is mandatory:
+  // zero sampled connections alone cannot satisfy this retirement gate.
+  reject(Number.isFinite(evidence.authenticationLogs?.windowHours) &&
+    evidence.authenticationLogs.windowHours >= 24 &&
+    evidence.authenticationLogs.coverageComplete === true,
+    'AUTHENTICATION_LOG_COVERAGE_INSUFFICIENT');
+  reject(Number.isSafeInteger(evidence.authenticationLogs?.unattributedAuthorizedSessions) &&
+    evidence.authenticationLogs.unattributedAuthorizedSessions === 0 &&
+    evidence.authenticationLogs.sourceAttributionVerified === true,
+    'AUTHENTICATED_SESSIONS_NOT_ATTRIBUTED');
   reject(evidence.staging?.functionalE2EGo === true,
     'UNIFIED_STAGING_NOT_FUNCTIONALLY_READY');
   reject(evidence.staging?.rollbackVerified === true,
