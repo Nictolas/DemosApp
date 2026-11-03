@@ -69,10 +69,30 @@ function createFreeBudgetGate({ now = Date.now, limits = LIMIT } = {}) {
     blockedUntil = Math.max(blockedUntil, now() + getRetryAfterSeconds(error) * 1000);
   }
 
-  return { reserve, coolDownFrom429 };
+  function status() {
+    const at = now();
+    day = day.filter(x => at - x.time < 86400000);
+    const estimatedTokensToday = day.reduce((total, x) => total + x.tokens, 0);
+    return {
+      count: day.length,
+      limite: limits.requestsPerDay,
+      rispettato: day.length < limits.requestsPerDay &&
+        estimatedTokensToday < limits.estimatedTokensPerDay &&
+        at >= blockedUntil,
+      estimatedTokensToday,
+      tokenLimit: limits.estimatedTokensPerDay,
+      scope: 'PROCESS_LOCAL_BEST_EFFORT'
+    };
+  }
+
+  return { reserve, coolDownFrom429, status };
 }
 
 const sharedFreeGate = createFreeBudgetGate();
+
+function getSharedFreeQuotaStatus() {
+  return sharedFreeGate.status();
+}
 
 async function requestFreeGroq(client, params, gate = sharedFreeGate) {
   const maxOutputTokens = params.max_completion_tokens || params.max_tokens;
@@ -96,5 +116,6 @@ module.exports = {
   getRetryAfterSeconds,
   isProviderRateLimited,
   createFreeBudgetGate,
+  getSharedFreeQuotaStatus,
   requestFreeGroq,
 };
