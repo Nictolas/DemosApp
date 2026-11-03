@@ -28,6 +28,8 @@ android {
     defaultConfig {
         // Play Integrity is OFF in all builds until zero-cost use is approved.
         buildConfigField "boolean", "PLAY_INTEGRITY_ENABLED", "false"
+        // Independent Firebase App Check gate. Remains OFF; no attestation calls by default.
+        buildConfigField "boolean", "FIREBASE_APP_CHECK_ENABLED", "false"
         buildConfigField "long", "PLAY_INTEGRITY_PROJECT_NUMBER", "0L"
         applicationId "community.demos"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -67,6 +69,10 @@ dependencies {
 
     // SDK Play Integrity: passive until the explicitly disabled compile-time gate is changed.
     implementation 'com.google.android.play:integrity:1.6.0'
+
+    // App Check only supports the separately gated Android bridge; not enabled at startup.
+    implementation platform('com.google.firebase:firebase-bom:35.1.0')
+    implementation 'com.google.firebase:firebase-appcheck-playintegrity'
 
     // Login Google nativo: Credential Manager restituisce un Google ID token
     // che viene verificato dal backend DEMOS esistente.
