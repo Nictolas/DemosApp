@@ -1072,6 +1072,45 @@ router.get('/votazioni-finali-decisive', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/voti-politici/votazioni-finali-decisive/:id/dettaglio
+// Public institutional nominal records only; never infer a vote from party affiliation.
+router.get('/votazioni-finali-decisive/:id/dettaglio', verifyToken, async (req, res) => {
+  const { ID_PATTERN, getOpenpolisFinalVoteDetail } = require('../services/openpolisFinalVoteDetailService');
+  const id = String(req.params.id || '');
+  if (!ID_PATTERN.test(id)) return res.status(400).json({ success: false, error: 'Identificativo votazione non valido' });
+  try {
+    // Only votes vetted by the final-vote importer, not arbitrary upstream URLs.
+    const { rows } = await pool.query(
+      "SELECT openpolis_id, camera, titolo, esito, data_votazione, url_dettaglio " +
+      "FROM openpolis_votazioni_finali_decisive WHERE openpolis_id = $1 " +
+      "AND data_votazione >= CURRENT_DATE - INTERVAL '120 days'",
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'Votazione finale recente non disponibile' });
+    const record = rows[0];
+    const detail = await getOpenpolisFinalVoteDetail(pool, record);
+    res.set('Cache-Control', 'private, max-age=300');
+    return res.json({
+      success: true,
+      data: {
+        openpolis_id: record.openpolis_id,
+        camera: record.camera,
+        titolo: record.titolo,
+        esito: record.esito,
+        data_votazione: record.data_votazione,
+        ...detail
+      }
+    });
+  } catch (error) {
+    console.warn('[openpolisFinalVoteDetail] Unable to load validated nominal votes', error.message);
+    return res.status(502).json({
+      success: false,
+      error: 'Dettaglio nominale non verificabile dalla fonte',
+      message: 'Non è possibile confermare i voti individuali. Consulta la fonte originale.'
+    });
+  }
+});
+
 // POST /api/voti-politici/sync-votazioni-finali-decisive - Sincronizza manualmente votazioni finali decisive da Openpolis
 router.post('/sync-votazioni-finali-decisive', verifyToken, requireAdmin, async (req, res) => {
   try {
