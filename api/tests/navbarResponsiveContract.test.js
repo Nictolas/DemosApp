@@ -64,3 +64,10 @@ test('responsive audit matrix covers compact mobile, Android, landscape, tablet 
   }
   assert.match(matrix, /MATRIX PASS/);
 });
+
+test('Android keyboard resizes the native activity instead of panning the fixed app shell', () => {
+  const manifest = read('client/android/app/src/main/AndroidManifest.xml');
+  const layout = read('client/src/robust-layout.css');
+  assert.match(manifest, /android:name="\\.MainActivity"[\\s\\S]*?android:windowSoftInputMode="adjustResize"/);
+  assert.match(layout, /height:\\s*100dvh/);
+});
