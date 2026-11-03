@@ -1,0 +1,24 @@
+name: Play Integrity preflight (offline, zero cloud usage)
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/playIntegrityPolicy.js'
+      - 'api/tests/playIntegrityPolicy.test.js'
+      - '.github/workflows/play-integrity-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify zero-cost Play Integrity policy without Google credentials
+        run: node --test api/tests/playIntegrityPolicy.test.js
