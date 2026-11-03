@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   isObservationEnabled,
+  isDiagnosticRouteEnabled,
   validTokenShape,
   createAppCheckLocalBudget,
   DEFAULT_MAX_VERIFICATIONS_PER_PROCESS_PER_DAY,
@@ -165,4 +166,43 @@ test('disabled and invalid requests cannot consume App Check local budget', asyn
   assert.throws(() => createAppCheckLocalBudget({ maxDaily: -1 }), RangeError);
   assert.throws(() => createAppCheckLocalBudget({ maxDaily: 1.2 }), RangeError);
   assert.equal(createAppCheckLocalBudget({ maxDaily: 0 }).reserve(now), false);
+});
+
+test('admin diagnostic route remains absent unless every guard is approved', () => {
+  assert.equal(isDiagnosticRouteEnabled({}), false);
+  assert.equal(isDiagnosticRouteEnabled(validEnv), false);
+  const enabled = { ...validEnv, FIREBASE_APP_CHECK_DIAGNOSTIC_ENABLED: 'true' };
+  assert.equal(isDiagnosticRouteEnabled(enabled), true);
+  for (const field of [
+    'FIREBASE_APP_CHECK_DIAGNOSTIC_ENABLED',
+    'FIREBASE_APP_CHECK_OBSERVE_ENABLED',
+    'FIREBASE_APP_CHECK_COST_GUARD_APPROVED',
+    'FIREBASE_PROJECT_ID',
+  ]) {
+    assert.equal(isDiagnosticRouteEnabled({ ...enabled, [field]: 'disabled' }), false);
+  }
+});
+
+test('manual diagnostic is Admin-only, header-only, and not wired to normal flows', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.resolve(__dirname, '..', '..');
+  const app = fs.readFileSync(path.join(root, 'api/app.js'), 'utf8');
+  const route = fs.readFileSync(
+    path.join(root, 'api/routes/admin/firebase-app-check-diagnostic.js'), 'utf8'
+  );
+  const client = fs.readFileSync(
+    path.join(root, 'client/src/lib/nativeFirebaseAppCheckDiagnostic.ts'), 'utf8'
+  );
+  assert.ok(app.includes('if (isDiagnosticRouteEnabled(process.env))'));
+  assert.ok(app.includes("'/api/admin/firebase-app-check'"));
+  assert.ok(app.includes("'X-Firebase-AppCheck'"));
+  assert.ok(route.includes("router.post('/observe', verifyToken, requireAdmin,"));
+  assert.ok(route.includes("observeAppCheckHeader(req.headers)"));
+  assert.ok(!route.includes('req.query') && !route.includes('req.body'));
+  assert.ok(!route.includes('console.log') && !route.includes('console.error'));
+  assert.ok(client.includes("VITE_FIREBASE_APP_CHECK_DIAGNOSTIC_ENABLED !== 'true'"));
+  assert.ok(client.includes("'X-Firebase-AppCheck': token"));
+  assert.ok(client.includes("ALLOWED_API_HOSTS.has(base.hostname)"));
+  assert.ok(!client.includes('setInterval') && !client.includes('setTimeout'));
 });
