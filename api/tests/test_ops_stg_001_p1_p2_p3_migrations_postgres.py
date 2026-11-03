@@ -215,7 +215,19 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
                 for action in ("SELECT", "INSERT", "UPDATE", "DELETE"):
                     cur.execute("SELECT has_table_privilege('demos_staging_runtime',%s,%s)",
                                 ("public." + name, action))
-                    self.assertEqual(cur.fetchone()[0], action in operations, name + "/" + action)
+                    # UPDATE is intentionally granted at COLUMN scope only.
+                    permitted = action in operations and action != "UPDATE"
+                    self.assertEqual(cur.fetchone()[0], permitted, name + "/" + action)
+                if name == "civic_ballot_positions":
+                    for column, allowed in (
+                        ("choice", True), ("updated_at", True),
+                        ("user_id", False), ("civic_ballot_id", False),
+                        ("created_at", False)
+                    ):
+                        cur.execute("""SELECT has_column_privilege(
+                             'demos_staging_runtime','public.civic_ballot_positions',
+                             %s,'UPDATE')""", (column,))
+                        self.assertEqual(cur.fetchone()[0], allowed, column)
                 for role in ("anon", "authenticated"):
                     cur.execute("SELECT has_table_privilege(%s,%s,'SELECT,INSERT,UPDATE,DELETE')",
                                 (role, "public." + name))
