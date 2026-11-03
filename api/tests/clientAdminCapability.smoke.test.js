@@ -140,7 +140,9 @@ test('Data Export uses real API data, authenticated downloads and no web Render 
   assert.match(src, /Authorization:\s*`Bearer \$\{token\}`/);
   assert.match(src, /Database Supabase/);
   assert.match(src, /Analisi log Axiom/);
-  assert.match(src, /deleteAfterExport:\s*false/);
+  assert.match(src, /Export su disco temporaneamente non disponibile/);
+  assert.doesNotMatch(src, /\/admin\/data-export\/start/);
+  assert.doesNotMatch(src, /startExport|deleteAfterExport|setSelectedTables/);
   assert.doesNotMatch(src, /\/admin\/axiom-migration\//);
   assert.doesNotMatch(src, /Elimina dal database dopo l.export/);
   assert.doesNotMatch(src, /Migra log verso Axiom/);

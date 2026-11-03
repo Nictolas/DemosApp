@@ -4,6 +4,13 @@ on:
     paths:
       - 'client/src/pages/Admin/OpsCenter.tsx'
       - 'client/src/pages/DataExport.tsx'
+      - 'api/routes/admin/data-export.js'
+      - 'api/routes/admin/axiom-migration.js'
+      - 'api/services/axiomMigrationService.js'
+      - 'api/services/legacyAxiomMigrationGate.js'
+      - 'api/tests/legacyDataExport*.test.js'
+      - 'api/tests/legacyAxiomMigrationGate.test.js'
+      - 'scripts/*.js'
       - 'api/tests/clientAdminCapability.smoke.test.js'
       - '.github/workflows/ops-data-export-supabase-validation.yml'
   push:
@@ -11,6 +18,13 @@ on:
     paths:
       - 'client/src/pages/Admin/OpsCenter.tsx'
       - 'client/src/pages/DataExport.tsx'
+      - 'api/routes/admin/data-export.js'
+      - 'api/routes/admin/axiom-migration.js'
+      - 'api/services/axiomMigrationService.js'
+      - 'api/services/legacyAxiomMigrationGate.js'
+      - 'api/tests/legacyDataExport*.test.js'
+      - 'api/tests/legacyAxiomMigrationGate.test.js'
+      - 'scripts/*.js'
       - 'api/tests/clientAdminCapability.smoke.test.js'
       - '.github/workflows/ops-data-export-supabase-validation.yml'
 permissions:
@@ -37,6 +51,12 @@ jobs:
           cache-dependency-path: client/package-lock.json
       - name: Contract - only Supabase, no legacy deletion/migration UI
         run: node --test api/tests/clientAdminCapability.smoke.test.js
+      - name: Install API dependencies (synthetic tests only)
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Real Express HTTP with synthetic Admin and blocked provider connections
+        run: node --test api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js
+      - name: Twelve CLI entrypoints and direct migration service must refuse
+        run: node --test api/tests/legacyAxiomMigrationGate.test.js
       - name: Install frontend locked deps without scripts
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Vite production frontend build in CI only

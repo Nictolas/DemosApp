@@ -1,5 +1,6 @@
 // Servizio per migrare dati da Neon a Axiom
 const { Pool } = require('pg');
+const { assertLegacyAxiomMigrationUnavailable } = require('./legacyAxiomMigrationGate');
 const path = require('path');
 const axios = require('axios');
 
@@ -319,6 +320,7 @@ function convertAuditLogToAxiom(row) {
  * Migra centralized_logs
  */
 async function migrateCentralizedLogs() {
+  assertLegacyAxiomMigrationUnavailable();
   const { pool, axiom } = initializeServices();
   
   if (!axiom) {
@@ -391,6 +393,7 @@ async function migrateCentralizedLogs() {
  * Migra audit_logs
  */
 async function migrateAuditLogs() {
+  assertLegacyAxiomMigrationUnavailable();
   const { pool, axiom } = initializeServices();
   
   if (!axiom) {
@@ -486,6 +489,7 @@ async function migrateAuditLogs() {
  * Funzione principale di migrazione
  */
 async function migrateNeonToAxiom(options = {}) {
+  assertLegacyAxiomMigrationUnavailable();
   const { tables = ['centralized_logs', 'audit_logs'], dryRun = false } = options;
   
   const { axiom } = initializeServices();

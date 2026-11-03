@@ -1,3 +1,7 @@
+'use strict';
+// Deprecated migration entrypoint: refuse before loading credentials, SQL or HTTP.
+require('../api/services/legacyAxiomMigrationGate').exitRetiredLegacyAxiomMigration();
+
 // Script per migrare dati storici da Neon a Axiom
 const { Pool } = require('pg');
 const path = require('path');
