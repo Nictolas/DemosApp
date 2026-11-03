@@ -40,10 +40,9 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
   if (!aiClient) {
     console.error('❌ Nessuna API AI configurata, impossibile generare spiegazione');
     console.error(`❌ GROQ_API_KEY presente: ${!!process.env.GROQ_API_KEY}`);
-    console.error(`❌ OPENAI_API_KEY presente: ${!!process.env.OPENAI_API_KEY}`);
     console.error(`❌ aiProvider: ${aiProvider}`);
     console.error(`❌ aiClient: ${aiClient ? 'configurato' : 'null'}`);
-    throw new Error('API AI non configurata. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato nelle variabili d\'ambiente e che il servizio sia stato riavviato.');
+    throw new Error('Spiegazione AI non disponibile: controlla GROQ_API_KEY, GROQ_MODEL e il piano Groq Free. Nessun fallback a pagamento.');
   }
 
   if (!votazione || votazione.trim() === '') {
@@ -51,7 +50,7 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
     return null;
   }
   
-  console.log(`[DEBUG] generaSpiegazione chiamata con: votazione="${votazione.substring(0, 50)}...", camera="${camera}", provider="${aiProvider}"`);
+  // Non registrare titoli o testo delle votazioni nei log applicativi.
 
   // Normalizza descrizioneVotazione (può essere undefined, null o stringa)
   const descrizione = descrizioneVotazione && typeof descrizioneVotazione === 'string' && descrizioneVotazione.trim() !== '' 
