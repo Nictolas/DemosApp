@@ -46,6 +46,21 @@ test('a mismatched vote ID, legislative chamber or vote date never produces attr
   assert.throws(() => parseVerifiedFinalBallots(openpolisSenateHtml(),{...senato,openpolis_id:'19-468-4'}),/VOTE_SOURCE_ID_MISMATCH/);
 });
 
+test('official Camera dates without leading zeros match the exact ballot date', () => {
+  const html = officialCameraHtml()
+    .replace('n.97', 'n.24')
+    .replace('seduta n. 730', 'seduta n. 718')
+    .replace('21/10/2026', '1/10/2026');
+  const vote = { openpolis_id:'vs19_718_024', camera:'Camera', data_votazione:'2026-10-01' };
+  assert.equal(parseVerifiedFinalBallots(html, vote).members.length, 150);
+  assert.throws(() => parseVerifiedFinalBallots(html, {...vote, data_votazione:'2026-10-02'}), /VOTE_SOURCE_DATE_MISMATCH/);
+});
+
+test('preserve the Senate source category Astenuto R verbatim, without interpretation', () => {
+  const data = parseVerifiedFinalBallots(openpolisSenateHtml('Astenuto R'), senato);
+  assert.equal(data.members[0].vote, 'Astenuto R');
+});
+
 test('secret final ballots never reveal inferred choices, even with synthetic nominal-looking rows', () => {
   const html = openpolisSenateHtml().replace('VOTO FINALE Approvata', 'VOTO FINALESEGRETO Approvata');
   assert.throws(() => parseVerifiedFinalBallots(html, senato), /VOTE_SOURCE_SECRET_BALLOT/);
