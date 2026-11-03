@@ -60,3 +60,26 @@ Valutazione d'impatto proposta: **7/10**, subordinata a esito CI; avanza le auto
 Una prima versione del test statico dava rosso perché richiedeva tre controlli RLS `total_responses >=10`, mentre l'UPDATE ne contiene correttamente **due** (USING e WITH CHECK): i controlli effettivi sono quattro. È stata corretta l'aspettativa, **non** ridotta la soglia. La CI sul commit successivo è verde. Security Agent, CIE, Legacy Menu e Notifiche hanno esito SUCCESS; il build frontend era ancora in progress al momento della verifica, Snyk SUCCESS.
 
 **Staging condiviso ancora NO-GO:** la prova riguarda codice e database CI *temporaneo*, non l'applicazione attiva. La bozza ACL P5 resta **non applicata**. I quattro gate principali non sono chiusi. **Importanza confermata: 7/10**.
+
+
+## Servizio JavaScript reale: test integrato su PostgreSQL 16 effimero
+
+È stato aggiunto un job CI separato `snapshot-service-js-postgres16`: prepara
+uno schema isolato `civic_ci` con le migrazioni reali P1–P5, sostituendo
+soltanto in memoria l'identità Demos-Staging con una UUID CI. Poi invoca
+**il metodo Node reale** `captureReferendumForecastSnapshots` del servizio
+`api/services/referendumForecastSnapshotService.js` usando il driver PostgreSQL
+`pg` e una connessione locale. Non simula la query SQL.
+
+Scenari coperti: nove votanti sintetici distinti non pubblicano alcun dato,
+il decimo consente il primo snapshot aggregato, un cambiamento di voto non
+crea un undicesimo votante o un bucket duplicato, il snapshot congelato alla
+data di apertura non cambia con voti successivi, e un rollback completo
+ripristina due soli utenti sintetici, zero schede/voti/snapshot e push sempre
+bloccati. Il driver è installato dal `api/package-lock.json` senza segreti.
+Il test rifiuta DSN diversi dal loopback `127.0.0.1:5432/civic_ci`,
+e `DATABASE_URL` e il flag di GO devono essere vuoti.
+
+**Limite**: è un E2E del servizio JS e del DB, NON un E2E dell'app Render,
+non prova TLS/identità runtime dal provider, non autorizza ACL applicative
+sullo staging condiviso e non modifica le percentuali dei gate di rilascio.
