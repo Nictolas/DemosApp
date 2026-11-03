@@ -1,5 +1,16 @@
 name: Privacy Policy account deletion guidance (synthetic)
 on:
+  # Validate this isolated draft branch even before the workflow exists on main.
+  # No deployment, account data, providers or production credentials.
+  push:
+    branches: [fix/clarify-passkey-deletion-privacy-policy-20261031]
+    paths:
+      - 'client/src/pages/PrivacyPolicy.tsx'
+      - 'client/src/pages/LandingPage.tsx'
+      - 'client/src/pages/ScopriDemos.tsx'
+      - 'client/tests/privacyDisclosureIntegrity.test.mjs'
+      - 'client/tests/privacyPolicyAccountDeletion.test.mjs'
+      - '.github/workflows/privacy-policy-account-deletion-ci.yml'
   pull_request:
     paths:
       - 'client/src/pages/PrivacyPolicy.tsx'
