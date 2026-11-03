@@ -22,6 +22,7 @@ async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisI
   if (!target || !/^(vs19_\d+_\d+|19-\d+-\d+)$/.test(String(openpolisId || ''))) {
     throw new Error('PARLIAMENT_PUSH_INVALID_TARGET');
   }
+  const mandateOffice = chamber === 'Camera' ? 'C' : 'S';
   const admin = options.firebaseAdmin || getFirebaseAdmin();
   if (!admin) return { enabled: true, sent: 0, failed: 0, available: false };
   // Current canonical selection and category opt-in checked at dispatch time.
@@ -29,13 +30,18 @@ async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisI
     'JOIN political_selections ps ON ps.user_id = u.id ' +
     'JOIN notifiche_preferenze p ON p.user_id = u.id ' +
     'JOIN user_devices d ON d.user_id = u.id AND d.is_active = TRUE ' +
+    "JOIN users representative ON representative.id = ps.selected_user_id " +
+    "AND lower(coalesce(representative.status, '')) = 'a' " +
+    "JOIN political_mandates m ON m.user_id = representative.id " +
+    "AND m.status = 'ACTIVE' AND m.office_code = $4 " +
+    "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()) " +
     "WHERE ps.selected_user_id = $1::uuid AND ps.selection_kind = 'representative' " +
     'AND ps.political_office_id = $2 ' +
     "AND lower(coalesce(u.status, '')) = 'a' " +
     'AND p.__PREF__ IS TRUE AND d.fcm_token IS NOT NULL ' +
     'AND length(btrim(d.fcm_token)) > 100 ORDER BY d.fcm_token LIMIT $3')
     .replace('__PREF__', target.preference);
-  const { rows } = await pool.query(sql, [String(representativeId), target.office, MAX_RECIPIENTS + 1]);
+  const { rows } = await pool.query(sql, [String(representativeId), target.office, MAX_RECIPIENTS + 1, mandateOffice]);
   if (rows.length > MAX_RECIPIENTS) {
     // Do not partly deliver if the volume exceeds reviewed free-tier capacity.
     return { enabled: true, sent: 0, failed: 0, capacityGate: true };
@@ -67,12 +73,17 @@ async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisI
     'JOIN political_selections ps ON ps.user_id = u.id ' +
     'JOIN notifiche_preferenze p ON p.user_id = u.id ' +
     'JOIN user_devices d ON d.user_id = u.id AND d.is_active = TRUE ' +
+    "JOIN users representative ON representative.id = ps.selected_user_id " +
+    "AND lower(coalesce(representative.status, '')) = 'a' " +
+    "JOIN political_mandates m ON m.user_id = representative.id " +
+    "AND m.status = 'ACTIVE' AND m.office_code = $4 " +
+    "AND m.starts_at <= NOW() AND (m.ends_at IS NULL OR m.ends_at > NOW()) " +
     "WHERE ps.selected_user_id = $1::uuid AND ps.selection_kind = 'representative' " +
     'AND ps.political_office_id = $2 ' +
     "AND lower(coalesce(u.status, '')) = 'a' " +
     'AND p.__PREF__ IS TRUE AND d.fcm_token = ANY($3::text[]) ' +
     'AND length(btrim(d.fcm_token)) > 100 ' +
-    'FOR SHARE OF u, ps, p, d').replace('__PREF__', target.preference);
+    'FOR SHARE OF u, ps, p, d, representative, m').replace('__PREF__', target.preference);
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH).map(row => row.fcm_token);
     const client = await pool.connect();
@@ -80,7 +91,7 @@ async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisI
     try {
       await client.query('BEGIN');
       began = true;
-      const eligible = await client.query(lockedSql, [String(representativeId), target.office, batch]);
+      const eligible = await client.query(lockedSql, [String(representativeId), target.office, batch, mandateOffice]);
       const allowed = new Set(batch);
       const tokens = [...new Set(eligible.rows.map(row => row.fcm_token).filter(token => allowed.has(token)))];
       const messages = tokens.map(token => ({
