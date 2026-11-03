@@ -51,3 +51,9 @@ Verifica del codice di `api/app.js`: le route legacy dei referendum sono effetti
 La prima esecuzione CI ampliata ha trovato tre test falliti: uno era un'espressione di test troppo generica che interpretava `res.status(500)` come riferimento alla colonna SQL `status`; gli altri due hanno individuato assunzioni errate sui link del voto reale e logica legacy effettivamente presente nel frontend. **Tutte e tre le cause sono state affrontate nel codice della PR.** Un'esecuzione CI successiva deve ancora confermare la soluzione: NON dichiarare PASS finché i job non sono conclusi.
 
 Lo staging Render rimane bootstrap `/health/ready=503`: **nessun test E2E** e nessun rilascio in produzione. Continuano a mancare provisioning autorizzato dell'account preflight, collegamento a Supabase staging, test end-to-end e dismissione con rollback.
+
+### Verifica CI del refactoring referendum
+
+Sul commit `cd25552c` della PR #565 il workflow **Unified Staging Offline Safety** (run `41613012175`) è terminato **SUCCESS** in entrambi i job: controlli Node offline per le route (comprese le nuove prove su `/prossima`, i referendum reali e la dismissione della priorità) e test su PostgreSQL 16 effimero con fixture sintetiche. Anche il workflow **Legacy Menu retirement regression**, **Recognition CIE evidence validation** e **Civic new initiative notifications (draft)** risultano **SUCCESS** per questo commit; le verifiche di build frontend e Security Agent erano ancora in corso all'ultimo controllo. Il fallimento CI iniziale ha portato alla rimozione effettiva della logica di priorità rimasta nel hook frontend e alla correzione di due falsi positivi nei test sulle route attuali.
+
+**Questi test sono offline.** Né una build completata né il successo delle smoke test dimostrano che lo staging Render abbia già passato i test applicativi: resta bootstrap fail-closed, privo del collegamento DB autorizzato.
