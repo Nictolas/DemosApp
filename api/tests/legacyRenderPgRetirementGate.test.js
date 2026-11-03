@@ -10,7 +10,8 @@ function allVerified() {
     backup: {existsVerified: true, sha256: 'a'.repeat(64), restoreTestPassed: true},
     dependencies: {allNineServicesAudited: true,
       oldDbConnectionReferencesCleared: true, productionTargetsExcluded: true},
-    metrics: {windowHours: 36, coverageComplete: true, unattributedNonzeroSamples: 0},
+    metrics: {windowHours: 36, coverageComplete: true,
+      unattributedNonzeroSamples: 0, sourceAttributionVerified: true},
     staging: {functionalE2EGo: true, rollbackVerified: true},
     approval: {authorizedHumanReview: true},
   };
@@ -29,6 +30,18 @@ test('observed Render active connections make legacy PG retirement a NO-GO', () 
   e.metrics.unattributedNonzeroSamples = 76; // 5-minute samples on Nov 2–3.
   assert.equal(assess(e).readyForHumanRetirementReview, false);
   assert.ok(assess(e).blockers.includes('NONZERO_CONNECTIONS_NOT_ATTRIBUTED'));
+});
+test('probe-like periodic sessions cannot count as independently attributed', () => {
+  const evidence = allVerified();
+  evidence.metrics.sourceAttributionVerified = false;
+  // Even if every sampled connection is classified "probably monitoring",
+  // it is not safe to delete before the actual owner has been established.
+  evidence.metrics.unattributedNonzeroSamples = 0;
+  const assessment = assess(evidence);
+  assert.equal(assessment.readyForHumanRetirementReview, false);
+  assert.ok(assessment.blockers.includes(
+    'CONNECTION_SOURCE_NOT_INDEPENDENTLY_VERIFIED'));
+  assert.equal(assessment.canAutomaticallyDelete, false);
 });
 test('zero active connections alone is not proof of safe dismission', () => {
   const e = allVerified();
