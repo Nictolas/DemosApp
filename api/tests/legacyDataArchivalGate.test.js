@@ -148,3 +148,48 @@ test('hybrid cloud imported cleanup rejects without DB queries or cloud CLI', as
     if(previous) require.cache[file]=previous;
   }
 });
+
+
+test('legacy multi-cloud exporter is disabled before cloud or secret access', async () => {
+  const script='scripts/cloud-backup-export.js';
+  const file=path.join(ROOT,script);
+  const source=fs.readFileSync(file,'utf8');
+  assert.match(source,/exitRetiredLegacyDataArchival\(\)/);
+  assert.doesNotMatch(source,/execAsync|require\(['"]dotenv['"]\)|b2 upload-file|aws s3 cp|gsutil cp|az storage blob upload/);
+
+  for(const mode of [[],['full'],['new','7']]){
+    const proc=spawnSync(process.execPath,[file,...mode],{
+      encoding:'utf8',env:unsafeEnv,timeout:3000,maxBuffer:32*1024
+    });
+    assert.equal(proc.error,undefined);
+    assert.equal(proc.status,78);
+    assert.match(proc.stderr,/^LEGACY_DATA_ARCHIVAL_RETIRED:/);
+    assert.equal(proc.stdout,'');
+    assert.doesNotMatch(proc.stderr,/synthetic@|FAKE_NOT_A_REAL_KEY/);
+  }
+
+  const originalLoad=Module._load;
+  const previous=require.cache[file];
+  let forbiddenImports=0;
+  Module._load=function(request,parent,isMain){
+    if(parent?.filename===file && ['dotenv','pg','child_process','fs','fs/promises'].includes(request)){
+      forbiddenImports++;
+      throw Error('FORBIDDEN_LEGACY_DEPENDENCY');
+    }
+    return originalLoad.apply(this,arguments);
+  };
+  try {
+    delete require.cache[file];
+    const legacy=require(file);
+    const errorMatcher=err=>err?.code==='LEGACY_DATA_ARCHIVAL_RETIRED';
+    for(const name of ['backupToS3','backupToGCS','backupToB2','backupToAzure','backupDirectory','backupNewFiles']){
+      assert.equal(typeof legacy[name],'function');
+      await assert.rejects(legacy[name]('/tmp/NO_REAL_ARCHIVE','synthetic'),errorMatcher,name);
+    }
+    assert.equal(forbiddenImports,0);
+  }finally{
+    Module._load=originalLoad;
+    delete require.cache[file];
+    if(previous)require.cache[file]=previous;
+  }
+});
