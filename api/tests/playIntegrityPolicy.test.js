@@ -102,3 +102,22 @@ test('unexpected account details are not echoed to client classifications', () =
   assert.equal(analyzed.licensingVerdict, 'NOT_AVAILABLE');
   assert.doesNotMatch(JSON.stringify(analyzed), /PERSONAL_ID|private/);
 });
+
+
+test('app binary package must not contradict the package in requestDetails', () => {
+  const input = decoded();
+  input.tokenPayloadExternal.appIntegrity.packageName = 'forged.demo';
+  const verdict = analyzeDecodedVerdict(input, { action: ACTION, payload: PAYLOAD, now: NOW });
+  assert.deepEqual(verdict, { status: 'untrusted', reason: 'app_binary_package_mismatch' });
+});
+
+test('Google-cleared replay verdict is not classified as verified', () => {
+  const input = decoded();
+  input.tokenPayloadExternal.appIntegrity.appRecognitionVerdict = 'UNEVALUATED';
+  input.tokenPayloadExternal.accountDetails = { appLicensingVerdict: 'UNEVALUATED' };
+  input.tokenPayloadExternal.deviceIntegrity.deviceRecognitionVerdict = [];
+  const verdict = analyzeDecodedVerdict(input, { action: ACTION, payload: PAYLOAD, now: NOW });
+  assert.equal(verdict.status, 'untrusted');
+  assert.equal(verdict.enforcement, 'none'); // No denial of DEMOS access.
+  assert.equal(verdict.licensingVerdict, 'UNEVALUATED');
+});
