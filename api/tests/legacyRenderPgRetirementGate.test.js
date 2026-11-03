@@ -1,7 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {EXPECTED_PG_ID, evaluateLegacyRenderPgRetirement: assess} =
+const {EXPECTED_PG_ID, EXPECTED_LEGACY_SERVICE_IDS,
+  evaluateLegacyRenderPgRetirement: assess} =
   require('../scripts/evaluateLegacyRenderPgRetirement');
 
 function allVerified() {
@@ -9,6 +10,7 @@ function allVerified() {
     resourceId: EXPECTED_PG_ID,
     backup: {existsVerified: true, sha256: 'a'.repeat(64), restoreTestPassed: true},
     dependencies: {allNineServicesAudited: true,
+      auditedServiceIds: [...EXPECTED_LEGACY_SERVICE_IDS],
       oldDbConnectionReferencesCleared: true, productionTargetsExcluded: true},
     metrics: {windowHours: 36, coverageComplete: true,
       unattributedNonzeroSamples: 0, sourceAttributionVerified: true},
@@ -98,4 +100,29 @@ test('missing or malformed evidence never throws and always blocks retirement', 
     assert.ok(decision.blockers.includes('WRONG_RENDER_POSTGRES_RESOURCE'));
     assert.ok(decision.blockers.includes('BACKUP_NOT_VERIFIED'));
   }
+});
+
+test('retirement needs exact service ID coverage, not only a blanket 9/9 checkbox', () => {
+  const full = allVerified();
+  assert.equal(EXPECTED_LEGACY_SERVICE_IDS.length, 9);
+  assert.equal(new Set(EXPECTED_LEGACY_SERVICE_IDS).size, 9);
+  for (const ids of [
+    undefined,
+    [],
+    EXPECTED_LEGACY_SERVICE_IDS.slice(0, 8),
+    [...EXPECTED_LEGACY_SERVICE_IDS.slice(0, 8), EXPECTED_LEGACY_SERVICE_IDS[0]],
+    [...EXPECTED_LEGACY_SERVICE_IDS.slice(0, 8), 'srv-unknown'],
+    'all nine checked',
+  ]) {
+    const evidence = allVerified();
+    evidence.dependencies.auditedServiceIds = ids;
+    const result = assess(evidence);
+    assert.equal(result.readyForHumanRetirementReview, false);
+    assert.equal(result.canAutomaticallyDelete, false);
+    assert.ok(result.blockers.includes('LEGACY_SERVICE_DEPENDENCIES_UNVERIFIED'));
+  }
+  // Array order does not matter; IDs must be unique and from the verified inventory.
+  full.dependencies.auditedServiceIds.reverse();
+  assert.equal(assess(full).readyForHumanRetirementReview, true);
+  assert.equal(assess(full).canAutomaticallyDelete, false);
 });
