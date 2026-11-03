@@ -52,9 +52,12 @@ router.get('/requirements', verifyToken, async (req, res) => {
  */
 router.delete('/', verifyToken, async (req, res) => {
   const pool = getPool();
-  const client = await pool.connect();
+  let client;
 
   try {
+    // Opening a DB connection can itself fail (provider outage). Keep it in
+    // the guarded region so account erasure returns a controlled HTTP error.
+    client = await pool.connect();
     const userId = req.user.id;
     const { password, confirmText } = req.body;
 
@@ -170,7 +173,7 @@ router.delete('/', verifyToken, async (req, res) => {
 
   } catch (error) {
     try {
-      await client.query('ROLLBACK');
+      if (client) await client.query('ROLLBACK');
     } catch {
       console.error('ACCOUNT_DELETION_ROLLBACK_FAILED');
     }
@@ -194,7 +197,7 @@ router.delete('/', verifyToken, async (req, res) => {
       message: 'Errore interno del server durante la cancellazione dell\'account'
     });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
