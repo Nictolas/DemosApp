@@ -9,7 +9,7 @@ const cheerio = require('cheerio');
 
 const voteIdPattern = /^(?:vs19_\d{1,5}_\d{1,5}|19-\d{1,5}-\d{1,5})$/;
 const statuses = new Set([
-  'Favorevole', 'Contrario', 'Astensione', 'Astenuto', 'Assente',
+  'Favorevole', 'Contrario', 'Astensione', 'Astenuto', 'Astenuto R', 'Assente',
   'In missione', 'In congedo', 'Non ha partecipato',
   'Presente non votante', 'Presidente di turno'
 ]);
@@ -59,8 +59,11 @@ function parseVerifiedFinalBallots(html, vote) {
   if (!vote.data_votazione) throw new Error('VOTE_SOURCE_DATE_MISSING');
   const iso = String(vote.data_votazione).slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) throw new Error('VOTE_SOURCE_INVALID_DATE');
-  const expectedDate = iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
-  if (!text.includes(expectedDate)) throw new Error('VOTE_SOURCE_DATE_MISMATCH');
+  // Official parliamentary pages use unpadded day/month (e.g. 23/9/2026).
+  // Match either format, with the exact year, rather than changing the DB date.
+  const dd = Number(iso.slice(8, 10)), mm = Number(iso.slice(5, 7));
+  const dateInSource = new RegExp('\\b0?' + dd + '/0?' + mm + '/' + iso.slice(0, 4) + '\\b');
+  if (!dateInSource.test(text.slice(0, 1800))) throw new Error('VOTE_SOURCE_DATE_MISMATCH');
 
   // A secret ballot cannot support attribution of a choice to a person.
   // Test only the division header; filters or legends may mention secret votes.
