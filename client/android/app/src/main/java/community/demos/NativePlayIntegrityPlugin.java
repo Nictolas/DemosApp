@@ -19,9 +19,13 @@ import com.google.android.play.core.integrity.StandardIntegrityManager;
 public class NativePlayIntegrityPlugin extends Plugin {
     private volatile StandardIntegrityManager.StandardIntegrityTokenProvider tokenProvider;
 
+    // Never prepare an attestation for a merely well-formed or unrelated
+    // Google Cloud project. The Cloud project is already linked in DEMOS Play Console.
+    private static final long EXPECTED_CLOUD_PROJECT_NUMBER = 848085963511L;
+
     private boolean isEnabled() {
         return BuildConfig.PLAY_INTEGRITY_ENABLED
-            && BuildConfig.PLAY_INTEGRITY_PROJECT_NUMBER > 0L;
+            && BuildConfig.PLAY_INTEGRITY_PROJECT_NUMBER == EXPECTED_CLOUD_PROJECT_NUMBER;
     }
 
     @PluginMethod
