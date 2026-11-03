@@ -151,4 +151,9 @@ test('migration preserves old rows, requires unique representative/chamber, and 
   const notifications=fs.readFileSync(path.join(root,'api/routes/notifiche.js'),'utf8');
   assert.match(notifications,/latestParliamentEnabled/);
   assert.match(notifications,/openpolis_id: c.openpolis_id/);
+  assert.match(notifications,/SELECT DISTINCT selected_user_id::text AS id FROM political_selections/);
+  assert.match(notifications,/ps.user_id = \$2::uuid/);
+  assert.match(notifications,/ps.political_office_id = 'it.camera' AND nvp.camera = 'Camera'/);
+  assert.match(notifications,/ps.political_office_id = 'it.senato' AND nvp.camera = 'Senato'/);
+  assert.match(notifications,/latestParliamentEnabled \? \[rappresentantiIds, user_id\] : \[rappresentantiIds\]/);
 });
