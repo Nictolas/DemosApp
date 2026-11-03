@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const {
   isObservationEnabled,
   validTokenShape,
+  createAppCheckLocalBudget,
+  DEFAULT_MAX_VERIFICATIONS_PER_PROCESS_PER_DAY,
   observeAppCheckHeader,
 } = require('../services/firebaseAppCheckObservation');
 
@@ -112,4 +114,55 @@ test('the source is not mounted into routes or coupled to direct Play Integrity 
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^\s*\/\/.*$/gm, '');
   assert.doesNotMatch(executableJava, /decodeIntegrityToken|requestHash|PLAY_INTEGRITY_PROJECT_NUMBER/);
+});
+
+test('the local App Check budget caps checks per UTC day without external calls', async () => {
+  const budget = createAppCheckLocalBudget({ maxDaily: 2 });
+  const t0 = Date.parse('2026-11-03T00:00:00Z');
+  assert.equal(budget.remaining(t0), 2);
+  assert.equal(budget.reserve(t0), true);
+  assert.equal(budget.reserve(t0 + 1), true);
+  assert.equal(budget.reserve(t0 + 2), false);
+  assert.equal(budget.remaining(t0), 0);
+  assert.equal(budget.reserve(t0 + 86400000), true);
+  assert.equal(budget.remaining(t0 + 86400000), 1);
+  assert.equal(DEFAULT_MAX_VERIFICATIONS_PER_PROCESS_PER_DAY, 50);
+});
+
+test('budget exhaustion skips App Check Admin verification without blocking traffic', async () => {
+  const budget = createAppCheckLocalBudget({ maxDaily: 1 });
+  let calls = 0;
+  const opts = {
+    env: validEnv,
+    budget,
+    verifyToken: async () => {
+      calls += 1;
+      return { appId: validEnv.FIREBASE_APP_CHECK_ANDROID_APP_ID };
+    },
+  };
+  const first = await observeAppCheckHeader({ 'x-firebase-appcheck': token }, opts);
+  const second = await observeAppCheckHeader({ 'x-firebase-appcheck': token }, opts);
+  assert.deepEqual(first, { status: 'verified' });
+  assert.deepEqual(second, { status: 'limited' });
+  assert.equal(calls, 1);
+});
+
+test('disabled and invalid requests cannot consume App Check local budget', async () => {
+  const budget = createAppCheckLocalBudget({ maxDaily: 1 });
+  const now = Date.now();
+  for (const [headers, env] of [
+    [{ 'x-firebase-appcheck': token }, { ...validEnv, FIREBASE_APP_CHECK_OBSERVE_ENABLED: 'false' }],
+    [{ 'x-firebase-appcheck': 'bad' }, validEnv],
+    [{}, validEnv],
+  ]) {
+    const outcome = await observeAppCheckHeader(headers, {
+      env, budget, verifyToken: async () => { throw new Error('should not be called'); },
+    });
+    assert.notEqual(outcome.status, 'verified');
+  }
+  assert.equal(budget.remaining(now), 1);
+  assert.throws(() => createAppCheckLocalBudget({ maxDaily: 1001 }), RangeError);
+  assert.throws(() => createAppCheckLocalBudget({ maxDaily: -1 }), RangeError);
+  assert.throws(() => createAppCheckLocalBudget({ maxDaily: 1.2 }), RangeError);
+  assert.equal(createAppCheckLocalBudget({ maxDaily: 0 }).reserve(now), false);
 });
