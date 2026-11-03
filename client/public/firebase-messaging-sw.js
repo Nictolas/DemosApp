@@ -30,7 +30,8 @@ if (hasRequiredFirebaseConfig) {
     // FCM already displays background messages with a notification payload.
     // Showing it again here would create a duplicate civic notification.
     // The webpush.fcmOptions.link supplied by the server remains actionable.
-    if (['civic_new_initiative', 'parliament_final_vote'].includes(payload.data?.type) && payload.notification) {
+    if ((payload.data?.type === 'civic_new_initiative' && payload.notification) ||
+        (payload.data?.type === 'parliament_final_vote' && payload.notification)) {
       return;
     }
     const notificationTitle = payload.notification?.title || payload.data?.titolo || 'Nuova notifica';
