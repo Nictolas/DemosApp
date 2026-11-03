@@ -8,6 +8,7 @@ const router = express.Router();
 
 // DELETE /api/users/:userId - Elimina utente (solo admin)
 router.delete('/:userId', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     const { userId } = req.params;
     if (String(userId) === String(req.userId)) {
@@ -41,7 +42,6 @@ router.delete('/:userId', verifyToken, requireAdmin, async (req, res) => {
       // the bounded cache TTL remains a documented residual risk.
       await invalidateAuthUserCache(userId);
 
-      res.set('Cache-Control', 'private, no-store, max-age=0');
       return res.json({
         success: true,
         message: 'Utente eliminato con successo',
