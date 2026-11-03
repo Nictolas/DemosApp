@@ -703,10 +703,7 @@ router.get('/:userId/opinioni', (_req, res, next) => {
     );
     const userAnswers = userAnswersResult.rows[0] || {};
     
-    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
-    if (grado) {
-      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
-    }
+    // Non registrare filtri delle opinioni o conteggi legati alla lettura personale.
 
     const fontiOpinioni = userAnswers.fonti_opinioni || {};
     
@@ -732,7 +729,7 @@ router.get('/:userId/opinioni', (_req, res, next) => {
       };
     });
     
-    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente autorizzato`);
+    // Le risposte personali sono restituite solo al chiamante autorizzato.
     
     res.json({
       success: true,
