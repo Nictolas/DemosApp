@@ -25,7 +25,6 @@ import {
   Play,
   RefreshCw,
   Search,
-  Trash2,
 } from 'lucide-react';
 
 interface ExportStatus {
@@ -131,7 +130,6 @@ export default function DataExport() {
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [tableSearch, setTableSearch] = useState('');
   const [tablesError, setTablesError] = useState<string | null>(null);
-  const [deleteAfterExport, setDeleteAfterExport] = useState(false);
   const [dryRun, setDryRun] = useState(false);
   const [loadingTables, setLoadingTables] = useState(true);
   const [databaseAnalysis, setDatabaseAnalysis] = useState<DatabaseAnalysis | null>(null);
@@ -140,7 +138,6 @@ export default function DataExport() {
   const [loadingAxiom, setLoadingAxiom] = useState(true);
   const [securityEventsStats, setSecurityEventsStats] = useState<any>(null);
   const [loadingSecurityEvents, setLoadingSecurityEvents] = useState(false);
-  const [migrating, setMigrating] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
@@ -283,7 +280,7 @@ export default function DataExport() {
     try {
       const response = await apiRequest.post('/admin/data-export/start', {
         tables: selectedTables,
-        deleteAfterExport,
+        deleteAfterExport: false,
         dryRun,
       });
       if (!response.success) throw new Error(response.error || 'Errore avvio export');
@@ -349,91 +346,6 @@ export default function DataExport() {
     }
   };
 
-  const testAuth = async () => {
-    try {
-      const response = await apiRequest.get('/admin/axiom-migration/test-auth');
-      if (!response.success) throw new Error(response.error || 'Autenticazione fallita');
-      toast({ title: 'Autenticazione OK', description: 'Sessione Admin valida.' });
-    } catch (error) {
-      toast({
-        title: 'Errore autenticazione',
-        description: error instanceof Error ? error.message : 'Autenticazione fallita',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const startAxiomMigration = async (onlyCentralizedLogs = false) => {
-    try {
-      const authTest = await apiRequest.get('/admin/axiom-migration/test-auth');
-      if (!authTest.success) {
-        toast({
-          title: 'Errore autenticazione',
-          description: 'La sessione Admin non è valida. Effettua di nuovo il login.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    } catch (_error) {
-      toast({ title: 'Errore autenticazione', description: 'Impossibile verificare la sessione Admin.', variant: 'destructive' });
-      return;
-    }
-
-    const label = onlyCentralizedLogs ? 'centralized_logs' : 'centralized_logs e audit_logs';
-    if (!window.confirm(`Vuoi avviare la migrazione di ${label} da Neon ad Axiom?`)) return;
-
-    setMigrating(true);
-    try {
-      const response = await apiRequest.post(
-        '/admin/axiom-migration/migrate',
-        { tables: onlyCentralizedLogs ? ['centralized_logs'] : ['centralized_logs', 'audit_logs'], dryRun: false },
-        { timeout: 30000 },
-      );
-      if (!response.success) throw new Error(response.error || response.message || 'Impossibile avviare la migrazione');
-      toast({ title: 'Migrazione avviata', description: response.message || 'Migrazione avviata in background.' });
-      window.setTimeout(() => {
-        loadAxiomAnalysis();
-        loadDatabaseAnalysis();
-      }, 10000);
-    } catch (error) {
-      toast({
-        title: 'Errore avvio migrazione',
-        description: error instanceof Error ? error.message : 'Impossibile avviare la migrazione',
-        variant: 'destructive',
-      });
-    } finally {
-      setMigrating(false);
-    }
-  };
-
-  const deleteMigratedData = async () => {
-    if (!window.confirm('ATTENZIONE: stai per eliminare da Neon i dati già migrati. Hai verificato che siano presenti su Axiom?')) return;
-    const confirmation = window.prompt('Per confermare, digita DELETE (tutto maiuscolo):');
-    if (confirmation !== 'DELETE') {
-      toast({ title: 'Operazione annullata', description: 'I dati non sono stati eliminati.' });
-      return;
-    }
-
-    setMigrating(true);
-    try {
-      const response = await apiRequest.post('/admin/axiom-migration/delete-migrated', {
-        tables: ['centralized_logs', 'audit_logs'],
-        confirm: 'DELETE',
-      });
-      if (!response.success) throw new Error(response.error || response.message || 'Impossibile eliminare i dati');
-      toast({ title: 'Dati eliminati', description: 'I dati migrati sono stati eliminati da Neon.' });
-      await Promise.all([loadDatabaseAnalysis(), loadAxiomAnalysis(), loadTableInfo()]);
-    } catch (error) {
-      toast({
-        title: 'Errore eliminazione',
-        description: error instanceof Error ? error.message : 'Impossibile eliminare i dati',
-        variant: 'destructive',
-      });
-    } finally {
-      setMigrating(false);
-    }
-  };
-
   const statusIcon = (status: ExportHistory['status']) => {
     if (status === 'completed') return <CheckCircle className="h-4 w-4 text-green-500" />;
     if (status === 'failed') return <AlertCircle className="h-4 w-4 text-red-500" />;
@@ -455,7 +367,7 @@ export default function DataExport() {
           <div>
             <h1 className="text-3xl font-bold">Export Dati</h1>
             <p className="text-gray-600 mt-2">
-              Esporta dati reali dal database Neon e controlla le migrazioni verso Axiom.
+              Consulta i dati restituiti dal database Supabase e le statistiche Axiom, senza operazioni di migrazione o cancellazione legacy.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -503,7 +415,7 @@ export default function DataExport() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Neon Database</CardTitle>
+                  <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5" /> Database Supabase</CardTitle>
                   <CardDescription>Dimensione reale restituita dal backend DEMOS.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -543,7 +455,7 @@ export default function DataExport() {
             {databaseAnalysis && categoryRows.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Distribuzione dati su Neon</CardTitle>
+                  <CardTitle>Distribuzione dati su Supabase</CardTitle>
                   <CardDescription>Categorie e tabelle restituite dall'analisi del database.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -562,21 +474,10 @@ export default function DataExport() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Migrazione Neon → Axiom</CardTitle>
-                <CardDescription>Azioni amministrative esistenti, con conferme esplicite per le operazioni distruttive.</CardDescription>
+                <CardTitle>Analisi log Axiom</CardTitle>
+                <CardDescription>Statistiche di consultazione: nessuna migrazione o cancellazione disponibile da questa pagina.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={testAuth}>Verifica sessione Admin</Button>
-                  <Button onClick={() => startAxiomMigration(false)} disabled={migrating}>Migra log verso Axiom</Button>
-                  <Button variant="outline" onClick={() => startAxiomMigration(true)} disabled={migrating}>Migra solo centralized_logs</Button>
-                  {axiomAnalysis && axiomAnalysis.totalEvents > 0 && (
-                    <Button variant="destructive" onClick={deleteMigratedData} disabled={migrating}>
-                      <Trash2 className="h-4 w-4 mr-2" /> Elimina da Neon dopo verifica
-                    </Button>
-                  )}
-                </div>
-
                 {axiomAnalysis?.datasets?.length ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {axiomAnalysis.datasets.map((dataset) => (
@@ -699,10 +600,6 @@ export default function DataExport() {
             <Card>
               <CardHeader><CardTitle>Opzioni export</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={deleteAfterExport} onChange={(event) => setDeleteAfterExport(event.target.checked)} />
-                  Elimina dal database dopo l'export
-                </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} />
                   Modalità test (solo conteggi, nessun file creato)

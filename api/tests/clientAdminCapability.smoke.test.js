@@ -124,10 +124,10 @@ test('web API defaults to the restored canonical domain while native fallback re
   assert.match(apiRequest, /return configured \|\| CANONICAL_API_BASE_URL/);
 });
 
-test('Ops Center identifies Neon and reads the existing Security Center health endpoint', () => {
+test('Ops Center identifies canonical Supabase and reads the Security Center health endpoint', () => {
   const src = read('client/src/pages/Admin/OpsCenter.tsx');
-  assert.match(src, /Database \(Neon\)/);
-  assert.doesNotMatch(src, /Database \(Supabase\)/);
+  assert.match(src, /Database \(Supabase\)/);
+  assert.doesNotMatch(src, /Database \(Neon\)/);
   assert.match(src, /\/security-center\/health/);
   assert.match(src, /AI Cybersecurity Agent/);
   assert.match(src, /Non disponibile/);
@@ -138,12 +138,17 @@ test('Data Export uses real API data, authenticated downloads and no web Render 
   assert.match(src, /getApiUrl/);
   assert.match(src, /getAuthToken/);
   assert.match(src, /Authorization:\s*`Bearer \$\{token\}`/);
-  assert.match(src, /Neon Database/);
-  assert.match(src, /Neon → Axiom/);
+  assert.match(src, /Database Supabase/);
+  assert.match(src, /Analisi log Axiom/);
+  assert.match(src, /deleteAfterExport:\s*false/);
+  assert.doesNotMatch(src, /\/admin\/axiom-migration\//);
+  assert.doesNotMatch(src, /Elimina dal database dopo l.export/);
+  assert.doesNotMatch(src, /Migra log verso Axiom/);
+  assert.doesNotMatch(src, /Elimina da Neon/);
+  assert.doesNotMatch(src, /Neon/);
   assert.doesNotMatch(src, /mockTables/);
   assert.doesNotMatch(src, /usa dati mock/i);
   assert.doesNotMatch(src, /demos-c7k0\.onrender\.com/);
-  assert.doesNotMatch(src, /Supabase/);
 });
 
 test('communications hub exposes one canonical notification surface with send, history and diagnostics', () => {
