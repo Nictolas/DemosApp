@@ -431,3 +431,53 @@ test('manual Android quota rejects backward UTC day and persists before touching
     'Rollback rejection must precede daily reset and persistent reservation');
   assert.ok(!budget.includes('apply()'), 'Reservation must be persisted synchronously');
 });
+
+test('native App Check identity guard matches approved backend Firebase app and project', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const java = fs.readFileSync(
+    path.resolve(__dirname, '../../client/android/app/src/main/java/community/demos/NativeFirebaseAppCheckPlugin.java'), 'utf8'
+  );
+  const backend = fs.readFileSync(
+    path.resolve(__dirname, '../services/firebaseAppCheckObservation.js'), 'utf8'
+  );
+  const clientAppId = java.match(/EXPECTED_FIREBASE_APP_ID\s*=\s*"([^"]+)"/)?.[1];
+  const serverAppId = backend.match(/EXPECTED_FIREBASE_ANDROID_APP_ID\s*=\s*'([^']+)'/)?.[1];
+  const clientProject = java.match(/EXPECTED_FIREBASE_PROJECT\s*=\s*"([^"]+)"/)?.[1];
+  const serverProject = backend.match(/EXPECTED_FIREBASE_PROJECT\s*=\s*'([^']+)'/)?.[1];
+  assert.equal(clientAppId, EXPECTED_FIREBASE_ANDROID_APP_ID);
+  assert.equal(clientAppId, serverAppId);
+  assert.equal(clientProject, serverProject);
+  assert.match(java, /EXPECTED_PACKAGE = "community\.demos"/);
+  assert.match(java, /EXPECTED_FIREBASE_SENDER = "848085963511"/);
+  assert.match(java, /isApprovedFirebaseOptions\(FirebaseOptions\.fromResource\(getContext\(\)\)\)/);
+  assert.match(java, /EXPECTED_FIREBASE_APP_ID\.equals\(options\.getApplicationId\(\)\)/);
+  assert.match(java, /EXPECTED_FIREBASE_PROJECT\.equals\(options\.getProjectId\(\)\)/);
+  assert.match(java, /EXPECTED_FIREBASE_SENDER\.equals\(options\.getGcmSenderId\(\)\)/);
+});
+
+test('missing or wrong Firebase resources are rejected before quota and provider initialization', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const java = fs.readFileSync(
+    path.resolve(__dirname, '../../client/android/app/src/main/java/community/demos/NativeFirebaseAppCheckPlugin.java'), 'utf8'
+  );
+  const request = java.split('public void requestToken(PluginCall call) {')[1]
+    ?.split('private FirebaseAppCheck getAppCheckIfConfigured()')[0];
+  const provider = java.split('private FirebaseAppCheck getAppCheckIfConfigured() {')[1];
+  assert.ok(request && provider);
+  const configAt = request.indexOf('if (!hasApprovedFirebaseConfiguration())');
+  const quotaAt = request.indexOf('if (!reserveManualAttestationAttempt())');
+  const initAt = request.indexOf('getAppCheckIfConfigured()');
+  const sdkAt = request.indexOf('getAppCheckToken(false)');
+  assert.ok(configAt >= 0 && quotaAt > configAt && initAt > quotaAt && sdkAt > initAt,
+    'Firebase resource validation must precede budget reservation and SDK calls');
+  assert.ok(provider.indexOf('if (!hasApprovedFirebaseConfiguration()) return null;')
+    < provider.indexOf('FirebaseApp.initializeApp(getContext())'));
+  assert.ok(provider.indexOf('!isApprovedFirebaseOptions(app.getOptions())')
+    < provider.indexOf('FirebaseAppCheck.getInstance(app)'));
+  assert.match(request, /Configurazione Firebase DEMOS non valida/);
+  // No live Google calls, no permission escalation, and Android build gate stays OFF.
+  const gradle = fs.readFileSync(path.resolve(__dirname, '../../client/android/app/build.gradle'), 'utf8');
+  assert.match(gradle, /buildConfigField "boolean", "FIREBASE_APP_CHECK_ENABLED", "false"/);
+});
