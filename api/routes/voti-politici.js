@@ -1041,7 +1041,7 @@ router.get('/votazioni-finali-decisive/:openpolisId/voti-nominali', verifyToken,
       return res.status(400).json({ success: false, error: 'Identificativo votazione non valido' });
     }
     const { rows } = await pool.query(
-      'SELECT openpolis_id, camera, titolo, esito, data_votazione FROM openpolis_votazioni_finali_decisive WHERE openpolis_id = $1 LIMIT 1',
+      'SELECT openpolis_id, camera, titolo, esito, data_votazione FROM openpolis_votazioni_finali_decisive WHERE openpolis_id = $1 AND data_votazione >= CURRENT_DATE - INTERVAL \'120 days\' LIMIT 1',
       [id]
     );
     if (!rows.length) {
