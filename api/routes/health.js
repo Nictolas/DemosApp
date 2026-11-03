@@ -3,6 +3,12 @@ const { getPool } = require('../config/database');
 
 const router = express.Router();
 
+// Database diagnostics must be explicitly opted into on local development only.
+// A production ALLOW_DEV_API_SURFACE override must never expose SQL metadata.
+const enableDbDiagnostics = process.env.NODE_ENV === 'development' &&
+  process.env.ALLOW_DB_DIAGNOSTICS === 'true';
+
+
 // Route di base e health check
 router.get('/', (req, res) => {
   res.json({
@@ -19,13 +25,14 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'API operativa',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    environment: process.env.NODE_ENV || 'development'
+    // Public liveness must not reveal runtime memory or deployment configuration.
+    // Detailed diagnostics belong in authenticated, explicitly enabled tooling.
+    status: 'ok'
   });
 });
 
 // Endpoint per testare la connessione al database
+if (enableDbDiagnostics) {
 router.get('/test-db', async (req, res) => {
   try {
     console.log('🧪 Test connessione database...');
@@ -68,5 +75,7 @@ router.get('/test-db', async (req, res) => {
     });
   }
 });
+
+}
 
 module.exports = router;
