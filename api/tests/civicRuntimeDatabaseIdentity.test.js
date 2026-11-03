@@ -51,7 +51,7 @@ test('ECI always checks DB identity before cache deletion, even with events OFF'
   assert.ok(entry>=0 && verify>entry && flag>verify && deleteCache>flag);
   const workflow=fs.readFileSync(
     path.resolve(__dirname,'../../.github/workflows/eci_sync.yml'),'utf8');
-  assert.match(workflow,/CIVIC_RUNTIME_DATABASE_ID: \\$\\{\\{ secrets\\.CIVIC_RUNTIME_DATABASE_ID \\}\\}/);
+  assert.ok(workflow.includes('CIVIC_RUNTIME_DATABASE_ID: ${{ secrets.CIVIC_RUNTIME_DATABASE_ID }}'));
 });
 
 test('Ministero and dispatcher reject unverifiable DB before outbox or FCM', () => {
