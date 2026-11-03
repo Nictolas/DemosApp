@@ -66,7 +66,7 @@ test('only explicit final ballots are eligible in route; existing old nominal ca
   const route=fs.readFileSync(p.join(__dirname,'../routes/voti-politici.js'),'utf8');
   const page=fs.readFileSync(p.join(__dirname,'../../client/src/pages/VotiPoliticiFinali.tsx'),'utf8');
   assert.match(route,/votazioni-finali-decisive\/:openpolisId\/voti-nominali/);
-  assert.match(route,/WHERE openpolis_id = \$1 LIMIT 1/);
+  assert.match(route,/WHERE openpolis_id = \$1 AND data_votazione >= CURRENT_DATE/);
   assert.match(route,/res\.status\(503\)/);
   assert.match(page,/Vedi voti/);
   assert.match(page,/non il sito istituzionale del Senato/);
