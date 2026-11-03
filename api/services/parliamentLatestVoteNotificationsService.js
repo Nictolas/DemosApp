@@ -143,6 +143,162 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
     client.release();
   }
 }
+// A global LIMIT 50 can starve one chamber when the other has a busy week.
+// Rank separately by chamber and by numeric parliamentary vote sequence,
+// then read at most 50 final ballots for each house (max 100 rows total).
+// All source details are still checked by isRecentFinal and verified remotely.
+const LATEST_FINAL_BALLOTS_SQL =
+  "WITH ranked AS (" +
+  " SELECT openpolis_id, camera, titolo, url_dettaglio, esito, " +
+  " to_char(data_votazione, 'YYYY-MM-DD') AS data_votazione, " +
+  " ROW_NUMBER() OVER (PARTITION BY camera ORDER BY data_votazione DESC, " +
+  " substring(openpolis_id from '[^_-]+[_-]([0-9]+)[_-][0-9]+
+  // Disabled by default. Launch only after migration and release QA.
+  if (process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED !== 'true') {
+    return { enabled: false, checked: 0, changed: 0 };
+  }
+  const { rows } = await pool.query(LATEST_FINAL_BALLOTS_SQL);
+  // Latest vote is PER REPRESENTATIVE, not the last vote per chamber.
+  // A representative missing the newest roll-call may appear in an earlier
+  // final. Search newest first with up to 50 sources PER chamber.
+  const votes = rows.filter(vote => isRecentFinal(vote))
+    .sort((a, b) => {
+      const date = dateIso(b.data_votazione).localeCompare(dateIso(a.data_votazione));
+      return date || voteOrder(b) - voteOrder(a);
+    });
+  const allByChamber = new Map();
+  const pendingByChamber = new Map();
+  for (const chamber of ['Camera', 'Senato']) {
+    const reps = await selectedRepresentatives(pool, chamber);
+    allByChamber.set(chamber, reps);
+    pendingByChamber.set(chamber, new Map(reps.map(rep => [String(rep.id), rep])));
+  }
+  let changed = 0, checked = 0, unavailable = 0;
+  for (const vote of votes) {
+    const pending = pendingByChamber.get(vote.camera);
+    if (!pending?.size) continue;
+    try {
+      const verified = await (options.getVerifiedFinalBallots || getVerifiedFinalBallots)({
+        ...vote, data_votazione: dateIso(vote.data_votazione)
+      });
+      // Avoid misattributing two same-name MPs to one ballot. A missing
+      // member/status remains unresolved and may be found in an older final.
+      const allReps = allByChamber.get(vote.camera);
+      const matched = [...pending.values()].filter(rep =>
+        matchUniqueMember(rep, verified.members || [], allReps)
+      );
+      if (!matched.length) {
+        checked++;
+        continue;
+      }
+      const result = await persistLatestForChamber(pool, vote, verified, matched);
+      changed += result.changed;
+      checked++;
+      for (const rep of matched) pending.delete(String(rep.id));
+      for (const updated of result.updated) {
+        try {
+          await sendFinalBallotPush(pool, {
+            representativeId: updated.representativeId,
+            chamber: vote.camera, openpolisId: vote.openpolis_id,
+            title: vote.titolo, status: updated.status
+          });
+        } catch {
+          // Only real committed changes are eligible; failure does not
+          // erase the in-app notification.
+        }
+      }
+    } catch {
+      // A failed source stays unresolved; an older verified final vote may
+      // still be shown, but its date and source remain explicit.
+      unavailable++;
+    }
+  }
+  return { enabled: true, checked, changed, unavailable };
+}
+module.exports = { LATEST_FINAL_BALLOTS_SQL, normalizeName, memberNameVariants, voteOrder, isRecentFinal, newestByChamber,
+  matchUniqueMember, selectedRepresentatives, persistLatestForChamber,
+  refreshLatestParliamentVoteNotifications };
+)::integer DESC NULLS LAST, " +
+  " substring(openpolis_id from '([0-9]+)
+  // Disabled by default. Launch only after migration and release QA.
+  if (process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED !== 'true') {
+    return { enabled: false, checked: 0, changed: 0 };
+  }
+  const { rows } = await pool.query(
+    "SELECT openpolis_id, camera, titolo, url_dettaglio, esito, " +
+    "to_char(data_votazione, 'YYYY-MM-DD') AS data_votazione " +
+    "FROM openpolis_votazioni_finali_decisive " +
+    "WHERE data_votazione >= CURRENT_DATE - INTERVAL '120 days' " +
+    "AND camera IN ('Camera', 'Senato') ORDER BY data_votazione DESC LIMIT 50"
+  );
+  // Latest vote is PER REPRESENTATIVE, not merely the most recent vote in
+  // each chamber. An MP can miss the newest roll call but appear in an older
+  // verified final vote. Search most-recent first, bounded to 50 source rows.
+  const votes = rows.filter(vote => isRecentFinal(vote))
+    .sort((a, b) => {
+      const date = dateIso(b.data_votazione).localeCompare(dateIso(a.data_votazione));
+      return date || voteOrder(b) - voteOrder(a);
+    });
+  const allByChamber = new Map();
+  const pendingByChamber = new Map();
+  for (const chamber of ['Camera', 'Senato']) {
+    const reps = await selectedRepresentatives(pool, chamber);
+    allByChamber.set(chamber, reps);
+    pendingByChamber.set(chamber, new Map(reps.map(rep => [String(rep.id), rep])));
+  }
+  let changed = 0, checked = 0, unavailable = 0;
+  for (const vote of votes) {
+    const pending = pendingByChamber.get(vote.camera);
+    if (!pending?.size) continue;
+    try {
+      const verified = await (options.getVerifiedFinalBallots || getVerifiedFinalBallots)({
+        ...vote, data_votazione: dateIso(vote.data_votazione)
+      });
+      // Avoid misattributing two same-name MPs to one ballot. A missing
+      // member/status remains unresolved and may be found in an older final.
+      const allReps = allByChamber.get(vote.camera);
+      const matched = [...pending.values()].filter(rep =>
+        matchUniqueMember(rep, verified.members || [], allReps)
+      );
+      if (!matched.length) {
+        checked++;
+        continue;
+      }
+      const result = await persistLatestForChamber(pool, vote, verified, matched);
+      changed += result.changed;
+      checked++;
+      for (const rep of matched) pending.delete(String(rep.id));
+      for (const updated of result.updated) {
+        try {
+          await sendFinalBallotPush(pool, {
+            representativeId: updated.representativeId,
+            chamber: vote.camera, openpolisId: vote.openpolis_id,
+            title: vote.titolo, status: updated.status
+          });
+        } catch {
+          // Only real committed changes are eligible; failure does not
+          // erase the in-app notification.
+        }
+      }
+    } catch {
+      // A failed source stays unresolved; an older verified final vote may
+      // still be shown, but its date and source remain explicit.
+      unavailable++;
+    }
+  }
+  return { enabled: true, checked, changed, unavailable };
+}
+module.exports = { normalizeName, memberNameVariants, voteOrder, isRecentFinal, newestByChamber,
+  matchUniqueMember, selectedRepresentatives, persistLatestForChamber,
+  refreshLatestParliamentVoteNotifications };
+)::integer DESC NULLS LAST) AS chamber_rank " +
+  " FROM openpolis_votazioni_finali_decisive " +
+  " WHERE data_votazione >= CURRENT_DATE - INTERVAL '120 days' " +
+  " AND camera IN ('Camera', 'Senato')" +
+  ") SELECT openpolis_id, camera, titolo, url_dettaglio, esito, data_votazione " +
+  "FROM ranked WHERE chamber_rank <= 50 " +
+  "ORDER BY data_votazione DESC, camera, chamber_rank";
+
 async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
   // Disabled by default. Launch only after migration and release QA.
   if (process.env.PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED !== 'true') {
