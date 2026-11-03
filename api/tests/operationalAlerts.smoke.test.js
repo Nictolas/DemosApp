@@ -11,6 +11,12 @@ const logger = read('api/services/centralizedLogger.js');
 const notifications = read('api/services/notificationService.js');
 const app = read('api/app.js');
 
+test('notification title cannot bypass recipient-level ownership', () => {
+  const feed = read('api/routes/notifiche.js');
+  assert.doesNotMatch(feed, /WHERE \(titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = \$1::uuid\)/,
+    'titles cannot bypass recipient-level ownership');
+});
+
 test('operational alerts target Admin capability with legacy fallback only', () => {
   assert.match(service, /columnExists\('users', 'is_admin'\)/);
   assert.match(service, /COALESCE\(is_admin, FALSE\) = TRUE/);
@@ -76,8 +82,6 @@ test('technical alerts describe the incident without unsafe raw paths or stacks'
 test('operational alert feed is limited to recipient in both feed and latest endpoints', () => {
   const feed = read('api/routes/notifiche.js');
   const restricted = feed.match(/WHERE \(id_utente IS NULL OR id_utente = \$1::uuid\)/g) || [];
-  assert.doesNotMatch(feed, /WHERE \(titolo IS NULL OR titolo NOT LIKE 'DEMOS — %' OR id_utente = \$1::uuid\)/,
-    'titles cannot bypass recipient-level ownership');
   assert.equal(restricted.length, 2);
   assert.match(feed, /LIMIT 50\s+`\s*,\s*\[user_id\]/);
   assert.match(feed, /LIMIT 1\s+`\s*,\s*\[userId\]/);
