@@ -37,3 +37,17 @@ Le quattro nuove tabelle sono intenzionalmente vuote: i test di flusso devono us
 4. Parità dei test, rollback e poi dismissione graduale dei nove vecchi servizi Render staging e verifica Key Value/PG in scadenza.
 
 **Nessun nuovo servizio, nessun upgrade o costo, produzione invariata.**
+
+## Aggiornamento compatibilità route e frontend (03/11/2026 — PR #565, NON distribuito)
+
+Verifica del codice di `api/app.js`: le route legacy dei referendum sono effettivamente montate, ma la fonte ufficiale oggi è `iniziative_ministero`. Il vecchio codice di `api/routes/referendum.js` chiedeva `status`, `quorum`, `firestore_id_backup` non presenti nella struttura corrente e disponeva ancora di scritture sulla classifica di priorità (funzione ritirata). Intervento registrato in PR #565:
+
+- `api/routes/referendum.js`: mantenuto **soltanto** il sottorouter attuale `/vote-real` (voto sì/no sui referendum reali), tutti gli altri endpoint legacy restituiscono **HTTP 410** esplicito, senza leggere/scrivere voti o proposte. Non introdotta alcuna modifica al database di produzione.
+- `api/routes/referendum-abrogativi.js`: l'endpoint di menu `GET /prossima` conserva l'autenticazione preesistente, ma legge solo la raccolta ufficiale `iniziative_ministero` tramite `buildQueryForTipo('referendum', null, null, false, true)`. Eliminato codice SQL ormai morto su colonne assenti. Risposta resta `{success:true,data}`, con `data:null` quando non ci sono referendum; non espone dettagli SQL in caso di errore.
+- `api/utils/selectNextOfficialReferendum.js`: selezione deterministica del referendum con scadenza più vicina; scadenze assenti/sentinel 9999 in fondo, spareggio con firme e ID stabile, senza mutare la lista originaria.
+- Frontend pagina `ReferendumAbrogativi`: hook dati limitato ai referendum ufficiali (niente classifica, proposte, cooldown, voti), hook azioni **sola visualizzazione**, eliminate props `mieiVoti` non usate, debug HTTP ridotto; la tabella usa la soglia firme `signature_threshold` restituita dai metadata civici anziché un numero fisso 50.000. Nessuna modifica all'interfaccia del voto reale.
+- Tests: aggiunta `api/tests/referendumOfficialRoutes.staging.test.js`, adeguato il test esistente `referendumPriorityRetired.smoke.test.js` per distinguere il vero `/vota-referendum` dalla rotta dismessa `/vota-referendum-abrogativo`. Estesa la workflow **Unified Staging Offline Safety** a questi controlli insieme alle smoke tests di referendum reali e igiene route.
+
+La prima esecuzione CI ampliata ha trovato tre test falliti: uno era un'espressione di test troppo generica che interpretava `res.status(500)` come riferimento alla colonna SQL `status`; gli altri due hanno individuato assunzioni errate sui link del voto reale e logica legacy effettivamente presente nel frontend. **Tutte e tre le cause sono state affrontate nel codice della PR.** Un'esecuzione CI successiva deve ancora confermare la soluzione: NON dichiarare PASS finché i job non sono conclusi.
+
+Lo staging Render rimane bootstrap `/health/ready=503`: **nessun test E2E** e nessun rilascio in produzione. Continuano a mancare provisioning autorizzato dell'account preflight, collegamento a Supabase staging, test end-to-end e dismissione con rollback.
