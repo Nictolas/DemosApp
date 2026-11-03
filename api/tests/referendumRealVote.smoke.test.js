@@ -121,8 +121,10 @@ test('history and trend expose frozen forecast comparison without individual his
 });
 
 test('referendum route locks ballot with read privilege, not update privilege', () => {
-  assert.match(route, /FROM civic_ballots[\\s\\S]*?FOR SHARE/);
-  assert.match(route, /FROM civic_ballot_positions[\\s\\S]*?FOR UPDATE/);
-  assert.match(route, /ON CONFLICT \\(civic_ballot_id, user_id\\)/);
-  assert.doesNotMatch(route, /FROM civic_ballots[\\s\\S]*?FOR UPDATE[\\s\\S]*?const ballot/);
+  const writeRoute = route.slice(route.indexOf("router.post("));
+  const ballotQuery = writeRoute.slice(writeRoute.indexOf('SELECT id, status, opens_at, closes_at'), writeRoute.indexOf('const ballot ='));
+  assert.match(ballotQuery, /FROM civic_ballots\s+WHERE[\s\S]*?FOR SHARE/);
+  assert.doesNotMatch(ballotQuery, /FOR UPDATE/);
+  assert.match(writeRoute, /FROM civic_ballot_positions[\s\S]*?FOR UPDATE/);
+  assert.match(writeRoute, /ON CONFLICT \(civic_ballot_id, user_id\)/);
 });
