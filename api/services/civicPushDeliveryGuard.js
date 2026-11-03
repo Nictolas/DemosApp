@@ -11,7 +11,8 @@ async function readCivicDeliveryBarrier(client) {
   const result = await client.query(
     'SELECT blocked FROM civic_push_delivery_guard WHERE id = 1'
   );
-  if (result.rows.length !== 1 || result.rows[0].blocked !== false) {
+  if (!Array.isArray(result?.rows) || result.rows.length !== 1 ||
+      result.rows[0]?.blocked !== false) {
     return { blocked: true, reason: 'CIVIC_DELIVERY_GUARD_BLOCKED' };
   }
   // Active devices whose owners are now inactive must never receive topic sends.
@@ -26,7 +27,8 @@ async function readCivicDeliveryBarrier(client) {
     ) AS unsafe
   `);
   return {
-    blocked: inactive.rows.length !== 1 || inactive.rows[0].unsafe !== false,
+    blocked: !Array.isArray(inactive?.rows) || inactive.rows.length !== 1 ||
+      inactive.rows[0]?.unsafe !== false,
     reason: 'CIVIC_DELIVERY_GUARD_BLOCKED',
   };
 }
