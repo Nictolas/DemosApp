@@ -1,6 +1,7 @@
 'use strict';
 
 const { isActivationAuthorized, analyzeDecodedVerdict, PACKAGE_NAME } = require('./playIntegrityPolicy');
+const { localDecodeBudget } = require('./playIntegrityBudget');
 
 const PLAY_INTEGRITY_SCOPE = 'https://www.googleapis.com/auth/playintegrity';
 const DECODER_URL = 'https://playintegrity.googleapis.com/v1/' + PACKAGE_NAME + ':decodeIntegrityToken';
@@ -27,15 +28,24 @@ function validToken(token) {
 // integrity token, credentials, or the full decoded Google response.
 async function decodePlayIntegrity({
   integrityToken, action, payload, env = process.env, now = Date.now(),
-  getAccessToken = defaultGoogleAccessToken, fetchImpl = globalThis.fetch
+  getAccessToken = defaultGoogleAccessToken, fetchImpl = globalThis.fetch,
+  budget = localDecodeBudget, telemetry = null
 } = {}) {
-  if (!isActivationAuthorized(env)) return { status: 'disabled' };
-  if (!validToken(integrityToken)) return { status: 'unavailable', reason: 'invalid_token' };
+  const finish = (result) => {
+    // Optional, in-memory and coarse only. Never send full token or payload.
+    try { telemetry?.record(result, now); } catch { /* No telemetry side effects */ }
+    return result;
+  };
+  if (!isActivationAuthorized(env)) return finish({ status: 'disabled' });
+  if (!validToken(integrityToken)) return finish({ status: 'unavailable', reason: 'invalid_token' });
+  // Reserve before touching Google credentials or API. The limit is PER PROCESS,
+  // not a global Cloud quota; a shared limiter is still required at rollout.
+  if (!budget?.reserve(now)) return finish({ status: 'unavailable', reason: 'local_quota_exhausted' });
 
   try {
     const accessToken = await getAccessToken();
     if (typeof accessToken !== 'string' || !accessToken) {
-      return { status: 'unavailable', reason: 'google_auth_error' };
+      return finish({ status: 'unavailable', reason: 'google_auth_error' });
     }
     const response = await fetchImpl(DECODER_URL, {
       method: 'POST',
@@ -50,10 +60,10 @@ async function decodePlayIntegrity({
     if (!response || !response.ok) {
       // All remote errors (including quota 429) fail open for attestation only.
       // Existing DEMOS auth, authorization and rate limits must remain in force.
-      return { status: 'unavailable', reason: 'google_unavailable' };
+      return finish({ status: 'unavailable', reason: 'google_unavailable' });
     }
     const decodedResponse = await response.json();
-    return analyzeDecodedVerdict(decodedResponse, { action, payload, now });
+    return finish(analyzeDecodedVerdict(decodedResponse, { action, payload, now }));
   } catch {
     // Never log token, payload, credentials or exception details.
     return { status: 'unavailable', reason: 'google_unavailable' };
