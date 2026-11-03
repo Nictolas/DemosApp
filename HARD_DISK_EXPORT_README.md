@@ -1,5 +1,8 @@
 # 💾 Export Dati su Hard Disk Esterno
 
+> **ATTENZIONE — DOCUMENTO STORICO NON OPERATIVO (03/11/2026).** Questa guida descrive una soluzione Neon/log/export legacy non autorizzata. **NON eseguire** gli esempi, non installare cron/Task Scheduler, non avviare esportazioni cloud e **non eliminare** file, versioni o righe SQL. La [PR #580](https://github.com/Nictolas/DemosApp/pull/580) contiene blocchi fail-closed **solo Draft, non distribuiti**; lo script `cloud-backup-export.js` è stato ritirato sulla stessa PR. L'archiviazione attuale Axiom→B2 è distinta. Il recupero GDPR da B2 (GH-296), l'integrità/versioning/Object Lock, la retention e il restore indipendente sono ancora **NO-GO**, subordinati a evidenze reali, revisione DPO e autorizzazione specifica. Stime di costi e dichiarazioni di conformità sottostanti sono storiche e non verificate.
+
+
 Sistema completo per esportare i dati storici dal database Neon su hard disk esterno, alleggerendo il database e rispettando le policy GDPR.
 
 ## 🎯 Obiettivo
@@ -98,7 +101,7 @@ brew install cron          # macOS
 node scripts/hard-disk-export.js export
 
 # Export con eliminazione dati
-node scripts/hard-disk-export.js export --delete
+# DISABILITATO: non eseguire export con cancellazione
 
 # Modalità test (solo conteggi)
 node scripts/hard-disk-export.js dry-run
@@ -114,10 +117,10 @@ node scripts/hard-disk-export.js list
 crontab -e
 
 # Aggiungi export giornaliero alle 2:00 AM
-0 2 * * * cd /path/to/demosapp && node scripts/automated-archival.js start
+# DISABILITATO: non configurare il cron legacy
 
 # Aggiungi export settimanale (domenica 3:00 AM)
-0 3 * * 0 cd /path/to/demosapp && node scripts/automated-archival.js weekly
+# DISABILITATO: non configurare il cron legacy
 ```
 
 ## 📊 Struttura File
@@ -224,7 +227,7 @@ chmod -R 755 /mnt/external-drive/archivio
 df -h /mnt/external-drive/
 
 # Pulisci export vecchi
-find /mnt/external-drive/archivio -name "*.csv.gz" -mtime +365 -delete
+# DISABILITATO: non cancellare archivi in base alla sola età
 ```
 
 ### **Export Interrotto**
