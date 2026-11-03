@@ -109,8 +109,8 @@ export default function InformazioniLegali() {
                 <FileText className="h-5 w-5 text-white" />
               </div>
               <div className="text-left">
-                <div className="font-semibold text-gray-900">Policy Registrazione</div>
-                <div className="text-xs text-gray-600">Termini e condizioni</div>
+                <div className="font-semibold text-gray-900">Termini di servizio</div>
+                <div className="text-xs text-gray-600">Condizioni di utilizzo di DEMOS</div>
               </div>
             </Button>
           </Link>
