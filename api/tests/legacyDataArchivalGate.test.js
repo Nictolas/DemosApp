@@ -243,3 +243,54 @@ test('legacy hybrid cloud backup, inventory and cleanup all fail closed', async 
     if(previous)require.cache[file]=previous;
   }
 });
+
+
+test('legacy retention service and job reject direct writes before SQL or scheduler', async () => {
+  const serviceFile=path.join(ROOT,'api/services/dataRetentionService.js');
+  const jobFile=path.join(ROOT,'api/jobs/dataRetentionJob.js');
+  const serviceSource=fs.readFileSync(serviceFile,'utf8');
+  assert.match(serviceSource,/RETENTION_LEGACY_CLEANUP_RETIRED/);
+  assert.match(serviceSource,/static async deleteExpiredData[\s\S]*?this\.assertLegacyRetentionWriteUnavailable\(\)/);
+  assert.match(serviceSource,/static async deleteAllExpiredData[\s\S]*?this\.assertLegacyRetentionWriteUnavailable\(\)/);
+  assert.match(serviceSource,/static async performFullCleanup[\s\S]*?this\.assertLegacyRetentionWriteUnavailable\(\)/);
+
+  const originalLoad=Module._load;
+  const previousService=require.cache[serviceFile];
+  const previousJob=require.cache[jobFile];
+  const touched={db:0,audit:0};
+  const pool={query(){touched.db++;throw Error('FORBIDDEN_RETENTION_DB');}};
+  const audit={logAction(){touched.audit++;throw Error('FORBIDDEN_RETENTION_AUDIT');}};
+  let Service;
+  Module._load=function(request,parent,isMain){
+    if(parent?.filename===serviceFile && request==='../middleware/auth')return {pool};
+    if(parent?.filename===serviceFile && request==='./auditService')return audit;
+    if(parent?.filename===jobFile && request==='../services/auditService')return audit;
+    if(parent?.filename===jobFile && request==='../services/dataRetentionService')return Service;
+    return originalLoad.apply(this,arguments);
+  };
+  try {
+    delete require.cache[serviceFile];
+    delete require.cache[jobFile];
+    Service=require(serviceFile);
+    const errorMatcher=err=>err?.code==='RETENTION_LEGACY_CLEANUP_RETIRED';
+    await assert.rejects(Service.deleteExpiredData('synthetic-no-real-account',['votes_opinions']),errorMatcher);
+    await assert.rejects(Service.deleteAllExpiredData(['user_profile']),errorMatcher);
+    await assert.rejects(Service.performFullCleanup(),errorMatcher);
+    assert.throws(()=>Service.assertLegacyRetentionWriteUnavailable(),errorMatcher);
+    const job=require(jobFile);
+    assert.throws(()=>job.start(),errorMatcher);
+    await assert.rejects(job.performDailyCleanup(),errorMatcher);
+    await assert.rejects(job.performImmediateCleanup(),errorMatcher);
+    assert.deepEqual(job.getStatus(),{
+      isRunning:false,hasCleanupInterval:false,hasNotificationInterval:false
+    });
+    assert.equal(touched.db,0,'No SQL reads or UPDATEs');
+    assert.equal(touched.audit,0,'No audit/retention writes');
+  } finally {
+    Module._load=originalLoad;
+    delete require.cache[serviceFile];
+    delete require.cache[jobFile];
+    if(previousService)require.cache[serviceFile]=previousService;
+    if(previousJob)require.cache[jobFile]=previousJob;
+  }
+});
