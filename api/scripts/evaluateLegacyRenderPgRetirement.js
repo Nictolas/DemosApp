@@ -23,6 +23,10 @@ function evaluateLegacyRenderPgRetirement(evidence = {}) {
     'CONNECTION_METRICS_INSUFFICIENT');
   reject(evidence.metrics?.unattributedNonzeroSamples === 0,
     'NONZERO_CONNECTIONS_NOT_ATTRIBUTED');
+  // Repeated 3-second sessions from a private IP can be probe-like, but the
+  // appearance of monitoring traffic is not independent client attribution.
+  reject(evidence.metrics?.sourceAttributionVerified === true,
+    'CONNECTION_SOURCE_NOT_INDEPENDENTLY_VERIFIED');
   reject(evidence.staging?.functionalE2EGo === true,
     'UNIFIED_STAGING_NOT_FUNCTIONALLY_READY');
   reject(evidence.staging?.rollbackVerified === true,
