@@ -268,8 +268,8 @@ export default function VotiPolitici() {
   };
 
   return (
-    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full px-4 py-6">
+    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 overflow-y-auto overscroll-contain">
+      <div className="w-full flex-none px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
@@ -358,6 +358,13 @@ export default function VotiPolitici() {
                   <TabsTrigger value="voti-politici">Voti Politici</TabsTrigger>
                   <TabsTrigger value="votazioni">Votazioni</TabsTrigger>
                 </TabsList>
+                {isAdmin && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Per generare una spiegazione AI, apri la scheda Votazioni e premi
+                    <strong className="mx-1">Genera</strong>
+                    accanto a una spiegazione non disponibile.
+                  </p>
+                )}
 
                 {/* Tab: Voti Politici */}
                 <TabsContent value="voti-politici" className="mt-4">
