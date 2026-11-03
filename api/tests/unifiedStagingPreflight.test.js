@@ -360,3 +360,21 @@ test('malformed metadata never grants schema or civic protection readiness', () 
   }))]).ready, true);
   assert.equal(evaluateCivicRuntimeColumns([null]).ready, false);
 });
+
+test('malformed individual catalog rows fail closed without throwing', () => {
+  const checks = [
+    evaluateAllPublicStagingTables,
+    evaluatePublicSequenceProtection,
+    evaluatePublicViewExposure,
+    evaluatePublicRoutineExposure,
+  ];
+  for (const check of checks) {
+    for (const bad of [null, undefined, false, 0, 'bad']) {
+      assert.doesNotThrow(() => check([bad]));
+      assert.equal(check([bad]).ready, false);
+      assert.ok(check([bad]).unsafe.includes('unknown'));
+    }
+  }
+  assert.equal(evaluateBlockedGuard([null]), false);
+  assert.equal(evaluatePreflightWriteGrants([null]), false);
+});
