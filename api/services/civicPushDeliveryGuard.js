@@ -113,6 +113,9 @@ async function withCivicPushDeliveryLock(pool, callback, { enabled = false } = {
         await releaseCivicPushDeliveryLock(client);
       } catch {
         discard = true;
+        // The session may still hold the global advisory lock. Never report
+        // a successful mutation when its lock release was not confirmed.
+        throw new Error('CIVIC_DELIVERY_LOCK_RELEASE_FAILED');
       }
     } else if (attempted) {
       // Unknown lock acquisition outcome: never return this session to pool.
