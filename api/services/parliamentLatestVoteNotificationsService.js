@@ -31,6 +31,8 @@ function isRecentFinal(vote, now = new Date()) {
   const order = voteOrder(vote);
   if (!iso || order === null || !['Approvata', 'Respinta'].includes(vote.esito) ||
       vote.url_dettaglio !== 'https://parlamento19.openpolis.it/votazioni/' + vote.openpolis_id) return false;
+  // Never publish a future-dated ballot, even if an upstream clock is wrong.
+  if (iso > now.toISOString().slice(0, 10)) return false;
   const days = (now.getTime() - Date.parse(iso + 'T12:00:00Z')) / 86400000;
   return days >= -1 && days <= 120;
 }
