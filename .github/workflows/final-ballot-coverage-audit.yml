@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'api/scripts/auditFinalNominalCoverage.js'
+      - 'api/scripts/verifySelectedParliamentRepresentativeSources.js'
+      - 'api/services/parliamentLatestVoteNotificationsService.js'
       - 'api/services/parliamentVerifiedFinalBallotsService.js'
       - 'api/tests/parliamentVerifiedFinalBallots.test.js'
       - 'api/scripts/probeFinalNominalAnomalies.js'
@@ -33,3 +35,5 @@ jobs:
         run: node --check api/scripts/auditFinalNominalCoverage.js
       - name: Read-only public source audit of 14 final votes
         run: node api/scripts/auditFinalNominalCoverage.js
+      - name: Verify two selected MPs from real final-vote sources
+        run: node api/scripts/verifySelectedParliamentRepresentativeSources.js
