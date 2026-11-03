@@ -1,7 +1,10 @@
 'use strict';
-// GDPR/restore safety: block destructive legacy cleanup before loading DB,
-// environment variables, cloud tools or filesystem operations.
-if (require.main === module && process.argv[2] === 'cleanup') {
+// GDPR/restore safety: ALL legacy cloud backup modes are retired (backup,
+// check, stats, cleanup and the default invocation). The old uploader could
+// report success after CLI upload without an independent GET/hash/restore,
+// while discarding temporary exports. It is not the modern Axiom -> B2 path.
+// Fail closed BEFORE importing pg, dotenv, reading secrets or invoking tools.
+if (require.main === module) {
   require('../api/services/legacyDataArchivalGate').exitRetiredLegacyDataArchival();
 }
 const { assertLegacyDataArchivalUnavailable } = require('../api/services/legacyDataArchivalGate');
@@ -60,6 +63,8 @@ const HYBRID_CONFIG = {
  * Calcola dimensione totale log su cloud
  */
 async function getCloudStorageSize() {
+  // This historical path cannot attest immutable backup + recovery.
+  assertLegacyDataArchivalUnavailable();
   try {
     switch (HYBRID_CONFIG.cloudProvider) {
       case 'b2':
@@ -285,6 +290,8 @@ async function sendNotification(subject, message) {
  * Verifica se è necessario export manuale
  */
 async function checkExportNeeded() {
+  // This historical path cannot attest immutable backup + recovery.
+  assertLegacyDataArchivalUnavailable();
   const cloudSize = await getCloudStorageSize();
   
   console.log(`\n📊 Dimensione cloud storage: ${cloudSize.sizeGB.toFixed(2)} GB (${cloudSize.fileCount} file)`);
@@ -325,6 +332,8 @@ async function cleanupCloudAfterExport() {
  * Funzione principale - Backup giornaliero
  */
 async function dailyBackup() {
+  // This historical path cannot attest immutable backup + recovery.
+  assertLegacyDataArchivalUnavailable();
   console.log('🚀 Avvio backup giornaliero cloud...\n');
   
   try {
