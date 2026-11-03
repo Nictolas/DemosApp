@@ -9,6 +9,7 @@ on:
       - 'api/services/parliamentFreeGroqBudget.js'
       - 'api/services/aiExplanationService.js'
       - 'api/services/leggeAnalysisService.js'
+      - 'api/routes/voti-camera.js'
       - 'api/tests/parliamentFreeAiPolicy.test.js'
       - 'api/tests/parliamentGroundedAnalysis.test.js'
       - 'api/tests/parliamentFreeGroqBudget.test.js'
@@ -34,5 +35,6 @@ jobs:
           node --check api/services/parliamentFreeGroqBudget.js
           node --check api/services/aiExplanationService.js
           node --check api/services/leggeAnalysisService.js
+          node --check api/routes/voti-camera.js
       - name: Free-only provider regression
         run: node --test api/tests/parliamentFreeAiPolicy.test.js api/tests/parliamentGroundedAnalysis.test.js api/tests/parliamentFreeGroqBudget.test.js
