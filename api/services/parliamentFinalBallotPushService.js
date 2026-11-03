@@ -49,8 +49,9 @@ async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisI
   };
   const notifTitle = chamber === 'Camera' ? 'Il tuo deputato: nuova votazione finale' :
     'Il tuo senatore: nuova votazione finale';
-  const body = String(title || 'Votazione finale').slice(0, 110) +
-    (status ? ' · ' + String(status).slice(0, 40) : '');
+  // Lock-screen previews must NEVER reveal a politician's vote, status or
+  // the outcome/topic before the user opens the verified in-app detail.
+  const body = 'Una nuova votazione finale è disponibile. Apri DEMOS per i dettagli.';
   const messaging = admin.messaging();
   let sent = 0, failed = 0;
   // A device/token can be disabled or reassigned after initial candidate
