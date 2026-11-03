@@ -4,6 +4,7 @@
 const Groq = require('groq-sdk');
 const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
 const { buildGroundedAnalysisMessages, parseGroundedAnalysisResponse } = require('./parliamentGroundedAnalysis');
+const { requestFreeGroq } = require('./parliamentFreeGroqBudget');
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
@@ -17,7 +18,7 @@ let groqModel = null;
 if (isGroqConfigured()) {
   try {
     groqModel = resolveFreeGroqModel(process.env.GROQ_MODEL);
-    aiClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    aiClient = new Groq({ apiKey: process.env.GROQ_API_KEY, maxRetries: 0 });
     aiProvider = 'groq';
     console.log('Groq AI parlamentare pronto (modello Free allowlisted)');
   } catch (_error) {
@@ -527,13 +528,19 @@ async function generaAnalisiLegge(uriVotazione, votazioneData) {
       return null;
     }
 
-    const completion = await aiClient.chat.completions.create({
+    const completion = await requestFreeGroq(aiClient, {
       model: groqModel,
       messages,
-      max_tokens: 850,
-      temperature: 0
+      max_completion_tokens: 850,
+      temperature: 0,
+      reasoning_effort: 'low',
+      response_format: { type: 'json_object' }
     });
-    const parsed = parseGroundedAnalysisResponse(completion.choices[0]?.message?.content);
+    if (!completion) {
+      console.warn('Analisi parlamentare rimandata: quota Groq Free o limite 429');
+      return null;
+    }
+    const parsed = parseGroundedAnalysisResponse(completion.choices?.[0]?.message?.content);
     if (!parsed) {
       console.warn('Analisi AI non pubblicata: risposta non conforme allo schema JSON');
       return null;
