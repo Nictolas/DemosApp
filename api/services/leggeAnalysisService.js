@@ -1,40 +1,33 @@
 // Servizio per generare analisi AI delle leggi votate in Parlamento
 // Genera: spiegazione generale, effetti positivi, effetti negativi
-// Supporta sia Groq (gratuito) che OpenAI (a pagamento)
+// Vincolo DEMOS: nessun fallback a provider a pagamento per le votazioni.
 const Groq = require('groq-sdk');
+const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
-// Inizializza Groq client (gratuito) o OpenAI client (a pagamento)
+// Solo modelli con quota gratuita: nessuna istanziazione di client OpenAI.
 let aiClient = null;
 let aiProvider = null;
+let groqModel = null;
 
-// Priorità: Groq (gratuito) > OpenAI (a pagamento)
-if (process.env.GROQ_API_KEY) {
+if (isGroqConfigured()) {
   try {
-    aiClient = new Groq({
-      apiKey: process.env.GROQ_API_KEY
-    });
+    groqModel = resolveFreeGroqModel(process.env.GROQ_MODEL);
+    aiClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
     aiProvider = 'groq';
-    console.log('✅ Groq AI configurato per analisi leggi (gratuito)');
-  } catch (error) {
-    console.error('❌ Errore inizializzazione Groq:', error.message);
-  }
-} else if (process.env.OPENAI_API_KEY) {
-  try {
-    const OpenAI = require('openai');
-    aiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-    aiProvider = 'openai';
-    console.log('✅ OpenAI configurato per analisi leggi (a pagamento)');
-  } catch (error) {
-    console.error('❌ Errore inizializzazione OpenAI:', error.message);
+    console.log('Groq AI parlamentare pronto (modello Free allowlisted)');
+  } catch (_error) {
+    // Fail closed: a retired / non-allowlisted model must never trigger paid fallback.
+    groqModel = null;
+    aiClient = null;
+    aiProvider = null;
+    console.warn('Groq AI parlamentare disabilitato: modello non consentito nel piano Free');
   }
 } else {
-  console.warn('⚠️ Nessuna API AI configurata per analisi leggi. Configura GROQ_API_KEY (gratuito) o OPENAI_API_KEY (a pagamento).');
+  console.warn('Analisi AI parlamentare non disponibile: chiave Groq Free mancante; nessun fallback a pagamento');
 }
 
 /**
@@ -616,9 +609,7 @@ Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
 
   try {
     let completion;
-    const model = aiProvider === 'groq' 
-      ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-      : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
+    const model = groqModel;
 
     if (aiProvider === 'groq') {
       completion = await aiClient.chat.completions.create({
@@ -687,9 +678,7 @@ Rispondi SOLO con elenco puntato, esempio:
 
   try {
     let completion;
-    const model = aiProvider === 'groq' 
-      ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-      : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
+    const model = groqModel;
 
     if (aiProvider === 'groq') {
       completion = await aiClient.chat.completions.create({
@@ -758,9 +747,7 @@ Rispondi SOLO con elenco puntato, esempio:
 
   try {
     let completion;
-    const model = aiProvider === 'groq' 
-      ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-      : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
+    const model = groqModel;
 
     if (aiProvider === 'groq') {
       completion = await aiClient.chat.completions.create({
@@ -822,9 +809,7 @@ async function generaAnalisiLegge(uriVotazione, votazioneData) {
       generaEffettiNegativi(titolo, descrizione, numeroLegge, spiegazioneGenerale)
     ]);
 
-    const modello = aiProvider === 'groq' 
-      ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-      : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
+    const modello = groqModel;
 
     const analisi = {
       uri_votazione: uriVotazione,
