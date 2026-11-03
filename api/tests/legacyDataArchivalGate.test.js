@@ -296,3 +296,87 @@ test('legacy retention service and job reject direct writes before SQL or schedu
     if(previousJob)require.cache[jobFile]=previousJob;
   }
 });
+
+
+test('legacy backup service and job reject direct I/O and hide encryption key', async () => {
+  const serviceFile=path.join(ROOT,'api/services/backupService.js');
+  const jobFile=path.join(ROOT,'api/jobs/backupJob.js');
+  const originalLoad=Module._load;
+  const beforeService=require.cache[serviceFile];
+  const beforeJob=require.cache[jobFile];
+  const beforeKey=process.env.BACKUP_ENCRYPTION_KEY;
+  const fakeKey='FAKE_SYNTHETIC_KEY_NEVER_REAL_20261103';
+  const touched={sql:0,filesystem:0,notification:0};
+  const failFs=()=>{touched.filesystem++;throw Error('FORBIDDEN_BACKUP_FILESYSTEM');};
+  const realFs=require('node:fs');
+  const syntheticFs={
+    ...realFs,
+    readFile:failFs,writeFile:failFs,mkdir:failFs,readdir:failFs,
+    unlink:failFs,statSync:failFs,existsSync:failFs
+  };
+  const pool={
+    query(){touched.sql++;throw Error('FORBIDDEN_BACKUP_SQL');},
+    connect(){touched.sql++;throw Error('FORBIDDEN_BACKUP_CONNECT');}
+  };
+  const notifier={sendSystemAlertNotification(){touched.notification++;throw Error('FORBIDDEN_BACKUP_NOTIFICATION');}};
+  let Service;
+  Module._load=function(request,parent,isMain){
+    if(parent?.filename===serviceFile){
+      if(request==='../middleware/auth')return {pool};
+      if(request==='fs')return syntheticFs;
+    }
+    if(parent?.filename===jobFile){
+      if(request==='../services/backupService')return Service;
+      if(request==='../services/notificationService')return notifier;
+    }
+    return originalLoad.apply(this,arguments);
+  };
+  process.env.BACKUP_ENCRYPTION_KEY=fakeKey;
+  try {
+    delete require.cache[serviceFile];
+    delete require.cache[jobFile];
+    Service=require(serviceFile);
+    const retired=err=>err?.code==='LEGACY_APP_BACKUP_RETIRED' && err.statusCode===410;
+    const calls=[
+      ()=>Service.exportAllData(),
+      ()=>Service.exportIncrementalData(new Date(0)),
+      ()=>Service.verifyBackupIntegrity('/tmp/NEVER_READ_SYNTHETIC_BACKUP.json'),
+      ()=>Service.insertRecords({query:pool.query},'users',[{id:'synthetic-only'}]),
+      ()=>Service.getBackupList(),
+      ()=>Service.cleanupOldBackups(),
+      ()=>Service.getLastBackup(),
+      ()=>Service.ensureBackupDirectory(),
+      ()=>Service.getFileSize('/tmp/NEVER_READ_SYNTHETIC_BACKUP.json'),
+      ()=>Service.logBackupOperation('full','synthetic-only',true,null),
+      ()=>Service.getBackupStats()
+    ];
+    for(const call of calls)await assert.rejects(call(),retired);
+    const Job=require(jobFile);
+    const job=Job;
+    assert.throws(()=>job.start(),retired);
+    const jobCalls=[
+      ()=>job.performFullBackup(),()=>job.performIncrementalBackup(),
+      ()=>job.performImmediateBackup('full'),()=>job.performIntegrityTest(),
+      ()=>job.cleanupOldBackups(),
+      ()=>job.sendBackupNotification('full',{fileName:'fake',metadata:{recordCounts:{}}}),
+      ()=>job.sendBackupErrorNotification('full',Error('synthetic'))
+    ];
+    for(const call of jobCalls)await assert.rejects(call(),retired);
+    const status=job.getStatus();
+    const encoded=JSON.stringify(status);
+    assert.equal(status.isRunning,false);
+    assert.equal(status.hasFullBackupInterval,false);
+    assert.equal(status.hasIncrementalBackupInterval,false);
+    assert.equal(status.config.encryptionKey,'***HIDDEN***');
+    assert.equal(encoded.includes(fakeKey),false,'Admin /job/status must not include raw secret');
+    assert.deepEqual(touched,{sql:0,filesystem:0,notification:0});
+  }finally{
+    Module._load=originalLoad;
+    delete require.cache[serviceFile];
+    delete require.cache[jobFile];
+    if(beforeService)require.cache[serviceFile]=beforeService;
+    if(beforeJob)require.cache[jobFile]=beforeJob;
+    if(beforeKey===undefined)delete process.env.BACKUP_ENCRYPTION_KEY;
+    else process.env.BACKUP_ENCRYPTION_KEY=beforeKey;
+  }
+});
