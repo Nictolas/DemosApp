@@ -1,42 +1,31 @@
 // Servizio per generare spiegazioni AI delle votazioni
-// Supporta sia Groq (gratuito) che OpenAI (a pagamento)
+// Vincolo DEMOS: solo modello Groq Free allowlisted, senza fallback a pagamento.
 const Groq = require('groq-sdk');
+const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
-// Inizializza Groq client (gratuito) o OpenAI client (a pagamento)
+// Nessuna stampa di frammenti di token API nei log; nessun provider a pagamento.
 let aiClient = null;
 let aiProvider = null;
+let groqModel = null;
 
-// Priorità: Groq (gratuito) > OpenAI (a pagamento)
-if (process.env.GROQ_API_KEY) {
+if (isGroqConfigured()) {
   try {
-    aiClient = new Groq({
-      apiKey: process.env.GROQ_API_KEY
-    });
-  aiProvider = 'groq';
-  console.log('✅ Groq AI configurato (gratuito)');
-  console.log(`   API Key: ${process.env.GROQ_API_KEY.substring(0, 10)}...${process.env.GROQ_API_KEY.substring(process.env.GROQ_API_KEY.length - 4)}`);
-  console.log(`   Modello default: llama-3.3-70b-versatile (puoi cambiarlo con GROQ_MODEL)`);
-  } catch (error) {
-    console.error('❌ Errore inizializzazione Groq:', error.message);
-  }
-} else if (process.env.OPENAI_API_KEY) {
-  try {
-    const OpenAI = require('openai');
-    aiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-    aiProvider = 'openai';
-    console.log('✅ OpenAI configurato (a pagamento)');
-  } catch (error) {
-    console.error('❌ Errore inizializzazione OpenAI:', error.message);
+    groqModel = resolveFreeGroqModel(process.env.GROQ_MODEL);
+    aiClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    aiProvider = 'groq';
+    console.log('Groq AI spiegazioni pronto (modello Free allowlisted)');
+  } catch (_error) {
+    groqModel = null;
+    aiClient = null;
+    aiProvider = null;
+    console.warn('Spiegazioni AI disabilitate: modello Groq non consentito nel piano Free');
   }
 } else {
-  console.error('❌ Nessuna API AI configurata. Configura GROQ_API_KEY (gratuito) o OPENAI_API_KEY (a pagamento).');
-  console.error('   Verifica che la variabile d\'ambiente sia presente e che il servizio sia stato riavviato.');
+  console.warn('Spiegazioni AI non disponibili: chiave Groq Free mancante; nessun fallback a pagamento');
 }
 
 /**
@@ -119,30 +108,13 @@ Rispondi SOLO con la spiegazione, senza prefissi o suffissi.`;
       }
     ];
 
-    let completion;
-
-    if (aiProvider === 'groq') {
-      // Groq API (gratuito)
-      // Modello aggiornato: llama-3.1-70b-versatile è stato decommissionato
-      // Usa llama-3.3-70b-versatile o llama-3.1-8b-instant come alternativa
-      const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
-      console.log(`[DEBUG] Usando modello Groq: ${model}`);
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    } else {
-      // OpenAI API (a pagamento)
-      const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    }
+    // Un solo provider e un modello allowlisted: non chiamare mai OpenAI a pagamento.
+    const completion = await aiClient.chat.completions.create({
+      model: groqModel,
+      messages,
+      max_tokens: 300,
+      temperature: 0.7
+    });
 
     const spiegazione = completion.choices[0]?.message?.content?.trim();
     
@@ -156,7 +128,7 @@ Rispondi SOLO con la spiegazione, senza prefissi o suffissi.`;
     console.error(`❌ Errore nella generazione spiegazione AI (${aiProvider}):`, error.message);
     console.error(`❌ Stack trace completo:`, error.stack);
     if (error.message && error.message.includes('decommissioned')) {
-      console.error(`❌ MODELLO DEPRECATO! Aggiorna GROQ_MODEL a llama-3.3-70b-versatile`);
+      console.warn('Modello non disponibile: verificare allowlist Groq Free e impostazioni Render');
     }
     // Rilancia l'errore invece di restituire null, così l'endpoint può gestirlo
     throw error;
