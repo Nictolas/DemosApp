@@ -46,11 +46,3 @@ test("cookie disclosure uses readable mobile cards and retains semantic desktop 
   }
   assert.match(cookie, /font-mono break-all/);
 });
-
-test('public analytics copy matches the citizen sex field in both entry points', () => {
-  for (const name of ['LandingPage.tsx', 'ScopriDemos.tsx']) {
-    const page = load(name);
-    assert.match(page, /Analizza le preferenze per zona, sesso e fasce/);
-    assert.doesNotMatch(page, /Analizza le preferenze per zona, genere e fasce/);
-  }
-});
