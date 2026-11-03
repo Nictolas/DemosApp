@@ -1,3 +1,11 @@
+'use strict';
+// Retired GDPR-unsafe legacy archive/export entrypoint.
+// Exit before loading credentials, DB drivers, cron or storage clients.
+if (require.main === module) {
+  require('../api/services/legacyDataArchivalGate').exitRetiredLegacyDataArchival();
+}
+const { assertLegacyDataArchivalUnavailable } = require('../api/services/legacyDataArchivalGate');
+
 const { Pool } = require('pg');
 const fs = require('fs').promises;
 const path = require('path');
@@ -285,6 +293,7 @@ async function deleteExportedData(tableName, whereClause) {
  * Funzione principale di export
  */
 async function exportToHardDisk(options = {}) {
+  assertLegacyDataArchivalUnavailable();
   const {
     deleteAfterExport = false,
     tables = Object.keys(EXPORT_TABLES),

@@ -38,6 +38,8 @@ jobs:
           node --check api/routes/admin/data-export.js
           node --check api/services/axiomMigrationService.js
           node --check api/services/legacyAxiomMigrationGate.js
+      - name: Retire unverified delete-after-archive and automated legacy cron
+        run: node --test api/tests/legacyDataArchivalGate.test.js
       - name: Test consent, erasure, legacy HTTP, redaction and CLI together
         run: |
           node --test --test-concurrency=1 \

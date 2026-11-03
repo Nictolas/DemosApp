@@ -12,6 +12,8 @@ on:
       - 'api/tests/legacyAxiomMigrationGate.test.js'
       - 'api/tests/legacyAdminPrivacyReadContracts.test.js'
       - 'scripts/*.js'
+      - 'api/tests/legacyDataArchivalGate.test.js'
+      - 'api/services/legacyDataArchivalGate.js'
       - 'api/tests/clientAdminCapability.smoke.test.js'
       - '.github/workflows/ops-data-export-supabase-validation.yml'
   push:
@@ -27,6 +29,8 @@ on:
       - 'api/tests/legacyAxiomMigrationGate.test.js'
       - 'api/tests/legacyAdminPrivacyReadContracts.test.js'
       - 'scripts/*.js'
+      - 'api/tests/legacyDataArchivalGate.test.js'
+      - 'api/services/legacyDataArchivalGate.js'
       - 'api/tests/clientAdminCapability.smoke.test.js'
       - '.github/workflows/ops-data-export-supabase-validation.yml'
 permissions:
@@ -59,6 +63,8 @@ jobs:
         run: node --test api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js
       - name: Privacy read endpoint regressions on real Express loopback
         run: node --test api/tests/legacyAdminPrivacyReadContracts.test.js
+      - name: Retire unverified hard-disk export and automatic archival CLIs
+        run: node --test api/tests/legacyDataArchivalGate.test.js
       - name: Twelve CLI entrypoints and direct migration service must refuse
         run: node --test api/tests/legacyAxiomMigrationGate.test.js
       - name: Install frontend locked deps without scripts
