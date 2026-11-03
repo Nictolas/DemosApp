@@ -367,8 +367,14 @@ class P0StagingMigrationPostgresTest(unittest.TestCase):
         path = ROOT / "api/database/staging/ops_stg_001_preflight_role_disabled_20261103.sql"
         source = path.read_text(encoding="utf-8")
         self.assertEqual(source.count(STAGING_HASH), 1)
+        # CI fixture is civic_ci, while the production migration requires
+        # current_database()='postgres'. Alter only the in-memory CI copy;
+        # the guarded repository SQL must always retain the real DB name.
+        self.assertEqual(source.count("current_database() <> 'postgres'"), 1)
         sql = source.replace(STAGING_HASH,
                              hashlib.md5(SYNTHETIC_ID.encode("ascii")).hexdigest())
+        sql = sql.replace("current_database() <> 'postgres'",
+                          "current_database() <> 'civic_ci'")
         role = "demos_staging_preflight"
         with self.conn.cursor() as cur:
             # Real provider already has RLS; the disposable P0 fixture
