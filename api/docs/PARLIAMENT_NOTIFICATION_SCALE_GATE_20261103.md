@@ -34,3 +34,9 @@ Il testo della notifica FCM nella PR #584 è fisso e neutro: non contiene titolo
 - In `sendFinalBallotPush` entrambe le query (scoperta e ricontrollo dei device nel batch) richiedono anche **rappresentante attivo** e **mandato attivo, corretto per Camera/Senato e non scaduto**; il ricontrollo include `FOR SHARE` sui record di rappresentante e mandato per serializzare eventuali revoche concorrenti.
 - PostgreSQL 16 effimero con 25.000 follower sintetici: 1 singolo token attivo per confermare che solo il caso valido invia una chiamata **al mock**; mandato `ENDED`, scadenza del mandato e profilo del rappresentante inattivo devono produrre zero chiamate aggiuntive. I casi negativi verificano soltanto il codice su database isolato.
 - Non equivale a prova di consegna FCM reale, cancellazione di push già accettati, consistenza multiistanza o rimozione delle notifiche storiche dalla pagina condivisa.
+
+
+## Race del mandato durante il dispatch
+La prova PostgreSQL 16 sintetica sospende un invio FCM **mock** dopo il controllo sotto `FOR SHARE` e avvia in parallelo un `UPDATE political_mandates SET status='ENDED'`. L'aggiornamento deve restare in attesa finché l'invio simulato non si conclude, poi deve diventare effettivo; una seconda chiamata al dispatcher deve inviare zero push. Questo testa il confine delle revoche, **non** consente di richiamare notifiche già accettate da FCM.
+
+**Integrazione delle rotte**: la schermata/API generale `api/routes/notifiche.js` è anche oggetto della PR #581 (isolamento errori operativi). Non modificare questa rotta sulla #584 senza riconciliazione alla revisione PR; confermare con test E2E se la cronologia mostrata debba mantenere i voti di mandati cessati o se debba filtrarli. Il blocco push per mandati cessati è invece testato direttamente qui.
