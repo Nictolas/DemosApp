@@ -224,15 +224,22 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             # The test inserts a legitimate synthetic referendum and a second
             # synthetic row with an unapproved source prefix (must be invisible).
             cur.execute("BEGIN")
+            # One ballot per civic process is an actual production constraint.
+            # Create another disposable synthetic process to test RLS denial.
+            other_process = "00000000-0000-4000-8000-00000000b002"
+            cur.execute("INSERT INTO public.civic_processes(id) VALUES (%s)", (other_process,))
             ballot_ids = []
-            for source in ("staging-fixture-official-001", "other-source-test-002"):
+            for source, process_id in (
+                ("staging-fixture-official-001", PROCESS),
+                ("other-source-test-002", other_process),
+            ):
                 cur.execute("""INSERT INTO public.civic_ballots
                     (civic_process_id,ballot_kind,question_text,yes_meaning,no_meaning,
                      opens_at,closes_at,timezone,source_id,source_url)
                     VALUES (%s,'referendum','Synthetic question','Yes','No',
                             '2027-01-01T00:00:00Z','2027-02-01T00:00:00Z',
                             'Europe/Rome',%s,'https://example.invalid/fixture')
-                    RETURNING id""", (PROCESS, source))
+                    RETURNING id""", (process_id, source))
                 ballot_ids.append(cur.fetchone()[0])
 
             cur.execute("SET LOCAL ROLE demos_staging_runtime")
