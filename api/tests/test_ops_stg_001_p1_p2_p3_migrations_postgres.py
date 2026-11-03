@@ -210,7 +210,7 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
 
             for name, operations in (
                 ("civic_ballots", ("SELECT",)),
-                ("civic_ballot_positions", ("SELECT", "INSERT")),
+                ("civic_ballot_positions", ("SELECT", "INSERT", "UPDATE")),
             ):
                 for action in ("SELECT", "INSERT", "UPDATE", "DELETE"):
                     cur.execute("SELECT has_table_privilege('demos_staging_runtime',%s,%s)",
@@ -243,6 +243,11 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
                 ballot_ids.append(cur.fetchone()[0])
 
             cur.execute("SET LOCAL ROLE demos_staging_runtime")
+            # Route uses a reader lock on the ballot. A FOR UPDATE here would
+            # require an unnecessary ballot UPDATE privilege and fail closed.
+            cur.execute("SELECT id FROM public.civic_ballots WHERE id=%s FOR SHARE",
+                        (ballot_ids[0],))
+            self.assertEqual(cur.fetchone()[0], ballot_ids[0])
             cur.execute("SELECT id FROM public.civic_ballots")
             self.assertEqual([row[0] for row in cur.fetchall()], [ballot_ids[0]])
             cur.execute("""INSERT INTO public.civic_ballot_positions
@@ -252,6 +257,30 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             visible = cur.fetchall()
             self.assertEqual(len(visible), 1)
             self.assertEqual(visible[0][1], "YES")
+            # Match the actual INSERT/ON CONFLICT DO UPDATE vote SQL, including
+            # row locking, but do not need the unrelated cooldown tables here.
+            cur.execute("""SELECT choice FROM public.civic_ballot_positions
+                           WHERE civic_ballot_id=%s AND user_id=%s FOR UPDATE""",
+                        (ballot_ids[0], USER_A))
+            self.assertEqual(cur.fetchone(), ("YES",))
+            cur.execute("""INSERT INTO public.civic_ballot_positions
+                  (civic_ballot_id,user_id,choice,created_at,updated_at)
+                  VALUES (%s,%s,'NO',NOW(),NOW())
+                  ON CONFLICT (civic_ballot_id,user_id)
+                  DO UPDATE SET choice=EXCLUDED.choice,updated_at=NOW()""",
+                (ballot_ids[0], USER_A))
+            cur.execute("""SELECT choice FROM public.civic_ballot_positions
+                          WHERE civic_ballot_id=%s AND user_id=%s""",
+                        (ballot_ids[0], USER_A))
+            self.assertEqual(cur.fetchone(), ("NO",))
+            # Only choice and updated_at may be updated, never user/ballot IDs.
+            cur.execute("SAVEPOINT forbidden_owner_update")
+            with self.assertRaises(psycopg2.Error) as rejected:
+                cur.execute("""UPDATE public.civic_ballot_positions
+                    SET user_id=%s WHERE civic_ballot_id=%s AND user_id=%s""",
+                    (USER_B, ballot_ids[0], USER_A))
+            self.assertEqual(rejected.exception.pgcode, "42501")
+            cur.execute("ROLLBACK TO SAVEPOINT forbidden_owner_update")
 
             cur.execute("SAVEPOINT invalid_ballot_source")
             with self.assertRaises(psycopg2.Error) as rejected:
