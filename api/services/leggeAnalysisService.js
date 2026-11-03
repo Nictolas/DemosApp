@@ -6,7 +6,7 @@ const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPo
 const { buildGroundedAnalysisMessages, parseGroundedAnalysisResponse } = require('./parliamentGroundedAnalysis');
 const { requestFreeGroq } = require('./parliamentFreeGroqBudget');
 const { createSingleflight } = require('./parliamentAiSingleflight');
-const { estraiNumeroLegge, canSearchItalianBills } = require('./parliamentActIdentifier');
+const { estraiNumeroLegge, canSearchActTitle } = require('./parliamentActIdentifier');
 const singleflightAnalisi = createSingleflight();
 const { getPool } = require('../config/database');
 
@@ -265,7 +265,7 @@ function estraiArticoliETesto($) {
  * Cerca su Openpolis, Senato.it, Normattiva.it
  */
 async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) {
-  if (!canSearchItalianBills(numeroLegge, camera)) {
+  if (!canSearchActTitle(numeroLegge, titolo, camera)) {
     // Anche il Parlamento europeo non deve essere ricercato per numero sul
     // catalogo dei DDL italiani: le due numerazioni sono indipendenti.
     return null;
@@ -319,51 +319,11 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
     // a una Gazzetta Ufficiale: il legame richiede un identificativo ufficiale
     // verificato, non può essere dedotto dal solo titolo.
 
-    // 2. Cerca su Openpolis
-    try {
-      const prefissoCamera = camera === 'Senato' ? 'S_' : 'C_';
-      const urlOpenpolis = `https://parlamento19.openpolis.it/attivita_legislativa/disegni_di_legge/${prefissoCamera}${numeroLegge}`;
-      
-      console.log(`🔍 Ricerca su Openpolis: ${urlOpenpolis}`);
-      const response = await axios.get(urlOpenpolis, {
-        headers: {
-          'Accept': 'text/html',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
-        timeout: 10000,
-        validateStatus: (status) => status < 500
-      });
-      
-      if (response.status === 200) {
-        const $ = cheerio.load(response.data);
-        
-        // Estrai descrizione/riassunto
-        const descrizioneSelectors = [
-          '.descrizione-atto',
-          '.descrizione',
-          '.testo-atto',
-          '.testo',
-          'article .content',
-          'main article p',
-          '[class*="desc"]',
-          '[class*="testo"]'
-        ];
-        
-        for (const selector of descrizioneSelectors) {
-          const element = $(selector).first();
-          if (element.length > 0) {
-            const text = element.text().trim();
-            if (text && text.length >= 100 && text.length < 5000) {
-              infoTrovate.push(`Descrizione da Openpolis: ${text.substring(0, 2000)}`);
-              break;
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.warn(`⚠️ Errore ricerca Openpolis per legge n. ${numeroLegge}: ${error.message}`);
-    }
-    
+    // Non usare automaticamente pagine di terze parti come se fossero il
+    // testo dell'atto. Per la Camera, se manca una descrizione documentale
+    // verificata nei dati già acquisiti, preferiamo non generare un'analisi
+    // piuttosto che inferire il contenuto da un sito generico.
+
     // Combina tutte le informazioni trovate
     const risultato = infoTrovate.length > 0 
       ? infoTrovate.join('\n\n---\n\n') + testoCompleto
