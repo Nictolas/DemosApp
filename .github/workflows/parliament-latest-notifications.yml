@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - 'api/services/parliamentLatestVoteNotificationsService.js'
+      - 'api/services/parliamentFinalBallotPushService.js'
+      - 'api/tests/parliamentFinalBallotPush.test.js'
+      - 'client/src/hooks/useNativePush.ts'
+      - 'client/public/firebase-messaging-sw.js'
       - 'api/database/20261103_latest_parliament_votes.sql'
       - 'api/jobs/openpolisVotazioniFinaliJob.js'
       - 'api/routes/notifiche.js'
@@ -37,9 +41,10 @@ jobs:
       - name: Check syntax and execute replacement and fail-closed tests
         run: |
           node --check api/services/parliamentLatestVoteNotificationsService.js
+          node --check api/services/parliamentFinalBallotPushService.js
           node --check api/jobs/openpolisVotazioniFinaliJob.js
           node --check api/routes/notifiche.js
-          node --test api/tests/parliamentLatestVoteNotifications.test.js api/tests/parliamentVerifiedFinalBallots.test.js
+          node --test api/tests/parliamentLatestVoteNotifications.test.js api/tests/parliamentFinalBallotPush.test.js api/tests/parliamentVerifiedFinalBallots.test.js
       - name: Verify notification UI wiring
         run: node --test client/tests/parliamentNotificationIntegration.test.mjs
       - name: Install frontend dependencies (no scripts)
