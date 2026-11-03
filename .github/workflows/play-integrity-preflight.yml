@@ -7,6 +7,8 @@ on:
       - 'api/tests/playIntegrityPolicy.test.js'
       - 'api/services/playIntegrityDecode.js'
       - 'api/tests/playIntegrityDecode.test.js'
+      - 'api/services/playIntegrityQuotaPlanner.js'
+      - 'api/tests/playIntegrityQuotaPlanner.test.js'
       - 'api/tests/playIntegrityWebHash.test.mjs'
       - 'client/src/lib/playIntegrityHash.ts'
       - 'client/src/lib/nativePlayIntegrity.ts'
@@ -28,4 +30,4 @@ jobs:
         with:
           node-version: '22'
       - name: Verify zero-cost Play Integrity policy without Google credentials
-        run: node --experimental-strip-types --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js api/tests/playIntegrityWebHash.test.mjs
+        run: node --experimental-strip-types --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js api/tests/playIntegrityQuotaPlanner.test.js api/tests/playIntegrityWebHash.test.mjs
