@@ -1,0 +1,49 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { estraiNumeroLegge, canSearchItalianBills } = require('../services/parliamentActIdentifier');
+
+const file = fs.readFileSync(path.join(__dirname, '..', 'services', 'leggeAnalysisService.js'), 'utf8');
+
+test('explicitly numbered bills may be looked up by matching parliamentary identifier', () => {
+  assert.equal(estraiNumeroLegge('Disegno di legge n. 1718. Votazione questione fiducia'), '1718');
+  assert.equal(estraiNumeroLegge('DDL 1234'), '1234');
+  assert.equal(estraiNumeroLegge('S. 61 - votazione finale'), '61');
+  assert.equal(estraiNumeroLegge('C. 2822-B - fiducia'), '2822');
+  assert.equal(estraiNumeroLegge('2026 - Atto Camera n. 501'), '501');
+  assert.equal(canSearchItalianBills('501', 'Camera'), true);
+  assert.equal(canSearchItalianBills('61', 'Senato'), true);
+});
+
+test('dates, motions, amendments and decrees are never silently interpreted as bill identifiers', () => {
+  for (const title of [
+    '2026 - Mozione n. 567',
+    'Decreto legge n. 175/2025',
+    'Emendamento 9.0.3 sulla fiscalità',
+    '2025/11/21 votazione di fiducia',
+    'Votazione n. 1718',
+    'Legge n. 1718',
+    'Ordine del giorno 9/2750/178',
+    '',
+  ]) {
+    assert.equal(estraiNumeroLegge(title), null, title);
+  }
+});
+
+test('European Parliament and non-numeric IDs must not search Italian bills', () => {
+  assert.equal(canSearchItalianBills('1718', 'Parlamento europeo'), false);
+  assert.equal(canSearchItalianBills('1718', null), false);
+  assert.equal(canSearchItalianBills('1718/2025', 'Senato'), false);
+  assert.equal(canSearchItalianBills('../1718', 'Senato'), false);
+  assert.equal(canSearchItalianBills('', 'Senato'), false);
+});
+
+test('AI law source discovery must never attach hardcoded decree 175/2025 to DDL 1718', () => {
+  assert.match(file, /canSearchItalianBills\(numeroLegge, camera\)/);
+  assert.doesNotMatch(file, /numeroLegge\s*===\s*['"]1718['"]/);
+  assert.doesNotMatch(file, /DL1752025|21G00217|decreto\.legge:2025-11-21;175/);
+  assert.match(file, /estraiNumeroLegge/);
+});
