@@ -10,6 +10,13 @@ const crypto = require('crypto');
 const router = express.Router();
 
 // Middleware per tutti gli endpoint
+// GDPR exports and rights requests may contain personal and Art. 9 data.
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  res.set('Pragma', 'no-cache');
+  res.set('X-Content-Type-Options', 'nosniff');
+  next();
+});
 router.use(verifyToken);
 
 /**
@@ -17,6 +24,14 @@ router.use(verifyToken);
  */
 function convertToCSV(data) {
   const lines = [];
+  // RFC 4180 quoting alone does not prevent spreadsheet formula execution.
+  // Escape BOTH keys and values and preserve literal 0/false in exports.
+  const escapeCSVCell = (value) => {
+    const original = String(value ?? '');
+    const trimmed = original.replace(/^[\s\uFEFF\u200B]*/, '');
+    const safe = /^[=+\-@]/.test(trimmed) ? "'" + original : original;
+    return '"' + safe.replace(/"/g, '""') + '"';
+  };
   
   // Funzione ricorsiva per appiattire oggetti annidati
   function flatten(obj, prefix = '') {
@@ -35,7 +50,7 @@ function convertToCSV(data) {
           } else if (typeof value === 'object' && value !== null) {
             value = JSON.stringify(value);
           }
-          result.push({ key: newKey, value: String(value || '') });
+          result.push({ key: newKey, value: String(value ?? '') });
         }
       }
     }
@@ -48,8 +63,7 @@ function convertToCSV(data) {
   // Dati appiattiti
   const flattened = flatten(data);
   flattened.forEach(item => {
-    const escapedValue = String(item.value).replace(/"/g, '""');
-    lines.push(`"${item.key}","${escapedValue}"`);
+    lines.push(`${escapeCSVCell(item.key)},${escapeCSVCell(item.value)}`);
   });
   
   return lines.join('\n');
@@ -78,7 +92,6 @@ router.get('/data-export', async (req, res) => {
       });
     }
 
-    console.log(`📤 Richiesta esportazione dati per utente: ${userId}, formato: ${format}`);
 
     // Log dell'accesso ai dati
     await AuditService.logAction({
@@ -297,7 +310,8 @@ router.get('/data-export', async (req, res) => {
     if (format === 'csv') {
       const csv = convertToCSV(dataExport);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${userId}-${new Date().toISOString().split('T')[0]}.csv"`);
+      // Never include account identifiers in filenames or download metadata.
+      res.setHeader('Content-Disposition', `attachment; filename="dati-personali-${new Date().toISOString().split('T')[0]}.csv"`);
       res.send('\ufeff' + csv); // BOM UTF-8 per Excel
     } else {
       res.json({
@@ -308,7 +322,7 @@ router.get('/data-export', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Errore nell\'esportazione dati:', error);
+    console.error('Errore esportazione dati GDPR');
     
     // Log dell'errore
     await AuditService.logAction({
@@ -319,7 +333,7 @@ router.get('/data-export', async (req, res) => {
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       success: false,
-      errorMessage: error.message
+      errorMessage: 'GDPR_DATA_EXPORT_FAILED'
     });
 
     res.status(500).json({
@@ -361,7 +375,6 @@ router.put('/limit-processing', validateInput(['limited', 'categories']), async 
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
 
-    console.log(`🔒 Richiesta limitazione trattamento per utente: ${userId}`);
 
     // Valida le categorie
     const validCategories = [
@@ -410,7 +423,7 @@ router.put('/limit-processing', validateInput(['limited', 'categories']), async 
     });
 
   } catch (error) {
-    console.error('❌ Errore nella limitazione trattamento:', error);
+    console.error('Errore limitazione trattamento GDPR');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server durante la limitazione del trattamento'
@@ -430,7 +443,6 @@ router.post('/object', validateInput(['reason', 'categories']), async (req, res)
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
 
-    console.log(`🚫 Richiesta opposizione trattamento per utente: ${userId}`);
 
     // Valida le categorie
     const validCategories = [
@@ -484,7 +496,7 @@ router.post('/object', validateInput(['reason', 'categories']), async (req, res)
     });
 
   } catch (error) {
-    console.error('❌ Errore nell\'opposizione trattamento:', error);
+    console.error('Errore opposizione GDPR');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server durante la registrazione dell\'opposizione'
@@ -533,7 +545,7 @@ router.get('/rights-requests', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore nel recupero richieste diritti:', error);
+    console.error('Errore lettura richieste GDPR');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
