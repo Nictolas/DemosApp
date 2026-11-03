@@ -33,8 +33,14 @@ def verifyDemosSignedReleaseFirebaseConfig = {
         throw new GradleException('DEMOS signed release: progetto Firebase o app Android non corrispondente')
     }
 }
-if (keystorePropertiesFile.exists()) {
-    verifyDemosSignedReleaseFirebaseConfig()
+// Attach only to Android release builds. Debug builds remain usable even if
+// local release signing material exists but Firebase release config is absent.
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+    doFirst {
+        if (keystorePropertiesFile.exists()) {
+            verifyDemosSignedReleaseFirebaseConfig()
+        }
+    }
 }
 
 android {
