@@ -53,17 +53,32 @@ export default function VotiPoliticiFinali() {
     retry: 1,
   });
   const sync = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<{ added: number; fetched: number; count: number }> => {
       const response = await apiRequest("POST", "/api/voti-politici/sync-votazioni-finali-decisive");
-      if (!response.ok) throw new Error("Sincronizzazione fallita.");
-      const result = await response.json();
-      if (!result.success) throw new Error("Sincronizzazione fallita.");
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || "Fonte delle votazioni temporaneamente non disponibile.");
+      }
+      return {
+        added: Number(result.added) || 0,
+        fetched: Number(result.fetched) || 0,
+        count: Number(result.count) || 0
+      };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["/api/voti-politici/votazioni-finali-decisive", "recenti"] });
-      toast({ title: "Votazioni finali aggiornate" });
+      toast({
+        title: result.added > 0
+          ? `${result.added} nuove votazioni finali importate`
+          : "Sincronizzazione riuscita: nessuna nuova votazione finale",
+        description: `${result.fetched} votazioni lette dalla fonte.`
+      });
     },
-    onError: () => toast({ title: "Errore di sincronizzazione", variant: "destructive" })
+    onError: (error: Error) => toast({
+      title: "Impossibile sincronizzare Openpolis",
+      description: error.message,
+      variant: "destructive"
+    })
   });
 
   const visible = useMemo(() => data.filter(isRecentFinale).filter(v => {
