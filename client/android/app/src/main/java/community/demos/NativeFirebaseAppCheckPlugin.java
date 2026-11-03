@@ -8,6 +8,7 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
 import com.google.firebase.appcheck.FirebaseAppCheck;
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory;
 
@@ -29,6 +30,29 @@ public class NativeFirebaseAppCheckPlugin extends Plugin {
     private static final String APP_CHECK_PREFS = "demos_appcheck_manual_attempts";
     private static final long MILLIS_PER_UTC_DAY = 86_400_000L;
     private static final int MAX_MANUAL_ATTEMPTS_PER_UTC_DAY = 2;
+
+    // These are public identifiers from the existing DEMOS Android
+    // google-services.json, NOT credentials or signing material.
+    private static final String EXPECTED_PACKAGE = "community.demos";
+    private static final String EXPECTED_FIREBASE_PROJECT = "demos-finale";
+    private static final String EXPECTED_FIREBASE_SENDER = "848085963511";
+    private static final String EXPECTED_FIREBASE_APP_ID =
+        "1:848085963511:android:8f8047e4c6a38b11d0b9f2";
+
+    private boolean isApprovedFirebaseOptions(FirebaseOptions options) {
+        return options != null
+            && EXPECTED_FIREBASE_APP_ID.equals(options.getApplicationId())
+            && EXPECTED_FIREBASE_PROJECT.equals(options.getProjectId())
+            && EXPECTED_FIREBASE_SENDER.equals(options.getGcmSenderId());
+    }
+
+    private boolean hasApprovedFirebaseConfiguration() {
+        // FirebaseOptions.fromResource is a local resource read and makes no
+        // attestation request. google-services.json is deliberately absent
+        // from GitHub CI; those unsigned artifacts must not pass this gate.
+        return EXPECTED_PACKAGE.equals(getContext().getPackageName())
+            && isApprovedFirebaseOptions(FirebaseOptions.fromResource(getContext()));
+    }
 
     private boolean reserveManualAttestationAttempt() {
         // SharedPreferences.commit() makes the reservation persistent across app
@@ -69,6 +93,13 @@ public class NativeFirebaseAppCheckPlugin extends Plugin {
     public void requestToken(PluginCall call) {
         if (!isEnabled()) {
             call.reject("Firebase App Check disabilitato");
+            return;
+        }
+
+        // Do not spend a local quota attempt or initialize Firebase for a
+        // missing, incorrect or cross-project google-services configuration.
+        if (!hasApprovedFirebaseConfiguration()) {
+            call.reject("Configurazione Firebase DEMOS non valida");
             return;
         }
 
@@ -118,8 +149,11 @@ public class NativeFirebaseAppCheckPlugin extends Plugin {
         synchronized (setupLock) {
             if (configuredAppCheck != null) return configuredAppCheck;
 
+            // A previously initialized default app may differ from the
+            // generated resources: never install App Check for another app.
+            if (!hasApprovedFirebaseConfiguration()) return null;
             FirebaseApp app = FirebaseApp.initializeApp(getContext());
-            if (app == null) return null;
+            if (app == null || !isApprovedFirebaseOptions(app.getOptions())) return null;
 
             FirebaseAppCheck check = FirebaseAppCheck.getInstance(app);
             // Manual/on-demand only: prevent periodic refresh and quota surprises.
