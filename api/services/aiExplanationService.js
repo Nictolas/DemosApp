@@ -3,7 +3,7 @@
 const Groq = require('groq-sdk');
 const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
 const { hasDocumentaryContext } = require('./parliamentGroundedAnalysis');
-const { requestFreeGroq } = require('./parliamentFreeGroqBudget');
+const { requestFreeGroq, getSharedFreeQuotaStatus } = require('./parliamentFreeGroqBudget');
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
@@ -178,38 +178,12 @@ async function generaESalvaSpiegazione(politicoNome, votazione, descrizioneVotaz
 }
 
 /**
- * Verifica il limite giornaliero di generazioni AI
- * @returns {Promise<{rispettato: boolean, count: number, limite: number}>}
+ * Stima prudente della quota Groq Free per questo processo.
+ * Non è la quota ufficiale account (né persiste ai restart). La verifica
+ * effettiva rimane demandata al provider e al suo piano gratuito.
  */
 async function verificaLimiteGiornaliero() {
-  const limiteGiornaliero = parseInt(process.env.OPENAI_DAILY_LIMIT || '50'); // Default: 50 al giorno
-  
-  try {
-    const oggi = new Date();
-    oggi.setHours(0, 0, 0, 0);
-    
-    // Conta le spiegazioni generate oggi nella tabella votazioni_parlamento
-    const result = await pool.query(
-      `SELECT COUNT(*) as count 
-       FROM votazioni_parlamento 
-       WHERE spiegazione IS NOT NULL 
-         AND spiegazione != ''
-         AND updated_at >= $1`,
-      [oggi]
-    );
-    
-    const count = parseInt(result.rows[0].count);
-    
-    return {
-      rispettato: count < limiteGiornaliero,
-      count,
-      limite: limiteGiornaliero
-    };
-  } catch (error) {
-    console.error('❌ Errore nella verifica limite giornaliero:', error);
-    // In caso di errore, permettere la generazione (fail-open)
-    return { rispettato: true, count: 0, limite: limiteGiornaliero };
-  }
+  return getSharedFreeQuotaStatus();
 }
 
 /**
@@ -223,23 +197,17 @@ async function generaSpiegazioniMancanti(limit = 10) {
     return { successi: 0, errori: 0, limiteRaggiunto: false };
   }
 
-  // Verifica limite giornaliero solo se non è Groq (che è completamente gratuito)
-  let limitEffettivo = limit;
-  if (aiProvider !== 'groq') {
-    const limiteCheck = await verificaLimiteGiornaliero();
-    if (!limiteCheck.rispettato) {
-      console.warn(`⚠️ Limite giornaliero raggiunto: ${limiteCheck.count}/${limiteCheck.limite}`);
-      return { successi: 0, errori: 0, limiteRaggiunto: true };
-    }
-
-    // Calcola quante spiegazioni possiamo ancora generare oggi
-    const rimanenti = limiteCheck.limite - limiteCheck.count;
-    limitEffettivo = Math.min(limit, rimanenti);
-
-    if (limitEffettivo <= 0) {
-      console.warn(`⚠️ Nessuna spiegazione rimanente per oggi (${limiteCheck.count}/${limiteCheck.limite})`);
-      return { successi: 0, errori: 0, limiteRaggiunto: true };
-    }
+  // Per i modelli gratuiti il limite va SEMPRE rispettato.
+  const limiteCheck = await verificaLimiteGiornaliero();
+  if (!limiteCheck.rispettato) {
+    return { successi: 0, errori: 0, limiteRaggiunto: true, rimanenti: 0 };
+  }
+  const limitEffettivo = Math.min(
+    Math.max(0, Number.isInteger(limit) ? limit : 10),
+    Math.max(0, limiteCheck.limite - limiteCheck.count)
+  );
+  if (limitEffettivo === 0) {
+    return { successi: 0, errori: 0, limiteRaggiunto: true, rimanenti: 0 };
   }
 
   try {
