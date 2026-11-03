@@ -21,7 +21,14 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
+        // Play Integrity is OFF in all builds until zero-cost use is approved.
+        buildConfigField "boolean", "PLAY_INTEGRITY_ENABLED", "false"
+        buildConfigField "long", "PLAY_INTEGRITY_PROJECT_NUMBER", "0L"
         applicationId "community.demos"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
@@ -57,6 +64,9 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+
+    // SDK Play Integrity: passive until the explicitly disabled compile-time gate is changed.
+    implementation 'com.google.android.play:integrity:1.6.0'
 
     // Login Google nativo: Credential Manager restituisce un Google ID token
     // che viene verificato dal backend DEMOS esistente.
