@@ -187,7 +187,8 @@ test('P5 synthetic runtime ACL preserves the ten-response publication limit', ()
   assert.match(p5FixtureAclSql, /P5_SNAPSHOT_ACL_WRONG_DATABASE/);
   assert.match(p5FixtureAclSql, /P5_SNAPSHOT_ACL_DELIVERY_UNBLOCKED/);
   assert.match(p5FixtureAclSql, /P5_SNAPSHOT_ACL_P3_NOT_APPROVED/);
-  assert.equal((p5FixtureAclSql.match(/total_responses >= 10/g) || []).length, 3);
+  const activeAclSql = p5FixtureAclSql.replace(/^\\s*--.*$/gm, '');
+  assert.equal((activeAclSql.match(/total_responses >= 10/g) || []).length, 3);
   assert.match(p5FixtureAclSql, /GRANT UPDATE \(total_responses,yes_count,no_count,abstain_count,updated_at\)/);
   assert.doesNotMatch(p5FixtureAclSql, /GRANT UPDATE \(.*is_frozen/);
   assert.doesNotMatch(p5FixtureAclSql, /GRANT (?:ALL|DELETE|TRUNCATE) ON public.civic_ballot_forecast_snapshots/);
