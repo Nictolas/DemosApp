@@ -39,6 +39,10 @@ public class NativeFirebaseAppCheckPlugin extends Plugin {
             );
             long day = System.currentTimeMillis() / MILLIS_PER_UTC_DAY;
             long storedDay = prefs.getLong("utc_day", -1L);
+            // A backward wall-clock change cannot reset the allowance.
+            // A forward jump can still bypass a local-only quota; global provider
+            // usage must be monitored separately before any real rollout.
+            if (storedDay > day) return false;
             int attempts = storedDay == day ? prefs.getInt("attempts", 0) : 0;
             if (attempts >= MAX_MANUAL_ATTEMPTS_PER_UTC_DAY) return false;
             // Fail closed when the preference cannot be persisted.
@@ -68,6 +72,15 @@ public class NativeFirebaseAppCheckPlugin extends Plugin {
             return;
         }
 
+        // Reserve BEFORE provider initialization, not only before token
+        // retrieval: an exhausted local budget must touch no Firebase SDK.
+        // Local limits are bypassable by clock forward, data reset or new
+        // installations and NEVER substitute a global Play quota.
+        if (!reserveManualAttestationAttempt()) {
+            call.reject("Limite locale App Check raggiunto");
+            return;
+        }
+
         FirebaseAppCheck appCheck;
         try {
             appCheck = getAppCheckIfConfigured();
@@ -77,14 +90,6 @@ public class NativeFirebaseAppCheckPlugin extends Plugin {
         }
         if (appCheck == null) {
             call.reject("Configurazione Firebase non disponibile");
-            return;
-        }
-
-        // Reserve a persistent, per-installation daily attempt BEFORE the SDK.
-        // Clearing app data or another device bypasses this local budget;
-        // no release without a global quota/cost gate and approved test cohort.
-        if (!reserveManualAttestationAttempt()) {
-            call.reject("Limite locale App Check raggiunto");
             return;
         }
 
