@@ -5,6 +5,8 @@ on:
     branches: [feat/parliament-verified-ballots-20261103]
     paths:
       - 'api/tests/parliamentNotificationScalePostgres.integration.js'
+      - 'api/services/parliamentLatestVoteNotificationsService.js'
+      - 'api/tests/parliamentLatestVoteNotifications.test.js'
       - 'api/services/parliamentFinalBallotPushService.js'
       - 'api/tests/parliamentFinalBallotPush.test.js'
       - '.github/workflows/parliament-notification-scale-gate.yml'
@@ -49,7 +51,8 @@ jobs:
           TEST_PARLIAMENT_PG_EPHEMERAL: 'true'
           TEST_PARLIAMENT_PG_URL: postgres://demos_test:temporary_ci_only@127.0.0.1:55432/demos_test
         run: |
+          node --check api/services/parliamentLatestVoteNotificationsService.js
           node --check api/services/parliamentFinalBallotPushService.js
           node --check api/tests/parliamentNotificationScalePostgres.integration.js
-          node --test api/tests/parliamentFinalBallotPush.test.js
+          node --test api/tests/parliamentLatestVoteNotifications.test.js api/tests/parliamentFinalBallotPush.test.js
           node api/tests/parliamentNotificationScalePostgres.integration.js
