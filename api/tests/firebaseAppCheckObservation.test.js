@@ -358,3 +358,31 @@ test('admin diagnostic route enforces auth and role at runtime without Google ca
   assert.equal(verificationCalls, 1);
   assert.equal(middlewareCalls, 7);
 });
+
+test('manual Android App Check requests persist a small per-installation UTC budget', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const java = fs.readFileSync(
+    path.resolve(__dirname, '../../client/android/app/src/main/java/community/demos/NativeFirebaseAppCheckPlugin.java'),
+    'utf8'
+  );
+  const gradle = fs.readFileSync(
+    path.resolve(__dirname, '../../client/android/app/build.gradle'),
+    'utf8'
+  );
+  assert.match(gradle, /buildConfigField "boolean", "FIREBASE_APP_CHECK_ENABLED", "false"/);
+  assert.match(java, /private static final int MAX_MANUAL_ATTEMPTS_PER_UTC_DAY = 2;/);
+  assert.match(java, /private static final long MILLIS_PER_UTC_DAY = 86_400_000L;/);
+  assert.match(java, /SharedPreferences prefs = getContext\(\)\.getSharedPreferences/);
+  assert.match(java, /prefs\.edit\(\)[\s\S]*\.commit\(\)/);
+  assert.match(java, /attempts >= MAX_MANUAL_ATTEMPTS_PER_UTC_DAY/);
+  const requestMethod = java.split('public void requestToken(PluginCall call) {')[1]
+    ?.split('private FirebaseAppCheck getAppCheckIfConfigured()')[0];
+  assert.ok(requestMethod);
+  const gateAt = requestMethod.indexOf('if (!isEnabled())');
+  const quotaAt = requestMethod.indexOf('if (!reserveManualAttestationAttempt())');
+  const sdkAt = requestMethod.indexOf('getAppCheckToken(false)');
+  assert.ok(gateAt !== -1 && quotaAt > gateAt && sdkAt > quotaAt,
+    'Disabled gate and durable quota must execute before any App Check SDK request');
+  assert.doesNotMatch(java, /getAppCheckToken\(true\)/);
+});
