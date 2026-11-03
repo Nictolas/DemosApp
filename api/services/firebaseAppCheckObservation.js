@@ -79,11 +79,28 @@ function validTokenShape(token) {
     && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token);
 }
 
+// The shared Firebase Admin facade may reuse an already-initialized app,
+// including one from ANOTHER project. Validate its actual options BEFORE
+// constructing App Check or verifying anything. cert() credentials expose
+// projectId locally; no project discovery, network or extra cloud quota.
+function isApprovedFirebaseAdminApp(app) {
+  const options = app?.options;
+  if (!options || typeof options !== 'object') return false;
+  const optionProject = options.projectId;
+  const credentialProject = options.credential?.projectId;
+  if (optionProject != null && optionProject !== EXPECTED_FIREBASE_PROJECT) return false;
+  if (credentialProject != null && credentialProject !== EXPECTED_FIREBASE_PROJECT) return false;
+  return optionProject === EXPECTED_FIREBASE_PROJECT
+    || credentialProject === EXPECTED_FIREBASE_PROJECT;
+}
+
 async function verifyWithExistingFirebaseAdmin(token) {
   const { getFirebaseAdmin } = require('./firebaseAdmin');
   const facade = getFirebaseAdmin();
   const app = facade?.apps?.[0];
-  if (!app) throw new Error('Firebase Admin unavailable');
+  if (!isApprovedFirebaseAdminApp(app)) {
+    throw new Error('Firebase Admin project not approved');
+  }
   const { getAppCheck } = require('firebase-admin/app-check');
   // Default verifyToken is signature/project/expiry validation, NOT replay protection.
   return getAppCheck(app).verifyToken(token);
@@ -133,6 +150,7 @@ module.exports = {
   isObservationEnabled,
   isDiagnosticRouteEnabled,
   validTokenShape,
+  isApprovedFirebaseAdminApp,
   createAppCheckLocalBudget,
   DEFAULT_MAX_VERIFICATIONS_PER_PROCESS_PER_DAY,
   observeAppCheckHeader,
