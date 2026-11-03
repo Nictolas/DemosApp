@@ -279,12 +279,13 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
             with conn.cursor() as cur:
                 # La cache eci viene sostituita interamente a ogni sync.
                 # Non usare trigger INSERT per riconoscere le novita'.
+                # ECI cache replacement is destructive even with civic event
+                # collection disabled. Always prove the destination identity
+                # BEFORE the DELETE, not only when event collection is enabled.
+                _verify_civic_database_identity(
+                    cur, os.environ.get("CIVIC_RUNTIME_DATABASE_ID")
+                )
                 collection_enabled = os.environ.get("CIVIC_NEW_INITIATIVE_EVENTS_ENABLED") == "true"
-                if collection_enabled:
-                    # Fail closed BEFORE deleting/replacing the existing ECI cache.
-                    _verify_civic_database_identity(
-                        cur, os.environ.get("CIVIC_RUNTIME_DATABASE_ID")
-                    )
                 previous_ids = set()
                 if collection_enabled:
                     cur.execute("SELECT id FROM eci")
