@@ -77,7 +77,7 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
       'Camera: ' + String(camera || '').slice(0, 50),
       'DOCUMENTO:',
       descrizione.slice(0, 12000)
-    ].join('\\n');
+    ].join('\n');
 
     const messages = [
       { role: 'system', content: 'Redattore civico. Scrivi solo fatti contenuti nel documento fornito, con tono neutrale e comprensibile.' },
