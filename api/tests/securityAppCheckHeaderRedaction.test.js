@@ -71,3 +71,52 @@ test('direct production log sanitizer covers alternate app-check key variants', 
   }
   assert.ok(output.includes('disabled'));
 });
+
+test('centralized operational and explicit audit metadata redact App Check tokens', () => {
+  const { sanitizeLogMeta } = require('../utils/logPrivacy');
+  for (const metadata of [
+    {
+      url: '/api/admin/firebase-app-check/observe?ignored=1',
+      headers: {
+        'x-firebase-appcheck': 'opaque-OPERATIONAL-SECRET',
+        status: 'ok',
+      },
+      counts: [{ appCheckToken: 'nested-secret', status: 'disabled' }],
+    },
+    {
+      securityEvent: true,
+      headers: {
+        'X-Firebase-AppCheck': 'opaque-SECURITY-SECRET',
+        ContentType: 'application/json',
+      },
+    },
+    {
+      auditEvent: true,
+      nested: [{ attestation: 'opaque-AUDIT-SECRET', status: 'passed' }],
+    },
+  ]) {
+    const original = JSON.stringify(metadata);
+    const result = sanitizeLogMeta(metadata);
+    const output = JSON.stringify(result);
+    assert.equal(output.includes('SECRET'), false);
+    assert.equal(output.includes('nested-secret'), false);
+    assert.equal(output.includes('[REDACTED]'), true);
+    assert.equal(JSON.stringify(metadata), original); // No source mutation
+    assert.equal(output.includes('status'), true);
+  }
+});
+
+test('centralized sanitization does not change controlled operational codes', () => {
+  const { sanitizeLogMeta } = require('../utils/logPrivacy');
+  const result = sanitizeLogMeta({
+    url: '/api/admin/firebase-app-check/observe',
+    error: { code: 'APP_CHECK_DISABLED', message: 'do-not-log-private-error' },
+    app_check: 'redact-THIS',
+    status: 'disabled',
+  });
+  assert.equal(result.url, '/api/admin');
+  assert.equal(result.error.code, 'APP_CHECK_DISABLED');
+  assert.equal(result.error.message, undefined);
+  assert.equal(result.app_check, '[REDACTED]');
+  assert.equal(result.status, 'disabled');
+});
