@@ -39,6 +39,8 @@ test('secret ballot is participation, not attributed choice', () => {
   const secret = fixture({ secret: true, status: 'Votante in voto segreto' }).replace('Alifano Enrica</td><td>Contrario', 'Alifano Enrica</td><td>Votante in voto segreto');
   const result = parseOpenpolisFinalVoteDetail(secret, 'Camera');
   assert.equal(result.voto_segreto, true);
+  const gluedBadge = secret.replace('VOTO FINALE SEGRETO', 'VOTO FINALESEGRETO');
+  assert.equal(parseOpenpolisFinalVoteDetail(gluedBadge, 'Camera').voto_segreto, true);
   assert.equal(result.voti_nominali[0].voto, 'Votante in voto segreto');
   assert.equal(result.voti_nominali[2].voto, 'Votante in voto segreto');
   assert.throws(() => parseOpenpolisFinalVoteDetail(fixture({ secret: true }), 'Camera'), /OPENPOLIS_SECRET_VOTE_CONFLICT/);
