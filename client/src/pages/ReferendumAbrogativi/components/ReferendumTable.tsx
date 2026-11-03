@@ -20,7 +20,6 @@ function resolveFirmaUrl(referendum: {
 
 export const ReferendumTable: React.FC<ReferendumTableProps> = ({ 
   listaReferendum, 
-  mieiVoti, 
   isLoading, 
   isError, 
   onView 
@@ -52,23 +51,16 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
   return (
     <div className="space-y-4">
       {listaReferendum.map((referendum) => {
-        // Determina lo sfondo in base a firme_raccolte
+        // No fixed 50,000-signature threshold: use the applicable official
+        // signature threshold when supplied by the civic source metadata.
         const getBackgroundClass = () => {
-          if (referendum.quorum === 'proposta') {
-            return 'border-blue-200 bg-blue-50';
+          const firmeRaccolte = Number(referendum.firme_raccolte ?? referendum.firme ?? 0);
+          const sogliaFirme = Number(referendum.signature_threshold);
+          if (Number.isFinite(sogliaFirme) && sogliaFirme > 0) {
+            return firmeRaccolte >= sogliaFirme
+              ? 'border-gray-200 bg-green-50'
+              : 'border-gray-200 bg-yellow-50';
           }
-          
-          const firmeRaccolte = referendum.firme_raccolte || referendum.firme || 0;
-          
-          // Verde opaco se firme_raccolte > 50000
-          if (firmeRaccolte > 50000) {
-            return 'border-gray-200 bg-green-50';
-          }
-          // Giallo opaco se firme_raccolte <= 49999
-          if (firmeRaccolte <= 49999) {
-            return 'border-gray-200 bg-yellow-50';
-          }
-          // Default
           return 'border-gray-200 bg-white';
         };
 
@@ -90,11 +82,6 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                     )}
                     {referendum.nome}
                   </h3>
-                  {referendum.quorum === 'proposta' && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      Proposta
-                    </span>
-                  )}
                   {(() => {
                     const firmaUrl = resolveFirmaUrl(referendum);
                     return firmaUrl ? (
@@ -118,7 +105,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                 
                 <div className="flex items-center gap-4 text-sm text-gray-500 mt-3">
                   <span>
-                    Firme raccolte: <strong>{(referendum.firme || 0).toLocaleString('it-IT')}</strong>
+                    Firme raccolte: <strong>{(referendum.firme_raccolte ?? referendum.firme ?? 0).toLocaleString('it-IT')}</strong>
                   </span>
                   {getDisplayableDate(referendum.dataFine || referendum.data_fine) && (
                     <span>
