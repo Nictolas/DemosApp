@@ -62,9 +62,9 @@ async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisI
   let sent = 0, failed = 0;
   // A device/token can be disabled or reassigned after initial candidate
   // discovery. Re-check it in a PostgreSQL transaction before EVERY batch.
-  // FOR SHARE serializes preference, selection, user status and device writes:
-  // a revocation committed before this check is respected; a concurrent
-  // revocation waits for a message already being accepted by Firebase.
+  // FOR SHARE serializes preference, selection, representative/account,
+  // active mandate and device writes. A revocation committed before this check
+  // is respected; a concurrent update waits for an accepted Firebase message.
   // A Firebase-accepted push cannot be recalled from a device queue.
   if (!pool || typeof pool.connect !== 'function') {
     throw new Error('PARLIAMENT_PUSH_TX_POOL_REQUIRED');
