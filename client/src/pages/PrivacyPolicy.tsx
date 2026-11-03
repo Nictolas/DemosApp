@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
             
             <h3 className="text-xl font-medium mb-2">2.1 Dati di Registrazione</h3>
             <ul className="list-disc pl-6 mb-4 text-gray-700">
-              <li><strong>Dati anagrafici:</strong> Per i cittadini, anno di nascita e sesso; nome e cognome non sono richiesti nella registrazione ordinaria. Per politici e candidati, nome e cognome sono trattati quando pertinenti al profilo.</li>
+              <li><strong>Dati anagrafici:</strong> Anno di nascita e sesso; nome e cognome non sono richiesti agli utenti ordinari, ma possono essere trattati per candidati e rappresentanti quando pertinenti</li>
               <li><strong>Dati di contatto:</strong> Indirizzo email quando presente o fornito dal metodo di accesso; un account creato soltanto con passkey può non avere un indirizzo email associato.</li>
               <li><strong>Dati di residenza:</strong> Comune di residenza; provincia e regione possono essere ricavate dal comune per le funzionalità territoriali.</li>
               <li><strong>Dati di cittadinanza:</strong> Cittadinanza; dati elettorali o di candidatura soltanto quando pertinenti al tipo di profilo.</li>
