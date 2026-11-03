@@ -3,6 +3,7 @@
 // Vincolo DEMOS: nessun fallback a provider a pagamento per le votazioni.
 const Groq = require('groq-sdk');
 const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
+const { buildGroundedAnalysisMessages, parseGroundedAnalysisResponse } = require('./parliamentGroundedAnalysis');
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
@@ -465,25 +466,6 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
       console.warn(`⚠️ Errore ricerca Openpolis per legge n. ${numeroLegge}: ${error.message}`);
     }
     
-    // 4. Fallback con informazioni note (se non abbiamo trovato nulla)
-    if (infoTrovate.length === 0 && numeroLegge === '1718') {
-      infoTrovate.push(`INFORMAZIONI SULLA LEGGE N. 1718:
-
-Il disegno di legge n. 1718 riguarda la conversione in legge del decreto-legge n. 175 del 21 novembre 2025, che introduce misure urgenti relative al Piano Transizione 5.0 e alla produzione di energia da fonti rinnovabili.
-
-PIANO TRANSIZIONE 5.0:
-- Rappresenta un'evoluzione del precedente Piano Transizione 4.0
-- Obiettivo: incentivare ulteriormente la digitalizzazione e l'innovazione tecnologica nel settore industriale italiano
-- Misure previste: agevolazioni fiscali per le imprese che investono in tecnologie avanzate, automazione e sostenibilità ambientale
-- Beneficiari: imprese del settore industriale che investono in innovazione
-
-ENERGIA DA FONTI RINNOVABILI:
-- Introduzione di incentivi per la realizzazione di impianti fotovoltaici
-- Introduzione di incentivi per la realizzazione di impianti eolici
-- Introduzione di incentivi per altre forme di energia pulita
-- Obiettivo: aumentare la quota di energia rinnovabile nel mix energetico nazionale, riducendo la dipendenza dalle fonti fossili`);
-    }
-    
     // Combina tutte le informazioni trovate
     const risultato = infoTrovate.length > 0 
       ? infoTrovate.join('\n\n---\n\n') + testoCompleto
@@ -501,274 +483,6 @@ ENERGIA DA FONTI RINNOVABILI:
   } catch (error) {
     console.warn(`⚠️ Errore ricerca web per legge n. ${numeroLegge}: ${error.message}`);
     return null;
-  }
-}
-
-/**
- * Genera la spiegazione generale della legge
- */
-async function generaSpiegazioneGenerale(titolo, descrizione, numeroLegge, tipoAtto, camera, dataVotazione) {
-  if (!aiClient) {
-    throw new Error('API AI non configurata');
-  }
-
-  // Cerca informazioni web sulla legge (se disponibile)
-  const infoWeb = await cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera);
-
-  // Costruisci il prompt migliorato
-  let prompt = `IMPORTANTE: Il tuo compito è spiegare COSA È e COSA FA la legge specifica "${numeroLegge ? `n. ${numeroLegge}` : titolo}".
-
-${numeroLegge ? `La legge n. ${numeroLegge}` : 'Questa legge'} è stata votata in ${camera || 'Parlamento'}${dataVotazione ? ` il ${dataVotazione}` : ''}.
-
-Titolo completo: "${titolo || 'N/A'}"
-${descrizione ? `Descrizione: "${descrizione}"` : ''}
-${tipoAtto ? `Tipo atto: ${tipoAtto}` : ''}
-${infoWeb ? `\n\n=== INFORMAZIONI TROVATE SULLA LEGGE ===\n${infoWeb}\n=== FINE INFORMAZIONI ===\n\nUSA QUESTE INFORMAZIONI per spiegare in dettaglio cosa è e cosa fa questa legge specifica.` : ''}
-
-ISTRUZIONI SPECIFICHE (SEGUIRE RIGOROSAMENTE):
-1. NON spiegare cosa sia una "questione di fiducia" o altri meccanismi parlamentari - IGNORA completamente questo aspetto
-2. ${infoWeb ? 'USA OBBLIGATORIAMENTE le informazioni fornite nella sezione "INFORMAZIONI TROVATE SULLA LEGGE" per spiegare la legge in dettaglio. Queste informazioni sono accurate e devono essere la base della tua spiegazione. Se negli articoli trovi percentuali, importi, scadenze o condizioni specifiche, includile nella spiegazione.' : 'Se conosci questa legge specifica, usa le tue conoscenze per spiegarla in dettaglio.'}
-3. Spiega COSA È questa legge specifica: contenuto concreto, obiettivi, modifiche introdotte, ambiti di applicazione, settori coinvolti
-4. Spiega COSA FA questa legge: effetti pratici concreti, cambiamenti normativi specifici, chi ne beneficia, cosa cambia nella pratica
-
-FORMATO RICHIESTO PER LE MISURE (MOLTO IMPORTANTE):
-La spiegazione DEVE includere una sezione "MISURE PREVISTE" con elenco SCHEMATICO e PRECISO:
-- Per ogni misura: descrizione SPECIFICA (non generica come "agevolazioni fiscali", ma dettagliata)
-- OBBLIGATORIO: Se negli articoli o nei dettagli numerici trovi percentuali, importi, date, potenze, includili ESATTAMENTE come scritti
-- Beneficiari specifici (non "le imprese" ma "imprese del settore X con requisiti Y")
-- Organizza per categoria quando possibile (es: "Misure Fiscali", "Misure Energetiche", "Misure Digitali")
-- Usa formato elenco puntato con sottopunti per dettagli
-- Se trovi "DETTAGLI NUMERICI" nella sezione informazioni, USA QUEI NUMERI nella spiegazione
-
-ISTRUZIONI PER L'ESTRAZIONE DEI DETTAGLI:
-1. Cerca nelle informazioni fornite la sezione "DETTAGLI NUMERICI" - contiene percentuali, importi, date, potenze già estratte
-2. Cerca negli articoli pattern come:
-   - "del X%" o "X per cento" → usa quella percentuale esatta
-   - "€X" o "X euro" o "X milioni" → usa quell'importo esatto
-   - "X kW" o "X MW" → usa quella potenza esatta
-   - Date come "31/12/2025" → usa quella data esatta
-3. Se trovi numeri negli articoli ma non sono chiaramente associati a una misura, cerca il contesto (paragrafi precedenti/successivi)
-4. NON scrivere "Dettagli non disponibili" se negli articoli ci sono numeri - cerca di associarli alle misure
-
-ESEMPIO DI FORMATO RICHIESTO:
-"MISURE PREVISTE:
-• Agevolazione fiscale del 50% per investimenti in tecnologie avanzate (se trovi "50%" negli articoli)
-  - Beneficiari: imprese del settore industriale con fatturato superiore a €5 milioni (se trovi questi dettagli)
-  - Condizioni: investimenti minimi di €100.000 in tecnologie 4.0 (se trovi questi dettagli)
-  - Scadenza: 31/12/2026 (se trovi questa data)
-• Incentivo di €500 per kW per impianti fotovoltaici (se trovi questo importo)
-  - Potenza minima: 20 kW (se trovi questa potenza)
-  - Beneficiari: imprese e privati (se specificato)
-..."
-
-5. Se il titolo contiene solo riferimenti generici (es. "Articolo 3"), indica che le informazioni disponibili sono limitate, ma cerca di dedurre il contenuto dal contesto
-6. ${infoWeb ? 'NON inventare informazioni. Usa SOLO le informazioni fornite sopra. Se negli articoli non trovi dettagli specifici, indica "dettagli non disponibili" piuttosto che inventare.' : ''}
-
-REGOLE DI STILE (CRITICO - SEGUIRE RIGOROSAMENTE):
-- Essere ULTRA-CONCISA: massimo 200 parole totali (non 400!)
-- NON specificare "italiano/italiana" quando non necessario
-- Usa abbreviazioni standard: € (non "euro"), % (non "per cento"), n. (non "numero"), art. (non "articolo"), DL (non "decreto-legge"), DDL (non "disegno di legge")
-- ELIMINA frasi introduttive: inizia direttamente con il contenuto
-  ❌ SBAGLIATO: "La legge prevede che...", "È previsto che...", "La legge introduce..."
-  ✅ CORRETTO: "Proroga comunicazioni crediti d'imposta..."
-- Formato STRUTTURATO obbligatorio:
-
-COSA È:
-[1-2 frasi essenziali, massimo 30 parole]
-
-COSA FA:
-• [punto 1 - una riga]
-• [punto 2 - una riga]
-• [punto 3 - una riga]
-
-MISURE PREVISTE:
-• [Nome misura breve]
-  → Scadenza: [data se presente]
-  → Beneficiari: [chi]
-  → Condizioni: [requisiti se presenti]
-• [Prossima misura...]
-
-La spiegazione deve:
-- Essere in italiano, chiara e comprensibile
-- Essere NEUTRALE e OBIETTIVA
-- Focalizzarsi sul CONTENUTO CONCRETO, non sul meccanismo di votazione
-- ${infoWeb ? 'Basarsi sulle informazioni fornite, estraendo dettagli specifici. Usa numeri, percentuali, importi ESATTAMENTE come trovati.' : 'Essere il più specifica possibile'}
-
-Rispondi SOLO con la spiegazione della legge, senza prefissi o suffissi.`;
-
-  const messages = [
-    {
-      role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Il tuo compito è spiegare COSA È e COSA FA una legge specifica, non spiegare meccanismi parlamentari come la "questione di fiducia". Fornisci spiegazioni chiare, CONCISE e accessibili sul contenuto concreto delle leggi. NON specificare "italiano/italiana" quando non necessario (es: "imprese" invece di "imprese italiane", "cittadini" invece di "cittadini italiani"). Specifica la nazionalità SOLO quando non è italiana.'
-    },
-    {
-      role: 'user',
-      content: prompt
-    }
-  ];
-
-  try {
-    let completion;
-    const model = groqModel;
-
-    if (aiProvider === 'groq') {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 800,
-        temperature: 0.7
-      });
-    } else {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 800,
-        temperature: 0.7
-      });
-    }
-
-    return completion.choices[0]?.message?.content?.trim() || null;
-  } catch (error) {
-    console.error(`❌ Errore generazione spiegazione generale: ${error.message}`);
-    throw error;
-  }
-}
-
-/**
- * Genera gli effetti positivi della legge basandosi sulla spiegazione generale
- */
-async function generaEffettiPositivi(titolo, descrizione, numeroLegge, spiegazioneGenerale) {
-  if (!aiClient) {
-    throw new Error('API AI non configurata');
-  }
-
-  const prompt = `Identifica i PRO (effetti positivi) se questa legge viene APPROVATA.
-
-Legge: "${titolo || 'N/A'}"
-${numeroLegge ? `Numero: ${numeroLegge}` : ''}
-
-SPIEGAZIONE:
-${spiegazioneGenerale || 'N/A'}
-
-REGOLE (SEGUIRE RIGOROSAMENTE):
-1. Massimo 5 punti, uno per riga
-2. Formato: "✓ [beneficio concreto - una riga]"
-3. NO introduzioni ("I principali benefici sono...")
-4. NO conclusioni
-5. Inizia direttamente con i benefici
-6. Usa abbreviazioni: €, %, n., art., DL, DDL
-7. Basati sulla spiegazione fornita
-8. Se informazioni insufficienti: "Informazioni insufficienti per identificare benefici specifici"
-
-Rispondi SOLO con elenco puntato, esempio:
-✓ Beneficio 1
-✓ Beneficio 2
-✓ Beneficio 3`;
-
-  const messages = [
-    {
-      role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Analizza i PRO (effetti positivi) di una legge specifica se viene APPROVATA. Focalizzati sul contenuto concreto della legge e sui suoi effetti pratici, non sui meccanismi parlamentari.'
-    },
-    {
-      role: 'user',
-      content: prompt
-    }
-  ];
-
-  try {
-    let completion;
-    const model = groqModel;
-
-    if (aiProvider === 'groq') {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    } else {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    }
-
-    return completion.choices[0]?.message?.content?.trim() || null;
-  } catch (error) {
-    console.error(`❌ Errore generazione effetti positivi: ${error.message}`);
-    throw error;
-  }
-}
-
-/**
- * Genera gli effetti negativi della legge basandosi sulla spiegazione generale
- */
-async function generaEffettiNegativi(titolo, descrizione, numeroLegge, spiegazioneGenerale) {
-  if (!aiClient) {
-    throw new Error('API AI non configurata');
-  }
-
-  const prompt = `Identifica i CONTRO (effetti negativi) se questa legge viene APPROVATA.
-
-Legge: "${titolo || 'N/A'}"
-${numeroLegge ? `Numero: ${numeroLegge}` : ''}
-
-SPIEGAZIONE:
-${spiegazioneGenerale || 'N/A'}
-
-REGOLE (SEGUIRE RIGOROSAMENTE):
-1. Massimo 5 punti, uno per riga
-2. Formato: "✗ [criticità concreta - una riga]"
-3. NO introduzioni ("Le principali criticità sono...")
-4. NO conclusioni
-5. Inizia direttamente con le criticità
-6. Usa abbreviazioni: €, %, n., art., DL, DDL
-7. Basati sulla spiegazione fornita
-8. Se informazioni insufficienti: "Informazioni insufficienti per identificare criticità specifiche"
-
-Rispondi SOLO con elenco puntato, esempio:
-✗ Criticità 1
-✗ Criticità 2
-✗ Criticità 3`;
-
-  const messages = [
-    {
-      role: 'system',
-      content: 'Sei un esperto in diritto parlamentare italiano. Analizza i CONTRO (effetti negativi) di una legge specifica se viene APPROVATA. Focalizzati sul contenuto concreto della legge e sui suoi effetti pratici, non sui meccanismi parlamentari.'
-    },
-    {
-      role: 'user',
-      content: prompt
-    }
-  ];
-
-  try {
-    let completion;
-    const model = groqModel;
-
-    if (aiProvider === 'groq') {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    } else {
-      completion = await aiClient.chat.completions.create({
-        model: model,
-        messages: messages,
-        max_tokens: 300,
-        temperature: 0.7
-      });
-    }
-
-    return completion.choices[0]?.message?.content?.trim() || null;
-  } catch (error) {
-    console.error(`❌ Errore generazione effetti negativi: ${error.message}`);
-    throw error;
   }
 }
 
@@ -791,23 +505,39 @@ async function generaAnalisiLegge(uriVotazione, votazioneData) {
     return null;
   }
 
-  console.log(`[DEBUG] Generazione analisi legge per: ${titolo.substring(0, 50)}...`);
-
-  // Estrai numero legge e tipo atto
+  // Una sola chiamata AI per votazione; mai spiegare un mero titolo.
   const numeroLegge = estraiNumeroLegge(titolo);
   const tipoAtto = estraiTipoAtto(titolo);
-
   try {
-    // Genera prima la spiegazione generale
-    console.log(`📝 Generazione spiegazione generale...`);
-    const spiegazioneGenerale = await generaSpiegazioneGenerale(titolo, descrizione, numeroLegge, tipoAtto, camera, data_votazione);
-    
-    // Poi genera effetti positivi e negativi basandosi sulla spiegazione generale
-    console.log(`📝 Generazione effetti positivi e negativi basati sulla spiegazione generale...`);
-    const [effettiPositivi, effettiNegativi] = await Promise.all([
-      generaEffettiPositivi(titolo, descrizione, numeroLegge, spiegazioneGenerale),
-      generaEffettiNegativi(titolo, descrizione, numeroLegge, spiegazioneGenerale)
-    ]);
+    // Usa prima la descrizione presente. Solo quando insufficiente cerca il testo.
+    const documento = typeof descrizione === 'string' && descrizione.trim().length >= 160
+      ? ''
+      : await cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera);
+
+    const messages = buildGroundedAnalysisMessages({
+      titolo,
+      descrizione,
+      infoFonte: documento,
+      camera,
+      tipoAtto,
+      dataVotazione: data_votazione
+    });
+    if (!messages) {
+      console.warn('Analisi AI parlamentare non eseguita: manca testo documentale sufficiente');
+      return null;
+    }
+
+    const completion = await aiClient.chat.completions.create({
+      model: groqModel,
+      messages,
+      max_tokens: 850,
+      temperature: 0
+    });
+    const parsed = parseGroundedAnalysisResponse(completion.choices[0]?.message?.content);
+    if (!parsed) {
+      console.warn('Analisi AI non pubblicata: risposta non conforme allo schema JSON');
+      return null;
+    }
 
     const modello = groqModel;
 
@@ -815,9 +545,9 @@ async function generaAnalisiLegge(uriVotazione, votazioneData) {
       uri_votazione: uriVotazione,
       numero_legge: numeroLegge,
       tipo_atto: tipoAtto,
-      spiegazione_generale: spiegazioneGenerale,
-      effetti_positivi: effettiPositivi,
-      effetti_negativi: effettiNegativi,
+      spiegazione_generale: parsed.spiegazione_generale,
+      effetti_positivi: parsed.effetti_positivi,
+      effetti_negativi: parsed.effetti_negativi,
       provider_ai: aiProvider,
       modello_ai: modello
     };
