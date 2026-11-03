@@ -16,3 +16,14 @@ Il trasporto push FCM di #576 resta OFF. Il blocco oltre 5.000 destinatari è un
 
 ## Gate ancora aperti
 E2E autenticata + schema effettivo, QA Android/Chrome, migrazione e rollback autorizzati, fonti definitive recenti e copertura, costi reali provider, revoca contemporanea al dispatch, persistenza/cache multiistanza, performance da 1M utenti e consegna FCM reale. Vietati merge, deploy, cancellazioni reali, DDL/DML produzione e invio massivo senza autorizzazione.
+
+
+## 03/11/2026 — Verifica selezioni ad alto fanout
+- La query precedente usava `users → political_selections → follower` e poi `SELECT DISTINCT`, aumentando le righe intermedie in proporzione ai follower.
+- Nel branch della PR #584 `selectedRepresentatives` parte dai **mandati attivi** e usa `EXISTS` su una selezione canonica con follower attivo. Ogni deputato è selezionato una sola volta e nessuna lista di follower esce dal database.
+- L'indice `idx_political_selections_selected_subject` è **già previsto** da `20261009_political_selections.sql`; nessuna nuova migrazione o indice su produzione. La presenza reale nel database operativo deve essere controllata separatamente.
+- Test con 25.000 follower sintetici: PostgreSQL 16, `EXPLAIN (ANALYZE, FORMAT JSON)` letto in CI senza soglie arbitrarie di latenza; risultato atteso 1 deputato. Disattivare tutti i follower sintetici deve restituire zero rappresentanti anche se mandato rimane attivo.
+- Il test dimostra semantica e piano *solo nel dataset sintetico*. Non autorizza affermazioni di throughput 1M, SLA, spese nulle o invii FCM in massa.
+
+## Privacy push in anteprima
+Il testo della notifica FCM nella PR #584 è fisso e neutro: non contiene titolo dell'atto, voto, stato personale o esito. La pagina interna verificata mostra i dettagli dopo l'apertura dell'app. Test mock su Camera/Senato, senza invii reali.
