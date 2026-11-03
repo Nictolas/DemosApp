@@ -152,3 +152,14 @@ test('P3 tables are all RLS-protected, private, and created before their FKs',()
   assert.ok(p3Sql.lastIndexOf('PRIMARY KEY')<p3Sql.indexOf('FOREIGN KEY'));
   assert.match(p3Sql,/REVOKE ALL ON[\s\S]*FROM PUBLIC, anon, authenticated;/i);
 });
+
+const p4CooldownSQL=fs.readFileSync(path.join(__dirname,'..','database','staging',
+  'ops_stg_001_p4_preference_cooldowns_20261103.sql'),'utf8');
+test('P4 cooldown timestamp schema is staging-only, private and additive',()=>{
+  assert.match(p4CooldownSQL,/md5\(db_identity::text\)='0cbb6ace68a9f11956904e2a37898ec8'/);
+  assert.match(p4CooldownSQL,/CREATE TABLE public.preference_change_cooldowns/);
+  assert.match(p4CooldownSQL,/PRIMARY KEY \(user_id, scope\)/);
+  assert.match(p4CooldownSQL,/ALTER TABLE public.preference_change_cooldowns ENABLE ROW LEVEL SECURITY/);
+  assert.match(p4CooldownSQL,/REVOKE ALL ON public.preference_change_cooldowns FROM PUBLIC, anon, authenticated/);
+  assert.doesNotMatch(p4CooldownSQL,/\b(?:INSERT INTO|DELETE FROM|TRUNCATE|DROP TABLE|UPDATE public\.)\b/i);
+});
