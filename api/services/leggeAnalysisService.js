@@ -5,6 +5,8 @@ const Groq = require('groq-sdk');
 const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
 const { buildGroundedAnalysisMessages, parseGroundedAnalysisResponse } = require('./parliamentGroundedAnalysis');
 const { requestFreeGroq } = require('./parliamentFreeGroqBudget');
+const { createSingleflight } = require('./parliamentAiSingleflight');
+const singleflightAnalisi = createSingleflight();
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
@@ -494,6 +496,15 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
  * @returns {Promise<object>} Oggetto con spiegazione_generale, effetti_positivi, effetti_negativi
  */
 async function generaAnalisiLegge(uriVotazione, votazioneData) {
+  if (typeof uriVotazione !== 'string' || !uriVotazione.trim() ||
+      !votazioneData || typeof votazioneData !== 'object' || Array.isArray(votazioneData)) {
+    console.warn('Analisi parlamentare non generata: input votazione non valido');
+    return null;
+  }
+  return singleflightAnalisi(uriVotazione, () => generaAnalisiLeggeUnaVolta(uriVotazione, votazioneData));
+}
+
+async function generaAnalisiLeggeUnaVolta(uriVotazione, votazioneData) {
   if (!aiClient) {
     console.warn('⚠️ API AI non configurata, impossibile generare analisi legge');
     return null;
