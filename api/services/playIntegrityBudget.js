@@ -17,6 +17,9 @@ function createLocalDecodeBudget({ maxDaily = DEFAULT_MAX_DECODE_PER_DAY_PER_PRO
   function reserve(now = Date.now()) {
     if (!Number.isSafeInteger(now) || now < 0) return false;
     const nextDay = new Date(now).toISOString().slice(0, 10);
+    // Never reset a consumed per-process allowance if UTC time moves back.
+    // Advancing clocks, restarts and multiple processes still bypass local limits.
+    if (day && nextDay < day) return false;
     if (day !== nextDay) {
       day = nextDay;
       used = 0;
@@ -30,6 +33,7 @@ function createLocalDecodeBudget({ maxDaily = DEFAULT_MAX_DECODE_PER_DAY_PER_PRO
   function remaining(now = Date.now()) {
     if (!Number.isSafeInteger(now) || now < 0) return 0;
     const today = new Date(now).toISOString().slice(0, 10);
+    if (day && today < day) return 0;
     return day === today ? Math.max(0, maxDaily - used) : maxDaily;
   }
 
