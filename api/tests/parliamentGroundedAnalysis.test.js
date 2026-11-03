@@ -63,8 +63,10 @@ test('structured result must contain all three bounded fields, not fabricated on
   assert.equal(parseGroundedAnalysisResponse('[' + JSON.stringify(valid) + ']'), null);
 });
 
-test('full legislative analysis has exactly one provider call and no handwritten 1718 fallback', () => {
-  assert.equal((lawSource.match(/chat\.completions\.create\s*\(/g) || []).length, 1);
+test('full legislative analysis has exactly one gated provider call and no handwritten 1718 fallback', () => {
+  assert.equal((lawSource.match(/requestFreeGroq\s*\(/g) || []).length, 1);
+  assert.equal((lawSource.match(/chat\.completions\.create\s*\(/g) || []).length, 0);
+  assert.match(lawSource, /response_format: \{ type: 'json_object' \}/);
   assert.match(lawSource, /buildGroundedAnalysisMessages\s*\(/);
   assert.match(lawSource, /parseGroundedAnalysisResponse\s*\(/);
   assert.doesNotMatch(lawSource, /INFORMAZIONI SULLA LEGGE N\. 1718/);
