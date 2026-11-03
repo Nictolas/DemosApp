@@ -34,7 +34,7 @@ test('privacy deletion explains actual profile categories without legacy mandato
 
 test('privacy describes the current citizen schema and optional passkey email', () => {
   const registration = source.slice(source.indexOf('2.1 Dati di Registrazione'), source.indexOf('2.2 Dati Politici'));
-  assert.match(registration, /Per i cittadini, anno di nascita e sesso/);
+  assert.match(registration, /Anno di nascita e sesso/);
   assert.match(registration, /nome e cognome non sono richiesti/);
   assert.match(registration, /account creato soltanto con passkey può non avere/);
   assert.match(registration, /Comune di residenza/);
