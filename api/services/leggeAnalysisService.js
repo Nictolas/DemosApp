@@ -6,6 +6,7 @@ const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPo
 const { buildGroundedAnalysisMessages, parseGroundedAnalysisResponse } = require('./parliamentGroundedAnalysis');
 const { requestFreeGroq } = require('./parliamentFreeGroqBudget');
 const { createSingleflight } = require('./parliamentAiSingleflight');
+const { estraiNumeroLegge, canSearchItalianBills } = require('./parliamentActIdentifier');
 const singleflightAnalisi = createSingleflight();
 const { getPool } = require('../config/database');
 
@@ -32,29 +33,6 @@ if (isGroqConfigured()) {
   }
 } else {
   console.warn('Analisi AI parlamentare non disponibile: chiave Groq Free mancante; nessun fallback a pagamento');
-}
-
-/**
- * Estrae il numero della legge dal titolo
- * Esempi:
- * - "Disegno di legge n. 1718" -> "1718"
- * - "DDL 1234" -> "1234"
- * - "Mozione n. 567" -> "567"
- */
-function estraiNumeroLegge(titolo) {
-  if (typeof titolo !== 'string') return null;
-  // Non indovinare il DDL da anni, emendamenti, numeri di decreto o mozione.
-  // Una ricerca basata su un numero ambiguo può restituire il testo di un atto
-  // diverso da quello votato e produrre una spiegazione falsa.
-  const identifiers = [
-    /\b(?:disegno\s+di\s+legge|proposta\s+di\s+legge|ddl|atto\s+senato|atto\s+camera)\s*(?:n(?:umero)?\.?\s*)?(\d{1,5})\b/i,
-    /(?:^|[\s(])(?:S|C)\.\s*(\d{1,5})\b/i
-  ];
-  for (const pattern of identifiers) {
-    const match = titolo.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
 }
 
 /**
@@ -287,8 +265,7 @@ function estraiArticoliETesto($) {
  * Cerca su Openpolis, Senato.it, Normattiva.it
  */
 async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) {
-  if (!numeroLegge || !/^\d{1,5}$/.test(String(numeroLegge)) ||
-      !['Senato', 'Camera'].includes(camera)) {
+  if (!canSearchItalianBills(numeroLegge, camera)) {
     // Anche il Parlamento europeo non deve essere ricercato per numero sul
     // catalogo dei DDL italiani: le due numerazioni sono indipendenti.
     return null;
