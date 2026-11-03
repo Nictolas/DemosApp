@@ -519,6 +519,7 @@ router.get('/', verifyToken, async (req, res) => {
         data: c.data,
         tipo_notifica: c.tipo_notifica,
         voto: c.voto || null,
+        camera: c.camera || null,
         comune_residenza: c.comune_residenza || null,
         politico: c.politico || null,
         politico_avatar_config: c.politico_avatar_config || null,
