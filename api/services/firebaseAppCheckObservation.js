@@ -11,6 +11,9 @@
  * Do not persist or log the raw token, app ID, user ID or individual verdict.
  */
 const EXPECTED_FIREBASE_PROJECT = 'demos-finale';
+// Confirmed in Play Console and Firebase project settings. Prevent accepting
+// a syntactically valid Android App ID from the wrong Firebase project.
+const EXPECTED_FIREBASE_PROJECT_NUMBER = '848085963511';
 const HEADER_NAME = 'x-firebase-appcheck';
 // Local CPU and certificate-fetch safety brake, NOT a global Play Integrity quota.
 // Every Render process gets its own allowance; do not claim this prevents
@@ -97,7 +100,7 @@ async function observeAppCheckHeader(headers, {
 
   const expectedAppId = env.FIREBASE_APP_CHECK_ANDROID_APP_ID;
   if (typeof expectedAppId !== 'string'
-      || !/^1:\d+:android:[a-fA-F0-9]+$/.test(expectedAppId)) {
+      || !/^1:848085963511:android:[a-fA-F0-9]+$/.test(expectedAppId)) {
     return { status: 'unconfigured' };
   }
 
@@ -122,6 +125,7 @@ async function observeAppCheckHeader(headers, {
 module.exports = {
   HEADER_NAME,
   EXPECTED_FIREBASE_PROJECT,
+  EXPECTED_FIREBASE_PROJECT_NUMBER,
   isObservationEnabled,
   isDiagnosticRouteEnabled,
   validTokenShape,
