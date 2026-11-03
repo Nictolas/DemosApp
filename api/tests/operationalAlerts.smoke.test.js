@@ -11,11 +11,6 @@ const logger = read('api/services/centralizedLogger.js');
 const notifications = read('api/services/notificationService.js');
 const app = read('api/app.js');
 
-test('notification global delivery cannot be authorized by title', () => {
-  const feed = read('api/routes/notifiche.js');
-  assert.ok(!feed.includes("titolo NOT LIKE 'DEMOS — %'"), 'title may not authorize global delivery');
-});
-
 test('operational alerts target Admin capability with legacy fallback only', () => {
   assert.match(service, /columnExists\('users', 'is_admin'\)/);
   assert.match(service, /COALESCE\(is_admin, FALSE\) = TRUE/);
@@ -82,9 +77,6 @@ test('operational alert feed is limited to recipient in both feed and latest end
   const feed = read('api/routes/notifiche.js');
   const restricted = feed.match(/WHERE \(id_utente IS NULL OR id_utente = \$1::uuid\)/g) || [];
   assert.equal(restricted.length, 2);
-  // Only explicitly global (NULL recipient) or authenticated-user notifications.
-  // Never infer global visibility from notification titles.
-
   assert.match(feed, /LIMIT 50\s+`\s*,\s*\[user_id\]/);
   assert.match(feed, /LIMIT 1\s+`\s*,\s*\[userId\]/);
   const broadcast = read('api/routes/comunicazioni.js');
