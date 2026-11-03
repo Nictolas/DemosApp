@@ -51,9 +51,19 @@ export function FinalParliamentBallotDialog({ open, onOpenChange, notifica }: Pr
     notifica.politico_nome && notifica.politico_cognome
       ? notifica.politico_cognome + " " + notifica.politico_nome : ""
   );
+  // Senate roll calls publish this senator as Giuseppe, although DEMOS
+  // records his commonly used name Peppe. Do not infer other nicknames.
+  const memberVariants = useMemo(() => {
+    const names = new Set([representative, reverseName].filter(Boolean));
+    if (representative === "peppe de cristofaro" || reverseName === "de cristofaro peppe") {
+      names.add("giuseppe de cristofaro");
+      names.add("de cristofaro giuseppe");
+    }
+    return names;
+  }, [representative, reverseName]);
   const ownMatches = useMemo(() => (query.data?.members || []).filter(m =>
-    normalized(m.name) === representative || (!!reverseName && normalized(m.name) === reverseName)
-  ), [query.data?.members, representative, reverseName]);
+    memberVariants.has(normalized(m.name))
+  ), [query.data?.members, memberVariants]);
   // If the source changes or matching is ambiguous, never assert a personal vote.
   const own = ownMatches.length === 1 && ownMatches[0].vote === notifica.voto ? ownMatches[0] : null;
   const visible = useMemo(() => {
