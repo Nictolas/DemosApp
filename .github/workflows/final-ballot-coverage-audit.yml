@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'api/scripts/auditFinalNominalCoverage.js'
+      - 'api/services/parliamentVerifiedFinalBallotsService.js'
+      - 'api/tests/parliamentVerifiedFinalBallots.test.js'
       - 'api/scripts/probeFinalNominalAnomalies.js'
       - '.github/workflows/final-ballot-coverage-audit.yml'
   workflow_dispatch:
@@ -29,7 +31,5 @@ jobs:
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Validate coverage script
         run: node --check api/scripts/auditFinalNominalCoverage.js
-      - name: Inspect upstream date and Senate category mismatches (read-only)
-        run: node api/scripts/probeFinalNominalAnomalies.js
       - name: Read-only public source audit of 14 final votes
         run: node api/scripts/auditFinalNominalCoverage.js
