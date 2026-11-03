@@ -69,3 +69,23 @@ Verifica **in sola lettura** su `demos-civic-staging-db`, ID `dpg-db4id8id0e5s73
 Sono stati aggiunti `api/scripts/evaluateLegacyRenderPgRetirement.js` e `api/tests/legacyRenderPgRetirementGate.test.js`. Il validatore **offline**, senza rete o segreti, rifiuta il GO in assenza di una qualsiasi fra: backup e checksum verificati, prova di ripristino, audit effettivo dei 9 servizi, assenza/attribuzione di connessioni, isolamento produzione, GO E2E e rollback staging, revisione umana esplicita. Anche con tutto verificato produce solo **`readyForHumanRetirementReview`**, non un'azione di cancellazione (`canAutomaticallyDelete=false`). La CI `Unified Staging Offline Safety` ne controlla i contratti sintetici.
 
 **Decisione operativa al 03/11/2026: NO-GO cancellazione database Render**. Evidenza nuova e sostanziale: collegamenti non zero, non attribuiti; backup/restore non validati e E2E staging ancora sospesi. **Quattro gate OPS-STG-001 principali ancora aperti**. Nessuna modifica a servizi, database o ACL di produzione, nessuna nuova risorsa persistente.
+
+## Update log PostgreSQL: pattern di brevi sessioni periodiche (03/11/2026)
+
+Le letture **read-only** dei log Render PostgreSQL sono state condotte su tre finestre molto ristrette, senza archiviare o pubblicare indirizzi IP, nomi utente, token o stringhe di connessione:
+
+| Finestra UTC | Log totali | Sessioni con autenticazione/chiusura | Sorgenti rete | Risultato |
+| --- | ---: | ---: | --- | --- |
+| 03/11 00:05–00:08 | 23 | 3 | 1 indirizzo privato | ~1 sessione/minuto, ciclo breve |
+| 03/11 08:14–08:17 | 36 | 6 | 1 indirizzo privato | ~2 sessioni/minuto |
+| 03/11 11:00–11:03 | 38 | 6 | 1 indirizzo privato | ~2 sessioni/minuto, durata ~3 secondi |
+
+Nel campione delle 11:00 le sessioni iniziano intorno ai secondi 26 e 50 di ogni minuto; tutte le **6 disconnessioni** esaminate riportano durata **3 secondi**. La stringa applicativa è `[unknown]`. I log evidenziano connessioni autorizzate TLS, ma **non identificano il servizio applicativo titolare del client**. Si tratta di un pattern **compatibile con probe o check periodici**, non di una prova che non siano avvenute operazioni SQL o che il database non sia più necessario.
+
+Il dato corregge una possibile lettura troppo forte del contatore `active_connections`: nei log disponibili, i valori non zero non bastano a dichiarare traffico applicativo DEMOS, ma **neppure a dichiarare il database inutilizzato**. Non è stata eseguita alcuna query diretta al database, l'IP allow-list vuota non è stata aperta e nessuna credenziale è stata letta.
+
+Ricerca di backup accessibile attraverso la connessione Google Drive eseguita per denominazione e termini `demos-civic-staging-db`, `Render-Archive`, `demos civic staging dump` e `DEMOS backup`: i risultati visibili identificano documenti e fogli di lavoro, **non un file dump verificabile**. La copia Windows precedentemente segnalata non è stata ispezionata perché fuori dal workspace autorizzato. Ricerca negativa non significa assenza assoluta di backup.
+
+Il gate offline `api/scripts/evaluateLegacyRenderPgRetirement.js` è stato ulteriormente rafforzato: **`sourceAttributionVerified=true` è obbligatorio**, anche se qualcuno classificasse come «monitoraggio probabile» tutte le connessioni. Nuovo test sintetico in `api/tests/legacyRenderPgRetirementGate.test.js`: il pattern sonda non può sbloccare da solo la revisione umana e `canAutomaticallyDelete` rimane sempre `false`.
+
+**Esito: NO-GO alla cancellazione e al cleanup legacy.** Per sbloccare la decisione occorrono attribuzione indipendente del client, verifica/restore del backup prima dell'8 novembre, audit dei servizi e superamento dei gate di staging. Le verifiche di questo intervento sono read-only; produzione e configurazione Render/Supabase invariate.
