@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES,
-  CIVIC_RUNTIME_COLUMNS, evaluateCivicProtection, evaluateCivicRuntimeColumns,
+  CIVIC_RUNTIME_COLUMNS, evaluateCivicProtection, evaluateAllPublicStagingTables, evaluateCivicRuntimeColumns,
   evaluateBlockedGuard, evaluateStagingIdentity, STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
 
 const env = {NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'preflight'};
@@ -83,6 +83,49 @@ test('core staging private tables require RLS and zero direct client grants', ()
   ]) {
     assert.equal(evaluateCivicProtection([{...rows[0],...unsafe},...rows.slice(1)]).ready, false);
   }
+});
+
+test('global public staging audit fails closed for every newly added table', () => {
+  const clean = [
+    ...CIVIC_PRIVATE_TABLES.map(table_name => ({
+      table_name, rls_enabled:true, anon_can_access:false, authenticated_can_access:false
+    })),
+    {table_name:'new_future_route_table',rls_enabled:true,
+      anon_can_access:false,authenticated_can_access:false}
+  ];
+  const good = evaluateAllPublicStagingTables(clean);
+  assert.equal(good.ready,true);
+  assert.equal(good.checkedCount,clean.length);
+  assert.deepEqual(good.unsafe,[]);
+  for (const changed of [
+    {rls_enabled:false}, {rls_enabled:null},
+    {anon_can_access:true}, {authenticated_can_access:true},
+    {anon_can_access:undefined}, {authenticated_can_access:null}
+  ]) {
+    const rows = clean.map((row,i)=>i===clean.length-1?{...row,...changed}:row);
+    const result = evaluateAllPublicStagingTables(rows);
+    assert.equal(result.ready,false);
+    assert.deepEqual(result.unsafe,['new_future_route_table']);
+  }
+  assert.equal(evaluateAllPublicStagingTables([]).ready,false);
+  assert.equal(evaluateAllPublicStagingTables(null).ready,false);
+  assert.equal(evaluateAllPublicStagingTables([{
+    table_name:'unlisted',rls_enabled:false,anon_can_access:false,authenticated_can_access:false
+  }]).ready,false);
+});
+
+test('preflight reads pg_catalog for ALL public tables without an allowlist filter', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src=fs.readFileSync(path.join(__dirname,'..','scripts','unifiedStagingPreflight.js'),'utf8');
+  assert.match(src,/const allPublicTables = evaluateAllPublicStagingTables\(protectionRows.rows\)/);
+  assert.match(src,/allPublicTables.ready/);
+  const query=src.match(/const protectionRows = await client.query\(\s*`([\s\S]*?)`/);
+  assert.ok(query,'Expected global privilege metadata query');
+  assert.match(query[1],/pg_catalog.pg_class/);
+  assert.doesNotMatch(query[1],/c.relname\s*=\s*ANY/);
+  assert.match(src,/BEGIN READ ONLY/);
+  assert.match(src,/DEMOS_UNIFIED_STAGING_PREFLIGHT_GO/);
 });
 
 test('civic runtime schema requires 18 typed columns and opt-in defaults OFF', () => {
