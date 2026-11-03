@@ -12,6 +12,40 @@
  */
 const EXPECTED_FIREBASE_PROJECT = 'demos-finale';
 const HEADER_NAME = 'x-firebase-appcheck';
+// Local CPU and certificate-fetch safety brake, NOT a global Play Integrity quota.
+// Every Render process gets its own allowance; do not claim this prevents
+// cross-process traffic or any account-wide bill.
+const DEFAULT_MAX_VERIFICATIONS_PER_PROCESS_PER_DAY = 50;
+
+function createAppCheckLocalBudget({ maxDaily = DEFAULT_MAX_VERIFICATIONS_PER_PROCESS_PER_DAY } = {}) {
+  if (!Number.isSafeInteger(maxDaily) || maxDaily < 0 || maxDaily > 1000) {
+    throw new RangeError('Invalid App Check local verification limit');
+  }
+  let utcDay = '';
+  let used = 0;
+
+  function reserve(now = Date.now()) {
+    if (!Number.isSafeInteger(now) || now < 0) return false;
+    const day = new Date(now).toISOString().slice(0, 10);
+    if (day !== utcDay) {
+      utcDay = day;
+      used = 0;
+    }
+    if (used >= maxDaily) return false;
+    used += 1;
+    return true;
+  }
+
+  function remaining(now = Date.now()) {
+    if (!Number.isSafeInteger(now) || now < 0) return 0;
+    const day = new Date(now).toISOString().slice(0, 10);
+    return day === utcDay ? Math.max(0, maxDaily - used) : maxDaily;
+  }
+
+  return Object.freeze({ reserve, remaining, maxDaily });
+}
+
+const defaultVerificationBudget = createAppCheckLocalBudget();
 
 function isObservationEnabled(env = process.env) {
   return env.FIREBASE_APP_CHECK_OBSERVE_ENABLED === 'true'
@@ -51,6 +85,7 @@ async function verifyWithExistingFirebaseAdmin(token) {
 async function observeAppCheckHeader(headers, {
   env = process.env,
   verifyToken = verifyWithExistingFirebaseAdmin,
+  budget = defaultVerificationBudget,
 } = {}) {
   if (!isObservationEnabled(env)) return { status: 'disabled' };
 
@@ -63,6 +98,10 @@ async function observeAppCheckHeader(headers, {
   const token = readHeader(headers);
   if (!token) return { status: 'missing' };
   if (!validTokenShape(token)) return { status: 'malformed' };
+
+  // Reservation occurs AFTER both activation gates, App ID and token-shape
+  // checks. Limited telemetry must never affect authorization or user access.
+  if (!budget.reserve()) return { status: 'limited' };
 
   try {
     const response = await verifyToken(token);
@@ -79,5 +118,7 @@ module.exports = {
   EXPECTED_FIREBASE_PROJECT,
   isObservationEnabled,
   validTokenShape,
+  createAppCheckLocalBudget,
+  DEFAULT_MAX_VERIFICATIONS_PER_PROCESS_PER_DAY,
   observeAppCheckHeader,
 };
