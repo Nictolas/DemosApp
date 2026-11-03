@@ -19,7 +19,35 @@ async function main() {
     elapsedMs: Date.now() - start
   }));
 }
-main().catch(error => {
+main().catch(async error => {
   console.error('Openpolis final-vote smoke failed:', error.message);
+  try {
+    const cheerio = require('cheerio');
+    const { fetchListaVotazioniFinali } = require('../services/openpolisVotazioniFinaliService');
+    const html = await fetchListaVotazioniFinali(1);
+    const $ = cheerio.load(html);
+    const voteLinks = $('a[href]').toArray().filter(el => /\\/votazioni\\//.test($(el).attr('href') || ''));
+    const sample = voteLinks.slice(0, 4).map(el => {
+      const a = $(el);
+      let node = a;
+      const parents = [];
+      for (let k = 0; k < 6 && node.length; k++, node = node.parent()) {
+        const txt = node.text().replace(/\\s+/g, ' ').trim();
+        parents.push({ tag: node[0]?.tagName, text: txt.slice(0, 330), length: txt.length });
+      }
+      return { href: a.attr('href')?.slice(0, 140), parents };
+    });
+    console.error('Openpolis public DOM diagnostic:', JSON.stringify({
+      bytes: html.length,
+      title: $('title').text().slice(0, 120),
+      totalLinks: $('a[href]').length,
+      voteLinks: voteLinks.length,
+      bodyIntro: $('body').text().replace(/\\s+/g, ' ').trim().slice(0, 450),
+      nextDataLength: $('#__NEXT_DATA__').text().length,
+      sample
+    }));
+  } catch (diagnosticError) {
+    console.error('DOM diagnostic unavailable:', diagnosticError.message);
+  }
   process.exitCode = 1;
 });
