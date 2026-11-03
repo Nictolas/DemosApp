@@ -6,7 +6,7 @@ Data: 03/11/2026. Stato: **PR #572 DRAFT**. Nessuna attivazione Google Cloud né
 
 - Attivare soltanto dopo verifica documentata di **costo obbligatorio €0** e approvazione esplicita dell'utente.
 - Non collegare progetto Google Cloud, abilitare billing, creare servizi o chiedere aumenti quota nel frattempo.
-- Google dichiara quota iniziale di 10.000 richieste/giorno per token/prepare e 10.000 decodifiche; la quota non dimostra assenza assoluta di costi.
+- Google dichiara quota iniziale di 10.000 richieste classiche / preparazioni standard al giorno e 10.000 decodifiche; la quota non dimostra assenza assoluta di costi.
 - Evitare campi opzionali o prodotti associati con costi potenziali (ad es. device recall su larga scala).
 
 ## Componenti preparati sulla PR
@@ -18,7 +18,8 @@ Data: 03/11/2026. Stato: **PR #572 DRAFT**. Nessuna attivazione Google Cloud né
 - `client/src/lib/playIntegrityHash.ts`: SHA-256 WebCrypto canonico, base64url, coerente con il server Node.
 - `api/services/playIntegrityPolicy.js`: verifica dell'hash, del package, della freschezza e classificazione dei verdict **già decodificati da Google**.
 - `api/services/playIntegrityDecode.js`: facade per chiamata al servizio Google con timeout di 5 secondi, nessun retry, errori sanitizzati. Non montata in alcuna route e disabilitata senza tre variabili di consenso.
-- `api/tests/playIntegrityPolicy.test.js`, `api/tests/playIntegrityDecode.test.js`, `api/tests/playIntegrityWebHash.test.mjs`: test offline e di parità dei digest.
+- `api/tests/playIntegrityPolicy.test.js`, `api/tests/playIntegrityDecode.test.js`, `api/tests/playIntegrityWebHash.test.mjs`: test offline, controlli di licenza senza blocco e parità digest.
+- `api/services/playIntegrityQuotaPlanner.js` e `api/tests/playIntegrityQuotaPlanner.test.js`: modello offline, distingue preparazioni standard da decodifiche (nessuna interazione Cloud).
 - `.github/workflows/play-integrity-preflight.yml`: test Node offline. Anche la workflow Android Alpha esistente può compilare la modifica Gradle su PR.
 
 ## Vincoli di sicurezza e privacy
@@ -41,7 +42,7 @@ Data: 03/11/2026. Stato: **PR #572 DRAFT**. Nessuna attivazione Google Cloud né
 
 ## Comandi CI offline
 
-    node --experimental-strip-types --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js api/tests/playIntegrityWebHash.test.mjs
+    node --experimental-strip-types --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js api/tests/playIntegrityQuotaPlanner.test.js api/tests/playIntegrityWebHash.test.mjs
 
 ## Fonti ufficiali
 
