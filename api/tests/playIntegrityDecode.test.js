@@ -68,6 +68,7 @@ test('enabled decoder sends token only to official package-scoped Google endpoin
     }
   });
   assert.deepEqual(result, {
+    licensingVerdict: 'NOT_AVAILABLE', enforcement: 'none',
     status: 'verified', reason: 'recognized', appRecognized: true, deviceRecognized: true
   });
   assert.equal(observed.url, DECODER_URL);
