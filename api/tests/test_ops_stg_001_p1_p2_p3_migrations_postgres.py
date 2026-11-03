@@ -329,5 +329,146 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             cur.execute("ROLLBACK")
 
 
+    def test_zz_fixture_cooldown_acl_is_restricted_and_upsert_works(self):
+        """Exercise the actual preferenceCooldownService upsert on temporary PG16."""
+        file_path = ROOT / "api/database/staging/ops_stg_001_p4_synthetic_cooldown_acl_20261103.sql"
+        original = file_path.read_text(encoding="utf-8")
+        self.assertEqual(original.count(STAGING_HASH), 1)
+        acl = original.replace(STAGING_HASH, SYNTHETIC_HASH)
+        with self.conn.cursor() as cur:
+            with self.assertRaisesRegex(psycopg2.Error, "P4_COOLDOWN_ACL_APPROVAL_REQUIRED"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+            cur.execute("SELECT count(*) FROM public.preference_change_cooldowns")
+            self.assertEqual(cur.fetchone(), (0,))
+
+            cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                        (WRONG_ID,))
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p4_runtime_approval='I_APPROVE_P4_SYNTHETIC_COOLDOWN_ACL'")
+            with self.assertRaisesRegex(psycopg2.Error, "P4_COOLDOWN_ACL_WRONG_DATABASE"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+            cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                        (SYNTHETIC_ID,))
+
+            cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=FALSE WHERE id=1")
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p4_runtime_approval='I_APPROVE_P4_SYNTHETIC_COOLDOWN_ACL'")
+            with self.assertRaisesRegex(psycopg2.Error, "P4_COOLDOWN_ACL_DELIVERY_UNBLOCKED"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+            cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=TRUE WHERE id=1")
+
+            cur.execute("""SELECT has_table_privilege('demos_staging_runtime',
+                        'public.preference_change_cooldowns','SELECT,INSERT,UPDATE,DELETE')""")
+            self.assertEqual(cur.fetchone(), (False,))
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p4_runtime_approval='I_APPROVE_P4_SYNTHETIC_COOLDOWN_ACL'")
+            cur.execute(acl)
+            cur.execute("COMMIT")
+            for verb, allowed in (
+                ("SELECT", True), ("INSERT", True),
+                ("UPDATE", False), ("DELETE", False)
+            ):
+                cur.execute("""SELECT has_table_privilege(
+                    'demos_staging_runtime','public.preference_change_cooldowns',%s)""",
+                    (verb,))
+                self.assertEqual(cur.fetchone()[0], allowed, verb)
+            for col, allowed in (
+                ("last_changed_at", True), ("user_id", False), ("scope", False)
+            ):
+                cur.execute("""SELECT has_column_privilege(
+                    'demos_staging_runtime','public.preference_change_cooldowns',%s,'UPDATE')""",
+                    (col,))
+                self.assertEqual(cur.fetchone()[0], allowed, col)
+            for role in ("anon", "authenticated"):
+                cur.execute("""SELECT has_table_privilege(%s,
+                    'public.preference_change_cooldowns','SELECT,INSERT,UPDATE,DELETE')""",
+                    (role,))
+                self.assertEqual(cur.fetchone(), (False,))
+
+            cur.execute("BEGIN")
+            other_process = "00000000-0000-4000-8000-00000000b003"
+            cur.execute("INSERT INTO public.civic_processes(id) VALUES (%s)",
+                        (other_process,))
+            fixture_ballots = []
+            for process_id, name in (
+                (PROCESS, "staging-fixture-cooldown-001"),
+                (other_process, "unrelated-test-cooldown-002")
+            ):
+                cur.execute("""INSERT INTO public.civic_ballots
+                    (civic_process_id,ballot_kind,question_text,yes_meaning,no_meaning,
+                     opens_at,closes_at,timezone,source_id,source_url)
+                    VALUES (%s,'referendum','Synthetic question','Yes','No',
+                            '2027-01-01T00:00:00Z','2027-02-01T00:00:00Z',
+                            'Europe/Rome',%s,'https://example.invalid/fixture')
+                    RETURNING id""", (process_id, name))
+                fixture_ballots.append(cur.fetchone()[0])
+            allowed_scope = "referendum-vote:" + str(fixture_ballots[0])
+            blocked_scope = "referendum-vote:" + str(fixture_ballots[1])
+
+            cur.execute("SET LOCAL ROLE demos_staging_runtime")
+            cur.execute("SELECT count(*) FROM public.preference_change_cooldowns")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("""INSERT INTO public.preference_change_cooldowns
+                (user_id, scope, last_changed_at) VALUES (%s,%s,%s)
+                ON CONFLICT (user_id,scope)
+                DO UPDATE SET last_changed_at=EXCLUDED.last_changed_at""",
+                (USER_A, allowed_scope, "2027-01-01T12:00:00Z"))
+            cur.execute("""INSERT INTO public.preference_change_cooldowns
+                (user_id, scope, last_changed_at) VALUES (%s,%s,%s)
+                ON CONFLICT (user_id,scope)
+                DO UPDATE SET last_changed_at=EXCLUDED.last_changed_at""",
+                (USER_A, allowed_scope, "2027-01-01T13:00:00Z"))
+            cur.execute("""SELECT last_changed_at FROM public.preference_change_cooldowns
+                           WHERE user_id=%s AND scope=%s""",
+                        (USER_A, allowed_scope))
+            self.assertEqual(cur.fetchone()[0].hour, 13)
+            cur.execute("SELECT count(*) FROM public.preference_change_cooldowns")
+            self.assertEqual(cur.fetchone(), (1,))
+
+            for wrong_user, wrong_scope in (
+                (USER_A, blocked_scope),
+                (USER_A, "referendum-vote:00000000-0000-4000-8000-000000009999"),
+                (USER_A, "preferiti:all"),
+                ("33333333-3333-4333-8333-333333333333", allowed_scope)
+            ):
+                cur.execute("SAVEPOINT rejected_cooldown")
+                with self.assertRaises(psycopg2.Error) as err:
+                    cur.execute("""INSERT INTO public.preference_change_cooldowns
+                                   (user_id, scope, last_changed_at)
+                                   VALUES (%s,%s,NOW())""", (wrong_user, wrong_scope))
+                self.assertEqual(err.exception.pgcode, "42501")
+                cur.execute("ROLLBACK TO SAVEPOINT rejected_cooldown")
+
+            cur.execute("SAVEPOINT forbidden_scope_edit")
+            with self.assertRaises(psycopg2.Error) as err:
+                cur.execute("""UPDATE public.preference_change_cooldowns
+                               SET scope=%s WHERE user_id=%s AND scope=%s""",
+                            (blocked_scope, USER_A, allowed_scope))
+            self.assertEqual(err.exception.pgcode, "42501")
+            cur.execute("ROLLBACK TO SAVEPOINT forbidden_scope_edit")
+
+            cur.execute("SAVEPOINT forbidden_delete")
+            with self.assertRaises(psycopg2.Error) as err:
+                cur.execute("DELETE FROM public.preference_change_cooldowns")
+            self.assertEqual(err.exception.pgcode, "42501")
+            cur.execute("ROLLBACK TO SAVEPOINT forbidden_delete")
+            cur.execute("ROLLBACK")
+
+            cur.execute("SELECT count(*) FROM public.preference_change_cooldowns")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("SELECT count(*) FROM public.civic_ballots")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1")
+            self.assertEqual(cur.fetchone(), (True,))
+            cur.execute("BEGIN")
+            cur.execute("SET LOCAL civic.p4_runtime_approval='I_APPROVE_P4_SYNTHETIC_COOLDOWN_ACL'")
+            with self.assertRaisesRegex(psycopg2.Error, "P4_COOLDOWN_ACL_ALREADY_CONFIGURED"):
+                cur.execute(acl)
+            cur.execute("ROLLBACK")
+
+
 if __name__ == "__main__":
     unittest.main()
