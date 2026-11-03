@@ -222,3 +222,49 @@ test('global notification SQL cannot authorize cross-user delivery by title', ()
   const source = fs.readFileSync(path.resolve(__dirname, '../routes/notifiche.js'), 'utf8');
   assert.ok(!source.includes("titolo NOT LIKE 'DEMOS — %'"));
 });
+
+
+test('notification UI never auto-fetches potentially sending Firebase diagnostics', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.resolve(__dirname, '../../client/src/pages');
+  const demos = fs.readFileSync(path.join(root, 'NotificheDemos.tsx'), 'utf8');
+  const totals = fs.readFileSync(path.join(root, 'NotificheTotali/index.tsx'), 'utf8');
+  // The backend legacy diagnostic GET can cause a real FCM push. Neither
+  // Admin page may invoke it merely because a user opened a view.
+  const verifyDisabled = (source, key) => {
+    const begin = source.indexOf(key);
+    assert.ok(begin !== -1, 'missing diagnostic query: ' + key);
+    const snippet = source.slice(begin, begin + 700);
+    assert.match(snippet, /enabled:\s*false\b/,
+      key + ' must remain disabled until explicit user action');
+  };
+  verifyDisabled(demos, "queryKey: ['/api/comunicazioni/debug-firebase-admin']");
+  verifyDisabled(totals, 'queryKey: ["admin-notification-firebase-status"]');
+  verifyDisabled(totals, 'queryKey: ["admin-notification-demos-status"]');
+  assert.match(demos, /import\.meta\.env\.DEV\s*&&\s*import\.meta\.env\.VITE_ENABLE_NOTIFICATION_DIAGNOSTICS\s*===\s*"true"/);
+  assert.match(totals, /import\.meta\.env\.DEV\s*&&\s*import\.meta\.env\.VITE_ENABLE_NOTIFICATION_DIAGNOSTICS\s*===\s*"true"/);
+  assert.match(demos, /enabled:\s*localDiagnosticsEnabled\s*&&\s*!!user\?\.id\s*&&\s*isAdmin/);
+  assert.match(totals, /enabled:\s*isAdmin\s*&&\s*activeTab\s*===\s*"cronologia"/,
+    'historical Admin notifications should only query on the history tab');
+});
+
+test('notification UIs invalidate canonical user inbox cache and keep retry idempotency', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.resolve(__dirname, '../../client/src/pages');
+  const pages = [
+    fs.readFileSync(path.join(root, 'NotificheDemos.tsx'), 'utf8'),
+    fs.readFileSync(path.join(root, 'NotificheTotali/index.tsx'), 'utf8'),
+  ];
+  for (const source of pages) {
+    assert.doesNotMatch(source, /queryKey:\s*\[['"]notificationBadge['"]\]/,
+      'stale badge cache no longer used by the main notification inbox');
+    assert.match(source, /queryClient\.invalidateQueries\(\{\s*queryKey:\s*\[['"]notifiche['"]\]\s*\}\)/,
+      'canonical user inbox must refresh after a successful notification');
+    assert.match(source, /idempotencyKey:\s*getUserSendKey\(/,
+      'retries must reuse a stable key and not create duplicated notifications');
+    assert.match(source, /pendingUserSend\.current\s*=\s*null/,
+      'a confirmed success resets the request identity');
+  }
+});
