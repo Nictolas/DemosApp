@@ -42,3 +42,11 @@ Il nuovo test con PostgreSQL16 temporaneo verifica su vere tabelle e ruoli:
 Restano **quattro gate**: 1) credenziali e backup legacy/ruolo preflight; 2) ACL sintetiche e isolamento identità/autorizzazioni; 3) connessione TLS Render–Supabase e E2E; 4) QA/rollback e dismissione legacy solo con GO.
 
 Valutazione d'impatto proposta: **7/10**, subordinata a esito CI; avanza le autorizzazioni minime per snapshot, ma il test con 10 votanti e il collegamento applicativo rimangono aperti.
+
+## Esito CI verificato
+
+**Commit collaudato:** `310048f0feb24a8324479f2a7aa011176b98dc74`. La suite `Unified Staging Offline Safety`, run `41636937013`, ha concluso **3/3 job SUCCESS**: `bootstrap-offline-contract` (Node **61/61 + 29/29 = 90/90 PASS**), `p0-schema-postgres16` SUCCESS, `p1-p3-schema-postgres16` (comprende P1–P5 e ACL) **6/6 test Python/PostgreSQL16 PASS**. Il nuovo test P5 è `test_zzzz_snapshot_acl_enforces_minimum_count_and_freeze`.
+
+Una prima versione del test statico dava rosso perché richiedeva tre controlli RLS `total_responses >=10`, mentre l'UPDATE ne contiene correttamente **due** (USING e WITH CHECK): i controlli effettivi sono quattro. È stata corretta l'aspettativa, **non** ridotta la soglia. La CI sul commit successivo è verde. Security Agent, CIE, Legacy Menu e Notifiche hanno esito SUCCESS; il build frontend era ancora in progress al momento della verifica, Snyk SUCCESS.
+
+**Staging condiviso ancora NO-GO:** la prova riguarda codice e database CI *temporaneo*, non l'applicazione attiva. La bozza ACL P5 resta **non applicata**. I quattro gate principali non sono chiusi. **Importanza confermata: 7/10**.
