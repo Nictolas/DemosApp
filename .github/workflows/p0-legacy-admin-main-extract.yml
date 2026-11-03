@@ -6,6 +6,9 @@ on:
       - 'api/routes/admin/**'
       - 'api/routes/users/admin.js'
       - 'api/routes/users/search.js'
+      - 'api/routes/user/gdpr-rights.js'
+      - 'api/routes/user/delete-account.js'
+      - 'api/tests/gdprCanonicalAccountDeletionGate.synthetic.test.js'
       - 'api/tests/adminUserPrivacyCache.contract.test.js'
       - 'api/middleware/auth.js'
       - 'api/tests/authAxiomReadSafety.contract.test.js'
@@ -17,6 +20,9 @@ on:
       - 'api/routes/admin/data-export.js'
       - 'api/routes/users/admin.js'
       - 'api/routes/users/search.js'
+      - 'api/routes/user/gdpr-rights.js'
+      - 'api/routes/user/delete-account.js'
+      - 'api/tests/gdprCanonicalAccountDeletionGate.synthetic.test.js'
       - 'api/tests/adminUserPrivacyCache.contract.test.js'
       - 'api/middleware/auth.js'
       - 'api/tests/authAxiomReadSafety.contract.test.js'
@@ -55,6 +61,8 @@ jobs:
           node --check api/middleware/auth.js
           node --check api/routes/users/admin.js
           node --check api/routes/users/search.js
+          node --check api/routes/user/gdpr-rights.js
+          node --check api/routes/user/delete-account.js
           node --check api/routes/admin/data-export.js
           node --check api/routes/admin/axiom-migration.js
           node --check api/routes/admin/data-retention.js
@@ -67,6 +75,8 @@ jobs:
         run: node --test api/tests/authAxiomReadSafety.contract.test.js
       - name: Validate Admin erasure invalidation and profile log minimization
         run: node --test api/tests/adminUserPrivacyCache.contract.test.js
+      - name: Legacy GDPR erasure fail-closed and canonical account deletion contract
+        run: node --test api/tests/gdprCanonicalAccountDeletionGate.synthetic.test.js
   frontend-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
