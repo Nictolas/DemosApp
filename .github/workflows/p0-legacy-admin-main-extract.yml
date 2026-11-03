@@ -4,6 +4,9 @@ on:
     branches: [integration/p0-release-gates-20261102]
     paths:
       - 'api/routes/admin/**'
+      - 'api/routes/users/admin.js'
+      - 'api/routes/users/search.js'
+      - 'api/tests/adminUserPrivacyCache.contract.test.js'
       - 'api/middleware/auth.js'
       - 'api/tests/authAxiomReadSafety.contract.test.js'
       - 'api/tests/adminLegacyErrorRedaction.contract.test.js'
@@ -12,6 +15,9 @@ on:
     branches: [main]
     paths:
       - 'api/routes/admin/data-export.js'
+      - 'api/routes/users/admin.js'
+      - 'api/routes/users/search.js'
+      - 'api/tests/adminUserPrivacyCache.contract.test.js'
       - 'api/middleware/auth.js'
       - 'api/tests/authAxiomReadSafety.contract.test.js'
       - 'api/routes/admin/axiom-migration.js'
@@ -47,6 +53,8 @@ jobs:
         run: |
           node --check api/app.js
           node --check api/middleware/auth.js
+          node --check api/routes/users/admin.js
+          node --check api/routes/users/search.js
           node --check api/routes/admin/data-export.js
           node --check api/routes/admin/axiom-migration.js
           node --check api/routes/admin/data-retention.js
@@ -57,6 +65,8 @@ jobs:
         run: node --test api/tests/adminLegacyErrorRedaction.contract.test.js
       - name: Validate auth error isolation, outage 503 and Axiom shared-pool privacy
         run: node --test api/tests/authAxiomReadSafety.contract.test.js
+      - name: Validate Admin erasure invalidation and profile log minimization
+        run: node --test api/tests/adminUserPrivacyCache.contract.test.js
   frontend-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
