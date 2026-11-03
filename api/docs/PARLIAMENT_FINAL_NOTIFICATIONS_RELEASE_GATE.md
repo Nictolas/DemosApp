@@ -19,6 +19,14 @@
 4. Frontend: popup in Notifiche; Android e web link /notifiche?final_vote=ID; vecchio push con voto sostituito rimanda alle finali recenti.
 5. parliamentFinalBallotPushService.js: trasporto FCM separatamente disabilitato. Se attivato, filtra per scelta canonica corrente, stato attivo, consenso esplicito deputato/senatore e dispositivo attivo; per ogni gruppo di 250 token riesamina questi dati dentro una transazione PostgreSQL con FOR SHARE fino al termine dell'invio. Cap prudenziale 5000 destinatari per evento. Best-effort: una volta accettato da FCM il messaggio non può essere richiamato.
 
+## Caso reale verificato — 03/11/2026 (solo dati pubblici)
+- Deputato **Nicola Fratoianni**, Camera, scrutinio finale `vs19_735_017`, 28/10/2026: l'elenco **istituzionale Camera** lo registra **"Non ha partecipato"**. Openpolis usa "Assente": **la fonte ufficiale prevale**.
+- Senatore **Peppe De Cristofaro**, Senato, scrutinio finale `19-469-6`, 28/10/2026: Openpolis lo registra come **"De Cristofaro Giuseppe"**, con stato **"Favorevole"**. Il codice ammette questa sola corrispondenza nominativa documentata; tutti gli altri nomi rimangono confronti esatti.
+- Lo smoke CI `api/scripts/verifySelectedParliamentRepresentativeSources.js` rilegge pubblicamente entrambe le schede e fallisce se nome, data, Camera, fonte o stato divergono.
+- Non pubblicare comunicazioni o push senza avere verificato la fonte in quel momento. Uno stato di assenza è un'informazione di partecipazione, NON un voto favorevole/contrario.
+- Fonte primaria Camera: `https://documenti.camera.it/apps/votazioni/votazionitutte/schedaVotazione.asp?CDDNATURA=FINALE&Legislatura=19&RifVotazione=735_17&tipo=dettaglio`
+- Fonte Senato tramite Openpolis: `https://parlamento19.openpolis.it/votazioni/19-469-6` (etichettare come Openpolis, non fonte diretta Senato).
+
 ## Interruttori OFF per default
 - PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED=true: dopo la migrazione, consente UPSERT ultima notifica nel job sync Openpolis.
 - PARLIAMENT_FINAL_PUSH_ENABLED=true: invio FCM dopo commit solo se il primo interruttore è attivo.
