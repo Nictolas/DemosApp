@@ -6,6 +6,10 @@
 const EXPECTED_PG_ID = 'dpg-db4id8id0e5s73cfb0cg-a';
 
 function evaluateLegacyRenderPgRetirement(evidence = {}) {
+  // Malformed or absent evidence must produce a NO-GO decision, not crash an audit.
+  if (evidence === null || typeof evidence !== 'object' || Array.isArray(evidence)) {
+    evidence = {};
+  }
   const blockers = [];
   const reject = (condition, code) => { if (!condition) blockers.push(code); };
   reject(evidence.resourceId === EXPECTED_PG_ID, 'WRONG_RENDER_POSTGRES_RESOURCE');
