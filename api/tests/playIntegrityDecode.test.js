@@ -112,3 +112,59 @@ test('network, auth and malformed response fail without leaking errors', async (
   });
   assert.deepEqual(y, { status: 'unavailable', reason: 'google_unavailable' });
 });
+
+
+test('per-process quota brake avoids Google credentials, network and retries', async () => {
+  const { createLocalDecodeBudget } = require('../services/playIntegrityBudget');
+  const budget = createLocalDecodeBudget({ maxDaily: 1 });
+  let authCalls = 0;
+  let remoteCalls = 0;
+  const options = {
+    integrityToken: token, action, payload, env, now, budget,
+    getAccessToken: async () => { authCalls++; return 'fake-access'; },
+    fetchImpl: async () => { remoteCalls++; return { ok: false, status: 429 }; }
+  };
+  assert.equal((await decodePlayIntegrity(options)).reason, 'google_unavailable');
+  assert.deepEqual(await decodePlayIntegrity(options),
+    { status: 'unavailable', reason: 'local_quota_exhausted' });
+  assert.equal(authCalls, 1);
+  assert.equal(remoteCalls, 1);
+});
+
+test('disabled gate cannot spend local quota and never touches Google', async () => {
+  const { createLocalDecodeBudget } = require('../services/playIntegrityBudget');
+  const budget = createLocalDecodeBudget({ maxDaily: 1 });
+  const out = await decodePlayIntegrity({
+    integrityToken: token, now, budget,
+    getAccessToken: async () => { throw Error('must not be called'); },
+    fetchImpl: async () => { throw Error('must not be called'); }
+  });
+  assert.deepEqual(out, { status: 'disabled' });
+  assert.equal(budget.remaining(now), 1);
+});
+
+test('optional telemetry only stores aggregated status with no payload or token', async () => {
+  const { createPlayIntegrityAggregate } = require('../services/playIntegrityAggregate');
+  const { createLocalDecodeBudget } = require('../services/playIntegrityBudget');
+  const telemetry = createPlayIntegrityAggregate();
+  const budget = createLocalDecodeBudget({ maxDaily: 0 });
+  for (let i = 0; i < 20; i++) {
+    const result = await decodePlayIntegrity({
+      integrityToken: token, action, payload: { secret: 'political info' },
+      env, now, budget, telemetry,
+      getAccessToken: async () => { throw Error('should not run'); }
+    });
+    assert.equal(result.reason, 'local_quota_exhausted');
+  }
+  const snapshot = telemetry.snapshot(now);
+  assert.equal(snapshot.counts.unavailable, 20);
+  assert.doesNotMatch(JSON.stringify(snapshot), /political info|aaaaaaaa|secret|user/i);
+});
+
+test('telemetry failure is non-blocking and does not expose error internals', async () => {
+  const result = await decodePlayIntegrity({
+    integrityToken: 'bad', env, now,
+    telemetry: { record: () => { throw Error('private telemetry error'); } }
+  });
+  assert.deepEqual(result, { status: 'unavailable', reason: 'invalid_token' });
+});
