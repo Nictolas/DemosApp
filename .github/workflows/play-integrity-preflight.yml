@@ -7,6 +7,11 @@ on:
       - 'api/tests/playIntegrityPolicy.test.js'
       - 'api/services/playIntegrityDecode.js'
       - 'api/tests/playIntegrityDecode.test.js'
+      - 'api/tests/playIntegrityWebHash.test.mjs'
+      - 'client/src/lib/playIntegrityHash.ts'
+      - 'client/src/lib/nativePlayIntegrity.ts'
+      - 'client/android/app/src/main/java/community/demos/NativePlayIntegrityPlugin.java'
+      - 'client/android/app/build.gradle'
       - '.github/workflows/play-integrity-preflight.yml'
   workflow_dispatch:
 
@@ -23,4 +28,4 @@ jobs:
         with:
           node-version: '22'
       - name: Verify zero-cost Play Integrity policy without Google credentials
-        run: node --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js
+        run: node --experimental-strip-types --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js api/tests/playIntegrityWebHash.test.mjs
