@@ -1,0 +1,130 @@
+name: Opinion answers v2 — isolated research
+on:
+  pull_request:
+    paths:
+      - "api/experiments/opinionAnswersV2Candidate.js"
+      - "api/tests/opinionAnswersV2Candidate.test.js"
+      - "api/tests/opinionAnswersV2Candidate.pg.test.js"
+      - "api/tests/opinionAnswersV2Consent.pg.test.js"
+      - "api/tests/opinionAnswersV2ManifestCompatibility.test.js"
+      - "api/experiments/opinionAnswersV2BackfillCandidate.js"
+      - "api/tests/opinionAnswersV2Backfill.pg.test.js"
+      - "api/tests/opinionAnswersV2Restore.pg.test.js"
+      - "api/experiments/opinionAnswersV2CompatCandidate.js"
+      - "api/tests/opinionAnswersV2Compat.unit.test.js"
+      - "api/experiments/opinionAnswersV2SourcesCandidate.js"
+      - "api/tests/opinionAnswersV2Sources.unit.test.js"
+      - "api/tests/opinionAnswersV2Sources.pg.test.js"
+      - "api/experiments/opinionAnswersV2GdprCandidate.js"
+      - "api/tests/opinionAnswersV2Gdpr.unit.test.js"
+      - "api/tests/opinionAnswersV2Gdpr.pg.test.js"
+      - "api/tests/opinionAnswersV2Backfill.unit.test.js"
+      - "api/scripts/benchmark-opinion-answer-layouts-ci.js"
+      - "api/scripts/benchmark-opinion-sources-ci.js"
+      - "api/scripts/benchmark-opinion-hybrid-ci.js"
+      - "api/experiments/opinionAnswersV2HybridCandidate.js"
+      - "api/tests/opinionAnswersV2Hybrid.unit.test.js"
+      - "api/tests/opinionAnswersV2Hybrid.pg.test.js"
+      - "api/experiments/opinionAnswersV2AggregateCandidate.js"
+      - "api/tests/opinionAnswersV2Aggregate.unit.test.js"
+      - "api/tests/opinionAnswersV2Aggregate.pg.test.js"
+      - "api/experiments/opinionAnswersV2DemographicsCandidate.js"
+      - "api/tests/opinionAnswersV2Demographics.unit.test.js"
+      - "api/tests/opinionAnswersV2Demographics.pg.test.js"
+      - "api/experiments/opinionAnswersV2HttpContractCandidate.js"
+      - "api/tests/opinionAnswersV2HttpContract.unit.test.js"
+      - "api/experiments/opinionAnswersV2RegionalHttpCandidate.js"
+      - "api/tests/opinionAnswersV2RegionalHttp.unit.test.js"
+      - "api/experiments/opinionAnswersV2RegionalPrivacyCandidate.js"
+      - "api/tests/opinionAnswersV2RegionalPrivacy.unit.test.js"
+      - "api/experiments/opinionAnswersV2CoherentSnapshotCandidate.js"
+      - "api/tests/opinionAnswersV2CoherentSnapshot.unit.test.js"
+      - "api/tests/opinionAnswersV2CoherentSnapshot.pg.test.js"
+      - "api/experiments/opinionAnswersV2PublishedSnapshotCandidate.js"
+      - "api/tests/opinionAnswersV2PublishedSnapshot.unit.test.js"
+      - "api/experiments/opinionAnswersV2HistoricalManifest.json"
+      - "api/tests/opinionAnswersV2HistoricalParity.unit.test.js"
+      - "api/experiments/opinionAnswersV2HybridGdprCandidate.js"
+      - "api/tests/opinionAnswersV2HybridGdpr.unit.test.js"
+      - "api/tests/opinionAnswersV2HybridGdpr.pg.test.js"
+      - "api/experiments/opinionAnswersV2ExternalRestoreGateCandidate.js"
+      - "api/tests/opinionAnswersV2ExternalRestoreGate.unit.test.js"
+      - "api/experiments/opinionAnswersV2HybridAdminCandidate.js"
+      - "api/tests/opinionAnswersV2HybridAdmin.unit.test.js"
+      - "api/tests/opinionAnswersV2HybridAdmin.pg.test.js"
+      - "api/experiments/opinionAnswersV2AuthorizedWriteCandidate.js"
+      - "api/tests/opinionAnswersV2AuthorizedWrite.unit.test.js"
+      - "api/tests/opinionAnswersV2AuthorizedWrite.pg.test.js"
+      - "api/experiments/opinionAnswersV2CutoverAuditCandidate.js"
+      - "api/tests/opinionAnswersV2CutoverAudit.unit.test.js"
+      - "api/experiments/opinionAnswersV2AuthorizedReadCandidate.js"
+      - "api/experiments/opinionAnswersV2PersonalWriteCandidate.js"
+      - "api/experiments/opinionAnswersV2PersonalSaveHttpCandidate.js"
+      - "api/tests/opinionAnswersV2AuthorizedRead.unit.test.js"
+      - "api/tests/opinionAnswersV2PersonalWrite.unit.test.js"
+      - "api/tests/opinionAnswersV2HybridHttpRoundtrip.pg.test.js"
+      - "api/experiments/opinionAnswersV2AddOnlyColumn.sql"
+      - "api/experiments/opinionAnswersV2RollbackCandidate.js"
+      - "api/tests/opinionAnswersV2AdditiveRollback.pg.test.js"
+      - "api/experiments/opinionAnswersV2TemporalPrivacyGateCandidate.js"
+      - "api/tests/opinionAnswersV2TemporalPrivacyGate.unit.test.js"
+      - "api/docs/opinion-answer-v2-no-column-ddl.md"
+      - ".github/workflows/opinion-answers-v2-research.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: opinion-v2-research-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  document-contract:
+    name: Research-only JSONB contracts, consent and layout benchmark
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: opinion_answers_ci
+          POSTGRES_USER: opinion_ci
+          POSTGRES_PASSWORD: synthetic-only
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U opinion_ci -d opinion_answers_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      OPINION_V2_PG_CI_URL: postgresql://opinion_ci:synthetic-only@127.0.0.1:5432/opinion_answers_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read pinned prototype codecs from PR #247 (no source copied)
+        uses: actions/checkout@v4
+        with:
+          ref: 17c935e5ab6e7500297d14e4e3b9c2e822a1a459
+          path: _ci_op247
+          persist-credentials: false
+      - name: Read pinned PR #384 static catalog for immutable-ID parity
+        uses: actions/checkout@v4
+        with:
+          ref: 3396b2d5ce9e190a9e34d68473050750d8099c5c
+          path: _ci_op384
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install locked API dependencies without running scripts
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Run isolated unit and PostgreSQL 17 contract tests
+        run: node --test api/tests/opinionAnswersV2Candidate.test.js api/tests/opinionAnswersV2Candidate.pg.test.js api/tests/opinionAnswersV2Consent.pg.test.js api/tests/opinionAnswersV2ManifestCompatibility.test.js api/tests/opinionAnswersV2Backfill.pg.test.js api/tests/opinionAnswersV2Backfill.unit.test.js api/tests/opinionAnswersV2Preflight.unit.test.js api/tests/opinionAnswersV2Restore.pg.test.js api/tests/opinionAnswersV2Compat.unit.test.js api/tests/opinionAnswersV2Gdpr.unit.test.js api/tests/opinionAnswersV2Gdpr.pg.test.js api/tests/opinionAnswersV2Sources.unit.test.js api/tests/opinionAnswersV2Sources.pg.test.js api/tests/opinionAnswersV2Hybrid.unit.test.js api/tests/opinionAnswersV2Hybrid.pg.test.js api/tests/opinionAnswersV2Aggregate.unit.test.js api/tests/opinionAnswersV2Aggregate.pg.test.js api/tests/opinionAnswersV2Demographics.unit.test.js api/tests/opinionAnswersV2Demographics.pg.test.js api/tests/opinionAnswersV2HttpContract.unit.test.js api/tests/opinionAnswersV2RegionalHttp.unit.test.js api/tests/opinionAnswersV2RegionalPrivacy.unit.test.js api/tests/opinionAnswersV2CoherentSnapshot.unit.test.js api/tests/opinionAnswersV2CoherentSnapshot.pg.test.js api/tests/opinionAnswersV2PublishedSnapshot.unit.test.js api/tests/opinionAnswersV2HistoricalParity.unit.test.js api/tests/opinionAnswersV2HybridGdpr.unit.test.js api/tests/opinionAnswersV2HybridGdpr.pg.test.js api/tests/opinionAnswersV2ExternalRestoreGate.unit.test.js api/tests/opinionAnswersV2HybridAdmin.unit.test.js api/tests/opinionAnswersV2HybridAdmin.pg.test.js api/tests/opinionAnswersV2AuthorizedWrite.unit.test.js api/tests/opinionAnswersV2AuthorizedWrite.pg.test.js api/tests/opinionAnswersV2CutoverAudit.unit.test.js api/tests/opinionAnswersV2AuthorizedRead.unit.test.js api/tests/opinionAnswersV2PersonalWrite.unit.test.js api/tests/opinionAnswersV2HybridHttpRoundtrip.pg.test.js api/tests/opinionAnswersV2AdditiveRollback.pg.test.js api/tests/opinionAnswersV2TemporalPrivacyGate.unit.test.js
+      - name: Measure synthetic layouts and SQL reads
+        run: node api/scripts/benchmark-opinion-answer-layouts-ci.js
+      - name: Measure source-inclusive storage, reads and update WAL on disposable PG17
+        run: node api/scripts/benchmark-opinion-sources-ci.js
+      - name: Compare one-time overflow JSONB against unchanged 94-column storage
+        run: node api/scripts/benchmark-opinion-hybrid-ci.js
