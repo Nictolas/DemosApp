@@ -5,6 +5,7 @@
 // Schema: api/database/20261103_latest_parliament_votes.sql
 const crypto = require('node:crypto');
 const { getVerifiedFinalBallots } = require('./parliamentVerifiedFinalBallotsService');
+const { sendFinalBallotPush } = require('./parliamentFinalBallotPushService');
 
 const ALLOWED = new Set(['Favorevole', 'Contrario', 'Astensione', 'Astenuto', 'Astenuto R',
   'Assente', 'In missione', 'In congedo', 'Non ha partecipato',
@@ -80,10 +81,11 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
   }
   const matches = reps.map(rep => ({ rep, ballot: matchUniqueMember(rep, verified.members, reps) }))
     .filter(x => x.ballot);
-  if (!matches.length) return { changed: 0, matched: 0 };
+  if (!matches.length) return { changed: 0, matched: 0, updated: [] };
   const order = voteOrder(vote);
   const client = await pool.connect();
   let changed = 0;
+  const updated = [];
   try {
     await client.query('BEGIN');
     for (const { rep, ballot } of matches) {
@@ -107,12 +109,13 @@ async function persistLatestForChamber(pool, vote, verified, reps) {
           dateIso(vote.data_votazione), hash, vote.openpolis_id, order]);
       if (result.rows.length) {
         changed++;
+        updated.push({ representativeId: rep.id, status: ballot.vote });
         // Do not carry reactions from the superseded vote to the new one.
         await client.query('DELETE FROM reazioni WHERE comunicazione_id = $1', [String(result.rows[0].id)]);
       }
     }
     await client.query('COMMIT');
-    return { changed, matched: matches.length };
+    return { changed, matched: matches.length, updated };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -141,6 +144,18 @@ async function refreshLatestParliamentVoteNotifications(pool, options = {}) {
       const result = await persistLatestForChamber(pool, vote, verified, reps);
       changed += result.changed;
       checked++;
+      // Delivery happens only after a committed change and is independently gated.
+      for (const updated of result.updated) {
+        try {
+          await sendFinalBallotPush(pool, {
+            representativeId: updated.representativeId,
+            chamber: vote.camera, openpolisId: vote.openpolis_id,
+            title: vote.titolo, status: updated.status
+          });
+        } catch {
+          // Best effort: the in-app notification remains the durable record.
+        }
+      }
     } catch {
       // Failure must not overwrite a verified vote. Report counts, not user IDs.
       unavailable++;
