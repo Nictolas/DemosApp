@@ -235,3 +235,10 @@ test('P4 preference cooldown table is mandatory and private', () => {
   assert.ok(CIVIC_PRIVATE_TABLES.includes(name));
   assert.equal(evaluateSchema(REQUIRED_TABLES.filter(x => x!==name)).ready,false);
 });
+
+test('P5 aggregate-only referendum forecast snapshots are mandatory and private', () => {
+  const name='civic_ballot_forecast_snapshots';
+  assert.ok(REQUIRED_TABLES.includes(name));
+  assert.ok(CIVIC_PRIVATE_TABLES.includes(name));
+  assert.equal(evaluateSchema(REQUIRED_TABLES.filter(x => x!==name)).ready,false);
+});
