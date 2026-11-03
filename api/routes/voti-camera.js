@@ -3,6 +3,7 @@ const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const PrivacyErasureLedgerService = require('../services/privacyErasureLedgerService');
+const { isConfirmedFinalParliamentVote } = require('../services/parliamentFinalVotePolicy');
 
 const router = express.Router();
 
@@ -120,7 +121,7 @@ router.get('/', verifyToken, async (req, res) => {
       LIMIT 1000`
     );
 
-    const votazioni = dbResult.rows.map(row => ({
+    const votazioni = dbResult.rows.filter(isConfirmedFinalParliamentVote).map(row => ({
       politico_nome: row.politico_nome,
       camera: row.camera,
       url_openpolis: row.url_openpolis,
@@ -182,7 +183,7 @@ router.get('/votazioni', verifyToken, async (req, res) => {
       LIMIT 1000`
     );
 
-    const votazioni = dbResult.rows.map(row => ({
+    const votazioni = dbResult.rows.filter(isConfirmedFinalParliamentVote).map(row => ({
       votazione_id: row.votazione_id,
       titolo_votazione: row.titolo_votazione,
       descrizione_votazione: row.descrizione_votazione,
@@ -586,6 +587,15 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
     }
 
     const row = votazioneResult.rows[0];
+    if (!isConfirmedFinalParliamentVote(row)) {
+      // Un voto su articolo, emendamento, fiducia, mozione, ordine del giorno
+      // o un titolo ambiguo NON deve generare spiegazioni di "voto finale".
+      return res.status(422).json({
+        success: false,
+        error: 'Votazione non finale o non verificata',
+        message: 'DEMOS mostra e spiega esclusivamente votazioni finali confermate da fonti ufficiali.'
+      });
+    }
     console.log(`[DEBUG] Dati trovati: titolo="${row.titolo_votazione}", camera="${row.camera}"`);
     
     if (!row.titolo_votazione || row.titolo_votazione.trim() === '') {
