@@ -16,6 +16,12 @@ on:
       - 'api/routes/opinioni/**'
       - 'api/tests/opinionCatalogAndroid110.contract.test.js'
       - 'client/android/app/build.gradle'
+      - 'client/android/app/src/**'
+      - 'client/android/app/*.gradle'
+      - 'client/android/*.gradle'
+      - 'client/android/gradle/**'
+      - 'client/android/capacitor-cordova-android-plugins/**'
+      - 'client/capacitor.config.*'
       - 'client/android/app/src/androidTest/**'
       - 'client/src/css/android-navbar-fix.css'
       - 'api/tests/navbarResponsiveContract.test.js'
@@ -24,6 +30,7 @@ on:
       - 'client/package.json'
       - 'client/package-lock.json'
       - 'scripts/check-ads-free-aab.py'
+      - 'scripts/test_ads_free_aab_guard.py'
       - '.github/workflows/android-alpha-validation.yml'
   push:
     branches:
@@ -42,6 +49,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Test Ads-free AAB binary guard with synthetic bundles
+        run: python3 -m unittest discover -s scripts -p 'test_ads_free_aab_guard.py' -v
 
       - name: Setup Node 22
         uses: actions/setup-node@v4
@@ -114,7 +124,7 @@ jobs:
           ./gradlew :app:assembleDebug :app:bundleRelease --no-daemon --stacktrace
           test -f app/build/outputs/bundle/release/app-release.aab
 
-      - name: Verify generated release AAB excludes AdMob SDK and AD_ID
+      - name: Verify compiled release AAB has no advertising ID or Ads SDK
         run: python3 scripts/check-ads-free-aab.py client/android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Archive UNSIGNED release candidate for authorized signing
