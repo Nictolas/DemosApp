@@ -285,6 +285,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       ['/opinioni-nazionali', 'Allevamenti Intensivi', '323,5 kt'],
       ['/opinioni-regionali', 'Treni regionali gratuiti', '119.214'],
       ['/opinioni-comunali', 'Nuova biblioteca comunale', '13.636'],
+      ['/opinioni-nazionali', 'Multe in base al Reddito', '1/60'],
+      ['/opinioni-regionali', 'Abolizione dei ticket regionali', '38 €'],
+      ['/opinioni-comunali', 'Verde pubblico e giardini', '33,7 m²/ab.'],
       ['/opinioni-nazionali', 'Eutanasia', '242/2019'],
       ['/opinioni-nazionali', 'Energia nucleare', '≈9.000 $/kW'],
       ['/opinioni-regionali', 'Caccia', '157/1992'],
@@ -760,6 +763,48 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
             'Do not equate all libraries with municipal services or physical with hybrid use');
           assert.ok(data.includes('né dimostrano che costruirne una nuova aumenti lettura'),
             'National usage does not forecast benefits of building an individual library');
+        }
+      } else if (['Multe in base al Reddito', 'Abolizione dei ticket regionali', 'Verde pubblico e giardini'].includes(title)) {
+        const results = brief.getByTestId('opinion-brief-measured-results');
+        await results.waitFor();
+        const data = await results.innerText();
+        assert.equal(await results.getByTestId('opinion-brief-result').count(), 4,
+          title + ': four fully qualified official facts');
+        assert.equal(await results.locator('[data-testid="opinion-brief-result"] a[href^="https://"]').count(), 4,
+          title + ': a clickable source for every number');
+        const positions = await brief.evaluate(root =>
+          ['opinion-brief-intro', 'opinion-brief-comparison', 'opinion-brief-measured-results']
+            .map(x => root.querySelector('[data-testid="' + x + '"]')?.getBoundingClientRect().top));
+        assert.ok(positions.every(Number.isFinite) && positions[0] < positions[1] && positions[1] < positions[2],
+          title + ': explanatory text comes before policy choices and metrics');
+        assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(),
+          title === 'Verde pubblico e giardini' ? 0 : 1,
+          title + ': arrow only for actual rule-to-proposal comparison');
+        assert.equal(await brief.getByTestId('opinion-brief-legal-status').count(), 0);
+        if (title === 'Multe in base al Reddito') {
+          for (const n of ['1/60', '255 €', '6 €', '1/3–3×'])
+            assert.ok(data.includes(n), 'Finnish/Italian fine parameter ' + n);
+          assert.ok(data.includes('NON si applica a tutte le infrazioni stradali') &&
+            data.includes('NON è una formula automatica'),
+            'Criminal fine units are not all road-traffic penalties');
+          assert.ok((await brief.innerText()).includes("art. 133-bis del codice penale"),
+            'Italy already considers economic means for some criminal fines');
+        }
+        if (title === 'Abolizione dei ticket regionali') {
+          for (const n of ['1/9/2020', '38 €', '31/12/2026', '36.151,98 €'])
+            assert.ok(data.includes(n), 'Tuscany health copayment rule ' + n);
+          assert.ok(data.includes('NON sono stati aboliti tutti i ticket sanitari') &&
+            data.includes('NON esenzione automatica'),
+            'Removing a supplemental copayment is not abolishing all healthcare tickets');
+          assert.ok((await brief.innerText()).includes('Una Regione non può eliminare unilateralmente'));
+        }
+        if (title === 'Verde pubblico e giardini') {
+          for (const n of ['oltre 590 km²', '33,7 m²/ab.', '68', '+6,2%'])
+            assert.ok(data.includes(n), 'ISTAT greenery statistic ' + n);
+          assert.ok(data.includes('NON sono solo giardini') &&
+            data.includes('NON 68 nuovi parchi'),
+            'Urban greenery and forestation numbers do not equal accessible new parks');
+          assert.ok((await brief.innerText()).includes('Verde complessivo, verde protetto, spazi fruibili'));
         }
       } else {
         assert.equal(await brief.getByTestId('opinion-brief-transition-arrow').count(), 0,
