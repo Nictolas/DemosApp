@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   EXPECTED_FIREBASE_PROJECT_NUMBER,
+  EXPECTED_FIREBASE_ANDROID_APP_ID,
   isObservationEnabled,
   isDiagnosticRouteEnabled,
   validTokenShape,
@@ -15,7 +16,7 @@ const validEnv = {
   FIREBASE_APP_CHECK_OBSERVE_ENABLED: 'true',
   FIREBASE_APP_CHECK_COST_GUARD_APPROVED: 'true',
   FIREBASE_PROJECT_ID: 'demos-finale',
-  FIREBASE_APP_CHECK_ANDROID_APP_ID: '1:848085963511:android:abcdef012345',
+  FIREBASE_APP_CHECK_ANDROID_APP_ID: '1:848085963511:android:8f8047e4c6a38b11d0b9f2',
 };
 const token = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhcHAifQ.signature123';
 
@@ -43,6 +44,30 @@ test('unconfigured Android App ID prevents any SDK verification', async () => {
   });
   assert.deepEqual(result, { status: 'unconfigured' });
   assert.equal(calls, 0);
+});
+
+test('the exact DEMOS Firebase app ID is required, including the app suffix', async () => {
+  assert.equal(EXPECTED_FIREBASE_ANDROID_APP_ID, validEnv.FIREBASE_APP_CHECK_ANDROID_APP_ID);
+  const budget = createAppCheckLocalBudget({ maxDaily: 1 });
+  let calls = 0;
+  const bad = [
+    '1:848085963511:android:abcdef012345',
+    '1:848085963511:android:8f8047e4c6a38b11d0b9f3',
+    '1:848085963511:android:8f8047e4c6a38b11d0b9f2 ',
+  ];
+  for (const value of bad) {
+    const result = await observeAppCheckHeader(
+      { 'x-firebase-appcheck': token },
+      {
+        env: { ...validEnv, FIREBASE_APP_CHECK_ANDROID_APP_ID: value },
+        budget,
+        verifyToken: async () => { calls++; },
+      }
+    );
+    assert.deepEqual(result, { status: 'unconfigured' });
+  }
+  assert.equal(calls, 0);
+  assert.equal(budget.remaining(), 1);
 });
 
 test('a Firebase Android App ID from another numeric project cannot reach the SDK', async () => {
