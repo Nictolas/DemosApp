@@ -33,3 +33,38 @@ documented retention/DPO review and separate technical/release GO.
 
 No database, cloud provider or deployment changed. PR #580 remains
 **DRAFT / NO-GO**.
+
+
+## Hybrid cloud legacy commands — additional safety check (2026-11-03)
+
+The audit found another command family in `scripts/hybrid-cloud-backup.js`
+still executable after the initial `cleanup` retirement:
+
+- `backup` (also the default command) exported historical database logs to
+  B2/S3/GCS without an independent read-back, digest/receipt verification
+  or recovery test; the temporary export directory could be removed after
+  partial uploads, while the script still printed a success summary.
+- `check` and `stats` invoked the old external provider CLI and could
+  incorrectly treat provider failures as zero stored objects.
+- Imported `dailyBackup`, `checkExportNeeded` and `getCloudStorageSize`
+  were callable even when the destructive `cleanup` method was blocked.
+
+**Draft-only fix:** the CLI now refuses *all* invocations with exit 78
+before importing database/environment/provider libraries. All four publicly
+exported methods reject with `LEGACY_DATA_ARCHIVAL_RETIRED` before any
+database query or cloud CLI call. No bypass is configured. Test
+`legacy hybrid cloud backup, inventory and cleanup all fail closed`
+covers the default, four explicit modes and imported methods with synthetic
+dependencies. This change does **not** alter the modern
+`api/services/axiomArchiveService.js` Axiom-to-B2 archiver.
+
+The former implementation remains in Git history to support technical
+review but is **not** a validated backup. An external scheduler running an
+older deployed copy could still invoke it; runtime inventory and migration
+of legitimate backup obligations are required before integrating this Draft.
+
+**Release verdict: NO-GO** for GH-296 and for restore dependent on B2
+until actual provider versioning, Object Lock, independently verified
+GET/hash, SQL snapshot-to-journal binding, quarantined replay and DPO
+approval are evidenced. No provider access, backup operation, deploy,
+merge, production data, destructive action or paid resource was used.
