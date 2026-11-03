@@ -18,6 +18,13 @@ test('Blueprint disables automatic code deploys for both existing production ser
   const services = readServices(blueprint);
   assert.deepEqual(services.map(s => s.name), ['demos-backend', 'demos-frontend']);
   assert.equal((blueprint.match(/^    autoDeployTrigger: off\s*$/gm) || []).length, 2);
+  // A global count alone can pass if both triggers are accidentally placed
+  // in one service while the other production service deploys on commits.
+  for (const service of services) {
+    assert.equal((service.content.match(/^    autoDeployTrigger: off\s*$/gm) || []).length, 1,
+      `${service.name} must independently disable automatic deployments`);
+    assert.doesNotMatch(service.content, /^    autoDeployTrigger:\s*(?:commit|checksPass)\s*$/m);
+  }
   assert.doesNotMatch(blueprint, /^\s*autoDeploy:/m, 'deprecated field can shadow runtime expectations');
   assert.doesNotMatch(blueprint, /^\s*autoDeployTrigger:\s*(?:commit|checksPass)/m);
   assert.doesNotMatch(blueprint, /^\s*(?:preDeployCommand|initialDeployHook):/m);
