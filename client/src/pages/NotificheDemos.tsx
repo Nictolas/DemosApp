@@ -117,8 +117,7 @@ export default function NotificheDemos() {
         description: message,
         duration: 5000
       });
-      console.log('🔄 Invalidando notificationBadge dopo invio notifica di test');
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
     },
     onError: (error: any) => {
       console.error("Errore nell'invio notifica di test:", error);
@@ -172,7 +171,7 @@ export default function NotificheDemos() {
         description: data.message || "Notifica di test inviata con successo. Controlla il tuo dispositivo.",
         duration: 5000
       });
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
     },
     onError: (error: any) => {
       toast({
@@ -218,7 +217,7 @@ export default function NotificheDemos() {
       userNotificationForm.reset();
       setSelectedUser(null);
       setUserSearchValue("");
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
     },
     onError: (error: any) => {
       console.error("Errore nell'invio notifica utente:", error);
@@ -276,8 +275,7 @@ export default function NotificheDemos() {
         description: "La notifica di Demos è stata inviata a tutti gli utenti con le preferenze attivate." 
       });
       demosForm.reset();
-      console.log('🔄 Invalidando notificationBadge dopo invio notifica Demos');
-      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
     },
     onError: (error: any) => {
       console.error("Errore nell'invio notifica Demos:", error);

@@ -121,7 +121,7 @@ export default function NotificheTotali() {
     onSuccess: () => {
       setDemosTitle(""); setDemosMessage("");
       queryClient.invalidateQueries({ queryKey: ["notifiche-totali"] });
-      queryClient.invalidateQueries({ queryKey: ["notificationBadge"] });
+      queryClient.invalidateQueries({ queryKey: ["notifiche"] });
       toast({ title: "Notifica Demos inviata" });
     },
     onError: (error: any) => toast({ title: "Invio fallito", description: error?.message || "Errore di invio", variant: "destructive" }),
@@ -136,7 +136,7 @@ export default function NotificheTotali() {
     onSuccess: () => {
       setSelectedUser(null); setUserSearchValue(""); setUserTitle(""); setUserMessage("");
       queryClient.invalidateQueries({ queryKey: ["notifiche-totali"] });
-      queryClient.invalidateQueries({ queryKey: ["notificationBadge"] });
+      queryClient.invalidateQueries({ queryKey: ["notifiche"] });
       toast({ title: "Notifica inviata" });
     },
     onError: (error: any) => toast({ title: "Invio fallito", description: error?.message || "Errore di invio", variant: "destructive" }),

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Redirect } from "wouter";
@@ -51,6 +51,7 @@ export default function ECI() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("firme");
   const [viewItem, setViewItem] = useState<ECIItem | null>(null);
+  const deepLinkHandled = useRef(false);
 
   const {
     data: eciData,
@@ -133,6 +134,16 @@ export default function ECI() {
     }
     return list;
   }, [baseList, searchQuery, sortBy]);
+
+  // Risolvi la notifica nella lista esistente, senza interrogazioni aggiuntive.
+  useEffect(() => {
+    if (deepLinkHandled.current || isLoading || isError || !user) return;
+    const id = new URLSearchParams(window.location.search).get("initiative");
+    if (!id) return;
+    deepLinkHandled.current = true;
+    const item = baseList.find(entry => String(entry.id) === id);
+    if (item) setViewItem(item);
+  }, [baseList, isLoading, isError, user]);
 
   if (isAuthLoading) {
     return (

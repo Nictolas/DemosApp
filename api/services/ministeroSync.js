@@ -1,4 +1,5 @@
 const { pool } = require('../middleware/auth');
+const { inspectMinisteroPage } = require('./ministeroPaginationSafety');
 const logger = require('./centralizedLogger');
 const { invalidateMinisteroIniziativeCache } = require('./redisCache');
 const { normalizeMinisteroDate, resolveIniziativaDataFine } = require('../utils/dateUtils');
@@ -89,87 +90,35 @@ class MinisteroSyncService {
    */
   async fetchAllFromMinistero() {
     try {
-      console.log('📡 Recupero tutte le iniziative dal Ministero (con gestione paginazione)...');
-      
-      let allIniziative = [];
+      console.log('[ministero] inizio lettura completa paginata');
+      const allIniziative = [];
+      const pageSize = 100;
       let currentPage = 0;
-      let hasMorePages = true;
-      const pageSize = 100; // Dimensione pagina standard
-      
-      while (hasMorePages) {
-        const data = await this.fetchFromMinistero(currentPage, pageSize);
-        
-        // Estrai le iniziative dalla risposta
-        let pageIniziative = [];
-        if (Array.isArray(data)) {
-          pageIniziative = data;
-        } else if (data && typeof data === 'object') {
-          // L'API del Ministero restituisce {resultCode, resultDescription, infoPaginazione, content}
-          if (data.content && Array.isArray(data.content)) {
-            pageIniziative = data.content;
-          } else if (data.iniziative && Array.isArray(data.iniziative)) {
-            pageIniziative = data.iniziative;
-          } else if (data.data && Array.isArray(data.data)) {
-            pageIniziative = data.data;
-          }
-        }
-        
-        console.log(`📄 Pagina ${currentPage}: trovate ${pageIniziative.length} iniziative`);
-        
-        // Aggiungi le iniziative di questa pagina
-        if (pageIniziative.length > 0) {
-          allIniziative = allIniziative.concat(pageIniziative);
-        }
-        
-        // Controlla se ci sono altre pagine
-        if (data && typeof data === 'object') {
-          const paginazione = data.infoPaginazione || data.pagination || data.pagina;
-          
-          if (paginazione) {
-            // Se c'è infoPaginazione, controlla se ci sono altre pagine
-            const totalElements = paginazione.totalElements || paginazione.total || paginazione.totale || 0;
-            const totalPages = paginazione.totalPages || paginazione.total_page || paginazione.pagine_totali || 0;
-            const currentPageNum = paginazione.number || paginazione.currentPage || paginazione.pagina || currentPage;
-            const isLast = paginazione.last !== undefined ? paginazione.last : (currentPageNum >= totalPages - 1);
-            
-            console.log(`📊 Paginazione: totale ${totalElements} elementi, ${totalPages} pagine, pagina corrente ${currentPageNum + 1}`);
-            
-            if (isLast || pageIniziative.length === 0 || (totalPages > 0 && currentPageNum >= totalPages - 1)) {
-              hasMorePages = false;
-            } else {
-              currentPage++;
-            }
-          } else {
-            // Se non c'è infoPaginazione, controlla se la pagina corrente è vuota o ha meno elementi della dimensione
-            if (pageIniziative.length === 0 || pageIniziative.length < pageSize) {
-              hasMorePages = false;
-            } else {
-              currentPage++;
-              // Limite di sicurezza: non più di 100 pagine
-              if (currentPage >= 100) {
-                console.log('⚠️ Raggiunto limite sicurezza di 100 pagine, interrompo recupero');
-                hasMorePages = false;
-              }
-            }
-          }
-        } else {
-          // Se la risposta non è un oggetto con paginazione, prendi solo questa pagina
-          hasMorePages = false;
-        }
+      let expectedTotal = null;
+      while (true) {
+        const payload = await this.fetchFromMinistero(currentPage, pageSize);
+        const inspected = inspectMinisteroPage(payload, {
+          currentPage, pageSize, priorItems: allIniziative.length, expectedTotal,
+        });
+        allIniziative.push(...inspected.items);
+        expectedTotal = inspected.expectedTotal;
+        if (!inspected.hasMore) break;
+        currentPage++;
       }
-      
-      console.log(`✅ Recuperate tutte le iniziative: ${allIniziative.length} totali`);
-      
-      // Ritorna i dati nel formato atteso
+
+      // Never treat an empty/partial feed as a successful sync: it could
+      // otherwise arm the civic outbox from stale local records.
+      if (!allIniziative.length) throw new Error('MINISTERO_PAGINATION_EMPTY_FEED');
+      console.log('[ministero] dataset completo verificato:', allIniziative.length);
       return {
         content: allIniziative,
         infoPaginazione: {
           totalElements: allIniziative.length,
-          totalPages: Math.ceil(allIniziative.length / pageSize)
-        }
+          totalPages: Math.ceil(allIniziative.length / pageSize),
+        },
       };
     } catch (error) {
-      console.error('Errore paginazione Ministero:', safeMinisteroErrorCode(error));
+      console.error('[ministero] lettura paginata incompleta:', safeMinisteroErrorCode(error));
       throw error;
     }
   }

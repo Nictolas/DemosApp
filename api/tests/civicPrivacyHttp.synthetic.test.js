@@ -143,7 +143,8 @@ test('notification preferences GET and POST never cross authenticated users', as
   const originalQuery = fakePool.query;
   const keys = [
     'eurodeputato', 'senatore', 'deputato', 'consigliere_regionale',
-    'consigliere_comunale', 'attivisti', 'demos', 'scuola', 'animali', 'organizzazioni'
+    'consigliere_comunale', 'attivisti', 'demos', 'scuola', 'animali', 'organizzazioni',
+    'iniziative_popolari', 'referendum_abrogativi', 'eci'
   ];
   const store = new Map();
   const calls = [];
@@ -236,7 +237,7 @@ test('notification logs and HTTP failures never expose private titles or SQL sec
     const preferencesSave = await call('/api/notifiche/preferenze', 'a', 'POST', {
       preferenze: { demos: true, animali: false }
     });
-    assert.equal(preferencesSave.status, 500);
+    assert.equal(preferencesSave.status, 503); // Civic preference writes fail closed when persistence is uncertain.
     assert.doesNotMatch(await preferencesSave.text(), /PRIVATE_DSN_TOKEN|DATABASE_URL|DB_HOST/);
 
     const newest = await call('/api/notifiche/ultima', 'a');
