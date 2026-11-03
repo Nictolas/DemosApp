@@ -233,6 +233,71 @@ class P0StagingMigrationPostgresTest(unittest.TestCase):
                 cur.execute("DROP ROLE civic_ci_preflight_noinherit")
                 cur.execute("DROP ROLE civic_ci_unsafe_parent")
 
+    def test_preflight_detects_column_and_sequence_grants_not_visible_as_table_grants(self):
+        """Disposable PG16: column UPDATE and sequence USAGE are real write capabilities."""
+        source = (ROOT / "api/scripts/unifiedStagingPreflight.js").read_text(
+            encoding="utf-8")
+        self.assertIn("has_any_column_privilege(current_user", source)
+        self.assertIn("has_sequence_privilege(current_user", source)
+        self.assertIn("has_any_column_privilege('anon'", source)
+        self.assertIn("has_any_column_privilege('authenticated'", source)
+        role = "civic_ci_preflight_column_probe"
+        table = "public.civic_ci_preflight_column_probe"
+        sequence = "public.civic_ci_preflight_sequence_probe"
+        with self.conn.cursor() as cur:
+            cur.execute("CREATE ROLE civic_ci_preflight_column_probe NOLOGIN NOINHERIT")
+            cur.execute("CREATE TABLE " + table + " (id integer PRIMARY KEY, value text)")
+            cur.execute("CREATE SEQUENCE " + sequence)
+            try:
+                cur.execute("REVOKE ALL ON " + table + " FROM PUBLIC")
+                cur.execute("REVOKE ALL ON " + sequence + " FROM PUBLIC")
+                cur.execute("GRANT USAGE ON SCHEMA public TO " + role)
+                cur.execute("GRANT UPDATE (value) ON " + table + " TO " + role)
+                cur.execute("""SELECT has_table_privilege(%s,%s,'UPDATE'),
+                            has_any_column_privilege(%s,%s,'UPDATE')""",
+                            (role, table, role, table))
+                self.assertEqual(cur.fetchone(), (False, True),
+                    "Table-wide privilege check misses column-only UPDATE")
+                cur.execute("GRANT USAGE ON SEQUENCE " + sequence + " TO " + role)
+                cur.execute("""SELECT has_sequence_privilege(%s,%s,'USAGE,UPDATE')""",
+                            (role, sequence))
+                self.assertEqual(cur.fetchone(), (True,))
+                # The preflight's combined table+sequence metadata audit must
+                # find both forbidden capabilities without querying any rows.
+                cur.execute("""SELECT c.relname,
+                            (has_table_privilege(%s, c.oid,
+                               'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+                             OR has_any_column_privilege(%s, c.oid,
+                               'INSERT,UPDATE,REFERENCES')) AS can_write
+                           FROM pg_catalog.pg_class c
+                           WHERE c.oid=%s::regclass
+                           UNION ALL
+                           SELECT c.relname,
+                                  has_sequence_privilege(%s,c.oid,'USAGE,UPDATE')
+                           FROM pg_catalog.pg_class c
+                           WHERE c.oid=%s::regclass""",
+                           (role, role, table, role, sequence))
+                self.assertEqual(set(cur.fetchall()), {
+                    ("civic_ci_preflight_column_probe", True),
+                    ("civic_ci_preflight_sequence_probe", True)
+                })
+                cur.execute("""SELECT has_table_privilege('anon',%s,'UPDATE'),
+                            has_any_column_privilege('anon',%s,'UPDATE')""",
+                            (table, table))
+                self.assertEqual(cur.fetchone(), (False, False))
+                cur.execute("GRANT UPDATE (value) ON " + table + " TO anon")
+                cur.execute("""SELECT has_table_privilege('anon',%s,'UPDATE'),
+                            has_any_column_privilege('anon',%s,'UPDATE')""",
+                            (table, table))
+                self.assertEqual(cur.fetchone(), (False, True),
+                    "Public client column privilege must not bypass audit")
+            finally:
+                cur.execute("REVOKE ALL ON " + table + " FROM anon")
+                cur.execute("DROP TABLE " + table)
+                cur.execute("DROP SEQUENCE " + sequence)
+                cur.execute("REVOKE USAGE ON SCHEMA public FROM " + role)
+                cur.execute("DROP ROLE " + role)
+
 
 if __name__ == "__main__":
     unittest.main()

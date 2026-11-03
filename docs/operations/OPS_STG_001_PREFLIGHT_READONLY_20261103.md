@@ -37,3 +37,24 @@ Query read-only eseguite tramite connettore Supabase già autorizzato:
 Quattro gate rimasti: (1) completare l'audit delle credenziali/servizi legacy e il provisioning del ruolo/collegamento di sola lettura; (2) integrare soltanto lo schema ancora indispensabile agli E2E, senza clonare i dati della produzione; (3) attivare con gate separato una connessione applicativa esclusiva a Supabase staging e passare E2E multiutente in modalità safe/dry-run; (4) provare compatibilità, rollback e poi smantellare gradualmente i nove vecchi staging e le risorse ridondanti. Nessuna dismissione o GO anticipato.
 
 Valutazione del progresso di questo intervento: **5/10** (miglioramento tangibile alla sicurezza del codice e verifiche remote, ma il collegamento runtime resta bloccato).
+
+
+## Ulteriore hardening preflight — controlli per-colonna e sequenze (03/11/2026)
+
+Il preflight **non si limita più** a `has_table_privilege` sulle tabelle:
+verifica anche `has_any_column_privilege` per INSERT/UPDATE/REFERENCES e
+`has_sequence_privilege` per USAGE/UPDATE sulle sequenze `public`. Sono controlli
+di **metadati** che impediscono di scambiare una credenziale con permessi
+per-colonna per una credenziale read-only. Lo stesso controllo per-colonna
+è stato aggiunto alle protezioni anti-accesso diretto per `anon` e
+`authenticated`: basta un permesso a una colonna per rifiutare il GO.
+
+I test Node controllano che le funzioni PostgreSQL siano presenti nelle query
+reali del preflight. Una prova PostgreSQL 16 effimera concede UPDATE su una
+singola colonna e USAGE su una sequenza a un ruolo CI, verifica che il
+controllo di tabella da solo non li rilevi, e che i controlli estesi li
+identifichino; conferma anche il caso `anon` su una singola colonna.
+I ruoli/oggetti temporanei vengono eliminati dal runner. Nessun ruolo o
+permesso viene creato nello staging Supabase, nessun test E2E applicativo
+è autorizzato e il GO rimane bloccato fino al provisioning approvato della
+credenziale `demos_staging_preflight`.

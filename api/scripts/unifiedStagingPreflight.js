@@ -204,13 +204,25 @@ async function run(env = process.env) {
     if (!evaluatePreflightRole(roleCheck.rows)) {
       throw new Error('Staging preflight role is privileged or unauthorized');
     }
+    // Whole-table grants are NOT the full privilege picture: PostgreSQL
+    // supports INSERT/UPDATE/REFERENCES per column, plus USAGE/UPDATE on
+    // sequences. Query metadata only, never table rows or sequence values.
     const writeCheck = await client.query(
       `SELECT c.relname AS table_name,
-              has_table_privilege(current_user, c.oid,
-                'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') AS can_write
+              (has_table_privilege(current_user, c.oid,
+                 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+               OR has_any_column_privilege(current_user, c.oid,
+                 'INSERT,UPDATE,REFERENCES')) AS can_write
          FROM pg_catalog.pg_class c
          JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-         WHERE n.nspname = 'public' AND c.relkind IN ('r','p')`
+         WHERE n.nspname = 'public' AND c.relkind IN ('r','p')
+       UNION ALL
+       SELECT c.relname AS table_name,
+              has_sequence_privilege(current_user, c.oid,
+                'USAGE,UPDATE') AS can_write
+         FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind = 'S'`
     );
     if (!evaluatePreflightWriteGrants(writeCheck.rows)) {
       throw new Error('Staging preflight has unexpected table write grants');
@@ -226,8 +238,12 @@ async function run(env = process.env) {
     // pg_catalog metadata only: no account or notification rows read.
     const protectionRows = await client.query(
       `SELECT c.relname AS table_name, c.relrowsecurity AS rls_enabled,
-              has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE') AS anon_can_access,
-              has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE') AS authenticated_can_access
+              (has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE')
+               OR has_any_column_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,REFERENCES'))
+                 AS anon_can_access,
+              (has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE')
+               OR has_any_column_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,REFERENCES'))
+                 AS authenticated_can_access
          FROM pg_catalog.pg_class c
          JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
          WHERE n.nspname = $1 AND c.relkind IN ('r', 'p')`,

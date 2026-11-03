@@ -217,6 +217,26 @@ test('NOINHERIT cannot mask SET ROLE membership in PostgreSQL 16+ (fail closed)'
   assert.equal(evaluatePreflightRole([{...base,has_role_memberships:true}]),false);
 });
 
+test('preflight covers column-level, sequence and public-client privileges', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'scripts','unifiedStagingPreflight.js'), 'utf8');
+  const write = src.match(/const writeCheck = await client\.query\(\s*`([\s\S]*?)`/);
+  assert.ok(write, 'preflight write-grant query not found');
+  assert.match(write[1], /has_table_privilege\(current_user/);
+  assert.match(write[1], /has_any_column_privilege\(current_user/);
+  assert.match(write[1], /'INSERT,UPDATE,REFERENCES'/);
+  assert.match(write[1], /has_sequence_privilege\(current_user/);
+  assert.match(write[1], /'USAGE,UPDATE'/);
+  assert.match(write[1], /c\.relkind = 'S'/);
+  const publicAudit = src.match(/const protectionRows = await client\.query\(\s*`([\s\S]*?)`/);
+  assert.ok(publicAudit, 'public table protection query not found');
+  assert.match(publicAudit[1], /has_any_column_privilege\('anon'/);
+  assert.match(publicAudit[1], /has_any_column_privilege\('authenticated'/);
+  assert.equal(evaluatePreflightWriteGrants([{table_name:'sequence_1',can_write:true}]),false);
+  assert.equal(evaluatePreflightWriteGrants([{table_name:'sequence_1',can_write:false}]),true);
+});
+
 test('preflight refuses any public table write grant, even a single one', () => {
   assert.equal(evaluatePreflightWriteGrants([{table_name:'users',can_write:false}]),true);
   for(const bad of [
