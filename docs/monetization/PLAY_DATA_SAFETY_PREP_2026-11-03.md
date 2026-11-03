@@ -23,6 +23,8 @@ Data verifica: 03/11/2026. Ambito: PR #558 **solo debug** e futura release pubbl
 - Aggiunto `scripts/check-ads-free-aab.py`: lettura ZIP e verifica fail-closed con librerie standard Python, controllo di manifest, DEX, metadati dipendenze e firme Jar. **Test locale positivo PASS** su AAB GitHub e **test negativo PASS** (bundle temporaneo con `AD_ID` artificialmente inserito fa fallire il controllo). Aggiunto passo obbligatorio in `.github/workflows/android-alpha-validation.yml` per ogni prossimo `bundleRelease` da questa PR.
 - **Limiti fondamentali:** il binario esaminato è **UNSIGNED**. Non dimostra quale AAB firmato sia distribuito ai tester su Play, né la correttezza delle dichiarazioni Ads/Data Safety. È un controllo mirato di SDK pubblicitari/permesso `AD_ID`, non una certificazione di assenza di tutti i trattamenti dati o una scansione esaustiva di librerie terze. Per la futura release monetizzata, il guardrail dovrà essere sostituito/aggiornato deliberatamente nella PR release autorizzata.
 
+La **matrice preliminare dei dati già trattati da DEMOS**, distinta dall'SDK Ads, è in [PLAY_DATA_SAFETY_EVIDENCE_MATRIX_2026-11-03.md](PLAY_DATA_SAFETY_EVIDENCE_MATRIX_2026-11-03.md). Nessuna voce di quella matrice è una dichiarazione Play già inviata.
+
 ## 2. Fonti ufficiali per la futura dichiarazione con GMA Next-Gen
 
 - GMA Next-Gen SDK 1.6.0 è presente *solo* in `debugImplementation` della PR #558, con `UMP` 4.0.0. Non deve essere dichiarato come già presente nella release disponibile ai tester.
