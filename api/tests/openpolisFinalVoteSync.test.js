@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseListaVotazioniFinali } = require('../services/openpolisVotazioniFinaliService');
+const { parseListaVotazioniFinali, fetchVotazioniFinaliPerCamera } = require('../services/openpolisVotazioniFinaliService');
 
 const html = [
 '<html><body><nav><a href="/votazioni?main_vote_type=is_final">Voto finale</a></nav>',
@@ -62,4 +62,49 @@ test('empty or invalid upstream HTML must not silently count as new final votes'
   const ui = fs.readFileSync(path.join(__dirname, '../../client/src/pages/VotiPoliticiFinali.tsx'), 'utf8');
   assert.match(ui, /nessuna nuova votazione finale/i);
   assert.match(ui, /Impossibile sincronizzare Openpolis/);
+});
+
+function syntheticPage(cards) {
+  return '<html><body><div class="vote-list">' + cards.map(({ chamber, id, n }) =>
+    '<article><p>' + chamber + 'Votazione n. ' + n +
+    ' Seduta n. 735 del 28/10/2026 </p>' +
+    '<h3>Votazione finale sintetica ' + n + ' - Votazione finale </h3>' +
+    '<a href="/votazioni/' + id + '">Dettaglio</a>' +
+    '<span>VOTAZIONE FINALEApprovata</span></article>'
+  ).join('') + '</div></body></html>';
+}
+
+test('independent chamber quota: Senate is imported despite surplus Camera final ballots', async () => {
+  const camera = n => ({chamber:'Camera',id:'vs19_735_'+n,n});
+  const senate = n => ({chamber:'Senato',id:'19-469-'+n,n});
+  const pages = [
+    syntheticPage([camera(1),camera(2),camera(3),camera(4)]),
+    syntheticPage([camera(5),camera(6),camera(7)]),
+    syntheticPage([senate(3),senate(4)])
+  ];
+  let calls=0;
+  const items=await fetchVotazioniFinaliPerCamera(3,{
+    fetchPage:async page=>{calls++;return pages[page-1]||syntheticPage([])}
+  });
+  assert.equal(calls,4);
+  assert.equal(items.filter(v=>v.camera==='Camera').length,3);
+  assert.equal(items.filter(v=>v.camera==='Senato').length,2);
+  assert.deepEqual(items.filter(v=>v.camera==='Senato').map(v=>v.openpolis_id),['19-469-3','19-469-4']);
+  assert.equal(new Set(items.map(v=>v.openpolis_id)).size,items.length);
+});
+
+test('balanced importer stops on repeated pages and fails closed on empty first page', async () => {
+  const page=syntheticPage([{chamber:'Camera',id:'vs19_735_1',n:1}]);
+  let calls=0;
+  const items=await fetchVotazioniFinaliPerCamera(3,{fetchPage:async()=>{calls++;return page;}});
+  assert.equal(calls,2);
+  assert.equal(items.length,1);
+  await assert.rejects(fetchVotazioniFinaliPerCamera(3,{fetchPage:async()=>syntheticPage([])}),
+    /OPENPOLIS_FINAL_VOTES_PARSE_EMPTY/);
+});
+
+test('scheduled sync uses balanced source importer, not a global 50-ballot quota', () => {
+  const job=fs.readFileSync(path.join(__dirname,'../jobs/openpolisVotazioniFinaliJob.js'),'utf8');
+  assert.match(job,/fetchVotazioniFinaliPerCamera\(50\)/);
+  assert.doesNotMatch(job,/fetchVotazioniFinaliDecisive\(50\)/);
 });
