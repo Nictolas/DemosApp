@@ -14,7 +14,7 @@ function resolvePushTarget(chamber) {
   return null;
 }
 
-async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisId, title, status }) {
+async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisId, title, status }, options = {}) {
   if (process.env.PARLIAMENT_FINAL_PUSH_ENABLED !== 'true') {
     return { enabled: false, sent: 0, failed: 0 };
   }
@@ -22,7 +22,7 @@ async function sendFinalBallotPush(pool, { representativeId, chamber, openpolisI
   if (!target || !/^(vs19_\d+_\d+|19-\d+-\d+)$/.test(String(openpolisId || ''))) {
     throw new Error('PARLIAMENT_PUSH_INVALID_TARGET');
   }
-  const admin = getFirebaseAdmin();
+  const admin = options.firebaseAdmin || getFirebaseAdmin();
   if (!admin) return { enabled: true, sent: 0, failed: 0, available: false };
   // This query checks the recipient's CURRENT representative, active state,
   // explicit category consent, and active device at delivery time.
