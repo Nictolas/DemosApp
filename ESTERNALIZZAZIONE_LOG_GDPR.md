@@ -1,5 +1,8 @@
 # 📦 Esternalizzazione Log - Guida Completa GDPR
 
+> **ATTENZIONE — DOCUMENTO STORICO NON OPERATIVO (03/11/2026).** Questa guida descrive una soluzione Neon/log/export legacy non autorizzata. **NON eseguire** gli esempi, non installare cron/Task Scheduler, non avviare esportazioni cloud e **non eliminare** file, versioni o righe SQL. La [PR #580](https://github.com/Nictolas/DemosApp/pull/580) contiene blocchi fail-closed **solo Draft, non distribuiti**; lo script `cloud-backup-export.js` è stato ritirato sulla stessa PR. L'archiviazione attuale Axiom→B2 è distinta. Il recupero GDPR da B2 (GH-296), l'integrità/versioning/Object Lock, la retention e il restore indipendente sono ancora **NO-GO**, subordinati a evidenze reali, revisione DPO e autorizzazione specifica. Stime di costi e dichiarazioni di conformità sottostanti sono storiche e non verificate.
+
+
 ## 🎯 Obiettivo
 
 Ridurre il peso del database Neon esternalizzando i log (`audit_logs`, `centralized_logs`) mantenendo la conformità GDPR.
@@ -70,8 +73,8 @@ I log contengono dati personali che devono essere trattati secondo GDPR:
 | Campo | Tipo Dato Personale | Trattamento GDPR |
 |-------|---------------------|------------------|
 | `user_id` | Identificativo | Hash SHA-256 o pseudonimizzazione |
-| `ip_address` | Dato biometrico | Anonimizzazione (rete o rimozione) |
-| `user_agent` | Dato tecnico | Nessun trattamento (non identificativo) |
+| `ip_address` | Dato personale tecnico (non automaticamente biometrico) | Anonimizzazione (rete o rimozione) |
+| `user_agent` | Dato tecnico potenzialmente personale | Minimizzazione, verifica del contesto e retention |
 | `session_id` | Identificativo | Hash SHA-256 |
 | `message` | Contenuto | Sanitizzazione se contiene dati personali |
 
@@ -107,7 +110,7 @@ node scripts/hard-disk-export.js dry-run
 node scripts/hard-disk-export.js export
 
 # Export e rimozione dal database
-node scripts/hard-disk-export.js export --delete
+# DISABILITATO: export con eliminazione non consentito
 ```
 
 ### **Fase 2: Automazione (da Implementare)**
@@ -115,7 +118,7 @@ node scripts/hard-disk-export.js export --delete
 **Windows - Task Scheduler:**
 ```powershell
 # Crea task per export giornaliero alle 2:00 AM
-schtasks /create /tn "Export Log Giornaliero" /tr "node C:\path\to\scripts\hard-disk-export.js export --delete" /sc daily /st 02:00
+# DISABILITATO: non configurare il task legacy di esportazione con cancellazione
 ```
 
 **Linux/Mac - Cron:**
@@ -124,7 +127,7 @@ schtasks /create /tn "Export Log Giornaliero" /tr "node C:\path\to\scripts\hard-
 crontab -e
 
 # Export giornaliero alle 2:00 AM
-0 2 * * * cd /path/to/demosapp && node scripts/hard-disk-export.js export --delete
+# DISABILITATO: non configurare cron legacy di esportazione/cancellazione
 ```
 
 ### **Fase 3: Backup Cloud (Opzionale ma Consigliato)**

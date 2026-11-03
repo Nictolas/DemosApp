@@ -17,7 +17,7 @@ const retentionService = {
   getRetentionPolicies: () => ({ synthetic: { retention_days: 30 } }),
   getRetentionStats: async () => ({}),
   identifyExpiredData: async () => [],
-  sendRetentionNotifications: async () => []
+  sendRetentionNotifications: async () => { throw Error('UNEXPECTED_RETENTION_PII_SCAN'); }
 };
 const retentionJob = {
   start() { effects.starts++; throw Error('UNEXPECTED_JOB_START'); },
@@ -118,4 +118,40 @@ test('Admin retention UI does not expose the suspended cleanup actions', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../../client/src/pages/DataRetention.tsx'), 'utf8');
   assert.match(source, /Avvio sospeso/);
   assert.doesNotMatch(source, /\/admin\/data-retention\/(?:job\/start|cleanup\/immediate)/);
+});
+
+
+test('retired retention notifications require Admin then return 410 without PII extraction', async () => {
+  const app=express();
+  app.use('/api/admin/data-retention',router);
+  const server=http.createServer(app);
+  await new Promise((resolve,reject)=>{
+    server.once('error',reject);
+    server.listen(0,'127.0.0.1',resolve);
+  });
+  const base='http://127.0.0.1:'+server.address().port;
+  try {
+    for(const [authHeader,expected] of [
+      [null,401],['Bearer synthetic-user',403],['Bearer synthetic-admin',410]
+    ]) {
+      const res=await fetch(base+'/api/admin/data-retention/notifications?daysBefore=30',{
+        headers:authHeader?{authorization:authHeader}:{}
+      });
+      assert.equal(res.status,expected,'role '+(authHeader||'anonymous'));
+      if(expected===410) {
+        assert.match(res.headers.get('cache-control')||'',/no-store/);
+        assert.equal((await res.json()).error,'RETENTION_LEGACY_CLEANUP_RETIRED');
+      }
+    }
+    const policies=await fetch(base+'/api/admin/data-retention/policies',{
+      headers:{authorization:'Bearer synthetic-admin'}
+    });
+    assert.equal(policies.status,200);
+    const json=await policies.json();
+    assert.equal(json.data.policy_status,'legacy_unreviewed');
+    assert.equal(json.data.automated_cleanup_enabled,false);
+    assert.equal(json.data.valid_legal_basis_confirmed,false);
+  } finally {
+    await new Promise((resolve,reject)=>server.close(err=>err?reject(err):resolve()));
+  }
 });

@@ -1,3 +1,11 @@
+'use strict';
+// Retired GDPR-unsafe legacy archive/export entrypoint.
+// Exit before loading credentials, DB drivers, cron or storage clients.
+if (require.main === module) {
+  require('../api/services/legacyDataArchivalGate').exitRetiredLegacyDataArchival();
+}
+const { assertLegacyDataArchivalUnavailable } = require('../api/services/legacyDataArchivalGate');
+
 const { Pool } = require('pg');
 require('dotenv').config();
 
@@ -86,6 +94,7 @@ const ARCHIVE_CONFIG = {
  * Funzione principale di archiviazione
  */
 async function archiveOldData() {
+  assertLegacyDataArchivalUnavailable();
   console.log('🗄️ Inizio processo di archiviazione dati...');
   
   try {
@@ -392,6 +401,7 @@ async function createArchivalLogsTable() {
  * Funzione per eseguire l'archiviazione
  */
 async function runArchival() {
+  assertLegacyDataArchivalUnavailable();
   try {
     console.log('🚀 Avvio processo di archiviazione dati...');
     

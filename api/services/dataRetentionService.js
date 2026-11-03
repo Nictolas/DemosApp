@@ -8,6 +8,18 @@ const AuditService = require('./auditService');
 
 class DataRetentionService {
   /**
+   * RP-10: these legacy policies are unvalidated placeholders, not an
+   * authorized basis for deleting or nulling political/profile data.
+   * The Admin HTTP endpoints are already 410, but direct service calls,
+   * background schedulers and imported jobs must also fail closed.
+   * There is deliberately no environment override.
+   */
+  static assertLegacyRetentionWriteUnavailable() {
+    const error = new Error('Legacy retention cleanup suspended pending reviewed GDPR retention, erasure and recovery policy');
+    error.code = 'RETENTION_LEGACY_CLEANUP_RETIRED';
+    throw error;
+  }
+  /**
    * Policy di retention per ogni tipo di dato (in giorni)
    */
   static getRetentionPolicies() {
@@ -111,6 +123,8 @@ class DataRetentionService {
    * Cancella dati scaduti per un utente specifico
    */
   static async deleteExpiredData(userId, dataTypes = null) {
+    // Fail closed before any SQL, audit or user-data processing.
+    this.assertLegacyRetentionWriteUnavailable();
     try {
       const policies = this.getRetentionPolicies();
       const deletedCounts = {};
@@ -177,6 +191,8 @@ class DataRetentionService {
    * Cancella dati scaduti per tutti gli utenti
    */
   static async deleteAllExpiredData(dataTypes = null) {
+    // Fail closed before any SQL, audit or user-data processing.
+    this.assertLegacyRetentionWriteUnavailable();
     try {
       const policies = this.getRetentionPolicies();
       const deletedCounts = {};
@@ -240,6 +256,9 @@ class DataRetentionService {
    * Invia notifiche prima della cancellazione
    */
   static async sendRetentionNotifications(daysBeforeDeletion = 30) {
+    // Legacy implementation performs up to seven unbounded SELECTs of PII.
+    // The historic retention basis has not been validated; do not inventory users.
+    this.assertLegacyRetentionWriteUnavailable();
     try {
       const policies = this.getRetentionPolicies();
       const notifications = [];
@@ -349,6 +368,8 @@ class DataRetentionService {
    * Esegue pulizia completa dei dati scaduti
    */
   static async performFullCleanup() {
+    // Fail closed before any SQL, audit or user-data processing.
+    this.assertLegacyRetentionWriteUnavailable();
     try {
       console.log('🧹 Avvio pulizia completa dati scaduti...');
       

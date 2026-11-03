@@ -1,3 +1,7 @@
+'use strict';
+// Deprecated migration entrypoint: refuse before loading credentials, SQL or HTTP.
+require('../api/services/legacyAxiomMigrationGate').exitRetiredLegacyAxiomMigration();
+
 // Script per verificare la configurazione necessaria per la migrazione
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });

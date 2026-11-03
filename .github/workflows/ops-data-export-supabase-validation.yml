@@ -1,0 +1,73 @@
+name: Ops Center and Data Export — Supabase safety contract
+on:
+  pull_request:
+    paths:
+      - 'client/src/pages/Admin/OpsCenter.tsx'
+      - 'client/src/pages/DataExport.tsx'
+      - 'api/routes/admin/data-export.js'
+      - 'api/routes/admin/axiom-migration.js'
+      - 'api/services/axiomMigrationService.js'
+      - 'api/services/legacyAxiomMigrationGate.js'
+      - 'api/tests/legacyDataExport*.test.js'
+      - 'api/tests/legacyAxiomMigrationGate.test.js'
+      - 'api/tests/legacyAdminPrivacyReadContracts.test.js'
+      - 'scripts/*.js'
+      - 'api/tests/legacyDataArchivalGate.test.js'
+      - 'api/services/legacyDataArchivalGate.js'
+      - 'api/tests/clientAdminCapability.smoke.test.js'
+      - '.github/workflows/ops-data-export-supabase-validation.yml'
+  push:
+    branches: [fix/ops-data-export-supabase-20261103]
+    paths:
+      - 'client/src/pages/Admin/OpsCenter.tsx'
+      - 'client/src/pages/DataExport.tsx'
+      - 'api/routes/admin/data-export.js'
+      - 'api/routes/admin/axiom-migration.js'
+      - 'api/services/axiomMigrationService.js'
+      - 'api/services/legacyAxiomMigrationGate.js'
+      - 'api/tests/legacyDataExport*.test.js'
+      - 'api/tests/legacyAxiomMigrationGate.test.js'
+      - 'api/tests/legacyAdminPrivacyReadContracts.test.js'
+      - 'scripts/*.js'
+      - 'api/tests/legacyDataArchivalGate.test.js'
+      - 'api/services/legacyDataArchivalGate.js'
+      - 'api/tests/clientAdminCapability.smoke.test.js'
+      - '.github/workflows/ops-data-export-supabase-validation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ops-data-export-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  admin-frontend-safe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_ENV: test
+    steps:
+      - name: Checkout repository without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Contract - only Supabase, no legacy deletion/migration UI
+        run: node --test api/tests/clientAdminCapability.smoke.test.js
+      - name: Install API dependencies (synthetic tests only)
+        run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
+      - name: Real Express HTTP with synthetic Admin and blocked provider connections
+        run: node --test api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js
+      - name: Privacy read endpoint regressions on real Express loopback
+        run: node --test api/tests/legacyAdminPrivacyReadContracts.test.js
+      - name: Retire unverified hard-disk export and automatic archival CLIs
+        run: node --test api/tests/legacyDataArchivalGate.test.js
+      - name: Twelve CLI entrypoints and direct migration service must refuse
+        run: node --test api/tests/legacyAxiomMigrationGate.test.js
+      - name: Install frontend locked deps without scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Vite production frontend build in CI only
+        run: npm run build --prefix client

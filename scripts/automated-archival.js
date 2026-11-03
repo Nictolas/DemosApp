@@ -1,3 +1,11 @@
+'use strict';
+// Retired GDPR-unsafe legacy archive/export entrypoint.
+// Exit before loading credentials, DB drivers, cron or storage clients.
+if (require.main === module) {
+  require('../api/services/legacyDataArchivalGate').exitRetiredLegacyDataArchival();
+}
+const { assertLegacyDataArchivalUnavailable } = require('../api/services/legacyDataArchivalGate');
+
 const cron = require('node-cron');
 const { archiveOldData } = require('./data-archival-strategy');
 
@@ -45,6 +53,7 @@ const ARCHIVAL_CONFIG = {
  * Avvia l'automazione dell'archiviazione
  */
 function startAutomatedArchival() {
+  assertLegacyDataArchivalUnavailable();
   console.log('🤖 Avvio automazione archiviazione dati...');
   
   // Archiviazione giornaliera
@@ -177,6 +186,7 @@ async function sendErrorNotification(operation, error) {
  * Funzione per test manuale
  */
 async function testArchival() {
+  assertLegacyDataArchivalUnavailable();
   console.log('🧪 Test archiviazione manuale...');
   
   // Test archiviazione giornaliera
@@ -189,6 +199,7 @@ async function testArchival() {
  * Funzione per archiviazione immediata
  */
 async function runImmediateArchival() {
+  assertLegacyDataArchivalUnavailable();
   console.log('⚡ Esecuzione archiviazione immediata...');
   
   const allTables = [

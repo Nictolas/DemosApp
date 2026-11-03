@@ -1,5 +1,8 @@
 # ☁️💾 Soluzione Ibrida: Cloud Automatico + Hard Disk Manuale
 
+> **ATTENZIONE — DOCUMENTO STORICO NON OPERATIVO (03/11/2026).** I flussi legacy di export/retention e i relativi automatismi NON sono autorizzati: non eseguire i comandi di questa guida, non configurare cron/Task Scheduler e soprattutto non cancellare file cloud o righe SQL. Il codice di blocco è nella [PR #580](https://github.com/Nictolas/DemosApp/pull/580) ancora **Draft, non distribuita**. Per riattivare un flusso servono prima verifica indipendente del restore, matrice retention/DPIA e autorizzazione esplicita. L'archiviazione moderna Axiom→B2 è un percorso distinto; il recupero GDPR B2 (GH-296) è ancora NO-GO.
+
+
 ## 🎯 La Tua Proposta
 
 **Soluzione Ibrida:**
@@ -153,8 +156,7 @@ Quando ricevi notifica email o raggiungi 5GB:
 # 1. Export dal cloud su hard disk
 node scripts/hard-disk-export.js export --from-cloud
 
-# 2. Rimuovi dati dal cloud (libero spazio)
-node scripts/hybrid-cloud-backup.js cleanup
+# 2. NON rimuovere gli archivi: eliminazione cloud disabilitata in PR #580, restore non attestato
 ```
 
 ## 💰 Confronto Costi

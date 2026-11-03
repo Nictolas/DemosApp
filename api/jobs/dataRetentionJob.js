@@ -26,6 +26,8 @@ class DataRetentionJob {
    * Avvia il job di data retention
    */
   start() {
+    // Block direct imports and old external schedulers before timers, SQL or audit.
+    DataRetentionService.assertLegacyRetentionWriteUnavailable();
     if (this.isRunning) {
       console.log('⚠️ Job di data retention già in esecuzione');
       return;
@@ -78,6 +80,8 @@ class DataRetentionJob {
    * Esegue pulizia giornaliera
    */
   async performDailyCleanup() {
+    // Block direct imports and old external schedulers before timers, SQL or audit.
+    DataRetentionService.assertLegacyRetentionWriteUnavailable();
     try {
       console.log('🧹 Esecuzione pulizia giornaliera dati scaduti...');
       
@@ -121,6 +125,8 @@ class DataRetentionJob {
    * Invia notifiche settimanali
    */
   async sendWeeklyNotifications() {
+    // Direct scheduler invocation must not query potentially millions of accounts.
+    DataRetentionService.assertLegacyRetentionWriteUnavailable();
     try {
       console.log('📧 Invio notifiche settimanali data retention...');
       
@@ -166,6 +172,8 @@ class DataRetentionJob {
    * Esegue pulizia immediata
    */
   async performImmediateCleanup() {
+    // Block direct imports and old external schedulers before timers, SQL or audit.
+    DataRetentionService.assertLegacyRetentionWriteUnavailable();
     try {
       console.log('🧹 Esecuzione pulizia immediata...');
       
