@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  normalizeName, voteOrder, newestByChamber, matchUniqueMember,
+  normalizeName, voteOrder, isRecentFinal, newestByChamber, matchUniqueMember,
   persistLatestForChamber, refreshLatestParliamentVoteNotifications
 } = require('../services/parliamentLatestVoteNotificationsService');
 
@@ -32,6 +32,8 @@ test('one most recent final ballot per chamber; numeric order beats string order
   assert.equal(votes.find(v => v.camera === 'Camera').openpolis_id, 'vs19_730_097');
   assert.equal(voteOrder(finalVote('Senato', '19-469-10')), 46900010);
   assert.equal(voteOrder(finalVote('Camera', 'vs19_730_097')), 73000097);
+  const tomorrow = new Date(Date.now()+86400000).toISOString().slice(0,10);
+  assert.equal(isRecentFinal(finalVote('Camera', 'vs19_731_001', tomorrow)), false);
 });
 
 test('exact, accent-insensitive, order-insensitive name matching only', () => {
