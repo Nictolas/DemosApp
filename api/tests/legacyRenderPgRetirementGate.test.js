@@ -74,3 +74,17 @@ test('does not mutate supplied evidence and omits secrets or backup paths', () =
   assert.equal(JSON.stringify(r).includes('sha256'), false);
   assert.equal(JSON.stringify(r).includes('DATABASE_URL'), false);
 });
+
+test('invalid metric window and sample types fail closed even with other approvals', () => {
+  for (const invalid of [Infinity, NaN, '36', null]) {
+    const e = allVerified();
+    e.metrics.windowHours = invalid;
+    assert.ok(assess(e).blockers.includes('CONNECTION_METRICS_INSUFFICIENT'));
+  }
+  for (const invalid of ['0', null, NaN, Infinity, -1, 0.5]) {
+    const e = allVerified();
+    e.metrics.unattributedNonzeroSamples = invalid;
+    assert.ok(assess(e).blockers.includes('NONZERO_CONNECTIONS_NOT_ATTRIBUTED'));
+    assert.equal(assess(e).readyForHumanRetirementReview, false);
+  }
+});
