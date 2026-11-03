@@ -83,6 +83,8 @@ class BackupJob {
    * Esegue backup completo
    */
   async performFullBackup() {
+    // Retire imported legacy execution before notifications or filesystem access.
+    BackupService.assertLegacyBackupAvailable();
     try {
       console.log('🔄 Esecuzione backup completo...');
       
@@ -112,6 +114,8 @@ class BackupJob {
    * Esegue backup incrementale
    */
   async performIncrementalBackup() {
+    // Retire imported legacy execution before notifications or filesystem access.
+    BackupService.assertLegacyBackupAvailable();
     try {
       console.log('🔄 Esecuzione backup incrementale...');
       
@@ -141,6 +145,8 @@ class BackupJob {
    * Esegue backup immediato
    */
   async performImmediateBackup(type = 'full') {
+    // Retire imported legacy execution before notifications or filesystem access.
+    BackupService.assertLegacyBackupAvailable();
     try {
       console.log(`🔄 Esecuzione backup immediato (${type})...`);
       
@@ -176,6 +182,8 @@ class BackupJob {
    * Invia notifica di backup completato
    */
   async sendBackupNotification(type, result, trigger) {
+    // Retire imported legacy execution before notifications or filesystem access.
+    BackupService.assertLegacyBackupAvailable();
     try {
       const config = BackupService.getBackupConfig();
       
@@ -200,6 +208,8 @@ class BackupJob {
    * Invia notifica di errore backup
    */
   async sendBackupErrorNotification(type, error) {
+    // Retire imported legacy execution before notifications or filesystem access.
+    BackupService.assertLegacyBackupAvailable();
     try {
       const config = BackupService.getBackupConfig();
       
@@ -227,7 +237,19 @@ class BackupJob {
       hasIncrementalBackupInterval: this.incrementalBackupInterval !== null,
       lastFullBackup: this.lastFullBackup,
       lastIncrementalBackup: this.lastIncrementalBackup,
-      config: BackupService.getBackupConfig()
+      // Admin job/status is intentionally readable, but must never serialize\n      // the raw BACKUP_ENCRYPTION_KEY. /config itself is retired.\n      config: this.getRedactedLegacyConfig()
+    };
+  }
+
+  /**
+   * Backward-compatible, redacted status metadata for Admin inspection.
+   * No provider, filesystem, database or secret value is returned.
+   */
+  getRedactedLegacyConfig() {
+    const config = BackupService.getBackupConfig();
+    return {
+      ...config,
+      encryptionKey: config.encryptionKey ? '***HIDDEN***' : null
     };
   }
 
@@ -235,6 +257,8 @@ class BackupJob {
    * Esegue test di integrità backup
    */
   async performIntegrityTest() {
+    // Retire imported legacy execution before notifications or filesystem access.
+    BackupService.assertLegacyBackupAvailable();
     try {
       console.log('🔍 Esecuzione test di integrità backup...');
       
@@ -293,6 +317,8 @@ class BackupJob {
    * Pulisce backup vecchi
    */
   async cleanupOldBackups() {
+    // Retire imported legacy execution before notifications or filesystem access.
+    BackupService.assertLegacyBackupAvailable();
     try {
       console.log('🧹 Esecuzione pulizia backup vecchi...');
       await BackupService.cleanupOldBackups();
