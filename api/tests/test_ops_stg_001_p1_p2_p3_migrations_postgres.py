@@ -36,6 +36,9 @@ MIGRATIONS = (
         "notifiche_voti_comuni", "political_opinion_notifications",
         "segnalazioni"
     ), 78, 33, 22),
+    ("P4", "ops_stg_001_p4_preference_cooldowns_20261103.sql", (
+        "preference_change_cooldowns",
+    ), 3, 1, 2),
 )
 USER_A = "00000000-0000-4000-8000-000000000301"
 USER_B = "00000000-0000-4000-8000-000000000302"
