@@ -1,11 +1,9 @@
 // Endpoint per migrare dati da Neon a Axiom
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../../middleware/auth');
-const { requireAdmin } = require('../../middleware/auth');
+const { verifyToken, requireAdmin, pool } = require('../../middleware/auth');
 
-// Le funzioni di migrazione vengono caricate solo quando necessario (lazy loading)
-// per evitare errori all'avvio se 'pg' non è disponibile
+// Nessuna migrazione di log legacy viene avviata da questo router.
 
 /**
  * POST /api/admin/axiom-migration/migrate
@@ -13,7 +11,9 @@ const { requireAdmin } = require('../../middleware/auth');
  * Richiede autenticazione admin
  */
 router.post('/migrate', verifyToken, requireAdmin, (_req, res) => {
-  // Unapproved legacy bulk transfers can expose emails, identifiers, IPs, raw log details.
+  // Legacy migration can transfer user IDs, emails, IP addresses and free-form
+  // audit details. Optional anonymization and an unapproved retention matrix
+  // cannot certify such a transfer; reject before loading services or writing DB.
   res.set('Cache-Control', 'no-store');
   return res.status(410).json({
     success: false,
@@ -26,23 +26,23 @@ router.post('/migrate', verifyToken, requireAdmin, (_req, res) => {
  * Endpoint di test per verificare autenticazione e permessi
  */
 router.get('/test-auth', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
     res.json({
       success: true,
       message: 'Autenticazione e permessi admin verificati correttamente',
       user: {
         id: req.userId,
-        email: req.userEmail,
         role: req.userRole
       },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Errore test auth:', error);
+    console.error('❌ Errore test auth:');
     res.status(500).json({
       success: false,
       error: 'Errore test autenticazione',
-      message: error.message
+      message: 'Impossibile completare la richiesta'
     });
   }
 });
@@ -52,12 +52,8 @@ router.get('/test-auth', verifyToken, requireAdmin, async (req, res) => {
  * Ottiene statistiche sulla migrazione completata (basata sui log di migrazione)
  */
 router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
     
     // Conta quanti record sono stati migrati (basato sui log di migrazione o su una tabella di tracking)
     // Per ora, restituiamo i conteggi totali da Neon come riferimento
@@ -71,7 +67,7 @@ router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
         note: 'Verifica manualmente su Axiom Dashboard - le query APL restituiscono 403'
       };
     } catch (error) {
-      stats.centralized_logs = { error: error.message };
+      stats.centralized_logs = { error: 'Statistiche non disponibili' };
     }
     
     try {
@@ -92,24 +88,25 @@ router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
         note: 'Verifica manualmente su Axiom Dashboard - le query APL restituiscono 403'
       };
     } catch (error) {
-      stats.audit_logs = { error: error.message };
+      stats.audit_logs = { error: 'Statistiche non disponibili' };
     }
     
-    await pool.end();
+
     
     res.json({
       success: true,
       stats,
-      message: 'I dati sono stati migrati con successo. Verifica manualmente su Axiom Dashboard perché le query APL restituiscono 403.',
+      migrationVerified: false,
+      message: 'Migrazione NON verificata: confrontare i dati con Axiom prima di qualsiasi decisione di cancellazione.',
       axiomDashboardUrl: `https://app.axiom.co/${process.env.AXIOM_ORG_ID}/datasets`
     });
     
   } catch (error) {
-    console.error('❌ Errore recupero statistiche migrazione:', error);
+    console.error('❌ Errore recupero statistiche migrazione:');
     res.status(500).json({
       success: false,
       error: 'Errore recupero statistiche migrazione',
-      message: error.message
+      message: 'Impossibile completare la richiesta'
     });
   }
 });
@@ -119,12 +116,8 @@ router.get('/migration-stats', verifyToken, requireAdmin, async (req, res) => {
  * Ottiene statistiche sui dati da migrare (dry-run)
  */
 router.get('/status', verifyToken, requireAdmin, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-    });
     
     const stats = {};
     
@@ -137,7 +130,7 @@ router.get('/status', verifyToken, requireAdmin, async (req, res) => {
         destination: process.env.AXIOM_DATASET || 'centralized_logs'
       };
     } catch (error) {
-      stats.centralized_logs = { error: error.message };
+      stats.centralized_logs = { error: 'Statistiche non disponibili' };
     }
     
     // Conta audit_logs
@@ -160,10 +153,10 @@ router.get('/status', verifyToken, requireAdmin, async (req, res) => {
         destination: process.env.AXIOM_REALTIME_DATASET || 'real-time'
       };
     } catch (error) {
-      stats.audit_logs = { error: error.message };
+      stats.audit_logs = { error: 'Statistiche non disponibili' };
     }
     
-    await pool.end();
+
     
     res.json({
       success: true,
@@ -178,22 +171,24 @@ router.get('/status', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore recupero statistiche:', error);
+    console.error('❌ Errore recupero statistiche:');
     res.status(500).json({
       success: false,
       error: 'Errore recupero statistiche',
-      message: error.message
+      message: 'Impossibile completare la richiesta'
     });
   }
 });
 
 /**
  * POST /api/admin/axiom-migration/delete-migrated
- * Elimina i dati migrati da Neon dopo verifica su Axiom
- * ATTENZIONE: Questa operazione è IRREVERSIBILE
+ * Azione legacy ritirata: non eliminare dati senza prove indipendenti di
+ * archivio completo, retention approvata e percorso offline autorizzato.
  */
+// Legacy log migration deletion is disabled until Axiom export completeness,
+// independent receipts and RP-10 retention are reviewed.
+// Admin privileges and a typed DELETE confirmation alone do not prove archival safety.
 router.post('/delete-migrated', verifyToken, requireAdmin, (_req, res) => {
-  // Dataset existence + manual confirmation do not attest lossless archival or retention.
   res.set('Cache-Control', 'no-store');
   return res.status(410).json({
     success: false,

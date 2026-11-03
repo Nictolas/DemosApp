@@ -10,6 +10,7 @@ on:
       - 'api/services/legacyAxiomMigrationGate.js'
       - 'api/tests/legacyDataExport*.test.js'
       - 'api/tests/legacyAxiomMigrationGate.test.js'
+      - 'api/tests/legacyAdminPrivacyReadContracts.test.js'
       - 'scripts/*.js'
       - 'api/tests/clientAdminCapability.smoke.test.js'
       - '.github/workflows/ops-data-export-supabase-validation.yml'
@@ -24,6 +25,7 @@ on:
       - 'api/services/legacyAxiomMigrationGate.js'
       - 'api/tests/legacyDataExport*.test.js'
       - 'api/tests/legacyAxiomMigrationGate.test.js'
+      - 'api/tests/legacyAdminPrivacyReadContracts.test.js'
       - 'scripts/*.js'
       - 'api/tests/clientAdminCapability.smoke.test.js'
       - '.github/workflows/ops-data-export-supabase-validation.yml'
@@ -55,6 +57,8 @@ jobs:
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Real Express HTTP with synthetic Admin and blocked provider connections
         run: node --test api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js
+      - name: Privacy read endpoint regressions on real Express loopback
+        run: node --test api/tests/legacyAdminPrivacyReadContracts.test.js
       - name: Twelve CLI entrypoints and direct migration service must refuse
         run: node --test api/tests/legacyAxiomMigrationGate.test.js
       - name: Install frontend locked deps without scripts
