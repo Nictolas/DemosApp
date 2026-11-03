@@ -82,3 +82,27 @@ test('operational alert feed is limited to recipient in both feed and latest end
   const broadcast = read('api/routes/comunicazioni.js');
   assert.match(broadcast, /SELECT id FROM notifiche_demos WHERE titolo LIKE 'Notifica Demos:%'/);
 });
+
+
+test('administrative diagnostics never enter citizen notification lists or the shared badge', () => {
+  const api = read('api/routes/notifiche.js');
+  const filter = /AND COALESCE\(titolo, ''\) !~ '\^DEMOS — \(Critico\|Elevato\|Attenzione\|CRITICAL\|HIGH\|WARN\): \(Errore server\|Avviso operativo\)\$'/g;
+  // Main /api/notifiche and /api/notifiche/ultima must behave consistently.
+  assert.equal((api.match(filter) || []).length, 2);
+  // Keep records and push-to-admin unchanged: no DB DELETE and no alert suppression.
+  assert.doesNotMatch(api, /DELETE FROM notifiche_demos/);
+  assert.match(service, /INSERT INTO notifiche_demos/);
+  assert.match(service, /pushToAdmins\(adminIds, title, body, normalized\)/);
+
+  const frontend = read('client/src/lib/notificationFeed.ts');
+  assert.match(frontend, /OPERATIONAL_ALERT_TITLE/);
+  assert.match(frontend, /value\.tipo_notifica === 'demos'/);
+  assert.match(frontend, /payload\.notifiche\.filter/);
+  assert.match(frontend, /!isOperationalDiagnosticNotice\(item\)/);
+  // Preserve nontechnical DEMOS announcements and parliamentary notifications.
+  const predicate = /^DEMOS — (?:Critico|Elevato|Attenzione|CRITICAL|HIGH|WARN): (?:Errore server|Avviso operativo)$/;
+  assert.equal(predicate.test('DEMOS — Critico: Errore server'), true);
+  assert.equal(predicate.test('DEMOS — Elevato: Avviso operativo'), true);
+  assert.equal(predicate.test('Notifica Demos: nuovo aggiornamento'), false);
+  assert.equal(predicate.test('Il tuo deputato ha votato'), false);
+});
