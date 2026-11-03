@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - 'api/services/openpolisVotazioniFinaliService.js'
+      - 'api/services/openpolisFinalVoteDetailService.js'
+      - 'api/tests/openpolisFinalVoteDetail.test.js'
+      - 'api/scripts/checkOpenpolisFinalVoteDetails.js'
+      - 'client/src/components/VotoFinaleNominale.tsx'
       - 'api/jobs/openpolisVotazioniFinaliJob.js'
       - 'api/routes/voti-politici.js'
       - 'api/tests/openpolisFinalVoteSync.test.js'
@@ -38,10 +42,13 @@ jobs:
       - name: Syntax and final vote import regressions
         run: |
           node --check api/services/openpolisVotazioniFinaliService.js
+          node --check api/services/openpolisFinalVoteDetailService.js
           node --check api/jobs/openpolisVotazioniFinaliJob.js
           node --check api/routes/voti-politici.js
-          node --test api/tests/openpolisFinalVoteSync.test.js
+          node --test api/tests/openpolisFinalVoteSync.test.js api/tests/openpolisFinalVoteDetail.test.js
       - name: Live public feed smoke (no secrets or DB writes)
         run: node api/scripts/checkOpenpolisFinalVotes.js
+      - name: Live public nominal vote detail smoke (no secrets or DB writes)
+        run: node api/scripts/checkOpenpolisFinalVoteDetails.js
       - name: Frontend build
         run: npm run build --prefix client
