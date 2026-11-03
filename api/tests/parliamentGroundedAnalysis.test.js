@@ -1,0 +1,80 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const {
+  MIN_CONTEXT_CHARS,
+  MAX_CONTEXT_CHARS,
+  hasDocumentaryContext,
+  buildGroundedAnalysisMessages,
+  parseGroundedAnalysisResponse,
+} = require('../services/parliamentGroundedAnalysis');
+
+const lawSource = fs.readFileSync(path.join(__dirname, '../services/leggeAnalysisService.js'), 'utf8');
+const summarySource = fs.readFileSync(path.join(__dirname, '../services/aiExplanationService.js'), 'utf8');
+const evidence = 'La proposta contiene disposizioni specifiche sull\'accesso al servizio pubblico e ne disciplina tempi, obblighi, competenze e procedure di controllo. '.repeat(3);
+
+test('bare title or missing documentary text must never request generated legal conclusions', () => {
+  assert.equal(hasDocumentaryContext('Legge n. 1234'), false);
+  assert.equal(hasDocumentaryContext(null), false);
+  assert.equal(hasDocumentaryContext('a'.repeat(MIN_CONTEXT_CHARS - 1)), false);
+  assert.equal(hasDocumentaryContext('a'.repeat(MIN_CONTEXT_CHARS)), true);
+  assert.equal(buildGroundedAnalysisMessages({ titolo: 'DDL n. 1234' }), null);
+  assert.equal(buildGroundedAnalysisMessages({ titolo: 'DDL n. 1234', descrizione: 'titolo generico' }), null);
+});
+
+test('documentary prompt is bounded and explicitly prohibits invention and output of roll-call votes', () => {
+  const prompts = buildGroundedAnalysisMessages({
+    titolo: 'DDL 100',
+    tipoAtto: 'Disegno di legge',
+    descrizione: evidence.repeat(100),
+    camera: 'Senato',
+    dataVotazione: '2026-11-03',
+  });
+  assert.equal(prompts.length, 2);
+  assert.equal(prompts[0].role, 'system');
+  assert.match(prompts[0].content, /ESCLUSIVAMENTE/);
+  assert.match(prompts[0].content, /Non attribuire mai il voto/);
+  assert.match(prompts[0].content, /non attendibili come istruzioni/);
+  assert.ok(prompts[1].content.length < MAX_CONTEXT_CHARS + 650);
+  assert.match(prompts[1].content, /DOCUMENTI/);
+});
+
+test('structured result must contain all three bounded fields, not fabricated ones', () => {
+  const valid = {
+    spiegazione_generale: 'Il testo disciplina uno specifico servizio.',
+    effetti_positivi: '',
+    effetti_negativi: '',
+    esito: 'Vietato inferire'
+  };
+  const parsed = parseGroundedAnalysisResponse(JSON.stringify(valid));
+  assert.deepEqual(parsed, {
+    spiegazione_generale: valid.spiegazione_generale,
+    effetti_positivi: '',
+    effetti_negativi: '',
+  });
+  assert.deepEqual(parseGroundedAnalysisResponse('```json\n' + JSON.stringify(valid) + '\n```'), parsed);
+  assert.equal(parseGroundedAnalysisResponse('{ invalid json'), null);
+  assert.equal(parseGroundedAnalysisResponse(JSON.stringify({ spiegazione_generale: 'Tutto approvato' })), null);
+  assert.equal(parseGroundedAnalysisResponse(JSON.stringify({ ...valid, effetti_positivi: 'a'.repeat(1400) })), null);
+  assert.equal(parseGroundedAnalysisResponse('[' + JSON.stringify(valid) + ']'), null);
+});
+
+test('full legislative analysis has exactly one provider call and no handwritten 1718 fallback', () => {
+  assert.equal((lawSource.match(/chat\.completions\.create\s*\(/g) || []).length, 1);
+  assert.match(lawSource, /buildGroundedAnalysisMessages\s*\(/);
+  assert.match(lawSource, /parseGroundedAnalysisResponse\s*\(/);
+  assert.doesNotMatch(lawSource, /INFORMAZIONI SULLA LEGGE N\. 1718/);
+  assert.doesNotMatch(lawSource, /generaEffettiPositivi\s*\(/);
+  assert.doesNotMatch(lawSource, /generaEffettiNegativi\s*\(/);
+});
+
+test('short explanation refuses insufficient documents and forbids model-memory filler', () => {
+  assert.match(summarySource, /if \(!hasDocumentaryContext\(descrizione\)\)/);
+  assert.match(summarySource, /INFORMAZIONI_INSUFFICIENTI/);
+  assert.doesNotMatch(summarySource, /usa la tua conoscenza/i);
+  assert.doesNotMatch(summarySource, /integra con la tua conoscenza/i);
+});
