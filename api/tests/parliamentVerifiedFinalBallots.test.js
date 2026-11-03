@@ -46,6 +46,14 @@ test('a mismatched vote ID, legislative chamber or vote date never produces attr
   assert.throws(() => parseVerifiedFinalBallots(openpolisSenateHtml(),{...senato,openpolis_id:'19-468-4'}),/VOTE_SOURCE_ID_MISMATCH/);
 });
 
+test('secret final ballots never reveal inferred choices, even with synthetic nominal-looking rows', () => {
+  const html = openpolisSenateHtml().replace('VOTO FINALE Approvata', 'VOTO FINALESEGRETO Approvata');
+  assert.throws(() => parseVerifiedFinalBallots(html, senato), /VOTE_SOURCE_SECRET_BALLOT/);
+  // This is a ballot-specific marker, not a generic filter legend elsewhere.
+  const ordinary = openpolisSenateHtml().replace('</body>', '<aside>Filtro: VOTO FINALE SEGRETO</aside></body>');
+  assert.equal(parseVerifiedFinalBallots(ordinary, senato).members.length, 150);
+});
+
 test('incomplete lists, duplicate names or unknown vote statuses fail closed', () => {
   assert.throws(() => parseVerifiedFinalBallots(officialCameraHtml('UNKNOWN'),camera),/VOTE_SOURCE_UNRECOGNIZED_ROW/);
   assert.throws(() => parseVerifiedFinalBallots(officialCameraHtml('Favorevole',true),camera),/VOTE_SOURCE_DUPLICATE_MEMBERS/);
