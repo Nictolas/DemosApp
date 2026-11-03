@@ -4,12 +4,16 @@ on:
     branches: [integration/p0-release-gates-20261102]
     paths:
       - 'api/routes/admin/**'
+      - 'api/middleware/auth.js'
+      - 'api/tests/authAxiomReadSafety.contract.test.js'
       - 'api/tests/adminLegacyErrorRedaction.contract.test.js'
       - '.github/workflows/p0-legacy-admin-main-extract.yml'
   pull_request:
     branches: [main]
     paths:
       - 'api/routes/admin/data-export.js'
+      - 'api/middleware/auth.js'
+      - 'api/tests/authAxiomReadSafety.contract.test.js'
       - 'api/routes/admin/axiom-migration.js'
       - 'api/routes/admin/data-retention.js'
       - 'api/routes/admin/backup.js'
@@ -42,6 +46,7 @@ jobs:
       - name: Parse modified backend
         run: |
           node --check api/app.js
+          node --check api/middleware/auth.js
           node --check api/routes/admin/data-export.js
           node --check api/routes/admin/axiom-migration.js
           node --check api/routes/admin/data-retention.js
@@ -50,6 +55,8 @@ jobs:
         run: node --test --test-concurrency=1 api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js api/tests/legacyRetentionMainExtraction.http.test.js api/tests/legacyRetentionBackupSafety.http.test.js
       - name: Verify Admin error redaction and GDPR 410 holds
         run: node --test api/tests/adminLegacyErrorRedaction.contract.test.js
+      - name: Validate auth error isolation, outage 503 and Axiom shared-pool privacy
+        run: node --test api/tests/authAxiomReadSafety.contract.test.js
   frontend-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
