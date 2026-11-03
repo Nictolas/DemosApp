@@ -63,6 +63,7 @@ function prepare({ failAt = '', userId = 'synthetic-person' } = {}) {
       async invalidateAuthUserCache(id) {
         effects.push('invalidate');
         assert.equal(id, userId);
+        if (failAt === 'invalidate') throw Error('SYNTHETIC_REDIS_FAILURE');
       },
     },
   };
@@ -112,6 +113,18 @@ test('failed erasure rolls back and must not invalidate account cache', async ()
   assert.equal(fixture.effects.includes('invalidate'), false);
   assert.equal(res.headers['cache-control'], 'private, no-store, max-age=0');
   assert.doesNotMatch(JSON.stringify(res.body) + fixture.log.join(' '), /SYNTHETIC_ERASURE_FAILURE/);
+});
+
+test('a Redis failure after commit must not claim the account deletion was rolled back', async () => {
+  const fixture = prepare({ failAt: 'invalidate' });
+  const res = await fixture.call();
+  assert.equal(res.statusCode, 200, 'erasure already committed');
+  assert.equal(res.body.success, true);
+  assert.ok(fixture.effects.includes('COMMIT'));
+  assert.ok(fixture.effects.includes('invalidate'));
+  assert.ok(!fixture.effects.includes('ROLLBACK'), 'no rollback after commit');
+  assert.doesNotMatch(JSON.stringify(res.body) + fixture.log.join(' '),
+    /SYNTHETIC_REDIS_FAILURE/);
 });
 
 test('Admin cannot erase own account and no DB or cache is touched', async () => {
