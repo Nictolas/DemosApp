@@ -1,5 +1,11 @@
 name: P0 legacy admin routes fail closed — main extraction
 on:
+  push:
+    branches: [integration/p0-release-gates-20261102]
+    paths:
+      - 'api/routes/admin/**'
+      - 'api/tests/adminLegacyErrorRedaction.contract.test.js'
+      - '.github/workflows/p0-legacy-admin-main-extract.yml'
   pull_request:
     branches: [main]
     paths:
@@ -14,6 +20,7 @@ on:
       - 'api/tests/legacyDataExportAuthIntegration.test.js'
       - 'api/tests/legacyRetentionMainExtraction.http.test.js'
       - 'api/tests/legacyRetentionBackupSafety.http.test.js'
+      - 'api/tests/adminLegacyErrorRedaction.contract.test.js'
       - '.github/workflows/p0-legacy-admin-main-extract.yml'
 permissions:
   contents: read
@@ -41,6 +48,8 @@ jobs:
           node --check api/routes/admin/backup.js
       - name: Real HTTP auth and disabled legacy writes (synthetic fixtures)
         run: node --test --test-concurrency=1 api/tests/legacyDataExportRetirement.test.js api/tests/legacyDataExportAuthIntegration.test.js api/tests/legacyRetentionMainExtraction.http.test.js api/tests/legacyRetentionBackupSafety.http.test.js
+      - name: Verify Admin error redaction and GDPR 410 holds
+        run: node --test api/tests/adminLegacyErrorRedaction.contract.test.js
   frontend-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
