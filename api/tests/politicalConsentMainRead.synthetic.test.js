@@ -194,7 +194,9 @@ test('profile: auth, missing target and DB failure never cache private data',asy
 test('profile routes never log personal identifiers, opinion filters or raw SQL exceptions',()=>{
   const source=file('routes/users/profile.js');
   const loggingLines=source.split(/\r?\n/).filter(line=>/^\s*console\.(?:log|warn|error)\s*\(/.test(line));
-  const privateData=/\b(?:userId|authenticatedUserId|rappresentanteId|queryError)\b|\b(?:user|updatedUser)\.email\b|\berror\.(?:message|stack|detail|constraint)\b|,\s*(?:error|e|grado|updateData\[)/;
+  // A literal route template like '/api/users/:userId' is not personal data;
+  // the actual danger is interpolating/passing the runtime identifier to logs.
+  const privateData=/\$\{\s*(?:userId|authenticatedUserId|rappresentanteId|queryError)\s*\}|,\s*(?:userId|authenticatedUserId|rappresentanteId|queryError)\b|\b(?:user|updatedUser)\.email\b|\berror\.(?:message|stack|detail|constraint)\b|,\s*(?:error|e|grado|updateData\[)/;
   assert.ok(loggingLines.length>0);
   for(const line of loggingLines) assert.doesNotMatch(line,privateData);
   assert.doesNotMatch(source,/console\.error\(\s*['"`]([^\n]*)(?:Stack trace|Dettagli errore)/);
