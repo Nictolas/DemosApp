@@ -2,6 +2,7 @@ const express = require('express');
 const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
+const { invalidateAuthUserCache } = require('../../services/redisCache');
 
 const router = express.Router();
 
@@ -35,7 +36,12 @@ router.delete('/:userId', verifyToken, requireAdmin, async (req, res) => {
       });
       const erased = await PrivacyErasureLedgerService.enforceAccountDeletion(client, userId);
       await client.query('COMMIT');
+      // An erased account must not remain authorized through a stale auth
+      // snapshot. Invalidation is best-effort if Redis is unavailable;
+      // the bounded cache TTL remains a documented residual risk.
+      await invalidateAuthUserCache(userId);
 
+      res.set('Cache-Control', 'private, no-store, max-age=0');
       return res.json({
         success: true,
         message: 'Utente eliminato con successo',
@@ -49,7 +55,7 @@ router.delete('/:userId', verifyToken, requireAdmin, async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error('Errore nell\'eliminazione utente:', error);
+    console.error('Errore eliminazione account amministrativa');
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
