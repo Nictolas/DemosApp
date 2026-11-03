@@ -73,7 +73,10 @@ function prepare({ failAt = '', userId = 'synthetic-person' } = {}) {
       if (!Object.hasOwn(dependencies, name)) throw Error('Unmocked dependency ' + name);
       return dependencies[name];
     },
-    console: { error: (...args) => log.push(args.join(' ')) },
+    console: {
+      error: (...args) => log.push(args.join(' ')),
+      warn: (...args) => log.push(args.join(' ')),
+    },
   }, { filename: 'admin-user-delete-synthetic.js' });
 
   const response = () => ({
