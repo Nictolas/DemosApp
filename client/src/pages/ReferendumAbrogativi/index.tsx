@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { useReferendumActions } from "./hooks/useReferendumActions";
 
 export default function ReferendumAbrogativi() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const deepLinkHandled = useRef(false);
 
   const { 
     listaReferendum,
@@ -25,6 +26,18 @@ export default function ReferendumAbrogativi() {
     closeView
   } = useReferendumActions();
 
+
+  // Dopo un tap FCM apre il dettaglio ufficiale, oppure resta sull'elenco.
+  useEffect(() => {
+    if (deepLinkHandled.current || isLoading || isError || !user) return;
+    const id = new URLSearchParams(window.location.search).get("initiative");
+    if (!id) return;
+    deepLinkHandled.current = true;
+    const item = referendumUfficiali.find(
+      entry => String(entry.id_ministero ?? entry.id) === id
+    );
+    if (item) startEditView(item);
+  }, [referendumUfficiali, isLoading, isError, user]);
 
   // Redirect se non autenticato
   if (isAuthLoading) {

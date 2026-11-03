@@ -1,5 +1,7 @@
 const ministeroSync = require('../services/ministeroSync');
 const logger = require('../services/centralizedLogger');
+const { collectMinisteroNewInitiatives } = require('../services/civicNewInitiativeEventCollector');
+const { dispatchCivicNewInitiatives } = require('../services/civicNewInitiativePushDispatcher');
 
 /**
  * Job periodico per sincronizzare iniziative/referendum dal Ministero
@@ -75,6 +77,25 @@ class MinisteroSyncJob {
     try {
       const result = await this.executeWithRetry();
       const errors = Number(result?.errors || 0);
+      if (errors === 0) {
+        // Outbox solo dopo una sincronizzazione completa, senza invii push.
+        const events = await collectMinisteroNewInitiatives(require('../config/database').getPool());
+        if (events.recorded > 0) {
+          console.log('[civic-new] nuove raccolte ufficiali registrate:', events.recorded);
+        }
+        // Controlla anche eventuali eventi in coda da cicli precedenti.
+        // Il dispatcher non viene eseguito se il gate dedicato e' disattivo.
+        try {
+          const delivery = await dispatchCivicNewInitiatives(require('../config/database').getPool());
+          if (delivery.enabled && (delivery.accepted || delivery.failed)) {
+            console.log('[civic-push] esiti FCM aggregati:', {
+              accepted: delivery.accepted, failed: delivery.failed
+            });
+          }
+        } catch {
+          console.warn('[civic-push] dispatch non disponibile; coda preservata');
+        }
+      }
       if (errors > 0) {
         console.warn(`⚠️ Sincronizzazione Ministero completata parzialmente: ${errors} errori (${new Date().toISOString()})`);
       } else {
@@ -87,6 +108,49 @@ class MinisteroSyncJob {
         stack: error.stack,
         attempts: this.maxRetries
       });
+    } finally {
+      this.isRunning = false;
+    }
+  }
+
+  /**
+   * Strict source-only sync for an authenticated external scheduler.
+   * This wakes a sleeping free-tier web service without relying on
+   * setInterval; it NEVER dispatches Firebase messages.
+   * Uses the same in-process busy guard as execute() and syncInCorsoOnly().
+   */
+  async executeSignedCivicSync() {
+    if (this.isRunning || this.isRunningInCorso) {
+      return { busy: true };
+    }
+    this.isRunning = true;
+    this.lastSyncTime = new Date();
+    try {
+      const result = await ministeroSync.syncAll();
+      const created = Number(result?.created);
+      const updated = Number(result?.updated);
+      const errors = Number(result?.errors);
+      const processed = created + updated;
+      if (!Number.isSafeInteger(created) || !Number.isSafeInteger(updated) ||
+          !Number.isSafeInteger(errors) || created < 0 || updated < 0 ||
+          errors !== 0 || processed < 1) {
+        throw new Error('MINISTERO_SOURCE_INCOMPLETE');
+      }
+      // Only a complete official sync can enter the outbox. If collection
+      // flag remains OFF, the normal source cache may still be refreshed.
+      const recorded = await collectMinisteroNewInitiatives(
+        require('../config/database').getPool()
+      );
+      this.lastSyncStatus = 'success';
+      this.lastSyncError = null;
+      return {
+        busy: false, complete: true, processed,
+        eventsRecorded: recorded.recorded || 0,
+      };
+    } catch {
+      this.lastSyncStatus = 'error';
+      this.lastSyncError = 'MINISTERO_SCHEDULED_SYNC_FAILED';
+      throw new Error('MINISTERO_SCHEDULED_SYNC_FAILED');
     } finally {
       this.isRunning = false;
     }

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from api.scripts import sync_eci
 
@@ -146,6 +146,32 @@ class SyncEciUnitTests(unittest.TestCase):
             count = sync_eci.sync(dry_run=True)
         self.assertEqual(count, 1)
         replace_cache.assert_not_called()
+
+    def test_civic_identity_matches_before_sync_and_rejects_missing_or_wrong_db(self):
+        expected = "00000000-0000-4000-8000-000000000539"
+        cursor = Mock()
+        cursor.fetchall.return_value = [(expected,)]
+        sync_eci._verify_civic_database_identity(cursor, expected)
+        cursor.execute.assert_called_once()
+        self.assertIn("civic_runtime_identity", cursor.execute.call_args.args[0])
+
+        for invalid in (None, "", "INVALID", "postgresql://password"):
+            cursor.reset_mock()
+            with self.assertRaisesRegex(RuntimeError, "NOT_CONFIGURED"):
+                sync_eci._verify_civic_database_identity(cursor, invalid)
+            cursor.execute.assert_not_called()
+
+        cursor.fetchall.return_value = [("00000000-0000-4000-8000-000000000540",)]
+        with self.assertRaisesRegex(RuntimeError, "IDENTITY_MISMATCH"):
+            sync_eci._verify_civic_database_identity(cursor, expected)
+
+        cursor.fetchall.return_value = []
+        with self.assertRaisesRegex(RuntimeError, "IDENTITY_MISMATCH"):
+            sync_eci._verify_civic_database_identity(cursor, expected)
+
+        cursor.execute.side_effect = RuntimeError("database password SECRET")
+        with self.assertRaisesRegex(RuntimeError, "^CIVIC_DATABASE_IDENTITY_UNAVAILABLE$"):
+            sync_eci._verify_civic_database_identity(cursor, expected)
 
     def test_main_returns_nonzero_on_sync_failure(self):
         with patch.object(sync_eci, "sync", side_effect=RuntimeError("boom")):
