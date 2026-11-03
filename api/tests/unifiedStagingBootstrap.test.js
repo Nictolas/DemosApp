@@ -48,6 +48,38 @@ test('requires explicit non-production bootstrap authorization', () => {
   );
 });
 
+test('bootstrap refuses sensitive provider configuration before opening any listener', () => {
+  const safe = { NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'bootstrap' };
+  const keys = [
+    'DATABASE_URL', 'DIRECT_URL', 'PGHOST', 'PGUSER', 'PGPASSWORD',
+    'SUPABASE_DB_URL', 'SUPABASE_SERVICE_ROLE_KEY',
+    'REDIS_URL', 'AXIOM_API_TOKEN', 'B2_S3_ACCESS_KEY_ID',
+    'B2_S3_SECRET_ACCESS_KEY', 'B2_APPLICATION_KEY',
+    'GDPR_LEDGER_B2_ACCESS_KEY_ID', 'GDPR_LEDGER_B2_SECRET_ACCESS_KEY',
+    'GOOGLE_APPLICATION_CREDENTIALS', 'FIREBASE_SERVICE_ACCOUNT',
+    'FIREBASE_SERVICE_ACCOUNT_JSON',
+  ];
+  for (const key of keys) {
+    assert.throws(
+      () => validateBootstrapEnvironment({ ...safe, [key]: 'synthetic-never-connect' }),
+      /STAGING_BOOTSTRAP_CREDENTIALS_FORBIDDEN/, key
+    );
+  }
+  for (const key of [
+    'CIVIC_PUSH_ENABLED', 'AXIOM_ARCHIVE_ENABLED',
+    'GDPR_LEDGER_B2_ENABLED', 'GDPR_ERASURE_OUTBOX_WORKER_ENABLED',
+  ]) {
+    assert.throws(
+      () => validateBootstrapEnvironment({ ...safe, [key]: 'true' }),
+      /STAGING_BOOTSTRAP_ACTIVE_FLAGS_FORBIDDEN/, key
+    );
+  }
+  assert.deepEqual(validateBootstrapEnvironment({
+    ...safe, DATABASE_URL: '', AXIOM_API_TOKEN: '  ',
+    CIVIC_PUSH_ENABLED: 'false',
+  }), { port: 10000 });
+});
+
 test('rejects ephemeral, non-decimal, and out-of-range deployed ports', () => {
   const env = { NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'bootstrap' };
   assert.deepEqual(validateBootstrapEnvironment(env), { port: 10000 });
