@@ -5,6 +5,7 @@ const AuditService = require('../../services/auditService');
 const { getPool } = require('../../config/database');
 const bcrypt = require('bcryptjs');
 const PrivacyErasureLedgerService = require('../../services/privacyErasureLedgerService');
+const { invalidateAuthUserCache } = require('../../services/redisCache');
 
 /**
  * @route GET /api/user/delete-account/requirements
@@ -138,6 +139,15 @@ router.delete('/', verifyToken, async (req, res) => {
     await PrivacyErasureLedgerService.enforceAccountDeletion(client, userId);
 
     await client.query('COMMIT');
+
+    // Best-effort cache eviction only AFTER durable account erasure. Never
+    // return a false 500 or try to roll back a committed transaction if Redis
+    // becomes unavailable; the auth-cache TTL remains a residual risk.
+    try {
+      await invalidateAuthUserCache(userId);
+    } catch {
+      console.error('ACCOUNT_DELETION_CACHE_INVALIDATION_FAILED');
+    }
 
     // COMMIT gia' confermato: un errore nell'audit esterno non deve
     // trasformare una cancellazione riuscita in una falsa risposta HTTP 500.
