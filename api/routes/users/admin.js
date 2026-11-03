@@ -40,7 +40,14 @@ router.delete('/:userId', verifyToken, requireAdmin, async (req, res) => {
       // An erased account must not remain authorized through a stale auth
       // snapshot. Invalidation is best-effort if Redis is unavailable;
       // the bounded cache TTL remains a documented residual risk.
-      await invalidateAuthUserCache(userId);
+      try {
+        await invalidateAuthUserCache(userId);
+      } catch (_) {
+        // COMMIT has already succeeded. Never misreport a completed erasure
+        // as a failed database operation because Redis is temporarily down.
+        // The bounded auth-cache TTL is a residual risk until expiry.
+        console.warn('Cache account non invalidabile dopo cancellazione confermata');
+      }
 
       return res.json({
         success: true,
