@@ -230,6 +230,13 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   const [loadingDettagli, setLoadingDettagli] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [finalBallotOpen, setFinalBallotOpen] = useState(false);
+  // A trusted push deep-link can open only the ballot already present in this user's notification feed.
+  useEffect(() => {
+    if (!notifica.openpolis_id || typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('final_vote') === notifica.openpolis_id) {
+      setFinalBallotOpen(true);
+    }
+  }, [notifica.openpolis_id]);
 
   // Funzione helper per formattare il titolo in modo compatto
   const formattaTitoloCompatto = (titolo: string): string => {
