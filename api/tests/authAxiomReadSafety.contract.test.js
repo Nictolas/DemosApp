@@ -38,15 +38,15 @@ function response() {
   };
 }
 
-function auth({ verify = () => ({ userId: 'synthetic-user' }), lookup = async () => null } = {}) {
+function auth({ verify = () => ({ userId: 'synthetic-user' }), lookup = async () => null, redis = { isEnabled: () => false }, authTtl = 0 } = {}) {
   const messages = [];
   const pool = { query() { throw Error('Unexpected SQL in isolated auth test'); } };
   const source = read('api/middleware/auth.js');
   const instance = load(source, {
     '../utils/jwt': { verifyAccessToken: verify },
     '../config/database': { getPool: () => pool },
-    '../services/redisCache': { isEnabled: () => false },
-    '../config/cacheKeys': { keys: { authUser: () => 'unused' }, ttl: { authUser: 0 } },
+    '../services/redisCache': redis,
+    '../config/cacheKeys': { keys: { authUser: id => 'synthetic:' + id }, ttl: { authUser: authTtl } },
     '../services/accountCapabilitiesService': { getAccountSubject: lookup },
   }, {}, messages);
   return { instance, messages };
@@ -148,4 +148,126 @@ test('Axiom Admin GETs reuse the shared read-only pool, hide audit email and nev
   assert.equal(deletion.statusCode, 410);
   assert.equal(start.statusCode, 410);
   assert.equal(sqls.length, 6, 'only the six synthetic aggregate reads may execute');
+});
+
+
+function fixtureAccount(id, { admin = false, status = 'a', legacyRole } = {}) {
+  return {
+    id, status, legacyRole: legacyRole || (admin ? 'AD' : 'E'),
+    capabilities: { accountType: 'PERSON', isAdmin: admin, isCandidate: false,
+      isPolitician: false, isActivist: false },
+  };
+}
+
+async function authenticateSynthetic(instance) {
+  let called = 0;
+  const req = { headers: { authorization: 'Bearer synthetic' } };
+  const res = response();
+  await instance.verifyToken(req, res, () => { called++; });
+  return { req, res, called };
+}
+
+test('a Redis snapshot with former Admin privileges cannot authorize a revoked administrator', async () => {
+  const writes = [];
+  let reads = 0;
+  let dbReads = 0;
+  const redis = {
+    isEnabled: () => true,
+    async getJson() { reads++; return fixtureAccount('synthetic-user', { admin: true }); },
+    async setJson(key, value) { writes.push({ key, value }); },
+  };
+  const { instance } = auth({
+    authTtl: 15, redis,
+    lookup: async () => { dbReads++; return fixtureAccount('synthetic-user'); },
+  });
+  const { req, called } = await authenticateSynthetic(instance);
+  assert.equal(called, 1, 'valid JWT still reaches application');
+  assert.equal(dbReads, 1, 'privileged cache MUST NOT suppress fresh account lookup');
+  assert.equal(reads, 1);
+  assert.equal(req.user.isAdmin, false);
+  assert.equal(writes.length, 1, 'unprivileged replacement can be cached');
+  const res = response();
+  let granted = false;
+  await instance.requireAdmin(req, res, () => { granted = true; });
+  assert.equal(res.statusCode, 403);
+  assert.equal(granted, false);
+});
+
+test('current Admin always uses fresh account state and never writes Admin to Redis', async () => {
+  let dbReads = 0;
+  let writes = 0;
+  const redis = {
+    isEnabled: () => true,
+    async getJson() { return null; },
+    async setJson() { writes++; },
+  };
+  const { instance } = auth({
+    authTtl: 15, redis,
+    lookup: async () => { dbReads++; return fixtureAccount('synthetic-user', { admin: true }); },
+  });
+  for (let i = 0; i < 2; i++) {
+    const { req, called } = await authenticateSynthetic(instance);
+    assert.equal(called, 1);
+    assert.equal(req.user.isAdmin, true);
+    const res = response();
+    let granted = false;
+    await instance.requireAdmin(req, res, () => { granted = true; });
+    assert.equal(granted, true);
+  }
+  assert.equal(dbReads, 2, 'each privileged request requires current database state');
+  assert.equal(writes, 0, 'no Redis snapshot containing Admin privileges');
+});
+
+test('cached identity mismatch is rejected even for unprivileged cached profiles', async () => {
+  let dbReads = 0;
+  const redis = {
+    isEnabled: () => true,
+    async getJson() { return fixtureAccount('different-person'); },
+    async setJson() {},
+  };
+  const { instance } = auth({
+    authTtl: 15, redis,
+    lookup: async () => { dbReads++; return fixtureAccount('synthetic-user'); },
+  });
+  const { req, called } = await authenticateSynthetic(instance);
+  assert.equal(called, 1);
+  assert.equal(dbReads, 1, 'wrong account ID cannot be reused from cache');
+  assert.equal(req.user.id, 'synthetic-user');
+});
+
+test('normal unprivileged accounts retain Redis read-through and avoid unnecessary SQL', async () => {
+  let dbReads = 0;
+  let writes = 0;
+  const redis = {
+    isEnabled: () => true,
+    async getJson() { return fixtureAccount('synthetic-user'); },
+    async setJson() { writes++; },
+  };
+  const { instance } = auth({
+    authTtl: 15, redis,
+    lookup: async () => { dbReads++; return fixtureAccount('synthetic-user'); },
+  });
+  const { req, called } = await authenticateSynthetic(instance);
+  assert.equal(called, 1);
+  assert.equal(req.user.id, 'synthetic-user');
+  assert.equal(req.user.isAdmin, false);
+  assert.equal(dbReads, 0);
+  assert.equal(writes, 0);
+});
+
+test('legacy AD role in a stale cache is not trusted even if capability flag is false', async () => {
+  let dbReads = 0;
+  const redis = {
+    isEnabled: () => true,
+    async getJson() { return fixtureAccount('synthetic-user', { legacyRole: 'AD' }); },
+    async setJson() {},
+  };
+  const { instance } = auth({
+    authTtl: 15, redis,
+    lookup: async () => { dbReads++; return fixtureAccount('synthetic-user'); },
+  });
+  const { req, called } = await authenticateSynthetic(instance);
+  assert.equal(called, 1);
+  assert.equal(dbReads, 1);
+  assert.equal(req.user.isAdmin, false);
 });
