@@ -131,3 +131,23 @@ test('vote checks ballot freeze at the write, with read-only ballot access', () 
   assert.match(write, /ON CONFLICT \(civic_ballot_id, user_id\)/);
   assert.match(write, /saved\.rowCount !== 1/);
 });
+
+test('simultaneous first referendum votes serialize before cooldown reads', () => {
+  const write = route.slice(route.indexOf('router.post('));
+  const begin = write.indexOf("await client.query('BEGIN')");
+  const lock = write.indexOf("pg_advisory_xact_lock(hashtext($1::text), hashtext($2::text))");
+  const ballotRead = write.indexOf('const ballotResult =');
+  const positionRead = write.indexOf('const existingResult =');
+  const cooldown = write.indexOf('await assertPreferenceChangeAllowed');
+  const writeVote = write.indexOf('const saved = await client.query');
+  const record = write.indexOf('await recordPreferenceChange');
+  const commit = write.lastIndexOf("await client.query('COMMIT')");
+  assert.ok(begin >= 0 && begin < lock && lock < ballotRead,
+    'transaction advisory lock must precede first ballot and existing vote checks');
+  assert.ok(lock < positionRead && positionRead < cooldown && cooldown < writeVote);
+  assert.ok(writeVote < record && record < commit,
+    'vote and cooldown must be committed in the same transaction');
+  assert.match(write, /\[String\(req\.userId\), ballotId\]/);
+  assert.match(write, /WHERE cb\.id = \$1::uuid AND cb\.status = 'scheduled'/);
+  assert.match(write, /cb\.opens_at > clock_timestamp\(\)/);
+});
