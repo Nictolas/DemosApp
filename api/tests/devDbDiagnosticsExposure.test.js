@@ -215,3 +215,10 @@ test('FCM push and notification errors never log raw token or exception contents
   assert.match(source, /if \(localNotificationDebug\) console\.log\(\.\.\.args\)/);
   assert.match(source, /if \(localNotificationDebug\) console\.warn\(\.\.\.args\)/);
 });
+
+test('global notification SQL cannot authorize cross-user delivery by title', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.resolve(__dirname, '../routes/notifiche.js'), 'utf8');
+  assert.ok(!source.includes("titolo NOT LIKE 'DEMOS — %'"));
+});
