@@ -62,6 +62,13 @@ function parseVerifiedFinalBallots(html, vote) {
   const expectedDate = iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
   if (!text.includes(expectedDate)) throw new Error('VOTE_SOURCE_DATE_MISMATCH');
 
+  // A secret ballot cannot support attribution of a choice to a person.
+  // Test only the division header; filters or legends may mention secret votes.
+  const divisionHeading = text.split(/Come hanno votato i (?:gruppi|deputati|senatori|parlamentari)/i)[0].slice(0, 1800);
+  if (senate && /VOTO\\s+FINALE\\s*SEGRETO/i.test(divisionHeading)) {
+    throw new Error('VOTE_SOURCE_SECRET_BALLOT');
+  }
+
   let rows;
   $('table').each((_, table) => {
     if (rows) return;
