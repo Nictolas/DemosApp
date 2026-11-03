@@ -72,9 +72,15 @@ const verifyToken = async (req, res, next) => {
         if (
           cached &&
           cached.id != null &&
+          String(cached.id) === String(userIdFromToken) &&
           cached.status != null &&
           cached.legacyRole != null &&
-          cached.capabilities != null
+          cached.capabilities &&
+          typeof cached.capabilities === 'object' &&
+          // A revoked Admin must never retain elevated privileges via Redis.
+          // Current Admin authorization is always reloaded from PostgreSQL.
+          !cached.capabilities.isAdmin &&
+          cached.legacyRole !== 'AD'
         ) {
           user = cached;
           log('Cache autenticazione valida');
@@ -103,7 +109,14 @@ const verifyToken = async (req, res, next) => {
           });
         }
 
-        if (authCacheKey && authCacheTtlSec > 0) {
+        if (
+          authCacheKey &&
+          authCacheTtlSec > 0 &&
+          // Do not persist privileged snapshots: revocations must take effect
+          // on the next authenticated request, not after the auth-cache TTL.
+          !user.capabilities?.isAdmin &&
+          user.legacyRole !== 'AD'
+        ) {
           await redisCache.setJson(authCacheKey, user, authCacheTtlSec);
         }
       }
