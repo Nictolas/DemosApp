@@ -3,7 +3,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLES,
   CIVIC_RUNTIME_COLUMNS, evaluateCivicProtection, evaluateAllPublicStagingTables, evaluateCivicRuntimeColumns,
-  evaluateBlockedGuard, evaluateStagingIdentity, STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
+  evaluateBlockedGuard, evaluateStagingIdentity, evaluatePreflightRole,
+  evaluatePreflightWriteGrants, STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
 
 const env = {NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'preflight'};
 const st = 'fkeayjzvtuvzesljhjbc';
@@ -177,4 +178,31 @@ test('dedicated preflight credentials never reuse the application DATABASE_URL',
       DEMOS_UNIFIED_STAGING_PREFLIGHT_GO:'APPROVED_READ_ONLY_PREFLIGHT'}),
     /DATABASE_URL is missing/
   );
+});
+
+test('preflight rejects privileged, inherited or writable PostgreSQL role capabilities', () => {
+  const leastPrivilege = {
+    username: 'demos_staging_preflight', read_only: 'on',
+    rolcanlogin: true, rolsuper: false, rolbypassrls: false,
+    rolcreatedb: false, rolcreaterole: false, rolinherit: false,
+    can_create_schema: false, can_create_database: false
+  };
+  assert.equal(evaluatePreflightRole([leastPrivilege]), true);
+  assert.equal(evaluatePreflightRole([]), false);
+  assert.equal(evaluatePreflightRole([leastPrivilege, leastPrivilege]), false);
+  for (const [key, bad] of [
+    ['username','postgres'], ['read_only','off'], ['rolcanlogin',false],
+    ['rolsuper',true], ['rolbypassrls',true], ['rolcreatedb',true],
+    ['rolcreaterole',true], ['rolinherit',true],
+    ['can_create_schema',true], ['can_create_database',true]
+  ]) assert.equal(evaluatePreflightRole([{...leastPrivilege, [key]: bad}]),false,key);
+});
+test('preflight refuses any public table write grant, even a single one', () => {
+  assert.equal(evaluatePreflightWriteGrants([{table_name:'users',can_write:false}]),true);
+  for(const bad of [
+    [], [{table_name:'users',can_write:true}],
+    [{table_name:'users',can_write:false},{table_name:'eventi',can_write:true}],
+    [{table_name:'users',can_write:null}],
+    [{table_name:'',can_write:false}]
+  ]) assert.equal(evaluatePreflightWriteGrants(bad),false);
 });
