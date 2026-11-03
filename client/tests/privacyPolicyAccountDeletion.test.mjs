@@ -54,3 +54,12 @@ test('privacy does not promise obsolete password, retention or backup mechanisms
   assert.doesNotMatch(source, /ruoli P, C, CP/);
   assert.match(source, /Backup e ripristino:/);
 });
+
+
+test('public analytics copy matches the citizen sex field in both entry points', () => {
+  for (const file of ['LandingPage.tsx', 'ScopriDemos.tsx']) {
+    const page = readFileSync(new URL('../src/pages/' + file, import.meta.url), 'utf8');
+    assert.match(page, /Analizza le preferenze per zona, sesso e fasce/);
+    assert.doesNotMatch(page, /Analizza le preferenze per zona, genere e fasce/);
+  }
+});
