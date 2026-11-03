@@ -16,7 +16,8 @@ async function main() {
   const dates = votes.map(x=>x.data_votazione).sort().reverse();
   console.log('Openpolis final-vote smoke:', JSON.stringify({
     parsed: votes.length, latest: dates[0], ids: Array.from(ids).slice(0,4),
-    elapsedMs: Date.now() - start
+    elapsedMs: Date.now() - start,
+    verifiedRows: votes.map(v => ({ id: v.openpolis_id, camera: v.camera, titolo: v.titolo, esito: v.esito, data: v.data_votazione, url: v.url_dettaglio }))
   }));
 }
 main().catch(async error => {
