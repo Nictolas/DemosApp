@@ -33,19 +33,20 @@ test('uses explicit current opt-in for each chamber and only active registered d
     return {successCount:messages.length,failureCount:0};
   }})};
   try{
-    assert.deepEqual(resolvePushTarget('Camera'),{selection:'rappresentante_camera',preference:'deputato'});
-    assert.deepEqual(resolvePushTarget('Senato'),{selection:'rappresentante_senato',preference:'senatore'});
+    assert.deepEqual(resolvePushTarget('Camera'),{office:'it.camera',preference:'deputato'});
+    assert.deepEqual(resolvePushTarget('Senato'),{office:'it.senato',preference:'senatore'});
     assert.equal(resolvePushTarget('Parlamento europeo'),null);
     const outcome=await sendFinalBallotPush(pool,{
       representativeId:'rep-1',chamber:'Camera',openpolisId:'vs19_730_097',
       title:'Voto finale',status:'Favorevole'
     },{firebaseAdmin:admin});
     assert.equal(outcome.sent,1);
-    assert.match(calls[0].sql,/u\.rappresentante_camera = \$1::text/);
+    assert.match(calls[0].sql,/ps\.selected_user_id = \$1::uuid/);
     assert.match(calls[0].sql,/p\.deputato IS TRUE/);
     assert.match(calls[0].sql,/d\.is_active = TRUE/);
     assert.match(calls[0].sql,/lower\(coalesce\(u\.status/);
-    assert.equal(calls[0].args[1],MAX_RECIPIENTS+1);
+    assert.equal(calls[0].args[1],'it.camera');
+    assert.equal(calls[0].args[2],MAX_RECIPIENTS+1);
     assert.equal(sent[0].data.type,'parliament_final_vote');
     assert.equal(sent[0].data.url,'/notifiche?final_vote=vs19_730_097');
     assert.equal(sent[0].android.notification.channelId,'demos_notifications');
@@ -53,8 +54,9 @@ test('uses explicit current opt-in for each chamber and only active registered d
       representativeId:'rep-1',chamber:'Senato',openpolisId:'19-469-3',
       title:'Voto finale',status:'Astenuto R'
     },{firebaseAdmin:admin});
-    assert.match(calls[1].sql,/u\.rappresentante_senato = \$1::text/);
+    assert.match(calls[1].sql,/ps\.political_office_id = \$2/);
     assert.match(calls[1].sql,/p\.senatore IS TRUE/);
+    assert.equal(calls[1].args[1],'it.senato');
     assert.equal(sent[1].data.url,'/notifiche?final_vote=19-469-3');
   }finally{
     if(previous===undefined)delete process.env.PARLIAMENT_FINAL_PUSH_ENABLED;
