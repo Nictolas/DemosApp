@@ -26,6 +26,7 @@ function harness({legacyGraziaReview = false} = {}) {
   const methods = {get: new Map(), post: new Map()};
   const queries = [];
   let connects = 0;
+  let activeConnections = 0;
   const router = {
     get(route, ...args) {methods.get.set(route, args.at(-1)); return router;},
     post(route, ...args) {methods.post.set(route, args.at(-1)); return router;}
@@ -43,7 +44,12 @@ function harness({legacyGraziaReview = false} = {}) {
   }
   const pool = {
     query,
-    async connect() {connects++; return {query, release() {}};}
+    async connect() {
+      assert.equal(activeConnections, 0, 'pool max=1: previous transaction connection must be released');
+      connects++;
+      activeConnections++;
+      return {query, release() {activeConnections--;}};
+    }
   };
   const noop = (_req, _res, next) => next && next();
   const moduleShim = {exports:{}};
@@ -61,7 +67,7 @@ function harness({legacyGraziaReview = false} = {}) {
     URL, Set,
   }, {filename:'subject-proposals.js'});
   assert.equal(moduleShim.exports, router);
-  return {methods, queries, get connects() {return connects;}};
+  return {methods, queries, get connects() {return connects;}, get activeConnections() {return activeConnections;}};
 }
 
 test('POST Grazia to the generic endpoint is rejected before any database access', async () => {
@@ -117,7 +123,8 @@ test('Other four category submissions still write only subject_proposals', async
   }},res);
   assert.equal(res.statusCode,201);
   assert.equal(res.body.status,'pending');
-  assert.equal(app.connects,1);
+  assert.equal(app.connects,2, 'one transactional submit connection and one notification connection');
+  assert.equal(app.activeConnections,0, 'all connections released after completion');
   assert.equal(app.queries.filter(x=>x.sql.startsWith('INSERT INTO subject_proposals')).length,1);
   assert.equal(app.queries.some(x=>/INSERT INTO grazia_carcerati/.test(x.sql)),false);
 });

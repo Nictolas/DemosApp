@@ -101,7 +101,7 @@ test('backend enforces source HTTPS and avoids criminal details in admin notice'
   assert.match(route, /url\.username \|\| url\.password/);
   assert.match(route, /Nuova proposta ricevuta in una categoria da moderare/);
   assert.doesNotMatch(route, /proposal\.title\.slice\(0, 120\)/);
-  assert.match(route, /INSERT INTO subject_proposals\(proposer_user_id,category,title,details,source_url,status\)/);
+  assert.match(route, /INSERT INTO subject_proposals\(proposer_user_id,category,title,details,source_url,status,submission_notification_sent\)/);
   assert.match(route, /if \(error\.code === '23505'\) return res\.status\(409\)/);
   assert.match(route, /proposal\.code === 'GRAZIA_CODA_UNICA' \? 409 : 400/);
 });

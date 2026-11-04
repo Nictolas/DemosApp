@@ -86,7 +86,7 @@ router.post('/', verifyToken, async (req, res) => {
     client = await pool.connect();
     await client.query('BEGIN');
     const r = await client.query(
-      "INSERT INTO subject_proposals(proposer_user_id,category,title,details,source_url,status) VALUES($1,$2,$3,$4,$5,'pending') RETURNING id,category,title,created_at",
+      "INSERT INTO subject_proposals(proposer_user_id,category,title,details,source_url,status,submission_notification_sent) VALUES($1,$2,$3,$4,$5,'pending',FALSE) RETURNING id,category,title,created_at",
       [userId, proposal.category, proposal.title, proposal.details, proposal.sourceUrl]
     );
     await client.query('COMMIT');
@@ -97,13 +97,29 @@ router.post('/', verifyToken, async (req, res) => {
     // The moderation queue is authoritative. An unavailable notifications table
     // must not roll back an already-valid proposal or cause a misleading retry.
     let notificationSent = false;
+    let noticeClient;
     try {
-      await pool.query(
+      noticeClient = await pool.connect();
+      await noticeClient.query('BEGIN');
+      const notice = await noticeClient.query(
         "INSERT INTO notifiche_demos(id_utente,titolo,testo) SELECT id, 'DEMOS — Nuova proposta', $1 FROM users WHERE (is_admin = TRUE OR ruolo IN ('AD','Admin')) AND lower(status) = 'a'",
         ['Nuova proposta ricevuta in una categoria da moderare.']
       );
+      // An absent active Admin is not a confirmed notification.
+      if (notice.rowCount === 0) throw new Error('NO_ACTIVE_ADMIN');
+      await noticeClient.query(
+        "UPDATE subject_proposals SET submission_notification_sent=TRUE WHERE id=$1 AND submission_notification_sent=FALSE",
+        [r.rows[0].id]
+      );
+      await noticeClient.query('COMMIT');
       notificationSent = true;
-    } catch (_) { /* pending proposal remains visible to Admin moderation */ }
+    } catch (_) {
+      if (noticeClient) {
+        try { await noticeClient.query('ROLLBACK'); } catch (_) { /* disconnected */ }
+      }
+    } finally {
+      noticeClient?.release();
+    }
     res.set('Cache-Control', 'private, no-store');
     return res.status(201).json({ success: true, status: 'pending', notification_sent: notificationSent, proposal: r.rows[0], message: 'Proposta inviata. Sarà visibile soltanto dopo approvazione.' });
   } catch (error) {
@@ -156,6 +172,21 @@ router.get('/admin/withdraw-notifications', verifyToken, requireAdmin, async (_r
     return res.json({ success: true, withdrawals: r.rows });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Stato notifiche di ritiro temporaneamente non disponibile' });
+  }
+});
+
+// Audit-only and on explicit Admin click: a notification flag is not a delivery receipt.
+// NULL means legacy outcome unknown, FALSE means not confirmed. No names, sources,
+// proposer IDs or private review notes. Never retry automatically.
+router.get('/admin/notification-audit', verifyToken, requireAdmin, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      "SELECT id,category,status,created_at,reviewed_at,submission_notification_sent,review_notification_sent FROM subject_proposals WHERE submission_notification_sent IS DISTINCT FROM TRUE OR (status IN ('approved','rejected','withdrawn') AND review_notification_sent IS DISTINCT FROM TRUE) ORDER BY created_at DESC LIMIT 100"
+    );
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ success: true, proposals: r.rows });
+  } catch (_) {
+    return res.status(503).json({ success: false, error: 'Verifica notifiche non disponibile' });
   }
 });
 
@@ -280,7 +311,7 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
     }
     const status = decision === 'approve' ? 'approved' : 'rejected';
     await client.query(
-      'UPDATE subject_proposals SET status=$2,reviewed_by=$3,reviewed_at=now(),published_ref=$4,review_note=$5 WHERE id=$1',
+      'UPDATE subject_proposals SET status=$2,reviewed_by=$3,reviewed_at=now(),published_ref=$4,review_note=$5,review_notification_sent=FALSE WHERE id=$1',
       [id, status, req.user.id, publishedRef, note || null]
     );
     await client.query('COMMIT');
@@ -289,12 +320,26 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
     // The decision and catalogue publication must not be undone by a notification outage.
     // No automatic retries until an idempotent notification outbox is approved.
     let notificationSent = false;
+    let noticeClient;
     try {
-      await notify(pool, p.proposer_user_id,
+      noticeClient = await pool.connect();
+      await noticeClient.query('BEGIN');
+      await notify(noticeClient, p.proposer_user_id,
         decision === 'approve' ? 'La tua proposta in ' + p.category + ' è stata approvata.' : 'La tua proposta in ' + p.category + ' non è stata approvata.'
       );
+      await noticeClient.query(
+        "UPDATE subject_proposals SET review_notification_sent=TRUE WHERE id=$1 AND review_notification_sent=FALSE",
+        [id]
+      );
+      await noticeClient.query('COMMIT');
       notificationSent = true;
-    } catch (_) { /* Admin review remains committed; reconciliation is required */ }
+    } catch (_) {
+      if (noticeClient) {
+        try { await noticeClient.query('ROLLBACK'); } catch (_) { /* disconnected */ }
+      }
+    } finally {
+      noticeClient?.release();
+    }
     return res.json({ success: true, status, published_ref: publishedRef, notification_sent: notificationSent });
   } catch (error) {
     if (client) {

@@ -15,6 +15,10 @@ type Proposal = {
 };
 type ApprovedSubject = { id: string; category: string; title: string; reviewed_at: string };
 type WithdrawalNotice = { id: string; category: string; withdrawn_at: string | null };
+type UnconfirmedProposalNotice = {
+  id: string; category: string; status: string; created_at: string; reviewed_at: string | null;
+  submission_notification_sent: boolean | null; review_notification_sent: boolean | null;
+};
 
 const CATEGORY_LABELS: Record<string, string> = {
   capo_stato: "Capo di Stato", amnistia: "Amnistia",
@@ -29,6 +33,7 @@ export default function ProposteSoggetti() {
   const [showApproved, setShowApproved] = useState(false);
   const [showUndelivered, setShowUndelivered] = useState(false);
   const [undelivered, setUndelivered] = useState<WithdrawalNotice[]>([]);
+  const [unconfirmedProposals, setUnconfirmedProposals] = useState<UnconfirmedProposalNotice[]>([]);
   const [loadingUndelivered, setLoadingUndelivered] = useState(false);
   const [loadingApproved, setLoadingApproved] = useState(false);
   const [undeliveredNotification, setUndeliveredNotification] = useState(false);
@@ -75,10 +80,15 @@ export default function ProposteSoggetti() {
     setLoadingUndelivered(true);
     setError(null);
     try {
-      const r = await apiRequest("GET", "/api/subject-proposals/admin/withdraw-notifications");
-      const d = await r.json();
-      setUndelivered(d.withdrawals || []);
-      setUndeliveredNotification((d.withdrawals || []).length > 0);
+      const [withdrawalResponse, proposalResponse] = await Promise.all([
+        apiRequest("GET", "/api/subject-proposals/admin/withdraw-notifications"),
+        apiRequest("GET", "/api/subject-proposals/admin/notification-audit"),
+      ]);
+      const withdrawal = await withdrawalResponse.json();
+      const proposals = await proposalResponse.json();
+      setUndelivered(withdrawal.withdrawals || []);
+      setUnconfirmedProposals(proposals.proposals || []);
+      setUndeliveredNotification((withdrawal.withdrawals || []).length > 0 || (proposals.proposals || []).length > 0);
     } catch (_) {
       // Do not display a stale "all sent" confirmation if the audit is unavailable.
       setError("Impossibile verificare le notifiche dei ritiri.");
@@ -140,11 +150,17 @@ export default function ProposteSoggetti() {
       : "Rifiutare la proposta «" + p.title + "»?")) return;
     setSubmittingId(p.id);
     try {
-      await apiRequest("POST", "/api/subject-proposals/admin/" + p.id + "/decision", {
+      const response = await apiRequest("POST", "/api/subject-proposals/admin/" + p.id + "/decision", {
         decision, note: notes[p.id] || ""
       });
+      const result = await response.json();
       setPending(old => old.filter(item => item.id !== p.id));
-      toast({ title: decision === "approve" ? "Proposta approvata" : "Proposta rifiutata" });
+      if (result.notification_sent !== true) setUndeliveredNotification(true);
+      toast({
+        title: decision === "approve" ? "Proposta approvata" : "Proposta rifiutata",
+        description: result.notification_sent === true ? "Esito registrato." :
+          "Esito registrato, ma notifica non confermata. Verificare nel pannello Admin; non reinviare senza controllo."
+      });
     } catch (err: any) {
       toast({
         title: "Decisione non registrata",
@@ -174,7 +190,7 @@ export default function ProposteSoggetti() {
         </div>
         {undeliveredNotification && (
           <p role="alert" className="mb-3 shrink-0 rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">
-            Almeno un ritiro è riuscito senza notifica al proponente. Segnalarlo al DPO per la gestione della comunicazione.
+            Una o più notifiche relative alle proposte non sono confermate. Verificarle con il DPO; non reinviarle automaticamente.
           </p>
         )}
         <div className="mb-3 flex shrink-0 gap-2">
@@ -215,12 +231,12 @@ export default function ProposteSoggetti() {
               </div>
             </article>
           ))}
-          {showUndelivered && !loadingUndelivered && !error && undelivered.length === 0 && (
+          {showUndelivered && !loadingUndelivered && !error && undelivered.length === 0 && unconfirmedProposals.length === 0 && (
             <p className="text-sm text-slate-600">Nessuna notifica di ritiro da verificare.</p>
           )}
           {showUndelivered && !loadingUndelivered && !error && (
             <p className="text-sm text-slate-600">
-              Elenco caricato su richiesta. Le notifiche non confermate, incluse quelle storiche di esito sconosciuto,
+              Elenco caricato su richiesta. Gli avvisi non confermati, incluse le notifiche storiche di esito sconosciuto,
               richiedono verifica DPO: non verranno reinviate automaticamente.
             </p>
           )}
@@ -232,6 +248,23 @@ export default function ProposteSoggetti() {
               </p>
               <p className="break-all font-mono text-xs text-slate-500">Riferimento {item.id}</p>
               <p className="text-xs text-slate-700">Verificare la comunicazione con il DPO. Non reinviare senza controllo.</p>
+            </article>
+          ))}
+          {showUndelivered && !loadingUndelivered && !error && unconfirmedProposals.map(item => (
+            <article key={item.id} className="rounded-xl border bg-white p-3 shadow-sm">
+              <p className="text-sm font-medium">{CATEGORY_LABELS[item.category] || item.category}</p>
+              <p className="text-xs text-slate-700">
+                {item.submission_notification_sent !== true ? "Avviso iniziale non confermato. " : ""}
+                {item.status !== "pending" && item.review_notification_sent !== true
+                  ? "Comunicazione dell'esito non confermata." : ""}
+              </p>
+              <p className="text-xs text-slate-600">
+                Registrata: {new Date(item.created_at).toLocaleDateString("it-IT")}
+              </p>
+              <p className="break-all font-mono text-xs text-slate-500">Riferimento {item.id}</p>
+              <p className="text-xs text-slate-700">
+                Verificare con il DPO. Un esito non confermato non prova la mancata consegna; non reinviare automaticamente.
+              </p>
             </article>
           ))}
           {showApproved && approved.map(p => (

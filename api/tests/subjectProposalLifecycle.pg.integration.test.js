@@ -134,6 +134,11 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const approval=await req('/api/subject-proposals/admin/'+capoId+'/decision','admin','POST',{decision:'approve'});
     assert.equal(approval.status,200,JSON.stringify(approval.body));
     assert.equal(approval.body.status,'approved');
+    const confirmed=await pool.query(
+      'SELECT submission_notification_sent,review_notification_sent FROM subject_proposals WHERE id=$1',[capoId]
+    );
+    assert.equal(confirmed.rows[0].submission_notification_sent,true);
+    assert.equal(confirmed.rows[0].review_notification_sent,true);
     assert.equal((await req('/api/subject-proposals/admin/'+capoId+'/decision','admin','POST',{decision:'approve'})).status,409);
     const publicCapo=await pool.query('SELECT nome,active,source_proposal_id FROM capo_stato_soggetti_approvati');
     assert.equal(publicCapo.rows.length,1);
@@ -310,6 +315,49 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       'failed notification must never permit reapplying a committed withdrawal');
     await setup.query('DROP TRIGGER reject_withdraw_notice ON '+SCHEMA+'.notifiche_demos');
     await setup.query('DROP FUNCTION '+SCHEMA+'.reject_withdraw_notice()');
+
+    // Separate synthetic notification outage: original proposal/review transactions
+    // must persist while the two minimal recovery flags remain FALSE.
+    await setup.query(
+      "CREATE FUNCTION "+SCHEMA+".reject_generic_notice() RETURNS trigger LANGUAGE plpgsql AS $notice$ BEGIN IF NEW.testo LIKE 'Nuova proposta ricevuta%' OR NEW.testo LIKE 'La tua proposta in%' THEN RAISE EXCEPTION 'synthetic generic notice outage'; END IF; RETURN NEW; END $notice$"
+    );
+    await setup.query(
+      "CREATE TRIGGER reject_generic_notice BEFORE INSERT ON "+SCHEMA+
+      ".notifiche_demos FOR EACH ROW EXECUTE FUNCTION "+SCHEMA+".reject_generic_notice()"
+    );
+    const failedNotice=await req('/api/subject-proposals','a','POST',
+      proposal('attivisti','Attivista sintetica con avvisi non disponibili'));
+    assert.equal(failedNotice.status,201,'inbox failure cannot roll back an accepted proposal');
+    assert.equal(failedNotice.body.notification_sent,false);
+    const failedId=failedNotice.body.proposal.id;
+    const failedPending=await pool.query(
+      'SELECT status,submission_notification_sent FROM subject_proposals WHERE id=$1',[failedId]
+    );
+    assert.equal(failedPending.rows[0].status,'pending');
+    assert.equal(failedPending.rows[0].submission_notification_sent,false);
+    const failedReview=await req('/api/subject-proposals/admin/'+failedId+'/decision',
+      'admin','POST',{decision:'reject'});
+    assert.equal(failedReview.status,200);
+    assert.equal(failedReview.body.status,'rejected');
+    assert.equal(failedReview.body.notification_sent,false);
+    const failedReviewed=await pool.query(
+      'SELECT status,review_notification_sent FROM subject_proposals WHERE id=$1',[failedId]
+    );
+    assert.equal(failedReviewed.rows[0].status,'rejected');
+    assert.equal(failedReviewed.rows[0].review_notification_sent,false);
+    assert.equal((await req('/api/subject-proposals/admin/notification-audit','a')).status,403);
+    assert.equal((await req('/api/subject-proposals/admin/notification-audit',null)).status,401);
+    const genericAudit=await req('/api/subject-proposals/admin/notification-audit','admin');
+    assert.equal(genericAudit.status,200);
+    const unconfirmed=genericAudit.body.proposals.find(x=>x.id===failedId);
+    assert.ok(unconfirmed,'Admin recovers a failed private notification after a new GET');
+    assert.equal(unconfirmed.submission_notification_sent,false);
+    assert.equal(unconfirmed.review_notification_sent,false);
+    assert.deepEqual(Object.keys(unconfirmed).sort(),
+      ['category','created_at','id','review_notification_sent','reviewed_at','status','submission_notification_sent'].sort(),
+      'notice audit must omit title, proposer identity, review notes and source');
+    await setup.query('DROP TRIGGER reject_generic_notice ON '+SCHEMA+'.notifiche_demos');
+    await setup.query('DROP FUNCTION '+SCHEMA+'.reject_generic_notice()');
 
     const guardedIndex=await setup.query(
       "SELECT indexdef FROM pg_indexes WHERE schemaname=$1 AND indexname='subject_proposals_no_duplicate_open_titles'",

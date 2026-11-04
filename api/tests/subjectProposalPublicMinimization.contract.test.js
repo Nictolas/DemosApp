@@ -56,7 +56,7 @@ test('Admin withdrawal UI never treats a notification outage as failed unpublish
   assert.match(ui,/result\.notification_sent !== true/);
   assert.match(ui,/setUndeliveredNotification\(true\)/);
   assert.match(ui,/role="alert"/);
-  assert.match(ui,/segnalarlo al DPO/i);
+  assert.match(ui,/Verificarle con il DPO|Segnalare al DPO/i);
 });
 
 test('unconfirmed withdrawal notification audit is Admin-only, minimal and read on demand', () => {
@@ -129,7 +129,7 @@ test('submission and Admin decision commit before fallible private notifications
   const decision = route.slice(route.indexOf("router.post('/admin/:id/decision'"));
   assert.ok(submission.indexOf("await client.query('COMMIT')") >= 0);
   assert.ok(submission.indexOf("await client.query('COMMIT')") < submission.indexOf("INSERT INTO notifiche_demos"));
-  assert.ok(decision.indexOf("await client.query('COMMIT')") < decision.indexOf("await notify(pool"));
+  assert.ok(decision.indexOf("await client.query('COMMIT')") < decision.indexOf("await notify(noticeClient"));
   assert.match(submission, /notification_sent: notificationSent/);
   assert.match(decision, /notification_sent: notificationSent/);
   // No pool starvation: release committed transactions before acquiring
@@ -142,4 +142,33 @@ test('submission and Admin decision commit before fallible private notifications
     assert.match(handler, /client = await pool\.connect\(\)/);
     assert.match(handler, /client\?\.release\(\)/);
   }
+});
+
+test('submission and review notices have minimal durable audit without re-sending', () => {
+  const migration=file('api/migrations/20261031_subject_proposals_review_gate.sql');
+  const readiness=file('api/scripts/check-proposals-schema-readiness.js');
+  const rollback=file('api/migrations/20261104_subject_proposal_notice_flags_rollback.sql');
+  assert.match(rollback,/BEGIN;/);
+  assert.match(rollback,/submission_notification_sent IS NOT NULL OR review_notification_sent IS NOT NULL/);
+  assert.match(rollback,/RAISE EXCEPTION 'Cannot drop recorded notification states/);
+  assert.match(rollback,/COMMIT;/);
+  const route=file('api/routes/subject-proposals.js');
+  const ui=file('client/src/pages/Gestisci/ProposteSoggetti.tsx');
+  for (const col of ['submission_notification_sent','review_notification_sent']) {
+    assert.match(migration,new RegExp('ADD COLUMN IF NOT EXISTS '+col+' boolean'));
+    assert.ok(readiness.includes("'"+col+"'"), 'preflight must fail closed if audit column absent: '+col);
+    assert.match(route,new RegExp(col+'=TRUE WHERE id=\\$1'));
+    assert.match(route,new RegExp(col+'=FALSE'));
+  }
+  assert.match(route,/router\.get\('\/admin\/notification-audit', verifyToken, requireAdmin/);
+  const audit=route.slice(route.indexOf("router.get('/admin/notification-audit'"),route.indexOf('// Emergency unpublish'));
+  assert.match(audit,/private, no-store/);
+  assert.match(audit,/IS DISTINCT FROM TRUE/);
+  assert.doesNotMatch(audit,/SELECT[^\n]*(?:proposer_user_id|title|details|source_url|review_note)/i);
+  assert.match(ui,/\/api\/subject-proposals\/admin\/notification-audit/);
+  assert.match(ui,/result\.notification_sent !== true/);
+  assert.match(ui,/Verificare con il DPO/);
+  const mount=ui.slice(ui.indexOf('useEffect(() =>'),ui.indexOf('const refreshApproved'));
+  assert.doesNotMatch(mount,/notification-audit|withdraw-notifications/);
+  assert.doesNotMatch(route,/setTimeout\(|setInterval\(/);
 });
