@@ -6,7 +6,7 @@ const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLE
   evaluatePublicSequenceProtection, evaluatePublicViewExposure,
   evaluatePublicRoutineExposure, evaluateCivicRuntimeColumns,
   evaluateBlockedGuard, evaluateStagingIdentity, evaluatePreflightRole,
-  evaluatePreflightWriteGrants, STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
+  evaluatePreflightWriteGrants, evaluatePreflightReadGrants, STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
 
 const env = {NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'preflight'};
 const st = 'fkeayjzvtuvzesljhjbc';
@@ -378,3 +378,38 @@ test('malformed individual catalog rows fail closed without throwing', () => {
   assert.equal(evaluateBlockedGuard([null]), false);
   assert.equal(evaluatePreflightWriteGrants([null]), false);
 });
+
+test('preflight forbids accidental extra reads on all public columns and sequences', () => {
+  const permitted = [
+    ['civic_runtime_identity','id'],
+    ['civic_runtime_identity','db_identity'],
+    ['civic_push_delivery_guard','id'],
+    ['civic_push_delivery_guard','blocked'],
+  ].map(([table_name,column_name]) => ({table_name,column_name,can_read:true}));
+  const denied = [
+    {table_name:'civic_push_delivery_guard',column_name:'reason_code',can_read:false},
+    {table_name:'users',column_name:'id',can_read:false},
+    {table_name:'user_devices',column_name:'fcm_token',can_read:false},
+    {table_name:'user_auth_providers_id_seq',column_name:'<sequence>',can_read:false},
+  ];
+  const clean = [...permitted, ...denied];
+  assert.equal(evaluatePreflightReadGrants(clean), true);
+  for (const bad of denied) {
+    assert.equal(evaluatePreflightReadGrants([
+      ...permitted, ...denied.map(row=>row===bad?{...row,can_read:true}:row)
+    ]), false, 'additional read privilege: '+bad.table_name);
+  }
+  for (const bad of [
+    [], null, false, [null], clean.slice(1),
+    [...clean,clean[0]],
+    clean.map(row=>row.column_name==='blocked'?{...row,can_read:false}:row),
+    clean.map(row=>row.table_name==='users'?{...row,can_read:null}:row),
+    clean.map(row=>row.table_name==='users'?{...row,column_name:undefined}:row),
+  ]) assert.equal(evaluatePreflightReadGrants(bad), false);
+  const fs = require('node:fs'),path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname,'..','scripts','unifiedStagingPreflight.js'),'utf8');
+  assert.match(source,/has_column_privilege\(current_user, c\.oid, a\.attnum, 'SELECT'\)/);
+  assert.match(source,/has_sequence_privilege\(current_user, c\.oid,/);
+  assert.match(source,/evaluatePreflightReadGrants\(readCheck\.rows\)/);
+});
+
