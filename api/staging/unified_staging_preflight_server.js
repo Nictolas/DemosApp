@@ -43,7 +43,7 @@ function validatePreflightEnvironment(env) {
   assertStagingTarget(env.STAGING_PREFLIGHT_DATABASE_URL, env);
   const expectedHost=env.STAGING_PREFLIGHT_EXPECTED_POOLER_HOST;
   if (typeof expectedHost !== 'string' ||
-      !/^aws-[0-9]+-eu-central-1\\.pooler\\.supabase\\.com$/.test(expectedHost)) {
+      !/^aws-[0-9]+-eu-central-1\.pooler\.supabase\.com$/.test(expectedHost)) {
     throw new Error('STAGING_PREFLIGHT_EXACT_POOLER_HOST_REQUIRED');
   }
   let url;
