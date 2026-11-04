@@ -60,3 +60,44 @@ Supabase, Firebase, scheduler, Android or production changes in this PR.
 The source ECI/Ministero issue #589 and Android/FCM E2E 0/6 remain NO-GO.
 
 The shared `api/config/database.js` now bounds this staging canary to a `max=2`, `min=0` pool and passes PostgreSQL `default_transaction_read_only=on` as a startup option. If Supavisor rejects that option, the canary must fail closed, not silently reopen writes. This setting is not used in production or normal development. The protected database has not been contacted by this change.
+
+
+## Audit preciso dei 21 oggetti runtime mancanti — 05/11/2026
+
+Query PostgreSQL in **sola lettura** su Demos-Staging, costruita con le
+35 tabelle obbligatorie in `api/scripts/unifiedStagingPreflight.js`;
+criterio: `has_table_privilege('demos_staging_runtime',table_oid,'SELECT')`
+e presenza di policy RLS specifica per il ruolo. **14/35 disponibili;
+21/35 senza entrambi i requisiti**. Sono presenti, con RLS attiva, ma
+non sono autorizzate al ruolo di runtime:
+
+```text
+active_sessions
+candidati
+civic_processes
+comunicazioni
+eventi
+ice
+notifiche_avvistamenti
+notifiche_comunali
+notifiche_voti_comuni
+notifiche_voti_parlamento
+opinioni_domande
+parlamento
+political_candidacies
+political_mandates
+political_opinion_notifications
+programmi
+segnalazioni
+unita_elettorale
+votazioni_parlamento
+voti_camera
+voti_referendum_abrogativi
+```
+
+Tutte le altre 14 tabelle del contratto hanno già permessi e una
+policy specifica. Queste 21 **non sono automaticamente 21 GRANT da
+eseguire**: prima mappare gli endpoint che ne hanno davvero bisogno,
+quindi applicare solo i permessi e predicati RLS minimi ai dati sintetici.
+Nessuna importazione di account reali né concessione a
+`anon`/`authenticated`. La presente diagnosi non modifica il DB.
