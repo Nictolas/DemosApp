@@ -1,4 +1,13 @@
 require('dotenv').config();
+// Direct app imports must never bypass the staging-only startup gate.
+const {assertStagingAppCanary,shouldMountDevApiSurface}=
+  require('./staging/unified_staging_app_safety');
+const stagingGuard=assertStagingAppCanary(process.env);
+if (stagingGuard.active &&
+    process.env.DATABASE_URL !== stagingGuard.connectionString) {
+  throw new Error('STAGING_APP_CANARY_ENTRYPOINT_REQUIRED');
+}
+const isStagingApp=process.env.NODE_ENV==='staging';
 const express = require('express');
 require('express-async-errors'); // Cattura errori/rejection da route async e li passa al middleware di errore (evita crash)
 const cors = require('cors');
@@ -137,7 +146,7 @@ const {
 
 /** In produzione le route test/migrate/cleanup/debug non sono montate salvo ALLOW_DEV_API_SURFACE=true */
 const isProductionApp = process.env.NODE_ENV === 'production';
-const mountDevApiSurface = !isProductionApp || process.env.ALLOW_DEV_API_SURFACE === 'true';
+const mountDevApiSurface = shouldMountDevApiSurface(process.env);
 
 const app = express();
 
@@ -244,7 +253,7 @@ app.options('*', (req, res) => {
 app.use(cors(corsOptions));
 
 // DEBUG: Middleware di logging universale - solo in sviluppo (evita accumulo log in produzione)
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
     console.log(`ðŸš¨ UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
     if (req.originalUrl.includes('send-demos-notification')) {
@@ -298,7 +307,7 @@ app.head('/', (req, res) => {
 
 
 // Logging middleware di debug - solo in sviluppo (evita accumulo log in produzione)
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
     console.log(`ðŸ“¡ ${req.method} ${req.path} - ${new Date().toISOString()}`);
     console.log(`ðŸŒ Origin: ${req.headers.origin || 'Nessuna'}`);
@@ -538,11 +547,11 @@ app.use((error, req, res, next) => {
 });
 
 // Avvia sistema di audit logging
-auditManager.start();
+if (!isStagingApp) auditManager.start();
 
 // Avvia sistema di monitoraggio performance
 const performanceMonitor = require('./services/performanceMonitor');
-const performanceMonitorEnabled = process.env.PERFORMANCE_MONITOR_ENABLED !== 'false';
+const performanceMonitorEnabled = !isStagingApp && process.env.PERFORMANCE_MONITOR_ENABLED !== 'false';
 const defaultPerformanceMonitorIntervalMs = process.env.NODE_ENV === 'production' ? 120000 : 30000;
 const performanceMonitorIntervalMs = Math.max(
   15000,
@@ -556,7 +565,7 @@ if (performanceMonitorEnabled) {
 
 // Avvia sistema di ottimizzazione performance
 const performanceOptimizer = require('./services/performanceOptimizer');
-performanceOptimizer.start();
+if (!isStagingApp) performanceOptimizer.start();
 
 /**
  * Job in background e impatto su Supabase (connessioni, query ripetute):
