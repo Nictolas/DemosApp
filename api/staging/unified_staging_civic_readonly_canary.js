@@ -44,7 +44,9 @@ async function probeCivicSourceSchema(pool) {
     return true;
   } catch {
     discard = true;
-    if (client && inTransaction) {
+    // A failed BEGIN can leave transport state uncertain too: try ROLLBACK
+    // unconditionally, then DISCARD rather than returning it to the pool.
+    if (client) {
       try { await client.query('ROLLBACK'); } catch {}
     }
     throw new Error('STAGING_CIVIC_SOURCE_SCHEMA_UNAVAILABLE');
