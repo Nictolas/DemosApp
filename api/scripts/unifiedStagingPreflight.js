@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {buildDatabaseSsl} = require('../utils/databaseTlsPolicy');
+const {observeReadOnlySessionContinuity} = require('./unifiedStagingSessionContinuity');
 
 const STAGING_REF = 'fkeayjzvtuvzesljhjbc';
 const STAGING_PREFLIGHT_ROLE = 'demos_staging_preflight';
@@ -436,13 +437,18 @@ async function run(env = process.env) {
     const publicRoutineExposure = evaluatePublicRoutineExposure(publicRoutineRows.rows);
     const civicColumns = evaluateCivicRuntimeColumns(columnRows.rows);
     const deliveryBlocked = evaluateBlockedGuard(guard.rows);
-    await client.query('ROLLBACK');
-    return { ...schema, ready: schema.ready && civicProtection.ready &&
+    const minimumSchemaReady = schema.ready && civicProtection.ready &&
       allPublicTables.ready && publicSequenceProtection.ready &&
       publicViewExposure.ready && publicRoutineExposure.ready &&
-      civicColumns.ready && deliveryBlocked,
+      civicColumns.ready && deliveryBlocked;
+    await client.query('ROLLBACK');
+    // Observe session continuity only AFTER the security/schema gate passes.
+    const sessionPoolerContinuityObserved = minimumSchemaReady &&
+      await observeReadOnlySessionContinuity(client);
+    return { ...schema, ready: minimumSchemaReady && sessionPoolerContinuityObserved,
       civicProtection, allPublicTables, publicSequenceProtection,
-      publicViewExposure, publicRoutineExposure, civicColumns, deliveryBlocked };
+      publicViewExposure, publicRoutineExposure, civicColumns, deliveryBlocked,
+      sessionPoolerContinuityObserved };
   } finally {
     await client.end();
   }
