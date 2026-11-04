@@ -601,6 +601,51 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(reviewed.body.status,'rejected');
     assert.equal((await pool.query('SELECT status FROM subject_proposals WHERE id=$1',
       [newestPending.id])).rows[0].status,'rejected');
+
+    // Both private notification-audit lists must reach records beyond page 1.
+    // Synthetic rows only; ensure PostgreSQL microseconds survive the cursor.
+    await pool.query(
+      `INSERT INTO subject_proposals(proposer_user_id,category,title,source_url,status,created_at,withdrawn_at,withdraw_notification_sent)
+       SELECT ('40000000-0000-4000-8000-' || lpad(gs::text,12,'0'))::uuid,
+              'organizzazioni','Organizzazione ritiro audit ' || gs,
+              'https://example.org/audit','withdrawn',
+              now() - INTERVAL '3 minutes',
+              now() - INTERVAL '2 minutes' + gs * INTERVAL '1 microsecond',FALSE
+       FROM generate_series(1,105) gs`
+    );
+    for (const [endpoint, bodyKey, whereSql, expectedKeys] of [
+      ['/api/subject-proposals/admin/withdraw-notifications','withdrawals',
+        "status='withdrawn' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni') AND withdraw_notification_sent IS DISTINCT FROM TRUE",
+        ['category','id','recipient_unavailable','withdrawn_at']],
+      ['/api/subject-proposals/admin/notification-audit','proposals',
+        "submission_notification_sent IS DISTINCT FROM TRUE OR (status IN ('approved','rejected','withdrawn') AND review_notification_sent IS DISTINCT FROM TRUE)",
+        ['category','created_at','id','recipient_unavailable','review_notification_sent','reviewed_at','status','submission_notification_sent']]
+    ]) {
+      const expected=Number((await pool.query(
+        'SELECT count(*)::integer n FROM subject_proposals WHERE '+whereSql
+      )).rows[0].n);
+      assert.ok(expected>100,'fixture needs more than 100 audit records');
+      assert.equal((await req(endpoint,'b')).status,403,'audit remains Admin-only');
+      assert.equal((await req(endpoint+'?cursor=invalid','admin')).status,400);
+      let cursor=null, all=[], pages=0;
+      do {
+        const response=await req(endpoint+(cursor?'?cursor='+encodeURIComponent(cursor):''),'admin');
+        assert.equal(response.status,200);
+        assert.equal(response.body[bodyKey].length<=100,true);
+        if(response.body[bodyKey].length) {
+          assert.deepEqual(Object.keys(response.body[bodyKey][0]).sort(),expectedKeys,
+            'cursor metadata and owner/source fields must not leak');
+        }
+        all.push(...response.body[bodyKey].map(x=>x.id));
+        cursor=response.body.next_cursor;
+        pages++;
+        assert.ok(pages<10,'audit cursor must eventually terminate');
+      } while(cursor);
+      assert.ok(pages>=2,'audit must expose older records past first 100');
+      assert.equal(all.length,expected,'all audit records must be reachable');
+      assert.equal(new Set(all).size,expected,
+        'withdrawal audit keyset reaches each record once without duplication');
+    }
   } finally {
     if(server?.listening) await new Promise(done=>server.close(done));
     if(pool) await pool.end();
