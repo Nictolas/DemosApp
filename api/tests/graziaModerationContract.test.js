@@ -101,3 +101,15 @@ test('Grazia voting locks the approved catalogue row inside its own transaction'
   assert.match(voting,/if \(!stillActive\.rows\.length\) \{\s*await client\.query\('ROLLBACK'\);\s*return res\.status\(422\)/);
   assert.doesNotMatch(voting.slice(lock,deletion),/await client\.query\('COMMIT'\)/);
 });
+
+test('Grazia pending Admin queue includes only fields needed for review', () => {
+  const source=read('api/routes/grazia.js');
+  const route=source.slice(
+    source.indexOf("router.get('/richieste'"),
+    source.indexOf("router.get('/mia-proposta'")
+  );
+  assert.match(route,/verifyToken, requireAdmin/);
+  assert.match(route,/private|personalNoStore/);
+  assert.match(route,/SELECT id, nome, url_prova AS \\"urlProva\\", data_creazione AS \\"createdAt\\"/);
+  assert.doesNotMatch(route,/utente_id\\s+AS\\s+\\?["']?userId/i);
+});
