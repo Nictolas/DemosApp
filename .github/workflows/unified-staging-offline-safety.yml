@@ -8,6 +8,7 @@ on:
       - main
       - ops/demos-unified-staging-20261102
     paths:
+      - 'api/config/database.js'
       - 'api/app.js'
       - 'api/server.js'
       - 'api/staging/unified_staging_app_safety.js'
@@ -63,6 +64,7 @@ on:
     branches:
       - ops/demos-unified-staging-20261102
     paths:
+      - 'api/config/database.js'
       - 'api/app.js'
       - 'api/server.js'
       - 'api/staging/unified_staging_app_safety.js'
@@ -137,6 +139,7 @@ jobs:
           node-version: '22'
       - name: Syntax checks (no dependencies)
         run: |
+          node --check api/config/database.js
           node --check api/app.js
           node --check api/server.js
           node --check api/staging/unified_staging_app_safety.js
