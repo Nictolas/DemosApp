@@ -105,3 +105,16 @@ test('backend enforces source HTTPS and avoids criminal details in admin notice'
   assert.match(route, /if \(error\.code === '23505'\) return res\.status\(409\)/);
   assert.match(route, /proposal\.code === 'GRAZIA_CODA_UNICA' \? 409 : 400/);
 });
+
+test('changing proposal category invalidates stale personal status responses', () => {
+  const page=read('client/src/pages/ProponiSoggetto.tsx');
+  assert.match(page,/statusRequestVersion = useRef\(0\)/);
+  assert.match(page,/statusRequestVersion\.current \+= 1/);
+  assert.match(page,/const requestVersion = \+\+statusRequestVersion\.current/);
+  assert.match(page,/const requestedCategory = category/);
+  assert.match(page,/statusRequestVersion\.current !== requestVersion\) return/);
+  assert.match(page,/if \(statusRequestVersion\.current === requestVersion\)/);
+  assert.match(page,/setCheckingStatus\(false\)/);
+  assert.match(page,/disabled=\{submitting\}/,
+    'a submission in flight must not silently clear a newer category form');
+});

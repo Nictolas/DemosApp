@@ -22,6 +22,9 @@ async function main() {
       await context.addInitScript(token=>localStorage.setItem('auth_token',token),TOKEN);
       const page=await context.newPage();
       const posts=[], graziaPosts=[], proposalReads=[], graziaReads=[];
+      let unblockOldStatus;
+      let notifyOldStatusStarted;
+      const oldStatusStarted=new Promise(resolve=>{notifyOldStatusStarted=resolve;});
       await page.route('**/*',route=>{
         const url=new URL(route.request().url());
         if(url.origin!==BASE)return route.abort();
@@ -41,6 +44,12 @@ async function main() {
         if(url.pathname.startsWith('/api/subject-proposals')){
           if(route.request().method()==='GET'){
             proposalReads.push(url.pathname);
+            if(url.pathname==='/api/subject-proposals/mine'&&url.searchParams.get('category')==='capo_stato'){
+              return new Promise((resolve,reject)=>{
+                unblockOldStatus=()=>response(route,200,{success:true,latest:{id:'stale-capo',status:'pending'}}).then(resolve,reject);
+                notifyOldStatusStarted();
+              });
+            }
             if(url.pathname==='/api/subject-proposals/mine'&&url.searchParams.get('category')==='organizzazioni'){
               return response(route,200,{success:true,pending:null,latest:{id:'org-synthetic',status:'approved'}});
             }
@@ -96,6 +105,25 @@ async function main() {
       await page.getByRole('button',{name:'Verifica stato della mia proposta'}).click();
       await page.getByText('La proposta è stata approvata.').waitFor({timeout:15000});
       assert.equal(proposalReads.length,1,'generic status reads only after explicit click');
+
+      // A stale response must never appear under the next selected category.
+      await select.selectOption('capo_stato');
+      await page.getByRole('button',{name:'Verifica stato della mia proposta'}).click();
+      await oldStatusStarted;
+      await select.selectOption('organizzazioni');
+      const statusCheck=page.getByRole('button',{name:'Verifica stato della mia proposta'});
+      assert.equal(await statusCheck.isDisabled(),false,
+        'switching categories unlocks the check for the new category');
+      await statusCheck.click();
+      await page.getByText('La proposta è stata approvata.').waitFor({timeout:15000});
+      assert.ok(unblockOldStatus,'old request must be pending for this race');
+      unblockOldStatus();
+      await page.waitForTimeout(80);
+      assert.equal(await page.getByText('La proposta è stata approvata.').count(),1,
+        'the old Capo status must not overwrite the Organizzazioni status');
+      assert.equal(await page.getByText('La proposta è in attesa di valutazione.').count(),0,
+        'the outdated status must not appear under the new category');
+      assert.equal(proposalReads.length,3,'only the three explicitly requested status GETs');
       const metrics=await page.evaluate(()=>({
         total:document.documentElement.scrollWidth,
         viewport:window.innerWidth,
@@ -111,7 +139,7 @@ async function main() {
       await page.getByRole('heading',{name:'Proponi',exact:true}).waitFor({timeout:30000});
       await page.getByRole('button',{name:'Torna alla sezione'}).click();
       await page.waitForURL('**/firma',{timeout:15000});
-      assert.equal(proposalReads.length,1,'navigation never performs additional proposal reads');
+      assert.equal(proposalReads.length,3,'navigation never performs additional proposal reads');
       await context.close();
       console.log('UNIFIED PROPOSALS browser PASS '+viewport.width+'x'+viewport.height+
         ': one Grazia POST + one generic POST; status GETs only after explicit clicks');

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
@@ -38,10 +38,15 @@ export default function ProponiSoggetto() {
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [myStatus, setMyStatus] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  // Invalidate an in-flight personal status read whenever its category changes.
+  // Older results must never be shown under a different proposal category.
+  const statusRequestVersion = useRef(0);
 
   // Contextual + from any of the five sections preselects a category.
   // No GET request is made on opening this page or changing the category.
   useEffect(() => {
+    statusRequestVersion.current += 1;
+    setCheckingStatus(false);
     const fromUrl = typeof window === "undefined" ? DEFAULT_SUBJECT_CATEGORY : categoryFromSearch(window.location.search);
     setCategory(fromUrl);
     setReturnPath(proposalReturnPathFromSearch(window.location.search));
@@ -55,6 +60,9 @@ export default function ProponiSoggetto() {
   }, [location]);
 
   const chooseCategory = (next: ProposalCategory) => {
+    if (submitting) return;
+    statusRequestVersion.current += 1;
+    setCheckingStatus(false);
     setCategory(next);
     setTitle("");
     setDetails("");
@@ -127,20 +135,25 @@ export default function ProponiSoggetto() {
   // On-demand only: neither page mount nor category switching reads personal proposals.
   const checkMyStatus = async () => {
     if (checkingStatus || !authReady || !user) return;
+    const requestVersion = ++statusRequestVersion.current;
+    const requestedCategory = category;
     setCheckingStatus(true);
     setStatusError(null);
     setMyStatus(null);
     try {
-      const response = category === "grazia"
+      const response = requestedCategory === "grazia"
         ? await apiRequest("GET", "/api/grazia/mia-proposta")
-        : await apiRequest("GET", "/api/subject-proposals/mine?category=" + encodeURIComponent(category));
+        : await apiRequest("GET", "/api/subject-proposals/mine?category=" + encodeURIComponent(requestedCategory));
+      if (statusRequestVersion.current !== requestVersion) return;
       if (!response?.data?.success) throw new Error("Impossibile verificare lo stato.");
-      const latest = category === "grazia" ? response.data.richiesta : response.data.latest;
+      const latest = requestedCategory === "grazia" ? response.data.richiesta : response.data.latest;
       setMyStatus(latest?.status || "none");
     } catch (_) {
-      setStatusError("Stato temporaneamente non disponibile. Riprova.");
+      if (statusRequestVersion.current === requestVersion)
+        setStatusError("Stato temporaneamente non disponibile. Riprova.");
     } finally {
-      setCheckingStatus(false);
+      if (statusRequestVersion.current === requestVersion)
+        setCheckingStatus(false);
     }
   };
 
@@ -186,6 +199,7 @@ export default function ProponiSoggetto() {
             <select
               id="subject-category"
               value={category}
+              disabled={submitting}
               onChange={(event) => chooseCategory(event.target.value as ProposalCategory)}
               className="h-11 w-full rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
