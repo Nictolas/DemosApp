@@ -37,8 +37,22 @@ function validatePreflightEnvironment(env) {
       throw new Error('STAGING_PREFLIGHT_PROVIDER_CREDENTIALS_FORBIDDEN');
     }
   }
-  // The only permitted secret is a distinct least-privilege read-only role.
+  // The only permitted secret is a distinct least-privilege read-only
+  // role. Require the exact IPv4 session pooler host copied from Supabase
+  // Connect (never infer aws-N from a region), rather than the direct IPv6 DB.
   assertStagingTarget(env.STAGING_PREFLIGHT_DATABASE_URL, env);
+  const expectedHost=env.STAGING_PREFLIGHT_EXPECTED_POOLER_HOST;
+  if (typeof expectedHost !== 'string' ||
+      !/^aws-[0-9]+-eu-central-1\\.pooler\\.supabase\\.com$/.test(expectedHost)) {
+    throw new Error('STAGING_PREFLIGHT_EXACT_POOLER_HOST_REQUIRED');
+  }
+  let url;
+  try { url=new URL(env.STAGING_PREFLIGHT_DATABASE_URL); }
+  catch { throw new Error('STAGING_PREFLIGHT_ENDPOINT_INVALID'); }
+  if (url.hostname.toLowerCase()!==expectedHost ||
+      url.port!=='5432') {
+    throw new Error('STAGING_PREFLIGHT_SESSION_POOLER_REQUIRED');
+  }
   const raw = env.PORT === undefined ? '10000' : String(env.PORT);
   if (!/^[1-9][0-9]{0,4}$/.test(raw) || Number(raw)>65535) {
     throw new Error('STAGING_PREFLIGHT_INVALID_PORT');
