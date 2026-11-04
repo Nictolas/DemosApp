@@ -75,3 +75,59 @@ Questi controlli sono testati offline con fixture sintetiche. Non equivalgono a 
 **Azione utente immediata:** nessun'altra interazione necessaria per il solo controllo del guard. Evitare nuove richieste ridondanti di screenshot e accorpare le prossime autorizzazioni tecniche in un solo passaggio quando esiste un percorso realizzabile.
 
 **Stato generale:** T-55 Render–Supabase ancora NO-GO, E2E Android 0/6, completamento convenzionale 65%; nessun invio FCM, deploy o modifica di produzione.
+
+## Modalità Render preflight isolata — preparazione per il cutover
+
+È ora disponibile sul ramo Draft della PR #565 il nuovo entrypoint
+`api/staging/unified_staging_preflight_server.js`. Non è un backend DEMOS,
+non importa Firebase, non carica le route applicative, non sincronizza fonti e
+non apre l'accesso pubblico ai dati. Il solo controllo SQL previsto è
+`api/scripts/unifiedStagingPreflight.js` (transazione `BEGIN READ ONLY`).
+
+**Prerequisiti obbligatori prima di qualsiasi deploy, non ancora soddisfatti:**
+
+- Verifica autorizzata degli attributi del ruolo `demos_staging_preflight` e delle due policy RLS (la presenza in UI è confermata, il grado dei privilegi effettivi NO).
+- Creare e inserire in un secret manager autorizzato **soltanto** una credenziale forte per il ruolo read-only staging; il ruolo oggi era previsto con `PASSWORD NULL`. Non copiare segreti in chat, GitHub, log o Google Sheet.
+- Trascrivere dal pannello Supabase Connect l'**host ESATTO** del session pooler IPv4:5432; non inferire o inventare l'indice aws-N. La connessione deve indirizzarsi al solo progetto `fkeayjzvtuvzesljhjbc`.
+- Autorizzazione esplicita e separata a cambiare le credenziali staging e ad effettuare un deploy controllato sul servizio Render `srv-db52l1g473hc739ld250`, previo snapshot reversibile della configurazione preesistente. Mai cambiare produzione.
+
+**Piano operativo, da eseguire soltanto dopo i prerequisiti:**
+
+1. Su `demos-staging`, preparare una sola modifica reversibile del comando di avvio:
+   `cd api && node staging/unified_staging_preflight_server.js`.
+   Lasciare `autoDeploy=no`.
+2. Configurare `NODE_ENV=staging`,
+   `DEMOS_UNIFIED_STAGING_MODE=preflight`,
+   `DEMOS_UNIFIED_STAGING_PREFLIGHT_GO=APPROVED_READ_ONLY_PREFLIGHT`,
+   `STAGING_PREFLIGHT_EXPECTED_POOLER_HOST` = host esatto letto dal
+   dashboard, `STAGING_PREFLIGHT_DATABASE_URL` = URL PostgreSQL segreto
+   con ruolo `demos_staging_preflight.<projectref>`, host sopra, porta 5432,
+   database `postgres`, TLS con verifica certificati.
+3. Impostare esplicitamente a `false` **tutti** i flag:
+   `CIVIC_PUSH_ENABLED`, `CIVIC_NEW_INITIATIVE_EVENTS_ENABLED`,
+   `CIVIC_NEW_INITIATIVE_PUSH_ENABLED`, `ENABLE_MINISTERO_SYNC`,
+   `ENABLE_CIVIC_PROCESS_SYNC`, `DEMOS_STAGING_ANDROID_PUSH_E2E`,
+   `ALLOW_DEMOS_STAGING_MIGRATIONS`.
+   Non fornire `DATABASE_URL`, `DIRECT_URL`, credenziali Firebase,
+   `SUPABASE_SERVICE_ROLE_KEY`, `PGHOST/PGUSER/PGPASSWORD` o Redis.
+4. La modalità avvia l'HTTP listener **soltanto se** il preflight read-only
+   supera il controllo del database, delle ACL e di `guard.blocked=true`.
+   Se manca una condizione, il servizio deve **rifiutare l'avvio**.
+5. Dopo il deploy stage approvato: `GET /health` deve restituire
+   `status=preflight_only`, `GET /health/preflight`
+   `status=read_only_preflight_passed` e
+   `session_affinity_verified=false`; `GET /health/ready` deve rispondere
+   **503** e tutte le route applicative, inclusa `/api/notifiche`, **404**.
+   Non considerare questi endpoint un GO per notifiche Android.
+6. Se una sola verifica fallisce, tornare al precedente
+   `cd api && node staging/unified_staging_bootstrap.js`, rimuovere
+   l'URL preflight dalla configurazione, lasciare tutti i flag FCM OFF,
+   verificare `/health/ready=503`, e documentare rollback prima di riprovare.
+
+**Limiti:** il preflight verifica SQL read-only e sicurezza del ruolo, ma
+**non** dimostra ancora session affinity/advisory locks, OAuth reale,
+dispositivo FCM o E2E mobile. L'eventuale session affinity positiva richiede
+un'altra prova controllata dalla runtime con il ruolo applicativo corretto;
+il probe attuale è intenzionalmente *negative-only*. Non sbloccare
+`civic_push_delivery_guard`. I 6 gate Android E2E restano 0/6 fino a prove
+autorizzate su dispositivo.
