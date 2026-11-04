@@ -44,3 +44,26 @@ test('civic preferences are initially OFF and grant is separate from category op
   const sync = read('client/src/hooks/useSyncFcmToken.ts');
   assert.doesNotMatch(sync, /subscribeToTopic|CIVIC_PUSH_ENABLED|civic_push_delivery_guard/);
 });
+
+test('permission propagation reaches both mounted hook instances without another prompt', () => {
+  const bridge = read('client/src/lib/push-permission-events.ts');
+  const native = read('client/src/hooks/useNativePush.ts');
+  const web = read('client/src/hooks/useFCM.ts');
+  const sync = read('client/src/hooks/useSyncFcmToken.ts');
+
+  assert.match(bridge, /PUSH_PERMISSION_CHANGED_EVENT/);
+  assert.match(bridge, /window\\.dispatchEvent\\(new Event\\(PUSH_PERMISSION_CHANGED_EVENT\\)\\)/);
+  assert.doesNotMatch(bridge, /detail:|fcmToken|userId|localStorage|sessionStorage/);
+
+  for (const [transport, hook] of [['native', native], ['web', web]]) {
+    assert.match(hook, /window\\.addEventListener\\(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission\\)/,
+      transport + ' rechecks the permission when another hook grants it');
+    assert.match(hook, /window\\.removeEventListener\\(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission\\)/,
+      transport + ' cleans up the listener on unmount');
+    assert.match(hook, /notifyPushPermissionChanged\\(\\)/,
+      transport + ' notifies the background token-sync hook after explicit permission action');
+  }
+  assert.match(native, /const refreshPermission = \\(\\) => \\{[\\s\\S]*PushNotifications\\.checkPermissions\\(\\)/);
+  assert.match(web, /const refreshPermission = \\(\\) => \\{[\\s\\S]*Notification\\.permission/);
+  assert.match(sync, /if \\(permission !== 'granted'\\) return;/);
+});
