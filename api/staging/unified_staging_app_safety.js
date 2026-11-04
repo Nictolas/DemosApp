@@ -46,7 +46,8 @@ function shouldMountDevApiSurface(env = {}) {
 // Read-only ingress for the first smoke phase: no auth, uploads, admin,
 // migrations, cleanup, writes, dispatch, or unreviewed routes can be reached.
 const READ_ONLY_CANARY_PATHS = Object.freeze(new Set([
-  '/', '/api/health', '/api/health/live', '/api/health/ready',
+  '/', '/health', '/health/live', '/health/ready',
+  '/api/health', '/api/health/live', '/api/health/ready',
   '/api/eci', '/api/iniziative-popolari', '/api/referendum-abrogativi',
 ]));
 function isReadOnlyCanaryRequest(method, path) {
