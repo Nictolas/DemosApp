@@ -20,6 +20,8 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
   const A='11111111-1111-4111-8111-111111111111';
   const B='22222222-2222-4222-8222-222222222222';
   const ADMIN='33333333-3333-4333-8333-333333333333';
+  const C='44444444-4444-4444-8444-444444444444';
+  const D='55555555-5555-4555-8555-555555555555';
   let server;
   try {
     const setup=[
@@ -46,7 +48,9 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     require.cache[dbPath]={id:dbPath,filename:dbPath,loaded:true,exports:{getPool:()=>pool}};
     const verifyToken=(req,res,next)=>{
       const identity=req.headers.authorization;
-      const id=identity==='Bearer a'?A:identity==='Bearer b'?B:identity==='Bearer admin'?ADMIN:null;
+      const id=identity==='Bearer a'?A:identity==='Bearer b'?B:
+        identity==='Bearer c'?C:identity==='Bearer d'?D:
+        identity==='Bearer admin'?ADMIN:null;
       if(!id)return res.status(401).json({success:false});
       req.user={id,isAdmin:id===ADMIN};req.userId=id;next();
     };
@@ -217,6 +221,25 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     assert.equal(rejected.status,200);
     const banned=await pool.query('SELECT COUNT(*)::integer AS n FROM grazia_carcerati WHERE nome=$1',[rejectedBody.nome]);
     assert.equal(banned.rows[0].n,0,'rejection never writes to public catalog');
+
+    // Two distinct accounts racing on the same canonical subject must
+    // produce exactly one pending request, never two competing moderators.
+    await pool.query('INSERT INTO users(id,is_admin,status) VALUES ($1,false,$3),($2,false,$3)',[C,D,'a']);
+    const firstName='Persona sintetica con  doppio spazio';
+    const sameName='  Persona sintetica con doppio spazio  ';
+    const simultaneous=await Promise.all([
+      req('/api/grazia','c','POST',{nome:firstName,urlProva:'https://example.org/fonte/c'}),
+      req('/api/grazia','d','POST',{nome:sameName,urlProva:'https://example.org/fonte/d'})
+    ]);
+    assert.equal(simultaneous.filter(r=>r.status===202).length,1,
+      'canonical-equivalent names can create just one pending proposal');
+    assert.equal(simultaneous.filter(r=>r.status===409).length,1,
+      'other account receives conflict instead of duplicate pending');
+    const samePending=await pool.query(
+      "SELECT COUNT(*)::integer n FROM richieste_grazia WHERE status='pending' AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g')))=$1",
+      ['persona sintetica con doppio spazio']
+    );
+    assert.equal(samePending.rows[0].n,1,'all submissions share the existing Grazia queue');
   } finally {
     if(server?.listening)await new Promise(resolve=>server.close(resolve));
     await pool.end();
