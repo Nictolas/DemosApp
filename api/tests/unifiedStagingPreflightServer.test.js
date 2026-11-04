@@ -140,3 +140,34 @@ test('no Firebase, app module or sensitive log in isolated staging entrypoint',(
   assert.match(src,/process\.exitCode=1/);
   assert.match(src,/session_affinity_verified:false/);
 });
+
+
+test('single secret password is safely percent-encoded and does not reach logs', async () => {
+  const {resolvePreflightConnectionString}=require('../staging/unified_staging_preflight_server');
+  const raw='x'.repeat(35)+':@/?#%\\+-0rN';
+  const clean={...safe,STAGING_PREFLIGHT_DATABASE_URL:undefined,
+    STAGING_PREFLIGHT_DATABASE_PASSWORD:raw};
+  const url=resolvePreflightConnectionString(clean);
+  assert.equal(new URL(url).password,encodeURIComponent(raw));
+  assert.equal(decodeURIComponent(new URL(url).password),raw);
+  assert.equal(new URL(url).hostname,'aws-1-eu-central-1.pooler.supabase.com');
+  assert.deepEqual(validatePreflightEnvironment(clean),{port:10000});
+  let inspected=false;
+  await assert.rejects(startPreflightServer(clean,{
+    runPreflight:async actual=>{
+      inspected=true;
+      assert.equal(actual.STAGING_PREFLIGHT_DATABASE_PASSWORD,undefined);
+      assert.equal(actual.STAGING_PREFLIGHT_DATABASE_URL,url);
+      return {ready:false,deliveryBlocked:true};
+    }
+  }),/STAGING_PREFLIGHT_AUDIT_NOT_READY/);
+  assert.equal(inspected,true);
+  for(const fail of [
+    {...clean,STAGING_PREFLIGHT_DATABASE_PASSWORD:'short'},
+    {...clean,STAGING_PREFLIGHT_DATABASE_PASSWORD:'x'.repeat(513)},
+    {...clean,STAGING_PREFLIGHT_DATABASE_PASSWORD:'x'.repeat(32)+'\n'},
+    {...clean,STAGING_PREFLIGHT_DATABASE_URL:credential},
+    {...safe,STAGING_PREFLIGHT_DATABASE_URL:undefined},
+  ]) assert.throws(()=>validatePreflightEnvironment(fail),
+    /STAGING_PREFLIGHT_(PASSWORD_INVALID|CREDENTIAL_AMBIGUOUS|CREDENTIAL_REQUIRED)/);
+});
