@@ -14,6 +14,7 @@ on:
       - 'api/scripts/unifiedStagingSessionContinuity.js'
       - 'api/tests/unifiedStagingSessionContinuity.test.js'
       - 'api/tests/unifiedStagingSessionContinuity.postgres.test.js'
+      - 'api/tests/civicRuntimeAdvisoryLock.postgres.test.js'
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflightServer.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
@@ -62,6 +63,7 @@ on:
       - 'api/scripts/unifiedStagingSessionContinuity.js'
       - 'api/tests/unifiedStagingSessionContinuity.test.js'
       - 'api/tests/unifiedStagingSessionContinuity.postgres.test.js'
+      - 'api/tests/civicRuntimeAdvisoryLock.postgres.test.js'
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflightServer.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
@@ -275,5 +277,7 @@ jobs:
         run: node --test api/tests/unifiedStagingPreflight.postgres.test.js
       - name: Prove real PostgreSQL session continuity su DB CI effimero
         run: node --test api/tests/unifiedStagingSessionContinuity.postgres.test.js
+      - name: CI-only restricted runtime role session advisory lock on PG16 and PG17
+        run: node --test api/tests/civicRuntimeAdvisoryLock.postgres.test.js
       - name: Exercise actual JavaScript service on PostgreSQL ${{ matrix.pg-major }} and rollback all 10 synthetic votes
         run: node --test api/tests/referendumForecastSnapshot.postgres16.test.js
