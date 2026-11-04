@@ -160,3 +160,63 @@ test('never reflects authorization values or query parameters', async t => {
   assert.equal(JSON.stringify(response.headers).includes(secret), false);
   assert.equal(response.headers['cache-control'], 'no-store');
 });
+
+test('preflight start via unchanged Render command never launches bootstrap', async () => {
+  const {startConfiguredStaging}=require('../staging/unified_staging_bootstrap');
+  const env={NODE_ENV:'staging',DEMOS_UNIFIED_STAGING_MODE:'preflight'};
+  let preflightCalls=0;
+  const marker={mode:'preflight',status:'not_app_ready'};
+  const result=await startConfiguredStaging(env,{
+    bootstrap:()=>{throw new Error('must not fall back to bootstrap');},
+    preflight:async actual=>{
+      preflightCalls++;
+      assert.equal(actual,env);
+      return marker;
+    },
+  });
+  assert.equal(result,marker);
+  assert.equal(preflightCalls,1);
+});
+
+test('default bootstrap and invalid mode cannot silently import or use preflight', async () => {
+  const {startConfiguredStaging}=require('../staging/unified_staging_bootstrap');
+  for(const mode of ['bootstrap','application',undefined]) {
+    let preflightCalls=0,bootstrapCalls=0;
+    const env={NODE_ENV:'staging',DEMOS_UNIFIED_STAGING_MODE:mode};
+    await assert.rejects(startConfiguredStaging(env,{
+      bootstrap:actual=>{
+        bootstrapCalls++;
+        validateBootstrapEnvironment(actual);
+      },
+      preflight:()=>{
+        preflightCalls++;
+        throw new Error('wrongly called preflight');
+      }
+    }),/explicit non-production/);
+    assert.equal(preflightCalls,0);
+    assert.equal(bootstrapCalls,1);
+  }
+  const good={NODE_ENV:'staging',DEMOS_UNIFIED_STAGING_MODE:'bootstrap',PORT:'10000'};
+  let preflightCalls=0;
+  const marker={mode:'bootstrap'};
+  assert.equal(await startConfiguredStaging(good,{
+    bootstrap:actual=>{
+      assert.equal(actual,good);
+      return marker;
+    },
+    preflight:()=>{preflightCalls++; throw new Error('wrong preflight route');},
+  }),marker);
+  assert.equal(preflightCalls,0);
+});
+
+test('preflight errors never fall back to bootstrap listener', async()=>{
+  const {startConfiguredStaging}=require('../staging/unified_staging_bootstrap');
+  let boot=0;
+  await assert.rejects(startConfiguredStaging({
+    NODE_ENV:'staging',DEMOS_UNIFIED_STAGING_MODE:'preflight',
+  },{
+    preflight:async()=>{throw new Error('synthetic preflight refused');},
+    bootstrap:()=>{boot++; throw new Error('wrong path');},
+  }),/synthetic preflight refused/);
+  assert.equal(boot,0);
+});
