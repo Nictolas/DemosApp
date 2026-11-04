@@ -37,3 +37,27 @@ L'utente ha autorizzato il **cutover controllato del solo staging Render–Supab
 - Non toccare produzione, staging legacy o Render PostgreSQL in scadenza durante T-55.
 
 **Decisione attuale:** NO-GO; Android E2E notifiche civiche **0/6**, completamento stimato **65%**. CI + riconciliazione QA migliorano il codice, ma non contano come gate device/FCM.
+## Aggiornamento provisioning 04/11/2026 — stato **non certificato**
+
+È stata ricevuta autorizzazione specifica per il ruolo staging `demos_staging_preflight` senza password e due nuove policy RLS SELECT `id=1` (nessuna modifica alle policy esistenti). Un preflight SQL read-only ha restituito **15/15 condizioni vere** prima della modifica. Una sola transazione `BEGIN` + `SET LOCAL civic.preflight_role_approval` + script versionato + `COMMIT` è stata inviata al connettore ufficiale Supabase: risposta `result=[]`, senza errori segnalati.
+
+**Importante:** due successivi tentativi di lettura del catalogo sono stati bloccati dai controlli di sicurezza dello strumento. La risposta di scrittura non è una prova indipendente della persistenza di ruolo e policy. Nessun tentativo alternativo di aggirare il blocco, nessuna ripetizione dello script e nessuna cancellazione. Non inserire credenziali nello staging Render finché non arriva un read-back amministrativo autorizzato.
+
+### Verifica umana unica, senza secret nella conversazione
+
+Nel progetto Supabase **Demos-Staging** (ref `fkeayjzvtuvzesljhjbc`), usando un account amministratore già autorizzato:
+
+1. In Database / Roles verificare che sia presente **esattamente un** ruolo `demos_staging_preflight`, senza membership, superuser, BYPASSRLS, creazione ruoli o database, e senza password configurata. Se la console non mostra gli attributi necessari, non presumere il PASS.
+2. In Database / Policies verificare le due nuove policy `stg_preflight_identity_id1` su `public.civic_runtime_identity` e `stg_preflight_guard_id1` su `public.civic_push_delivery_guard`: solo `SELECT`, ruolo `demos_staging_preflight`, condizione `id=1`. Le policy preesistenti devono essere intatte; nessuna policy `PUBLIC` aggiuntiva che ampli la visibilità del ruolo.
+3. In Table Editor verificare **senza copiare dati personali** che `public.civic_push_delivery_guard` mantenga `id=1`, `blocked=true`. Annotare soltanto PASS/FAIL per ciascuno dei tre controlli, non screenshot di segreti.
+
+Se un controllo è assente, ambiguo o impossibile da visualizzare: lasciare T-55 = **NO-GO**, non rieseguire lo script alla cieca. Le verifiche successive devono essere compiute con un percorso amministrativo autorizzato.
+
+### Hardening aggiuntivo della PR #565 (solo codice)
+
+Il preflight verifica ora anche:
+
+- **Letture PostgreSQL:** nessuna colonna `public` leggibile oltre `civic_runtime_identity.(id,db_identity)` e `civic_push_delivery_guard.(id,blocked)`; negato anche l'accesso alle sequenze.
+- **Policy effettive:** soltanto due policy `SELECT (id=1)` applicabili al ruolo; rifiuto di policy `PUBLIC` o di ulteriori policy per il ruolo.
+
+Questi controlli sono testati offline con fixture sintetiche. Non equivalgono a prova di TLS, session pooler o ricezione Android. Gli E2E Android restano **0/6**, avanzamento stimato **65%** fino a un gate reale superato.
