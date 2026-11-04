@@ -2,7 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {
-  assertStagingAppCanary,shouldMountDevApiSurface,DISABLED_FLAGS,FORBIDDEN_CREDENTIALS
+  assertStagingAppCanary,shouldMountDevApiSurface,isReadOnlyCanaryRequest,DISABLED_FLAGS,FORBIDDEN_CREDENTIALS
 }=require('../staging/unified_staging_app_safety');
 
 const REF='fkeayjzvtuvzesljhjbc';
@@ -69,4 +69,32 @@ test('no provider secrets are included in failure messages',()=>{
   assert.throws(()=>assertStagingAppCanary({...safe,DATABASE_URL:secret}),e=>{
     assert.equal(e.message.includes(secret),false);return true;
   });
+});
+
+test('first canary exposes only fixed read-only health and civic GET paths',()=>{
+  for(const route of ['/', '/api/health', '/api/health/live',
+    '/api/eci','/api/iniziative-popolari','/api/referendum-abrogativi']) {
+    assert.equal(isReadOnlyCanaryRequest('GET',route),true,route);
+    assert.equal(isReadOnlyCanaryRequest('HEAD',route),true,route);
+    assert.equal(isReadOnlyCanaryRequest('POST',route),false,route);
+  }
+  for(const route of ['/api/auth/login','/api/migrate','/api/cleanup','/api/test',
+    '/api/fcm-tokens','/api/civic-push/dispatch','/api/admin',
+    '/api/eci/unknown','//api/eci','/api/eci/../admin']) {
+    assert.equal(isReadOnlyCanaryRequest('GET',route),false,route);
+  }
+  assert.equal(isReadOnlyCanaryRequest('GET',null),false);
+});
+test('app startup cannot bypass approval through the preflight mode',()=>{
+  const {spawnSync}=require('node:child_process');
+  const path=require('node:path');
+  const root=path.resolve(__dirname,'..','..');
+  const result=spawnSync(process.execPath,['-e',"require('./api/server.js')"],{
+    cwd:root, timeout:6000,encoding:'utf8',
+    env:{...process.env,NODE_ENV:'staging',DEMOS_UNIFIED_STAGING_MODE:'preflight',
+      DEMOS_STAGING_APP_CANARY_GO:'',DATABASE_URL:''},
+  });
+  assert.equal(result.status,1);
+  assert.match(result.stderr,/STAGING_APP_CANARY_GUARD_REJECTED/);
+  assert.doesNotMatch(result.stdout,/Firebase Admin|app.js caricato/);
 });
