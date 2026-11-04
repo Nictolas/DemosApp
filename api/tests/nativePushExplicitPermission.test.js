@@ -30,7 +30,9 @@ test('explicit preference screen provides the only user-triggered permission pro
   assert.match(prefs, /Consenti notifiche/);
   assert.match(hook, /const requestPermission = useCallback\(async \(\) => \{/);
   assert.match(hook, /PushNotifications\.requestPermissions\(\)/);
-  assert.doesNotMatch(prefs, /useEffect\([\s\S]*push\.requestPermission\(/);
+  // Only inspect effect/handler source, not the JSX click handler below.
+  const lifecycle = prefs.slice(0, prefs.indexOf('  if (!user) {'));
+  assert.doesNotMatch(lifecycle, /push\.requestPermission\(/);
 });
 
 test('civic preferences are initially OFF and grant is separate from category opt-in', () => {
