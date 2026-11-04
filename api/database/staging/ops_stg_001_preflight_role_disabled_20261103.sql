@@ -24,13 +24,74 @@ BEGIN
      OR (SELECT count(*) FROM public.civic_push_delivery_guard) <> 1 THEN
     RAISE EXCEPTION 'PREFLIGHT_ROLE_PUSH_MUST_REMAIN_BLOCKED';
   END IF;
-  IF (SELECT count(*) FROM public.users) <> 2
-     OR EXISTS (SELECT 1 FROM public.users
+  -- Two accepted fixture footprints, never a broad name-based exemption:
+  -- (1) the original two pending P0 fixtures used by disposable CI, or
+  -- (2) those two plus the exact two 03/11 QA preference fixtures in shared
+  -- staging. The latter use fingerprints of random UUIDs to avoid publishing
+  -- raw user identifiers. Any fifth user or altered QA state fails closed.
+  IF (SELECT count(*) FROM public.users) = 2 THEN
+    IF EXISTS (SELECT 1 FROM public.users
         WHERE id NOT IN (
           '00000000-0000-4000-8000-000000000301'::uuid,
           '00000000-0000-4000-8000-000000000302'::uuid
         )
         OR status IS DISTINCT FROM 'pending') THEN
+      RAISE EXCEPTION 'PREFLIGHT_ROLE_NON_SYNTHETIC_USERS';
+    END IF;
+  ELSIF (SELECT count(*) FROM public.users) = 4 THEN
+    IF (SELECT count(*) FROM public.users
+        WHERE id IN (
+          '00000000-0000-4000-8000-000000000301'::uuid,
+          '00000000-0000-4000-8000-000000000302'::uuid
+        ) AND status = 'pending') <> 2
+       OR (SELECT count(*) FROM public.users u
+           WHERE md5(u.id::text) IN (
+             '837b804435eef9fafbc580ce17a24fd4',
+             'c1f6c8a73f029da2ee54a60dfd6a89d3'
+           )
+             AND u.id NOT IN (
+               '00000000-0000-4000-8000-000000000301'::uuid,
+               '00000000-0000-4000-8000-000000000302'::uuid
+             )
+             AND u.status = 'a' AND u.ruolo = 'E'
+             AND u.account_type = 'PERSON'
+             AND u.nome ~* '(test|synthetic|fittiz|demo|qa|fixture|prova)'
+             AND u.political_opinions_consent IS FALSE
+             AND u.political_opinions_consent_timestamp IS NULL
+             AND u.political_opinions_consent_ip_address IS NULL
+             AND u.political_opinions_consent_user_agent IS NULL
+             AND u.rappresentante_camera IS NULL
+             AND u.candidato_comune IS NULL
+             AND u.candidato_attivo IS FALSE
+             AND u.energia_nucleare IS NULL
+             AND NOT EXISTS (SELECT 1 FROM auth.users a WHERE a.id=u.id)
+             AND NOT EXISTS (SELECT 1 FROM public.user_devices d WHERE d.user_id=u.id)
+             AND NOT EXISTS (SELECT 1 FROM public.user_consents c WHERE c.user_id=u.id)
+             AND NOT EXISTS (SELECT 1 FROM public.opinioni_risposte o WHERE o.user_id=u.id)
+           ) <> 2
+       OR (SELECT count(*) FROM public.notifiche_preferenze p
+           JOIN public.users u ON u.id=p.user_id
+           WHERE md5(u.id::text) IN (
+             '837b804435eef9fafbc580ce17a24fd4',
+             'c1f6c8a73f029da2ee54a60dfd6a89d3'
+           )) <> 2
+       OR (SELECT count(*) FROM public.notifiche_preferenze p
+           JOIN public.users u ON u.id=p.user_id
+           WHERE md5(u.id::text) IN (
+             '837b804435eef9fafbc580ce17a24fd4',
+             'c1f6c8a73f029da2ee54a60dfd6a89d3'
+           ) AND p.eci IS TRUE AND p.iniziative_popolari IS TRUE
+             AND p.referendum_abrogativi IS TRUE) <> 1
+       OR (SELECT count(*) FROM public.notifiche_preferenze p
+           JOIN public.users u ON u.id=p.user_id
+           WHERE md5(u.id::text) IN (
+             '837b804435eef9fafbc580ce17a24fd4',
+             'c1f6c8a73f029da2ee54a60dfd6a89d3'
+           ) AND p.eci IS FALSE AND p.iniziative_popolari IS FALSE
+             AND p.referendum_abrogativi IS FALSE) <> 1 THEN
+      RAISE EXCEPTION 'PREFLIGHT_ROLE_NON_SYNTHETIC_USERS';
+    END IF;
+  ELSE
     RAISE EXCEPTION 'PREFLIGHT_ROLE_NON_SYNTHETIC_USERS';
   END IF;
   IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles
