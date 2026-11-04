@@ -60,3 +60,32 @@ test('Grazia personal votes and third-party proposals never reach HTTP cache or 
   assert.doesNotMatch(source, /console\.(?:log|error)\([^\n]*(?:userId|error\.message|error\.stack|error\.detail|mieiVoti|voti\.length)/);
   assert.match(source, /await client\.query\('COMMIT'\);[\s\S]{0,260}?client\.release\(\);\s*client = null;\s*let notificationSent = false;/);
 });
+
+test('Grazia withdrawal remains on its own queue, keeps votes and has private audit', () => {
+  const route=read('api/routes/grazia.js');
+  const migration=read('api/migrations/20261104_grazia_withdrawal_audit.sql');
+  const rollback=read('api/migrations/20261104_grazia_withdrawal_audit_rollback.sql');
+  const ui=read('client/src/pages/GestisciGrazia.tsx');
+  for(const key of ['withdrawn_at','withdrawn_by','withdraw_note','withdraw_notification_sent']){
+    assert.match(migration,new RegExp('ADD COLUMN IF NOT EXISTS '+key));
+    assert.match(rollback,new RegExp('DROP COLUMN IF EXISTS '+key));
+  }
+  assert.match(rollback,/RAISE EXCEPTION 'Grazia withdrawal audit exists/);
+  assert.match(route,/router\.post\('\/richiesta\/:id\/ritira', personalNoStore, verifyToken, requireAdmin/);
+  assert.match(route,/WHERE id=\$1 AND status='approved' AND withdrawn_at IS NULL FOR UPDATE/);
+  assert.match(route,/UPDATE grazia_carcerati SET attivo=FALSE WHERE attivo=TRUE/);
+  assert.match(route,/UPDATE richieste_grazia SET withdrawn_at=now\(\),withdrawn_by=/);
+  const withdrawing=route.split("router.post('/richiesta/:id/ritira'")[1].split("// POST /api/grazia/richiesta/:id/:action")[0];
+  assert.match(withdrawing,/await client\.query\('COMMIT'\)/);
+  assert.match(withdrawing,/await noticeClient\.query\('BEGIN'\)/);
+  assert.match(withdrawing,/withdraw_notification_sent=TRUE/);
+  assert.doesNotMatch(withdrawing,/\b(?:DELETE|TRUNCATE)\s+(?:FROM\s+)?voti_grazia/i);
+  assert.match(route,/CASE WHEN withdrawn_at IS NOT NULL THEN 'withdrawn' ELSE status END AS status/);
+  assert.match(route,/router\.get\('\/approvate', personalNoStore, verifyToken, requireAdmin/);
+  assert.match(route,/router\.get\('\/ritiri-avvisi', personalNoStore, verifyToken, requireAdmin/);
+  assert.match(route,/withdraw_notification_sent IS DISTINCT FROM TRUE/);
+  assert.match(route,/Soggetto non riproponibile/);
+  assert.match(ui,/enabled:!!user && isAdmin && showPublished/);
+  assert.match(ui,/enabled:!!user && isAdmin && showUnconfirmed/);
+  assert.match(ui,/api\/grazia\/richiesta\/\$\{encodeURIComponent\(id\)\}\/ritira/);
+});

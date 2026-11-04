@@ -3,6 +3,8 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const http=require('node:http');
+const fs=require('node:fs');
+const path=require('node:path');
 
 test('Grazia production router: real PostgreSQL transactions enforce one pending per account and review',async t=>{
   const raw=process.env.CIVIC_TEST_DATABASE_URL;
@@ -31,6 +33,10 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
       "INSERT INTO grazia_carcerati(nome,attivo) VALUES ('Persona sintetica già approvata',true)"
     ];
     for(const sql of setup)await pool.query(sql);
+    // Only the disposable test catalogue: no production schema operations.
+    const draft=fs.readFileSync(
+      path.join(__dirname,'../migrations/20261104_grazia_withdrawal_audit.sql'),'utf8');
+    await pool.query(draft);
     const dbPath=require.resolve('../config/database');
     const authPath=require.resolve('../middleware/auth');
     const midPolitical=require.resolve('../middleware/politicalConsent');
@@ -105,6 +111,64 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     const published=await req('/api/grazia');
     assert.equal(published.json.classifica.some(x=>x.nome===fixture.nome),true);
     assert.deepEqual(published.json.richieste,[],'raw personal voting rows not returned');
+
+    // Withdrawal is owned by this original request, never subject_proposals.
+    assert.equal((await req('/api/grazia/approvate','a')).status,403);
+    assert.equal((await req('/api/grazia/ritiri-avvisi','b')).status,403);
+    const approvedList=await req('/api/grazia/approvate','admin');
+    assert.equal(approvedList.status,200);
+    assert.equal(approvedList.json.richieste.some(x=>x.id===id),true);
+    assert.deepEqual(Object.keys(approvedList.json.richieste.find(x=>x.id===id)).sort(),
+      ['createdAt','id','nome'].sort(),'Admin listing must not include proposer UUID or source URL');
+    await pool.query("INSERT INTO voti_grazia(userid,nome) VALUES($1,$2)",[A,fixture.nome]);
+    const withdrawAttempts=await Promise.all(Array.from({length:3},()=>req(
+      '/api/grazia/richiesta/'+id+'/ritira','admin','POST',{note:'Ritiro cautelativo sintetico'}
+    )));
+    assert.equal(withdrawAttempts.filter(x=>x.status===200).length,1,
+      'concurrent withdrawal commits only once');
+    assert.equal(withdrawAttempts.filter(x=>x.status===409).length,2,
+      'subsequent withdrawals must not replace audit');
+    assert.equal(withdrawAttempts.find(x=>x.status===200).json.notification_sent,true);
+    const afterWithdraw=await pool.query(
+      'SELECT status,withdrawn_at,withdrawn_by,withdraw_note,withdraw_notification_sent FROM richieste_grazia WHERE id=$1',[id]);
+    assert.equal(afterWithdraw.rows[0].status,'approved',
+      'existing Grazia status is preserved; derived personal state is withdrawn');
+    assert.ok(afterWithdraw.rows[0].withdrawn_at);
+    assert.equal(afterWithdraw.rows[0].withdrawn_by,ADMIN);
+    assert.equal(afterWithdraw.rows[0].withdraw_note,'Ritiro cautelativo sintetico');
+    assert.equal(afterWithdraw.rows[0].withdraw_notification_sent,true);
+    assert.equal((await req('/api/grazia/mia-proposta','a')).json.richiesta.status,'withdrawn');
+    assert.equal((await pool.query('SELECT attivo FROM grazia_carcerati WHERE nome=$1',[fixture.nome])).rows[0].attivo,false);
+    assert.equal((await req('/api/grazia')).json.classifica.some(x=>x.nome===fixture.nome),false,
+      'inactive catalogues cannot show in public ranking');
+    assert.equal((await pool.query('SELECT COUNT(*)::integer n FROM voti_grazia WHERE nome=$1',
+      [fixture.nome])).rows[0].n,1,'historic Grazia vote retained');
+    assert.equal((await req('/api/grazia','b','POST',fixture)).status,409,
+      'retired name may not be proposed by a second account');
+    assert.equal((await req('/api/grazia/richiesta/'+id+'/accetta','admin','POST')).status,409,
+      'no reactivation through the original approval route');
+    const auditNone=await req('/api/grazia/ritiri-avvisi','admin');
+    assert.deepEqual(auditNone.json.ritiri,[],'successful private notice has no pending recovery');
+
+    // Dedicated failure path: an unavailable inbox cannot reverse unpublication.
+    const second={nome:'Persona Grazia con avviso non disponibile',urlProva:'https://example.org/fonte/seconda'};
+    const incoming=await req('/api/grazia','b','POST',second);
+    assert.equal(incoming.status,202);
+    const secondId=incoming.json.richiesta.id;
+    assert.equal((await req('/api/grazia/richiesta/'+secondId+'/accetta','admin','POST')).status,200);
+    await pool.query("CREATE FUNCTION reject_grazia_withdraw_notice() RETURNS trigger LANGUAGE plpgsql AS $t$ BEGIN IF NEW.titolo = 'DEMOS — Ritiro proposta Grazia' THEN RAISE EXCEPTION 'synthetic inbox outage'; END IF; RETURN NEW; END $t$");
+    await pool.query('CREATE TRIGGER reject_grazia_withdraw_notice BEFORE INSERT ON notifiche_demos FOR EACH ROW EXECUTE FUNCTION reject_grazia_withdraw_notice()');
+    const failure=await req('/api/grazia/richiesta/'+secondId+'/ritira','admin','POST',
+      {note:'Ritiro urgente senza avviso'});
+    assert.equal(failure.status,200);
+    assert.equal(failure.json.notification_sent,false);
+    assert.equal((await pool.query('SELECT attivo FROM grazia_carcerati WHERE nome=$1',[second.nome])).rows[0].attivo,false);
+    const pendingNotice=await req('/api/grazia/ritiri-avvisi','admin');
+    const item=pendingNotice.json.ritiri.find(x=>x.id===secondId);
+    assert.ok(item,'Admin can review a failed notice on the original Grazia queue');
+    assert.deepEqual(Object.keys(item).sort(),['id','withdrawn_at']);
+    await pool.query('DROP TRIGGER reject_grazia_withdraw_notice ON notifiche_demos');
+    await pool.query('DROP FUNCTION reject_grazia_withdraw_notice()');
 
     const rejectedBody={nome:'Persona sintetica non ammessa',urlProva:'https://example.org/fonte/rifiuto'};
     const submitted=await req('/api/grazia','a','POST',rejectedBody);

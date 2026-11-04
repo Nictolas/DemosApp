@@ -48,8 +48,18 @@ router.post('/', personalNoStore, verifyToken, async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(409).json({ success: false, error: 'Hai già una proposta di Grazia in attesa' });
     }
+    // A withdrawn person cannot be re-proposed automatically by another user.
+    // Keep the original Grazia request as the only audit record.
+    const retired = await client.query(
+      "SELECT 1 FROM richieste_grazia WHERE withdrawn_at IS NOT NULL AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1",
+      [nome]
+    );
+    if (retired.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'Soggetto non riproponibile'});
+    }
     const duplicate = await client.query(
-      'SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome)) = LOWER($1) LIMIT 1', [nome]
+      "SELECT id FROM grazia_carcerati WHERE lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1", [nome]
     );
     if (duplicate.rows.length) {
       await client.query('ROLLBACK');
@@ -206,7 +216,7 @@ router.get('/richieste', personalNoStore, verifyToken, requireAdmin, async (_req
 router.get('/mia-proposta', personalNoStore, verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, status, data_creazione FROM richieste_grazia WHERE utente_id = $1 ORDER BY data_creazione DESC LIMIT 1',
+      "SELECT id, CASE WHEN withdrawn_at IS NOT NULL THEN 'withdrawn' ELSE status END AS status, data_creazione FROM richieste_grazia WHERE utente_id = $1 ORDER BY data_creazione DESC LIMIT 1",
       [req.user.id]
     );
     return res.json({ success: true, richiesta: result.rows[0] || null });
@@ -378,6 +388,92 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
   }
 });
 
+// Grazia keeps one canonical queue: richieste_grazia. The two Admin GETs
+// are on-demand and never expose the proposer UUID or proof URL.
+router.get('/approvate', personalNoStore, verifyToken, requireAdmin, async (_req,res) => {
+  try {
+    const result=await pool.query(
+      "SELECT id,nome,data_creazione AS \"createdAt\" FROM richieste_grazia WHERE status='approved' AND withdrawn_at IS NULL ORDER BY data_creazione DESC LIMIT 100"
+    );
+    return res.json({success:true,richieste:result.rows});
+  } catch (_) {
+    return res.status(503).json({success:false,error:'Pubblicazioni Grazia non disponibili'});
+  }
+});
+
+router.get('/ritiri-avvisi', personalNoStore, verifyToken, requireAdmin, async (_req,res) => {
+  try {
+    const result=await pool.query(
+      "SELECT id,withdrawn_at FROM richieste_grazia WHERE withdrawn_at IS NOT NULL AND withdraw_notification_sent IS DISTINCT FROM TRUE ORDER BY withdrawn_at DESC LIMIT 100"
+    );
+    return res.json({success:true,ritiri:result.rows});
+  } catch (_) {
+    return res.status(503).json({success:false,error:'Verifica avvisi Grazia non disponibile'});
+  }
+});
+
+// A previously approved request is the withdrawal authority. No new queue.
+// Soft-deactivation and audit commit together; historic votes remain unchanged.
+router.post('/richiesta/:id/ritira', personalNoStore, verifyToken, requireAdmin, async (req,res) => {
+  const id=String(req.params.id||'');
+  const note=typeof req.body?.note==='string'?req.body.note.trim():'';
+  if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || note.length<3 || note.length>500) {
+    return res.status(400).json({success:false,error:'Riferimento o motivazione non valida'});
+  }
+  let client;
+  let retired;
+  try {
+    client=await pool.connect();
+    await client.query('BEGIN');
+    const found=await client.query(
+      "SELECT id,nome,utente_id FROM richieste_grazia WHERE id=$1 AND status='approved' AND withdrawn_at IS NULL FOR UPDATE",
+      [id]
+    );
+    if(!found.rows[0]){
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'Richiesta Grazia assente o già ritirata'});
+    }
+    retired=found.rows[0];
+    const off=await client.query(
+      "UPDATE grazia_carcerati SET attivo=FALSE WHERE attivo=TRUE AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) RETURNING id",
+      [retired.nome]
+    );
+    if(off.rowCount!==1){
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'Catalogo Grazia non riconciliato'});
+    }
+    const audit=await client.query(
+      "UPDATE richieste_grazia SET withdrawn_at=now(),withdrawn_by=$2,withdraw_note=$3,withdraw_notification_sent=FALSE WHERE id=$1 AND status='approved' AND withdrawn_at IS NULL",
+      [id,req.user.id,note]
+    );
+    if(audit.rowCount!==1)throw new Error('CONFLICT');
+    await client.query('COMMIT');
+  }catch(_){
+    if(client){try{await client.query('ROLLBACK');}catch(_){/* disconnected */}}
+    return res.status(503).json({success:false,error:'Ritiro Grazia temporaneamente non disponibile'});
+  }finally{client?.release();}
+  let noticeClient;
+  let notificationSent=false;
+  try{
+    noticeClient=await pool.connect();
+    await noticeClient.query('BEGIN');
+    const recipient=await noticeClient.query(
+      "INSERT INTO notifiche_demos (id,id_utente,titolo,testo,data_creazione,data) SELECT gen_random_uuid(),id,'DEMOS — Ritiro proposta Grazia','Una proposta Grazia approvata è stata ritirata.',NOW(),CURRENT_DATE FROM users WHERE id::text=$1 AND status='a'",
+      [retired.utente_id]
+    );
+    if(recipient.rowCount!==1)throw new Error('NO_ACTIVE_RECIPIENT');
+    await noticeClient.query(
+      'UPDATE richieste_grazia SET withdraw_notification_sent=TRUE WHERE id=$1 AND withdrawn_at IS NOT NULL AND withdraw_notification_sent=FALSE',
+      [id]
+    );
+    await noticeClient.query('COMMIT');
+    notificationSent=true;
+  }catch(_){
+    if(noticeClient){try{await noticeClient.query('ROLLBACK');}catch(_){/* disconnected */}}
+  }finally{noticeClient?.release();}
+  return res.json({success:true,status:'withdrawn',notification_sent:notificationSent});
+});
+
 // POST /api/grazia/richiesta/:id/:action - Decisione moderazione solo Admin
 router.post('/richiesta/:id/:action', personalNoStore, verifyToken, requireAdmin, async (req, res) => {
   const action = req.params.action;
@@ -399,6 +495,22 @@ router.post('/richiesta/:id/:action', personalNoStore, verifyToken, requireAdmin
     }
     const richiesta = result.rows[0];
     if (approved) {
+      // A withdrawn catalogue subject must not be republished through an
+      // older pending request, nor through a previously inactive legacy row.
+      const retired=await client.query(
+        "SELECT 1 FROM richieste_grazia WHERE withdrawn_at IS NOT NULL AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1",
+        [richiesta.nome]
+      );
+      // Serialize approvals with withdrawal against the canonical catalogue
+      // row. If withdrawal won the race, its inactive state is now visible.
+      const catalogue=await client.query(
+        "SELECT id,attivo FROM grazia_carcerati WHERE lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) FOR UPDATE",
+        [richiesta.nome]
+      );
+      if (retired.rowCount || catalogue.rows.some(row=>row.attivo!==true)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({success:false,error:'Catalogo Grazia non ripubblicabile'});
+      }
       await client.query('INSERT INTO grazia_carcerati (nome, attivo) VALUES ($1,true) ON CONFLICT DO NOTHING', [richiesta.nome]);
       await client.query('UPDATE grazia_carcerati SET attivo = true WHERE LOWER(BTRIM(nome)) = LOWER(BTRIM($1))', [richiesta.nome]);
     }
