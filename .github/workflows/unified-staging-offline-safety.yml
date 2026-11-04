@@ -6,10 +6,14 @@ on:
   pull_request:
     branches:
       - main
+      - ops/demos-unified-staging-20261102
     paths:
       - 'api/staging/unified_staging_bootstrap.js'
       - 'api/staging/unified_staging_preflight_server.js'
       - 'api/scripts/unifiedStagingPreflight.js'
+      - 'api/scripts/unifiedStagingSessionContinuity.js'
+      - 'api/tests/unifiedStagingSessionContinuity.test.js'
+      - 'api/tests/unifiedStagingSessionContinuity.postgres.test.js'
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflightServer.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
@@ -51,10 +55,14 @@ on:
   push:
     branches:
       - ops/demos-unified-staging-20261102
+      - qa/demos10-t55-session-continuity-20261104
     paths:
       - 'api/staging/unified_staging_bootstrap.js'
       - 'api/staging/unified_staging_preflight_server.js'
       - 'api/scripts/unifiedStagingPreflight.js'
+      - 'api/scripts/unifiedStagingSessionContinuity.js'
+      - 'api/tests/unifiedStagingSessionContinuity.test.js'
+      - 'api/tests/unifiedStagingSessionContinuity.postgres.test.js'
       - 'api/tests/unifiedStagingBootstrap.test.js'
       - 'api/tests/unifiedStagingPreflightServer.test.js'
       - 'api/tests/unifiedStagingPreflight.test.js'
@@ -119,6 +127,7 @@ jobs:
           node --check api/staging/unified_staging_bootstrap.js
           node --check api/staging/unified_staging_preflight_server.js
           node --check api/scripts/unifiedStagingPreflight.js
+          node --check api/scripts/unifiedStagingSessionContinuity.js
           node --check api/scripts/evaluateLegacyRenderPgRetirement.js
           node --check api/routes/referendum.js
           node --check api/routes/referendum-abrogativi.js
@@ -126,7 +135,7 @@ jobs:
           node --check api/utils/selectNextOfficialReferendum.js
       - name: Offline bootstrap and preflight contracts (loopback only)
         run: |
-          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflightServer.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/legacyRenderPgRetirementGate.test.js
+          node --test api/tests/unifiedStagingBootstrap.test.js api/tests/unifiedStagingPreflightServer.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSessionContinuity.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/legacyRenderPgRetirementGate.test.js
           node --test api/tests/referendumOfficialRoutes.staging.test.js api/tests/referendumPriorityRetired.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/publicRouteHygiene.smoke.test.js
 
   p0-schema-postgres16:
@@ -265,5 +274,7 @@ jobs:
         run: python -m api.tests.seed_ops_stg_001_snapshot_service_postgres
       - name: Execute actual preflight metadata SQL as passwordless least-privilege role
         run: node --test api/tests/unifiedStagingPreflight.postgres.test.js
+      - name: Prove real PostgreSQL session continuity su DB CI effimero
+        run: node --test api/tests/unifiedStagingSessionContinuity.postgres.test.js
       - name: Exercise actual JavaScript service on PostgreSQL ${{ matrix.pg-major }} and rollback all 10 synthetic votes
         run: node --test api/tests/referendumForecastSnapshot.postgres16.test.js
