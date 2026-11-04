@@ -45,7 +45,7 @@ function respond(statement,values){
     return {rows:[],rowCount:1};
   }
   if(sql.includes('FROM richieste_grazia WHERE status =') && sql.includes('ORDER BY data_creazione')){
-    return {rows:requests.filter(r=>r.status==='pending').map(r=>({id:r.id,nome:r.nome,urlProva:r.url_prova,userId:r.utente_id,createdAt:r.data_creazione}))};
+    return {rows:requests.filter(r=>r.status==='pending').map(r=>({id:r.id,nome:r.nome,urlProva:r.url_prova,createdAt:r.data_creazione}))};
   }
   if(sql.includes('FROM richieste_grazia WHERE utente_id = $1 ORDER BY data_creazione')){
     return {rows:requests.filter(r=>r.utente_id===values[0]).slice(-1).map(r=>({id:r.id,status:r.status,data_creazione:r.data_creazione}))};
@@ -144,8 +144,10 @@ test('Grazia proposal and Admin decision remain committed when notification fail
     assert.equal(requests.filter(r=>r.utente_id===B&&r.status==='pending').length,1);
     const adminList=await request('/api/grazia/richieste','admin');
     assert.match(adminList.headers.get('cache-control')||'',/no-store/);
-    const pending=(await adminList.json()).find(r=>r.userId===B);
+    const pending=(await adminList.json()).find(r=>r.nome==='Persona sintetica non verificata B');
     assert.ok(pending,'the pending proposal exists despite notification failure');
+    assert.deepEqual(Object.keys(pending).sort(), ['createdAt','id','nome','urlProva'].sort(),
+      'private Admin queue must not expose proposer UUID or unrelated fields');
     const approved=await request('/api/grazia/richiesta/'+pending.id+'/rifiuta','admin','POST');
     assert.equal(approved.status,200);
     const answer=await approved.json();
