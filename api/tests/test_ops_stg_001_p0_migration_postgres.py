@@ -362,6 +362,106 @@ class P0StagingMigrationPostgresTest(unittest.TestCase):
                 cur.execute("DROP TABLE public.user_auth_providers CASCADE")
 
 
+    def test_y_four_pinned_qa_fixtures_fail_closed_on_changes(self):
+        """Exercise the real 4-QA branch on disposable PG16/17; rollback everything."""
+        path = ROOT / "api/database/staging/ops_stg_001_preflight_role_disabled_20261103.sql"
+        source = path.read_text(encoding="utf-8")
+        self.assertIn("ELSIF (SELECT count(*) FROM public.users) = 4 THEN", source)
+        qa1 = USER_OUTSIDE
+        qa2 = "44444444-4444-4444-8444-444444444444"
+        stage_fps = ("837b804435eef9fafbc580ce17a24fd4",
+                     "c1f6c8a73f029da2ee54a60dfd6a89d3")
+        for fp in stage_fps:
+            self.assertEqual(source.count(fp), 4)
+        sql = source.replace(STAGING_HASH,
+                             hashlib.md5(SYNTHETIC_ID.encode("ascii")).hexdigest())
+        sql = sql.replace("current_database() <> 'postgres'",
+                          "current_database() <> 'civic_ci'")
+        for fp, uid in zip(stage_fps, (qa1, qa2)):
+            sql = sql.replace(fp, hashlib.md5(uid.encode("ascii")).hexdigest())
+        self.assertNotIn(stage_fps[0], sql)
+        self.assertNotIn(stage_fps[1], sql)
+        with self.conn.cursor() as cur:
+            cur.execute("BEGIN")
+            try:
+                # Only CI transaction-scoped fixture changes. All disappear
+                # on ROLLBACK and cannot affect the real staging.
+                for name, kind in (
+                    ("nome", "text"), ("ruolo", "text"),
+                    ("account_type", "varchar(20)"),
+                    ("political_opinions_consent", "boolean"),
+                    ("political_opinions_consent_timestamp", "timestamptz"),
+                    ("political_opinions_consent_ip_address", "text"),
+                    ("political_opinions_consent_user_agent", "text"),
+                    ("rappresentante_camera", "uuid"),
+                    ("candidato_comune", "uuid"),
+                    ("candidato_attivo", "boolean"),
+                    ("energia_nucleare", "text"),
+                ):
+                    cur.execute("ALTER TABLE public.users ADD COLUMN " + name + " " + kind)
+                cur.execute("CREATE SCHEMA auth")
+                cur.execute("CREATE TABLE auth.users(id uuid PRIMARY KEY)")
+                for table in ("user_devices", "user_consents", "opinioni_risposte"):
+                    cur.execute("CREATE TABLE public." + table + "(user_id uuid)")
+                cur.execute("""CREATE TABLE public.notifiche_preferenze (
+                    user_id uuid, eci boolean, iniziative_popolari boolean,
+                    referendum_abrogativi boolean
+                )""")
+                for uid in (qa1, qa2):
+                    cur.execute("""INSERT INTO public.users (
+                        id,status,nome,ruolo,account_type,political_opinions_consent,
+                        candidato_attivo) VALUES
+                        (%s,'a','Synthetic QA fixture','E','PERSON',FALSE,FALSE)""", (uid,))
+                cur.execute("""INSERT INTO public.notifiche_preferenze
+                    VALUES (%s,TRUE,TRUE,TRUE),(%s,FALSE,FALSE,FALSE)""", (qa1, qa2))
+                cur.execute("UPDATE public.civic_runtime_identity SET db_identity=%s WHERE id=1",
+                            (SYNTHETIC_ID,))
+                for table in ("civic_runtime_identity","civic_push_delivery_guard"):
+                    cur.execute("ALTER TABLE public." + table + " ENABLE ROW LEVEL SECURITY")
+                # Exercise happy path, then remove role and policies by
+                # rolling back to the test savepoint.
+                cur.execute("SAVEPOINT qa_happy")
+                cur.execute("""SET LOCAL civic.preflight_role_approval =
+                    'I_APPROVE_DISABLED_PREFLIGHT_ROLE'""")
+                cur.execute(sql)
+                cur.execute("SELECT count(*) FROM pg_roles WHERE rolname='demos_staging_preflight'")
+                self.assertEqual(cur.fetchone(), (1,))
+                cur.execute("ROLLBACK TO SAVEPOINT qa_happy")
+
+                def expect_closed(message, mutate):
+                    cur.execute("SAVEPOINT qa_negative")
+                    mutate()
+                    cur.execute("SAVEPOINT qa_attempt")
+                    with self.assertRaisesRegex(psycopg2.Error, message):
+                        cur.execute(sql)
+                    cur.execute("ROLLBACK TO SAVEPOINT qa_attempt")
+                    cur.execute("ROLLBACK TO SAVEPOINT qa_negative")
+
+                expect_closed("PREFLIGHT_ROLE_NON_SYNTHETIC_USERS",
+                              lambda: cur.execute(
+                                  "INSERT INTO public.users (id,status) VALUES (%s,'a')",
+                                  ("55555555-5555-4555-8555-555555555555",)))
+                expect_closed("PREFLIGHT_ROLE_NON_SYNTHETIC_USERS",
+                              lambda: cur.execute(
+                                  "UPDATE public.notifiche_preferenze SET eci=TRUE, iniziative_popolari=TRUE, referendum_abrogativi=TRUE WHERE user_id=%s",
+                                  (qa2,)))
+                expect_closed("PREFLIGHT_ROLE_NON_SYNTHETIC_USERS",
+                              lambda: cur.execute(
+                                  "INSERT INTO public.user_devices(user_id) VALUES (%s)",
+                                  (qa1,)))
+                expect_closed("PREFLIGHT_ROLE_NON_SYNTHETIC_USERS",
+                              lambda: cur.execute(
+                                  "UPDATE public.users SET status='pending' WHERE id=%s",
+                                  (qa1,)))
+            finally:
+                cur.execute("ROLLBACK")
+        # No roles, policies, extra users or test tables survive.
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM pg_roles WHERE rolname='demos_staging_preflight'")
+            self.assertEqual(cur.fetchone(), (0,))
+            cur.execute("SELECT count(*) FROM public.users")
+            self.assertEqual(cur.fetchone(), (2,))
+
     def test_z_disabled_preflight_role_is_strictly_read_only_and_requires_approval(self):
         """Real PG16/17 role/policies, but passwordless and only in disposable CI."""
         path = ROOT / "api/database/staging/ops_stg_001_preflight_role_disabled_20261103.sql"
