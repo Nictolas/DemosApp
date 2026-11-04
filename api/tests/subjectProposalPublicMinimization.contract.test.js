@@ -282,3 +282,36 @@ test('Admin pending moderation pages beyond 100 while preserving private queue s
   assert.doesNotMatch(pending,/SELECT[^\n]*proposer_user_id|SELECT[^\n]*review_note/,
     'private account IDs and internal review notes must not appear in Admin queue JSON');
 });
+
+test('both Admin notification audits page past 100 with minimal private payloads', () => {
+  const api=file('api/routes/subject-proposals.js');
+  const ui=file('client/src/pages/Gestisci/ProposteSoggetti.tsx');
+  const sql=file('api/migrations/20261031_subject_proposals_review_gate.sql');
+  for (const [route, next] of [
+    ["/admin/withdraw-notifications", "/admin/notification-audit"],
+    ["/admin/notification-audit", "// Emergency unpublish"]
+  ]) {
+    const begin=api.indexOf("router.get('"+route+"'");
+    const finish=api.indexOf(next === "// Emergency unpublish" ? next : "router.get('"+next+"'", begin+1);
+    assert.ok(begin>=0 && finish>begin,'audit route must remain present and isolated');
+    const block=api.slice(begin,finish);
+    assert.match(block,/verifyToken, requireAdmin/);
+    assert.match(block,/parseAdminPageCursor\(req.query.cursor\)/);
+    assert.match(block,/LIMIT 101/);
+    assert.match(block,/next_cursor/);
+    assert.match(block,/page.map\(\(\{ cursor_epoch, \.\.\.item \}\) => item\)/);
+    assert.match(block,/Cache-Control', 'private, no-store'/);
+    assert.doesNotMatch(block,/SELECT\s+(?:p\.)?(?:proposer_user_id|title|details|source_url|review_note)\b/i);
+  }
+  assert.match(sql,/subject_proposals_admin_withdraw_notice_cursor_idx/);
+  assert.match(sql,/subject_proposals_admin_notice_audit_cursor_idx/);
+  assert.match(ui,/withdrawalAuditCursor/);
+  assert.match(ui,/proposalAuditCursor/);
+  assert.match(ui,/loadMoreUndelivered/);
+  assert.match(ui,/Carica altri avvisi da verificare/);
+  assert.match(ui,/encodeURIComponent\(withdrawalAuditCursor\)/);
+  assert.match(ui,/encodeURIComponent\(proposalAuditCursor\)/);
+  assert.doesNotMatch(ui.slice(ui.indexOf('useEffect(() =>'),ui.indexOf('const refreshApproved')),
+    /withdraw-notifications|notification-audit/,
+    'notification audits must only load on explicit Admin request');
+});
