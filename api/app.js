@@ -155,6 +155,14 @@ if (isStagingApp) {
     if (!isReadOnlyCanaryRequest(req.method,req.path)) {
       return res.status(404).json({error:'not_found'});
     }
+    if (['/health','/health/live','/api/health','/api/health/live'].includes(req.path)) {
+      return res.status(200).json({status:'app_canary_readonly',
+        app_ready:false,notifications_enabled:false});
+    }
+    if (['/health/ready','/api/health/ready'].includes(req.path)) {
+      return res.status(503).json({status:'not_ready',
+        reason:'application_e2e_not_authorized'});
+    }
     next();
   });
 }
