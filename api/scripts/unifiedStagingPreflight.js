@@ -223,6 +223,35 @@ function evaluatePreflightReadGrants(rows) {
   return [...allowed].every(key => seen.has(key));
 }
 
+// Effective RLS for the dedicated role must consist of the two *exact*
+// SELECT(id=1) policies and no broader role/PUBLIC policies. An unrelated
+// runtime-only policy is allowed, but is never interpreted as authorization.
+function evaluatePreflightPolicies(rows) {
+  if (!Array.isArray(rows)) return false;
+  const expected = new Map([
+    ['civic_runtime_identity', 'stg_preflight_identity_id1'],
+    ['civic_push_delivery_guard', 'stg_preflight_guard_id1'],
+  ]);
+  const found = new Set();
+  for (const row of rows) {
+    if (!row || typeof row !== 'object' ||
+        !expected.has(row.table_name) || typeof row.policy_name !== 'string' ||
+        !Array.isArray(row.roles) || typeof row.cmd !== 'string') return false;
+    const applies = row.roles.includes('public') ||
+                    row.roles.includes('PUBLIC') ||
+                    row.roles.includes(STAGING_PREFLIGHT_ROLE);
+    if (!applies) continue; // e.g. existing staging runtime policies.
+    const predicate = typeof row.qual === 'string'
+      ? row.qual.replace(/\s+/g, '').replace(/[()]/g, '') : '';
+    if (row.policy_name !== expected.get(row.table_name) ||
+        row.roles.length !== 1 || row.roles[0] !== STAGING_PREFLIGHT_ROLE ||
+        row.cmd !== 'SELECT' || predicate !== 'id=1' ||
+        row.with_check != null || found.has(row.table_name)) return false;
+    found.add(row.table_name);
+  }
+  return found.size === expected.size;
+}
+
 async function run(env = process.env) {
   // The shared staging service is still in bootstrap. Target validation alone
   // does not authorize even a read-only network connection to Demos-Staging.
@@ -314,6 +343,19 @@ async function run(env = process.env) {
     );
     if (!evaluatePreflightReadGrants(readCheck.rows)) {
       throw new Error('Staging preflight has unexpected SELECT grants');
+    }
+    // A SELECT-only role can still see more rows if RLS policies intended
+    // for PUBLIC or the role are overly permissive. Review the effective
+    // policy catalog without querying any user or notification content.
+    const policyRows = await client.query(
+      `SELECT tablename AS table_name, policyname AS policy_name, cmd,
+              roles, qual, with_check
+         FROM pg_catalog.pg_policies
+         WHERE schemaname = 'public'
+           AND tablename IN ('civic_runtime_identity','civic_push_delivery_guard')`
+    );
+    if (!evaluatePreflightPolicies(policyRows.rows)) {
+      throw new Error('Staging preflight RLS policies are broader than authorized');
     }
     const tables = await client.query(
       `SELECT c.relname AS table_name FROM pg_catalog.pg_class c
@@ -421,4 +463,5 @@ module.exports = {STAGING_REF, STAGING_PREFLIGHT_ROLE, STAGING_IDENTITY_HASH, RE
   assertStagingTarget, evaluateSchema, evaluateCivicProtection, evaluateAllPublicStagingTables,
   evaluatePublicSequenceProtection, evaluatePublicViewExposure,
   evaluatePublicRoutineExposure, evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity,
-  evaluatePreflightRole, evaluatePreflightWriteGrants, evaluatePreflightReadGrants, run};
+  evaluatePreflightRole, evaluatePreflightWriteGrants, evaluatePreflightReadGrants,
+  evaluatePreflightPolicies, run};
