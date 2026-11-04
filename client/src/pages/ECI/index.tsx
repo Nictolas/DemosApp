@@ -140,9 +140,13 @@ export default function ECI() {
     if (deepLinkHandled.current || isLoading || isError || !user) return;
     const id = new URLSearchParams(window.location.search).get("initiative");
     if (!id) return;
-    deepLinkHandled.current = true;
     const item = baseList.find(entry => String(entry.id) === id);
-    if (item) setViewItem(item);
+    if (item) {
+      // Se il dato ufficiale non è ancora presente, il deep link rimane
+      // pendente per una successiva risposta/refetch invece di andare perso.
+      deepLinkHandled.current = true;
+      setViewItem(item);
+    }
   }, [baseList, isLoading, isError, user]);
 
   if (isAuthLoading) {

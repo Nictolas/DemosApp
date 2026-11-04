@@ -10,6 +10,9 @@ import {
   isNativePushEnabled,
   storeNativePushToken,
 } from '@/lib/native-push';
+import { getAuthToken } from '@/lib/auth-token';
+import { rememberCivicNotificationTarget } from '@/lib/civic-notification-pending-link';
+import { PUSH_PERMISSION_CHANGED_EVENT, notifyPushPermissionChanged } from '@/lib/push-permission-events';
 
 const NATIVE_NOTIFICATION_CHANNELS = [
   {
@@ -74,6 +77,10 @@ function openNotificationTarget(action: ActionPerformed) {
     const isCurrentOrigin = target.origin === window.location.origin;
 
     if (isDemosWeb || isCurrentOrigin) {
+      // Only a guest needs to resume a civic item after authentication.
+      // Keep the destination in sessionStorage for at most 15 minutes; never
+      // store arbitrary links, tokens or user data.
+      if (!getAuthToken()) rememberCivicNotificationTarget(target.toString());
       window.location.href = `${target.pathname}${target.search}${target.hash}`;
       return;
     }
@@ -146,18 +153,26 @@ export function useNativePush() {
       }),
     );
 
-    void PushNotifications.checkPermissions()
-      .then((status) => {
-        if (!cancelled) setPermission(normalizePermission(status.receive));
-      })
-      .catch((permissionError) => {
-        if (!cancelled) {
-          setError(permissionError instanceof Error ? permissionError : new Error('Impossibile verificare il permesso notifiche'));
-        }
-      });
+    // Preferences and background token-sync mount distinct hook instances.
+    // Re-read the native OS permission when the explicit consent button
+    // changes it, rather than leaving background sync stuck on "default".
+    const refreshPermission = () => {
+      void PushNotifications.checkPermissions()
+        .then((status) => {
+          if (!cancelled) setPermission(normalizePermission(status.receive));
+        })
+        .catch((permissionError) => {
+          if (!cancelled) {
+            setError(permissionError instanceof Error ? permissionError : new Error('Impossibile verificare il permesso notifiche'));
+          }
+        });
+    };
+    window.addEventListener(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission);
+    refreshPermission();
 
     return () => {
       cancelled = true;
+      window.removeEventListener(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission);
       void Promise.all(handles.map((handle) => handle.remove()));
     };
   }, [enabled]);
@@ -184,6 +199,7 @@ export function useNativePush() {
       const status = await PushNotifications.requestPermissions();
       const nextPermission = normalizePermission(status.receive);
       setPermission(nextPermission);
+      notifyPushPermissionChanged();
       if (nextPermission === 'granted') {
         await register();
       } else {
