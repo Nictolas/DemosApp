@@ -175,7 +175,7 @@ test("opening profile loads just summary; political API requests require expansi
 
 test("successful login and onboarding open Profile as the new home", () => {
   assert.doesNotMatch(read("hooks/useAuthLogin.ts"), /window\.location\.href = "\/preferiti"/);
-  assert.ok(read("hooks/useAuthLogin.ts").includes('window.location.href = "/profilo"'));
+  assert.ok(read("hooks/useAuthLogin.ts").includes('window.location.href = consumePendingCivicNotificationTarget() || "/profilo"'));
   assert.match(read("pages/registrazione-crea-passkey.tsx"), /window\.location\.href = "\/profilo"/);
   assert.match(read("pages/registrazione-3-residenza.tsx"), /navigate\("\/profilo"\)/);
   assert.match(read("pages/registrazione-ruolo.tsx"), /navigate\("\/profilo"\)/);
@@ -271,7 +271,7 @@ test("authenticated app startup consistently opens Profile and not Favorites", (
   assert.ok(auth.includes('return <Redirect to="/profilo" />;'));
   assert.ok(!landing.includes('return <Redirect to="/preferiti" />;'));
   assert.ok(!auth.includes('return <Redirect to="/preferiti" />;'));
-  assert.ok(read("hooks/useAuthLogin.ts").includes('window.location.href = "/profilo"'));
+  assert.ok(read("hooks/useAuthLogin.ts").includes('window.location.href = consumePendingCivicNotificationTarget() || "/profilo"'));
   // The old Favorites route survives for other flows but not as a Profile shortcut.
   assert.ok(!profile.includes('<Link href="/preferiti"'));
   assert.ok(wrapper.includes('return <Redirect to="/preferiti" />;'));
