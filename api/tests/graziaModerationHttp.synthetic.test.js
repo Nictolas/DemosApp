@@ -29,6 +29,13 @@ function respond(statement,values){
     return {rows:users.has(values[0])?[{id:values[0]}]:[]};
   if(sql.includes("FROM richieste_grazia WHERE utente_id = $1 AND status = 'pending'"))
     return {rows:requests.filter(r=>r.utente_id===values[0]&&r.status==='pending').map(r=>({id:r.id}))};
+  if(sql.includes("FROM richieste_grazia WHERE status IN ('pending','approved')")){
+    const canonical = value => String(value||'').normalize('NFC').trim().replace(/\s+/g,' ').toLowerCase();
+    const matches=requests.filter(r=>
+      (r.status==='pending'||r.status==='approved')&&!r.withdrawn_at&&
+      canonical(r.nome)===canonical(values[0])).map(r=>({id:r.id}));
+    return {rows:matches,rowCount:matches.length};
+  }
   if(sql.includes('FROM grazia_carcerati WHERE attivo = true') && sql.includes('LOWER(BTRIM(nome))'))
     return {rows:catalog.filter(r=>r.attivo&&r.nome.toLowerCase()===String(values[0]).toLowerCase()).map(r=>({id:r.id}))};
   if(sql.startsWith('INSERT INTO richieste_grazia')){
@@ -109,6 +116,11 @@ test('Grazia one pending proposal per user, real persistence before success',asy
   assert.equal((await created.json()).richiesta.status,'pending');
   assert.equal(requests.filter(r=>r.utente_id===A && r.status==='pending').length,1);
   assert.equal((await request('/api/grazia','a','POST',{nome:'Altra persona',urlProva:data.urlProva})).status,409);
+  // A separate account cannot create a parallel entry for the same person.
+  assert.equal((await request('/api/grazia','b','POST',{
+    nome:'  Persona   da   verificare  ',urlProva:data.urlProva
+  })).status,409);
+  assert.equal(requests.filter(r=>r.status==='pending').length,1);
   assert.ok(notices.some(n=>n.to===ADMIN));
   const self=await (await request('/api/grazia/mia-proposta','a')).json();
   const other=await (await request('/api/grazia/mia-proposta','b')).json();
