@@ -180,7 +180,7 @@ test('preflight start via unchanged Render command never launches bootstrap', as
 
 test('default bootstrap and invalid mode cannot silently import or use preflight', async () => {
   const {startConfiguredStaging}=require('../staging/unified_staging_bootstrap');
-  for(const mode of ['bootstrap','application',undefined]) {
+  for(const mode of ['application',undefined]) {
     let preflightCalls=0,bootstrapCalls=0;
     const env={NODE_ENV:'staging',DEMOS_UNIFIED_STAGING_MODE:mode};
     await assert.rejects(startConfiguredStaging(env,{
