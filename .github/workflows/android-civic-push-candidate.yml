@@ -12,6 +12,9 @@ on:
       - 'client/src/hooks/useNativePush.ts'
       - 'client/src/hooks/useAuthLogin.ts'
       - 'api/tests/civicNotificationResume.test.mjs'
+      - 'client/src/hooks/useSyncFcmToken.ts'
+      - 'client/src/pages/NotifichePreferenze.tsx'
+      - 'api/tests/nativePushExplicitPermission.test.js'
       - 'client/src/pages/IniziativePopolari/index.tsx'
       - 'client/src/pages/ReferendumAbrogativi/index.tsx'
       - 'client/src/pages/ECI/index.tsx'
@@ -39,6 +42,7 @@ jobs:
           node --test client/scripts/verify-android-civic-push-candidate.test.mjs
           node --test api/tests/androidAuthNativePushIntegration.test.js
           node --experimental-strip-types --test api/tests/civicNotificationResume.test.mjs
+          node --test api/tests/nativePushExplicitPermission.test.js
           node --test api/tests/civicNotificationDeepLinkContract.test.js
 
   synthetic-bundle-proof:
