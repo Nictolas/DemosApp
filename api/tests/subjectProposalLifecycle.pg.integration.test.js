@@ -435,6 +435,17 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       "INSERT INTO subject_proposals(proposer_user_id,category,title,source_url) VALUES($1,'grazia','Persona sintetica','https://example.org')",[B]
     ), e=>e.code==='23514');
 
+    // A previously published subject can be withdrawn even after its
+    // proposer deletes their account. No message must be inserted for the
+    // deleted account or reported as successfully sent.
+    const postErasure=await req('/api/subject-proposals','a','POST',
+      proposal('organizzazioni','Organizzazione sintetica dopo cancellazione'));
+    assert.equal(postErasure.status,201);
+    const ownerlessId=postErasure.body.proposal.id;
+    const ownerlessApproval=await req('/api/subject-proposals/admin/'+ownerlessId+
+      '/decision','admin','POST',{decision:'approve'});
+    assert.equal(ownerlessApproval.status,200);
+
     // Direct FK safety: deleting an account must never CASCADE through an
     // approved/withdrawn proposal and erase the catalogue's audit link.
     // The canonical account-delete service separately erases pending/rejected.
@@ -453,6 +464,40 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(publicAfterDeletion.rows[0].source_proposal_id,capoId,
       'catalogue-to-proposal audit link must survive deletion of the former proposer');
     assert.equal(publicAfterDeletion.rows[0].active,false,'withdrawn catalogue stays unpublished');
+    const noOwner=await pool.query(
+      'SELECT status,proposer_user_id FROM subject_proposals WHERE id=$1',[ownerlessId]
+    );
+    assert.equal(noOwner.rows[0].status,'approved');
+    assert.equal(noOwner.rows[0].proposer_user_id,null,'account erasure unlinks the published nomination');
+    const withdrawalNoOwner=await req('/api/subject-proposals/admin/'+ownerlessId+
+      '/withdraw','admin','POST',{note:'Ritiro dopo cancellazione account'});
+    assert.equal(withdrawalNoOwner.status,200,'Admin can unpublish an ownerless subject');
+    assert.equal(withdrawalNoOwner.body.status,'withdrawn');
+    assert.equal(withdrawalNoOwner.body.notification_sent,false,
+      'no active recipient means no notification was inserted or confirmed');
+    const orphanNotices=await pool.query(
+      'SELECT count(*)::integer n FROM notifiche_demos WHERE id_utente IS NULL'
+    );
+    assert.equal(orphanNotices.rows[0].n,0,'never insert orphan inbox messages');
+
+    // A suspended/inactive recipient cannot receive review notifications.
+    // Review must still commit and preserve a durable FALSE audit flag.
+    const inactiveId=freshOrg.body.proposal.id;
+    await pool.query("UPDATE users SET status='x' WHERE id=$1",[B]);
+    try {
+      const inactiveReview=await req('/api/subject-proposals/admin/'+inactiveId+
+        '/decision','admin','POST',{decision:'reject'});
+      assert.equal(inactiveReview.status,200);
+      assert.equal(inactiveReview.body.status,'rejected');
+      assert.equal(inactiveReview.body.notification_sent,false);
+      const inactiveAudit=await pool.query(
+        'SELECT status,review_notification_sent FROM subject_proposals WHERE id=$1',[inactiveId]
+      );
+      assert.equal(inactiveAudit.rows[0].status,'rejected');
+      assert.equal(inactiveAudit.rows[0].review_notification_sent,false);
+    } finally {
+      await pool.query("UPDATE users SET status='a' WHERE id=$1",[B]);
+    }
   } finally {
     if(server?.listening) await new Promise(done=>server.close(done));
     if(pool) await pool.end();

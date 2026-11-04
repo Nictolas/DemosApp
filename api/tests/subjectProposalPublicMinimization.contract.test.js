@@ -212,3 +212,23 @@ test('withdrawal retains private catalogue reference while public directory excl
   assert.doesNotMatch(admin,/SELECT[^\n]*published_ref/,
     'Admin quick listings retain minimized fields');
 });
+
+test('notifications for reviewed nominations require a still-active proposer', () => {
+  const api = file('api/routes/subject-proposals.js');
+  const notify = api.split('async function notify(')[1].split('// Fetch only on click')[0];
+  assert.match(notify,/if \(!userId\) throw new Error\('NO_ACTIVE_RECIPIENT'\)/,
+    'account-deleted nominations must not create an orphan notification');
+  assert.match(notify,/INSERT INTO notifiche_demos \(id_utente, titolo, testo\)\s+SELECT id, \$2, \$3 FROM users/);
+  assert.match(notify,/lower\(status\)='a' FOR KEY SHARE/,
+    'only active recipients, locked against concurrent erasure, can be notified');
+  assert.match(notify,/inserted\.rowCount !== 1/,
+    'a zero-row insertion must not report success');
+  const review = api.split("router.post('/admin/:id/decision'")[1];
+  const withdraw = api.split("router.post('/admin/:id/withdraw'")[1].split('// Atomic review:')[0];
+  for (const route of [review,withdraw]) {
+    assert.match(route,/await notify\(noticeClient,/);
+    assert.match(route,/notification_sent: notificationSent/);
+    assert.match(route,/await noticeClient\.query\('ROLLBACK'\)/,
+      'failure to insert an actual recipient notice must roll back its flag');
+  }
+});

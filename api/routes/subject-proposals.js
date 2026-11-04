@@ -31,11 +31,17 @@ function cleanProposal(body) {
 }
 
 async function notify(client, userId, message) {
-  // "DEMOS —" is treated as a per-user message by /api/notifiche.
-  await client.query(
-    'INSERT INTO notifiche_demos (id_utente, titolo, testo) VALUES ($1, $2, $3)',
-    [userId, 'DEMOS — Aggiornamento proposta', message]
+  // Published nominations outlive their original user account, but inbox
+  // messages must not: never create orphan notifications for a deleted user.
+  // The row lock serializes this check with concurrent account deletion.
+  if (!userId) throw new Error('NO_ACTIVE_RECIPIENT');
+  const inserted = await client.query(
+    `INSERT INTO notifiche_demos (id_utente, titolo, testo)
+     SELECT id, $2, $3 FROM users
+     WHERE id::text=$1 AND lower(status)='a' FOR KEY SHARE`,
+    [String(userId), 'DEMOS — Aggiornamento proposta', message]
   );
+  if (inserted.rowCount !== 1) throw new Error('NO_ACTIVE_RECIPIENT');
 }
 
 // Fetch only on click (no new personal GET while browsing a voting page).
