@@ -331,6 +331,21 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
     try {
       await client.query('BEGIN');
 
+      // Serialize a new vote with any concurrent Admin withdrawal. The
+      // preliminary active check above can become stale before BEGIN.
+      // FOR SHARE blocks the withdrawal's UPDATE until this vote commits;
+      // if withdrawal committed first, the candidate is no longer allowed.
+      if (requestedVote) {
+        const stillActive = await client.query(
+          'SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome)) = LOWER($1) FOR SHARE',
+          [requestedVote]
+        );
+        if (!stillActive.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(422).json({ success: false, error: 'Soggetto non approvato per la votazione' });
+        }
+      }
+
       // Elimina i voti esistenti
       const deleteQuery = `DELETE FROM voti_grazia WHERE ${userIdColumn} = $1`;
       const deleteResult = await client.query(deleteQuery, [userId]);
