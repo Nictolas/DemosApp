@@ -1,14 +1,32 @@
+// Never import the full DEMOS app on staging until the separately
+// authorized synthetic-only canary gate has validated the environment.
+// Resolves the existing password-only runtime secret exclusively in memory.
+try {
+  const {assertStagingAppCanary}=require('./staging/unified_staging_app_safety');
+  const guard=assertStagingAppCanary(process.env);
+  if (guard.active) process.env.DATABASE_URL=guard.connectionString;
+} catch {
+  console.error('STAGING_APP_CANARY_GUARD_REJECTED');
+  process.exit(1);
+}
+
 let app;
 try {
   console.log('📦 Caricamento app.js...');
   app = require('./app');
   console.log('✅ app.js caricato correttamente');
 } catch (error) {
+  if (process.env.NODE_ENV === 'staging') {
+    console.error('STAGING_APP_IMPORT_UNAVAILABLE');
+    process.exit(1);
+  }
   console.error('❌ Errore critico nel caricamento di app.js:', error);
   console.error('❌ Stack trace:', error.stack);
   process.exit(1);
 }
 
+// Never initialize Firebase on a read-only staging app canary.
+if (process.env.NODE_ENV !== 'staging') {
 // Inizializza Firebase Admin all'avvio per verificare la configurazione
 try {
   console.log('🔥 Inizializzazione Firebase Admin all\'avvio...');
@@ -22,6 +40,8 @@ try {
 } catch (error) {
   console.error('❌ Errore nell\'inizializzazione Firebase Admin all\'avvio:', error.message);
   console.error('❌ Stack:', error.stack);
+}
+
 }
 
 const PORT = process.env.PORT || 3001;
