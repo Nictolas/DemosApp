@@ -81,3 +81,13 @@ jobs:
           done
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-unified-proposal-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-admin-audit-pagination-browser.cjs
+      - name: "Browser test: mounted personal status isolated after account switch"
+        run: |
+          npm run dev --prefix client -- --host localhost --port 4180 --strictPort > /tmp/demos-owner-dev.log 2>&1 &
+          DEV_PID=$!
+          trap 'kill "$DEV_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:4180/proponi-soggetto >/dev/null; then break; fi
+            sleep 1
+          done
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-proposal-owner-isolation-browser.cjs
