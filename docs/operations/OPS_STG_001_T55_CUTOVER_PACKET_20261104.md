@@ -131,3 +131,21 @@ un'altra prova controllata dalla runtime con il ruolo applicativo corretto;
 il probe attuale è intenzionalmente *negative-only*. Non sbloccare
 `civic_push_delivery_guard`. I 6 gate Android E2E restano 0/6 fino a prove
 autorizzate su dispositivo.
+
+## Host session pooler esatto recuperato — 04/11/2026, ore 10:05 CET
+
+L'operatore ha aperto nella **console del progetto Demos-Staging** `Connect → Direct → Shared pooler` e ha fornito la riga `host` copiata, senza password. Il pannello mostra la porta 5432 e il database `postgres`.
+
+| Parametro | Valore effettivamente verificato in console |
+| --- | --- |
+| Progetto Supabase | `fkeayjzvtuvzesljhjbc` |
+| Host session pooler | `aws-1-eu-central-1.pooler.supabase.com` |
+| Porta | `5432` |
+| Database | `postgres` |
+| Origine | Supabase Demos-Staging, Connect / Shared pooler, visualizzazione dell'operatore |
+| Login runtime autenticato | **NON PROVATO**, manca password dedicata e test socket Render |
+
+**Uso autorizzato:** questo hostname non è un segreto. In un eventuale deploy preflight isolato approvato usare `STAGING_PREFLIGHT_EXPECTED_POOLER_HOST=aws-1-eu-central-1.pooler.supabase.com`. Il codice `api/staging/unified_staging_preflight_server.js` blocca ora qualsiasi host differente dall'esatto valore confermato, comprese altre istanze `aws-N` pur valide sintatticamente. Non salvare mai password, URL completi, certificati privati o token nei fogli o nel repository.
+
+**Non interpretare il recupero dell'host come credenziale/GO:** il ruolo `demos_staging_preflight` e le due policy sono visibili in console, il guard `blocked=true` è stato attestato dall'operatore. Restano verifica dei grants/predicato completo, configurazione password/read-only in ambito staging autorizzata, collegamento socket TLS dal runtime Render, session affinity e test Android FCM/OAuth reali. Nessun deploy o mutazione provider derivano da questa registrazione.
+
