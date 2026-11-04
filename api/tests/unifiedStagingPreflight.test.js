@@ -444,6 +444,9 @@ test('preflight policies may not be broadened by PUBLIC or role-specific RLS', (
   const fs = require('node:fs'),path = require('node:path');
   const src = fs.readFileSync(path.join(__dirname,'..','scripts','unifiedStagingPreflight.js'),'utf8');
   assert.match(src,/FROM pg_catalog\.pg_policies/);
+  // pg_policies.roles is PostgreSQL name[]; cast to text[] so the
+  // Node pg driver decodes an array rather than an undecoded catalog literal.
+  assert.match(src,/roles::text\[\] AS roles/);
   assert.match(src,/evaluatePreflightPolicies\(policyRows\.rows\)/);
 });
 
