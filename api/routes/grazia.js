@@ -204,7 +204,7 @@ router.get('/', personalNoStore, async (req, res) => {
 router.get('/richieste', personalNoStore, verifyToken, requireAdmin, async (_req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, nome, url_prova AS \"urlProva\", utente_id AS \"userId\", data_creazione AS \"createdAt\" FROM richieste_grazia WHERE status = 'pending' ORDER BY data_creazione ASC LIMIT 100"
+      "SELECT id, nome, url_prova AS \"urlProva\", data_creazione AS \"createdAt\" FROM richieste_grazia WHERE status = 'pending' ORDER BY data_creazione ASC LIMIT 100"
     );
     return res.json(result.rows);
   } catch (error) {
