@@ -45,11 +45,12 @@ router.get('/mine', verifyToken, async (req, res) => {
   if (!CATEGORIES.has(category)) return res.status(400).json({ success: false, error: 'Categoria non valida' });
   try {
     const result = await pool.query(
-      "SELECT id, title, created_at FROM subject_proposals WHERE proposer_user_id = $1 AND category = $2 AND status = 'pending' LIMIT 1",
+      "SELECT id, status, created_at, reviewed_at FROM subject_proposals WHERE proposer_user_id = $1 AND category = $2 ORDER BY created_at DESC LIMIT 1",
       [req.user.id, category]
     );
+    const latest = result.rows[0] || null;
     res.set('Cache-Control', 'private, no-store');
-    return res.json({ success: true, pending: result.rows[0] || null });
+    return res.json({ success: true, pending: latest?.status === 'pending' ? latest : null, latest });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Proposte temporaneamente non disponibili' });
   }

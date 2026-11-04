@@ -35,6 +35,9 @@ export default function ProponiSoggetto() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<ProposalCategory | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [myStatus, setMyStatus] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   // Contextual + from any of the five sections preselects a category.
   // No GET request is made on opening this page or changing the category.
@@ -47,6 +50,8 @@ export default function ProponiSoggetto() {
     setSourceUrl("");
     setSubmitted(null);
     setError(null);
+    setMyStatus(null);
+    setStatusError(null);
   }, [location]);
 
   const chooseCategory = (next: ProposalCategory) => {
@@ -56,6 +61,8 @@ export default function ProponiSoggetto() {
     setSourceUrl("");
     setSubmitted(null);
     setError(null);
+    setMyStatus(null);
+    setStatusError(null);
   };
 
   const config = getProposalCategory(category);
@@ -117,6 +124,34 @@ export default function ProponiSoggetto() {
     }
   };
 
+  // On-demand only: neither page mount nor category switching reads personal proposals.
+  const checkMyStatus = async () => {
+    if (checkingStatus || !authReady || !user) return;
+    setCheckingStatus(true);
+    setStatusError(null);
+    setMyStatus(null);
+    try {
+      const response = category === "grazia"
+        ? await apiRequest("GET", "/api/grazia/mia-proposta")
+        : await apiRequest("GET", "/api/subject-proposals/mine?category=" + encodeURIComponent(category));
+      if (!response?.data?.success) throw new Error("Impossibile verificare lo stato.");
+      const latest = category === "grazia" ? response.data.richiesta : response.data.latest;
+      setMyStatus(latest?.status || "none");
+    } catch (_) {
+      setStatusError("Stato temporaneamente non disponibile. Riprova.");
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  const statusLabel: Record<string, string> = {
+    none: "Nessuna proposta trovata per questa categoria.",
+    pending: "La proposta è in attesa di valutazione.",
+    approved: "La proposta è stata approvata.",
+    rejected: "La proposta non è stata approvata.",
+    withdrawn: "La pubblicazione della proposta è stata ritirata.",
+  };
+
   if (!authReady || isAuthLoading) {
     return (
       <PageContainer className="items-center justify-center bg-slate-50">
@@ -160,6 +195,13 @@ export default function ProponiSoggetto() {
             </select>
           </div>
 
+          <div className="mt-3 space-y-2">
+            <Button type="button" variant="outline" onClick={checkMyStatus} disabled={checkingStatus}>
+              {checkingStatus ? "Verifica in corso..." : "Verifica stato della mia proposta"}
+            </Button>
+            {myStatus && <p role="status" className="text-sm text-slate-700">{statusLabel[myStatus] || "Stato non riconosciuto. Contatta l'assistenza."}</p>}
+            {statusError && <p role="alert" className="text-sm text-red-700">{statusError}</p>}
+          </div>
           <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm leading-snug text-slate-700">
             {config.explanation}
           </p>

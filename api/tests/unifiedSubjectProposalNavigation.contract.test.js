@@ -59,7 +59,13 @@ test('shared form does not perform personal proposal GET when opening or switchi
   assert.match(file, /setReturnPath\(proposalReturnPathFromSearch\(window\.location\.search\)\)/);
   assert.match(file, />Proponi<\/h1>/);
   assert.match(file, /SUBJECT_PROPOSAL_CATEGORIES\.map/);
-  assert.doesNotMatch(file, /apiRequest\("GET"|fetch\(|\/subject-proposals\/mine/);
+  const mountEffect = file.match(/useEffect\(\(\) => \{[\s\S]*?\}, \[location\]\);/)?.[0] || '';
+  assert.doesNotMatch(mountEffect, /apiRequest|fetch\(/);
+  const changeCategory = file.match(/const chooseCategory = [\s\S]*?\n  \};/)?.[0] || '';
+  assert.doesNotMatch(changeCategory, /apiRequest|fetch\(/);
+  assert.match(file, /const checkMyStatus = async/);
+  assert.match(file, /\/api\/subject-proposals\/mine\?category=/);
+  assert.match(file, /\/api\/grazia\/mia-proposta/);
   const writes = file.match(/apiRequest\("POST", "\/api\/subject-proposals"/g) || [];
   assert.equal(writes.length, 1, 'one generic subject POST, with category-dependent route');
   assert.match(file, /apiRequest\("POST", "\/api\/grazia"/);
