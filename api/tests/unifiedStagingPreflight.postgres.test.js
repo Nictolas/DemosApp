@@ -59,6 +59,20 @@ test('actual preflight SQL runs as least-privilege role; no schema GO or write a
     const writes = await client.query(actualPreflightSQL('writeCheck'));
     assert.equal(gate.evaluatePreflightWriteGrants(writes.rows),true,
       'real catalog query must find no table, column or sequence write privileges');
+    // This is the exact RLS catalog query used by the Render preflight, not
+    // a mocked roles array. PostgreSQL pg_policies.roles is name[] by default:
+    // the explicit text[] cast must be decoded by Node pg on PG16 and PG17.
+    const policyRows = await client.query(actualPreflightSQL('policyRows'));
+    assert.ok(policyRows.rows.length >= 2,'expected restricted fixture policies');
+    for (const item of policyRows.rows) {
+      assert.ok(Array.isArray(item.roles),
+        'real catalog policies must decode roles as JS arrays');
+    }
+    assert.equal(gate.evaluatePreflightPolicies(policyRows.rows),true,
+      'actual PostgreSQL policy catalog must accept exact role-specific id=1 SELECT policies');
+    const readRows = await client.query(actualPreflightSQL('readCheck'));
+    assert.equal(gate.evaluatePreflightReadGrants(readRows.rows),true,
+      'real SQL must deny all unintended public column and sequence reads');
 
     const identitySql = 'SELECT md5(db_identity::text) AS identity_hash FROM public.civic_runtime_identity WHERE id = 1';
     assert.ok(source.includes(identitySql),'production identity query changed without updating test');
