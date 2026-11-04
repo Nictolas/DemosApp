@@ -6,7 +6,8 @@ const {assertStagingTarget, evaluateSchema, REQUIRED_TABLES, CIVIC_PRIVATE_TABLE
   evaluatePublicSequenceProtection, evaluatePublicViewExposure,
   evaluatePublicRoutineExposure, evaluateCivicRuntimeColumns,
   evaluateBlockedGuard, evaluateStagingIdentity, evaluatePreflightRole,
-  evaluatePreflightWriteGrants, evaluatePreflightReadGrants, STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
+  evaluatePreflightWriteGrants, evaluatePreflightReadGrants, evaluatePreflightPolicies,
+  STAGING_IDENTITY_HASH, run} = require('../scripts/unifiedStagingPreflight');
 
 const env = {NODE_ENV: 'staging', DEMOS_UNIFIED_STAGING_MODE: 'preflight'};
 const st = 'fkeayjzvtuvzesljhjbc';
@@ -411,5 +412,38 @@ test('preflight forbids accidental extra reads on all public columns and sequenc
   assert.match(source,/has_column_privilege\(current_user, c\.oid, a\.attnum, 'SELECT'\)/);
   assert.match(source,/has_sequence_privilege\(current_user, c\.oid,/);
   assert.match(source,/evaluatePreflightReadGrants\(readCheck\.rows\)/);
+});
+
+
+test('preflight policies may not be broadened by PUBLIC or role-specific RLS', () => {
+  const identity = {table_name:'civic_runtime_identity',
+    policy_name:'stg_preflight_identity_id1',cmd:'SELECT',
+    roles:['demos_staging_preflight'],qual:'(id = 1)',with_check:null};
+  const guard = {table_name:'civic_push_delivery_guard',
+    policy_name:'stg_preflight_guard_id1',cmd:'SELECT',
+    roles:['demos_staging_preflight'],qual:'(id = 1)',with_check:null};
+  const runtimeOnly = {table_name:'civic_runtime_identity',
+    policy_name:'runtime_identity_select',cmd:'SELECT',
+    roles:['demos_staging_runtime'],qual:'(id = 1)',with_check:null};
+  const good = [identity,guard,runtimeOnly];
+  assert.equal(evaluatePreflightPolicies(good),true);
+  for(const bad of [
+    [],[identity],[guard],
+    [...good,identity],
+    [identity,{...guard,policy_name:'stg_preflight_wrong'}],
+    [{...identity,qual:'(id > 0)'},guard],
+    [{...identity,qual:'(id = 1) OR TRUE'},guard],
+    [{...identity,roles:['public']},guard],
+    [{...identity,roles:['demos_staging_preflight','demos_staging_runtime']},guard],
+    [{...identity,cmd:'ALL'},guard],
+    [{...identity,with_check:'true'},guard],
+    [...good,{...runtimeOnly,roles:['public']}],
+    [...good,{...runtimeOnly,roles:['demos_staging_preflight']}],
+    [null,guard],
+  ]) assert.equal(evaluatePreflightPolicies(bad),false);
+  const fs = require('node:fs'),path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname,'..','scripts','unifiedStagingPreflight.js'),'utf8');
+  assert.match(src,/FROM pg_catalog\.pg_policies/);
+  assert.match(src,/evaluatePreflightPolicies\(policyRows\.rows\)/);
 });
 
