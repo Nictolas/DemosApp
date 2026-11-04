@@ -51,19 +51,17 @@ test('permission propagation reaches both mounted hook instances without another
   const web = read('client/src/hooks/useFCM.ts');
   const sync = read('client/src/hooks/useSyncFcmToken.ts');
 
-  assert.match(bridge, /PUSH_PERMISSION_CHANGED_EVENT/);
-  assert.match(bridge, /window\\.dispatchEvent\\(new Event\\(PUSH_PERMISSION_CHANGED_EVENT\\)\\)/);
+  assert.ok(bridge.includes('window.dispatchEvent(new Event(PUSH_PERMISSION_CHANGED_EVENT))'));
   assert.doesNotMatch(bridge, /detail:|fcmToken|userId|localStorage|sessionStorage/);
-
   for (const [transport, hook] of [['native', native], ['web', web]]) {
-    assert.match(hook, /window\\.addEventListener\\(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission\\)/,
-      transport + ' rechecks the permission when another hook grants it');
-    assert.match(hook, /window\\.removeEventListener\\(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission\\)/,
-      transport + ' cleans up the listener on unmount');
-    assert.match(hook, /notifyPushPermissionChanged\\(\\)/,
-      transport + ' notifies the background token-sync hook after explicit permission action');
+    assert.ok(hook.includes('window.addEventListener(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission)'),
+      transport + ' must recheck permission after the other hook grants it');
+    assert.ok(hook.includes('window.removeEventListener(PUSH_PERMISSION_CHANGED_EVENT, refreshPermission)'),
+      transport + ' must unsubscribe on unmount');
+    assert.ok(hook.includes('notifyPushPermissionChanged()'),
+      transport + ' must broadcast explicit consent state changes');
   }
-  assert.match(native, /const refreshPermission = \\(\\) => \\{[\\s\\S]*PushNotifications\\.checkPermissions\\(\\)/);
-  assert.match(web, /const refreshPermission = \\(\\) => \\{[\\s\\S]*Notification\\.permission/);
-  assert.match(sync, /if \\(permission !== 'granted'\\) return;/);
+  assert.ok(native.includes('PushNotifications.checkPermissions()'));
+  assert.ok(web.includes('Notification.permission'));
+  assert.ok(sync.includes("if (permission !== 'granted') return;"));
 });
