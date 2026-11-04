@@ -8,6 +8,30 @@ const http = require('node:http');
 const {assertStagingTarget, run} = require('../scripts/unifiedStagingPreflight');
 // Host copied from the Demos-Staging Supabase Connect / Shared pooler screen.
 const CONFIRMED_STAGING_POOLER_HOST = 'aws-1-eu-central-1.pooler.supabase.com';
+const STAGING_PROJECT_REF = 'fkeayjzvtuvzesljhjbc';
+
+// Prefer a single secret value over manual editing of a full Postgres URL.
+// Never log or expose the password, even when connection validation fails.
+function resolvePreflightConnectionString(env) {
+  if (!env || typeof env !== 'object') {
+    throw new Error('STAGING_PREFLIGHT_CREDENTIAL_REQUIRED');
+  }
+  const plain = env.STAGING_PREFLIGHT_DATABASE_PASSWORD;
+  const uri = env.STAGING_PREFLIGHT_DATABASE_URL;
+  if (plain != null && uri != null && plain !== '' && uri !== '') {
+    throw new Error('STAGING_PREFLIGHT_CREDENTIAL_AMBIGUOUS');
+  }
+  if (typeof plain === 'string' && plain.length > 0) {
+    if (plain.length < 24 || plain.length > 512 || /[\\r\\n\\0]/.test(plain)) {
+      throw new Error('STAGING_PREFLIGHT_PASSWORD_INVALID');
+    }
+    return 'postgresql://demos_staging_preflight.' + STAGING_PROJECT_REF + ':' +
+      encodeURIComponent(plain) + '@' + CONFIRMED_STAGING_POOLER_HOST + ':5432/postgres';
+  }
+  if (typeof uri === 'string' && uri.length > 0) return uri;
+  throw new Error('STAGING_PREFLIGHT_CREDENTIAL_REQUIRED');
+}
+
 
 const MUST_BE_DISABLED = Object.freeze([
   'CIVIC_PUSH_ENABLED',
@@ -42,7 +66,8 @@ function validatePreflightEnvironment(env) {
   // The only permitted secret is a distinct least-privilege read-only
   // role. Require the exact IPv4 session pooler host copied from Supabase
   // Connect (never infer aws-N from a region), rather than the direct IPv6 DB.
-  assertStagingTarget(env.STAGING_PREFLIGHT_DATABASE_URL, env);
+  const connectionString = resolvePreflightConnectionString(env);
+  assertStagingTarget(connectionString, env);
   const expectedHost=env.STAGING_PREFLIGHT_EXPECTED_POOLER_HOST;
   if (typeof expectedHost !== 'string' ||
       expectedHost !== CONFIRMED_STAGING_POOLER_HOST ||
@@ -50,7 +75,7 @@ function validatePreflightEnvironment(env) {
     throw new Error('STAGING_PREFLIGHT_EXACT_POOLER_HOST_REQUIRED');
   }
   let url;
-  try { url=new URL(env.STAGING_PREFLIGHT_DATABASE_URL); }
+  try { url=new URL(connectionString); }
   catch { throw new Error('STAGING_PREFLIGHT_ENDPOINT_INVALID'); }
   if (url.hostname.toLowerCase()!==expectedHost ||
       url.port!=='5432') {
@@ -107,7 +132,10 @@ function createPreflightServer() {
 
 async function startPreflightServer(env=process.env, {runPreflight=run}={}) {
   const {port}=validatePreflightEnvironment(env); // no network before gate
-  const result=await runPreflight(env); // read-only staging DB, no app imports
+  const normalized={...env,
+    STAGING_PREFLIGHT_DATABASE_URL:resolvePreflightConnectionString(env)};
+  delete normalized.STAGING_PREFLIGHT_DATABASE_PASSWORD;
+  const result=await runPreflight(normalized); // read-only staging DB, no app imports
   if (!result || result.ready!==true || result.deliveryBlocked!==true) {
     throw new Error('STAGING_PREFLIGHT_AUDIT_NOT_READY');
   }
@@ -129,4 +157,5 @@ if (require.main===module) {
   });
 }
 
-module.exports={validatePreflightEnvironment,createPreflightServer,startPreflightServer};
+module.exports={validatePreflightEnvironment,resolvePreflightConnectionString,
+  createPreflightServer,startPreflightServer};
