@@ -71,10 +71,10 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
                     ))
             # Deliberately minimal synthetic upstream tables: only the FK targets
             # needed for P1–P3. These are not copies of real users or processes.
-            cur.execute("CREATE TABLE public.users (id uuid PRIMARY KEY)")
+            cur.execute("CREATE TABLE public.users (id uuid PRIMARY KEY, nome text, status text, account_type text)")
             cur.execute("CREATE TABLE public.eventi (id uuid PRIMARY KEY)")
             cur.execute("CREATE TABLE public.civic_processes (id uuid PRIMARY KEY)")
-            cur.execute("INSERT INTO public.users(id) VALUES (%s), (%s)", (USER_A, USER_B))
+            cur.execute("INSERT INTO public.users(id,status) VALUES (%s,'pending'), (%s,'pending')", (USER_A, USER_B))
             cur.execute("INSERT INTO public.civic_processes(id) VALUES (%s)", (PROCESS,))
             cur.execute("""CREATE TABLE public.civic_runtime_identity
                            (id smallint PRIMARY KEY, db_identity uuid NOT NULL)""")
@@ -105,6 +105,33 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             cur.execute("""SELECT count(*) FROM pg_indexes
                            WHERE schemaname='public' AND tablename=ANY(%s)""", (list(names),))
         return cur.fetchone()[0]
+
+
+    def _assert_named_qa_coexists_without_widening_acl(self, cur, acl, approval_key, approval_value, error_name):
+        """Allow only the known synthetic QA ON/OFF pair; reject an unknown fourth user."""
+        qa_on = "00000000-0000-4000-8000-000000000401"
+        qa_off = "00000000-0000-4000-8000-000000000402"
+        cur.execute("BEGIN")
+        cur.execute("""INSERT INTO public.users(id,nome,status,account_type)
+            VALUES (%s,'DEMOS_CIVIC_QA_20261104_ON','a','PERSON'),
+                   (%s,'DEMOS_CIVIC_QA_20261104_OFF','a','PERSON')""",
+                    (qa_on, qa_off))
+        cur.execute("SET LOCAL " + approval_key + "=%s", (approval_value,))
+        cur.execute(acl)
+        cur.execute("ROLLBACK")
+        cur.execute("BEGIN")
+        cur.execute("""INSERT INTO public.users(id,nome,status,account_type)
+            VALUES (%s,'DEMOS_CIVIC_QA_20261104_ON','a','PERSON'),
+                   (%s,'UNRECOGNIZED_ACCOUNT','a','PERSON')""",
+                    (qa_on, qa_off))
+        cur.execute("SET LOCAL " + approval_key + "=%s", (approval_value,))
+        with self.assertRaisesRegex(psycopg2.Error, error_name):
+            cur.execute(acl)
+        cur.execute("ROLLBACK")
+        cur.execute("SELECT count(*) FROM public.users")
+        self.assertEqual(cur.fetchone(), (2,))
+        cur.execute("SELECT blocked FROM public.civic_push_delivery_guard WHERE id=1")
+        self.assertEqual(cur.fetchone(), (True,))
 
     def test_all_migrations_guards_schema_privileges_and_synthetic_ballots(self):
         with self.conn.cursor() as cur:
@@ -213,6 +240,9 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
                             ("public." + table,))
                 self.assertEqual(cur.fetchone(), (False,))
 
+            self._assert_named_qa_coexists_without_widening_acl(
+                cur, acl, "civic.p3_runtime_approval",
+                "I_APPROVE_P3_SYNTHETIC_BALLOT_ACL", "P3_BALLOT_ACL_NON_SYNTHETIC_USERS")
             cur.execute("BEGIN")
             cur.execute("SET LOCAL civic.p3_runtime_approval='I_APPROVE_P3_SYNTHETIC_BALLOT_ACL'")
             cur.execute(acl)
@@ -370,6 +400,9 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             cur.execute("""SELECT has_table_privilege('demos_staging_runtime',
                         'public.preference_change_cooldowns','SELECT,INSERT,UPDATE,DELETE')""")
             self.assertEqual(cur.fetchone(), (False,))
+            self._assert_named_qa_coexists_without_widening_acl(
+                cur, acl, "civic.p4_runtime_approval",
+                "I_APPROVE_P4_SYNTHETIC_COOLDOWN_ACL", "P4_COOLDOWN_ACL_NON_SYNTHETIC_USERS")
             cur.execute("BEGIN")
             cur.execute("SET LOCAL civic.p4_runtime_approval='I_APPROVE_P4_SYNTHETIC_COOLDOWN_ACL'")
             cur.execute(acl)
@@ -744,6 +777,9 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             cur.execute("ROLLBACK")
             cur.execute("UPDATE public.civic_push_delivery_guard SET blocked=TRUE WHERE id=1")
 
+            self._assert_named_qa_coexists_without_widening_acl(
+                cur, acl, "civic.p5_runtime_approval",
+                "I_APPROVE_P5_SYNTHETIC_SNAPSHOT_ACL", "P5_SNAPSHOT_ACL_NON_SYNTHETIC_USERS")
             cur.execute("BEGIN")
             cur.execute("SET LOCAL civic.p5_runtime_approval='I_APPROVE_P5_SYNTHETIC_SNAPSHOT_ACL'")
             cur.execute(acl)
