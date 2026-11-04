@@ -80,3 +80,4 @@ jobs:
             sleep 1
           done
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-unified-proposal-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-admin-audit-pagination-browser.cjs
