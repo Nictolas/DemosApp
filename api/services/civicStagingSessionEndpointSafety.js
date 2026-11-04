@@ -8,6 +8,23 @@
 // Stage-scoped environment flags and user names are NOT sufficient: a caller
 // could otherwise provide credentials for another Supabase project.
 const DEMOS_STAGING_PROJECT_REF = 'fkeayjzvtuvzesljhjbc';
+const STAGING_SESSION_POOLER_HOST='aws-1-eu-central-1.pooler.supabase.com';
+// The stage runtime secret can be a complete DSN OR the password-only value
+// the operator was instructed to store. We build the exact staging endpoint
+// internally and never log or return credentials to an HTTP response.
+function resolveCivicStagingSessionConnectionString(secret) {
+  if(typeof secret!=='string'||!secret) {
+    throw new Error('CIVIC_STAGING_SESSION_CREDENTIAL_REQUIRED');
+  }
+  if(secret.startsWith('postgresql://')||secret.startsWith('postgres://')) return secret;
+  // Do not reinterpret a malformed URI or pasted example as a password.
+  if(secret.includes('://') || secret.length<24 || secret.length>512 ||
+     /[\x00-\x20\x7f]/.test(secret)) {
+    throw new Error('CIVIC_STAGING_SESSION_PASSWORD_INVALID');
+  }
+  return 'postgresql://demos_staging_runtime.'+DEMOS_STAGING_PROJECT_REF+':'+
+    encodeURIComponent(secret)+'@'+STAGING_SESSION_POOLER_HOST+':5432/postgres';
+}
 
 function assertCivicStagingSessionEndpoint({
   connectionString,
@@ -76,4 +93,5 @@ function assertCivicStagingSessionEndpoint({
   return true;
 }
 
-module.exports = { DEMOS_STAGING_PROJECT_REF, assertCivicStagingSessionEndpoint };
+module.exports = { DEMOS_STAGING_PROJECT_REF, assertCivicStagingSessionEndpoint,
+  resolveCivicStagingSessionConnectionString };

@@ -135,3 +135,47 @@ test('only fixed safe codes reach the logs, never provider messages',()=>{
     assert.ok(!status.includes('FAKE-CI-CREDENTIAL'));
   }
 });
+const {resolveCivicStagingSessionConnectionString}=
+  require('../services/civicStagingSessionEndpointSafety');
+test('password-only Render secret becomes exact pinned Demos-Staging session DSN',()=>{
+  const secret='synthetic-strong!@#$%&?pass+'+'Z'.repeat(35);
+  const conn=resolveCivicStagingSessionConnectionString(secret);
+  const url=new URL(conn);
+  assert.equal(url.hostname,'aws-1-eu-central-1.pooler.supabase.com');
+  assert.equal(url.port,'5432');
+  assert.equal(url.pathname,'/postgres');
+  assert.equal(decodeURIComponent(url.username),'demos_staging_runtime.fkeayjzvtuvzesljhjbc');
+  assert.equal(decodeURIComponent(url.password),secret);
+  assert.equal(url.search,'');
+  assert.doesNotThrow(()=>assertRuntimeAuditAllowed({
+    ...safe,CIVIC_STAGING_SESSION_DATABASE_URL:secret,
+  }));
+});
+
+test('already complete DSN is preserved; malformed secrets rejected before network',()=>{
+  assert.equal(resolveCivicStagingSessionConnectionString(
+    safe.CIVIC_STAGING_SESSION_DATABASE_URL),safe.CIVIC_STAGING_SESSION_DATABASE_URL);
+  for(const malformed of [null,'short',' ', 'x'.repeat(513),
+    'x'.repeat(31)+String.fromCharCode(10),
+    'not-a-secret://production-url']) {
+    assert.throws(()=>resolveCivicStagingSessionConnectionString(malformed));
+  }
+  assert.throws(()=>assertRuntimeAuditAllowed({
+    ...safe,CIVIC_STAGING_SESSION_DATABASE_URL:
+      'postgresql://postgres.fkeayjzvtuvzesljhjbc:pass@aws-1-eu-central-1.pooler.supabase.com:5432/postgres',
+  }));
+});
+
+test('password-only secret can pass the isolated audit through injected synthetic connections',async()=>{
+  const secret='strong-testing-only-@#$%^&*'+'k'.repeat(36);
+  const pool=fakePool();let captured;
+  const pass=await runIsolatedRuntimeLockAudit({
+    ...safe,CIVIC_STAGING_SESSION_DATABASE_URL:secret,
+  },{
+    createPool:opts=>{captured=opts;return pool;},
+  });
+  assert.equal(pass,true);
+  assert.equal(pool.finished,true);
+  assert.equal(decodeURIComponent(new URL(captured.connectionString).password),secret);
+  assert.equal(captured.ssl.rejectUnauthorized,true);
+});

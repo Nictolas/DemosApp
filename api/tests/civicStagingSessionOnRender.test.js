@@ -271,3 +271,23 @@ test('malformed environment and percent-encoded credentials fail closed without 
         !err.message.includes(credential));
   }
 });
+
+test('password-only Render staging credential works with readonly session diagnostic', async()=>{
+  const password='synthetic-safe-password-only-@#+'+'w'.repeat(30);
+  const stub=syntheticPool();
+  let captured=null;
+  const result=await runCivicStagingSessionCheck({
+    ...approved,CIVIC_STAGING_SESSION_DATABASE_URL:password,
+    CIVIC_STAGING_EXPECTED_POOLER_HOST:'aws-1-eu-central-1.pooler.supabase.com',
+  },{
+    createPool:options=>{captured=options;return stub.pool;},
+  });
+  assert.equal(result.result,'INCONCLUSIVE');
+  assert.equal(result.compatible,false);
+  assert.equal(stub.ended,1);
+  const url=new (require('node:url').URL)(captured.connectionString);
+  assert.equal(decodeURIComponent(url.password),password);
+  assert.equal(url.hostname,'aws-1-eu-central-1.pooler.supabase.com');
+  assert.equal(url.port,'5432');
+  assert.equal(url.pathname,'/postgres');
+});

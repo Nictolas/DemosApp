@@ -8,7 +8,8 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {randomInt}=require('node:crypto');
 const {buildDatabaseSsl}=require('../utils/databaseTlsPolicy');
-const {assertCivicStagingSessionEndpoint}=
+const {assertCivicStagingSessionEndpoint,
+  resolveCivicStagingSessionConnectionString}=
   require('../services/civicStagingSessionEndpointSafety');
 const {verifyCivicStagingRuntimeIdentity}=
   require('../services/civicStagingSessionRuntimeIdentity');
@@ -37,7 +38,8 @@ function assertRuntimeAuditAllowed(env) {
     throw new Error('STAGING_RUNTIME_AUDIT_NOT_AUTHORIZED');
   }
   assertCivicStagingSessionEndpoint({
-    connectionString:env.CIVIC_STAGING_SESSION_DATABASE_URL,
+    connectionString:resolveCivicStagingSessionConnectionString(
+      env.CIVIC_STAGING_SESSION_DATABASE_URL),
     projectRef:REF,
     expectedPoolerHost:HOST,
     env,
@@ -47,7 +49,8 @@ function assertRuntimeAuditAllowed(env) {
 async function runIsolatedRuntimeLockAudit(env, {createPool}={}) {
   // Validation before importing pg, opening any socket or reading the CA.
   assertRuntimeAuditAllowed(env);
-  const connectionString=env.CIVIC_STAGING_SESSION_DATABASE_URL;
+  const connectionString=resolveCivicStagingSessionConnectionString(
+    env.CIVIC_STAGING_SESSION_DATABASE_URL);
   const ca=fs.readFileSync(path.join(__dirname,'..','certs','prod-ca-2021.crt'),'utf8');
   const options={
     connectionString,max:2,min:0,connectionTimeoutMillis:7000,
