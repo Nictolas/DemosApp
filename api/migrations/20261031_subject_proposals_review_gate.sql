@@ -130,6 +130,17 @@ CREATE INDEX IF NOT EXISTS subject_proposals_admin_approved_cursor_idx
  ON public.subject_proposals((COALESCE(reviewed_at, created_at)) DESC, id DESC)
  WHERE status='approved' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni');
 
+-- On-demand Admin audit queues can page beyond the first 100 older failures.
+-- These remain private, partial indices; they do not create a new notification queue.
+CREATE INDEX IF NOT EXISTS subject_proposals_admin_withdraw_notice_cursor_idx
+ ON public.subject_proposals((COALESCE(withdrawn_at, created_at)) DESC, id DESC)
+ WHERE status='withdrawn' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni')
+   AND withdraw_notification_sent IS DISTINCT FROM TRUE;
+CREATE INDEX IF NOT EXISTS subject_proposals_admin_notice_audit_cursor_idx
+ ON public.subject_proposals(created_at DESC, id DESC)
+ WHERE submission_notification_sent IS DISTINCT FROM TRUE
+    OR (status IN ('approved','rejected','withdrawn') AND review_notification_sent IS DISTINCT FROM TRUE);
+
 ALTER TABLE public.subject_proposals ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.subject_proposals FROM PUBLIC, anon, authenticated;
 -- No direct Data API policies: only the authenticated backend can manage proposals.
