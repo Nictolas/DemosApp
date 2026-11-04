@@ -8,6 +8,12 @@ on:
     paths:
       - 'client/scripts/verify-android-civic-push-candidate.mjs'
       - 'client/scripts/verify-android-civic-push-candidate.test.mjs'
+      - 'client/src/pages/IniziativePopolari/index.tsx'
+      - 'client/src/pages/ReferendumAbrogativi/index.tsx'
+      - 'client/src/pages/ECI/index.tsx'
+      - 'api/tests/civicNotificationDeepLinkContract.test.js'
+      - 'api/services/civicNewInitiativePushDispatcher.js'
+      - 'client/src/hooks/useNativePush.ts'
       - '.github/workflows/android-civic-push-candidate.yml'
   workflow_dispatch:
 
@@ -28,6 +34,7 @@ jobs:
           node --check client/scripts/verify-android-civic-push-candidate.mjs
           node --test client/scripts/verify-android-civic-push-candidate.test.mjs
           node --test api/tests/androidAuthNativePushIntegration.test.js
+          node --test api/tests/civicNotificationDeepLinkContract.test.js
 
   synthetic-bundle-proof:
     # Verify actual Vite/Capacitor output on a disposable runner with a
