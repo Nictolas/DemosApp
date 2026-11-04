@@ -50,6 +50,8 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     await setup.query("CREATE TABLE " + SCHEMA + ".users (id uuid PRIMARY KEY, is_admin boolean NOT NULL DEFAULT false, ruolo text NOT NULL DEFAULT 'U', status text NOT NULL DEFAULT 'a')");
     await setup.query("CREATE TABLE " + SCHEMA + ".notifiche_demos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), id_utente uuid, titolo text, testo text NOT NULL)");
     await setup.query("CREATE TABLE " + SCHEMA + ".amnistia (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), legge text, articolo text, descrizione text, fonte_url text, attiva boolean)");
+    await setup.query("CREATE TABLE " + SCHEMA + ".voti_capo_stato (id serial PRIMARY KEY, nome text NOT NULL)");
+    await setup.query("CREATE TABLE " + SCHEMA + ".voti_amnistia (id serial PRIMARY KEY, legge text NOT NULL)");
     await setup.query("INSERT INTO " + SCHEMA + ".users(id,is_admin) VALUES ($1,false),($2,false),($3,true)", [A,B,ADMIN]);
     // Supabase roles are ordinarily present; provision them ONLY in ephemeral CI.
     await setup.query("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$");
@@ -177,10 +179,61 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(adminPublished.body.proposals[0].id,orgId);
     assert.equal((await req('/api/subject-proposals/admin/'+orgId+'/withdraw','b','POST',{note:'Ritiro cautelativo'})).status,403);
     assert.equal((await req('/api/subject-proposals/admin/'+orgId+'/withdraw','admin','POST',{note:''})).status,400);
-    assert.equal((await req('/api/subject-proposals/admin/'+capoId+'/withdraw','admin','POST',{note:'Ritiro cautelativo'})).status,409,
-      'Capo di Stato requires a separate catalog/vote review path');
-    assert.equal((await req('/api/subject-proposals/admin/'+amnistia.body.proposal.id+'/withdraw','admin','POST',{note:'Ritiro cautelativo'})).status,409,
-      'Amnistia requires a separate catalog/vote review path');
+    // Capo di Stato: a legacy vote must survive, but cannot resurrect
+    // the withdrawn name in the ranking or authorize a fresh vote.
+    await pool.query('INSERT INTO voti_capo_stato(nome) VALUES($1)',[capo.title]);
+    await pool.query('INSERT INTO voti_amnistia(legge) VALUES($1)',[amnistia.body.proposal.title]);
+    const capoRouteSource = fs.readFileSync(path.join(__dirname, '../routes/capo-stato.js'), 'utf8');
+    const rankingSql = capoRouteSource.match(/const classificaQuery = `([\s\S]*?)`;/)?.[1];
+    const whitelistSql = capoRouteSource.match(/const allowed = await pool\.query\(\s*`([\s\S]*?)`/)?.[1];
+    assert.ok(rankingSql && whitelistSql, 'test must execute the actual Capo di Stato SQL');
+    assert.equal((await pool.query(rankingSql)).rows.some(x=>x.nome===capo.title),true);
+    assert.equal((await pool.query(whitelistSql,[capo.title])).rows.length,1);
+    const capoWithdraw=await req('/api/subject-proposals/admin/'+capoId+'/withdraw',
+      'admin','POST',{note:'Ritiro cautelativo'});
+    assert.equal(capoWithdraw.status,200,JSON.stringify(capoWithdraw.body));
+    assert.equal((await req('/api/subject-proposals/admin/'+capoId+'/withdraw',
+      'admin','POST',{note:'Ritiro ripetuto'})).status,409);
+    const capoHidden=await pool.query(
+      'SELECT active FROM capo_stato_soggetti_approvati WHERE source_proposal_id=$1',[capoId]);
+    assert.equal(capoHidden.rows[0].active,false);
+    assert.equal((await pool.query(rankingSql)).rows.some(x=>x.nome===capo.title),false,
+      'old votes cannot resurrect the withdrawn candidate');
+    assert.equal((await pool.query(whitelistSql,[capo.title])).rows.length,0,
+      'old votes cannot whitelist a withdrawn candidate');
+    assert.equal((await pool.query('SELECT count(*)::integer n FROM voti_capo_stato WHERE nome=$1',
+      [capo.title])).rows[0].n,1, 'historic Capo vote is preserved');
+    assert.equal((await req('/api/subject-proposals','b','POST',capo)).status,409,
+      'withdrawn Capo title remains protected from re-proposal');
+
+    // Amnistia: deactivate only the proposal-linked catalogue row and
+    // preserve original preference rows; prevent a repeated withdrawal.
+    const amnistiaId=amnistia.body.proposal.id;
+    const amnistiaWithdraw=await req('/api/subject-proposals/admin/'+amnistiaId+'/withdraw',
+      'admin','POST',{note:'Ritiro cautelativo'});
+    assert.equal(amnistiaWithdraw.status,200,JSON.stringify(amnistiaWithdraw.body));
+    assert.equal((await req('/api/subject-proposals/admin/'+amnistiaId+'/withdraw',
+      'admin','POST',{note:'Ritiro ripetuto'})).status,409);
+    const amnistiaHidden=await pool.query('SELECT attiva FROM amnistia WHERE id::text=$1',
+      [approvedAmnistia.body.published_ref]);
+    assert.equal(amnistiaHidden.rows[0].attiva,false);
+    assert.equal((await pool.query('SELECT id FROM amnistia WHERE attiva=true AND legge=$1',
+      [amnistia.body.proposal.title])).rows.length,0);
+    assert.equal((await pool.query('SELECT count(*)::integer n FROM voti_amnistia WHERE legge=$1',
+      [amnistia.body.proposal.title])).rows[0].n,1,'historic Amnistia vote is preserved');
+    assert.equal((await req('/api/subject-proposals','b','POST',
+      proposal('amnistia',amnistia.body.proposal.title))).status,409);
+    for (const id of [capoId,amnistiaId]) {
+      const audit=await pool.query(
+        'SELECT status,withdrawn_by,withdrawn_at,withdraw_note,reviewed_by,reviewed_at FROM subject_proposals WHERE id=$1',
+        [id]);
+      assert.equal(audit.rows[0].status,'withdrawn');
+      assert.equal(audit.rows[0].withdrawn_by,ADMIN);
+      assert.ok(audit.rows[0].withdrawn_at);
+      assert.equal(audit.rows[0].withdraw_note,'Ritiro cautelativo');
+      assert.equal(audit.rows[0].reviewed_by,ADMIN);
+      assert.ok(audit.rows[0].reviewed_at);
+    }
     const beforeWithdraw=await pool.query(
       'SELECT reviewed_at,reviewed_by,review_note FROM subject_proposals WHERE id=$1',[orgId]
     );

@@ -172,3 +172,28 @@ test('submission and review notices have minimal durable audit without re-sendin
   assert.doesNotMatch(mount,/notification-audit|withdraw-notifications/);
   assert.doesNotMatch(route,/setTimeout\(|setInterval\(/);
 });
+
+test('Capo di Stato and Amnistia withdrawal hides catalogue entries but never deletes historic votes', () => {
+  const route=file('api/routes/subject-proposals.js');
+  const capo=file('api/routes/capo-stato.js');
+  const amnistia=file('api/routes/amnistia.js');
+  const ui=file('client/src/pages/Gestisci/ProposteSoggetti.tsx');
+  const withdrawal=route.split("router.post('/admin/:id/withdraw'")[1].split('// Atomic review:')[0];
+  assert.match(withdrawal,/category IN \('capo_stato','amnistia','attivisti','organizzazioni'\)/);
+  assert.match(withdrawal,/UPDATE capo_stato_soggetti_approvati SET active=FALSE WHERE source_proposal_id=\$1/);
+  assert.match(withdrawal,/UPDATE amnistia SET attiva=FALSE WHERE id::text=\$1/);
+  assert.match(withdrawal,/deactivated\.rowCount !== 1/);
+  assert.ok(withdrawal.indexOf('UPDATE capo_stato_soggetti_approvati SET active=FALSE') <
+    withdrawal.indexOf("UPDATE subject_proposals SET status='withdrawn'"));
+  assert.ok(withdrawal.indexOf('UPDATE amnistia SET attiva=FALSE') <
+    withdrawal.indexOf("UPDATE subject_proposals SET status='withdrawn'"));
+  assert.doesNotMatch(withdrawal,/\b(?:DELETE|TRUNCATE)\s+(?:FROM\s+)?(?:voti_capo_stato|voti_amnistia|voti_grazia)/i);
+  assert.match(capo,/WHERE NOT EXISTS \(\s*SELECT 1 FROM subject_proposals p/);
+  assert.match(capo,/AND NOT EXISTS \(\s*SELECT 1 FROM subject_proposals p/);
+  assert.match(capo,/p\.status = 'withdrawn'/);
+  assert.match(amnistia,/SELECT \* FROM amnistia WHERE attiva = true/);
+  assert.match(amnistia,/SELECT id FROM amnistia WHERE legge = \$1 AND attiva = true/);
+  assert.match(route,/SELECT id, category, title, reviewed_at FROM subject_proposals WHERE status='approved' AND category IN \('capo_stato','amnistia','attivisti','organizzazioni'\)/);
+  assert.match(ui,/gli eventuali voti storici resteranno conservati/);
+  assert.doesNotMatch(withdrawal,/richieste_grazia|grazia_carcerati/,'Grazia has separate approval and withdrawal');
+});

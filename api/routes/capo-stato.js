@@ -36,6 +36,14 @@ router.get('/', async (req, res) => {
       )
       SELECT catalogo.nome, COALESCE(conteggi.voti, 0) AS voti
       FROM catalogo LEFT JOIN conteggi ON conteggi.nome = catalogo.nome
+      -- Historical votes are retained, but a withdrawn nomination must
+      -- never reappear via the legacy vote-derived candidate list.
+      WHERE NOT EXISTS (
+        SELECT 1 FROM subject_proposals p
+        WHERE p.category = 'capo_stato' AND p.status = 'withdrawn'
+          AND lower(btrim(regexp_replace(normalize(p.title, NFC), '[[:space:]]+', ' ', 'g')))
+            = lower(btrim(regexp_replace(normalize(catalogo.nome, NFC), '[[:space:]]+', ' ', 'g')))
+      )
       ORDER BY voti DESC, catalogo.nome ASC
     `;
 
@@ -200,10 +208,20 @@ router.post('/vota', verifyToken, requireVerifiedCivicIdentity, requirePolitical
         return res.status(400).json({ success: false, error: 'Nome candidato non valido' });
       }
       const allowed = await pool.query(
-        `SELECT 1 WHERE
+        `SELECT 1 WHERE (
           EXISTS (SELECT 1 FROM voti_capo_stato WHERE nome = $1)
           OR EXISTS (SELECT 1 FROM capo_stato_soggetti_approvati
-                     WHERE active = true AND nome = $1)`,
+                     WHERE active = true AND nome = $1)
+        )
+        -- Legacy votes alone must never authorize a re-vote of a withdrawn
+        -- subject. Match the same Unicode/space canonicalization as the
+        -- protected proposal title index.
+        AND NOT EXISTS (
+          SELECT 1 FROM subject_proposals p
+          WHERE p.category = 'capo_stato' AND p.status = 'withdrawn'
+            AND lower(btrim(regexp_replace(normalize(p.title, NFC), '[[:space:]]+', ' ', 'g')))
+              = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g')))
+        )`,
         [voti[0]]
       );
       if (!allowed.rows.length) {

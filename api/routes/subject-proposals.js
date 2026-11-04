@@ -150,7 +150,7 @@ router.get('/admin', verifyToken, requireAdmin, async (_req, res) => {
 router.get('/admin/approved', verifyToken, requireAdmin, async (_req, res) => {
   try {
     const r = await pool.query(
-      "SELECT id, category, title, reviewed_at FROM subject_proposals WHERE status='approved' AND category IN ('attivisti','organizzazioni') ORDER BY reviewed_at DESC LIMIT 100"
+      "SELECT id, category, title, reviewed_at FROM subject_proposals WHERE status='approved' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni') ORDER BY reviewed_at DESC LIMIT 100"
     );
     res.set('Cache-Control', 'private, no-store');
     return res.json({ success: true, proposals: r.rows });
@@ -166,7 +166,7 @@ router.get('/admin/approved', verifyToken, requireAdmin, async (_req, res) => {
 router.get('/admin/withdraw-notifications', verifyToken, requireAdmin, async (_req, res) => {
   try {
     const r = await pool.query(
-      "SELECT id, category, withdrawn_at FROM subject_proposals WHERE status='withdrawn' AND category IN ('attivisti','organizzazioni') AND withdraw_notification_sent IS DISTINCT FROM TRUE ORDER BY withdrawn_at DESC NULLS LAST LIMIT 100"
+      "SELECT id, category, withdrawn_at FROM subject_proposals WHERE status='withdrawn' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni') AND withdraw_notification_sent IS DISTINCT FROM TRUE ORDER BY withdrawn_at DESC NULLS LAST LIMIT 100"
     );
     res.set('Cache-Control', 'private, no-store');
     return res.json({ success: true, withdrawals: r.rows });
@@ -190,7 +190,9 @@ router.get('/admin/notification-audit', verifyToken, requireAdmin, async (_req, 
   }
 });
 
-// Emergency unpublish for the two title-only public directories. This is not
+// Emergency unpublish for all four generic approved categories. The two voting
+// catalogues require atomic soft-deactivation, keeping historical votes intact.
+// This is not
 // an erasure or a general-purpose DSAR endpoint: identity/grounds remain under DPO review.
 // Preserve the original approval reviewer/time/note and record a separate withdrawal audit.
 router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) => {
@@ -207,7 +209,7 @@ router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) =
     client = await pool.connect();
     await client.query('BEGIN');
     const found = await client.query(
-      "SELECT id, category, proposer_user_id FROM subject_proposals WHERE id=$1 AND status='approved' AND category IN ('attivisti','organizzazioni') FOR UPDATE",
+      "SELECT id, category, title, published_ref, proposer_user_id FROM subject_proposals WHERE id=$1 AND status='approved' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni') FOR UPDATE",
       [id]
     );
     if (!found.rows[0]) {
@@ -215,6 +217,28 @@ router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) =
       return res.status(409).json({ success: false, error: 'Voce assente, non ritirabile o già ritirata' });
     }
     withdrawn = found.rows[0];
+    // Never delete voting records: take the approved catalogue entry offline
+    // in the same transaction as the withdrawal audit. A missing/mismatched
+    // catalogue row is a conflict, not proof that unpublishing succeeded.
+    if (withdrawn.category === 'capo_stato') {
+      const deactivated = await client.query(
+        "UPDATE capo_stato_soggetti_approvati SET active=FALSE WHERE source_proposal_id=$1 AND id::text=$2 AND active=TRUE AND nome=$3 RETURNING id",
+        [withdrawn.id, withdrawn.published_ref, withdrawn.title]
+      );
+      if (deactivated.rowCount !== 1) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success:false, error:'Catalogo Capo di Stato non riconciliato' });
+      }
+    } else if (withdrawn.category === 'amnistia') {
+      const deactivated = await client.query(
+        "UPDATE amnistia SET attiva=FALSE WHERE id::text=$1 AND legge=$2 AND attiva=TRUE RETURNING id",
+        [withdrawn.published_ref, withdrawn.title]
+      );
+      if (deactivated.rowCount !== 1) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success:false, error:'Catalogo Amnistia non riconciliato' });
+      }
+    }
     await client.query(
       "UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now(), withdrawn_by=$2, withdraw_note=$3, published_ref=NULL, withdraw_notification_sent=FALSE WHERE id=$1 AND status='approved'",
       [withdrawn.id, req.user.id, note]

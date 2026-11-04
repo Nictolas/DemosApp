@@ -122,7 +122,7 @@ export default function ProposteSoggetti() {
       toast({ title: "Inserisci una motivazione da 3 a 500 caratteri", variant: "destructive" });
       return;
     }
-    if (!window.confirm("Ritirare «" + p.title + "» dall'elenco pubblico? La decisione originale resterà tracciata.")) return;
+    if (!window.confirm("Ritirare «" + p.title + "» dall'elenco pubblico? La decisione originale e gli eventuali voti storici resteranno conservati, ma la voce non dovrà più ricevere nuovi voti.")) return;
     setSubmittingId(p.id);
     try {
       const response = await apiRequest("POST", "/api/subject-proposals/admin/" + p.id + "/withdraw", { note });
@@ -133,8 +133,8 @@ export default function ProposteSoggetti() {
       toast({
         title: "Pubblicazione ritirata",
         description: result.notification_sent === true
-          ? "La voce non sarà più inclusa negli elenchi pubblici."
-          : "La voce è stata ritirata, ma la notifica non è stata consegnata. Segnalare al DPO."
+          ? "La voce non sarà più inclusa negli elenchi pubblici. Gli eventuali voti storici sono conservati."
+          : "La voce è stata ritirata; la notifica non è confermata. Gli eventuali voti storici sono conservati. Verificare con il DPO."
       });
     } catch (err: any) {
       toast({ title: "Ritiro non registrato", description: err?.data?.error || err?.message || "Riprova.", variant: "destructive" });
@@ -210,7 +210,7 @@ export default function ProposteSoggetti() {
           {showUndelivered && loadingUndelivered && <p className="text-sm">Verifica notifiche in corso...</p>}
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           {!showApproved && !showUndelivered && !loading && !error && pending.length === 0 && <p className="text-sm text-slate-600">Nessuna proposta in attesa.</p>}
-          {showApproved && !loadingApproved && !error && approved.length === 0 && <p className="text-sm text-slate-600">Nessuna pubblicazione gestibile qui. Capo di Stato e Amnistia richiedono un percorso separato.</p>}
+          {showApproved && !loadingApproved && !error && approved.length === 0 && <p className="text-sm text-slate-600">Nessuna pubblicazione gestibile qui. Le richieste Grazia conservano la propria coda separata.</p>}
           {!showApproved && !showUndelivered && pending.map(p => (
             <article key={p.id} className="space-y-2 rounded-xl border bg-white p-3 shadow-sm">
               <p className="text-xs font-medium text-slate-600">{CATEGORY_LABELS[p.category]}</p>
