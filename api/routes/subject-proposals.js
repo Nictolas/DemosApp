@@ -279,11 +279,17 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
       'UPDATE subject_proposals SET status=$2,reviewed_by=$3,reviewed_at=now(),published_ref=$4,review_note=$5 WHERE id=$1',
       [id, status, req.user.id, publishedRef, note || null]
     );
-    await notify(client, p.proposer_user_id,
-      decision === 'approve' ? 'La tua proposta in ' + p.category + ' è stata approvata.' : 'La tua proposta in ' + p.category + ' non è stata approvata.'
-    );
     await client.query('COMMIT');
-    return res.json({ success: true, status, published_ref: publishedRef });
+    // The decision and catalogue publication must not be undone by a notification outage.
+    // No automatic retries until an idempotent notification outbox is approved.
+    let notificationSent = false;
+    try {
+      await notify(client, p.proposer_user_id,
+        decision === 'approve' ? 'La tua proposta in ' + p.category + ' è stata approvata.' : 'La tua proposta in ' + p.category + ' non è stata approvata.'
+      );
+      notificationSent = true;
+    } catch (_) { /* Admin review remains committed; reconciliation is required */ }
+    return res.json({ success: true, status, published_ref: publishedRef, notification_sent: notificationSent });
   } catch (error) {
     if (client) {
       try { await client.query('ROLLBACK'); } catch (_) { /* connection may be lost */ }

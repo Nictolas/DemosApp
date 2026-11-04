@@ -122,3 +122,19 @@ test('public directory SQL omits unnecessary profile PII while preserving visibl
       'UI types should not advertise fields removed from the public contract');
   }
 });
+
+test('submission and Admin decision commit before fallible private notifications', () => {
+  const route = file('api/routes/subject-proposals.js');
+  const submission = route.slice(route.indexOf("router.post('/', verifyToken"), route.indexOf("router.get('/admin'"));
+  const decision = route.slice(route.indexOf("router.post('/admin/:id/decision'"));
+  assert.ok(submission.indexOf("await client.query('COMMIT')") >= 0);
+  assert.ok(submission.indexOf("await client.query('COMMIT')") < submission.indexOf("INSERT INTO notifiche_demos"));
+  assert.ok(decision.indexOf("await client.query('COMMIT')") < decision.indexOf("await notify(client"));
+  assert.match(submission, /notification_sent: notificationSent/);
+  assert.match(decision, /notification_sent: notificationSent/);
+  for (const handler of [submission, decision]) {
+    assert.match(handler, /let client;/);
+    assert.match(handler, /client = await pool\.connect\(\)/);
+    assert.match(handler, /client\?\.release\(\)/);
+  }
+});
