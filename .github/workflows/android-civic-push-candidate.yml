@@ -1,0 +1,89 @@
+name: Android Civic Push Candidate (manual, unsigned)
+
+# Offline PR checks never receive credentials. The native push build is
+# intentionally MANUAL and restricted to main. No Play upload or FCM sends.
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - 'client/scripts/verify-android-civic-push-candidate.mjs'
+      - 'client/scripts/verify-android-civic-push-candidate.test.mjs'
+      - '.github/workflows/android-civic-push-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-prerequisites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Native push safety/negative tests (no secrets or FCM)
+        run: |
+          node --check client/scripts/verify-android-civic-push-candidate.mjs
+          node --test client/scripts/verify-android-civic-push-candidate.test.mjs
+          node --test api/tests/androidAuthNativePushIntegration.test.js
+
+  manual-build:
+    # A PR cannot access Firebase configuration or create an AAB from secrets.
+    # A human must dispatch this workflow from the reviewed main branch.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: [offline-prerequisites]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install locked client toolchain
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Load canonical Android-only Firebase configuration (never print)
+        env:
+          FIREBASE_ANDROID_CONFIG_B64: ${{ secrets.DEMOS_ANDROID_GOOGLE_SERVICES_JSON_B64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${FIREBASE_ANDROID_CONFIG_B64:-}" ]; then
+            echo "::error::Missing GitHub secret DEMOS_ANDROID_GOOGLE_SERVICES_JSON_B64"
+            exit 1
+          fi
+          umask 077
+          printf %s "$FIREBASE_ANDROID_CONFIG_B64" | base64 --decode > client/android/app/google-services.json
+          node client/scripts/verify-android-civic-push-candidate.mjs --config
+      - name: Native push build helper (sets VITE_ANDROID_NATIVE_PUSH_ENABLED=true)
+        working-directory: client
+        run: npm run android:sync:push
+      - name: Fail if Android push bridge did not reach compiled app
+        run: |
+          node client/scripts/verify-android-civic-push-candidate.mjs --built
+          test ! -f client/android/keystore.properties
+      - name: Build debug APK and UNSIGNED release AAB (no Play publication)
+        working-directory: client/android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug :app:bundleRelease --no-daemon --stacktrace
+          test -f app/build/outputs/apk/debug/app-debug.apk
+          test -f app/build/outputs/bundle/release/app-release.aab
+      - name: Keep existing ads-free release gate
+        run: python3 scripts/check-ads-free-aab.py client/android/app/build/outputs/bundle/release/app-release.aab
+      - name: Archive only unsigned candidate and debug APK (no secrets file)
+        uses: actions/upload-artifact@v4
+        with:
+          name: demos-native-civic-push-UNSIGNED-candidate
+          path: |
+            client/android/app/build/outputs/bundle/release/app-release.aab
+            client/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
