@@ -115,3 +115,17 @@ test('Grazia pending Admin queue includes only fields needed for review', () => 
   assert.doesNotMatch(route,/utente_id/);
   assert.doesNotMatch(route,/proposer_user_id/);
 });
+
+test('Grazia serializes equivalent names across different users in the single queue', () => {
+  const source=read('api/routes/grazia.js');
+  const submission=source.slice(source.indexOf("router.post('/'"),source.indexOf("// GET /api/grazia"));
+  const owner=submission.indexOf("SELECT id FROM users WHERE id = $1 FOR UPDATE");
+  const key=submission.indexOf("pg_advisory_xact_lock(hashtextextended");
+  const duplicate=submission.indexOf("FROM richieste_grazia WHERE status IN ('pending','approved')");
+  const insertion=submission.indexOf("INSERT INTO richieste_grazia");
+  assert.ok(owner>=0 && key>owner && duplicate>key && insertion>duplicate,
+    'cross-account duplicate lookup must run under a transaction-level name lock');
+  assert.match(submission,/lower\(btrim\(regexp_replace\(normalize\(nome, NFC\)/);
+  assert.match(submission,/alreadyProposed\.rows\.length/);
+  assert.match(submission,/return res\.status\(409\)\.json\(\{success:false,error:'Questo soggetto è già stato proposto'/);
+});
