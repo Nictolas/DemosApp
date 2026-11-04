@@ -56,3 +56,14 @@ unverified, clear the audit flag and deploy the previous good commit. Leave
 Even a PASS proves only isolated runtime-role/session-lock functionality in
 staging. It does **not** prove app/Android E2E, ECI/Ministero ingestion,
 authorization P3/P4/P5, or allow FCM delivery. **Release remains NO-GO.**
+
+## Safe failure taxonomy (follow-up)
+The first approved real staging audit returned only
+`STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED`. The server remains LIVE in
+preflight mode; this is not evidence of a bad password. A follow-up adds
+fixed, non-secret categories to differentiate `_GATE`, `_ENDPOINT`,
+`_AUTH`, `_TLS_NETWORK`, `_IDENTITY`, `_SESSION_LOCK`, and
+`_UNAVAILABLE`. A separate initial authenticated socket handshake preserves
+PostgreSQL's SQLSTATE category without exposing the original error. These
+messages contain no secrets, hostnames, usernames, backend PIDs or raw SQL.
+No app or push flag is enabled by this classification.

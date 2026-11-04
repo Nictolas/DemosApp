@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {assertRuntimeAuditAllowed,runIsolatedRuntimeLockAudit,APPROVAL}=
+const {assertRuntimeAuditAllowed,runIsolatedRuntimeLockAudit,APPROVAL,classifyRuntimeAuditFailure}=
   require('../staging/runtime_staging_lock_audit');
 
 const REF='fkeayjzvtuvzesljhjbc';
@@ -101,7 +101,7 @@ test('synthetic runtime role and both advisory sessions pass with lock release',
   assert.equal(pass,true);
   assert.equal(ssl.rejectUnauthorized,true);
   assert.equal(pool.finished,true);
-  assert.equal(pool.releases,3);
+  assert.equal(pool.releases,4);
   assert.ok(pool.rollbacks>=9);
 });
 
@@ -110,7 +110,7 @@ test('wrong authenticated role always fails before lock probing',async()=>{
   await assert.rejects(runIsolatedRuntimeLockAudit(safe,{createPool:()=>pool}),
     /CIVIC_STAGING_SESSION_RUNTIME_IDENTITY_UNVERIFIED/);
   assert.equal(pool.finished,true);
-  assert.equal(pool.releases,1);
+  assert.equal(pool.releases,2);
 });
 
 test('broken advisory exclusion fails closed and disconnects both sessions',async()=>{
@@ -118,5 +118,20 @@ test('broken advisory exclusion fails closed and disconnects both sessions',asyn
   await assert.rejects(runIsolatedRuntimeLockAudit(safe,{createPool:()=>pool}),
     /STAGING_LOCK_NOT_EXCLUSIVE/);
   assert.equal(pool.finished,true);
-  assert.equal(pool.releases,3);
+  assert.equal(pool.releases,4);
+});
+test('only fixed safe codes reach the logs, never provider messages',()=>{
+  const values=[
+    [{message:'CIVIC_STAGING_SESSION_ENDPOINT_MISMATCH'},'ENDPOINT'],
+    [{message:'STAGING_RUNTIME_PASSWORD_REJECTED'},'AUTH'],
+    [{message:'STAGING_RUNTIME_TRANSPORT_REJECTED'},'TLS_NETWORK'],
+    [{message:'CIVIC_STAGING_SESSION_RUNTIME_IDENTITY_UNVERIFIED'},'IDENTITY'],
+    [{message:'STAGING_LOCK_NOT_EXCLUSIVE'},'SESSION_LOCK'],
+    [{message:'provider password FAKE-CI-CREDENTIAL'},'UNAVAILABLE'],
+  ];
+  for(const [error,expected] of values) {
+    const status=classifyRuntimeAuditFailure(error);
+    assert.equal(status,'STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED_'+expected);
+    assert.ok(!status.includes('FAKE-CI-CREDENTIAL'));
+  }
 });

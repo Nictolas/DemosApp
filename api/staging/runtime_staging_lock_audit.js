@@ -60,7 +60,24 @@ async function runIsolatedRuntimeLockAudit(env, {createPool}={}) {
     throw new Error('STAGING_RUNTIME_POOL_INVALID');
   const held=[];
   try {
+    // Classify authentication/transport failures WITHOUT returning a provider
+    // message or connection URL. Connection is discarded after the check.
+    let loginClient;
+    try {
+      loginClient=await pool.connect();
+    } catch(error) {
+      if (['28P01','28000'].includes(error?.code))
+        throw new Error('STAGING_RUNTIME_PASSWORD_REJECTED');
+      if (['ENOTFOUND','EAI_AGAIN','ECONNREFUSED','ETIMEDOUT',
+           'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+           'CERT_HAS_EXPIRED','SELF_SIGNED_CERT_IN_CHAIN'].includes(error?.code))
+        throw new Error('STAGING_RUNTIME_TRANSPORT_REJECTED');
+      throw new Error('STAGING_RUNTIME_LOGIN_UNVERIFIED');
+    } finally {
+      if (loginClient) loginClient.release(true);
+    }
     await verifyCivicStagingRuntimeIdentity(pool);
+
     const first=await pool.connect();held.push(first);
     const second=await pool.connect();held.push(second);
     for(const client of held) {
@@ -110,4 +127,25 @@ async function runIsolatedRuntimeLockAudit(env, {createPool}={}) {
   }
 }
 
-module.exports={assertRuntimeAuditAllowed,runIsolatedRuntimeLockAudit,APPROVAL};
+function classifyRuntimeAuditFailure(error) {
+  // Fixed-code taxonomy only; never serialize original provider errors.
+  const code=error?.message;
+  if (code==='STAGING_RUNTIME_AUDIT_NOT_AUTHORIZED')
+    return 'STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED_GATE';
+  if (typeof code==='string' && code.startsWith('CIVIC_STAGING_SESSION_') &&
+      code!=='CIVIC_STAGING_SESSION_RUNTIME_IDENTITY_UNVERIFIED')
+    return 'STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED_ENDPOINT';
+  if (code==='STAGING_RUNTIME_PASSWORD_REJECTED')
+    return 'STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED_AUTH';
+  if (code==='STAGING_RUNTIME_TRANSPORT_REJECTED')
+    return 'STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED_TLS_NETWORK';
+  if (code==='CIVIC_STAGING_SESSION_RUNTIME_IDENTITY_UNVERIFIED')
+    return 'STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED_IDENTITY';
+  if (typeof code==='string' && (code.startsWith('STAGING_LOCK_') ||
+      code==='STAGING_RUNTIME_SESSION_NOT_STABLE' ||
+      code==='STAGING_ROLE_MISMATCH'))
+    return 'STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED_SESSION_LOCK';
+  return 'STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED_UNAVAILABLE';
+}
+module.exports={assertRuntimeAuditAllowed,runIsolatedRuntimeLockAudit,
+  classifyRuntimeAuditFailure,APPROVAL};
