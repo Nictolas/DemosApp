@@ -98,3 +98,12 @@ test('app startup cannot bypass approval through the preflight mode',()=>{
   assert.match(result.stderr,/STAGING_APP_CANARY_GUARD_REJECTED/);
   assert.doesNotMatch(result.stdout,/Firebase Admin|app.js caricato/);
 });
+
+test('canary database pool is small and defaults to read-only at startup',()=>{
+  const fs=require('node:fs');
+  const path=require('node:path');
+  const source=fs.readFileSync(path.join(__dirname,'..','config','database.js'),'utf8');
+  assert.match(source,/isStagingReadOnlyCanary\s*\? 2/);
+  assert.match(source,/const poolMin = isStagingReadOnlyCanary \? 0/);
+  assert.match(source,/options: '-c default_transaction_read_only=on'/);
+});
