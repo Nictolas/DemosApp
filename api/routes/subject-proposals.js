@@ -219,13 +219,20 @@ router.get('/admin/approved', verifyToken, requireAdmin, async (req, res) => {
 // Explicit Admin click only: no extra GET on opening Gestisci. Do not expose a
 // proposer UUID, title, source, note, or any other third-party personal content.
 // Legacy NULL after withdrawal is "unknown" and needs manual checking too.
-router.get('/admin/withdraw-notifications', verifyToken, requireAdmin, async (_req, res) => {
+router.get('/admin/withdraw-notifications', verifyToken, requireAdmin, async (req, res) => {
+  const cursor = parseAdminPageCursor(req.query.cursor);
+  if (cursor === false) return res.status(400).json({ success: false, error: 'Cursore non valido' });
   try {
     const r = await pool.query(
-      "SELECT p.id, p.category, p.withdrawn_at, (p.proposer_user_id IS NULL OR u.id IS NULL OR lower(COALESCE(u.status,'')) <> 'a') AS recipient_unavailable FROM subject_proposals p LEFT JOIN users u ON u.id=p.proposer_user_id WHERE p.status='withdrawn' AND p.category IN ('capo_stato','amnistia','attivisti','organizzazioni') AND p.withdraw_notification_sent IS DISTINCT FROM TRUE ORDER BY p.withdrawn_at DESC NULLS LAST LIMIT 100"
+      "SELECT p.id, p.category, p.withdrawn_at, (p.proposer_user_id IS NULL OR u.id IS NULL OR lower(COALESCE(u.status,'')) <> 'a') AS recipient_unavailable, EXTRACT(EPOCH FROM COALESCE(p.withdrawn_at,p.created_at))::text AS cursor_epoch FROM subject_proposals p LEFT JOIN users u ON u.id=p.proposer_user_id WHERE p.status='withdrawn' AND p.category IN ('capo_stato','amnistia','attivisti','organizzazioni') AND p.withdraw_notification_sent IS DISTINCT FROM TRUE AND ($1::numeric IS NULL OR (COALESCE(p.withdrawn_at,p.created_at),p.id) < (to_timestamp($1::numeric),$2::uuid)) ORDER BY COALESCE(p.withdrawn_at,p.created_at) DESC,p.id DESC LIMIT 101",
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );
+    const page = r.rows.slice(0, 100);
+    const next_cursor = r.rows.length > 100
+      ? Buffer.from(JSON.stringify([page[page.length - 1].cursor_epoch, page[page.length - 1].id])).toString('base64url')
+      : null;
     res.set('Cache-Control', 'private, no-store');
-    return res.json({ success: true, withdrawals: r.rows });
+    return res.json({ success: true, withdrawals: page.map(({ cursor_epoch, ...item }) => item), next_cursor });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Stato notifiche di ritiro temporaneamente non disponibile' });
   }
@@ -234,13 +241,20 @@ router.get('/admin/withdraw-notifications', verifyToken, requireAdmin, async (_r
 // Audit-only and on explicit Admin click: a notification flag is not a delivery receipt.
 // NULL means legacy outcome unknown, FALSE means not confirmed. No names, sources,
 // proposer IDs or private review notes. Never retry automatically.
-router.get('/admin/notification-audit', verifyToken, requireAdmin, async (_req, res) => {
+router.get('/admin/notification-audit', verifyToken, requireAdmin, async (req, res) => {
+  const cursor = parseAdminPageCursor(req.query.cursor);
+  if (cursor === false) return res.status(400).json({ success: false, error: 'Cursore non valido' });
   try {
     const r = await pool.query(
-      "SELECT p.id,p.category,p.status,p.created_at,p.reviewed_at,p.submission_notification_sent,p.review_notification_sent,(p.proposer_user_id IS NULL OR u.id IS NULL OR lower(COALESCE(u.status,'')) <> 'a') AS recipient_unavailable FROM subject_proposals p LEFT JOIN users u ON u.id=p.proposer_user_id WHERE p.submission_notification_sent IS DISTINCT FROM TRUE OR (p.status IN ('approved','rejected','withdrawn') AND p.review_notification_sent IS DISTINCT FROM TRUE) ORDER BY p.created_at DESC LIMIT 100"
+      "SELECT p.id,p.category,p.status,p.created_at,p.reviewed_at,p.submission_notification_sent,p.review_notification_sent,(p.proposer_user_id IS NULL OR u.id IS NULL OR lower(COALESCE(u.status,'')) <> 'a') AS recipient_unavailable, EXTRACT(EPOCH FROM p.created_at)::text AS cursor_epoch FROM subject_proposals p LEFT JOIN users u ON u.id=p.proposer_user_id WHERE (p.submission_notification_sent IS DISTINCT FROM TRUE OR (p.status IN ('approved','rejected','withdrawn') AND p.review_notification_sent IS DISTINCT FROM TRUE)) AND ($1::numeric IS NULL OR (p.created_at,p.id) < (to_timestamp($1::numeric),$2::uuid)) ORDER BY p.created_at DESC,p.id DESC LIMIT 101",
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );
+    const page = r.rows.slice(0, 100);
+    const next_cursor = r.rows.length > 100
+      ? Buffer.from(JSON.stringify([page[page.length - 1].cursor_epoch, page[page.length - 1].id])).toString('base64url')
+      : null;
     res.set('Cache-Control', 'private, no-store');
-    return res.json({ success: true, proposals: r.rows });
+    return res.json({ success: true, proposals: page.map(({ cursor_epoch, ...item }) => item), next_cursor });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Verifica notifiche non disponibile' });
   }
