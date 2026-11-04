@@ -112,6 +112,44 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     assert.equal(published.json.classifica.some(x=>x.nome===fixture.nome),true);
     assert.deepEqual(published.json.richieste,[],'raw personal voting rows not returned');
 
+    // A vote that passed the preliminary check must not get through if the
+    // Admin deactivates the catalogue before the transactional FOR SHARE lock.
+    const raceName='Persona sintetica ritirata durante il voto';
+    await pool.query('INSERT INTO grazia_carcerati(nome,attivo) VALUES($1,true)',[raceName]);
+    const catalogueLock=await pool.connect();
+    const originalQuery=pool.query.bind(pool);
+    let preliminaryChecked;
+    const reachedPreliminary=new Promise(resolve=>{preliminaryChecked=resolve;});
+    let raceResult;
+    try {
+      await catalogueLock.query('BEGIN');
+      await catalogueLock.query('SELECT id FROM grazia_carcerati WHERE nome=$1 FOR UPDATE',[raceName]);
+      pool.query=async function(sql,params,...rest){
+        const result=await originalQuery(sql,params,...rest);
+        if(typeof sql==='string' &&
+          sql.includes('SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome))') &&
+          params?.[0]===raceName) preliminaryChecked();
+        return result;
+      };
+      const pendingVote=req('/api/grazia/vota','b','POST',{voti:[raceName]});
+      await Promise.race([
+        reachedPreliminary,
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Voting preliminary check never reached')),5000))
+      ]);
+      await catalogueLock.query('UPDATE grazia_carcerati SET attivo=false WHERE nome=$1',[raceName]);
+      await catalogueLock.query('COMMIT');
+      raceResult=await pendingVote;
+    } finally {
+      pool.query=originalQuery;
+      await catalogueLock.query('ROLLBACK').catch(()=>{});
+      catalogueLock.release();
+    }
+    assert.equal(raceResult.status,422,
+      'a withdrawn candidate cannot receive a vote after a stale preliminary check');
+    const lateVotes=await pool.query('SELECT count(*)::integer n FROM voti_grazia WHERE userid=$1 AND nome=$2',
+      [B,raceName]);
+    assert.equal(lateVotes.rows[0].n,0,'no late vote is inserted for the withdrawn candidate');
+
     // Withdrawal is owned by this original request, never subject_proposals.
     assert.equal((await req('/api/grazia/approvate','a')).status,403);
     assert.equal((await req('/api/grazia/ritiri-avvisi','b')).status,403);
