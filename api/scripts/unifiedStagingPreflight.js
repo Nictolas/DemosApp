@@ -199,6 +199,30 @@ function evaluatePreflightWriteGrants(rows) {
       r.table_name.length > 0 && r.can_write === false);
 }
 
+// The dedicated preflight role may read ONLY four metadata columns in two
+// staging guard tables. READ ONLY transactions prevent writes but not a
+// leaked broad SELECT grant; check every public column and sequence in catalog.
+function evaluatePreflightReadGrants(rows) {
+  const allowed = new Set([
+    'civic_runtime_identity.id',
+    'civic_runtime_identity.db_identity',
+    'civic_push_delivery_guard.id',
+    'civic_push_delivery_guard.blocked',
+  ]);
+  if (!Array.isArray(rows) || rows.length === 0) return false;
+  const seen = new Set();
+  for (const row of rows) {
+    if (!row || typeof row !== 'object' ||
+        typeof row.table_name !== 'string' || !row.table_name ||
+        typeof row.column_name !== 'string' || !row.column_name ||
+        typeof row.can_read !== 'boolean') return false;
+    const key = row.table_name + '.' + row.column_name;
+    if (seen.has(key) || row.can_read !== allowed.has(key)) return false;
+    seen.add(key);
+  }
+  return [...allowed].every(key => seen.has(key));
+}
+
 async function run(env = process.env) {
   // The shared staging service is still in bootstrap. Target validation alone
   // does not authorize even a read-only network connection to Demos-Staging.
@@ -268,6 +292,28 @@ async function run(env = process.env) {
     );
     if (!evaluatePreflightWriteGrants(writeCheck.rows)) {
       throw new Error('Staging preflight has unexpected table write grants');
+    }
+    // Query catalog metadata only. Reject accidental SELECT grants to the
+    // user table, notification content, other guard columns or sequences.
+    // An explicitly READ ONLY transaction does not by itself limit SELECT.
+    const readCheck = await client.query(
+      `SELECT c.relname AS table_name, a.attname AS column_name,
+              has_column_privilege(current_user, c.oid, a.attnum, 'SELECT') AS can_read
+         FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+         JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+              AND a.attnum > 0 AND NOT a.attisdropped
+         WHERE n.nspname = 'public' AND c.relkind IN ('r','p','v','m','f')
+       UNION ALL
+       SELECT c.relname AS table_name, '<sequence>' AS column_name,
+              has_sequence_privilege(current_user, c.oid,
+                'SELECT,USAGE,UPDATE') AS can_read
+         FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind = 'S'`
+    );
+    if (!evaluatePreflightReadGrants(readCheck.rows)) {
+      throw new Error('Staging preflight has unexpected SELECT grants');
     }
     const tables = await client.query(
       `SELECT c.relname AS table_name FROM pg_catalog.pg_class c
@@ -375,4 +421,4 @@ module.exports = {STAGING_REF, STAGING_PREFLIGHT_ROLE, STAGING_IDENTITY_HASH, RE
   assertStagingTarget, evaluateSchema, evaluateCivicProtection, evaluateAllPublicStagingTables,
   evaluatePublicSequenceProtection, evaluatePublicViewExposure,
   evaluatePublicRoutineExposure, evaluateCivicRuntimeColumns, evaluateBlockedGuard, evaluateStagingIdentity,
-  evaluatePreflightRole, evaluatePreflightWriteGrants, run};
+  evaluatePreflightRole, evaluatePreflightWriteGrants, evaluatePreflightReadGrants, run};
