@@ -556,6 +556,51 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(oldWithdraw.body.status,'withdrawn');
     assert.equal((await pool.query('SELECT status FROM subject_proposals WHERE id=$1',
       [oldPublication.id])).rows[0].status,'withdrawn');
+
+    // 105 synthetic accounts each contribute one pending nomination. Keep
+    // their timestamps only 1µs apart to detect cursor precision loss.
+    await pool.query(
+      `INSERT INTO users(id,is_admin)
+       SELECT ('40000000-0000-4000-8000-' || lpad(gs::text,12,'0'))::uuid,false
+       FROM generate_series(1,105) gs`
+    );
+    await pool.query(
+      `INSERT INTO subject_proposals(proposer_user_id,category,title,source_url,status,created_at)
+       SELECT ('40000000-0000-4000-8000-' || lpad(gs::text,12,'0'))::uuid,
+              'attivisti','Attivista in attesa paginazione ' || gs,
+              'https://example.org/pending','pending',
+              now() - INTERVAL '1 minute' + gs * INTERVAL '1 microsecond'
+       FROM generate_series(1,105) gs`
+    );
+    const pendingTotal=Number((await pool.query(
+      "SELECT count(*)::integer n FROM subject_proposals WHERE status='pending' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni')"
+    )).rows[0].n);
+    assert.ok(pendingTotal>100 && pendingTotal<200);
+    assert.equal((await req('/api/subject-proposals/admin','b')).status,403);
+    assert.equal((await req('/api/subject-proposals/admin?cursor=invalid','admin')).status,400);
+    const firstPending=await req('/api/subject-proposals/admin','admin');
+    assert.equal(firstPending.status,200);
+    assert.equal(firstPending.body.proposals.length,100);
+    assert.ok(firstPending.body.next_cursor);
+    assert.deepEqual(Object.keys(firstPending.body.proposals[0]).sort(),
+      ['category','created_at','details','id','source_url','title'],
+      'no proposer ID or internal pagination metadata in Admin pending queue');
+    const secondPending=await req('/api/subject-proposals/admin?cursor='+
+      encodeURIComponent(firstPending.body.next_cursor),'admin');
+    assert.equal(secondPending.status,200);
+    assert.equal(secondPending.body.proposals.length,pendingTotal-100);
+    assert.equal(secondPending.body.next_cursor,null);
+    const ids=[...firstPending.body.proposals,...secondPending.body.proposals].map(x=>x.id);
+    assert.equal(new Set(ids).size,pendingTotal,
+      'every pending nomination must be reachable exactly once');
+    const newestPending=secondPending.body.proposals.find(p=>p.title.startsWith('Attivista in attesa paginazione '));
+    assert.ok(newestPending,'Admin can reach and review a newer pending proposal on page two');
+    const reviewed=await req('/api/subject-proposals/admin/'+newestPending.id+
+      '/decision','admin','POST',{decision:'reject'});
+    assert.equal(reviewed.status,200);
+    assert.equal(reviewed.body.status,'rejected');
+    assert.equal((await pool.query('SELECT status FROM subject_proposals WHERE id=$1',
+      [newestPending.id])).rows[0].status,'rejected');
   } finally {
     if(server?.listening) await new Promise(done=>server.close(done));
     if(pool) await pool.end();

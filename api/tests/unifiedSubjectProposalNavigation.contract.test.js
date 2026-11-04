@@ -92,7 +92,7 @@ test('backend enforces source HTTPS and avoids criminal details in admin notice'
   const route = read('api/routes/subject-proposals.js');
   assert.match(route, /if \(!sourceUrl\) return \{ error: 'Fonte pubblica HTTPS obbligatoria' \}/);
   assert.match(route, /category === 'grazia'\) return \{ error: .*code: 'GRAZIA_CODA_UNICA' \}/);
-  assert.match(route, /category <> 'grazia'/);
+  assert.match(route, /status='pending' AND category IN \('capo_stato','amnistia','attivisti','organizzazioni'\)/);
   assert.doesNotMatch(route, /INSERT INTO grazia_carcerati/);
   const migration = read('api/migrations/20261031_subject_proposals_review_gate.sql');
   assert.doesNotMatch(migration, /category IN \([^)]*'grazia'/);

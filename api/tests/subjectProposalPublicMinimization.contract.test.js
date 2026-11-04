@@ -22,7 +22,7 @@ test('all three public catalogue endpoints select only approved ID and title', (
 test('moderation still reads original evidence internally and remains Admin-protected', () => {
   const source = file('api/routes/subject-proposals.js');
   assert.match(source, /router\.get\('\/admin', verifyToken, requireAdmin/);
-  assert.match(source, /SELECT id, category, title, details, source_url, created_at FROM subject_proposals/);
+  assert.match(source, /SELECT id, category, title, details, source_url, created_at,\s+EXTRACT\(EPOCH FROM created_at\)/);
   assert.match(source, /router\.post\('\/admin\/:id\/decision', verifyToken, requireAdmin/);
   assert.match(source, /SELECT \* FROM subject_proposals WHERE id=\$1 AND status='pending' FOR UPDATE/);
 });
@@ -245,7 +245,7 @@ test('Admin may page through all published subjects without exposing owner or so
   const admin=source.split("router.get('/admin/approved'")[1].split('// Audit-only review')[0];
   const ui=file('client/src/pages/Gestisci/ProposteSoggetti.tsx');
   const migration=file('api/migrations/20261031_subject_proposals_review_gate.sql');
-  assert.match(source,/function parseApprovedPageCursor\(raw\)/);
+  assert.match(source,/function parseAdminPageCursor\(raw\)/);
   assert.match(admin,/verifyToken, requireAdmin/);
   assert.match(admin,/LIMIT 101/);
   assert.match(admin,/COALESCE\(reviewed_at, created_at\) DESC, id DESC/);
@@ -261,4 +261,24 @@ test('Admin may page through all published subjects without exposing owner or so
   assert.match(ui,/encodeURIComponent\(approvedCursor\)/);
   assert.doesNotMatch(ui.slice(ui.indexOf('useEffect(() =>'),ui.indexOf('const refreshApproved')),
     /admin\/approved/, 'approved records must only load when Admin requests them');
+});
+
+test('Admin pending moderation pages beyond 100 while preserving private queue scope', () => {
+  const api=file('api/routes/subject-proposals.js');
+  const ui=file('client/src/pages/Gestisci/ProposteSoggetti.tsx');
+  const migration=file('api/migrations/20261031_subject_proposals_review_gate.sql');
+  const pending=api.split("router.get('/admin',")[1].split("// Approved nominations")[0];
+  assert.match(pending,/verifyToken, requireAdmin/);
+  assert.match(pending,/parseAdminPageCursor\(req.query.cursor\)/);
+  assert.match(pending,/status='pending' AND category IN \('capo_stato','amnistia','attivisti','organizzazioni'\)/);
+  assert.match(pending,/ORDER BY created_at ASC, id ASC LIMIT 101/);
+  assert.match(pending,/next_cursor/);
+  assert.match(pending,/page.map\(\(\{ cursor_epoch, \.\.\.proposal \}\) => proposal\)/);
+  assert.match(migration,/subject_proposals_admin_pending_cursor_idx/);
+  assert.match(ui,/Carica altre richieste/);
+  assert.match(ui,/loadMorePending/);
+  assert.match(ui,/pendingCursor/);
+  assert.match(ui,/encodeURIComponent\(pendingCursor\)/);
+  assert.doesNotMatch(pending,/SELECT[^\n]*proposer_user_id|SELECT[^\n]*review_note/,
+    'private account IDs and internal review notes must not appear in Admin queue JSON');
 });

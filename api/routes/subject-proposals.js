@@ -139,13 +139,29 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-router.get('/admin', verifyToken, requireAdmin, async (_req, res) => {
+router.get('/admin', verifyToken, requireAdmin, async (req, res) => {
+  const cursor = parseAdminPageCursor(req.query.cursor);
+  if (cursor === false) return res.status(400).json({ success: false, error: 'Cursore non valido' });
   try {
     const r = await pool.query(
-      "SELECT id, category, title, details, source_url, created_at FROM subject_proposals WHERE status='pending' AND category <> 'grazia' ORDER BY created_at ASC LIMIT 100"
+      `SELECT id, category, title, details, source_url, created_at,
+              EXTRACT(EPOCH FROM created_at)::text AS cursor_epoch
+       FROM subject_proposals
+       WHERE status='pending' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni')
+         AND ($1::numeric IS NULL OR (created_at, id) > (to_timestamp($1::numeric), $2::uuid))
+       ORDER BY created_at ASC, id ASC LIMIT 101`,
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );
+    const page = r.rows.slice(0, 100);
+    const next_cursor = r.rows.length > 100
+      ? Buffer.from(JSON.stringify([page[page.length - 1].cursor_epoch, page[page.length - 1].id])).toString('base64url')
+      : null;
     res.set('Cache-Control', 'private, no-store');
-    return res.json({ success: true, proposals: r.rows });
+    return res.json({
+      success: true,
+      proposals: page.map(({ cursor_epoch, ...proposal }) => proposal),
+      next_cursor
+    });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Coda moderazione non disponibile' });
   }
@@ -157,7 +173,7 @@ router.get('/admin', verifyToken, requireAdmin, async (_req, res) => {
 // unpublish it, even when there are more than 100 approved nominations.
 // Preserve full microsecond timestamps in the cursor so equal-millisecond
 // reviews cannot be skipped by JS Date truncation.
-function parseApprovedPageCursor(raw) {
+function parseAdminPageCursor(raw) {
   if (raw == null) return null;
   if (typeof raw !== 'string' || raw.length > 240 || !/^[A-Za-z0-9_-]+$/.test(raw)) return false;
   try {
@@ -172,7 +188,7 @@ function parseApprovedPageCursor(raw) {
 }
 
 router.get('/admin/approved', verifyToken, requireAdmin, async (req, res) => {
-  const cursor = parseApprovedPageCursor(req.query.cursor);
+  const cursor = parseAdminPageCursor(req.query.cursor);
   if (cursor === false) return res.status(400).json({ success: false, error: 'Cursore non valido' });
   try {
     const r = await pool.query(

@@ -95,9 +95,9 @@ test('GET /mine Grazia cannot query the noncanonical generic queue', async () =>
 test('Admin generic queue explicitly excludes the Grazia category', async () => {
   const app = harness();
   const res = mockResponse();
-  await app.methods.get.get('/admin')({},res);
+  await app.methods.get.get('/admin')({query:{}},res);
   assert.equal(res.statusCode, 200);
-  assert.match(app.queries[0].sql, /status='pending' AND category <> 'grazia'/);
+  assert.match(app.queries[0].sql, /status='pending' AND category IN \('capo_stato','amnistia','attivisti','organizzazioni'\)/);
   assert.doesNotMatch(app.queries[0].sql, /proposer_user_id/,'no proponent UUID in Admin list projection');
   assert.deepEqual(res.body.proposals, []);
 });

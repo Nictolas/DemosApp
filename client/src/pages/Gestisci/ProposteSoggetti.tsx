@@ -30,6 +30,7 @@ export default function ProposteSoggetti() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [pending, setPending] = useState<Proposal[]>([]);
+  const [pendingCursor, setPendingCursor] = useState<string | null>(null);
   const [approved, setApproved] = useState<ApprovedSubject[]>([]);
   const [approvedCursor, setApprovedCursor] = useState<string | null>(null);
   const [showApproved, setShowApproved] = useState(false);
@@ -53,12 +54,35 @@ export default function ProposteSoggetti() {
       const r = await apiRequest("GET", "/api/subject-proposals/admin");
       const d = await r.json();
       setPending(d.proposals || []);
+      setPendingCursor(d.next_cursor || null);
     } catch (_) {
+      setPending([]);
+      setPendingCursor(null);
       setError("Impossibile recuperare le proposte.");
     } finally {
       setLoading(false);
     }
   }, [isAdmin]);
+
+  const loadMorePending = async () => {
+    if (!isAdmin || !pendingCursor || loading || submittingId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiRequest("GET",
+        "/api/subject-proposals/admin?cursor=" + encodeURIComponent(pendingCursor));
+      const next = await response.json();
+      setPending(old => {
+        const existing = new Set(old.map(item => item.id));
+        return [...old, ...(next.proposals || []).filter((item: Proposal) => !existing.has(item.id))];
+      });
+      setPendingCursor(next.next_cursor || null);
+    } catch (_) {
+      setError("Impossibile caricare le richieste successive. Riprova.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => { if (isAdmin) void refresh(); }, [refresh, isAdmin]);
 
@@ -256,6 +280,12 @@ export default function ProposteSoggetti() {
               </div>
             </article>
           ))}
+          {!showApproved && !showUndelivered && pendingCursor && !loading && (
+            <Button type="button" variant="outline" onClick={() => void loadMorePending()}
+              disabled={!!submittingId} className="w-full">
+              Carica altre richieste
+            </Button>
+          )}
           {showUndelivered && !loadingUndelivered && !error && undelivered.length === 0 && unconfirmedProposals.length === 0 && (
             <p className="text-sm text-slate-600">Nessuna notifica di ritiro da verificare.</p>
           )}

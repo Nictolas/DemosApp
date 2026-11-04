@@ -117,6 +117,11 @@ ALTER INDEX public.subject_proposals_no_duplicate_open_titles_guard
  RENAME TO subject_proposals_no_duplicate_open_titles;
 CREATE INDEX IF NOT EXISTS subject_proposals_admin_queue_idx
  ON public.subject_proposals(created_at ASC) WHERE status = 'pending';
+-- Keyset Admin moderation can reach pending requests beyond the first 100
+-- without scanning a large pending queue or losing same-microsecond rows.
+CREATE INDEX IF NOT EXISTS subject_proposals_admin_pending_cursor_idx
+ ON public.subject_proposals(created_at ASC, id ASC)
+ WHERE status='pending' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni');
 CREATE INDEX IF NOT EXISTS subject_proposals_approved_directory_idx
  ON public.subject_proposals(category, created_at DESC) WHERE status = 'approved';
 -- Keyset Admin pagination must reach publications older than the first 100.
