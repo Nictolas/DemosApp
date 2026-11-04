@@ -10,6 +10,8 @@ import {
   isNativePushEnabled,
   storeNativePushToken,
 } from '@/lib/native-push';
+import { getAuthToken } from '@/lib/auth-token';
+import { rememberCivicNotificationTarget } from '@/lib/civic-notification-pending-link';
 
 const NATIVE_NOTIFICATION_CHANNELS = [
   {
@@ -74,6 +76,10 @@ function openNotificationTarget(action: ActionPerformed) {
     const isCurrentOrigin = target.origin === window.location.origin;
 
     if (isDemosWeb || isCurrentOrigin) {
+      // Only a guest needs to resume a civic item after authentication.
+      // Keep the destination in sessionStorage for at most 15 minutes; never
+      // store arbitrary links, tokens or user data.
+      if (!getAuthToken()) rememberCivicNotificationTarget(target.toString());
       window.location.href = `${target.pathname}${target.search}${target.hash}`;
       return;
     }
