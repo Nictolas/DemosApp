@@ -16,6 +16,10 @@ try {
   app = require('./app');
   console.log('✅ app.js caricato correttamente');
 } catch (error) {
+  if (process.env.NODE_ENV === 'staging') {
+    console.error('STAGING_APP_IMPORT_UNAVAILABLE');
+    process.exit(1);
+  }
   console.error('❌ Errore critico nel caricamento di app.js:', error);
   console.error('❌ Stack trace:', error.stack);
   process.exit(1);
