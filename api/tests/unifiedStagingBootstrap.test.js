@@ -220,3 +220,38 @@ test('preflight errors never fall back to bootstrap listener', async()=>{
   }),/synthetic preflight refused/);
   assert.equal(boot,0);
 });
+
+
+test('diagnostic codes are strictly allowlisted and never reveal secrets',()=>{
+  const {classifySafeStagingStartupFailure}=require('../staging/unified_staging_bootstrap');
+  const known=[
+    'STAGING_PREFLIGHT_CREDENTIAL_REQUIRED',
+    'STAGING_PREFLIGHT_FLAGS_MUST_BE_OFF',
+    'STAGING_PREFLIGHT_PASSWORD_INVALID',
+    'STAGING_PREFLIGHT_AUDIT_NOT_READY',
+    'STAGING_PREFLIGHT_READ_GRANTS_REJECTED',
+  ];
+  for(const code of known){
+    const output=classifySafeStagingStartupFailure(new Error(code));
+    assert.ok(output.startsWith('STAGING_'));
+    assert.ok(!output.includes('password='),code);
+  }
+  assert.equal(classifySafeStagingStartupFailure(new Error('STAGING_PREFLIGHT_PASSWORD_INVALID')),
+               'STAGING_PREFLIGHT_PASSWORD_INVALID');
+  assert.equal(classifySafeStagingStartupFailure(
+    {code:'28P01',message:'password=topsecret credential failed'}),
+    'STAGING_PREFLIGHT_SQLSTATE_28P01');
+  assert.equal(classifySafeStagingStartupFailure(
+    {code:'ETIMEDOUT',message:'postgresql://very-secret-string'}),
+    'STAGING_PREFLIGHT_NETWORK_ETIMEDOUT');
+  for(const error of [
+    {message:'postgresql://password@host',code:'CUSTOM_PASSWORD'},
+    {message:'STAGING_PREFLIGHT_TOKEN_stolen'},
+    new Error('password=supersecret'),
+    null,
+    undefined,
+  ]) {
+    assert.equal(classifySafeStagingStartupFailure(error),
+                 'STAGING_STARTUP_UNAVAILABLE');
+  }
+});
