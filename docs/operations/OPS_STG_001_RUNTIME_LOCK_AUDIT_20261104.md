@@ -67,3 +67,18 @@ fixed, non-secret categories to differentiate `_GATE`, `_ENDPOINT`,
 PostgreSQL's SQLSTATE category without exposing the original error. These
 messages contain no secrets, hostnames, usernames, backend PIDs or raw SQL.
 No app or push flag is enabled by this classification.
+
+## Password-only secret compatibility (04/11/2026)
+The operator confirmed that the existing Render environment variable
+`CIVIC_STAGING_SESSION_DATABASE_URL` contains **only the strong password**
+that was requested earlier, not a PostgreSQL DSN. This explained the real
+`STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED_ENDPOINT` result **before login**.
+
+The staging diagnostic now safely supports either the complete already-valid
+DSN or a password-only value of 24–512 non-whitespace characters. In the latter
+case, the code percent-encodes it and constructs the exact pinned Demos-Staging
+PostgreSQL session-pooler URL in memory. The resulting connection string must
+still pass the existing production/project/role/host/port guards. No password,
+URL, username or PID is written to logs, GitHub, Sheets, or HTTP responses.
+The value stored in Render is not read by tools or modified. The staging app
+and notification flags stay OFF; this does not validate Android E2E.
