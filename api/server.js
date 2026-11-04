@@ -21,6 +21,8 @@ try {
   process.exit(1);
 }
 
+// Never initialize Firebase on a read-only staging app canary.
+if (process.env.NODE_ENV !== 'staging') {
 // Inizializza Firebase Admin all'avvio per verificare la configurazione
 try {
   console.log('🔥 Inizializzazione Firebase Admin all\'avvio...');
@@ -34,6 +36,8 @@ try {
 } catch (error) {
   console.error('❌ Errore nell\'inizializzazione Firebase Admin all\'avvio:', error.message);
   console.error('❌ Stack:', error.stack);
+}
+
 }
 
 const PORT = process.env.PORT || 3001;
