@@ -39,7 +39,22 @@ function normalizePermission(receive: string): NotificationPermission {
   return 'default';
 }
 
-function getFallbackNotificationTarget(type: unknown): string | null {
+function getFallbackNotificationTarget(
+  type: unknown,
+  category?: unknown,
+  officialId?: unknown,
+): string | null {
+  if (type === 'civic_new_initiative') {
+    const destinations: Record<string, string> = {
+      iniziative_popolari: '/iniziative-popolari',
+      referendum_abrogativi: '/referendum-abrogativi',
+      eci: '/eci',
+    };
+    const destination = typeof category === 'string' ? destinations[category] : undefined;
+    if (!destination || typeof officialId !== 'string' ||
+        !officialId.trim() || officialId.length > 128) return null;
+    return destination + '?initiative=' + encodeURIComponent(officialId);
+  }
   switch (String(type || '')) {
     case 'demos_notification':
       return '/comunica';
@@ -68,7 +83,7 @@ function openNotificationTarget(action: ActionPerformed) {
     data.link ||
     data.url ||
     action.notification?.link ||
-    getFallbackNotificationTarget(data.type);
+    getFallbackNotificationTarget(data.type, data.category, data.official_id);
   if (!rawTarget || typeof rawTarget !== 'string') return;
 
   try {
