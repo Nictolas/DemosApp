@@ -34,7 +34,11 @@ test('approved Capo subjects appear at zero votes; only historical or approved n
     await client.query('BEGIN');
     await client.query('CREATE TEMP TABLE voti_capo_stato (nome text NOT NULL)');
     await client.query('CREATE TEMP TABLE capo_stato_soggetti_approvati (nome text NOT NULL, active boolean NOT NULL)');
-    await client.query("INSERT INTO voti_capo_stato(nome) VALUES ('Persona storica'), ('Persona storica')");
+    // The real routing migration creates this private table. A standalone
+    // catalogue fixture must include its withdrawal state, not bypass the guard.
+    await client.query('CREATE TEMP TABLE subject_proposals (category text NOT NULL, status text NOT NULL, title text NOT NULL)');
+    await client.query("INSERT INTO subject_proposals(category,status,title) VALUES ('capo_stato','withdrawn','Persona ritirata con voti')");
+    await client.query("INSERT INTO voti_capo_stato(nome) VALUES ('Persona storica'), ('Persona storica'), ('Persona ritirata con voti')");
     await client.query("INSERT INTO capo_stato_soggetti_approvati(nome,active) VALUES ('Persona nuova approvata',true), ('Persona disattivata',false)");
 
     const ranked = (await client.query(listing)).rows;
@@ -45,11 +49,14 @@ test('approved Capo subjects appear at zero votes; only historical or approved n
     assert.ok(approved, 'approved subject must appear before anyone votes');
     assert.equal(Number(approved.voti), 0);
     assert.equal(ranked.some(row => row.nome === 'Persona disattivata'), false);
+    assert.equal(ranked.some(row => row.nome === 'Persona ritirata con voti'), false,
+      'historical votes cannot re-publish a withdrawn proposal');
 
     for (const [name, expected] of [
       ['Persona storica', true],
       ['Persona nuova approvata', true],
       ['Persona disattivata', false],
+      ['Persona ritirata con voti', false],
       ['Persona arbitraria non approvata', false],
     ]) {
       const result = await client.query(gate, [name]);
