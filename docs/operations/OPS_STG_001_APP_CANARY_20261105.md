@@ -58,3 +58,5 @@ a specific cutover and rollback are authorized. No env vars, Render,
 Supabase, Firebase, scheduler, Android or production changes in this PR.
 
 The source ECI/Ministero issue #589 and Android/FCM E2E 0/6 remain NO-GO.
+
+The shared `api/config/database.js` now bounds this staging canary to a `max=2`, `min=0` pool and passes PostgreSQL `default_transaction_read_only=on` as a startup option. If Supavisor rejects that option, the canary must fail closed, not silently reopen writes. This setting is not used in production or normal development. The protected database has not been contacted by this change.
