@@ -358,8 +358,10 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(manualAudit.status,200);
     const reviewItem=manualAudit.body.withdrawals.find(x=>x.id===emergencyId);
     assert.ok(reviewItem,'Admin can recover undelivered notice after any new GET/session');
-    assert.deepEqual(Object.keys(reviewItem).sort(),['category','id','withdrawn_at'],
-      'review list must not disclose name, proposer UUID or source narrative');
+    assert.deepEqual(Object.keys(reviewItem).sort(),['category','id','recipient_unavailable','withdrawn_at'],
+      'review list returns only a derived recipient flag, not name, account UUID or source narrative');
+    assert.equal(reviewItem.recipient_unavailable,false,
+      'temporary notification outage for an active recipient still requires manual review');
     assert.equal(reviewItem.category,'organizzazioni');
     assert.equal((await req('/api/subject-proposals/admin/withdraw-notifications','a')).status,403);
 
@@ -411,7 +413,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(unconfirmed.submission_notification_sent,false);
     assert.equal(unconfirmed.review_notification_sent,false);
     assert.deepEqual(Object.keys(unconfirmed).sort(),
-      ['category','created_at','id','review_notification_sent','reviewed_at','status','submission_notification_sent'].sort(),
+      ['category','created_at','id','recipient_unavailable','review_notification_sent','reviewed_at','status','submission_notification_sent'].sort(),
       'notice audit must omit title, proposer identity, review notes and source');
     await setup.query('DROP TRIGGER reject_generic_notice ON '+SCHEMA+'.notifiche_demos');
     await setup.query('DROP FUNCTION '+SCHEMA+'.reject_generic_notice()');
@@ -475,6 +477,13 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal(withdrawalNoOwner.body.status,'withdrawn');
     assert.equal(withdrawalNoOwner.body.notification_sent,false,
       'no active recipient means no notification was inserted or confirmed');
+    const withdrawalAudit=await req('/api/subject-proposals/admin/withdraw-notifications','admin');
+    assert.equal(withdrawalAudit.status,200);
+    const orphanAudit=withdrawalAudit.body.withdrawals.find(item=>item.id===ownerlessId);
+    assert.ok(orphanAudit,'unconfirmed ownerless withdrawal must remain available for audit');
+    assert.equal(orphanAudit.recipient_unavailable,true,'deleted proposer has no active destination');
+    assert.equal(Object.hasOwn(orphanAudit,'proposer_user_id'),false,'no account ID in Admin audit');
+    assert.equal(Object.hasOwn(orphanAudit,'title'),false,'no third-party name in Admin audit');
     const orphanNotices=await pool.query(
       'SELECT count(*)::integer n FROM notifiche_demos WHERE id_utente IS NULL'
     );
@@ -495,6 +504,13 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       );
       assert.equal(inactiveAudit.rows[0].status,'rejected');
       assert.equal(inactiveAudit.rows[0].review_notification_sent,false);
+      const reviewAudit=await req('/api/subject-proposals/admin/notification-audit','admin');
+      assert.equal(reviewAudit.status,200);
+      const inactiveItem=reviewAudit.body.proposals.find(item=>item.id===inactiveId);
+      assert.ok(inactiveItem);
+      assert.equal(inactiveItem.recipient_unavailable,true,
+        'suspended recipient must not be mixed with a delivery outage');
+      assert.equal(Object.hasOwn(inactiveItem,'proposer_user_id'),false);
     } finally {
       await pool.query("UPDATE users SET status='a' WHERE id=$1",[B]);
     }

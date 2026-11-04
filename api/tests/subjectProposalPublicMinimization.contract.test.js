@@ -63,12 +63,17 @@ test('unconfirmed withdrawal notification audit is Admin-only, minimal and read 
   const api = file('api/routes/subject-proposals.js');
   const ui = file('client/src/pages/Gestisci/ProposteSoggetti.tsx');
   assert.match(api, /router\.get\('\/admin\/withdraw-notifications', verifyToken, requireAdmin/);
-  assert.match(api, /SELECT id, category, withdrawn_at FROM subject_proposals WHERE status='withdrawn'/);
+  assert.match(api, /SELECT p\.id, p\.category, p\.withdrawn_at, \(p\.proposer_user_id IS NULL/);
+  assert.match(api, /LEFT JOIN users u ON u\.id=p\.proposer_user_id/);
   assert.match(api, /withdraw_notification_sent IS DISTINCT FROM TRUE/);
   assert.match(api, /Cache-Control', 'private, no-store'/);
-  assert.doesNotMatch(api.split("router.get('/admin/withdraw-notifications'")[1]
-    .split("router.post('/admin/:id/withdraw'")[0], /SELECT[^\n]+(?:proposer_user_id|title|source_url|withdraw_note)/,
-    'no third-party title, proposer identity or private notes in the audit');
+  const auditSql = api.split("router.get('/admin/withdraw-notifications'")[1]
+    .split("router.post('/admin/:id/withdraw'")[0];
+  assert.match(auditSql, /AS recipient_unavailable/);
+  assert.doesNotMatch(auditSql, /AS proposer_user_id|AS title|AS source_url|AS withdraw_note/,
+    'the audit returns a derived boolean, never the personal source columns');
+  assert.match(ui, /item\.recipient_unavailable/,
+    'Admin must distinguish missing recipient from a delivery outage');
   assert.match(ui, /const switchUndelivered = \(\) => \{/);
   assert.match(ui, /void refreshUndelivered\(\)/);
   assert.match(ui, /"\/api\/subject-proposals\/admin\/withdraw-notifications"/);
@@ -164,7 +169,9 @@ test('submission and review notices have minimal durable audit without re-sendin
   const audit=route.slice(route.indexOf("router.get('/admin/notification-audit'"),route.indexOf('// Emergency unpublish'));
   assert.match(audit,/private, no-store/);
   assert.match(audit,/IS DISTINCT FROM TRUE/);
-  assert.doesNotMatch(audit,/SELECT[^\n]*(?:proposer_user_id|title|details|source_url|review_note)/i);
+  assert.match(audit,/AS recipient_unavailable/);
+  assert.doesNotMatch(audit,/SELECT\s+(?:p\.)?(?:proposer_user_id|title|details|source_url|review_note)\b|AS\s+(?:proposer_user_id|title|details|source_url|review_note)\b/i,
+    'derived recipient flag may inspect private state but must not return it');
   assert.match(ui,/\/api\/subject-proposals\/admin\/notification-audit/);
   assert.match(ui,/result\.notification_sent !== true/);
   assert.match(ui,/Verificare con il DPO/);

@@ -172,7 +172,7 @@ router.get('/admin/approved', verifyToken, requireAdmin, async (_req, res) => {
 router.get('/admin/withdraw-notifications', verifyToken, requireAdmin, async (_req, res) => {
   try {
     const r = await pool.query(
-      "SELECT id, category, withdrawn_at FROM subject_proposals WHERE status='withdrawn' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni') AND withdraw_notification_sent IS DISTINCT FROM TRUE ORDER BY withdrawn_at DESC NULLS LAST LIMIT 100"
+      "SELECT p.id, p.category, p.withdrawn_at, (p.proposer_user_id IS NULL OR u.id IS NULL OR lower(COALESCE(u.status,'')) <> 'a') AS recipient_unavailable FROM subject_proposals p LEFT JOIN users u ON u.id=p.proposer_user_id WHERE p.status='withdrawn' AND p.category IN ('capo_stato','amnistia','attivisti','organizzazioni') AND p.withdraw_notification_sent IS DISTINCT FROM TRUE ORDER BY p.withdrawn_at DESC NULLS LAST LIMIT 100"
     );
     res.set('Cache-Control', 'private, no-store');
     return res.json({ success: true, withdrawals: r.rows });
@@ -187,7 +187,7 @@ router.get('/admin/withdraw-notifications', verifyToken, requireAdmin, async (_r
 router.get('/admin/notification-audit', verifyToken, requireAdmin, async (_req, res) => {
   try {
     const r = await pool.query(
-      "SELECT id,category,status,created_at,reviewed_at,submission_notification_sent,review_notification_sent FROM subject_proposals WHERE submission_notification_sent IS DISTINCT FROM TRUE OR (status IN ('approved','rejected','withdrawn') AND review_notification_sent IS DISTINCT FROM TRUE) ORDER BY created_at DESC LIMIT 100"
+      "SELECT p.id,p.category,p.status,p.created_at,p.reviewed_at,p.submission_notification_sent,p.review_notification_sent,(p.proposer_user_id IS NULL OR u.id IS NULL OR lower(COALESCE(u.status,'')) <> 'a') AS recipient_unavailable FROM subject_proposals p LEFT JOIN users u ON u.id=p.proposer_user_id WHERE p.submission_notification_sent IS DISTINCT FROM TRUE OR (p.status IN ('approved','rejected','withdrawn') AND p.review_notification_sent IS DISTINCT FROM TRUE) ORDER BY p.created_at DESC LIMIT 100"
     );
     res.set('Cache-Control', 'private, no-store');
     return res.json({ success: true, proposals: r.rows });

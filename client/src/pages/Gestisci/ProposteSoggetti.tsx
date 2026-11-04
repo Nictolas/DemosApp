@@ -14,10 +14,11 @@ type Proposal = {
   created_at: string;
 };
 type ApprovedSubject = { id: string; category: string; title: string; reviewed_at: string };
-type WithdrawalNotice = { id: string; category: string; withdrawn_at: string | null };
+type WithdrawalNotice = { id: string; category: string; withdrawn_at: string | null; recipient_unavailable: boolean };
 type UnconfirmedProposalNotice = {
   id: string; category: string; status: string; created_at: string; reviewed_at: string | null;
   submission_notification_sent: boolean | null; review_notification_sent: boolean | null;
+  recipient_unavailable: boolean;
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -247,7 +248,11 @@ export default function ProposteSoggetti() {
                 Ritiro: {item.withdrawn_at ? new Date(item.withdrawn_at).toLocaleDateString("it-IT") : "Data da verificare"}
               </p>
               <p className="break-all font-mono text-xs text-slate-500">Riferimento {item.id}</p>
-              <p className="text-xs text-slate-700">Verificare la comunicazione con il DPO. Non reinviare senza controllo.</p>
+              <p className="text-xs text-slate-700">
+                {item.recipient_unavailable
+                  ? "Destinatario assente o non attivo: l'avviso personale non è inviabile. Non associarlo a un altro account."
+                  : "Destinatario attivo: verificare con il DPO se l'avviso sia già stato inserito. Non reinviare senza controllo."}
+              </p>
             </article>
           ))}
           {showUndelivered && !loadingUndelivered && !error && unconfirmedProposals.map(item => (
@@ -263,7 +268,9 @@ export default function ProposteSoggetti() {
               </p>
               <p className="break-all font-mono text-xs text-slate-500">Riferimento {item.id}</p>
               <p className="text-xs text-slate-700">
-                Verificare con il DPO. Un esito non confermato non prova la mancata consegna; non reinviare automaticamente.
+                {item.status !== "pending" && item.review_notification_sent !== true && item.recipient_unavailable
+                  ? "Esito senza destinatario attivo: comunicazione personale non applicabile. Non riassociare ad altri account."
+                  : "Verificare con il DPO. Un avviso non confermato non prova la mancata consegna; non reinviare automaticamente."}
               </p>
             </article>
           ))}
