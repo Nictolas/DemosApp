@@ -193,3 +193,43 @@ test('isolated preflight cannot start if continuity evidence is missing',async()
     runPreflight:async()=>value,
   }),/STAGING_PREFLIGHT_AUDIT_NOT_READY/);
 });
+
+// The optional runtime lock check never changes the preflight listener or GO.
+test('opt-in isolated runtime lock audit is additive and app remains NO-GO',async()=>{
+  const net=require('node:net');
+  const tcp=net.createServer();
+  await new Promise(resolve=>tcp.listen(0,'127.0.0.1',resolve));
+  const port=tcp.address().port;
+  await new Promise(resolve=>tcp.close(resolve));
+  const env={...safe,PORT:String(port),
+    CIVIC_STAGING_RUNTIME_AUDIT_GO:'APPROVED_ISOLATED_STAGING_RUNTIME_LOCK_TEST'};
+  let auditCalls=0;
+  const server=await startPreflightServer(env,{
+    runPreflight:async()=>({ready:true,deliveryBlocked:true,
+      sessionPoolerContinuityObserved:true}),
+    runRuntimeAudit:async()=>{auditCalls++;return true;},
+  });
+  try {
+    assert.equal(auditCalls,1);
+    const response=await new Promise((resolve,reject)=>{
+      const req=http.get({hostname:'127.0.0.1',port,path:'/health/ready'},res=>{
+        let body='';res.on('data',x=>body+=x);
+        res.on('end',()=>resolve({code:res.statusCode,body:JSON.parse(body)}));
+      });
+      req.on('error',reject);
+    });
+    assert.equal(response.code,503);
+    assert.equal(response.body.status,'not_ready');
+  } finally {await new Promise(resolve=>server.close(resolve));}
+});
+
+test('invalid opt-in approval fails before runtime credentials are accessed',async()=>{
+  let calls=0;
+  await assert.rejects(startPreflightServer({
+    ...safe,CIVIC_STAGING_RUNTIME_AUDIT_GO:'unsafe',
+  },{runPreflight:async()=>({ready:true,deliveryBlocked:true,
+    sessionPoolerContinuityObserved:true}),
+    runRuntimeAudit:async()=>{calls++;return true;},
+  }),/STAGING_RUNTIME_AUDIT_INVALID_APPROVAL/);
+  assert.equal(calls,0);
+});
