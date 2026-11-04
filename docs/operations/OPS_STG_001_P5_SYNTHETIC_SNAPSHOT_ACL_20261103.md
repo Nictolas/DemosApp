@@ -97,3 +97,13 @@ Questo collaudo corregge lo scarto di versione fra CI e staging senza autorizzar
 ## Aggiornamento 05/11/2026 — compatibilità con QA notifiche civiche
 
 La condizione iniziale «esattamente due utenti nel database» non riflette più il Demos-Staging reale: i due vecchi account sintetici `pending` coesistono con gli account di prova `DEMOS_CIVIC_QA_20261104_ON` e `DEMOS_CIVIC_QA_20261104_OFF`, entrambi `a` e `PERSON`. La protezione proposta mantiene obbligatori i due UUID originali e accetta **solo** questa coppia aggiuntiva esatta, non altri profili. Gli account QA aggiuntivi **non ottengono accesso ai ballot, ai cooldown o agli snapshot**: le policy restano limitate agli UUID originali e al processo sintetico. Le modifiche sono preparate in un ramo separato per verifica CI PG16/PG17; applicazione sullo staging soltanto dopo i controlli e con l'approvazione transazionale originale. Nessuna cancellazione account, nessun cambio alla guardia push, nessun privilegio per anon/authenticated. Questo non equivale a E2E Android né a GO release.
+
+
+## Stato applicazione sullo staging unico — 05/11/2026
+
+**APPLICATA E VERIFICATA SU Demos-Staging, NON IN PRODUZIONE.**
+Dopo la PR #595 (CI *Unified Staging Offline Safety* **7/7 job SUCCESS** su PG16/PG17 e merge **solo** in `ops/demos-unified-staging-20261102`, commit `509b2b64343834ac0786114a03fb7b9d8abd314e`), questa ACL sintetica è stata applicata sul solo progetto Supabase `Demos-Staging`, usando la procedura transazionale originale `SET LOCAL civic.p3/p4/p5_runtime_approval` per ogni fase P3→P4→P5.
+
+Verifica SQL post-migrazione: **10 policy RLS** sulle quattro tabelle P3/P4/P5, runtime grant ristretto a SELECT/INSERT e alle sole colonne UPDATE indicate; `anon` e `authenticated` senza grant sulle quattro tabelle, nessun DELETE o modifica delle colonne protette. Sono rimasti **4 account di test** (2 originali pending, coppia civica QA ON/OFF), **0** schede/posizioni/cooldown/snapshot, **0** dispositivi e **0** outbox. `civic_push_delivery_guard.blocked=true`.
+
+Il servizio Render `demos-staging` non è stato ridistribuito: è ancora preflight-only, `app_ready=false` e notifiche disattivate. Non sono stati eseguiti test Android/FCM reali (0/6) né aggiornamenti di `main`/produzione/Play. Il completamento ACL **non** conclude il gate applicativo né abilita notifiche. Prossimi blocchi: backend E2E autenticato, fonti ECI/Ministero (issue #589), canary FCM, DPO, rilascio Google Play con GO specifico.
