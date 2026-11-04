@@ -80,27 +80,35 @@ router.post('/', verifyToken, async (req, res) => {
   const proposal = cleanProposal(req.body);
   if (proposal.error) return res.status(proposal.code === 'GRAZIA_CODA_UNICA' ? 409 : 400).json({ success: false, error: proposal.code || proposal.error });
   const userId = req.user.id;
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('BEGIN');
     const r = await client.query(
       "INSERT INTO subject_proposals(proposer_user_id,category,title,details,source_url,status) VALUES($1,$2,$3,$4,$5,'pending') RETURNING id,category,title,created_at",
       [userId, proposal.category, proposal.title, proposal.details, proposal.sourceUrl]
     );
-    // Private admin inbox notification; no proposer identity in the message.
-    await client.query(
-      "INSERT INTO notifiche_demos(id_utente,titolo,testo) SELECT id, 'DEMOS — Nuova proposta', $1 FROM users WHERE (is_admin = TRUE OR ruolo IN ('AD','Admin')) AND lower(status) = 'a'",
-      ['Nuova proposta ricevuta in una categoria da moderare.']
-    );
     await client.query('COMMIT');
+    // The moderation queue is authoritative. An unavailable notifications table
+    // must not roll back an already-valid proposal or cause a misleading retry.
+    let notificationSent = false;
+    try {
+      await pool.query(
+        "INSERT INTO notifiche_demos(id_utente,titolo,testo) SELECT id, 'DEMOS — Nuova proposta', $1 FROM users WHERE (is_admin = TRUE OR ruolo IN ('AD','Admin')) AND lower(status) = 'a'",
+        ['Nuova proposta ricevuta in una categoria da moderare.']
+      );
+      notificationSent = true;
+    } catch (_) { /* pending proposal remains visible to Admin moderation */ }
     res.set('Cache-Control', 'private, no-store');
-    return res.status(201).json({ success: true, status: 'pending', proposal: r.rows[0], message: 'Proposta inviata. Sarà visibile soltanto dopo approvazione.' });
+    return res.status(201).json({ success: true, status: 'pending', notification_sent: notificationSent, proposal: r.rows[0], message: 'Proposta inviata. Sarà visibile soltanto dopo approvazione.' });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* connection may be lost */ }
+    }
     if (error.code === '23505') return res.status(409).json({ success: false, error: 'PROPOSTA_PENDENTE_O_DUPLICATA', message: 'Hai già una proposta di questo tipo in attesa oppure è già stata proposta.' });
     return res.status(503).json({ success: false, error: 'Impossibile registrare la proposta' });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 
@@ -222,8 +230,9 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
   if (!/^[0-9a-f-]{36}$/i.test(id) || !['approve','reject'].includes(decision) || note.length > 500) {
     return res.status(400).json({ success: false, error: 'Decisione non valida' });
   }
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('BEGIN');
     const pending = await client.query(
       "SELECT * FROM subject_proposals WHERE id=$1 AND status='pending' FOR UPDATE",
@@ -275,11 +284,13 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
     await client.query('COMMIT');
     return res.json({ success: true, status, published_ref: publishedRef });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* connection may be lost */ }
+    }
     if (error.code === '23505') return res.status(409).json({ success: false, error: 'Elemento già presente nel catalogo' });
     return res.status(503).json({ success: false, error: 'Impossibile completare la revisione' });
   } finally {
-    client.release();
+    client?.release();
   }
 });
 
