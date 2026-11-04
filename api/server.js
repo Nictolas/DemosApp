@@ -1,3 +1,15 @@
+// Never import the full DEMOS app on staging until the separately
+// authorized synthetic-only canary gate has validated the environment.
+// Resolves the existing password-only runtime secret exclusively in memory.
+try {
+  const {assertStagingAppCanary}=require('./staging/unified_staging_app_safety');
+  const guard=assertStagingAppCanary(process.env);
+  if (guard.active) process.env.DATABASE_URL=guard.connectionString;
+} catch {
+  console.error('STAGING_APP_CANARY_GUARD_REJECTED');
+  process.exit(1);
+}
+
 let app;
 try {
   console.log('📦 Caricamento app.js...');
