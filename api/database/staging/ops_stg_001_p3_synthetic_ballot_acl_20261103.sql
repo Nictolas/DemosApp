@@ -25,12 +25,31 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'P3_BALLOT_ACL_UNSAFE_RUNTIME_ROLE';
   END IF;
-  IF (SELECT count(*) FROM public.users) <> 2 OR EXISTS (
-    SELECT 1 FROM public.users WHERE id NOT IN (
-      '00000000-0000-4000-8000-000000000301'::uuid,
-      '00000000-0000-4000-8000-000000000302'::uuid
-    )
-  ) THEN
+  -- Two original, pending GDPR fixtures are mandatory. The staging-only
+  -- notification QA ON/OFF pair may coexist, but cannot vote through P3/P4/P5.
+  -- Every additional account or different state fails closed.
+  IF (SELECT count(*) FROM public.users) NOT IN (2,4)
+     OR (SELECT count(*) FROM public.users
+         WHERE id IN ('00000000-0000-4000-8000-000000000301'::uuid,
+                      '00000000-0000-4000-8000-000000000302'::uuid)
+           AND status='pending') <> 2
+     OR EXISTS (
+       SELECT 1 FROM public.users
+       WHERE id NOT IN ('00000000-0000-4000-8000-000000000301'::uuid,
+                        '00000000-0000-4000-8000-000000000302'::uuid)
+         AND (nome IS NULL OR nome NOT IN
+               ('DEMOS_CIVIC_QA_20261104_ON','DEMOS_CIVIC_QA_20261104_OFF')
+              OR status IS DISTINCT FROM 'a'
+              OR account_type IS DISTINCT FROM 'PERSON')
+     )
+     OR ((SELECT count(*) FROM public.users) = 4 AND (
+       (SELECT count(*) FROM public.users
+        WHERE nome='DEMOS_CIVIC_QA_20261104_ON' AND status='a'
+          AND account_type='PERSON') <> 1
+       OR (SELECT count(*) FROM public.users
+        WHERE nome='DEMOS_CIVIC_QA_20261104_OFF' AND status='a'
+          AND account_type='PERSON') <> 1
+     )) THEN
     RAISE EXCEPTION 'P3_BALLOT_ACL_NON_SYNTHETIC_USERS';
   END IF;
   IF (SELECT count(*) FROM public.civic_push_delivery_guard

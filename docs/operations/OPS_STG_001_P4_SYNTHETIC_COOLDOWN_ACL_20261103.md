@@ -40,3 +40,8 @@ Nella PR #565 è stata aggiunta la bozza SQL `api/database/staging/ops_stg_001_p
 Nessun test applicativo è autorizzato sul servizio Render fino al GO. Stato `BOOTSTRAP LIVE — TEST APP SOSPESI`, `/health/ready=503`.
 
 **Importanza dell'avanzamento: 7/10.** Il nuovo test certifica una porzione concreta del contratto di voto/cooldown e dell'autorizzazione SQL sintetica, ma nessuno dei quattro gate complessivi è stato chiuso.
+
+
+## Aggiornamento 05/11/2026 — compatibilità con QA notifiche civiche
+
+La condizione iniziale «esattamente due utenti nel database» non riflette più il Demos-Staging reale: i due vecchi account sintetici `pending` coesistono con gli account di prova `DEMOS_CIVIC_QA_20261104_ON` e `DEMOS_CIVIC_QA_20261104_OFF`, entrambi `a` e `PERSON`. La protezione proposta mantiene obbligatori i due UUID originali e accetta **solo** questa coppia aggiuntiva esatta, non altri profili. Gli account QA aggiuntivi **non ottengono accesso ai ballot, ai cooldown o agli snapshot**: le policy restano limitate agli UUID originali e al processo sintetico. Le modifiche sono preparate in un ramo separato per verifica CI PG16/PG17; applicazione sullo staging soltanto dopo i controlli e con l'approvazione transazionale originale. Nessuna cancellazione account, nessun cambio alla guardia push, nessun privilegio per anon/authenticated. Questo non equivale a E2E Android né a GO release.
