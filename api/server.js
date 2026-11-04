@@ -1,3 +1,11 @@
+// Until OPS-STG-001 authorizes the complete application ACL/E2E gate,
+// stage entry is ONLY staging/unified_staging_civic_readonly_canary.js.
+// This check runs before Firebase, routes, database pools or any app import.
+if (process.env.NODE_ENV === 'staging') {
+  console.error('STAGING_FULL_API_NOT_AUTHORIZED');
+  process.exit(1);
+}
+
 // Never import the full DEMOS app on staging until the separately
 // authorized synthetic-only canary gate has validated the environment.
 // Resolves the existing password-only runtime secret exclusively in memory.
