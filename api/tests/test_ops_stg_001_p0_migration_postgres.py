@@ -420,9 +420,9 @@ class P0StagingMigrationPostgresTest(unittest.TestCase):
                     cur.execute("ALTER TABLE public." + table + " ENABLE ROW LEVEL SECURITY")
                 # Exercise happy path, then remove role and policies by
                 # rolling back to the test savepoint.
-                cur.execute("SAVEPOINT qa_happy")
                 cur.execute("""SET LOCAL civic.preflight_role_approval =
                     'I_APPROVE_DISABLED_PREFLIGHT_ROLE'""")
+                cur.execute("SAVEPOINT qa_happy")
                 cur.execute(sql)
                 cur.execute("SELECT count(*) FROM pg_roles WHERE rolname='demos_staging_preflight'")
                 self.assertEqual(cur.fetchone(), (1,))
