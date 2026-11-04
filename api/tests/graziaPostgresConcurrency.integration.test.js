@@ -222,6 +222,39 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     const banned=await pool.query('SELECT COUNT(*)::integer AS n FROM grazia_carcerati WHERE nome=$1',[rejectedBody.nome]);
     assert.equal(banned.rows[0].n,0,'rejection never writes to public catalog');
 
+    // INSERT ... SELECT is a valid zero-row write when the intended recipient
+    // no longer has an active account. Never report notification_sent=true.
+    const noRecipientFixture={nome:'Persona sintetica senza Admin attivo',urlProva:'https://example.org/fonte/senza-admin'};
+    let noAdmin;
+    await pool.query("UPDATE users SET status='x' WHERE id=$1",[ADMIN]);
+    try {
+      noAdmin=await req('/api/grazia','a','POST',noRecipientFixture);
+    }finally{
+      await pool.query("UPDATE users SET status='a' WHERE id=$1",[ADMIN]);
+    }
+    assert.equal(noAdmin.status,202,'proposal must commit independently of Admin availability');
+    assert.equal(noAdmin.json.notification_sent,false,'zero active Admin rows means no inbox entry');
+    const pendingWithoutAdmin=await pool.query(
+      "SELECT id FROM richieste_grazia WHERE nome=$1 AND status='pending'",
+      [noRecipientFixture.nome]
+    );
+    assert.equal(pendingWithoutAdmin.rows.length,1,'proposal persists without Admin notification');
+    let noProposer;
+    await pool.query("UPDATE users SET status='x' WHERE id=$1",[A]);
+    try {
+      noProposer=await req('/api/grazia/richiesta/'+noAdmin.json.richiesta.id+'/rifiuta','admin','POST');
+    }finally{
+      await pool.query("UPDATE users SET status='a' WHERE id=$1",[A]);
+    }
+    assert.equal(noProposer.status,200,'moderation decision commits if proposer is inactive');
+    assert.equal(noProposer.json.status,'rejected');
+    assert.equal(noProposer.json.notification_sent,false,'zero active proposer rows means no decision notice');
+    const rejectedWithoutProposer=await pool.query(
+      "SELECT status FROM richieste_grazia WHERE id=$1",[noAdmin.json.richiesta.id]
+    );
+    assert.equal(rejectedWithoutProposer.rows[0].status,'rejected');
+
+
     // Two distinct accounts racing on the same canonical subject must
     // produce exactly one pending request, never two competing moderators.
     await pool.query('INSERT INTO users(id,is_admin,status) VALUES ($1,false,$3),($2,false,$3)',[C,D,'a']);

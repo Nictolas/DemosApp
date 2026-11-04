@@ -95,10 +95,12 @@ router.post('/', personalNoStore, verifyToken, async (req, res) => {
     client = null;
     let notificationSent = false;
     try {
-      await pool.query(
+      const notice = await pool.query(
         "INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data_creazione, data) SELECT gen_random_uuid(), id, 'DEMOS — Nuova proposta', 'Una proposta Grazia è in attesa di revisione.', NOW(), CURRENT_DATE FROM users WHERE is_admin = true AND status = 'a'"
       );
-      notificationSent = true;
+      // INSERT ... SELECT can succeed with zero rows when no Admin is active.
+      // Do not report a notification that was never inserted.
+      notificationSent = (notice.rowCount || 0) > 0;
     } catch {
       console.error('Grazia admin notification unavailable after commit');
     }
@@ -571,11 +573,11 @@ router.post('/richiesta/:id/:action', personalNoStore, verifyToken, requireAdmin
     client = null;
     let notificationSent = false;
     try {
-      await pool.query(
-        "INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data_creazione, data) SELECT gen_random_uuid(), id, 'DEMOS — Esito proposta', $2, NOW(), CURRENT_DATE FROM users WHERE id::text = $1",
+      const notice = await pool.query(
+        "INSERT INTO notifiche_demos (id, id_utente, titolo, testo, data_creazione, data) SELECT gen_random_uuid(), id, 'DEMOS — Esito proposta', $2, NOW(), CURRENT_DATE FROM users WHERE id::text = $1 AND status = 'a'",
         [richiesta.utente_id, approved ? 'La tua proposta Grazia è stata approvata.' : 'La tua proposta Grazia non è stata approvata.']
       );
-      notificationSent = true;
+      notificationSent = (notice.rowCount || 0) > 0;
     } catch {
       console.error('Grazia moderation notification unavailable after commit');
     }

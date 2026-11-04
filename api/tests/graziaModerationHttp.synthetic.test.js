@@ -14,6 +14,8 @@ const notices=[];
 let nextId=2;
 let failNotifications=false;
 let failConnect=false;
+let adminAvailable=true;
+let recipientAvailable=true;
 
 const pool={
   async query(sql,params=[]){return respond(sql,params);},
@@ -45,8 +47,10 @@ function respond(statement,values){
   if(sql.startsWith('INSERT INTO notifiche_demos')){
     if(failNotifications)throw Error('SYNTHETIC_PRIVATE_NOTIFICATION_FAILURE');
     if(sql.includes('FROM users WHERE is_admin')){
+      if(!adminAvailable)return {rows:[],rowCount:0};
       notices.push({to:ADMIN,text:'Una proposta Grazia è in attesa di revisione.'});
     }else{
+      if(!recipientAvailable)return {rows:[],rowCount:0};
       notices.push({to:values[0],text:values[1]});
     }
     return {rows:[],rowCount:1};
@@ -169,6 +173,38 @@ test('Grazia proposal and Admin decision remain committed when notification fail
     assert.equal((await request('/api/grazia/richiesta/'+pending.id+'/rifiuta','admin','POST')).status,409);
     assert.equal(catalog.some(r=>r.nome==='Persona sintetica non verificata B'),false);
   } finally {failNotifications=false;}
+});
+
+
+test('Grazia proposal persists but notification_sent stays false without an active Admin',async()=>{
+  const before=notices.length;
+  adminAvailable=false;
+  try {
+    const resp=await request('/api/grazia','b','POST',{
+      nome:'Persona sintetica senza destinatario attivo',
+      urlProva:'https://example.org/fonte-pubblica'
+    });
+    assert.equal(resp.status,202,'an empty Admin recipient list must not roll back the proposal');
+    const payload=await resp.json();
+    assert.equal(payload.success,true);
+    assert.equal(payload.notification_sent,false,'zero INSERT rows are not a sent notification');
+    assert.equal(requests.filter(r=>r.utente_id===B && r.status==='pending').length,1);
+    assert.equal(notices.length,before,'no notification recipient, no new inbox entry');
+
+    // The recipient can become unavailable before moderation finishes.
+    // The Admin decision must still commit, but must not claim notification.
+    recipientAvailable=false;
+    const reviewed=await request('/api/grazia/richiesta/'+payload.richiesta.id+'/rifiuta','admin','POST');
+    assert.equal(reviewed.status,200);
+    const result=await reviewed.json();
+    assert.equal(result.status,'rejected');
+    assert.equal(result.notification_sent,false,'no active recipient means no confirmed decision notification');
+    assert.equal(requests.find(r=>r.id===payload.richiesta.id).status,'rejected');
+    assert.equal(notices.length,before,'no inbox row without a recipient');
+  }finally{
+    adminAvailable=true;
+    recipientAvailable=true;
+  }
 });
 
 test('Grazia disabled SQL connector returns generic 500 with no raw error or stuck request',async()=>{
