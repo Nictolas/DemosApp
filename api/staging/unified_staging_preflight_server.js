@@ -131,7 +131,7 @@ function createPreflightServer({sessionPoolerContinuityObserved=false}={}) {
   });
 }
 
-async function startPreflightServer(env=process.env, {runPreflight=run}={}) {
+async function startPreflightServer(env=process.env, {runPreflight=run,runRuntimeAudit}={}) {
   const {port}=validatePreflightEnvironment(env); // no network before gate
   const normalized={...env,
     STAGING_PREFLIGHT_DATABASE_URL:resolvePreflightConnectionString(env)};
@@ -140,6 +140,26 @@ async function startPreflightServer(env=process.env, {runPreflight=run}={}) {
   if (!result || result.ready!==true || result.deliveryBlocked!==true ||
       result.sessionPoolerContinuityObserved!==true) {
     throw new Error('STAGING_PREFLIGHT_AUDIT_NOT_READY');
+  }
+  // Opt-in one-shot role/lock audit, fully isolated from the app. A failed
+  // runtime check must never change preflight readiness (always HTTP 503)
+  // or expose provider error details in logs or public HTTP endpoints.
+  const runtimeAuditApproval=env.CIVIC_STAGING_RUNTIME_AUDIT_GO;
+  if (runtimeAuditApproval && runtimeAuditApproval!=='') {
+    const {APPROVAL,runIsolatedRuntimeLockAudit}=
+      require('./runtime_staging_lock_audit');
+    if (runtimeAuditApproval!==APPROVAL)
+      throw new Error('STAGING_RUNTIME_AUDIT_INVALID_APPROVAL');
+    try {
+      const audit=runRuntimeAudit||runIsolatedRuntimeLockAudit;
+      if (await audit(env)===true) {
+        console.info('STAGING_RUNTIME_LOCK_AUDIT_PASS');
+      } else {
+        console.error('STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED');
+      }
+    } catch {
+      console.error('STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED');
+    }
   }
   const server=createPreflightServer({sessionPoolerContinuityObserved:
     result.sessionPoolerContinuityObserved===true});
