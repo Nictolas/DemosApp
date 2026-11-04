@@ -31,6 +31,7 @@ export default function ProposteSoggetti() {
   const { toast } = useToast();
   const [pending, setPending] = useState<Proposal[]>([]);
   const [approved, setApproved] = useState<ApprovedSubject[]>([]);
+  const [approvedCursor, setApprovedCursor] = useState<string | null>(null);
   const [showApproved, setShowApproved] = useState(false);
   const [showUndelivered, setShowUndelivered] = useState(false);
   const [undelivered, setUndelivered] = useState<WithdrawalNotice[]>([]);
@@ -69,12 +70,35 @@ export default function ProposteSoggetti() {
       const r = await apiRequest("GET", "/api/subject-proposals/admin/approved");
       const d = await r.json();
       setApproved(d.proposals || []);
+      setApprovedCursor(d.next_cursor || null);
     } catch (_) {
+      setApproved([]);
+      setApprovedCursor(null);
       setError("Impossibile recuperare le pubblicazioni.");
     } finally {
       setLoadingApproved(false);
     }
   }, [isAdmin]);
+
+  const loadMoreApproved = async () => {
+    if (!isAdmin || !approvedCursor || loadingApproved || submittingId) return;
+    setLoadingApproved(true);
+    setError(null);
+    try {
+      const response = await apiRequest("GET",
+        "/api/subject-proposals/admin/approved?cursor=" + encodeURIComponent(approvedCursor));
+      const next = await response.json();
+      setApproved(old => {
+        const existing = new Set(old.map(item => item.id));
+        return [...old, ...(next.proposals || []).filter((item: ApprovedSubject) => !existing.has(item.id))];
+      });
+      setApprovedCursor(next.next_cursor || null);
+    } catch (_) {
+      setError("Impossibile caricare le pubblicazioni precedenti. Riprova.");
+    } finally {
+      setLoadingApproved(false);
+    }
+  };
 
   const refreshUndelivered = useCallback(async () => {
     if (!isAdmin) return;
@@ -288,6 +312,12 @@ export default function ProposteSoggetti() {
               </Button>
             </article>
           ))}
+          {showApproved && approvedCursor && !loadingApproved && (
+            <Button type="button" variant="outline" onClick={() => void loadMoreApproved()}
+              disabled={!!submittingId} className="w-full">
+              Carica altre pubblicazioni
+            </Button>
+          )}
         </div>
       </div>
     </PageContainer>

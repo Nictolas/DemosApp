@@ -119,6 +119,11 @@ CREATE INDEX IF NOT EXISTS subject_proposals_admin_queue_idx
  ON public.subject_proposals(created_at ASC) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS subject_proposals_approved_directory_idx
  ON public.subject_proposals(category, created_at DESC) WHERE status = 'approved';
+-- Keyset Admin pagination must reach publications older than the first 100.
+-- Use the same order expression as the read-only Admin query.
+CREATE INDEX IF NOT EXISTS subject_proposals_admin_approved_cursor_idx
+ ON public.subject_proposals((COALESCE(reviewed_at, created_at)) DESC, id DESC)
+ WHERE status='approved' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni');
 
 ALTER TABLE public.subject_proposals ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.subject_proposals FROM PUBLIC, anon, authenticated;

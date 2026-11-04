@@ -153,13 +153,47 @@ router.get('/admin', verifyToken, requireAdmin, async (_req, res) => {
 
 // Approved nominations are fetched only on demand in the Admin panel.
 // Never expose proposer UUID, private notes or the original source URL in this listing.
-router.get('/admin/approved', verifyToken, requireAdmin, async (_req, res) => {
+// Keyset pagination: Admin must be able to find an older published entry to
+// unpublish it, even when there are more than 100 approved nominations.
+// Preserve full microsecond timestamps in the cursor so equal-millisecond
+// reviews cannot be skipped by JS Date truncation.
+function parseApprovedPageCursor(raw) {
+  if (raw == null) return null;
+  if (typeof raw !== 'string' || raw.length > 240 || !/^[A-Za-z0-9_-]+$/.test(raw)) return false;
+  try {
+    const decoded = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+    if (!Array.isArray(decoded) || decoded.length !== 2) return false;
+    const [epoch, id] = decoded;
+    if (typeof epoch !== 'string' || !/^\d{1,11}(?:\.\d{1,6})?$/.test(epoch) ||
+        Number(epoch) > 4102444800 || typeof id !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return false;
+    return [epoch, id];
+  } catch (_) { return false; }
+}
+
+router.get('/admin/approved', verifyToken, requireAdmin, async (req, res) => {
+  const cursor = parseApprovedPageCursor(req.query.cursor);
+  if (cursor === false) return res.status(400).json({ success: false, error: 'Cursore non valido' });
   try {
     const r = await pool.query(
-      "SELECT id, category, title, reviewed_at FROM subject_proposals WHERE status='approved' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni') ORDER BY reviewed_at DESC LIMIT 100"
+      `SELECT id, category, title, reviewed_at,
+              EXTRACT(EPOCH FROM COALESCE(reviewed_at, created_at))::text AS cursor_epoch
+       FROM subject_proposals
+       WHERE status='approved' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni')
+         AND ($1::numeric IS NULL OR (COALESCE(reviewed_at, created_at), id) < (to_timestamp($1::numeric), $2::uuid))
+       ORDER BY COALESCE(reviewed_at, created_at) DESC, id DESC LIMIT 101`,
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );
+    const page = r.rows.slice(0, 100);
+    const next_cursor = r.rows.length > 100
+      ? Buffer.from(JSON.stringify([page[page.length - 1].cursor_epoch, page[page.length - 1].id])).toString('base64url')
+      : null;
     res.set('Cache-Control', 'private, no-store');
-    return res.json({ success: true, proposals: r.rows });
+    return res.json({
+      success: true,
+      proposals: page.map(({ cursor_epoch, ...proposal }) => proposal),
+      next_cursor
+    });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Elenco approvati temporaneamente non disponibile' });
   }

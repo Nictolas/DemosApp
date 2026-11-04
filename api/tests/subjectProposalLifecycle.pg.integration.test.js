@@ -514,6 +514,48 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     } finally {
       await pool.query("UPDATE users SET status='a' WHERE id=$1",[B]);
     }
+
+    // More than 100 approved subjects must remain reachable for urgent
+    // Admin unpublishing. Timestamps differ only by microseconds, which
+    // catches cursors that accidentally truncate precision to JS millis.
+    await pool.query(
+      `INSERT INTO subject_proposals
+         (proposer_user_id,category,title,source_url,status,reviewed_at)
+       SELECT $1,'attivisti','Attivista paginazione ' || gs,
+              'https://example.org/pagination','approved',
+              now() - (gs * INTERVAL '1 microsecond')
+       FROM generate_series(1,105) gs`,
+      [B]
+    );
+    const totalApproved=Number((await pool.query(
+      "SELECT count(*)::integer n FROM subject_proposals WHERE status='approved' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni')"
+    )).rows[0].n);
+    assert.ok(totalApproved > 100 && totalApproved < 200);
+    assert.equal((await req('/api/subject-proposals/admin/approved','b')).status,403);
+    assert.equal((await req('/api/subject-proposals/admin/approved?cursor=invalid','admin')).status,400);
+    const firstPage=await req('/api/subject-proposals/admin/approved','admin');
+    assert.equal(firstPage.status,200);
+    assert.equal(firstPage.body.proposals.length,100);
+    assert.ok(typeof firstPage.body.next_cursor==='string' && firstPage.body.next_cursor.length>10);
+    assert.deepEqual(Object.keys(firstPage.body.proposals[0]).sort(),
+      ['category','id','reviewed_at','title'],
+      'Admin approved page must not expose the internal cursor or proposer personal information');
+    const secondPage=await req('/api/subject-proposals/admin/approved?cursor='+
+      encodeURIComponent(firstPage.body.next_cursor),'admin');
+    assert.equal(secondPage.status,200);
+    assert.equal(secondPage.body.proposals.length,totalApproved-100);
+    assert.equal(secondPage.body.next_cursor,null);
+    const allIds=[...firstPage.body.proposals,...secondPage.body.proposals].map(x=>x.id);
+    assert.equal(new Set(allIds).size,totalApproved,
+      'keyset pagination must reach every approved row exactly once, even within a millisecond');
+    const oldPublication=secondPage.body.proposals.find(p=>p.title.startsWith('Attivista paginazione '));
+    assert.ok(oldPublication,'old approved subjects must remain available for emergency unpublish');
+    const oldWithdraw=await req('/api/subject-proposals/admin/'+oldPublication.id+
+      '/withdraw','admin','POST',{note:'Ritiro sintetico di archivio'});
+    assert.equal(oldWithdraw.status,200);
+    assert.equal(oldWithdraw.body.status,'withdrawn');
+    assert.equal((await pool.query('SELECT status FROM subject_proposals WHERE id=$1',
+      [oldPublication.id])).rows[0].status,'withdrawn');
   } finally {
     if(server?.listening) await new Promise(done=>server.close(done));
     if(pool) await pool.end();

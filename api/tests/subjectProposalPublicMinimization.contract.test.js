@@ -200,7 +200,7 @@ test('Capo di Stato and Amnistia withdrawal hides catalogue entries but never de
   assert.match(capo,/p\.status = 'withdrawn'/);
   assert.match(amnistia,/SELECT \* FROM amnistia WHERE attiva = true/);
   assert.match(amnistia,/SELECT id FROM amnistia WHERE legge = \$1 AND attiva = true/);
-  assert.match(route,/SELECT id, category, title, reviewed_at FROM subject_proposals WHERE status='approved' AND category IN \('capo_stato','amnistia','attivisti','organizzazioni'\)/);
+  assert.match(route,/FROM subject_proposals\s+WHERE status='approved' AND category IN \('capo_stato','amnistia','attivisti','organizzazioni'\)/);
   assert.match(ui,/gli eventuali voti storici resteranno conservati/);
   assert.doesNotMatch(withdrawal,/richieste_grazia|grazia_carcerati/,'Grazia has separate approval and withdrawal');
 });
@@ -238,4 +238,27 @@ test('notifications for reviewed nominations require a still-active proposer', (
     assert.match(route,/await noticeClient\.query\('ROLLBACK'\)/,
       'failure to insert an actual recipient notice must roll back its flag');
   }
+});
+
+test('Admin may page through all published subjects without exposing owner or source data', () => {
+  const source=file('api/routes/subject-proposals.js');
+  const admin=source.split("router.get('/admin/approved'")[1].split('// Audit-only review')[0];
+  const ui=file('client/src/pages/Gestisci/ProposteSoggetti.tsx');
+  const migration=file('api/migrations/20261031_subject_proposals_review_gate.sql');
+  assert.match(source,/function parseApprovedPageCursor\(raw\)/);
+  assert.match(admin,/verifyToken, requireAdmin/);
+  assert.match(admin,/LIMIT 101/);
+  assert.match(admin,/COALESCE\(reviewed_at, created_at\) DESC, id DESC/);
+  assert.match(admin,/next_cursor/);
+  assert.match(admin,/page\.map\(\(\{ cursor_epoch, \.\.\.proposal \}\) => proposal\)/,
+    'internal pagination timestamp must not escape in Admin JSON');
+  assert.doesNotMatch(admin,/SELECT[^\n]*proposer_user_id|SELECT[^\n]*source_url/,
+    'never return proposer account ID or unreviewed source');
+  assert.match(migration,/subject_proposals_admin_approved_cursor_idx/);
+  assert.match(ui,/Carica altre pubblicazioni/);
+  assert.match(ui,/loadMoreApproved/);
+  assert.match(ui,/approvedCursor/);
+  assert.match(ui,/encodeURIComponent\(approvedCursor\)/);
+  assert.doesNotMatch(ui.slice(ui.indexOf('useEffect(() =>'),ui.indexOf('const refreshApproved')),
+    /admin\/approved/, 'approved records must only load when Admin requests them');
 });
