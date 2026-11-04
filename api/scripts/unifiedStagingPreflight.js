@@ -349,7 +349,7 @@ async function run(env = process.env) {
     // policy catalog without querying any user or notification content.
     const policyRows = await client.query(
       `SELECT tablename AS table_name, policyname AS policy_name, cmd,
-              roles, qual, with_check
+              roles::text[] AS roles, qual, with_check
          FROM pg_catalog.pg_policies
          WHERE schemaname = 'public'
            AND tablename IN ('civic_runtime_identity','civic_push_delivery_guard')`
