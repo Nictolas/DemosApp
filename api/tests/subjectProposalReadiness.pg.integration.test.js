@@ -104,6 +104,30 @@ test('read-only preflight: complete schema READY; drift and unsafe grants NO-GO'
     assert.equal((await inspectSchema(observer,{schema:SCHEMA})).ready,true,
       're-applying draft migration must upgrade the old status check');
 
+    // Account deletion must preserve approved/withdrawn third-party audit but
+    // unlink the deleted owner; the preflight rejects legacy CASCADE and
+    // NOT NULL constraints before any deploy.
+    await client.query('ALTER TABLE '+SCHEMA+'.subject_proposals ALTER COLUMN proposer_user_id SET NOT NULL');
+    const ownerNotNull=await inspectSchema(observer,{schema:SCHEMA});
+    assert.ok(ownerNotNull.problems.some(p=>p.code==='OWNER_ERASURE_NOT_NULL'));
+    await client.query(sql.replaceAll('public.',SCHEMA+'.'));
+    assert.equal((await inspectSchema(observer,{schema:SCHEMA})).ready,true);
+    await client.query('ALTER TABLE '+SCHEMA+'.subject_proposals DROP CONSTRAINT subject_proposals_proposer_user_id_fkey');
+    await client.query('ALTER TABLE '+SCHEMA+'.subject_proposals ADD CONSTRAINT subject_proposals_proposer_user_id_fkey FOREIGN KEY(proposer_user_id) REFERENCES '+SCHEMA+'.users(id) ON DELETE CASCADE');
+    const unsafeCascade=await inspectSchema(observer,{schema:SCHEMA});
+    assert.ok(unsafeCascade.problems.some(p=>p.code==='OWNER_DELETE_FK'));
+    await client.query(sql.replaceAll('public.',SCHEMA+'.'));
+    assert.equal((await inspectSchema(observer,{schema:SCHEMA})).ready,true);
+    await client.query('ALTER TABLE '+SCHEMA+'.richieste_grazia ALTER COLUMN utente_id SET NOT NULL');
+    const graziaNotNull=await inspectSchema(observer,{schema:SCHEMA});
+    assert.ok(graziaNotNull.problems.some(p=>p.code==='GRAZIA_OWNER_NOT_NULL'));
+    const graziaAuditMigration=fs.readFileSync(
+      path.join(__dirname,'../migrations/20261104_grazia_withdrawal_audit.sql'),'utf8'
+    );
+    await client.query(graziaAuditMigration.replaceAll('public.',SCHEMA+'.'));
+    assert.equal((await inspectSchema(observer,{schema:SCHEMA})).ready,true,
+      'applying the dedicated Grazia audit migration must restore DSAR readiness');
+
     await client.query('ALTER TABLE '+SCHEMA+'.users DROP COLUMN status');
     let result=await inspectSchema(observer,{schema:SCHEMA});
     assert.equal(result.ready,false);

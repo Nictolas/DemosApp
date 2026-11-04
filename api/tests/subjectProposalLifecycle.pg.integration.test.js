@@ -435,12 +435,24 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       "INSERT INTO subject_proposals(proposer_user_id,category,title,source_url) VALUES($1,'grazia','Persona sintetica','https://example.org')",[B]
     ), e=>e.code==='23514');
 
-    // A removed proposer must not remain linked by an FK in an approved directory record.
+    // Direct FK safety: deleting an account must never CASCADE through an
+    // approved/withdrawn proposal and erase the catalogue's audit link.
+    // The canonical account-delete service separately erases pending/rejected.
+    const proposerFk=await pool.query(
+      "SELECT confdeltype FROM pg_constraint WHERE conrelid='subject_proposals'::regclass AND conname='subject_proposals_proposer_user_id_fkey'"
+    );
+    assert.equal(proposerFk.rows[0].confdeltype,'n','ON DELETE SET NULL is required for published audit');
     await pool.query('DELETE FROM users WHERE id=$1',[A]);
     const deleted=await pool.query('SELECT count(*)::integer n FROM subject_proposals WHERE proposer_user_id=$1',[A]);
     assert.equal(deleted.rows[0].n,0);
-    const publicAfterDeletion=await pool.query('SELECT source_proposal_id FROM capo_stato_soggetti_approvati WHERE nome=$1',[capo.title]);
-    assert.equal(publicAfterDeletion.rows[0].source_proposal_id,null);
+    const historic=await pool.query('SELECT status,proposer_user_id,published_ref FROM subject_proposals WHERE id=$1',[capoId]);
+    assert.equal(historic.rows.length,1,'withdrawn proposal must survive account deletion');
+    assert.equal(historic.rows[0].status,'withdrawn');
+    assert.equal(historic.rows[0].proposer_user_id,null,'deleted owner must be unlinked');
+    const publicAfterDeletion=await pool.query('SELECT source_proposal_id,active FROM capo_stato_soggetti_approvati WHERE nome=$1',[capo.title]);
+    assert.equal(publicAfterDeletion.rows[0].source_proposal_id,capoId,
+      'catalogue-to-proposal audit link must survive deletion of the former proposer');
+    assert.equal(publicAfterDeletion.rows[0].active,false,'withdrawn catalogue stays unpublished');
   } finally {
     if(server?.listening) await new Promise(done=>server.close(done));
     if(pool) await pool.end();

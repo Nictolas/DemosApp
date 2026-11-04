@@ -203,6 +203,54 @@ class PrivacyErasureLedgerService {
       rowsDeleted += await this.deleteByAnyColumn(client, table, accountLinkColumns, userId);
     }
 
+    // DEMOS 12: preserve an approved or withdrawn subject's independent
+    // publication/audit without retaining the deleted proposer's account ID.
+    // Unpublished pending/rejected nominations are erased instead. Never
+    // rely on a legacy ON DELETE CASCADE: it would silently destroy an audit.
+    if (
+      await this.tableHasColumn(client, 'subject_proposals', 'proposer_user_id') &&
+      await this.tableHasColumn(client, 'subject_proposals', 'status')
+    ) {
+      const ownerFk = await client.query(
+        "SELECT confdeltype FROM pg_constraint WHERE conrelid='public.subject_proposals'::regclass AND conname='subject_proposals_proposer_user_id_fkey'"
+      );
+      if (ownerFk.rows.length !== 1 || ownerFk.rows[0].confdeltype !== 'n') {
+        throw new Error('SUBJECT_PROPOSAL_ERASURE_MIGRATION_REQUIRED');
+      }
+      const removed = await client.query(
+        "DELETE FROM subject_proposals WHERE proposer_user_id::text=$1 AND status IN ('pending','rejected')",
+        [String(userId)]
+      );
+      rowsDeleted += removed.rowCount || 0;
+      // Approved/withdrawn rows are unlinked by the FK ON DELETE SET NULL
+      // when the users row is removed in enforceAccountDeletion.
+    }
+
+    // Grazia uses the existing richieste_grazia queue and a legacy text
+    // utente_id without a reliable FK. Remove unpublished nominations and
+    // explicitly unlink historical approved/withdrawn records.
+    if (
+      await this.tableHasColumn(client, 'richieste_grazia', 'utente_id') &&
+      await this.tableHasColumn(client, 'richieste_grazia', 'status')
+    ) {
+      const remainingOwner = await client.query(
+        "SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='richieste_grazia' AND column_name='utente_id'"
+      );
+      if (remainingOwner.rows[0]?.is_nullable !== 'YES') {
+        throw new Error('GRAZIA_ERASURE_MIGRATION_REQUIRED');
+      }
+      const removed = await client.query(
+        "DELETE FROM richieste_grazia WHERE utente_id::text=$1 AND status IN ('pending','rejected')",
+        [String(userId)]
+      );
+      rowsDeleted += removed.rowCount || 0;
+      const unlinked = await client.query(
+        "UPDATE richieste_grazia SET utente_id=NULL WHERE utente_id::text=$1",
+        [String(userId)]
+      );
+      rowsUnlinked += unlinked.rowCount || 0;
+    }
+
     // Reazioni create dall'utente.
     rowsDeleted += await this.deleteByColumn(client, 'reazioni', 'utente_id', userId);
 
@@ -257,6 +305,13 @@ class PrivacyErasureLedgerService {
   }
 
   static async enforceAccountDeletion(client, userId) {
+    // Serialize account erasure with proposal submission. Generic proposals
+    // reference users through a FK; Grazia explicitly locks the user row
+    // before inserting. FOR UPDATE prevents a late pending nomination from
+    // arriving after cleanup but before the account is deleted.
+    if (await this.tableHasColumn(client, 'users', 'id')) {
+      await client.query('SELECT id FROM users WHERE id::text=$1 FOR UPDATE', [String(userId)]);
+    }
     const additional = await this.cleanupAdditionalAccountData(client, userId);
     let dependentDeleted = additional.rowsDeleted;
 

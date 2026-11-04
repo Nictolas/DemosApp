@@ -301,6 +301,134 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
       ['persona legacy con doppio spazio']
     );
     assert.equal(legacyCatalogue.rows[0].n,1,'no duplicate active catalogue row');
+
+    // Model a legacy schema that has not received the account-erasure DDL.
+    await pool.query('ALTER TABLE richieste_grazia ALTER COLUMN utente_id SET NOT NULL');
+    // A canonical deletion must fail closed rather than erase an account and
+    // leave an undeletable personal identifier in historic nominations.
+    const Erasure=require('../services/privacyErasureLedgerService');
+    const preMigration=await pool.connect();
+    try {
+      await preMigration.query('BEGIN');
+      await assert.rejects(Erasure.enforceAccountDeletion(preMigration,C),
+        /GRAZIA_ERASURE_MIGRATION_REQUIRED/);
+    } finally {
+      await preMigration.query('ROLLBACK');
+      preMigration.release();
+    }
+    assert.equal((await pool.query('SELECT count(*)::integer n FROM users WHERE id=$1',[C])).rows[0].n,1,
+      'missing migration must not partially delete the account');
+
+    // Apply both draft migrations only to this disposable PostgreSQL test DB.
+    await pool.query(draft);
+    await pool.query("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; END $$");
+    const genericMigration=fs.readFileSync(path.join(__dirname,'../migrations/20261031_subject_proposals_review_gate.sql'),'utf8');
+    await pool.query(genericMigration);
+    // Reapplying an already-run migration must not create a CASCADE FK.
+    await pool.query(genericMigration);
+    const fk=await pool.query(
+      "SELECT confdeltype FROM pg_constraint WHERE conrelid='public.subject_proposals'::regclass AND conname='subject_proposals_proposer_user_id_fkey'"
+    );
+    assert.equal(fk.rows[0].confdeltype,'n','account deletion unlinks, never cascades public audit');
+    const graziaOwner=await pool.query(
+      "SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='richieste_grazia' AND column_name='utente_id'"
+    );
+    assert.equal(graziaOwner.rows[0].is_nullable,'YES');
+
+    const genericCases=[
+      ['capo_stato','Capo sintetico storico DSAR','approved'],
+      ['organizzazioni','Organizzazione sintetica ritirata DSAR','withdrawn'],
+      ['attivisti','Attivista sintetico pendente DSAR','pending'],
+      ['amnistia','Norma sintetica rifiutata DSAR','rejected']
+    ];
+    const saved={};
+    for(const [category,title,status] of genericCases){
+      const result=await pool.query(
+        "INSERT INTO subject_proposals(proposer_user_id,category,title,source_url,status,published_ref) VALUES($1,$2,$3,'https://example.org/dsar',$4,$5) RETURNING id",
+        [A,category,title,status,status==='approved'||status==='withdrawn'?'private-source-ref':null]
+      );
+      saved[status]=result.rows[0].id;
+    }
+    await pool.query(
+      "INSERT INTO capo_stato_soggetti_approvati(nome,active,source_proposal_id) VALUES($1,TRUE,$2)",
+      ['Capo sintetico storico DSAR',saved.approved]
+    );
+    const bPending=await pool.query(
+      "INSERT INTO subject_proposals(proposer_user_id,category,title,source_url) VALUES($1,'attivisti','Altro attivista sintetico','https://example.org/other') RETURNING id",
+      [B]
+    );
+
+    // The same canonical service used by DELETE /api/user/delete-account.
+    const deletionClient=await pool.connect();
+    let deletedResult;
+    try {
+      await deletionClient.query('BEGIN');
+      deletedResult=await Erasure.enforceAccountDeletion(deletionClient,A);
+      await deletionClient.query('COMMIT');
+    }catch(e){
+      await deletionClient.query('ROLLBACK');
+      throw e;
+    }finally{
+      deletionClient.release();
+    }
+    assert.equal(deletedResult.userDeleted,1);
+    assert.equal((await pool.query('SELECT count(*)::integer n FROM users WHERE id=$1',[A])).rows[0].n,0);
+    assert.equal((await pool.query('SELECT count(*)::integer n FROM subject_proposals WHERE proposer_user_id=$1',[A])).rows[0].n,0);
+    for(const status of ['pending','rejected']){
+      assert.equal((await pool.query('SELECT count(*)::integer n FROM subject_proposals WHERE id=$1',[saved[status]])).rows[0].n,0,
+        status+' unreviewed/nonpublic row must be erased');
+    }
+    for(const status of ['approved','withdrawn']){
+      const preserved=await pool.query(
+        'SELECT status,proposer_user_id,published_ref FROM subject_proposals WHERE id=$1',[saved[status]]
+      );
+      assert.equal(preserved.rows.length,1,status+' third-party audit must survive');
+      assert.equal(preserved.rows[0].proposer_user_id,null,'deleted account UUID is unlinked');
+      assert.equal(preserved.rows[0].published_ref,'private-source-ref','private publication audit link survives');
+    }
+    const publicLink=await pool.query(
+      'SELECT source_proposal_id,active FROM capo_stato_soggetti_approvati WHERE nome=$1',
+      ['Capo sintetico storico DSAR']
+    );
+    assert.equal(publicLink.rows[0].source_proposal_id,saved.approved);
+    assert.equal(publicLink.rows[0].active,true,'approved third-party catalogue must not disappear with proposer');
+    assert.equal((await pool.query('SELECT count(*)::integer n FROM subject_proposals WHERE id=$1',[bPending.rows[0].id])).rows[0].n,1,
+      'unrelated account nomination remains intact');
+    assert.equal((await pool.query('SELECT count(*)::integer n FROM richieste_grazia WHERE utente_id=$1',[A])).rows[0].n,0,
+      'deleted user identifier cannot persist in historic Grazia submissions');
+    const graziaAudit=await pool.query('SELECT status,utente_id,withdrawn_at FROM richieste_grazia WHERE id=$1',[id]);
+    assert.equal(graziaAudit.rows.length,1,'withdrawn Grazia audit retained after account erasure');
+    assert.equal(graziaAudit.rows[0].status,'approved');
+    assert.equal(graziaAudit.rows[0].utente_id,null,'Grazia owner unlinked');
+    assert.ok(graziaAudit.rows[0].withdrawn_at,'withdrawal record kept');
+    assert.equal((await pool.query('SELECT count(*)::integer n FROM richieste_grazia WHERE id=$1',[secondId])).rows[0].n,1,
+      'unrelated account Grazia history remains');
+
+    // Concurrency: account deletion owns the users row until COMMIT.
+    // A late Grazia POST from that deleted account must not reappear as
+    // an orphan pending nomination after the cleanup has completed.
+    const raceClient=await pool.connect();
+    let lateSubmission;
+    try {
+      await raceClient.query('BEGIN');
+      const raceDeletion=await Erasure.enforceAccountDeletion(raceClient,D);
+      assert.equal(raceDeletion.userDeleted,1);
+      lateSubmission=req('/api/grazia','d','POST',{
+        nome:'Persona sintetica dopo cancellazione account',
+        urlProva:'https://example.org/erasure/late'
+      });
+      await new Promise(resolve=>setTimeout(resolve,80));
+      await raceClient.query('COMMIT');
+      const response=await lateSubmission;
+      assert.notEqual(response.status,202,'late account submission must not be accepted');
+      const orphan=await pool.query('SELECT count(*)::integer n FROM richieste_grazia WHERE nome=$1',
+        ['Persona sintetica dopo cancellazione account']);
+      assert.equal(orphan.rows[0].n,0,'no orphan nomination after committed deletion');
+    }finally{
+      await raceClient.query('ROLLBACK').catch(()=>{});
+      raceClient.release();
+    }
+
   } finally {
     if(server?.listening)await new Promise(resolve=>server.close(resolve));
     await pool.end();

@@ -3,7 +3,7 @@
 -- Intentionally private: application API accesses it only through authenticated server routes.
 CREATE TABLE IF NOT EXISTS public.subject_proposals (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  proposer_user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  proposer_user_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
   category text NOT NULL CHECK (category IN ('capo_stato', 'amnistia', 'attivisti', 'organizzazioni')),
   title text NOT NULL CHECK (char_length(btrim(title)) BETWEEN 3 AND 150),
   details text NOT NULL DEFAULT '' CHECK (char_length(details) <= 1000),
@@ -25,6 +25,33 @@ CREATE TABLE IF NOT EXISTS public.subject_proposals (
   submission_notification_sent boolean,
   review_notification_sent boolean
 );
+
+-- Existing deployments may have the previous CASCADE foreign key. Preserve the
+-- public subject's review history, but remove the deleted account reference.
+-- Pending/rejected nominations are removed by the canonical deletion service.
+-- Reject unfamiliar FK names instead of silently leaving a CASCADE relationship.
+DO $proposer_fk_legacy_guard$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_attribute a ON a.attrelid = c.conrelid
+      AND a.attname = 'proposer_user_id'
+      AND a.attnum = ANY(c.conkey)
+    WHERE c.conrelid = 'public.subject_proposals'::regclass
+      AND c.contype = 'f'
+      AND c.conname <> 'subject_proposals_proposer_user_id_fkey'
+  ) THEN
+    RAISE EXCEPTION 'Unexpected proposer foreign key: manual reconciliation required';
+  END IF;
+END
+$proposer_fk_legacy_guard$;
+ALTER TABLE public.subject_proposals
+  DROP CONSTRAINT IF EXISTS subject_proposals_proposer_user_id_fkey;
+ALTER TABLE public.subject_proposals ALTER COLUMN proposer_user_id DROP NOT NULL;
+ALTER TABLE public.subject_proposals
+  ADD CONSTRAINT subject_proposals_proposer_user_id_fkey
+    FOREIGN KEY (proposer_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 -- Existing staging copies may still have the old five-category CHECK. CREATE TABLE
 -- IF NOT EXISTS does not update it. Refuse to delete or silently migrate any

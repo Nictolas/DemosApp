@@ -2,6 +2,10 @@
 -- Apply ONLY transactionally after explicit authorization and privacy gate.
 -- The canonical queue remains public.richieste_grazia and all historical votes stay intact.
 BEGIN;
+-- Existing approved/withdrawn third-party nominations must survive account erasure
+-- without retaining the deleted proposer's account identifier. The canonical
+-- deletion service removes pending/rejected rows first.
+ALTER TABLE public.richieste_grazia ALTER COLUMN utente_id DROP NOT NULL;
 ALTER TABLE public.richieste_grazia
   ADD COLUMN IF NOT EXISTS withdrawn_at timestamptz,
   ADD COLUMN IF NOT EXISTS withdrawn_by uuid REFERENCES public.users(id) ON DELETE SET NULL,

@@ -40,6 +40,13 @@ function assessMetadata({columns=[],tables=[],constraints=[],indexes=[],privileg
   if(usersAdmin&&usersAdmin.udt_name!=='bool') add('WRONG_TYPE','users.is_admin','Expected boolean');
   const proposerId=cols.get('subject_proposals')?.get('proposer_user_id');
   if(proposerId&&proposerId.udt_name!=='uuid') add('WRONG_TYPE','subject_proposals.proposer_user_id','Expected UUID');
+  if(proposerId&&proposerId.is_nullable!=='YES')
+    add('OWNER_ERASURE_NOT_NULL','subject_proposals.proposer_user_id',
+      'Approved/withdrawn proposal must survive account erasure with an unlinked owner');
+  const graziaOwner=cols.get('richieste_grazia')?.get('utente_id');
+  if(graziaOwner&&graziaOwner.is_nullable!=='YES')
+    add('GRAZIA_OWNER_NOT_NULL','richieste_grazia.utente_id',
+      'Historical reviewed nominations must unlink the deleted account without loss of audit');
 
   if(tableSet.has('subject_proposals')){
     const category=constraints.find(r=>r.table_name==='subject_proposals'&&r.constraint_name==='subject_proposals_category_check');
@@ -66,8 +73,9 @@ function assessMetadata({columns=[],tables=[],constraints=[],indexes=[],privileg
     if(!withdrawalFk||!/ON DELETE SET NULL/i.test(withdrawalFk.definition))
       add('WITHDRAWAL_AUDIT_FK','subject_proposals.withdrawn_by','Withdrawal actor deletion must set the audit reference to NULL');
     const fk=constraints.find(c=>c.table_name==='subject_proposals'&&c.constraint_name==='subject_proposals_proposer_user_id_fkey');
-    if(!fk||!/ON DELETE CASCADE/i.test(fk.definition))
-      add('OWNER_DELETE_FK','subject_proposals.proposer_user_id','Delete must not leave orphaned private proposals');
+    if(!fk||!/ON DELETE SET NULL/i.test(fk.definition))
+      add('OWNER_DELETE_FK','subject_proposals.proposer_user_id',
+        'Preserve published third-party audit; canonical erasure deletes pending/rejected');
   }
   if(tableSet.has('capo_stato_soggetti_approvati')){
     const fk=constraints.find(c=>c.table_name==='capo_stato_soggetti_approvati'&&c.constraint_name==='capo_stato_soggetti_approvati_source_proposal_id_fkey');
@@ -94,7 +102,7 @@ function assessMetadata({columns=[],tables=[],constraints=[],indexes=[],privileg
 async function inspectSchema(db,{schema='public'}={}){
   if(!/^[a-z][a-z0-9_]{0,62}$/i.test(schema)) throw Error('Invalid schema name');
   const names=Object.keys(REQUIRED_COLUMNS);
-  const columnSql="SELECT table_name,column_name,udt_name FROM information_schema.columns WHERE table_schema=$1 AND table_name=ANY($2::text[])";
+  const columnSql="SELECT table_name,column_name,udt_name,is_nullable FROM information_schema.columns WHERE table_schema=$1 AND table_name=ANY($2::text[])";
   const tableSql="SELECT c.relname AS table_name,c.relrowsecurity AS rls_enabled FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=$1 AND c.relkind IN ('r','p') AND c.relname=ANY($2::text[])";
   const constraintSql="SELECT t.relname AS table_name,con.conname AS constraint_name,pg_get_constraintdef(con.oid) AS definition FROM pg_constraint con JOIN pg_class t ON t.oid=con.conrelid JOIN pg_namespace n ON n.oid=t.relnamespace WHERE n.nspname=$1 AND t.relname=ANY($2::text[])";
   const indexSql="SELECT tablename AS table_name,indexname AS index_name,indexdef AS definition FROM pg_indexes WHERE schemaname=$1 AND tablename=ANY($2::text[])";
