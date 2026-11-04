@@ -48,6 +48,22 @@ router.post('/', personalNoStore, verifyToken, async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(409).json({ success: false, error: 'Hai già una proposta di Grazia in attesa' });
     }
+    // Requests from distinct users need the same per-name transaction lock.
+    // The per-user row lock above protects only that user's pending slot.
+    // A stable, canonical name key serializes parallel submissions without
+    // exposing a third-party name in logs or adding a second queue.
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended(lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))), 12004))",
+      [nome]
+    );
+    const alreadyProposed = await client.query(
+      "SELECT id FROM richieste_grazia WHERE status IN ('pending','approved') AND withdrawn_at IS NULL AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1",
+      [nome]
+    );
+    if (alreadyProposed.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({success:false,error:'Questo soggetto è già stato proposto'});
+    }
     // A withdrawn person cannot be re-proposed automatically by another user.
     // Keep the original Grazia request as the only audit record.
     const retired = await client.query(
