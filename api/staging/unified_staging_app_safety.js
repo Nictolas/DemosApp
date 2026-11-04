@@ -18,7 +18,7 @@ const DISABLED_FLAGS = Object.freeze([
   'SECURITY_CENTER_RUNTIME_ENABLED', 'GDPR_ERASURE_OUTBOX_WORKER_ENABLED',
   'PARLIAMENT_FINAL_NOTIFICATIONS_ENABLED', 'PARLIAMENT_FINAL_PUSH_ENABLED',
   'CIVIC_STAGING_SESSION_CHECK_APPLY', 'DEMOS_STAGING_ANDROID_PUSH_E2E',
-  'ALLOW_DEMOS_STAGING_MIGRATIONS', 'CIVIC_STAGING_RUNTIME_AUDIT_GO',
+  'ALLOW_DEMOS_STAGING_MIGRATIONS',
 ]);
 
 const FORBIDDEN_CREDENTIALS = Object.freeze([
@@ -43,6 +43,17 @@ function shouldMountDevApiSurface(env = {}) {
   return true;
 }
 
+// Read-only ingress for the first smoke phase: no auth, uploads, admin,
+// migrations, cleanup, writes, dispatch, or unreviewed routes can be reached.
+const READ_ONLY_CANARY_PATHS = Object.freeze(new Set([
+  '/', '/api/health', '/api/health/live', '/api/health/ready',
+  '/api/eci', '/api/iniziative-popolari', '/api/referendum-abrogativi',
+]));
+function isReadOnlyCanaryRequest(method, path) {
+  return (method === 'GET' || method === 'HEAD') &&
+    typeof path === 'string' && READ_ONLY_CANARY_PATHS.has(path);
+}
+
 function assertStagingAppCanary(env = process.env) {
   if (!env || typeof env !== 'object' || Array.isArray(env)) {
     throw new Error('STAGING_APP_CANARY_ENV_INVALID');
@@ -54,7 +65,8 @@ function assertStagingAppCanary(env = process.env) {
       env.CIVIC_UNIFIED_STAGING_TESTS_AUTHORIZED !== 'true') {
     throw new Error('STAGING_APP_CANARY_GO_REQUIRED');
   }
-  if (enabled(env.ALLOW_DEV_API_SURFACE) ||
+  if (env.CIVIC_STAGING_RUNTIME_AUDIT_GO ||
+      enabled(env.ALLOW_DEV_API_SURFACE) ||
       env.PERFORMANCE_MONITOR_ENABLED !== 'false' ||
       DISABLED_FLAGS.some(flag => enabled(env[flag]))) {
     throw new Error('STAGING_APP_CANARY_SIDE_EFFECTS_FORBIDDEN');
@@ -90,5 +102,5 @@ function assertStagingAppCanary(env = process.env) {
   return { active: true, connectionString };
 }
 
-module.exports = { assertStagingAppCanary, shouldMountDevApiSurface,
+module.exports = { assertStagingAppCanary, shouldMountDevApiSurface, isReadOnlyCanaryRequest,
   DISABLED_FLAGS, FORBIDDEN_CREDENTIALS };
