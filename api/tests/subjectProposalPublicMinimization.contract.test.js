@@ -129,9 +129,14 @@ test('submission and Admin decision commit before fallible private notifications
   const decision = route.slice(route.indexOf("router.post('/admin/:id/decision'"));
   assert.ok(submission.indexOf("await client.query('COMMIT')") >= 0);
   assert.ok(submission.indexOf("await client.query('COMMIT')") < submission.indexOf("INSERT INTO notifiche_demos"));
-  assert.ok(decision.indexOf("await client.query('COMMIT')") < decision.indexOf("await notify(client"));
+  assert.ok(decision.indexOf("await client.query('COMMIT')") < decision.indexOf("await notify(pool"));
   assert.match(submission, /notification_sent: notificationSent/);
   assert.match(decision, /notification_sent: notificationSent/);
+  // No pool starvation: release committed transactions before acquiring
+  // another connection for optional notifications, even with pool max=1.
+  for (const handler of [submission, decision]) {
+    assert.match(handler, /await client\.query\('COMMIT'\);[\s\S]{0,250}?client\.release\(\);\s*client = null;/);
+  }
   for (const handler of [submission, decision]) {
     assert.match(handler, /let client;/);
     assert.match(handler, /client = await pool\.connect\(\)/);

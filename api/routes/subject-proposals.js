@@ -90,6 +90,10 @@ router.post('/', verifyToken, async (req, res) => {
       [userId, proposal.category, proposal.title, proposal.details, proposal.sourceUrl]
     );
     await client.query('COMMIT');
+    // Free the pool connection before the best-effort notice. Otherwise a pool
+    // with max=1 (or saturated connections) could deadlock on pool.query.
+    client.release();
+    client = null;
     // The moderation queue is authoritative. An unavailable notifications table
     // must not roll back an already-valid proposal or cause a misleading retry.
     let notificationSent = false;
@@ -280,11 +284,13 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
       [id, status, req.user.id, publishedRef, note || null]
     );
     await client.query('COMMIT');
+    client.release();
+    client = null;
     // The decision and catalogue publication must not be undone by a notification outage.
     // No automatic retries until an idempotent notification outbox is approved.
     let notificationSent = false;
     try {
-      await notify(client, p.proposer_user_id,
+      await notify(pool, p.proposer_user_id,
         decision === 'approve' ? 'La tua proposta in ' + p.category + ' è stata approvata.' : 'La tua proposta in ' + p.category + ' non è stata approvata.'
       );
       notificationSent = true;
