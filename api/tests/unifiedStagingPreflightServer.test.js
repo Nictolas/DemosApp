@@ -94,6 +94,7 @@ test('preflight server exposes audit only; application readiness always 503',asy
   const proof=await get('/health/preflight');
   assert.equal(proof.code,200);
   assert.equal(proof.body.session_affinity_verified,false);
+  assert.equal(proof.body.session_pooler_continuity_observed,false);
   assert.equal(proof.body.app_ready,false);
   for(const route of ['/health/ready','/health/ready?force=true']) {
     const resp=await get(route);
@@ -170,4 +171,25 @@ test('single secret password is safely percent-encoded and does not reach logs',
     {...safe,STAGING_PREFLIGHT_DATABASE_URL:undefined},
   ]) assert.throws(()=>validatePreflightEnvironment(fail),
     /STAGING_PREFLIGHT_(PASSWORD_INVALID|CREDENTIAL_AMBIGUOUS|CREDENTIAL_REQUIRED)/);
+});
+
+test('observed session-pooler continuity is exposed separately from app affinity',async t=>{
+  const get=await serve(t,createPreflightServer({
+    sessionPoolerContinuityObserved:true}));
+  const proof=await get('/health/preflight');
+  assert.equal(proof.code,200);
+  assert.equal(proof.body.session_pooler_continuity_observed,true);
+  assert.equal(proof.body.session_affinity_verified,false);
+  assert.equal(proof.body.app_ready,false);
+  assert.equal(proof.body.notifications_enabled,false);
+  assert.equal((await get('/health/ready')).code,503);
+});
+
+test('isolated preflight cannot start if continuity evidence is missing',async()=>{
+  for(const value of [
+    {ready:true,deliveryBlocked:true},
+    {ready:true,deliveryBlocked:true,sessionPoolerContinuityObserved:false},
+  ]) await assert.rejects(startPreflightServer(safe,{
+    runPreflight:async()=>value,
+  }),/STAGING_PREFLIGHT_AUDIT_NOT_READY/);
 });

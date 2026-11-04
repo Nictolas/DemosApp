@@ -98,7 +98,7 @@ function reply(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
-function createPreflightServer() {
+function createPreflightServer({sessionPoolerContinuityObserved=false}={}) {
   return http.createServer((req,res) => {
     if (req.method !== 'GET') {
       return reply(res,405,{error:'method_not_allowed'});
@@ -120,7 +120,8 @@ function createPreflightServer() {
     if (route==='/health/preflight') {
       return reply(res,200,{status:'read_only_preflight_passed',
         app_ready:false, notifications_enabled:false,
-        session_affinity_verified:false});
+        session_affinity_verified:false,
+        session_pooler_continuity_observed:sessionPoolerContinuityObserved===true});
     }
     if (route==='/health/ready') {
       return reply(res,503,{status:'not_ready',
@@ -136,10 +137,12 @@ async function startPreflightServer(env=process.env, {runPreflight=run}={}) {
     STAGING_PREFLIGHT_DATABASE_URL:resolvePreflightConnectionString(env)};
   delete normalized.STAGING_PREFLIGHT_DATABASE_PASSWORD;
   const result=await runPreflight(normalized); // read-only staging DB, no app imports
-  if (!result || result.ready!==true || result.deliveryBlocked!==true) {
+  if (!result || result.ready!==true || result.deliveryBlocked!==true ||
+      result.sessionPoolerContinuityObserved!==true) {
     throw new Error('STAGING_PREFLIGHT_AUDIT_NOT_READY');
   }
-  const server=createPreflightServer();
+  const server=createPreflightServer({sessionPoolerContinuityObserved:
+    result.sessionPoolerContinuityObserved===true});
   await new Promise((resolve,reject)=>{
     server.once('error',reject);
     server.listen(port,'0.0.0.0',resolve);
