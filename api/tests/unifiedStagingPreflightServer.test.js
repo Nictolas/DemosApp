@@ -7,13 +7,13 @@ const {validatePreflightEnvironment,createPreflightServer,startPreflightServer}=
 
 const REF='fkeayjzvtuvzesljhjbc';
 const credential='postgresql://demos_staging_preflight.'+REF+
-  ':synthetic-no-connection@aws-0-eu-central-1.pooler.supabase.com:5432/postgres';
+  ':synthetic-no-connection@aws-1-eu-central-1.pooler.supabase.com:5432/postgres';
 const safe=Object.freeze({
   NODE_ENV:'staging',
   DEMOS_UNIFIED_STAGING_MODE:'preflight',
   DEMOS_UNIFIED_STAGING_PREFLIGHT_GO:'APPROVED_READ_ONLY_PREFLIGHT',
   STAGING_PREFLIGHT_DATABASE_URL:credential,
-  STAGING_PREFLIGHT_EXPECTED_POOLER_HOST:'aws-0-eu-central-1.pooler.supabase.com',
+  STAGING_PREFLIGHT_EXPECTED_POOLER_HOST:'aws-1-eu-central-1.pooler.supabase.com',
   CIVIC_PUSH_ENABLED:'false',
   CIVIC_NEW_INITIATIVE_EVENTS_ENABLED:'false',
   CIVIC_NEW_INITIATIVE_PUSH_ENABLED:'false',
@@ -33,7 +33,7 @@ test('read-only staging mode and exact session endpoint are mandatory',()=>{
     {...safe,STAGING_PREFLIGHT_DATABASE_URL:credential.replace(':5432/',':6543/')},
     {...safe,STAGING_PREFLIGHT_DATABASE_URL:credential.replace(REF,'aaaaaaaaaaaaaaaaaaaa')},
     {...safe,STAGING_PREFLIGHT_DATABASE_URL:credential.replace(
-      'aws-0-eu-central-1.pooler.supabase.com','db.'+REF+'.supabase.co')},
+      'aws-1-eu-central-1.pooler.supabase.com','db.'+REF+'.supabase.co')},
     {...safe,STAGING_PREFLIGHT_EXPECTED_POOLER_HOST:'aws-8-eu-central-1.pooler.supabase.com'},
     {...safe,STAGING_PREFLIGHT_EXPECTED_POOLER_HOST:'aws-0-us-east-1.pooler.supabase.com'},
     {...safe,STAGING_PREFLIGHT_EXPECTED_POOLER_HOST:''},
