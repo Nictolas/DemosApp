@@ -112,9 +112,24 @@ test('changing proposal category invalidates stale personal status responses', (
   assert.match(page,/statusRequestVersion\.current \+= 1/);
   assert.match(page,/const requestVersion = \+\+statusRequestVersion\.current/);
   assert.match(page,/const requestedCategory = category/);
-  assert.match(page,/statusRequestVersion\.current !== requestVersion\) return/);
-  assert.match(page,/if \(statusRequestVersion\.current === requestVersion\)/);
+  assert.match(page,/statusRequestVersion\.current !== requestVersion \|\| currentOwnerId\.current !== requestOwnerId\) return/);
+  assert.match(page,/if \(statusRequestVersion\.current === requestVersion && currentOwnerId\.current === requestOwnerId\)/);
   assert.match(page,/setCheckingStatus\(false\)/);
   assert.match(page,/disabled=\{submitting\}/,
     'a submission in flight must not silently clear a newer category form');
+});
+
+test('personal proposal statuses are owned by the authenticated user, even if the user changes without a route change', () => {
+  const page = read('client/src/pages/ProponiSoggetto.tsx');
+  assert.match(page, /const currentOwnerId = useRef<string \| null>\(user\?\.id \?\? null\)/);
+  assert.match(page, /currentOwnerId\.current = user\?\.id \?\? null/);
+  assert.match(page, /\[location, user\?\.id\]/, 'owner changes reset the form and invalidate in-flight checks');
+  assert.match(page, /const requestOwnerId = user\.id/);
+  assert.match(page, /statusOwnerId === user\.id/, 'the previously rendered status must not be visible to a new account');
+  assert.match(page, /currentOwnerId\.current !== requestOwnerId\) return/);
+  assert.match(page, /currentOwnerId\.current === requestOwnerId\)/);
+  assert.match(page, /const submitOwnerId = user\.id/);
+  assert.match(page, /if \(currentOwnerId\.current !== submitOwnerId\) return/,
+    'a successful old-account POST cannot populate the new account form');
+  assert.match(page, /if \(currentOwnerId\.current === submitOwnerId\) setError\(message\)/);
 });
