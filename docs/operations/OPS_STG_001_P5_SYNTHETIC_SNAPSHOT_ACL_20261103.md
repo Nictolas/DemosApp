@@ -92,3 +92,8 @@ Verificato tramite metadati live Supabase: il progetto `Demos-Staging` esegue **
 Ogni job verifica che la versione **reale** del server PostgreSQL sia quella richiesta dalla matrice: `CIVIC_CI_POSTGRES_MAJOR=16` o `17`; un mismatch interrompe prima delle prove. Le migrazioni P0 e P1–P5, gli ACL sintetici, le garanzie privacy dei dieci voti e il servizio Node effettivo girano su database effimeri e isolati per entrambe le versioni.
 
 Questo collaudo corregge lo scarto di versione fra CI e staging senza autorizzare test su Render o creare nuove risorse persistenti. **Non conclude** la verifica di credenziali, TLS, ruoli o ACL applicativi dello staging condiviso; per tutti permane NO-GO.
+
+
+## Aggiornamento 05/11/2026 — compatibilità con QA notifiche civiche
+
+La condizione iniziale «esattamente due utenti nel database» non riflette più il Demos-Staging reale: i due vecchi account sintetici `pending` coesistono con gli account di prova `DEMOS_CIVIC_QA_20261104_ON` e `DEMOS_CIVIC_QA_20261104_OFF`, entrambi `a` e `PERSON`. La protezione proposta mantiene obbligatori i due UUID originali e accetta **solo** questa coppia aggiuntiva esatta, non altri profili. Gli account QA aggiuntivi **non ottengono accesso ai ballot, ai cooldown o agli snapshot**: le policy restano limitate agli UUID originali e al processo sintetico. Le modifiche sono preparate in un ramo separato per verifica CI PG16/PG17; applicazione sullo staging soltanto dopo i controlli e con l'approvazione transazionale originale. Nessuna cancellazione account, nessun cambio alla guardia push, nessun privilegio per anon/authenticated. Questo non equivale a E2E Android né a GO release.
