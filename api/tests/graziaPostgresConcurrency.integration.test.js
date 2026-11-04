@@ -92,6 +92,8 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     assert.equal(queue.status,200);
     assert.equal(queue.json.length,1);
     assert.equal(queue.json[0].id,id);
+    assert.deepEqual(Object.keys(queue.json[0]).sort(), ['createdAt','id','nome','urlProva'].sort(),
+      'Admin moderation queue must not return the proposal owner identifier');
     assert.equal((await req('/api/grazia/mia-proposta','b')).json.richiesta,null);
     const own=await req('/api/grazia/mia-proposta','a');
     assert.equal(own.json.richiesta.status,'pending');
