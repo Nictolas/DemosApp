@@ -55,7 +55,6 @@ on:
   push:
     branches:
       - ops/demos-unified-staging-20261102
-      - qa/demos10-t55-session-continuity-20261104
     paths:
       - 'api/staging/unified_staging_bootstrap.js'
       - 'api/staging/unified_staging_preflight_server.js'

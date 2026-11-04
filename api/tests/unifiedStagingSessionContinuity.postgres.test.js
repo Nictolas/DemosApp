@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 // The only permitted database is the ephemeral CI PostgreSQL service on loopback.
 // Never connect to Render, Supabase, or a local user's existing database.
@@ -44,4 +44,3 @@ test('real PG16/17 session identity persists across read-only transaction bounda
     await client.end();
   }
 });
-
