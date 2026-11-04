@@ -38,10 +38,12 @@ test('backend rejects fake or malformed FCM tokens before token persistence', ()
   const route = read('api/routes/fcm-tokens.js');
   assert.match(route, /token\.length > 100 && !token\.startsWith\('web_'\)/);
   const validation = route.indexOf('if (!isValidFcmToken(token))');
-  const existingLookup = route.indexOf('const existingTokens = await getLegacyTokens(userId);', validation);
-  const legacyWrite = route.indexOf("await updateLegacyTokens(userId, updatedTokens);", validation);
+  const lock = route.indexOf('return await withCivicPushDeliveryLock(pool, async (db) => {', validation);
+  const existingLookup = route.indexOf('const existingTokens = await getLegacyTokens(userId, db);', validation);
+  const legacyWrite = route.indexOf("await updateLegacyTokens(userId, updatedTokens, db);", validation);
   assert.ok(validation >= 0);
-  assert.ok(existingLookup > validation);
+  assert.ok(lock > validation, "reject invalid tokens before acquiring the civic delivery lock");
+  assert.ok(existingLookup > lock);
   assert.ok(legacyWrite > validation);
   assert.doesNotMatch(route, /Token: \$\{token\.substring/);
 });
