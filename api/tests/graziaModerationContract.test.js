@@ -129,3 +129,19 @@ test('Grazia serializes equivalent names across different users in the single qu
   assert.match(submission,/alreadyProposed\.rows\.length/);
   assert.match(submission,/return res\.status\(409\)\.json\(\{success:false,error:'Questo soggetto è già stato proposto'/);
 });
+
+test('Grazia legacy duplicate requests cannot approve or revive a catalogue entry twice', () => {
+  const source=read('api/routes/grazia.js');
+  const review=source.slice(source.indexOf("router.post('/richiesta/:id/:action'"));
+  const begin=review.indexOf("await client.query('BEGIN')");
+  const lock=review.indexOf('pg_advisory_xact_lock(hashtextextended');
+  const existing=review.indexOf("FROM richieste_grazia WHERE id<>$1 AND status='approved'");
+  const insert=review.indexOf("INSERT INTO grazia_carcerati (nome, attivo)");
+  assert.ok(begin>=0 && lock>begin && existing>lock && insert>existing,
+    'old pending duplicate approvals must share the canonical name transaction lock');
+  assert.match(review,/priorApproval\.rows\.length \|\| retired\.rows\.length \|\| catalogue\.rows\.length/);
+  assert.match(review,/ON CONFLICT DO NOTHING RETURNING id/);
+  assert.match(review,/inserted\.rowCount !== 1/);
+  assert.doesNotMatch(review,/UPDATE grazia_carcerati SET attivo = true/i,
+    'approval must not reactivate an existing catalogue entry');
+});
