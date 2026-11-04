@@ -240,6 +240,34 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
       ['persona sintetica con doppio spazio']
     );
     assert.equal(samePending.rows[0].n,1,'all submissions share the existing Grazia queue');
+
+    // Pre-migration records can already contain two pending names that are
+    // equivalent after Unicode/whitespace canonicalization. Their Admin
+    // approvals must serialize as strictly as new submissions.
+    const oldOne='legacy-canonical-a', oldTwo='legacy-canonical-b';
+    await pool.query(
+      "INSERT INTO richieste_grazia(id,utente_id,nome,url_prova,status) VALUES($1,$2,$3,$4,'pending'),($5,$6,$7,$8,'pending')",
+      [oldOne,A,'Persona legacy con  doppio spazio','https://example.org/legacy/a',
+       oldTwo,B,'  Persona legacy con doppio spazio  ','https://example.org/legacy/b']
+    );
+    const legacyDecision=await Promise.all([
+      req('/api/grazia/richiesta/'+oldOne+'/accetta','admin','POST'),
+      req('/api/grazia/richiesta/'+oldTwo+'/accetta','admin','POST')
+    ]);
+    assert.equal(legacyDecision.filter(x=>x.status===200).length,1,
+      'only one historical duplicate can become approved');
+    assert.equal(legacyDecision.filter(x=>x.status===409).length,1,
+      'second historical duplicate must remain pending and not publish again');
+    const approvedLegacy=await pool.query(
+      "SELECT COUNT(*)::integer n FROM richieste_grazia WHERE id=ANY($1::varchar[]) AND status='approved'",
+      [[oldOne,oldTwo]]
+    );
+    assert.equal(approvedLegacy.rows[0].n,1);
+    const legacyCatalogue=await pool.query(
+      "SELECT COUNT(*)::integer n FROM grazia_carcerati WHERE attivo=TRUE AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g')))=$1",
+      ['persona legacy con doppio spazio']
+    );
+    assert.equal(legacyCatalogue.rows[0].n,1,'no duplicate active catalogue row');
   } finally {
     if(server?.listening)await new Promise(resolve=>server.close(resolve));
     await pool.end();
