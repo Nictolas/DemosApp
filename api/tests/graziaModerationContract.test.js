@@ -109,7 +109,9 @@ test('Grazia pending Admin queue includes only fields needed for review', () => 
     source.indexOf("router.get('/mia-proposta'")
   );
   assert.match(route,/verifyToken, requireAdmin/);
-  assert.match(route,/private|personalNoStore/);
-  assert.match(route,/SELECT id, nome, url_prova AS \\"urlProva\\", data_creazione AS \\"createdAt\\"/);
-  assert.doesNotMatch(route,/utente_id\\s+AS\\s+\\?["']?userId/i);
+  assert.match(route,/personalNoStore/);
+  assert.match(route,/SELECT id, nome, url_prova AS/);
+  assert.match(route,/data_creazione AS/);
+  assert.doesNotMatch(route,/utente_id/);
+  assert.doesNotMatch(route,/proposer_user_id/);
 });
