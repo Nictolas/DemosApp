@@ -22,7 +22,7 @@ function resolvePreflightConnectionString(env) {
     throw new Error('STAGING_PREFLIGHT_CREDENTIAL_AMBIGUOUS');
   }
   if (typeof plain === 'string' && plain.length > 0) {
-    if (plain.length < 24 || plain.length > 512 || /[\\r\\n\\0]/.test(plain)) {
+    if (plain.length < 24 || plain.length > 512 || /[\r\n\0]/.test(plain)) {
       throw new Error('STAGING_PREFLIGHT_PASSWORD_INVALID');
     }
     return 'postgresql://demos_staging_preflight.' + STAGING_PROJECT_REF + ':' +
