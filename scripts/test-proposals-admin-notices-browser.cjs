@@ -56,8 +56,10 @@ function json(route,status,data){
       assert.equal(auditReads,0,'no private audit GET on page mount');
       assert.equal(withdrawReads,0,'no withdrawal GET on page mount');
       await page.getByRole('button',{name:'Rifiuta'}).click();
+      // The current toast system renders a visible toast and an accessible live
+      // announcement. Either copy indicates the same success notification.
       await page.getByText('Esito registrato, ma notifica non confermata.',{exact:false})
-        .waitFor({timeout:15000});
+        .first().waitFor({timeout:15000});
       assert.equal(decisionWrites,1);
       await page.getByRole('button',{name:'Avvisi da verificare'}).click();
       await page.getByText('Avviso iniziale non confermato.',{exact:false})
