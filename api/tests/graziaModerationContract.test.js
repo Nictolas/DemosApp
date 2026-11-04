@@ -89,3 +89,15 @@ test('Grazia withdrawal remains on its own queue, keeps votes and has private au
   assert.match(ui,/enabled:!!user && isAdmin && showUnconfirmed/);
   assert.match(ui,/api\/grazia\/richiesta\/\$\{encodeURIComponent\(id\)\}\/ritira/);
 });
+
+test('Grazia voting locks the approved catalogue row inside its own transaction', () => {
+  const route=read('api/routes/grazia.js');
+  const voting=route.split("router.post('/vota'")[1].split('// Grazia keeps one canonical queue')[0];
+  const begin=voting.indexOf("await client.query('BEGIN')");
+  const lock=voting.indexOf("'SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome)) = LOWER($1) FOR SHARE'");
+  const deletion=voting.indexOf("DELETE FROM voti_grazia");
+  assert.ok(begin>=0 && lock>begin && deletion>lock,
+    'a candidate must remain locked from its recheck through deleting/inserting preferences');
+  assert.match(voting,/if \(!stillActive\.rows\.length\) \{\s*await client\.query\('ROLLBACK'\);\s*return res\.status\(422\)/);
+  assert.doesNotMatch(voting.slice(lock,deletion),/await client\.query\('COMMIT'\)/);
+});
