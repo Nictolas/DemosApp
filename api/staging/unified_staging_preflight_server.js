@@ -146,7 +146,7 @@ async function startPreflightServer(env=process.env, {runPreflight=run,runRuntim
   // or expose provider error details in logs or public HTTP endpoints.
   const runtimeAuditApproval=env.CIVIC_STAGING_RUNTIME_AUDIT_GO;
   if (runtimeAuditApproval && runtimeAuditApproval!=='') {
-    const {APPROVAL,runIsolatedRuntimeLockAudit}=
+    const {APPROVAL,runIsolatedRuntimeLockAudit,classifyRuntimeAuditFailure}=
       require('./runtime_staging_lock_audit');
     if (runtimeAuditApproval!==APPROVAL)
       throw new Error('STAGING_RUNTIME_AUDIT_INVALID_APPROVAL');
@@ -157,8 +157,8 @@ async function startPreflightServer(env=process.env, {runPreflight=run,runRuntim
       } else {
         console.error('STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED');
       }
-    } catch {
-      console.error('STAGING_RUNTIME_LOCK_AUDIT_NOT_VERIFIED');
+    } catch (error) {
+      console.error(classifyRuntimeAuditFailure(error));
     }
   }
   const server=createPreflightServer({sessionPoolerContinuityObserved:
