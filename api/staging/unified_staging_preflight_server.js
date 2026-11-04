@@ -6,6 +6,8 @@
 // treat this process as authorized for operational use.
 const http = require('node:http');
 const {assertStagingTarget, run} = require('../scripts/unifiedStagingPreflight');
+// Host copied from the Demos-Staging Supabase Connect / Shared pooler screen.
+const CONFIRMED_STAGING_POOLER_HOST = 'aws-1-eu-central-1.pooler.supabase.com';
 
 const MUST_BE_DISABLED = Object.freeze([
   'CIVIC_PUSH_ENABLED',
@@ -43,6 +45,7 @@ function validatePreflightEnvironment(env) {
   assertStagingTarget(env.STAGING_PREFLIGHT_DATABASE_URL, env);
   const expectedHost=env.STAGING_PREFLIGHT_EXPECTED_POOLER_HOST;
   if (typeof expectedHost !== 'string' ||
+      expectedHost !== CONFIRMED_STAGING_POOLER_HOST ||
       !/^aws-[0-9]+-eu-central-1\.pooler\.supabase\.com$/.test(expectedHost)) {
     throw new Error('STAGING_PREFLIGHT_EXACT_POOLER_HOST_REQUIRED');
   }
