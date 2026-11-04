@@ -67,3 +67,11 @@ Non introdurre "consenso implicito" attribuito a terze persone, non considerare 
 
 - GDPR integrale, [Regolamento (UE) 2016/679, EUR-Lex](https://eur-lex.europa.eu/eli/reg/2016/679/oj).
 - EDPB, [Linee guida sulla trasparenza (WP260 rev.01)](https://www.edpb.europa.eu/system/files/2023-09/wp260rev01_en.pdf), in particolare informazioni raccolte indirettamente da altre persone.
+
+## Revisione DEMOS 12 — gestione connessioni e notifiche (04/11/2026)
+
+- **Nuova proposta generica:** l'INSERT della coda `subject_proposals` è confermato con `COMMIT` prima della notifica neutra all'Admin. Il client PostgreSQL della transazione viene rilasciato prima della successiva `pool.query`: anche con pool a una sola connessione non deve trattenere il client mentre attende un nuovo collegamento. L'API restituisce `201 pending` e `notification_sent=false` se l'avviso non viene scritto. La coda di moderazione resta autorevole.
+- **Decisione Admin generica:** approvazione/rifiuto e pubblicazione sono transazionali; il client del COMMIT è rilasciato prima della notifica privata al proponente. Se la notifica fallisce, la decisione già confermata resta valida e la risposta Admin indica `notification_sent=false`, senza nomi di terzi.
+- **Recupero non ancora implementato:** per invio e decisione non esiste outbox persistente e idempotente delle notifiche fallite; il solo flag HTTP non garantisce recupero dopo la chiusura del pannello o un crash. Non dichiarare consegna avvenuta né introdurre reinvii automatici potenzialmente duplicati. Serve decisione DPO/prodotto su escalation, minimizzazione e retention. Il ritiro Attivisti/Organizzazioni mantiene il campo persistente `withdraw_notification_sent` già documentato.
+- **Compatibilità:** cinque categorie invariate; Grazia sulla propria coda `richieste_grazia`. La categoria «Altra» richiede una decisione canonica e non è attivata. Nessuna modifica allo staging condiviso, a FCM o alla produzione. Composizione con `main` soltanto locale, non pubblicata.
+- **Evidenze 04/11:** 52/52 test Node sul ramo del fix; composizione locale precedente con `main`: 54/54 Node, build Vite PASS, Chrome mobile simulato 320×568 e 390×844 PASS. PostgreSQL 17 sul nuovo commit non ancora attestato; staging reale, Android fisico e approvazioni GDPR restano NO-GO.
