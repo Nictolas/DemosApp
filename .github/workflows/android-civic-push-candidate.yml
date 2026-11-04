@@ -29,6 +29,59 @@ jobs:
           node --test client/scripts/verify-android-civic-push-candidate.test.mjs
           node --test api/tests/androidAuthNativePushIntegration.test.js
 
+  synthetic-bundle-proof:
+    # Verify actual Vite/Capacitor output on a disposable runner with a
+    # deliberately INVALID/nonfunctional Firebase test client. No AAB, FCM
+    # sends, secrets, shared staging or artifacts are ever produced.
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    needs: [offline-prerequisites]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install pinned client toolchain
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Create disposable nonfunctional Firebase test fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e client/android/app/google-services.json
+          cat > client/android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "demos-finale",
+              "storage_bucket": "synthetic.invalid"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                  "android_client_info": {"package_name": "community.demos"}
+                },
+                "api_key": [{"current_key": "SYNTHETIC_CI_NOT_A_VALID_KEY"}]
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+      - name: Verify push-enabled JS build and Capacitor sync, without APK
+        working-directory: client
+        run: |
+          npm run android:sync:push
+          node scripts/verify-android-civic-push-candidate.mjs --built
+      - name: Confirm no Firebase credentials or native APK artifact leaked
+        shell: bash
+        run: |
+          test ! -f client/android/app/build/outputs/bundle/release/app-release.aab
+          test ! -f client/android/app/build/outputs/apk/debug/app-debug.apk
+          test ! -f client/android/keystore.properties
+          git status --porcelain --untracked-files=no | head -n 25
+
   manual-build:
     # A PR cannot access Firebase configuration or create an AAB from secrets.
     # A human must dispatch this workflow from the reviewed main branch.
