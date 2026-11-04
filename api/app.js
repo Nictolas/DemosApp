@@ -1,6 +1,6 @@
 require('dotenv').config();
 // Direct app imports must never bypass the staging-only startup gate.
-const {assertStagingAppCanary,shouldMountDevApiSurface}=
+const {assertStagingAppCanary,shouldMountDevApiSurface,isReadOnlyCanaryRequest}=
   require('./staging/unified_staging_app_safety');
 const stagingGuard=assertStagingAppCanary(process.env);
 if (stagingGuard.active &&
@@ -149,6 +149,15 @@ const isProductionApp = process.env.NODE_ENV === 'production';
 const mountDevApiSurface = shouldMountDevApiSurface(process.env);
 
 const app = express();
+// Never expose the full route tree on the first staging application canary.
+if (isStagingApp) {
+  app.use((req,res,next)=>{
+    if (!isReadOnlyCanaryRequest(req.method,req.path)) {
+      return res.status(404).json({error:'not_found'});
+    }
+    next();
+  });
+}
 
 // Configurazione per proxy (necessario per rate limiting in produzione)
 // In produzione, fidati solo dei proxy di Render
