@@ -69,7 +69,7 @@ function reply(route,body,status=200){
    assert.equal(reads.withdrawals.length,1);
    assert.equal(reads.proposals.length,1);
    await page.getByRole('button',{name:'Carica altri avvisi da verificare'}).click();
-   await page.waitForFunction(()=>document.querySelectorAll('article').length===210,{timeout:20000});
+   await page.waitForFunction(()=>document.querySelectorAll('article').length===210,null,{timeout:20000});
    assert.equal(reads.withdrawals.length,2,'second withdrawal audit page requires click');
    assert.equal(reads.proposals.length,2,'second notice audit page requires click');
    assert.equal(await page.getByRole('button',{name:'Carica altri avvisi da verificare'}).count(),0);
