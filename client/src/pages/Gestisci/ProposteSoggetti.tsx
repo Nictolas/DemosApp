@@ -37,6 +37,8 @@ export default function ProposteSoggetti() {
   const [showUndelivered, setShowUndelivered] = useState(false);
   const [undelivered, setUndelivered] = useState<WithdrawalNotice[]>([]);
   const [unconfirmedProposals, setUnconfirmedProposals] = useState<UnconfirmedProposalNotice[]>([]);
+  const [withdrawalAuditCursor, setWithdrawalAuditCursor] = useState<string | null>(null);
+  const [proposalAuditCursor, setProposalAuditCursor] = useState<string | null>(null);
   const [loadingUndelivered, setLoadingUndelivered] = useState(false);
   const [loadingApproved, setLoadingApproved] = useState(false);
   const [undeliveredNotification, setUndeliveredNotification] = useState(false);
@@ -137,6 +139,8 @@ export default function ProposteSoggetti() {
       const proposals = await proposalResponse.json();
       setUndelivered(withdrawal.withdrawals || []);
       setUnconfirmedProposals(proposals.proposals || []);
+      setWithdrawalAuditCursor(withdrawal.next_cursor || null);
+      setProposalAuditCursor(proposals.next_cursor || null);
       setUndeliveredNotification((withdrawal.withdrawals || []).length > 0 || (proposals.proposals || []).length > 0);
     } catch (_) {
       // Do not display a stale "all sent" confirmation if the audit is unavailable.
@@ -145,6 +149,44 @@ export default function ProposteSoggetti() {
       setLoadingUndelivered(false);
     }
   }, [isAdmin]);
+
+  // Both audit queues have independent cursors. Read only on explicit Admin action;
+  // never retry a personal notification merely because an item is visible here.
+  const loadMoreUndelivered = async () => {
+    if (!isAdmin || loadingUndelivered || submittingId || (!withdrawalAuditCursor && !proposalAuditCursor)) return;
+    setLoadingUndelivered(true);
+    setError(null);
+    try {
+      const [withdrawal, proposals] = await Promise.all([
+        withdrawalAuditCursor
+          ? apiRequest("GET", "/api/subject-proposals/admin/withdraw-notifications?cursor=" +
+              encodeURIComponent(withdrawalAuditCursor)).then(r => r.json())
+          : Promise.resolve(null),
+        proposalAuditCursor
+          ? apiRequest("GET", "/api/subject-proposals/admin/notification-audit?cursor=" +
+              encodeURIComponent(proposalAuditCursor)).then(r => r.json())
+          : Promise.resolve(null),
+      ]);
+      if (withdrawal) {
+        setUndelivered(old => {
+          const existing = new Set(old.map(item => item.id));
+          return [...old, ...(withdrawal.withdrawals || []).filter((item: WithdrawalNotice) => !existing.has(item.id))];
+        });
+        setWithdrawalAuditCursor(withdrawal.next_cursor || null);
+      }
+      if (proposals) {
+        setUnconfirmedProposals(old => {
+          const existing = new Set(old.map(item => item.id));
+          return [...old, ...(proposals.proposals || []).filter((item: UnconfirmedProposalNotice) => !existing.has(item.id))];
+        });
+        setProposalAuditCursor(proposals.next_cursor || null);
+      }
+    } catch (_) {
+      setError("Impossibile caricare gli avvisi precedenti. Riprova.");
+    } finally {
+      setLoadingUndelivered(false);
+    }
+  };
 
   const switchPending = () => {
     setShowApproved(false);
@@ -328,7 +370,13 @@ export default function ProposteSoggetti() {
               </p>
             </article>
           ))}
-          {showApproved && approved.map(p => (
+          {showUndelivered && !loadingUndelivered && (withdrawalAuditCursor || proposalAuditCursor) && (
+             <Button type="button" variant="outline" className="w-full"
+               onClick={() => void loadMoreUndelivered()} disabled={!!submittingId}>
+               Carica altri avvisi da verificare
+             </Button>
+           )}
+           {showApproved && approved.map(p => (
             <article key={p.id} className="space-y-2 rounded-xl border bg-white p-3 shadow-sm">
               <p className="text-xs font-medium text-slate-600">{CATEGORY_LABELS[p.category]}</p>
               <h2 className="break-words text-base font-semibold">{p.title}</h2>
