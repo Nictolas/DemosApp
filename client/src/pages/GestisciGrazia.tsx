@@ -16,7 +16,6 @@ type GraziaRequest = {
   id: string;
   nome: string;
   urlProva: string | null;
-  userId: string;
   createdAt: string;
 };
 
