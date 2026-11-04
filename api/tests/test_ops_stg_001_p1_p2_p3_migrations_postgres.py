@@ -116,7 +116,7 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             VALUES (%s,'DEMOS_CIVIC_QA_20261104_ON','a','PERSON'),
                    (%s,'DEMOS_CIVIC_QA_20261104_OFF','a','PERSON')""",
                     (qa_on, qa_off))
-        cur.execute("SET LOCAL " + approval_key + "=%s", (approval_value,))
+        cur.execute("SET LOCAL " + approval_key + "='" + approval_value + "'")
         cur.execute(acl)
         cur.execute("ROLLBACK")
         cur.execute("BEGIN")
@@ -124,7 +124,7 @@ class P1P2P3StagingMigrationsPostgresTest(unittest.TestCase):
             VALUES (%s,'DEMOS_CIVIC_QA_20261104_ON','a','PERSON'),
                    (%s,'UNRECOGNIZED_ACCOUNT','a','PERSON')""",
                     (qa_on, qa_off))
-        cur.execute("SET LOCAL " + approval_key + "=%s", (approval_value,))
+        cur.execute("SET LOCAL " + approval_key + "='" + approval_value + "'")
         with self.assertRaisesRegex(psycopg2.Error, error_name):
             cur.execute(acl)
         cur.execute("ROLLBACK")
