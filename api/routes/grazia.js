@@ -526,6 +526,17 @@ router.post('/richiesta/:id/:action', personalNoStore, verifyToken, requireAdmin
     }
     const richiesta = result.rows[0];
     if (approved) {
+      // Legacy requests may predate the cross-account submission lock.
+      // Serialize approval for the same canonical subject as well, so two
+      // historical pending rows cannot both become approved.
+      await client.query(
+        "SELECT pg_advisory_xact_lock(hashtextextended(lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))), 12004))",
+        [richiesta.nome]
+      );
+      const priorApproval=await client.query(
+        "SELECT id FROM richieste_grazia WHERE id<>$1 AND status='approved' AND withdrawn_at IS NULL AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($2::text, NFC), '[[:space:]]+', ' ', 'g'))) LIMIT 1",
+        [richiesta.id,richiesta.nome]
+      );
       // A withdrawn catalogue subject must not be republished through an
       // older pending request, nor through a previously inactive legacy row.
       const retired=await client.query(
@@ -538,12 +549,20 @@ router.post('/richiesta/:id/:action', personalNoStore, verifyToken, requireAdmin
         "SELECT id,attivo FROM grazia_carcerati WHERE lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) FOR UPDATE",
         [richiesta.nome]
       );
-      if (retired.rowCount || catalogue.rows.some(row=>row.attivo!==true)) {
+      if (priorApproval.rows.length || retired.rows.length || catalogue.rows.length) {
         await client.query('ROLLBACK');
         return res.status(409).json({success:false,error:'Catalogo Grazia non ripubblicabile'});
       }
-      await client.query('INSERT INTO grazia_carcerati (nome, attivo) VALUES ($1,true) ON CONFLICT DO NOTHING', [richiesta.nome]);
-      await client.query('UPDATE grazia_carcerati SET attivo = true WHERE LOWER(BTRIM(nome)) = LOWER(BTRIM($1))', [richiesta.nome]);
+      // Require a NEW catalogue row. Never revive an inactive legacy entry or
+      // silently approve a second request when a unique insert loses a race.
+      const inserted=await client.query(
+        'INSERT INTO grazia_carcerati (nome, attivo) VALUES ($1,true) ON CONFLICT DO NOTHING RETURNING id',
+        [richiesta.nome]
+      );
+      if (inserted.rowCount !== 1) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({success:false,error:'Catalogo Grazia già presente'});
+      }
     }
     const status = approved ? 'approved' : 'rejected';
     await client.query("UPDATE richieste_grazia SET status = $1 WHERE id = $2 AND status = 'pending'", [status, richiesta.id]);
