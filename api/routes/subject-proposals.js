@@ -240,7 +240,7 @@ router.post('/admin/:id/withdraw', verifyToken, requireAdmin, async (req, res) =
       }
     }
     await client.query(
-      "UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now(), withdrawn_by=$2, withdraw_note=$3, published_ref=NULL, withdraw_notification_sent=FALSE WHERE id=$1 AND status='approved'",
+      "UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now(), withdrawn_by=$2, withdraw_note=$3, withdraw_notification_sent=FALSE WHERE id=$1 AND status='approved'",
       [withdrawn.id, req.user.id, note]
     );
     await client.query('COMMIT');

@@ -225,7 +225,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       proposal('amnistia',amnistia.body.proposal.title))).status,409);
     for (const id of [capoId,amnistiaId]) {
       const audit=await pool.query(
-        'SELECT status,withdrawn_by,withdrawn_at,withdraw_note,reviewed_by,reviewed_at FROM subject_proposals WHERE id=$1',
+        'SELECT status,withdrawn_by,withdrawn_at,withdraw_note,reviewed_by,reviewed_at,published_ref FROM subject_proposals WHERE id=$1',
         [id]);
       assert.equal(audit.rows[0].status,'withdrawn');
       assert.equal(audit.rows[0].withdrawn_by,ADMIN);
@@ -233,6 +233,9 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       assert.equal(audit.rows[0].withdraw_note,'Ritiro cautelativo');
       assert.equal(audit.rows[0].reviewed_by,ADMIN);
       assert.ok(audit.rows[0].reviewed_at);
+      assert.equal(audit.rows[0].published_ref,
+        id===capoId ? approval.body.published_ref : approvedAmnistia.body.published_ref,
+        'withdrawn voting catalogue keeps its original private publication reference');
     }
     const beforeWithdraw=await pool.query(
       'SELECT reviewed_at,reviewed_by,review_note FROM subject_proposals WHERE id=$1',[orgId]
@@ -252,7 +255,8 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.ok(withdrawn.withdrawn_at);
     assert.equal(withdrawn.withdrawn_by,ADMIN);
     assert.equal(withdrawn.withdraw_note,'Ritiro cautelativo');
-    assert.equal(withdrawn.published_ref,null);
+    assert.equal(withdrawn.published_ref,orgId,
+      'private historical reference is preserved without restoring the public directory');
     assert.deepEqual({
       reviewed_at:withdrawn.reviewed_at,
       reviewed_by:withdrawn.reviewed_by,

@@ -197,3 +197,18 @@ test('Capo di Stato and Amnistia withdrawal hides catalogue entries but never de
   assert.match(ui,/gli eventuali voti storici resteranno conservati/);
   assert.doesNotMatch(withdrawal,/richieste_grazia|grazia_carcerati/,'Grazia has separate approval and withdrawal');
 });
+
+test('withdrawal retains private catalogue reference while public directory excludes withdrawn names', () => {
+  const route=file('api/routes/subject-proposals.js');
+  const withdraw=route.split("router.post('/admin/:id/withdraw'")[1].split("// Atomic review:")[0];
+  const directory=route.split("router.get('/approved'")[1].split("// One outstanding proposal")[0];
+  const admin=route.split("router.get('/admin/approved'")[1].split("// Audit-only review")[0];
+  assert.match(withdraw,/UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now\(\)/);
+  assert.doesNotMatch(withdraw,/published_ref\s*=\s*NULL/,
+    'do not destroy the private source-to-catalogue audit link');
+  assert.match(directory,/status='approved'/);
+  assert.doesNotMatch(directory,/published_ref/,
+    'historic catalogue pointer must not be sent to public clients');
+  assert.doesNotMatch(admin,/SELECT[^\n]*published_ref/,
+    'Admin quick listings retain minimized fields');
+});
