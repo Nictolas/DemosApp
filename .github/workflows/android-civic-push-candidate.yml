@@ -13,6 +13,8 @@ on:
       - 'client/src/hooks/useAuthLogin.ts'
       - 'api/tests/civicNotificationResume.test.mjs'
       - 'client/src/hooks/useSyncFcmToken.ts'
+      - 'client/src/lib/push-permission-events.ts'
+      - 'client/src/hooks/useFCM.ts'
       - 'client/src/pages/NotifichePreferenze.tsx'
       - 'api/tests/nativePushExplicitPermission.test.js'
       - 'client/src/pages/IniziativePopolari/index.tsx'
