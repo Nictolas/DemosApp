@@ -61,3 +61,17 @@ Il preflight verifica ora anche:
 - **Policy effettive:** soltanto due policy `SELECT (id=1)` applicabili al ruolo; rifiuto di policy `PUBLIC` o di ulteriori policy per il ruolo.
 
 Questi controlli sono testati offline con fixture sintetiche. Non equivalgono a prova di TLS, session pooler o ricezione Android. Gli E2E Android restano **0/6**, avanzamento stimato **65%** fino a un gate reale superato.
+
+## Verifica manuale console Supabase — 04/11/2026 ore 09:34 CET
+
+**Fonte:** risposte dell'operatore e schermate della console Supabase `Demos-Staging` condivise nella conversazione DEMOS 10. Non si tratta di un test runtime PostgreSQL Render.
+
+- **Ruolo:** l'operatore ha confermato che `demos_staging_preflight` compare nella schermata Roles. La sola presenza **non certifica** password NULL, membership, grants o assenza di privilegi elevati.
+- **Policy:** nella schermata Policies sono visibili `stg_preflight_identity_id1` su `civic_runtime_identity` e `stg_preflight_guard_id1` su `civic_push_delivery_guard`; entrambe mostrano `SELECT`, con il ruolo troncato visivamente a `demos_sta...`. Nome del ruolo completo, condizione `id=1` e assenza di altre policy applicabili **non verificati interamente** da queste immagini.
+- **Guardia invii:** l'operatore ha aperto Table Editor e ha confermato verbalmente che nella riga `id=1` di `public.civic_push_delivery_guard` la colonna `blocked` è `true`. Fonte: attestazione dell'operatore, non query provider indipendente.
+
+**Esito parziale:** l'incertezza precedente sull'esistenza del ruolo e delle due policy è ridotta dalla verifica della console. Il guard `blocked=true` è confermato dall'operatore. Restano **NO-GO** verifica privilegi effettivi, predicato delle policy e connessione fisica al pooler session IPv4:5432 TLS dal contesto Render. Il ruolo creato con `PASSWORD NULL`, se non modificato da altri operatori, non dispone di un segreto con cui effettuare login: non tentare un preflight runtime ancora. Il passaggio ai secret richiede un percorso autorizzato e separato, senza incollare credenziali in chat o fogli.
+
+**Azione utente immediata:** nessun'altra interazione necessaria per il solo controllo del guard. Evitare nuove richieste ridondanti di screenshot e accorpare le prossime autorizzazioni tecniche in un solo passaggio quando esiste un percorso realizzabile.
+
+**Stato generale:** T-55 Render–Supabase ancora NO-GO, E2E Android 0/6, completamento convenzionale 65%; nessun invio FCM, deploy o modifica di produzione.
