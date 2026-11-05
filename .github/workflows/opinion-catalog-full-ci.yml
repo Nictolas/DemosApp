@@ -18,6 +18,8 @@ on:
       - 'client/src/lib/opinionTopicProgress.ts'
       - 'client/src/components/OpinioniTopicsMenu.tsx'
       - 'client/tests/opinionTopicProgress.test.mjs'
+      - 'client/tests/opinionTopicDrafts.test.mjs'
+      - 'client/src/lib/opinionTopicDrafts.ts'
       - 'client/src/pages/Opinioni*.tsx'
       - 'api/config/publicCachePolicy.js'
       - 'client/src/pages/GestisciOpinioni/**'
@@ -84,6 +86,8 @@ jobs:
         run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Verify thematic completion and owner-consent cache behavior
         run: node --test client/tests/opinionTopicProgress.test.mjs
+      - name: Verify thematic draft rebase and cross-account discard
+        run: node --test client/tests/opinionTopicDrafts.test.mjs
       - name: Exercise real PostgreSQL API and production client save/readback (synthetic DB only)
         env:
           OPINION_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_opinion_ci
