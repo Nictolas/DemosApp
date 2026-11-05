@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, Mock, MagicMock
 import sys
 import os
+import io
 
 from api.scripts import sync_eci
 
@@ -432,6 +433,35 @@ class SyncEciUnitTests(unittest.TestCase):
     def test_main_returns_nonzero_on_sync_failure(self):
         with patch.object(sync_eci, "sync", side_effect=RuntimeError("boom")):
             self.assertEqual(sync_eci.main(["--dry-run"]), 1)
+
+    def test_main_never_logs_database_credentials_or_private_diagnostics(self):
+        # Deliberately include synthetic passwords, query parameters, and
+        # a fake personal identifier in an exception from the source layer.
+        private_exception = RuntimeError(
+            "could not connect postgresql://fake_user:TOP_SECRET_TEST_PASSWORD"
+            "@localhost:5432/fake_db?token=FAKE_SECRET_QUERY "
+            "data=PRIVATE_TEST_RECORD")
+        for argv in ([], ["--dry-run"]):
+            with self.subTest(argv=argv):
+                stderr = io.StringIO()
+                with patch.object(sync_eci, "sync", side_effect=private_exception), \
+                     patch.object(sys, "stderr", stderr):
+                    self.assertEqual(sync_eci.main(argv), 1)
+                self.assertEqual(stderr.getvalue().strip(),
+                                 "[ERR] ECI_SYNC_FAILED")
+                self.assertNotIn("TOP_SECRET_TEST_PASSWORD", stderr.getvalue())
+                self.assertNotIn("FAKE_SECRET_QUERY", stderr.getvalue())
+                self.assertNotIn("PRIVATE_TEST_RECORD", stderr.getvalue())
+
+    def test_main_does_not_convert_or_interpolate_unsafe_exception(self):
+        class UnsafeError(Exception):
+            def __str__(self):
+                raise AssertionError("SECURITY: exception must not be printed")
+        stderr = io.StringIO()
+        with patch.object(sync_eci, "sync", side_effect=UnsafeError()), \
+             patch.object(sys, "stderr", stderr):
+            self.assertEqual(sync_eci.main(["--dry-run"]), 1)
+        self.assertEqual(stderr.getvalue().strip(), "[ERR] ECI_SYNC_FAILED")
 
 
 if __name__ == "__main__":
