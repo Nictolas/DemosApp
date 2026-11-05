@@ -104,14 +104,22 @@ def _fetch_ongoing_entries(*, session=None) -> List[dict]:
         if not isinstance(batch, list):
             raise RuntimeError("API ECI: campo entries mancante o non valido")
 
+        # Every page belongs to the same authoritative snapshot. If the
+        # count changes mid-pagination, never mark missing initiatives as
+        # NOT_ONGOING or create civic events from a mixed source read.
         records_found = payload.get("recordsFound")
+        if isinstance(records_found, bool):
+            raise RuntimeError("ECI_OFFICIAL_TOTAL_INVALID")
+        try:
+            current_total = int(records_found)
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("ECI_OFFICIAL_TOTAL_INVALID") from exc
+        if current_total <= 0:
+            raise RuntimeError("API ECI: nessuna iniziativa ONGOING restituita; sync bloccato fail-closed")
         if expected_total is None:
-            try:
-                expected_total = int(records_found)
-            except (TypeError, ValueError) as exc:
-                raise RuntimeError("API ECI: recordsFound mancante o non valido") from exc
-            if expected_total <= 0:
-                raise RuntimeError("API ECI: nessuna iniziativa ONGOING restituita; sync bloccato fail-closed")
+            expected_total = current_total
+        elif current_total != expected_total:
+            raise RuntimeError("ECI_OFFICIAL_TOTAL_CHANGED")
 
         if not batch:
             break
@@ -122,10 +130,16 @@ def _fetch_ongoing_entries(*, session=None) -> List[dict]:
             if item.get("status") != STATUS:
                 raise RuntimeError(f"API ECI: status inatteso {item.get('status')!r} nel feed ONGOING")
             item_id = item.get("id")
+            if isinstance(item_id, bool) or not isinstance(item_id, (int, str)) or not str(item_id).isdigit():
+                raise RuntimeError("ECI_OFFICIAL_SOURCE_ID_INVALID")
+            # Duplicate IDs may indicate unstable ordering across source pages.
+            # Silently deduplicating can produce an incomplete mixed snapshot.
             if item_id in seen_ids:
-                continue
+                raise RuntimeError("ECI_OFFICIAL_SOURCE_DUPLICATE_ID")
             seen_ids.add(item_id)
             entries.append(item)
+        if len(entries) > expected_total:
+            raise RuntimeError("ECI_OFFICIAL_TOO_MANY_ITEMS")
 
         if len(entries) >= expected_total:
             break
