@@ -57,3 +57,15 @@ test('opinioni nuove o rimosse richiedono revisione della mappa', () => {
   for (const id of Object.keys(mapping)) assert.ok(publishedIds.has(id));
   assert.equal(publishedIds.size, Object.keys(mapping).length);
 });
+
+test('filtro provinciale C: tutti e soli gli ID pubblicati, senza query aggiuntive', () => {
+  const file = fs.readFileSync(path.join(root, 'client/src/lib/opinionProvincialIds.ts'), 'utf8');
+  const ids = [...file.matchAll(/^\s*"([a-z0-9_]+)",$/gm)].map(match => match[1]).sort();
+  const published = opinions.filter(q => q.gradi_opinione.includes('C')).map(q => q.id).sort();
+  assert.deepEqual(ids, published, 'Metadati C devono coincidere col catalogo ufficiale');
+  assert.equal(ids.length, 6);
+  assert.ok(opinions.filter(q => q.gradi_opinione.includes('C'))
+    .every(q => q.gradi_opinione.some(grade => ['E','N','R','CO'].includes(grade))),
+    'Una futura Opinione solo provinciale richiede una nuova API e revisione privacy');
+  assert.doesNotMatch(file, /apiRequest|fetch\s*\(|localStorage|indexedDB|supabase|SELECT\s+/i);
+});
