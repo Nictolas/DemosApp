@@ -395,7 +395,7 @@ router.delete('/:token', verifyToken, async (req, res) => {
       [userId, token]
     );
     const isOwned = existingTokens.includes(token) || device.rows.length > 0;
-    if (isOwned && isValidFcmToken(token)) {
+    if (isCivicPushEnabled() && isOwned && isValidFcmToken(token)) {
       const revocable = await onlyTokensNotOwnedByOthers(db, userId, [token]);
       if (revocable.includes(token)) await unsubscribeCivicTokenOrBlock(token, db);
     }
