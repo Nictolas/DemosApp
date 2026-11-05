@@ -3,7 +3,7 @@
 const Groq = require('groq-sdk');
 const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
 const { hasDocumentaryContext, MAX_CONTEXT_CHARS } = require('./parliamentGroundedAnalysis');
-const { requestFreeGroq, getSharedFreeQuotaStatus } = require('./parliamentFreeGroqBudget');
+const { requestFreeGroq, getSharedFreeQuotaStatus, classifyFreeGroqError } = require('./parliamentFreeGroqBudget');
 const { createSingleflight } = require('./parliamentAiSingleflight');
 const singleflightSpiegazione = createSingleflight();
 const { getPool } = require('../config/database');
@@ -123,11 +123,7 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
 
     return null;
   } catch (error) {
-    console.error(`❌ Errore nella generazione spiegazione AI (${aiProvider}):`, error.message);
-    console.error(`❌ Stack trace completo:`, error.stack);
-    if (error.message && error.message.includes('decommissioned')) {
-      console.warn('Modello non disponibile: verificare allowlist Groq Free e impostazioni Render');
-    }
+    console.error('Spiegazione AI Groq non disponibile:', classifyFreeGroqError(error));
     // Rilancia l'errore invece di restituire null, così l'endpoint può gestirlo
     throw error;
   }
@@ -153,7 +149,7 @@ async function salvaSpiegazione(politicoNome, spiegazione) {
     );
     return true;
   } catch (error) {
-    console.error(`❌ Errore nel salvataggio spiegazione per ${politicoNome}:`, error.message);
+    console.error('Salvataggio spiegazione parlamentare non riuscito');
     return false;
   }
 }
@@ -268,7 +264,7 @@ async function generaSpiegazioniMancanti(limit = 10) {
         // Pausa per evitare rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
-        console.error(`❌ Errore per ${row.politico_nome}:`, error.message);
+        console.error('Generazione spiegazione parlamentare non riuscita');
         errori++;
       }
     }
@@ -282,7 +278,7 @@ async function generaSpiegazioniMancanti(limit = 10) {
       rimanenti: limiteFinale.limite - limiteFinale.count
     };
   } catch (error) {
-    console.error('❌ Errore nella generazione spiegazioni mancanti:', error.message);
+    console.error('Generazione batch spiegazioni parlamentari non riuscita');
     return { successi: 0, errori: 0, limiteRaggiunto: false };
   }
 }
@@ -340,8 +336,7 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
 
     return spiegazione;
   } catch (error) {
-    console.error(`❌ Errore nella generazione spiegazione per votazione ${votazioneId}:`, error.message);
-    console.error(`❌ Stack trace:`, error.stack);
+    console.error('Generazione spiegazione per votazione non riuscita:', classifyFreeGroqError(error));
     // Rilancia l'errore per permettere all'endpoint di gestirlo e mostrare il messaggio dettagliato
     throw error;
   }
