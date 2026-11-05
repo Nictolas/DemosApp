@@ -190,7 +190,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
       body: JSON.stringify({ success: false, error: 'Synthetic failure' })
     }));
     await page.getByRole('button', { name: 'Salva le mie opinioni' }).click();
-    await page.getByText(/Salvataggio non confermato/).waitFor({ timeout: 12000 });
+    await page.getByText(/Salvataggio non confermato/).first().waitFor({ timeout: 12000 });
     assert.equal(await page.getByText('1 / 14 Opinioni salvate').count(), 1);
     await page.unroute('**/api/opinioni/salva');
 
