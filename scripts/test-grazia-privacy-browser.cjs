@@ -44,7 +44,18 @@ const reply=(route,data,status=200)=>route.fulfill({status,contentType:'applicat
         });
         await page.goto(BASE+'/grazia',{waitUntil:'domcontentloaded'});
         const contact=page.locator('a[href="mailto:privacy@demos.community"]');
-        await contact.waitFor({timeout:25000});
+        try {
+          await contact.waitFor({timeout:12000});
+        } catch (error) {
+          const diag=await page.evaluate(()=>({
+            path:location.pathname,
+            text:document.body.innerText.slice(0,1200),
+            links:Array.from(document.querySelectorAll('a[href]')).slice(0,12).map(x=>x.getAttribute('href'))
+          }));
+          throw new Error('Grazia privacy contact not rendered: '+JSON.stringify({
+            viewport,scenario,diag,personalReads,externalRequests,console:consoleEntries.slice(-6)
+          }));
+        }
         assert.equal(await contact.count(),1,'one privacy contact per scenario');
         assert.equal(await contact.getAttribute('href'),'mailto:privacy@demos.community');
         assert.equal(await contact.isVisible(),true,'contact must not be hidden');
