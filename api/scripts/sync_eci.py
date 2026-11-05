@@ -261,6 +261,18 @@ def _verify_civic_database_identity(cur, expected: Optional[str]) -> None:
         raise RuntimeError("CIVIC_DATABASE_IDENTITY_MISMATCH")
 
 
+def classify_new_eci_event_status(*, previous_ids: set, guard_blocked: bool, reason_code: Optional[str]) -> str:
+    """Never announce historical items on the first completed source import.
+
+    Even with push unblocked, a missing/empty cache is not proof that any
+    official initiative was newly registered. A later run can announce
+    genuinely new official IDs only after a baseline exists.
+    """
+    if not previous_ids or guard_blocked or reason_code == "EMERGENCY_STOP":
+        return "suppressed"
+    return "pending"
+
+
 def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
     if not database_url:
         raise RuntimeError("DATABASE_URL mancante")
@@ -280,11 +292,13 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                 # La cache eci viene sostituita interamente a ogni sync.
                 # Non usare trigger INSERT per riconoscere le novita'.
                 collection_enabled = os.environ.get("CIVIC_NEW_INITIATIVE_EVENTS_ENABLED") == "true"
-                if collection_enabled:
-                    # Fail closed BEFORE deleting/replacing the existing ECI cache.
-                    _verify_civic_database_identity(
-                        cur, os.environ.get("CIVIC_RUNTIME_DATABASE_ID")
-                    )
+                # Verify the exact canonical database on EVERY cache write,
+                # even when event collection is off. This prevents a future
+                # missing/misrouted GitHub Actions secret from silently
+                # replacing another database's ECI records.
+                _verify_civic_database_identity(
+                    cur, os.environ.get("CIVIC_RUNTIME_DATABASE_ID")
+                )
                 previous_ids = set()
                 if collection_enabled:
                     cur.execute("SELECT id FROM eci")
@@ -315,8 +329,10 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                     guard = cur.fetchone()
                     if guard is None:
                         raise RuntimeError("CIVIC_DELIVERY_GUARD_NOT_INITIALIZED")
-                    event_status = (
-                        "suppressed" if guard[0] is True or guard[1] == "EMERGENCY_STOP" else "pending"
+                    event_status = classify_new_eci_event_status(
+                        previous_ids=previous_ids,
+                        guard_blocked=guard[0] is True,
+                        reason_code=guard[1],
                     )
                     new_records = [
                         ("eci", row[0], row[1], "/eci", event_status)
