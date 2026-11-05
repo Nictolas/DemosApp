@@ -17,7 +17,9 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
   // Only the disposable localhost PG17 target above can reach this point.
   // Synthetic CI must opt in explicitly, just like any deployment.
   const previousNominationFlag=process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
+  const previousGraziaFlag=process.env.DEMOS_GRAZIA_NOMINATIONS_ENABLED;
   process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED='true';
+  process.env.DEMOS_GRAZIA_NOMINATIONS_ENABLED='true';
   const {Pool}=require('pg');
   const express=require('express');
   const pool=new Pool({connectionString:raw,max:18,connectionTimeoutMillis:8000});
@@ -564,5 +566,7 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     Module._load=originalModuleLoad;
     if(previousNominationFlag===undefined)delete process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
     else process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED=previousNominationFlag;
+    if(previousGraziaFlag===undefined)delete process.env.DEMOS_GRAZIA_NOMINATIONS_ENABLED;
+    else process.env.DEMOS_GRAZIA_NOMINATIONS_ENABLED=previousGraziaFlag;
   }
 });

@@ -48,7 +48,7 @@ function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=fa
     express:{Router:()=>({get:(route,...fns)=>handlers.set(route,fns),post:()=>{}})},
     crypto:{randomUUID:()=> 'fake'},
     '../utils/recognitionEvidence':{validateEvidenceUrl:()=>null},
-    '../utils/thirdPartyNominationGate':{isNominationWriteEnabled:()=>true,rejectUnavailableNomination:()=>{}},
+    '../utils/thirdPartyNominationGate':{isNominationWriteEnabled:()=>true,isGraziaNominationWriteEnabled:()=>true,rejectUnavailableNomination:()=>{}},
     '../middleware/auth':{verifyToken:pass,requireAdmin:pass,pool},
     '../middleware/politicalConsent':{requirePoliticalConsent:pass},
     '../middleware/civicIdentity':{requireVerifiedCivicIdentity:pass},

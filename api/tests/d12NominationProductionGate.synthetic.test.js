@@ -6,12 +6,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { isNominationWriteEnabled } = require('../utils/thirdPartyNominationGate');
+const { isNominationWriteEnabled, isGraziaNominationWriteEnabled } = require('../utils/thirdPartyNominationGate');
 
 const dir = path.resolve(__dirname,'../routes');
 const UUID = '22222222-2222-4222-8222-222222222222';
 
-function harness(which,enabled=false) {
+function harness(which,enabled=false,graziaEnabled=enabled) {
   const route = fs.readFileSync(path.join(dir,which==='generic'?'subject-proposals.js':'grazia.js'),'utf8');
   const post = new Map();
   const state = {connects:0,queries:0};
@@ -50,6 +50,7 @@ function harness(which,enabled=false) {
     },
     '../utils/thirdPartyNominationGate':{
       isNominationWriteEnabled:()=>enabled,
+      isGraziaNominationWriteEnabled:()=>enabled && graziaEnabled,
       rejectUnavailableNomination:(res)=>{
         res.set('Cache-Control','private, no-store');
         return res.status(503).json({success:false,error:'PROPOSTE_NON_DISPONIBILI'});
@@ -98,6 +99,68 @@ test('CI and even a synthetic localhost fixture cannot silently override the gat
   assert.equal(isNominationWriteEnabled({...mode,CIVIC_TEST_DATABASE_URL:
     'postgres://demos_ci:synthetic_only@aws-1-eu-central-1.pooler.supabase.com:5432/demos_civic_ci'}),false);
 });
+test('Grazia requires a separate exact opt-in IN ADDITION to the global nomination gate',()=>{
+  for(const nodeEnv of [undefined,'production','staging','preview','development','test']){
+    for(const general of [undefined,'','false','TRUE','1','true']){
+      for(const grazia of [undefined,'','false','TRUE','1',' true','true ','true']){
+        const env={
+          NODE_ENV:nodeEnv,
+          DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED:general,
+          DEMOS_GRAZIA_NOMINATIONS_ENABLED:grazia,
+          CIVIC_TEST_MODE:'isolated-synthetic'
+        };
+        assert.equal(isGraziaNominationWriteEnabled(env),
+          general==='true' && grazia==='true',
+          'two independent exact approvals: '+String(nodeEnv)+', '+String(general)+', '+String(grazia));
+        if(grazia==='true' && general!=='true')
+          assert.equal(isGraziaNominationWriteEnabled(env),false);
+      }
+    }
+  }
+});
+
+test('global enable permits generic proposal while Grazia remains closed before any SQL',async()=>{
+  const generic=harness('generic',true,false);
+  const genericResponse=generic.response();
+  await generic.post.get('/')(
+    {user:{id:UUID},body:{category:'attivisti',title:'Persona sintetica',source_url:'https://example.org/fonte'}},
+    genericResponse
+  );
+  assert.notEqual(genericResponse.statusCode,503,'Grazia embargo must not block separately cleared categories');
+  assert.ok(generic.state.connects>=1);
+
+  const grazia=harness('grazia',true,false);
+  const source={user:{id:UUID},body:{nome:'Persona sintetica',urlProva:'https://example.org/fonte'}};
+  const submit=grazia.response();
+  await grazia.post.get('/')(source,submit);
+  assert.equal(submit.statusCode,503);
+  assert.equal(submit.body.error,'PROPOSTE_NON_DISPONIBILI');
+  assert.match(submit.headers['Cache-Control'],/no-store/);
+  assert.deepEqual(grazia.state,{connects:0,queries:0});
+  const approve=grazia.response();
+  await grazia.post.get('/richiesta/:id/:action')(
+    {params:{id:UUID,action:'accetta'},user:{id:UUID},body:{}},approve
+  );
+  assert.equal(approve.statusCode,503);
+  assert.deepEqual(grazia.state,{connects:0,queries:0});
+  const reject=grazia.response();
+  await grazia.post.get('/richiesta/:id/:action')(
+    {params:{id:UUID,action:'rifiuta'},user:{id:UUID},body:{}},reject
+  );
+  assert.notEqual(reject.statusCode,503,'rejection of existing requests stays operational');
+  assert.ok(grazia.state.connects>=1);
+});
+
+test('both opt-ins preserve authorized Grazia submission path',async()=>{
+  const app=harness('grazia',true,true);
+  const res=app.response();
+  await app.post.get('/')(
+    {user:{id:UUID},body:{nome:'Persona sintetica',urlProva:'https://example.org/fonte'}},res
+  );
+  assert.notEqual(res.statusCode,503);
+  assert.ok(app.state.connects>=1);
+});
+
 for (const which of ['generic','grazia']) {
   test(which+' production submit is rejected before connection or notification',async()=>{
     const app=harness(which,false);

@@ -1,7 +1,7 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
 const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
-const { isNominationWriteEnabled, rejectUnavailableNomination } = require('../utils/thirdPartyNominationGate');
+const { isGraziaNominationWriteEnabled, rejectUnavailableNomination } = require('../utils/thirdPartyNominationGate');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
@@ -57,7 +57,7 @@ router.post('/', personalNoStore, verifyToken, async (req, res) => {
   if (urlProva.length > 2000 || !validateEvidenceUrl(urlProva)) {
     return res.status(400).json({ success: false, error: 'Inserisci un collegamento HTTPS pubblico valido' });
   }
-  if (!isNominationWriteEnabled()) return rejectUnavailableNomination(res);
+  if (!isGraziaNominationWriteEnabled()) return rejectUnavailableNomination(res);
   const userId = req.user.id;
   let client;
   try {
@@ -544,7 +544,7 @@ router.post('/richiesta/:id/:action', personalNoStore, verifyToken, requireAdmin
   if (!approved && action !== 'rifiuta' && action !== 'reject') {
     return res.status(400).json({ success: false, error: 'Azione non valida' });
   }
-  if (approved && !isNominationWriteEnabled()) return rejectUnavailableNomination(res);
+  if (approved && !isGraziaNominationWriteEnabled()) return rejectUnavailableNomination(res);
   let client;
   try {
     client = await pool.connect();

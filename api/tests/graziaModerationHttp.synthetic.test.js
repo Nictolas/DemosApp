@@ -104,6 +104,7 @@ mock('../services/preferenceCooldownService',{getPreferenceCooldown:async()=>({i
 // so it explicitly enables synthetic requests without changing process env.
 mock('../utils/thirdPartyNominationGate',{
   isNominationWriteEnabled:()=>true,
+  isGraziaNominationWriteEnabled:()=>true,
   rejectUnavailableNomination:res=>res.status(503).json({success:false,error:'PROPOSTE_NON_DISPONIBILI'})
 });
 const app=express();

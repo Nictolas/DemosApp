@@ -65,7 +65,7 @@ function harness({idType='uuid',userColumn='userid',dateColumn='timestamp'}={}){
     '../middleware/civicIdentity':{requireVerifiedCivicIdentity:pass},
     '../middleware/validation':{validateInput:()=>pass},
     '../utils/recognitionEvidence':{validateEvidenceUrl:()=>null},
-    '../utils/thirdPartyNominationGate':{isNominationWriteEnabled:()=>false,rejectUnavailableNomination:()=>{}},
+    '../utils/thirdPartyNominationGate':{isNominationWriteEnabled:()=>false,isGraziaNominationWriteEnabled:()=>false,rejectUnavailableNomination:()=>{}},
     '../services/preferenceCooldownService':{
       getPreferenceCooldown:async()=>({isBlocked:false}),
       assertPreferenceChangeAllowed:async(_db,ctx)=>{

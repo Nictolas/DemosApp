@@ -52,7 +52,7 @@ const mocks={
   express:{Router:()=>({get:(route,...fns)=>routes.set(route,fns),post:()=>{}})},
   crypto:{randomUUID:()=>UUID(500)},
   '../utils/recognitionEvidence':{validateEvidenceUrl:()=>null},
-  '../utils/thirdPartyNominationGate':{isNominationWriteEnabled:()=>true,rejectUnavailableNomination:()=>{}},
+  '../utils/thirdPartyNominationGate':{isNominationWriteEnabled:()=>true,isGraziaNominationWriteEnabled:()=>true,rejectUnavailableNomination:()=>{}},
   '../middleware/auth':{verifyToken:noop,requireAdmin:noop,pool},
   '../middleware/politicalConsent':{requirePoliticalConsent:noop},
   '../middleware/civicIdentity':{requireVerifiedCivicIdentity:noop},
