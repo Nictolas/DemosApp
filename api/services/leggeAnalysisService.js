@@ -406,7 +406,14 @@ async function generaAnalisiLeggeUnaVolta(uriVotazione, votazioneData) {
       console.warn('Analisi parlamentare rimandata: quota Groq Free o limite 429');
       return null;
     }
-    const parsed = parseGroundedAnalysisResponse(completion.choices?.[0]?.message?.content);
+    // A syntactically valid JSON object can still come from a completion
+    // stopped by its token limit. Only a normally finished response is safe to cache.
+    const choice = completion.choices?.[0];
+    if (choice?.finish_reason !== 'stop') {
+      console.warn('Analisi parlamentare scartata: completamento non terminato normalmente');
+      return null;
+    }
+    const parsed = parseGroundedAnalysisResponse(choice.message?.content);
     if (!parsed) {
       console.warn('Analisi AI non pubblicata: risposta non conforme allo schema JSON');
       return null;
