@@ -64,6 +64,25 @@ function normalizePayload(payload){
       inspected.items.length===0) {
     throw new Error('MINISTERO_SOURCE_NOT_COMPLETE_SINGLE_PAGE');
   }
+  // Debug only public *enumerations*, never raw JSON rows or descriptions.
+  // The official source can add state labels without changing HTTP schema.
+  if(process.env.DEMOS_OFFICIAL_SOURCE_SCHEMA_DIAGNOSTICS==='true') {
+    const states={},types={},dateTypes={};
+    for(const x of inspected.items){
+      const state=String(x?.idDecStatoIniziativa?.nome??'MISSING').trim().slice(0,90);
+      const type=String(x?.idDecTipoIniziativa?.nome??'MISSING').trim().slice(0,90);
+      const start=x?.dataInizioRaccolta;
+      const finish=x?.dataFineRaccolta;
+      states[state]=(states[state]||0)+1;
+      types[type]=(types[type]||0)+1;
+      const key=(start===null?'null':typeof start)+'|'+
+        (finish===null?'null':typeof finish);
+      dateTypes[key]=(dateTypes[key]||0)+1;
+    }
+    console.log('MINISTERO_PUBLIC_SOURCE_SCHEMA_V1='+JSON.stringify({
+      total:inspected.items.length,states,types,dateTypes,
+    }));
+  }
   const rows=inspected.items.map(normalizeRecord);
   const ids=new Set(rows.map(x=>x.id_ministero));
   if(ids.size!==rows.length)throw new Error('MINISTERO_SOURCE_DUPLICATE_ID');
