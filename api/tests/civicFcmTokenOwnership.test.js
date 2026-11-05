@@ -19,7 +19,8 @@ test('older account cannot revoke a token actively reassigned to another account
     fakeDb,'old_user',['token_owned_by_new_account','token_old_user','token_old_user']);
   assert.deepEqual(safe,['token_old_user']);
   assert.equal(queries.length,1);
-  assert.match(queries[0].sql,/is_active = TRUE AND user_id <> \$1/);
+  assert.match(queries[0].sql,/WHERE user_id <> \$1/);
+  assert.doesNotMatch(queries[0].sql,/WHERE is_active = TRUE/);
   assert.deepEqual(queries[0].params,
     ['old_user',['token_owned_by_new_account','token_old_user']]);
 });
@@ -45,9 +46,10 @@ test('empty/invalid candidates do not invoke the DB',async()=>{
   assert.equal(calls,0);
 });
 
-test('every FCM revocation path rejects reassigned foreign active token',()=>{
+test('every FCM revocation path rejects reassigned foreign token, active or inactive',()=>{
   const route=fs.readFileSync(path.join(__dirname,'../routes/fcm-tokens.js'),'utf8');
   assert.match(route,/staleSafeLegacy = await onlyTokensNotOwnedByOthers/);
+  assert.match(route,/getSupersededCivicTokens\(db,userId,tokenToKeep\)/);
   assert.match(route,/const revocable = await onlyTokensNotRegisteredToOthers\(db, userId, \[\.\.\.removed\]\)/);
   assert.match(route,/db, userId, \[\.\.\.registered\.rows\.map/);
   assert.match(route,/if \(revocable\.includes\(token\)\)/);
@@ -127,4 +129,31 @@ test('canonical device lookup fails closed on missing or malformed SQL reply',as
   },'synthetic_user'),/CIVIC_FCM_CANONICAL_READ_UNCONFIRMED/);
   await assert.rejects(getActiveCivicUserDeviceTokens({query:async()=>({rows:[]})},''),
     /CIVIC_FCM_CANONICAL_CONTEXT_REQUIRED/);
+});
+
+test('transfer also unsubscribes a previous owner with an inactive device',async()=>{
+  const {getSupersededCivicTokens}=require('../services/civicFcmTokenOwnership');
+  const captured=[];
+  const db={query:async(sql,params)=>{
+    captured.push({sql,params});
+    return {rows:[{fcm_token:'foreign_inactive'},{fcm_token:'old_own_active'}]};
+  }};
+  assert.deepEqual(await getSupersededCivicTokens(db,'new_user','foreign_inactive'),[
+    'foreign_inactive','old_own_active']);
+  assert.match(captured[0].sql,/user_id<>\$1 AND fcm_token=\$2/);
+  assert.match(captured[0].sql,/user_id=\$1 AND is_active=TRUE/);
+  assert.deepEqual(captured[0].params,['new_user','foreign_inactive']);
+  await assert.rejects(getSupersededCivicTokens({
+    query:async()=>({rows:null}),
+  },'new_user','foreign_inactive'),/CIVIC_FCM_SUPERSEDED_LOOKUP_UNCONFIRMED/);
+});
+
+test('all foreign-registered tokens are protected even when inactive',async()=>{
+  const {onlyTokensNotOwnedByOthers}=require('../services/civicFcmTokenOwnership');
+  const sql=[];
+  const db={query:async(q)=>{sql.push(q);return {rows:[{fcm_token:'inactive_foreign'}]};}};
+  assert.deepEqual(await onlyTokensNotOwnedByOthers(db,'old_owner',[
+    'inactive_foreign','own_token',
+  ]),['own_token']);
+  assert.doesNotMatch(sql[0],/is_active\s*=\s*TRUE/);
 });
