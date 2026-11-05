@@ -170,6 +170,12 @@ jobs:
           CIVIC_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_civic_ci
           CIVIC_TEST_MODE: isolated-synthetic
         run: node --test api/tests/publicApprovedSubjectPagination.pg.integration.test.js
+      - name: Verify bounded registered directories beyond 100 on PostgreSQL17
+        env:
+          NODE_PATH: /tmp/demos-civic-pg/node_modules
+          CIVIC_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_civic_ci
+          CIVIC_TEST_MODE: isolated-synthetic
+        run: node --test api/tests/registeredDirectoryPagination.pg.integration.test.js
       - name: 'Schema readiness audit — metadata, four categories, RLS and roles on PG17'
         env:
           NODE_PATH: /tmp/demos-civic-pg/node_modules

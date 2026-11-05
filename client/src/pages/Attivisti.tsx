@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Loader2, Users, User, Search, X, Filter, ChevronDown } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
@@ -49,6 +49,7 @@ interface AttivistiResponse {
   data: Attivista[];
   approved_subjects?: Array<{ id: string; title: string }>;
   approved_next_cursor?: string | null;
+  members_next_cursor?: string | null;
   count: number;
   message: string;
 }
@@ -58,6 +59,11 @@ export default function Attivisti() {
   const { toast } = useToast();
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
   const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
+  const [membersNextCursor,setMembersNextCursor]=useState<string|null>(null);
+  const [membersLoadingMore,setMembersLoadingMore]=useState(false);
+  const [membersPageError,setMembersPageError]=useState(false);
+  const membersRequestVersion=useRef(0);
+  const membersMoreController=useRef<AbortController|null>(null);
   const { nextCursor, loadingMore, pageError, reset, loadMore } =
     useApprovedDirectoryPagination("attivisti", setApprovedSubjects);
   const [filteredAttivisti, setFilteredAttivisti] = useState<Attivista[]>([]);
@@ -132,6 +138,12 @@ export default function Attivisti() {
   // Carica gli attivisti
   useEffect(() => {
     const controller = new AbortController();
+    ++membersRequestVersion.current;
+    membersMoreController.current?.abort();
+    membersMoreController.current=null;
+    setMembersNextCursor(null);
+    setMembersPageError(false);
+    setMembersLoadingMore(false);
 
     const fetchAttivisti = async () => {
       try {
@@ -191,6 +203,7 @@ export default function Attivisti() {
                       }))
                   : [];
                 setAttivisti(publicRows);
+                setMembersNextCursor(data.members_next_cursor ?? null);
                 setApprovedSubjects(
                   Array.isArray(data.approved_subjects)
                     ? data.approved_subjects
@@ -231,8 +244,68 @@ export default function Attivisti() {
     return () => {
       window.clearTimeout(timer);
       controller.abort();
+      ++membersRequestVersion.current;
+      membersMoreController.current?.abort();
     };
   }, [searchTerm, selectedRegione, selectedTipologia, reset]);
+
+  // Additional registered profiles are read only on explicit user action.
+  // A filter change aborts the request so stale results cannot reappear.
+  const loadMoreRegistered = async () => {
+    if (!membersNextCursor || membersLoadingMore || membersMoreController.current) return;
+    const version = membersRequestVersion.current;
+    const controller = new AbortController();
+    membersMoreController.current = controller;
+    setMembersLoadingMore(true);
+    setMembersPageError(false);
+    const params = new URLSearchParams();
+    if (searchTerm.trim()) params.set("search", searchTerm.trim());
+    if (selectedRegione && selectedRegione !== "all") params.set("regione", selectedRegione);
+    if (selectedTipologia && selectedTipologia !== "all") params.set("tipologia", selectedTipologia);
+    params.set("members_cursor", membersNextCursor);
+    try {
+      const response = await fetch(getApiUrl("/api/attivisti?" + params.toString()), {
+        signal: controller.signal, cache: "no-store"
+      });
+      if (!response.ok) throw new Error("DIRECTORY_PAGE_FAILED");
+      const data: AttivistiResponse = await response.json();
+      if (controller.signal.aborted || version !== membersRequestVersion.current) return;
+      if (!data.success || !Array.isArray(data.data)) throw new Error("DIRECTORY_PAGE_INVALID");
+      // The same explicit public-fields whitelist is applied to every page.
+      const nextRows = data.data
+        .filter(item => item && typeof item.id === "string" &&
+          typeof item.nome === "string" && typeof item.cognome === "string" &&
+          typeof item.ruolo === "string")
+        .map(item => ({
+          id: item.id, nome: item.nome, cognome: item.cognome, ruolo: item.ruolo,
+          avatar_config: item.avatar_config, regione_residenza: item.regione_residenza,
+          facebook_url: item.facebook_url, twitter_url: item.twitter_url,
+          instagram_url: item.instagram_url, linkedin_url: item.linkedin_url,
+          telegram_url: item.telegram_url, website_url: item.website_url,
+          twitch_url: item.twitch_url, youtube_url: item.youtube_url,
+          tipologie_attivismo: item.tipologie_attivismo,
+          supporters_count: item.supporters_count
+        }));
+      const appendUnique = (previous: typeof nextRows) => {
+        const ids = new Set(previous.map(item => item.id));
+        return [...previous, ...nextRows.filter(item => !ids.has(item.id))];
+      };
+      setAttivisti(appendUnique);
+      setFilteredAttivisti(appendUnique);
+      setSupportersCount(previous => {
+        const next = {...previous};
+        nextRows.forEach(item => {if (!(item.id in next)) next[item.id] = item.supporters_count ?? 0;});
+        return next;
+      });
+      setMembersNextCursor(data.members_next_cursor ?? null);
+    } catch (_) {
+      if (!controller.signal.aborted && version === membersRequestVersion.current)
+        setMembersPageError(true);
+    } finally {
+      if (membersMoreController.current === controller) membersMoreController.current = null;
+      if (version === membersRequestVersion.current) setMembersLoadingMore(false);
+    }
+  };
 
   // I filtri sono ora gestiti lato server, non serve più filtrare lato client
 
@@ -829,6 +902,14 @@ export default function Attivisti() {
                 </div>
               </div>
             )}
+            {!isLoading && !isError && membersNextCursor && (
+              <div className="mt-4 flex justify-center">
+                <Button type="button" variant="outline" onClick={() => { void loadMoreRegistered(); }} disabled={membersLoadingMore}>
+                  {membersLoadingMore ? "Caricamento..." : "Carica altri attivisti registrati"}
+                </Button>
+              </div>
+            )}
+            {membersPageError && <p role="alert" className="mt-2 text-center text-sm text-red-600">Impossibile caricare altri profili. Riprova.</p>}
             {!isLoading && !isError && approvedSubjects.length > 0 && (
               <section className="mt-5 space-y-3" aria-label="Attivisti segnalati e approvati">
                 <h2 className="text-lg font-semibold">Attivisti segnalati e approvati</h2>

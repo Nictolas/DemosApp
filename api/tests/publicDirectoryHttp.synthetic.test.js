@@ -29,9 +29,11 @@ const privatePerson = {
 
 let failDatabase = false;
 let injectUnexpectedFields = false;
+let largeDirectory = false;
+const makeId = n => '00000000-0000-4000-8000-'+String(n).padStart(12,'0');
 const queries = [];
 const fakePool = {
-  async query(statement) {
+  async query(statement, params=[]) {
     const sql = String(statement);
     queries.push(sql);
     if (failDatabase) throw new Error('PRIVATE_DB_CREDENTIAL_OR_SQL_ERROR');
@@ -44,6 +46,20 @@ const fakePool = {
       // iff the real route asked for that column. This detects SELECT regressions.
       const projection = sql.match(/\bSELECT\s+([\s\S]*?)\s+FROM users u\b/i)?.[1];
       assert.ok(projection, 'expected user list SELECT');
+      if (largeDirectory) {
+        assert.match(sql,/LIMIT 101/,'directory SQL must bound result pages');
+        const items=Array.from({length:105},(_,i)=>{
+          const n=105-i;
+          return {
+            id:makeId(n),nome:'Persona sintetica '+n,cognome:'Esempio',ruolo:'A',
+            avatar_config:'{}',regione_residenza:'TO',tipologie_attivismo:[{tipo:'ambiente'}],
+            supporters_count:7,
+            email:'private@example.invalid',cittadinanza:'secret'
+          };
+        });
+        const cursorId=sql.includes('SELECT cursor_user.created_at')?params.at(-1):null;
+        return {rows:items.filter(row=>!cursorId||row.id<cursorId).slice(0,101)};
+      }
       assert.doesNotMatch(projection, /\b(?:u\.)?\*\b|\bu\.\*/, 'no SELECT * from public user profiles');
       const row = {};
       for (const [column, value] of Object.entries(privatePerson)) {
@@ -148,6 +164,52 @@ test('database errors do not expose SQL or credentials in public JSON', async ()
   } finally {
     failDatabase = false;
   }
+});
+
+test('registered profiles paginate at 100 for every public directory, without exposing private fields',async()=>{
+  largeDirectory=true;
+  try{
+    for (const url of ['/api/attivisti','/api/organizzazioni','/api/attivisti/tipologia/ambiente']){
+      const start=queries.length;
+      const first=await request(url);
+      assert.equal(first.status,200,url);
+      const a=await first.json();
+      assert.equal(a.data.length,100,url);
+      assert.equal(a.count,100,url);
+      assert.equal(typeof a.members_next_cursor,'string');
+      const decoded=JSON.parse(Buffer.from(a.members_next_cursor,'base64url').toString('utf8'));
+      assert.equal(decoded.length,2,'cursor must never reveal profile registration time');
+      assert.equal(decoded[0],7);
+      assert.deepEqual(Object.keys(a.data[0]).sort(),
+        ['avatar_config','cognome','id','nome','regione_residenza','ruolo','supporters_count','tipologie_attivismo'].sort());
+      assert.ok(!JSON.stringify(a).includes('private@example.invalid'));
+      assert.ok(!JSON.stringify(a).includes('1793880000.123456'));
+      const secondUrl=url+(url.includes('?')?'&':'?')+'members_cursor='+encodeURIComponent(a.members_next_cursor);
+      const second=await request(secondUrl);
+      assert.equal(second.status,200,secondUrl);
+      const b=await second.json();
+      assert.equal(b.data.length,5,url);
+      assert.equal(b.members_next_cursor,null,url);
+      const ids=[...a.data,...b.data].map(x=>x.id);
+      assert.equal(new Set(ids).size,105,'all 105 unique registered profiles visible with keyset');
+      assert.equal(ids[0],makeId(105));
+      assert.equal(ids.at(-1),makeId(1));
+      assert.ok(!JSON.stringify(b).includes('private@example.invalid'));
+      if(url!=='/api/attivisti/tipologia/ambiente'){
+        assert.equal(a.approved_subjects.length,1,'initial request keeps approved nominations');
+        assert.deepEqual(b.approved_subjects,[],'member-only pagination does not repeat approved titles');
+        const queriesInPages=queries.slice(start);
+        assert.equal(queriesInPages.filter(sql=>sql.includes('FROM subject_proposals')).length,1,
+          'no extra approved-subject query for registered-profile next page');
+      }
+      const beforeInvalid=queries.length;
+      for(const bad of ['***','A'.repeat(221),Buffer.from('["bad"]').toString('base64url')]){
+        const invalid=await request(url+(url.includes('?')?'&':'?')+'members_cursor='+encodeURIComponent(bad));
+        assert.equal(invalid.status,400);
+        assert.equal(queries.length,beforeInvalid,'reject bad cursor before SQL');
+      }
+    }
+  }finally{largeDirectory=false;}
 });
 
 test('all database calls from public directory HTTP fixtures are reads', () => {

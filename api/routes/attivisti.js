@@ -4,6 +4,7 @@ const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const { projectPublicDirectoryMembers } = require('../services/publicDirectoryMemberProjection');
+const {decodeRegisteredCursor,pageRegistered} = require('../services/registeredDirectoryPage');
 const router = express.Router();
 require('dotenv').config();
 
@@ -24,6 +25,8 @@ function queryActivists(sqlTemplate, values = []) {
 router.get('/', async (req, res) => {
   try {
     const { search, regione, tipologia, exclude_user_id } = req.query;
+    const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
+    if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -79,6 +82,13 @@ router.get('/', async (req, res) => {
       paramIndex++;
     }
 
+    // Stable keyset: descending supporter count, creation time and textual ID.
+    // A cursor does not alter any user-supplied search or region filters.
+    if (membersCursor) {
+      const n=queryParams.length+1;
+      whereConditions.push(`(COALESCE(us.cnt,0)::int, u.created_at, u.id::text) < ($${n}::int, (SELECT cursor_user.created_at FROM users cursor_user WHERE cursor_user.id=$${n+1}::uuid), $${n+1}::text)`);
+      queryParams.push(...membersCursor);
+    }
     const whereClause = whereConditions.join(' AND ');
 
 
@@ -108,22 +118,23 @@ router.get('/', async (req, res) => {
         WHERE s.attivisti = u.id
       ) us ON TRUE
       WHERE __ACCOUNT_FILTER__ AND ${whereClause}
-      ORDER BY supporters_count DESC, u.created_at DESC
+      ORDER BY supporters_count DESC, u.created_at DESC, u.id::text DESC LIMIT 101
     `, queryParams);
     
-    const attivisti = result.rows;
+    const {rows:attivisti,members_next_cursor} = pageRegistered(result.rows);
     
     
     // One indexed read piggybacks on the directory response; no extra browser GET.
     // Public directory shows only approved IDs and titles: user-submitted details and source links are private to moderation.
     // Pending/rejected proposals and proposer identities are never exposed.
-    const approvedPage = await readApprovedPage(pool, 'attivisti');
+    const approvedPage = membersCursor ? {data:[],next_cursor:null} : await readApprovedPage(pool, 'attivisti');
 
     res.json({
       success: true,
       data: projectPublicDirectoryMembers(attivisti),
       approved_subjects: approvedPage.data,
       approved_next_cursor: approvedPage.next_cursor,
+      members_next_cursor,
       count: attivisti.length,
       message: attivisti.length === 0 ? 'Al momento non ci sono attivisti registrati' : `${attivisti.length} attivisti trovati`
     });
@@ -142,6 +153,8 @@ router.get('/', async (req, res) => {
 router.get('/tipologia/:tipo', async (req, res) => {
   try {
     const { tipo } = req.params;
+    const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
+    if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -167,19 +180,22 @@ router.get('/tipologia/:tipo', async (req, res) => {
         website_url,
         twitch_url,
         youtube_url,
-        tipologie_attivismo
+        tipologie_attivismo,
+        0::int AS supporters_count
       FROM users u
       WHERE __ACCOUNT_FILTER__
       AND tipologie_attivismo @> $1
-      ORDER BY created_at DESC
-    `, [JSON.stringify([{ tipo }])]);
+      ${membersCursor ? 'AND (0::int,u.created_at,u.id::text) < ($2::int,(SELECT cursor_user.created_at FROM users cursor_user WHERE cursor_user.id=$3::uuid),$3::text)' : ''}
+      ORDER BY u.created_at DESC, u.id::text DESC LIMIT 101
+    `, [JSON.stringify([{ tipo }]), ...(membersCursor || [])]);
     
-    const attivisti = result.rows;
+    const {rows:attivisti,members_next_cursor} = pageRegistered(result.rows);
     
     
     res.json({
       success: true,
       data: projectPublicDirectoryMembers(attivisti),
+      members_next_cursor,
       count: attivisti.length,
       tipologia: tipo,
       message: attivisti.length === 0 ? `Nessun attivista trovato per la tipologia "${tipo}"` : `${attivisti.length} attivisti trovati per la tipologia "${tipo}"`

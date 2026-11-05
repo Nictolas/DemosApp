@@ -4,6 +4,7 @@ const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const { projectPublicDirectoryMembers } = require('../services/publicDirectoryMemberProjection');
+const {decodeRegisteredCursor,pageRegistered} = require('../services/registeredDirectoryPage');
 const router = express.Router();
 require('dotenv').config();
 
@@ -25,6 +26,8 @@ function queryOrganizations(sqlTemplate, values = []) {
 router.get('/', async (req, res) => {
   try {
     const { search, regione, tipologia, exclude_user_id } = req.query;
+    const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
+    if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -75,6 +78,12 @@ router.get('/', async (req, res) => {
       paramIndex++;
     }
 
+    // Return at most 100 profiles, then advance by the same stable sort keys.
+    if (membersCursor) {
+      const n=queryParams.length+1;
+      whereConditions.push(`(COALESCE(us.cnt,0)::int, u.created_at, u.id::text) < ($${n}::int, (SELECT cursor_user.created_at FROM users cursor_user WHERE cursor_user.id=$${n+1}::uuid), $${n+1}::text)`);
+      queryParams.push(...membersCursor);
+    }
     const whereClause = whereConditions.join(' AND ');
 
 
@@ -104,22 +113,23 @@ router.get('/', async (req, res) => {
         WHERE s.organizzazioni = u.id
       ) us ON TRUE
       WHERE __ACCOUNT_FILTER__ AND ${whereClause}
-      ORDER BY supporters_count DESC, u.created_at DESC
+      ORDER BY supporters_count DESC, u.created_at DESC, u.id::text DESC LIMIT 101
     `, queryParams);
     
-    const organizzazioni = result.rows;
+    const {rows:organizzazioni,members_next_cursor} = pageRegistered(result.rows);
     
     
     // One indexed read piggybacks on the directory response; no extra browser GET.
     // Public directory shows only approved IDs and titles: user-submitted details and source links are private to moderation.
     // Pending/rejected proposals and proposer identities are never exposed.
-    const approvedPage = await readApprovedPage(pool, 'organizzazioni');
+    const approvedPage = membersCursor ? {data:[],next_cursor:null} : await readApprovedPage(pool, 'organizzazioni');
 
     res.json({
       success: true,
       data: projectPublicDirectoryMembers(organizzazioni),
       approved_subjects: approvedPage.data,
       approved_next_cursor: approvedPage.next_cursor,
+      members_next_cursor,
       count: organizzazioni.length,
       message: organizzazioni.length === 0 ? 'Al momento non ci sono organizzazioni registrate' : `${organizzazioni.length} organizzazioni trovate`
     });
