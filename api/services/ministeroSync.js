@@ -214,7 +214,7 @@ class MinisteroSyncService {
     if (statoLower.includes('raccolta') || statoLower.includes('aperto')) {
       return 'in_corso';
     }
-    if (statoLower.includes('conclus') || statoLower.includes('chiuso') || statoLower.includes('terminato')) {
+    if (statoLower.includes('conclus') || statoLower.includes('chius') || statoLower.includes('terminato')) {
       return 'conclusa';
     }
     if (statoLower.includes('approvato') || statoLower.includes('accettato')) {
