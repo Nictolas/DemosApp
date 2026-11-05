@@ -60,7 +60,8 @@ export function readCompassAnswer(value: unknown): -1 | 0 | 1 | null {
 }
 
 export interface CompassAxisResult {
-  score: number | null;
+  score: number | null;          // Conservative qualified score (existing thresholds)
+  previewScore: number | null;   // A clearly marked draft after >=1 relevant definite answer
   answered: number;
   undecided: number;
   total: number;
@@ -96,12 +97,20 @@ export function scoreCompassAxis(
   const mean = (values: number[]) => values.reduce((sum, n) => sum + n, 0) / values.length;
   // Pesi uguali ai due gruppi di domande, per evitare che il numero diverso di
   // proposte in ciascun polo sposti artificiosamente il punteggio.
-  const score = qualified
-    ? Math.round(50 * (mean(negative) + mean(positive)))
-    : null;
+  // A draft uses available evidence only. Never substitute zero for a wholly
+  // unanswered pole: that would fabricate an apparent politically neutral vote.
+  // Once both groups are represented, use the same balanced weighting as the
+  // qualified compass. Preserve the existing gate for the final score.
+  const previewScore = answered === 0 ? null : Math.round(
+    negative.length && positive.length
+      ? 50 * (mean(negative) + mean(positive))
+      : 100 * mean(negative.length ? negative : positive),
+  );
+  const score = qualified ? previewScore : null;
 
   return {
     score,
+    previewScore,
     answered,
     undecided,
     total: items.length,
@@ -228,7 +237,10 @@ export const POLITICAL_AXES: readonly PoliticalAxisDefinition[] = [
 ];
 
 export interface PoliticalAxisResult {
-  score: number | null;           // -100 (polo sinistro) ... +100 (polo destro)
+  score: number | null;
+  previewScore: number | null;   // draft only, never presented as a validated ideology
+  previewLeftPercent: number | null;
+  previewRightPercent: number | null;           // -100 (polo sinistro) ... +100 (polo destro)
   leftPercent: number | null;     // solo se superata la soglia, non una prevalenza demografica
   rightPercent: number | null;
   answered: number;
@@ -264,12 +276,21 @@ export function scorePoliticalAxis(
   // Quando i due poli sono presenti, ciascun gruppo pesa il 50%, anche
   // se il catalogo contiene più domande in uno dei due gruppi.
   // Costumi è esplicitamente monolaterale/sperimentale: usa un solo gruppo.
-  const score = !qualified ? null : Math.round(
-    right.length > 0 ? 50 * (mean(left) + mean(right)) : 100 * mean(left),
+  // For sparse responses an explicitly provisional estimate is permitted.
+  // Do not infer an absent opposite group's preferences as a neutral vote.
+  const previewScore = answered === 0 ? null : Math.round(
+    left.length && right.length
+      ? 50 * (mean(left) + mean(right))
+      : 100 * mean(left.length ? left : right),
   );
+  const score = qualified ? previewScore : null;
+  const previewLeftPercent = previewScore === null ? null : Math.round((100 - previewScore) / 2);
   const leftPercent = score === null ? null : Math.round((100 - score) / 2);
   return {
     score,
+    previewScore,
+    previewLeftPercent,
+    previewRightPercent: previewLeftPercent === null ? null : 100 - previewLeftPercent,
     leftPercent,
     rightPercent: leftPercent === null ? null : 100 - leftPercent,
     answered,

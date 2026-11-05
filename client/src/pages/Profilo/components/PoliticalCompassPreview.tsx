@@ -35,6 +35,10 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
   );
   const ready = compass?.economy.score !== null && compass?.economy.score !== undefined &&
     compass?.freedom.score !== null && compass?.freedom.score !== undefined;
+  const economicPreview = compass?.economy.previewScore ?? null;
+  const freedomPreview = compass?.freedom.previewScore ?? null;
+  const hasDraft = economicPreview !== null || freedomPreview !== null;
+  const totalCompassAnswers = (compass?.economy.answered ?? 0) + (compass?.freedom.answered ?? 0);
 
   return (
     <section className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3" aria-label="Compasso politico">
@@ -45,6 +49,8 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
           <p className="text-xs leading-relaxed text-amber-900">
             È una rappresentazione esplorativa, non un test scientificamente validato.
             I risultati non definiscono con certezza il tuo orientamento politico.
+            Una bozza può partire da una sola risposta pertinente e cambiare molto
+            con le successive; gli assi senza risposte non vengono stimati.
           </p>
         </div>
       </div>
@@ -72,7 +78,7 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
             e non viene salvato.
           </p>
 
-          {ready ? (
+          {(ready || hasDraft) ? (
             <figure className="rounded-xl border border-slate-200 bg-white p-2">
               <svg
                 viewBox="0 0 360 320"
@@ -97,22 +103,56 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
                 <text x="180" y="307" fontSize="14" fontWeight="600" textAnchor="middle" fill="#0f172a">Libertà</text>
                 <text x="30" y="160" transform="rotate(-90 30 160)" fontSize="14" fontWeight="600" textAnchor="middle" fill="#0f172a">Sinistra</text>
                 <text x="330" y="160" transform="rotate(90 330 160)" fontSize="14" fontWeight="600" textAnchor="middle" fill="#0f172a">Destra</text>
-                <circle
-                  cx={180 + (compass.economy.score || 0) * 1.25}
-                  cy={160 + (compass.freedom.score || 0) * 1.25}
-                  r="9" fill="#111827" stroke="#ffffff" strokeWidth="3"
-                />
+                {ready ? (
+                  <circle
+                    cx={180 + (compass.economy.score || 0) * 1.25}
+                    cy={160 + (compass.freedom.score || 0) * 1.25}
+                    r="9" fill="#111827" stroke="#ffffff" strokeWidth="3"
+                  />
+                ) : economicPreview !== null && freedomPreview !== null ? (
+                  <circle
+                    cx={180 + economicPreview * 1.25}
+                    cy={160 + freedomPreview * 1.25}
+                    r="10" fill="#ffffff" fillOpacity="0.85"
+                    stroke="#111827" strokeWidth="3" strokeDasharray="4 3"
+                    data-testid="compass-draft-point"
+                  />
+                ) : economicPreview !== null ? (
+                  <line
+                    x1={180 + economicPreview * 1.25}
+                    x2={180 + economicPreview * 1.25}
+                    y1="36" y2="284" stroke="#111827" strokeWidth="3"
+                    strokeDasharray="7 6" data-testid="compass-draft-economy-line"
+                  />
+                ) : freedomPreview !== null ? (
+                  <line
+                    x1="56" x2="304"
+                    y1={160 + freedomPreview * 1.25}
+                    y2={160 + freedomPreview * 1.25}
+                    stroke="#111827" strokeWidth="3" strokeDasharray="7 6"
+                    data-testid="compass-draft-freedom-line"
+                  />
+                ) : null}
               </svg>
               <figcaption className="mt-1 text-center text-xs text-slate-600">
-                Punto stimato da un sottoinsieme delle 94 Opinioni.
+                {ready
+                  ? "Punto stimato da un sottoinsieme delle 94 Opinioni."
+                  : "Bozza provvisoria: " + totalCompassAnswers + " rispost" +
+                    (totalCompassAnswers === 1 ? "a" : "e") +
+                    " pertinenti. " +
+                    (economicPreview !== null && freedomPreview !== null
+                      ? "Il cerchio tratteggiato è una posizione preliminare."
+                      : economicPreview !== null
+                        ? "La linea verticale indica solo Economia; Libertà non è ancora determinata."
+                        : "La linea orizzontale indica solo Libertà; Economia non è ancora determinata.")}
               </figcaption>
             </figure>
           ) : (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status">
-              Non ci sono ancora risposte sufficienti per posizionare il punto:
-              servono almeno 8 risposte Favorevole/Contrario per ciascun asse,
-              di cui almeno 2 per ciascun gruppo di proposte. Le risposte Indeciso
-              non sono considerate posizioni centrali.
+              Nessuna delle risposte disponibili determina ancora una posizione
+              sui due assi del compasso. Basta una risposta Favorevole o Contrario
+              a una delle proposte utilizzate per ottenere un abbozzo.
+              Le risposte Indeciso non vengono trattate come posizioni centrali.
             </div>
           )}
 
@@ -130,8 +170,9 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
               <div className="mt-4 space-y-4">
                 {POLITICAL_AXES.map((axis) => {
                   const result = axes[axis.id];
-                  const left = result.leftPercent;
-                  const right = result.rightPercent;
+                  const left = result.leftPercent ?? result.previewLeftPercent;
+                  const right = result.rightPercent ?? result.previewRightPercent;
+                  const draft = result.score === null && left !== null;
                   const AxisIcon = AXIS_ICONS[axis.id];
                   return (
                     <div key={axis.id} className="border-t border-slate-100 pt-3 first:border-0 first:pt-0">
@@ -145,10 +186,10 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
                       </div>
                       <div className="mt-2 flex items-center justify-between gap-2 text-xs">
                         <span className="text-slate-700">
-                          {axis.leftLabel}{left === null ? "" : ` · ${left}%`}
+                          {axis.leftLabel}{left === null ? "" : ` · ${draft ? "≈" : ""}${left}%`}
                         </span>
                         <span className="text-right text-slate-700">
-                          {axis.rightLabel}{right === null ? "" : ` · ${right}%`}
+                          {axis.rightLabel}{right === null ? "" : ` · ${draft ? "≈" : ""}${right}%`}
                         </span>
                       </div>
                       {left === null ? (
@@ -156,13 +197,13 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
                           <div className="h-3 rounded-full bg-slate-200" aria-hidden="true" />
                           <p className="mt-1 text-xs text-slate-500">
                             Dati insufficienti · {result.answered} risposte nette su {result.total};
-                            servono almeno {axis.minAnswers}, con copertura di entrambi i poli quando richiesta.
+                            esprimi almeno una risposta Favorevole o Contrario a una proposta di questo asse per vedere una bozza.
                           </p>
                         </div>
                       ) : (
                         <>
                           <div
-                            className="relative mt-2 h-3 overflow-hidden rounded-full bg-violet-400"
+                            className={`relative mt-2 h-3 overflow-hidden rounded-full bg-violet-400 ${draft ? "opacity-60" : ""}`}
                             role="meter"
                             aria-label={`${axis.title}: ${axis.leftLabel}`}
                             aria-valuemin={0}
@@ -184,8 +225,9 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
                             />
                           </div>
                           <p className="mt-1 text-xs text-slate-500">
-                            {result.answered} risposte nette su {result.total}
+                            {draft ? "Bozza provvisoria · " : ""}{result.answered} risposte nette su {result.total}
                             {result.undecided > 0 ? ` · ${result.undecided} indecise escluse dal calcolo` : ""}
+                            {draft ? " · aggiungendo Opinioni il risultato può cambiare molto" : ""}
                           </p>
                         </>
                       )}
