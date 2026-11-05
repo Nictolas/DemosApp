@@ -13,6 +13,7 @@ let legacyFixture=[TOKEN];
 let legacyColumnPresent=true;
 let foreignFixture=false;
 let activeCanonicalFixture=[];
+let supersededFixture=[];
 const unsubscribeCalls=[];
 const upserts=[];
 const USER='11111111-1111-4111-8111-111111111111';
@@ -99,6 +100,7 @@ patch(5,{
   onlyTokensNotRegisteredToOthers:async(_db,_user,tokens)=>
     tokens.filter(token=>!(foreignFixture && token===FOREIGN)),
   getActiveCivicUserDeviceTokens:async()=>[...activeCanonicalFixture],
+  getSupersededCivicTokens:async()=>[...supersededFixture],
   upsertCleanupOwnedOrUnassignedToken:async(_db,userId,token)=>{
     calls.push('PROTECTED_CLEANUP_UPSERT');
     upserts.push([userId,token]);
@@ -304,5 +306,22 @@ test('two canonical active devices retain the newest and revoke only the stale d
     assert.equal(res.body.data.removedCount,0);
   }finally {
     legacyFixture=[TOKEN];activeCanonicalFixture=[];
+  }
+});
+
+test('claiming an inactive foreign-owned FCM token first unsubscribes previous topics',async()=>{
+  gate=null;calls.length=0;upserts.length=0;unsubscribeCalls.length=0;
+  supersededFixture=[FOREIGN];
+  legacyFixture=[TOKEN];
+  try{
+    const response=await request('POST','/api/fcm-tokens',{token:FOREIGN});
+    assert.equal(response.status,200);
+    assert.equal(response.body.success,true);
+    assert.ok(unsubscribeCalls.includes(FOREIGN),
+      'stale previous-account topics must be cleared before ownership transfer');
+    assert.ok(calls.includes('COMMIT_CONFIRMED'));
+    assert.deepEqual(upserts,[[USER,FOREIGN]]);
+  }finally{
+    supersededFixture=[];legacyFixture=[TOKEN];
   }
 });
