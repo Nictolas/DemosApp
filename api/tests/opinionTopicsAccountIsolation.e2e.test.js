@@ -87,7 +87,7 @@ test('Chrome: two synthetic accounts never inherit another owner\'s political an
     const goToTopic = async () => {
       await page.goto(origin + '/opinioni-argomento/economia_lavoro_fisco', { waitUntil: 'domcontentloaded' });
       await cards.first().waitFor({ timeout: 25000 });
-      assert.equal(await cards.count(), 14);
+      assert.equal(await cards.count(), 13);
     };
     const switchAccount = async (token, expectQuestions = true) => {
       await page.evaluate(value => {
@@ -100,17 +100,17 @@ test('Chrome: two synthetic accounts never inherit another owner\'s political an
     };
 
     await goToTopic();
-    assert.equal(await page.getByText('0 / 14 Opinioni salvate').count(), 1);
+    assert.equal(await page.getByText('0 / 13 Opinioni salvate').count(), 1);
     const firstText = await cards.first().locator('h2').innerText();
     await cards.first().getByRole('button', { name: 'Favorevole' }).click();
     await page.getByRole('button', { name: 'Salva le mie opinioni' }).click();
     await page.waitForURL(origin + '/opinioni', { timeout: 20000 });
     await goToTopic();
-    await page.getByText('1 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
+    await page.getByText('1 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
     assert.equal(personalGets.A, 4, 'Account A should use four existing cold GETs once');
 
     await switchAccount(tokenB);
-    await page.getByText('0 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
+    await page.getByText('0 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
     assert.equal(await cards.locator('button[aria-pressed="true"]').count(), 0,
       'Account B must not inherit any answer from account A');
     assert.equal(personalGets.B, 4, 'Account B must make its own authorized cold GETs');
@@ -119,10 +119,10 @@ test('Chrome: two synthetic accounts never inherit another owner\'s political an
     await page.getByRole('button', { name: 'Salva le mie opinioni' }).click();
     await page.waitForURL(origin + '/opinioni', { timeout: 20000 });
     await goToTopic();
-    await page.getByText('2 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
+    await page.getByText('2 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
 
     await switchAccount(tokenA);
-    await page.getByText('1 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
+    await page.getByText('1 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
     const original = cards.filter({ has: page.getByRole('heading', { name: firstText, exact: true }) });
     assert.equal(await original.getByRole('button', { name: 'Favorevole' }).getAttribute('aria-pressed'), 'true');
     assert.equal(personalGets.A, 4, 'Returning account A should safely reuse its own valid vault');
@@ -135,7 +135,7 @@ test('Chrome: two synthetic accounts never inherit another owner\'s political an
     await page.getByText(/consenso esplicito al trattamento/).waitFor({ timeout: 25000 });
     assert.equal(await cards.count(), 0, 'Revoked account B must not see its former answers');
     await switchAccount(tokenA);
-    await page.getByText('1 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
+    await page.getByText('1 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
     assert.deepEqual(external, [], 'Browser must never request any real remote origin');
   } finally {
     if (context) await context.close().catch(() => {});
