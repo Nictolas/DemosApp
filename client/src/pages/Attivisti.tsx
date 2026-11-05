@@ -152,7 +152,7 @@ export default function Attivisti() {
         const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
 
         if (!response.ok) {
-          throw new Error(`Errore ${response.status}: ${response.statusText}`);
+          throw new Error('DIRECTORY_LOAD_FAILED');
         }
         
 
@@ -208,7 +208,7 @@ export default function Attivisti() {
 
                 setSupportersCount(next);
               } else {
-          throw new Error(data.message || 'Errore nel caricamento degli attivisti');
+          throw new Error('DIRECTORY_RESPONSE_INVALID');
         }
       } catch (error) {
         if (controller.signal.aborted) return;
@@ -216,7 +216,7 @@ export default function Attivisti() {
         reset(null);
 
         setIsError(true);
-        setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
+        setErrorMessage('Non è stato possibile caricare gli attivisti. Riprova più tardi.');
       } finally {
 
         if (!controller.signal.aborted) setIsLoading(false);
@@ -458,7 +458,7 @@ export default function Attivisti() {
       } else {
         toast({
           title: "Errore",
-          description: data.error || "Impossibile votare questo attivista",
+          description: "Impossibile votare questo attivista",
           variant: "destructive"
         });
       }
@@ -474,7 +474,7 @@ export default function Attivisti() {
 
       toast({
         title: "Errore",
-        description: error?.message || "Errore di connessione",
+        description: "Errore di connessione",
         variant: "destructive"
       });
     }
