@@ -235,6 +235,28 @@ class SyncEciUnitTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Identificatore ECI ufficiale non valido"):
             sync_eci._normalize_identity({"pubRegNum": "bad"})
 
+    def test_search_identifiers_must_agree_with_public_registration(self):
+        valid = {"year": "2026", "number": "000011",
+                 "pubRegNum": "ECI(2026)000011"}
+        self.assertEqual(sync_eci._normalize_identity(valid), ("2026", "000011"))
+        self.assertEqual(sync_eci._normalize_identity(
+            {"pubRegNum": "ECI(2026)000011"}), ("2026", "000011"))
+        self.assertEqual(sync_eci._normalize_identity(
+            {"year": "2026", "pubRegNum": "ECI(2026)000011"}),
+            ("2026", "000011"))
+        for invalid in (
+            {**valid, "pubRegNum": "ECI(2026)000012"},
+            {**valid, "pubRegNum": "ECI(2025)000011"},
+            {**valid, "pubRegNum": "ECI_BAD"},
+            {"year": "2025", "pubRegNum": "ECI(2026)000011"},
+            {"number": "000012", "pubRegNum": "ECI(2026)000011"},
+        ):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(
+                    RuntimeError, "ECI_OFFICIAL_REGISTER_ID_(INVALID|MISMATCH)"
+                ):
+                    sync_eci._normalize_identity(invalid)
+
     def test_dry_run_never_calls_database_replace(self):
         fake_records = [
             ("2026-000011", "Titolo", 1, "eci-2026-000011", "ONGOING", None, None, "https://example.test"),
