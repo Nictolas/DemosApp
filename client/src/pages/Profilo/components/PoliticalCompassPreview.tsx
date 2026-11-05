@@ -1,8 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   calculatePoliticalCompass,
-  COMPASS_QUESTIONS,
-  readCompassAnswer,
   type CompassAxisResult,
 } from "@/lib/politicalCompassModel";
 
@@ -13,12 +11,6 @@ interface PoliticalCompassPreviewProps {
 
 const resultLabel = (result: CompassAxisResult) =>
   result.score === null ? "Dati insufficienti" : String(result.score);
-
-const answerLabel = (value: unknown) => {
-  const answer = readCompassAnswer(value);
-  return answer === 1 ? "Favorevole" : answer === -1 ? "Contrario" :
-    answer === 0 ? "Indeciso" : "Non espresso";
-};
 
 export function PoliticalCompassPreview({ answers, standalone = false }: PoliticalCompassPreviewProps) {
   // La navigazione verso questa pagina e una scelta esplicita di visualizzare il risultato.
@@ -122,27 +114,6 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
             </div>
           </div>
 
-          <details className="rounded-lg border border-slate-200 bg-white p-3">
-            <summary className="cursor-pointer text-sm font-semibold text-slate-900">
-              Quali Opinioni vengono usate e come?
-            </summary>
-            <p className="my-2 text-xs text-slate-600">
-              Sono incluse {COMPASS_QUESTIONS.length} Opinioni. Favorevole e
-              Contrario hanno segno opposto rispetto alla proposta; Indeciso
-              non influisce sul punteggio. Ogni polo pesa quanto l'altro,
-              indipendentemente dal numero di domande che contiene.
-              La scelta di includere una domanda e assegnarla a un polo resta
-              un'ipotesi metodologica da validare.
-            </p>
-            <ul className="space-y-1 text-xs text-slate-700">
-              {COMPASS_QUESTIONS.map((item) => (
-                <li key={item.id} className="flex flex-wrap justify-between gap-1 border-t border-slate-100 py-1">
-                  <span>{item.label} · {item.axis === "economia" ? "Economia" : "Libertà"}</span>
-                  <span className="font-medium">{answerLabel(answers[item.id])}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
         </div>
       )}
     </section>
