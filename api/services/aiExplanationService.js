@@ -134,21 +134,26 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
  * Salva o aggiorna la spiegazione per un politico nella tabella voti_camera
  * @param {string} politicoNome - Nome completo del politico
  * @param {string} spiegazione - La spiegazione da salvare
- * @returns {Promise<boolean>} True se salvato con successo
+ * @param {string} votazione - Titolo esatto della votazione associata alla riga
+ * @returns {Promise<boolean>} True se esattamente una riga della votazione è aggiornata
  */
-async function salvaSpiegazione(politicoNome, spiegazione) {
-  if (!spiegazione || spiegazione.trim() === '') {
+async function salvaSpiegazione(politicoNome, spiegazione, votazione) {
+  // A politician can have a newer current vote by the time AI generation ends.
+  // Never update by name only: that would attach text to a different vote.
+  if (typeof politicoNome !== 'string' || !politicoNome.trim() ||
+      typeof spiegazione !== 'string' || !spiegazione.trim() ||
+      typeof votazione !== 'string' || !votazione.trim()) {
     return false;
   }
 
   try {
-    await pool.query(
-      `UPDATE voti_camera 
-       SET spiegazione = $1 
-       WHERE politico_nome = $2`,
-      [spiegazione.trim(), politicoNome]
+    const result = await pool.query(
+      `UPDATE voti_camera
+       SET spiegazione = $1
+       WHERE politico_nome = $2 AND votazione = $3`,
+      [spiegazione.trim(), politicoNome, votazione]
     );
-    return true;
+    return result.rowCount === 1;
   } catch (error) {
     console.error('Salvataggio spiegazione parlamentare non riuscito');
     return false;
@@ -185,7 +190,7 @@ async function generaESalvaSpiegazione(politicoNome, votazione, descrizioneVotaz
   const spiegazione = await generaSpiegazione(votazione, descrizioneDaUsare, camera, voto);
   
   if (spiegazione) {
-    await salvaSpiegazione(politicoNome, spiegazione);
+    await salvaSpiegazione(politicoNome, spiegazione, votazione);
   }
 
   return spiegazione;
