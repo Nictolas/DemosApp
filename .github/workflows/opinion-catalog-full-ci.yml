@@ -14,6 +14,7 @@ on:
       - 'api/tests/opinionTopicsAccountIsolation.e2e.test.js'
       - 'api/qa/opinionCatalogQaServer.js'
       - 'client/src/lib/opinionTopics.ts'
+      - 'client/src/lib/opinionProvincialIds.ts'
       - 'client/src/lib/opinionTopicProgress.ts'
       - 'client/src/components/OpinioniTopicsMenu.tsx'
       - 'client/tests/opinionTopicProgress.test.mjs'
