@@ -78,7 +78,7 @@ test("informativa distingue profilazione locale facoltativa da profilazione comm
   assert.match(privacyNotice, /profilazione ai sensi del GDPR/);
   assert.match(privacyNotice, /senza salvare i punteggi nel database/);
   assert.match(privacyNotice, /Senza consenso alle Opinioni politiche/);
-  assert.match(privacyNotice, /non vengono utilizzati[\\s\\S]*per decisioni automatizzate/);
+  assert.match(privacyNotice, /non vengono utilizzati[\s\S]*per decisioni automatizzate/);
   assert.match(privacyNotice, /Nessuna profilazione commerciale o vendita/);
   assert.doesNotMatch(privacyNotice, /Nessuna profilazione o vendita dati individuali/);
 });
