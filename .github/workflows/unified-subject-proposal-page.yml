@@ -16,6 +16,7 @@ on:
       - 'client/src/App.tsx'
       - 'api/tests/mainRoutesPreserved.contract.test.js'
       - 'api/tests/compactCivicHeaders.contract.test.js'
+      - 'api/tests/amnistiaMainMerge.contract.test.js'
       - 'api/routes/subject-proposals.js'
       - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
       - 'api/tests/subjectProposalSingleQueue.synthetic.test.js'
@@ -43,6 +44,8 @@ jobs:
         run: node --test api/tests/mainRoutesPreserved.contract.test.js
       - name: Keep compact mobile civic headers and proposal buttons
         run: node --test api/tests/compactCivicHeaders.contract.test.js
+      - name: Amnistia compact voting form and review-gated proposals
+        run: node --test api/tests/amnistiaMainMerge.contract.test.js
   client-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
