@@ -91,6 +91,18 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await cards.first().waitFor({ timeout: 25000 });
     assert.equal(await cards.count(), 14);
     assert.equal(personalGets.length, 4, 'Cold topic entry uses the four existing grade reads only');
+    const search = page.getByRole('searchbox', { name: "Cerca fra le Opinioni dell'argomento" });
+    await search.fill('MES');
+    assert.equal(await cards.count(), 1, 'Local search must filter the topic questions');
+    await search.fill('query-sintetica-senza-risultati');
+    await page.getByText('Nessuna Opinione corrisponde alla ricerca.').waitFor();
+    assert.equal(await cards.count(), 0);
+    await search.fill('');
+    assert.equal(await cards.count(), 14);
+    await page.getByRole('button', { name: 'Continua', exact: true }).click();
+    assert.equal(await cards.first().evaluate(el => document.activeElement === el), true,
+      'Continue must focus the first unanswered question');
+    assert.equal(personalGets.length, 4, 'Local search and Continue must not fetch personal answers');
     await page.getByRole('button', { name: 'Europeo', exact: true }).click();
     assert.equal(await cards.count(), 1, 'One European economy question must appear without duplicates');
     await page.getByRole('button', { name: 'Tutti', exact: true }).click();
