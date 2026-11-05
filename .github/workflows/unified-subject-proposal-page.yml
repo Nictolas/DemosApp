@@ -48,6 +48,8 @@ jobs:
         run: node --test api/tests/mainRoutesPreserved.contract.test.js
       - name: Guard the main-based Draft compatibility workflow
         run: node --test api/tests/d12MainIntegrationWorkflow.contract.test.js
+      - name: Verify GDPR release checklist matches current Draft code
+        run: node --test api/tests/d12ReleaseGateDocumentation.contract.test.js
       - name: Keep compact mobile civic headers and proposal buttons
         run: node --test api/tests/compactCivicHeaders.contract.test.js
       - name: Amnistia compact voting form and review-gated proposals
