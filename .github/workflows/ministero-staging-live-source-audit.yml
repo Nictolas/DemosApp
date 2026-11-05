@@ -29,4 +29,5 @@ jobs:
       - name: Read real public Ministry API (NO DATABASE, NO SECRETS, NO PUSH)
         env:
           NODE_ENV: staging
+          DEMOS_OFFICIAL_SOURCE_SCHEMA_DIAGNOSTICS: 'true'
         run: node api/staging/ministeroPublicSnapshotAudit.js --public-source-audit
