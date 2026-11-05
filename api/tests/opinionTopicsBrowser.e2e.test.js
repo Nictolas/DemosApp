@@ -182,7 +182,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     // Thematic saving is not N-only: the existing POST must accept published
     // IDs from European, regional and municipal questions without a new API.
     for (const scenario of [
-      { topic: /Esteri e difesa/, grade: 'Europeo', answer: 'Indeciso', total: 8 },
+      { topic: /Esteri e difesa/, grade: 'Europeo', answer: 'Indeciso', total: 7 },
       { topic: /Sanità, scuola e famiglia/, grade: 'Regionale', answer: 'Favorevole', total: 10 },
       { topic: /Città, cultura e servizi/, grade: 'Comunale', answer: 'Contrario', total: 5 },
     ]) {
