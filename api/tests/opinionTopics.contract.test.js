@@ -26,7 +26,7 @@ test('every official opinion has exactly one valid static topic', () => {
 
 test('topic metadata does not copy geography, votes or personal information', () => {
   const raw = JSON.stringify(topics);
-  assert.doesNotMatch(raw, /"(gradi_opinione|risposte|user_id|email|consenso|political_opinions_consent)"\\s*:/i);
+  assert.doesNotMatch(raw, /"(gradi_opinione|risposte|user_id|email|consenso|political_opinions_consent)"\s*:/i);
   assert.equal(Object.keys(topics).sort().join(','), 'opinionIdToTopic,schemaVersion,topics');
   for (const opinion of getAllOpinions()) {
     assert.ok(Array.isArray(opinion.gradi_opinione));
