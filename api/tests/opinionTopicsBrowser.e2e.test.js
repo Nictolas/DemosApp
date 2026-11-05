@@ -156,6 +156,12 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByText('Campione di 10 persone.').first().waitFor({ timeout: 12000 });
     assert.equal(await page.getByText('0 / 13 Opinioni salvate').count(), 1,
       'Unsaved answer must not increase completion');
+    await page.getByRole('button', { name: 'Continua', exact: true }).click();
+    assert.equal(await cards.nth(1).evaluate(el => document.activeElement === el), true,
+      'Continue must skip a draft answered locally and focus the next unselected question');
+    assert.equal(await page.getByText('0 / 13 Opinioni salvate').count(), 1,
+      'Continue navigation must never count unsaved answers as completed');
+    assert.equal(personalGets.length, 4, 'Continue after a local draft must not fetch answers');
     await page.getByRole('button', { name: 'Indietro' }).click();
     await page.getByText('Opinioni non salvate').waitFor();
     await page.getByRole('button', { name: 'Annulla' }).click();
