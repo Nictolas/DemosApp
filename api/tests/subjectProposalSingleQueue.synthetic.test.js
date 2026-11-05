@@ -29,6 +29,7 @@ function harness({legacyGraziaReview = false} = {}) {
   let connects = 0;
   let activeConnections = 0;
   const router = {
+    use(_middleware) {return router;},
     get(route, ...args) {methods.get.set(route, args.at(-1)); return router;},
     post(route, ...args) {methods.post.set(route, args.at(-1)); return router;}
   };

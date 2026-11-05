@@ -66,6 +66,8 @@ jobs:
         run: node --experimental-strip-types --test api/tests/d12PublicHttpsSources.contract.test.js api/tests/recognitionEvidence.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js
       - name: Prevent unapproved third-party collection and publication in production
         run: node --test api/tests/d12NominationProductionGate.synthetic.test.js
+      - name: No-store for every generic nomination response, including auth failures
+        run: node --test api/tests/d12GenericNoStoreAllResponses.synthetic.test.js
       - name: Page all Grazia moderation and notification audit entries without exposing private fields
         run: node --test api/tests/graziaAdminPagination.synthetic.test.js api/tests/graziaModerationContract.test.js
       - name: Cache Grazia vote schema for reads and writes; fail closed on drift

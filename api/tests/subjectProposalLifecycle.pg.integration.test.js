@@ -33,7 +33,7 @@ async function request(base, url, who, method = 'GET', body) {
     },
     ...(body === undefined ? {} : {body: JSON.stringify(body)})
   });
-  return {status: resp.status, body: await resp.json()};
+  return {status: resp.status, body: await resp.json(), cacheControl: resp.headers.get('cache-control')};
 }
 const proposal = (category, title, details = '') => ({
   category, title, details, source_url: 'https://example.org/fonte-pubblica'
@@ -109,13 +109,22 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const base='http://127.0.0.1:'+server.address().port;
     const req=(uri,who,method,body)=>request(base,uri,who,method,body);
 
-    assert.equal((await req('/api/subject-proposals',null,'POST',proposal('attivisti','Attivista sintetica'))).status,401);
-    assert.equal((await req('/api/subject-proposals','a','POST',proposal('grazia','Persona sintetica'))).status,409);
-    assert.equal((await req('/api/subject-proposals/mine?category=grazia','a')).status,409);
-    assert.equal((await req('/api/subject-proposals','a','POST',{...proposal('attivisti','Persona sintetica'),source_url:'http://non-sicuro.example.org'})).status,400);
+    for(const [uri,who,method,body,status] of [
+      ['/api/subject-proposals',null,'POST',proposal('attivisti','Attivista sintetica'),401],
+      ['/api/subject-proposals','a','POST',proposal('grazia','Persona sintetica'),409],
+      ['/api/subject-proposals/mine?category=grazia','a','GET',undefined,409],
+      ['/api/subject-proposals','a','POST',{...proposal('attivisti','Persona sintetica'),source_url:'http://non-sicuro.example.org'},400],
+      ['/api/subject-proposals/admin','a','GET',undefined,403]
+    ]){
+      const response=await req(uri,who,method,body);
+      assert.equal(response.status,status,uri);
+      assert.match(response.cacheControl,/private,\s*no-store/,'real Express must protect early errors '+status);
+    }
     const capo=proposal('capo_stato','Candidata sintetica approvabile');
     const concurrent=await Promise.all(Array.from({length:8},()=>req('/api/subject-proposals','a','POST',capo)));
     assert.equal(concurrent.filter(x=>x.status===201).length,1,'only one accepted concurrently');
+    assert.ok(concurrent.every(x=>/no-store/.test(x.cacheControl||'')),
+      'real Express must protect success and duplicate-write responses');
     assert.equal(concurrent.filter(x=>x.status===409).length,7,'duplicates must fail atomically');
     const capoId=concurrent.find(x=>x.status===201).body.proposal.id;
     assert.equal((await req('/api/subject-proposals','a','POST',proposal('capo_stato','Altro candidato sintetico'))).status,409);
@@ -164,6 +173,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const org=await req('/api/subject-proposals','b','POST',proposal('organizzazioni','Organizzazione sintetica'));
     assert.equal(org.status,201);
     const publishedBefore=await req('/api/subject-proposals/approved?category=organizzazioni');
+    assert.match(publishedBefore.cacheControl,/no-store/,'public approved directory must never be cached');
     assert.equal(publishedBefore.body.data.length,0);
     assert.equal((await req('/api/subject-proposals/admin/'+org.body.proposal.id+'/decision','admin','POST',{decision:'approve'})).status,200);
     const publishedAfter=await req('/api/subject-proposals/approved?category=organizzazioni');

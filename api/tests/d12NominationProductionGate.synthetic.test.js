@@ -33,7 +33,7 @@ function harness(which,enabled=false,graziaEnabled=enabled) {
   };
   const pass = (_req,_res,next)=>next?.();
   const stubs = {
-    express:{Router:()=>({get:()=>{},post:(name,...args)=>post.set(name,args.at(-1))})},
+    express:{Router:()=>({use:()=>{},get:()=>{},post:(name,...args)=>post.set(name,args.at(-1))})},
     crypto:{randomUUID:()=>UUID},
     '../config/database':{getPool:()=>pool},
     '../middleware/auth':{verifyToken:pass,requireAdmin:pass,pool},

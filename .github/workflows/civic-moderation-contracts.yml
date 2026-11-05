@@ -34,6 +34,7 @@ on:
       - 'api/scripts/check-proposals-schema-readiness.js'
       - 'api/migrations/20261031_subject_proposals_review_gate.sql'
       - 'api/routes/subject-proposals.js'
+      - 'api/tests/d12GenericNoStoreAllResponses.synthetic.test.js'
       - 'api/services/publicApprovedSubjectPage.js'
       - 'api/tests/publicApprovedSubjectPagination.pg.integration.test.js'
       - 'api/routes/attivisti.js'
@@ -83,6 +84,8 @@ jobs:
           node --check api/routes/organizzazioni.js
       - name: Privacy and reaction tests
         run: node --test api/tests/notificationRecipientAndReactionsSecurity.test.js
+      - name: Ensure rejected and errored nomination requests cannot be cached
+        run: node --test api/tests/d12GenericNoStoreAllResponses.synthetic.test.js
       - name: GET notification preferences must stay read-only (synthetic VM)
         run: node --test api/tests/notificationPreferencesReadOnly.contract.test.js
       - name: Notification log and response minimization

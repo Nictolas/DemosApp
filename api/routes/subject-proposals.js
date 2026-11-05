@@ -5,6 +5,13 @@ const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
 const { isNominationWriteEnabled, rejectUnavailableNomination } = require('../utils/thirdPartyNominationGate');
 
 const router = express.Router();
+// Apply before authentication, validation and all other handlers: even 400,
+// 401, 403, 409 and 503 responses must never be cached by a shared proxy.
+// These routes include private submissions and Admin moderation metadata.
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+});
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const pool = getPool();
 const CATEGORIES = new Set(['capo_stato', 'amnistia', 'attivisti', 'organizzazioni']);
