@@ -99,7 +99,8 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
 
     for (const [width, height] of [[320, 568], [390, 844], [1280, 800]]) {
       await page.setViewportSize({ width, height });
-      await page.reload({ waitUntil: 'domcontentloaded' });
+      // The app shell has a deliberate 300 ms resize transition.
+      await page.waitForTimeout(550);
       await cards.first().waitFor({ timeout: 25000 });
       const geometry = await page.locator('.opinioni-editor-page').evaluate(el => {
         const main = el.querySelector('main');
