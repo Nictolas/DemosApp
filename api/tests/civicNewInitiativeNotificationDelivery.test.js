@@ -613,3 +613,26 @@ test('dispatcher refuses falsely completed failed-event update without rowCount'
   }),/CIVIC_FAILED_STATE_UNCONFIRMED/);
   assert.equal(db.event.status,'dispatching');
 });
+
+test('SQL completion network failure after FCM accept never relabels event failed',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const queries=[];
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>{
+      queries.push(String(sql));
+      if(String(sql).includes("SET status = 'sent'"))
+        throw Error('PRIVATE_SQL_ACK_FAILURE');
+      return original.query(sql,...args);
+    },
+    release:()=>{},
+  })};
+  let sends=0;
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{sends++;return 'SYNTHETIC_FCM_ACCEPTED';}},
+  }),/CIVIC_SENT_STATE_UNCONFIRMED/);
+  assert.equal(sends,1);
+  assert.equal(db.event.status,'dispatching');
+  assert.equal(queries.filter(sql=>sql.includes("SET status = 'failed'")).length,0,
+    'provider accepted push must remain a manual-review case');
+});
