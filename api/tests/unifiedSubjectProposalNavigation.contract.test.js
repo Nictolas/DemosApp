@@ -153,9 +153,9 @@ test('personal proposal statuses are owned by the authenticated user, even if th
   assert.match(page, /currentOwnerId\.current !== requestOwnerId\) return/);
   assert.match(page, /currentOwnerId\.current === requestOwnerId\)/);
   assert.match(page, /const submitOwnerId = user\.id/);
-  assert.match(page, /if \(currentOwnerId\.current !== submitOwnerId\) return/,
+  assert.match(page, /if \(currentOwnerId\.current !== submitOwnerId \|\| submitRequestVersion\.current !== submitVersion\) return/,
     'a successful old-account POST cannot populate the new account form');
-  assert.match(page, /if \(currentOwnerId\.current === submitOwnerId\) setError\(message\)/);
+  assert.match(page, /if \(currentOwnerId\.current === submitOwnerId && submitRequestVersion\.current === submitVersion\)/);
 });
 
 test('a late POST response cannot update a newer category or user form', () => {
