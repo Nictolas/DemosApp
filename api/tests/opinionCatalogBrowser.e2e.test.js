@@ -111,7 +111,27 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     const savedByGrade = new Map();
     for (const [grade, route, heading, answerLabel, answerCode] of grades) {
       await page.goto(HEADLESS_ORIGIN + route, { waitUntil: 'domcontentloaded', timeout: 35000 });
-      await page.getByText(heading, { exact: true }).first().waitFor({ timeout: 25000 });
+      try {
+        await page.getByText(heading, { exact: true }).first().waitFor({ timeout: 25000 });
+      } catch (error) {
+        // This test serves only synthetic identity and locally generated data.
+        // Log route and visible UI without tokens, headers or personal answers.
+        const visibleText = (await page.locator('body').innerText().catch(() => '')).slice(0, 700);
+        const location = new URL(page.url());
+        const auth = await page.evaluate(async () => {
+          try {
+            const authToken = localStorage.getItem('auth_token');
+            if (!authToken) return { tokenPresent: false, status: null };
+            const response = await fetch('/api/auth/me', {
+              headers: { authorization: 'Bearer ' + authToken }
+            });
+            return { tokenPresent: true, status: response.status };
+          } catch { return { tokenPresent: true, status: 'fetch-failed' }; }
+        });
+        throw new Error('Opinions heading was not visible; grade=' + grade +
+          ', route=' + location.pathname + ', body=' + JSON.stringify(visibleText) +
+          ', localAuth=' + JSON.stringify(auth) + ', original=' + error.message);
+      }
       try {
         await page.getByText(/Opinion da Inserire/).first().waitFor({ timeout: 25000 });
       } catch (error) {
