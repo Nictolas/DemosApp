@@ -39,6 +39,7 @@ import InformazioniLegali from "./pages/Impostazioni/InformazioniLegali";
 import CambiaPassword from "./pages/Impostazioni/Password";
 import GDPR from "./pages/GDPR";
 import Opinioni from "./pages/Opinioni";
+import OpinioniArgomento from "./pages/OpinioniArgomento";
 import OpinioniNazionali from "./pages/OpinioniNazionali";
 import OpinioniRegionali from "./pages/OpinioniRegionali";
 import OpinioniComunali from "./pages/OpinioniComunali";
@@ -603,6 +604,11 @@ export default function App() {
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/modifica-immagine" component={ModificaImmagine} />
                 </PageTransition>
+              </Route>
+
+              {/* Editor per argomento: conserva cache, consenso e save per gradi esistenti. */}
+              <Route path="/opinioni-argomento/:topicId">
+                <ProtectedRoute path="/opinioni-argomento/:topicId" component={OpinioniArgomento} />
               </Route>
 
               {/* Route opinioni — senza PageTransition (layout ancorato) */}
