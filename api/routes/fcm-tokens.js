@@ -17,6 +17,7 @@ const {
   onlyTokensNotRegisteredToOthers,
   upsertCleanupOwnedOrUnassignedToken,
   getActiveCivicUserDeviceTokens,
+  getSupersededCivicTokens,
 } = require('../services/civicFcmTokenOwnership');
 const { runCivicPreferenceSaveAtomic } = require('../services/civicPreferenceAtomicSave');
 const {getLegacyTokens,updateLegacyTokens}=require('../services/civicLegacyFcmStorage');
@@ -103,14 +104,7 @@ async function deactivateUserDeviceToken(userId, token, db = pool) {
 // Unsubscribe dei vecchi token PRIMA di revocarli o associarli a un altro account.
 async function revokeSupersededCivicTokens(userId, tokenToKeep, legacyTokens, db = pool) {
   if (!isCivicPushEnabled()) return;
-  const result = await db.query(
-    `SELECT fcm_token
-     FROM user_devices
-     WHERE is_active = TRUE
-       AND ((user_id = $1 AND fcm_token <> $2)
-         OR (user_id <> $1 AND fcm_token = $2))`,
-    [userId, tokenToKeep]
-  );
+  const superseded = await getSupersededCivicTokens(db,userId,tokenToKeep);
   // Legacy users.fcm_tokens may still contain an FCM token reassigned to
   // a different user_devices owner. Never unsubscribe that new user's topic.
   // The tokenToKeep transfer is intentional: its previous owner must be
@@ -118,7 +112,7 @@ async function revokeSupersededCivicTokens(userId, tokenToKeep, legacyTokens, db
   const staleSafeLegacy = await onlyTokensNotOwnedByOthers(
     db, userId, legacyTokens.filter((value) => value !== tokenToKeep));
   const replaced = new Set([
-    ...result.rows.map((row) => row.fcm_token),
+    ...superseded,
     ...staleSafeLegacy,
   ]);
   for (const token of replaced) {

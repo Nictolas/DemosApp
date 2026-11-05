@@ -6,7 +6,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {Client} = require('pg');
 const {onlyTokensNotOwnedByOthers,onlyTokensNotRegisteredToOthers,
-  upsertCleanupOwnedOrUnassignedToken,getActiveCivicUserDeviceTokens} =
+  upsertCleanupOwnedOrUnassignedToken,getActiveCivicUserDeviceTokens,
+  getSupersededCivicTokens} =
   require('../services/civicFcmTokenOwnership');
 
 const LOOPBACK = 'postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci';
@@ -43,8 +44,14 @@ test('real PG16/17 never revokes a legacy token owned by another active account'
     const oldOwner=await onlyTokensNotOwnedByOthers(client,'old_account',[
       'token_reassigned','token_original','token_inactive','token_missing','token_reassigned']);
     assert.deepEqual(oldOwner,[
-      'token_original','token_inactive','token_missing'],
-      'legacy owner must not revoke an active reassigned FCM token');
+      'token_original','token_missing'],
+      'legacy owner must not revoke an active OR inactive reassigned token');
+
+    const transferTokens=await getSupersededCivicTokens(client,'old_account','token_inactive');
+    assert.deepEqual([...transferTokens].sort(),['token_inactive','token_original'],
+      'transfer requires unsubscribe even when prior owner device is inactive');
+    assert.deepEqual(await onlyTokensNotOwnedByOthers(client,'old_account',[
+      'token_inactive','token_original']),['token_original']);
 
     const currentOwner=await onlyTokensNotOwnedByOthers(
       client,'new_account',['token_reassigned','token_original']);
@@ -59,8 +66,8 @@ test('real PG16/17 never revokes a legacy token owned by another active account'
       client,'new_account',['token_reassigned']),[]);
     assert.deepEqual(await onlyTokensNotOwnedByOthers(
       client,'third_account',['token_reassigned']),['token_reassigned']);
-    // Cleanup uses stricter ownership than ordinary revocation: even an
-    // INACTIVE token of another account cannot be reclaimed.
+    // Cleanup and all other revocations protect both active and inactive
+    // foreign registrations. Neither may reclaim the foreign token.
     assert.deepEqual(await onlyTokensNotRegisteredToOthers(
       client,'old_account',['token_original','token_reassigned','token_inactive','brand_new']),
       ['token_original','brand_new']);
