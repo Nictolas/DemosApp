@@ -29,7 +29,8 @@ test('Amnistia user interface cannot submit a bypass proposal or claim success',
   assert.match(form, /Proposte temporaneamente sospese/);
   const page = read('client/src/pages/Amnistia/index.tsx');
   assert.doesNotMatch(page, /<CreateButton|<CarceratoForm/, 'the unavailable form must not collect user input');
-  assert.match(page, /Le nuove voci vengono valutate prima della pubblicazione/, 'moderated Proponi is available while legacy form is blocked');
+  const votingForm = read('client/src/pages/Amnistia/components/AmnistiaForm.tsx');
+  assert.match(votingForm, /saranno valutate prima della pubblicazione/, 'review guidance remains visible in the compact voting form');
   assert.match(page, /ProposeSubjectButton category=/, 'moderated entry remains available');
 });
 
