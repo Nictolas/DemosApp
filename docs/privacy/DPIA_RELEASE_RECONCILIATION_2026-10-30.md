@@ -25,3 +25,13 @@ Questa è una **matrice di scostamenti e prove mancanti**, non una nuova DPIA, u
 4. **Decisionale:** parere DPO, accettazione del rischio residuo, data, versione e approvazioni effettive. Fino ad allora **DPIA NON APPROVATA**.
 
 **Tracciamento:** [registro operativo «DEMOS – Ottimizzazione Opinioni – Piano operativo e verifiche»](https://docs.google.com/spreadsheets/d/18-kXLPc7rHHJQBgmOj0qnDzCGNa2WY5pfruLf374Vqs/edit), scheda «Registro lavori». Nessun dato personale o backup di produzione è stato modificato per redigere questa matrice.
+
+## Estensione 05/11/2026 — cinque assi del Compasso politico (PR #615)
+
+La PR [#615](https://github.com/Nictolas/DemosApp/pull/615) prepara cinque **inferenze personali su opinioni politiche** calcolate nel dispositivo, visualizzate solo nella pagina privata, senza conservazione dei punteggi. Non è una raccolta di appartenenza religiosa e non introduce nuovi endpoint o copie nel database. Il calcolo locale **non elimina** la rilevanza dell'art. 9 GDPR.
+
+- **Bozza specifica:** [POLITICAL_AXES_DPIA_ADDENDUM_2026-11-05.md](POLITICAL_AXES_DPIA_ADDENDUM_2026-11-05.md).
+- **Informativa da validare:** il nuovo §4.2 di `client/src/pages/PrivacyPolicy.tsx` descrive l'elaborazione e corregge l'ambiguità «Nessuna profilazione» rispetto al compasso esistente. Non pubblicare il testo senza approvazione del titolare/DPO.
+- **Valutazione statistica da completare:** `docs/political-axes-methodology.md`; Costumi, Ambiente e Immigrazione non costituiscono misure validate di ideologia.
+- **Evidenze tecniche:** test unitari e browser mobile nella PR, da verificare sempre sul commit effettivo di integrazione. Non equivalgono a DPIA o consulenza legale.
+- **Stato:** APERTO — documentazione predisposta, validazione del rischio residuo e approvazione decisionale non attestata.

@@ -34,22 +34,22 @@ async function runOpenpolisVotazioniFinaliSync() {
   let pool;
   try {
     pool = getPool();
-  } catch (e) {
-    console.warn('⚠️ [openpolisVotazioniFinali] Pool non disponibile, skip sync:', e.message);
-    return;
-  }
-  try {
     await ensureTable(pool);
-    console.log('🔄 [openpolisVotazioniFinali] Avvio sync votazioni finali decisive da Openpolis...');
+    console.log('[openpolisVotazioniFinali] Sync final votes started');
+    const { rows: beforeRows } = await pool.query('SELECT COUNT(*)::int AS count FROM openpolis_votazioni_finali_decisive');
     const items = await fetchVotazioniFinaliDecisive(50);
-    if (items.length > 0) {
-      const saved = await saveToDb(items, pool);
-      console.log(`✅ [openpolisVotazioniFinali] Salvate ${saved} votazioni finali decisive`);
-    } else {
-      console.log('⚠️ [openpolisVotazioniFinali] Nessuna votazione finale trovata nella lista');
-    }
+    if (items.length === 0) throw new Error('OPENPOLIS_FINAL_VOTES_PARSE_EMPTY');
+    const saved = await saveToDb(items, pool);
+    const { rows: afterRows } = await pool.query('SELECT COUNT(*)::int AS count FROM openpolis_votazioni_finali_decisive');
+    const added = Math.max(0, afterRows[0].count - beforeRows[0].count);
+    console.log('[openpolisVotazioniFinali] Sync completed', { fetched: items.length, saved, added });
+    return { success: true, fetched: items.length, added, total: afterRows[0].count };
   } catch (error) {
-    console.error('❌ [openpolisVotazioniFinali] Errore sync:', error.message);
+    // Upstream/parser errors must never be presented as a successful sync.
+    const reason = error?.message === 'OPENPOLIS_FINAL_VOTES_PARSE_EMPTY'
+      ? 'UPSTREAM_PARSE_EMPTY' : 'UPSTREAM_OR_DATABASE_UNAVAILABLE';
+    console.error('[openpolisVotazioniFinali] Sync failed', { reason, error: error?.message });
+    return { success: false, reason, fetched: 0, added: 0 };
   }
 }
 

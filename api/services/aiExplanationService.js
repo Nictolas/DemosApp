@@ -6,6 +6,7 @@ const { hasDocumentaryContext, MAX_CONTEXT_CHARS } = require('./parliamentGround
 const { requestFreeGroq, getSharedFreeQuotaStatus, classifyFreeGroqError } = require('./parliamentFreeGroqBudget');
 const { createSingleflight } = require('./parliamentAiSingleflight');
 const singleflightSpiegazione = createSingleflight();
+const { isConfirmedFinalParliamentVote } = require('./parliamentFinalVotePolicy');
 const { getPool } = require('../config/database');
 
 // Usa il pool centralizzato ottimizzato
@@ -292,6 +293,10 @@ async function generaSpiegazioniMancanti(limit = 10) {
  * @returns {Promise<string|null>} La spiegazione generata o null
  */
 async function generaSpiegazioneVotazione(votazioneId, titoloVotazione, descrizioneVotazione, camera) {
+  if (!isConfirmedFinalParliamentVote({ titolo_votazione: titoloVotazione })) {
+    console.warn('Spiegazione AI non eseguita: votazione non finale o non verificata');
+    return null;
+  }
   if (votazioneId === null || votazioneId === undefined) {
     return null;
   }

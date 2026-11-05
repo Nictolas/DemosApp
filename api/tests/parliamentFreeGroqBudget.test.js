@@ -148,6 +148,7 @@ test('mocked GPT-OSS completion never publishes empty, truncated or filtered tex
       resolveFreeGroqModel: () => 'openai/gpt-oss-120b',
       isGroqConfigured: () => true
     },
+    './parliamentFinalVotePolicy': { isConfirmedFinalParliamentVote: () => true },
     './parliamentGroundedAnalysis': { hasDocumentaryContext: () => true },
     './parliamentFreeGroqBudget': {
       requestFreeGroq: (client, params) => client.chat.completions.create(params),
@@ -232,6 +233,7 @@ test('both explanation handlers return a safe 503 without provider secrets', asy
   injectedError.status = 401;
   injectedError.stack = 'PRIVATE_PROVIDER_STACK gsk_SECRET_VALUE';
   let shouldThrow = true;
+  let isFinal = true;
   const fakeRequire = (name) => {
     if (name === '../services/aiExplanationService') return {
       verificaLimiteGiornaliero: async () => ({ rispettato: true, count: 0, limite: 120 }),
@@ -246,13 +248,13 @@ test('both explanation handlers return a safe 503 without provider secrets', asy
     throw new Error('unexpected require ' + name);
   };
   const pool = { query: async () => ({ rows: [{
-    id: 3, titolo_votazione: 'DDL test', descrizione_votazione: 'Fatti pubblici documentati',
+    id: 3, titolo_votazione: isFinal ? 'Votazione finale DDL test' : 'Articolo 1 DDL test', descrizione_votazione: 'Fatti pubblici documentati',
     camera: 'Camera', spiegazione: null, votazione_id: 3
   }] }) };
   vm.runInNewContext(source.slice(start, end), {
     router: { post: (route, _auth, _admin, handler) => registered.set(route, handler) },
     verifyToken() {}, requireAdmin() {}, pool,
-    require: fakeRequire, console: safeConsole, Date, parseInt, isNaN, decodeURIComponent
+    require: fakeRequire, isConfirmedFinalParliamentVote: require('../services/parliamentFinalVotePolicy').isConfirmedFinalParliamentVote, console: safeConsole, Date, parseInt, isNaN, decodeURIComponent
   });
   for (const [route, params] of [
     ['/votazione/:votazione_id/spiegazione', { votazione_id: '3' }],
@@ -273,6 +275,21 @@ test('both explanation handlers return a safe 503 without provider secrets', asy
       assert.match(res.body.message, /non (?:è )?disponibile/);
       assert.doesNotMatch(JSON.stringify(res.body), /gsk_|PRIVATE_PROVIDER_STACK|provider rejected|OPENAI_API_KEY/);
     }
+  }
+  // The final-vote gate must also protect the legacy URL.
+  isFinal = false;
+  for (const [route, params] of [
+    ['/votazione/:votazione_id/spiegazione', { votazione_id: '3' }],
+    ['/:politico/spiegazione', { politico: 'Nome%20Cognome' }]
+  ]) {
+    const res = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(body) { this.body = body; return this; }
+    };
+    await registered.get(route)({ params }, res);
+    assert.equal(res.statusCode, 422);
+    assert.match(res.body.error, /non finale/i);
   }
   assert.doesNotMatch(logs.join('\n'), /gsk_|PRIVATE_PROVIDER_STACK|provider rejected/);
   assert.match(logs.join('\n'), /AUTH/);
