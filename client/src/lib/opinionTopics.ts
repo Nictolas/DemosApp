@@ -70,7 +70,7 @@ export const OPINION_TOPIC_BY_ID: Readonly<Record<string, OpinionTopicId>> = Obj
   "limitazioni_movida_notturna": "sicurezza_giustizia",
   "matrimonio_gay": "diritti_societa",
   "menu_vegetali_mense_scolastiche": "animali_alimentazione",
-  "mes": "esteri_difesa",
+  "mes": "economia_lavoro_fisco",
   "metabo_law": "sanita_scuola_famiglia",
   "multe_in_base_al_reddito": "economia_lavoro_fisco",
   "nato": "esteri_difesa",
