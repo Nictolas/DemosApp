@@ -479,8 +479,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         sync(dry_run=args.dry_run)
         return 0
-    except Exception as exc:
-        print(f"[ERR] Sync ECI fallito: {exc}", file=sys.stderr)
+    except Exception:
+        # Never print raw provider/SQL exceptions: connection failures may
+        # embed DSNs with credentials, request URLs or identifiable values.
+        # A stable code and nonzero exit status suffice for safe job alerts.
+        print("[ERR] ECI_SYNC_FAILED", file=sys.stderr)
         return 1
 
 
