@@ -104,9 +104,11 @@ async function dispatchCivicNewInitiatives(pool, {
     for (let index = 0; index < limit; index++) {
       const event = await claimPendingEvent(client);
       if (!event) break;
+      let fcmAccepted = false;
       try {
         const payload = buildCivicPush(event);
         await firebase.send(payload);
+        fcmAccepted = true;
         // "sent" means accepted by FCM, not delivered to every device.
         // An acknowledged FCM send cannot be recalled. A missing/malformed
         // SQL acknowledgement is NOT evidence that the event is marked sent.
@@ -125,7 +127,7 @@ async function dispatchCivicNewInitiatives(pool, {
         // A provider-accepted send or an uncertain DB acknowledgement cannot
         // safely be converted into an ordinary failed event: the outbox needs
         // manual review and must never be automatically requeued.
-        if (error?.message === 'CIVIC_SENT_STATE_UNCONFIRMED') {
+        if (fcmAccepted || error?.message === 'CIVIC_SENT_STATE_UNCONFIRMED') {
           throw new Error('CIVIC_SENT_STATE_UNCONFIRMED');
         }
         const code = error?.message === 'CIVIC_UNSUPPORTED_CATEGORY'
