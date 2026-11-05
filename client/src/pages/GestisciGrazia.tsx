@@ -5,7 +5,7 @@ import { hasAdminCapability } from "@/lib/admin-access";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -29,34 +29,75 @@ export default function GestisciGrazia() {
   const [showUnconfirmed, setShowUnconfirmed] = React.useState(false);
   const [withdrawNotes, setWithdrawNotes] = React.useState<Record<string,string>>({});
 
-  const { data: requests = [], isLoading, isError, error } = useQuery<GraziaRequest[]>({
-    queryKey: ["graziaRequests"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/grazia/richieste");
-      if (!response?.ok || !Array.isArray(response.data)) throw new Error("Coda richieste non disponibile");
-      return response.data;
+  const {
+    data: requestPages, isLoading, isError, error,
+    hasNextPage: hasMoreRequests, fetchNextPage: fetchMoreRequests,
+    isFetchingNextPage: loadingMoreRequests, isFetchNextPageError: requestsPageError,
+  } = useInfiniteQuery({
+    queryKey: ["graziaRequests", user?.id],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }): Promise<{ richieste: GraziaRequest[]; next_cursor: string | null }> => {
+      const path = "/api/grazia/richieste?paged=1" +
+        (pageParam ? "&cursor=" + encodeURIComponent(pageParam) : "");
+      const r = await apiRequest("GET", path);
+      if (!r?.ok || !r.data?.success || !Array.isArray(r.data.richieste))
+        throw new Error("Coda richieste non disponibile");
+      return {
+        richieste: r.data.richieste,
+        next_cursor: typeof r.data.next_cursor === "string" ? r.data.next_cursor : null,
+      };
     },
+    getNextPageParam: page => page.next_cursor || undefined,
     enabled: !!user && isAdmin,
   });
+  const requests = requestPages?.pages.flatMap(page => page.richieste) || [];
 
-  const {data: published = [], isLoading: publishedLoading, isError: publishedError} = useQuery<PublishedGrazia[]>({
-    queryKey: ["graziaApproved"],
-    queryFn: async () => {
-      const r=await apiRequest("GET","/api/grazia/approvate");
-      if(!r?.ok || !r.data?.success) throw new Error("Pubblicazioni non disponibili");
-      return r.data.richieste || [];
+  // Admin-only and opt-in: pages after the first are fetched only on click.
+  // React Query owns the pages, so withdrawal invalidation refreshes all loaded pages.
+  const {
+    data: publishedPages, isLoading: publishedLoading, isError: publishedError,
+    hasNextPage: hasMorePublished, fetchNextPage: fetchMorePublished,
+    isFetchingNextPage: loadingMorePublished, isFetchNextPageError: publishedPageError,
+  } = useInfiniteQuery({
+    queryKey: ["graziaApproved", user?.id],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }): Promise<{ richieste: PublishedGrazia[]; next_cursor: string | null }> => {
+      const path = "/api/grazia/approvate" +
+        (pageParam ? "?cursor=" + encodeURIComponent(pageParam) : "");
+      const r = await apiRequest("GET", path);
+      if (!r?.ok || !r.data?.success || !Array.isArray(r.data.richieste))
+        throw new Error("Pubblicazioni non disponibili");
+      return {
+        richieste: r.data.richieste,
+        next_cursor: typeof r.data.next_cursor === "string" ? r.data.next_cursor : null,
+      };
     },
-    enabled:!!user && isAdmin && showPublished,
+    getNextPageParam: page => page.next_cursor || undefined,
+    enabled: !!user && isAdmin && showPublished,
   });
-  const {data: undelivered=[], isLoading: unconfirmedLoading, isError: unconfirmedError} = useQuery<GraziaUnconfirmedWithdrawal[]>({
-    queryKey:["graziaWithdrawalAudit"],
-    queryFn:async()=>{
-      const r=await apiRequest("GET","/api/grazia/ritiri-avvisi");
-      if(!r?.ok || !r.data?.success) throw new Error("Verifica avvisi non disponibile");
-      return r.data.ritiri||[];
+  const published = publishedPages?.pages.flatMap(page => page.richieste) || [];
+  const {
+    data: auditPages, isLoading: unconfirmedLoading, isError: unconfirmedError,
+    hasNextPage: hasMoreUnconfirmed, fetchNextPage: fetchMoreUnconfirmed,
+    isFetchingNextPage: loadingMoreUnconfirmed, isFetchNextPageError: unconfirmedPageError,
+  } = useInfiniteQuery({
+    queryKey: ["graziaWithdrawalAudit", user?.id],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }): Promise<{ ritiri: GraziaUnconfirmedWithdrawal[]; next_cursor: string | null }> => {
+      const path = "/api/grazia/ritiri-avvisi" +
+        (pageParam ? "?cursor=" + encodeURIComponent(pageParam) : "");
+      const r = await apiRequest("GET", path);
+      if (!r?.ok || !r.data?.success || !Array.isArray(r.data.ritiri))
+        throw new Error("Verifica avvisi non disponibile");
+      return {
+        ritiri: r.data.ritiri,
+        next_cursor: typeof r.data.next_cursor === "string" ? r.data.next_cursor : null,
+      };
     },
-    enabled:!!user && isAdmin && showUnconfirmed,
+    getNextPageParam: page => page.next_cursor || undefined,
+    enabled: !!user && isAdmin && showUnconfirmed,
   });
+  const undelivered = auditPages?.pages.flatMap(page => page.ritiri) || [];
   const withdrawMutation=useMutation({
     mutationFn:async({id,note}:{id:string;note:string})=>{
       const r=await apiRequest("POST",`/api/grazia/richiesta/${encodeURIComponent(id)}/ritira`,{note});
@@ -84,6 +125,7 @@ export default function GestisciGrazia() {
     onSuccess: (_data, { action }) => {
       toast({ title: action === "accetta" ? "Proposta approvata" : "Proposta rifiutata" });
       queryClient.invalidateQueries({ queryKey: ["graziaRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["graziaApproved"] });
       queryClient.invalidateQueries({ queryKey: ["graziaData"] });
     },
     onError: (err: Error) => toast({ title: "Errore", description: err.message, variant: "destructive" }),
@@ -110,7 +152,7 @@ export default function GestisciGrazia() {
           </CardHeader>
           <CardContent>
             {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> :
-             isError ? <p className="text-red-600">{(error as Error).message}</p> :
+             (isError && requests.length === 0) ? <p className="text-red-600">{(error as Error).message}</p> :
              requests.length === 0 ? <p className="text-muted-foreground">Nessuna proposta in attesa.</p> :
              <div className="space-y-3">
                {requests.map((item) => (
@@ -134,6 +176,13 @@ export default function GestisciGrazia() {
                    </div>
                  </div>
                ))}
+               {requestsPageError && <p role="alert">Caricamento delle altre proposte non riuscito. Riprova.</p>}
+               {hasMoreRequests && (
+                 <Button type="button" variant="outline" disabled={loadingMoreRequests}
+                   onClick={() => { void fetchMoreRequests(); }}>
+                   {loadingMoreRequests ? "Caricamento..." : "Carica altre proposte da valutare"}
+                 </Button>
+               )}
              </div>}
           </CardContent>
         </Card>
@@ -155,11 +204,12 @@ export default function GestisciGrazia() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {publishedLoading ? <p>Caricamento...</p> : publishedError
+              {publishedLoading ? <p>Caricamento...</p> : (publishedError && published.length === 0)
                 ? <p role="alert">Pubblicazioni temporaneamente non disponibili.</p>
                 : published.length === 0
                   ? <p>Nessuna proposta approvata gestibile in questa coda.</p>
-                  : published.map(item => (
+                  : (<>
+                      {published.map(item => (
                     <article key={item.id} className="space-y-2 rounded-lg border p-3">
                       <p className="font-medium">{item.nome}</p>
                       <Input maxLength={500} value={withdrawNotes[item.id]||""}
@@ -179,7 +229,15 @@ export default function GestisciGrazia() {
                         <X className="mr-2 h-4 w-4"/> Ritira pubblicazione Grazia
                       </Button>
                     </article>
-                  ))}
+                      ))}
+                      {publishedPageError && <p role="alert">Caricamento delle altre pubblicazioni non riuscito. Riprova.</p>}
+                      {hasMorePublished && (
+                        <Button type="button" variant="outline" disabled={loadingMorePublished}
+                          onClick={() => { void fetchMorePublished(); }}>
+                          {loadingMorePublished ? "Caricamento..." : "Carica altre pubblicazioni Grazia"}
+                        </Button>
+                      )}
+                    </>)}
             </CardContent>
           </Card>
         )}
@@ -193,14 +251,23 @@ export default function GestisciGrazia() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {unconfirmedLoading ? <p>Caricamento...</p> : unconfirmedError
+              {unconfirmedLoading ? <p>Caricamento...</p> : (unconfirmedError && undelivered.length === 0)
                 ? <p role="alert">Verifica avvisi non disponibile.</p>
                 : undelivered.length === 0 ? <p>Nessun avviso da verificare.</p>
-                : undelivered.map(item => (
+                : (<>
+                    {undelivered.map(item => (
                   <p key={item.id} className="break-all rounded-md border p-2 text-sm">
                     Riferimento ritiro: {item.id}
                   </p>
-                ))}
+                    ))}
+                    {unconfirmedPageError && <p role="alert">Caricamento degli altri avvisi non riuscito. Riprova.</p>}
+                    {hasMoreUnconfirmed && (
+                      <Button type="button" variant="outline" disabled={loadingMoreUnconfirmed}
+                        onClick={() => { void fetchMoreUnconfirmed(); }}>
+                        {loadingMoreUnconfirmed ? "Caricamento..." : "Carica altri avvisi di ritiro"}
+                      </Button>
+                    )}
+                  </>)}
             </CardContent>
           </Card>
         )}

@@ -219,13 +219,30 @@ router.get('/', personalNoStore, async (req, res) => {
 });
 
 // GET /api/grazia/richieste - Solo Admin: coda privata reale
-router.get('/richieste', personalNoStore, verifyToken, requireAdmin, async (_req, res) => {
+router.get('/richieste', personalNoStore, verifyToken, requireAdmin, async (req, res) => {
+  // Keep the existing array response for older clients. The new Admin panel
+  // requests ?paged=1 and uses opaque cursors to reach all pending proposals.
+  const paged = req.query.paged === '1';
+  const cursor = paged ? parseGraziaAdminCursor(req.query.cursor) : null;
+  if (cursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
   try {
+    if (!paged) {
+      const result = await pool.query(
+        "SELECT id, nome, url_prova AS \"urlProva\", data_creazione AS \"createdAt\" FROM richieste_grazia WHERE status = 'pending' ORDER BY data_creazione ASC LIMIT 100"
+      );
+      return res.json(result.rows);
+    }
     const result = await pool.query(
-      "SELECT id, nome, url_prova AS \"urlProva\", data_creazione AS \"createdAt\" FROM richieste_grazia WHERE status = 'pending' ORDER BY data_creazione ASC LIMIT 100"
+      `SELECT id, nome, url_prova AS "urlProva", data_creazione AS "createdAt",
+              EXTRACT(EPOCH FROM data_creazione)::text AS cursor_epoch
+       FROM richieste_grazia
+       WHERE status='pending'
+         AND ($1::numeric IS NULL OR (data_creazione,id) > (to_timestamp($1::numeric),$2::uuid))
+       ORDER BY data_creazione ASC, id ASC LIMIT 101`,
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );
-    return res.json(result.rows);
-  } catch (error) {
+    return res.json({success:true,...graziaAdminPage(result.rows,'richieste')});
+  } catch (_) {
     return res.status(500).json({ success: false, error: 'Coda richieste non disponibile' });
   }
 });
@@ -423,23 +440,66 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
 
 // Grazia keeps one canonical queue: richieste_grazia. The two Admin GETs
 // are on-demand and never expose the proposer UUID or proof URL.
-router.get('/approvate', personalNoStore, verifyToken, requireAdmin, async (_req,res) => {
+// Bounded, opaque keyset cursor. Keep the database's microsecond precision;
+// using JavaScript Date would skip proposals reviewed in the same millisecond.
+function parseGraziaAdminCursor(raw) {
+  if (raw == null) return null;
+  if (typeof raw !== 'string' || raw.length > 240 || !/^[A-Za-z0-9_-]+$/.test(raw)) return false;
+  try {
+    const decoded = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+    if (!Array.isArray(decoded) || decoded.length !== 2) return false;
+    const [epoch, id] = decoded;
+    if (typeof epoch !== 'string' || !/^\d{1,11}(?:\.\d{1,6})?$/.test(epoch) ||
+        Number(epoch) > 4102444800 || typeof id !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return false;
+    return [epoch, id];
+  } catch (_) { return false; }
+}
+
+function graziaAdminPage(rows, field) {
+  const page = rows.slice(0, 100);
+  return {
+    [field]: page.map(({ cursor_epoch, ...entry }) => entry),
+    next_cursor: rows.length > 100
+      ? Buffer.from(JSON.stringify([page[page.length - 1].cursor_epoch, page[page.length - 1].id])).toString('base64url')
+      : null
+  };
+}
+
+// Admin-only, on-demand pagination. Do not select the proposer ID, proof URL,
+// review notes, or personal votes from approved publication and audit listings.
+router.get('/approvate', personalNoStore, verifyToken, requireAdmin, async (req,res) => {
+  const cursor = parseGraziaAdminCursor(req.query.cursor);
+  if (cursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
   try {
     const result=await pool.query(
-      "SELECT id,nome,data_creazione AS \"createdAt\" FROM richieste_grazia WHERE status='approved' AND withdrawn_at IS NULL ORDER BY data_creazione DESC LIMIT 100"
+      `SELECT id, nome, data_creazione AS "createdAt",
+              EXTRACT(EPOCH FROM data_creazione)::text AS cursor_epoch
+       FROM richieste_grazia
+       WHERE status='approved' AND withdrawn_at IS NULL
+         AND ($1::numeric IS NULL OR (data_creazione,id) < (to_timestamp($1::numeric),$2::uuid))
+       ORDER BY data_creazione DESC, id DESC LIMIT 101`,
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );
-    return res.json({success:true,richieste:result.rows});
+    return res.json({success:true,...graziaAdminPage(result.rows,'richieste')});
   } catch (_) {
     return res.status(503).json({success:false,error:'Pubblicazioni Grazia non disponibili'});
   }
 });
 
-router.get('/ritiri-avvisi', personalNoStore, verifyToken, requireAdmin, async (_req,res) => {
+router.get('/ritiri-avvisi', personalNoStore, verifyToken, requireAdmin, async (req,res) => {
+  const cursor = parseGraziaAdminCursor(req.query.cursor);
+  if (cursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
   try {
     const result=await pool.query(
-      "SELECT id,withdrawn_at FROM richieste_grazia WHERE withdrawn_at IS NOT NULL AND withdraw_notification_sent IS DISTINCT FROM TRUE ORDER BY withdrawn_at DESC LIMIT 100"
+      `SELECT id, withdrawn_at, EXTRACT(EPOCH FROM withdrawn_at)::text AS cursor_epoch
+       FROM richieste_grazia
+       WHERE withdrawn_at IS NOT NULL AND withdraw_notification_sent IS DISTINCT FROM TRUE
+         AND ($1::numeric IS NULL OR (withdrawn_at,id) < (to_timestamp($1::numeric),$2::uuid))
+       ORDER BY withdrawn_at DESC, id DESC LIMIT 101`,
+      [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );
-    return res.json({success:true,ritiri:result.rows});
+    return res.json({success:true,...graziaAdminPage(result.rows,'ritiri')});
   } catch (_) {
     return res.status(503).json({success:false,error:'Verifica avvisi Grazia non disponibile'});
   }

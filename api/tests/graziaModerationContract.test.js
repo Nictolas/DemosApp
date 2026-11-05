@@ -85,8 +85,8 @@ test('Grazia withdrawal remains on its own queue, keeps votes and has private au
   assert.match(route,/router\.get\('\/ritiri-avvisi', personalNoStore, verifyToken, requireAdmin/);
   assert.match(route,/withdraw_notification_sent IS DISTINCT FROM TRUE/);
   assert.match(route,/Soggetto non riproponibile/);
-  assert.match(ui,/enabled:!!user && isAdmin && showPublished/);
-  assert.match(ui,/enabled:!!user && isAdmin && showUnconfirmed/);
+  assert.match(ui,/enabled:\s*!!user && isAdmin && showPublished/);
+  assert.match(ui,/enabled:\s*!!user && isAdmin && showUnconfirmed/);
   assert.match(ui,/api\/grazia\/richiesta\/\$\{encodeURIComponent\(id\)\}\/ritira/);
 });
 

@@ -20,6 +20,10 @@ on:
       - 'api/tests/compactCivicHeaders.contract.test.js'
       - 'api/tests/amnistiaMainMerge.contract.test.js'
       - 'api/routes/subject-proposals.js'
+      - 'api/routes/grazia.js'
+      - 'client/src/pages/GestisciGrazia.tsx'
+      - 'api/tests/graziaAdminPagination.synthetic.test.js'
+      - 'scripts/test-grazia-admin-pagination-browser.cjs'
       - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
       - 'api/tests/subjectProposalSingleQueue.synthetic.test.js'
       - 'api/migrations/20261031_subject_proposals_review_gate.sql'
@@ -54,6 +58,8 @@ jobs:
         run: node --test api/tests/d12StagingPreflightTarget.contract.test.js
       - name: Reject private/non-public nomination source URLs in browser and API
         run: node --experimental-strip-types --test api/tests/d12PublicHttpsSources.contract.test.js api/tests/recognitionEvidence.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js
+      - name: Page all Grazia moderation and notification audit entries without exposing private fields
+        run: node --test api/tests/graziaAdminPagination.synthetic.test.js api/tests/graziaModerationContract.test.js
       - name: Keep compact mobile civic headers and proposal buttons
         run: node --test api/tests/compactCivicHeaders.contract.test.js
       - name: Amnistia compact voting form and review-gated proposals
@@ -104,6 +110,8 @@ jobs:
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-admin-audit-pagination-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-mounted-activist-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-public-approved-pagination-browser.cjs
+          D12_QA_WIDTH=320 NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-admin-pagination-browser.cjs
+          D12_QA_WIDTH=390 NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-admin-pagination-browser.cjs
       - name: "Browser test: mounted personal status isolated after account switch"
         run: |
           npm run dev --prefix client -- --host localhost --port 4180 --strictPort > /tmp/demos-owner-dev.log 2>&1 &
