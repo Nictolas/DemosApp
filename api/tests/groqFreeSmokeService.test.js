@@ -43,6 +43,9 @@ test('empty, filtered and truncated outputs never report success', async () => {
     { choices: [] },
     { choices: [{ finish_reason: 'length', message: { content: 'unreliable partial' } }] },
     { choices: [{ finish_reason: 'content_filter', message: { content: 'filtered' } }] },
+    { choices: [{ finish_reason: 'tool_calls', message: { content: 'untrusted tool output' } }] },
+    { choices: [{ finish_reason: null, message: { content: 'untrusted partial' } }] },
+    { choices: [{ message: { content: 'text without termination proof' } }] },
     { choices: [{ finish_reason: 'stop', message: { content: '' } }] }
   ]) {
     const result = await checkGroqFreeConnectivity({
