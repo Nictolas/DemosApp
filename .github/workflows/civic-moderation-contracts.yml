@@ -20,6 +20,8 @@ on:
       - 'api/services/civicPushDeliveryGuard.js'
       - 'api/services/civicRuntimeDatabaseIdentity.js'
       - 'api/services/civicSessionLockSafety.js'
+      - 'api/services/privacyErasureLedgerService.js'
+      - 'api/tests/privacyErasureCombinedGuards.contract.test.js'
       - 'api/tests/civicPrivacyHttp.synthetic.test.js'
       - 'api/tests/graziaModerationContract.test.js'
       - 'api/tests/graziaModerationHttp.synthetic.test.js'
@@ -83,6 +85,8 @@ jobs:
         run: node --test api/tests/notificationPreferencesReadOnly.contract.test.js
       - name: Notification log and response minimization
         run: node --test api/tests/notificationPrivacyLogs.contract.test.js
+      - name: Account erasure combines civic push and proposal safety
+        run: node --test api/tests/privacyErasureCombinedGuards.contract.test.js
       - name: Confirm DEMOS10 civic push guards survive DEMOS12 notifications reconciliation
         run: node --test api/tests/notificationMainCompatibility.contract.test.js
       - name: Install isolated HTTP testing dependencies (no database)
