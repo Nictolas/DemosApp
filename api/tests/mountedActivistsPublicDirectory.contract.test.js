@@ -14,6 +14,8 @@ test('mounted /attivisti directory shows reviewed nominations, no hardcoded Rend
   assert.match(active,/Attivisti segnalati e approvati/);
   assert.match(active,/subject\.title/);
   assert.match(active,/ProposeSubjectButton category="attivisti"/);
+  assert.equal((active.match(/import \\{ ProposeSubjectButton \\}/g)||[]).length, 1, 'only one mounted import');
+  assert.equal((active.match(/<ProposeSubjectButton category="attivisti"/g)||[]).length, 1, 'only one proposal button');
   assert.match(active,/useApprovedSubjectResumeRefresh\("attivisti"/);
   assert.match(active,/getApiUrl\(\`\/api\/attivisti/);
   assert.match(active,/cache: 'no-store'/);

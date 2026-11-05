@@ -49,18 +49,20 @@ export default function Grazia() {
 
 
   return (
-    <PageContainer className="overflow-hidden bg-gradient-to-b from-background to-secondary/20">
-      <div className="container mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
-        {/* Il titolo resta fermo: non appartiene allo scroller della classifica. */}
-        <div className="grazia-page__fixed-header shrink-0">
-<div className="flex items-start gap-2">
-            <div className="min-w-0 flex-1"><Header /></div>
+    <PageContainer className="overflow-hidden bg-gray-50">
+      {/* Stessa testata bianca, centrata e fissa delle directory pubbliche. */}
+      <div className="grazia-page__fixed-header shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3 sm:px-6 sm:pt-4">
+        <div className="relative mx-auto w-full max-w-6xl">
+          <Header />
+          <div className="absolute right-0 top-0 z-10">
             <ProposeSubjectButton category="grazia" />
           </div>
           {data?.blocco.isBlocked && (
             <BlockedWarning unlockDate={data.blocco.unlockDate} />
           )}
         </div>
+      </div>
+      <div className="container mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
 
         {error ? (
           <div className="rounded border-l-4 border-red-500 bg-red-100 p-4 text-red-800">
