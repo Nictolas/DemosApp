@@ -18,6 +18,9 @@ test('DEMOS12 release checklist reflects implemented withdrawal paths without ma
   assert.match(grazia,/router\.post\('\/richiesta\/:id\/ritira', personalNoStore, verifyToken, requireAdmin/);
   assert.match(current,/Ritiro non distruttivo di tutte le quattro categorie generiche supportato nel DRAFT/);
   assert.match(current,/Grazia resta esclusa/);
+  assert.match(current,/Cancellazione account con audit minimo preservato nel DRAFT/);
+  assert.match(current,/ON DELETE SET NULL/);
+  assert.doesNotMatch(current,/cancellazione di un account rimuove le proposte con `ON DELETE CASCADE`/i);
   assert.doesNotMatch(current,/Capo di Stato e Amnistia non è ancora supportato|Progettare separatamente ritiro Capo di Stato/);
   assert.match(current,/\- \[x\] Audit tecnico sul DRAFT dei payload/);
   assert.match(current,/\- \[ \] Valutazione DPO della pubblicabilità/);
