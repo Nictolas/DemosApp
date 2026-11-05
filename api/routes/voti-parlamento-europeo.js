@@ -25,7 +25,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
       votazioni = await getUltimeVotazioni(limit);
       console.log(`✅ Recuperate ${votazioni.length} votazioni dal database`);
     } catch (dbError) {
-      console.error('❌ Errore nel recupero dal database:', dbError);
+      console.error('Lettura votazioni PE non riuscita');
       // Restituisci array vuoto invece di bloccare
       votazioni = [];
     }
@@ -51,8 +51,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
         votazioni = await getUltimeVotazioni(limit);
         console.log(`📊 Votazioni recuperate dopo sincronizzazione: ${votazioni.length}`);
       } catch (syncError) {
-        console.error('❌ Errore nella sincronizzazione:', syncError);
-        console.error('   Stack:', syncError.stack);
+        console.error('Refresh votazioni PE non riuscito');
         // Se c'è un errore, restituisci comunque i dati disponibili (anche se vecchi)
         // Non bloccare la risposta per errori di sincronizzazione
         if (votazioni.length === 0) {
@@ -95,13 +94,11 @@ router.get('/ultime', verifyToken, async (req, res) => {
       count: votazioniFormattate.length
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero votazioni PE:', error);
-    console.error('   Stack:', error.stack);
+    console.error('Richiesta ultime votazioni PE non riuscita');
     res.status(500).json({
       success: false,
       message: 'Errore nel recupero delle votazioni',
-      error: 'Errore interno',
-      details: error.stack
+      error: 'Errore interno'
     });
   }
 });
@@ -141,7 +138,7 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
         );
         votiNominaliMEPItaliani = await Promise.race([votiPromise, timeoutPromise]);
       } catch (votiError) {
-        console.error('⚠️ Errore nel recupero voti nominali MEP italiani:', votiError.message);
+        console.warn('Recupero voti nominali PE non disponibile');
         // Continua comunque senza voti nominali
         votiNominaliMEPItaliani = {
           favorevoli: [],
@@ -366,7 +363,7 @@ router.post('/aggiorna-titoli', verifyToken, requireAdmin, async (req, res) => {
         }
       } catch (error) {
         errori++;
-        console.error(`⚠️ Errore nell'aggiornamento titolo per ${votazione.uri}:`, error.message);
+        console.warn('Aggiornamento di un titolo PE non riuscito');
       }
     }
     
