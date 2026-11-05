@@ -24,7 +24,8 @@ class EciNoDeleteRuntimePostgresTests(unittest.TestCase):
         if not dsn or "127.0.0.1" not in dsn or "civic_ci" not in dsn:
             raise RuntimeError("CI_ECI_POSTGRES_EXPLICIT_LOOPBACK_TARGET_REQUIRED")
         cls.dsn = dsn
-        cls.real_connect = psycopg2.connect
+        # Keep the driver factory unbound when invoked from instance methods.
+        cls.real_connect = staticmethod(psycopg2.connect)
         with cls.real_connect(cls.dsn) as con:
             with con.cursor() as cur:
                 cur.execute(
