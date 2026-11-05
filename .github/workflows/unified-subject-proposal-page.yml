@@ -82,6 +82,7 @@ jobs:
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-unified-proposal-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-admin-audit-pagination-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-mounted-activist-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-public-approved-pagination-browser.cjs
       - name: "Browser test: mounted personal status isolated after account switch"
         run: |
           npm run dev --prefix client -- --host localhost --port 4180 --strictPort > /tmp/demos-owner-dev.log 2>&1 &

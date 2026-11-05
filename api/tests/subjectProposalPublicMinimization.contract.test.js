@@ -8,15 +8,15 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..', '..');
 const file = p => fs.readFileSync(path.join(root,p),'utf8');
 
-const publicQuery = /SELECT id, title FROM subject_proposals WHERE (?:category=\$1 AND status='approved'|status='approved' AND category=\$1) ORDER BY reviewed_at DESC LIMIT 100/;
-
-test('all three public catalogue endpoints select only approved ID and title', () => {
-  for (const p of ['api/routes/subject-proposals.js','api/routes/attivisti.js','api/routes/organizzazioni.js']) {
-    const s = file(p);
-    assert.match(s, publicQuery, 'Approved directory must be minimal in ' + p);
-    assert.doesNotMatch(s, /SELECT id, title, details, source_url FROM subject_proposals/i,
-      'Never return user-supplied narrative or source URL in ' + p);
-  }
+test('all three public catalogue endpoints share a minimal approved projection', () => {
+  const shared=file('api/services/publicApprovedSubjectPage.js');
+  assert.match(shared,/SELECT id, title,/);
+  assert.match(shared,/WHERE category=\$1 AND status='approved'/);
+  assert.match(shared,/rows\.map\(\(\{id,title\}\)=>\(\{id,title\}\)\)/);
+  assert.doesNotMatch(shared,/\b(?:source_url|details|proposer_user_id|review_note)\b/,
+    'no private columns or original evidence in public SQL');
+  for(const p of ['api/routes/subject-proposals.js','api/routes/attivisti.js','api/routes/organizzazioni.js'])
+    assert.match(file(p),/readApprovedPage\(pool,/,'shared reader in '+p);
 });
 
 test('moderation still reads original evidence internally and remains Admin-protected', () => {
@@ -91,7 +91,7 @@ test('public activist and organization lists never log personal search filters o
       'raw database errors can contain personal SQL values: ' + p);
     assert.match(source, /'Cache-Control': 'no-cache, no-store, must-revalidate'/,
       'public list with third-party approved titles must not be cached: ' + p);
-    assert.match(source, /SELECT id, title FROM subject_proposals WHERE status='approved' AND category=\$1/,
+    assert.match(source, /readApprovedPage\(pool, '(?:attivisti|organizzazioni)'\)/,
       'only minimal approved titles exposed in directory: ' + p);
   }
   const org = file('client/src/pages/Organizzazioni/index.tsx');
@@ -213,7 +213,8 @@ test('withdrawal retains private catalogue reference while public directory excl
   assert.match(withdraw,/UPDATE subject_proposals SET status='withdrawn', withdrawn_at=now\(\)/);
   assert.doesNotMatch(withdraw,/published_ref\s*=\s*NULL/,
     'do not destroy the private source-to-catalogue audit link');
-  assert.match(directory,/status='approved'/);
+  assert.match(directory,/readApprovedPage\(pool, category, req.query.cursor\)/);
+  assert.match(file('api/services/publicApprovedSubjectPage.js'),/WHERE category=\$1 AND status='approved'/);
   assert.doesNotMatch(directory,/published_ref/,
     'historic catalogue pointer must not be sent to public clients');
   assert.doesNotMatch(admin,/SELECT[^\n]*published_ref/,

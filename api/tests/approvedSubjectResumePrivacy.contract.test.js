@@ -70,6 +70,8 @@ test('organization initial load and resumed approved list share the configured A
 
 test('the canonical public approved endpoint is no-store and includes only approved titles',()=>{
   const source=read('api/routes/subject-proposals.js');
-  assert.match(source,/SELECT id, title FROM subject_proposals WHERE category=\$1 AND status='approved'/);
+  assert.match(source,/readApprovedPage\(pool, category, req.query.cursor\)/);
+  const shared=read('api/services/publicApprovedSubjectPage.js');
+  assert.match(shared,/WHERE category=\$1 AND status='approved'/);
   assert.match(source,/res\.set\('Cache-Control', 'no-store'\)/);
 });

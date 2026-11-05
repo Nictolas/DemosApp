@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { getApiUrl } from "@/lib/api-config";
 import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { useApprovedSubjectResumeRefresh } from "@/hooks/useApprovedSubjectResumeRefresh";
+import { useApprovedDirectoryPagination } from "@/hooks/useApprovedDirectoryPagination";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -57,6 +58,7 @@ interface AttivistiResponse {
   success: boolean;
   data: Attivista[];
   approved_subjects?: Array<{ id: string; title: string }>;
+  approved_next_cursor?: string | null;
   count: number;
   message: string;
 }
@@ -66,6 +68,8 @@ export default function Attivisti() {
   const { toast } = useToast();
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
   const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
+  const { nextCursor, loadingMore, pageError, reset, loadMore } =
+    useApprovedDirectoryPagination("attivisti", setApprovedSubjects);
   const [filteredAttivisti, setFilteredAttivisti] = useState<Attivista[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegione, setSelectedRegione] = useState("all");
@@ -82,7 +86,7 @@ export default function Attivisti() {
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
   // Hide withdrawn third-party titles when a suspended directory resumes.
-  useApprovedSubjectResumeRefresh("attivisti", setApprovedSubjects, !isLoading && !isError);
+  useApprovedSubjectResumeRefresh("attivisti", setApprovedSubjects, !isLoading && !isError, reset);
 
   // Carica filtri disponibili e stato following
   useEffect(() => {
@@ -145,6 +149,7 @@ export default function Attivisti() {
         setIsLoading(true);
         setIsError(false);
         setApprovedSubjects([]);
+        reset(null);
         
         // Costruisci URL con parametri di ricerca
         const params = new URLSearchParams();
@@ -171,6 +176,7 @@ export default function Attivisti() {
                 // I dati arrivano già ordinati per supporters_count DESC
                 setAttivisti(data.data as any);
                 setApprovedSubjects(data.approved_subjects || []);
+                reset(data.approved_next_cursor ?? null);
                 setFilteredAttivisti(data.data as any);
                 const next: Record<string, number> = {};
                 (data.data as any[]).forEach((a) => { 
@@ -185,6 +191,7 @@ export default function Attivisti() {
       } catch (error) {
         if (controller.signal.aborted) return;
         setApprovedSubjects([]);
+        reset(null);
 
         setIsError(true);
         setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
@@ -203,7 +210,7 @@ export default function Attivisti() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [searchTerm, selectedRegione, selectedTipologia]);
+  }, [searchTerm, selectedRegione, selectedTipologia, reset]);
 
   // I filtri sono ora gestiti lato server, non serve più filtrare lato client
 
@@ -814,6 +821,12 @@ export default function Attivisti() {
                       </Card>
                     ))}
                 </div>
+                {nextCursor && (
+                  <Button type="button" variant="outline" onClick={loadMore} disabled={loadingMore}>
+                    {loadingMore ? "Caricamento..." : "Carica altri attivisti approvati"}
+                  </Button>
+                )}
+                {pageError && <p role="alert" className="text-sm text-red-600">Impossibile caricare altri soggetti. Riprova.</p>}
               </section>
             )}
           </div>

@@ -16,6 +16,7 @@ export function useApprovedSubjectResumeRefresh(
   category: ApprovedDirectoryCategory,
   setApprovedSubjects: Dispatch<SetStateAction<ApprovedDirectorySubject[]>>,
   enabled: boolean,
+  resetPage?: (cursor: string | null) => void,
 ) {
   // Keep the foreground signal across loading/filter transitions. Both
   // directories intentionally disable fresh reads while their initial GET
@@ -47,6 +48,7 @@ export function useApprovedSubjectResumeRefresh(
       currentRequest.current?.abort();
       const controller = new AbortController();
       currentRequest.current = controller;
+      resetPage?.(null);
       setApprovedSubjects([]);
 
       void (async () => {
@@ -69,7 +71,10 @@ export function useApprovedSubjectResumeRefresh(
               typeof (entry as ApprovedDirectorySubject).title === "string")
             .map((entry: ApprovedDirectorySubject) => ({ id: entry.id, title: entry.title }));
 
-          if (!disposed && !controller.signal.aborted) setApprovedSubjects(approved);
+          if (!disposed && !controller.signal.aborted) {
+            setApprovedSubjects(approved);
+            resetPage?.(typeof body.next_cursor === "string" ? body.next_cursor : null);
+          }
         } catch {
           if (!disposed && !controller.signal.aborted) setApprovedSubjects([]);
         } finally {
@@ -95,5 +100,5 @@ export function useApprovedSubjectResumeRefresh(
       document.removeEventListener("visibilitychange", onResume);
       window.removeEventListener("focus", onResume);
     };
-  }, [category, enabled, setApprovedSubjects]);
+  }, [category, enabled, setApprovedSubjects, resetPage]);
 }

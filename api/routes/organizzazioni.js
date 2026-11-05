@@ -2,6 +2,7 @@ const express = require('express');
 const { compressRegione, decompressRegione } = require('../utils/locationUtils');
 const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
+const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const router = express.Router();
 require('dotenv').config();
 
@@ -111,15 +112,13 @@ router.get('/', async (req, res) => {
     // One indexed read piggybacks on the directory response; no extra browser GET.
     // Public directory shows only approved IDs and titles: user-submitted details and source links are private to moderation.
     // Pending/rejected proposals and proposer identities are never exposed.
-    const approvedSubjects = await pool.query(
-      "SELECT id, title FROM subject_proposals WHERE status='approved' AND category=$1 ORDER BY reviewed_at DESC LIMIT 100",
-      ['organizzazioni']
-    );
+    const approvedPage = await readApprovedPage(pool, 'organizzazioni');
 
     res.json({
       success: true,
       data: organizzazioni,
-      approved_subjects: approvedSubjects.rows,
+      approved_subjects: approvedPage.data,
+      approved_next_cursor: approvedPage.next_cursor,
       count: organizzazioni.length,
       message: organizzazioni.length === 0 ? 'Al momento non ci sono organizzazioni registrate' : `${organizzazioni.length} organizzazioni trovate`
     });

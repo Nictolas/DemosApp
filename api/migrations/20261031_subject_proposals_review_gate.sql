@@ -124,6 +124,10 @@ CREATE INDEX IF NOT EXISTS subject_proposals_admin_pending_cursor_idx
  WHERE status='pending' AND category IN ('capo_stato','amnistia','attivisti','organizzazioni');
 CREATE INDEX IF NOT EXISTS subject_proposals_approved_directory_idx
  ON public.subject_proposals(category, created_at DESC) WHERE status = 'approved';
+-- Read-only public pages preserve microsecond review order without full scans.
+CREATE INDEX IF NOT EXISTS subject_proposals_public_approved_cursor_idx
+ ON public.subject_proposals(category, (COALESCE(reviewed_at, created_at)) DESC, id DESC)
+ WHERE status='approved' AND category IN ('attivisti','organizzazioni');
 -- Keyset Admin pagination must reach publications older than the first 100.
 -- Use the same order expression as the read-only Admin query.
 CREATE INDEX IF NOT EXISTS subject_proposals_admin_approved_cursor_idx

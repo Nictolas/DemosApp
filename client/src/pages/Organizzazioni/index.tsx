@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { getApiUrl } from "@/lib/api-config";
 import { useApprovedSubjectResumeRefresh } from "@/hooks/useApprovedSubjectResumeRefresh";
+import { useApprovedDirectoryPagination } from "@/hooks/useApprovedDirectoryPagination";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -47,6 +48,7 @@ interface OrganizzazioniResponse {
   success: boolean;
   data: organizzazione[];
   approved_subjects?: Array<{ id: string; title: string }>;
+  approved_next_cursor?: string | null;
   count: number;
   message: string;
 }
@@ -56,6 +58,8 @@ export default function Organizzazioni() {
   const { toast } = useToast();
   const [organizzazioni, setOrganizzazioni] = useState<organizzazione[]>([]);
   const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
+  const { nextCursor, loadingMore, pageError, reset, loadMore } =
+    useApprovedDirectoryPagination("organizzazioni", setApprovedSubjects);
   const [filteredOrganizzazioni, setFilteredOrganizzazioni] = useState<organizzazione[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegione, setSelectedRegione] = useState("all");
@@ -72,7 +76,7 @@ export default function Organizzazioni() {
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
   // No initial extra read or polling. On foreground resume, discard stale nominations.
-  useApprovedSubjectResumeRefresh("organizzazioni", setApprovedSubjects, !isLoading && !isError);
+  useApprovedSubjectResumeRefresh("organizzazioni", setApprovedSubjects, !isLoading && !isError, reset);
 
   // Carica filtri disponibili e stato following
   useEffect(() => {
@@ -121,6 +125,7 @@ export default function Organizzazioni() {
         setIsError(false);
         // Clear stale approved names whenever filters or queries restart.
         setApprovedSubjects([]);
+        reset(null);
         
         // Costruisci URL con parametri di ricerca
         const params = new URLSearchParams();
@@ -145,6 +150,7 @@ export default function Organizzazioni() {
                 // I dati arrivano già ordinati per supporters_count DESC
                 setOrganizzazioni(data.data as any);
                 setApprovedSubjects(data.approved_subjects || []);
+                reset(data.approved_next_cursor ?? null);
                 setFilteredOrganizzazioni(data.data as any);
                 const next: Record<string, number> = {};
                 (data.data as any[]).forEach((a) => { 
@@ -174,7 +180,7 @@ export default function Organizzazioni() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [searchTerm, selectedRegione, selectedTipologia]);
+  }, [searchTerm, selectedRegione, selectedTipologia, reset]);
 
   // I filtri sono ora gestiti lato server, non serve più filtrare lato client
 
@@ -750,7 +756,7 @@ export default function Organizzazioni() {
                 </div>
               </div>
             )}
-            {approvedSubjects.filter(s => !searchTerm.trim() || s.title.toLowerCase().includes(searchTerm.trim().toLowerCase())).length > 0 && (
+            {approvedSubjects.length > 0 && (
               <section className="mt-5 space-y-3" aria-label="Organizzazioni segnalate e approvate">
                 <h2 className="text-lg font-semibold">Organizzazioni segnalate e approvate</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -763,6 +769,12 @@ export default function Organizzazioni() {
                     </Card>
                   ))}
                 </div>
+                {nextCursor && (
+                  <Button type="button" variant="outline" onClick={loadMore} disabled={loadingMore}>
+                    {loadingMore ? "Caricamento..." : "Carica altre organizzazioni approvate"}
+                  </Button>
+                )}
+                {pageError && <p role="alert" className="text-sm text-red-600">Impossibile caricare altri soggetti. Riprova.</p>}
               </section>
             )}
           </div>

@@ -20,3 +20,17 @@ test('mounted /attivisti directory shows reviewed nominations, no hardcoded Rend
   assert.doesNotMatch(active,/demos-c7k0\.onrender\.com|\bAPI_BASE\b|console\.(?:log|debug)\(/);
   assert.doesNotMatch(active,/subject\.(?:source_url|details|proposer_user_id)/);
 });
+test('the mounted directory has no implicit extra page reads and offers on-demand pagination',()=>{
+ const mounted=src('client/src/pages/Attivisti.tsx');
+ const org=src('client/src/pages/Organizzazioni/index.tsx');
+ const pager=src('client/src/hooks/useApprovedDirectoryPagination.ts');
+ const api=src('api/services/publicApprovedSubjectPage.js');
+ assert.match(mounted,/Carica altri attivisti approvati/);
+ assert.match(org,/Carica altre organizzazioni approvate/);
+ assert.match(mounted,/reset\(data\.approved_next_cursor \?\? null\)/);
+ assert.match(org,/reset\(data\.approved_next_cursor \?\? null\)/);
+ assert.match(pager,/if \(!nextCursor \|\| loadingMore\) return/);
+ assert.match(pager,/controller\.signal/);
+ assert.match(api,/ORDER BY COALESCE\(reviewed_at,created_at\) DESC,id DESC/);
+ assert.match(api,/LIMIT 101/);
+});

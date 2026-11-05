@@ -3,6 +3,7 @@ const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
+const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const pool = getPool();
 const CATEGORIES = new Set(['capo_stato', 'amnistia', 'attivisti', 'organizzazioni']);
 
@@ -71,12 +72,10 @@ router.get('/approved', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Categoria non valida' });
   }
   try {
-    const result = await pool.query(
-      "SELECT id, title FROM subject_proposals WHERE category=$1 AND status='approved' ORDER BY reviewed_at DESC LIMIT 100",
-      [category]
-    );
+    const page = await readApprovedPage(pool, category, req.query.cursor);
+    if (!page) return res.status(400).json({ success: false, error: 'Cursore non valido' });
     res.set('Cache-Control', 'no-store');
-    return res.json({ success: true, data: result.rows });
+    return res.json({ success: true, ...page });
   } catch (_) {
     return res.status(503).json({ success: false, error: 'Elenco temporaneamente non disponibile' });
   }
