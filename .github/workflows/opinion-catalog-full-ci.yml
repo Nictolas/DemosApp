@@ -126,11 +126,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout thematic branch under test
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
       - name: Checkout pinned P0 consent fix (PR 557) for isolated overlay
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: 4c979159839ecf58ecd2258f065c9a2cdf9b3911
           path: consent-guard
