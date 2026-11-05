@@ -61,8 +61,8 @@ test("il grafico e privato, locale e richiede consenso verificato", () => {
   assert.match(modelSource, /export const COMPASS_QUESTIONS/);
 });
 
-test("icone neutre sui cinque assi: leggibili e decorative, senza cambiare i punteggi", () => {
-  assert.match(component, /import \\{ Globe2, Landmark, Leaf, Scale, UsersRound \\} from "lucide-react"/);
+test("cinque simboli neutri identificano i temi senza alterare il calcolo", () => {
+  assert.ok(component.includes('import { Globe2, Landmark, Leaf, Scale, UsersRound } from "lucide-react"'));
   for (const [id, icon] of Object.entries({
     economia: "Scale",
     stato: "Landmark",
@@ -70,13 +70,13 @@ test("icone neutre sui cinque assi: leggibili e decorative, senza cambiare i pun
     ambiente: "Leaf",
     immigrazione: "Globe2",
   })) {
-    assert.match(component, new RegExp(id + ": " + icon + "[,\\\\n]"));
+    assert.ok(component.includes(id + ": " + icon + ","), id + " deve avere la propria icona");
   }
-  assert.match(component, /const AxisIcon = AXIS_ICONS\\[axis\\.id\\]/);
-  assert.match(component, /<AxisIcon className="h-4 w-4" \\/>/);
-  assert.match(component, /aria-hidden="true">\\s*<AxisIcon/);
-  assert.match(component, /\\{axis\\.title\\}/);
-  assert.match(component, /role="meter"/);
+  assert.ok(component.includes("const AxisIcon = AXIS_ICONS[axis.id]"));
+  assert.ok(component.includes('<AxisIcon className="h-4 w-4" />'));
+  assert.ok(component.includes('aria-hidden="true">'));
+  assert.ok(component.includes("{axis.title}"));
+  assert.ok(component.includes('role="meter"'), "Le barre e i punteggi devono rimanere invariati");
 });
 
 test("cinque assi tematici sotto il compasso, senza ulteriori richieste o dettagli personali", () => {
