@@ -116,17 +116,23 @@ async function reconcileAllCivicTopics(pool, {
 
     return { dryRun, scanned, categories: counts, guardRemainsBlocked: true };
   } finally {
+    let unlockUnconfirmed = false;
     if (locked) {
       try {
         await releaseCivicPushDeliveryLock(db);
       } catch {
-        // Never return a session with an unknown advisory lock to the pool.
+        // The operator must not see a successful bootstrap/preview if the
+        // session lock's release could not be verified. Keep guard blocked.
         discard = true;
+        unlockUnconfirmed = true;
       }
     } else if (lockAttempted) {
       discard = true;
     }
     db.release(discard);
+    if (unlockUnconfirmed) {
+      throw new Error('CIVIC_BOOTSTRAP_LOCK_RELEASE_UNCONFIRMED');
+    }
   }
 }
 module.exports = { reconcileAllCivicTopics };
