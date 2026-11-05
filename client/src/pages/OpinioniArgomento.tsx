@@ -43,6 +43,7 @@ export default function OpinioniArgomento() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [showConsent, setShowConsent] = useState(false);
   const [levelFilter, setLevelFilter] = useState<OpinionGrade | "all">("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const authorized = !!user && isSessionVerified && hasConsent;
 
   // Reuse the same query keys, encrypted per-grade vault and verified consent as
@@ -99,6 +100,25 @@ export default function OpinioniArgomento() {
   const visibleQuestions = useMemo(() => questions.filter((question) =>
     levelFilter === "all" || gradeMembership.get(question.id)?.has(levelFilter)
   ), [questions, levelFilter, gradeMembership]);
+  // Entirely local search: no query, analytics event or storage write.
+  const matchedQuestions = useMemo(() => {
+    const search = searchTerm.trim().toLocaleLowerCase("it");
+    return search
+      ? visibleQuestions.filter(question => question.text.toLocaleLowerCase("it").includes(search))
+      : visibleQuestions;
+  }, [visibleQuestions, searchTerm]);
+  const firstUnanswered = matchedQuestions.find(question => normalize(question.userAnswer) === null);
+  const continueFromFirstUnanswered = () => {
+    if (!firstUnanswered) return;
+    const section = document.getElementById(`topic-question-${firstUnanswered.id}`);
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+    section?.focus({ preventScroll: true });
+  };
+
+  useEffect(() => {
+    setLevelFilter("all");
+    setSearchTerm("");
+  }, [topicId]);
 
   useEffect(() => {
     // Server-confirmed snapshots are the baseline; unsaved drafts never count.
@@ -194,6 +214,19 @@ export default function OpinioniArgomento() {
             </button>
           ))}
         </div>
+        <div className="mx-auto mt-2 flex max-w-3xl gap-2">
+          <input type="search" value={searchTerm}
+            onChange={event => setSearchTerm(event.target.value)}
+            placeholder="Cerca un'Opinione"
+            aria-label="Cerca fra le Opinioni dell'argomento"
+            autoComplete="off"
+            className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600" />
+          <button type="button" onClick={continueFromFirstUnanswered}
+            disabled={!authorized || loading || !!error || !firstUnanswered}
+            className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+            Continua
+          </button>
+        </div>
       </header>
       <main className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 pb-5 sm:px-4">
         {!isSessionVerified ? (
@@ -212,10 +245,13 @@ export default function OpinioniArgomento() {
           <p className="py-8 text-center">Nessuna Opinione per questo argomento.</p>
         ) : visibleQuestions.length === 0 ? (
           <p className="py-8 text-center">Nessuna Opinione di questo argomento al livello selezionato.</p>
-        ) : visibleQuestions.map((question) => {
+        ) : matchedQuestions.length === 0 ? (
+          <p className="py-8 text-center">Nessuna Opinione corrisponde alla ricerca.</p>
+        ) : matchedQuestions.map((question) => {
           const alreadySaved = normalize(question.userAnswer) !== null;
           return (
-            <section key={question.id} className={`mx-auto max-w-4xl space-y-3 rounded-xl border p-4 ${alreadySaved ? "border-green-200 bg-green-50" : "border-blue-200 bg-blue-50"}`}>
+            <section key={question.id} id={`topic-question-${question.id}`} tabIndex={-1}
+              className={`mx-auto max-w-4xl space-y-3 rounded-xl border p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${alreadySaved ? "border-green-200 bg-green-50" : "border-blue-200 bg-blue-50"}`}>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="min-w-0 font-semibold">{question.text}</h2>
                 <ApprofondimentoButton opinionId={question.id} opinionText={question.text} />
