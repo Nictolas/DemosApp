@@ -92,8 +92,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     assert.equal(await cards.count(), 14);
     assert.equal(personalGets.length, 4, 'Cold topic entry uses the four existing grade reads only');
     await page.getByRole('button', { name: 'Europeo', exact: true }).click();
-    await page.getByText('Nessuna Opinione di questo argomento al livello selezionato.').waitFor();
-    assert.equal(await cards.count(), 0, 'Filtered empty state must not duplicate questions');
+    assert.equal(await cards.count(), 1, 'One European economy question must appear without duplicates');
     await page.getByRole('button', { name: 'Tutti', exact: true }).click();
     assert.equal(await cards.count(), 14);
     assert.equal(personalGets.length, 4, 'Changing the geographic filter must not fetch answers');
@@ -137,6 +136,13 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     assert.equal(savedPosts.length, 1, 'Exactly one delta save should be issued');
     await page.getByRole('button', { name: 'Per argomento' }).click();
     await page.getByText(/1 \/ 14 · 7%/).first().waitFor({ timeout: 12000 });
+    await page.getByRole('button', { name: /Istituzioni e democrazia/ }).click();
+    await page.getByRole('heading', { name: 'Istituzioni e democrazia' }).waitFor();
+    await page.getByRole('button', { name: 'Europeo', exact: true }).click();
+    await page.getByText('Nessuna Opinione di questo argomento al livello selezionato.').waitFor();
+    assert.equal(await cards.count(), 0, 'Filtered empty state must not add questions');
+    await page.getByRole('button', { name: 'Indietro' }).click();
+    await page.getByRole('button', { name: 'Per argomento' }).click();
     const before = personalGets.length;
     await page.getByRole('button', { name: /Economia, lavoro e fisco/ }).click();
     await page.getByText('1 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
