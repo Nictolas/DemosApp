@@ -109,7 +109,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
         'Editor horizontal overflow at ' + width);
       assert.ok(geometry.listScroll, 'Editor question list must scroll at ' + width);
       assert.ok(geometry.footerBottom <= geometry.viewportHeight + 2,
-        'Footer must remain visible at ' + width);
+        'Footer must remain visible at ' + width + ': ' + JSON.stringify(geometry));
     }
     await page.getByRole('button', { name: 'Salva le mie opinioni' }).focus();
     assert.equal(await page.getByRole('button', { name: 'Salva le mie opinioni' }).evaluate(el => document.activeElement === el), true);
