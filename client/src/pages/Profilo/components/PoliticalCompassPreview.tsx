@@ -49,6 +49,8 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
           <p className="text-xs leading-relaxed text-amber-900">
             È una rappresentazione esplorativa, non un test scientificamente validato.
             I risultati non definiscono con certezza il tuo orientamento politico.
+            Una bozza può partire da una sola risposta pertinente e cambiare molto
+            con le successive; gli assi senza risposte non vengono stimati.
           </p>
         </div>
       </div>
