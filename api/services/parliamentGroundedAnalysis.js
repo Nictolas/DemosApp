@@ -3,7 +3,8 @@
 // Deterministic guard for parliamentary explanations. An AI response is never
 // treated as the source of the roll-call vote or the legislative outcome.
 const MIN_CONTEXT_CHARS = 160;
-const MAX_CONTEXT_CHARS = 12000;
+// Keep a full single-model call under the conservative 7k estimated TPM process gate.
+const MAX_CONTEXT_CHARS = 9000;
 const MAX_EXPLANATION_CHARS = 2500;
 const MAX_IMPACT_CHARS = 1300;
 
