@@ -120,3 +120,61 @@ test('GPT-OSS completion truncation diagnostics and adequate output budget are p
   assert.match(source, /typeof rawContent === 'string' \? rawContent\.trim\(\) : ''/);
   assert.doesNotMatch(source, /completion\.choices\[0\]\?\.message\?\.content\?\.trim\(\)/);
 });
+
+
+test('mocked GPT-OSS completion never publishes empty, truncated or filtered text', async () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'services', 'aiExplanationService.js'), 'utf8');
+  let providerAnswer = null;
+  let providerCalls = 0;
+  let lastParams = null;
+  const output = { exports: {} };
+  class MockGroq {
+    constructor() {
+      this.chat = { completions: { create: async (params) => {
+        providerCalls++;
+        lastParams = params;
+        return providerAnswer;
+      } } };
+    }
+  }
+  const imports = {
+    'groq-sdk': MockGroq,
+    '../config/database': { getPool: () => ({ query: async () => ({ rows: [] }) }) },
+    './parliamentFreeAiPolicy': {
+      resolveFreeGroqModel: () => 'openai/gpt-oss-120b',
+      isGroqConfigured: () => true
+    },
+    './parliamentGroundedAnalysis': { hasDocumentaryContext: () => true },
+    './parliamentFreeGroqBudget': {
+      requestFreeGroq: (client, params) => client.chat.completions.create(params),
+      getSharedFreeQuotaStatus: () => ({ rispettato: true, count: 0, limite: 120 })
+    },
+    './parliamentAiSingleflight': { createSingleflight: () => (_key, fn) => fn() }
+  };
+  const safeConsole = { log() {}, warn() {}, error() {} };
+  const fakeRequire = (request) => {
+    if (!(request in imports)) throw new Error('Unexpected require: ' + request);
+    return imports[request];
+  };
+  const wrapper = vm.runInNewContext('(function(require, module, exports, process, console) {\n' + source + '\n})');
+  wrapper(fakeRequire, output, output.exports, { env: { GROQ_API_KEY: 'mock-only' } }, safeConsole);
+  const run = () => output.exports.generaSpiegazione(
+    'DDL 123', 'Testo ufficiale completo e verificato per il test.', 'Camera', 'N/A'
+  );
+
+  providerAnswer = { choices: [{ finish_reason: 'length', message: { content: 'Testo parziale non verificato' } }] };
+  assert.equal(await run(), null);
+  providerAnswer = { choices: [{ finish_reason: 'content_filter', message: { content: 'Contenuto da escludere' } }] };
+  assert.equal(await run(), null);
+  providerAnswer = { choices: [{ finish_reason: 'stop', message: { content: '' } }] };
+  assert.equal(await run(), null);
+  providerAnswer = { choices: [{ finish_reason: 'stop', message: { content: 'Spiegazione fondata. ' } }] };
+  assert.equal(await run(), 'Spiegazione fondata.');
+  assert.equal(providerCalls, 4);
+  assert.equal(lastParams.model, 'openai/gpt-oss-120b');
+  assert.equal(lastParams.max_completion_tokens, 1024);
+  assert.equal(lastParams.reasoning_effort, 'low');
+});
