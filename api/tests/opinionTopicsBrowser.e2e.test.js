@@ -79,7 +79,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     assert.equal(await page.locator('.opinioni-button').count(), 4, 'Four geographic cards must remain');
     await page.getByRole('button', { name: 'Per argomento' }).click();
     assert.equal(await page.locator('[aria-label="Categorie tematiche"] button').count(), 11);
-    for (const width of [320, 390]) {
+    for (const width of [320, 390, 1280]) {
       await page.setViewportSize({ width, height: 844 });
       const fits = await page.locator('[aria-label="Categorie tematiche"]').evaluate(el =>
         el.scrollWidth <= el.clientWidth + 2);
@@ -90,6 +90,30 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     const cards = page.locator('.opinioni-editor-page main section');
     await cards.first().waitFor({ timeout: 25000 });
     assert.equal(await cards.count(), 14);
+    assert.equal(personalGets.length, 4, 'Cold topic entry uses the four existing grade reads only');
+    for (const [width, height] of [[320, 568], [390, 844], [1280, 800]]) {
+      await page.setViewportSize({ width, height });
+      const geometry = await page.locator('.opinioni-editor-page').evaluate(el => {
+        const main = el.querySelector('main');
+        const footer = el.querySelector('footer');
+        return {
+          viewport: window.innerWidth,
+          scrollWidth: el.scrollWidth,
+          contentWidth: el.clientWidth,
+          listScroll: main.scrollHeight > main.clientHeight,
+          footerBottom: footer.getBoundingClientRect().bottom,
+          viewportHeight: window.innerHeight
+        };
+      });
+      assert.ok(geometry.scrollWidth <= geometry.contentWidth + 2,
+        'Editor horizontal overflow at ' + width);
+      assert.ok(geometry.listScroll, 'Editor question list must scroll at ' + width);
+      assert.ok(geometry.footerBottom <= geometry.viewportHeight + 2,
+        'Footer must remain visible at ' + width);
+    }
+    await page.getByRole('button', { name: 'Salva le mie opinioni' }).focus();
+    assert.equal(await page.getByRole('button', { name: 'Salva le mie opinioni' }).evaluate(el => document.activeElement === el), true);
+
     assert.equal(await page.getByText('0 / 14 Opinioni salvate').count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Salva le mie opinioni' }).isDisabled(), true);
     await cards.first().getByRole('button', { name: 'Favorevole' }).click();
