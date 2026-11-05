@@ -34,7 +34,9 @@ test('referendum and closed state classification remain distinct',()=>{
   assert.equal(item.target_path,'/referendum-abrogativi');
 });
 test('known non-collecting official states are never classified as collection',()=>{
-  for(const state of ['MESSA A DISPOSIZIONE','ALLA CAMERA','AL SENATO']){
+  for(const state of ['MESSA A DISPOSIZIONE',
+    'MESSA A DISPOSIZIONE CAMERA','MESSA A DISPOSIZIONE SENATO',
+    'ALLA CAMERA','AL SENATO']){
     const item=normalizeRecord(base(219,undefined,state));
     assert.notEqual(item.stato,'in_corso');
   }
