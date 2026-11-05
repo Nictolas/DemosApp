@@ -1,0 +1,64 @@
+'use strict';
+
+// Real PostgreSQL16/17 integration against a disposable CI-only loopback DB.
+// Never reads or writes user/FCM data in Supabase, Render or production.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const {Client} = require('pg');
+const {onlyTokensNotOwnedByOthers} =
+  require('../services/civicFcmTokenOwnership');
+
+const LOOPBACK = 'postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci';
+
+test('real PG16/17 never revokes a legacy token owned by another active account',
+  {timeout:20000},async()=>{
+  // Prove the exact disposable CI configuration BEFORE any connection.
+  assert.equal(process.env.CIVIC_TEST_DATABASE_URL, LOOPBACK, 'CI_EPHEMERAL_ONLY');
+  assert.equal(process.env.DATABASE_URL || '', '', 'FORBID_APP_DATABASE');
+  assert.equal(process.env.CIVIC_STAGING_SESSION_DATABASE_URL || '', '', 'NO_STAGING_CONNECTION');
+  assert.equal(process.env.CIVIC_NEW_INITIATIVE_PUSH_ENABLED || '', '', 'NO_FCM');
+  assert.ok(['16','17'].includes(process.env.CIVIC_CI_POSTGRES_MAJOR), 'PG_MATRIX_REQUIRED');
+
+  const client = new Client({
+    connectionString: LOOPBACK,connectionTimeoutMillis:5000,query_timeout:5000});
+  await client.connect();
+  try {
+    const metadata=await client.query(
+      "SELECT current_database() AS db, current_setting('server_version_num') AS version");
+    assert.equal(metadata.rows[0].db,'civic_ci');
+    assert.equal(Math.floor(Number(metadata.rows[0].version)/10000),
+      Number(process.env.CIVIC_CI_POSTGRES_MAJOR));
+
+    // Temporary table shadows the name only in THIS session. It disappears
+    // on disconnect, and never affects seeded public fixture tables.
+    await client.query(
+      'CREATE TEMP TABLE user_devices (fcm_token text PRIMARY KEY, user_id text NOT NULL, is_active boolean NOT NULL) ON COMMIT PRESERVE ROWS');
+    await client.query(
+      "INSERT INTO pg_temp.user_devices(fcm_token,user_id,is_active) VALUES"+
+      "('token_reassigned','new_account',true),"+
+      "('token_original','old_account',true),"+
+      "('token_inactive','new_account',false)");
+
+    const oldOwner=await onlyTokensNotOwnedByOthers(client,'old_account',[
+      'token_reassigned','token_original','token_inactive','token_missing','token_reassigned']);
+    assert.deepEqual(oldOwner,[
+      'token_original','token_inactive','token_missing'],
+      'legacy owner must not revoke an active reassigned FCM token');
+
+    const currentOwner=await onlyTokensNotOwnedByOthers(
+      client,'new_account',['token_reassigned','token_original']);
+    assert.deepEqual(currentOwner,['token_reassigned'],
+      'current owner can revoke its own token, not the previous owner token');
+
+    // Simulate another account transition and verify that the authoritative
+    // active owner determines revocation rights, not stale legacy metadata.
+    await client.query(
+      "UPDATE pg_temp.user_devices SET user_id='third_account' WHERE fcm_token='token_reassigned'");
+    assert.deepEqual(await onlyTokensNotOwnedByOthers(
+      client,'new_account',['token_reassigned']),[]);
+    assert.deepEqual(await onlyTokensNotOwnedByOthers(
+      client,'third_account',['token_reassigned']),['token_reassigned']);
+  } finally {
+    await client.end();
+  }
+});
