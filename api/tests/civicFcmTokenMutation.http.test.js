@@ -99,8 +99,12 @@ async function request(method,path,payload,auth=true){
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   }
   return new Promise((resolve,reject)=>{
-    const body=JSON.stringify(payload??{});
-    const headers={'content-type':'application/json','user-agent':'Android Mobile'};
+    // Native DELETE requests have no JSON body. Sending Content-Type with
+    // an empty DELETE body triggers Express json-parser's 400 before auth.
+    const isPost=method==='POST';
+    const body=isPost?JSON.stringify(payload??{}):null;
+    const headers={'user-agent':'Android Mobile'};
+    if(isPost)headers['content-type']='application/json';
     if(auth)headers.authorization='Bearer synthetic';
     const req=http.request({hostname:'127.0.0.1',port:server.address().port,
       path,method,headers},res=>{
@@ -121,7 +125,8 @@ async function request(method,path,payload,auth=true){
       });
     });
     req.on('error',reject);
-    req.end(body);
+    if(body===null)req.end();
+    else req.end(body);
   });
 }
 after(async()=>{
