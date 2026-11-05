@@ -118,7 +118,8 @@ async function withCivicPushDeliveryLock(pool, callback, { enabled = false } = {
       // Unknown lock acquisition outcome: never return this session to pool.
       discard = true;
     }
-    client.release(discard);
+    // A failed/uncertain rollback cannot safely return a pooled session.
+    client.release(discard || client.__civicPreferenceTransactionUnsafe === true);
   }
 }
 

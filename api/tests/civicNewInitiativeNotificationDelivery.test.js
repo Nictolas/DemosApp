@@ -241,9 +241,12 @@ test('shared delivery lock protects the entire preference write and all device m
   const unsubscribe = prefs.indexOf('await unsubscribeDisabledCivicTopicsForUser(', lockedSave);
   const dbWrite = prefs.indexOf('INSERT INTO notifiche_preferenze', unsubscribe);
   const reconcile = prefs.indexOf('await reconcileCivicTopicsForUser(db, user_id', dbWrite);
-  const end = prefs.indexOf('}, { enabled: isCivicPushEnabled() });', reconcile);
-  assert.ok(lockedSave >= 0 && unsubscribe > lockedSave &&
-    dbWrite > unsubscribe && reconcile > dbWrite && end > reconcile);
+  const transaction = prefs.indexOf('return runCivicPreferenceSaveAtomic(db, async () => {', lockedSave);
+  const innerEnd = prefs.indexOf('}, { enabled: civicPushEnabled });', reconcile);
+  const outerEnd = prefs.indexOf('}, { enabled: civicPushEnabled });', innerEnd + 1);
+  assert.ok(lockedSave >= 0 && transaction > lockedSave &&
+    unsubscribe > transaction && dbWrite > unsubscribe &&
+    reconcile > dbWrite && innerEnd > reconcile && outerEnd > innerEnd);
   assert.equal((tokens.match(/return await withCivicPushDeliveryLock\(pool, async \(db\)/g) || []).length, 4);
   assert.match(tokens, /await unsubscribeCivicTokenOrBlock\(token, db\)/);
   assert.match(tokens, /await updateLegacyTokens\(userId, updatedTokens, db\)/);
