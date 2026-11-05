@@ -10,6 +10,7 @@ on:
       # CI-only integration branch for the dependent atomic-consent PR.
       - qa/d10-combined-source-fcm-safety-20261105
       - qa/d10-civic-preferences-atomic-save-20261105
+      - qa/d10-atomic-fcm-device-mutations-20261105
     paths:
       - 'api/config/database.js'
       - 'api/app.js'
