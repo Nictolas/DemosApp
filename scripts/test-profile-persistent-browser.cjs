@@ -201,12 +201,23 @@ async function test() {
     assert.equal(await page.getByText('100', { exact: true }).count(), 2,
       'Both axes must calculate from saved answers, not from question metadata');
 
-    // Expand the full methodology on a mobile viewport: every one of the
-    // 28 mapped questions must remain reachable above the bottom navigation.
+    // The public methodology disclosure was deliberately removed.
+    // On mobile, five thematic indicators must instead appear below the
+    // traditional compass without requesting additional private data.
     const compassMain = page.locator('main[aria-label="Compasso politico personale"]');
-    await compassMain.getByText('Quali Opinioni vengono usate e come?').click();
-    assert.equal(await compassMain.locator('li').count(), 28,
-      'The dedicated compass must disclose all 28 contributing questions');
+    const orientationSection = compassMain.locator('section[aria-label="I tuoi orientamenti politici"]');
+    await orientationSection.waitFor({ timeout: 15000 });
+    for (const name of ['Economia', 'Stato', 'Costumi', 'Ambiente', 'Immigrazione']) {
+      await orientationSection.getByRole('heading', { name, exact: true }).waitFor();
+    }
+    assert.equal(await orientationSection.getByRole('heading').count(), 6,
+      'Five thematic axes plus their section heading must be rendered');
+    assert.ok(await orientationSection.locator('[role="meter"]').count() >= 2,
+      'Known synthetic answers should yield at least the economy and state indicators');
+    assert.ok(await orientationSection.getByText('Dati insufficienti', { exact: false }).count() >= 1,
+      'Unanswered thematic axes must not fabricate a score');
+    assert.equal(await compassMain.getByText('Quali Opinioni vengono usate e come?').count(), 0,
+      'The obsolete methodology disclosure must stay absent from the UI');
     const scrollMetrics = await compassMain.evaluate(element => ({
       clientHeight: element.clientHeight,
       scrollHeight: element.scrollHeight,
@@ -214,7 +225,7 @@ async function test() {
       scrollWidth: element.scrollWidth,
     }));
     assert.ok(scrollMetrics.scrollHeight > scrollMetrics.clientHeight,
-      'Expanded questionnaire must be scrollable in the mobile viewport');
+      'Compass and thematic axes must be scrollable in the mobile viewport');
     assert.ok(scrollMetrics.scrollWidth <= scrollMetrics.clientWidth + 1,
       'Compass must not create horizontal scroll on a mobile viewport');
     await compassMain.evaluate(element => { element.scrollTop = element.scrollHeight; });
