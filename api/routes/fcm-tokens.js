@@ -319,7 +319,7 @@ router.post('/cleanup', verifyToken, async (req, res) => {
         [userId]
       );
       const removed = new Set([
-        ...validTokens.slice(0, -1),
+        ...validTokens.filter(token => !cleanedTokens.includes(token)),
         ...oldDevices.rows.map(row => row.fcm_token).filter(t => !cleanedTokens.includes(t))
       ]);
       const revocable = await onlyTokensNotOwnedByOthers(db, userId, [...removed]);
