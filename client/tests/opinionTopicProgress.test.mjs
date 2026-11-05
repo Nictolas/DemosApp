@@ -2,16 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { build } from "esbuild";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
+const { build } = createRequire(require.resolve("vite/package.json"))("esbuild");
 const root = new URL("../../", import.meta.url);
 const catalog = Array.from({ length: 6 }, (_, i) =>
   JSON.parse(readFileSync(new URL(`api/catalog/opinions-part-0${i}.json`, root), "utf8"))
 ).flat();
 
 const output = await build({
-  entryPoints: [new URL("../src/lib/opinionTopicProgress.ts", import.meta.url).pathname],
+  entryPoints: [fileURLToPath(new URL("../src/lib/opinionTopicProgress.ts", import.meta.url))],
   bundle: true, platform: "node", format: "esm", write: false,
   logLevel: "silent",
 });
