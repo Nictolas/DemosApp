@@ -15,6 +15,7 @@ on:
       - 'api/services/civicFcmTokenOwnership.js'
       - 'api/routes/fcm-tokens.js'
       - 'api/tests/civicFcmTokenOwnership.test.js'
+      - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
       - 'api/tests/ministeroPkUpsert.test.js'
       - 'api/services/ministeroPaginationSafety.js'
       - 'api/tests/ministeroPaginationSafety.test.js'
@@ -90,6 +91,7 @@ on:
       - 'api/services/civicFcmTokenOwnership.js'
       - 'api/routes/fcm-tokens.js'
       - 'api/tests/civicFcmTokenOwnership.test.js'
+      - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
       - 'api/tests/ministeroPkUpsert.test.js'
       - 'api/services/ministeroPaginationSafety.js'
       - 'api/tests/ministeroPaginationSafety.test.js'
@@ -360,5 +362,7 @@ jobs:
         run: node --test api/tests/unifiedStagingSessionContinuity.postgres.test.js
       - name: CI-only restricted runtime role session advisory lock on PG16 and PG17
         run: node --test api/tests/civicRuntimeAdvisoryLock.postgres.test.js
+      - name: Prove active FCM token owner exclusion in disposable PG${{ matrix.pg-major }}
+        run: node --test api/tests/civicFcmTokenOwnership.postgres.test.js
       - name: Exercise actual JavaScript service on PostgreSQL ${{ matrix.pg-major }} and rollback all 10 synthetic votes
         run: node --test api/tests/referendumForecastSnapshot.postgres16.test.js
