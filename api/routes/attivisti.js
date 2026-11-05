@@ -3,6 +3,7 @@ const { compressRegione, decompressRegione } = require('../utils/locationUtils')
 const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
+const { projectPublicDirectoryMembers } = require('../services/publicDirectoryMemberProjection');
 const router = express.Router();
 require('dotenv').config();
 
@@ -120,7 +121,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      data: attivisti,
+      data: projectPublicDirectoryMembers(attivisti),
       approved_subjects: approvedPage.data,
       approved_next_cursor: approvedPage.next_cursor,
       count: attivisti.length,
@@ -178,7 +179,7 @@ router.get('/tipologia/:tipo', async (req, res) => {
     
     res.json({
       success: true,
-      data: attivisti,
+      data: projectPublicDirectoryMembers(attivisti),
       count: attivisti.length,
       tipologia: tipo,
       message: attivisti.length === 0 ? `Nessun attivista trovato per la tipologia "${tipo}"` : `${attivisti.length} attivisti trovati per la tipologia "${tipo}"`

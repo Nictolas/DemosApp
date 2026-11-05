@@ -28,6 +28,7 @@ const privatePerson = {
 };
 
 let failDatabase = false;
+let injectUnexpectedFields = false;
 const queries = [];
 const fakePool = {
   async query(statement) {
@@ -50,6 +51,8 @@ const fakePool = {
         if (pattern.test(projection)) row[column] = value;
       }
       if (/\bAS supporters_count\b/i.test(projection)) row.supporters_count = 3;
+      // Simulate a later database adapter unexpectedly adding private columns.
+      if (injectUnexpectedFields) Object.assign(row, privatePerson);
       return { rows: [row] };
     }
     return { rows: [] };
@@ -120,6 +123,17 @@ test('GET /api/attivisti/tipologia/:tipo also excludes personal columns', async 
 
 test('GET /api/organizzazioni anonymized public projection', async () => {
   await checkPublicDirectory('/api/organizzazioni', true);
+});
+
+test('public user lists reject private fields added unexpectedly by a database adapter', async () => {
+  injectUnexpectedFields = true;
+  try {
+    await checkPublicDirectory('/api/attivisti', true);
+    await checkPublicDirectory('/api/attivisti/tipologia/ambiente', false);
+    await checkPublicDirectory('/api/organizzazioni', true);
+  } finally {
+    injectUnexpectedFields = false;
+  }
 });
 
 test('database errors do not expose SQL or credentials in public JSON', async () => {

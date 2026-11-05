@@ -3,6 +3,7 @@ const { compressRegione, decompressRegione } = require('../utils/locationUtils')
 const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
+const { projectPublicDirectoryMembers } = require('../services/publicDirectoryMemberProjection');
 const router = express.Router();
 require('dotenv').config();
 
@@ -116,7 +117,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      data: organizzazioni,
+      data: projectPublicDirectoryMembers(organizzazioni),
       approved_subjects: approvedPage.data,
       approved_next_cursor: approvedPage.next_cursor,
       count: organizzazioni.length,
