@@ -59,6 +59,9 @@ The ECI cache normalizer now refuses fractional/boolean signature counts
 instead of silently coercing them through Python `int()`. It accepts only
 nonnegative integer values (or digit strings). If a detail response exposes
 a `pubRegNum`, it must match the official search entry's ECI ID.
+The search entry itself is checked the same way: its `year` and `number`
+must agree with its `pubRegNum` whenever both forms are present; a malformed
+or contradictory official ID is rejected before any database operation.
 
 Direct signing URLs are allowed only on the European Commission's HTTPS
 hosts `eci.ec.europa.eu` and `citizens-initiative.europa.eu`.
