@@ -80,6 +80,7 @@ test("cinque assi tematici sotto il compasso, senza ulteriori richieste o dettag
 
 test("informativa distingue profilazione locale facoltativa da profilazione commerciale", () => {
   assert.match(privacyNotice, /Compasso politico e indicatori tematici/);
+  assert.match(privacyNotice, /id="4\\.1"/, "Il link della registrazione deve puntare a una sezione reale dell’informativa");
   assert.match(privacyNotice, /profilazione ai sensi del GDPR/);
   assert.match(privacyNotice, /senza salvare i punteggi nel database/);
   assert.match(privacyNotice, /Senza consenso alle Opinioni politiche/);
