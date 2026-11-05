@@ -12,6 +12,11 @@ const profileHook = fs.readFileSync(path.join(root, "client/src/pages/Profilo/ho
 const compassPage = fs.readFileSync(path.join(root, "client/src/pages/CompassoPolitico.tsx"), "utf8");
 const app = fs.readFileSync(path.join(root, "client/src/App.tsx"), "utf8");
 const privacyNotice = fs.readFileSync(path.join(root, "client/src/pages/PrivacyPolicy.tsx"), "utf8");
+const consentScreens = [
+  "client/src/pages/registrazione-consensi.tsx",
+  "client/src/pages/registrazione-consensi-opinioni.tsx",
+  "client/src/components/PoliticalOpinionsConsentModal.tsx",
+].map(filename => fs.readFileSync(path.join(root, filename), "utf8"));
 
 const catalog = Array.from({ length: 6 }, (_, index) =>
   JSON.parse(fs.readFileSync(
@@ -81,6 +86,18 @@ test("informativa distingue profilazione locale facoltativa da profilazione comm
   assert.match(privacyNotice, /non vengono utilizzati[\s\S]*per decisioni automatizzate/);
   assert.match(privacyNotice, /Nessuna profilazione commerciale o vendita/);
   assert.doesNotMatch(privacyNotice, /Nessuna profilazione o vendita dati individuali/);
+});
+
+test("tutti i consensi informano sul compasso facoltativo senza nuove raccolte", () => {
+  assert.equal(consentScreens.length, 3);
+  for (const screen of consentScreens) {
+    assert.match(screen, /Compasso politico/);
+    assert.match(screen, /cinque indicatori/);
+    assert.match(screen, /dispositivo/);
+    assert.match(screen, /server/);
+  }
+  assert.match(privacyNotice, /Non vengono aggiunte nuove domande obbligatorie/);
+  assert.match(privacyNotice, /calcolo viene eseguito nel browser o nell'app sul dispositivo/);
 });
 
 test("il pulsante e in fondo al Profilo personale e apre una route protetta", () => {
