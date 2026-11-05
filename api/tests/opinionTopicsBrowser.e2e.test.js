@@ -93,6 +93,8 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     assert.equal(personalGets.length, 4, 'Cold topic entry uses the four existing grade reads only');
     for (const [width, height] of [[320, 568], [390, 844], [1280, 800]]) {
       await page.setViewportSize({ width, height });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await cards.first().waitFor({ timeout: 25000 });
       const geometry = await page.locator('.opinioni-editor-page').evaluate(el => {
         const main = el.querySelector('main');
         const footer = el.querySelector('footer');
