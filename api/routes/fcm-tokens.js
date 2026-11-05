@@ -13,10 +13,35 @@ const {
   withCivicPushDeliveryLock,
 } = require('../services/civicPushDeliveryGuard');
 const { onlyTokensNotOwnedByOthers } = require('../services/civicFcmTokenOwnership');
+const { runCivicPreferenceSaveAtomic } = require('../services/civicPreferenceAtomicSave');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
+
+// Device ownership and topic membership are one guarded mutation. Returning a
+// success HTTP response is permitted only AFTER COMMIT and advisory unlock.
+// Firebase cannot participate in the SQL transaction: any unconfirmed outcome
+// forces the global civic delivery guard to remain blocked.
+async function withAtomicFcmMutation(work) {
+  const enabled = isCivicPushEnabled();
+  try {
+    return await withCivicPushDeliveryLock(pool, db =>
+      runCivicPreferenceSaveAtomic(db, () => work(db), { enabled }),
+      { enabled });
+  } catch {
+    if (enabled) {
+      // The first connection may have been discarded after an uncertain
+      // rollback. Retry the emergency guard after releasing the old lock.
+      try {
+        await blockCivicDeliveryFromPool(pool);
+      } catch {
+        console.error('CIVIC_FCM_TOKEN_GUARD_RECOVERY_FAILED');
+      }
+    }
+    throw new Error('CIVIC_FCM_TOKEN_MUTATION_UNCONFIRMED');
+  }
+}
  
 async function unsubscribeCivicTokenOrBlock(token, lockedClient = null) {
   try {
@@ -170,13 +195,10 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
     
-    return await withCivicPushDeliveryLock(pool, async (db) => {
+    const outcome = await withAtomicFcmMutation(async (db) => {
     const existingTokens = await getLegacyTokens(userId, db);
     if (existingTokens === null) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
+      return { status: 404, body: { success: false, error: 'Utente non trovato' } };
     }
 
     // Filtra i token validi (solo quelli che sono token FCM reali, non device ID fittizi)
@@ -228,15 +250,16 @@ router.post('/', verifyToken, async (req, res) => {
     await reconcileCivicTopicsForUser(db, userId, { lockedClient: db });
 
     
-    res.json({
+    return { status: 200, body: {
       success: true,
       message: 'Token FCM salvato con successo',
       data: {
         userId,
         tokenCount: updatedTokens.length
       }
+    } };
     });
-    }, { enabled: isCivicPushEnabled() });
+    return res.status(outcome.status).json(outcome.body);
   } catch (error) {
     console.error('[fcm-tokens] registrazione non riuscita (dettagli omessi)');
     res.status(500).json({
@@ -260,13 +283,10 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     }
     
     
-    return await withCivicPushDeliveryLock(pool, async (db) => {
+    const outcome = await withAtomicFcmMutation(async (db) => {
     const existingTokens = await getLegacyTokens(userId, db);
     if (existingTokens === null) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
+      return { status: 404, body: { success: false, error: 'Utente non trovato' } };
     }
 
     // Filtra i token validi
@@ -312,7 +332,7 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     }
     await reconcileCivicTopicsForUser(db, userId, { lockedClient: db });
 
-    res.json({
+    return { status: 200, body: {
       success: true,
       message: 'Token FCM puliti con successo',
       data: {
@@ -321,8 +341,9 @@ router.post('/cleanup', verifyToken, async (req, res) => {
         tokenCountAfter: cleanedTokens.length,
         removedCount: validTokens.length - cleanedTokens.length
       }
+    } };
     });
-    }, { enabled: isCivicPushEnabled() });
+    return res.status(outcome.status).json(outcome.body);
   } catch (error) {
     console.error('[fcm-tokens] pulizia non riuscita (dettagli omessi)');
     res.status(500).json({
@@ -340,13 +361,13 @@ router.delete('/session', verifyToken, async (req, res) => {
     const userId = req.user.id || req.user.userId;
     if (!userId) return res.status(401).json({ success: false, error: 'Non autenticato' });
 
-    return await withCivicPushDeliveryLock(pool, async (db) => {
+    const outcome = await withAtomicFcmMutation(async (db) => {
     const registered = await db.query(
       'SELECT fcm_token FROM user_devices WHERE user_id = $1 AND is_active = TRUE',
       [userId]
     );
     const legacy = await getLegacyTokens(userId, db);
-    if (legacy === null) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    if (legacy === null) return { status: 404, body: { success: false, error: 'Utente non trovato' } };
 
     if (isCivicPushEnabled()) {
       const revocable = await onlyTokensNotOwnedByOthers(
@@ -360,8 +381,9 @@ router.delete('/session', verifyToken, async (req, res) => {
       [userId]
     );
     await updateLegacyTokens(userId, [], db);
-    res.json({ success: true });
-    }, { enabled: isCivicPushEnabled() });
+    return { status: 200, body: { success: true } };
+    });
+    return res.status(outcome.status).json(outcome.body);
   } catch {
     res.status(503).json({ success: false, error: 'Impossibile completare la revoca del dispositivo' });
   }
@@ -380,13 +402,10 @@ router.delete('/:token', verifyToken, async (req, res) => {
       });
     }
     
-    return await withCivicPushDeliveryLock(pool, async (db) => {
+    const outcome = await withAtomicFcmMutation(async (db) => {
     const existingTokens = await getLegacyTokens(userId, db);
     if (existingTokens === null) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
+      return { status: 404, body: { success: false, error: 'Utente non trovato' } };
     }
 
     // Mai agire su topic di un token che non appartiene all'utente autenticato.
@@ -409,11 +428,12 @@ router.delete('/:token', verifyToken, async (req, res) => {
     // Nuovo storage: disattiva token specifico
     await deactivateUserDeviceToken(userId, token, db);
     
-    res.json({
+    return { status: 200, body: {
       success: true,
       message: 'Token FCM rimosso con successo'
+    } };
     });
-    }, { enabled: isCivicPushEnabled() });
+    return res.status(outcome.status).json(outcome.body);
   } catch (error) {
     console.error('[fcm-tokens] revoca non riuscita (dettagli omessi)');
     res.status(500).json({
