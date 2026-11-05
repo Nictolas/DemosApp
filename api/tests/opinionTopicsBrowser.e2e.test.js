@@ -89,11 +89,11 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByRole('heading', { name: 'Economia, lavoro e fisco' }).waitFor({ timeout: 25000 });
     const cards = page.locator('.opinioni-editor-page main section');
     await cards.first().waitFor({ timeout: 25000 });
-    assert.equal(await cards.count(), 13);
-    assert.equal(await page.getByText('0 / 13 Opinioni salvate').count(), 1);
+    assert.equal(await cards.count(), 14);
+    assert.equal(await page.getByText('0 / 14 Opinioni salvate').count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Salva le mie opinioni' }).isDisabled(), true);
     await cards.first().getByRole('button', { name: 'Favorevole' }).click();
-    assert.equal(await page.getByText('0 / 13 Opinioni salvate').count(), 1,
+    assert.equal(await page.getByText('0 / 14 Opinioni salvate').count(), 1,
       'Unsaved answer must not increase completion');
     await page.getByRole('button', { name: 'Indietro' }).click();
     await page.getByText('Opinioni non salvate').waitFor();
@@ -106,7 +106,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByText(/1 \/ 13 · 8%/).first().waitFor({ timeout: 12000 });
     const before = personalGets.length;
     await page.getByRole('button', { name: /Economia, lavoro e fisco/ }).click();
-    await page.getByText('1 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
+    await page.getByText('1 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
     assert.equal(personalGets.length, before, 'Warm cache should avoid personal GETs');
 
     // Deliberate failure: a rejected POST must not change committed completion.
@@ -118,7 +118,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     }));
     await page.getByRole('button', { name: 'Salva le mie opinioni' }).click();
     await page.getByText(/Salvataggio non confermato/).waitFor({ timeout: 12000 });
-    assert.equal(await page.getByText('1 / 13 Opinioni salvate').count(), 1);
+    assert.equal(await page.getByText('1 / 14 Opinioni salvate').count(), 1);
     await page.unroute('**/api/opinioni/salva');
 
     const revoked = await fetch('http://localhost:10000/qa/revoke', {
