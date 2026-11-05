@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { Globe2, Landmark, Leaf, Scale, UsersRound } from "lucide-react";
+import { FlaskConical, Globe2, Landmark, Leaf, Scale, UsersRound } from "lucide-react";
 import {
   calculatePoliticalCompass,
   calculatePoliticalAxes,
   POLITICAL_AXES,
-  type CompassAxisResult,
 } from "@/lib/politicalCompassModel";
 
 interface PoliticalCompassPreviewProps {
@@ -20,9 +19,6 @@ const AXIS_ICONS = {
   ambiente: Leaf,
   immigrazione: Globe2,
 } as const;
-
-const resultLabel = (result: CompassAxisResult) =>
-  result.score === null ? "Dati insufficienti" : String(result.score);
 
 export function PoliticalCompassPreview({ answers, standalone = false }: PoliticalCompassPreviewProps) {
   // La navigazione verso questa pagina e una scelta esplicita di visualizzare il risultato.
@@ -41,11 +37,21 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
     compass?.freedom.score !== null && compass?.freedom.score !== undefined;
 
   return (
-    <section className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3" aria-label="Compasso politico sperimentale">
+    <section className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3" aria-label="Compasso politico">
+      <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5" role="note" aria-label="Sezione sperimentale">
+        <FlaskConical aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-800" />
+        <div>
+          <p className="text-sm font-semibold text-amber-950">Sezione sperimentale</p>
+          <p className="text-xs leading-relaxed text-amber-900">
+            È una rappresentazione esplorativa, non un test scientificamente validato.
+            I risultati non definiscono con certezza il tuo orientamento politico.
+          </p>
+        </div>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-slate-900">La tua posizione politica</h3>
-          <p className="text-xs text-slate-600">Compasso sperimentale, privato e facoltativo</p>
+          <p className="text-xs text-slate-600">Compasso privato e facoltativo</p>
         </div>
         {!standalone && (
           <button
@@ -61,10 +67,9 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
       {visible && compass && (
         <div className="mt-3 space-y-3">
           <p className="text-xs leading-relaxed text-slate-700">
-            È una rappresentazione esplorativa, non un test scientificamente validato. I due assi rappresentano solo le proposte selezionate,
-            senza dedurre in modo certo un orientamento politico generale.
-            Non assegna partiti, etichette personali o indicazioni di voto.
-            Il calcolo avviene sul dispositivo e non viene salvato.
+            Il compasso rappresenta solo le proposte selezionate. Non assegna partiti,
+            etichette personali o indicazioni di voto. Il calcolo avviene sul dispositivo
+            e non viene salvato.
           </p>
 
           {ready ? (
@@ -111,25 +116,6 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <h4 className="font-semibold text-sm text-slate-900">Economia</h4>
-              <p className="mt-1 text-xs text-slate-600">Interventi pubblici (−100) · Soluzioni private/concorrenziali (+100)</p>
-              <p className="mt-1 text-sm font-bold text-slate-900">{resultLabel(compass.economy)}</p>
-              <p className="text-xs text-slate-600">
-                {compass.economy.answered} su {compass.economy.total} posizioni nette · {compass.economy.undecided} indecise
-              </p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <h4 className="font-semibold text-sm text-slate-900">Libertà individuali</h4>
-              <p className="mt-1 text-xs text-slate-600">Restrizioni (−100) · Libertà (+100)</p>
-              <p className="mt-1 text-sm font-bold text-slate-900">{resultLabel(compass.freedom)}</p>
-              <p className="text-xs text-slate-600">
-                {compass.freedom.answered} su {compass.freedom.total} posizioni nette · {compass.freedom.undecided} indecise
-              </p>
-            </div>
-          </div>
-
           {axes && (
             <section
               aria-label="I tuoi orientamenti politici"
@@ -156,11 +142,6 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
                           </span>
                           {axis.title}
                         </h5>
-                        {axis.experimental && (
-                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900">
-                            Sperimentale
-                          </span>
-                        )}
                       </div>
                       <div className="mt-2 flex items-center justify-between gap-2 text-xs">
                         <span className="text-slate-700">
