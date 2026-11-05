@@ -313,12 +313,19 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
   try {
     // Verifica se esiste già una spiegazione per questa votazione
     const existingResult = await pool.query(
-      'SELECT spiegazione FROM votazioni_parlamento WHERE id = $1',
+      'SELECT titolo_votazione, spiegazione FROM votazioni_parlamento WHERE id = $1',
       [votazioneId]
     );
 
     if (existingResult.rows.length === 0) {
       console.warn(`⚠️ Votazione ${votazioneId} non trovata`);
+      return null;
+    }
+
+    // The same ID must still identify the precise official vote we are explaining.
+    // Abort before calling Groq when a vote has changed since the caller read it.
+    if (existingResult.rows[0].titolo_votazione !== titoloVotazione) {
+      console.warn('Spiegazione non generata: riferimento votazione modificato');
       return null;
     }
 
@@ -334,13 +341,19 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
   
     if (spiegazione) {
       // Salva la spiegazione nella tabella votazioni_parlamento
-      await pool.query(
-        `UPDATE votazioni_parlamento 
+      const saved = await pool.query(
+        `UPDATE votazioni_parlamento
          SET spiegazione = $1, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $2`,
-        [spiegazione.trim(), votazioneId]
+         WHERE id = $2 AND titolo_votazione = $3
+           AND (spiegazione IS NULL OR spiegazione = '')`,
+        [spiegazione.trim(), votazioneId, titoloVotazione]
       );
-      console.log(`✅ Spiegazione salvata per votazione ${votazioneId}`);
+      // Never report an unsaved or stale analysis as successful.
+      if (saved.rowCount !== 1) {
+        console.warn('Spiegazione non salvata: votazione modificata o testo già aggiornato');
+        return null;
+      }
+      console.log('Spiegazione parlamentare salvata sulla votazione esatta');
     }
 
     return spiegazione;
