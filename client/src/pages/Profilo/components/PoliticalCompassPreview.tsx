@@ -62,10 +62,10 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
           {ready ? (
             <figure className="rounded-xl border border-slate-200 bg-white p-2">
               <svg
-                viewBox="0 0 360 350"
+                viewBox="0 0 360 320"
                 className="mx-auto block h-auto w-full max-w-sm"
                 role="img"
-                aria-label="Posizione stimata su due assi: intervento pubblico a sinistra, mercato a destra, restrizioni in alto e libertà individuali in basso"
+                aria-label="Posizione stimata su due assi esplorativi: Sinistra (interventi pubblici), Destra (soluzioni private), Autorità (restrizioni) e Libertà (libertà individuali)"
               >
                 {/* Disposizione CLASSICA del Political Compass: rosso/blu sopra, verde/viola sotto.
                     L'asse verticale resta metodologicamente esplorativo, non una diagnosi ideologica. */}
@@ -80,16 +80,10 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
                 <line x1="242.5" y1="35" x2="242.5" y2="285" stroke="#ffffff" strokeOpacity="0.55" />
                 <line x1="55" y1="97.5" x2="305" y2="97.5" stroke="#ffffff" strokeOpacity="0.55" />
                 <line x1="55" y1="222.5" x2="305" y2="222.5" stroke="#ffffff" strokeOpacity="0.55" />
-                <text x="180" y="20" fontSize="12" textAnchor="middle" fill="#334155">
-                  Maggiori restrizioni
-                </text>
-                <text x="180" y="305" fontSize="12" textAnchor="middle" fill="#334155">
-                  Maggiori libertà individuali
-                </text>
-                <text x="55" y="330" fontSize="11" fill="#334155">Interventi pubblici</text>
-                <text x="305" y="345" fontSize="11" fill="#334155" textAnchor="end">
-                  Soluzioni private / gare
-                </text>
+                <text x="180" y="20" fontSize="14" fontWeight="600" textAnchor="middle" fill="#0f172a">Autorità</text>
+                <text x="180" y="307" fontSize="14" fontWeight="600" textAnchor="middle" fill="#0f172a">Libertà</text>
+                <text x="30" y="160" transform="rotate(-90 30 160)" fontSize="14" fontWeight="600" textAnchor="middle" fill="#0f172a">Sinistra</text>
+                <text x="330" y="160" transform="rotate(90 330 160)" fontSize="14" fontWeight="600" textAnchor="middle" fill="#0f172a">Destra</text>
                 <circle
                   cx={180 + (compass.economy.score || 0) * 1.25}
                   cy={160 + (compass.freedom.score || 0) * 1.25}
