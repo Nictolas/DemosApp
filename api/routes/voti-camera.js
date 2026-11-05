@@ -586,7 +586,7 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
     }
 
     const row = votazioneResult.rows[0];
-    console.log(`[DEBUG] Dati trovati: titolo="${row.titolo_votazione}", camera="${row.camera}"`);
+    console.log('[DEBUG] Votazione caricata per generazione spiegazione');
     
     if (!row.titolo_votazione || row.titolo_votazione.trim() === '') {
       console.error(`[DEBUG] Votazione senza titolo: ID=${votazioneId}`);
@@ -634,7 +634,7 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
 
     // Genera la spiegazione per la votazione
     console.log(`[DEBUG] Step 7: Generazione spiegazione AI`);
-    console.log(`[DEBUG] Parametri: votazione_id=${votazioneId}, titolo="${titolo_votazione}", camera="${camera}"`);
+    console.log('[DEBUG] Generazione spiegazione avviata');
     console.log(`[DEBUG] Descrizione disponibile: ${descrizione_votazione ? 'Sì (' + descrizione_votazione.length + ' caratteri)' : 'No'}`);
     
     let spiegazione;
@@ -644,24 +644,14 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
       
       console.log(`[DEBUG] Step 8: Risultato generazione: ${spiegazione ? 'Sì (' + spiegazione.length + ' caratteri)' : 'No'}`);
     } catch (genError) {
-      console.error('❌ ERRORE CRITICO durante la generazione spiegazione:');
-      console.error(`❌ Tipo errore: ${genError.constructor.name}`);
-      console.error(`❌ Messaggio: ${genError.message}`);
-      console.error(`❌ Stack trace completo:`, genError.stack);
-      
-      // Log dettagliato per errori specifici
-      if (genError.message && genError.message.includes('decommissioned')) {
-        console.error('Modello Groq non disponibile: verificare GROQ_MODEL e allowlist Free');
-      }
-      if (genError.message && genError.message.includes('API AI non configurata')) {
-        console.error(`❌ PROBLEMA: Chiave API non caricata su Render! Verifica GROQ_API_KEY in Environment Variables`);
-      }
+      const { classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
+      console.error('Richiesta spiegazione parlamentare non riuscita:', classifyFreeGroqError(genError));
       
       const elapsed = Date.now() - startTime;
       console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE) ========== Tempo: ${elapsed}ms`);
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
-        error: 'Errore nella generazione',
+        error: 'Spiegazione AI non disponibile',
         message: 'Spiegazione AI temporaneamente non disponibile. I dati ufficiali della votazione restano consultabili.'
       });
     }
@@ -690,14 +680,13 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
     });
 
   } catch (error) {
-    console.error('❌ Errore nella generazione spiegazione:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('Errore interno nel percorso di generazione spiegazione parlamentare');
     const elapsed = Date.now() - startTime;
     console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE GENERALE) ========== Tempo: ${elapsed}ms`);
     return res.status(500).json({
       success: false,
       error: 'Errore nella generazione della spiegazione',
-      message: error.message
+      message: 'Errore interno. I dati ufficiali restano consultabili.'
     });
   }
 });
@@ -711,7 +700,7 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
   
   try {
     const politicoNome = decodeURIComponent(req.params.politico);
-    console.log(`[DEBUG] Step 2: Politico richiesto: "${politicoNome}"`);
+    console.log('[DEBUG] Richiesta spiegazione per rappresentante');
     
     // Recupera i dati del politico e la votazione associata
     console.log(`[DEBUG] Step 3: Query database per trovare politico e votazione`);
@@ -726,7 +715,7 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
     console.log(`[DEBUG] Risultati query: ${politicoResult.rows.length} righe trovate`);
 
     if (politicoResult.rows.length === 0) {
-      console.error(`[DEBUG] Politico non trovato: "${politicoNome}"`);
+      console.error('[DEBUG] Rappresentante non trovato per richiesta di spiegazione');
       return res.status(404).json({
         success: false,
         error: 'Politico non trovato',
@@ -735,11 +724,11 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
     }
 
     const row = politicoResult.rows[0];
-    console.log(`[DEBUG] Dati trovati: votazione_id=${row.votazione_id}, titolo="${row.titolo_votazione}", camera="${row.camera}"`);
+    console.log('[DEBUG] Riferimento votazione caricato');
     
     // Fix: controlla esplicitamente se votazione_id è NULL o se la votazione non esiste
     if (!row.votazione_id || !row.titolo_votazione || row.titolo_votazione.trim() === '') {
-      console.error(`[DEBUG] Votazione non trovata per politico: "${politicoNome}"`);
+      console.error('[DEBUG] Nessuna votazione associata al rappresentante');
       return res.status(404).json({
         success: false,
         error: 'Votazione non trovata',
@@ -783,7 +772,7 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
 
     // Genera la spiegazione per la votazione (non per il politico)
     console.log(`[DEBUG] Step 7: Generazione spiegazione AI`);
-    console.log(`[DEBUG] Parametri: votazione_id=${votazione_id}, titolo="${titolo_votazione}", camera="${camera}"`);
+    console.log('[DEBUG] Generazione spiegazione per rappresentante avviata');
     console.log(`[DEBUG] Descrizione disponibile: ${descrizione_votazione ? 'Sì (' + descrizione_votazione.length + ' caratteri)' : 'No'}`);
     
     let spiegazione;
@@ -792,14 +781,14 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
       
       console.log(`[DEBUG] Step 8: Risultato generazione: ${spiegazione ? 'Sì (' + spiegazione.length + ' caratteri)' : 'No'}`);
     } catch (genError) {
-      console.error('❌ Errore durante la generazione spiegazione:', genError);
-      console.error('❌ Stack trace:', genError.stack);
+      const { classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
+      console.error('Richiesta spiegazione per rappresentante non riuscita:', classifyFreeGroqError(genError));
       const elapsed = Date.now() - startTime;
       console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE) ========== Tempo: ${elapsed}ms`);
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
-        error: 'Errore nella generazione',
-        message: `Errore durante la generazione: ${genError.message}. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato.`
+        error: 'Spiegazione AI non disponibile',
+        message: 'Spiegazione AI temporaneamente non disponibile. I dati ufficiali restano consultabili.'
       });
     }
 
@@ -807,10 +796,10 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
       console.error(`[DEBUG] Spiegazione non generata (null o vuota) per votazione_id=${votazione_id}`);
       const elapsed = Date.now() - startTime;
       console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (FALLITA) ========== Tempo: ${elapsed}ms`);
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
-        error: 'Errore nella generazione',
-        message: 'Impossibile generare la spiegazione. Verifica che GROQ_API_KEY o OPENAI_API_KEY sia configurato e che l\'API sia raggiungibile.'
+        error: 'Spiegazione AI non disponibile',
+        message: 'Spiegazione AI temporaneamente non disponibile. I dati ufficiali restano consultabili.'
       });
     }
 
@@ -828,14 +817,13 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
     });
 
   } catch (error) {
-    console.error('❌ Errore nella generazione spiegazione:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error('Errore interno nel percorso di generazione spiegazione parlamentare');
     const elapsed = Date.now() - startTime;
     console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (ERRORE GENERALE) ========== Tempo: ${elapsed}ms`);
     return res.status(500).json({
       success: false,
       error: 'Errore nella generazione della spiegazione',
-      message: error.message
+      message: 'Errore interno. I dati ufficiali restano consultabili.'
     });
   }
 });
