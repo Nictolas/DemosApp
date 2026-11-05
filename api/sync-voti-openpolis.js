@@ -905,7 +905,12 @@ async function syncVotiOpenpolis(deputatiFile = null) {
     console.error('[ERR] Errore durante la sincronizzazione:', error);
     throw error;
   } finally {
-    await pool.end();
+    // This module is also imported by the authenticated API synchronization route.
+    // Closing its module-scoped pool after a request would permanently break later
+    // synchronizations in the same backend process. CLI usage owns its shutdown.
+    if (require.main === module) {
+      await pool.end();
+    }
   }
 }
 
