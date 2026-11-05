@@ -166,3 +166,53 @@ test('standalone module never imports full app, scheduler, Firebase or user rout
   assert.match(s,/options:'-c default_transaction_read_only=on'/);
   assert.match(s,/max:2,min:0/);
 });
+
+
+test('authorized standalone canary starts with bounded read-only TLS pool',async(t)=>{
+  const net=require('node:net');
+  const probe=net.createServer();
+  await new Promise(resolve=>probe.listen(0,'127.0.0.1',resolve));
+  const port=probe.address().port;
+  await new Promise(resolve=>probe.close(resolve));
+  let options,ended=0,identityCalls=0,sourceCalls=0;
+  const fakePool={connect:async()=>({query:async()=>({rows:[]}),
+    release:()=>{}}),end:async()=>{ended++;}};
+  const started=await startCivicReadOnlyCanary({...safe,PORT:String(port)},{
+    createPool:o=>{options=o;return fakePool;},
+    verifyIdentity:async p=>{identityCalls++;assert.equal(p,fakePool);return true;},
+    sourceProbe:async p=>{sourceCalls++;assert.equal(p,fakePool);return true;},
+  });
+  t.after(async()=>{
+    await new Promise(resolve=>started.server.close(resolve));
+    await started.pool.end();
+  });
+  assert.equal(options.max,2);
+  assert.equal(options.min,0);
+  assert.equal(options.options,'-c default_transaction_read_only=on');
+  assert.equal(options.application_name,'demos_staging_civic_readonly_canary');
+  assert.equal(options.connectionString.includes(fakeSecret),true);
+  assert.equal(options.ssl.rejectUnauthorized,true);
+  assert.equal(identityCalls,1);
+  assert.equal(sourceCalls,1);
+  const root='http://127.0.0.1:'+port;
+  const live=await fetch(root+'/health/live');
+  assert.equal(live.status,200);
+  assert.equal((await fetch(root+'/health/ready')).status,503);
+  assert.equal((await fetch(root+'/health/civic-sources')).status,200);
+  assert.equal((await fetch(root+'/api/eci')).status,404);
+  assert.equal(ended,0);
+});
+
+test('failed DB identity never opens HTTP listener and always closes PG pool',async()=>{
+  let ended=0;
+  const fakePool={connect:async()=>({query:async()=>({rows:[]}),
+    release:()=>{}}),end:async()=>{ended++;}};
+  await assert.rejects(
+    startCivicReadOnlyCanary({...safe,PORT:'11998'},{
+      createPool:()=>fakePool,verifyIdentity:async()=>{
+        throw new Error('SENSITIVE_CONNECTION_STRING_PROVIDER_ERROR');
+      }
+    }),e=>e.message==='STAGING_CIVIC_CANARY_NOT_READY' &&
+             !e.message.includes('SENSITIVE'));
+  assert.equal(ended,1);
+});
