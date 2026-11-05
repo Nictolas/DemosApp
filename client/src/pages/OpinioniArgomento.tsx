@@ -55,9 +55,26 @@ export default function OpinioniArgomento() {
   const queryClient = useQueryClient();
   const [draftState, setDraftState] = useState<TopicDraftState | null>(null);
   const [showConsent, setShowConsent] = useState(false);
-  const [levelFilter, setLevelFilter] = useState<TopicGrade>("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [viewState, setViewState] = useState<{
+    scope: string | null;
+    grade: TopicGrade;
+    search: string;
+  }>({ scope: null, grade: "all", search: "" });
   const authorized = !!user && isSessionVerified && hasConsent;
+  // Search and geographic filter are also personal, in-memory UI context.
+  // Never display an old owner's search/filter during an auth or consent change.
+  const draftScope = authorized && user?.id && verifiedPoliticalConsent?.timestamp && topic
+    ? JSON.stringify([user.id, verifiedPoliticalConsent.timestamp, topic.id]) : null;
+  const levelFilter: TopicGrade = draftScope && viewState.scope === draftScope
+    ? viewState.grade : "all";
+  const searchTerm = draftScope && viewState.scope === draftScope
+    ? viewState.search : "";
+  const setLevelFilter = (grade: TopicGrade) => {
+    if (draftScope) setViewState({ scope: draftScope, grade, search: searchTerm });
+  };
+  const setSearchTerm = (search: string) => {
+    if (draftScope) setViewState({ scope: draftScope, grade: levelFilter, search });
+  };
 
   // Reuse the same query keys, encrypted per-grade vault and verified consent as
   // existing geographical editors. No new endpoint or dedicated topic storage.
@@ -122,15 +139,14 @@ export default function OpinioniArgomento() {
       : visibleQuestions;
   }, [visibleQuestions, searchTerm]);
   useEffect(() => {
-    setLevelFilter("all");
-    setSearchTerm("");
-  }, [topicId]);
+    // Effect also clears the old value in memory; the synchronous scope mask
+    // above prevents a one-frame leak before this effect executes.
+    setViewState({ scope: draftScope, grade: "all", search: "" });
+  }, [draftScope]);
 
   // Scope local draft state to the authenticated owner, the server-verified
   // consent epoch and the current topic. This also masks prior-session RAM
   // synchronously, before an effect can execute after an account switch.
-  const draftScope = authorized && user?.id && verifiedPoliticalConsent?.timestamp && topic
-    ? JSON.stringify([user.id, verifiedPoliticalConsent.timestamp, topic.id]) : null;
   const drafts = useMemo(() => {
     if (!draftScope) return {} as Record<string, string>;
     return draftState?.scope === draftScope
