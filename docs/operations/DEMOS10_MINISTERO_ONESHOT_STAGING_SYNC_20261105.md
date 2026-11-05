@@ -55,11 +55,17 @@ idoneo come esecutore isolato dello staging condiviso.
 
 ## Test e limiti
 
-Test Node isolati per normalizzazione, autorizzazione, identità,
-concorrenza, feed parziale, transazioni, rollback, guardia,
-suppression e assenza di chiamate push. Il job è incluso nella CI
-`Unified Staging Offline Safety`; ulteriori verifiche reali PG16/17
-devono essere completate prima di un eventuale GO di esecuzione.
+Test Node isolati **8/8 PASS** per normalizzazione, autorizzazione,
+identità, concorrenza, feed parziale, transazioni, rollback, guardia,
+soppressione e assenza di chiamate push. Prove **reali** su PostgreSQL
+**16/17** con ruolo CI privo di DELETE: entrambe PASS, inclusi upsert
+ripetuti, identità degli ID, assenza di eventi azionabili e blocco
+su feed incompleto e guardia disattivata.
+`Unified Staging Offline Safety` **7/7 job PASS** e Snyk SUCCESS
+alla PR #606 https://github.com/Nictolas/DemosApp/pull/606.
+Integrata **solo** nel ramo staging al commit
+`76236c958d750847e65c19ed77e353a197ef9b7c`.
+I test non equivalgono a un'esecuzione sul database Supabase reale.
 
 **NON ATTIVARE ORA.** I workflow GitHub `schedule` operano sul ramo
 default `main`, non sul ramo QA/staging; aggiungere questo codice
