@@ -91,6 +91,13 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await cards.first().waitFor({ timeout: 25000 });
     assert.equal(await cards.count(), 14);
     assert.equal(personalGets.length, 4, 'Cold topic entry uses the four existing grade reads only');
+    await page.getByRole('button', { name: 'Europeo', exact: true }).click();
+    await page.getByText('Nessuna Opinione di questo argomento al livello selezionato.').waitFor();
+    assert.equal(await cards.count(), 0, 'Filtered empty state must not duplicate questions');
+    await page.getByRole('button', { name: 'Tutti', exact: true }).click();
+    assert.equal(await cards.count(), 14);
+    assert.equal(personalGets.length, 4, 'Changing the geographic filter must not fetch answers');
+
     for (const [width, height] of [[320, 568], [390, 844], [1280, 800]]) {
       await page.setViewportSize({ width, height });
       await page.reload({ waitUntil: 'domcontentloaded' });
