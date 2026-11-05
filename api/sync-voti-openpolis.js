@@ -389,7 +389,7 @@ async function getUltimaVotazione(urlOpenpolis) {
     };
     
   } catch (error) {
-    console.error(`[ERR] Errore nel recupero votazione da ${urlOpenpolis}:`, error.message);
+    console.error('[ERR] Recupero votazione Openpolis non riuscito');
     return null;
   }
 }
@@ -494,7 +494,7 @@ async function scrapeVotazioneDettagliata(urlVotazione) {
     };
 
   } catch (error) {
-    console.error(`[ERR] Errore nello scraping approfondito di ${urlVotazione}:`, error.message);
+    console.error('[ERR] Recupero dettagli Openpolis non riuscito');
     return null;
   }
 }
@@ -603,13 +603,13 @@ async function creaNotificheParlamento(politicoNome, camera, votazione, voto, da
       console.log(`[OK] Notifica creata per ${utentiResult.rows.length} utenti che hanno scelto ${politicoNome}`);
     } catch (error) {
       // Ignora errori di duplicati (ON CONFLICT DO NOTHING)
-      if (!error.message.includes('duplicate') && !error.message.includes('unique')) {
-        console.error(`[ERR] Errore creazione notifica per ${politicoNome}:`, error.message);
+      if (error?.code !== '23505') {
+        console.error('[ERR] Creazione notifica parlamentare non riuscita');
       }
     }
     
   } catch (error) {
-    console.error(`[ERR] Errore nella creazione notifiche per ${politicoNome}:`, error.message);
+    console.error('[ERR] Creazione notifiche parlamentari non riuscita');
   }
 }
 
@@ -719,7 +719,7 @@ async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, desc
     return true;
     
   } catch (error) {
-    console.error(`[ERR] Errore nel salvataggio per ${politicoNome}:`, error.message);
+    console.error('[ERR] Salvataggio votazione Openpolis non riuscito');
     return false;
   }
 }
@@ -797,15 +797,14 @@ async function getPolitici(deputatiFile = null) {
         console.log('[!] Nessun politico trovato nella tabella users con ruolo="P" e grado_elezione="C" o "S"');
       }
     } catch (error) {
-      console.error('[ERR] Errore nel recupero dal database:', error.message);
-      console.error('[ERR] Stack:', error.stack);
+      console.error('[ERR] Lettura rappresentanti per Openpolis non riuscita');
     }
     
     console.log('[!] Nessun politico trovato nel database. Fornisci un file JSON con la lista.');
     return [];
     
   } catch (error) {
-    console.error('[ERR] Errore nel recupero politici:', error.message);
+    console.error('[ERR] Recupero rappresentanti per Openpolis non riuscito');
     return [];
   }
 }
@@ -887,7 +886,7 @@ async function syncVotiOpenpolis(deputatiFile = null) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
       } catch (error) {
-        console.log(`[ERR] ${error.message}`);
+        console.warn('[ERR] Elaborazione singola votazione Openpolis non riuscita');
         errori++;
       }
     }
@@ -902,7 +901,7 @@ async function syncVotiOpenpolis(deputatiFile = null) {
     console.log('='.repeat(60));
     
   } catch (error) {
-    console.error('[ERR] Errore durante la sincronizzazione:', error);
+    console.error('[ERR] Sincronizzazione Openpolis non riuscita');
     throw error;
   } finally {
     // This module is also imported by the authenticated API synchronization route.
@@ -924,7 +923,7 @@ if (require.main === module) {
       process.exit(0);
     })
     .catch(error => {
-      console.error('\n[ERR] Sincronizzazione fallita:', error);
+      console.error('\n[ERR] Sincronizzazione fallita');
       process.exit(1);
     });
 }
