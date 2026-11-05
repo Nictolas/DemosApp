@@ -108,8 +108,16 @@ test('Chrome: two synthetic accounts never inherit another owner\'s political an
     await goToTopic();
     await page.getByText('1 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
     assert.equal(personalGets.A, 4, 'Account A should use four existing cold GETs once');
+    const topicSearch = page.getByRole('searchbox', { name: "Cerca fra le Opinioni dell'argomento" });
+    await topicSearch.fill('salario');
+    await page.getByRole('button', { name: 'Nazionale', exact: true }).click();
+    assert.equal(await topicSearch.inputValue(), 'salario', 'Owner A search entered locally');
+    assert.equal(await page.getByRole('button', { name: 'Nazionale', exact: true }).getAttribute('aria-pressed'), 'true');
 
     await switchAccount(tokenB);
+    assert.equal(await topicSearch.inputValue(), '', 'Owner B must never inherit owner A search text');
+    assert.equal(await page.getByRole('button', { name: 'Tutti', exact: true }).getAttribute('aria-pressed'), 'true',
+      'Owner B must not inherit owner A geographic filter');
     await page.getByText('0 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
     assert.equal(await cards.locator('button[aria-pressed="true"]').count(), 0,
       'Account B must not inherit any answer from account A');
