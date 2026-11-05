@@ -81,3 +81,13 @@ test('Grazia does not reflect arbitrary backend errors and keeps privacy link du
   assert.match(read('client/src/pages/Grazia/components/ClassificaCarcerati.tsx'),
     /export function PrivacyRectificationContact\(\)/);
 });
+
+test('Grazia voting form explicitly imports all components it renders',()=>{
+  const form=read('client/src/pages/Grazia/components/GraziaForm.tsx');
+  assert.match(form,/import \{[^}]*\bCardDescription\b[^}]*\} from "@\/components\/ui\/card"/);
+  assert.match(form,/import \{[^}]*\bThumbsUp\b[^}]*\bInfo\b[^}]*\} from "lucide-react"/);
+  for(const component of ['CardDescription','ThumbsUp','Info']){
+    assert.match(form,new RegExp('<'+component+'\\b'),
+      component+' must remain imported because missing JSX identifiers crash Grazia at runtime');
+  }
+});
