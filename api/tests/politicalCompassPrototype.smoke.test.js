@@ -85,9 +85,14 @@ test("quattro colori classici e posizione convenzionale dei quadranti", () => {
     ), `Quadrante errato: ${name}`);
   }
   assert.match(component, /cy=\{160 \+ \(compass\.freedom\.score \|\| 0\) \* 1\.25\}/);
-  assert.ok(component.indexOf("Maggiori restrizioni\n") <
-    component.indexOf("Maggiori libertà individuali\n"),
-    "Il polo delle restrizioni deve stare sopra quello delle libertà");
+  assert.match(component, /<text x="180" y="20"[^>]*>Autorità<\/text>/);
+  assert.match(component, /<text x="180" y="307"[^>]*>Libertà<\/text>/);
+  assert.match(component, /<text x="30" y="160" transform="rotate\(-90 30 160\)"[^>]*>Sinistra<\/text>/);
+  assert.match(component, /<text x="330" y="160" transform="rotate\(90 330 160\)"[^>]*>Destra<\/text>/);
+  assert.match(component, /viewBox="0 0 360 320"/);
+  assert.match(component, /className="mx-auto block h-auto w-full max-w-sm"/);
+  assert.match(component, /aria-label="Posizione stimata su due assi esplorativi:/);
+  assert.doesNotMatch(component, /Maggiori restrizioni|Maggiori libertà individuali|Soluzioni private \/ gare/);
   assert.match(component, /r="9" fill="#111827" stroke="#ffffff" strokeWidth="3"/);
 });
 
