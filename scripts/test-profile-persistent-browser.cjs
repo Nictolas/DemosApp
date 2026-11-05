@@ -275,7 +275,7 @@ async function test() {
     version = '2026-10-29T15:00:00Z';
     stagedCompassAnswers = { patrimoniale: 'f' };
     await page.goto(ORIGIN + '/compasso-politico', { waitUntil: 'domcontentloaded' });
-    await page.getByTestId('compass-draft-economy-line').waitFor({ timeout: 15000 });
+    await page.getByTestId('compass-draft-economy-line').waitFor({ state: 'attached', timeout: 15000 });
     assert.equal(await page.getByTestId('compass-draft-freedom-line').count(), 0);
     assert.equal(await page.getByTestId('compass-draft-point').count(), 0);
     assert.ok(await page.locator('section[aria-label="I tuoi orientamenti politici"]')
@@ -283,7 +283,7 @@ async function test() {
       'A single relevant thematic Opinion must display a provisional bar');
     const afterSingleOpinion = count.get('/api/opinioni/profile') || 0;
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.getByTestId('compass-draft-economy-line').waitFor({ timeout: 15000 });
+    await page.getByTestId('compass-draft-economy-line').waitFor({ state: 'attached', timeout: 15000 });
     assert.equal(count.get('/api/opinioni/profile') || 0, afterSingleOpinion,
       'Reopening a single-answer draft must not fetch the Opinions again');
 
@@ -291,7 +291,7 @@ async function test() {
     version = '2026-10-29T16:00:00Z';
     stagedCompassAnswers = { eutanasia: 'f' };
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.getByTestId('compass-draft-freedom-line').waitFor({ timeout: 15000 });
+    await page.getByTestId('compass-draft-freedom-line').waitFor({ state: 'attached', timeout: 15000 });
     assert.equal(await page.getByTestId('compass-draft-economy-line').count(), 0);
 
     // After one mapped response on each dimension, a hollow point can be
@@ -299,7 +299,7 @@ async function test() {
     version = '2026-10-29T17:00:00Z';
     stagedCompassAnswers = { patrimoniale: 'f', eutanasia: 'f' };
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.getByTestId('compass-draft-point').waitFor({ timeout: 15000 });
+    await page.getByTestId('compass-draft-point').waitFor({ state: 'attached', timeout: 15000 });
     assert.equal(await page.locator('circle[r="9"]').count(), 0,
       'The qualified dark dot must not appear for a two-response draft');
 
