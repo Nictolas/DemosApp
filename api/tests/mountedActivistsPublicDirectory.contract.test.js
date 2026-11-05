@@ -1,0 +1,22 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..','..');
+const src=(p)=>fs.readFileSync(path.join(root,p),'utf8');
+test('mounted /attivisti directory shows reviewed nominations, no hardcoded Render or personal debug logs',()=>{
+  const app=src('client/src/App.tsx');
+  const active=src('client/src/pages/Attivisti.tsx');
+  assert.match(app,/import Attivisti from "\.\/pages\/Attivisti";/);
+  assert.match(active,/approved_subjects/);
+  assert.match(active,/setApprovedSubjects\(data\.approved_subjects \|\| \[\]\)/);
+  assert.match(active,/Attivisti segnalati e approvati/);
+  assert.match(active,/subject\.title/);
+  assert.match(active,/ProposeSubjectButton category="attivisti"/);
+  assert.match(active,/useApprovedSubjectResumeRefresh\("attivisti"/);
+  assert.match(active,/getApiUrl\(\`\/api\/attivisti/);
+  assert.match(active,/cache: 'no-store'/);
+  assert.doesNotMatch(active,/demos-c7k0\.onrender\.com|\bAPI_BASE\b|console\.(?:log|debug)\(/);
+  assert.doesNotMatch(active,/subject\.(?:source_url|details|proposer_user_id)/);
+});

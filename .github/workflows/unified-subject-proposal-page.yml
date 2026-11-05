@@ -35,8 +35,8 @@ jobs:
           node-version: '22'
       - name: Validate shared proposal backend syntax
         run: node --check api/routes/subject-proposals.js
-      - name: Test five routes, zero proposal-specific reads, and reject duplicate Grazia queue
-        run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js
+      - name: Test five routes, active activist directory, no personal debug logs
+        run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js api/tests/mountedActivistsPublicDirectory.contract.test.js
   client-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -81,6 +81,7 @@ jobs:
           done
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-unified-proposal-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-admin-audit-pagination-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-mounted-activist-browser.cjs
       - name: "Browser test: mounted personal status isolated after account switch"
         run: |
           npm run dev --prefix client -- --host localhost --port 4180 --strictPort > /tmp/demos-owner-dev.log 2>&1 &

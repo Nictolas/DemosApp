@@ -12,6 +12,9 @@ import AttivistaModal from "@/components/AttivistaModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiUrl } from "@/lib/api-config";
+import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
+import { useApprovedSubjectResumeRefresh } from "@/hooks/useApprovedSubjectResumeRefresh";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -53,6 +56,7 @@ interface Attivista {
 interface AttivistiResponse {
   success: boolean;
   data: Attivista[];
+  approved_subjects?: Array<{ id: string; title: string }>;
   count: number;
   message: string;
 }
@@ -60,8 +64,8 @@ interface AttivistiResponse {
 export default function Attivisti() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const API_BASE = 'https://demos-c7k0.onrender.com';
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
+  const [approvedSubjects, setApprovedSubjects] = useState<Array<{ id: string; title: string }>>([]);
   const [filteredAttivisti, setFilteredAttivisti] = useState<Attivista[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegione, setSelectedRegione] = useState("all");
@@ -77,30 +81,31 @@ export default function Attivisti() {
   const [supportersCount, setSupportersCount] = useState<Record<string, number>>({});
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
+  // Hide withdrawn third-party titles when a suspended directory resumes.
+  useApprovedSubjectResumeRefresh("attivisti", setApprovedSubjects, !isLoading && !isError);
+
   // Carica filtri disponibili e stato following
   useEffect(() => {
     const fetchFiltri = async () => {
       try {
-        console.log('🔍 fetchFiltri - Chiamata API filtri attivisti');
-        const response = await fetch(`${API_BASE}/api/attivisti/filtri`);
-        console.log('🔍 fetchFiltri - Response status:', response.status);
-        
+
+        const response = await fetch(getApiUrl('/api/attivisti/filtri'));
+
         if (response.ok) {
           const data = await response.json();
-          console.log('🔍 fetchFiltri - Data ricevuta:', data);
-          
+
           if (data.success) {
-            console.log('✅ fetchFiltri - Successo, regioni:', data.data.regioni.length, 'tipologie:', data.data.tipologie.length);
+
             setRegioni(data.data.regioni);
             setTipologie(data.data.tipologie);
           } else {
-            console.error('❌ fetchFiltri - API success=false:', data);
+
           }
         } else {
-          console.error('❌ fetchFiltri - Response not ok:', response.status, response.statusText);
+
         }
       } catch (error) {
-        console.error('❌ fetchFiltri - Errore:', error);
+
       }
     };
 
@@ -117,7 +122,7 @@ export default function Attivisti() {
           setFollowingUsers(new Set());
         }
       } catch (error) {
-        console.error('Errore nel caricamento stato voto attivista:', error);
+
       }
     };
 
@@ -133,12 +138,13 @@ export default function Attivisti() {
   // Carica gli attivisti
   useEffect(() => {
     const controller = new AbortController();
-    console.log('🚀 Attivisti useEffect - Inizio');
+
     const fetchAttivisti = async () => {
       try {
-        console.log('🔄 fetchAttivisti - Inizio caricamento');
+
         setIsLoading(true);
         setIsError(false);
+        setApprovedSubjects([]);
         
         // Costruisci URL con parametri di ricerca
         const params = new URLSearchParams();
@@ -146,46 +152,44 @@ export default function Attivisti() {
         if (selectedRegione && selectedRegione !== 'all') params.append('regione', selectedRegione);
         if (selectedTipologia && selectedTipologia !== 'all') params.append('tipologia', selectedTipologia);
         
-        const url = `${API_BASE}/api/attivisti${params.toString() ? '?' + params.toString() : ''}`;
-        console.log('📡 fetchAttivisti - Chiamata API:', url);
-        
-        const response = await fetch(url, { signal: controller.signal });
-        console.log('📡 fetchAttivisti - Response status:', response.status);
-        
+        const url = getApiUrl(`/api/attivisti${params.toString() ? '?' + params.toString() : ''}`);
+
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+
         if (!response.ok) {
           throw new Error(`Errore ${response.status}: ${response.statusText}`);
         }
         
-        console.log('📡 fetchAttivisti - Parsing JSON...');
+
         const data: AttivistiResponse = await response.json();
         // Una ricerca precedente non deve sovrascrivere i risultati dell'ultima digitazione.
         if (controller.signal.aborted) return;
-        console.log('📊 fetchAttivisti - Data ricevuta:', data);
-        
+
               if (data.success) {
-                console.log('✅ fetchAttivisti - Successo, attivisti:', data.data.length);
-                console.log('📊 fetchAttivisti - Dati attivisti:', data.data);
-                
+
+
                 // I dati arrivano già ordinati per supporters_count DESC
                 setAttivisti(data.data as any);
+                setApprovedSubjects(data.approved_subjects || []);
                 setFilteredAttivisti(data.data as any);
                 const next: Record<string, number> = {};
                 (data.data as any[]).forEach((a) => { 
-                  console.log(`📊 Attivista ${a.nome} ${a.cognome}: supporters_count = ${a.supporters_count}`);
+
                   next[a.id] = (a as any).supporters_count ?? 0; 
                 });
-                console.log('📊 supportersCount finale:', next);
+
                 setSupportersCount(next);
               } else {
           throw new Error(data.message || 'Errore nel caricamento degli attivisti');
         }
       } catch (error) {
         if (controller.signal.aborted) return;
-        console.error('❌ fetchAttivisti - Errore:', error);
+        setApprovedSubjects([]);
+
         setIsError(true);
         setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
       } finally {
-        console.log('🏁 fetchAttivisti - Completato, setIsLoading(false)');
+
         if (!controller.signal.aborted) setIsLoading(false);
       }
     };
@@ -438,7 +442,7 @@ export default function Attivisti() {
         setFollowingUsers(new Set([attivistaId]));
         return;
       }
-      console.error('Errore nel votare attivista:', error);
+
       toast({
         title: "Errore",
         description: error?.message || "Errore di connessione",
@@ -463,15 +467,14 @@ export default function Attivisti() {
     return tipologie.map(t => `${t.emoji} ${t.nome}`).join(', ');
   };
 
-  console.log('🎨 Attivisti render - isLoading:', isLoading, 'isError:', isError, 'attivisti.length:', attivisti.length, 'filteredAttivisti.length:', filteredAttivisti.length);
-  console.log('🎨 Attivisti render - attivisti data:', attivisti);
-  console.log('🎨 Attivisti render - filteredAttivisti data:', filteredAttivisti);
-  console.log('🎨 Attivisti render - searchTerm:', searchTerm);
-  console.log('🎨 Attivisti render - regioni disponibili:', regioni.length, regioni);
-  console.log('🎨 Attivisti render - tipologie disponibili:', tipologie.length, tipologie);
-  console.log('🎨 Attivisti render - should show table:', !isLoading && !isError && filteredAttivisti.length > 0);
-  console.log('🎨 Attivisti render - RENDERING PAGE NOW!');
-  
+
+
+
+
+
+
+
+
   return (
     <PageContainer className="directory-attivisti-page overflow-hidden bg-gray-50">
       <div className="shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3 sm:px-6 sm:pt-4">
@@ -487,6 +490,7 @@ export default function Attivisti() {
                 <br />
                 <span className="text-sm text-gray-500">(In futuro sarà possibile scegliere più attivisti.)</span>
               </p>
+              <div className="mt-3"><ProposeSubjectButton category="attivisti" /></div>
             </div>
 
             {/* Barra di Ricerca e Filtri: resta montata anche mentre arrivano i risultati. */}
@@ -793,6 +797,24 @@ export default function Attivisti() {
                   ))}
                 </div>
               </div>
+            )}
+            {!isLoading && !isError && approvedSubjects.length > 0 && (
+              <section className="mt-5 space-y-3" aria-label="Attivisti segnalati e approvati">
+                <h2 className="text-lg font-semibold">Attivisti segnalati e approvati</h2>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {approvedSubjects
+                    .filter(subject => !searchTerm.trim() ||
+                      subject.title.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+                    .map(subject => (
+                      <Card key={subject.id}>
+                        <CardHeader className="p-3">
+                          <CardTitle className="break-words text-base">{subject.title}</CardTitle>
+                          <p className="text-xs text-slate-600">Soggetto pubblico approvato, non un account DEMOS verificato.</p>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                </div>
+              </section>
             )}
           </div>
         </section>
