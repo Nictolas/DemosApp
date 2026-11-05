@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   calculatePoliticalCompass,
+  calculatePoliticalAxes,
+  POLITICAL_AXES,
   type CompassAxisResult,
 } from "@/lib/politicalCompassModel";
 
@@ -19,6 +21,10 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
   // caricate nel Profilo, dopo la verifica del consenso esistente.
   const compass = useMemo(
     () => visible ? calculatePoliticalCompass(answers) : null,
+    [answers, visible],
+  );
+  const axes = useMemo(
+    () => visible ? calculatePoliticalAxes(answers) : null,
     [answers, visible],
   );
   const ready = compass?.economy.score !== null && compass?.economy.score !== undefined &&
@@ -113,6 +119,85 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
               </p>
             </div>
           </div>
+
+          {axes && (
+            <section
+              aria-label="I tuoi orientamenti politici"
+              className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4"
+            >
+              <h4 className="text-sm font-bold text-slate-900">I tuoi orientamenti politici</h4>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                Cinque indicatori esplorativi calcolati soltanto dalle Opinioni già espresse.
+                Non sono un test validato né una classificazione personale. Le percentuali
+                rappresentano il punteggio sui quesiti selezionati, non percentuali di cittadini.
+              </p>
+              <div className="mt-4 space-y-4">
+                {POLITICAL_AXES.map((axis) => {
+                  const result = axes[axis.id];
+                  const left = result.leftPercent;
+                  const right = result.rightPercent;
+                  return (
+                    <div key={axis.id} className="border-t border-slate-100 pt-3 first:border-0 first:pt-0">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h5 className="text-sm font-semibold text-slate-900">{axis.title}</h5>
+                        {axis.experimental && (
+                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                            Sperimentale
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                        <span className="text-slate-700">
+                          {axis.leftLabel}{left === null ? "" : ` · ${left}%`}
+                        </span>
+                        <span className="text-right text-slate-700">
+                          {axis.rightLabel}{right === null ? "" : ` · ${right}%`}
+                        </span>
+                      </div>
+                      {left === null ? (
+                        <div className="mt-2" role="status">
+                          <div className="h-3 rounded-full bg-slate-200" aria-hidden="true" />
+                          <p className="mt-1 text-xs text-slate-500">
+                            Dati insufficienti · {result.answered} risposte nette su {result.total};
+                            servono almeno {axis.minAnswers}, con copertura di entrambi i poli quando richiesta.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div
+                            className="relative mt-2 h-3 overflow-hidden rounded-full bg-violet-400"
+                            role="meter"
+                            aria-label={`${axis.title}: ${axis.leftLabel}`}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={left}
+                          >
+                            <span
+                              className="block h-full bg-emerald-500"
+                              style={{ width: `${left}%` }}
+                              aria-hidden="true"
+                            />
+                            <span
+                              className="absolute top-0 h-3 w-1 rounded bg-slate-950"
+                              style={{
+                                left: `${Math.max(1, Math.min(99, left))}%`,
+                                transform: "translateX(-50%)",
+                              }}
+                              aria-hidden="true"
+                            />
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {result.answered} risposte nette su {result.total}
+                            {result.undecided > 0 ? ` · ${result.undecided} indecise escluse dal calcolo` : ""}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
         </div>
       )}
