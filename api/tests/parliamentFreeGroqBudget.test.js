@@ -116,8 +116,8 @@ test('GPT-OSS completion truncation diagnostics and adequate output budget are p
   const source = fs.readFileSync(path.join(__dirname, '..', 'services', 'aiExplanationService.js'), 'utf8');
   assert.match(source, /max_completion_tokens:\s*1024/);
   assert.match(source, /reasoning_effort:\s*'low'/);
-  assert.match(source, /choice\?\.finish_reason === 'length'/);
-  assert.match(source, /choice\?\.finish_reason === 'content_filter'/);
+  // Fail closed for every non-stop finish reason, including missing metadata.
+  assert.match(source, /choice\?\.finish_reason !== 'stop'/);
   assert.match(source, /typeof rawContent === 'string' \? rawContent\.trim\(\) : ''/);
   assert.doesNotMatch(source, /completion\.choices\[0\]\?\.message\?\.content\?\.trim\(\)/);
 });
