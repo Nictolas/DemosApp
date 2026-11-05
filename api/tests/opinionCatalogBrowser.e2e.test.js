@@ -91,6 +91,17 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
       localStorage.setItem('auth_token', qaToken);
     }, token);
     const page = await context.newPage();
+    const browserErrors = [];
+    page.on('pageerror', error => {
+      // Isolated synthetic browser only; no raw error stack or request data.
+      browserErrors.push(String(error?.name || 'Error') + ': ' +
+        String(error?.message || '').slice(0, 500));
+    });
+    page.on('console', message => {
+      if (message.type() === 'error') {
+        browserErrors.push('console-error: ' + message.text().slice(0, 350));
+      }
+    });
     // Fail closed: no test browser request may touch production, CDN,
     // authentication providers, real people or remote telemetry.
     const outside = [];
@@ -130,7 +141,9 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
         });
         throw new Error('Opinions heading was not visible; grade=' + grade +
           ', route=' + location.pathname + ', body=' + JSON.stringify(visibleText) +
-          ', localAuth=' + JSON.stringify(auth) + ', original=' + error.message);
+          ', localAuth=' + JSON.stringify(auth) +
+          ', scriptErrors=' + JSON.stringify(browserErrors.slice(0, 8)) +
+          ', original=' + error.message);
       }
       try {
         await page.getByText(/Opinion da Inserire/).first().waitFor({ timeout: 25000 });
