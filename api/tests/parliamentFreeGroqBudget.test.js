@@ -304,6 +304,6 @@ test('background explanation errors cannot expose provider credentials', () => {
   assert.ok(start > 0, 'background explanation call must be present');
   const catchBlock = source.slice(start, start + 550);
   assert.match(catchBlock, /classifyFreeGroqError\(error\)/);
-  assert.doesNotMatch(catchBlock, /error\.message|error\.stack|console\.error\([^)]*error\)/);
+  assert.doesNotMatch(catchBlock, /error\.message|error\.stack|,\s*error\s*\)/);
   assert.doesNotMatch(catchBlock, /OPENAI_API_KEY/);
 });
