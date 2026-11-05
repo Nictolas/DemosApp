@@ -252,7 +252,7 @@ test('shared delivery lock protects the entire preference write and all device m
   assert.match(tokens, /runCivicPreferenceSaveAtomic\(db, \(\) => work\(db\), \{ enabled \}\)/);
   assert.match(tokens, /await blockCivicDeliveryFromPool\(pool\)/);
   assert.match(tokens, /await unsubscribeCivicTokenOrBlock\(token, db\)/);
-  assert.match(tokens, /await updateLegacyTokens\(userId, updatedTokens, db\)/);
+  assert.match(tokens, /await updateLegacyTokens\(userId, updatedTokens, db, legacyState\.hasColumn\)/);
   assert.match(tokens, /await deactivateUserDeviceToken\(userId, token, db\)/);
 });
 
