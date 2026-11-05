@@ -237,7 +237,7 @@ router.get('/richieste', personalNoStore, verifyToken, requireAdmin, async (req,
               EXTRACT(EPOCH FROM data_creazione)::text AS cursor_epoch
        FROM richieste_grazia
        WHERE status='pending'
-         AND ($1::numeric IS NULL OR (data_creazione,id) > (to_timestamp($1::numeric),$2::uuid))
+         AND ($1::numeric IS NULL OR (data_creazione,id::text) > (to_timestamp($1::numeric),$2::text))
        ORDER BY data_creazione ASC, id ASC LIMIT 101`,
       [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );
@@ -477,7 +477,7 @@ router.get('/approvate', personalNoStore, verifyToken, requireAdmin, async (req,
               EXTRACT(EPOCH FROM data_creazione)::text AS cursor_epoch
        FROM richieste_grazia
        WHERE status='approved' AND withdrawn_at IS NULL
-         AND ($1::numeric IS NULL OR (data_creazione,id) < (to_timestamp($1::numeric),$2::uuid))
+         AND ($1::numeric IS NULL OR (data_creazione,id::text) < (to_timestamp($1::numeric),$2::text))
        ORDER BY data_creazione DESC, id DESC LIMIT 101`,
       [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );
@@ -495,7 +495,7 @@ router.get('/ritiri-avvisi', personalNoStore, verifyToken, requireAdmin, async (
       `SELECT id, withdrawn_at, EXTRACT(EPOCH FROM withdrawn_at)::text AS cursor_epoch
        FROM richieste_grazia
        WHERE withdrawn_at IS NOT NULL AND withdraw_notification_sent IS DISTINCT FROM TRUE
-         AND ($1::numeric IS NULL OR (withdrawn_at,id) < (to_timestamp($1::numeric),$2::uuid))
+         AND ($1::numeric IS NULL OR (withdrawn_at,id::text) < (to_timestamp($1::numeric),$2::text))
        ORDER BY withdrawn_at DESC, id DESC LIMIT 101`,
       [cursor?.[0] ?? null, cursor?.[1] ?? null]
     );

@@ -38,7 +38,8 @@ const pool={
     const direction=waiting?'ASC':'DESC';
     assert.ok(sql.includes('ORDER BY '+(audit?'withdrawn_at':'data_creazione')+' '+direction+', id '+direction+' LIMIT 101'));
     assert.match(sql,/EXTRACT\(EPOCH FROM (data_creazione|withdrawn_at)\)::text AS cursor_epoch/);
-    assert.match(sql,/\(\$1::numeric IS NULL OR \((data_creazione|withdrawn_at),id\) [<>] \(to_timestamp\(\$1::numeric\),\$2::uuid\)\)/);
+    assert.match(sql,/\(\$1::numeric IS NULL OR \((data_creazione|withdrawn_at),id::text\) [<>] \(to_timestamp\(\$1::numeric\),\$2::text\)\)/);
+    assert.doesNotMatch(sql,/\$2::uuid/,'legacy Grazia identifiers are varchar, not uuid');
     assert.doesNotMatch(sql,/proposer_user_id|utente_id|withdraw_note|voti_grazia/i);
     if(!waiting)assert.doesNotMatch(sql,/url_prova/i);
     const fixture=waiting?pending:approved?published:withdrawals;
