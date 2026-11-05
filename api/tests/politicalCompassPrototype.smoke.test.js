@@ -11,6 +11,7 @@ const profile = fs.readFileSync(path.join(root, "client/src/pages/Profilo/index.
 const profileHook = fs.readFileSync(path.join(root, "client/src/pages/Profilo/hooks/useProfileData.ts"), "utf8");
 const compassPage = fs.readFileSync(path.join(root, "client/src/pages/CompassoPolitico.tsx"), "utf8");
 const app = fs.readFileSync(path.join(root, "client/src/App.tsx"), "utf8");
+const privacyNotice = fs.readFileSync(path.join(root, "client/src/pages/PrivacyPolicy.tsx"), "utf8");
 
 const catalog = Array.from({ length: 6 }, (_, index) =>
   JSON.parse(fs.readFileSync(
@@ -70,6 +71,16 @@ test("cinque assi tematici sotto il compasso, senza ulteriori richieste o dettag
     component.indexOf('<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">'),
     "Le barre devono essere sotto il grafico e le schede riassuntive",
   );
+});
+
+test("informativa distingue profilazione locale facoltativa da profilazione commerciale", () => {
+  assert.match(privacyNotice, /Compasso politico e indicatori tematici/);
+  assert.match(privacyNotice, /profilazione ai sensi del GDPR/);
+  assert.match(privacyNotice, /senza salvare i punteggi nel database/);
+  assert.match(privacyNotice, /Senza consenso alle Opinioni politiche/);
+  assert.match(privacyNotice, /non vengono utilizzati[\\s\\S]*per decisioni automatizzate/);
+  assert.match(privacyNotice, /Nessuna profilazione commerciale o vendita/);
+  assert.doesNotMatch(privacyNotice, /Nessuna profilazione o vendita dati individuali/);
 });
 
 test("il pulsante e in fondo al Profilo personale e apre una route protetta", () => {
