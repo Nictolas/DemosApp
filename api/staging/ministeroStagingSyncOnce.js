@@ -95,7 +95,7 @@ const MISSING_SOURCE_IDS_SQL=[
   'SELECT 1 FROM jsonb_to_recordset($1::jsonb) AS r(id text)',
   'WHERE r.id=m.id',
   ')',
-].join('\\n');
+].join('\n');
 const BASELINE_SQL=[
   'INSERT INTO public.civic_new_initiative_notifications',
   '(category,official_id,title,target_path,status)',
