@@ -198,13 +198,24 @@ async function test() {
     // A full set of already SAVED synthetic opinions must produce the dot.
     // The old catalog-only response silently created a 0/16 + 0/12 screen.
     await page.getByRole('img', { name: /Posizione stimata su due assi/ }).waitFor({ timeout: 15000 });
-    assert.equal(await page.getByText('100', { exact: true }).count(), 2,
-      'Both axes must calculate from saved answers, not from question metadata');
+    const compassFigure = page.getByRole('img', { name: /Posizione stimata su due assi/ });
+    assert.equal(await compassFigure.locator('circle[r="9"]').count(), 1,
+      'The classic compass position must still render from saved answers');
 
     // The public methodology disclosure was deliberately removed.
     // On mobile, five thematic indicators must instead appear below the
     // traditional compass without requesting additional private data.
     const compassMain = page.locator('main[aria-label="Compasso politico personale"]');
+    const experimentalNotice = compassMain.locator('[role="note"][aria-label="Sezione sperimentale"]');
+    await experimentalNotice.waitFor({ timeout: 15000 });
+    assert.equal(await experimentalNotice.getByText('Sezione sperimentale', { exact: true }).count(), 1,
+      'Only one global experimental notice should be visible');
+    assert.equal(await compassMain.getByText('Sperimentale', { exact: true }).count(), 0,
+      'Experimental badges must not repeat under each thematic axis');
+    assert.equal(await compassMain.getByRole('heading', { name: 'Libertà individuali' }).count(), 0,
+      'The redundant individual-freedoms score card must be removed');
+    assert.equal(await compassMain.getByRole('heading', { name: 'Economia', exact: true }).count(), 1,
+      'Only the thematic economy axis should have this heading');
     const orientationSection = compassMain.locator('section[aria-label="I tuoi orientamenti politici"]');
     await orientationSection.waitFor({ timeout: 15000 });
     for (const name of ['Economia', 'Stato', 'Costumi', 'Ambiente', 'Immigrazione']) {
