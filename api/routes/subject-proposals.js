@@ -1,6 +1,7 @@
 const express = require('express');
 const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
 
 const router = express.Router();
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
@@ -20,14 +21,9 @@ function cleanProposal(body) {
   // Require a public source for third-party nominations. Never accept
   // unstructured criminal/judicial details for Grazia.
   if (!sourceUrl) return { error: 'Fonte pubblica HTTPS obbligatoria' };
-  try {
-    const url = new URL(sourceUrl);
-    if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) {
-      return { error: 'URL fonte non valido' };
-    }
-  } catch (_) {
-    return { error: 'URL fonte non valido' };
-  }
+  // A public source must be a public HTTPS domain, not a local network URL.
+  // Reuse the vetted evidence validator; no request is ever sent to the URL.
+  if (!validateEvidenceUrl(sourceUrl)) return { error: 'URL fonte non valido' };
   return { category, title, details, sourceUrl: sourceUrl || null };
 }
 

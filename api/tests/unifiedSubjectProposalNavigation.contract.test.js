@@ -101,7 +101,8 @@ test('sensitive proposal information is minimized in Grazia and never directly p
   assert.match(page, /category !== "grazia"/);
   assert.match(page, /category === "grazia"/);
   assert.doesNotMatch(page, /sentenza|reato.{0,30}Textarea/i);
-  assert.match(page, /url\.protocol === "https:"/);
+  assert.match(page, /sourceIsValid = isPublicHttpsSourceUrl\(sourceUrl\.trim\(\)\)/);
+  assert.match(read('client/src/lib/publicHttpsSourceUrl.ts'), /url\.protocol !== "https:"/);
   assert.match(page, /sourceUrl\.trim\(\)/);
   assert.match(config, /Non inserire sentenze, reati, dati sanitari/);
   assert.match(page, /non rende automaticamente pubblico alcun nominativo/);
@@ -121,8 +122,10 @@ test('backend enforces source HTTPS and avoids criminal details in admin notice'
   const migration = read('api/migrations/20261031_subject_proposals_review_gate.sql');
   assert.doesNotMatch(migration, /category IN \([^)]*'grazia'/);
   assert.match(migration, /richieste_grazia/);
-  assert.match(route, /url\.protocol !== 'https:'/);
-  assert.match(route, /url\.username \|\| url\.password/);
+  assert.match(route, /!validateEvidenceUrl\(sourceUrl\)/);
+  const evidenceValidator = read('api/utils/recognitionEvidence.js');
+  assert.match(evidenceValidator, /url\.protocol !== 'https:'/);
+  assert.match(evidenceValidator, /url\.username \|\| url\.password/);
   assert.match(route, /Nuova proposta ricevuta in una categoria da moderare/);
   assert.doesNotMatch(route, /proposal\.title\.slice\(0, 120\)/);
   assert.match(route, /INSERT INTO subject_proposals\(proposer_user_id,category,title,details,source_url,status,submission_notification_sent\)/);

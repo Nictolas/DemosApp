@@ -8,6 +8,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const routeSource = fs.readFileSync(path.join(__dirname, '../routes/subject-proposals.js'), 'utf8');
+const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
 const TEST_USER = '11111111-1111-4111-8111-111111111111';
 const TEST_PROPOSAL = '22222222-2222-4222-8222-222222222222';
 
@@ -57,7 +58,8 @@ function harness({legacyGraziaReview = false} = {}) {
     express: {Router: () => router},
     '../config/database': {getPool: () => pool},
     '../middleware/auth': {verifyToken: noop, requireAdmin: noop},
-    '../services/publicApprovedSubjectPage': {readApprovedPage: async () => ({data:[],next_cursor:null})}
+    '../services/publicApprovedSubjectPage': {readApprovedPage: async () => ({data:[],next_cursor:null})},
+    '../utils/recognitionEvidence': { validateEvidenceUrl }
   };
   vm.runInNewContext(routeSource, {
     module: moduleShim,
@@ -113,6 +115,22 @@ test('Even a legacy Grazia row cannot be approved by generic moderation', async 
   assert.equal(res.body.error, 'GRAZIA_CODA_UNICA');
   assert.ok(app.queries.some(x=>x.sql==='ROLLBACK'));
   assert.equal(app.queries.some(x=>/INSERT INTO (grazia_carcerati|subject_proposals)/.test(x.sql)),false);
+});
+
+test('generic nominations reject local and private HTTPS sources before database access', async () => {
+  for (const source of [
+    'https://localhost/', 'https://127.0.0.1/', 'https://127.1/',
+    'https://192.168.1.1/', 'https://[::1]/', 'https://server.internal/'
+  ]) {
+    const app = harness();
+    const res = mockResponse();
+    await app.methods.post.get('/')({user:{id:TEST_USER},body:{
+      category:'attivisti',title:'Attivista sintetico',source_url:source
+    }},res);
+    assert.equal(res.statusCode,400,source);
+    assert.equal(app.connects,0,source);
+    assert.equal(app.queries.length,0,source);
+  }
 });
 
 test('Other four category submissions still write only subject_proposals', async () => {

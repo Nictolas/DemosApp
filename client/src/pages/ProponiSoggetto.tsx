@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { isPublicHttpsSourceUrl } from "@/lib/publicHttpsSourceUrl";
 import { ArrowLeft, CheckCircle2, Loader2, Send } from "lucide-react";
 import {
   SUBJECT_PROPOSAL_CATEGORIES,
@@ -86,14 +87,7 @@ export default function ProponiSoggetto() {
   };
 
   const config = getProposalCategory(category);
-  const sourceIsValid = (() => {
-    try {
-      const url = new URL(sourceUrl.trim());
-      return url.protocol === "https:" && !!url.hostname && !url.username && !url.password;
-    } catch {
-      return false;
-    }
-  })();
+  const sourceIsValid = isPublicHttpsSourceUrl(sourceUrl.trim());
   const canSubmit = title.trim().length >= 3 &&
     title.trim().length <= 150 && sourceIsValid && sourceUrl.length <= (category === "grazia" ? 2000 : 2048) &&
     (category === "grazia" || details.length <= 1000) &&

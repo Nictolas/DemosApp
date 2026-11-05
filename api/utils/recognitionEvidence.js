@@ -8,8 +8,11 @@ function validateEvidenceUrl(input) {
     const url = new URL(input.trim());
     const host = url.hostname.toLowerCase().replace(/\.$/, '');
     if (url.protocol !== 'https:' || url.username || url.password ||
-        !host.includes('.') || host === 'localhost' || host.endsWith('.localhost') ||
-        host.endsWith('.local') || host.includes(':') || isIP(host)) return null;
+        !host.includes('.') || host.startsWith('.') || host.endsWith('.') ||
+        !host.split('.').every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)) ||
+        host === 'localhost' ||
+        ['.localhost', '.local', '.internal', '.lan', '.home', '.test', '.invalid', '.example', '.onion']
+          .some(suffix => host.endsWith(suffix)) || host.includes(':') || isIP(host)) return null;
     return url.toString();
   } catch (_error) {
     return null;

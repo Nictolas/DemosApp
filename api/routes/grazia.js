@@ -1,5 +1,6 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
+const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { requirePoliticalConsent } = require('../middleware/politicalConsent');
 const { requireVerifiedCivicIdentity } = require('../middleware/civicIdentity');
@@ -23,10 +24,9 @@ router.post('/', personalNoStore, verifyToken, async (req, res) => {
     return res.status(400).json({ success: false, error: 'Nome non valido (3-160 caratteri)' });
   }
   // Accettiamo solo link a fonti HTTPS pubbliche; mai copia di sentenze o allegati.
-  try {
-    const url = new URL(urlProva);
-    if (url.protocol !== 'https:' || url.username || url.password || urlProva.length > 2000) throw new Error('URL non consentito');
-  } catch {
+  // No fetch is performed. Reject private/loopback URLs before persistence
+  // so moderators only receive plausible publicly accessible sources.
+  if (urlProva.length > 2000 || !validateEvidenceUrl(urlProva)) {
     return res.status(400).json({ success: false, error: 'Inserisci un collegamento HTTPS pubblico valido' });
   }
   const userId = req.user.id;

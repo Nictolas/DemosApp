@@ -110,6 +110,15 @@ async function request(url,user,method='GET',body){
 }
 after(async()=>{if(server.listening)await new Promise(resolve=>server.close(resolve));});
 
+test('Grazia rejects local and private HTTPS sources before writing a request',async()=>{
+  const count=requests.length;
+  for(const source of ['https://localhost/','https://127.0.0.1/','https://192.168.1.1/','https://[::1]/','https://server.internal/']){
+    const result=await request('/api/grazia','a','POST',{nome:'Persona sintetica',urlProva:source});
+    assert.equal(result.status,400,source);
+    assert.equal(requests.length,count,source);
+  }
+});
+
 test('Grazia one pending proposal per user, real persistence before success',async()=>{
   const data={nome:'Persona da verificare',urlProva:'https://example.org/fonte-pubblica'};
   assert.equal((await request('/api/grazia',null,'POST',data)).status,401);
