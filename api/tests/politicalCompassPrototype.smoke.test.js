@@ -111,6 +111,20 @@ test("un unico avviso sperimentale in alto senza badge duplicati o due schede de
   assert.match(component, /role="meter"/);
 });
 
+test("una sola Opinione crea bozza visiva senza inventare la coordinata assente", () => {
+  assert.match(component, /const economicPreview = compass\?\.economy\.previewScore \?\? null/);
+  assert.match(component, /const freedomPreview = compass\?\.freedom\.previewScore \?\? null/);
+  assert.match(component, /\(ready \|\| hasDraft\) \?/);
+  assert.match(component, /data-testid="compass-draft-economy-line"/);
+  assert.match(component, /data-testid="compass-draft-freedom-line"/);
+  assert.match(component, /data-testid="compass-draft-point"/);
+  assert.match(component, /Bozza provvisoria/);
+  assert.match(component, /result\.leftPercent \?\? result\.previewLeftPercent/);
+  assert.match(component, /result\.score === null && left !== null/);
+  assert.match(component, /risultato può cambiare molto/);
+  assert.doesNotMatch(component, /fetch\s*\(|apiRequest\s*\(|localStorage|sessionStorage|indexedDB/);
+});
+
 test("informativa distingue profilazione locale facoltativa da profilazione commerciale", () => {
   assert.match(privacyNotice, /Compasso politico e indicatori tematici/);
   assert.match(privacyNotice, /id="4\.1"/, "Il link della registrazione deve puntare a una sezione reale dell’informativa");
@@ -334,4 +348,84 @@ runtimeTest("risposte estranee non cambiano gli orientamenti e i calcoli restano
     model.calculatePoliticalAxes({ ...answers, __foreign__: "c" }),
     model.calculatePoliticalAxes(answers),
   );
+});
+
+
+runtimeTest("una sola risposta economica: solo linea verticale, niente posizione completa", () => {
+  const a = model.calculatePoliticalCompass({ patrimoniale: "f" });
+  assert.equal(a.economy.answered, 1);
+  assert.equal(a.economy.score, null);
+  assert.equal(a.economy.previewScore, -100);
+  assert.equal(a.freedom.previewScore, null);
+  assert.equal(a.freedom.score, null);
+});
+
+runtimeTest("una sola risposta sulle libertà: solo linea orizzontale, senza falso centro", () => {
+  const a = model.calculatePoliticalCompass({ eutanasia: "f" });
+  assert.equal(a.economy.previewScore, null);
+  assert.equal(a.freedom.previewScore, 100);
+  assert.equal(a.freedom.score, null);
+});
+
+runtimeTest("due risposte su dimensioni diverse permettono una bozza bidimensionale", () => {
+  const a = model.calculatePoliticalCompass({ patrimoniale: "f", eutanasia: "f" });
+  assert.equal(a.economy.previewScore, -100);
+  assert.equal(a.freedom.previewScore, 100);
+  assert.equal(a.economy.score, null);
+  assert.equal(a.freedom.score, null);
+});
+
+runtimeTest("una risposta tematica mostra soltanto il proprio asse come bozza", () => {
+  const axes = model.calculatePoliticalAxes({ ius_scholae: "f" });
+  assert.equal(axes.immigrazione.answered, 1);
+  assert.equal(axes.immigrazione.score, null);
+  assert.equal(axes.immigrazione.previewScore, -100);
+  assert.equal(axes.immigrazione.previewLeftPercent, 100);
+  assert.equal(axes.immigrazione.previewRightPercent, 0);
+  assert.equal(axes.ambiente.previewScore, null);
+  assert.equal(axes.economia.previewScore, null);
+});
+
+runtimeTest("indecisi, sconosciuti e assenze non creano bozze", () => {
+  for (const answers of [{}, { patrimoniale: "i" }, { eutanasia: "Non lo so" }, { __estraneo__: "f" }]) {
+    const compass = model.calculatePoliticalCompass(answers);
+    assert.equal(compass.economy.previewScore, null);
+    assert.equal(compass.freedom.previewScore, null);
+  }
+  const axes = model.calculatePoliticalAxes({ ius_scholae: "i" });
+  for (const axis of model.POLITICAL_AXES) {
+    assert.equal(axes[axis.id].previewScore, null);
+    assert.equal(axes[axis.id].previewLeftPercent, null);
+    assert.equal(axes[axis.id].previewRightPercent, null);
+  }
+});
+
+runtimeTest("bozza e risultato completo coincidono dopo le soglie senza cambiare il vecchio algoritmo", () => {
+  const answers = Object.fromEntries(model.COMPASS_QUESTIONS.map(q =>
+    [q.id, q.direction === 1 ? "f" : "c"]));
+  const compass = model.calculatePoliticalCompass(answers);
+  for (const axis of [compass.economy, compass.freedom]) {
+    assert.notEqual(axis.score, null);
+    assert.equal(axis.score, axis.previewScore);
+  }
+  const thematic = model.calculatePoliticalAxes(answers);
+  for (const axis of model.POLITICAL_AXES) {
+    const result = thematic[axis.id];
+    if (result.score !== null) {
+      assert.equal(result.previewScore, result.score);
+      assert.equal(result.leftPercent, result.previewLeftPercent);
+      assert.equal(result.rightPercent, result.previewRightPercent);
+    }
+  }
+});
+
+runtimeTest("un polo non risposto non viene trattato come voto neutro fittizio", () => {
+  const axis = model.calculatePoliticalCompass({ patrimoniale: "f", salario_minimo: "f" }).economy;
+  assert.equal(axis.positiveAnswered, 0);
+  assert.equal(axis.previewScore, -100);
+  assert.equal(axis.score, null);
+  const partial = model.calculatePoliticalAxes({ patrimoniale: "f", salario_minimo: "f" }).economia;
+  assert.equal(partial.rightAnswered, 0);
+  assert.equal(partial.previewScore, -100);
+  assert.equal(partial.score, null);
 });
