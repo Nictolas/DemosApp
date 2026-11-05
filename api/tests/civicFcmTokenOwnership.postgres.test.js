@@ -48,7 +48,7 @@ test('real PG16/17 never revokes a legacy token owned by another active account'
       'legacy owner must not revoke an active OR inactive reassigned token');
 
     const transferTokens=await getSupersededCivicTokens(client,'old_account','token_inactive');
-    assert.deepEqual(transferTokens,['token_original','token_inactive'],
+    assert.deepEqual([...transferTokens].sort(),['token_inactive','token_original'],
       'transfer requires unsubscribe even when prior owner device is inactive');
     assert.deepEqual(await onlyTokensNotOwnedByOthers(client,'old_account',[
       'token_inactive','token_original']),['token_original']);
