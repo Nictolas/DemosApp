@@ -700,6 +700,18 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
   }
 });
 
+// POST /api/voti-camera/groq-smoke - Admin-only, one Free-tier provider request.
+// Does not query/update the database and never exposes credentials or model output.
+router.post('/groq-smoke', verifyToken, requireAdmin, async (_req, res) => {
+  try {
+    const { checkGroqFreeConnectivity } = require('../services/groqFreeSmokeService');
+    const result = await checkGroqFreeConnectivity();
+    return res.status(result.success ? 200 : 503).json(result);
+  } catch (_) {
+    return res.status(503).json({ success: false, status: 'NETWORK_OR_UNKNOWN' });
+  }
+});
+
 // POST /api/voti-camera/:politico/spiegazione - DEPRECATO: Usa /votazione/:votazione_id/spiegazione
 // Mantenuto per retrocompatibilità
 router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res) => {
