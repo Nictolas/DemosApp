@@ -104,6 +104,11 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     assert.equal(await cards.first().evaluate(el => document.activeElement === el), true,
       'Continue must focus the first unanswered question');
     assert.equal(personalGets.length, 4, 'Local search and Continue must not fetch personal answers');
+    await page.getByRole('button', { name: 'Provinciale', exact: true }).click();
+    assert.equal(await cards.count(), 1, 'Provincial economy filter must show only the shared C-level question');
+    assert.match(await cards.first().locator('h2').innerText(), /commercio locale/i);
+    assert.equal(personalGets.length, 4, 'Provincial filter must reuse existing geographic cache');
+    await page.getByRole('button', { name: 'Tutti', exact: true }).click();
     await page.getByRole('button', { name: 'Europeo', exact: true }).click();
     assert.equal(await cards.count(), 1, 'One European economy question must appear without duplicates');
     await page.getByRole('button', { name: 'Tutti', exact: true }).click();
