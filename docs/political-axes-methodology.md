@@ -24,7 +24,9 @@ For two-pole axes, the displayed signed score is `round(50 * (mean(left-mapped s
 
 For the **one-sided** customs axis, the signed score is `round(100 * mean(left-mapped signed responses))`. This is *not* a validated Tradizione–Progresso dimension; it only describes agreement with the selected rights-expansion questions. Do not infer political traditionalism from this score.
 
-If minimum answered or minimum per-pole coverage is not met, display **Dati insufficienti** with no calculated value. An indecisive response is not a middle position.
+The conservative `score` remains `null` until the original per-axis minimum and per-pole thresholds are met. The UI additionally offers a clearly marked **provisional draft** (`previewScore`) after **at least one definite response to a mapped question**, using only the groups actually answered. When both groups have answers, they have equal weight; when only one group has answers, no missing opposite group is imputed as neutral. This may yield an extreme-looking provisional value from only one answer: the UI marks it **Bozza provvisoria**, uses `≈` on percentages and attenuates the bar. Such values are highly unstable and must never be interpreted as a measured ideology.
+
+For the two-dimensional graph: one answered dimension renders a dashed guide spanning the entire unanswered dimension (not a fabricated point at zero); two answered dimensions render a hollow dashed draft point; both fully qualified dimensions preserve the previous solid marker. With **no definite relevant answer**, display **Dati insufficienti** without scores. An indecisive response is not a middle position. Not every question in the catalog maps to a compass/theme axis: an unrelated answer does not provide a coordinate.
 
 Percentages represent transformed question scores, **not** probabilities, population percentages or confidence measures. A 50/50 result may reflect competing positions rather than neutrality.
 
