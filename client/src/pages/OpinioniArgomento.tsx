@@ -14,6 +14,7 @@ import { loadOpinionCategory, cacheConfirmedOpinionAnswers, type OpinionGrade } 
 import { OPINION_TOPIC_BY_ID, OPINION_TOPIC_DEFINITIONS } from "@/lib/opinionTopics";
 import { OPINION_PROVINCIAL_IDS } from "@/lib/opinionProvincialIds";
 import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
+import { rebaseTopicDrafts, type TopicDraftState } from "@/lib/opinionTopicDrafts";
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
 import { getAuthToken } from "@/lib/auth-token";
 import { captureOpinionSaveSession, matchesOpinionSaveSession, type VerifiedOpinionSaveUser } from "@/lib/opinionSaveSession";
@@ -52,7 +53,7 @@ export default function OpinioniArgomento() {
   const { hasConsent } = usePoliticalOpinionsConsent();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [draftState, setDraftState] = useState<TopicDraftState | null>(null);
   const [showConsent, setShowConsent] = useState(false);
   const [levelFilter, setLevelFilter] = useState<TopicGrade>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -133,14 +134,32 @@ export default function OpinioniArgomento() {
     setSearchTerm("");
   }, [topicId]);
 
+  // Scope local draft state to the authenticated owner, the server-verified
+  // consent epoch and the current topic. This also masks prior-session RAM
+  // synchronously, before an effect can execute after an account switch.
+  const draftScope = authorized && user?.id && verifiedPoliticalConsent?.timestamp && topic
+    ? JSON.stringify([user.id, verifiedPoliticalConsent.timestamp, topic.id]) : null;
+  const drafts = useMemo(() => {
+    if (!draftScope) return {} as Record<string, string>;
+    return draftState?.scope === draftScope
+      ? draftState.drafts
+      : rebaseTopicDrafts(null, draftScope, questions).drafts;
+  }, [draftScope, draftState, questions]);
+
   useEffect(() => {
-    // Server-confirmed snapshots are the baseline; unsaved drafts never count.
-    const initial: Record<string, string> = {};
-    for (const question of questions) {
-      if (normalize(question.userAnswer)) initial[question.id] = question.userAnswer!;
-    }
-    setDrafts(initial);
-  }, [questions, user?.id, verifiedPoliticalConsent?.timestamp]);
+    if (!draftScope || loading || error || questions.length === 0) return;
+    setDraftState((previous) => rebaseTopicDrafts(previous, draftScope, questions));
+  }, [draftScope, loading, error, questions]);
+
+  const selectDraft = (questionId: string, answer: "f" | "c" | "i") => {
+    if (!draftScope || loading || error) return;
+    setDraftState(previous => {
+      const base = previous?.scope === draftScope
+        ? previous
+        : rebaseTopicDrafts(null, draftScope, questions);
+      return { ...base, drafts: { ...base.drafts, [questionId]: answer } };
+    });
+  };
 
   const dirty = authorized && questions.some((question) =>
     normalize(drafts[question.id]) !== normalize(question.userAnswer));
@@ -272,7 +291,7 @@ export default function OpinioniArgomento() {
               <div role="group" aria-label={`La tua risposta: ${question.text}`} className="flex w-full">
                 {answerOptions.map((option, index) => (
                   <button key={option.value} type="button" aria-pressed={normalize(drafts[question.id]) === option.value}
-                    onClick={() => { vibrateShort(); setDrafts((prev) => ({ ...prev, [question.id]: option.value })); }}
+                    onClick={() => { vibrateShort(); selectDraft(question.id, option.value); }}
                     disabled={saveMutation.isPending}
                     className={`min-w-0 flex-1 border border-slate-200 px-1 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 sm:text-base ${index === 0 ? "rounded-l-full" : index === 2 ? "rounded-r-full" : ""} ${normalize(drafts[question.id]) === option.value ? option.selected : "bg-white text-slate-700"}`}>
                     {option.label}
