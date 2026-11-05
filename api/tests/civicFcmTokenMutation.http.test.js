@@ -12,6 +12,8 @@ const FOREIGN='fcm_synthetic_'+'b'.repeat(150);
 let legacyFixture=[TOKEN];
 let legacyColumnPresent=true;
 let foreignFixture=false;
+let activeCanonicalFixture=[];
+const unsubscribeCalls=[];
 const upserts=[];
 const USER='11111111-1111-4111-8111-111111111111';
 let gate=null,locked=false,server=null;
@@ -59,7 +61,7 @@ patch(1,{
 patch(2,{
   isCivicPushEnabled:()=>true,
   reconcileCivicTopicsForUser:async()=>({enabled:true,tokens:1}),
-  unsubscribeCivicTopicsForToken:async()=>({enabled:true}),
+  unsubscribeCivicTopicsForToken:async(token)=>{unsubscribeCalls.push(token);return {enabled:true};},
 });
 patch(3,{
   withCivicPushDeliveryLock:async(_pool,work)=>{
@@ -96,6 +98,7 @@ patch(5,{
   onlyTokensNotOwnedByOthers:async(_db,_user,tokens)=>[...new Set(tokens)],
   onlyTokensNotRegisteredToOthers:async(_db,_user,tokens)=>
     tokens.filter(token=>!(foreignFixture && token===FOREIGN)),
+  getActiveCivicUserDeviceTokens:async()=>[...activeCanonicalFixture],
   upsertCleanupOwnedOrUnassignedToken:async(_db,userId,token)=>{
     calls.push('PROTECTED_CLEANUP_UPSERT');
     upserts.push([userId,token]);
@@ -248,4 +251,58 @@ test('cleanup with retired legacy field leaves canonical device records untouche
     assert.deepEqual(upserts,[]);
     assert.equal(calls.includes('PROTECTED_CLEANUP_UPSERT'),false);
   }finally{legacyFixture=[TOKEN];legacyColumnPresent=true;}
+});
+
+test('empty legacy array preserves current active canonical token',async()=>{
+  gate=null;calls.length=0;upserts.length=0;unsubscribeCalls.length=0;
+  legacyColumnPresent=true;legacyFixture=[];
+  activeCanonicalFixture=[TOKEN];
+  try {
+    const res=await request('POST','/api/fcm-tokens/cleanup',{});
+    assert.equal(res.status,200);
+    assert.equal(res.body.success,true);
+    assert.deepEqual(upserts,[[USER,TOKEN]],
+      'cleanup must reactivate the existing authoritative device');
+    assert.equal(res.body.data.tokenCountBefore,0);
+    assert.equal(res.body.data.tokenCountAfter,1);
+    assert.equal(res.body.data.removedCount,0,
+      'adding the canonical survivor is not negative legacy removal');
+    assert.deepEqual(unsubscribeCalls,[],
+      'surviving active device must not be unsubscribed');
+  }finally {
+    legacyFixture=[TOKEN];activeCanonicalFixture=[];
+  }
+});
+
+test('stale foreign legacy cannot replace current canonical token or revoke foreign one',async()=>{
+  gate=null;calls.length=0;upserts.length=0;unsubscribeCalls.length=0;
+  legacyColumnPresent=true;legacyFixture=[FOREIGN];
+  activeCanonicalFixture=[TOKEN];foreignFixture=true;
+  try{
+    const res=await request('POST','/api/fcm-tokens/cleanup',{});
+    assert.equal(res.status,200);
+    assert.equal(res.body.data.tokenCountBefore,1);
+    assert.equal(res.body.data.tokenCountAfter,1);
+    assert.equal(res.body.data.removedCount,1);
+    assert.deepEqual(upserts,[[USER,TOKEN]]);
+    assert.deepEqual(unsubscribeCalls,[],
+      'foreign inactive/active device must never be unsubscribed');
+  }finally {
+    foreignFixture=false;legacyFixture=[TOKEN];activeCanonicalFixture=[];
+  }
+});
+
+test('two canonical active devices retain the newest and revoke only the stale device',async()=>{
+  gate=null;calls.length=0;upserts.length=0;unsubscribeCalls.length=0;
+  legacyColumnPresent=true;legacyFixture=[];
+  activeCanonicalFixture=[TOKEN,FOREIGN];
+  try{
+    const res=await request('POST','/api/fcm-tokens/cleanup',{});
+    assert.equal(res.status,200);
+    assert.deepEqual(upserts,[[USER,TOKEN]]);
+    assert.deepEqual(unsubscribeCalls,[FOREIGN]);
+    assert.equal(res.body.data.removedCount,0);
+  }finally {
+    legacyFixture=[TOKEN];activeCanonicalFixture=[];
+  }
 });

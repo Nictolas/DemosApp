@@ -48,7 +48,7 @@ test('empty/invalid candidates do not invoke the DB',async()=>{
 test('every FCM revocation path rejects reassigned foreign active token',()=>{
   const route=fs.readFileSync(path.join(__dirname,'../routes/fcm-tokens.js'),'utf8');
   assert.match(route,/staleSafeLegacy = await onlyTokensNotOwnedByOthers/);
-  assert.match(route,/const revocable = await onlyTokensNotOwnedByOthers\(db, userId, \[\.\.\.removed\]\)/);
+  assert.match(route,/const revocable = await onlyTokensNotRegisteredToOthers\(db, userId, \[\.\.\.removed\]\)/);
   assert.match(route,/db, userId, \[\.\.\.registered\.rows\.map/);
   assert.match(route,/if \(revocable\.includes\(token\)\)/);
   assert.match(route,/if \(isCivicPushEnabled\(\) && isOwned && isValidFcmToken\(token\)\)/);
@@ -100,4 +100,31 @@ test('cleanup never assumes ownership when DB lookup fails',async()=>{
   await assert.rejects(svc.onlyTokensNotRegisteredToOthers({
     query:async()=>({rows:null})
   },'old_user',['token']),/CIVIC_FCM_CLEANUP_OWNER_LOOKUP_FAILED/);
+});
+
+test('canonical FCM lookup uses current account, active devices, newest first',async()=>{
+  const queries=[];
+  const db={query:async(sql,params)=>{
+    queries.push({sql,params});
+    return {rows:[{fcm_token:'newest'},{fcm_token:'older'}]};
+  }};
+  const {getActiveCivicUserDeviceTokens}=require('../services/civicFcmTokenOwnership');
+  assert.deepEqual(await getActiveCivicUserDeviceTokens(db,'synthetic_user'),[
+    'newest','older']);
+  assert.equal(queries.length,1);
+  assert.match(queries[0].sql,/WHERE user_id = \$1 AND is_active = TRUE/);
+  assert.match(queries[0].sql,/ORDER BY updated_at DESC NULLS LAST/);
+  assert.deepEqual(queries[0].params,['synthetic_user']);
+});
+
+test('canonical device lookup fails closed on missing or malformed SQL reply',async()=>{
+  const {getActiveCivicUserDeviceTokens}=require('../services/civicFcmTokenOwnership');
+  await assert.rejects(getActiveCivicUserDeviceTokens({
+    query:async()=>({rows:null}),
+  },'synthetic_user'),/CIVIC_FCM_CANONICAL_READ_UNCONFIRMED/);
+  await assert.rejects(getActiveCivicUserDeviceTokens({
+    query:async()=>({rows:[{fcm_token:null}]}),
+  },'synthetic_user'),/CIVIC_FCM_CANONICAL_READ_UNCONFIRMED/);
+  await assert.rejects(getActiveCivicUserDeviceTokens({query:async()=>({rows:[]})},''),
+    /CIVIC_FCM_CANONICAL_CONTEXT_REQUIRED/);
 });

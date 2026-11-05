@@ -14,6 +14,7 @@ on:
       - qa/d10-dispatch-bootstrap-lock-confirmation-20261105
       - qa/d10-dispatch-status-ack-guard-20261105
       - qa/d10-fcm-cleanup-ownership-no-steal-20261105
+      - qa/d10-fcm-legacy-schema-transaction-safe-20261105
     paths:
       - 'api/config/database.js'
       - 'api/app.js'

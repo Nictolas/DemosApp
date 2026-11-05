@@ -16,6 +16,7 @@ const {
   onlyTokensNotOwnedByOthers,
   onlyTokensNotRegisteredToOthers,
   upsertCleanupOwnedOrUnassignedToken,
+  getActiveCivicUserDeviceTokens,
 } = require('../services/civicFcmTokenOwnership');
 const { runCivicPreferenceSaveAtomic } = require('../services/civicPreferenceAtomicSave');
 const {getLegacyTokens,updateLegacyTokens}=require('../services/civicLegacyFcmStorage');
@@ -281,9 +282,16 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     // to another account and remained in this old user's array. Reject both
     // active and inactive foreign registrations before choosing the survivor.
     const eligibleTokens = await onlyTokensNotRegisteredToOthers(db, userId, validTokens);
-    // Mantieni solo l'ultimo token idoneo (più recente)
-    const cleanedTokens = eligibleTokens.length > 0
-      ? [eligibleTokens[eligibleTokens.length - 1]] : [];
+    // The canonical active device is authoritative even when the legacy
+    // array is empty or stale. Otherwise cleanup could unsubscribe and
+    // deactivate a correctly registered device, silently losing consent.
+    const activeCanonical = await getActiveCivicUserDeviceTokens(db, userId);
+    const canonicalSurvivor = activeCanonical.find(isValidFcmToken);
+    const survivor = canonicalSurvivor ||
+      (eligibleTokens.length ? eligibleTokens[eligibleTokens.length - 1] : null);
+    const cleanedTokens = survivor ? [survivor] : [];
+    const legacyRemovedCount = validTokens.filter(
+      token => !cleanedTokens.includes(token)).length;
     
     if (validTokens.length > 1) {
       const removedCount = validTokens.length - 1;
@@ -293,15 +301,13 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     }
     
     if (isCivicPushEnabled()) {
-      const oldDevices = await db.query(
-        'SELECT fcm_token FROM user_devices WHERE user_id = $1 AND is_active = TRUE',
-        [userId]
-      );
       const removed = new Set([
         ...validTokens.filter(token => !cleanedTokens.includes(token)),
-        ...oldDevices.rows.map(row => row.fcm_token).filter(t => !cleanedTokens.includes(t))
+        ...activeCanonical.filter(token => !cleanedTokens.includes(token))
       ]);
-      const revocable = await onlyTokensNotOwnedByOthers(db, userId, [...removed]);
+      // Old legacy records are not reliable evidence of any device owner's
+      // permissions, including INACTIVE devices belonging to others.
+      const revocable = await onlyTokensNotRegisteredToOthers(db, userId, [...removed]);
       for (const previous of revocable) {
         if (isValidFcmToken(previous)) await unsubscribeCivicTokenOrBlock(previous, db);
       }
@@ -327,7 +333,7 @@ router.post('/cleanup', verifyToken, async (req, res) => {
         userId,
         tokenCountBefore: validTokens.length,
         tokenCountAfter: cleanedTokens.length,
-        removedCount: validTokens.length - cleanedTokens.length
+        removedCount: legacyRemovedCount
       }
     } };
     });
