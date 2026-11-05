@@ -54,7 +54,9 @@ test('every FCM revocation path rejects reassigned foreign token, active or inac
   assert.match(route,/db, userId, \[\.\.\.registered\.rows\.map/);
   assert.match(route,/if \(revocable\.includes\(token\)\)/);
   assert.match(route,/if \(isCivicPushEnabled\(\) && isOwned && isValidFcmToken\(token\)\)/);
-  assert.match(route,/user_id <> \$1/);
+  const ownership=fs.readFileSync(path.join(__dirname,'../services/civicFcmTokenOwnership.js'),'utf8');
+  assert.match(ownership,/WHERE user_id <> \$1/);
+  assert.match(ownership,/user_id<>\$1 AND fcm_token=\$2/);
   // No token values printed, no topic messages created.
   assert.doesNotMatch(route,/console\.log\([^\n]*fcm_token/);
 });
