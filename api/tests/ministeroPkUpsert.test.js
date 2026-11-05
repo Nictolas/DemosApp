@@ -125,7 +125,9 @@ test('primary key lookup and ON CONFLICT target are always identical',async()=>{
   await service.saveIniziativa({id:418,titolo:'Titolo ufficiale',
     idDecTipoIniziativa:{nome:'Referendum abrogativo'},
     idDecStatoIniziativa:{nome:'CHIUSA'}});
-  assert.deepEqual(statements[0].params,['ministero_418']);
+  // The service runs inside a VM realm; compare values instead of array prototypes.
+  assert.equal(statements[0].params.length,1);
+  assert.equal(statements[0].params[0],'ministero_418');
   assert.equal(statements[1].params[0],'ministero_418');
   assert.match(statements[1].sql,/ON CONFLICT \(id\) DO UPDATE SET/);
 });
