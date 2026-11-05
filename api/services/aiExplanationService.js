@@ -91,7 +91,7 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
     const completion = await requestFreeGroq(aiClient, {
       model: groqModel,
       messages,
-      max_completion_tokens: 450,
+      max_completion_tokens: 1024,
       reasoning_effort: 'low',
       temperature: 0.2
     });
@@ -100,8 +100,23 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
       return null;
     }
 
-    const spiegazione = completion.choices[0]?.message?.content?.trim();
-    if (spiegazione && spiegazione !== 'INFORMAZIONI_INSUFFICIENTI' && spiegazione.length <= 2000) {
+    const choice = completion?.choices?.[0];
+    // GPT-OSS may spend the full output budget on reasoning. Never publish truncated text.
+    if (choice?.finish_reason === 'length') {
+      console.warn('Spiegazione AI non pubblicata: completamento troncato (token insufficienti)');
+      return null;
+    }
+    if (choice?.finish_reason === 'content_filter') {
+      console.warn('Spiegazione AI non pubblicata: contenuto non disponibile');
+      return null;
+    }
+    const rawContent = choice?.message?.content;
+    const spiegazione = typeof rawContent === 'string' ? rawContent.trim() : '';
+    if (!spiegazione) {
+      console.warn('Spiegazione AI non pubblicata: risposta senza testo visibile');
+      return null;
+    }
+    if (spiegazione !== 'INFORMAZIONI_INSUFFICIENTI' && spiegazione.length <= 2000) {
       console.log('Spiegazione AI parlamentare generata (solo testo documentato)');
       return spiegazione;
     }
