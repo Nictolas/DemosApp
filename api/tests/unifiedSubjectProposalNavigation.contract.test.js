@@ -107,7 +107,13 @@ test('sensitive proposal information is minimized in Grazia and never directly p
   assert.match(config, /Non inserire sentenze, reati, dati sanitari/);
   assert.match(page, /non rende automaticamente pubblico alcun nominativo/);
   assert.match(page, /status === 409/);
-  assert.doesNotMatch(page, /reason\?\.data\?\.(?:message|error)/,
+  // Equality to one fixed server error code is safe; rendering arbitrary
+  // server-supplied error text is still prohibited by the contract.
+  assert.match(page,/reason\?\.data\?\.error === "PROPOSTE_NON_DISPONIBILI"/);
+  const pageWithoutFixedCodeCheck = page.replace(
+    'reason?.data?.error === "PROPOSTE_NON_DISPONIBILI"', 'KNOWN_SAFE_CODE'
+  );
+  assert.doesNotMatch(pageWithoutFixedCodeCheck, /reason\?\.data\?\.(?:message|error)/,
     'raw server errors must not be rendered to users');
   assert.match(page, /status === 400 \|\| status === 422/);
   assert.match(page, /Non è stato possibile registrare la proposta\. Riprova più tardi/);

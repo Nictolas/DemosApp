@@ -134,7 +134,9 @@ export default function ProponiSoggetto() {
       const status = reason?.status;
       // Never render server-supplied error strings containing diagnostics or
       // information about another person's pending proposal.
-      const message = status === 409
+      const message = status === 503 && reason?.data?.error === "PROPOSTE_NON_DISPONIBILI"
+        ? "L'invio di nuove proposte non è ancora disponibile."
+        : status === 409
         ? "Hai già una proposta in attesa per questa categoria oppure il soggetto è già stato proposto."
         : status === 401 ? "Sessione scaduta. Accedi nuovamente per inviare la proposta."
         : status === 403 ? "Non hai i requisiti per inviare questa proposta."

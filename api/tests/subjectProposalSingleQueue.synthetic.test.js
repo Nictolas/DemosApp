@@ -59,7 +59,8 @@ function harness({legacyGraziaReview = false} = {}) {
     '../config/database': {getPool: () => pool},
     '../middleware/auth': {verifyToken: noop, requireAdmin: noop},
     '../services/publicApprovedSubjectPage': {readApprovedPage: async () => ({data:[],next_cursor:null})},
-    '../utils/recognitionEvidence': { validateEvidenceUrl }
+    '../utils/recognitionEvidence': { validateEvidenceUrl },
+    '../utils/thirdPartyNominationGate': {isNominationWriteEnabled:()=>true,rejectUnavailableNomination:()=>{throw new Error('Unexpected production gate in synthetic test')}}
   };
   vm.runInNewContext(routeSource, {
     module: moduleShim,

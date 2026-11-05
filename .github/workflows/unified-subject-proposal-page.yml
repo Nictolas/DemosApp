@@ -21,6 +21,8 @@ on:
       - 'api/tests/amnistiaMainMerge.contract.test.js'
       - 'api/routes/subject-proposals.js'
       - 'api/routes/grazia.js'
+      - 'api/utils/thirdPartyNominationGate.js'
+      - 'api/tests/d12NominationProductionGate.synthetic.test.js'
       - 'client/src/pages/GestisciGrazia.tsx'
       - 'api/tests/graziaAdminPagination.synthetic.test.js'
       - 'scripts/test-grazia-admin-pagination-browser.cjs'
@@ -58,6 +60,8 @@ jobs:
         run: node --test api/tests/d12StagingPreflightTarget.contract.test.js
       - name: Reject private/non-public nomination source URLs in browser and API
         run: node --experimental-strip-types --test api/tests/d12PublicHttpsSources.contract.test.js api/tests/recognitionEvidence.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js
+      - name: Prevent unapproved third-party collection and publication in production
+        run: node --test api/tests/d12NominationProductionGate.synthetic.test.js
       - name: Page all Grazia moderation and notification audit entries without exposing private fields
         run: node --test api/tests/graziaAdminPagination.synthetic.test.js api/tests/graziaModerationContract.test.js
       - name: Minimize authenticated Grazia feed SQL and isolate vote metadata

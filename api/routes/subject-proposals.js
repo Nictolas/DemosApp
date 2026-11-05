@@ -2,6 +2,7 @@ const express = require('express');
 const { getPool } = require('../config/database');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { validateEvidenceUrl } = require('../utils/recognitionEvidence');
+const { isNominationWriteEnabled, rejectUnavailableNomination } = require('../utils/thirdPartyNominationGate');
 
 const router = express.Router();
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
@@ -81,6 +82,7 @@ router.get('/approved', async (req, res) => {
 router.post('/', verifyToken, async (req, res) => {
   const proposal = cleanProposal(req.body);
   if (proposal.error) return res.status(proposal.code === 'GRAZIA_CODA_UNICA' ? 409 : 400).json({ success: false, error: proposal.code || proposal.error });
+  if (!isNominationWriteEnabled()) return rejectUnavailableNomination(res);
   const userId = req.user.id;
   let client;
   try {
@@ -355,6 +357,9 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
   if (!/^[0-9a-f-]{36}$/i.test(id) || !['approve','reject'].includes(decision) || note.length > 500) {
     return res.status(400).json({ success: false, error: 'Decisione non valida' });
   }
+  // Rejection and emergency withdrawal remain available even while new
+  // third-party nomination publication is not legally authorized.
+  if (decision === 'approve' && !isNominationWriteEnabled()) return rejectUnavailableNomination(res);
   let client;
   try {
     client = await pool.connect();
