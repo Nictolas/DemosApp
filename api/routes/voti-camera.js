@@ -701,7 +701,8 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
 });
 
 // POST /api/voti-camera/groq-smoke - Admin-only, one Free-tier provider request.
-// Does not query/update the database and never exposes credentials or model output.
+// No parliamentary SQL or writes; verifyToken may read the current account for authorization.
+// Never exposes credentials or model output.
 router.post('/groq-smoke', verifyToken, requireAdmin, async (_req, res) => {
   try {
     const { checkGroqFreeConnectivity } = require('../services/groqFreeSmokeService');
