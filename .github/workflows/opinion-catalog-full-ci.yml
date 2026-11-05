@@ -9,6 +9,9 @@ on:
       - 'api/routes/**'
       - 'api/services/**'
       - 'api/tests/opinionCatalog*.test.js'
+      - 'api/tests/opinionTopics.contract.test.js'
+      - 'client/src/lib/opinionTopics.ts'
+      - 'client/src/pages/Opinioni*.tsx'
       - 'api/config/publicCachePolicy.js'
       - 'client/src/pages/GestisciOpinioni/**'
       - 'client/src/pages/VotiPolitici.tsx' # required catalog-contract for UI-only fix
@@ -60,6 +63,8 @@ jobs:
           done
       - name: Catalog integrity and zero-DB-metadata contract
         run: node --test api/tests/opinionCatalog.contract.test.js api/tests/opinionCatalogIntegration.contract.test.js
+      - name: Validate thematic mapping against all published opinion IDs
+        run: node --test api/tests/opinionTopics.contract.test.js
       - name: Install backend dependencies for isolated HTTP regression
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Validate read-only cutover parity and answer-column schema regression
