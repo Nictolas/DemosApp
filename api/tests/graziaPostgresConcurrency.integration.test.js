@@ -14,6 +14,10 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
      process.env.CIVIC_TEST_MODE!=='isolated-synthetic'){
     throw Error('Unsafe PostgreSQL target: only 127.0.0.1:5432/demos_civic_ci is permitted');
   }
+  // Only the disposable localhost PG17 target above can reach this point.
+  // Synthetic CI must opt in explicitly, just like any deployment.
+  const previousNominationFlag=process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
+  process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED='true';
   const {Pool}=require('pg');
   const express=require('express');
   const pool=new Pool({connectionString:raw,max:18,connectionTimeoutMillis:8000});
@@ -558,5 +562,7 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     if(server?.listening)await new Promise(resolve=>server.close(resolve));
     await pool.end();
     Module._load=originalModuleLoad;
+    if(previousNominationFlag===undefined)delete process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
+    else process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED=previousNominationFlag;
   }
 });

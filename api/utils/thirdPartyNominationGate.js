@@ -1,11 +1,12 @@
 'use strict';
 
-// A production merge must never implicitly activate collection/publication of
-// third-party nominees. The switch is deliberately explicit and production-only:
-// CI/local synthetic tests remain operable without touching the shared staging.
+// Collection/publication of third-party nominees is disabled by default in
+// EVERY runtime, including misconfigured deployments (missing NODE_ENV),
+// preview, staging, development and CI. The real DB must never be writable by
+// merely pretending to use a synthetic test environment. Only an exact,
+// explicit operator opt-in enables writes; rejection/withdrawal still work.
 function isNominationWriteEnabled(env = process.env) {
-  return env.NODE_ENV !== 'production' ||
-    env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED === 'true';
+  return env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED === 'true';
 }
 
 function rejectUnavailableNomination(res) {

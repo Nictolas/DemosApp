@@ -100,6 +100,12 @@ mock('../middleware/politicalConsent',{requirePoliticalConsent:(req,res,next)=>n
 mock('../middleware/civicIdentity',{requireVerifiedCivicIdentity:(req,res,next)=>next()});
 mock('../middleware/validation',{validateInput:()=> (req,res,next)=>next()});
 mock('../services/preferenceCooldownService',{getPreferenceCooldown:async()=>({isBlocked:false}),assertPreferenceChangeAllowed:async()=>{},recordPreferenceChange:async()=>{},sendCooldownError:()=>false});
+// The real server gate is fail-closed. This fixture is an isolated fake pool,
+// so it explicitly enables synthetic requests without changing process env.
+mock('../utils/thirdPartyNominationGate',{
+  isNominationWriteEnabled:()=>true,
+  rejectUnavailableNomination:res=>res.status(503).json({success:false,error:'PROPOSTE_NON_DISPONIBILI'})
+});
 const app=express();
 app.use(express.json());app.use('/api/grazia',require('../routes/grazia'));
 const server=http.createServer(app);

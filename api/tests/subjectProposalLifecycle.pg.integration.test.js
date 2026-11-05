@@ -41,6 +41,10 @@ const proposal = (category, title, details = '') => ({
 
 test('actual draft SQL and Express proposal API: unique pending, Admin review, publish, DSAR and no Grazia clone', async () => {
   const connectionString = localDatabaseUrl();
+  // The test database target has been checked above; the release gate now
+  // requires an explicit opt-in even for isolated CI. Restore on exit.
+  const oldNominationFlag=process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
+  process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED='true';
   const setup = new Client({connectionString});
   let pool, server;
   await setup.connect();
@@ -650,5 +654,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     if(server?.listening) await new Promise(done=>server.close(done));
     if(pool) await pool.end();
     await setup.end();
+    if(oldNominationFlag===undefined)delete process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
+    else process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED=oldNominationFlag;
   }
 });

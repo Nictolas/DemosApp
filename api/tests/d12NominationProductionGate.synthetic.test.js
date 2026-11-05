@@ -72,15 +72,31 @@ function harness(which,enabled=false) {
   });
   return {post,state,response};
 }
-test('production requires an exact explicit opt-in, not a truthy or mistyped value',()=>{
-  const env={NODE_ENV:'production'};
-  for (const value of [undefined,'','false','TRUE','1','yes',' true','true ']) {
-    assert.equal(isNominationWriteEnabled({...env,DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED:value}),false,String(value));
+test('third-party writes fail closed in every runtime without exact explicit opt-in',()=>{
+  for (const nodeEnv of [undefined,'','production','staging','preview','development','test']){
+    for (const value of [undefined,'','false','TRUE','1','yes',' true','true ']){
+      assert.equal(isNominationWriteEnabled({
+        NODE_ENV:nodeEnv,DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED:value
+      }),false,'mode '+String(nodeEnv)+', value '+String(value));
+    }
+    assert.equal(isNominationWriteEnabled({
+      NODE_ENV:nodeEnv,DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED:'true'
+    }),true,'explicit operator opt-in must be exact');
   }
-  assert.equal(isNominationWriteEnabled({...env,DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED:'true'}),true);
-  // Local and disposable-CI tests remain usable without a real staging secret.
-  assert.equal(isNominationWriteEnabled({NODE_ENV:'test'}),true);
-  assert.equal(isNominationWriteEnabled({NODE_ENV:'development'}),true);
+});
+test('CI and even a synthetic localhost fixture cannot silently override the gate',()=>{
+  const mode={
+    CIVIC_TEST_MODE:'isolated-synthetic',
+    CIVIC_TEST_DATABASE_URL:'postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_civic_ci'
+  };
+  for (const nodeEnv of [undefined,'test','development','staging','production']){
+    assert.equal(isNominationWriteEnabled({...mode,NODE_ENV:nodeEnv}),false,
+      'synthetic mode must not bypass explicit operator switch');
+    assert.equal(isNominationWriteEnabled({...mode,NODE_ENV:nodeEnv,
+      DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED:'true'}),true);
+  }
+  assert.equal(isNominationWriteEnabled({...mode,CIVIC_TEST_DATABASE_URL:
+    'postgres://demos_ci:synthetic_only@aws-1-eu-central-1.pooler.supabase.com:5432/demos_civic_ci'}),false);
 });
 for (const which of ['generic','grazia']) {
   test(which+' production submit is rejected before connection or notification',async()=>{
