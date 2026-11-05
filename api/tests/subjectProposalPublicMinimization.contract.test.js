@@ -355,3 +355,20 @@ test('mounted public profile directories keep only explicitly declared visible f
       'public projection must not spread unrecognized private fields');
   }
 });
+
+test('public directories display controlled errors and never expose API diagnostics to visitors', () => {
+  const pages=[
+    ['client/src/pages/Attivisti.tsx','Non è stato possibile caricare gli attivisti. Riprova più tardi.'],
+    ['client/src/pages/Organizzazioni/index.tsx','Non è stato possibile caricare le organizzazioni. Riprova più tardi.']
+  ];
+  for(const [p,notice] of pages){
+    const source=file(p);
+    assert.ok(source.includes("setErrorMessage('"+notice+"')"),p);
+    assert.doesNotMatch(source,/setErrorMessage\(\s*error instanceof Error/);
+    assert.doesNotMatch(source,/throw new Error\(data\.message/);
+    assert.doesNotMatch(source,/response\.statusText/);
+    assert.doesNotMatch(source,/description:\s*data\.error/);
+    assert.doesNotMatch(source,/description:\s*error\?\.message/);
+    assert.doesNotMatch(source,/console\.(?:error|warn|log)\([^\n]*,\s*error\s*\)/);
+  }
+});
