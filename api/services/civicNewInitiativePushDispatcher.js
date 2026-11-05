@@ -108,23 +108,37 @@ async function dispatchCivicNewInitiatives(pool, {
         const payload = buildCivicPush(event);
         await firebase.send(payload);
         // "sent" means accepted by FCM, not delivered to every device.
-        await client.query(
+        // An acknowledged FCM send cannot be recalled. A missing/malformed
+        // SQL acknowledgement is NOT evidence that the event is marked sent.
+        // Never count it as successful and never make a second send attempt.
+        const markedSent = await client.query(
           `UPDATE civic_new_initiative_notifications
            SET status = 'sent', sent_at = NOW(), last_error_code = NULL
            WHERE id = $1 AND status = 'dispatching'`,
           [event.id]
         );
+        if (markedSent?.rowCount !== 1) {
+          throw new Error('CIVIC_SENT_STATE_UNCONFIRMED');
+        }
         accepted++;
       } catch (error) {
-        // Never retry an uncertain provider outcome automatically.
+        // A provider-accepted send or an uncertain DB acknowledgement cannot
+        // safely be converted into an ordinary failed event: the outbox needs
+        // manual review and must never be automatically requeued.
+        if (error?.message === 'CIVIC_SENT_STATE_UNCONFIRMED') {
+          throw new Error('CIVIC_SENT_STATE_UNCONFIRMED');
+        }
         const code = error?.message === 'CIVIC_UNSUPPORTED_CATEGORY'
           ? 'CIVIC_UNSUPPORTED_CATEGORY' : 'FCM_DELIVERY_UNCERTAIN';
-        await client.query(
+        const markedFailed = await client.query(
           `UPDATE civic_new_initiative_notifications
            SET status = 'failed', last_error_code = $2
            WHERE id = $1 AND status = 'dispatching'`,
           [event.id, code]
         );
+        if (markedFailed?.rowCount !== 1) {
+          throw new Error('CIVIC_FAILED_STATE_UNCONFIRMED');
+        }
         failed++;
       }
     }
