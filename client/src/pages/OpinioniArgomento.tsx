@@ -121,14 +121,6 @@ export default function OpinioniArgomento() {
       ? visibleQuestions.filter(question => question.text.toLocaleLowerCase("it").includes(search))
       : visibleQuestions;
   }, [visibleQuestions, searchTerm]);
-  const firstUnanswered = matchedQuestions.find(question => normalize(question.userAnswer) === null);
-  const continueFromFirstUnanswered = () => {
-    if (!firstUnanswered) return;
-    const section = document.getElementById(`topic-question-${firstUnanswered.id}`);
-    section?.scrollIntoView({ behavior: "smooth", block: "start" });
-    section?.focus({ preventScroll: true });
-  };
-
   useEffect(() => {
     setLevelFilter("all");
     setSearchTerm("");
@@ -159,6 +151,18 @@ export default function OpinioniArgomento() {
         : rebaseTopicDrafts(null, draftScope, questions);
       return { ...base, drafts: { ...base.drafts, [questionId]: answer } };
     });
+  };
+
+  // Navigation follows the current draft selections; completion and save
+  // still use only the verified server answers, never these unsaved choices.
+  const firstPending = matchedQuestions.find(question =>
+    normalize(drafts[question.id]) === null
+  );
+  const continueFromFirstUnanswered = () => {
+    if (!firstPending) return;
+    const section = document.getElementById(`topic-question-${firstPending.id}`);
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+    section?.focus({ preventScroll: true });
   };
 
   const dirty = authorized && questions.some((question) =>
@@ -254,7 +258,7 @@ export default function OpinioniArgomento() {
             autoComplete="off"
             className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600" />
           <button type="button" onClick={continueFromFirstUnanswered}
-            disabled={!authorized || loading || !!error || !firstUnanswered}
+            disabled={!authorized || loading || !!error || !firstPending}
             className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
             Continua
           </button>
