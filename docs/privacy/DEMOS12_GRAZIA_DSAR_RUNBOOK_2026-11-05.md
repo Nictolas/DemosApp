@@ -41,3 +41,11 @@
 - Commissione europea, *Dealing with requests from individuals*: https://commission.europa.eu/law/law-topic/data-protection/information-business-and-organisations/dealing-requests-individuals_en
 - EDPB, *Guidelines 01/2022 on data subject rights – Right of access*, versione 2.0: https://www.edpb.europa.eu/system/files/2023-04/edpb_guidelines_202201_data_subject_rights_access_v2_en.pdf
 - Regolamento (UE) 2016/679, artt. 12, 15–22: https://eur-lex.europa.eu/eli/reg/2016/679/oj
+
+## Verifiche tecniche successive — 05/11/2026
+
+- La pagina Grazia e gli avvisi del salvataggio voto non mostrano più `error.message` né un errore API arbitrario: gli errori di trasporto e le risposte `success:false` vengono ricondotti a testi neutri. Questo evita che un messaggio server contenente nominativi, query SQL o preferenze politiche sia riprodotto sullo schermo; non costituisce un audit completo degli altri endpoint.
+- Il contatto per rettifica è riutilizzato anche nel fallback della pagina quando il `GET /api/grazia` non riesce. In modalità normale resta disponibile tanto con classifica popolata quanto vuota; nessuna query SQL aggiuntiva.
+- Test sintetici: `api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js` include errori fittizi con dati privati e verifica che React Query e toast non li riflettano. `api/tests/d12GraziaPrivacyContact.contract.test.js` blocca la reintroduzione di stringhe backend e garantisce il contatto anche nell'errore. `scripts/test-grazia-privacy-browser.cjs` usa **Chrome** con API sintetiche locali, 320×568/390×844, scenari classifica vuota, popolata, errore 503; blocca richieste esterne. CI nel workflow Unified. Il superamento delle verifiche deve essere attestato sull'ultimo SHA prima di segnare i test PASS.
+- **Nessun accesso alla casella di destinazione**: le credenziali Gmail collegate non costituiscono prova di controllo del recapito `privacy@demos.community`. Nessuna email di prova è stata inviata e nessuna evidenza di consegna o riscontro è stata acquisita. **DSAR-01 e DSAR-02 rimangono NON VERIFICATI.**
+- Nessun merge, deploy, modifica a produzione/staging o abilitazione delle nomine viene autorizzata da questa sezione.
