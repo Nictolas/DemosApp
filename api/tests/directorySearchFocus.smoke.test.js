@@ -35,6 +35,6 @@ for (const [name, relative] of [
     assert.match(src, /searchTerm\.trim\(\) \? 300 : 0/);
     assert.match(src, /window\.clearTimeout\(timer\)/);
     assert.match(src, /controller\.abort\(\)/);
-    assert.match(src, /\[searchTerm, selectedRegione, selectedTipologia\]/);
+    assert.match(src, /\[searchTerm, selectedRegione, selectedTipologia(?:, reset)?\]/);
   });
 }
