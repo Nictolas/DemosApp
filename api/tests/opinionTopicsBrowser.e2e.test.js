@@ -89,7 +89,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByRole('heading', { name: 'Economia, lavoro e fisco' }).waitFor({ timeout: 25000 });
     const cards = page.locator('.opinioni-editor-page main section');
     await cards.first().waitFor({ timeout: 25000 });
-    assert.equal(await cards.count(), 14);
+    assert.equal(await cards.count(), 13);
     const firstQuestionText = await cards.first().locator('h2').innerText();
     assert.equal(personalGets.length, 4, 'Cold topic entry uses the four existing grade reads only');
     const search = page.getByRole('searchbox', { name: "Cerca fra le Opinioni dell'argomento" });
@@ -99,7 +99,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByText('Nessuna Opinione corrisponde alla ricerca.').waitFor();
     assert.equal(await cards.count(), 0);
     await search.fill('');
-    assert.equal(await cards.count(), 14);
+    assert.equal(await cards.count(), 13);
     await page.getByRole('button', { name: 'Continua', exact: true }).click();
     assert.equal(await cards.first().evaluate(el => document.activeElement === el), true,
       'Continue must focus the first unanswered question');
@@ -112,7 +112,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByRole('button', { name: 'Europeo', exact: true }).click();
     assert.equal(await cards.count(), 1, 'One European economy question must appear without duplicates');
     await page.getByRole('button', { name: 'Tutti', exact: true }).click();
-    assert.equal(await cards.count(), 14);
+    assert.equal(await cards.count(), 13);
     assert.equal(personalGets.length, 4, 'Changing the geographic filter must not fetch answers');
 
     for (const [width, height] of [[320, 568], [390, 844], [1280, 800]]) {
@@ -141,7 +141,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByRole('button', { name: 'Indietro' }).focus();
     assert.equal(await page.getByRole('button', { name: 'Indietro' }).evaluate(el => document.activeElement === el), true);
 
-    assert.equal(await page.getByText('0 / 14 Opinioni salvate').count(), 1);
+    assert.equal(await page.getByText('0 / 13 Opinioni salvate').count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Salva le mie opinioni' }).isDisabled(), true);
     await cards.first().locator('button[title^="Approfondimento:"]').click();
     await page.getByRole('dialog').waitFor({ timeout: 12000 });
@@ -154,7 +154,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     }));
     await cards.first().getByRole('button', { name: 'Favorevole' }).click();
     await page.getByText('Campione di 10 persone.').first().waitFor({ timeout: 12000 });
-    assert.equal(await page.getByText('0 / 14 Opinioni salvate').count(), 1,
+    assert.equal(await page.getByText('0 / 13 Opinioni salvate').count(), 1,
       'Unsaved answer must not increase completion');
     await page.getByRole('button', { name: 'Indietro' }).click();
     await page.getByText('Opinioni non salvate').waitFor();
@@ -164,7 +164,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.waitForURL(origin + '/opinioni', { timeout: 20000 });
     assert.equal(savedPosts.length, 1, 'Exactly one delta save should be issued');
     await page.getByRole('button', { name: 'Per argomento' }).click();
-    await page.getByText(/1 \/ 14 · 7%/).first().waitFor({ timeout: 12000 });
+    await page.getByText(/1 \/ 13 · 8%/).first().waitFor({ timeout: 12000 });
     await page.getByRole('button', { name: /Istituzioni e democrazia/ }).click();
     await page.getByRole('heading', { name: 'Istituzioni e democrazia' }).waitFor();
     await page.getByRole('button', { name: 'Europeo', exact: true }).click();
@@ -174,7 +174,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByRole('button', { name: 'Per argomento' }).click();
     const before = personalGets.length;
     await page.getByRole('button', { name: /Economia, lavoro e fisco/ }).click();
-    await page.getByText('1 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
+    await page.getByText('1 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
     assert.equal(personalGets.length, before, 'Warm cache should avoid personal GETs');
     assert.equal(await cards.first().evaluate(element => element.classList.contains('bg-blue-50')), true,
       'Unanswered cards must appear first');
@@ -196,7 +196,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     }));
     await page.getByRole('button', { name: 'Salva le mie opinioni' }).click();
     await page.getByText(/Salvataggio non confermato/).first().waitFor({ timeout: 12000 });
-    assert.equal(await page.getByText('1 / 14 Opinioni salvate').count(), 1);
+    assert.equal(await page.getByText('1 / 13 Opinioni salvate').count(), 1);
     await page.unroute('**/api/opinioni/salva');
 
     const revoked = await fetch('http://localhost:10000/qa/revoke', {
