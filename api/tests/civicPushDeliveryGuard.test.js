@@ -88,3 +88,23 @@ test('global emergency-stop discards session after failed ROLLBACK', async () =>
   );
   assert.equal(released,true);
 });
+
+test('global emergency stop discards pooled session on lost BEGIN acknowledgement', async () => {
+  const calls=[];
+  let released;
+  const client={
+    query:async sql=>{
+      calls.push(sql);
+      if(sql==='BEGIN')throw Error('SYNTHETIC_BEGIN_ACK_LOST');
+      return {rows:[]};
+    },
+    release:discard=>{released=discard;}
+  };
+  await assert.rejects(
+    require('../services/civicPushDeliveryGuard').blockCivicDeliveryFromPool({
+      connect:async()=>client,
+    }),/CIVIC_DELIVERY_BLOCK_FAILED/
+  );
+  assert.deepEqual(calls,['BEGIN','ROLLBACK']);
+  assert.equal(released,true);
+});
