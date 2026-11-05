@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {assertSourceSyncEnv,prepareRows,UPSERT_SQL,BASELINE_SQL,syncOnce}=
+const {assertSourceSyncEnv,prepareRows,UPSERT_SQL,BASELINE_SQL,MISSING_SOURCE_IDS_SQL,syncOnce}=
   require('../staging/ministeroStagingSyncOnce');
 
 const makeRow=(id=217,title='Public Ministry source',type='Legge di iniziativa popolare')=>({
@@ -15,7 +15,7 @@ const makeRow=(id=217,title='Public Ministry source',type='Legge di iniziativa p
 });
 
 function fakeDatabase({guard=true,role='demos_staging_runtime',oldCount=2,
-  actionable=0,upsertCount=2,suppressedCount=1,lock=true,failAt=null}={}){
+  actionable=0,missingCount=0,upsertCount=2,suppressedCount=1,lock=true,failAt=null}={}){
   const calls=[];let released=null,ended=0;
   const client={
     async query(sql,params=[]){
@@ -29,6 +29,7 @@ function fakeDatabase({guard=true,role='demos_staging_runtime',oldCount=2,
       if(sql.includes('civic_push_delivery_guard WHERE id=1 FOR SHARE'))
         return {rows:[{blocked:guard}]};
       if(sql.includes('old_count'))return {rows:[{old_count:oldCount,actionable}]};
+      if(sql===MISSING_SOURCE_IDS_SQL)return {rows:[{missing_count:missingCount}]};
       if(sql.includes('INSERT INTO public.iniziative_ministero'))
         return {rowCount:upsertCount};
       if(sql.includes('INSERT INTO public.civic_new_initiative_notifications'))
@@ -114,7 +115,7 @@ test('first-run source with missing baseline is not allowed to write',async()=>{
   assert.equal(db.released,true);
 });
 test('delivery guard false and stale feed fail before writes and discard connection',async()=>{
-  for(const settings of [{guard:false},{oldCount:20},{actionable:1},{lock:false}]){
+  for(const settings of [{guard:false},{missingCount:1},{actionable:1},{lock:false}]){
     const db=fakeDatabase(settings);
     await assert.rejects(syncOnce({},safeTestOptions(db)),
       /MINISTERO_SOURCE_SYNC_ABORTED/);
@@ -143,4 +144,27 @@ test('provider SQL errors never leak credentials and always roll back',async()=>
   assert.equal(db.calls.at(-1).sql,'ROLLBACK');
   assert.equal(db.released,true);
   assert.equal(db.ended,1);
+});
+
+// A source with the same number of rows can still omit an existing official ID.
+// The old 80%-of-count gate incorrectly accepted this case.
+test('same-size source with a missing archived official ID aborts before all writes',async()=>{
+  const db=fakeDatabase({oldCount:2,missingCount:1});
+  await assert.rejects(syncOnce({},safeTestOptions(db)),
+    /MINISTERO_SOURCE_SYNC_ABORTED/);
+  const check=db.calls.find(call=>call.sql===MISSING_SOURCE_IDS_SQL);
+  assert.ok(check,'source ID coverage query must run');
+  assert.equal(JSON.parse(check.params[0]).length,2);
+  assert.equal(db.calls.some(call=>call.sql===UPSERT_SQL),false);
+  assert.equal(db.calls.some(call=>call.sql===BASELINE_SQL),false);
+  assert.equal(db.calls.at(-1).sql,'ROLLBACK');
+});
+
+test('unknown or missing coverage result also fails closed',async()=>{
+  for(const missingCount of [null,'0',-1]){
+    const db=fakeDatabase({missingCount});
+    await assert.rejects(syncOnce({},safeTestOptions(db)),
+      /MINISTERO_SOURCE_SYNC_ABORTED/);
+    assert.equal(db.calls.some(call=>call.sql===UPSERT_SQL),false);
+  }
 });
