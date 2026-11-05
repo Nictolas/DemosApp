@@ -178,6 +178,31 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     assert.equal(await cards.count(), 0, 'Filtered empty state must not add questions');
     await page.getByRole('button', { name: 'Indietro' }).click();
     await page.getByRole('button', { name: 'Per argomento' }).click();
+
+    // Thematic saving is not N-only: the existing POST must accept published
+    // IDs from European, regional and municipal questions without a new API.
+    for (const scenario of [
+      { topic: /Esteri e difesa/, grade: 'Europeo', answer: 'Indeciso', total: 8 },
+      { topic: /Sanità, scuola e famiglia/, grade: 'Regionale', answer: 'Favorevole', total: 10 },
+      { topic: /Città, cultura e servizi/, grade: 'Comunale', answer: 'Contrario', total: 5 },
+    ]) {
+      await page.getByRole('button', { name: scenario.topic }).click();
+      await page.getByRole('button', { name: scenario.grade, exact: true }).click();
+      await cards.first().waitFor();
+      const savedText = await cards.first().locator('h2').innerText();
+      await cards.first().getByRole('button', { name: scenario.answer, exact: true }).click();
+      await page.getByRole('button', { name: 'Salva le mie opinioni' }).click();
+      await page.waitForURL(origin + '/opinioni', { timeout: 20000 });
+      await page.getByRole('button', { name: 'Per argomento' }).click();
+      await page.getByRole('button', { name: scenario.topic }).click();
+      await page.getByText(`1 / ${scenario.total} Opinioni salvate`).waitFor({ timeout: 20000 });
+      await page.getByRole('button', { name: scenario.grade, exact: true }).click();
+      const savedQuestion = cards.filter({ has: page.getByRole('heading', { name: savedText, exact: true }) });
+      assert.equal(await savedQuestion.getByRole('button', { name: scenario.answer }).getAttribute('aria-pressed'), 'true',
+        scenario.grade + ' saved opinion must survive reopening');
+      await page.getByRole('button', { name: 'Indietro' }).click();
+      await page.getByRole('button', { name: 'Per argomento' }).click();
+    }
     const before = personalGets.length;
     await page.getByRole('button', { name: /Economia, lavoro e fisco/ }).click();
     await page.getByText('1 / 13 Opinioni salvate').waitFor({ timeout: 25000 });
