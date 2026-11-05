@@ -50,6 +50,8 @@ jobs:
         run: node --test api/tests/d12MainIntegrationWorkflow.contract.test.js
       - name: Verify GDPR release checklist matches current Draft code
         run: node --test api/tests/d12ReleaseGateDocumentation.contract.test.js
+      - name: Fail closed on non-staging PostgreSQL preflight endpoints
+        run: node --test api/tests/d12StagingPreflightTarget.contract.test.js
       - name: Keep compact mobile civic headers and proposal buttons
         run: node --test api/tests/compactCivicHeaders.contract.test.js
       - name: Amnistia compact voting form and review-gated proposals

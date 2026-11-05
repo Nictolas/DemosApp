@@ -137,7 +137,47 @@ async function inspectSchema(db,{schema='public'}={}){
   ]);
   return assessMetadata({columns:columns.rows,tables:tables.rows,constraints:constraints.rows,indexes:indexes.rows,privileges:privileges.rows});
 }
-module.exports={inspectSchema,assessMetadata,REQUIRED_COLUMNS};
+
+// Exact project identity matters: the Supavisor hostname is shared by all
+// projects, including production. Never trust the pooler hostname alone.
+const STAGING_PROJECT_REF = 'fkeayjzvtuvzesljhjbc';
+const STAGING_DIRECT_HOST = 'db.' + STAGING_PROJECT_REF + '.supabase.co';
+const STAGING_SESSION_POOLER = 'aws-1-eu-central-1.pooler.supabase.com';
+
+function assertAllowedPreflightTarget(raw) {
+  let url;
+  try { url = new URL(raw); } catch (_) { throw Error('Invalid preflight database URL'); }
+  if (!['postgres:','postgresql:'].includes(url.protocol))
+    throw Error('Preflight requires PostgreSQL connection URL');
+
+  if (url.hostname === '127.0.0.1') {
+    if (!url.username || !url.pathname || url.pathname === '/' ||
+        [...url.searchParams.keys()].length > 0)
+      throw Error('Isolated local preflight requires a user/database and no connection overrides');
+    return { mode: 'local' };
+  }
+
+  const direct = url.hostname === STAGING_DIRECT_HOST &&
+    url.username === 'postgres';
+  const session = url.hostname === STAGING_SESSION_POOLER &&
+    url.username === 'postgres.' + STAGING_PROJECT_REF;
+  if (!direct && !session) throw Error('Preflight target is not the exact DEMOS staging project');
+  if (url.port !== '5432' || url.pathname !== '/postgres' || !url.password)
+    throw Error('DEMOS staging preflight requires a complete session/direct URL at port 5432');
+  const sslmode = url.searchParams.getAll('sslmode');
+  if (sslmode.length !== 1 || !['require','verify-ca','verify-full'].includes(sslmode[0]))
+    throw Error('DEMOS staging preflight requires enforced TLS (sslmode=require or stronger)');
+  for (const name of url.searchParams.keys()) {
+    if (!['sslmode','sslrootcert'].includes(name))
+      throw Error('Unexpected preflight connection option');
+  }
+  if (url.searchParams.has('sslrootcert') &&
+      !['verify-ca','verify-full'].includes(sslmode[0]))
+    throw Error('An SSL root certificate requires certificate-verifying sslmode');
+  return { mode: session ? 'staging-session-pooler' : 'staging-direct' };
+}
+
+module.exports={inspectSchema,assessMetadata,REQUIRED_COLUMNS,assertAllowedPreflightTarget};
 
 if(require.main===module){
   (async()=>{
@@ -145,10 +185,9 @@ if(require.main===module){
       throw Error('Explicit staging-readonly acknowledgement required');
     const raw=process.env.DEMOS_PREFLIGHT_DATABASE_URL;
     if(!raw) throw Error('Missing DEMOS_PREFLIGHT_DATABASE_URL');
-    const u=new URL(raw);
-    if(!['postgres:','postgresql:'].includes(u.protocol)||
-      !['127.0.0.1','db.fkeayjzvtuvzesljhjbc.supabase.co'].includes(u.hostname))
-      throw Error('Only isolated local PG or exact DEMOS staging host permitted');
+    // Validate the target *before* attempting a connection. The shared pooler
+    // needs the project reference in the username, not just a matching host.
+    assertAllowedPreflightTarget(raw);
     const {Client}=require('pg');
     const db=new Client({connectionString:raw});
     await db.connect();
