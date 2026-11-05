@@ -7,6 +7,7 @@ on:
       - 'api/services/parliamentFreeAiPolicy.js'
       - 'api/services/parliamentGroundedAnalysis.js'
       - 'api/services/parliamentFreeGroqBudget.js'
+      - 'api/services/groqFreeSmokeService.js'
       - 'api/services/parliamentAiSingleflight.js'
       - 'api/services/parliamentActIdentifier.js'
       - 'api/services/aiExplanationService.js'
@@ -16,6 +17,7 @@ on:
       - 'api/tests/parliamentFreeAiPolicy.test.js'
       - 'api/tests/parliamentGroundedAnalysis.test.js'
       - 'api/tests/parliamentFreeGroqBudget.test.js'
+      - 'api/tests/groqFreeSmokeService.test.js'
       - 'api/tests/parliamentAiSingleflight.test.js'
       - 'api/tests/parliamentActIdentifier.test.js'
       - '.github/workflows/parliament-free-ai-validation.yml'
@@ -38,6 +40,7 @@ jobs:
           node --check api/services/parliamentFreeAiPolicy.js
           node --check api/services/parliamentGroundedAnalysis.js
           node --check api/services/parliamentFreeGroqBudget.js
+          node --check api/services/groqFreeSmokeService.js
           node --check api/services/parliamentAiSingleflight.js
           node --check api/services/parliamentActIdentifier.js
           node --check api/services/aiExplanationService.js
@@ -45,4 +48,4 @@ jobs:
           node --check api/routes/voti-camera.js
           node --check api/routes/voti-parlamento-europeo.js
       - name: Free-only provider regression
-        run: node --test api/tests/parliamentFreeAiPolicy.test.js api/tests/parliamentGroundedAnalysis.test.js api/tests/parliamentFreeGroqBudget.test.js api/tests/parliamentAiSingleflight.test.js api/tests/parliamentActIdentifier.test.js
+        run: node --test api/tests/parliamentFreeAiPolicy.test.js api/tests/parliamentGroundedAnalysis.test.js api/tests/parliamentFreeGroqBudget.test.js api/tests/groqFreeSmokeService.test.js api/tests/parliamentAiSingleflight.test.js api/tests/parliamentActIdentifier.test.js
