@@ -4,13 +4,13 @@
  * DEMOS parliamentary AI runs on explicitly allowlisted Groq Free Plan models only.
  * This module never selects a paid inference provider. Keep model availability and
  * free-tier limits under review before expanding the allowlist.
+ * Preview models are excluded from production even if offered on Free.
  */
 const DEFAULT_FREE_GROQ_MODEL = 'openai/gpt-oss-120b';
 
 const FREE_GROQ_MODELS = Object.freeze([
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
-  'qwen/qwen3.8-27b',
 ]);
 
 const RETIRED_GROQ_MODELS = new Set([
