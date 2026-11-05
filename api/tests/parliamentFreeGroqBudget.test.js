@@ -211,3 +211,69 @@ test('parliament AI routes and services hide provider messages and stack traces'
   assert.match(guarded, /classifyFreeGroqError\(genError\)/);
   assert.match(guarded, /res\.status\(503\)\.json/);
 });
+
+
+test('both explanation handlers return a safe 503 without provider secrets', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const vm = require('node:vm');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'routes', 'voti-camera.js'), 'utf8');
+  const start = source.indexOf("router.post('/votazione/:votazione_id/spiegazione'");
+  const end = source.indexOf("// POST /api/voti-camera/genera-spiegazioni");
+  assert.ok(start >= 0 && end > start);
+  const registered = new Map();
+  const logs = [];
+  const safeConsole = {
+    log: (...v) => logs.push(v.join(' ')),
+    warn: (...v) => logs.push(v.join(' ')),
+    error: (...v) => logs.push(v.join(' '))
+  };
+  const injectedError = new Error('provider rejected gsk_SECRET_VALUE');
+  injectedError.status = 401;
+  injectedError.stack = 'PRIVATE_PROVIDER_STACK gsk_SECRET_VALUE';
+  let shouldThrow = true;
+  const fakeRequire = (name) => {
+    if (name === '../services/aiExplanationService') return {
+      verificaLimiteGiornaliero: async () => ({ rispettato: true, count: 0, limite: 120 }),
+      generaSpiegazioneVotazione: async () => {
+        if (shouldThrow) throw injectedError;
+        return null;
+      }
+    };
+    if (name === '../services/parliamentFreeGroqBudget') return {
+      classifyFreeGroqError
+    };
+    throw new Error('unexpected require ' + name);
+  };
+  const pool = { query: async () => ({ rows: [{
+    id: 3, titolo_votazione: 'DDL test', descrizione_votazione: 'Fatti pubblici documentati',
+    camera: 'Camera', spiegazione: null, votazione_id: 3
+  }] }) };
+  vm.runInNewContext(source.slice(start, end), {
+    router: { post: (route, _auth, _admin, handler) => registered.set(route, handler) },
+    verifyToken() {}, requireAdmin() {}, pool,
+    require: fakeRequire, console: safeConsole, Date, parseInt, isNaN, decodeURIComponent
+  });
+  for (const [route, params] of [
+    ['/votazione/:votazione_id/spiegazione', { votazione_id: '3' }],
+    ['/:politico/spiegazione', { politico: 'Nome%20Cognome' }]
+  ]) {
+    const handler = registered.get(route);
+    assert.equal(typeof handler, 'function');
+    for (const throwError of [true, false]) {
+      shouldThrow = throwError;
+      const res = {
+        statusCode: 200,
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+      };
+      await handler({ params }, res);
+      assert.equal(res.statusCode, 503);
+      assert.equal(res.body.success, false);
+      assert.match(res.body.message, /non disponibile/);
+      assert.doesNotMatch(JSON.stringify(res.body), /gsk_|PRIVATE_PROVIDER_STACK|provider rejected|OPENAI_API_KEY/);
+    }
+  }
+  assert.doesNotMatch(logs.join('\n'), /gsk_|PRIVATE_PROVIDER_STACK|provider rejected/);
+  assert.match(logs.join('\n'), /AUTH/);
+});
