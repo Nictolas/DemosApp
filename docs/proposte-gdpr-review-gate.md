@@ -200,3 +200,11 @@ Prova prevista nella CI PostgreSQL 17 isolata: più di 100 ritiri non confermati
 - Le directory pubbliche mantengono la prima lettura già esistente, di massimo 100 approvati, e offrono pagine successive **solo su clic**. La query condivisa usa l'ordine `COALESCE(reviewed_at,created_at) DESC,id DESC` per evitare omissioni ai microsecondi. Ogni JSON pubblico contiene soltanto `id` e `title`; i marcatori di pagina non includono nominativi o note. Nessun polling o GET aggiuntiva sul montaggio.
 - Su filtro, cambio pagina o ritorno da background viene annullata una richiesta successiva obsoleta; al resume la lista precedente è azzerata prima della GET, per non far riapparire una nomina ritirata da una risposta tardiva. La pagina permanentemente in primo piano non riceve un push di ritiro; la limitazione GDPR/DSAR resta aperta.
 - Indice PostgreSQL di supporto e test sintetici PG17/browser rimangono nel codice DRAFT. Nessuna migrazione è stata applicata a staging o produzione. I nominativi approvati continuano a richiedere decisioni privacy motivate, con verifica GDPR articoli 5/6/9/10/14, retention, contestazione, DSAR e test Android reali prima del GO.
+
+
+## 05/11/2026 — Unica implementazione attiva della directory Attivisti
+
+- URL cittadino invariato: `https://www.demos.community/attivisti`.
+- `client/src/App.tsx` importa `./pages/Attivisti`, risolto da Vite come `client/src/pages/Attivisti.tsx`.
+- Il file alternativo non montato `client/src/pages/Attivisti/index.tsx` è stato rimosso per impedire aggiornamenti divergenti. Il componente attivo conserva ricerca, soggetti approvati, pulsante Proponi, reset al ritorno in foreground e paginazione oltre 100.
+- Il contratto `api/tests/singleMountedActivistsDirectory.contract.test.js` verifica l'assenza del duplicato e di import diretti al vecchio percorso; il collaudo Chrome mobile e il build del ramo rimangono obbligatori. Questa modifica non comporta deploy o valutazione GDPR automaticamente positiva.

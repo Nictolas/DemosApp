@@ -14,6 +14,8 @@ on:
       - 'client/src/components/ProposeSubjectButton.tsx'
       - 'client/src/pages/Proponi.tsx'
       - 'client/src/App.tsx'
+      - 'client/src/pages/Attivisti/index.tsx'
+      - 'api/tests/singleMountedActivistsDirectory.contract.test.js'
       - 'api/tests/mainRoutesPreserved.contract.test.js'
       - 'api/tests/compactCivicHeaders.contract.test.js'
       - 'api/tests/amnistiaMainMerge.contract.test.js'
@@ -40,6 +42,8 @@ jobs:
         run: node --check api/routes/subject-proposals.js
       - name: Test five routes, active activist directory, no personal debug logs
         run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js api/tests/mountedActivistsPublicDirectory.contract.test.js
+      - name: Enforce one mounted Attivisti implementation
+        run: node --test api/tests/singleMountedActivistsDirectory.contract.test.js
       - name: Preserve main application routes while integrating DEMOS12
         run: node --test api/tests/mainRoutesPreserved.contract.test.js
       - name: Keep compact mobile civic headers and proposal buttons
