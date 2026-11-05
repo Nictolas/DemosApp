@@ -42,6 +42,7 @@ export default function OpinioniArgomento() {
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [showConsent, setShowConsent] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<OpinionGrade | "all">("all");
   const authorized = !!user && isSessionVerified && hasConsent;
 
   // Reuse the same query keys, encrypted per-grade vault and verified consent as
@@ -76,6 +77,28 @@ export default function OpinioniArgomento() {
       (normalize(a.userAnswer) === null ? 0 : 1) - (normalize(b.userAnswer) === null ? 0 : 1) ||
       a.text.localeCompare(b.text, "it"));
   }, [authorized, topicId, pE, pN, pR, pCO]);
+
+  // Grade is a SECOND independent dimension. Derive membership from the
+  // already loaded geographical lists; never infer province C from municipality CO.
+  const gradeMembership = useMemo(() => {
+    const membership = new Map<string, Set<OpinionGrade>>();
+    if (!authorized || !topic) return membership;
+    const loaded = [
+      ["E", pE], ["N", pN], ["R", pR], ["CO", pCO],
+    ] as const;
+    for (const [grade, payload] of loaded) {
+      for (const question of payload?.data ?? []) {
+        if (OPINION_TOPIC_BY_ID[question.id] !== topic.id) continue;
+        const found = membership.get(question.id) ?? new Set<OpinionGrade>();
+        found.add(grade);
+        membership.set(question.id, found);
+      }
+    }
+    return membership;
+  }, [authorized, topicId, pE, pN, pR, pCO]);
+  const visibleQuestions = useMemo(() => questions.filter((question) =>
+    levelFilter === "all" || gradeMembership.get(question.id)?.has(levelFilter)
+  ), [questions, levelFilter, gradeMembership]);
 
   useEffect(() => {
     // Server-confirmed snapshots are the baseline; unsaved drafts never count.
@@ -162,6 +185,15 @@ export default function OpinioniArgomento() {
             </div>
           </div>
         )}
+        <div className="mx-auto mt-3 flex max-w-3xl gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtra per territorio">
+          {([{ id: "all", label: "Tutti" }, ...grades] as const).map((grade) => (
+            <button key={grade.id} type="button" aria-pressed={levelFilter === grade.id}
+              onClick={() => setLevelFilter(grade.id)}
+              className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${levelFilter === grade.id ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700"}`}>
+              {grade.label}
+            </button>
+          ))}
+        </div>
       </header>
       <main className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 pb-5 sm:px-4">
         {!isSessionVerified ? (
@@ -178,7 +210,9 @@ export default function OpinioniArgomento() {
           <p role="alert" className="py-8 text-center">Non è stato possibile caricare le Opinioni. Riprova più tardi.</p>
         ) : questions.length === 0 ? (
           <p className="py-8 text-center">Nessuna Opinione per questo argomento.</p>
-        ) : questions.map((question) => {
+        ) : visibleQuestions.length === 0 ? (
+          <p className="py-8 text-center">Nessuna Opinione di questo argomento al livello selezionato.</p>
+        ) : visibleQuestions.map((question) => {
           const alreadySaved = normalize(question.userAnswer) !== null;
           return (
             <section key={question.id} className={`mx-auto max-w-4xl space-y-3 rounded-xl border p-4 ${alreadySaved ? "border-green-200 bg-green-50" : "border-blue-200 bg-blue-50"}`}>
