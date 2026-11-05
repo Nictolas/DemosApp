@@ -294,3 +294,16 @@ test('both explanation handlers return a safe 503 without provider secrets', asy
   assert.doesNotMatch(logs.join('\n'), /gsk_|PRIVATE_PROVIDER_STACK|provider rejected/);
   assert.match(logs.join('\n'), /AUTH/);
 });
+
+
+test('background explanation errors cannot expose provider credentials', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'sync-voti-openpolis.js'), 'utf8');
+  const start = source.indexOf("generaSpiegazioneVotazione(votazioneId, votazione,");
+  assert.ok(start > 0, 'background explanation call must be present');
+  const catchBlock = source.slice(start, start + 550);
+  assert.match(catchBlock, /classifyFreeGroqError\(error\)/);
+  assert.doesNotMatch(catchBlock, /error\.message|error\.stack|console\.error\([^)]*error\)/);
+  assert.doesNotMatch(catchBlock, /OPENAI_API_KEY/);
+});
