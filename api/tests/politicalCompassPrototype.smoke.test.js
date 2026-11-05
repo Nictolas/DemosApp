@@ -11,6 +11,12 @@ const profile = fs.readFileSync(path.join(root, "client/src/pages/Profilo/index.
 const profileHook = fs.readFileSync(path.join(root, "client/src/pages/Profilo/hooks/useProfileData.ts"), "utf8");
 const compassPage = fs.readFileSync(path.join(root, "client/src/pages/CompassoPolitico.tsx"), "utf8");
 const app = fs.readFileSync(path.join(root, "client/src/App.tsx"), "utf8");
+const privacyNotice = fs.readFileSync(path.join(root, "client/src/pages/PrivacyPolicy.tsx"), "utf8");
+const consentScreens = [
+  "client/src/pages/registrazione-consensi.tsx",
+  "client/src/pages/registrazione-consensi-opinioni.tsx",
+  "client/src/components/PoliticalOpinionsConsentModal.tsx",
+].map(filename => fs.readFileSync(path.join(root, filename), "utf8"));
 
 const catalog = Array.from({ length: 6 }, (_, index) =>
   JSON.parse(fs.readFileSync(
@@ -49,6 +55,68 @@ test("il grafico e privato, locale e richiede consenso verificato", () => {
   assert.match(compassPage, /<PoliticalCompassPreview answers=\{userOpinions\} standalone/);
   assert.match(compassPage, /overflow-y-auto/);
   assert.match(component, /non un test scientificamente validato/);
+  // I metadati restano nel modello, senza una sezione metodologica nel profilo.
+  assert.doesNotMatch(component, /Quali Opinioni vengono usate e come\\?|<details|<summary/);
+  assert.doesNotMatch(component, /COMPASS_QUESTIONS|readCompassAnswer|answerLabel/);
+  assert.match(modelSource, /export const COMPASS_QUESTIONS/);
+});
+
+test("cinque simboli neutri identificano i temi senza alterare il calcolo", () => {
+  assert.ok(component.includes('import { Globe2, Landmark, Leaf, Scale, UsersRound } from "lucide-react"'));
+  for (const [id, icon] of Object.entries({
+    economia: "Scale",
+    stato: "Landmark",
+    costumi: "UsersRound",
+    ambiente: "Leaf",
+    immigrazione: "Globe2",
+  })) {
+    assert.ok(component.includes(id + ": " + icon + ","), id + " deve avere la propria icona");
+  }
+  assert.ok(component.includes("const AxisIcon = AXIS_ICONS[axis.id]"));
+  assert.ok(component.includes('<AxisIcon className="h-4 w-4" />'));
+  assert.ok(component.includes('aria-hidden="true">'));
+  assert.ok(component.includes("{axis.title}"));
+  assert.ok(component.includes('role="meter"'), "Le barre e i punteggi devono rimanere invariati");
+});
+
+test("cinque assi tematici sotto il compasso, senza ulteriori richieste o dettagli personali", () => {
+  assert.match(component, /calculatePoliticalAxes\(answers\)/);
+  assert.match(component, /visible \? calculatePoliticalAxes\(answers\) : null/);
+  assert.match(component, /POLITICAL_AXES\.map\(\(axis\) =>/);
+  assert.match(component, /I tuoi orientamenti politici/);
+  assert.match(component, /aria-label="I tuoi orientamenti politici"/);
+  assert.match(component, /role="meter"/);
+  assert.match(component, /Dati insufficienti/);
+  assert.match(component, /Non sono un test validato/);
+  assert.doesNotMatch(component, /Quali Opinioni vengono usate e come\?|<details|<summary/);
+  assert.ok(
+    component.indexOf("I tuoi orientamenti politici") >
+    component.indexOf('<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">'),
+    "Le barre devono essere sotto il grafico e le schede riassuntive",
+  );
+});
+
+test("informativa distingue profilazione locale facoltativa da profilazione commerciale", () => {
+  assert.match(privacyNotice, /Compasso politico e indicatori tematici/);
+  assert.match(privacyNotice, /id="4\.1"/, "Il link della registrazione deve puntare a una sezione reale dell’informativa");
+  assert.match(privacyNotice, /profilazione ai sensi del GDPR/);
+  assert.match(privacyNotice, /senza salvare i punteggi nel database/);
+  assert.match(privacyNotice, /Senza consenso alle Opinioni politiche/);
+  assert.match(privacyNotice, /non vengono utilizzati[\s\S]*per decisioni automatizzate/);
+  assert.match(privacyNotice, /Nessuna profilazione commerciale o vendita/);
+  assert.doesNotMatch(privacyNotice, /Nessuna profilazione o vendita dati individuali/);
+});
+
+test("tutti i consensi informano sul compasso facoltativo senza nuove raccolte", () => {
+  assert.equal(consentScreens.length, 3);
+  for (const screen of consentScreens) {
+    assert.match(screen, /Compasso politico/);
+    assert.match(screen, /cinque indicatori/);
+    assert.match(screen, /dispositivo/);
+    assert.match(screen, /server/);
+  }
+  assert.match(privacyNotice, /Non vengono aggiunte nuove domande obbligatorie/);
+  assert.match(privacyNotice, /calcolo viene eseguito nel browser o nell'app sul dispositivo/);
 });
 
 test("il pulsante e in fondo al Profilo personale e apre una route protetta", () => {
@@ -85,9 +153,14 @@ test("quattro colori classici e posizione convenzionale dei quadranti", () => {
     ), `Quadrante errato: ${name}`);
   }
   assert.match(component, /cy=\{160 \+ \(compass\.freedom\.score \|\| 0\) \* 1\.25\}/);
-  assert.ok(component.indexOf("Maggiori restrizioni\n") <
-    component.indexOf("Maggiori libertà individuali\n"),
-    "Il polo delle restrizioni deve stare sopra quello delle libertà");
+  assert.match(component, /<text x="180" y="20"[^>]*>Autorità<\/text>/);
+  assert.match(component, /<text x="180" y="307"[^>]*>Libertà<\/text>/);
+  assert.match(component, /<text x="30" y="160" transform="rotate\(-90 30 160\)"[^>]*>Sinistra<\/text>/);
+  assert.match(component, /<text x="330" y="160" transform="rotate\(90 330 160\)"[^>]*>Destra<\/text>/);
+  assert.match(component, /viewBox="0 0 360 320"/);
+  assert.match(component, /className="mx-auto block h-auto w-full max-w-sm"/);
+  assert.match(component, /aria-label="Posizione stimata su due assi esplorativi:/);
+  assert.doesNotMatch(component, /Maggiori restrizioni|Maggiori libertà individuali|Soluzioni private \/ gare/);
   assert.match(component, /r="9" fill="#111827" stroke="#ffffff" strokeWidth="3"/);
 });
 
@@ -159,5 +232,91 @@ runtimeTest("ID estranei e risposte aggiunte fuori catalogo non cambiano il risu
   assert.deepEqual(
     model.calculatePoliticalCompass({...answers, __foreign__: "c"}),
     model.calculatePoliticalCompass(answers),
+  );
+});
+
+
+runtimeTest("cinque assi con ID validi, mappature senza duplicati e soglie coerenti", () => {
+  assert.deepEqual(model.POLITICAL_AXES.map(axis => axis.id),
+    ["economia", "stato", "costumi", "ambiente", "immigrazione"]);
+  const known = new Set(catalog.map(entry => entry.id));
+  for (const axis of model.POLITICAL_AXES) {
+    const ids = axis.questions.map(question => question.id);
+    assert.equal(new Set(ids).size, ids.length, `Doppioni su ${axis.id}`);
+    assert.ok(axis.minAnswers >= 3);
+    assert.ok(axis.minAnswers <= axis.questions.length);
+    assert.ok(axis.minLeft > 0);
+    assert.ok(axis.questions.filter(q => q.direction === -1).length >= axis.minLeft);
+    assert.ok(axis.questions.filter(q => q.direction === 1).length >= axis.minRight);
+    for (const question of axis.questions) {
+      assert.ok(known.has(question.id), `ID non valido: ${axis.id}/${question.id}`);
+      assert.ok([-1, 1].includes(question.direction));
+    }
+  }
+  assert.equal(model.POLITICAL_AXES.find(axis => axis.id === "immigrazione").experimental, true);
+  assert.equal(model.POLITICAL_AXES.find(axis => axis.id === "costumi").experimental, true);
+});
+
+runtimeTest("cinque assi: risposte mancanti e indecise non diventano falsi punteggi", () => {
+  const empty = model.calculatePoliticalAxes({});
+  const uncertain = model.calculatePoliticalAxes(
+    Object.fromEntries(model.POLITICAL_AXES.flatMap(axis => axis.questions.map(q => [q.id, "i"]))),
+  );
+  for (const axis of model.POLITICAL_AXES) {
+    assert.equal(empty[axis.id].score, null);
+    assert.equal(empty[axis.id].leftPercent, null);
+    assert.equal(empty[axis.id].rightPercent, null);
+    assert.equal(uncertain[axis.id].score, null);
+    assert.equal(uncertain[axis.id].answered, 0);
+    assert.equal(uncertain[axis.id].undecided, axis.questions.length);
+  }
+});
+
+runtimeTest("cinque assi: estremi, inversione delle risposte e percentuali complementari", () => {
+  for (const axis of model.POLITICAL_AXES) {
+    const leftVotes = Object.fromEntries(axis.questions.map(q => [q.id, q.direction === -1 ? "f" : "c"]));
+    const rightVotes = Object.fromEntries(axis.questions.map(q => [q.id, q.direction === 1 ? "f" : "c"]));
+    const left = model.scorePoliticalAxis(axis, leftVotes);
+    const right = model.scorePoliticalAxis(axis, rightVotes);
+    assert.equal(left.score, -100, axis.id);
+    assert.equal(left.leftPercent, 100, axis.id);
+    assert.equal(left.rightPercent, 0, axis.id);
+    assert.equal(right.score, 100, axis.id);
+    assert.equal(right.leftPercent, 0, axis.id);
+    assert.equal(right.rightPercent, 100, axis.id);
+    assert.equal(left.answered, axis.questions.length);
+    assert.equal(right.answered, axis.questions.length);
+  }
+});
+
+runtimeTest("i poli numericamente sbilanciati non spostano artificialmente il punteggio", () => {
+  const economy = model.POLITICAL_AXES.find(axis => axis.id === "economia");
+  // Si approvano proposte da entrambi i gruppi, ma il gruppo sinistro ha
+  // più domande. I due poli devono compensarsi come nel compasso principale.
+  const allFavourable = Object.fromEntries(economy.questions.map(q => [q.id, "f"]));
+  const result = model.scorePoliticalAxis(economy, allFavourable);
+  assert.equal(result.score, 0);
+  assert.equal(result.leftPercent, 50);
+  assert.equal(result.rightPercent, 50);
+});
+
+runtimeTest("immigrazione non mostra punteggio con solo risposte di accoglienza", () => {
+  const immigration = model.POLITICAL_AXES.find(axis => axis.id === "immigrazione");
+  const leftOnly = Object.fromEntries(
+    immigration.questions.filter(q => q.direction === -1).map(q => [q.id, "f"]),
+  );
+  const result = model.scorePoliticalAxis(immigration, leftOnly);
+  assert.equal(result.answered, 3);
+  assert.equal(result.rightAnswered, 0);
+  assert.equal(result.score, null);
+});
+
+runtimeTest("risposte estranee non cambiano gli orientamenti e i calcoli restano locali", () => {
+  const answers = Object.fromEntries(
+    model.POLITICAL_AXES.flatMap(axis => axis.questions.map(q => [q.id, "f"])),
+  );
+  assert.deepEqual(
+    model.calculatePoliticalAxes({ ...answers, __foreign__: "c" }),
+    model.calculatePoliticalAxes(answers),
   );
 });

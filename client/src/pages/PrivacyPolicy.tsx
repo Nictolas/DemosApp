@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             Informativa sulla Privacy
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Ultima modifica del testo: 02/11/2026
+            <strong>DemosApp</strong> - Ultima modifica del testo: 05/11/2026
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -85,7 +85,7 @@ export default function PrivacyPolicy() {
               <li><strong>Obbligo legale (Art. 6.1.c GDPR):</strong> Per adempimenti normativi</li>
             </ul>
             
-            <h3 className="text-xl font-medium mb-2 mt-4">4.1 Trattamento di Dati Particolari - Opinioni Politiche (GDPR Art. 9)</h3>
+            <h3 id="4.1" className="scroll-mt-24 text-xl font-medium mb-2 mt-4">4.1 Trattamento di Dati Particolari - Opinioni Politiche (GDPR Art. 9)</h3>
             <p className="text-gray-700 mb-3">
               Le <strong>opinioni politiche</strong> sono considerate "dati particolari" secondo il GDPR Art. 9 
               e richiedono un <strong>consenso esplicito separato</strong>.
@@ -107,6 +107,7 @@ export default function PrivacyPolicy() {
               <li>Permettere l'espressione della tua opinione su temi politici</li>
               <li>Generare statistiche aggregate e anonime sull'opinione pubblica</li>
               <li>Confrontare le tue opinioni con quelle dei rappresentanti politici</li>
+              <li>Mostrare, soltanto su tua richiesta nella pagina personale del Compasso politico, indicatori esplorativi dei tuoi orientamenti ricavati dalle Opinioni già espresse</li>
               <li>Migliorare la piattaforma di democrazia partecipativa</li>
               <li>Condividere statistiche aggregate e anonime con giornalisti, ricercatori e organizzazioni per ricerca, analisi e informazione pubblica (solo dati aggregati, non identificabili)</li>
             </ul>
@@ -116,10 +117,47 @@ export default function PrivacyPolicy() {
               informazione pubblica. I dati individuali non vengono mai condivisi.
             </p>
             <p className="text-gray-700">
-              <strong>Nessuna profilazione o vendita dati individuali:</strong> Le tue opinioni politiche individuali 
+              <strong>Nessuna profilazione commerciale o vendita dei dati individuali:</strong> Le tue opinioni politiche individuali 
               non vengono utilizzate per creare profili utente per scopi commerciali, non vengono vendute o condivise 
               con partiti politici, e non vengono utilizzate per targeting pubblicitario politico. Solo statistiche 
               aggregate e anonime (non identificabili) possono essere condivise con giornalisti, ricercatori e organizzazioni.
+            </p>
+          </section>
+
+          {/* Indicazioni specifiche sulle inferenze politiche locali */}
+          <section aria-labelledby="compasso-privacy-heading">
+            <h2 id="compasso-privacy-heading" className="text-2xl font-semibold mb-3">
+              4.2 Compasso politico e indicatori tematici
+            </h2>
+            <p className="text-gray-700 mb-3">
+              Se scegli di aprire la pagina personale del Compasso politico e il consenso
+              alle Opinioni politiche è valido, DEMOS utilizza un sottoinsieme delle risposte
+              già fornite per stimare la tua posizione su due dimensioni e mostrare cinque
+              indicatori tematici: economia, Stato, costumi, ambiente e immigrazione.
+              I risultati sono inferenze sulle opinioni politiche e possono costituire
+              profilazione ai sensi del GDPR, anche se il calcolo viene effettuato
+              sul tuo dispositivo.
+            </p>
+            <p className="text-gray-700 mb-3">
+              Il calcolo viene eseguito nel browser o nell'app sul dispositivo, al momento
+              della visualizzazione, senza salvare i punteggi nel database, inviarli al server
+              o renderli pubblici sul profilo. Non vengono aggiunte nuove domande obbligatorie,
+              né raccolta l'appartenenza religiosa. Le Opinioni di partenza mantengono invece
+              il trattamento e la conservazione già descritti in questa informativa.
+            </p>
+            <p className="text-gray-700 mb-3">
+              Il Compasso e le cinque barre sono strumenti esplorativi e non scientificamente
+              validati: non identificano con certezza un'ideologia e non vengono utilizzati
+              per decisioni automatizzate con effetti giuridici o analogamente significativi,
+              né per pubblicità politica personalizzata. Se mancano risposte sufficienti,
+              può comparire «Dati insufficienti» al posto di un punteggio.
+            </p>
+            <p className="text-gray-700">
+              L'uso della pagina è facoltativo. Senza consenso alle Opinioni politiche
+              attivo il Compasso non mostra risultati; puoi revocare il consenso con le
+              modalità descritte sopra. Le percentuali rappresentano un punteggio
+              trasformato delle risposte selezionate, non probabilità né dati
+              rappresentativi della popolazione.
             </p>
           </section>
 
