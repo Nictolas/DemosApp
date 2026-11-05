@@ -56,7 +56,8 @@ function harness({legacyGraziaReview = false} = {}) {
   const stubs = {
     express: {Router: () => router},
     '../config/database': {getPool: () => pool},
-    '../middleware/auth': {verifyToken: noop, requireAdmin: noop}
+    '../middleware/auth': {verifyToken: noop, requireAdmin: noop},
+    '../services/publicApprovedSubjectPage': {readApprovedPage: async () => ({data:[],next_cursor:null})}
   };
   vm.runInNewContext(routeSource, {
     module: moduleShim,
