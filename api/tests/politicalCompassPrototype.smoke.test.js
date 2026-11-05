@@ -49,6 +49,10 @@ test("il grafico e privato, locale e richiede consenso verificato", () => {
   assert.match(compassPage, /<PoliticalCompassPreview answers=\{userOpinions\} standalone/);
   assert.match(compassPage, /overflow-y-auto/);
   assert.match(component, /non un test scientificamente validato/);
+  // I metadati restano nel modello, senza una sezione metodologica nel profilo.
+  assert.doesNotMatch(component, /Quali Opinioni vengono usate e come\\?|<details|<summary/);
+  assert.doesNotMatch(component, /COMPASS_QUESTIONS|readCompassAnswer|answerLabel/);
+  assert.match(modelSource, /export const COMPASS_QUESTIONS/);
 });
 
 test("il pulsante e in fondo al Profilo personale e apre una route protetta", () => {
