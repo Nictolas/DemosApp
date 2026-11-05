@@ -2,7 +2,7 @@
 // Vincolo DEMOS: solo modello Groq Free allowlisted, senza fallback a pagamento.
 const Groq = require('groq-sdk');
 const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
-const { hasDocumentaryContext } = require('./parliamentGroundedAnalysis');
+const { hasDocumentaryContext, MAX_CONTEXT_CHARS } = require('./parliamentGroundedAnalysis');
 const { requestFreeGroq, getSharedFreeQuotaStatus } = require('./parliamentFreeGroqBudget');
 const { createSingleflight } = require('./parliamentAiSingleflight');
 const singleflightSpiegazione = createSingleflight();
@@ -79,7 +79,7 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
       'Titolo: ' + votazione.slice(0, 350),
       'Camera: ' + String(camera || '').slice(0, 50),
       'DOCUMENTO:',
-      descrizione.slice(0, 12000)
+      descrizione.slice(0, MAX_CONTEXT_CHARS)
     ].join('\n');
 
     const messages = [
