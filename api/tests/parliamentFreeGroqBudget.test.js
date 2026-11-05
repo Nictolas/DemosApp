@@ -5,6 +5,7 @@ const {
   LIMIT,
   estimateReservedTokens,
   isProviderRateLimited,
+  classifyFreeGroqError,
   createFreeBudgetGate,
   requestFreeGroq
 } = require('../services/parliamentFreeGroqBudget');
@@ -177,4 +178,36 @@ test('mocked GPT-OSS completion never publishes empty, truncated or filtered tex
   assert.equal(lastParams.model, 'openai/gpt-oss-120b');
   assert.equal(lastParams.max_completion_tokens, 1024);
   assert.equal(lastParams.reasoning_effort, 'low');
+});
+
+test('Groq error diagnostics never log raw provider errors', () => {
+  const dangerous = { status: 401, message: 'secret gsk_EXAMPLE_SUPER_SECRET_DO_NOT_PRINT', stack: 'secret stack' };
+  assert.equal(classifyFreeGroqError(dangerous), 'AUTH');
+  assert.equal(classifyFreeGroqError({ status: 403 }), 'AUTH');
+  assert.equal(classifyFreeGroqError({ status: 400 }), 'INVALID_REQUEST');
+  assert.equal(classifyFreeGroqError({ status: 404 }), 'MODEL_NOT_FOUND');
+  assert.equal(classifyFreeGroqError({ status: 429 }), 'RATE_LIMIT');
+  assert.equal(classifyFreeGroqError({ status: 503 }), 'PROVIDER_UNAVAILABLE');
+  assert.equal(classifyFreeGroqError({ code: 'UNEXPECTED_TOKEN_IN_MESSAGE' }), 'NETWORK_OR_UNKNOWN');
+  assert.doesNotMatch(classifyFreeGroqError(dangerous), /gsk_|secret/);
+});
+
+test('parliament AI routes and services hide provider messages and stack traces', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const services = ['aiExplanationService.js', 'leggeAnalysisService.js'];
+  for (const name of services) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'services', name), 'utf8');
+    assert.match(src, /classifyFreeGroqError\(error\)/);
+    assert.doesNotMatch(src, /error\.stack/);
+    assert.doesNotMatch(src, /console\.error\([^\n]*error\.message/);
+  }
+  const src = fs.readFileSync(path.join(__dirname, '..', 'routes', 'voti-camera.js'), 'utf8');
+  const start = src.indexOf("router.post('/votazione/:votazione_id/spiegazione'");
+  const end = src.indexOf("// POST /api/voti-camera/genera-spiegazioni");
+  assert.ok(start !== -1 && end > start);
+  const guarded = src.slice(start, end);
+  assert.doesNotMatch(guarded, /genError\.message|genError\.stack|error\.stack|message:\s*error\.message/);
+  assert.match(guarded, /classifyFreeGroqError\(genError\)/);
+  assert.match(guarded, /res\.status\(503\)\.json/);
 });
