@@ -1,5 +1,5 @@
 const express = require('express');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const {
   getUltimeVotazioni,
   getDettagliVotazione,
@@ -14,7 +14,7 @@ const router = express.Router();
 router.get('/ultime', verifyToken, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 1, 100); // Default 1 (ultima votazione), max 100
-    const forceRefresh = req.query.refresh === 'true'; // Forza refresh da API
+    const forceRefresh = req.query.refresh === 'true'; // Refresh da API solo per Admin
     
     console.log(`🔍 GET /api/voti-parlamento-europeo/ultime - Richiesta ultime ${limit} votazioni (refresh: ${forceRefresh})`);
     
@@ -34,6 +34,9 @@ router.get('/ultime', verifyToken, async (req, res) => {
     // La sincronizzazione automatica è disabilitata perché può richiedere molto tempo
     // e bloccare la risposta HTTP. Usa l'endpoint POST /sincronizza per sincronizzazioni manuali.
     if (forceRefresh) {
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ success: false, message: 'Operazione riservata all’amministratore' });
+      }
       try {
         console.log('🔄 Refresh richiesto, sincronizzazione in corso...');
         // Usa Promise.race per aggiungere un timeout di 30 secondi
@@ -97,7 +100,7 @@ router.get('/ultime', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Errore nel recupero delle votazioni',
-      error: error.message,
+      error: 'Errore interno',
       details: error.stack
     });
   }
@@ -168,7 +171,7 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
         analisiLegge = await recuperaAnalisiDaCache(decodedUri);
         
         // Se non esiste, genera una nuova analisi (solo per votazioni recenti)
-        if (!analisiLegge && votazione.titolo) {
+        if (!analisiLegge && votazione.titolo && req.user?.isAdmin) {
           try {
             console.log('🤖 Generazione analisi AI per la votazione...');
             // Aggiungi timeout per evitare blocchi
@@ -183,12 +186,12 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
             );
             analisiLegge = await Promise.race([analisiPromise, timeoutPromise]);
           } catch (analisiTimeoutError) {
-            console.error('⚠️ Timeout nella generazione analisi:', analisiTimeoutError.message);
+            console.warn('Analisi AI PE non disponibile: timeout o errore temporaneo');
             // Continua senza analisi
           }
         }
       } catch (analisiError) {
-        console.error('⚠️ Errore nella generazione analisi:', analisiError.message);
+        console.warn('Analisi AI PE non disponibile: generazione non riuscita');
         // Continua comunque senza analisi
       }
     } else {
@@ -233,17 +236,17 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
       data: risposta
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero dettagli PE:', error);
+    console.error('Errore interno nel recupero dei dettagli delle votazioni PE');
     res.status(500).json({
       success: false,
       message: 'Errore nel recupero dei dettagli',
-      error: error.message
+      error: 'Errore interno'
     });
   }
 });
 
 // POST /api/voti-parlamento-europeo/rigenera-analisi/:uri - Rigenera l'analisi AI
-router.post('/rigenera-analisi/:uri', verifyToken, async (req, res) => {
+router.post('/rigenera-analisi/:uri', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { uri } = req.params;
     const decodedUri = decodeURIComponent(uri);
@@ -291,17 +294,17 @@ router.post('/rigenera-analisi/:uri', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nella rigenerazione analisi:', error);
+    console.error('Errore interno nella rigenerazione AI PE');
     res.status(500).json({
       success: false,
       message: 'Errore nella rigenerazione dell\'analisi',
-      error: error.message
+      error: 'Errore interno'
     });
   }
 });
 
 // POST /api/voti-parlamento-europeo/sincronizza - Sincronizza le votazioni dal PE
-router.post('/sincronizza', verifyToken, async (req, res) => {
+router.post('/sincronizza', verifyToken, requireAdmin, async (req, res) => {
   try {
     const limitSessioni = parseInt(req.body.limitSessioni) || 5;
     
@@ -315,17 +318,17 @@ router.post('/sincronizza', verifyToken, async (req, res) => {
       data: risultato
     });
   } catch (error) {
-    console.error('❌ Errore nella sincronizzazione:', error);
+    console.error('Sincronizzazione votazioni PE non riuscita');
     res.status(500).json({
       success: false,
       message: 'Errore nella sincronizzazione',
-      error: error.message
+      error: 'Errore interno'
     });
   }
 });
 
 // POST /api/voti-parlamento-europeo/aggiorna-titoli - Aggiorna i titoli delle votazioni esistenti
-router.post('/aggiorna-titoli', verifyToken, async (req, res) => {
+router.post('/aggiorna-titoli', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { getPool } = require('../config/database');
     const pool = getPool();
@@ -377,11 +380,11 @@ router.post('/aggiorna-titoli', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nell\'aggiornamento titoli:', error);
+    console.error('Aggiornamento titoli PE non riuscito');
     res.status(500).json({
       success: false,
       message: 'Errore nell\'aggiornamento dei titoli',
-      error: error.message
+      error: 'Errore interno'
     });
   }
 });
