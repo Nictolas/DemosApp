@@ -22,17 +22,22 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
   const ADMIN='33333333-3333-4333-8333-333333333333';
   const C='44444444-4444-4444-8444-444444444444';
   const D='55555555-5555-4555-8555-555555555555';
-  // The public GET decodes an optional JWT internally. Use a synthetic
-  // verifier only in this isolated test process; no real signing keys.
-  const jwtPath=require.resolve('jsonwebtoken');
-  const previousJwtModule=require.cache[jwtPath];
-  require.cache[jwtPath]={id:jwtPath,filename:jwtPath,loaded:true,exports:{
-    verify:token=>{
-      if(token==='a')return {userId:A};
-      if(token==='b')return {userId:B};
-      throw Error('SYNTHETIC_INVALID_TOKEN');
+  // The public GET decodes an optional JWT. The isolated PG17 CI job
+  // intentionally does not install jsonwebtoken, so intercept only that
+  // require from this router with a synthetic verifier (never real secrets).
+  const Module=require('node:module');
+  const originalModuleLoad=Module._load;
+  const graziaFilename=require.resolve('../routes/grazia');
+  Module._load=function(request,parent,isMain){
+    if(request==='jsonwebtoken' && parent?.filename===graziaFilename){
+      return {verify:token=>{
+        if(token==='a')return {userId:A};
+        if(token==='b')return {userId:B};
+        throw Error('SYNTHETIC_INVALID_TOKEN');
+      }};
     }
-  }};
+    return originalModuleLoad.call(this,request,parent,isMain);
+  };
   let server;
   try {
     const setup=[
@@ -552,7 +557,6 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
   } finally {
     if(server?.listening)await new Promise(resolve=>server.close(resolve));
     await pool.end();
-    if(previousJwtModule) require.cache[jwtPath]=previousJwtModule;
-    else delete require.cache[jwtPath];
+    Module._load=originalModuleLoad;
   }
 });
