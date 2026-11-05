@@ -285,8 +285,11 @@ class MinisteroSyncService {
         throw new Error(`Titolo mancante o vuoto per iniziativa con id_ministero: ${fields.id_ministero || 'N/A'}`);
       }
       
-      // Genera un ID univoco se non c'è
-      const id = fields.id_ministero ? `ministero_${fields.id_ministero}` : `ministero_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Official source IDs are required: random fallback IDs break idempotency.
+      if (!fields.id_ministero || !String(fields.id_ministero).trim()) {
+        throw new Error('MINISTERO_OFFICIAL_ID_REQUIRED');
+      }
+      const id = `ministero_${fields.id_ministero}`;
       
       // Verifica se esiste già (per id_ministero o titolo+tipo)
       // Gestisci correttamente il caso in cui id_ministero è null
@@ -418,21 +421,15 @@ class MinisteroSyncService {
           });
         }
         
-        // Usa INSERT ... ON CONFLICT per gestire duplicati
-        // Gestisce sia conflitti su id (PRIMARY KEY) che su id_ministero (UNIQUE)
-        let conflictTarget = '(id)';
-        if (fields.id_ministero) {
-          // Se c'è id_ministero, prova prima con quello (più specifico)
-          conflictTarget = '(id_ministero)';
-        }
-        
+        // Demos-Staging has only PRIMARY KEY(id). Conflict on id_ministero
+        // would fail with PG 42P10; the stable prefixed id is the arbiter.
         const result = await pool.query(
           `INSERT INTO iniziative_ministero (
             id, id_ministero, titolo, descrizione, tipo, stato, esito,
             data_inizio, data_fine, firme_raccolte, quorum_raggiunto,
             sito_web, dati_raw, data_ultimo_aggiornamento
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14)
-          ON CONFLICT ${conflictTarget} DO UPDATE SET
+          ON CONFLICT (id) DO UPDATE SET
             titolo = EXCLUDED.titolo,
             descrizione = EXCLUDED.descrizione,
             tipo = EXCLUDED.tipo,
