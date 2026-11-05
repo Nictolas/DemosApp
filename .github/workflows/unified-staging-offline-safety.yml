@@ -18,6 +18,7 @@ on:
       - 'api/services/civicPreferenceAtomicSave.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/civicPreferenceAtomicSave.test.js'
+      - 'api/tests/civicPreferenceAtomicSave.postgres.test.js'
       - 'api/routes/fcm-tokens.js'
       - 'api/tests/civicFcmTokenOwnership.test.js'
       - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
@@ -97,6 +98,7 @@ on:
       - 'api/services/civicPreferenceAtomicSave.js'
       - 'api/routes/notifiche.js'
       - 'api/tests/civicPreferenceAtomicSave.test.js'
+      - 'api/tests/civicPreferenceAtomicSave.postgres.test.js'
       - 'api/routes/fcm-tokens.js'
       - 'api/tests/civicFcmTokenOwnership.test.js'
       - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
@@ -373,5 +375,7 @@ jobs:
         run: node --test api/tests/civicRuntimeAdvisoryLock.postgres.test.js
       - name: Prove active FCM token owner exclusion in disposable PG${{ matrix.pg-major }}
         run: node --test api/tests/civicFcmTokenOwnership.postgres.test.js
+      - name: Verify civic preference rollback and durable blocked guard on disposable PG${{ matrix.pg-major }}
+        run: node --test api/tests/civicPreferenceAtomicSave.postgres.test.js
       - name: Exercise actual JavaScript service on PostgreSQL ${{ matrix.pg-major }} and rollback all 10 synthetic votes
         run: node --test api/tests/referendumForecastSnapshot.postgres16.test.js
