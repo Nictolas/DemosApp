@@ -184,6 +184,46 @@ class SyncEciUnitTests(unittest.TestCase):
         self.assertEqual(record[6], "Obiettivo ufficiale")
         self.assertEqual(record[7], "https://eci.ec.europa.eu/066/public/?lg=it")
 
+    def test_supporters_must_be_true_nonnegative_integers(self):
+        self.assertEqual(sync_eci._normalize_number(17), 17)
+        self.assertEqual(sync_eci._normalize_number("17"), 17)
+        for invalid in (True, False, 1.5, "1.5", None, -1):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SUPPORTERS_"):
+                    sync_eci._normalize_number(invalid)
+
+    def test_support_link_cannot_redirect_citizens_to_non_eu_host(self):
+        base = {
+            "year": "2026", "number": "000011", "totalSupporters": 17,
+            "title": "Titolo ufficiale",
+        }
+        for untrusted in (
+            "https://attacker.example/collect",
+            "https://eci.ec.europa.eu.attacker.example/collect",
+            "https://eci.ec.europa.eu@attacker.example/collect",
+            "http://eci.ec.europa.eu/collect",
+            "https://eci.ec.europa.eu:444/collect",
+        ):
+            with self.subTest(url=untrusted):
+                record = sync_eci._normalize_record(
+                    base, {"status": "ONGOING", "linguisticVersions": [
+                        {"languageCode": "IT", "title": "Titolo",
+                         "supportLink": untrusted},
+                    ]}
+                )
+                self.assertEqual(record[7],
+                    "https://citizens-initiative.europa.eu/initiatives/details/2026/000011_it")
+        self.assertEqual(sync_eci._official_support_url(
+            "https://eci.ec.europa.eu/066/public/?lg=it", "fallback"),
+            "https://eci.ec.europa.eu/066/public/?lg=it")
+
+    def test_detail_register_number_must_match_search_identity_when_present(self):
+        entry = {"year": "2026", "number": "000011", "totalSupporters": 1}
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_DETAIL_ID_MISMATCH"):
+            sync_eci._normalize_record(entry, {
+                "status": "ONGOING", "pubRegNum": "ECI(2026)000012",
+            })
+
     def test_record_rejects_non_ongoing_detail_or_invalid_identity(self):
         entry = {
             "year": "2026",
