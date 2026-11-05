@@ -10,6 +10,7 @@ const express=require('express');
 const TOKEN='fcm_synthetic_'+'a'.repeat(150);
 const FOREIGN='fcm_synthetic_'+'b'.repeat(150);
 let legacyFixture=[TOKEN];
+let legacyColumnPresent=true;
 let foreignFixture=false;
 const upserts=[];
 const USER='11111111-1111-4111-8111-111111111111';
@@ -36,7 +37,7 @@ const db={
     calls.push('SQL');
     if(text.includes('INSERT INTO user_devices')) upserts.push(params);
     if(text.includes('FROM users WHERE id = $1')){
-      return {rows:[{fcm_tokens:legacyFixture}]};
+      return {rows:[{fcm_tokens:legacyFixture,legacy_column_present:legacyColumnPresent}]};
     }
     if(text.includes('SELECT 1 FROM user_devices')){
       return {rows:[{exists:1}]};
@@ -223,4 +224,28 @@ test('cleanup clears foreign-only stale legacy without reassigning it',async()=>
   } finally {
     legacyFixture=[TOKEN];foreignFixture=false;
   }
+});
+
+test('registration succeeds on canonical device when legacy field is absent',async()=>{
+  gate=null;calls.length=0;upserts.length=0;
+  legacyFixture=[];legacyColumnPresent=false;
+  try{
+    const res=await request('POST','/api/fcm-tokens',{token:TOKEN});
+    assert.equal(res.status,200);
+    assert.equal(res.body.success,true);
+    assert.equal(upserts.length,1);
+    assert.ok(calls.includes('COMMIT_CONFIRMED'));
+  }finally{legacyFixture=[TOKEN];legacyColumnPresent=true;}
+});
+
+test('cleanup with retired legacy field leaves canonical device records untouched',async()=>{
+  gate=null;calls.length=0;upserts.length=0;
+  legacyFixture=[];legacyColumnPresent=false;
+  try{
+    const res=await request('POST','/api/fcm-tokens/cleanup',{});
+    assert.equal(res.status,200);
+    assert.equal(res.body.data.skipped,true);
+    assert.deepEqual(upserts,[]);
+    assert.equal(calls.includes('PROTECTED_CLEANUP_UPSERT'),false);
+  }finally{legacyFixture=[TOKEN];legacyColumnPresent=true;}
 });
