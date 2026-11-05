@@ -4,7 +4,7 @@ const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const { projectPublicDirectoryMembers } = require('../services/publicDirectoryMemberProjection');
-const {decodeRegisteredCursor,pageRegistered} = require('../services/registeredDirectoryPage');
+const {decodeRegisteredCursor,pageRegistered,isPagedRegisteredRequest} = require('../services/registeredDirectoryPage');
 const router = express.Router();
 require('dotenv').config();
 
@@ -27,6 +27,7 @@ router.get('/', async (req, res) => {
     const { search, regione, tipologia, exclude_user_id } = req.query;
     const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
     if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
+    const membersPaged = isPagedRegisteredRequest(req.query);
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -118,10 +119,12 @@ router.get('/', async (req, res) => {
         WHERE s.attivisti = u.id
       ) us ON TRUE
       WHERE __ACCOUNT_FILTER__ AND ${whereClause}
-      ORDER BY supporters_count DESC, u.created_at DESC, u.id::text DESC LIMIT 101
+      ORDER BY supporters_count DESC, u.created_at DESC, u.id::text DESC ${membersPaged ? 'LIMIT 101' : ''}
     `, queryParams);
     
-    const {rows:attivisti,members_next_cursor} = pageRegistered(result.rows);
+    const {rows:attivisti,members_next_cursor} = membersPaged
+      ? pageRegistered(result.rows)
+      : {rows:result.rows,members_next_cursor:null};
     
     
     // One indexed read piggybacks on the directory response; no extra browser GET.
@@ -155,6 +158,7 @@ router.get('/tipologia/:tipo', async (req, res) => {
     const { tipo } = req.params;
     const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
     if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
+    const membersPaged = isPagedRegisteredRequest(req.query);
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -186,10 +190,12 @@ router.get('/tipologia/:tipo', async (req, res) => {
       WHERE __ACCOUNT_FILTER__
       AND tipologie_attivismo @> $1
       ${membersCursor ? 'AND (0::int,u.created_at,u.id::text) < ($2::int,(SELECT cursor_user.created_at FROM users cursor_user WHERE cursor_user.id=$3::uuid),$3::text)' : ''}
-      ORDER BY u.created_at DESC, u.id::text DESC LIMIT 101
+      ORDER BY u.created_at DESC, u.id::text DESC ${membersPaged ? 'LIMIT 101' : ''}
     `, [JSON.stringify([{ tipo }]), ...(membersCursor || [])]);
     
-    const {rows:attivisti,members_next_cursor} = pageRegistered(result.rows);
+    const {rows:attivisti,members_next_cursor} = membersPaged
+      ? pageRegistered(result.rows)
+      : {rows:result.rows,members_next_cursor:null};
     
     
     res.json({

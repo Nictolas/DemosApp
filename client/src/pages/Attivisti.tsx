@@ -158,6 +158,7 @@ export default function Attivisti() {
         if (searchTerm.trim()) params.append('search', searchTerm.trim());
         if (selectedRegione && selectedRegione !== 'all') params.append('regione', selectedRegione);
         if (selectedTipologia && selectedTipologia !== 'all') params.append('tipologia', selectedTipologia);
+        params.set('members_paged', '1');
         
         const url = getApiUrl(`/api/attivisti${params.toString() ? '?' + params.toString() : ''}`);
 
@@ -262,6 +263,7 @@ export default function Attivisti() {
     if (searchTerm.trim()) params.set("search", searchTerm.trim());
     if (selectedRegione && selectedRegione !== "all") params.set("regione", selectedRegione);
     if (selectedTipologia && selectedTipologia !== "all") params.set("tipologia", selectedTipologia);
+    params.set("members_paged", "1");
     params.set("members_cursor", membersNextCursor);
     try {
       const response = await fetch(getApiUrl("/api/attivisti?" + params.toString()), {

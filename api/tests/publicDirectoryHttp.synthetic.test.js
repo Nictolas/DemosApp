@@ -47,7 +47,7 @@ const fakePool = {
       const projection = sql.match(/\bSELECT\s+([\s\S]*?)\s+FROM users u\b/i)?.[1];
       assert.ok(projection, 'expected user list SELECT');
       if (largeDirectory) {
-        assert.match(sql,/LIMIT 101/,'directory SQL must bound result pages');
+        const paged = /LIMIT 101/.test(sql);
         const items=Array.from({length:105},(_,i)=>{
           const n=105-i;
           return {
@@ -58,7 +58,7 @@ const fakePool = {
           };
         });
         const cursorId=sql.includes('SELECT cursor_user.created_at')?params.at(-1):null;
-        return {rows:items.filter(row=>!cursorId||row.id<cursorId).slice(0,101)};
+        return {rows:items.filter(row=>!cursorId||row.id<cursorId).slice(0,paged?101:undefined)};
       }
       assert.doesNotMatch(projection, /\b(?:u\.)?\*\b|\bu\.\*/, 'no SELECT * from public user profiles');
       const row = {};
@@ -166,12 +166,37 @@ test('database errors do not expose SQL or credentials in public JSON', async ()
   }
 });
 
+test('older Android and web clients without pagination opt-in still receive all registered profiles',async()=>{
+  largeDirectory=true;
+  try{
+    for(const url of ['/api/attivisti','/api/organizzazioni','/api/attivisti/tipologia/ambiente']){
+      const before=queries.length;
+      const response=await request(url);
+      assert.equal(response.status,200,url);
+      const data=await response.json();
+      assert.equal(data.data.length,105,'legacy client must not silently lose profiles');
+      assert.equal(data.count,105);
+      assert.equal(data.members_next_cursor,null);
+      assert.equal(new Set(data.data.map(row=>row.id)).size,105);
+      assert.equal(data.data[0].id,makeId(105));
+      assert.equal(data.data.at(-1).id,makeId(1));
+      assert.equal(JSON.stringify(data).includes('private@example.invalid'),false);
+      const next=queries.slice(before).find(sql=>sql.includes('FROM users u'));
+      assert.ok(next);
+      assert.doesNotMatch(next,/LIMIT 101/,'legacy route retains pre-existing full-list behavior');
+      if(!url.includes('/tipologia/')){
+        assert.deepEqual(data.approved_subjects,[{id:'approved-fixture',title:'Soggetto approvato'}]);
+      }
+    }
+  }finally{largeDirectory=false;}
+});
+
 test('registered profiles paginate at 100 for every public directory, without exposing private fields',async()=>{
   largeDirectory=true;
   try{
     for (const url of ['/api/attivisti','/api/organizzazioni','/api/attivisti/tipologia/ambiente']){
       const start=queries.length;
-      const first=await request(url);
+      const first=await request(url+'?members_paged=1');
       assert.equal(first.status,200,url);
       const a=await first.json();
       assert.equal(a.data.length,100,url);
@@ -184,7 +209,7 @@ test('registered profiles paginate at 100 for every public directory, without ex
         ['avatar_config','cognome','id','nome','regione_residenza','ruolo','supporters_count','tipologie_attivismo'].sort());
       assert.ok(!JSON.stringify(a).includes('private@example.invalid'));
       assert.ok(!JSON.stringify(a).includes('1793880000.123456'));
-      const secondUrl=url+(url.includes('?')?'&':'?')+'members_cursor='+encodeURIComponent(a.members_next_cursor);
+      const secondUrl=url+'?members_paged=1&members_cursor='+encodeURIComponent(a.members_next_cursor);
       const second=await request(secondUrl);
       assert.equal(second.status,200,secondUrl);
       const b=await second.json();

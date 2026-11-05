@@ -41,6 +41,8 @@ const reply=(route,data,status=200)=>route.fulfill({status,contentType:'applicat
         return reply(route,{success:false},400);
       }
       if(u.pathname==='/api/'+category){
+        assert.equal(u.searchParams.get('members_paged'),'1',
+          'updated clients must explicitly opt in to 100-profile pages');
         if(u.searchParams.get('search')==='zzzz-no-match'){
           reads.filter++;
           return reply(route,{success:true,data:[],count:0,members_next_cursor:null,

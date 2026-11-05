@@ -76,14 +76,21 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
       ['/api/attivisti',105,1],['/api/organizzazioni',210,106],
       ['/api/attivisti/tipologia/ambiente',105,1]
     ]){
-      const firstResponse=await fetch(origin+url);
+      // Older published mobile bundles have no Load more control.
+      const legacy=await fetch(origin+url);
+      assert.equal(legacy.status,200,url);
+      const legacyJson=await legacy.json();
+      assert.equal(legacyJson.data.length,105,'old clients must retain all registered profiles');
+      assert.equal(legacyJson.members_next_cursor,null);
+      assert.equal(new Set(legacyJson.data.map(row=>row.id)).size,105);
+      const firstResponse=await fetch(origin+url+'?members_paged=1');
       assert.equal(firstResponse.status,200,url);
       const a=await firstResponse.json();
       assert.equal(a.data.length,100,url);
       assert.equal(typeof a.members_next_cursor,'string');
       assert.equal(a.data[0].id,id(start));
       assert.equal('cursor_epoch' in a.data[0],false);
-      const next=await fetch(origin+url+'?members_cursor='+encodeURIComponent(a.members_next_cursor));
+      const next=await fetch(origin+url+'?members_paged=1&members_cursor='+encodeURIComponent(a.members_next_cursor));
       assert.equal(next.status,200,url);
       const b=await next.json();
       assert.equal(b.data.length,5,url);
@@ -94,7 +101,7 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
       assert.equal((await fetch(origin+url+'?members_cursor=%2A')).status,400);
       assert.equal(count,before,'bad cursor rejected before SQL');
     }
-    console.log('PG17_REGISTERED_DIRECTORY_KEYSET_PASS: categories 3 x 105 profiles');
+    console.log('PG17_REGISTERED_DIRECTORY_KEYSET_PASS: categories 3 x 105 profiles; legacy 105 + modern 100/5');
   }finally{
     if(server)await new Promise(resolve=>server.close(resolve));
     await db.query('DROP SCHEMA IF EXISTS '+schema+' CASCADE').catch(()=>{});

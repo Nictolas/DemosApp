@@ -5,6 +5,10 @@
 // contains only the already-public UUID and supporter count; the database
 // resolves the referenced profile's timestamp within the same SELECT. No user content is cached.
 const LIMIT = 100;
+// Old Android/web bundles do not have a Load more control. Preserve their
+// historical full list until minimum supported client versions are verified.
+// New clients explicitly opt into bounded pages on every request.
+const isPagedRegisteredRequest = query => query?.members_paged === '1' || query?.members_cursor != null;
 const ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 function decodeRegisteredCursor(raw) {
   if (raw == null || raw === '') return null;
@@ -26,4 +30,4 @@ function pageRegistered(rows) {
     : null;
   return {rows:page,members_next_cursor};
 }
-module.exports={LIMIT,decodeRegisteredCursor,pageRegistered};
+module.exports={LIMIT,decodeRegisteredCursor,pageRegistered,isPagedRegisteredRequest};

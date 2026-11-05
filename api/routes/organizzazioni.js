@@ -4,7 +4,7 @@ const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
 const { readApprovedPage } = require('../services/publicApprovedSubjectPage');
 const { projectPublicDirectoryMembers } = require('../services/publicDirectoryMemberProjection');
-const {decodeRegisteredCursor,pageRegistered} = require('../services/registeredDirectoryPage');
+const {decodeRegisteredCursor,pageRegistered,isPagedRegisteredRequest} = require('../services/registeredDirectoryPage');
 const router = express.Router();
 require('dotenv').config();
 
@@ -28,6 +28,7 @@ router.get('/', async (req, res) => {
     const { search, regione, tipologia, exclude_user_id } = req.query;
     const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
     if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
+    const membersPaged = isPagedRegisteredRequest(req.query);
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -113,10 +114,12 @@ router.get('/', async (req, res) => {
         WHERE s.organizzazioni = u.id
       ) us ON TRUE
       WHERE __ACCOUNT_FILTER__ AND ${whereClause}
-      ORDER BY supporters_count DESC, u.created_at DESC, u.id::text DESC LIMIT 101
+      ORDER BY supporters_count DESC, u.created_at DESC, u.id::text DESC ${membersPaged ? 'LIMIT 101' : ''}
     `, queryParams);
     
-    const {rows:organizzazioni,members_next_cursor} = pageRegistered(result.rows);
+    const {rows:organizzazioni,members_next_cursor} = membersPaged
+      ? pageRegistered(result.rows)
+      : {rows:result.rows,members_next_cursor:null};
     
     
     // One indexed read piggybacks on the directory response; no extra browser GET.
