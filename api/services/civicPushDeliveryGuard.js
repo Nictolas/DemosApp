@@ -74,11 +74,13 @@ async function releaseCivicPushDeliveryLock(client) {
 async function blockCivicDeliveryFromPool(pool) {
   const client = await pool.connect();
   let beginAttempted = false;
+  let began = false;
   let commitAttempted = false;
   let discard = false;
   try {
     beginAttempted = true;
     await client.query('BEGIN');
+    began = true;
     await lockCivicPushDuringAccountErasure(client);
     await blockCivicDeliveryOnRevocationFailure(client);
     commitAttempted = true;
@@ -86,17 +88,12 @@ async function blockCivicDeliveryFromPool(pool) {
   } catch {
     // A lost BEGIN/COMMIT acknowledgement can leave an uncertain transaction.
     // Never return that session to the pool even if a later ROLLBACK replies.
-    if (commitAttempted) discard = true;
+    if (!began || commitAttempted) discard = true;
     if (beginAttempted) {
       try {
         await client.query('ROLLBACK');
       } catch {
         discard = true;
-      }
-      if (!commitAttempted) {
-        // A failed BEGIN may still have opened a server-side transaction.
-        // The client must not be reused after such an ambiguous failure.
-        discard = discard || !beginAttempted;
       }
     }
     throw new Error('CIVIC_DELIVERY_BLOCK_FAILED');
