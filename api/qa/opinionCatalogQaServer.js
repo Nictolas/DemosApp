@@ -165,7 +165,7 @@ function createQaApp() {
     // Deliberately preserve residual answers after revocation. The SQL
     // consent predicate (not fixture cleanup) must suppress readback.
     state.consent = false;
-    res.json({ success: true });
+    res.json({ success: true, retainedResidualRow: state.hasRow });
   });
   app.use('/api', require(compatPath));
   app.use('/api/opinioni', require(managementPath));
