@@ -529,7 +529,8 @@ router.post('/sync', verifyToken, requireAdmin, async (req, res) => {
     
     // Avvia la sincronizzazione in background senza attendere il completamento
     syncVotiOpenpolis().catch(error => {
-      console.error('❌ Errore durante la sincronizzazione:', error);
+      // Upstream exceptions may contain connection strings or source fragments.
+      console.error('Sincronizzazione Openpolis in background non riuscita');
     });
     
     return res.json({
@@ -538,11 +539,11 @@ router.post('/sync', verifyToken, requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'avvio sincronizzazione:', error);
+    console.error('Avvio della sincronizzazione Openpolis non riuscito');
     return res.status(500).json({
       success: false,
       error: 'Errore nell\'avvio della sincronizzazione',
-      message: error.message
+      message: 'Sincronizzazione temporaneamente non disponibile'
     });
   }
 });
