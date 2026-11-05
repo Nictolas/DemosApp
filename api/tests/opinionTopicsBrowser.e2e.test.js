@@ -113,8 +113,8 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
       assert.ok(geometry.footerBottom <= geometry.viewportHeight + 2,
         'Footer must remain visible at ' + width + ': ' + JSON.stringify(geometry));
     }
-    await page.getByRole('button', { name: 'Salva le mie opinioni' }).focus();
-    assert.equal(await page.getByRole('button', { name: 'Salva le mie opinioni' }).evaluate(el => document.activeElement === el), true);
+    await page.getByRole('button', { name: 'Indietro' }).focus();
+    assert.equal(await page.getByRole('button', { name: 'Indietro' }).evaluate(el => document.activeElement === el), true);
 
     assert.equal(await page.getByText('0 / 14 Opinioni salvate').count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Salva le mie opinioni' }).isDisabled(), true);
