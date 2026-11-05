@@ -29,6 +29,8 @@ function normalizeRecord(item) {
     'IN RACCOLTA FIRME':'in_corso',
     'CHIUSA':'conclusa',
     'MESSA A DISPOSIZIONE':'messa_a_disposizione',
+    'MESSA A DISPOSIZIONE CAMERA':'alla_camera',
+    'MESSA A DISPOSIZIONE SENATO':'al_senato',
     'ALLA CAMERA':'alla_camera',
     'AL SENATO':'al_senato',
   };
