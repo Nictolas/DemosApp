@@ -52,3 +52,16 @@ test('approved subject directory offers an existing privacy contact without expo
       'do not expose subject identifiers or titles in mailto URL');
   }
 });
+
+test('Grazia classifica surfaces privacy rectification contact even with no published subjects',()=>{
+  const source=read('client/src/pages/Grazia/components/ClassificaCarcerati.tsx');
+  assert.match(source,/function PrivacyRectificationContact\(\)/);
+  assert.match(source,/href="mailto:privacy@demos\.community"/);
+  assert.match(source,/chiedere una rettifica/);
+  assert.match(source,/Non inviare documenti sensibili senza istruzioni/);
+  assert.equal((source.match(/<PrivacyRectificationContact \/>/g)||[]).length,2,
+    'both empty and populated views must show the privacy contact');
+  const neutralContact=source.split('function PrivacyRectificationContact()')[1].split('export const ClassificaCarcerati')[0];
+  assert.doesNotMatch(neutralContact,/\b(?:nome|selectedVoti|item|classifica|subject)\b/);
+  assert.doesNotMatch(neutralContact,/encodeURIComponent|\?subject=|\?body=/);
+});
