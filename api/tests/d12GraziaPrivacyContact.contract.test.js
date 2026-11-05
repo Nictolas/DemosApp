@@ -65,3 +65,19 @@ test('Grazia classifica surfaces privacy rectification contact even with no publ
   assert.doesNotMatch(neutralContact,/\b(?:nome|selectedVoti|item|classifica|subject)\b/);
   assert.doesNotMatch(neutralContact,/encodeURIComponent|\?subject=|\?body=/);
 });
+
+test('Grazia does not reflect arbitrary backend errors and keeps privacy link during failure',()=>{
+  const hook=read('client/src/pages/Grazia/hooks/useGraziaData.ts');
+  const page=read('client/src/pages/Grazia/index.tsx');
+  assert.match(hook,/const GRAZIA_LOAD_ERROR =/);
+  assert.match(hook,/const GRAZIA_SAVE_ERROR =/);
+  assert.match(hook,/catch \{/);
+  assert.match(hook,/description: GRAZIA_SAVE_ERROR/);
+  assert.doesNotMatch(hook,/description: error\?\.message/);
+  assert.doesNotMatch(hook,/throw new Error\((?:response|result)\.(?:error|message)/);
+  assert.match(page,/<PrivacyRectificationContact \/>/);
+  assert.match(page,/role="alert"/);
+  assert.doesNotMatch(page,/\{error\.message\}/);
+  assert.match(read('client/src/pages/Grazia/components/ClassificaCarcerati.tsx'),
+    /export function PrivacyRectificationContact\(\)/);
+});
