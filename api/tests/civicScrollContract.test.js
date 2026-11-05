@@ -19,6 +19,43 @@ test('only the intended civic routes use the bounded scroll shell', () => {
   assert.ok(css.includes('  height: 100%;\n  min-height: 0;\n  overflow: hidden;'));
 });
 
+test('signature collections can scroll all results above the mobile navbar', () => {
+  const layout = read('client/src/components/RobustAppLayout.tsx');
+  for (const [route, path, label, list] of [
+    ['/iniziative-popolari', 'client/src/pages/IniziativePopolari/index.tsx', 'Elenco iniziative popolari', '<IniziativeTable'],
+    ['/eci', 'client/src/pages/ECI/index.tsx', 'Elenco ECI', 'displayList.map'],
+    ['/referendum-abrogativi', 'client/src/pages/ReferendumAbrogativi/index.tsx', 'Elenco referendum abrogativi', '<ReferendumTable'],
+  ]) {
+    assert.ok(layout.includes(`location === '${route}'`), `${route} must use the bounded scroll shell`);
+    const page = read(path);
+    assert.match(page, /<PageContainer className="overflow-hidden">/);
+    assert.match(page, /className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain\b/);
+    assert.ok(page.includes(`aria-label="${label}"`));
+    assert.match(page, /tabIndex=\{0\}/);
+    assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf(list), `${route} listing must be inside the scroll area`);
+    assert.doesNotMatch(page, /page-with-navbar/);
+  }
+});
+
+test('notification preferences scroll independently of fixed save action and navbar', () => {
+  const layout = read('client/src/components/RobustAppLayout.tsx');
+  const page = read('client/src/pages/NotifichePreferenze.tsx');
+  const app = read('client/src/App.tsx');
+
+  assert.ok(layout.includes("location === '/notifiche/preferenze'"));
+  assert.ok(app.includes('<Route path="/notifiche/preferenze">'));
+  assert.match(page, /<PageContainer className="overflow-hidden/);
+  assert.match(page, /app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain/);
+  assert.match(page, /aria-label="Impostazioni preferenze notifiche"/);
+  assert.match(page, /tabIndex=\{0\}/);
+  assert.ok(page.indexOf('app-page-scroll min-h-0') < page.indexOf('sezioni.map('));
+  assert.ok(page.indexOf('sezioni.map(') < page.indexOf('shrink-0 border-t border-gray-200'));
+  assert.ok(page.indexOf('shrink-0 border-t border-gray-200') < page.indexOf('onClick={handleSave}'));
+  assert.doesNotMatch(page, /sticky bottom-4/);
+  assert.ok(page.includes('onCheckedChange={(checked) => handleSwitch(item.key, checked)}'));
+  assert.ok(page.includes('disabled={isSaving}'));
+});
+
 test('popular initiative voting can scroll all cards above the app navbar', () => {
   const page = read('client/src/pages/VotaIniziativaPopolare/index.tsx');
   assert.match(page, /<PageContainer className="overflow-hidden/);
@@ -105,7 +142,12 @@ test('Capo di Stato shows a real mobile pie alongside consent statistics', () =>
   const consent = read('client/src/pages/CapodiStato/components/ConsensoSection.tsx');
   assert.match(consent, /data-testid="capo-consenso-pie-mobile"/);
   assert.match(consent, /aria-label="Grafico a torta consenso Capo di Stato"/);
-  assert.match(consent, /innerRadius=\{10\} outerRadius=\{25\}/);
+  assert.match(consent, /Ti senti rappresentato dall'attuale Capo di Stato\?/);
+  assert.doesNotMatch(consent, /<CardTitle[^>]*>\s*Consenso/);
+  assert.match(consent, /max-w-sm justify-center/);
+  assert.match(consent, /innerRadius="34%"/);
+  assert.match(consent, /outerRadius="89%"/);
+  assert.match(consent, /min-\[390px\]:h-28/);
   assert.match(consent, /isAnimationActive=\{false\}/);
   assert.match(consent, /PieChart/);
 });

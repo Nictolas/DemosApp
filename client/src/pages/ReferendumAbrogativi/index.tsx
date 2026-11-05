@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/PageContainer";
 import { Header } from "./components/Header";
 import { ReferendumTable } from "./components/ReferendumTable";
 import { ViewDialog } from "./components/ViewDialog";
@@ -10,6 +11,7 @@ import { useReferendumActions } from "./hooks/useReferendumActions";
 
 export default function ReferendumAbrogativi() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const deepLinkHandled = useRef(false);
 
   const { 
     listaReferendum,
@@ -25,6 +27,18 @@ export default function ReferendumAbrogativi() {
   } = useReferendumActions();
 
 
+  // Dopo un tap FCM apre il dettaglio ufficiale, oppure resta sull'elenco.
+  useEffect(() => {
+    if (deepLinkHandled.current || isLoading || isError || !user) return;
+    const id = new URLSearchParams(window.location.search).get("initiative");
+    if (!id) return;
+    deepLinkHandled.current = true;
+    const item = referendumUfficiali.find(
+      entry => String(entry.id_ministero ?? entry.id) === id
+    );
+    if (item) startEditView(item);
+  }, [referendumUfficiali, isLoading, isError, user]);
+
   // Redirect se non autenticato
   if (isAuthLoading) {
     return (
@@ -39,7 +53,8 @@ export default function ReferendumAbrogativi() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <PageContainer className="overflow-hidden">
+    <div className="app-page-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain container mx-auto px-4 py-8" role="region" aria-label="Elenco referendum abrogativi" tabIndex={0}>
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           <Header />
@@ -60,5 +75,6 @@ export default function ReferendumAbrogativi() {
         onClose={closeView}
       />
     </div>
+    </PageContainer>
   );
 }

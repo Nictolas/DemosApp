@@ -61,7 +61,7 @@ test('explicit region and province codes work for native DEMOS events', () => {
   assert.equal(isInEventRegion({ id: 'other', regione_evento: 'LO' }, person), false);
 });
 
-test('personal preserves followed subjects and extends local events to the entire province', () => {
+test('personal preserves followed subjects and extends local events to the entire province, sorted by date', () => {
   const personal = [
     { id: 'selected', nome_evento: 'Soggetto seguito', comune_evento: 'Roma',
       giorno_inizio: '2027-03-01', feed_priority: 0, feed_reason: 'SELECTED_SUBJECT' },
@@ -74,16 +74,40 @@ test('personal preserves followed subjects and extends local events to the entir
   ];
   assert.deepEqual(
     composeTerritorialEvents(personal, publicApproved, person, 'personal').map((row) => row.id),
-    ['selected', 'provincial', 'local']
+    ['provincial', 'local', 'selected']
   );
   assert.deepEqual(
     composeTerritorialEvents(personal, publicApproved, person, 'regional').map((row) => row.id),
-    ['local', 'provincial', 'regional']
+    ['regional', 'provincial', 'local']
   );
   assert.deepEqual(
     composeTerritorialEvents(personal, publicApproved, person, 'global').map((row) => row.id),
-    ['local', 'provincial', 'regional', 'global']
+    ['global', 'regional', 'provincial', 'local']
   );
+});
+
+test('Eventi displays elections and mobilizations in date order across every tab, regardless of feed priority', () => {
+  const entries = [
+    { id: 'pisa-2028', nome_evento: 'Elezioni Pisa', tipologia_evento: 'Elezioni',
+      regione_evento: 'TO', giorno_inizio: '2028-05-26', feed_priority: 0 },
+    { id: 'europa-2029', nome_evento: 'Elezioni Europee 2029', tipologia_evento: 'Elezioni',
+      regione_evento: 'TO', giorno_inizio: '2029-12-22', feed_priority: 0 },
+    { id: 'italia-2027', nome_evento: 'Elezioni Italiane 2027', tipologia_evento: 'Elezioni',
+      regione_evento: 'TO', giorno_inizio: '2027-12-22', feed_priority: 2 },
+    { id: 'mobilitazione-2027', tipologia_evento: 'Mobilitazione', regione_evento: 'TO',
+      giorno_inizio: '2027-11-10', feed_priority: 2 },
+  ];
+  const originalOrder = entries.map(({ id }) => id);
+  const expected = ['mobilitazione-2027', 'italia-2027', 'pisa-2028', 'europa-2029'];
+  for (const view of ['personal', 'regional', 'global']) {
+    assert.deepEqual(
+      composeTerritorialEvents(entries, entries, person, view).map(({ id }) => id),
+      expected,
+      view + ' must show the closest upcoming event first'
+    );
+  }
+  // Il riordino non deve alterare l'array già presente nella cache.
+  assert.deepEqual(entries.map(({ id }) => id), originalOrder);
 });
 
 test('public global uses anonymous API, and backend public SQL denies pending/rejected events', () => {

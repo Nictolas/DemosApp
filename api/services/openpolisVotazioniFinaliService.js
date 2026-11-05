@@ -13,68 +13,100 @@ const LISTA_VOTI_FINALI = `${OPENPOLIS_BASE}/votazioni?main_vote_type=is_final&o
  * Fetch della pagina lista "Voto finale" (solo votazioni finali decisive: Approvata/Respinta).
  */
 async function fetchListaVotazioniFinali(page = 1) {
-  const url = page <= 1 ? `${LISTA_VOTI_FINALI}&page=1` : `${LISTA_VOTI_FINALI}&page=${page}`;
+  const url = LISTA_VOTI_FINALI + '&page=' + Math.max(1, Math.floor(Number(page) || 1));
   const { data } = await axios.get(url, {
     headers: {
       Accept: 'text/html',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      'User-Agent': 'DEMOS/1.0 (civic vote importer; https://demos.community)'
     },
     timeout: 15000,
-    validateStatus: (s) => s < 500
+    // An upstream 403/404 is an error, not an "empty successful sync".
+    validateStatus: status => status >= 200 && status < 300
   });
+  if (typeof data !== 'string' || data.length < 100) {
+    throw new Error('OPENPOLIS_INVALID_HTML');
+  }
   return data;
 }
 
-/**
- * Dalla lista HTML estrae le votazioni (titolo, link, camera, esito, data).
- * Filtra solo Approvata/Respinta (decisive).
- */
+const detailIdPattern = /^(?:vs19_[A-Za-z0-9_-]+|19-\d+-\d+)$/;
+const finalMarker = /votazion[e]?\s+final[e]?(?:\s+segreto)?/i;
+const completeDate = /Seduta\s*n\.?\s*\d+\s+del\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i;
+const resultMarker = /VOTAZIONE\s+FINALE(?:\s+SEGRETO)?\s*(Approvata|Respinta)/i;
+
 function parseListaVotazioniFinali(html) {
   const $ = cheerio.load(html);
   const items = [];
   const seen = new Set();
 
-  // Link alle pagine dettaglio: /votazioni/vs19_xxx o /votazioni/19-xxx-x
-  $('a[href*="/votazioni/"]').each((_, el) => {
-    const $a = $(el);
-    const href = ($a.attr('href') || '').trim();
-    const match = href.match(/\/votazioni\/(vs19_[\w-]+|19-\d+-\d+)/);
-    if (!match || href.includes('#')) return;
-    const openpolisId = match[1];
-    if (seen.has(openpolisId)) return;
-    seen.add(openpolisId);
+  const detailId = href => {
+    try {
+      const url = new URL(href, OPENPOLIS_BASE);
+      if (url.origin !== OPENPOLIS_BASE) return null;
+      const m = url.pathname.match(/^\/votazioni\/([^/]+)\/?$/);
+      return m && detailIdPattern.test(m[1]) ? m[1] : null;
+    } catch { return null; }
+  };
 
-    const linkText = $a.text().replace(/\s+/g, ' ').trim();
-    const camera = /^Camera/i.test(linkText) ? 'Camera' : /^Senato/i.test(linkText) ? 'Senato' : null;
-    if (!camera) return;
+  // On Openpolis the text "Camera / Seduta / Approvata" can be adjacent to
+  // the link, not inside it. Walk only the smallest one-vote card; do NOT
+  // parse the entire list container (which could misattribute another vote).
+  $('a[href]').each((_, el) => {
+    const anchor = $(el);
+    const id = detailId(anchor.attr('href') || '');
+    if (!id || seen.has(id)) return;
 
-    const esitoMatch = linkText.match(/\b(Approvata|Respinta)\b/);
-    const esito = esitoMatch ? esitoMatch[1] : null;
-    if (!esito) return;
+    let cardText = '';
+    let node = anchor;
+    for (let depth = 0; depth < 9 && node.length; depth++, node = node.parent()) {
+      const text = node.text().replace(/\s+/g, ' ').trim();
+      if (!text || text.length > 2800) continue;
 
-    const dateMatch = linkText.match(/Seduta\s+n\.\s*\d+\s+del\s+(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    let dataVotazione = null;
-    if (dateMatch) {
-      const [, d, m, y] = dateMatch;
-      dataVotazione = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      const links = new Set();
+      node.find('a[href]').each((__, candidate) => {
+        const otherId = detailId($(candidate).attr('href') || '');
+        if (otherId) links.add(otherId);
+      });
+      if (node.is('a[href]')) links.add(id);
+      if (links.size !== 1 || !links.has(id)) continue;
+
+      if (/^(?:Camera|Senato)(?=Votazione|\b)/i.test(text) &&
+          completeDate.test(text) && resultMarker.test(text) &&
+          finalMarker.test(text)) {
+        cardText = text;
+        break;
+      }
     }
+    if (!cardText) return;
 
-    const fullUrl = href.startsWith('http') ? href : OPENPOLIS_BASE + (href.startsWith('/') ? href : '/' + href);
+    const chamber = cardText.match(/^(Camera|Senato)(?=Votazione|\b)/i);
+    const date = cardText.match(completeDate);
+    const result = cardText.match(resultMarker);
+    if (!chamber || !date || !result) return;
 
-    let titolo = '';
-    const $container = $a.closest('div, article, li');
-    if ($container.length) titolo = $container.find('h3').first().text().trim();
-    if (!titolo) titolo = $a.prevAll('h3').first().text().trim();
-    if (!titolo) titolo = $a.parent().prevAll('h3').first().text().trim();
-    if (!titolo) titolo = `Votazione ${openpolisId}`;
+    const day = date[1].padStart(2, '0');
+    const month = date[2].padStart(2, '0');
+    const year = date[3];
+    const iso = year + '-' + month + '-' + day;
+    if (!Number.isFinite(Date.parse(iso + 'T12:00:00Z'))) return;
 
+    const afterDate = cardText.slice(date.index + date[0].length);
+    const label = afterDate.search(/votazione\s+finale(?:\s+segreto)?\s*(?:Approvata|Respinta)/i);
+    let title = (label >= 0 ? afterDate.slice(0, label) : afterDate)
+      .replace(/(?:VOTO FINALE|Votazione finale)\s*[-–]?\s*$/i, '')
+      .replace(/[-–\s]+$/g, '')
+      .trim();
+
+    // Avoid inventing a bill or law from a generic Openpolis label.
+    if (!title) title = 'Votazione finale ' + id;
+    seen.add(id);
     items.push({
-      openpolis_id: openpolisId,
-      camera,
-      titolo: titolo.substring(0, 500),
-      url_dettaglio: fullUrl,
-      esito,
-      data_votazione: dataVotazione
+      openpolis_id: id,
+      camera: chamber[1].toLowerCase() === 'camera' ? 'Camera' : 'Senato',
+      titolo: title.slice(0, 500),
+      url_dettaglio: OPENPOLIS_BASE + '/votazioni/' + id,
+      esito: result[1].toLowerCase() === 'approvata' ? 'Approvata' : 'Respinta',
+      data_votazione: iso
     });
   });
 
@@ -82,28 +114,33 @@ function parseListaVotazioniFinali(html) {
 }
 
 /**
- * Recupera le ultime N votazioni finali decisive (lista + opzionale dettaglio).
- * @param {number} maxItems - numero massimo da tenere (default 30)
- * @returns {Promise<Array>} array di { openpolis_id, camera, titolo, url_dettaglio, esito, data_votazione }
+ * Retrieve recent final votes, preserving the source's classification.
+ * The upstream may return fewer than page_size cards on a page.
+ * An empty first page is a parser/upstream failure, not proof of no votes.
  */
 async function fetchVotazioniFinaliDecisive(maxItems = 30) {
+  const maxCount = Math.min(100, Math.max(1, Number(maxItems) || 30));
   const all = [];
-  let page = 1;
-  const maxPages = 3;
-
-  while (page <= maxPages) {
+  const seen = new Set();
+  for (let page = 1; page <= 10 && all.length < maxCount; page++) {
     const html = await fetchListaVotazioniFinali(page);
     const items = parseListaVotazioniFinali(html);
-    if (items.length === 0) break;
-    for (const it of items) {
-      if (all.length >= maxItems) break;
-      all.push(it);
+    if (page === 1 && items.length === 0) {
+      throw new Error('OPENPOLIS_FINAL_VOTES_PARSE_EMPTY');
     }
-    if (items.length < 50) break;
-    page++;
+    if (items.length === 0) break;
+    let added = 0;
+    for (const it of items) {
+      if (seen.has(it.openpolis_id)) continue;
+      seen.add(it.openpolis_id);
+      all.push(it);
+      added++;
+      if (all.length >= maxCount) break;
+    }
+    // Avoid loops if upstream ignores "page" and repeats page 1.
+    if (!added) break;
   }
-
-  return all.slice(0, maxItems);
+  return all.slice(0, maxCount);
 }
 
 /**

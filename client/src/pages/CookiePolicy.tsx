@@ -10,7 +10,7 @@ export default function CookiePolicy() {
             Informativa sui Cookie
           </CardTitle>
           <p className="text-center text-gray-600">
-            <strong>DemosApp</strong> - Ultima modifica: {new Date().toLocaleDateString('it-IT')}
+            <strong>DemosApp</strong> - Ultima modifica del testo: 02/11/2026
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -38,7 +38,12 @@ export default function CookiePolicy() {
               Questi cookie sono essenziali per il funzionamento del sito e non possono essere disabilitati:
             </p>
             <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <table className="w-full text-sm">
+              <dl className="sm:hidden space-y-2 text-sm">
+                <div><dt className="font-semibold">Nome Cookie</dt><dd className="font-mono break-all">sidebar:state</dd></div>
+                <div><dt className="font-semibold">Scopo</dt><dd>Memorizza lo stato aperto/chiuso della barra laterale</dd></div>
+                <div><dt className="font-semibold">Durata</dt><dd>7 giorni</dd></div>
+              </dl>
+              <table className="hidden sm:table w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2">Nome Cookie</th>
@@ -59,11 +64,33 @@ export default function CookiePolicy() {
             <h3 className="text-xl font-medium mb-2">2.2 localStorage e sessionStorage</h3>
             <p className="text-gray-700 mb-3">
               DemosApp utilizza <strong>localStorage</strong> e <strong>sessionStorage</strong> invece di cookie HTTP 
-              per memorizzare alcuni dati tecnici. Questi non sono cookie HTTP e non richiedono consenso secondo 
-              la direttiva ePrivacy, ma sono comunque documentati per trasparenza:
+              per memorizzare alcuni dati tecnici. Queste tecnologie non sono cookie
+              HTTP, ma rientrano comunque nelle regole applicabili alla memorizzazione
+              o all'accesso ai dati sul dispositivo; gli usi strettamente necessari
+              al servizio possono beneficiare delle eccezioni previste:
             </p>
             <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <table className="w-full text-sm">
+              <dl className="sm:hidden space-y-3 text-sm">
+                <div className="border-b pb-2">
+                  <dt className="font-mono font-semibold break-all">auth_token</dt>
+                  <dd><strong>Tipo:</strong> localStorage</dd>
+                  <dd><strong>Scopo:</strong> Token JWT per autenticazione</dd>
+                  <dd><strong>Durata:</strong> Fino al logout</dd>
+                </div>
+                <div className="border-b pb-2">
+                  <dt className="font-mono font-semibold break-all">refresh_token</dt>
+                  <dd><strong>Tipo:</strong> localStorage</dd>
+                  <dd><strong>Scopo:</strong> Token di refresh per autenticazione</dd>
+                  <dd><strong>Durata:</strong> Fino al logout</dd>
+                </div>
+                <div>
+                  <dt className="font-mono font-semibold break-all">user_email, user_status, user_id</dt>
+                  <dd><strong>Tipo:</strong> localStorage</dd>
+                  <dd><strong>Scopo:</strong> Dati utente temporanei</dd>
+                  <dd><strong>Durata:</strong> Fino al logout</dd>
+                </div>
+              </dl>
+              <table className="hidden sm:table w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-2">Nome</th>
@@ -95,8 +122,9 @@ export default function CookiePolicy() {
               </table>
             </div>
             <p className="text-gray-700 text-sm italic">
-              <strong>Nota:</strong> localStorage e sessionStorage non sono cookie HTTP e non sono soggetti 
-              alla direttiva ePrivacy. Tuttavia, il loro utilizzo è documentato nella nostra{" "}
+              <strong>Nota:</strong> localStorage e sessionStorage non sono cookie HTTP,
+              ma l'obbligo di consenso dipende dalla finalità e dalle eccezioni applicabili,
+              non dal nome della tecnologia. Per ulteriori dettagli consulta la nostra{" "}
               <a href="/privacy-policy" className="text-blue-600 hover:text-blue-800 underline">
                 Privacy Policy
               </a>.
@@ -107,9 +135,11 @@ export default function CookiePolicy() {
           <section>
             <h2 className="text-2xl font-semibold mb-3">3. Cookie di Terze Parti</h2>
             <p className="text-gray-700 mb-3">
-              Attualmente DemosApp <strong>non utilizza cookie di terze parti</strong> per marketing, 
-              analytics o pubblicità. Utilizziamo solo cookie tecnici necessari per il funzionamento 
-              della piattaforma.
+              Attualmente il <strong>sito web DEMOS non utilizza cookie pubblicitari
+              di Google AdMob o Google AdSense</strong>. La pubblicità nativa Android
+              è un progetto separato e non è attiva nelle release distribuite.
+              Le tecnologie tecniche necessarie al funzionamento del sito restano
+              distinte dagli eventuali strumenti pubblicitari futuri.
             </p>
             
             <h3 className="text-xl font-medium mb-2">3.1 Servizi di Hosting</h3>
@@ -125,6 +155,33 @@ export default function CookiePolicy() {
             <p className="text-gray-700 text-sm italic">
               Questi cookie sono tecnici e necessari per il funzionamento del servizio, 
               non richiedono consenso secondo la direttiva ePrivacy.
+            </p>
+          </section>
+
+          {/* Informativa preventiva sulla futura integrazione nativa */}
+          <section>
+            <h2 className="text-2xl font-semibold mb-3">
+              3.2 Identificatori e strumenti pubblicitari Android (non ancora attivi)
+            </h2>
+            <p className="text-gray-700 mb-3">
+              DEMOS sta preparando annunci non personalizzati all'apertura dell'app
+              Android tramite Google AdMob e un messaggio per la gestione del consenso
+              tramite Google UMP. <strong>Gli SDK pubblicitari non sono presenti nelle
+              versioni release attualmente distribuite.</strong> Se abilitati in una
+              versione futura, questi servizi potrebbero accedere a identificatori
+              pubblicitari o del dispositivo, indirizzo IP e dati tecnici e diagnostici,
+              anche senza utilizzare cookie del browser.
+            </p>
+            <p className="text-gray-700">
+              Prima dell'attivazione verranno aggiornate le informazioni sul trattamento
+              effettivo e le dichiarazioni Google Play. Dove previsto, gli utenti
+              potranno accettare, rifiutare o gestire il consenso tramite un messaggio
+              nell'app Android. La gestione della privacy pubblicitaria è separata
+              da quella relativa alle opinioni politiche DEMOS. Per ulteriori
+              informazioni consulta la{' '}
+              <a href="/privacy-policy" className="text-blue-600 hover:text-blue-800 underline">
+                Informativa sulla privacy
+              </a>.
             </p>
           </section>
 
@@ -161,12 +218,15 @@ export default function CookiePolicy() {
                   che non richiedono consenso secondo la direttiva ePrivacy</li>
               <li><strong>Non utilizziamo cookie di marketing</strong> (come Google AdSense)</li>
               <li><strong>Non utilizziamo cookie di analytics</strong> (come Google Analytics)</li>
-              <li>I dati di autenticazione sono memorizzati in <strong>localStorage</strong>, 
-                  che non è un cookie HTTP e non richiede consenso</li>
+              <li>I dati di autenticazione possono essere memorizzati in <strong>localStorage</strong>:
+                  l'eventuale esenzione dal consenso deriva dalla necessità tecnica,
+                  non dal fatto che non siano cookie HTTP</li>
             </ul>
             <p className="text-gray-700 mb-3">
-              Se in futuro aggiungeremo cookie che richiedono consenso (marketing, analytics), 
-              implementeremo un banner di consenso conforme al GDPR.
+              Se in futuro introdurremo sul sito tecnologie pubblicitarie che richiedono
+              consenso, attiveremo un sistema di gestione delle scelte adeguato prima
+              del loro utilizzo. La futura gestione del consenso Android con UMP
+              è distinta dal banner per il sito web.
             </p>
           </section>
 
@@ -196,7 +256,7 @@ export default function CookiePolicy() {
           <div className="border-t pt-6 mt-8">
             <p className="text-sm text-gray-500 text-center">
               Questa informativa è conforme al GDPR e alla Direttiva ePrivacy. 
-              Ultimo aggiornamento: {new Date().toLocaleDateString('it-IT')}
+              Ultimo aggiornamento del testo: 02/11/2026
             </p>
           </div>
 
