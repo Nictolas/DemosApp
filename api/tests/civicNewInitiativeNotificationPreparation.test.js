@@ -69,10 +69,13 @@ test('API preserves civic selections from an older client which omits the new fi
   assert.match(route, /return value === undefined \|\| value === null \? null/);
 });
 
-test('ECI compares official IDs before replacing the cache; no SMS/push dispatch', () => {
+test('ECI compares official IDs before idempotent upsert; no DELETE or push dispatch', () => {
   const script = read('api/scripts/sync_eci.py');
   const workflow = read('.github/workflows/eci_sync.yml');
-  assert.ok(script.indexOf('cur.execute("SELECT id FROM eci")') < script.indexOf('cur.execute("DELETE FROM eci")'));
+  assert.ok(script.indexOf('cur.execute("SELECT id FROM eci")') < script.indexOf('INSERT INTO eci'));
+  assert.match(script, /ON CONFLICT \(id\) DO UPDATE SET/);
+  assert.doesNotMatch(script, /cur\.execute\("DELETE FROM eci"\)/);
+  assert.match(script, /NOT_ONGOING/);
   assert.match(script, /for row in records if row\[0\] not in previous_ids/);
   assert.match(script, /ON CONFLICT \(category, official_id\) DO NOTHING/);
   assert.match(workflow, /CIVIC_NEW_INITIATIVE_EVENTS_ENABLED: \$\{\{ vars\.CIVIC_NEW_INITIATIVE_EVENTS_ENABLED \}\}/);

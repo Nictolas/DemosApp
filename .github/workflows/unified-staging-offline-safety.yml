@@ -15,8 +15,11 @@ on:
       - 'api/tests/ministeroPkUpsert.test.js'
       - 'api/services/ministeroPaginationSafety.js'
       - 'api/tests/ministeroPaginationSafety.test.js'
+      - 'api/routes/eci.js'
+      - 'api/routes/ice.js'
       - 'api/scripts/sync_eci.py'
       - 'api/tests/test_sync_eci.py'
+      - 'api/tests/test_eci_runtime_no_delete_postgres.py'
       - 'api/staging/ministeroPublicSnapshotAudit.js'
       - 'api/tests/ministeroPublicSnapshotAudit.test.js'
       - 'api/staging/unified_staging_civic_readonly_canary.js'
@@ -81,8 +84,11 @@ on:
       - 'api/tests/ministeroPkUpsert.test.js'
       - 'api/services/ministeroPaginationSafety.js'
       - 'api/tests/ministeroPaginationSafety.test.js'
+      - 'api/routes/eci.js'
+      - 'api/routes/ice.js'
       - 'api/scripts/sync_eci.py'
       - 'api/tests/test_sync_eci.py'
+      - 'api/tests/test_eci_runtime_no_delete_postgres.py'
       - 'api/staging/ministeroPublicSnapshotAudit.js'
       - 'api/tests/ministeroPublicSnapshotAudit.test.js'
       - 'api/staging/unified_staging_civic_readonly_canary.js'
@@ -167,6 +173,8 @@ jobs:
           node --check api/staging/ministeroPublicSnapshotAudit.js
           node --check api/services/ministeroPaginationSafety.js
           node --check api/services/ministeroSync.js
+          node --check api/routes/eci.js
+          node --check api/routes/ice.js
           node --check api/staging/unified_staging_bootstrap.js
           node --check api/staging/unified_staging_preflight_server.js
           node --check api/staging/runtime_staging_lock_audit.js
@@ -327,6 +335,8 @@ jobs:
           python -m pip install psycopg2-binary
       - name: Seed empty fixture with real P1 to P5 migrations (fake identity)
         run: python -m api.tests.seed_ops_stg_001_snapshot_service_postgres
+      - name: Prove ECI sync with no DELETE grant under restricted PostgreSQL ${{ matrix.pg-major }}
+        run: python -m unittest api.tests.test_eci_runtime_no_delete_postgres -v
       - name: Execute actual preflight metadata SQL as passwordless least-privilege role
         run: node --test api/tests/unifiedStagingPreflight.postgres.test.js
       - name: Prove real PostgreSQL session continuity su DB CI effimero

@@ -243,7 +243,7 @@ def fetch_official_records(*, session=None) -> List[Tuple[str, str, int, str, st
 
 
 def _verify_civic_database_identity(cur, expected: Optional[str]) -> None:
-    """No DB writes are allowed before this check if civic events are enabled."""
+    """No database writes are allowed before verifying the exact identity."""
     try:
         expected_id = str(uuid.UUID(expected or ""))
     except (ValueError, AttributeError, TypeError):
@@ -289,8 +289,10 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
     try:
         with conn:
             with conn.cursor() as cur:
-                # La cache eci viene sostituita interamente a ogni sync.
-                # Non usare trigger INSERT per riconoscere le novita'.
+                # Sync only official IDs with INSERT/UPDATE. The staging
+                # runtime role intentionally has NO DELETE grant. Never
+                # purge records to rebuild a cache, and never use INSERT
+                # triggers as a discovery signal.
                 collection_enabled = os.environ.get("CIVIC_NEW_INITIATIVE_EVENTS_ENABLED") == "true"
                 # Verify the exact canonical database on EVERY cache write,
                 # even when event collection is off. This prevents a future
@@ -303,15 +305,39 @@ def _replace_cache(database_url: str, records: Sequence[tuple]) -> None:
                 if collection_enabled:
                     cur.execute("SELECT id FROM eci")
                     previous_ids = {str(row[0]) for row in cur.fetchall()}
-                cur.execute("DELETE FROM eci")
+                official_ids = [str(row[0]) for row in records]
+                if len(set(official_ids)) != len(records):
+                    raise RuntimeError("ECI_OFFICIAL_IDS_NOT_UNIQUE")
                 execute_values(
                     cur,
                     """
                     INSERT INTO eci
                       (id, title, signature_count, slug, status, end_date, obiettivi, url)
                     VALUES %s
+                    ON CONFLICT (id) DO UPDATE SET
+                      title = EXCLUDED.title,
+                      signature_count = EXCLUDED.signature_count,
+                      slug = EXCLUDED.slug,
+                      status = EXCLUDED.status,
+                      end_date = EXCLUDED.end_date,
+                      obiettivi = EXCLUDED.obiettivi,
+                      url = EXCLUDED.url,
+                      updated_at = now()
                     """,
                     records,
+                )
+                # Rows absent from today's authoritative ONGOING feed are not
+                # necessarily closed. Mark them no longer ongoing, preserving
+                # audit identity and prior suppressed events without DELETE.
+                # They are excluded from the public ongoing-only read APIs.
+                cur.execute(
+                    """
+                    UPDATE eci
+                       SET status = 'NOT_ONGOING', updated_at = now()
+                     WHERE status = %s
+                       AND NOT (id = ANY(%s::varchar[]))
+                    """,
+                    (STATUS, official_ids),
                 )
                 cur.execute("SELECT COUNT(*) FROM eci WHERE status = %s", (STATUS,))
                 stored_count = int(cur.fetchone()[0])
