@@ -102,13 +102,9 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
     }
 
     const choice = completion?.choices?.[0];
-    // GPT-OSS may spend the full output budget on reasoning. Never publish truncated text.
-    if (choice?.finish_reason === 'length') {
-      console.warn('Spiegazione AI non pubblicata: completamento troncato (token insufficienti)');
-      return null;
-    }
-    if (choice?.finish_reason === 'content_filter') {
-      console.warn('Spiegazione AI non pubblicata: contenuto non disponibile');
+    // Only a normally completed response is safe to publish, even when it has text.
+    if (choice?.finish_reason !== 'stop') {
+      console.warn('Spiegazione AI non pubblicata: completamento non terminato normalmente');
       return null;
     }
     const rawContent = choice?.message?.content;
@@ -177,23 +173,26 @@ async function generaESalvaSpiegazione(politicoNome, votazione, descrizioneVotaz
     [politicoNome, votazione]
   );
 
+  // Do not consume Free quota when this politician has no row for that vote.
+  if (existingResult.rows.length === 0) return null;
+
   // Se esiste già una spiegazione per questa votazione e non è forzata la rigenerazione, non rigenerarla
-  if (!forceRegenerate && existingResult.rows.length > 0 && existingResult.rows[0].spiegazione && existingResult.rows[0].spiegazione.trim() !== '') {
-    console.log(`ℹ️ Spiegazione già esistente per ${politicoNome}, skip generazione`);
+  if (!forceRegenerate && existingResult.rows[0].spiegazione && existingResult.rows[0].spiegazione.trim() !== '') {
+    console.log('Spiegazione già esistente per la votazione richiesta');
     return existingResult.rows[0].spiegazione;
   }
 
   // Usa la descrizione dal database se disponibile e non è stata passata
-  const descrizioneDaUsare = descrizioneVotazione || (existingResult.rows.length > 0 ? existingResult.rows[0].descrizione_votazione : null);
+  const descrizioneDaUsare = descrizioneVotazione || existingResult.rows[0].descrizione_votazione;
 
   // Genera nuova spiegazione con titolo + descrizione
   const spiegazione = await generaSpiegazione(votazione, descrizioneDaUsare, camera, voto);
   
-  if (spiegazione) {
-    await salvaSpiegazione(politicoNome, spiegazione, votazione);
-  }
-
-  return spiegazione;
+  if (!spiegazione) return null;
+  // The current vote might have changed after SELECT while Groq generated text.
+  // Never claim saved success if the exact row was not updated.
+  const saved = await salvaSpiegazione(politicoNome, spiegazione, votazione);
+  return saved ? spiegazione : null;
 }
 
 /**
