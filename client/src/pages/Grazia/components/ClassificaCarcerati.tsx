@@ -20,7 +20,7 @@ interface ClassificaCarceratiProps {
 }
 
 // Neutral contact only: never put names, vote selections or IDs in the URL.
-function PrivacyRectificationContact() {
+export function PrivacyRectificationContact() {
   return (
     <p className="text-xs leading-relaxed text-slate-600">
       Per contestare una segnalazione che ti riguarda o chiedere una rettifica,
