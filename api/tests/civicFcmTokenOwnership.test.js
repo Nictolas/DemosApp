@@ -48,7 +48,7 @@ test('empty/invalid candidates do not invoke the DB',async()=>{
 test('every FCM revocation path rejects reassigned foreign active token',()=>{
   const route=fs.readFileSync(path.join(__dirname,'../routes/fcm-tokens.js'),'utf8');
   assert.match(route,/staleSafeLegacy = await onlyTokensNotOwnedByOthers/);
-  assert.match(route,/const revocable = await onlyTokensNotOwnedByOthers\(db, userId, \[\.\.\.removed\]\)/);
+  assert.match(route,/const revocable = await onlyTokensNotRegisteredToOthers\(db, userId, \[\.\.\.removed\]\)/);
   assert.match(route,/db, userId, \[\.\.\.registered\.rows\.map/);
   assert.match(route,/if \(revocable\.includes\(token\)\)/);
   assert.match(route,/if \(isCivicPushEnabled\(\) && isOwned && isValidFcmToken\(token\)\)/);
