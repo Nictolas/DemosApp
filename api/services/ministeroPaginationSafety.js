@@ -48,7 +48,13 @@ function inspectMinisteroPage(payload, {
   if (page != null && (typeof page !== 'object' || Array.isArray(page))) {
     throw new Error('MINISTERO_PAGINATION_INVALID_METADATA');
   }
-  const total = parseCount(page?.totalElements ?? page?.total ?? page?.totale, 'TOTAL');
+  // The actual Italian Ministry feed uses infoPaginazione.elementCount.
+  // Treat it as an authoritative total: a partial page must not advance
+  // the civic discovery/notification baseline as if all records arrived.
+  const total = parseCount(
+    page?.totalElements ?? page?.elementCount ?? page?.total ?? page?.totale,
+    'TOTAL'
+  );
   const totalPages = parseCount(
     page?.totalPages ?? page?.total_page ?? page?.pagine_totali, 'PAGES'
   );
