@@ -143,6 +143,18 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+      - name: Fail closed when P0 branch has advanced
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_P0_SHA: 4c979159839ecf58ecd2258f065c9a2cdf9b3911
+        run: |
+          set -eu
+          actual="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/fix/p0-political-consent-read-main-20261102" --jq '.object.sha')"
+          if [ "$actual" != "$EXPECTED_P0_SHA" ]; then
+            echo "::error::PR #557 moved. Update the pinned P0 revision, review the diff and rerun this integration before considering it green."
+            exit 1
+          fi
+          echo 'P0 branch HEAD matches pinned integration test.'
       - name: Checkout pinned P0 consent fix (PR 557) for isolated overlay
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
