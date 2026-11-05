@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {Client} = require('pg');
 const {onlyTokensNotOwnedByOthers,onlyTokensNotRegisteredToOthers,
-  upsertCleanupOwnedOrUnassignedToken} =
+  upsertCleanupOwnedOrUnassignedToken,getActiveCivicUserDeviceTokens} =
   require('../services/civicFcmTokenOwnership');
 
 const LOOPBACK = 'postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci';
@@ -84,6 +84,21 @@ test('real PG16/17 never revokes a legacy token owned by another active account'
     assert.deepEqual((await client.query(
       "SELECT fcm_token FROM user_devices WHERE user_id='old_account' ORDER BY fcm_token"))
       .rows.map(row=>row.fcm_token),['brand_new','token_original']);
+
+    // A stale/empty legacy list must not cause the canonical ACTIVE token to
+    // be deactivated: newest device is the authoritative survivor.
+    await client.query(
+      "UPDATE pg_temp.user_devices SET updated_at='2026-01-01T00:00:00Z' WHERE fcm_token='token_original'");
+    await client.query(
+      "UPDATE pg_temp.user_devices SET updated_at='2026-02-01T00:00:00Z' WHERE fcm_token='brand_new'");
+    await client.query(
+      "INSERT INTO pg_temp.user_devices (fcm_token,user_id,is_active,updated_at) VALUES"+
+      "('inactive_old','old_account',false,'2026-03-01T00:00:00Z')");
+    assert.deepEqual(await getActiveCivicUserDeviceTokens(client,'old_account'),
+      ['brand_new','token_original'],
+      'canonical newer active token must be first; inactive and foreign excluded');
+    assert.deepEqual(await getActiveCivicUserDeviceTokens(client,'new_account'),[],
+      'foreign inactive device is never included in old account selection');
   } finally {
     await client.end();
   }
