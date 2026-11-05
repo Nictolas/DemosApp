@@ -56,3 +56,48 @@ test('every FCM revocation path rejects reassigned foreign active token',()=>{
   // No token values printed, no topic messages created.
   assert.doesNotMatch(route,/console\.log\([^\n]*fcm_token/);
 });
+
+test('cleanup rejects tokens registered to another user including inactive devices',async()=>{
+  const recorded=[];
+  const db={query:async(sql,values)=>{
+    recorded.push({sql,values});
+    return {rows:[{fcm_token:'foreign_inactive'},{fcm_token:'foreign_active'}]};
+  }};
+  const eligible=await require('../services/civicFcmTokenOwnership')
+    .onlyTokensNotRegisteredToOthers(db,'old_account',[
+      'own_token','foreign_active','foreign_inactive','unassigned','own_token'
+    ]);
+  assert.deepEqual(eligible,['own_token','unassigned']);
+  assert.match(recorded[0].sql,/WHERE user_id <> \$1/);
+  assert.doesNotMatch(recorded[0].sql,/is_active = TRUE/);
+  assert.deepEqual(recorded[0].values,['old_account',[
+    'own_token','foreign_active','foreign_inactive','unassigned'
+  ]]);
+});
+
+test('cleanup SQL UPSERT forbids changing a foreign owner even in a race',async()=>{
+  const recorded=[];
+  const db={query:async(sql,params)=>{
+    recorded.push({sql,params});
+    return {rowCount:1};
+  }};
+  await require('../services/civicFcmTokenOwnership')
+    .upsertCleanupOwnedOrUnassignedToken(db,'old_user','my_token');
+  assert.match(recorded[0].sql,/WHERE user_devices\.user_id = EXCLUDED\.user_id/);
+  assert.doesNotMatch(recorded[0].sql,/user_id = EXCLUDED\.user_id,/);
+  assert.deepEqual(recorded[0].params,['old_user','my_token']);
+  await assert.rejects(require('../services/civicFcmTokenOwnership')
+    .upsertCleanupOwnedOrUnassignedToken({
+      query:async()=>({rowCount:0}),
+    },'old_user','foreign_token'),/CIVIC_FCM_CLEANUP_OWNERSHIP_UNCONFIRMED/);
+});
+
+test('cleanup never assumes ownership when DB lookup fails',async()=>{
+  const svc=require('../services/civicFcmTokenOwnership');
+  await assert.rejects(svc.onlyTokensNotRegisteredToOthers({
+    query:async()=>{throw Error('OFFLINE_FAKE_DB_FAILED');}
+  },'old_user',['token']),/OFFLINE_FAKE_DB_FAILED/);
+  await assert.rejects(svc.onlyTokensNotRegisteredToOthers({
+    query:async()=>({rows:null})
+  },'old_user',['token']),/CIVIC_FCM_CLEANUP_OWNER_LOOKUP_FAILED/);
+});
