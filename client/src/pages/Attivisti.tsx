@@ -164,7 +164,33 @@ export default function Attivisti() {
 
 
                 // I dati arrivano già ordinati per supporters_count DESC
-                setAttivisti(data.data as any);
+                // Defense in depth: never retain unexpected private account
+                // attributes if a future API response expands its payload.
+                const publicRows = Array.isArray(data.data)
+                  ? data.data
+                      .filter(item => item && typeof item.id === 'string' &&
+                        typeof item.nome === 'string' && typeof item.cognome === 'string' &&
+                        typeof item.ruolo === 'string')
+                      .map(item => ({
+                        id: item.id,
+                        nome: item.nome,
+                        cognome: item.cognome,
+                        ruolo: item.ruolo,
+                        avatar_config: item.avatar_config,
+                        regione_residenza: item.regione_residenza,
+                        facebook_url: item.facebook_url,
+                        twitter_url: item.twitter_url,
+                        instagram_url: item.instagram_url,
+                        linkedin_url: item.linkedin_url,
+                        telegram_url: item.telegram_url,
+                        website_url: item.website_url,
+                        twitch_url: item.twitch_url,
+                        youtube_url: item.youtube_url,
+                        tipologie_attivismo: item.tipologie_attivismo,
+                        supporters_count: item.supporters_count,
+                      }))
+                  : [];
+                setAttivisti(publicRows);
                 setApprovedSubjects(
                   Array.isArray(data.approved_subjects)
                     ? data.approved_subjects
@@ -173,9 +199,9 @@ export default function Attivisti() {
                     : [],
                 );
                 reset(data.approved_next_cursor ?? null);
-                setFilteredAttivisti(data.data as any);
+                setFilteredAttivisti(publicRows);
                 const next: Record<string, number> = {};
-                (data.data as any[]).forEach((a) => { 
+                publicRows.forEach((a) => { 
 
                   next[a.id] = (a as any).supporters_count ?? 0; 
                 });

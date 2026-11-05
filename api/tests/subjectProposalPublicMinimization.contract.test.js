@@ -331,3 +331,27 @@ test('active activist page and its modal do not type or present private account 
   }
   assert.match(sources[1],/avatar_config\?: string;/);
 });
+
+test('mounted public profile directories keep only explicitly declared visible fields in state', () => {
+  for (const [p,setter,filtered] of [
+    ['client/src/pages/Attivisti.tsx','setAttivisti','setFilteredAttivisti'],
+    ['client/src/pages/Organizzazioni/index.tsx','setOrganizzazioni','setFilteredOrganizzazioni']
+  ]) {
+    const source=file(p);
+    assert.match(source,/const publicRows = Array\.isArray\(data\.data\)/);
+    assert.match(source,/\.filter\(item => item && typeof item\.id === 'string'/);
+    assert.match(source,/\.map\(item => \(\{/);
+    for(const field of ['id','nome','cognome','ruolo','avatar_config','regione_residenza',
+      'tipologie_attivismo','supporters_count']){
+      assert.match(source,new RegExp('^\\s*'+field+': item\\.'+field+',\\s*$','m'),
+        'only expected public profile data in '+p);
+    }
+    assert.ok(source.includes(setter+'(publicRows)'));
+    assert.ok(source.includes(filtered+'(publicRows)'));
+    assert.doesNotMatch(source,new RegExp(setter+'\\(data\\.data as any\\)'));
+    assert.doesNotMatch(source,new RegExp(filtered+'\\(data\\.data as any\\)'));
+    assert.match(source,/publicRows\.forEach\(\(a\) =>/);
+    assert.doesNotMatch(source,/\.map\(item => \(\{\s*\.\.\.item/,
+      'public projection must not spread unrecognized private fields');
+  }
+});
