@@ -108,12 +108,12 @@ def _fetch_ongoing_entries(*, session=None) -> List[dict]:
         # count changes mid-pagination, never mark missing initiatives as
         # NOT_ONGOING or create civic events from a mixed source read.
         records_found = payload.get("recordsFound")
-        if isinstance(records_found, bool):
+        if isinstance(records_found, bool) or not (
+            isinstance(records_found, int)
+            or (isinstance(records_found, str) and re.fullmatch(r"[0-9]+", records_found))
+        ):
             raise RuntimeError("ECI_OFFICIAL_TOTAL_INVALID")
-        try:
-            current_total = int(records_found)
-        except (TypeError, ValueError) as exc:
-            raise RuntimeError("ECI_OFFICIAL_TOTAL_INVALID") from exc
+        current_total = int(records_found)
         if current_total <= 0:
             raise RuntimeError("API ECI: nessuna iniziativa ONGOING restituita; sync bloccato fail-closed")
         if expected_total is None:
@@ -130,13 +130,14 @@ def _fetch_ongoing_entries(*, session=None) -> List[dict]:
             if item.get("status") != STATUS:
                 raise RuntimeError(f"API ECI: status inatteso {item.get('status')!r} nel feed ONGOING")
             item_id = item.get("id")
-            if isinstance(item_id, bool) or not isinstance(item_id, (int, str)) or not str(item_id).isdigit():
+            if isinstance(item_id, bool) or not isinstance(item_id, (int, str)) or not re.fullmatch(r"[0-9]+", str(item_id)):
                 raise RuntimeError("ECI_OFFICIAL_SOURCE_ID_INVALID")
-            # Duplicate IDs may indicate unstable ordering across source pages.
+            # Normalize int vs digit-string IDs before uniqueness checking.
             # Silently deduplicating can produce an incomplete mixed snapshot.
-            if item_id in seen_ids:
+            canonical_id = str(int(str(item_id)))
+            if canonical_id in seen_ids:
                 raise RuntimeError("ECI_OFFICIAL_SOURCE_DUPLICATE_ID")
-            seen_ids.add(item_id)
+            seen_ids.add(canonical_id)
             entries.append(item)
         if len(entries) > expected_total:
             raise RuntimeError("ECI_OFFICIAL_TOO_MANY_ITEMS")
