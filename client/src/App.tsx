@@ -25,6 +25,7 @@ import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
 import RegistrazioneConsensiWizard from "./pages/registrazione-consensi";
 import RegistrazioneCreaPasskey from "./pages/registrazione-crea-passkey";
 import Profilo from "./pages/Profilo";
+import CompassoPolitico from "./pages/CompassoPolitico";
 import Impostazioni from "./pages/Impostazioni";
 import SegnalaProblema from "./pages/SegnalaProblema";
 import Avvistamenti from "./pages/Avvistamenti";
@@ -83,7 +84,7 @@ import VotaIniziativaPopolare from "./pages/VotaIniziativaPopolare";
 import VotaICE from "./pages/VotaICE";
 import Votazione from "./pages/Votazione";
 import Sostenitori from "./pages/Sostenitori";
-import VotiPolitici from "./pages/VotiPolitici";
+import VotiPoliticiFinali from "./pages/VotiPoliticiFinali";
 import VotiParlamento from "./pages/VotiParlamento";
 import VotiParlamentoEuropeo from "./pages/VotiParlamentoEuropeo";
 import ECI from "./pages/ECI";
@@ -574,6 +575,11 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Compasso privato: la pagina e protetta come il Profilo. */}
+              <Route path="/compasso-politico">
+                <ProtectedRoute path="/compasso-politico" component={CompassoPolitico} />
+              </Route>
+
               {/* Route del profilo - URL con menu */}
               <Route path="/menu/profilo">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
@@ -765,7 +771,7 @@ export default function App() {
               {/* Route voti politici */}
               <Route path="/voti-politici">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
-                  <ProtectedRoute path="/voti-politici" component={VotiPolitici} />
+                  <ProtectedRoute path="/voti-politici" component={VotiPoliticiFinali} />
                 </PageTransition>
               </Route>
 

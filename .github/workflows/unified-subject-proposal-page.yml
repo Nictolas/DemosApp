@@ -14,6 +14,7 @@ on:
       - 'client/src/components/ProposeSubjectButton.tsx'
       - 'client/src/pages/Proponi.tsx'
       - 'client/src/App.tsx'
+      - 'api/tests/mainRoutesPreserved.contract.test.js'
       - 'api/routes/subject-proposals.js'
       - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
       - 'api/tests/subjectProposalSingleQueue.synthetic.test.js'
@@ -37,6 +38,8 @@ jobs:
         run: node --check api/routes/subject-proposals.js
       - name: Test five routes, active activist directory, no personal debug logs
         run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js api/tests/mountedActivistsPublicDirectory.contract.test.js
+      - name: Preserve main application routes while integrating DEMOS12
+        run: node --test api/tests/mainRoutesPreserved.contract.test.js
   client-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
