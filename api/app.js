@@ -1,3 +1,10 @@
+// Staging-only direct-import guard: the full DEMOS route tree can start
+// workers or expose routes before it is safe for shared staging.
+// Only the isolated civic source canary is authorized at this phase.
+if (process.env.NODE_ENV === 'staging') {
+  throw new Error('STAGING_FULL_APP_IMPORT_NOT_AUTHORIZED');
+}
+
 require('dotenv').config();
 // Direct app imports must never bypass the staging-only startup gate.
 const {assertStagingAppCanary,shouldMountDevApiSurface,isReadOnlyCanaryRequest}=

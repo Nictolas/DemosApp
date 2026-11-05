@@ -95,7 +95,7 @@ test('app startup cannot bypass approval through the preflight mode',()=>{
       DEMOS_STAGING_APP_CANARY_GO:'',DATABASE_URL:''},
   });
   assert.equal(result.status,1);
-  assert.match(result.stderr,/STAGING_APP_CANARY_GUARD_REJECTED/);
+  assert.match(result.stderr,/STAGING_FULL_API_NOT_AUTHORIZED/);
   assert.doesNotMatch(result.stdout,/Firebase Admin|app.js caricato/);
 });
 
@@ -106,4 +106,21 @@ test('canary database pool is small and defaults to read-only at startup',()=>{
   assert.match(source,/isStagingReadOnlyCanary\s*\? 2/);
   assert.match(source,/const poolMin = isStagingReadOnlyCanary \? 0/);
   assert.match(source,/options: '-c default_transaction_read_only=on'/);
+});
+
+test('full app and server stay disabled in staging even with canary GO',()=>{
+  const {spawnSync}=require('node:child_process');
+  const path=require('node:path');
+  const root=path.resolve(__dirname,'..','..');
+  for(const target of ['./api/server.js','./api/app.js']){
+    const result=spawnSync(process.execPath,['-e',"require('"+target+"')"],{
+      cwd:root,timeout:6000,encoding:'utf8',
+      env:{...process.env,...safe,
+        DEMOS_STAGING_APP_CANARY_GO:'I_APPROVE_STAGING_APP_CANARY'},
+    });
+    assert.notEqual(result.status,0,target);
+    assert.match(result.stderr,/STAGING_FULL_(API|APP_IMPORT)_NOT_AUTHORIZED/,target);
+    assert.doesNotMatch(result.stdout,/Firebase Admin|app.js caricato|Caricamento moduli routes/,
+      target);
+  }
 });
