@@ -49,3 +49,42 @@ test('uncertain revocation globally blocks delivery; missing guard row is an err
   assert.match(calls[0], /REVOCATION_UNCERTAIN/);
   await assert.rejects(blockCivicDeliveryOnRevocationFailure({ query: async () => ({ rows: [] }) }), /CIVIC_DELIVERY_GUARD_NOT_INITIALIZED/);
 });
+
+test('global emergency-stop discarded on lost COMMIT acknowledgement', async () => {
+  const statements=[];
+  let released;
+  const client={
+    query: async (sql) => {
+      statements.push(String(sql));
+      if(sql.includes('UPDATE civic_push_delivery_guard')) return {rows:[{id:1}]};
+      if(sql==='COMMIT') throw Error('SYNTHETIC_ACK_LOST');
+      return {rows:[]};
+    },
+    release: (discard) => { released=discard; }
+  };
+  await assert.rejects(
+    require('../services/civicPushDeliveryGuard').blockCivicDeliveryFromPool({
+      connect:async()=>client,
+    }), /CIVIC_DELIVERY_BLOCK_FAILED/
+  );
+  assert.equal(released,true,'unknown COMMIT must never reuse pooled session');
+  assert.deepEqual(statements.slice(-2),['COMMIT','ROLLBACK']);
+});
+
+test('global emergency-stop discards session after failed ROLLBACK', async () => {
+  let released;
+  const client={
+    query: async (sql) => {
+      if(sql.includes('pg_advisory_xact_lock')) throw Error('LOCK_FAILED');
+      if(sql==='ROLLBACK')throw Error('ROLLBACK_FAILED');
+      return {rows:[]};
+    },
+    release:discard=>{released=discard;}
+  };
+  await assert.rejects(
+    require('../services/civicPushDeliveryGuard').blockCivicDeliveryFromPool({
+      connect:async()=>client,
+    }),/CIVIC_DELIVERY_BLOCK_FAILED/
+  );
+  assert.equal(released,true);
+});
