@@ -53,6 +53,20 @@ Synthetic offline Python regressions cover mid-read total changes, overlapping
 pages and invalid source metadata. A stable but internally incorrect official
 total remains a provider-level limitation; no E2E is claimed.
 
+## EU signature data and official signing links (05/11/2026)
+
+The ECI cache normalizer now refuses fractional/boolean signature counts
+instead of silently coercing them through Python `int()`. It accepts only
+nonnegative integer values (or digit strings). If a detail response exposes
+a `pubRegNum`, it must match the official search entry's ECI ID.
+
+Direct signing URLs are allowed only on the European Commission's HTTPS
+hosts `eci.ec.europa.eu` and `citizens-initiative.europa.eu`.
+Untrusted or malformed URLs fall back to the canonical EU initiative detail
+page. Offline regression cases cover deceptive subdomains, HTTPS userinfo,
+nondefault ports, non-EU hosts and invalid numeric values. No users, devices,
+credentials, or live endpoints are touched.
+
 ## Baseline and rollout limits
 
 Readback of Demos-Staging before this change: ECI=12,
