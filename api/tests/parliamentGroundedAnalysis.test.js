@@ -43,6 +43,22 @@ test('documentary prompt is bounded and explicitly prohibits invention and outpu
   assert.match(prompts[1].content, /DOCUMENTI/);
 });
 
+test('long official documents fit the shared Groq Free per-minute budget', () => {
+  const { estimateReservedTokens, LIMIT } = require('../services/parliamentFreeGroqBudget');
+  const prompts = buildGroundedAnalysisMessages({
+    titolo: 'DDL 100',
+    tipoAtto: 'Disegno di legge',
+    descrizione: 'a'.repeat(12000),
+    camera: 'Camera'
+  });
+  assert.ok(prompts);
+  assert.ok(
+    estimateReservedTokens(prompts, 850) <= LIMIT.estimatedTokensPerMinute,
+    'A single 12k-character source must not be rejected by the local Groq Free token guard'
+  );
+  assert.match(summarySource, /descrizione\.slice\(0, MAX_CONTEXT_CHARS\)/);
+});
+
 test('structured result must contain all three bounded fields, not fabricated ones', () => {
   const valid = {
     spiegazione_generale: 'Il testo disciplina uno specifico servizio.',
