@@ -46,6 +46,8 @@ jobs:
         run: node --test api/tests/singleMountedActivistsDirectory.contract.test.js
       - name: Preserve main application routes while integrating DEMOS12
         run: node --test api/tests/mainRoutesPreserved.contract.test.js
+      - name: Guard the main-based Draft compatibility workflow
+        run: node --test api/tests/d12MainIntegrationWorkflow.contract.test.js
       - name: Keep compact mobile civic headers and proposal buttons
         run: node --test api/tests/compactCivicHeaders.contract.test.js
       - name: Amnistia compact voting form and review-gated proposals
@@ -181,72 +183,35 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: client/package-lock.json
-      - name: "Review exact nine conflicts and rehearse current main in disposable worktree"
+      - name: "Verify current main is included in the Draft branch"
         shell: bash
         run: |
           set -euo pipefail
-          WORK_ROOT="$(mktemp -d)"
-          WT="$WORK_ROOT/main-candidate"
-          finish() {
-            if test -d "$WT"; then
-              git -C "$WT" merge --abort >/dev/null 2>&1 || true
-              git worktree remove --force "$WT" >/dev/null 2>&1 || true
-            fi
-            rm -rf "$WORK_ROOT"
-          }
-          trap finish EXIT
           MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
-          HEAD_SHA="$(git rev-parse HEAD)"
-          git worktree add --detach "$WT" HEAD >/dev/null
-          set +e
-          git -C "$WT" -c user.name="DEMOS CI" -c user.email="ci@localhost" merge --no-ff --no-commit refs/remotes/origin/main >/dev/null 2>&1
-          FIRST_STATUS=$?
-          set -e
-          FOUND="$(git -C "$WT" diff --name-only --diff-filter=U)"
-          EXPECTED="$(cat <<'EXPECTED_FILES'
-          .github/workflows/civic-moderation-contracts.yml
-          api/services/privacyErasureLedgerService.js
-          api/tests/notificationRecipientAndReactionsSecurity.test.js
-          client/src/App.tsx
-          client/src/pages/Amnistia/components/AmnistiaForm.tsx
-          client/src/pages/Attivisti.tsx
-          client/src/pages/CapodiStato/components/VotingForm.tsx
-          client/src/pages/Grazia/components/GraziaForm.tsx
-          client/src/pages/ProponiSoggetto.tsx
-          EXPECTED_FILES
-          )"
-          if test "$FIRST_STATUS" -eq 0 || test "$FOUND" != "$EXPECTED"; then
-            echo "::error::Unexpected main integration overlap: stop without choosing sides."
-            echo "Conflicts found:"; printf '%s\n' "$FOUND"
+          FEATURE_SHA="$(git rev-parse HEAD)"
+          if ! git merge-base --is-ancestor "$MAIN_SHA" "$FEATURE_SHA"; then
+            echo "::error::Branch has not incorporated the current main. Reconcile before proceeding."
             exit 1
           fi
-          git -C "$WT" merge --abort
-          # The nine paths above have been reviewed individually:
-          # CI workflow/erasure/App retain both main and DEMOS12 guards,
-          # two ballot forms retain approved-catalogue whitelists,
-          # proposal route and directory retain moderation and privacy,
-          # Amnistia form retains review guidance, and the security test
-          # understands personalNoStore. -X ours selects only conflicting
-          # *hunks*; all nonconflicting new main changes are still merged.
-          git -C "$WT" -c user.name="DEMOS CI" -c user.email="ci@localhost" merge --no-ff --no-commit -X ours refs/remotes/origin/main >/dev/null
-          if test -n "$(git -C "$WT" diff --name-only --diff-filter=U)"; then
-            echo "::error::Candidate has unresolved conflicts."
+          if ! git merge-tree --write-tree "$MAIN_SHA" "$FEATURE_SHA" >/dev/null; then
+            echo "::error::Current main and Draft branch have unresolved integration conflicts."
             exit 1
           fi
-          grep -qF 'lockCivicPushDuringAccountErasure(client)' "$WT/api/services/privacyErasureLedgerService.js"
-          grep -qF "DELETE FROM subject_proposals WHERE proposer_user_id::text=\$1 AND status IN ('pending','rejected')" "$WT/api/services/privacyErasureLedgerService.js"
-          grep -qF 'reconcileCivicTopicsForUser' "$WT/api/routes/notifiche.js"
-          grep -qF 'const candidate = classifica.find' "$WT/client/src/pages/CapodiStato/components/VotingForm.tsx"
-          grep -qF 'ProposeSubjectButton category="attivisti"' "$WT/client/src/pages/Attivisti.tsx"
-          grep -qF 'gestisci/proposte-soggetti' "$WT/client/src/App.tsx"
-          grep -qF 'compasso-politico' "$WT/client/src/App.tsx"
-          cd "$WT"
+          # Semantic checks guard against resolving a conflict by dropping
+          # DEMOS10 privacy, DEMOS12 moderation, or existing main routes.
+          grep -qF 'lockCivicPushDuringAccountErasure(client)' api/services/privacyErasureLedgerService.js
+          grep -qF "DELETE FROM subject_proposals WHERE proposer_user_id::text=\$1 AND status IN ('pending','rejected')" api/services/privacyErasureLedgerService.js
+          grep -qF 'reconcileCivicTopicsForUser' api/routes/notifiche.js
+          grep -qF 'const candidate = classifica.find' client/src/pages/CapodiStato/components/VotingForm.tsx
+          grep -qF 'ProposeSubjectButton category="attivisti"' client/src/pages/Attivisti.tsx
+          grep -qF 'gestisci/proposte-soggetti' client/src/App.tsx
+          grep -qF 'compasso-politico' client/src/App.tsx
           node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js api/tests/mainRoutesPreserved.contract.test.js api/tests/compactCivicHeaders.contract.test.js api/tests/amnistiaMainMerge.contract.test.js api/tests/civicSubjectPublicationGate.test.js api/tests/privacyErasureCombinedGuards.contract.test.js api/tests/notificationPreferencesReadOnly.contract.test.js api/tests/notificationPrivacyLogs.contract.test.js api/tests/notificationMainCompatibility.contract.test.js
           npm ci --prefix client --ignore-scripts --no-audit --no-fund
           npm run build --prefix client
-          echo "### Synthetic main integration candidate (not merged)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Feature SHA: $HEAD_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Main SHA: $MAIN_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo "- All nine reviewed conflict paths passed explicit allowlist and auto-resolved in disposable worktree." >> "$GITHUB_STEP_SUMMARY"
-          echo "- Privacy/route contract tests and frontend production build passed." >> "$GITHUB_STEP_SUMMARY"
-          echo "- No branch or database mutation, staging, Android, production or FCM action was performed." >> "$GITHUB_STEP_SUMMARY"
+          echo "### Main-based Draft candidate: no merge or deploy" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Draft SHA: $FEATURE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Current main included: $MAIN_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Merge-tree: clean, semantic privacy and route contracts: PASS." >> "$GITHUB_STEP_SUMMARY"
+          echo "- No staging, data migration, Android, FCM, deployment or main merge performed." >> "$GITHUB_STEP_SUMMARY"
+          echo "- GDPR and real staging/Android release gates remain NO-GO." >> "$GITHUB_STEP_SUMMARY"

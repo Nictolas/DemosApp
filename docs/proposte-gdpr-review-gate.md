@@ -208,3 +208,10 @@ Prova prevista nella CI PostgreSQL 17 isolata: più di 100 ritiri non confermati
 - `client/src/App.tsx` importa `./pages/Attivisti`, risolto da Vite come `client/src/pages/Attivisti.tsx`.
 - Il file alternativo non montato `client/src/pages/Attivisti/index.tsx` è stato rimosso per impedire aggiornamenti divergenti. Il componente attivo conserva ricerca, soggetti approvati, pulsante Proponi, reset al ritorno in foreground e paginazione oltre 100.
 - Il contratto `api/tests/singleMountedActivistsDirectory.contract.test.js` verifica l'assenza del duplicato e di import diretti al vecchio percorso; il collaudo Chrome mobile e il build del ramo rimangono obbligatori. Questa modifica non comporta deploy o valutazione GDPR automaticamente positiva.
+
+## 05/11/2026 — Compatibilità con main verificata e controllo CI aggiornato
+
+- PR #502 resta **Draft, non distribuita**. Il ramo di integrazione contiene già `main` al commit `0ead72bc`; la simulazione `git merge-tree` è senza conflitti. I nove precedenti conflitti testuali sono ora **storici**, non una condizione che la CI debba pretendere di ritrovare.
+- Aggiornato il job `main-integration-candidate` di `.github/workflows/unified-subject-proposal-page.yml`: verifica che il main corrente sia antenato del ramo e che il merge virtuale sia valido; conserva i controlli DEMOS10/DEMOS12 su cancellazione account, notifiche, rotte, votazioni e build. Non esegue merge, deploy, migrazioni o test su staging. Un nuovo commit in `main` richiederà una nuova riconciliazione; **non** va ignorato con risoluzioni automatiche.
+- Aggiunto il test di regressione `api/tests/d12MainIntegrationWorkflow.contract.test.js` per impedire che venga ripristinata la vecchia lista obbligatoria dei nove conflitti.
+- Il controllo Git e la CI non risolvono da soli il blocco GDPR: valutazione dei dati di terzi e giudiziari, informative, DSAR/rettifica/retention, staging unificato coordinato con DEMOS10 e Android reale rimangono **NO-GO**. In particolare il `POST` delle proposte del ramo Draft è una nuova funzionalità rispetto all'anteprima disabilitata di `main`; nessun rilascio automatico è autorizzato.
