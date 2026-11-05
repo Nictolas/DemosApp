@@ -533,6 +533,18 @@ class MinisteroSyncService {
       // Salva il totale prima di liberare la memoria
       const totalIniziative = iniziative.length;
 
+      // A truncated DB write must never be reported as a completed source sync.
+      // Changes already made by previous per-row writes are NOT atomic; keep
+      // the run failed so schedulers and operators cannot mistake a partial
+      // update for a successful official-source refresh.
+      if (results.errors > 0 || results.skipped > 0) {
+        console.error('[ministero] partial sync rejected', {
+          errors: results.errors, skipped: results.skipped,
+        });
+        throw new Error('MINISTERO_SYNC_PARTIAL_FAILURE');
+      }
+
+
       // Backfill: iniziative già in DB con data_inizio ma senza data_fine dal sito
       try {
         const backfill = await pool.query(`
