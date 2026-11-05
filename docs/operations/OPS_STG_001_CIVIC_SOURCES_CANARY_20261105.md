@@ -52,7 +52,7 @@ Non confondere questo risultato con la piena disponibilità del backend.
 ## Validazione e condizioni del GO successivo
 
 Nuovi test offline mirati più quelli della precedente PR #596:
-**17/17 PASS su Windows in worktree temporaneo e rimosso**.
+**19/19 PASS su Windows in worktree temporaneo e rimosso**.
 CI PostgreSQL 16/17 e controllo workflow GitHub da verificare nella PR.
 
 **Nessun deploy, cambio di ENV, creazione ruolo, scrittura Supabase,
