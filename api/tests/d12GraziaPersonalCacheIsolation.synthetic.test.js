@@ -15,7 +15,7 @@ const javascript=ts.transpileModule(source,{
   compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
 }).outputText;
 
-function harness(){
+function harness(failure=null){
   const events={queries:[],mutations:[],invalidated:[],requests:[],toasts:[]};
   const queryClient={invalidateQueries:q=>events.invalidated.push(q)};
   const response={success:true,mieiVoti:['Persona approvata sintetica'],
@@ -30,6 +30,7 @@ function harness(){
     '@/lib/queryClient':{
       apiRequest:async(method,url,body)=>{
         events.requests.push({method,url,body});
+        if(failure)throw new Error(failure);
         return {ok:true,data:response};
       }
     },
@@ -86,4 +87,23 @@ test('synthetic error notifications do not log vote names, responses or raw exce
   app.events.mutations[0].onError(new Error('Impossibile salvare le richieste di grazia.'));
   assert.equal(app.events.toasts[0].title,'Errore');
   assert.equal(app.events.toasts[0].variant,'destructive');
+});
+
+test('synthetic API error with private details is redacted from GET, POST and toast',async()=>{
+  const fabricated='server SQL detail: person Doe, user 123, private vote against candidate';
+  const app=harness(fabricated);
+  app.useGraziaData({id:'11111111-1111-4111-8111-111111111111'});
+  await assert.rejects(app.events.queries[0].queryFn(),error=>{
+    assert.equal(error.message,'Impossibile caricare la classifica. Riprova più tardi.');
+    assert.doesNotMatch(error.message,/Doe|SQL|vote/);
+    return true;
+  });
+  await assert.rejects(app.events.mutations[0].mutationFn(['Soggetto sintetico']),error=>{
+    assert.equal(error.message,'Impossibile salvare le richieste di grazia.');
+    assert.doesNotMatch(error.message,/Doe|SQL|vote/);
+    return true;
+  });
+  app.events.mutations[0].onError(new Error(fabricated));
+  assert.equal(app.events.toasts[0].description,'Impossibile salvare le richieste di grazia.');
+  assert.doesNotMatch(app.events.toasts[0].description,/Doe|SQL|vote/);
 });
