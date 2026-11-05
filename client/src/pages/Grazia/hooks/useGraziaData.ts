@@ -8,85 +8,54 @@ export const useGraziaData = (user: any) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Query per caricare i dati
+  // Personal voting data and the complete API response must never be logged.
   const { data, isLoading: isLoadingData, error } = useQuery<GraziaData>({
-    queryKey: ['graziaData'],
+    // Keep each account's personal preferences in a distinct cache entry.
+    queryKey: ['graziaData', user?.id ?? null],
     queryFn: async () => {
-      try {
-        console.log('🔍 DEBUG useGraziaData - Inizio fetch');
-        const response = await apiRequest("GET", "/api/grazia");
-        console.log('🔍 DEBUG useGraziaData - Response completa:', response);
-        console.log('🔍 DEBUG useGraziaData - response.ok:', response?.ok);
-        console.log('🔍 DEBUG useGraziaData - response.status:', response?.status);
-        console.log('🔍 DEBUG useGraziaData - response.data:', response?.data);
-        
-        if (!response?.ok || !response?.data) {
-          const errorMsg = response?.data?.error || response?.data?.message || "Errore nel caricamento dei dati grazia";
-          console.error('❌ DEBUG useGraziaData - Errore response (non ok o dati mancanti):', errorMsg);
-          throw new Error(errorMsg);
-        }
-        
-        const result = response.data;
-        console.log('🔍 DEBUG useGraziaData - result:', result);
-        console.log('🔍 DEBUG useGraziaData - result.success:', result?.success);
-        
-        if (!result || result.success === false) {
-          const errorMsg = result?.error || result?.message || "Errore nel caricamento dei dati grazia";
-          console.error('❌ DEBUG useGraziaData - Errore result (success false o result null):', errorMsg);
-          throw new Error(errorMsg);
-        }
-        
-        console.log('✅ DEBUG useGraziaData - Restituendo result:', result);
-        return result;
-      } catch (err: any) {
-        console.error('❌ DEBUG useGraziaData - Errore catturato:', err);
-        console.error('❌ DEBUG useGraziaData - Errore message:', err?.message);
-        throw err;
+      const response = await apiRequest("GET", "/api/grazia");
+      if (!response?.ok || !response?.data) {
+        throw new Error(response?.data?.error || response?.data?.message || "Errore nel caricamento dei dati grazia");
       }
+      const result = response.data;
+      if (result.success === false) {
+        throw new Error(result.error || result.message || "Errore nel caricamento dei dati grazia");
+      }
+      return result;
     },
     enabled: !!user && !!localStorage.getItem('auth_token'),
     retry: 1,
     refetchOnWindowFocus: false
   });
 
-  // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
     mutationFn: async (voti: string[]) => {
-      console.log('🔍 DEBUG saveVotiMutation - Inizio salvataggio voti:', voti);
+      // POST body is necessary for the user's action, but never recorded
+      // in browser debug output or third-party telemetry here.
       const response = await apiRequest("POST", "/api/grazia/vota", { voti });
-      console.log('🔍 DEBUG saveVotiMutation - Response:', response);
-      
       if (!response?.ok || !response?.data) {
-        const errorMsg = response?.data?.error || response?.data?.message || "Errore nel salvataggio dei voti";
-        console.error('❌ DEBUG saveVotiMutation - Errore response:', errorMsg);
-        throw new Error(errorMsg);
+        throw new Error(response?.data?.error || response?.data?.message || "Errore nel salvataggio dei voti");
       }
-      
       const result = response.data;
-      if (result?.success === false) {
-        const errorMsg = result?.error || result?.message || "Errore nel salvataggio dei voti";
-        console.error('❌ DEBUG saveVotiMutation - Errore result:', errorMsg);
-        throw new Error(errorMsg);
+      if (result.success === false) {
+        throw new Error(result.error || result.message || "Errore nel salvataggio dei voti");
       }
-      
-      console.log('✅ DEBUG saveVotiMutation - Voti salvati con successo');
       return result;
     },
-    onSuccess: (data, variables) => {
-      console.log('✅ DEBUG saveVotiMutation - onSuccess chiamato, invalidando query');
+    onSuccess: (_data, variables) => {
       const remainingVotes = getRemainingVotes('grazia', variables.length);
-      toast({ 
-        title: "Preferenze salvate", 
-        description: `Le tue richieste di grazia sono state aggiornate. Voti rimanenti: ${remainingVotes}` 
+      toast({
+        title: "Preferenze salvate",
+        description: `Le tue richieste di grazia sono state aggiornate. Voti rimanenti: ${remainingVotes}`
       });
-      queryClient.invalidateQueries({ queryKey: ['graziaData'] });
+      queryClient.invalidateQueries({ queryKey: ['graziaData', user?.id ?? null] });
     },
     onError: (error: any) => {
-      console.error('❌ DEBUG saveVotiMutation - onError:', error);
-      toast({ 
-        title: "Errore", 
-        description: error.message || "Impossibile salvare le richieste di grazia.", 
-        variant: "destructive" 
+      // Show the existing user-facing message without logging raw errors.
+      toast({
+        title: "Errore",
+        description: error?.message || "Impossibile salvare le richieste di grazia.",
+        variant: "destructive"
       });
     },
     onSettled: () => {
@@ -94,10 +63,5 @@ export const useGraziaData = (user: any) => {
     }
   });
 
-  return {
-    data,
-    isLoadingData,
-    error,
-    saveVotiMutation
-  };
+  return { data, isLoadingData, error, saveVotiMutation };
 };

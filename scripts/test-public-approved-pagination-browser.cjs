@@ -64,6 +64,10 @@ function reply(route,data,status=200){
     const title=category==='attivisti'?'Attivisti segnalati e approvati':
       'Organizzazioni segnalate e approvate';
     assert.equal(await page.locator('[aria-label="'+title+'"] .grid > *').count(),105);
+    const privacy=page.locator('[aria-label="'+title+'"] a[href="mailto:privacy@demos.community"]');
+    assert.equal(await privacy.count(),1,'public subject must have an accessible contestation contact');
+    assert.doesNotMatch(await privacy.getAttribute('href'),/Soggetto|synthetic|subject=|id=/i,
+      'mailto must not silently transmit published subject names or IDs');
     const layout=await page.evaluate(()=>({w:innerWidth,s:document.documentElement.scrollWidth}));
     assert.ok(layout.s<=layout.w+2,'no horizontal mobile overflow');
     await ctx.close();

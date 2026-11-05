@@ -874,6 +874,7 @@ export default function Organizzazioni() {
             {approvedSubjects.length > 0 && (
               <section className="mt-5 space-y-3" aria-label="Organizzazioni segnalate e approvate">
                 <h2 className="text-lg font-semibold">Organizzazioni segnalate e approvate</h2>
+                <p className="text-xs text-slate-600">Per contestare una segnalazione che ti riguarda o chiedere una rettifica, contatta <a className="underline underline-offset-2" href="mailto:privacy@demos.community">privacy@demos.community</a>. Non inviare documenti sensibili senza istruzioni.</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {approvedSubjects.filter(s => !searchTerm.trim() || s.title.toLowerCase().includes(searchTerm.trim().toLowerCase())).map(subject => (
                     <Card key={subject.id} className="bg-white">

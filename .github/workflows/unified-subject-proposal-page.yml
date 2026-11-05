@@ -68,6 +68,8 @@ jobs:
         run: node --test api/tests/d12NominationProductionGate.synthetic.test.js
       - name: No-store for every generic nomination response, including auth failures
         run: node --test api/tests/d12GenericNoStoreAllResponses.synthetic.test.js
+      - name: Keep Grazia voting preferences out of browser logs and expose privacy contact
+        run: node --test api/tests/d12GraziaPrivacyContact.contract.test.js
       - name: Page all Grazia moderation and notification audit entries without exposing private fields
         run: node --test api/tests/graziaAdminPagination.synthetic.test.js api/tests/graziaModerationContract.test.js
       - name: Cache Grazia vote schema for reads and writes; fail closed on drift
@@ -91,6 +93,8 @@ jobs:
       - run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Parse legacy registration and claim data without location debug logs
         run: node --test api/tests/d12FrontendParsingPrivacy.contract.test.js
+      - name: Keep personal Grazia vote cache isolated between accounts
+        run: node --test api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js
       - run: npm run build --prefix client
 
   mobile-browser:
@@ -108,6 +112,8 @@ jobs:
       - run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
       - name: Parse legacy registration and claim data without location debug logs
         run: node --test api/tests/d12FrontendParsingPrivacy.contract.test.js
+      - name: Keep personal Grazia vote cache isolated between accounts
+        run: node --test api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js
       - run: npm run build --prefix client
       - name: Use local Chrome with isolated Playwright library
         run: |
