@@ -90,6 +90,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     const cards = page.locator('.opinioni-editor-page main section');
     await cards.first().waitFor({ timeout: 25000 });
     assert.equal(await cards.count(), 14);
+    const firstQuestionText = await cards.first().locator('h2').innerText();
     assert.equal(personalGets.length, 4, 'Cold topic entry uses the four existing grade reads only');
     const search = page.getByRole('searchbox', { name: "Cerca fra le Opinioni dell'argomento" });
     await search.fill('MES');
@@ -170,6 +171,16 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByRole('button', { name: /Economia, lavoro e fisco/ }).click();
     await page.getByText('1 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
     assert.equal(personalGets.length, before, 'Warm cache should avoid personal GETs');
+    assert.equal(await cards.first().evaluate(element => element.classList.contains('bg-blue-50')), true,
+      'Unanswered cards must appear first');
+    const savedCard = cards.filter({ has: page.getByRole('heading', { name: firstQuestionText, exact: true }) });
+    assert.equal(await savedCard.evaluate(element => element.classList.contains('bg-green-50')), true,
+      'Previously saved questions remain visible');
+    assert.equal(await savedCard.getByRole('button', { name: 'Favorevole' }).getAttribute('aria-pressed'), 'true');
+    await savedCard.getByRole('button', { name: 'Contrario' }).click();
+    assert.equal(await savedCard.getByRole('button', { name: 'Contrario' }).getAttribute('aria-pressed'), 'true');
+    await savedCard.getByRole('button', { name: 'Favorevole' }).click();
+    assert.equal(await savedCard.getByRole('button', { name: 'Favorevole' }).getAttribute('aria-pressed'), 'true');
 
     // Deliberate failure: a rejected POST must not change committed completion.
     const unanswered = page.locator('.opinioni-editor-page main section.bg-blue-50').first();
