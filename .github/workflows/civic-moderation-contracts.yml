@@ -12,6 +12,7 @@ on:
       - 'api/routes/amnistia.js'
       - 'api/routes/capo-stato.js'
       - 'api/tests/notificationRecipientAndReactionsSecurity.test.js'
+      - 'api/tests/notificationPreferencesReadOnly.contract.test.js'
       - 'api/tests/civicPrivacyHttp.synthetic.test.js'
       - 'api/tests/graziaModerationContract.test.js'
       - 'api/tests/graziaModerationHttp.synthetic.test.js'
@@ -71,6 +72,8 @@ jobs:
           node --check api/routes/organizzazioni.js
       - name: Privacy and reaction tests
         run: node --test api/tests/notificationRecipientAndReactionsSecurity.test.js
+      - name: GET notification preferences must stay read-only (synthetic VM)
+        run: node --test api/tests/notificationPreferencesReadOnly.contract.test.js
       - name: Install isolated HTTP testing dependencies (no database)
         run: npm install --prefix /tmp/demos-http-test --no-save --ignore-scripts --no-audit --no-fund express@4.22.3 dotenv@16.3.1 jsonwebtoken@9.0.2
       - name: Two-user privacy isolation via synthetic HTTP
