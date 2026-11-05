@@ -31,6 +31,19 @@ function isProviderRateLimited(error) {
   return Number(error?.status || error?.statusCode) === 429;
 }
 
+// Report only an allowlisted diagnostic category. Provider error messages,
+// stack traces, request payloads and response bodies may contain credentials
+// or text from documents and must never enter application logs.
+function classifyFreeGroqError(error) {
+  const status = Number(error?.status || error?.statusCode);
+  if (status === 401 || status === 403) return 'AUTH';
+  if (status === 404) return 'MODEL_NOT_FOUND';
+  if (status === 400 || status === 422) return 'INVALID_REQUEST';
+  if (status === 429) return 'RATE_LIMIT';
+  if (status >= 500 && status <= 599) return 'PROVIDER_UNAVAILABLE';
+  return 'NETWORK_OR_UNKNOWN';
+}
+
 function createFreeBudgetGate({ now = Date.now, limits = LIMIT } = {}) {
   let minute = [];
   let day = [];
@@ -115,6 +128,7 @@ module.exports = {
   estimateReservedTokens,
   getRetryAfterSeconds,
   isProviderRateLimited,
+  classifyFreeGroqError,
   createFreeBudgetGate,
   getSharedFreeQuotaStatus,
   requestFreeGroq,
