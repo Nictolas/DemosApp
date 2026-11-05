@@ -61,6 +61,24 @@ test("il grafico e privato, locale e richiede consenso verificato", () => {
   assert.match(modelSource, /export const COMPASS_QUESTIONS/);
 });
 
+test("icone neutre sui cinque assi: leggibili e decorative, senza cambiare i punteggi", () => {
+  assert.match(component, /import \\{ Globe2, Landmark, Leaf, Scale, UsersRound \\} from "lucide-react"/);
+  for (const [id, icon] of Object.entries({
+    economia: "Scale",
+    stato: "Landmark",
+    costumi: "UsersRound",
+    ambiente: "Leaf",
+    immigrazione: "Globe2",
+  })) {
+    assert.match(component, new RegExp(id + ": " + icon + "[,\\\\n]"));
+  }
+  assert.match(component, /const AxisIcon = AXIS_ICONS\\[axis\\.id\\]/);
+  assert.match(component, /<AxisIcon className="h-4 w-4" \\/>/);
+  assert.match(component, /aria-hidden="true">\\s*<AxisIcon/);
+  assert.match(component, /\\{axis\\.title\\}/);
+  assert.match(component, /role="meter"/);
+});
+
 test("cinque assi tematici sotto il compasso, senza ulteriori richieste o dettagli personali", () => {
   assert.match(component, /calculatePoliticalAxes\(answers\)/);
   assert.match(component, /visible \? calculatePoliticalAxes\(answers\) : null/);
