@@ -76,6 +76,8 @@ test('synthetic Render QA app uses actual candidate API and requires a nonproduc
     assert.equal((await metadata.json()).data.length, 94);
     const revoke = await fetch(root + '/qa/revoke', {method:'POST',headers:auth});
     assert.equal(revoke.status, 200);
+    assert.equal((await revoke.json()).retainedResidualRow, true,
+      'Revocation fixture must retain A answer row so SQL guard is actually exercised');
     const denied = await post('i');
     assert.equal(denied.status, 403);
     assert.equal((await denied.json()).consent_required, true);
@@ -86,6 +88,8 @@ test('synthetic Render QA app uses actual candidate API and requires a nonproduc
     assert.equal(bAfterRevocation.data.find(x => x.id === id).userAnswer, 'f');
     const revokeB = await fetch(root + '/qa/revoke', {method:'POST',headers:authB});
     assert.equal(revokeB.status, 200);
+    assert.equal((await revokeB.json()).retainedResidualRow, true,
+      'Revocation fixture must retain B answer row');
     const bHidden = await (await fetch(root + '/api/opinioni-list?grado=N', {headers:authB})).json();
     assert.equal(bHidden.data.find(x => x.id === id).userAnswer, null);
     assert.equal((await fetch(root + '/api/opinioni-list?grado=N', {headers:{authorization:'Bearer incorrect'}})).status, 401);
