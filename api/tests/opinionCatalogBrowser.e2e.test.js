@@ -156,7 +156,7 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           ', localAuth=' + JSON.stringify(auth) +
           ', scriptErrors=' + JSON.stringify(browserErrors.slice(0, 8)) +
           ', failedResources=' + JSON.stringify(failedResources.slice(0, 3)) +
-          ', viteStderr=' + JSON.stringify(viteErrors.slice(-1400)) +
+          ', viteStderr=' + JSON.stringify(viteErrors.slice(0,2200)) +
           ', original=' + error.message);
       }
       try {
