@@ -8,6 +8,10 @@ const http=require('node:http');
 const express=require('express');
 
 const TOKEN='fcm_synthetic_'+'a'.repeat(150);
+const FOREIGN='fcm_synthetic_'+'b'.repeat(150);
+let legacyFixture=[TOKEN];
+let foreignFixture=false;
+const upserts=[];
 const USER='11111111-1111-4111-8111-111111111111';
 let gate=null,locked=false,server=null;
 const calls=[];
@@ -27,11 +31,12 @@ function patch(i,exports){
   const id=modules[i];require.cache[id]={id,filename:id,loaded:true,exports};
 }
 const db={
-  async query(sql){
+  async query(sql,params){
     const text=String(sql);
     calls.push('SQL');
+    if(text.includes('INSERT INTO user_devices')) upserts.push(params);
     if(text.includes('FROM users WHERE id = $1')){
-      return {rows:[{fcm_tokens:[TOKEN]}]};
+      return {rows:[{fcm_tokens:legacyFixture}]};
     }
     if(text.includes('SELECT 1 FROM user_devices')){
       return {rows:[{exists:1}]};
@@ -88,6 +93,12 @@ patch(4,{
 });
 patch(5,{
   onlyTokensNotOwnedByOthers:async(_db,_user,tokens)=>[...new Set(tokens)],
+  onlyTokensNotRegisteredToOthers:async(_db,_user,tokens)=>
+    tokens.filter(token=>!(foreignFixture && token===FOREIGN)),
+  upsertCleanupOwnedOrUnassignedToken:async(_db,userId,token)=>{
+    calls.push('PROTECTED_CLEANUP_UPSERT');
+    upserts.push([userId,token]);
+  },
 });
 delete require.cache[modules[6]];
 const app=express();app.use(express.json());
@@ -183,4 +194,33 @@ test('anonymous token mutation never acquires lock or touches the database',asyn
   const resp=await request('DELETE','/api/fcm-tokens/session',{},false);
   assert.equal(resp.status,401);
   assert.deepEqual(calls,[]);
+});
+
+test('legacy cleanup cannot steal a newly reassigned foreign token',async()=>{
+  gate=null;calls.length=0;upserts.length=0;
+  legacyFixture=[TOKEN,FOREIGN];foreignFixture=true;
+  try{
+    const response=await request('POST','/api/fcm-tokens/cleanup',{});
+    assert.equal(response.status,200);
+    assert.equal(response.body.success,true);
+    assert.equal(response.body.data.tokenCountBefore,2);
+    assert.equal(response.body.data.tokenCountAfter,1);
+    assert.deepEqual(upserts,[[USER,TOKEN]],
+      'only the surviving original-account token may be reactivated');
+  } finally {
+    legacyFixture=[TOKEN];foreignFixture=false;
+  }
+});
+
+test('cleanup clears foreign-only stale legacy without reassigning it',async()=>{
+  gate=null;calls.length=0;upserts.length=0;
+  legacyFixture=[FOREIGN];foreignFixture=true;
+  try {
+    const result=await request('POST','/api/fcm-tokens/cleanup',{});
+    assert.equal(result.status,200);
+    assert.equal(result.body.data.tokenCountAfter,0);
+    assert.deepEqual(upserts,[],'foreign account device must remain untouched');
+  } finally {
+    legacyFixture=[TOKEN];foreignFixture=false;
+  }
 });
