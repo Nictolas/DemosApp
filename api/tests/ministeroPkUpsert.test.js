@@ -95,3 +95,37 @@ test('the updated SQL does not depend on a non-existent id_ministero UNIQUE inde
   assert.match(source,/ON CONFLICT \(id\) DO UPDATE SET/);
   assert.doesNotMatch(source,/ON CONFLICT \$\{conflictTarget\}/);
 });
+
+
+test('same-title initiatives with different official IDs never share lookup identity',async()=>{
+  const {service,statements}=loadWithFakePool();
+  const sharedTitle='Proposta di legge comune';
+  for(const id of [91,92]){
+    const result=await service.saveIniziativa({
+      id,titolo:sharedTitle,
+      idDecTipoIniziativa:{nome:'Legge di iniziativa popolare'},
+      idDecStatoIniziativa:{nome:'IN RACCOLTA FIRME'},sostenitori:1,
+    });
+    assert.equal(result.id,'ministero_'+id);
+  }
+  assert.equal(statements.length,4);
+  assert.match(statements[0].sql,/WHERE id = \$1 LIMIT 1/);
+  assert.match(statements[2].sql,/WHERE id = \$1 LIMIT 1/);
+  assert.equal(statements[0].params.length,1);
+  assert.equal(statements[2].params.length,1);
+  assert.equal(statements[0].params[0],'ministero_91');
+  assert.equal(statements[2].params[0],'ministero_92');
+  for(const query of [statements[0].sql,statements[2].sql]){
+    assert.doesNotMatch(query,/TRIM\(titolo\)|OR \(TRIM/);
+  }
+});
+
+test('primary key lookup and ON CONFLICT target are always identical',async()=>{
+  const {service,statements}=loadWithFakePool();
+  await service.saveIniziativa({id:418,titolo:'Titolo ufficiale',
+    idDecTipoIniziativa:{nome:'Referendum abrogativo'},
+    idDecStatoIniziativa:{nome:'CHIUSA'}});
+  assert.deepEqual(statements[0].params,['ministero_418']);
+  assert.equal(statements[1].params[0],'ministero_418');
+  assert.match(statements[1].sql,/ON CONFLICT \(id\) DO UPDATE SET/);
+});
