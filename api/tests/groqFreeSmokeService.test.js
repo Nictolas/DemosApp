@@ -72,7 +72,7 @@ test('quota denial and API errors return redacted status only', async () => {
   }
 });
 
-test('diagnostic is admin-only, has no DB dependencies, and returns 200 or 503', async () => {
+test('diagnostic is admin-only, adds no parliamentary SQL, and returns 200 or 503', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'routes', 'voti-camera.js'), 'utf8');
   const begin = source.indexOf("// POST /api/voti-camera/groq-smoke");
   const end = source.indexOf("// POST /api/voti-camera/:politico/spiegazione");
