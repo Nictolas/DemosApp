@@ -86,6 +86,51 @@ class SyncEciUnitTests(unittest.TestCase):
                 {"recordsFound": 2, "entries": []},
             ]))
 
+    def test_changing_official_total_across_pages_rejects_entire_feed(self):
+        session = FakeSession([
+            {"recordsFound": 3, "entries": [
+                {"id": 1, "status": "ONGOING"},
+                {"id": 2, "status": "ONGOING"},
+            ]},
+            {"recordsFound": 4, "entries": [
+                {"id": 3, "status": "ONGOING"},
+            ]},
+        ])
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_TOTAL_CHANGED"):
+            sync_eci._fetch_ongoing_entries(session=session)
+        self.assertEqual(len(session.calls), 2)
+
+    def test_overlapping_source_pages_cannot_silently_deduplicate(self):
+        session = FakeSession([
+            {"recordsFound": 3, "entries": [
+                {"id": 1, "status": "ONGOING"},
+                {"id": 2, "status": "ONGOING"},
+            ]},
+            {"recordsFound": 3, "entries": [
+                {"id": 2, "status": "ONGOING"},
+                {"id": 3, "status": "ONGOING"},
+            ]},
+        ])
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_DUPLICATE_ID"):
+            sync_eci._fetch_ongoing_entries(session=session)
+        self.assertEqual(len(session.calls), 2)
+
+    def test_invalid_source_ids_and_total_fail_closed(self):
+        for invalid_id in (None, "", "bad", True):
+            with self.subTest(invalid_id=invalid_id):
+                session = FakeSession([{"recordsFound": 1, "entries": [
+                    {"id": invalid_id, "status": "ONGOING"},
+                ]}])
+                with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_ID_INVALID"):
+                    sync_eci._fetch_ongoing_entries(session=session)
+        for invalid_total in (None, "nan", True):
+            with self.subTest(invalid_total=invalid_total):
+                session = FakeSession([{"recordsFound": invalid_total, "entries": [
+                    {"id": 1, "status": "ONGOING"},
+                ]}])
+                with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_TOTAL_INVALID"):
+                    sync_eci._fetch_ongoing_entries(session=session)
+
     def test_record_uses_italian_detail_and_direct_official_signing_link(self):
         entry = {
             "id": 9173,
