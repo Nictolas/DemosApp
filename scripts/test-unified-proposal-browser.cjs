@@ -62,6 +62,10 @@ async function main() {
           if(route.request().method()==='POST'&&url.pathname==='/api/subject-proposals'){
             const data=route.request().postDataJSON();
             posts.push(data);
+            if(data.title==='Errore sintetico') return response(route,500,{
+              success:false,error:'PRIVATE_SQL_DIAGNOSTIC_SYNTHETIC',
+              message:'PRIVATE_PERSON_TITLE_SYNTHETIC',
+            });
             return response(route,201,{success:true,status:'pending',proposal:{id:'synthetic-'+posts.length}});
           }
         }
@@ -128,6 +132,19 @@ async function main() {
       assert.equal(await page.getByText('La proposta è in attesa di valutazione.').count(),0,
         'the outdated status must not appear under the new category');
       assert.equal(proposalReads.length,3,'only the three explicitly requested status GETs');
+
+       // Unexpected raw server diagnostic strings must never reach screen.
+       await select.selectOption('attivisti');
+       await page.locator('#subject-title').fill('Errore sintetico');
+       await page.locator('#subject-source').fill('https://example.org/fonte');
+       await submit.click();
+       await page.getByRole('alert').filter({hasText:'Non è stato possibile registrare la proposta. Riprova più tardi.'})
+         .waitFor({timeout:15000});
+       assert.equal(await page.getByText('PRIVATE_SQL_DIAGNOSTIC_SYNTHETIC').count(),0);
+       assert.equal(await page.getByText('PRIVATE_PERSON_TITLE_SYNTHETIC').count(),0);
+       assert.equal(posts.length,2,'one controlled synthetic failed POST following success');
+       assert.equal(proposalReads.length,3,'failed POST must not auto-read private status');
+       await select.selectOption('organizzazioni');
 
       // Same-mounted account changes are covered separately by
       // test-proposal-owner-isolation-browser.cjs on a Vite dev server,

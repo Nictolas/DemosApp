@@ -106,6 +106,10 @@ test('sensitive proposal information is minimized in Grazia and never directly p
   assert.match(config, /Non inserire sentenze, reati, dati sanitari/);
   assert.match(page, /non rende automaticamente pubblico alcun nominativo/);
   assert.match(page, /status === 409/);
+  assert.doesNotMatch(page, /reason\?\.data\?\.(?:message|error)/,
+    'raw server errors must not be rendered to users');
+  assert.match(page, /status === 400 \|\| status === 422/);
+  assert.match(page, /Non è stato possibile registrare la proposta\. Riprova più tardi/);
 });
 
 test('backend enforces source HTTPS and avoids criminal details in admin notice', () => {
@@ -152,4 +156,15 @@ test('personal proposal statuses are owned by the authenticated user, even if th
   assert.match(page, /if \(currentOwnerId\.current !== submitOwnerId\) return/,
     'a successful old-account POST cannot populate the new account form');
   assert.match(page, /if \(currentOwnerId\.current === submitOwnerId\) setError\(message\)/);
+});
+
+test('a late POST response cannot update a newer category or user form', () => {
+  const page = read('client/src/pages/ProponiSoggetto.tsx');
+  assert.match(page,/const submitRequestVersion = useRef\(0\)/);
+  assert.equal((page.match(/submitRequestVersion\.current \+= 1/g)||[]).length,2,
+    'invalidate both on route or account effect and explicit category selection');
+  assert.match(page,/const submitVersion = \+\+submitRequestVersion\.current/);
+  assert.match(page,/currentOwnerId\.current !== submitOwnerId \|\| submitRequestVersion\.current !== submitVersion/);
+  assert.equal((page.match(/currentOwnerId\.current === submitOwnerId && submitRequestVersion\.current === submitVersion/g)||[]).length,2,
+    'error and finally must not mutate a newer form after an old POST');
 });

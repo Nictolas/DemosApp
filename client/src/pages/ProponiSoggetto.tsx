@@ -42,6 +42,8 @@ export default function ProponiSoggetto() {
   // Invalidate an in-flight personal status read whenever its category changes.
   // Older results must never be shown under a different proposal category.
   const statusRequestVersion = useRef(0);
+  // Prevent late POST completion from changing a newer category/owner form.
+  const submitRequestVersion = useRef(0);
   // The owner is tracked on every render, before effects, so another
   // account cannot see or complete an earlier account's private request.
   const currentOwnerId = useRef<string | null>(user?.id ?? null);
@@ -51,6 +53,7 @@ export default function ProponiSoggetto() {
   // No GET request is made on opening this page or changing the category.
   useEffect(() => {
     statusRequestVersion.current += 1;
+    submitRequestVersion.current += 1;
     setCheckingStatus(false);
     setSubmitting(false);
     setStatusOwnerId(null);
@@ -69,6 +72,7 @@ export default function ProponiSoggetto() {
   const chooseCategory = (next: ProposalCategory) => {
     if (submitting) return;
     statusRequestVersion.current += 1;
+    submitRequestVersion.current += 1;
     setCheckingStatus(false);
     setCategory(next);
     setTitle("");
@@ -99,6 +103,7 @@ export default function ProponiSoggetto() {
     event.preventDefault();
     if (!canSubmit || !authReady || !user) return;
     const submitOwnerId = user.id;
+    const submitVersion = ++submitRequestVersion.current;
     setSubmitting(true);
     setError(null);
     try {
@@ -122,7 +127,7 @@ export default function ProponiSoggetto() {
       if (!response?.data?.success || !recorded) {
         throw new Error("La proposta non è stata registrata.");
       }
-      if (currentOwnerId.current !== submitOwnerId) return;
+      if (currentOwnerId.current !== submitOwnerId || submitRequestVersion.current !== submitVersion) return;
       setSubmitted(category);
       setTitle("");
       setDetails("");
@@ -133,12 +138,20 @@ export default function ProponiSoggetto() {
       });
     } catch (reason: any) {
       const status = reason?.status;
+      // Never render server-supplied error strings containing diagnostics or
+      // information about another person's pending proposal.
       const message = status === 409
         ? "Hai già una proposta in attesa per questa categoria oppure il soggetto è già stato proposto."
-        : reason?.data?.message || reason?.data?.error || "Non è stato possibile registrare la proposta.";
-      if (currentOwnerId.current === submitOwnerId) setError(message);
+        : status === 401 ? "Sessione scaduta. Accedi nuovamente per inviare la proposta."
+        : status === 403 ? "Non hai i requisiti per inviare questa proposta."
+        : status === 400 || status === 422 ? "Controlla categoria, titolo e fonte HTTPS."
+        : status === 429 ? "Troppe richieste. Riprova più tardi."
+        : "Non è stato possibile registrare la proposta. Riprova più tardi.";
+      if (currentOwnerId.current === submitOwnerId && submitRequestVersion.current === submitVersion)
+        setError(message);
     } finally {
-      if (currentOwnerId.current === submitOwnerId) setSubmitting(false);
+      if (currentOwnerId.current === submitOwnerId && submitRequestVersion.current === submitVersion)
+        setSubmitting(false);
     }
   };
 
