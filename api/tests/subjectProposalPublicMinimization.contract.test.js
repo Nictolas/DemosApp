@@ -28,7 +28,7 @@ test('moderation still reads original evidence internally and remains Admin-prot
 });
 
 test('both approved-catalogue cards only show title and are not presented as verified DEMOS accounts', () => {
-  for (const p of ['client/src/pages/Attivisti/index.tsx','client/src/pages/Organizzazioni/index.tsx']) {
+  for (const p of ['client/src/pages/Attivisti.tsx','client/src/pages/Organizzazioni/index.tsx']) {
     const s=file(p);
     assert.match(s, /subject\.title/,'must preserve approved subject label in ' + p);
     assert.doesNotMatch(s, /subject\.details|subject\.source_url/,
@@ -97,9 +97,11 @@ test('public activist and organization lists never log personal search filters o
   const org = file('client/src/pages/Organizzazioni/index.tsx');
   assert.match(org, /fetch\(url, \{ signal: controller\.signal, cache: 'no-store' \}\)/,
     'client must not reuse an outdated organization response after a withdrawal');
-  const activist = file('client/src/pages/Attivisti/index.tsx');
-  assert.match(activist, /apiRequest\("GET", "\/api\/attivisti"\)/,
-    'activist uses globally no-store API request');
+  const activist = file('client/src/pages/Attivisti.tsx');
+  assert.match(activist, /const url = getApiUrl\(`\/api\/attivisti/,
+    'activist must use the configured API host');
+  assert.match(activist, /fetch\(url, \{ signal: controller\.signal, cache: 'no-store' \}\)/,
+    'active directory GET must not re-use stale personal results');
 });
 
 test('public directory SQL omits unnecessary profile PII while preserving visible card fields', () => {
@@ -119,7 +121,7 @@ test('public directory SQL omits unnecessary profile PII while preserving visibl
     assert.match(source, /u\.avatar_config/, 'public avatar remains available');
     assert.match(source, /u\.tipologie_attivismo/, 'public activism tags remain available');
   }
-  const activist = file('client/src/pages/Attivisti/index.tsx');
+  const activist = file('client/src/pages/Attivisti.tsx');
   const organization = file('client/src/pages/Organizzazioni/index.tsx');
   const modal = file('client/src/components/OrganizzazioneModal.tsx');
   for (const source of [activist, organization, modal]) {
@@ -315,4 +317,17 @@ test('both Admin notification audits page past 100 with minimal private payloads
   assert.doesNotMatch(ui.slice(ui.indexOf('useEffect(() =>'),ui.indexOf('const refreshApproved')),
     /withdraw-notifications|notification-audit/,
     'notification audits must only load on explicit Admin request');
+});
+
+test('active activist page and its modal do not type or present private account metadata', () => {
+  const sources=[
+    file('client/src/pages/Attivisti.tsx'),
+    file('client/src/components/AttivistaModal.tsx')
+  ];
+  const forbidden=/^\s*(?:email|status|created_at|updated_at|genere|data_nascita|cittadinanza|paese_residenza|provincia_residenza|comune_residenza)\??:\s*string;/m;
+  for (const source of sources) {
+    assert.doesNotMatch(source,forbidden,
+      'the public activist directory and modal must not advertise private fields');
+  }
+  assert.match(sources[1],/avatar_config\?: string;/);
 });
