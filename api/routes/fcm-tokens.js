@@ -18,6 +18,7 @@ const {
   upsertCleanupOwnedOrUnassignedToken,
 } = require('../services/civicFcmTokenOwnership');
 const { runCivicPreferenceSaveAtomic } = require('../services/civicPreferenceAtomicSave');
+const {getLegacyTokens,updateLegacyTokens}=require('../services/civicLegacyFcmStorage');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -64,39 +65,6 @@ async function unsubscribeCivicTokenOrBlock(token, lockedClient = null) {
 
 function isValidFcmToken(token) {
   return !!(token && token.trim() && token.length > 100 && !token.startsWith('web_'));
-}
-
-function isMissingLegacyFcmColumn(error) {
-  return error?.code === '42703';
-}
-
-async function getLegacyTokens(userId, db = pool) {
-  try {
-    const userResult = await db.query(
-      'SELECT COALESCE(fcm_tokens, ARRAY[]::text[]) AS fcm_tokens FROM users WHERE id = $1',
-      [userId]
-    );
-
-    if (userResult.rows.length === 0) return null;
-    return userResult.rows[0].fcm_tokens || [];
-  } catch (error) {
-    if (!isMissingLegacyFcmColumn(error)) throw error;
-    const userResult = await db.query('SELECT 1 FROM users WHERE id = $1', [userId]);
-    return userResult.rows.length === 0 ? null : [];
-  }
-}
-
-async function updateLegacyTokens(userId, tokens, db = pool) {
-  try {
-    await db.query(
-      'UPDATE users SET fcm_tokens = $1, updated_at = NOW() WHERE id = $2',
-      [tokens, userId]
-    );
-    return true;
-  } catch (error) {
-    if (!isMissingLegacyFcmColumn(error)) throw error;
-    return false;
-  }
 }
 
 async function upsertUserDeviceToken(userId, token, db = pool) {
@@ -200,10 +168,11 @@ router.post('/', verifyToken, async (req, res) => {
     }
     
     const outcome = await withAtomicFcmMutation(async (db) => {
-    const existingTokens = await getLegacyTokens(userId, db);
-    if (existingTokens === null) {
+    const legacyState = await getLegacyTokens(userId, db);
+    if (legacyState === null) {
       return { status: 404, body: { success: false, error: 'Utente non trovato' } };
     }
+    const existingTokens = legacyState.tokens;
 
     // Filtra i token validi (solo quelli che sono token FCM reali, non device ID fittizi)
     const validExistingTokens = existingTokens.filter(t => 
@@ -244,7 +213,7 @@ router.post('/', verifyToken, async (req, res) => {
     await revokeSupersededCivicTokens(userId, token, validExistingTokens, db);
 
     // Salva su storage legacy (transitorio)
-    await updateLegacyTokens(userId, updatedTokens, db);
+    await updateLegacyTokens(userId, updatedTokens, db, legacyState.hasColumn);
 
     // Salva su nuovo storage (user_devices): mantieni un solo token attivo per utente
     await upsertUserDeviceToken(userId, token, db);
@@ -288,9 +257,19 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     
     
     const outcome = await withAtomicFcmMutation(async (db) => {
-    const existingTokens = await getLegacyTokens(userId, db);
-    if (existingTokens === null) {
+    const legacyState = await getLegacyTokens(userId, db);
+    if (legacyState === null) {
       return { status: 404, body: { success: false, error: 'Utente non trovato' } };
+    }
+    const existingTokens = legacyState.tokens;
+
+    if (!legacyState.hasColumn) {
+      // Do not interpret a retired users.fcm_tokens column as having zero
+      // registered devices. Canonical user_devices must be left intact.
+      return { status: 200, body: {
+        success: true, message: 'Nessuna pulizia necessaria',
+        data: { userId, skipped: true }
+      } };
     }
 
     // Filtra i token validi
@@ -329,7 +308,7 @@ router.post('/cleanup', verifyToken, async (req, res) => {
     }
 
     // Salva i token puliti su storage legacy (transitorio)
-    await updateLegacyTokens(userId, cleanedTokens, db);
+    await updateLegacyTokens(userId, cleanedTokens, db, legacyState.hasColumn);
 
     // Allinea nuovo storage: disattiva tutti i token user, poi attiva solo il più recente (se presente)
     await db.query(
@@ -375,8 +354,9 @@ router.delete('/session', verifyToken, async (req, res) => {
       'SELECT fcm_token FROM user_devices WHERE user_id = $1 AND is_active = TRUE',
       [userId]
     );
-    const legacy = await getLegacyTokens(userId, db);
-    if (legacy === null) return { status: 404, body: { success: false, error: 'Utente non trovato' } };
+    const legacyState = await getLegacyTokens(userId, db);
+    if (legacyState === null) return { status: 404, body: { success: false, error: 'Utente non trovato' } };
+    const legacy = legacyState.tokens;
 
     if (isCivicPushEnabled()) {
       const revocable = await onlyTokensNotOwnedByOthers(
@@ -389,7 +369,7 @@ router.delete('/session', verifyToken, async (req, res) => {
       'UPDATE user_devices SET is_active = FALSE, updated_at = NOW() WHERE user_id = $1',
       [userId]
     );
-    await updateLegacyTokens(userId, [], db);
+    await updateLegacyTokens(userId, [], db, legacyState.hasColumn);
     return { status: 200, body: { success: true } };
     });
     return res.status(outcome.status).json(outcome.body);
@@ -412,10 +392,11 @@ router.delete('/:token', verifyToken, async (req, res) => {
     }
     
     const outcome = await withAtomicFcmMutation(async (db) => {
-    const existingTokens = await getLegacyTokens(userId, db);
-    if (existingTokens === null) {
+    const legacyState = await getLegacyTokens(userId, db);
+    if (legacyState === null) {
       return { status: 404, body: { success: false, error: 'Utente non trovato' } };
     }
+    const existingTokens = legacyState.tokens;
 
     // Mai agire su topic di un token che non appartiene all'utente autenticato.
     const device = await db.query(
@@ -432,7 +413,7 @@ router.delete('/:token', verifyToken, async (req, res) => {
     const updatedTokens = existingTokens.filter(t => t !== token);
     
     // Salva i token aggiornati
-    await updateLegacyTokens(userId, updatedTokens, db);
+    await updateLegacyTokens(userId, updatedTokens, db, legacyState.hasColumn);
 
     // Nuovo storage: disattiva token specifico
     await deactivateUserDeviceToken(userId, token, db);
