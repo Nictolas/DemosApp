@@ -115,6 +115,18 @@ class SyncEciUnitTests(unittest.TestCase):
             sync_eci._fetch_ongoing_entries(session=session)
         self.assertEqual(len(session.calls), 2)
 
+    def test_cross_page_duplicate_with_mixed_int_string_id_fails(self):
+        session = FakeSession([
+            {"recordsFound": 2, "entries": [
+                {"id": 17, "status": "ONGOING"},
+            ]},
+            {"recordsFound": 2, "entries": [
+                {"id": "17", "status": "ONGOING"},
+            ]},
+        ])
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_DUPLICATE_ID"):
+            sync_eci._fetch_ongoing_entries(session=session)
+
     def test_invalid_source_ids_and_total_fail_closed(self):
         for invalid_id in (None, "", "bad", True):
             with self.subTest(invalid_id=invalid_id):
@@ -123,7 +135,7 @@ class SyncEciUnitTests(unittest.TestCase):
                 ]}])
                 with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_ID_INVALID"):
                     sync_eci._fetch_ongoing_entries(session=session)
-        for invalid_total in (None, "nan", True):
+        for invalid_total in (None, "nan", True, 1.5):
             with self.subTest(invalid_total=invalid_total):
                 session = FakeSession([{"recordsFound": invalid_total, "entries": [
                     {"id": 1, "status": "ONGOING"},
