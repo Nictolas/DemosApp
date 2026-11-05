@@ -270,7 +270,7 @@ test('both explanation handlers return a safe 503 without provider secrets', asy
       await handler({ params }, res);
       assert.equal(res.statusCode, 503);
       assert.equal(res.body.success, false);
-      assert.match(res.body.message, /non disponibile/);
+      assert.match(res.body.message, /non (?:è )?disponibile/);
       assert.doesNotMatch(JSON.stringify(res.body), /gsk_|PRIVATE_PROVIDER_STACK|provider rejected|OPENAI_API_KEY/);
     }
   }
