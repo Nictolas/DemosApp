@@ -10,7 +10,7 @@ import { Header } from "./components/Header";
 import { ProposeSubjectButton } from "@/components/ProposeSubjectButton";
 import { BlockedWarning } from "./components/BlockedWarning";
 import { GraziaForm } from "./components/GraziaForm";
-import { ClassificaCarcerati } from "./components/ClassificaCarcerati";
+import { ClassificaCarcerati, PrivacyRectificationContact } from "./components/ClassificaCarcerati";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 
 export default function Grazia() {
@@ -65,8 +65,11 @@ export default function Grazia() {
       <div className="container mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4">
 
         {error ? (
-          <div className="rounded border-l-4 border-red-500 bg-red-100 p-4 text-red-800">
-            <strong>Errore nel caricamento dei dati:</strong> {error.message}
+          <div role="alert" className="rounded border-l-4 border-red-500 bg-red-100 p-4 text-red-800">
+            <strong>Impossibile caricare la classifica.</strong> Riprova più tardi.
+            <div className="mt-3">
+              <PrivacyRectificationContact />
+            </div>
           </div>
         ) : (
           <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-2 md:grid-cols-2 md:grid-rows-1 lg:gap-6">
