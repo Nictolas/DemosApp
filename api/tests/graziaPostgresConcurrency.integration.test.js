@@ -22,6 +22,17 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
   const ADMIN='33333333-3333-4333-8333-333333333333';
   const C='44444444-4444-4444-8444-444444444444';
   const D='55555555-5555-4555-8555-555555555555';
+  // The public GET decodes an optional JWT internally. Use a synthetic
+  // verifier only in this isolated test process; no real signing keys.
+  const jwtPath=require.resolve('jsonwebtoken');
+  const previousJwtModule=require.cache[jwtPath];
+  require.cache[jwtPath]={id:jwtPath,filename:jwtPath,loaded:true,exports:{
+    verify:token=>{
+      if(token==='a')return {userId:A};
+      if(token==='b')return {userId:B};
+      throw Error('SYNTHETIC_INVALID_TOKEN');
+    }
+  }};
   let server;
   try {
     const setup=[
@@ -117,6 +128,40 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     const published=await req('/api/grazia');
     assert.equal(published.json.classifica.some(x=>x.nome===fixture.nome),true);
     assert.deepEqual(published.json.richieste,[],'raw personal voting rows not returned');
+
+    // Read-efficiency regression on actual PostgreSQL 17. The public feed is
+    // unchanged, but two authenticated GETs should share the same metadata
+    // probe and return the cooldown fallback in the vote query itself.
+    const voteFixture='Voto personale sintetico non pubblicato';
+    await pool.query('INSERT INTO voti_grazia(userid,nome,timestamp) VALUES($1,$2,$3)',
+      [A,voteFixture,'2026-11-05T12:34:56Z']);
+    const seenSQL=[];
+    const trackedQuery=pool.query.bind(pool);
+    pool.query=async function(sql,params,...rest){
+      if(typeof sql==='string')seenSQL.push(sql);
+      return trackedQuery(sql,params,...rest);
+    };
+    try{
+      const first=await req('/api/grazia','a');
+      const second=await req('/api/grazia','a');
+      assert.equal(first.status,200);
+      assert.equal(second.status,200);
+      assert.deepEqual(first.json.mieiVoti,[voteFixture]);
+      assert.deepEqual(second.json.mieiVoti,[voteFixture]);
+      assert.equal(first.json.richieste.length,0);
+      const anonymous=await req('/api/grazia');
+      assert.deepEqual(anonymous.json.mieiVoti,[]);
+      assert.equal(seenSQL.filter(sql=>sql.includes('FROM information_schema.columns')).length,1,
+        'one column lookup per worker, not per authenticated GET');
+      assert.equal(seenSQL.filter(sql=>sql.includes('FROM voti_grazia') &&
+        sql.includes('MAX(timestamp) OVER ()')).length,2,
+        'one personal vote query per authenticated GET with cooldown fallback');
+      assert.equal(seenSQL.filter(sql=>sql.includes('SELECT MAX(timestamp)')).length,0,
+        'no second timestamp aggregate query');
+    }finally{
+      pool.query=trackedQuery;
+      await pool.query('DELETE FROM voti_grazia WHERE userid=$1 AND nome=$2',[A,voteFixture]);
+    }
 
     // A vote that passed the preliminary check must not get through if the
     // Admin deactivates the catalogue before the transactional FOR SHARE lock.
@@ -507,5 +552,7 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
   } finally {
     if(server?.listening)await new Promise(resolve=>server.close(resolve));
     await pool.end();
+    if(previousJwtModule) require.cache[jwtPath]=previousJwtModule;
+    else delete require.cache[jwtPath];
   }
 });

@@ -10,6 +10,28 @@ const { getPreferenceCooldown, assertPreferenceChangeAllowed, recordPreferenceCh
 
 const router = express.Router();
 
+// Cache only a validated pair of schema column names, never user data.
+// One metadata lookup per worker/schema version instead of once per viewer.
+// A rejected lookup is not cached; an undefined-column query triggers re-probe.
+let voteColumnsPromise = null;
+function getGraziaVoteColumns() {
+  if (!voteColumnsPromise) {
+    voteColumnsPromise = pool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='voti_grazia'"
+    ).then(result => {
+      const columns = new Set(result.rows.map(row => row.column_name));
+      const user = columns.has('userid') ? 'userid' : columns.has('user_id') ? 'user_id' : null;
+      const date = ['timestamp', 'data_voto', 'created_at'].find(name => columns.has(name));
+      if (!user || !date) throw new Error('GRAZIA_VOTE_SCHEMA_UNRECOGNIZED');
+      return { user, date };
+    }).catch(error => {
+      voteColumnsPromise = null;
+      throw error;
+    });
+  }
+  return voteColumnsPromise;
+}
+
 // Prevent browser/CDN caching of political selections and third-party proposals.
 const personalNoStore = (_req, res, next) => {
   res.set('Cache-Control', 'private, no-store, max-age=0');
@@ -149,57 +171,27 @@ router.get('/', personalNoStore, async (req, res) => {
     let blocco = { isBlocked: false, unlockDate: null };
     if (userId) {
       try {
-        // Rileva la struttura della tabella per capire quale colonna usare
-        let userIdColumn = 'user_id';
-        let timestampColumn = 'timestamp';
-
-        try {
-          const tableInfoQuery = `
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns
-            WHERE LOWER(table_name) = 'voti_grazia'
-            ORDER BY ordinal_position
-          `;
-          const tableInfo = await pool.query(tableInfoQuery);
-
-          const columns = tableInfo.rows.map(r => r.column_name);
-          const hasUserId = columns.includes('user_id');
-          const hasUserid = columns.includes('userid');
-          userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
-
-          // Rileva quale colonna timestamp usare
-          if (columns.includes('timestamp')) {
-            timestampColumn = 'timestamp';
-          } else if (columns.includes('data_voto')) {
-            timestampColumn = 'data_voto';
-          } else if (columns.includes('created_at')) {
-            timestampColumn = 'created_at';
-          }
-
-        } catch (tableInfoError) {
-        }
-
+        const { user: userIdColumn, date: timestampColumn } = await getGraziaVoteColumns();
+        // MAX OVER gives the same cooldown fallback as the old second query,
+        // without an additional database round trip. Empty votes => null.
         const mieiVotiQuery = `
-          SELECT nome
+          SELECT nome, MAX(${timestampColumn}) OVER () AS last_changed_at
           FROM voti_grazia
           WHERE ${userIdColumn} = $1
           ORDER BY ${timestampColumn} DESC
         `;
         const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
         mieiVoti = mieiVotiResult.rows.map(row => row.nome);
-
-        const lastChangeResult = await pool.query(
-          `SELECT MAX(${timestampColumn}) AS last_changed_at FROM voti_grazia WHERE ${userIdColumn} = $1`,
-          [userId]
-        );
         const cooldown = await getPreferenceCooldown(pool, {
           userId,
           scope: 'grazia:preferenza',
-          fallbackChangedAt: lastChangeResult.rows[0]?.last_changed_at || null
+          fallbackChangedAt: mieiVotiResult.rows[0]?.last_changed_at || null
         });
         blocco = { isBlocked: cooldown.isBlocked, unlockDate: cooldown.unlockDate };
       } catch (error) {
-        // Continua senza voti utente
+        // A schema migration may have renamed a previously cached column.
+        // Do not cache a failed mapping or log tokens, user IDs or votes.
+        if (error?.code === '42703') voteColumnsPromise = null;
       }
     }
 

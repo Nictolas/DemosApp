@@ -60,6 +60,8 @@ jobs:
         run: node --experimental-strip-types --test api/tests/d12PublicHttpsSources.contract.test.js api/tests/recognitionEvidence.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js
       - name: Page all Grazia moderation and notification audit entries without exposing private fields
         run: node --test api/tests/graziaAdminPagination.synthetic.test.js api/tests/graziaModerationContract.test.js
+      - name: Minimize authenticated Grazia feed SQL and isolate vote metadata
+        run: node --test api/tests/graziaVoteReadEfficiency.synthetic.test.js
       - name: Keep compact mobile civic headers and proposal buttons
         run: node --test api/tests/compactCivicHeaders.contract.test.js
       - name: Amnistia compact voting form and review-gated proposals
