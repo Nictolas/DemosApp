@@ -62,7 +62,7 @@ test("il grafico e privato, locale e richiede consenso verificato", () => {
 });
 
 test("cinque simboli neutri identificano i temi senza alterare il calcolo", () => {
-  assert.ok(component.includes('import { Globe2, Landmark, Leaf, Scale, UsersRound } from "lucide-react"'));
+  assert.ok(component.includes('import { FlaskConical, Globe2, Landmark, Leaf, Scale, UsersRound } from "lucide-react"'));
   for (const [id, icon] of Object.entries({
     economia: "Scale",
     stato: "Landmark",
