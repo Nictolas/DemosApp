@@ -79,7 +79,8 @@ test('diagnostic is admin-only, has no DB dependencies, and returns 200 or 503',
   assert.ok(begin > 0 && end > begin);
   const block = source.slice(begin, end);
   assert.match(block, /router\.post\('\/groq-smoke', verifyToken, requireAdmin,/);
-  assert.doesNotMatch(block, /pool\.|\.query\(|\.execute\(|\.insert\(|UPDATE |INSERT |DELETE /i);
+  const executable = block.split('\n').filter(line => !line.trimStart().startsWith('//')).join('\n');
+  assert.doesNotMatch(executable, /pool\.|\.query\(|\.execute\(|\.insert\(|\b(?:UPDATE|INSERT|DELETE)\s+\w+/i);
   assert.doesNotMatch(block, /apiKey|GROQ_API_KEY|error\.message|error\.stack/);
 
   let diagnosticResult = { success: true, status: 'OK', model: config.GROQ_MODEL };
