@@ -10,7 +10,10 @@ test('mounted /attivisti directory shows reviewed nominations, no hardcoded Rend
   const active=src('client/src/pages/Attivisti.tsx');
   assert.match(app,/import Attivisti from "\.\/pages\/Attivisti";/);
   assert.match(active,/approved_subjects/);
-  assert.match(active,/setApprovedSubjects\(data\.approved_subjects \|\| \[\]\)/);
+  assert.match(active,/Array\.isArray\(data\.approved_subjects\)/);
+  assert.match(active,/\.map\(item => \(\{ id: item\.id, title: item\.title \}\)\)/);
+  assert.doesNotMatch(active,/setApprovedSubjects\(data\.approved_subjects \|\| \[\]\)/,
+    'never preserve unexpected private source fields in React state');
   assert.match(active,/Attivisti segnalati e approvati/);
   assert.match(active,/subject\.title/);
   assert.match(active,/ProposeSubjectButton category="attivisti"/);
