@@ -91,7 +91,7 @@ export default function Organizzazioni() {
           }
         }
       } catch (error) {
-        console.error('Errore nel caricamento dei filtri:', error);
+        console.warn('ORG_FILTER_LOAD_FAILED');
       }
     };
 
@@ -108,7 +108,7 @@ export default function Organizzazioni() {
           setFollowingUsers(new Set());
         }
       } catch (error) {
-        console.error('Errore nel caricamento stato voto organizzazione:', error);
+        console.warn('ORG_FOLLOW_STATUS_FAILED');
       }
     };
 
@@ -138,7 +138,7 @@ export default function Organizzazioni() {
         const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
         
         if (!response.ok) {
-          throw new Error(`Errore ${response.status}: ${response.statusText}`);
+          throw new Error('DIRECTORY_LOAD_FAILED');
         }
         
         const data: OrganizzazioniResponse = await response.json();
@@ -190,14 +190,14 @@ export default function Organizzazioni() {
                 });
                 setSupportersCount(next);
               } else {
-          throw new Error(data.message || 'Errore nel caricamento degli organizzazioni');
+          throw new Error('DIRECTORY_RESPONSE_INVALID');
         }
       } catch (error) {
         if (controller.signal.aborted) return;
         setApprovedSubjects([]);
-        console.error('❌ fetchOrganizzazioni - Errore:', error);
+        console.warn('ORG_DIRECTORY_LOAD_FAILED');
         setIsError(true);
-        setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
+        setErrorMessage('Non è stato possibile caricare le organizzazioni. Riprova più tardi.');
       } finally {
         if (!controller.signal.aborted) setIsLoading(false);
       }
@@ -438,7 +438,7 @@ export default function Organizzazioni() {
       } else {
         toast({
           title: "Errore",
-          description: data.error || "Impossibile votare questo organizzazione",
+          description: "Impossibile votare questa organizzazione",
           variant: "destructive"
         });
       }
@@ -451,10 +451,10 @@ export default function Organizzazioni() {
         setFollowingUsers(new Set([organizzazioneId]));
         return;
       }
-      console.error('Errore nel votare organizzazione:', error);
+      console.warn('ORG_SUPPORT_ACTION_FAILED');
       toast({
         title: "Errore",
-        description: error?.message || "Errore di connessione",
+        description: "Errore di connessione",
         variant: "destructive"
       });
     }
