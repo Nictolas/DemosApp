@@ -9,7 +9,7 @@ test('truncated or filtered Groq JSON never enters parliamentary analysis cache'
   const source = fs.readFileSync(
     path.join(__dirname, '..', 'services', 'leggeAnalysisService.js'), 'utf8'
   );
-  let completion, insertCount = 0, providerCalls = 0;
+  let completion, insertCount = 0, providerCalls = 0, cacheMode = 'success';
   const parsedResult = {
     spiegazione_generale: 'Spiegazione basata sul documento ufficiale.',
     effetti_positivi: '',
@@ -17,7 +17,11 @@ test('truncated or filtered Groq JSON never enters parliamentary analysis cache'
   };
   const pool = {
     query: async (sql) => {
-      if (/INSERT INTO parlamento_analisi_legge/.test(sql)) insertCount++;
+      if (/INSERT INTO parlamento_analisi_legge/.test(sql)) {
+        insertCount++;
+        if (cacheMode === 'throw') throw new Error('synthetic SQL unavailable');
+        return { rowCount: cacheMode === 'zero' ? 0 : 1 };
+      }
       return { rows: [{ exists: true }] };
     }
   };
@@ -92,4 +96,17 @@ test('truncated or filtered Groq JSON never enters parliamentary analysis cache'
   assert.equal(result.spiegazione_generale, parsedResult.spiegazione_generale);
   assert.equal(insertCount, 1, 'Only normal completion is cached');
   assert.equal(providerCalls, 5);
+
+  // Even a normally finished model response is not a completed operation
+  // when the SQL cache write fails or confirms zero affected rows.
+  for (const mode of ['throw', 'zero']) {
+    cacheMode = mode;
+    const unsuccessful = await output.exports.generaAnalisiLegge(
+      'urn:test:cache-' + mode,
+      { titolo: 'DDL 123', descrizione: 'x'.repeat(200), camera: 'Camera' }
+    );
+    assert.equal(unsuccessful, null, 'No false success for SQL cache mode=' + mode);
+  }
+  assert.equal(insertCount, 3, 'Both failure modes attempt a single cache write');
+  assert.equal(providerCalls, 7, 'Failed cache writes do not trigger provider retries');
 });
