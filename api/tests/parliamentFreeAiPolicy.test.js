@@ -24,9 +24,14 @@ test('only explicitly reviewed Groq free-tier model IDs are selectable', () => {
     assert.equal(resolveFreeGroqModel(id), id);
     assert.equal(resolveFreeGroqModel('  ' + id + '  '), id);
   }
-  for (const id of ['gpt-4o-mini', 'openai/gpt-5', 'not-a-real-model', 'groq/compound']) {
+  for (const id of ['gpt-4o-mini', 'openai/gpt-5', 'not-a-real-model', 'groq/compound', 'qwen/qwen3.8-27b']) {
     assert.throws(() => resolveFreeGroqModel(id), /GROQ_MODEL_NOT_ALLOWLISTED_FREE_TIER/);
   }
+});
+
+test('production allowlist excludes Qwen preview model', () => {
+  assert.deepEqual([...FREE_GROQ_MODELS], ['openai/gpt-oss-120b', 'openai/gpt-oss-20b']);
+  assert.throws(() => resolveFreeGroqModel('qwen/qwen3.8-27b'), /GROQ_MODEL_NOT_ALLOWLISTED_FREE_TIER/);
 });
 
 test('retired model IDs fail closed instead of silently calling them', () => {
