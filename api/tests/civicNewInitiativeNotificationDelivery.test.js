@@ -543,3 +543,73 @@ test('sender rejects missing advisory-unlock acknowledgment without provider sen
   assert.equal(sends,0);
   assert.equal(released,true);
 });
+
+test('dispatcher refuses false success when FCM accepted but SQL sent update changed zero rows',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const statements=[];
+  const pool={connect:async()=>({
+    query:async (sql,...args)=>{
+      statements.push(String(sql));
+      if(String(sql).includes("SET status = 'sent'"))return {rowCount:0};
+      return original.query(sql,...args);
+    },
+    release:()=>{},
+  })};
+  let sends=0;
+  await assert.rejects(
+    dispatchCivicNewInitiatives(pool,{enabled:true,messaging:{
+      send:async()=>{sends++;return 'SYNTHETIC_FCM_ACCEPTED';},
+    }}),
+    /CIVIC_SENT_STATE_UNCONFIRMED/
+  );
+  assert.equal(sends,1,'already accepted FCM send must never be retried');
+  assert.equal(db.event.status,'dispatching',
+    'an unacknowledged SQL update is not silently recorded as sent');
+  assert.equal(statements.filter(x=>x.includes("SET status = 'failed'")).length,0,
+    'an uncertain accepted send cannot be relabelled as failed');
+});
+
+test('dispatcher rejects malformed sent acknowledgement even when provider accepted',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>String(sql).includes("SET status = 'sent'")
+      ? {rows:[]} : original.query(sql,...args),
+    release:()=>{},
+  })};
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=> 'SYNTHETIC_ACCEPTED'},
+  }),/CIVIC_SENT_STATE_UNCONFIRMED/);
+  assert.equal(db.event.status,'dispatching');
+});
+
+test('dispatcher rejects failed-event update with zero affected rows',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>String(sql).includes("SET status = 'failed'")
+      ? {rowCount:0} : original.query(sql,...args),
+    release:()=>{},
+  })};
+  let sends=0;
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{sends++;throw Error('PRIVATE_FCM_UNCERTAINTY');}},
+  }),/CIVIC_FAILED_STATE_UNCONFIRMED/);
+  assert.equal(sends,1);
+  assert.equal(db.event.status,'dispatching');
+});
+
+test('dispatcher refuses falsely completed failed-event update without rowCount',async()=>{
+  const db=eventPool();
+  const original=await db.connect();
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>String(sql).includes("SET status = 'failed'")
+      ? {rows:[]} : original.query(sql,...args),
+    release:()=>{},
+  })};
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{throw Error('SECRET_PROVIDER_DETAILS');}},
+  }),/CIVIC_FAILED_STATE_UNCONFIRMED/);
+  assert.equal(db.event.status,'dispatching');
+});
