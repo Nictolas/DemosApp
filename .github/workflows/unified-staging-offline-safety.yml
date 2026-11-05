@@ -22,6 +22,7 @@ on:
       - 'api/tests/test_eci_runtime_no_delete_postgres.py'
       - 'api/staging/ministeroStagingSyncOnce.js'
       - 'api/tests/ministeroStagingSyncOnce.test.js'
+      - 'api/tests/ministeroStagingSyncOnce.postgres.test.js'
       - 'api/staging/ministeroPublicSnapshotAudit.js'
       - 'api/tests/ministeroPublicSnapshotAudit.test.js'
       - 'api/staging/unified_staging_civic_readonly_canary.js'
@@ -93,6 +94,7 @@ on:
       - 'api/tests/test_eci_runtime_no_delete_postgres.py'
       - 'api/staging/ministeroStagingSyncOnce.js'
       - 'api/tests/ministeroStagingSyncOnce.test.js'
+      - 'api/tests/ministeroStagingSyncOnce.postgres.test.js'
       - 'api/staging/ministeroPublicSnapshotAudit.js'
       - 'api/tests/ministeroPublicSnapshotAudit.test.js'
       - 'api/staging/unified_staging_civic_readonly_canary.js'
@@ -343,6 +345,8 @@ jobs:
         run: python -m api.tests.seed_ops_stg_001_snapshot_service_postgres
       - name: Prove ECI sync with no DELETE grant under restricted PostgreSQL ${{ matrix.pg-major }}
         run: python -m unittest api.tests.test_eci_runtime_no_delete_postgres -v
+      - name: Verify Ministry one-shot SQL on real restricted PostgreSQL ${{ matrix.pg-major }}
+        run: node --test api/tests/ministeroStagingSyncOnce.postgres.test.js
       - name: Execute actual preflight metadata SQL as passwordless least-privilege role
         run: node --test api/tests/unifiedStagingPreflight.postgres.test.js
       - name: Prove real PostgreSQL session continuity su DB CI effimero
