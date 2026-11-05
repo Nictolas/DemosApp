@@ -130,12 +130,15 @@ async function dispatchCivicNewInitiatives(pool, {
     }
     return { enabled: true, blocked: false, accepted, failed };
   } finally {
+    let unlockUnconfirmed = false;
     if (locked) {
       try {
         await releaseCivicPushDeliveryLock(client);
       } catch {
-        // A pooled DB session with an uncertain session lock is unsafe to reuse.
+        // An accepted Firebase send cannot be undone, and a stale advisory
+        // lock must never be reported as a confirmed successful dispatch.
         discard = true;
+        unlockUnconfirmed = true;
       }
     } else if (lockAttempted) {
       // The lock may have been acquired before a network error. Destroy the
@@ -143,6 +146,9 @@ async function dispatchCivicNewInitiatives(pool, {
       discard = true;
     }
     client.release(discard);
+    if (unlockUnconfirmed) {
+      throw new Error('CIVIC_DISPATCH_LOCK_RELEASE_UNCONFIRMED');
+    }
   }
 }
 
