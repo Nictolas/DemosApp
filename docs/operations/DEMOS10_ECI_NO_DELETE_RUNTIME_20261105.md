@@ -41,6 +41,18 @@ staging credentials, it would fail before updating any record.
   and is triggered by ECI/ICE route changes. Intended PG16/17 schema
   jobs remain unchanged.
 
+## Page-to-page source snapshot integrity (05/11/2026)
+
+Additional guarded staging-only change: every official ECI search page must
+report the same positive `recordsFound` value. A changed total, repeated
+source ID across pages, missing/invalid ID, or too many returned items now
+aborts the entire public-source fetch **before** any database connection or
+cache/outbox update. This prevents a mixed pagination snapshot from wrongly
+marking a genuinely ongoing ECI as `NOT_ONGOING` or affecting notifications.
+Synthetic offline Python regressions cover mid-read total changes, overlapping
+pages and invalid source metadata. A stable but internally incorrect official
+total remains a provider-level limitation; no E2E is claimed.
+
 ## Baseline and rollout limits
 
 Readback of Demos-Staging before this change: ECI=12,
