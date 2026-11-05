@@ -105,9 +105,11 @@ export default function GestisciGrazia() {
       return r.data;
     },
     onSuccess:(result)=>{
-      queryClient.invalidateQueries({queryKey:["graziaApproved"]});
+      // Reset all loaded pages to page one. An invalidation of an infinite
+      // query re-fetches every previously loaded page automatically.
+      void queryClient.resetQueries({queryKey:["graziaApproved"]});
       queryClient.invalidateQueries({queryKey:["graziaData"]});
-      queryClient.invalidateQueries({queryKey:["graziaWithdrawalAudit"]});
+      void queryClient.resetQueries({queryKey:["graziaWithdrawalAudit"]});
       toast({title:"Pubblicazione Grazia ritirata",
         description:result.notification_sent===true
           ? "I voti storici restano conservati."
@@ -124,8 +126,10 @@ export default function GestisciGrazia() {
     },
     onSuccess: (_data, { action }) => {
       toast({ title: action === "accetta" ? "Proposta approvata" : "Proposta rifiutata" });
-      queryClient.invalidateQueries({ queryKey: ["graziaRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["graziaApproved"] });
+      // Keep the first page fresh, but never re-fetch older moderation pages
+      // without a new explicit "load more" action from the Admin.
+      void queryClient.resetQueries({ queryKey: ["graziaRequests"] });
+      void queryClient.resetQueries({ queryKey: ["graziaApproved"] });
       queryClient.invalidateQueries({ queryKey: ["graziaData"] });
     },
     onError: (err: Error) => toast({ title: "Errore", description: err.message, variant: "destructive" }),

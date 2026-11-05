@@ -29,6 +29,12 @@ async function run(){
         success:true,user:{id:ID,is_admin:true,isAdmin:true,role:'AD',ruolo:'AD',status:'a',
           account_type:'P',political_consent:{granted:true,timestamp:'2026-10-01T00:00:00Z'}}
       });
+      if(route.request().method()==='POST' &&
+         /^\/api\/grazia\/richiesta\/[0-9a-f-]+\/(?:accetta|rifiuta|ritira)$/.test(u.pathname)){
+        counts.other++;
+        const withdrawal=u.pathname.endsWith('/ritira');
+        return json(route,{success:true,status:withdrawal?'withdrawn':'approved',notification_sent:false});
+      }
       const typ=u.pathname==='/api/grazia/richieste'?'pending':
         u.pathname==='/api/grazia/approvate'?'approved':
         u.pathname==='/api/grazia/ritiri-avvisi'?'audit':null;
@@ -73,6 +79,28 @@ async function run(){
     await page.getByRole('button',{name:'Carica altri avvisi di ritiro'}).click();
     await page.getByText('Riferimento ritiro: '+uuid(105),{exact:true}).waitFor({timeout:10000});
     assert.equal(counts.audit,2);
+
+    // An approval of a record on page 2 must reset all loaded infinite
+    // queries to page one, not automatically re-query the older pages.
+    const record105=page.getByText('Candidato sintetico 105',{exact:true});
+    await record105.locator('..').getByRole('button',{name:'Approva'}).click();
+    await record105.waitFor({state:'detached',timeout:10000});
+    await page.getByText('Candidato sintetico 100',{exact:true}).waitFor({timeout:10000});
+    await page.waitForTimeout(300);
+    assert.equal(counts.pending,3,'approval must perform exactly one pending page refetch');
+    assert.equal(counts.approved,3,'approval must perform exactly one approved page refetch');
+    assert.equal(counts.audit,2,'unrelated audit must remain untouched');
+
+    const item1=page.getByText('Approvato sintetico 1',{exact:true}).locator('..');
+    await item1.getByRole('textbox').fill('Ritiro sintetico con causale neutra');
+    page.once('dialog',dialog=>dialog.accept());
+    await item1.getByRole('button',{name:'Ritira pubblicazione Grazia'}).click();
+    await page.getByText('Approvato sintetico 100',{exact:true}).waitFor({timeout:10000});
+    await page.waitForTimeout(300);
+    assert.equal(counts.pending,3,'withdrawal must not re-query pending nominations');
+    assert.equal(counts.approved,4,'withdrawal must re-fetch only the first approved page');
+    assert.equal(counts.audit,3,'withdrawal must re-fetch only the first audit page');
+
     const box=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}));
     assert.ok(box.scroll<=box.width+2,'horizontal overflow: '+JSON.stringify(box));
     assert.equal(counts.external,0,'no real external server contacted');

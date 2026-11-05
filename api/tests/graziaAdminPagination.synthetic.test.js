@@ -168,6 +168,10 @@ test('Admin UI paginates all three listings and separates caches by account',()=
   assert.match(ui,/fetchMorePublished\(\)/);
   assert.match(ui,/fetchMoreUnconfirmed\(\)/);
   assert.match(ui,/isFetchingNextPage/);
-  assert.match(ui,/queryClient\.invalidateQueries\(\{queryKey:\["graziaApproved"\]\}\)/);
-  assert.match(ui,/queryClient\.invalidateQueries\(\{queryKey:\["graziaWithdrawalAudit"\]\}\)/);
+  // A mutation must reset infinite queries back to their first page;
+  // invalidateQueries would automatically re-fetch every page already opened.
+  assert.match(ui,/queryClient\.resetQueries\(\{\s*queryKey:\s*\["graziaRequests"\]\s*\}\)/);
+  assert.match(ui,/queryClient\.resetQueries\(\{\s*queryKey:\s*\["graziaApproved"\]\s*\}\)/);
+  assert.match(ui,/queryClient\.resetQueries\(\{\s*queryKey:\s*\["graziaWithdrawalAudit"\]\s*\}\)/);
+  assert.doesNotMatch(ui,/queryClient\.invalidateQueries\(\{\s*queryKey:\s*\["grazia(?:Requests|Approved|WithdrawalAudit)"\]/);
 });
