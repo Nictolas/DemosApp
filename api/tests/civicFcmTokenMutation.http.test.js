@@ -109,7 +109,15 @@ async function request(method,path,payload,auth=true){
       res.on('end',()=>{
         const raw=Buffer.concat(chunks).toString('utf8');
         try{resolve({status:res.statusCode,body:JSON.parse(raw),raw});}
-        catch(error){reject(error);}
+        catch{
+          // Never emit the synthetic FCM token in CI diagnostic output.
+          const endpoint=path.includes('cleanup')?'cleanup':
+            path.endsWith('/session')?'logout':
+            method==='DELETE'?'single-delete':'register';
+          reject(new Error('SYNTHETIC_HTTP_INVALID_JSON_'+endpoint+
+            '_STATUS_'+res.statusCode+'_LENGTH_'+raw.length+
+            '_TYPE_'+String(res.headers['content-type']||'missing')));
+        }
       });
     });
     req.on('error',reject);
