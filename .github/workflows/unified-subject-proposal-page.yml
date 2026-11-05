@@ -24,6 +24,12 @@ on:
       - 'api/utils/thirdPartyNominationGate.js'
       - 'api/tests/d12NominationProductionGate.synthetic.test.js'
       - 'client/src/pages/GestisciGrazia.tsx'
+      - 'client/src/pages/Grazia/index.tsx'
+      - 'client/src/pages/Grazia/components/ClassificaCarcerati.tsx'
+      - 'client/src/pages/Grazia/hooks/useGraziaData.ts'
+      - 'api/tests/d12GraziaPrivacyContact.contract.test.js'
+      - 'api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js'
+      - 'scripts/test-grazia-privacy-browser.cjs'
       - 'api/tests/graziaAdminPagination.synthetic.test.js'
       - 'scripts/test-grazia-admin-pagination-browser.cjs'
       - 'scripts/test-registered-directory-pagination-browser.cjs'
@@ -133,6 +139,7 @@ jobs:
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-mounted-activist-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-public-approved-pagination-browser.cjs
           NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-registered-directory-pagination-browser.cjs
+          NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-privacy-browser.cjs
           D12_QA_WIDTH=320 NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-admin-pagination-browser.cjs
           D12_QA_WIDTH=390 NODE_PATH=/tmp/demos-unified-browser/node_modules node scripts/test-grazia-admin-pagination-browser.cjs
       - name: "Browser test: mounted personal status isolated after account switch"
