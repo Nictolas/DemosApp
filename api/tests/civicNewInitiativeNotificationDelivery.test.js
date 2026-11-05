@@ -505,3 +505,41 @@ test('failed advisory unlock never returns successful FCM mutation', async () =>
   },{enabled:true}),/CIVIC_DELIVERY_LOCK_RELEASE_UNCONFIRMED/);
   assert.deepEqual(calls,['lock','mutation-completed','unlock-unconfirmed','discard']);
 });
+
+test('sender rejects apparently successful FCM delivery if its advisory unlock is unconfirmed',async()=>{
+  const db=eventPool();
+  const raw=await db.connect();
+  let released;
+  const wrapped={
+    query:async(sql,...args)=>{
+      if(sql.includes('pg_advisory_unlock('))return {rows:[{unlocked:false}]};
+      return raw.query(sql,...args);
+    },
+    release:discard=>{released=discard;},
+  };
+  const pool={connect:async()=>wrapped};
+  let sends=0;
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{sends++;return 'SYNTHETIC_FCM_ACCEPTED';}},
+  }),/CIVIC_DISPATCH_LOCK_RELEASE_UNCONFIRMED/);
+  assert.equal(sends,1,'an accepted FCM send cannot be recalled by this regression');
+  assert.equal(db.event.status,'sent','never automatically retry accepted FCM message');
+  assert.equal(released,true,'pooled connection with unknown advisory lock must be discarded');
+});
+
+test('sender rejects missing advisory-unlock acknowledgment without provider send',async()=>{
+  const db=eventPool({blocked:true});
+  const original=await db.connect();
+  let released;
+  const pool={connect:async()=>({
+    query:async(sql,...args)=>sql.includes('pg_advisory_unlock(')
+      ? {rows:[]} : original.query(sql,...args),
+    release:discard=>{released=discard;},
+  })};
+  let sends=0;
+  await assert.rejects(dispatchCivicNewInitiatives(pool,{
+    enabled:true,messaging:{send:async()=>{sends++;}},
+  }),/CIVIC_DISPATCH_LOCK_RELEASE_UNCONFIRMED/);
+  assert.equal(sends,0);
+  assert.equal(released,true);
+});
