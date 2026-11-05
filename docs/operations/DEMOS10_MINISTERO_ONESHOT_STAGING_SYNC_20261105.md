@@ -35,7 +35,9 @@ idoneo come esecutore isolato dello staging condiviso.
   ed esige che non vi siano eventi azionabili.
 * Richiede feed ufficiale completo, 1–100 record, date ISO, ID
   numerici distinti, titoli e categorie ufficiali, firma/URL validi;
-  blocca improvvisi cali oltre il 20% del totale già presente.
+  **rifiuta qualsiasi ID già archiviato assente nel nuovo feed**, anche
+  quando il totale di record rimane uguale. Non cancella iniziative e
+  richiede una procedura separata e autorizzata per i record scomparsi.
   Questa protezione interrompe il job se il feed crescerà oltre
   100 record: serve estendere il parser con paginazione sicura.
 * Una sola transazione per `INSERT ... ON CONFLICT(id) DO UPDATE`
