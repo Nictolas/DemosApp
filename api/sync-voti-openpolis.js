@@ -679,7 +679,9 @@ async function saveVotazione(politicoNome, camera, urlOpenpolis, votazione, desc
     if (votazioneId) {
       const { generaSpiegazioneVotazione } = require('./services/aiExplanationService');
       generaSpiegazioneVotazione(votazioneId, votazione, descrizioneVotazione || null, camera).catch(error => {
-        console.error(`[ERR] Errore generazione spiegazione per votazione ${votazioneId}:`, error.message);
+        const { classifyFreeGroqError } = require('./services/parliamentFreeGroqBudget');
+        // Never log provider error text: it may contain API credentials or source fragments.
+        console.error('[ERR] Generazione spiegazione in background non riuscita:', classifyFreeGroqError(error));
       });
     }
 
