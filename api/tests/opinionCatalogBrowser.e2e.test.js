@@ -92,6 +92,18 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
     }, token);
     const page = await context.newPage();
     const browserErrors = [];
+    const failedResources = [];
+    page.on('response', async response => {
+      if (response.status() >= 500) {
+        try {
+          const parsed = new URL(response.url());
+          // All allowed browser requests are localhost; only path and sanitized
+          // Vite error body are recorded, never query params or credentials.
+          const snippet = (await response.text()).slice(0, 1500);
+          failedResources.push({ path: parsed.pathname, status: response.status(), body: snippet });
+        } catch { failedResources.push({ status: response.status(), body: 'unavailable' }); }
+      }
+    });
     page.on('pageerror', error => {
       // Isolated synthetic browser only; no raw error stack or request data.
       browserErrors.push(String(error?.name || 'Error') + ': ' +
@@ -143,6 +155,8 @@ test('real Chromium DOM: four official Opinions pages + verified save through ca
           ', route=' + location.pathname + ', body=' + JSON.stringify(visibleText) +
           ', localAuth=' + JSON.stringify(auth) +
           ', scriptErrors=' + JSON.stringify(browserErrors.slice(0, 8)) +
+          ', failedResources=' + JSON.stringify(failedResources.slice(0, 3)) +
+          ', viteStderr=' + JSON.stringify(viteErrors.slice(-1400)) +
           ', original=' + error.message);
       }
       try {
