@@ -486,3 +486,22 @@ test('ECI dispatch requires explicitly enabled GitHub Action and two secrets', (
   assert.match(workflow, /secrets\.CIVIC_PUSH_DISPATCH_URL/);
   assert.match(workflow, /secrets\.CIVIC_PUSH_DISPATCH_KEY/);
 });
+
+test('failed advisory unlock never returns successful FCM mutation', async () => {
+  const calls=[];
+  const client={
+    query:async (sql)=>{
+      if(sql.includes('FROM civic_runtime_identity'))return {rows:[{db_identity:TEST_DB_ID}]};
+      if(sql.includes('pg_advisory_lock(')){calls.push('lock');return {rows:[]};}
+      if(sql.includes('pg_advisory_unlock(')){calls.push('unlock-unconfirmed');return {rows:[{unlocked:false}]};}
+      return {rows:[]};
+    },
+    release:discard=>calls.push(discard?'discard':'release'),
+  };
+  const pool={connect:async()=>client};
+  await assert.rejects(withCivicPushDeliveryLock(pool, async()=>{
+    calls.push('mutation-completed');
+    return {success:true};
+  },{enabled:true}),/CIVIC_DELIVERY_LOCK_RELEASE_UNCONFIRMED/);
+  assert.deepEqual(calls,['lock','mutation-completed','unlock-unconfirmed','discard']);
+});
