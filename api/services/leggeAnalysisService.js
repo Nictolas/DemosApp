@@ -4,7 +4,7 @@
 const Groq = require('groq-sdk');
 const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPolicy');
 const { buildGroundedAnalysisMessages, parseGroundedAnalysisResponse } = require('./parliamentGroundedAnalysis');
-const { requestFreeGroq } = require('./parliamentFreeGroqBudget');
+const { requestFreeGroq, classifyFreeGroqError } = require('./parliamentFreeGroqBudget');
 const { createSingleflight } = require('./parliamentAiSingleflight');
 const { estraiNumeroLegge, canSearchActTitle } = require('./parliamentActIdentifier');
 const singleflightAnalisi = createSingleflight();
@@ -431,7 +431,7 @@ async function generaAnalisiLeggeUnaVolta(uriVotazione, votazioneData) {
     console.log(`✅ Analisi legge generata con successo (${aiProvider})`);
     return analisi;
   } catch (error) {
-    console.error(`❌ Errore nella generazione analisi legge: ${error.message}`);
+    console.error('Analisi AI parlamentare non disponibile:', classifyFreeGroqError(error));
     throw error;
   }
 }
@@ -473,7 +473,7 @@ async function salvaAnalisiInCache(analisi) {
 
     console.log(`✅ Analisi salvata in cache per URI: ${analisi.uri_votazione}`);
   } catch (error) {
-    console.error(`❌ Errore salvataggio analisi in cache: ${error.message}`);
+    console.error('Salvataggio cache analisi parlamentare non riuscito');
     // Non bloccare il processo se il salvataggio fallisce
   }
 }
@@ -502,7 +502,7 @@ async function recuperaAnalisiDaCache(uriVotazione) {
 
     return null;
   } catch (error) {
-    console.error(`❌ Errore recupero analisi da cache: ${error.message}`);
+    console.error('Lettura cache analisi parlamentare non riuscita');
     return null;
   }
 }
@@ -525,7 +525,7 @@ async function ensureTableExists() {
       console.warn('⚠️ Tabella parlamento_analisi_legge non esiste. Esegui lo script SQL: create-parlamento-analisi-legge-table.sql');
     }
   } catch (error) {
-    console.error(`❌ Errore verifica tabella: ${error.message}`);
+    console.error('Verifica schema analisi parlamentare non riuscita');
   }
 }
 
