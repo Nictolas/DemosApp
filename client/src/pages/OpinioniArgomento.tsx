@@ -12,6 +12,7 @@ import { OpinionStatsBar } from "@/components/OpinionStatsBar";
 import { OpinionActionsBar } from "@/components/OpinionActionsBar";
 import { loadOpinionCategory, cacheConfirmedOpinionAnswers, type OpinionGrade } from "@/lib/encryptedOpinionCache";
 import { OPINION_TOPIC_BY_ID, OPINION_TOPIC_DEFINITIONS } from "@/lib/opinionTopics";
+import { OPINION_PROVINCIAL_IDS } from "@/lib/opinionProvincialIds";
 import { collectChangedOpinionAnswers } from "@/lib/opinionDelta";
 import { saveAndVerifyOpinions } from "@/lib/saveAndVerifyOpinions";
 import { getAuthToken } from "@/lib/auth-token";
@@ -24,6 +25,17 @@ const grades: readonly { id: OpinionGrade; label: string }[] = [
   { id: "N", label: "Nazionale" },
   { id: "R", label: "Regionale" },
   { id: "CO", label: "Comunale" },
+];
+type TopicGrade = OpinionGrade | "C" | "all";
+// "C" is an additional thematic filter over the six published provincial IDs.
+// Do NOT add "C" to grades: it is not a separate API query or geographic page.
+const topicGradeFilters: readonly { id: TopicGrade; label: string }[] = [
+  { id: "all", label: "Tutti" },
+  { ...grades[0] },
+  { ...grades[1] },
+  { ...grades[2] },
+  { id: "C", label: "Provinciale" },
+  { ...grades[3] },
 ];
 const answerOptions = [
   { value: "f", label: "Favorevole", selected: "bg-green-600 text-white" },
@@ -42,7 +54,7 @@ export default function OpinioniArgomento() {
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [showConsent, setShowConsent] = useState(false);
-  const [levelFilter, setLevelFilter] = useState<OpinionGrade | "all">("all");
+  const [levelFilter, setLevelFilter] = useState<TopicGrade>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const authorized = !!user && isSessionVerified && hasConsent;
 
@@ -98,7 +110,8 @@ export default function OpinioniArgomento() {
     return membership;
   }, [authorized, topicId, pE, pN, pR, pCO]);
   const visibleQuestions = useMemo(() => questions.filter((question) =>
-    levelFilter === "all" || gradeMembership.get(question.id)?.has(levelFilter)
+    levelFilter === "all" ||
+    (levelFilter === "C" ? OPINION_PROVINCIAL_IDS.has(question.id) : gradeMembership.get(question.id)?.has(levelFilter))
   ), [questions, levelFilter, gradeMembership]);
   // Entirely local search: no query, analytics event or storage write.
   const matchedQuestions = useMemo(() => {
@@ -206,7 +219,7 @@ export default function OpinioniArgomento() {
           </div>
         )}
         <div className="mx-auto mt-3 flex max-w-3xl gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtra per territorio">
-          {([{ id: "all", label: "Tutti" }, ...grades] as const).map((grade) => (
+          {topicGradeFilters.map((grade) => (
             <button key={grade.id} type="button" aria-pressed={levelFilter === grade.id}
               onClick={() => setLevelFilter(grade.id)}
               className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${levelFilter === grade.id ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700"}`}>
