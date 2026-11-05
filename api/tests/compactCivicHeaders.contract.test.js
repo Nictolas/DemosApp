@@ -20,6 +20,8 @@ test('Grazia and Capo di Stato keep their proposal actions in the compact fixed 
   assert.match(source,/<Header \/>/);
  }
  const amnistia=read('client/src/pages/Amnistia/index.tsx');
+ const votingForm=read('client/src/pages/Amnistia/components/AmnistiaForm.tsx');
  assert.match(amnistia,/<ProposeSubjectButton category="amnistia" \/>/);
- assert.match(amnistia,/Le nuove voci vengono valutate prima della pubblicazione/);
+ assert.match(votingForm,/Per proporre nuove voci usa il pulsante \\+/);
+ assert.match(votingForm,/saranno valutate prima della pubblicazione/);
 });
