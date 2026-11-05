@@ -112,7 +112,7 @@ export const OPINION_TOPIC_BY_ID: Readonly<Record<string, OpinionTopicId>> = Obj
   "sostegno_commercio_locale": "economia_lavoro_fisco",
   "sperimentazione_animale": "animali_alimentazione",
   "spese_nato_5_percento": "esteri_difesa",
-  "sussidi_comunali_per_famiglie_numerose": "economia_lavoro_fisco",
+  "sussidi_comunali_per_famiglie_numerose": "sanita_scuola_famiglia",
   "tariffazione_puntuale_rifiuti": "ambiente_energia",
   "test_antidroga_per_politici": "istituzioni_democrazia",
   "test_psichiatrico_per_politici": "istituzioni_democrazia",
