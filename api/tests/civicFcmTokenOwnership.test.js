@@ -51,6 +51,7 @@ test('every FCM revocation path rejects reassigned foreign active token',()=>{
   assert.match(route,/const revocable = await onlyTokensNotOwnedByOthers\(db, userId, \[\.\.\.removed\]\)/);
   assert.match(route,/db, userId, \[\.\.\.registered\.rows\.map/);
   assert.match(route,/if \(revocable\.includes\(token\)\)/);
+  assert.match(route,/if \(isCivicPushEnabled\(\) && isOwned && isValidFcmToken\(token\)\)/);
   assert.match(route,/user_id <> \$1/);
   // No token values printed, no topic messages created.
   assert.doesNotMatch(route,/console\.log\([^\n]*fcm_token/);
