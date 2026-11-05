@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Globe2, Landmark, Leaf, Scale, UsersRound } from "lucide-react";
 import {
   calculatePoliticalCompass,
   calculatePoliticalAxes,
@@ -10,6 +11,15 @@ interface PoliticalCompassPreviewProps {
   answers: Record<string, string>;
   standalone?: boolean;
 }
+
+// Simboli neutri: identificano i temi, non attribuiscono un giudizio politico.
+const AXIS_ICONS = {
+  economia: Scale,
+  stato: Landmark,
+  costumi: UsersRound,
+  ambiente: Leaf,
+  immigrazione: Globe2,
+} as const;
 
 const resultLabel = (result: CompassAxisResult) =>
   result.score === null ? "Dati insufficienti" : String(result.score);
@@ -136,10 +146,16 @@ export function PoliticalCompassPreview({ answers, standalone = false }: Politic
                   const result = axes[axis.id];
                   const left = result.leftPercent;
                   const right = result.rightPercent;
+                  const AxisIcon = AXIS_ICONS[axis.id];
                   return (
                     <div key={axis.id} className="border-t border-slate-100 pt-3 first:border-0 first:pt-0">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h5 className="text-sm font-semibold text-slate-900">{axis.title}</h5>
+                        <h5 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700" aria-hidden="true">
+                            <AxisIcon className="h-4 w-4" />
+                          </span>
+                          {axis.title}
+                        </h5>
                         {axis.experimental && (
                           <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900">
                             Sperimentale
