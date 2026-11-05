@@ -1,0 +1,32 @@
+name: Ministry public source read-only staging audit
+
+on:
+  pull_request:
+    branches:
+      - ops/demos-unified-staging-20261102
+    paths:
+      - 'api/staging/ministeroPublicSnapshotAudit.js'
+      - 'api/tests/ministeroPublicSnapshotAudit.test.js'
+      - '.github/workflows/ministero-staging-live-source-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  public-ministry-source:
+    if: github.event.pull_request.base.ref == 'ops/demos-unified-staging-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline parser checks (no DB or HTTP)
+        run: |
+          node --check api/staging/ministeroPublicSnapshotAudit.js
+          node --test api/tests/ministeroPublicSnapshotAudit.test.js
+      - name: Read real public Ministry API (NO DATABASE, NO SECRETS, NO PUSH)
+        env:
+          NODE_ENV: staging
+        run: node api/staging/ministeroPublicSnapshotAudit.js --public-source-audit
