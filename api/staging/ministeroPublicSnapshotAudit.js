@@ -101,8 +101,13 @@ if(require.main===module){
       // Only public, selected fields; never emit the raw response body,
       // signatures of individuals, server credentials or private IDs.
       for(const row of rows) console.log('MINISTERO_PUBLIC_AUDIT_ROW_V1='+JSON.stringify(row));
-    }).catch(()=>{
-      console.error('MINISTERO_PUBLIC_AUDIT_FAILED');
+    }).catch(error=>{
+      // Error detail is intentionally allowlisted. Do not expose response
+      // bodies, endpoint redirects, credentials, DNS addresses or query text.
+      const code=typeof error?.message==='string' &&
+        /^MINISTERO_(?:SOURCE|PAGINATION)_[A-Z0-9_]+$/.test(error.message)
+        ? error.message : 'MINISTERO_SOURCE_NETWORK_OR_PROVIDER_FAILURE';
+      console.error('MINISTERO_PUBLIC_AUDIT_FAILED: '+code);
       process.exitCode=1;
     });
   }
