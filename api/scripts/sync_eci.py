@@ -18,6 +18,7 @@ import sys
 from datetime import datetime
 from html.parser import HTMLParser
 from typing import Any, List, Optional, Sequence, Tuple
+from urllib.parse import urlsplit
 
 REGISTER_API = "https://register.eci.ec.europa.eu/core/api/register"
 PORTAL_BASE = "https://citizens-initiative.europa.eu"
@@ -181,12 +182,16 @@ def _choose_version(detail: dict) -> dict:
 
 
 def _normalize_number(value: Any) -> int:
-    try:
-        number = int(value)
-    except (TypeError, ValueError) as exc:
-        raise RuntimeError(f"Numero firme ufficiale non valido: {value!r}") from exc
+    # int(1.5) == 1 and int(True) == 1, neither is an authoritative
+    # count of signatures. Reject coercion rather than losing information.
+    if isinstance(value, bool) or not (
+        isinstance(value, int)
+        or (isinstance(value, str) and re.fullmatch(r"[0-9]+", value))
+    ):
+        raise RuntimeError("ECI_OFFICIAL_SUPPORTERS_INVALID")
+    number = int(value)
     if number < 0:
-        raise RuntimeError(f"Numero firme ufficiale negativo: {number}")
+        raise RuntimeError("ECI_OFFICIAL_SUPPORTERS_NEGATIVE")
     return number
 
 
@@ -202,8 +207,34 @@ def _normalize_identity(entry: dict) -> Tuple[str, str]:
     return year, number
 
 
+def _official_support_url(value: str, fallback: str) -> str:
+    # The source is public and can change independently of our code.
+    # Do not present an arbitrary third-party HTTPS page as an EU signing URL.
+    if not value:
+        return fallback
+    try:
+        url = urlsplit(value)
+    except ValueError:
+        return fallback
+    if url.scheme != "https" or url.hostname not in (
+        "eci.ec.europa.eu", "citizens-initiative.europa.eu"
+    ) or url.username is not None or url.password is not None:
+        return fallback
+    try:
+        if url.port not in (None, 443):
+            return fallback
+    except ValueError:
+        return fallback
+    return value
+
+
 def _normalize_record(entry: dict, detail: dict) -> Tuple[str, str, int, str, str, Optional[str], Optional[str], str]:
     year, number = _normalize_identity(entry)
+    # If the detail endpoint returns a register number, it must agree with
+    # the search entry whose ID we are about to upsert.
+    detail_registration = detail.get("pubRegNum")
+    if detail_registration is not None and detail_registration != f"ECI({year}){number}":
+        raise RuntimeError("ECI_OFFICIAL_DETAIL_ID_MISMATCH")
     if detail.get("status") != STATUS:
         raise RuntimeError(f"Dettaglio {year}/{number}: status {detail.get('status')!r} non ONGOING")
 
@@ -220,7 +251,7 @@ def _normalize_record(entry: dict, detail: dict) -> Tuple[str, str, int, str, st
     objectives = _strip_html(version.get("objectives"))
     support_link = str(version.get("supportLink") or entry.get("supportLink") or "").strip()
     detail_url = f"{PORTAL_BASE}/initiatives/details/{year}/{number}_it"
-    official_url = support_link if support_link.startswith("https://") else detail_url
+    official_url = _official_support_url(support_link, detail_url)
 
     eid = f"{year}-{number}"
     slug = f"eci-{eid}"
