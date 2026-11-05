@@ -71,6 +71,31 @@ test('real PG16/17 rolls back consent but persists push guard on uncertain FCM',
       CROSS JOIN civic_push_delivery_guard g
       WHERE p.user_id='synthetic_canary' AND g.id=1`);
     assert.deepEqual(afterSuccess.rows,[{eci:false,blocked:false}]);
+
+    // Simulate PostgreSQL actually committing while the client loses its
+    // COMMIT acknowledgement. The consent may already have changed.
+    // The only safe guarantee is that a durable guard blocks further sends.
+    const ackLost = {
+      query: async (...args) => {
+        if(args[0]==='COMMIT') {
+          await db.query('COMMIT');
+          throw new Error('SYNTHETIC_COMMIT_ACK_LOST');
+        }
+        return db.query(...args);
+      },
+    };
+    await assert.rejects(runCivicPreferenceSaveAtomic(ackLost,async()=>{
+      await ackLost.query(`UPDATE notifiche_preferenze SET eci=TRUE
+        WHERE user_id='synthetic_canary'`);
+      return 'UNCONFIRMED';
+    },{enabled:true}),/CIVIC_PREFERENCE_SAVE_UNCONFIRMED/);
+    const afterAckLoss=await db.query(`SELECT p.eci,g.blocked,g.reason_code
+      FROM notifiche_preferenze p
+      CROSS JOIN civic_push_delivery_guard g
+      WHERE p.user_id='synthetic_canary' AND g.id=1`);
+    assert.deepEqual(afterAckLoss.rows,[{
+      eci:true,blocked:true,reason_code:'REVOCATION_UNCERTAIN',
+    }], 'a committed preference cannot be rolled back, but push must fail closed');
   } finally {
     await db.end();
   }
