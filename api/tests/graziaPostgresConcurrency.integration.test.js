@@ -302,6 +302,81 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     );
     assert.equal(legacyCatalogue.rows[0].n,1,'no duplicate active catalogue row');
 
+    // Real PG17 keyset regression: the legacy id column is VARCHAR, not UUID.
+    // Force >100 records sharing the same microsecond to cross page boundaries,
+    // with historical non-UUID IDs as the actual opaque cursors.
+    const pageSets=[
+      {kind:'pending',status:'pending',count:107,url:'/api/grazia/richieste?paged=1',field:'richieste'},
+      {kind:'approved',status:'approved',count:105,url:'/api/grazia/approvate',field:'richieste'},
+      {kind:'audit',status:'approved',count:108,url:'/api/grazia/ritiri-avvisi',field:'ritiri'}
+    ];
+    for(const {kind,status,count,url,field} of pageSets){
+      await pool.query(
+        `INSERT INTO richieste_grazia
+         (id,utente_id,nome,url_prova,status,data_creazione,withdrawn_at,withdraw_notification_sent)
+         SELECT 'legacy-grazia-'||$1::text||'-'||lpad(n::text,3,'0'),
+                $2::text, 'Persona sintetica '||$1::text||' '||n,
+                'https://example.org/fixture', $3::text,
+                '2026-11-01 12:03:04.123456+00'::timestamptz,
+                CASE WHEN $1='audit' THEN '2026-11-01 12:03:04.123456+00'::timestamptz ELSE NULL END,
+                CASE WHEN $1='audit' THEN FALSE ELSE NULL END
+         FROM generate_series(1,$4::integer) AS n`,
+        [kind,B,status,count]
+      );
+      assert.equal((await req(url,'a')).status,403,'Admin-only on every paged endpoint');
+      assert.equal((await req(url+(url.includes('?')?'&':'?')+'cursor=%2A','admin')).status,400,
+        'invalid keyset cursor fails closed');
+      const observed=new Set();
+      let cursor=null;
+      let pages=0;
+      do {
+        const pageUrl=url+(cursor?(url.includes('?')?'&':'?')+'cursor='+encodeURIComponent(cursor):'');
+        const answer=await req(pageUrl,'admin');
+        assert.equal(answer.status,200,JSON.stringify(answer.json));
+        assert.equal(answer.json.success,true);
+        assert.ok(Array.isArray(answer.json[field]));
+        assert.ok(answer.json[field].length<=100,'SQL pages remain bounded');
+        for(const entry of answer.json[field]){
+          assert.equal('cursor_epoch' in entry,false,'cursor precision is private');
+          if(kind!=='pending'){
+            assert.equal('utente_id' in entry,false);
+            assert.equal('urlProva' in entry,false);
+          }
+          if(entry.id.startsWith('legacy-grazia-'+kind+'-')){
+            assert.equal(observed.has(entry.id),false,'no duplicates crossing the keyset boundary');
+            observed.add(entry.id);
+          }
+        }
+        cursor=answer.json.next_cursor;
+        pages++;
+        assert.ok(pages<=5,'pagination must advance without looping forever');
+        if(cursor){
+          const decoded=JSON.parse(Buffer.from(cursor,'base64url').toString('utf8'));
+          assert.match(decoded[0],/\.123456$/,'PostgreSQL microseconds retained in the cursor');
+          assert.match(decoded[1],/^[A-Za-z0-9_-]+$/,'legacy varchar ID supported');
+        }
+      } while(cursor);
+      assert.equal(observed.size,count,kind+' all historical IDs must be reachable');
+      assert.ok(pages>=2,kind+' pagination must cross the 100-row boundary');
+    }
+    const legacyPendingArray=await req('/api/grazia/richieste','admin');
+    assert.equal(legacyPendingArray.status,200);
+    assert.equal(Array.isArray(legacyPendingArray.json),true,'legacy response remains an array');
+    assert.equal(legacyPendingArray.json.length,100);
+    // Approved historical IDs must be WITHDRAWABLE, not merely visible.
+    const historicalId='legacy-grazia-approved-101';
+    const historicalName='Persona sintetica approved 101';
+    await pool.query('INSERT INTO grazia_carcerati(nome,attivo) VALUES($1,TRUE)',[historicalName]);
+    const historicalWithdrawal=await req('/api/grazia/richiesta/'+historicalId+'/ritira','admin','POST',
+      {note:'Ritiro sintetico della voce storica'});
+    assert.equal(historicalWithdrawal.status,200,JSON.stringify(historicalWithdrawal.json));
+    const historicalResult=await pool.query('SELECT withdrawn_at,withdraw_note FROM richieste_grazia WHERE id=$1',[historicalId]);
+    assert.ok(historicalResult.rows[0].withdrawn_at,'legacy identifier can be withdrawn');
+    assert.equal(historicalResult.rows[0].withdraw_note,'Ritiro sintetico della voce storica');
+    assert.equal((await pool.query('SELECT attivo FROM grazia_carcerati WHERE nome=$1',[historicalName])).rows[0].attivo,false);
+    assert.equal((await req('/api/grazia/richiesta/unsafe%24id/ritira','admin','POST',{note:'safety'})).status,400,
+      'unsafe legacy identifier is rejected before any SQL write');
+
     // Model a legacy schema that has not received the account-erasure DDL.
     await pool.query('ALTER TABLE richieste_grazia ALTER COLUMN utente_id SET NOT NULL');
     // A canonical deletion must fail closed rather than erase an account and

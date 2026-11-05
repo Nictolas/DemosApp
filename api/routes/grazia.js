@@ -444,14 +444,13 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
 // using JavaScript Date would skip proposals reviewed in the same millisecond.
 function parseGraziaAdminCursor(raw) {
   if (raw == null) return null;
-  if (typeof raw !== 'string' || raw.length > 240 || !/^[A-Za-z0-9_-]+$/.test(raw)) return false;
+  if (typeof raw !== 'string' || raw.length > 512 || !/^[A-Za-z0-9_-]+$/.test(raw)) return false;
   try {
     const decoded = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
     if (!Array.isArray(decoded) || decoded.length !== 2) return false;
     const [epoch, id] = decoded;
     if (typeof epoch !== 'string' || !/^\d{1,11}(?:\.\d{1,6})?$/.test(epoch) ||
-        Number(epoch) > 4102444800 || typeof id !== 'string' ||
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return false;
+        Number(epoch) > 4102444800 || typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,254}$/.test(id)) return false;
     return [epoch, id];
   } catch (_) { return false; }
 }
@@ -510,7 +509,7 @@ router.get('/ritiri-avvisi', personalNoStore, verifyToken, requireAdmin, async (
 router.post('/richiesta/:id/ritira', personalNoStore, verifyToken, requireAdmin, async (req,res) => {
   const id=String(req.params.id||'');
   const note=typeof req.body?.note==='string'?req.body.note.trim():'';
-  if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || note.length<3 || note.length>500) {
+  if(!/^[A-Za-z0-9][A-Za-z0-9_-]{0,254}$/.test(id) || note.length<3 || note.length>500) {
     return res.status(400).json({success:false,error:'Riferimento o motivazione non valida'});
   }
   let client;

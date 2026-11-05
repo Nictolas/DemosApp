@@ -118,9 +118,10 @@ for (const [route,key,count] of [
     }
   });
   test(route+' rejects malformed/oversized cursors without SQL',async()=>{
-    for(const bad of ['*', 'A'.repeat(241),
-      Buffer.from(JSON.stringify(['999999999999','not-a-uuid'])).toString('base64url'),
-      Buffer.from(JSON.stringify([EPOCH,'not-a-uuid'])).toString('base64url'),
+    for(const bad of ['*', 'A'.repeat(513),
+      Buffer.from(JSON.stringify(['999999999999','legacy-id'])).toString('base64url'),
+      Buffer.from(JSON.stringify([EPOCH,'../unsafe'])).toString('base64url'),
+      Buffer.from(JSON.stringify([EPOCH,'bad$id'])).toString('base64url'),
       Buffer.from('{}').toString('base64url')]){
       const before=sqlCalls.length;
       const r=await invoke(route,bad);
@@ -130,6 +131,20 @@ for (const [route,key,count] of [
     }
   });
 }
+
+test('Grazia keyset accepts safe historic VARCHAR IDs without allowing arbitrary paths',async()=>{
+  for(const route of ['/richieste','/approvate','/ritiri-avvisi']){
+    const historicId='legacy-grazia-approved-101';
+    const cursor=Buffer.from(JSON.stringify([EPOCH,historicId])).toString('base64url');
+    const result=await invoke(route,cursor);
+    assert.equal(result.code,200,route);
+    assert.equal(sqlCalls.at(-1).params[1],historicId);
+  }
+  const source=fs.readFileSync(path.join(root,'api/routes/grazia.js'),'utf8');
+  assert.match(source,/if\(!\/\^\[A-Za-z0-9\]/,'withdrawal validates historical safe ID characters');
+  assert.match(source,/id::text/,'pagination must compare the actual VARCHAR id');
+  assert.doesNotMatch(source,/\(data_creazione,id\) < \(to_timestamp\(\$1::numeric\),\$2::uuid\)/);
+});
 
 test('legacy Admin pending endpoint keeps the original array response',async()=>{
   const r=await invoke('/richieste',undefined,true);
