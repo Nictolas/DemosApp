@@ -34,7 +34,7 @@ test('no source file directly imports the deleted directory/index module',()=>{
       if(['node_modules','dist','.git','.cache'].includes(item.name))continue;
       const file=path.join(rel,item.name);
       if(item.isDirectory()){visit(file);continue;}
-      if(!item.isFile()||!/[.](?:[cm]?js|jsx|ts|tsx)$/.test(item.name)||file===testPath)continue;
+      if(!item.isFile()||!/[.](?:[cm]?js|jsx|ts|tsx)$/.test(item.name)||file==='api/tests/singleMountedActivistsDirectory.contract.test.js')continue;
       const content=fs.readFileSync(path.join(root,file),'utf8');
       // Static and dynamic imports; a general "Attivisti" import resolves
       // to the active Attivisti.tsx, whereas "/Attivisti/index" is obsolete.
