@@ -124,7 +124,17 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
 
     assert.equal(await page.getByText('0 / 14 Opinioni salvate').count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Salva le mie opinioni' }).isDisabled(), true);
+    await cards.first().locator('button[title^="Approfondimento:"]').click();
+    await page.getByRole('dialog').waitFor({ timeout: 12000 });
+    await page.getByRole('button', { name: 'Chiudi', exact: true }).click();
+    await page.route('**/api/opinioni/stats/**', route => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: {
+        stats: { favorevole: 7, contrario: 1, indeciso: 2 }, totaleUtenti: 10
+      } })
+    }));
     await cards.first().getByRole('button', { name: 'Favorevole' }).click();
+    await page.getByText('Campione di 10 persone.').first().waitFor({ timeout: 12000 });
     assert.equal(await page.getByText('0 / 14 Opinioni salvate').count(), 1,
       'Unsaved answer must not increase completion');
     await page.getByRole('button', { name: 'Indietro' }).click();
