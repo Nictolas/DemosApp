@@ -17,6 +17,8 @@ on:
       - 'api/tests/ministeroPaginationSafety.test.js'
       - 'api/scripts/sync_eci.py'
       - 'api/tests/test_sync_eci.py'
+      - 'api/staging/ministeroPublicSnapshotAudit.js'
+      - 'api/tests/ministeroPublicSnapshotAudit.test.js'
       - 'api/staging/unified_staging_civic_readonly_canary.js'
       - 'api/tests/unifiedStagingCivicReadOnlyCanary.test.js'
       - 'api/staging/unified_staging_app_safety.js'
@@ -81,6 +83,8 @@ on:
       - 'api/tests/ministeroPaginationSafety.test.js'
       - 'api/scripts/sync_eci.py'
       - 'api/tests/test_sync_eci.py'
+      - 'api/staging/ministeroPublicSnapshotAudit.js'
+      - 'api/tests/ministeroPublicSnapshotAudit.test.js'
       - 'api/staging/unified_staging_civic_readonly_canary.js'
       - 'api/tests/unifiedStagingCivicReadOnlyCanary.test.js'
       - 'api/staging/unified_staging_app_safety.js'
@@ -160,6 +164,7 @@ jobs:
           node --check api/server.js
           node --check api/staging/unified_staging_app_safety.js
           node --check api/staging/unified_staging_civic_readonly_canary.js
+          node --check api/staging/ministeroPublicSnapshotAudit.js
           node --check api/services/ministeroPaginationSafety.js
           node --check api/services/ministeroSync.js
           node --check api/staging/unified_staging_bootstrap.js
@@ -184,6 +189,7 @@ jobs:
           node --test api/tests/unifiedStagingCivicReadOnlyCanary.test.js
           node --test api/tests/ministeroPaginationSafety.test.js
           node --test api/tests/ministeroPkUpsert.test.js
+          node --test api/tests/ministeroPublicSnapshotAudit.test.js
           node --test api/tests/unifiedStagingBootstrap.test.js api/tests/stagingRuntimeLockAudit.test.js api/tests/unifiedStagingPreflightServer.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSessionContinuity.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/legacyRenderPgRetirementGate.test.js
           node --test api/tests/referendumOfficialRoutes.staging.test.js api/tests/referendumPriorityRetired.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/publicRouteHygiene.smoke.test.js
 
