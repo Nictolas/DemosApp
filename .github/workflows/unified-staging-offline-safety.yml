@@ -7,6 +7,8 @@ on:
     branches:
       - main
       - ops/demos-unified-staging-20261102
+      # CI-only integration branch for the dependent atomic-consent PR.
+      - qa/d10-combined-source-fcm-safety-20261105
     paths:
       - 'api/config/database.js'
       - 'api/app.js'
