@@ -9,6 +9,7 @@ const {
   unsubscribeDisabledCivicTopicsForUser,
 } = require('../services/civicPushTopics');
 const { withCivicPushDeliveryLock } = require('../services/civicPushDeliveryGuard');
+const { runCivicPreferenceSaveAtomic } = require('../services/civicPreferenceAtomicSave');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -747,11 +748,13 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     // non presentiamo un consenso falso come aggiornato con successo.
     const disabledCategories = civicKeys.filter(key => civicValue(key) === false);
     let savedPrefs;
+    const civicPushEnabled = isCivicPushEnabled();
     try {
       // One lock covers Firebase opt-out, the authoritative preference write
       // and the final topic reconciliation. Bootstrap/dispatch cannot observe
       // an intermediate state and cannot re-add a topic after an opt-out.
       savedPrefs = await withCivicPushDeliveryLock(pool, async (db) => {
+        return runCivicPreferenceSaveAtomic(db, async () => {
         await unsubscribeDisabledCivicTopicsForUser(db, user_id, disabledCategories, {
           lockedClient: db
         });
@@ -793,7 +796,8 @@ router.post('/preferenze', verifyToken, async (req, res) => {
     }
     await reconcileCivicTopicsForUser(db, user_id, { lockedClient: db });
     return result.rows[0];
-      }, { enabled: isCivicPushEnabled() });
+        }, { enabled: civicPushEnabled });
+      }, { enabled: civicPushEnabled });
     } catch {
       return res.status(503).json({
         success: false,
