@@ -232,7 +232,7 @@ class SyncEciUnitTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(RuntimeError, "non ONGOING"):
             sync_eci._normalize_record(entry, {"status": "REGISTERED", "linguisticVersions": []})
-        with self.assertRaisesRegex(RuntimeError, "Identificatore ECI ufficiale non valido"):
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_REGISTER_ID_INVALID"):
             sync_eci._normalize_identity({"pubRegNum": "bad"})
 
     def test_search_identifiers_must_agree_with_public_registration(self):
