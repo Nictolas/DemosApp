@@ -291,30 +291,13 @@ class MinisteroSyncService {
       }
       const id = `ministero_${fields.id_ministero}`;
       
-      // Verifica se esiste già (per id_ministero o titolo+tipo)
-      // Gestisci correttamente il caso in cui id_ministero è null
-      // Usa TRIM per rimuovere spazi e normalizza per il matching
-      let existingQuery;
-      let existingParams;
-      
-      // Normalizza il titolo per il matching (trim e lowercase per confronto più flessibile)
-      const titoloNormalizzato = fields.titolo?.trim() || '';
-      
-      if (fields.id_ministero) {
-        // Cerca per id_ministero esatto O per titolo+tipo (usando TRIM per normalizzare)
-        existingQuery = `SELECT id, id_ministero, titolo FROM iniziative_ministero 
-                         WHERE id_ministero = $1 
-                         OR (TRIM(titolo) = $2 AND tipo = $3) 
-                         LIMIT 1`;
-        existingParams = [fields.id_ministero, titoloNormalizzato, fields.tipo];
-      } else {
-        // Se non c'è id_ministero, cerca solo per titolo+tipo
-        existingQuery = `SELECT id, id_ministero, titolo FROM iniziative_ministero 
-                         WHERE TRIM(titolo) = $1 AND tipo = $2 
-                         LIMIT 1`;
-        existingParams = [titoloNormalizzato, fields.tipo];
-      }
-      
+      // Official IDs are the only stable identity. Different initiatives
+      // can have identical titles/types; matching on titles could overwrite
+      // an unrelated official initiative or reassign its notification ID.
+      const existingQuery =
+        'SELECT id, id_ministero, titolo FROM iniziative_ministero WHERE id = $1 LIMIT 1';
+      const existingParams = [id];
+
       if (DEBUG_MODE) {
         console.log(`🔍 DEBUG saveIniziativa - Query ricerca esistente:`, {
           query: existingQuery,
