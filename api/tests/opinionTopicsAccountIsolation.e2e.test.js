@@ -89,13 +89,14 @@ test('Chrome: two synthetic accounts never inherit another owner\'s political an
       await cards.first().waitFor({ timeout: 25000 });
       assert.equal(await cards.count(), 14);
     };
-    const switchAccount = async (token) => {
+    const switchAccount = async (token, expectQuestions = true) => {
       await page.evaluate(value => {
         localStorage.setItem('auth_token', value);
         localStorage.setItem('token', value);
         localStorage.setItem('authToken', value);
       }, token);
-      await goToTopic();
+      if (expectQuestions) await goToTopic();
+      else await page.goto(origin + '/opinioni-argomento/economia_lavoro_fisco', { waitUntil: 'domcontentloaded' });
     };
 
     await goToTopic();
@@ -130,7 +131,7 @@ test('Chrome: two synthetic accounts never inherit another owner\'s political an
       method: 'POST', headers: { authorization: 'Bearer ' + tokenB }
     });
     assert.equal(revokeB.status, 200);
-    await switchAccount(tokenB);
+    await switchAccount(tokenB, false);
     await page.getByText(/consenso esplicito al trattamento/).waitFor({ timeout: 25000 });
     assert.equal(await cards.count(), 0, 'Revoked account B must not see its former answers');
     await switchAccount(tokenA);
