@@ -22,6 +22,7 @@ on:
       - 'api/tests/parliamentEuropeanAiAuthorization.test.js'
       - 'api/tests/parliamentLeggeCompletionSafety.test.js'
       - 'api/tests/parliamentRepresentativeExplanationSafety.test.js'
+      - 'api/tests/parliamentFinalVotePersistenceSafety.test.js'
       - 'api/tests/parliamentAiSingleflight.test.js'
       - 'api/tests/parliamentActIdentifier.test.js'
       - '.github/workflows/parliament-free-ai-validation.yml'
@@ -52,4 +53,4 @@ jobs:
           node --check api/routes/voti-camera.js
           node --check api/routes/voti-parlamento-europeo.js
       - name: Free-only provider regression
-        run: node --test api/tests/parliamentFreeAiPolicy.test.js api/tests/parliamentGroundedAnalysis.test.js api/tests/parliamentFreeGroqBudget.test.js api/tests/groqFreeSmokeService.test.js api/tests/parliamentEuropeanAiAuthorization.test.js api/tests/parliamentLeggeCompletionSafety.test.js api/tests/parliamentRepresentativeExplanationSafety.test.js api/tests/parliamentAiSingleflight.test.js api/tests/parliamentActIdentifier.test.js
+        run: node --test api/tests/parliamentFreeAiPolicy.test.js api/tests/parliamentGroundedAnalysis.test.js api/tests/parliamentFreeGroqBudget.test.js api/tests/groqFreeSmokeService.test.js api/tests/parliamentEuropeanAiAuthorization.test.js api/tests/parliamentLeggeCompletionSafety.test.js api/tests/parliamentRepresentativeExplanationSafety.test.js api/tests/parliamentFinalVotePersistenceSafety.test.js api/tests/parliamentAiSingleflight.test.js api/tests/parliamentActIdentifier.test.js
