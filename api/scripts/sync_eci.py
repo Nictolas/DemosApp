@@ -198,13 +198,31 @@ def _normalize_number(value: Any) -> int:
 def _normalize_identity(entry: dict) -> Tuple[str, str]:
     year = str(entry.get("year") or "").strip()
     number = str(entry.get("number") or "").strip()
-    if not re.fullmatch(r"\d{4}", year) or not re.fullmatch(r"\d{6}", number):
-        pub_reg = str(entry.get("pubRegNum") or "")
-        match = re.fullmatch(r"ECI\((\d{4})\)(\d{6})", pub_reg)
+    direct_valid = bool(re.fullmatch(r"\d{4}", year) and re.fullmatch(r"\d{6}", number))
+    pub_reg = entry.get("pubRegNum")
+    public_id = None
+    if pub_reg is not None:
+        match = re.fullmatch(r"ECI\((\d{4})\)(\d{6})", str(pub_reg))
         if not match:
-            raise RuntimeError(f"Identificatore ECI ufficiale non valido: {pub_reg!r}")
-        year, number = match.groups()
-    return year, number
+            raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_INVALID")
+        public_id = match.groups()
+    if direct_valid and public_id is not None and (year, number) != public_id:
+        raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_MISMATCH")
+    if direct_valid:
+        return year, number
+    if public_id is None:
+        raise RuntimeError("Identificatore ECI ufficiale non valido")
+    # A malformed but present field cannot silently be discarded in favour
+    # of a different official registration number.
+    if (year and not re.fullmatch(r"\d{4}", year)) or (
+        number and not re.fullmatch(r"\d{6}", number)
+    ):
+        raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_INVALID")
+    if year and year != public_id[0]:
+        raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_MISMATCH")
+    if number and number != public_id[1]:
+        raise RuntimeError("ECI_OFFICIAL_REGISTER_ID_MISMATCH")
+    return public_id
 
 
 def _official_support_url(value: str, fallback: str) -> str:
