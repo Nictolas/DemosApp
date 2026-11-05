@@ -12,7 +12,11 @@ const {
   blockCivicDeliveryOnRevocationFailure,
   withCivicPushDeliveryLock,
 } = require('../services/civicPushDeliveryGuard');
-const { onlyTokensNotOwnedByOthers } = require('../services/civicFcmTokenOwnership');
+const {
+  onlyTokensNotOwnedByOthers,
+  onlyTokensNotRegisteredToOthers,
+  upsertCleanupOwnedOrUnassignedToken,
+} = require('../services/civicFcmTokenOwnership');
 const { runCivicPreferenceSaveAtomic } = require('../services/civicPreferenceAtomicSave');
 require('dotenv').config();
 
@@ -294,8 +298,13 @@ router.post('/cleanup', verifyToken, async (req, res) => {
       isValidFcmToken(t)
     );
     
-    // Mantieni solo l'ultimo token (più recente)
-    const cleanedTokens = validTokens.length > 0 ? [validTokens[validTokens.length - 1]] : [];
+    // Legacy data is not proof of current ownership. A token may have moved
+    // to another account and remained in this old user's array. Reject both
+    // active and inactive foreign registrations before choosing the survivor.
+    const eligibleTokens = await onlyTokensNotRegisteredToOthers(db, userId, validTokens);
+    // Mantieni solo l'ultimo token idoneo (più recente)
+    const cleanedTokens = eligibleTokens.length > 0
+      ? [eligibleTokens[eligibleTokens.length - 1]] : [];
     
     if (validTokens.length > 1) {
       const removedCount = validTokens.length - 1;
@@ -328,7 +337,7 @@ router.post('/cleanup', verifyToken, async (req, res) => {
       [userId]
     );
     if (cleanedTokens.length > 0) {
-      await upsertUserDeviceToken(userId, cleanedTokens[0], db);
+      await upsertCleanupOwnedOrUnassignedToken(db, userId, cleanedTokens[0]);
     }
     await reconcileCivicTopicsForUser(db, userId, { lockedClient: db });
 
