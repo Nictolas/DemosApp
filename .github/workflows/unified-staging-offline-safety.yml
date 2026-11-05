@@ -13,6 +13,9 @@ on:
       - 'api/server.js'
       - 'api/services/ministeroSync.js'
       - 'api/services/civicFcmTokenOwnership.js'
+      - 'api/services/civicPreferenceAtomicSave.js'
+      - 'api/routes/notifiche.js'
+      - 'api/tests/civicPreferenceAtomicSave.test.js'
       - 'api/routes/fcm-tokens.js'
       - 'api/tests/civicFcmTokenOwnership.test.js'
       - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
@@ -89,6 +92,9 @@ on:
       - 'api/server.js'
       - 'api/services/ministeroSync.js'
       - 'api/services/civicFcmTokenOwnership.js'
+      - 'api/services/civicPreferenceAtomicSave.js'
+      - 'api/routes/notifiche.js'
+      - 'api/tests/civicPreferenceAtomicSave.test.js'
       - 'api/routes/fcm-tokens.js'
       - 'api/tests/civicFcmTokenOwnership.test.js'
       - 'api/tests/civicFcmTokenOwnership.postgres.test.js'
@@ -215,6 +221,7 @@ jobs:
           node --test api/tests/ministeroPublicSnapshotAudit.test.js
           node --test api/tests/ministeroStagingSyncOnce.test.js
           node --test api/tests/civicFcmTokenOwnership.test.js
+          node --test api/tests/civicPreferenceAtomicSave.test.js
           node --test api/tests/unifiedStagingBootstrap.test.js api/tests/stagingRuntimeLockAudit.test.js api/tests/unifiedStagingPreflightServer.test.js api/tests/unifiedStagingPreflight.test.js api/tests/unifiedStagingSessionContinuity.test.js api/tests/unifiedStagingSchemaContract.test.js api/tests/civicStagingSessionOnRender.test.js api/tests/legacyRenderPgRetirementGate.test.js
           node --test api/tests/referendumOfficialRoutes.staging.test.js api/tests/referendumPriorityRetired.smoke.test.js api/tests/referendumRealVote.smoke.test.js api/tests/publicRouteHygiene.smoke.test.js
 
