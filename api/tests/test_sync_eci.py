@@ -86,6 +86,63 @@ class SyncEciUnitTests(unittest.TestCase):
                 {"recordsFound": 2, "entries": []},
             ]))
 
+    def test_changing_official_total_across_pages_rejects_entire_feed(self):
+        session = FakeSession([
+            {"recordsFound": 3, "entries": [
+                {"id": 1, "status": "ONGOING"},
+                {"id": 2, "status": "ONGOING"},
+            ]},
+            {"recordsFound": 4, "entries": [
+                {"id": 3, "status": "ONGOING"},
+            ]},
+        ])
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_TOTAL_CHANGED"):
+            sync_eci._fetch_ongoing_entries(session=session)
+        self.assertEqual(len(session.calls), 2)
+
+    def test_overlapping_source_pages_cannot_silently_deduplicate(self):
+        session = FakeSession([
+            {"recordsFound": 3, "entries": [
+                {"id": 1, "status": "ONGOING"},
+                {"id": 2, "status": "ONGOING"},
+            ]},
+            {"recordsFound": 3, "entries": [
+                {"id": 2, "status": "ONGOING"},
+                {"id": 3, "status": "ONGOING"},
+            ]},
+        ])
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_DUPLICATE_ID"):
+            sync_eci._fetch_ongoing_entries(session=session)
+        self.assertEqual(len(session.calls), 2)
+
+    def test_cross_page_duplicate_with_mixed_int_string_id_fails(self):
+        session = FakeSession([
+            {"recordsFound": 2, "entries": [
+                {"id": 17, "status": "ONGOING"},
+            ]},
+            {"recordsFound": 2, "entries": [
+                {"id": "17", "status": "ONGOING"},
+            ]},
+        ])
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_DUPLICATE_ID"):
+            sync_eci._fetch_ongoing_entries(session=session)
+
+    def test_invalid_source_ids_and_total_fail_closed(self):
+        for invalid_id in (None, "", "bad", True):
+            with self.subTest(invalid_id=invalid_id):
+                session = FakeSession([{"recordsFound": 1, "entries": [
+                    {"id": invalid_id, "status": "ONGOING"},
+                ]}])
+                with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SOURCE_ID_INVALID"):
+                    sync_eci._fetch_ongoing_entries(session=session)
+        for invalid_total in (None, "nan", True, 1.5):
+            with self.subTest(invalid_total=invalid_total):
+                session = FakeSession([{"recordsFound": invalid_total, "entries": [
+                    {"id": 1, "status": "ONGOING"},
+                ]}])
+                with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_TOTAL_INVALID"):
+                    sync_eci._fetch_ongoing_entries(session=session)
+
     def test_record_uses_italian_detail_and_direct_official_signing_link(self):
         entry = {
             "id": 9173,
@@ -127,6 +184,46 @@ class SyncEciUnitTests(unittest.TestCase):
         self.assertEqual(record[6], "Obiettivo ufficiale")
         self.assertEqual(record[7], "https://eci.ec.europa.eu/066/public/?lg=it")
 
+    def test_supporters_must_be_true_nonnegative_integers(self):
+        self.assertEqual(sync_eci._normalize_number(17), 17)
+        self.assertEqual(sync_eci._normalize_number("17"), 17)
+        for invalid in (True, False, 1.5, "1.5", None, -1):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_SUPPORTERS_"):
+                    sync_eci._normalize_number(invalid)
+
+    def test_support_link_cannot_redirect_citizens_to_non_eu_host(self):
+        base = {
+            "year": "2026", "number": "000011", "totalSupporters": 17,
+            "title": "Titolo ufficiale",
+        }
+        for untrusted in (
+            "https://attacker.example/collect",
+            "https://eci.ec.europa.eu.attacker.example/collect",
+            "https://eci.ec.europa.eu@attacker.example/collect",
+            "http://eci.ec.europa.eu/collect",
+            "https://eci.ec.europa.eu:444/collect",
+        ):
+            with self.subTest(url=untrusted):
+                record = sync_eci._normalize_record(
+                    base, {"status": "ONGOING", "linguisticVersions": [
+                        {"languageCode": "IT", "title": "Titolo",
+                         "supportLink": untrusted},
+                    ]}
+                )
+                self.assertEqual(record[7],
+                    "https://citizens-initiative.europa.eu/initiatives/details/2026/000011_it")
+        self.assertEqual(sync_eci._official_support_url(
+            "https://eci.ec.europa.eu/066/public/?lg=it", "fallback"),
+            "https://eci.ec.europa.eu/066/public/?lg=it")
+
+    def test_detail_register_number_must_match_search_identity_when_present(self):
+        entry = {"year": "2026", "number": "000011", "totalSupporters": 1}
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_DETAIL_ID_MISMATCH"):
+            sync_eci._normalize_record(entry, {
+                "status": "ONGOING", "pubRegNum": "ECI(2026)000012",
+            })
+
     def test_record_rejects_non_ongoing_detail_or_invalid_identity(self):
         entry = {
             "year": "2026",
@@ -135,8 +232,30 @@ class SyncEciUnitTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(RuntimeError, "non ONGOING"):
             sync_eci._normalize_record(entry, {"status": "REGISTERED", "linguisticVersions": []})
-        with self.assertRaisesRegex(RuntimeError, "Identificatore ECI ufficiale non valido"):
+        with self.assertRaisesRegex(RuntimeError, "ECI_OFFICIAL_REGISTER_ID_INVALID"):
             sync_eci._normalize_identity({"pubRegNum": "bad"})
+
+    def test_search_identifiers_must_agree_with_public_registration(self):
+        valid = {"year": "2026", "number": "000011",
+                 "pubRegNum": "ECI(2026)000011"}
+        self.assertEqual(sync_eci._normalize_identity(valid), ("2026", "000011"))
+        self.assertEqual(sync_eci._normalize_identity(
+            {"pubRegNum": "ECI(2026)000011"}), ("2026", "000011"))
+        self.assertEqual(sync_eci._normalize_identity(
+            {"year": "2026", "pubRegNum": "ECI(2026)000011"}),
+            ("2026", "000011"))
+        for invalid in (
+            {**valid, "pubRegNum": "ECI(2026)000012"},
+            {**valid, "pubRegNum": "ECI(2025)000011"},
+            {**valid, "pubRegNum": "ECI_BAD"},
+            {"year": "2025", "pubRegNum": "ECI(2026)000011"},
+            {"number": "000012", "pubRegNum": "ECI(2026)000011"},
+        ):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(
+                    RuntimeError, "ECI_OFFICIAL_REGISTER_ID_(INVALID|MISMATCH)"
+                ):
+                    sync_eci._normalize_identity(invalid)
 
     def test_dry_run_never_calls_database_replace(self):
         fake_records = [
