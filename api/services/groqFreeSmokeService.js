@@ -41,7 +41,9 @@ async function checkGroqFreeConnectivity({
     if (!completion) return { success: false, status: 'FREE_QUOTA_UNAVAILABLE', model };
     const choice = completion.choices?.[0];
     const answer = choice?.message?.content;
-    if (choice?.finish_reason === 'length' || choice?.finish_reason === 'content_filter' ||
+    // Do not report a healthy provider from a partial, filtered, tool-driven,
+    // or otherwise abnormal completion, even if it includes visible text.
+    if (choice?.finish_reason !== 'stop' ||
         typeof answer !== 'string' || !answer.trim()) {
       return { success: false, status: 'EMPTY_OR_TRUNCATED', model };
     }
