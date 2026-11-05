@@ -66,6 +66,29 @@ function assessMetadata({columns=[],tables=[],constraints=[],indexes=[],privileg
             'Canonical Unicode and repeated whitespace must share the same uniqueness key');
       }
     }
+
+    // Pagination and review audits remain bounded only when their cursor indexes
+    // exist. A structurally valid table without these is NOT release-ready.
+    const cursorIndexes = [
+      ['subject_proposals_admin_pending_cursor_idx', ['created_at','id','pending']],
+      ['subject_proposals_public_approved_cursor_idx', ['category','coalesce','reviewed_at','created_at','id','approved']],
+      ['subject_proposals_admin_approved_cursor_idx', ['coalesce','reviewed_at','created_at','id','approved']],
+      ['subject_proposals_admin_withdraw_notice_cursor_idx', ['coalesce','withdrawn_at','created_at','id','withdraw_notification_sent']],
+      ['subject_proposals_admin_notice_audit_cursor_idx', ['created_at','id','submission_notification_sent','review_notification_sent']]
+    ];
+    for (const [name, requiredFragments] of cursorIndexes) {
+      const idx = indexes.find(i => i.table_name === 'subject_proposals' && i.index_name === name);
+      if (!idx) {
+        add('MISSING_CURSOR_INDEX','subject_proposals.'+name,'Bounded keyset pagination or private Admin audit depends on this index');
+      } else {
+        const definition = String(idx.definition || '').toLowerCase();
+        if (!/create\s+index\b/i.test(definition) ||
+            requiredFragments.some(fragment => !definition.includes(fragment))) {
+          add('CURSOR_INDEX_DRIFT','subject_proposals.'+name,'Index definition does not support required keyset ordering/filter');
+        }
+      }
+    }
+
     const withdrawalStatus=constraints.find(c=>c.table_name==='subject_proposals'&&c.constraint_name==='subject_proposals_status_check');
     if(!withdrawalStatus||!withdrawalStatus.definition.includes("'withdrawn'"))
       add('STATUS_CHECK_DRIFT','subject_proposals.status','Approved nominations require a withdrawn state');

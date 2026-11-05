@@ -47,6 +47,34 @@ test('read-only preflight: complete schema READY; drift and unsafe grants NO-GO'
       assert.doesNotMatch(statement,/\bSELECT\s+\*\s+FROM\s+users\b/i,'No user content reads');
     }
 
+    // A staging schema with tables/RLS but a missing cursor index is not
+    // operationally ready for >100 public entries or long Admin audit queues.
+    for (const indexName of [
+      'subject_proposals_public_approved_cursor_idx',
+      'subject_proposals_admin_notice_audit_cursor_idx'
+    ]) {
+      await client.query('DROP INDEX '+SCHEMA+'.'+indexName);
+      const incomplete=await inspectSchema(observer,{schema:SCHEMA});
+      assert.equal(incomplete.ready,false,'missing pagination index must fail closed');
+      assert.ok(incomplete.problems.some(p=>p.code==='MISSING_CURSOR_INDEX'&&
+        p.object==='subject_proposals.'+indexName));
+      await client.query(sql.replaceAll('public.',SCHEMA+'.'));
+      assert.equal((await inspectSchema(observer,{schema:SCHEMA})).ready,true,
+        'reapplying DRAFT migration must restore missing cursor index');
+    }
+    // An incorrectly named matching index is also unsafe: name-only checks
+    // must not report READY when ordering/filtering is inconsistent.
+    await client.query('DROP INDEX '+SCHEMA+'.subject_proposals_admin_pending_cursor_idx');
+    await client.query('CREATE INDEX subject_proposals_admin_pending_cursor_idx ON '+
+      SCHEMA+'.subject_proposals(category)');
+    const wrongCursor=await inspectSchema(observer,{schema:SCHEMA});
+    assert.equal(wrongCursor.ready,false);
+    assert.ok(wrongCursor.problems.some(p=>p.code==='CURSOR_INDEX_DRIFT'&&
+      p.object==='subject_proposals.subject_proposals_admin_pending_cursor_idx'));
+    await client.query('DROP INDEX '+SCHEMA+'.subject_proposals_admin_pending_cursor_idx');
+    await client.query(sql.replaceAll('public.',SCHEMA+'.'));
+    assert.equal((await inspectSchema(observer,{schema:SCHEMA})).ready,true);
+
     // Reproduce the old index which excluded withdrawn names. A full schema
     // checker must reject it and the draft migration must upgrade it atomically.
     await client.query('DROP INDEX '+SCHEMA+'.subject_proposals_no_duplicate_open_titles');
