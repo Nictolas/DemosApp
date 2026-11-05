@@ -129,7 +129,7 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.waitForURL(origin + '/opinioni', { timeout: 20000 });
     assert.equal(savedPosts.length, 1, 'Exactly one delta save should be issued');
     await page.getByRole('button', { name: 'Per argomento' }).click();
-    await page.getByText(/1 \/ 13 · 8%/).first().waitFor({ timeout: 12000 });
+    await page.getByText(/1 \/ 14 · 7%/).first().waitFor({ timeout: 12000 });
     const before = personalGets.length;
     await page.getByRole('button', { name: /Economia, lavoro e fisco/ }).click();
     await page.getByText('1 / 14 Opinioni salvate').waitFor({ timeout: 25000 });
