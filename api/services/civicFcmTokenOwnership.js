@@ -1,9 +1,9 @@
 'use strict';
 
 // On token reassignment, the users.fcm_tokens legacy column may retain an
-// earlier owner's value. The authoritative active owner is user_devices.
-// Revocation by that earlier account must not unsubscribe a different user's
-// currently active token. Fail closed on DB read errors.
+// earlier owner's value. The authoritative owner (including inactive devices)
+// is user_devices. Revocation by the old account must never unsubscribe a
+// token registered to another owner. Fail closed on DB lookup errors.
 async function onlyTokensNotOwnedByOthers(db, userId, candidates) {
   if (!db || typeof db.query !== 'function' || !userId ||
       !Array.isArray(candidates)) {
@@ -14,7 +14,7 @@ async function onlyTokensNotOwnedByOthers(db, userId, candidates) {
   if (!tokens.length) return [];
   const result = await db.query(
     `SELECT fcm_token FROM user_devices
-     WHERE is_active = TRUE AND user_id <> $1
+     WHERE user_id <> $1
        AND fcm_token = ANY($2::text[])`,
     [userId, tokens]
   );
@@ -30,6 +30,7 @@ module.exports = {
   onlyTokensNotRegisteredToOthers,
   upsertCleanupOwnedOrUnassignedToken,
   getActiveCivicUserDeviceTokens,
+  getSupersededCivicTokens,
 };
 
 // Legacy token cleanup must never reclaim a token registered to another
@@ -97,4 +98,22 @@ async function getActiveCivicUserDeviceTokens(db, userId) {
     throw new Error('CIVIC_FCM_CANONICAL_READ_UNCONFIRMED');
   }
   return result.rows.map(row => row.fcm_token);
+}
+
+// Registration must clear old subscriptions before changing the token owner.
+// The previous owner's device may already be INACTIVE while Firebase still
+// holds a stale topic subscription, so it must also be revoked on transfer.
+// Keep the current owner's other ACTIVE tokens for replacement revocation.
+async function getSupersededCivicTokens(db,userId,tokenToKeep){
+  if(!db||typeof db.query!=='function'||!userId||
+     typeof tokenToKeep!=='string'||!tokenToKeep)
+    throw new TypeError('CIVIC_FCM_SUPERSEDED_CONTEXT_REQUIRED');
+  const result=await db.query(`
+    SELECT fcm_token FROM user_devices
+    WHERE (user_id=$1 AND is_active=TRUE AND fcm_token <> $2)
+       OR (user_id<>$1 AND fcm_token=$2)`,[userId,tokenToKeep]);
+  if(!result||!Array.isArray(result.rows)||
+     result.rows.some(row=>typeof row?.fcm_token!=='string'))
+    throw new Error('CIVIC_FCM_SUPERSEDED_LOOKUP_UNCONFIRMED');
+  return [...new Set(result.rows.map(row=>row.fcm_token))];
 }
