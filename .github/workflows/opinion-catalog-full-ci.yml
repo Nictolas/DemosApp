@@ -117,3 +117,79 @@ jobs:
           CI: 'true'
           NODE_ENV: production
         run: node --test api/tests/opinionTopicsAccountIsolation.e2e.test.js
+
+  # Temporary, explicit source overlay; no branch merge, release or external DB.
+  # This proves the exact pinned P0 read-guard code + thematic UI can coexist.
+  # It does NOT show the guard has landed on main or authorize production.
+  consent-topic-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout thematic branch under test
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Checkout pinned P0 consent fix (PR 557) for isolated overlay
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364 # v4.2.2
+        with:
+          ref: 4c979159839ecf58ecd2258f065c9a2cdf9b3911
+          path: consent-guard
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Assemble temporary P0 guard + topic editor (no git merge)
+        run: |
+          set -eu
+          for file in \
+            api/routes/compatibility.js \
+            api/routes/users/profile.js \
+            api/services/politicalMatchingService.js \
+            api/qa/opinionCatalogQaServer.js \
+            api/tests/opinionCatalogAndroid110.contract.test.js \
+            api/tests/opinionCatalogQaServer.smoke.test.js \
+            api/tests/politicalConsentMainRead.synthetic.test.js \
+            api/tests/politicalConsentMainRead.pg.integration.test.js \
+            api/tests/politicalMatchingService.test.js; do
+            cp "consent-guard/$file" "$file"
+          done
+          rm -rf consent-guard
+          grep -Fq 'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE' api/routes/compatibility.js
+          grep -Fq 'SECOND_USER_ID' api/qa/opinionCatalogQaServer.js
+          grep -Fq 'retainedResidualRow' api/qa/opinionCatalogQaServer.js
+          node --check api/routes/compatibility.js
+          node --check api/routes/users/profile.js
+          node --check api/services/politicalMatchingService.js
+          node --check api/qa/opinionCatalogQaServer.js
+          echo 'Combined pinned worktree validated; main remains unchanged.'
+      - name: Install isolated test dependencies
+        run: |
+          npm ci --prefix api --ignore-scripts --no-audit --no-fund
+          npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Combined P0, Android, thematic mapping and owner isolation Node tests
+        run: |
+          node --test \
+            api/tests/politicalConsentMainRead.synthetic.test.js \
+            api/tests/opinionCatalogAndroid110.contract.test.js \
+            api/tests/opinionCatalogQaServer.smoke.test.js \
+            api/tests/opinionCatalogConsentRace.contract.test.js \
+            api/tests/opinionTopics.contract.test.js
+          node --test client/tests/opinionTopicProgress.test.mjs client/tests/opinionTopicDrafts.test.mjs
+      - name: Combined frontend production build (no deploy)
+        run: npm run build --prefix client
+      - name: Install Chrome-only browser tester
+        run: |
+          command -v google-chrome
+          mkdir -p /tmp/demos-opinion-browser
+          npm install --prefix /tmp/demos-opinion-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+      - name: Three combined isolated Chrome regressions
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-opinion-browser/node_modules/playwright
+          NODE_ENV: production
+          CI: 'true'
+        run: |
+          node --test api/tests/opinionCatalogBrowser.e2e.test.js
+          node --test api/tests/opinionTopicsBrowser.e2e.test.js
+          node --test api/tests/opinionTopicsAccountIsolation.e2e.test.js
