@@ -34,6 +34,7 @@ async function test() {
     const page = await context.newPage();
     const count = new Map();
     const errors = [];
+    let stagedCompassAnswers = fullCompassAnswers;
     let granted = true;
     let version = "2026-10-29T10:00:00Z";
     let initiativeTitle = 'Iniziativa Inventata';
@@ -80,9 +81,9 @@ async function test() {
           return fulfill(route, { success: true, data: { candidati: {} } });
         case '/api/opinioni/profile':
           return fulfill(route, { success: true, data: {
-            questions: Object.keys(fullCompassAnswers).map(id => ({id,text:'Domanda sintetica '+id})),
+            questions: Object.keys(stagedCompassAnswers).map(id => ({id,text:'Domanda sintetica '+id})),
             ...(u.searchParams.get('includeAnswers') === '1'
-              ? {userAnswers:fullCompassAnswers} : {}),
+              ? {userAnswers:stagedCompassAnswers} : {}),
           }});
         default:
           return fulfill(route, { success: true, data: {} });
@@ -268,6 +269,40 @@ async function test() {
       { exact: false }).waitFor({ timeout: 15000 });
     assert.equal(await page.getByRole('img', { name: /Posizione stimata su due assi/ }).count(), 0,
       'Political compass must disappear after consent revocation');
+    // Fresh, separately authorized synthetic answers. A single definite
+    // Opinion must provide a visible DRAFT without inventing the other axis.
+    granted = true;
+    version = '2026-10-29T15:00:00Z';
+    stagedCompassAnswers = { patrimoniale: 'f' };
+    await page.goto(ORIGIN + '/compasso-politico', { waitUntil: 'domcontentloaded' });
+    await page.getByTestId('compass-draft-economy-line').waitFor({ timeout: 15000 });
+    assert.equal(await page.getByTestId('compass-draft-freedom-line').count(), 0);
+    assert.equal(await page.getByTestId('compass-draft-point').count(), 0);
+    assert.ok(await page.locator('section[aria-label="I tuoi orientamenti politici"]')
+      .getByText('Bozza provvisoria', { exact: false }).count() > 0,
+      'A single relevant thematic Opinion must display a provisional bar');
+    const afterSingleOpinion = count.get('/api/opinioni/profile') || 0;
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByTestId('compass-draft-economy-line').waitFor({ timeout: 15000 });
+    assert.equal(count.get('/api/opinioni/profile') || 0, afterSingleOpinion,
+      'Reopening a single-answer draft must not fetch the Opinions again');
+
+    // A one-answer liberty score projects to a HORIZONTAL guide.
+    version = '2026-10-29T16:00:00Z';
+    stagedCompassAnswers = { eutanasia: 'f' };
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByTestId('compass-draft-freedom-line').waitFor({ timeout: 15000 });
+    assert.equal(await page.getByTestId('compass-draft-economy-line').count(), 0);
+
+    // After one mapped response on each dimension, a hollow point can be
+    // drawn, still explicitly provisional until the original thresholds pass.
+    version = '2026-10-29T17:00:00Z';
+    stagedCompassAnswers = { patrimoniale: 'f', eutanasia: 'f' };
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByTestId('compass-draft-point').waitFor({ timeout: 15000 });
+    assert.equal(await page.locator('circle[r="9"]').count(), 0,
+      'The qualified dark dot must not appear for a two-response draft');
+
     assert.deepEqual(errors, [], 'No uncaught browser errors');
     console.log(JSON.stringify({ kind: 'persistent-local-profile', result: 'PASS', first, after,
       additionalProfileGets: after.reduce((sum, n, i) => sum + n - first[i], 0) }));
