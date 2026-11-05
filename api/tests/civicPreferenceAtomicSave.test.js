@@ -74,6 +74,39 @@ test('failed unsubscribe before preference write never commits and blocks sends'
     'PERSIST_BLOCK_AFTER_ROLLBACK']);
 });
 
+test('lost BEGIN acknowledgement discards DB session before work or Firebase',async()=>{
+  const f=fake();
+  f.client.query=async sql=>{
+    f.history.push(sql);
+    if(sql==='BEGIN')throw Error('SYNTHETIC_BEGIN_ACK_LOST');
+    return {rows:[]};
+  };
+  let workCalled=false;
+  await assert.rejects(runCivicPreferenceSaveAtomic(f.client,async()=>{
+    workCalled=true;
+  },{enabled:true,block:f.block}),/CIVIC_PREFERENCE_SAVE_UNCONFIRMED/);
+  assert.equal(workCalled,false);
+  assert.deepEqual(f.history,['BEGIN']);
+  assert.equal(f.client.__civicPreferenceTransactionUnsafe,true);
+  assert.equal(f.guardBlocked,false);
+});
+
+test('COMMIT acknowledgement lost after server success keeps sends blocked',async()=>{
+  const f=fake();
+  f.client.query=async sql=>{
+    f.history.push(sql);
+    if(sql==='COMMIT')throw Error('SYNTHETIC_COMMIT_ACK_LOST');
+    return {rows:[]};
+  };
+  await assert.rejects(runCivicPreferenceSaveAtomic(f.client,async()=>{
+    f.history.push('UPSERT_PREFS');
+    return 'WORK_DONE';
+  },{enabled:true,block:f.block}),/CIVIC_PREFERENCE_SAVE_UNCONFIRMED/);
+  assert.deepEqual(f.history,[
+    'BEGIN','UPSERT_PREFS','COMMIT','ROLLBACK','PERSIST_BLOCK_AFTER_ROLLBACK']);
+  assert.equal(f.guardBlocked,true);
+});
+
 test('failed rollback makes pooled session unreusable',async()=>{
   const f=fake();
   f.client.query=async sql=>{
