@@ -36,7 +36,7 @@ const db={
     const text=String(sql);
     calls.push('SQL');
     if(text.includes('INSERT INTO user_devices')) upserts.push(params);
-    if(text.includes('FROM users WHERE id = $1')){
+    if(text.includes('FROM users AS u WHERE u.id = $1')){
       return {rows:[{fcm_tokens:legacyFixture,legacy_column_present:legacyColumnPresent}]};
     }
     if(text.includes('SELECT 1 FROM user_devices')){
