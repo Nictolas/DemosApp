@@ -5,7 +5,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {Client} = require('pg');
-const {onlyTokensNotOwnedByOthers} =
+const {onlyTokensNotOwnedByOthers,onlyTokensNotRegisteredToOthers,
+  upsertCleanupOwnedOrUnassignedToken} =
   require('../services/civicFcmTokenOwnership');
 
 const LOOPBACK = 'postgresql://postgres:civic_ci_only@127.0.0.1:5432/civic_ci';
@@ -32,7 +33,7 @@ test('real PG16/17 never revokes a legacy token owned by another active account'
     // Temporary table shadows the name only in THIS session. It disappears
     // on disconnect, and never affects seeded public fixture tables.
     await client.query(
-      'CREATE TEMP TABLE user_devices (fcm_token text PRIMARY KEY, user_id text NOT NULL, is_active boolean NOT NULL) ON COMMIT PRESERVE ROWS');
+      'CREATE TEMP TABLE user_devices (fcm_token text PRIMARY KEY, user_id text NOT NULL, is_active boolean NOT NULL, last_seen_at timestamptz, created_at timestamptz, updated_at timestamptz) ON COMMIT PRESERVE ROWS');
     await client.query(
       "INSERT INTO pg_temp.user_devices(fcm_token,user_id,is_active) VALUES"+
       "('token_reassigned','new_account',true),"+
@@ -58,6 +59,31 @@ test('real PG16/17 never revokes a legacy token owned by another active account'
       client,'new_account',['token_reassigned']),[]);
     assert.deepEqual(await onlyTokensNotOwnedByOthers(
       client,'third_account',['token_reassigned']),['token_reassigned']);
+    // Cleanup uses stricter ownership than ordinary revocation: even an
+    // INACTIVE token of another account cannot be reclaimed.
+    assert.deepEqual(await onlyTokensNotRegisteredToOthers(
+      client,'old_account',['token_original','token_reassigned','token_inactive','brand_new']),
+      ['token_original','brand_new']);
+
+    // Filtered stale legacy data cannot steal another account's active or
+    // inactive token, even if it races between filter and SQL UPSERT.
+    await assert.rejects(upsertCleanupOwnedOrUnassignedToken(
+      client,'old_account','token_reassigned'),
+      /CIVIC_FCM_CLEANUP_OWNERSHIP_UNCONFIRMED/);
+    await assert.rejects(upsertCleanupOwnedOrUnassignedToken(
+      client,'old_account','token_inactive'),
+      /CIVIC_FCM_CLEANUP_OWNERSHIP_UNCONFIRMED/);
+    const owners=await client.query(
+      "SELECT fcm_token,user_id,is_active FROM user_devices WHERE fcm_token IN ('token_reassigned','token_inactive') ORDER BY fcm_token");
+    assert.deepEqual(owners.rows,[
+      {fcm_token:'token_inactive',user_id:'new_account',is_active:false},
+      {fcm_token:'token_reassigned',user_id:'third_account',is_active:true},
+    ]);
+    await upsertCleanupOwnedOrUnassignedToken(client,'old_account','token_original');
+    await upsertCleanupOwnedOrUnassignedToken(client,'old_account','brand_new');
+    assert.deepEqual((await client.query(
+      "SELECT fcm_token FROM user_devices WHERE user_id='old_account' ORDER BY fcm_token"))
+      .rows.map(row=>row.fcm_token),['brand_new','token_original']);
   } finally {
     await client.end();
   }
