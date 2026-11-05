@@ -24,6 +24,8 @@ on:
       - 'api/tests/privacyErasureCombinedGuards.contract.test.js'
       - 'api/tests/civicPrivacyHttp.synthetic.test.js'
       - 'api/tests/graziaModerationContract.test.js'
+      - 'api/tests/graziaVoteReadEfficiency.synthetic.test.js'
+      - 'api/tests/graziaVoteSchemaCache.synthetic.test.js'
       - 'api/tests/graziaModerationHttp.synthetic.test.js'
       - 'api/tests/graziaPostgresConcurrency.integration.test.js'
       - 'api/tests/capoApprovedCatalogue.pg.integration.test.js'
@@ -98,6 +100,8 @@ jobs:
       - name: Grazia moderation tests (when branch contains repair)
         run: |
           if test -f api/tests/graziaModerationContract.test.js; then node --test api/tests/graziaModerationContract.test.js; fi
+      - name: Grazia shared vote schema cache and private-write safety
+        run: node --test api/tests/graziaVoteReadEfficiency.synthetic.test.js api/tests/graziaVoteSchemaCache.synthetic.test.js
       - name: Synthetic Grazia moderation HTTP checks
         env:
           NODE_PATH: /tmp/demos-http-test/node_modules

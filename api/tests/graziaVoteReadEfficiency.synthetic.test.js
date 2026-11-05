@@ -22,7 +22,8 @@ function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=fa
       }
       if(sql.includes('FROM information_schema.columns')){
         if(metadataFailures-->0)throw Object.assign(new Error('SYNTHETIC_SCHEMA_OFFLINE'),{code:'08006'});
-        return {rows:columns.map(column_name=>({column_name}))};
+        return {rows:[...columns.map(column_name=>({column_name,data_type:'text'})),
+          {column_name:'id',data_type:'uuid'}]};
       }
       if(sql.includes('FROM voti_grazia')&&sql.includes('MAX(')){
         const expected=columns.includes('userid')?'userid':'user_id';

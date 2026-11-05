@@ -18,13 +18,18 @@ let voteColumnsPromise = null;
 function getGraziaVoteColumns() {
   if (!voteColumnsPromise) {
     voteColumnsPromise = pool.query(
-      "SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='voti_grazia'"
+      "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='voti_grazia'"
     ).then(result => {
-      const columns = new Set(result.rows.map(row => row.column_name));
+      const columns = new Map(result.rows.map(row => [row.column_name, row.data_type]));
       const user = columns.has('userid') ? 'userid' : columns.has('user_id') ? 'user_id' : null;
       const date = ['timestamp', 'data_voto', 'created_at'].find(name => columns.has(name));
+      // In production, a missing ID column or unrecognized type must not
+      // cause a personal vote to be written using a guessed schema.
+      const idType = columns.get('id');
+      // Reading existing preferences does not need an ID column at all.
+      // Validate its type only when a personal vote will be written.
       if (!user || !date) throw new Error('GRAZIA_VOTE_SCHEMA_UNRECOGNIZED');
-      return { user, date };
+      return { user, date, idType };
     }).catch(error => {
       voteColumnsPromise = null;
       throw error;
@@ -284,42 +289,11 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
       });
     }
 
-    // Rileva la struttura della tabella per capire quale colonna usare
-    let userIdColumn = 'user_id';
-    let idType = 'uuid'; // Default a UUID
-    let timestampColumn = 'timestamp'; // Default a timestamp
-
-    try {
-      const tableInfoQuery = `
-        SELECT column_name, data_type, is_nullable
-        FROM information_schema.columns
-        WHERE LOWER(table_name) = 'voti_grazia'
-        ORDER BY ordinal_position
-      `;
-      const tableInfo = await pool.query(tableInfoQuery);
-
-      const columns = tableInfo.rows.map(r => r.column_name);
-      const hasUserId = columns.includes('user_id');
-      const hasUserid = columns.includes('userid');
-      userIdColumn = hasUserid ? 'userid' : (hasUserId ? 'user_id' : 'user_id');
-
-      // Rileva il tipo della colonna id
-      const idColumn = tableInfo.rows.find(r => r.column_name === 'id');
-      if (idColumn) {
-        idType = idColumn.data_type;
-      }
-
-      // Rileva quale colonna timestamp usare
-      if (columns.includes('timestamp')) {
-        timestampColumn = 'timestamp';
-      } else if (columns.includes('data_voto')) {
-        timestampColumn = 'data_voto';
-      } else if (columns.includes('created_at')) {
-        timestampColumn = 'created_at';
-      }
-    } catch (tableInfoError) {
-    }
-
+    // Shared, cached metadata: one information_schema lookup per worker,
+    // rather than one per private POST. Unknown schemas fail closed.
+    const {user:userIdColumn, date:timestampColumn, idType} = await getGraziaVoteColumns();
+    if (!['uuid','character varying','text'].includes(idType))
+      throw new Error('GRAZIA_VOTE_SCHEMA_UNRECOGNIZED');
 
     const requestedVotes = voti.slice(0, 1).map((nome) => String(nome).trim()).filter(Boolean);
     const existingResult = await pool.query(
@@ -423,6 +397,9 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
       client.release();
     }
   } catch (error) {
+    // A live migration can rename a cached column. Do not keep stale SQL
+    // identifiers across later personal vote requests.
+    if (error?.code === '42703') voteColumnsPromise = null;
     if (sendCooldownError(res, error)) return;
 
     res.status(500).json({
