@@ -74,7 +74,7 @@ test('staging source-only sync uses real restricted PG16/17 writes, never DELETE
     assert.equal(granted.rows[0].del,false);
     assert.equal(granted.rows[0].upd,true);
 
-    async function makePool(){
+    function makePool(){
       // A new wrapper per run simulates the exact CI least-privilege role.
       const local=new Pool({connectionString:DSN,max:1});
       return {
