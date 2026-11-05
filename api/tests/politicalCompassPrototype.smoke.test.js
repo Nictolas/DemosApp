@@ -90,10 +90,25 @@ test("cinque assi tematici sotto il compasso, senza ulteriori richieste o dettag
   assert.match(component, /Non sono un test validato/);
   assert.doesNotMatch(component, /Quali Opinioni vengono usate e come\?|<details|<summary/);
   assert.ok(
-    component.indexOf("I tuoi orientamenti politici") >
-    component.indexOf('<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">'),
-    "Le barre devono essere sotto il grafico e le schede riassuntive",
+    component.indexOf("I tuoi orientamenti politici") > component.indexOf('<figure className='),
+    "Le barre devono essere sotto il grafico classico",
   );
+  assert.doesNotMatch(component, /grid grid-cols-1 gap-2 sm:grid-cols-2/);
+  assert.doesNotMatch(component, /<h4[^>]*>Libertà individuali<\/h4>/);
+});
+
+test("un unico avviso sperimentale in alto senza badge duplicati o due schede dei punteggi", () => {
+  assert.match(component, /role="note" aria-label="Sezione sperimentale"/);
+  assert.match(component, /<p className="text-sm font-semibold text-amber-950">Sezione sperimentale<\/p>/);
+  assert.equal((component.match(/>Sezione sperimentale<\/p>/g) || []).length, 1);
+  assert.ok(component.indexOf('aria-label="Sezione sperimentale"') < component.indexOf("La tua posizione politica"));
+  assert.ok(component.indexOf("La tua posizione politica") < component.indexOf("<figure"));
+  assert.ok(component.indexOf("<figure") < component.indexOf("I tuoi orientamenti politici"));
+  assert.doesNotMatch(component, /Compasso sperimentale|axis\.experimental|>Sperimentale<|<h4[^>]*>Libertà individuali<\/h4>/);
+  assert.doesNotMatch(component, /resultLabel\(compass\.|grid grid-cols-1 gap-2 sm:grid-cols-2/);
+  assert.match(component, /POLITICAL_AXES\.map/);
+  assert.match(component, /aria-label="Posizione stimata su due assi esplorativi:/);
+  assert.match(component, /role="meter"/);
 });
 
 test("informativa distingue profilazione locale facoltativa da profilazione commerciale", () => {
