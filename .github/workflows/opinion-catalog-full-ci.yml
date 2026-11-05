@@ -10,6 +10,7 @@ on:
       - 'api/services/**'
       - 'api/tests/opinionCatalog*.test.js'
       - 'api/tests/opinionTopics.contract.test.js'
+      - 'api/tests/opinionTopicsBrowser.e2e.test.js'
       - 'client/src/lib/opinionTopics.ts'
       - 'client/src/lib/opinionTopicProgress.ts'
       - 'client/src/components/OpinioniTopicsMenu.tsx'
@@ -97,3 +98,9 @@ jobs:
           CI: 'true'
           NODE_ENV: production
         run: node --test api/tests/opinionCatalogBrowser.e2e.test.js
+      - name: Chrome thematic Opinions, mobile, save, failed POST and revocation (synthetic only)
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-opinion-browser/node_modules/playwright
+          CI: 'true'
+          NODE_ENV: production
+        run: node --test api/tests/opinionTopicsBrowser.e2e.test.js
