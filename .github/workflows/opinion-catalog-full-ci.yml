@@ -124,6 +124,20 @@ jobs:
   consent-topic-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: demos_ci
+          POSTGRES_PASSWORD: synthetic_only
+          POSTGRES_DB: demos_political_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U demos_ci -d demos_political_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
     steps:
       - name: Checkout thematic branch under test
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -177,6 +191,12 @@ jobs:
             api/tests/opinionCatalogConsentRace.contract.test.js \
             api/tests/opinionTopics.contract.test.js
           node --test client/tests/opinionTopicProgress.test.mjs client/tests/opinionTopicDrafts.test.mjs
+      - name: PostgreSQL 17 consent-revocation integration on pinned P0 + thematic code
+        env:
+          CIVIC_TEST_MODE: isolated-synthetic
+          CIVIC_TEST_DATABASE_URL: postgres://demos_ci:synthetic_only@127.0.0.1:5432/demos_political_ci
+        run: |
+          node --test api/tests/politicalConsentMainRead.pg.integration.test.js
       - name: Combined frontend production build (no deploy)
         run: npm run build --prefix client
       - name: Install Chrome-only browser tester
