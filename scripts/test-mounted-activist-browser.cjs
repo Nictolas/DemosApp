@@ -19,6 +19,9 @@ function reply(route,data,status=200){
    await ctx.addInitScript(token=>localStorage.setItem('auth_token',token),TOKEN);
    const page=await ctx.newPage();
    const calls=[];
+   let directoryFailure=false;
+   const rawConsole=[];
+   page.on('console',message=>rawConsole.push(message.text()));
    await page.route('**/*',route=>{
     const url=new URL(route.request().url());
     if(!url.pathname.startsWith('/api/'))
@@ -29,6 +32,9 @@ function reply(route,data,status=200){
     if(url.pathname==='/api/auth/me')
       return reply(route,{success:true,user:{id:ID,account_type:'E',status:'a',role:'E',ruolo:'E',
         political_consent:{granted:true,timestamp:'2026-10-01T00:00:00Z'}}});
+    if(directoryFailure && ['/api/attivisti','/api/organizzazioni'].includes(url.pathname))
+      return reply(route,{success:false,error:'SYNTHETIC_SQL_EXCEPTION_PRIVATE',
+        message:'SYNTHETIC_THIRD_PARTY_PRIVATE_TITLE'},500);
     if(url.pathname==='/api/attivisti')
       return reply(route,{success:true,data:[],approved_subjects:[
         {id:'90000000-0000-4000-8000-000000000001',title:'Soggetto pubblico sintetico'}]});
@@ -44,6 +50,21 @@ function reply(route,data,status=200){
    assert.ok(!calls.includes('/api/subject-proposals/approved'),'no extra approved GET on mount');
    const layout=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
    assert.ok(layout.scroll<=layout.width+2,'no horizontal overflow');
+   directoryFailure=true;
+   for(const [pathname,notice] of [
+     ['/attivisti','Non è stato possibile caricare gli attivisti. Riprova più tardi.'],
+     ['/organizzazioni','Non è stato possibile caricare le organizzazioni. Riprova più tardi.']
+   ]){
+     await page.goto(BASE+pathname,{waitUntil:'domcontentloaded'});
+     await page.getByText(notice,{exact:true}).waitFor({timeout:20000});
+     const visible=await page.locator('body').innerText();
+     assert.ok(!visible.includes('SYNTHETIC_SQL_EXCEPTION_PRIVATE'),'raw error must not appear');
+     assert.ok(!visible.includes('SYNTHETIC_THIRD_PARTY_PRIVATE_TITLE'),'raw names must not appear');
+   }
+   assert.ok(!rawConsole.join('\n').includes('SYNTHETIC_SQL_EXCEPTION_PRIVATE'),
+     'no raw exception payload in browser console');
+   assert.ok(!rawConsole.join('\n').includes('SYNTHETIC_THIRD_PARTY_PRIVATE_TITLE'),
+     'no private title in browser console');
    await ctx.close();
    console.log('MOUNTED ACTIVIST CHROME PASS '+viewport.width+'x'+viewport.height);
   }
