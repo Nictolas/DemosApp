@@ -29,6 +29,7 @@ module.exports = {
   onlyTokensNotOwnedByOthers,
   onlyTokensNotRegisteredToOthers,
   upsertCleanupOwnedOrUnassignedToken,
+  getActiveCivicUserDeviceTokens,
 };
 
 // Legacy token cleanup must never reclaim a token registered to another
@@ -77,4 +78,23 @@ async function upsertCleanupOwnedOrUnassignedToken(db, userId, token) {
   if (!result || result.rowCount !== 1) {
     throw new Error('CIVIC_FCM_CLEANUP_OWNERSHIP_UNCONFIRMED');
   }
+}
+
+// Canonical user_devices is authoritative when legacy users.fcm_tokens is
+// present but empty/stale. The most recently updated active token wins.
+async function getActiveCivicUserDeviceTokens(db, userId) {
+  if (!db || typeof db.query !== 'function' || !userId) {
+    throw new TypeError('CIVIC_FCM_CANONICAL_CONTEXT_REQUIRED');
+  }
+  const result = await db.query(
+    `SELECT fcm_token FROM user_devices
+     WHERE user_id = $1 AND is_active = TRUE
+     ORDER BY updated_at DESC NULLS LAST, fcm_token DESC`,
+    [userId]
+  );
+  if (!result || !Array.isArray(result.rows) ||
+      result.rows.some(row => typeof row?.fcm_token !== 'string')) {
+    throw new Error('CIVIC_FCM_CANONICAL_READ_UNCONFIRMED');
+  }
+  return result.rows.map(row => row.fcm_token);
 }
