@@ -107,3 +107,16 @@ test('both parliamentary services use quota wrapper without SDK auto-retry', () 
   const law = fs.readFileSync(path.join(__dirname, '..', 'services', 'leggeAnalysisService.js'), 'utf8');
   assert.match(law, /response_format: \{ type: 'json_object' \}/);
 });
+
+
+test('GPT-OSS completion truncation diagnostics and adequate output budget are present', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'services', 'aiExplanationService.js'), 'utf8');
+  assert.match(source, /max_completion_tokens:\s*1024/);
+  assert.match(source, /reasoning_effort:\s*'low'/);
+  assert.match(source, /choice\?\.finish_reason === 'length'/);
+  assert.match(source, /choice\?\.finish_reason === 'content_filter'/);
+  assert.match(source, /typeof rawContent === 'string' \? rawContent\.trim\(\) : ''/);
+  assert.doesNotMatch(source, /completion\.choices\[0\]\?\.message\?\.content\?\.trim\(\)/);
+});
