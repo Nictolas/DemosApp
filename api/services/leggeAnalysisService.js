@@ -432,10 +432,11 @@ async function generaAnalisiLeggeUnaVolta(uriVotazione, votazioneData) {
       modello_ai: modello
     };
 
-    // Salva in cache nel database
-    await salvaAnalisiInCache(analisi);
+    // An analysis is only ready for delivery after its database write succeeds.
+    // Do not report a generated-but-lost response as a persisted explanation.
+    if (!(await salvaAnalisiInCache(analisi))) return null;
 
-    console.log(`✅ Analisi legge generata con successo (${aiProvider})`);
+    console.log('Analisi parlamentare generata e salvata');
     return analisi;
   } catch (error) {
     console.error('Analisi AI parlamentare non disponibile:', classifyFreeGroqError(error));
@@ -467,7 +468,7 @@ async function salvaAnalisiInCache(analisi) {
         updated_at = CURRENT_TIMESTAMP
     `;
 
-    await pool.query(query, [
+    const result = await pool.query(query, [
       analisi.uri_votazione,
       analisi.numero_legge,
       analisi.tipo_atto,
@@ -477,11 +478,16 @@ async function salvaAnalisiInCache(analisi) {
       analisi.provider_ai,
       analisi.modello_ai
     ]);
+    if (result?.rowCount !== 1) {
+      console.warn('Salvataggio cache analisi parlamentare senza riga confermata');
+      return false;
+    }
 
-    console.log(`✅ Analisi salvata in cache per URI: ${analisi.uri_votazione}`);
-  } catch (error) {
+    console.log('Analisi parlamentare salvata in cache');
+    return true;
+  } catch (_) {
     console.error('Salvataggio cache analisi parlamentare non riuscito');
-    // Non bloccare il processo se il salvataggio fallisce
+    return false;
   }
 }
 
