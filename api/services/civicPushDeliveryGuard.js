@@ -73,16 +73,35 @@ async function releaseCivicPushDeliveryLock(client) {
  */
 async function blockCivicDeliveryFromPool(pool) {
   const client = await pool.connect();
+  let beginAttempted = false;
+  let commitAttempted = false;
+  let discard = false;
   try {
+    beginAttempted = true;
     await client.query('BEGIN');
     await lockCivicPushDuringAccountErasure(client);
     await blockCivicDeliveryOnRevocationFailure(client);
+    commitAttempted = true;
     await client.query('COMMIT');
   } catch {
-    try { await client.query('ROLLBACK'); } catch { /* connection already broken */ }
+    // A lost BEGIN/COMMIT acknowledgement can leave an uncertain transaction.
+    // Never return that session to the pool even if a later ROLLBACK replies.
+    if (commitAttempted) discard = true;
+    if (beginAttempted) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        discard = true;
+      }
+      if (!commitAttempted) {
+        // A failed BEGIN may still have opened a server-side transaction.
+        // The client must not be reused after such an ambiguous failure.
+        discard = discard || !beginAttempted;
+      }
+    }
     throw new Error('CIVIC_DELIVERY_BLOCK_FAILED');
   } finally {
-    client.release();
+    client.release(discard);
   }
 }
 
@@ -108,11 +127,13 @@ async function withCivicPushDeliveryLock(pool, callback, { enabled = false } = {
     await assertCivicDatabaseIdentity(client);
     return await callback(client);
   } finally {
+    let unlockUnconfirmed = false;
     if (locked) {
       try {
         await releaseCivicPushDeliveryLock(client);
       } catch {
         discard = true;
+        unlockUnconfirmed = true;
       }
     } else if (attempted) {
       // Unknown lock acquisition outcome: never return this session to pool.
@@ -120,6 +141,12 @@ async function withCivicPushDeliveryLock(pool, callback, { enabled = false } = {
     }
     // A failed/uncertain rollback cannot safely return a pooled session.
     client.release(discard || client.__civicPreferenceTransactionUnsafe === true);
+    if (unlockUnconfirmed) {
+      // Even if all SQL and Firebase changes succeeded, an unconfirmed
+      // unlock cannot be reported as a successful account mutation.
+      // The caller must attempt to stop delivery on a fresh connection.
+      throw new Error('CIVIC_DELIVERY_LOCK_RELEASE_UNCONFIRMED');
+    }
   }
 }
 
