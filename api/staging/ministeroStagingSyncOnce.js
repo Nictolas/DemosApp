@@ -84,6 +84,18 @@ const UPSERT_SQL=[
   'quorum_raggiunto=EXCLUDED.quorum_raggiunto,sito_web=EXCLUDED.sito_web,',
   'data_ultimo_aggiornamento=now(),updated_at=now()',
 ].join('\n');
+// Fail closed on the set of official IDs, not just a percentage of feed size.
+// A same-size feed with one removed ID must never silently preserve a stale
+// initiative in the cache. The lifecycle of disappeared IDs needs its own
+// separately reviewed policy; this one-shot importer never deletes rows.
+const MISSING_SOURCE_IDS_SQL=[
+  'SELECT count(*)::integer AS missing_count',
+  'FROM public.iniziative_ministero m',
+  'WHERE NOT EXISTS (',
+  'SELECT 1 FROM jsonb_to_recordset($1::jsonb) AS r(id text)',
+  'WHERE r.id=m.id',
+  ')',
+].join('\\n');
 const BASELINE_SQL=[
   'INSERT INTO public.civic_new_initiative_notifications',
   '(category,official_id,title,target_path,status)',
@@ -149,8 +161,11 @@ async function syncOnce(env=process.env,options={}){
     if(!state||!Number.isInteger(state.old_count)||state.old_count<1||
        state.old_count>100000||Number(state.actionable)!==0)
       throw new Error('MINISTERO_SOURCE_SYNC_BASELINE_UNSAFE');
-    if(rows.length<Math.ceil(state.old_count*0.8))
-      throw new Error('MINISTERO_SOURCE_SYNC_TRUNCATED');
+    const coverage=await client.query(MISSING_SOURCE_IDS_SQL,[payload]);
+    if(coverage.rows?.length!==1 ||
+       !Number.isInteger(coverage.rows[0].missing_count) ||
+       coverage.rows[0].missing_count!==0)
+      throw new Error('MINISTERO_SOURCE_SYNC_OFFICIAL_ID_GAP');
     const upsert=await client.query(UPSERT_SQL,[payload]);
     if(upsert.rowCount!==rows.length)
       throw new Error('MINISTERO_SOURCE_SYNC_UPSERT_COUNT_MISMATCH');
@@ -185,4 +200,4 @@ if(require.main===module){
     });
   }
 }
-module.exports={assertSourceSyncEnv,prepareRows,UPSERT_SQL,BASELINE_SQL,syncOnce};
+module.exports={assertSourceSyncEnv,prepareRows,UPSERT_SQL,BASELINE_SQL,MISSING_SOURCE_IDS_SQL,syncOnce};
