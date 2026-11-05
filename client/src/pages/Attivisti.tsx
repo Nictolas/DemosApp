@@ -175,7 +175,13 @@ export default function Attivisti() {
 
                 // I dati arrivano già ordinati per supporters_count DESC
                 setAttivisti(data.data as any);
-                setApprovedSubjects(data.approved_subjects || []);
+                setApprovedSubjects(
+                  Array.isArray(data.approved_subjects)
+                    ? data.approved_subjects
+                        .filter(item => item && typeof item.id === "string" && typeof item.title === "string")
+                        .map(item => ({ id: item.id, title: item.title }))
+                    : [],
+                );
                 reset(data.approved_next_cursor ?? null);
                 setFilteredAttivisti(data.data as any);
                 const next: Record<string, number> = {};

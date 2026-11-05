@@ -96,3 +96,15 @@ test('mounted activist directory does not bypass configured API, leak debug sear
   assert.doesNotMatch(mounted,/demos-c7k0\.onrender\.com|\bAPI_BASE\b/,
     'active directory must not bypass the correct API origin');
 });
+
+test('both mounted public directories accept only id/title, never a full third-party record in React state',()=>{
+ for(const path of ['client/src/pages/Attivisti.tsx','client/src/pages/Organizzazioni/index.tsx']){
+  const mounted=read(path);
+  assert.match(mounted,/Array\.isArray\(data\.approved_subjects\)/,
+   'server response must be checked before storing in UI: '+path);
+  assert.match(mounted,/typeof item\.id === "string" && typeof item\.title === "string"/);
+  assert.match(mounted,/\.map\(item => \(\{ id: item\.id, title: item\.title \}\)\)/,
+   'discard even unexpected future details/source fields: '+path);
+  assert.doesNotMatch(mounted,/setApprovedSubjects\(data\.approved_subjects \|\| \[\]\)/);
+ }
+});
