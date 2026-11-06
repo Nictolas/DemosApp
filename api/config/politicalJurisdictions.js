@@ -70,6 +70,8 @@ const POLITICAL_OFFICES = Object.freeze({
     aliases: Object.freeze(['PROVINCIA_AUTONOMA_TRENTO', 'CONSIGLIO_PROVINCIALE_TRENTO']),
     residenceScope: TERRITORY_SCOPES.PROVINCE,
     eligibleProvinceCodes: Object.freeze(['TN', 'Trento']),
+    // Reuse existing C-scoped opinion IDs; no new universal opinion filter or answers.
+    matchingOpinionGrade: 'C',
     derivedRegionalOfficeId: 'it.regional',
   }),
   'it.provincial.bolzano': Object.freeze({
@@ -78,6 +80,8 @@ const POLITICAL_OFFICES = Object.freeze({
     aliases: Object.freeze(['PROVINCIA_AUTONOMA_BOLZANO', 'CONSIGLIO_PROVINCIALE_BOLZANO']),
     residenceScope: TERRITORY_SCOPES.PROVINCE,
     eligibleProvinceCodes: Object.freeze(['BZ', 'Bolzano', 'Bozen']),
+    // Reuse existing C-scoped opinion IDs; no new universal opinion filter or answers.
+    matchingOpinionGrade: 'C',
     derivedRegionalOfficeId: 'it.regional',
   }),
 
