@@ -31,3 +31,14 @@ test('pageRegistered produces a cursor accepted by strict decoder',()=>{
   assert.deepEqual(decodeRegisteredCursor(page.members_next_cursor),
     [rows[LIMIT-1].supporters_count,rows[LIMIT-1].id]);
 });
+
+test('pagination opt-in cannot silently downgrade an explicit cursor to legacy unpaged mode',()=>{
+  const {isPagedRegisteredRequest}=require('../services/registeredDirectoryPage');
+  assert.equal(isPagedRegisteredRequest({}),false);
+  assert.equal(isPagedRegisteredRequest({members_paged:'1'}),true);
+  assert.equal(isPagedRegisteredRequest({members_cursor:''}),true);
+  assert.equal(isPagedRegisteredRequest({members_cursor:'invalid'}),true);
+  assert.equal(isPagedRegisteredRequest({members_cursor:['invalid']}),true);
+  assert.equal(decodeRegisteredCursor(['invalid']),false);
+  assert.equal(decodeRegisteredCursor({cursor:'invalid'}),false);
+});
