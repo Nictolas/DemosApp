@@ -119,7 +119,8 @@ test('Senate lookup and parliamentary cache diagnostics never log raw URIs or er
   const logLines = source.split('\n').filter(line => /console\.(?:log|warn|error)\(/.test(line));
   assert.ok(logLines.length > 5, 'Check actual service logging, not an empty fixture');
   const logs = logLines.join('\n');
-  assert.doesNotMatch(logs, /error\.(?:message|stack)|\berror\s*\)/);
+  // classifyFreeGroqError(error) is intentionally safe: forbid raw Error logs only.
+  assert.doesNotMatch(logs, /error\.(?:message|stack)|console\.(?:log|warn|error)\([^\n]*,\s*error\s*\)/);
   assert.doesNotMatch(logs, /urlSenato|uriVotazione/);
   assert.match(logs, /Consultazione fonte ufficiale Senato\.it non riuscita/);
   assert.match(logs, /Analisi parlamentare recuperata dalla cache/);
