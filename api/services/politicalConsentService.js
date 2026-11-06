@@ -42,7 +42,8 @@ async function getPoliticalConsentState(db, userId) {
   const result = await db.query(
     `SELECT
        u.id,
-       COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) AS granted
+       (u.political_opinions_consent IS TRUE
+        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE) AS granted
      FROM users u
      LEFT JOIN user_consents uc ON uc.user_id = u.id
      WHERE u.id = $1`,
