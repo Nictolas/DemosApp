@@ -22,6 +22,8 @@ test('provincial mandate list never substitutes a derived regional mandate', asy
         { id: 'regional-person', mandate_id: 'regional-only-2', grado_elezione: 'R', jurisdiction: { province: 'TN' } },
         { id: 'missing-office', mandate_id: 'missing', grado_elezione: null, jurisdiction: { province: 'TN' } },
         { id: 'unknown-office', mandate_id: 'unknown', grado_elezione: 'NOT_A_REAL_OFFICE', jurisdiction: { province: 'TN' } },
+        { id: 'other-province', mandate_id: 'bolzano', grado_elezione: 'CONSIGLIO_PROVINCIALE_BOLZANO', jurisdiction: { province: 'BZ' } },
+        { id: 'same-person', mandate_id: 'duplicate-provincial', grado_elezione: 'CONSIGLIO_PROVINCIALE_TRENTO', jurisdiction: { province: 'TN' } },
       ] };
     }
     throw new Error('Unexpected synthetic SQL');
