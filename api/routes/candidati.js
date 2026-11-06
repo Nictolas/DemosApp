@@ -8,6 +8,7 @@ const {
   getLegacySelectionDescriptors,
   getSelectionFieldContract,
   resolvePoliticalOffice,
+  getMatchingOpinionGradeForOffice,
 } = require('../services/politicalJurisdictionRegistryService');
 const {
   setPoliticalSelection,
@@ -232,7 +233,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         });
     
     const office = resolvePoliticalOffice(grado_candidatura);
-    const gradoDatabase = office?.opinionGrade || grado_candidatura;
+    const gradoDatabase = getMatchingOpinionGradeForOffice(grado_candidatura) || grado_candidatura;
 
     const matching = await buildPoliticalMatches({
       pool,
