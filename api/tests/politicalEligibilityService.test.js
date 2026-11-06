@@ -257,6 +257,8 @@ test('provincial candidate rejects a mismatched or missing candidacy province de
       { id: 'good', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'TN' } },
       { id: 'wrong', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'BZ' } },
       { id: 'missing', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento' } },
+      { id: 'foreign-country', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'TN', country: 'US' } },
+      { id: 'foreign-code', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'TN', countryCode: 'DE' } },
     ] };
     if (q.includes('FROM unita_elettorale ue')) return { rows: [
       { election_event_id: 'e', electoral_unit_id: 'tn', territory_type: 'PROVINCE', territory_code: 'TN' }
