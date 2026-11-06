@@ -79,3 +79,58 @@ test('generic endpoint can remove a US House selection without any Italian legac
   assert.match(sql, /DELETE FROM political_selections/);
   assert.doesNotMatch(sql, /candidato_|rappresentante_|user_representatives|UPDATE users/);
 });
+
+
+test('unreleased provincial choices are rejected before territory queries or persistence', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  const pool = makePool();
+  try {
+    await withProfile(pool, async (base) => {
+      for (const officeId of ['it.provincial.trento', 'it.provincial.bolzano']) {
+        for (const kind of ['representative', 'candidate']) {
+          const res = await fetch(`${base}/api/users/u1/political-selection`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ kind, officeId, selectedUserId: 'synthetic-subject' }),
+          });
+          assert.equal(res.status, 409);
+          assert.equal((await res.json()).error, 'PROVINCIAL_SELECTION_NOT_RELEASED');
+        }
+      }
+    });
+    assert.deepEqual(pool.calls, [], 'no SQL is executed for denied provincial writes');
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
+
+test('unreleased provincial choices can be removed but never create a users column', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  const pool = makePool();
+  try {
+    await withProfile(pool, async (base) => {
+      const res = await fetch(`${base}/api/users/u1/political-selection`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'representative',
+          officeId: 'it.provincial.trento',
+          selectedUserId: null,
+        }),
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.selection.officeId, 'it.provincial.trento');
+      assert.equal(data.selection.storage, 'CANONICAL');
+    });
+    const statements = pool.calls.map((call) => call.sql).join('\n');
+    assert.match(statements, /DELETE FROM political_selections/);
+    assert.doesNotMatch(statements, /UPDATE users|user_representatives|rappresentante_provinciale/);
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
