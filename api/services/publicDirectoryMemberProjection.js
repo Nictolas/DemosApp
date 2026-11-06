@@ -35,6 +35,38 @@ const PUBLIC_ACTIVISM_TYPE_FIELDS = Object.freeze([
 
 const own = (row, key) => Object.prototype.hasOwnProperty.call(row, key);
 
+const PUBLIC_AVATAR_FIELDS = Object.freeze([
+  'skinColor', 'hairColor', 'hairStyle', 'mustacheStyle',
+  'mustacheColor', 'beardStyle', 'beardColor', 'noseStyle',
+  'suitColor', 'tieColor', 'glassesStyle', 'glassesColor'
+]);
+
+// avatar_config is a JSON-encoded TEXT field. The public card requires only
+// the twelve CustomAvatar visual attributes, never arbitrary extra JSON keys.
+// Preserve a JSON string for existing Android/web clients; tolerate legacy
+// double-serialized values that the current clients already parse.
+function projectPublicAvatarConfig(raw) {
+  if (raw == null) return null;
+  try {
+    let avatar = raw;
+    for (let i = 0; i < 2 && typeof avatar === 'string'; i++) {
+      if (!avatar.length || avatar.length > 4096) return null;
+      avatar = JSON.parse(avatar);
+    }
+    if (!avatar || typeof avatar !== 'object' || Array.isArray(avatar)) return null;
+    const publicAvatar = {};
+    for (const key of PUBLIC_AVATAR_FIELDS) {
+      if (own(avatar, key) && typeof avatar[key] === 'string') {
+        publicAvatar[key] = avatar[key];
+      }
+    }
+    return JSON.stringify(publicAvatar);
+  } catch (_) {
+    return null;
+  }
+}
+
+
 function projectPublicActivismTypes(types) {
   if (!Array.isArray(types)) return null;
   return types.filter(type => type !== null &&
@@ -57,7 +89,9 @@ function projectPublicDirectoryMembers(rows) {
       if (own(row, field)) {
         publicRow[field] = field === 'tipologie_attivismo'
           ? projectPublicActivismTypes(row[field])
-          : row[field];
+          : field === 'avatar_config'
+            ? projectPublicAvatarConfig(row[field])
+            : row[field];
       }
     }
     return publicRow;
@@ -65,4 +99,5 @@ function projectPublicDirectoryMembers(rows) {
 }
 
 module.exports = { PUBLIC_DIRECTORY_MEMBER_FIELDS, PUBLIC_ACTIVISM_TYPE_FIELDS,
+  PUBLIC_AVATAR_FIELDS, projectPublicAvatarConfig,
   projectPublicActivismTypes, projectPublicDirectoryMembers };
