@@ -301,6 +301,12 @@ function selectionsByOffice(selectionState) {
   return new Map((selectionState?.selections || []).map((selection) => [selection.officeId, selection]));
 }
 
+// A supporter who chooses the same politician for multiple offices must be
+// counted once in combined supporter totals, including provincial/regional.
+function uniqueSupporterUserIds(rows = []) {
+  return [...new Set(rows.map((row) => row.id).filter(Boolean).map(String))];
+}
+
 async function loadSupporterUserIds(db, {
   selectedUserId,
   kind = null,
@@ -330,7 +336,7 @@ async function loadSupporterUserIds(db, {
        ORDER BY u.id::text`,
       params,
     );
-    return { source: 'CANONICAL', strict: true, userIds: result.rows.map((row) => row.id) };
+    return { source: 'CANONICAL', strict: true, userIds: uniqueSupporterUserIds(result.rows) };
   } catch (error) {
     if (!isPoliticalSelectionSchemaError(error)) throw error;
   }
@@ -359,7 +365,7 @@ async function loadSupporterUserIds(db, {
      ORDER BY u.id::text`,
     [selectedUserId],
   );
-  return { source: 'LEGACY', strict: false, userIds: result.rows.map((row) => row.id) };
+  return { source: 'LEGACY', strict: false, userIds: uniqueSupporterUserIds(result.rows) };
 }
 
 module.exports = {
