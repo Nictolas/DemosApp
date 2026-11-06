@@ -228,7 +228,10 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
     // office, reject it even if its jurisdiction claims this province.
     (!office.eligibleProvinceCodes?.length ||
       (typeof row.grado_elezione === 'string' &&
-        resolvePoliticalOffice(row.grado_elezione)?.id === office.id)) &&
+        resolvePoliticalOffice(row.grado_elezione)?.id === office.id &&
+        // A contradictory jurisdiction level must not relabel another office's
+        // mandate as a directly elected provincial council seat.
+        (!row.jurisdiction?.level || resolvePoliticalOffice(row.jurisdiction.level)?.id === office.id))) &&
     jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context)
   );
   // A councillor can have a provincial mandate and a derived regional one.
