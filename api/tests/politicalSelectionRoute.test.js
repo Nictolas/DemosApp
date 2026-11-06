@@ -134,3 +134,40 @@ test('unreleased provincial choices can be removed but never create a users colu
     else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
   }
 });
+
+test('provincial selection cannot bypass six-opinion completion by spoofing Podio source', async () => {
+  const previous = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+  const calls = [];
+  const pool = {
+    connect: async () => { throw new Error('Incomplete provincial opinions must not reach storage'); },
+    async query(sql) {
+      calls.push(String(sql));
+      if (String(sql).includes('FROM opinioni_risposte')) return { rows: [] };
+      throw new Error('Unexpected SQL in provincial completion test');
+    },
+  };
+  try {
+    await withProfile(pool, async (base) => {
+      for (const source of ['podio', 'matching']) {
+        const res = await fetch(`${base}/api/users/u1/political-selection`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            kind: 'representative', officeId: 'it.provincial.trento',
+            selectedUserId: 'synthetic-person', source,
+          }),
+        });
+        assert.equal(res.status, 409);
+        const body = await res.json();
+        assert.equal(body.error, 'OPINIONI_INCOMPLETE');
+        assert.equal(body.data.totalOpinions, 6);
+        assert.equal(body.data.missingOpinions, 6);
+      }
+    });
+    assert.equal(calls.length, 2, 'only one personal-answers read per request');
+  } finally {
+    if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
+  }
+});
