@@ -40,8 +40,12 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
       WITH provincial_supporters AS (
         SELECT DISTINCT ps.user_id
         FROM political_selections ps
+        JOIN users voter ON voter.id = ps.user_id
+        LEFT JOIN user_consents uc ON uc.user_id = voter.id
         WHERE ps.selected_user_id = $1
           AND ps.selection_kind = 'representative'
+          AND voter.status = 'a'
+          AND COALESCE(uc.political_opinions_consent, voter.political_opinions_consent, false) IS TRUE
           AND ps.political_office_id IN ('it.provincial.trento', 'it.provincial.bolzano')
       )` : '';
     const provincialJoin = provincialEnabled
