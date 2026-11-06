@@ -79,6 +79,22 @@ test('structured result must contain all three bounded fields, not fabricated on
   assert.equal(parseGroundedAnalysisResponse('[' + JSON.stringify(valid) + ']'), null);
 });
 
+test('structured summaries enforce the 110-word prompt limit', () => {
+  const payload = {
+    spiegazione_generale: Array(110).fill('misura').join(' '),
+    effetti_positivi: '',
+    effetti_negativi: ''
+  };
+  assert.ok(parseGroundedAnalysisResponse(JSON.stringify(payload)),
+    'Exactly 110 words must remain valid');
+  payload.spiegazione_generale += ' aggiuntiva';
+  assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)), null,
+    '111 words must be rejected rather than published');
+  payload.spiegazione_generale = 'Una misura concreta e documentata.';
+  assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)).spiegazione_generale,
+    payload.spiegazione_generale);
+});
+
 test('no-evidence JSON sentinel is never accepted as a legislative explanation', () => {
   const payload = { spiegazione_generale: '', effetti_positivi: '', effetti_negativi: '' };
   for (const answer of [
