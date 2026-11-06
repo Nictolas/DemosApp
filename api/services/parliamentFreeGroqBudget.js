@@ -98,12 +98,16 @@ function createFreeBudgetGate({ now = Date.now, limits = LIMIT } = {}) {
   function status() {
     const at = now();
     day = day.filter(x => at - x.time < 86400000);
+    minute = minute.filter(x => at - x.time < 60000);
     const estimatedTokensToday = day.reduce((total, x) => total + x.tokens, 0);
+    const estimatedTokensMinute = minute.reduce((total, x) => total + x.tokens, 0);
     return {
       count: day.length,
       limite: limits.requestsPerDay,
       rispettato: day.length < limits.requestsPerDay &&
         estimatedTokensToday < limits.estimatedTokensPerDay &&
+        minute.length < limits.requestsPerMinute &&
+        estimatedTokensMinute < limits.estimatedTokensPerMinute &&
         at >= blockedUntil,
       estimatedTokensToday,
       tokenLimit: limits.estimatedTokensPerDay,
