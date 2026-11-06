@@ -10,7 +10,7 @@ function harness() {
   const source = fs.readFileSync(path.join(__dirname, '..', 'services', 'aiExplanationService.js'), 'utf8');
   const row = {
     id: 93, titolo_votazione: 'Votazione finale DDL 123',
-    descrizione_votazione: 'Testo ufficiale persistito nel database.', spiegazione: null
+    descrizione_votazione: 'Testo ufficiale persistito nel database. '.repeat(6), spiegazione: null
   };
   let providerCalls = 0, updateCalls = 0, selectCalls = 0, duringProvider = () => {}, providerPrompt = '';
   const pool = {
@@ -46,7 +46,7 @@ function harness() {
       isGroqConfigured: () => true
     },
     './parliamentGroundedAnalysis': {
-      hasDocumentaryContext: () => true,
+      hasDocumentaryContext: value => typeof value === 'string' && value.trim().length >= 160,
       MAX_CONTEXT_CHARS: 9000
     },
     './parliamentFreeGroqBudget': {
@@ -139,4 +139,15 @@ test('the persisted official text takes precedence over a stale caller document'
   assert.equal(await h.generate(), 'Testo generato sul DDL 123');
   assert.match(h.providerPrompt, /Testo ufficiale persistito nel database/);
   assert.doesNotMatch(h.providerPrompt, /Documento ufficiale sintetico/);
+});
+
+test('missing or insufficient persisted evidence never consumes Groq Free quota', async () => {
+  for (const document of [null, '', 'Solo un titolo generico']) {
+    const h = harness();
+    h.row.descrizione_votazione = document;
+    assert.equal(await h.generate(), null, 'No AI summary without persisted document');
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.updateCalls, 0);
+    assert.equal(h.row.spiegazione, null);
+  }
 });
