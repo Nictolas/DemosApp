@@ -330,3 +330,73 @@ test('provincial offices fail closed when residence country is missing despite a
     }
   }
 });
+
+
+test('provincial electoral units cannot be inferred from regional-only mappings or ambiguous province mappings', async () => {
+  function mockDb(mappingRows, { exactMembership = false } = {}) {
+    return {
+      async query(sql) {
+        const statement = String(sql);
+        if (statement.includes('FROM user_political_territories')) throw missingTable();
+        if (statement.includes('FROM users WHERE id = $1')) return {
+          rows: [{
+            id: 'resident', paese_residenza: 'IT',
+            regione_residenza: 'Trentino-Alto Adige', provincia_residenza: 'TN',
+          }],
+        };
+        if (statement.includes('FROM political_candidacies')) return {
+          rows: [{
+            id: 'candidate', election_event_id: 'e1', electoral_unit_id: 'unit',
+            jurisdiction: { level: 'it.provincial.trento', province: 'TN' },
+          }],
+        };
+        if (statement.includes('FROM unita_elettorale ue')) return { rows: mappingRows };
+        if (statement.includes('FROM user_electoral_unit_memberships')) {
+          if (!exactMembership) throw missingTable();
+          return { rows: [{
+            election_event_id: 'e1', electoral_unit_id: 'unit',
+            political_office_id: 'it.provincial.trento', verification_level: 'OFFICIAL',
+          }] };
+        }
+        throw new Error('Unexpected synthetic SQL query in provincial electoral unit test');
+      },
+    };
+  }
+
+  const regionOnly = [{
+    election_event_id: 'e1', electoral_unit_id: 'unit',
+    territory_type: 'REGION', territory_code: 'Trentino-Alto Adige',
+  }];
+  for (const exactMembership of [false, true]) {
+    const result = await listEligibleCandidates(
+      mockDb(regionOnly, { exactMembership }), 'resident', 'it.provincial.trento',
+    );
+    assert.equal(result.strict, true);
+    assert.deepEqual(result.subjects, [],
+      'a region-wide unit cannot qualify for a direct provincial council');
+  }
+
+  const province = [{
+    election_event_id: 'e1', electoral_unit_id: 'unit',
+    territory_type: 'PROVINCE', territory_code: 'TN',
+  }];
+  const valid = await listEligibleCandidates(mockDb(province), 'resident', 'it.provincial.trento');
+  assert.deepEqual(valid.subjects.map((row) => row.id), ['candidate']);
+
+  const administrativeProvince = [{
+    election_event_id: 'e1', electoral_unit_id: 'unit',
+    territory_type: 'ADMIN_LEVEL_2', territory_code: 'Trento',
+  }];
+  const validAlias = await listEligibleCandidates(
+    mockDb(administrativeProvince), 'resident', 'it.provincial.trento',
+  );
+  assert.deepEqual(validAlias.subjects.map((row) => row.id), ['candidate']);
+
+  const contradictory = [...province, {
+    election_event_id: 'e1', electoral_unit_id: 'unit',
+    territory_type: 'PROVINCE', territory_code: 'BZ',
+  }];
+  const denied = await listEligibleCandidates(mockDb(contradictory), 'resident', 'it.provincial.trento');
+  assert.deepEqual(denied.subjects, [],
+    'conflicting provincial unit mappings must fail closed even when one matches');
+});
