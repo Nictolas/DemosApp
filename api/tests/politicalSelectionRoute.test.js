@@ -143,6 +143,7 @@ test('provincial selection cannot bypass six-opinion completion by spoofing Podi
     connect: async () => { throw new Error('Incomplete provincial opinions must not reach storage'); },
     async query(sql) {
       calls.push(String(sql));
+      if (String(sql).includes('LEFT JOIN user_consents')) return { rows: [{ id: 'u1', granted: true }] };
       if (String(sql).includes('FROM opinioni_risposte')) return { rows: [] };
       throw new Error('Unexpected SQL in provincial completion test');
     },
@@ -165,7 +166,7 @@ test('provincial selection cannot bypass six-opinion completion by spoofing Podi
         assert.equal(body.data.missingOpinions, 6);
       }
     });
-    assert.equal(calls.length, 2, 'only one personal-answers read per request');
+    assert.equal(calls.length, 4, 'consent + one personal-answers read per request');
   } finally {
     if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
     else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
@@ -178,6 +179,9 @@ test('provincial selection read only exposes the authenticated account and remai
   const pool = {
     async query(sql, params) {
       queries.push({ sql: String(sql), params });
+      if (String(sql).includes('LEFT JOIN user_consents')) {
+        return { rows: [{ id: 'u1', granted: true }] };
+      }
       if (!String(sql).includes('FROM political_selections ps')) throw new Error('Unexpected query');
       return { rows: [{
         user_id: 'u1', selection_kind: 'representative', jurisdiction_id: 'it',
@@ -211,11 +215,49 @@ test('provincial selection read only exposes the authenticated account and remai
         kind: 'representative', officeId: 'it.provincial.trento',
         selectedUserId: 'official-1',
       });
-      assert.equal(queries.length, 1);
+      assert.equal(queries.length, 2);
       assert.equal(queries[0].params[0], 'u1');
-      assert.equal(queries[0].params[1], 'representative');
-      assert.ok(queries[0].sql.includes('ps.user_id = $1'));
+      assert.ok(queries[0].sql.includes('LEFT JOIN user_consents'));
+      assert.equal(queries[1].params[0], 'u1');
+      assert.equal(queries[1].params[1], 'representative');
+      assert.ok(queries[1].sql.includes('ps.user_id = $1'));
     });
+  } finally {
+    if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
+  }
+});
+
+test('revoked consent blocks provincial read and new write before any selection read/write', async () => {
+  const previous = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+  const calls = [];
+  const pool = {
+    async query(sql) {
+      calls.push(String(sql));
+      if (String(sql).includes('LEFT JOIN user_consents')) {
+        return { rows: [{ id: 'u1', granted: false }] };
+      }
+      throw new Error('Selection SQL must never run after revoked consent');
+    },
+    connect: async () => { throw new Error('No selection writes after revoked consent'); },
+  };
+  try {
+    await withProfile(pool, async (base) => {
+      const read = await fetch(base + '/api/users/u1/provincial-selection?kind=candidate&officeId=it.provincial.trento');
+      assert.equal(read.status, 403);
+      assert.equal((await read.json()).code, 'POLITICAL_CONSENT_REQUIRED');
+      const write = await fetch(base + '/api/users/u1/political-selection', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'candidate', officeId: 'it.provincial.trento', selectedUserId: 'subject',
+        }),
+      });
+      assert.equal(write.status, 403);
+      assert.equal((await write.json()).code, 'POLITICAL_CONSENT_REQUIRED');
+    });
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every((sql) => sql.includes('LEFT JOIN user_consents')));
   } finally {
     if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
     else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
