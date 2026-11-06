@@ -14,6 +14,7 @@ const {
   setPoliticalSelection,
   loadPoliticalSelections,
   selectionsByOffice,
+  isPoliticalOfficeVisible,
 } = require('../services/politicalSelectionService');
 
 const router = express.Router();
@@ -222,6 +223,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       });
     }
     
+    const office = resolvePoliticalOffice(grado_candidatura);
+    if (!isPoliticalOfficeVisible(office)) {
+      return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
+    }
+
     // Fonte canonica: candidature attive legate a elezione + unità elettorale.
     // Finché la migrazione DB non è applicata, il servizio ricade sul legacy per compatibilità.
     const eligibility = await listEligibleCandidates(pool, userId, grado_candidatura);
@@ -232,7 +238,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome} (${candidato.ruolo})`);
         });
     
-    const office = resolvePoliticalOffice(grado_candidatura);
     const gradoDatabase = getMatchingOpinionGradeForOffice(grado_candidatura) || grado_candidatura;
 
     const matching = await buildPoliticalMatches({
