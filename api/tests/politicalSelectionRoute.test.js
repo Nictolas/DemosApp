@@ -179,15 +179,11 @@ test('provincial selection read only exposes the authenticated account and remai
   const pool = {
     async query(sql, params) {
       queries.push({ sql: String(sql), params });
-      if (String(sql).includes('LEFT JOIN user_consents')) {
-        return { rows: [{ id: 'u1', granted: true }] };
+      if (!String(sql).includes('LEFT JOIN user_consents uc') ||
+          !String(sql).includes('LEFT JOIN political_selections ps')) {
+        throw new Error('Consent and canonical choice must be read in one statement');
       }
-      if (!String(sql).includes('FROM political_selections ps')) throw new Error('Unexpected query');
-      return { rows: [{
-        user_id: 'u1', selection_kind: 'representative', jurisdiction_id: 'it',
-        political_office_id: 'it.provincial.trento', selected_user_id: 'official-1',
-        source: 'matching', context: {},
-      }] };
+      return { rows: [{ id: 'u1', consent_granted: true, selected_user_id: 'official-1' }] };
     },
   };
   try {
@@ -215,12 +211,13 @@ test('provincial selection read only exposes the authenticated account and remai
         kind: 'representative', officeId: 'it.provincial.trento',
         selectedUserId: 'official-1',
       });
-      assert.equal(queries.length, 2);
-      assert.equal(queries[0].params[0], 'u1');
-      assert.ok(queries[0].sql.includes('LEFT JOIN user_consents'));
-      assert.equal(queries[1].params[0], 'u1');
-      assert.equal(queries[1].params[1], 'representative');
-      assert.ok(queries[1].sql.includes('ps.user_id = $1'));
+      assert.equal(queries.length, 1, 'one SQL snapshot for consent and selection');
+      assert.deepEqual(queries[0].params, ['u1', 'representative', 'it.provincial.trento']);
+      assert.match(queries[0].sql, /LEFT JOIN user_consents uc/);
+      assert.match(queries[0].sql, /LEFT JOIN political_selections ps/);
+      assert.match(queries[0].sql, /ps\.user_id = u\.id/);
+      assert.match(queries[0].sql, /ps\.political_office_id = \$3/);
+      assert.match(queries[0].sql, /AND COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
     });
   } finally {
     if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
@@ -235,6 +232,11 @@ test('revoked consent blocks provincial read and new write before any selection 
   const pool = {
     async query(sql) {
       calls.push(String(sql));
+      if (String(sql).includes('LEFT JOIN political_selections ps')) {
+        // Even if a synthetic stale choice exists, revoked consent prevents
+        // its identity from being returned to the caller.
+        return { rows: [{ id: 'u1', consent_granted: false, selected_user_id: 'stale-subject' }] };
+      }
       if (String(sql).includes('LEFT JOIN user_consents')) {
         return { rows: [{ id: 'u1', granted: false }] };
       }
@@ -258,6 +260,8 @@ test('revoked consent blocks provincial read and new write before any selection 
     });
     assert.equal(calls.length, 2);
     assert.ok(calls.every((sql) => sql.includes('LEFT JOIN user_consents')));
+    assert.equal(calls.filter((sql) => sql.includes('LEFT JOIN political_selections ps')).length, 1);
+    assert.equal(calls.filter((sql) => sql.includes('INSERT INTO political_selections')).length, 0);
   } finally {
     if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
     else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
