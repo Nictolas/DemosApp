@@ -11,7 +11,9 @@ const LIMIT = 100;
 const isPagedRegisteredRequest = query => query?.members_paged === '1' || query?.members_cursor != null;
 const ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 function decodeRegisteredCursor(raw) {
-  if (raw == null || raw === '') return null;
+  if (raw == null) return null;
+  // An explicitly supplied empty cursor is malformed, not a first-page request.
+  if (raw === '') return false;
   if (typeof raw !== 'string' || raw.length > 220 || !/^[A-Za-z0-9_-]+$/.test(raw))return false;
   try {
     const bytes=Buffer.from(raw,'base64url');
