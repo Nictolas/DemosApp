@@ -284,7 +284,7 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
         // URL pattern: https://www.senato.it/leg/19/BGT/Schede/Ddliter/testi/[numero]/[numero].htm
         const urlSenato = `https://www.senato.it/leg/19/BGT/Schede/Ddliter/testi/${numeroLegge}/${numeroLegge}.htm`;
         
-        console.log(`🔍 Ricerca su Senato.it: ${urlSenato}`);
+        console.log('Consultazione fonte ufficiale Senato.it avviata');
         const response = await axios.get(urlSenato, {
           headers: {
             'Accept': 'text/html',
@@ -311,7 +311,7 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
           }
         }
       } catch (error) {
-        console.warn(`⚠️ Errore ricerca Senato.it per legge n. ${numeroLegge}: ${error.message}`);
+        console.warn('Consultazione fonte ufficiale Senato.it non riuscita');
       }
     }
     
@@ -339,7 +339,7 @@ async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) 
     
     return risultato;
   } catch (error) {
-    console.warn(`⚠️ Errore ricerca web per legge n. ${numeroLegge}: ${error.message}`);
+    console.warn('Recupero documentazione ufficiale non riuscito');
     return null;
   }
 }
@@ -509,7 +509,7 @@ async function recuperaAnalisiDaCache(uriVotazione) {
     const result = await pool.query(query, [uriVotazione]);
     
     if (result.rows.length > 0) {
-      console.log(`✅ Analisi recuperata dalla cache per URI: ${uriVotazione}`);
+      console.log('Analisi parlamentare recuperata dalla cache');
       return result.rows[0];
     }
 
