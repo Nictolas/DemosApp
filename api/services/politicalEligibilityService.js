@@ -214,6 +214,12 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
   );
 
   const matched = result.rows.filter((row) =>
+    // A derived regional mandate is not an independently elected provincial
+    // mandate. If the stored office code explicitly identifies another
+    // office, reject it even if its jurisdiction claims this province.
+    (!office.eligibleProvinceCodes?.length ||
+      !row.grado_elezione ||
+      resolvePoliticalOffice(row.grado_elezione)?.id === office.id) &&
     jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context)
   );
   // A provincial councillor can have multiple mandate records (including a
