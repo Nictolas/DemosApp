@@ -5,7 +5,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 
 function calendarMonthsClamped(isoDate, months) {
-  assert.match(isoDate, /^\\d{4}-\\d{2}-\\d{2}$/);
+  assert.match(isoDate, /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(Number.isInteger(months) && months >= 0 && months <= 3);
   const [year, month, day] = isoDate.split('-').map(Number);
   const input = new Date(Date.UTC(year, month - 1, day));
@@ -50,4 +50,10 @@ test('S4 late or unreasoned extension is not treated as approved', () => {
 test('S4 sent but undelivered is never reported as delivered', () => {
   assert.equal(syntheticS4({received:'2027-01-31',responseSent:true,delivered:false}).deliveryConfirmed,false);
   assert.equal(syntheticS4({received:'2027-01-31',responseSent:true,delivered:true}).deliveryConfirmed,true);
+});
+
+test('S4 malformed dates are rejected before computing deadlines', () => {
+  for (const received of ['2027/01/31', '2027-2-3', '2027-02-30', 'not-a-date']) {
+    assert.throws(() => syntheticS4({received}), 'no deadline for malformed dates');
+  }
 });
