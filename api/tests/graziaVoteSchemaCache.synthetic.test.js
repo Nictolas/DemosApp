@@ -145,3 +145,29 @@ test('renamed schema clears stale cache after 42703 and re-probes next request',
   assert.equal(state.writes.filter(x=>x.kind==='insert').length,2);
   assert.equal(state.connects,2,'failed stale select never starts a write transaction');
 });
+
+test('malformed Grazia voting payload cannot silently clear a personal choice or query SQL',async()=>{
+  // In particular, [''] and ['   '] previously became [] after filter(Boolean),
+  // which the writer interpreted as an explicit delete-all request.
+  for(const malformed of [
+    null,'Persona approvata sintetica',
+    [''],['   '],[null],[true],[0],[{}],
+    ['x'.repeat(161)],['Persona approvata sintetica','Altro']
+  ]){
+    const {vote,state}=harness();
+    const res=await vote(malformed);
+    assert.equal(res.statusCode,400,'invalid vote payload must be rejected');
+    assert.equal(res.body?.success,false);
+    assert.match(res.headers['Cache-Control'],/no-store/);
+    assert.equal(state.queries.length,0,'reject before inspecting vote schema');
+    assert.equal(state.connects,0,'reject before starting transaction');
+    assert.equal(state.read,0,'no private vote SELECT');
+    assert.equal(state.writes.length,0,'no accidental vote deletion');
+    assert.equal(state.cooldown,0,'no cooldown for malformed input');
+  }
+  const valid=harness();
+  assert.equal((await valid.vote([])).statusCode,200,'explicit [] keeps clear-vote behavior');
+  assert.equal(valid.state.writes.length,0,'no deletion when no vote exists');
+  assert.equal((await valid.vote(['Persona approvata sintetica'])).statusCode,200,
+    'valid approved names remain accepted');
+});

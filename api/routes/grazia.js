@@ -263,7 +263,7 @@ router.get('/mia-proposta', personalNoStore, verifyToken, async (req, res) => {
 router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity, requirePoliticalConsent, async (req, res) => {
 
   try {
-    const { voti } = req.body;
+    const voti = req.body?.voti;
     // Usa req.userId con fallback a req.user.id per sicurezza
     const userId = req.userId || req.user?.id;
 
@@ -289,13 +289,24 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
       });
     }
 
+    // [] is the only explicit request to clear a vote. A malformed one-item
+    // array must never be silently normalized into [], deleting a previously
+    // saved preference or recording an unintended cooldown. Reject before SQL.
+    if (voti.length === 1 &&
+        (typeof voti[0] !== 'string' || !voti[0].trim() || voti[0].trim().length > 160)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Preferenza Grazia non valida'
+      });
+    }
+
     // Shared, cached metadata: one information_schema lookup per worker,
     // rather than one per private POST. Unknown schemas fail closed.
     const {user:userIdColumn, date:timestampColumn, idType} = await getGraziaVoteColumns();
     if (!['uuid','character varying','text'].includes(idType))
       throw new Error('GRAZIA_VOTE_SCHEMA_UNRECOGNIZED');
 
-    const requestedVotes = voti.slice(0, 1).map((nome) => String(nome).trim()).filter(Boolean);
+    const requestedVotes = voti.map((nome) => nome.trim());
     const existingResult = await pool.query(
       `SELECT nome, ${timestampColumn} AS changed_at
        FROM voti_grazia
