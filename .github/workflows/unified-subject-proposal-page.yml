@@ -24,6 +24,8 @@ on:
       - 'api/utils/thirdPartyNominationGate.js'
       - 'api/tests/d12NominationProductionGate.synthetic.test.js'
       - 'client/src/pages/GestisciGrazia.tsx'
+      - 'client/src/pages/Grazia/hooks/useGraziaVoting.ts'
+      - 'api/tests/d12GraziaAdminErrorRedaction.synthetic.test.js'
       - 'client/src/pages/Grazia/index.tsx'
       - 'client/src/pages/Grazia/components/ClassificaCarcerati.tsx'
       - 'client/src/pages/Grazia/hooks/useGraziaData.ts'
@@ -101,6 +103,8 @@ jobs:
         run: node --test api/tests/d12FrontendParsingPrivacy.contract.test.js
       - name: Keep personal Grazia vote cache isolated between accounts
         run: node --test api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js
+      - name: Redact private server details across Grazia admin and proposal error paths
+        run: node --test api/tests/d12GraziaAdminErrorRedaction.synthetic.test.js
       - run: npm run build --prefix client
 
   mobile-browser:
@@ -120,6 +124,8 @@ jobs:
         run: node --test api/tests/d12FrontendParsingPrivacy.contract.test.js
       - name: Keep personal Grazia vote cache isolated between accounts
         run: node --test api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js
+      - name: Redact private server details across Grazia admin and proposal error paths
+        run: node --test api/tests/d12GraziaAdminErrorRedaction.synthetic.test.js
       - run: npm run build --prefix client
       - name: Use local Chrome with isolated Playwright library
         run: |
