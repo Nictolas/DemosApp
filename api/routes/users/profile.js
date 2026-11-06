@@ -597,26 +597,41 @@ router.get('/:userId/provincial-selection', verifyToken, requireVerifiedCivicIde
     if (!isPoliticalOfficeVisible(contract.office)) {
       return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
     }
-    // Selections are political preferences. An authenticated user may only
-    // read their own preference with current, server-verified consent.
-    const consentState = await getPoliticalConsentState(pool, userId);
-    if (!consentState.exists) return res.status(404).json({ success: false, error: 'Utente non trovato' });
-    if (!consentState.granted) {
-      return res.status(403).json({ success: false, code: 'POLITICAL_CONSENT_REQUIRED', error: 'Consenso richiesto' });
-    }
-    const state = await loadPoliticalSelections(pool, {
-      userId, kind: contract.kind, adapterId: contract.adapterId,
-    });
-    const selected = state.selections.find((item) =>
-      item.kind === contract.kind && item.officeId === contract.officeId
+    // Consent and the selected identity must be read in ONE PostgreSQL
+    // statement. A separate precheck followed by loadPoliticalSelections
+    // could expose a choice after concurrent consent revocation (TOCTOU).
+    // The join is conditional on current consent, and no legacy selection
+    // table/column is read if the canonical table is absent.
+    res.set('Cache-Control', 'private, no-store, max-age=0');
+    const result = await pool.query(
+      `SELECT
+         u.id,
+         COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE AS consent_granted,
+         ps.selected_user_id::text AS selected_user_id
+       FROM users u
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
+       LEFT JOIN political_selections ps
+         ON ps.user_id = u.id
+        AND ps.selection_kind = $2
+        AND ps.political_office_id = $3
+        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
+       WHERE u.id = $1
+       LIMIT 1`,
+      [userId, contract.kind, contract.officeId],
     );
-    res.set('Cache-Control', 'no-store');
+    const owner = result.rows[0];
+    if (!owner) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    if (owner.consent_granted !== true) {
+      return res.status(403).json({
+        success: false, code: 'POLITICAL_CONSENT_REQUIRED', error: 'Consenso richiesto'
+      });
+    }
     return res.json({
       success: true,
       selection: {
         kind: contract.kind,
         officeId: contract.officeId,
-        selectedUserId: selected?.selectedUserId || null,
+        selectedUserId: owner.selected_user_id || null,
       }
     });
   } catch {
