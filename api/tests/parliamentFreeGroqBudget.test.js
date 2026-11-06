@@ -121,6 +121,20 @@ test('429 enforces provider cooldown instead of repeating calls', () => {
   assert.equal(gate.reserve(messages, 450).allowed, true);
 });
 
+test('wrapper blocks non-allowlisted and retired models before reserving quota', async () => {
+  let calls = 0;
+  let reservations = 0;
+  const client = { chat: { completions: { create: async () => { calls++; return { choices: [] }; } } } };
+  const gate = { reserve: () => { reservations++; return { allowed: true }; }, coolDownFrom429() {} };
+  for (const model of ['paid/non-allowlisted', 'llama-3.3-70b-versatile', null]) {
+    assert.equal(await requestFreeGroq(client, { model, messages: [], max_completion_tokens: 450 }, gate), null);
+  }
+  assert.equal(calls, 0);
+  assert.equal(reservations, 0);
+  await requestFreeGroq(client, { model: 'openai/gpt-oss-120b', messages: [], max_completion_tokens: 450 }, gate);
+  assert.equal(calls, 1, 'Allowlisted Free models remain usable');
+  assert.equal(reservations, 1);
+});
 test('wrapper does not call a provider when local budget is exhausted', async () => {
   let calls = 0;
   const client = { chat: { completions: { create: async () => { calls++; return { choices: [] }; } } } };

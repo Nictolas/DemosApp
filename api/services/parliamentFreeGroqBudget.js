@@ -4,6 +4,8 @@
 // The provider/account Free tier remains the final rate-limit authority.
 // This cannot prove billing is disabled, nor coordinate across several processes
 // or survive a restart: verify the actual Groq organization is on Free.
+const { FREE_GROQ_MODELS } = require('./parliamentFreeAiPolicy');
+
 const LIMIT = Object.freeze({
   requestsPerMinute: 8,
   requestsPerDay: 120,
@@ -125,6 +127,12 @@ function getSharedFreeQuotaStatus() {
 }
 
 async function requestFreeGroq(client, params, gate = sharedFreeGate) {
+  // Fail closed even if a future caller skips resolveFreeGroqModel.
+  // Never forward an explicitly non-allowlisted model to the provider.
+  if (params?.model !== undefined && !FREE_GROQ_MODELS.includes(params.model)) {
+    return null;
+  }
+
   const maxOutputTokens = params.max_completion_tokens || params.max_tokens;
   const admission = gate.reserve(params.messages, maxOutputTokens);
   if (!admission.allowed) return null;
