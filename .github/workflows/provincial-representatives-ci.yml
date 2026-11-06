@@ -31,6 +31,7 @@ on:
       - 'api/tests/provincialFrontendWiring.smoke.test.js'
       - 'api/tests/provincialCandidateLogPrivacy.http.test.js'
       - 'api/tests/provincialRepresentativeLogPrivacy.test.js'
+      - 'api/tests/provincialCrossPrCompatibility.integration.test.js'
       - 'client/src/lib/provincialSelection.ts'
       - 'client/src/components/ProvincialOfficeChoice.tsx'
       - 'client/src/components/ViewOpinioniDialog.tsx'
@@ -54,6 +55,26 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: api/package-lock.json
+      - name: Read-only checkout of Draft PR #624 opinion taxonomy
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: feat/opinion-topic-taxonomy-20261105
+          path: .integration-refs/opinion-topics
+          persist-credentials: false
+          sparse-checkout: |
+            client/src/lib/opinionProvincialIds.ts
+            client/src/lib/opinionTopics.ts
+          sparse-checkout-cone-mode: false
+      - name: Read-only checkout of Draft PR #557 political consent
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: fix/p0-political-consent-read-main-20261102
+          path: .integration-refs/political-consent
+          persist-credentials: false
+          sparse-checkout: |
+            api/services/politicalMatchingService.js
+            api/routes/users/profile.js
+          sparse-checkout-cone-mode: false
       - name: Install API dependencies without scripts
         run: npm ci --prefix api --ignore-scripts --no-audit --no-fund
       - name: Validate syntax
@@ -89,3 +110,10 @@ jobs:
             api/tests/provincialFrontendWiring.smoke.test.js \
             api/tests/provincialCandidateLogPrivacy.http.test.js \
             api/tests/provincialRepresentativeLogPrivacy.test.js
+      - name: Test live Draft branch compatibility (read-only, no merge)
+        run: |
+          echo "Opinion taxonomy reference:"
+          git -C .integration-refs/opinion-topics rev-parse HEAD
+          echo "Consent reference:"
+          git -C .integration-refs/political-consent rev-parse HEAD
+          node --test api/tests/provincialCrossPrCompatibility.integration.test.js
