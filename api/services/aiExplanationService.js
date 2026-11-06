@@ -115,7 +115,7 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
     }
     // The provider can add punctuation, spaces or change letter case when
     // returning the no-evidence sentinel. None of these are an explanation.
-    if (/^INFORMAZIONI[\\s_-]*INSUFFICIENTI[.!?]*$/iu.test(spiegazione)) {
+    if (/^INFORMAZIONI[\s_-]*INSUFFICIENTI[.!?]*$/iu.test(spiegazione)) {
       console.warn('Spiegazione AI non pubblicata: evidenza documentale insufficiente');
       return null;
     }
