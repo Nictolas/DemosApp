@@ -181,7 +181,10 @@ function parseAdminPageCursor(raw) {
   if (raw == null) return null;
   if (typeof raw !== 'string' || raw.length > 240 || !/^[A-Za-z0-9_-]+$/.test(raw)) return false;
   try {
-    const decoded = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+    const bytes = Buffer.from(raw, 'base64url');
+    // Cursors have one canonical representation; reject tolerated trailing bits.
+    if (bytes.toString('base64url') !== raw) return false;
+    const decoded = JSON.parse(bytes.toString('utf8'));
     if (!Array.isArray(decoded) || decoded.length !== 2) return false;
     const [epoch, id] = decoded;
     if (typeof epoch !== 'string' || !/^\d{1,11}(?:\.\d{1,6})?$/.test(epoch) ||
