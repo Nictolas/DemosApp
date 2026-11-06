@@ -7,6 +7,7 @@ const { compressUserLocation, decompressUserLocation } = require('../../utils/lo
 const { decompressGender } = require('../../utils/genderUtils');
 const { getAccountSubject } = require('../../services/accountCapabilitiesService');
 const { getUserOpinionCompletion } = require('../../services/politicalMatchingService');
+const { getPoliticalConsentState } = require('../../services/politicalConsentService');
 const { normalizeOpinionAnswer } = require('../../utils/politicalMatching');
 const { isCandidateSelectionEligible, isRepresentativeSelectionEligible } = require('../../services/politicalEligibilityService');
 const {
@@ -596,6 +597,13 @@ router.get('/:userId/provincial-selection', verifyToken, requireVerifiedCivicIde
     if (!isPoliticalOfficeVisible(contract.office)) {
       return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
     }
+    // Selections are political preferences. An authenticated user may only
+    // read their own preference with current, server-verified consent.
+    const consentState = await getPoliticalConsentState(pool, userId);
+    if (!consentState.exists) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    if (!consentState.granted) {
+      return res.status(403).json({ success: false, code: 'POLITICAL_CONSENT_REQUIRED', error: 'Consenso richiesto' });
+    }
     const state = await loadPoliticalSelections(pool, {
       userId, kind: contract.kind, adapterId: contract.adapterId,
     });
@@ -634,6 +642,15 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
     }
     if (!isPoliticalSelectionWriteReleased(contract.office, selectedUserId)) {
       return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
+    }
+    // Revoked consent must not permit creation of a new provincial preference.
+    // Clearing an existing preference remains possible without consent.
+    if (contract.office.eligibleProvinceCodes?.length && selectedUserId) {
+      const consentState = await getPoliticalConsentState(pool, userId);
+      if (!consentState.exists) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+      if (!consentState.granted) {
+        return res.status(403).json({ success: false, code: 'POLITICAL_CONSENT_REQUIRED', error: 'Consenso richiesto' });
+      }
     }
 
     let selectedCandidacyId = null;
