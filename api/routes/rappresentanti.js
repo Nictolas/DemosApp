@@ -10,7 +10,7 @@ const {
   getMatchingOpinionGradeForOffice,
   getLegacySelectionDescriptors,
 } = require('../services/politicalJurisdictionRegistryService');
-const { loadPoliticalSelections, selectionsByOffice } = require('../services/politicalSelectionService');
+const { loadPoliticalSelections, selectionsByOffice, isPoliticalOfficeVisible } = require('../services/politicalSelectionService');
 
 const router = express.Router();
 const REPRESENTATIVE_SELECTION_DESCRIPTORS = Object.freeze(getLegacySelectionDescriptors('representative'));
@@ -41,6 +41,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       });
     }
 
+    const office = resolvePoliticalOffice(grado_elezione);
+    if (!isPoliticalOfficeVisible(office)) {
+      return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
+    }
+
     // Fonte canonica: mandati attivi. Camera, Senato ed Europeo sono globalmente selezionabili;
     // Regione e Comune sono filtrati sulla giurisdizione dell'utente.
     const eligibility = await listEligibleRepresentatives(pool, userId, grado_elezione);
@@ -49,7 +54,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - Parametri query:', [grado_elezione]);
     console.log('🔍 DEBUG - Risultati trovati:', result.rows.length);
 
-    const office = resolvePoliticalOffice(grado_elezione);
     const gradoDatabase = getMatchingOpinionGradeForOffice(grado_elezione) || grado_elezione;
 
     console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}`);
