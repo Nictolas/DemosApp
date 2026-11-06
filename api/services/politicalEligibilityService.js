@@ -201,9 +201,15 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
     [getOfficeAliases(grade).map(normalizeKey)]
   );
 
-  const subjects = result.rows.filter((row) =>
+  const matched = result.rows.filter((row) =>
     jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context)
   );
+  // A provincial councillor can have multiple mandate records (including a
+  // derived regional mandate). Show each person only once for the provincial
+  // office; do not change the existing behaviour for other office types.
+  const subjects = office.eligibleProvinceCodes?.length
+    ? [...new Map(matched.map((row) => [String(row.id), row])).values()]
+    : matched;
   return {
     subjects,
     source: 'CAPABILITY',
