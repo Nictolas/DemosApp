@@ -194,17 +194,18 @@ export const useGraziaVoting = (
         urlProva: data.urlProva,
       });
       if (!response?.ok || !response?.data?.success) {
-        throw new Error(response?.data?.error || "Impossibile registrare la proposta");
+        throw new Error("Impossibile registrare la proposta.");
       }
       toast({
         title: "Proposta registrata",
         description: "La richiesta è in attesa di revisione e non è ancora pubblica.",
       });
       hideForm();
-    } catch (error: any) {
+    } catch {
+      // Do not reflect raw API response, person names, or transport errors in a toast.
       toast({
         title: "Proposta non registrata",
-        description: error?.message || "Riprova in un altro momento.",
+        description: "Impossibile registrare la proposta. Riprova più tardi.",
         variant: "destructive",
       });
     } finally {
