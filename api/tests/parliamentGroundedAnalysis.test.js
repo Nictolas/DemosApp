@@ -132,6 +132,17 @@ test('structured legislative impacts cannot contain the no-evidence sentinel', (
     payload.spiegazione_generale);
 });
 
+test('effect lists reject more than three points', () => {
+  const response = { spiegazione_generale: 'Una misura documentata.', effetti_positivi: '', effetti_negativi: '' };
+  for (const field of ['effetti_positivi', 'effetti_negativi']) {
+    response[field] = '- A\n- B\n- C';
+    assert.ok(parseGroundedAnalysisResponse(JSON.stringify(response)));
+    response[field] += '\n- D';
+    assert.equal(parseGroundedAnalysisResponse(JSON.stringify(response)), null);
+    response[field] = '';
+  }
+});
+
 test('full legislative analysis has exactly one gated provider call and no handwritten 1718 fallback', () => {
   assert.equal((lawSource.match(/requestFreeGroq\s*\(/g) || []).length, 1);
   assert.equal((lawSource.match(/chat\.completions\.create\s*\(/g) || []).length, 0);
