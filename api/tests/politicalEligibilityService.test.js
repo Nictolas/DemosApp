@@ -217,3 +217,32 @@ test('provincial selections never fall back to unscoped legacy candidates or rep
     assert.deepEqual(result.subjects, []);
   }
 });
+
+test('provincial offices reject explicit foreign residence even when province code collides', async () => {
+  assert.equal(jurisdictionMatchesRepresentative(
+    { province: 'TN' }, 'it.provincial.trento',
+    { paese_residenza: 'US', provincia_residenza: 'TN' }
+  ), false);
+  assert.equal(jurisdictionMatchesRepresentative(
+    { province: 'BZ' }, 'it.provincial.bolzano',
+    { paese_residenza: 'DE', provincia_residenza: 'BZ' }
+  ), false);
+  assert.equal(jurisdictionMatchesRepresentative(
+    { province: 'TN' }, 'it.provincial.trento',
+    { paese_residenza: 'IT', provincia_residenza: 'TN' }
+  ), true);
+  const db = { async query(sql) {
+    const q = String(sql);
+    if (q.includes('FROM user_political_territories')) throw missingTable();
+    if (q.includes('FROM users WHERE id = $1')) {
+      return { rows: [{ id: 'foreign', paese_residenza: 'US', provincia_residenza: 'TN' }] };
+    }
+    throw new Error('Foreign residence must not reach candidacies, mandates or legacy queries');
+  } };
+  for (const list of [listEligibleCandidates, listEligibleRepresentatives]) {
+    const result = await list(db, 'foreign', 'it.provincial.trento');
+    assert.equal(result.strict, true);
+    assert.equal(result.reason, 'OFFICE_OUTSIDE_USER_TERRITORY');
+    assert.deepEqual(result.subjects, []);
+  }
+});
