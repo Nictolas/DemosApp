@@ -364,7 +364,7 @@ router.post('/admin/:id/decision', verifyToken, requireAdmin, async (req, res) =
   const id = String(req.params.id || '');
   const decision = String(req.body?.decision || '');
   const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
-  if (!/^[0-9a-f-]{36}$/i.test(id) || !['approve','reject'].includes(decision) || note.length > 500) {
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) || !['approve','reject'].includes(decision) || note.length > 500) {
     return res.status(400).json({ success: false, error: 'Decisione non valida' });
   }
   // Rejection and emergency withdrawal remain available even while new
