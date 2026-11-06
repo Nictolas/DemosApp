@@ -164,3 +164,25 @@ test('eligibility queries do not require legacy users.avatar_config column', asy
   assert.match(source, /to_jsonb\(u\)->'avatar_config' AS avatar_config/);
   assert.match(source, /to_jsonb\(users\)->'avatar_config' AS avatar_config/);
 });
+
+test('directly elected provincial council selections are restricted to their province, not ordinary provinces', async () => {
+  assert.equal(jurisdictionMatchesRepresentative({province:'TN'}, 'it.provincial.trento', {provincia_residenza:'TN'}), true);
+  assert.equal(jurisdictionMatchesRepresentative({province:'Trento'}, 'it.provincial.trento', {provincia_residenza:'Trento'}), true);
+  assert.equal(jurisdictionMatchesRepresentative({province:'BZ'}, 'it.provincial.bolzano', {provincia_residenza:'BZ'}), true);
+  assert.equal(jurisdictionMatchesRepresentative({province:'TN'}, 'it.provincial.trento', {provincia_residenza:'PI'}), false);
+  assert.equal(jurisdictionMatchesRepresentative({province:'BZ'}, 'it.provincial.bolzano', {provincia_residenza:'TN'}), false);
+  assert.equal(jurisdictionMatchesRepresentative({province:'PI'}, 'it.provincial.trento', {provincia_residenza:'PI'}), false);
+  assert.equal(jurisdictionMatchesRepresentative({}, 'it.provincial.trento', {provincia_residenza:'TN'}), false);
+  assert.equal(jurisdictionMatchesRepresentative({province:'TN'}, 'it.provincial.trento', {}), false);
+
+  const db = {async query(sql) {
+    const q = String(sql);
+    if (q.includes('FROM user_political_territories')) throw missingTable();
+    if (q.includes('FROM users WHERE id = $1')) return {rows:[{id:'u',provincia_residenza:'PI'}]};
+    throw new Error('An out-of-province request must not reach mandate or legacy queries');
+  }};
+  const denied = await listEligibleRepresentatives(db,'u','it.provincial.trento');
+  assert.equal(denied.strict,true);
+  assert.equal(denied.reason,'OFFICE_OUTSIDE_USER_TERRITORY');
+  assert.deepEqual(denied.subjects,[]);
+});
