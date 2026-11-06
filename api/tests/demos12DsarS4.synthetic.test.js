@@ -79,3 +79,22 @@ test('S4 confirmation requires actual boolean sent and delivered flags', () => {
   assert.equal(syntheticS4({...sample,responseSent:true,delivered:1}).deliveryConfirmed,false);
   assert.equal(syntheticS4({...sample,responseSent:true,delivered:true}).deliveryConfirmed,true);
 });
+
+
+test('S4 year-boundary calendar and last-day extension notification examples', () => {
+  const ordinary = syntheticS4({received:'2026-12-31'});
+  assert.equal(ordinary.ordinary,'2027-01-31');
+  assert.equal(ordinary.deadline,'2027-01-31');
+  const lastDay = syntheticS4({
+    received:'2026-12-31',extensionNotified:'2027-01-31',
+    extensionReason:'synthetic complex request',responseSent:false,delivered:false
+  });
+  assert.equal(lastDay.extensionAccepted,true);
+  assert.equal(lastDay.deadline,'2027-03-31');
+  assert.equal(lastDay.deliveryConfirmed,false);
+  const late = syntheticS4({
+    received:'2026-12-31',extensionNotified:'2027-02-01',extensionReason:'synthetic complex request'
+  });
+  assert.equal(late.extensionAccepted,false);
+  assert.equal(late.deadline,'2027-01-31');
+});
