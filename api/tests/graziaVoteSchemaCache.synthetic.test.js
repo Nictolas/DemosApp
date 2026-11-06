@@ -8,9 +8,9 @@ const path=require('node:path');
 const vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../routes/grazia.js'),'utf8');
 
-function harness({idType='uuid',userColumn='userid',dateColumn='timestamp'}={}){
+function harness({idType='uuid',userColumn='userid',dateColumn='timestamp',userExists=true}={}){
   const state={columns:{idType,userColumn,dateColumn},metadata:0,read:0,writes:[],connects:0,
-    privateInputs:[],cooldown:0,locks:0,queries:[]};
+    privateInputs:[],cooldown:0,locks:0,accountChecks:0,queries:[]};
   const handlers=new Map();
   const user='11111111-1111-4111-8111-111111111111';
   const subject='Persona approvata sintetica';
@@ -22,6 +22,12 @@ function harness({idType='uuid',userColumn='userid',dateColumn='timestamp'}={}){
   async function query(statement,params=[],source='pool'){
     const sql=String(statement);
     state.queries.push({sql,params,source});
+    if(sql.includes('FROM users WHERE id::text=$1 FOR KEY SHARE')){
+      state.accountChecks++;
+      assert.equal(source,'transaction');
+      assert.equal(params[0],user);
+      return {rows:userExists?[{id:user}]:[]};
+    }
     if(sql.includes('pg_advisory_xact_lock')){
       state.locks++;
       return {rows:[{}]};
@@ -186,16 +192,32 @@ test('Grazia vote checks personal state and cooldown inside the same serialized 
   assert.equal(res.statusCode,200);
   const idx=needle=>state.queries.findIndex(q=>q.sql.includes(needle));
   const begin=idx('BEGIN');
+  const accountCheck=idx('FROM users WHERE id::text=$1 FOR KEY SHARE');
   const lock=idx('pg_advisory_xact_lock');
   const privateRead=idx('FROM voti_grazia');
   const approved=idx('FOR SHARE');
   const deletion=idx('DELETE FROM voti_grazia');
   const commit=idx('COMMIT');
-  assert.ok(begin>=0 && lock>begin && privateRead>lock && approved>privateRead &&
-    deletion>approved && commit>deletion, 'no stale preflight outside the user lock');
+  assert.ok(begin>=0 && accountCheck>begin && lock>accountCheck && privateRead>lock && approved>privateRead &&
+    deletion>approved && commit>deletion, 'no stale preflight outside the user and account locks');
+  assert.equal(state.accountChecks,1);
   assert.equal(state.locks,1);
   assert.equal(state.queries.find(q=>q.sql.includes('FROM voti_grazia')).source,'transaction');
   assert.equal(state.queries.find(q=>q.sql.includes('FOR SHARE')).source,'transaction');
   assert.equal(state.cooldown,1);
   assert.equal(state.writes.filter(x=>x.kind==='insert').length,1);
+});
+
+test('deleted account cannot write a Grazia vote or cooldown from a stale authenticated request',async()=>{
+  const {vote,state}=harness({userExists:false});
+  const res=await vote();
+  assert.equal(res.statusCode,401);
+  assert.equal(res.body?.error,'Utente non trovato');
+  assert.match(res.headers['Cache-Control'],/no-store/);
+  assert.equal(state.accountChecks,1,'the account is checked inside a transaction');
+  assert.equal(state.locks,0,'no personal vote advisory lock after account disappears');
+  assert.equal(state.read,0,'no personal vote read for a deleted account');
+  assert.equal(state.cooldown,0);
+  assert.equal(state.writes.length,0);
+  assert.ok(state.queries.some(x=>x.sql==='ROLLBACK'));
 });
