@@ -7,6 +7,7 @@ const { buildPoliticalMatches } = require('../services/politicalMatchingService'
 const { listEligibleRepresentatives } = require('../services/politicalEligibilityService');
 const {
   resolvePoliticalOffice,
+  getMatchingOpinionGradeForOffice,
   getLegacySelectionDescriptors,
 } = require('../services/politicalJurisdictionRegistryService');
 const { loadPoliticalSelections, selectionsByOffice } = require('../services/politicalSelectionService');
@@ -49,7 +50,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - Risultati trovati:', result.rows.length);
 
     const office = resolvePoliticalOffice(grado_elezione);
-    const gradoDatabase = office?.opinionGrade || grado_elezione;
+    const gradoDatabase = getMatchingOpinionGradeForOffice(grado_elezione) || grado_elezione;
 
     console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}`);
 
