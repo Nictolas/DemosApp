@@ -8,6 +8,7 @@ on:
       - 'api/tests/politicalJurisdictionRegistryService.test.js'
       - 'api/tests/politicalSelectionService.test.js'
       - 'api/tests/politicalEligibilityService.test.js'
+      - 'api/tests/provincialMandateOfficeGuard.test.js'
       - '.github/workflows/provincial-representatives-ci.yml'
 permissions:
   contents: read
@@ -36,4 +37,5 @@ jobs:
           node --test \
             api/tests/politicalJurisdictionRegistryService.test.js \
             api/tests/politicalSelectionService.test.js \
-            api/tests/politicalEligibilityService.test.js
+            api/tests/politicalEligibilityService.test.js \
+            api/tests/provincialMandateOfficeGuard.test.js
