@@ -583,7 +583,12 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivi
 
 // Read the account owner's selected provincial office only. This is not an
 // unrestricted profile endpoint and never publishes other users' preferences.
-router.get('/:userId/provincial-selection', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
+router.get('/:userId/provincial-selection', (_req, res, next) => {
+  // Provincial political preferences must never be cached, even when an
+  // authorization, consent or release gate rejects the request.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   try {
     const { userId } = req.params;
     if (String(req.userId) !== String(userId)) {
@@ -602,7 +607,6 @@ router.get('/:userId/provincial-selection', verifyToken, requireVerifiedCivicIde
     // could expose a choice after concurrent consent revocation (TOCTOU).
     // The join is conditional on current consent, and no legacy selection
     // table/column is read if the canonical table is absent.
-    res.set('Cache-Control', 'private, no-store, max-age=0');
     const result = await pool.query(
       `SELECT
          u.id,
@@ -642,7 +646,11 @@ router.get('/:userId/provincial-selection', verifyToken, requireVerifiedCivicIde
 });
 
 // PUT /api/users/:userId/political-selection - Canonical jurisdiction-aware political selection
-router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
+router.put('/:userId/political-selection', (_req, res, next) => {
+  // No cacheable response may expose the success or failure of a political choice.
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
   let client = null;
   try {
     const { userId } = req.params;
