@@ -601,9 +601,10 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
     let selectedCandidacyId = null;
     let selectedMandateId = null;
     if (selectedUserId) {
-      const podiumDirect = source === 'podio' && contract.kind === 'representative';
-      if (!podiumDirect && contract.office.opinionGrade) {
-        const completion = await getUserOpinionCompletion(pool, userId, contract.office.opinionGrade);
+      const podiumDirect = source === 'podio' && contract.kind === 'representative' && Boolean(contract.office.podiumLevel);
+      const matchingGrade = contract.office.matchingOpinionGrade || contract.office.opinionGrade;
+      if (!podiumDirect && matchingGrade) {
+        const completion = await getUserOpinionCompletion(pool, userId, matchingGrade);
         if (!completion.isComplete) {
           return res.status(409).json({
             success: false, error: 'OPINIONI_INCOMPLETE',
