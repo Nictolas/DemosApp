@@ -246,3 +246,25 @@ test('provincial offices reject explicit foreign residence even when province co
     assert.deepEqual(result.subjects, []);
   }
 });
+
+
+test('provincial candidate rejects a mismatched or missing candidacy province despite eligible electoral unit', async () => {
+  const db = { async query(sql) {
+    const q = String(sql);
+    if (q.includes('FROM user_political_territories')) throw missingTable();
+    if (q.includes('FROM users WHERE id = $1')) return { rows: [{ id: 'u', paese_residenza: 'IT', provincia_residenza: 'TN' }] };
+    if (q.includes('FROM political_candidacies')) return { rows: [
+      { id: 'good', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'TN' } },
+      { id: 'wrong', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'BZ' } },
+      { id: 'missing', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento' } },
+    ] };
+    if (q.includes('FROM unita_elettorale ue')) return { rows: [
+      { election_event_id: 'e', electoral_unit_id: 'tn', territory_type: 'PROVINCE', territory_code: 'TN' }
+    ] };
+    if (q.includes('FROM user_electoral_unit_memberships')) throw missingTable();
+    throw new Error('Unexpected query in isolated provincial eligibility test');
+  } };
+  const result = await listEligibleCandidates(db, 'u', 'it.provincial.trento');
+  assert.equal(result.strict, true);
+  assert.deepEqual(result.subjects.map(row => row.id), ['good']);
+});
