@@ -128,3 +128,22 @@ test('private 503 on database outage and public successful directory both forbid
   assert.match(published.headers['Cache-Control'],/no-store/);
   assert.deepEqual(published.body.data,[{id:'synthetic-public-item',title:'Persona sintetica'}]);
 });
+
+
+test('Admin decision rejects malformed UUIDs before any SQL',async()=>{
+  const app=makeRouter();
+  const base={authenticated:true,admin:true,body:{decision:'reject',note:'Synthetic review only'}};
+  for(const id of ['-'.repeat(36),'a'.repeat(36),'12345678-1234-1234-1234-123456789abz',
+                   '12345678123412341234123456789abc','12345678-1234-1234-1234-123456789abc-']){
+    const res=await app.run('POST','/admin/:id/decision',{...base,params:{id}});
+    assert.equal(res.statusCode,400,'reject malformed ID before PostgreSQL UUID cast');
+    assert.equal(res.body?.success,false);
+    assert.match(res.headers['Cache-Control'],/private,\s*no-store/);
+  }
+  assert.deepEqual(app.calls,[],'no database connection for invalid Admin IDs');
+  const valid=await app.run('POST','/admin/:id/decision',{
+    ...base,params:{id:'22222222-2222-4222-8222-222222222222'}
+  });
+  assert.equal(valid.statusCode,503,'canonical UUID reaches only synthetic offline pool');
+  assert.deepEqual(app.calls,['connect'],'valid input continues to existing transaction path');
+});
