@@ -7,6 +7,7 @@ const {
 const {
   TERRITORY_PRIORITY,
   jurisdictionMatchesScope,
+  territoryValueFromJurisdiction,
   territoryMatchesScope,
   mappingMatchesTerritory,
   chooseMostSpecificEligibleUnits,
@@ -46,6 +47,14 @@ function jurisdictionMatchesRepresentative(jurisdiction, grade, userOrContext) {
   if (!office) return false;
   const aliases = asTerritoryContext(userOrContext);
   if (!officeAllowedByProvince(office, aliases)) return false;
+  if (office.eligibleProvinceCodes?.length) {
+    // A matching province code is insufficient when the mandate or candidacy
+    // explicitly belongs to another country. Keep historical Italian rows
+    // without a country field eligible; reject conflicting explicit countries.
+    const recordedCountries = territoryValueFromJurisdiction(jurisdiction, TERRITORY_SCOPES.COUNTRY);
+    if (recordedCountries.length &&
+        !recordedCountries.every((code) => ['it', 'ita', 'italia', 'italy'].includes(code))) return false;
+  }
   const allowUnspecified = office.residenceScope === TERRITORY_SCOPES.SUPRANATIONAL || office.residenceScope === TERRITORY_SCOPES.COUNTRY;
   return jurisdictionMatchesScope(jurisdiction || {}, office.residenceScope, aliases, { allowUnspecified });
 }
