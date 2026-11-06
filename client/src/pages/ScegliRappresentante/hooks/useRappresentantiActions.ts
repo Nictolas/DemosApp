@@ -134,6 +134,34 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
     setSelezionando(false);
   };
 
+  // Provincial selections use the generic canonical endpoint. Clearing must
+  // remain available after an original mandate/candidacy disappears; no
+  // eligibility, opinion completion or push topic is required for removal.
+  const annullaSelezioneProvinciale = async (onSuccess: () => void) => {
+    if (!user || !provincialOffice || !PROVINCIAL_UI_RELEASED || selezionando) return;
+    setSelezionando(true);
+    try {
+      const userId = user.uid || user.id;
+      await apiRequest("PUT", `/api/users/${userId}/political-selection`, {
+        kind: isCandidateRoute ? "candidate" : "representative",
+        officeId: provincialOffice.officeId,
+        selectedUserId: null,
+        source: "matching",
+      });
+      onSuccess();
+      await Promise.allSettled([
+        queryClient.invalidateQueries({ queryKey: ["user"] }),
+        queryClient.invalidateQueries({ queryKey: ["rappresentantiData"] }),
+        queryClient.invalidateQueries({ queryKey: ["candidatiData"] }),
+      ]);
+      toast({ title: "Scelta annullata", description: "La selezione provinciale è stata rimossa." });
+    } catch (error: any) {
+      toast({ title: "Errore", description: selectionErrorDescription(error), variant: "destructive" });
+    } finally {
+      setSelezionando(false);
+    }
+  };
+
   const openOpinioniDialog = (data: OpinioniDialogData) => {
     setOpinioniDialogData(data);
   };
@@ -146,6 +174,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
     selezionando,
     opinioniDialogData,
     selezionaRappresentante,
+    annullaSelezioneProvinciale,
     openOpinioniDialog,
     closeOpinioniDialog,
   };
