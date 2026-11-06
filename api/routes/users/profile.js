@@ -7,7 +7,7 @@ const { compressUserLocation, decompressUserLocation } = require('../../utils/lo
 const { decompressGender } = require('../../utils/genderUtils');
 const { getAccountSubject } = require('../../services/accountCapabilitiesService');
 const { getUserOpinionCompletion } = require('../../services/politicalMatchingService');
-const { getPoliticalConsentState } = require('../../services/politicalConsentService');
+const { getPoliticalConsentState, getLockedPoliticalConsentForWrite } = require('../../services/politicalConsentService');
 const { normalizeOpinionAnswer } = require('../../utils/politicalMatching');
 const { isCandidateSelectionEligible, isRepresentativeSelectionEligible } = require('../../services/politicalEligibilityService');
 const {
@@ -700,6 +700,19 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
 
     client = await pool.connect();
     await client.query('BEGIN');
+    if (contract.office.eligibleProvinceCodes?.length && selectedUserId) {
+      // Check again under the SAME users row lock held by consent revocation.
+      // Its cleanup and this choice now serialize rather than racing.
+      const lockedConsent = await getLockedPoliticalConsentForWrite(client, userId);
+      if (!lockedConsent.exists || !lockedConsent.granted) {
+        await client.query('ROLLBACK');
+        return res.status(lockedConsent.exists ? 403 : 404).json({
+          success: false,
+          code: lockedConsent.exists ? 'POLITICAL_CONSENT_REQUIRED' : 'USER_NOT_FOUND',
+          error: lockedConsent.exists ? 'Consenso richiesto' : 'Utente non trovato',
+        });
+      }
+    }
     const stored = await setPoliticalSelection(client, {
       userId, kind: contract.kind, officeValue: contract.officeId,
       selectedUserId, selectedCandidacyId, selectedMandateId, source,
