@@ -314,6 +314,20 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      // Serialize personal vote writes against account deletion too.
+      // Erasure locks and deletes the same users row inside its transaction.
+      // A late request must wait and reject when the account is gone, instead
+      // of restoring an orphan vote/cooldown after personal data was erased.
+      const owner = await client.query(
+        'SELECT id FROM users WHERE id::text=$1 FOR KEY SHARE',
+        [String(userId)]
+      );
+      if (!owner.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(401).json({ success: false, error: 'Utente non trovato' });
+      }
+
       await client.query(
         'SELECT pg_advisory_xact_lock(hashtextextended($1::text, 12005))',
         [String(userId)]
