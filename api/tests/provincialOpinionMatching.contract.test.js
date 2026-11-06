@@ -19,7 +19,11 @@ function mockAnswerPool(rows) {
     calls,
     async query(sql, params) {
       calls.push({ sql: String(sql), params });
-      assert.match(String(sql), /FROM opinioni_risposte/);
+      assert.match(String(sql), /FROM opinioni_risposte r/);
+      assert.match(String(sql), /JOIN users u ON u\.id = r\.user_id/);
+      assert.match(String(sql), /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
+      assert.match(String(sql), /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
+      assert.doesNotMatch(String(sql), /SELECT\s+(?:r\.)?\*/i, 'never read all political answers or source JSON');
       const ids = new Set((params?.[0] || []).map(String));
       return { rows: rows.filter((row) => ids.has(String(row.user_id))) };
     },
