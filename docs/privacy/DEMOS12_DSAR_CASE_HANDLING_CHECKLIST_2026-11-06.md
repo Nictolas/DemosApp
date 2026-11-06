@@ -41,6 +41,15 @@ Questa mappa deriva da `api/routes/grazia.js` sul ramo Draft, non da una lettura
 
 **Regola di prova:** una checklist compilata non dimostra l'esecuzione. Segnare PASS soltanto dopo esercitazione realmente eseguita con esiti, data, operatore e traccia privata; finché non avviene, DSAR-02..06 restano NO-GO.
 
+
+## Gate S4 — scadenze e recapito (specifica non eseguita)
+
+Nel registro privato separare data di ricezione, scadenza ordinaria in mesi di calendario, eventuale proroga motivata comunicata entro il primo mese, nuova scadenza, data di risposta e prova di consegna. La proroga non è automatica: motivare complessità o numero delle richieste e verificare l'art. 12(3) GDPR. Non presumere che richieste di chiarimento sospendano automaticamente i termini.
+
+Casi sintetici ancora DA ESEGUIRE: ricezione 31 gennaio con mese successivo più corto; febbraio bisestile; proroga motivata notificata in tempo; proroga tardiva da rifiutare; risposta non recapitata che non può essere segnata come consegnata. Nessuna email di test senza autorizzazione; risultati e ricevute solo in archivio privato. Validazione DPO richiesta per il computo concreto dei termini.
+
+**Stato: specifica di accettazione aggiunta, nessun test S4 eseguito, DSAR-05 NO-GO.**
+
 ## Prove di accettazione ancora necessarie
 
 - Simulare con dati fittizi un intero caso: ricezione → registrazione privata → verifica proporzionata → valutazione → eventuale ritiro/rettifica autorizzata → risposta → archiviazione minima. Testare separatamente richiesta incompleta, richiesta da terzo non autorizzato e impossibilità di consegna.
