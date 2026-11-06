@@ -33,7 +33,7 @@ interface ViewOpinioniDialogProps {
   nome?: string;
   cognome?: string;
   avatarConfig?: string;
-  categoria?: 'comune' | 'regione' | 'camera' | 'senato' | 'europeo';
+  categoria?: 'comune' | 'regione' | 'camera' | 'senato' | 'europeo' | 'provinciale-trento' | 'provinciale-bolzano';
 }
 
 export function ViewOpinioniDialog({ 
@@ -97,7 +97,9 @@ export function ViewOpinioniDialog({
           'camera': 'N',
           'senato': 'N', 
           'regione': 'R',
-          'comune': 'CO'
+          'comune': 'CO',
+          'provinciale-trento': 'C',
+          'provinciale-bolzano': 'C'
         };
         const grado = gradoMapping[categoria] || 'E';
         
@@ -175,7 +177,9 @@ export function ViewOpinioniDialog({
           'camera': 'N',
           'senato': 'N', 
           'regione': 'R',
-          'comune': 'CO'
+          'comune': 'CO',
+          'provinciale-trento': 'C',
+          'provinciale-bolzano': 'C'
         };
         const grado = gradoMapping[categoria] || 'E';
         
