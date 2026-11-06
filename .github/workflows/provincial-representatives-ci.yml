@@ -4,6 +4,7 @@ on:
     paths:
       - 'api/config/politicalJurisdictions.js'
       - 'api/services/politicalEligibilityService.js'
+      - 'api/services/politicalMatchingService.js'
       - 'api/services/politicalSelectionService.js'
       - 'api/services/politicalConsentService.js'
       - 'api/services/politicalJurisdictionRegistryService.js'
@@ -17,6 +18,7 @@ on:
       - 'api/tests/politicalSelectionService.test.js'
       - 'api/tests/politicalSelectionRoute.test.js'
       - 'api/tests/politicalEligibilityService.test.js'
+      - 'api/tests/politicalMatchingService.test.js'
       - 'api/tests/provincialMandateOfficeGuard.test.js'
       - 'api/tests/provincialCandidacyJurisdictionGuard.test.js'
       - 'api/tests/provincialRegionalDedup.test.js'
@@ -56,6 +58,7 @@ jobs:
         run: |
           node --check api/config/politicalJurisdictions.js
           node --check api/services/politicalEligibilityService.js
+          node --check api/services/politicalMatchingService.js
           node --check api/services/politicalSelectionService.js
           node --check api/services/politicalJurisdictionRegistryService.js
           node --check api/routes/users/profile.js
@@ -71,6 +74,7 @@ jobs:
             api/tests/politicalSelectionService.test.js \
             api/tests/politicalSelectionRoute.test.js \
             api/tests/politicalEligibilityService.test.js \
+            api/tests/politicalMatchingService.test.js \
             api/tests/provincialMandateOfficeGuard.test.js \
             api/tests/provincialCandidacyJurisdictionGuard.test.js \
             api/tests/provincialRegionalDedup.test.js \
