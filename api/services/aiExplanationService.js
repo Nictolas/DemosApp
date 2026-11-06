@@ -347,9 +347,13 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
     // Prefer the official text stored with this vote over a possibly stale caller copy.
     // Keep the database snapshot so an in-flight generation cannot save on new evidence.
     const documentSnapshot = existingResult.rows[0].descrizione_votazione ?? null;
-    const documentoDaUsare = typeof documentSnapshot === 'string' && documentSnapshot.trim()
-      ? documentSnapshot : descrizioneVotazione;
-    const spiegazione = await generaSpiegazione(titoloVotazione, documentoDaUsare, camera, 'N/A');
+    // A caller-supplied document cannot be checked against concurrent changes
+    // to the stored voting record. Require sufficient persisted evidence.
+    if (!hasDocumentaryContext(documentSnapshot)) {
+      console.warn('Spiegazione non generata: documento persistito insufficiente');
+      return null;
+    }
+    const spiegazione = await generaSpiegazione(titoloVotazione, documentSnapshot, camera, 'N/A');
   
     if (spiegazione) {
       // Salva la spiegazione nella tabella votazioni_parlamento
