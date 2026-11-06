@@ -15,6 +15,7 @@ on:
       - 'api/tests/politicalSelectionRoute.test.js'
       - 'api/tests/politicalEligibilityService.test.js'
       - 'api/tests/provincialMandateOfficeGuard.test.js'
+      - 'api/tests/provincialRegionalDedup.test.js'
       - 'api/tests/provincialOpinionMatching.contract.test.js'
       - 'api/tests/provincialReadRelease.http.test.js'
       - 'api/tests/provincialFrontendWiring.smoke.test.js'
@@ -61,6 +62,7 @@ jobs:
             api/tests/politicalSelectionRoute.test.js \
             api/tests/politicalEligibilityService.test.js \
             api/tests/provincialMandateOfficeGuard.test.js \
+            api/tests/provincialRegionalDedup.test.js \
             api/tests/provincialOpinionMatching.contract.test.js \
             api/tests/provincialReadRelease.http.test.js \
             api/tests/provincialFrontendWiring.smoke.test.js
