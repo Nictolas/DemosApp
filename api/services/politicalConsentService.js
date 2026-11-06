@@ -59,6 +59,31 @@ async function getPoliticalConsentState(db, userId) {
   };
 }
 
+// Revocation updates the users row before deleting preferences. Lock that
+// same row inside the provincial choice transaction, so a concurrent revocation
+// cannot finish cleanup and then be followed by a stale selection write.
+// The legacy flag is also required: a snapshot of user_consents obtained while
+// waiting on a revoked users row must never permit a write.
+async function getLockedPoliticalConsentForWrite(client, userId) {
+  const result = await client.query(
+    `SELECT
+       u.id,
+       (
+         u.political_opinions_consent IS TRUE
+         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
+       ) AS granted
+     FROM users u
+     LEFT JOIN user_consents uc ON uc.user_id = u.id
+     WHERE u.id = $1
+     FOR UPDATE OF u`,
+    [userId]
+  );
+  return {
+    exists: result.rows.length > 0,
+    granted: result.rows[0]?.granted === true
+  };
+}
+
 async function clearLegacyUserOpinionColumns(db, userId) {
   const sharedColumns = await db.query(`
     SELECT response_cols.column_name
@@ -128,6 +153,7 @@ module.exports = {
   USER_LINK_COLUMNS,
   CONSENT_SCOPED_TABLES,
   getPoliticalConsentState,
+  getLockedPoliticalConsentForWrite,
   clearLegacyUserOpinionColumns,
   clearPendingProposalLink,
   cleanupConsentScopedPoliticalData
