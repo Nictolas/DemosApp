@@ -139,3 +139,22 @@ test('adapter-scoped canonical reads use the full adapter office set, including 
   assert.equal(officeIds.some((id) => id.startsWith('it.')), false);
   assert.match(calls[0].sql, /ps\.political_office_id = ANY\(\$2::text\[\]\)/);
 });
+test('provincial representative is persisted canonically without a users column', async () => {
+  const queries = [];
+  const db = { async query(sql, params) { queries.push({sql: String(sql), params}); return {rowCount: 1, rows: []}; } };
+  for (const officeId of ['it.provincial.trento', 'it.provincial.bolzano']) {
+    const r = await setPoliticalSelection(db, {
+      userId: '11111111-1111-1111-1111-111111111111',
+      kind: 'representative',
+      officeValue: officeId,
+      selectedUserId: '22222222-2222-2222-2222-222222222222',
+    });
+    assert.equal(r.canonical.written, true);
+    assert.equal(r.legacy.available, false);
+    assert.equal(r.contract.officeId, officeId);
+  }
+  const canonicalWrites = queries.filter(({sql}) => /INSERT INTO political_selections/.test(sql));
+  assert.equal(canonicalWrites.length, 2);
+  assert.deepEqual(canonicalWrites.map(({params}) => params[2]), ['it.provincial.trento', 'it.provincial.bolzano']);
+  assert.equal(queries.some(({sql}) => /UPDATE users|user_representatives/.test(sql)), false);
+});
