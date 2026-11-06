@@ -77,6 +77,22 @@ test('429 HTTP-date Retry-After is honored, bounded and fail-closed', () => {
   assert.equal(gate.reserve(messages, 450).allowed, true, 'Cooldown must be capped at 24h');
 });
 
+test('429 honours Retry-After header names irrespective of casing', () => {
+  let current = Date.UTC(2026, 10, 6, 7, 0, 0);
+  const gate = createFreeBudgetGate({ now: () => current });
+  const messages = [{ role: 'user', content: 'testo' }];
+  gate.coolDownFrom429({
+    status: 429,
+    headers: { 'Retry-After': new Date(current + 180000).toUTCString() }
+  });
+  current += 61000;
+  assert.deepEqual(gate.reserve(messages, 450), {
+    allowed: false, reason: 'PROVIDER_429_COOLDOWN'
+  }, 'HTTP header names are case-insensitive');
+  current += 119001;
+  assert.equal(gate.reserve(messages, 450).allowed, true);
+});
+
 test('429 enforces provider cooldown instead of repeating calls', () => {
   let current = 1700000000000;
   const gate = createFreeBudgetGate({ now: () => current });
