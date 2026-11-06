@@ -68,6 +68,12 @@ function parseGroundedAnalysisResponse(response) {
   if (spiegazione_generale.trim().split(/\s+/u).length > 110) return null;
   if (typeof effetti_positivi !== 'string' || typeof effetti_negativi !== 'string') return null;
   if (effetti_positivi.length > MAX_IMPACT_CHARS || effetti_negativi.length > MAX_IMPACT_CHARS) return null;
+  // A model can ignore the three-point instruction while returning valid JSON.
+  // Reject clearly enumerated excess bullets, rather than publishing a longer
+  // list of unsupported legislative effects.
+  const itemCount = value => value.split(/\r?\n/u)
+    .filter(line => /^\s*(?:[-*•]|\d+[.)])\s+\S/u.test(line)).length;
+  if (itemCount(effetti_positivi) > 3 || itemCount(effetti_negativi) > 3) return null;
   // A no-evidence sentinel in any field is not a documented explanation or
   // legislative effect. Fail closed rather than displaying it as real content.
   const noEvidence = /^INFORMAZIONI[\s_-]*INSUFFICIENTI[.!?]*$/iu;
