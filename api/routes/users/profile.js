@@ -606,7 +606,8 @@ router.get('/:userId/provincial-selection', verifyToken, requireVerifiedCivicIde
     const result = await pool.query(
       `SELECT
          u.id,
-         COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE AS consent_granted,
+         (u.political_opinions_consent IS TRUE
+          AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE) AS consent_granted,
          ps.selected_user_id::text AS selected_user_id
        FROM users u
        LEFT JOIN user_consents uc ON uc.user_id = u.id
@@ -614,6 +615,7 @@ router.get('/:userId/provincial-selection', verifyToken, requireVerifiedCivicIde
          ON ps.user_id = u.id
         AND ps.selection_kind = $2
         AND ps.political_office_id = $3
+        AND u.political_opinions_consent IS TRUE
         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
        WHERE u.id = $1
        LIMIT 1`,
