@@ -230,7 +230,7 @@ test('Grazia disabled SQL connector returns generic 500 with no raw error or stu
     assert.equal(r.status,500);
     assert.match(r.headers.get('cache-control')||'',/no-store/);
     assert.doesNotMatch(JSON.stringify(await r.json()),/SYNTHETIC_POOL_CONNECT_FAILURE/);
-    const review=await request('/api/grazia/richiesta/unknown/accetta','admin','POST');
+    const review=await request('/api/grazia/richiesta/legacy-review-001/accetta','admin','POST');
     assert.equal(review.status,500);
     assert.match(review.headers.get('cache-control')||'',/no-store/);
     assert.doesNotMatch(JSON.stringify(await review.json()),/SYNTHETIC_POOL_CONNECT_FAILURE/);
@@ -243,4 +243,26 @@ test('Grazia GET with optional token and personal status are private no-store',a
     assert.match(r.headers.get('cache-control')||'',/no-store/,p);
     assert.match(r.headers.get('cache-control')||'',/private/,p);
   }
+});
+
+
+test('Grazia review rejects malformed reference before acquiring SQL',async()=>{
+  // A synthetic offline pool proves invalid references never reach SQL.
+  // Historical alphanumeric/hyphen/underscore IDs remain supported.
+  failConnect=true;
+  try {
+    for(const bad of ['---','_leading','x'.repeat(256),'x*bad','è-invalid']){
+      for(const action of ['rifiuta','accetta']){
+        const response=await request('/api/grazia/richiesta/'+encodeURIComponent(bad)+'/'+action,'admin','POST');
+        assert.equal(response.status,400,'invalid reference rejected before SQL: '+bad);
+        assert.match(response.headers.get('cache-control')||'',/private.*no-store/);
+        const body=await response.json();
+        assert.equal(body.success,false);
+        assert.doesNotMatch(JSON.stringify(body),/SYNTHETIC_POOL_CONNECT_FAILURE/);
+      }
+    }
+    const legacy=await request('/api/grazia/richiesta/legacy-request_001/rifiuta','admin','POST');
+    assert.equal(legacy.status,500,'legacy-compatible reference reaches the synthetic offline pool');
+    assert.match(legacy.headers.get('cache-control')||'',/no-store/);
+  }finally{failConnect=false;}
 });
