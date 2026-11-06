@@ -16,9 +16,9 @@ export const useGraziaData = (user: any) => {
   const { data, isLoading: isLoadingData, error } = useQuery<GraziaData>({
     // Keep each account's personal preferences in a distinct cache entry.
     queryKey: ['graziaData', user?.id ?? null],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const response = await apiRequest("GET", "/api/grazia");
+        const response = await apiRequest("GET", "/api/grazia", undefined, undefined, signal);
         if (!response?.ok || !response?.data || response.data.success === false) {
           throw new Error(GRAZIA_LOAD_ERROR);
         }
@@ -28,7 +28,11 @@ export const useGraziaData = (user: any) => {
         throw new Error(GRAZIA_LOAD_ERROR);
       }
     },
-    enabled: !!user && !!localStorage.getItem('auth_token'),
+    enabled: !!user?.id && !!localStorage.getItem('auth_token'),
+    // The server's no-store policy protects HTTP caches; this also evicts
+    // sensitive vote selections from React Query when the account view unmounts.
+    // Consuming signal cancels an in-flight GET on key change or unmount.
+    gcTime: 0,
     retry: 1,
     refetchOnWindowFocus: false
   });

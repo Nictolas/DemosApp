@@ -24,7 +24,7 @@ test('Grazia GET and vote mutation never log full API responses, preferences or 
 test('removing debug output preserves personal GET, POST, voting feedback and confirmation flow',()=>{
   const data=read('client/src/pages/Grazia/hooks/useGraziaData.ts');
   const voting=read('client/src/pages/Grazia/hooks/useGraziaVoting.ts');
-  assert.match(data,/apiRequest\("GET", "\/api\/grazia"\)/);
+  assert.match(data,/apiRequest\("GET", "\/api\/grazia", undefined, undefined, signal\)/);
   assert.match(data,/apiRequest\("POST", "\/api\/grazia\/vota", \{ voti \}\)/);
   assert.match(data,/queryClient\.invalidateQueries\(\{ queryKey: \['graziaData', user\?\.id \?\? null\] \}\)/);
   assert.match(data,/getRemainingVotes\('grazia', variables\.length\)/);
