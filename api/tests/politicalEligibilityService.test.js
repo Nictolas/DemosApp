@@ -400,3 +400,69 @@ test('provincial electoral units cannot be inferred from regional-only mappings 
   assert.deepEqual(denied.subjects, [],
     'conflicting provincial unit mappings must fail closed even when one matches');
 });
+
+
+test('provincial canonical residence rejects mixed countries and provinces without querying candidacies or mandates', async () => {
+  const offices = [
+    ['it.provincial.trento', 'TN', 'BZ'],
+    ['it.provincial.bolzano', 'BZ', 'TN'],
+  ];
+  for (const [office, province, foreignProvince] of offices) {
+    const base = [
+      { jurisdiction_id: 'it', territory_type: 'COUNTRY', territory_code: 'IT', political_office_id: null, verification_level: 'OFFICIAL' },
+      { jurisdiction_id: 'it', territory_type: 'PROVINCE', territory_code: province, political_office_id: null, verification_level: 'OFFICIAL' },
+    ];
+    const mixedCountry = [...base, {
+      jurisdiction_id: 'it', territory_type: 'COUNTRY', territory_code: 'DE',
+      political_office_id: office, verification_level: 'OFFICIAL',
+    }];
+    const mixedProvince = [...base, {
+      jurisdiction_id: 'it', territory_type: 'PROVINCE', territory_code: foreignProvince,
+      political_office_id: office, verification_level: 'OFFICIAL',
+    }];
+    for (const memberships of [mixedCountry, mixedProvince]) {
+      const calls = [];
+      const pool = {
+        async query(sql) {
+          calls.push(String(sql));
+          if (String(sql).includes('FROM user_political_territories')) {
+            return { rows: memberships };
+          }
+          throw new Error('A conflicting provincial residence must be rejected before candidacy/mandate SQL');
+        },
+      };
+      for (const list of [listEligibleCandidates, listEligibleRepresentatives]) {
+        const result = await list(pool, 'synthetic-resident', office);
+        assert.equal(result.source, 'CAPABILITY');
+        assert.equal(result.strict, true);
+        assert.equal(result.reason, 'OFFICE_OUTSIDE_USER_TERRITORY');
+        assert.deepEqual(result.subjects, []);
+      }
+      assert.equal(calls.length, 2, 'only one canonical residence read per candidate/representative check');
+    }
+  }
+});
+
+test('provincial jurisdiction matching accepts equivalent residence aliases but rejects any conflicting active values', () => {
+  for (const [office, province, name, other] of [
+    ['it.provincial.trento', 'TN', 'Trento', 'BZ'],
+    ['it.provincial.bolzano', 'BZ', 'Bolzano', 'TN'],
+  ]) {
+    const jurisdiction = { province, level: office };
+    assert.equal(jurisdictionMatchesRepresentative(jurisdiction, office, {
+      COUNTRY: ['it', 'italia', 'italy'], PROVINCE: [province.toLowerCase(), name.toLowerCase()],
+    }), true);
+    assert.equal(jurisdictionMatchesRepresentative(jurisdiction, office, {
+      COUNTRY: ['it', 'de'], PROVINCE: [province.toLowerCase()],
+    }), false);
+    assert.equal(jurisdictionMatchesRepresentative(jurisdiction, office, {
+      COUNTRY: ['it'], PROVINCE: [province.toLowerCase(), other.toLowerCase()],
+    }), false);
+    assert.equal(jurisdictionMatchesRepresentative(jurisdiction, office, {
+      COUNTRY: [], PROVINCE: [province.toLowerCase()],
+    }), false);
+    assert.equal(jurisdictionMatchesRepresentative(jurisdiction, office, {
+      COUNTRY: ['it'], PROVINCE: [],
+    }), false);
+  }
+});
