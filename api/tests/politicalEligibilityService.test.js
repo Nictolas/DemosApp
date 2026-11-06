@@ -268,3 +268,21 @@ test('provincial candidate rejects a mismatched or missing candidacy province de
   assert.equal(result.strict, true);
   assert.deepEqual(result.subjects.map(row => row.id), ['good']);
 });
+
+test('provincial councillor with overlapping mandate rows appears only once', async () => {
+  const db = { async query(sql) {
+    const q = String(sql);
+    if (q.includes('FROM user_political_territories')) throw missingTable();
+    if (q.includes('FROM users WHERE id = $1')) return { rows: [{ id: 'resident', paese_residenza: 'IT', provincia_residenza: 'TN' }] };
+    if (q.includes('FROM political_mandates')) return { rows: [
+      { id: 'councillor', mandate_id: 'provincial', jurisdiction: { province: 'TN' } },
+      { id: 'councillor', mandate_id: 'derived-regional', jurisdiction: { province: 'TN' } },
+      { id: 'another', mandate_id: 'provincial-2', jurisdiction: { province: 'TN' } },
+      { id: 'outsider', mandate_id: 'other', jurisdiction: { province: 'BZ' } }
+    ] };
+    throw new Error('Unexpected query in provincial duplicate mandate test');
+  } };
+  const result = await listEligibleRepresentatives(db, 'resident', 'it.provincial.trento');
+  assert.equal(result.strict, true);
+  assert.deepEqual(result.subjects.map((row) => row.id), ['councillor', 'another']);
+});
