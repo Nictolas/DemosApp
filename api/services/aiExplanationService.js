@@ -320,7 +320,7 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
   try {
     // Verifica se esiste già una spiegazione per questa votazione
     const existingResult = await pool.query(
-      'SELECT titolo_votazione, spiegazione FROM votazioni_parlamento WHERE id = $1',
+      'SELECT titolo_votazione, spiegazione, descrizione_votazione FROM votazioni_parlamento WHERE id = $1',
       [votazioneId]
     );
 
@@ -344,7 +344,12 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
 
     // Genera nuova spiegazione (il voto non serve per la spiegazione della votazione stessa)
     // Passa 'N/A' invece di null per evitare problemi nel prompt
-    const spiegazione = await generaSpiegazione(titoloVotazione, descrizioneVotazione, camera, 'N/A');
+    // Prefer the official text stored with this vote over a possibly stale caller copy.
+    // Keep the database snapshot so an in-flight generation cannot save on new evidence.
+    const documentSnapshot = existingResult.rows[0].descrizione_votazione ?? null;
+    const documentoDaUsare = typeof documentSnapshot === 'string' && documentSnapshot.trim()
+      ? documentSnapshot : descrizioneVotazione;
+    const spiegazione = await generaSpiegazione(titoloVotazione, documentoDaUsare, camera, 'N/A');
   
     if (spiegazione) {
       // Salva la spiegazione nella tabella votazioni_parlamento
@@ -352,8 +357,9 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
         `UPDATE votazioni_parlamento
          SET spiegazione = $1, updated_at = CURRENT_TIMESTAMP
          WHERE id = $2 AND titolo_votazione = $3
+           AND descrizione_votazione IS NOT DISTINCT FROM $4
            AND (spiegazione IS NULL OR spiegazione = '')`,
-        [spiegazione.trim(), votazioneId, titoloVotazione]
+        [spiegazione.trim(), votazioneId, titoloVotazione, documentSnapshot]
       );
       // Never report an unsaved or stale analysis as successful.
       if (saved.rowCount !== 1) {
