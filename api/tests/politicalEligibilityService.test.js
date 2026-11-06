@@ -385,12 +385,12 @@ test('provincial electoral units cannot be inferred from regional-only mappings 
 
   const administrativeProvince = [{
     election_event_id: 'e1', electoral_unit_id: 'unit',
-    territory_type: 'ADMIN_LEVEL_2', territory_code: 'Trento',
+    territory_type: 'ADMIN_LEVEL_2', territory_code: 'TN',
   }];
-  const validAlias = await listEligibleCandidates(
+  const validAdmin2 = await listEligibleCandidates(
     mockDb(administrativeProvince), 'resident', 'it.provincial.trento',
   );
-  assert.deepEqual(validAlias.subjects.map((row) => row.id), ['candidate']);
+  assert.deepEqual(validAdmin2.subjects.map((row) => row.id), ['candidate']);
 
   const contradictory = [...province, {
     election_event_id: 'e1', electoral_unit_id: 'unit',
