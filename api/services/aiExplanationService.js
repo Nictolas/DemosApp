@@ -308,7 +308,10 @@ async function generaSpiegazioneVotazione(votazioneId, titoloVotazione, descrizi
   if (votazioneId === null || votazioneId === undefined) {
     return null;
   }
-  return singleflightSpiegazione(votazioneId, () =>
+  // The row title may change while an earlier explanation is still in flight.
+  // Keep the old vote and the replacement vote in separate singleflight groups.
+  const voteIdentity = JSON.stringify([votazioneId, titoloVotazione]);
+  return singleflightSpiegazione(voteIdentity, () =>
     generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, descrizioneVotazione, camera)
   );
 }
