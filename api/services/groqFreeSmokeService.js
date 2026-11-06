@@ -47,6 +47,11 @@ async function checkGroqFreeConnectivity({
         typeof answer !== 'string' || !answer.trim()) {
       return { success: false, status: 'EMPTY_OR_TRUNCATED', model };
     }
+    // A provider returning an arbitrary non-empty refusal or unrelated text
+    // has not passed the instructed connectivity challenge.
+    if (!/^OK[.!]?$/i.test(answer.trim())) {
+      return { success: false, status: 'UNEXPECTED_RESPONSE', model };
+    }
     return { success: true, status: 'OK', model };
   } catch (error) {
     return { success: false, status: classifyFreeGroqError(error), model };
