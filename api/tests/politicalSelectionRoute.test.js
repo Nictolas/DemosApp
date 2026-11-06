@@ -143,7 +143,10 @@ test('provincial selection cannot bypass six-opinion completion by spoofing Podi
     connect: async () => { throw new Error('Incomplete provincial opinions must not reach storage'); },
     async query(sql) {
       calls.push(String(sql));
-      if (String(sql).includes('LEFT JOIN user_consents')) return { rows: [{ id: 'u1', granted: true }] };
+      if (String(sql).includes('LEFT JOIN user_consents')) {
+        assert.match(String(sql), /u\.political_opinions_consent IS TRUE/);
+        return { rows: [{ id: 'u1', granted: true }] };
+      }
       if (String(sql).includes('FROM opinioni_risposte')) return { rows: [] };
       throw new Error('Unexpected SQL in provincial completion test');
     },
@@ -217,6 +220,8 @@ test('provincial selection read only exposes the authenticated account and remai
       assert.match(queries[0].sql, /LEFT JOIN political_selections ps/);
       assert.match(queries[0].sql, /ps\.user_id = u\.id/);
       assert.match(queries[0].sql, /ps\.political_office_id = \$3/);
+      // A stale canonical consent row cannot override a revoked users flag.
+      assert.match(queries[0].sql, /u\.political_opinions_consent IS TRUE/);
       assert.match(queries[0].sql, /AND COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
     });
   } finally {
