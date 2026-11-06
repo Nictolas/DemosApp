@@ -10,7 +10,7 @@ const authPath = require.resolve('../middleware/auth');
 const routePath = require.resolve('../routes/rappresentanti-sostenitori');
 const totalRoutePath = require.resolve('../routes/sostenitori-totale');
 
-async function withIsolatedSupportersRoute(run) {
+async function withIsolatedSupportersRoute(run, { failQuery = false } = {}) {
   const previous = [pgPath, authPath, routePath, totalRoutePath].map((path) => require.cache[path]);
   const calls = [];
   const rows = [
@@ -26,6 +26,7 @@ async function withIsolatedSupportersRoute(run) {
     exports: { Pool: class {
       async query(sql, params) {
         calls.push({ sql: String(sql), params });
+        if (failQuery) throw new Error('SYNTHETIC_PRIVATE_SQL_FAILURE');
         return { rows };
       }
     } },
@@ -142,4 +143,25 @@ test('combined all-role supporters count provincial/regional supporters once aft
     assert.match(calls[0].sql, /OR provincial\.user_id IS NOT NULL/);
     assert.deepEqual(calls[0].params, ['subject']);
   });
+});
+
+test('combined supporter API does not expose SQL internals on synthetic database failure', async () => {
+  await withIsolatedSupportersRoute(async (base, calls) => {
+    delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    const response = await fetch(base + '/api/sostenitori/totale?sostenuto_id=subject');
+    assert.equal(response.status, 500);
+    const body = await response.json();
+    assert.equal(body.error, 'Errore interno del server');
+    assert.equal(Object.hasOwn(body, 'details'), false);
+    assert.doesNotMatch(JSON.stringify(body), /SYNTHETIC_PRIVATE_SQL_FAILURE/);
+    assert.equal(calls.length, 1);
+  }, { failQuery: true });
+});
+
+test('combined supporter API contains no debug logs of voter identifiers or exception stacks', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'routes', 'sostenitori-totale.js'), 'utf8');
+  assert.doesNotMatch(source, /console\.(?:log|warn|error)\s*\(/);
+  assert.doesNotMatch(source, /details:\s*process\.env\.NODE_ENV/);
 });
