@@ -231,17 +231,28 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
         resolvePoliticalOffice(row.grado_elezione)?.id === office.id)) &&
     jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context)
   );
-  // A provincial councillor can have multiple mandate records (including a
-  // derived regional mandate). Show each person only once for the provincial
-  // office; do not change the existing behaviour for other office types.
-  const seenRepresentatives = new Set();
-  const subjects = office.eligibleProvinceCodes?.length
-    ? matched.filter((row) => {
-      const id = String(row.id);
-      if (seenRepresentatives.has(id)) return false;
-      seenRepresentatives.add(id);
-      return true;
-    })
+  // A councillor can have a provincial mandate and a derived regional one.
+  // Both the provincial and the regional lists must present that person once.
+  // When two rows qualify for the regional list, keep an explicitly regional
+  // mandate over a derived provincial row, regardless of database row order.
+  // Other institutional lists retain their existing behaviour.
+  const deduplicatePeople = Boolean(office.eligibleProvinceCodes?.length) || office.id === 'it.regional';
+  const subjects = deduplicatePeople
+    ? (() => {
+      const byPerson = new Map();
+      for (const row of matched) {
+        const key = String(row.id);
+        const previous = byPerson.get(key);
+        if (!previous) {
+          byPerson.set(key, row);
+        } else if (office.id === 'it.regional' &&
+          resolvePoliticalOffice(row.grado_elezione)?.id === office.id &&
+          resolvePoliticalOffice(previous.grado_elezione)?.id !== office.id) {
+          byPerson.set(key, row);
+        }
+      }
+      return [...byPerson.values()];
+    })()
     : matched;
   return {
     subjects,
