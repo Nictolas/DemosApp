@@ -132,7 +132,9 @@ export const useGraziaVoting = (
   };
 
   const confirmRemove = () => {
-    if (!votoToRemove) return;
+    // A different vote save may have started while the confirmation dialog was open.
+    // Never dispatch a second personal write until the first POST has settled.
+    if (!votoToRemove || saveVotiMutation.isPending) return;
     const nuoviVoti = votingState.selectedVoti.filter(n => n !== votoToRemove);
     setVotingState(prev => ({
       ...prev,
