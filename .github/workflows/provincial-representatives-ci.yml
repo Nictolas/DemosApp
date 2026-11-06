@@ -7,6 +7,7 @@ on:
       - 'api/services/politicalSelectionService.js'
       - 'api/services/politicalJurisdictionRegistryService.js'
       - 'api/routes/rappresentanti.js'
+      - 'api/routes/rappresentanti-sostenitori.js'
       - 'api/routes/candidati.js'
       - 'api/routes/elezioni.js'
       - 'api/routes/users/profile.js'
@@ -16,6 +17,7 @@ on:
       - 'api/tests/politicalEligibilityService.test.js'
       - 'api/tests/provincialMandateOfficeGuard.test.js'
       - 'api/tests/provincialRegionalDedup.test.js'
+      - 'api/tests/provincialSupporters.http.test.js'
       - 'api/tests/provincialOpinionMatching.contract.test.js'
       - 'api/tests/provincialReadRelease.http.test.js'
       - 'api/tests/provincialFrontendWiring.smoke.test.js'
@@ -52,6 +54,7 @@ jobs:
           node --check api/services/politicalJurisdictionRegistryService.js
           node --check api/routes/users/profile.js
           node --check api/routes/rappresentanti.js
+          node --check api/routes/rappresentanti-sostenitori.js
           node --check api/routes/candidati.js
           node --check api/routes/elezioni.js
       - name: Test territory, authority and canonical persistence (no database)
@@ -63,6 +66,7 @@ jobs:
             api/tests/politicalEligibilityService.test.js \
             api/tests/provincialMandateOfficeGuard.test.js \
             api/tests/provincialRegionalDedup.test.js \
+            api/tests/provincialSupporters.http.test.js \
             api/tests/provincialOpinionMatching.contract.test.js \
             api/tests/provincialReadRelease.http.test.js \
             api/tests/provincialFrontendWiring.smoke.test.js
