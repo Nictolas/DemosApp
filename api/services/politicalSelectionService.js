@@ -15,10 +15,14 @@ const SELECTION_KINDS = new Set(['candidate', 'representative']);
 
 // Explicit release GO is required before a provincial choice can be written.
 // Removals remain permitted to support correction and erasure requests.
-function isPoliticalSelectionWriteReleased(office, selectedUserId) {
-  if (selectedUserId === null || selectedUserId === undefined || selectedUserId === '') return true;
+function isPoliticalOfficeVisible(office) {
   if (!office?.eligibleProvinceCodes?.length) return true;
   return process.env.DEMOS_PROVINCIAL_SELECTIONS_GO === 'true';
+}
+
+function isPoliticalSelectionWriteReleased(office, selectedUserId) {
+  if (selectedUserId === null || selectedUserId === undefined || selectedUserId === '') return true;
+  return isPoliticalOfficeVisible(office);
 }
 
 function isPoliticalSelectionSchemaError(error) {
@@ -363,6 +367,7 @@ module.exports = {
   isPoliticalSelectionSchemaError,
   normalizeSelectionKind,
   resolveSelectionContract,
+  isPoliticalOfficeVisible,
   isPoliticalSelectionWriteReleased,
   setPoliticalSelection,
   loadPoliticalSelections,
