@@ -83,7 +83,15 @@ test('Grazia clicks mutate immediately, never after a deferred callback or from 
   assert.deepEqual(actualMutations.at(-1),['Synthetic approved subject']);
   hook=render();
   hook.removeLocal('Synthetic approved subject');
+  // An unrelated save can begin after the confirmation dialog opens.
+  // Confirming during that pending POST must not dispatch another write.
+  mutation.isPending=true;
   hook=render();
+  hook.confirmRemove();
+  assert.equal(actualMutations.length,3,'no concurrent vote removal');
+  hook=render();
+  assert.equal(hook.votingState.showRemoveDialog,true,'keep confirmation open until save settles');
+  mutation.isPending=false;
   hook.confirmRemove();
   assert.deepEqual(actualMutations.at(-1),[]);
   assert.equal(actualMutations.length,4);
