@@ -91,6 +91,10 @@ test('post-GO canonical provincial choice uses distinct voter IDs with no extra 
     assert.match(calls[0].sql, /WITH provincial_supporters AS/);
     assert.match(calls[0].sql, /SELECT DISTINCT ps\.user_id/);
     assert.match(calls[0].sql, /ps\.selection_kind = 'representative'/);
+    assert.match(calls[0].sql, /JOIN users voter ON voter\.id = ps\.user_id/);
+    assert.match(calls[0].sql, /LEFT JOIN user_consents uc ON uc\.user_id = voter\.id/);
+    assert.match(calls[0].sql, /voter\.status = 'a'/);
+    assert.match(calls[0].sql, /COALESCE\(uc\.political_opinions_consent, voter\.political_opinions_consent, false\) IS TRUE/);
     assert.match(calls[0].sql, /'it\.provincial\.trento', 'it\.provincial\.bolzano'/);
     assert.match(calls[0].sql, /LEFT JOIN provincial_supporters provincial ON provincial\.user_id = u\.id/);
     assert.match(calls[0].sql, /OR provincial\.user_id IS NOT NULL/);
@@ -129,6 +133,10 @@ test('combined all-role supporters count provincial/regional supporters once aft
     assert.equal(calls.length, 1, 'combined list uses one SQL query');
     assert.match(calls[0].sql, /SELECT DISTINCT ps\.user_id/);
     assert.match(calls[0].sql, /ps\.selection_kind = 'representative'/);
+    assert.match(calls[0].sql, /JOIN users voter ON voter\.id = ps\.user_id/);
+    assert.match(calls[0].sql, /LEFT JOIN user_consents uc ON uc\.user_id = voter\.id/);
+    assert.match(calls[0].sql, /voter\.status = 'a'/);
+    assert.match(calls[0].sql, /COALESCE\(uc\.political_opinions_consent, voter\.political_opinions_consent, false\) IS TRUE/);
     assert.match(calls[0].sql, /'it\.provincial\.trento', 'it\.provincial\.bolzano'/);
     assert.match(calls[0].sql, /LEFT JOIN provincial_supporters provincial ON provincial\.user_id = u\.id/);
     assert.match(calls[0].sql, /OR provincial\.user_id IS NOT NULL/);
