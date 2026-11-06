@@ -34,10 +34,10 @@ function asTerritoryContext(value) {
 function officeAllowedByProvince(office, context) {
   if (!office) return false;
   if (!office.eligibleProvinceCodes?.length) return true;
-  // A province code alone is not proof of Italian residence. Explicitly
+  // A province code alone is not proof of Italian residence. Missing or
   // foreign country membership must never unlock an Italian provincial office.
   const countries = context?.[TERRITORY_SCOPES.COUNTRY] || [];
-  if (countries.length && !territoryMatchesScope(context, TERRITORY_SCOPES.COUNTRY, ['IT', 'Italia', 'Italy'])) return false;
+  if (!countries.length || !territoryMatchesScope(context, TERRITORY_SCOPES.COUNTRY, ['IT', 'Italia', 'Italy'])) return false;
   return territoryMatchesScope(context, TERRITORY_SCOPES.PROVINCE, office.eligibleProvinceCodes);
 }
 
