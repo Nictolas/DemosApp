@@ -113,7 +113,13 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
       console.warn('Spiegazione AI non pubblicata: risposta senza testo visibile');
       return null;
     }
-    if (spiegazione !== 'INFORMAZIONI_INSUFFICIENTI' && spiegazione.length <= 2000) {
+    // The provider can add punctuation, spaces or change letter case when
+    // returning the no-evidence sentinel. None of these are an explanation.
+    if (/^INFORMAZIONI[\\s_-]*INSUFFICIENTI[.!?]*$/iu.test(spiegazione)) {
+      console.warn('Spiegazione AI non pubblicata: evidenza documentale insufficiente');
+      return null;
+    }
+    if (spiegazione.length <= 2000) {
       console.log('Spiegazione AI parlamentare generata (solo testo documentato)');
       return spiegazione;
     }
