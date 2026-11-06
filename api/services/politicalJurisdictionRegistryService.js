@@ -196,6 +196,13 @@ function getOpinionGradeForOffice(value, context = {}) {
   return resolvePoliticalOffice(value, context)?.opinionGrade || null;
 }
 
+// The provincial councils reuse published C-grade IDs for matching, without
+// creating a universally selectable provincial opinion scope or new answers.
+function getMatchingOpinionGradeForOffice(value, context = {}) {
+  const office = resolvePoliticalOffice(value, context);
+  return office?.matchingOpinionGrade || office?.opinionGrade || null;
+}
+
 function getPodiumLevels({ adapterId = LEGACY_DEFAULT_ADAPTER_ID } = {}) {
   return [...new Set(adapterOffices(adapterId).map((office) => office.podiumLevel).filter(Boolean))];
 }
@@ -298,6 +305,7 @@ module.exports = {
   getSelectionFieldContract,
   getLegacySelectionFieldsForElectionType,
   getOpinionGradeForOffice,
+  getMatchingOpinionGradeForOffice,
   getPodiumLevels,
   getPodiumLevelByScope,
   buildOfficePodiumCaseSql,
