@@ -196,3 +196,43 @@ test('provincial representative is persisted canonically without a users column'
     else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
   }
 });
+
+test('combined supporter totals deduplicate provincial and regional selections', async () => {
+  const calls = [];
+  const db = { async query(sql, params) {
+    calls.push({ sql: String(sql), params });
+    assert.match(String(sql), /SELECT DISTINCT u\.id::text AS id/);
+    assert.match(String(sql), /FROM political_selections ps/);
+    assert.doesNotMatch(String(sql), /ps\.political_office_id =/);
+    // Deliberately duplicate a synthetic voter to prove the service contract
+    // also protects consumers if a future adapter stops deduplicating SQL rows.
+    return { rows: [{ id: 'voter-a' }, { id: 'voter-a' }, { id: 'voter-b' }] };
+  }};
+  const result = await loadSupporterUserIds(db, {
+    selectedUserId: 'councillor', kind: 'representative'
+  });
+  assert.equal(result.source, 'CANONICAL');
+  assert.deepEqual(result.userIds, ['voter-a', 'voter-b']);
+  assert.deepEqual(calls[0].params, ['councillor', 'representative']);
+  assert.equal(calls.length, 1);
+});
+
+test('combined legacy supporter fallback also returns unique voter identities', async () => {
+  let calls = 0;
+  const db = { async query(sql) {
+    calls++;
+    if (String(sql).includes('FROM political_selections ps')) {
+      const error = new Error('Synthetic canonical relation unavailable');
+      error.code = '42P01';
+      throw error;
+    }
+    assert.match(String(sql), /SELECT DISTINCT u\.id::text AS id/);
+    return { rows: [{ id: 'voter-a' }, { id: 'voter-a' }, { id: 'voter-b' }] };
+  }};
+  const result = await loadSupporterUserIds(db, {
+    selectedUserId: 'councillor', kind: 'representative'
+  });
+  assert.equal(result.source, 'LEGACY');
+  assert.deepEqual(result.userIds, ['voter-a', 'voter-b']);
+  assert.equal(calls, 2);
+});
