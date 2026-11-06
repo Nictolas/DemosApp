@@ -350,10 +350,26 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
       [D,'grazia:preferenza']
     );
     assert.equal(savedCooldown.rows.length,1,'cooldown recorded exactly once for account D');
-    assert.equal((await req('/api/grazia/vota','d','POST',{voti:[voteWinner.rows[0].nome]})).status,200,
+    const sameVote=await req('/api/grazia/vota','d','POST',{voti:[voteWinner.rows[0].nome]});
+    assert.equal(sameVote.status,200,
       'idempotent resubmission is permitted without modifying the vote');
-    assert.equal((await req('/api/grazia/vota','d','POST',{voti:[]})).status,409,
+    const cooldownAfterNoop=await pool.query(
+      'SELECT last_changed_at FROM preference_change_cooldowns WHERE user_id=$1 AND scope=$2',
+      [D,'grazia:preferenza']
+    );
+    assert.equal(cooldownAfterNoop.rows[0].last_changed_at.getTime(),
+      savedCooldown.rows[0].last_changed_at.getTime(),
+      'idempotent POST must not restart the 24-hour cooldown');
+    const rejectedClear=await req('/api/grazia/vota','d','POST',{voti:[]});
+    assert.equal(rejectedClear.status,409,
       'the same account cannot clear its new vote during the cooldown');
+    assert.equal(rejectedClear.json.error,'PREFERENCE_COOLDOWN',
+      'the rejected change must have a stable cooldown error code');
+    assert.ok(Number.isFinite(Date.parse(rejectedClear.json.unlockDate)),
+      'the client receives a parseable unlock date');
+    assert.equal(Date.parse(rejectedClear.json.unlockDate),
+      savedCooldown.rows[0].last_changed_at.getTime()+24*60*60*1000,
+      'the unlock date must match the committed cooldown timestamp');
     const afterRace=await pool.query('SELECT nome FROM voti_grazia WHERE userid=$1',[D]);
     assert.deepEqual(afterRace.rows.map(row=>row.nome),[voteWinner.rows[0].nome],
       'failed parallel request and blocked clear leave the committed vote intact');
