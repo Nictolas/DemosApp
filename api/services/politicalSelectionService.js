@@ -315,23 +315,39 @@ async function loadSupporterUserIds(db, {
   if (!selectedUserId) return { source: 'CANONICAL', strict: true, userIds: [] };
 
   const normalizedKind = kind == null ? null : normalizeSelectionKind(kind);
+  const requestedOffice = officeId ? resolvePoliticalOffice(officeId) : null;
+  if (officeId && !requestedOffice) return { source: 'CANONICAL', strict: true, userIds: [] };
+  // This shared lookup also feeds push and opinion-change notifications.
+  // No provincial audience may be resolved before its explicit GO, including
+  // when a caller asks for all supporters rather than a particular office.
+  const provincialReleased = isPoliticalOfficeVisible(resolvePoliticalOffice('it.provincial.trento'));
+  if (requestedOffice?.eligibleProvinceCodes?.length && !isPoliticalOfficeVisible(requestedOffice)) {
+    return { source: 'CAPABILITY', strict: true, userIds: [] };
+  }
   try {
     const params = [selectedUserId];
-    const where = ['ps.selected_user_id = $1', `u.status = 'a'`];
+    const where = [
+      'ps.selected_user_id = $1',
+      "u.status = 'a'",
+      'u.political_opinions_consent IS TRUE',
+      'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
+    ];
+    if (!provincialReleased) {
+      where.push("ps.political_office_id NOT IN ('it.provincial.trento', 'it.provincial.bolzano')");
+    }
     if (normalizedKind) {
       params.push(normalizedKind);
       where.push(`ps.selection_kind = $${params.length}`);
     }
-    if (officeId) {
-      const office = resolvePoliticalOffice(officeId);
-      if (!office) return { source: 'CANONICAL', strict: true, userIds: [] };
-      params.push(office.id);
-      where.push(`ps.political_office_id = $${params.length}`);
+    if (requestedOffice) {
+      params.push(requestedOffice.id);
+      where.push(`ps.political_office_id = ${params.length}`);
     }
     const result = await db.query(
       `SELECT DISTINCT u.id::text AS id
        FROM political_selections ps
        JOIN users u ON u.id = ps.user_id
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
        WHERE ${where.join(' AND ')}
        ORDER BY u.id::text`,
       params,
@@ -339,6 +355,11 @@ async function loadSupporterUserIds(db, {
     return { source: 'CANONICAL', strict: true, userIds: uniqueSupporterUserIds(result.rows) };
   } catch (error) {
     if (!isPoliticalSelectionSchemaError(error)) throw error;
+    // An absent canonical schema must not fall back to a provincial legacy
+    // column (none is authorized) or resurrect an unreleased audience.
+    if (requestedOffice?.eligibleProvinceCodes?.length) {
+      return { source: 'CAPABILITY', strict: true, userIds: [] };
+    }
   }
 
   const candidateFields = kind === 'representative' ? [] : getLegacySelectionDescriptors('candidate').map((item) => item.field);
@@ -361,6 +382,7 @@ async function loadSupporterUserIds(db, {
     `SELECT DISTINCT u.id::text AS id
      FROM users u
      WHERE u.status = 'a'
+       AND u.political_opinions_consent IS TRUE
        AND (${predicate})
      ORDER BY u.id::text`,
     [selectedUserId],
