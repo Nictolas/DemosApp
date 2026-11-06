@@ -341,7 +341,7 @@ async function loadSupporterUserIds(db, {
     }
     if (requestedOffice) {
       params.push(requestedOffice.id);
-      where.push(`ps.political_office_id = ${params.length}`);
+      where.push(`ps.political_office_id = $${params.length}`);
     }
     const result = await db.query(
       `SELECT DISTINCT u.id::text AS id
