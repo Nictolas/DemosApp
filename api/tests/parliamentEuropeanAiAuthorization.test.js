@@ -10,7 +10,7 @@ const uiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src
 
 function createApp() {
   const get = new Map(), post = new Map();
-  let syncCalls = 0, aiCalls = 0, detailCalls = 0;
+  let syncCalls = 0, aiCalls = 0, detailCalls = 0, listCalls = 0;
   const verifyToken = () => {}, requireAdmin = () => {};
   const router = {
     get(route, ...handlers) { get.set(route, handlers); },
@@ -21,7 +21,7 @@ function createApp() {
       case 'express': return { Router: () => router };
       case '../middleware/auth': return { verifyToken, requireAdmin };
       case '../services/parlamentoEuropeoService': return {
-        getUltimeVotazioni: async () => [],
+        getUltimeVotazioni: async () => { listCalls++; return []; },
         getDettagliVotazione: async () => {
           detailCalls++;
           return {
@@ -55,7 +55,7 @@ function createApp() {
     };
   }
   return { get, post, verifyToken, requireAdmin, makeRes,
-    counts: () => ({syncCalls, aiCalls, detailCalls}) };
+    counts: () => ({syncCalls, aiCalls, detailCalls, listCalls}) };
 }
 
 test('European Parliament mutating API paths require canonical Admin middleware', () => {
@@ -76,11 +76,18 @@ test('ordinary user cannot request a refresh that launches synchronization', asy
   await handler({query:{refresh:'true'},user:{isAdmin:false}},blocked);
   assert.equal(blocked.statusCode,403);
   assert.equal(app.counts().syncCalls,0);
+  assert.equal(app.counts().listCalls,0, '403 must occur before any parliamentary SQL read');
   const normal=app.makeRes();
   await handler({query:{limit:'1'},user:{isAdmin:false}},normal);
   assert.equal(normal.statusCode,200);
   assert.equal(normal.body.success,true);
   assert.equal(app.counts().syncCalls,0);
+  assert.equal(app.counts().listCalls,1);
+  const approved=app.makeRes();
+  await handler({query:{refresh:'true'},user:{isAdmin:true}},approved);
+  assert.equal(approved.statusCode,200);
+  assert.equal(app.counts().syncCalls,1, 'Admin can still request refresh');
+  assert.equal(app.counts().listCalls,3, 'Admin reads before and after refresh');
 });
 
 test('reading voting details never launches AI for an ordinary user', async () => {
@@ -112,4 +119,13 @@ test('European AI endpoints do not return or log provider stacks or raw errors',
   assert.doesNotMatch(routeSource, /\b(?:error|dbError|syncError|analisiError|analisiTimeoutError|votiError)\.(?:stack|message)\b/);
   assert.doesNotMatch(routeSource, /error:\s*error\.message/);
   assert.match(routeSource, /error: 'Errore interno'/);
+});
+
+
+test('European Parliament vote identifiers and titles are not printed in API logs', () => {
+  const logLines = routeSource.split('\n').filter(line => /console\.(?:log|warn|error)\(/.test(line));
+  const logs = logLines.join('\n');
+  assert.doesNotMatch(logs, /console\.(?:log|warn|error)\([^\n]*(?:decodedUri|votazione\.uri|nuovoTitolo)/);
+  assert.match(logs, /Richiesta dettagli votazione PE/);
+  assert.match(logs, /Titolo votazione PE aggiornato/);
 });
