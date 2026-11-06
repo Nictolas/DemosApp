@@ -32,6 +32,7 @@ test('Grazia clicks mutate immediately, never after a deferred callback or from 
     }
   }).outputText;
   const states=[];
+  const effects=[];
   let pointer=0;
   const actualMutations=[];
   const fakeReact={
@@ -42,7 +43,7 @@ test('Grazia clicks mutate immediately, never after a deferred callback or from 
         states[index]=typeof update==='function'?update(states[index]):update;
       }];
     },
-    useEffect:()=>{}
+    useEffect:callback=>{ effects.push(callback); }
   };
   const toast=()=>{};
   const dependencies={
@@ -68,7 +69,7 @@ test('Grazia clicks mutate immediately, never after a deferred callback or from 
   },{filename});
   const data={classifica:[{nome:'Synthetic approved subject'}],mieiVoti:[],blocco:{isBlocked:false}};
   const mutation={isPending:false,mutate:votes=>actualMutations.push(Array.from(votes))};
-  const render=()=>{pointer=0;return m.exports.useGraziaVoting(data,mutation)};
+  const render=()=>{pointer=0;effects.length=0;return m.exports.useGraziaVoting(data,mutation)};
   let hook=render();
   hook.updateField('nomeInput','Synthetic approved subject');
   hook=render();
@@ -86,4 +87,19 @@ test('Grazia clicks mutate immediately, never after a deferred callback or from 
   hook.confirmRemove();
   assert.deepEqual(actualMutations.at(-1),[]);
   assert.equal(actualMutations.length,4);
+
+  // After an optimistic toggle, a rejected POST must restore the original
+  // personal preference from the successful GET without another mutation.
+  hook=render();
+  hook.toggleSelezioneClassifica('Synthetic approved subject');
+  assert.deepEqual(Array.from(states[0].selectedVoti),['Synthetic approved subject']);
+  assert.equal(actualMutations.length,5);
+  mutation.isError=true; // simulate a cooldown/HTTP rejection
+  hook=render();
+  assert.equal(effects.length,2,'sync and failure rollback effects must be registered');
+  effects[1]();
+  hook=render();
+  assert.deepEqual(Array.from(hook.votingState.selectedVoti),[],
+    'after failure the UI must not show a preference that the server rejected');
+  assert.equal(actualMutations.length,5,'rollback must not send additional votes');
 });

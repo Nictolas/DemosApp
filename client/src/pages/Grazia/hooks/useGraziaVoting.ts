@@ -40,6 +40,18 @@ export const useGraziaVoting = (
     }
   }, [data]);
 
+  // The vote selection is shown optimistically while POST /api/grazia/vota
+  // runs. If the server rejects it (e.g. cooldown), restore the last confirmed
+  // personal choice instead of leaving a vote that was never saved on screen.
+  // This uses the existing GET result and does not make another database read.
+  useEffect(() => {
+    if (!saveVotiMutation.isError) return;
+    setVotingState(prev => ({
+      ...prev,
+      selectedVoti: Array.isArray(data?.mieiVoti) ? data.mieiVoti : []
+    }));
+  }, [saveVotiMutation.isError, data?.mieiVoti]);
+
   const updateField = (field: keyof GraziaVotingState, value: string | string[] | boolean) => {
     setVotingState(prev => ({
       ...prev,
