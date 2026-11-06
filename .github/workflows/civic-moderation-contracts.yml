@@ -41,6 +41,9 @@ on:
       - 'api/tests/publicApprovedSubjectPagination.pg.integration.test.js'
       - 'api/routes/attivisti.js'
       - 'api/routes/organizzazioni.js'
+      - 'api/services/publicDirectoryMemberProjection.js'
+      - 'api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js'
+      - 'api/tests/registeredDirectoryPagination.pg.integration.test.js'
       - 'api/tests/subjectProposalPublicMinimization.contract.test.js'
       - 'api/tests/publicDirectoryHttp.synthetic.test.js'
       - 'api/tests/approvedSubjectResumePrivacy.contract.test.js'
@@ -120,6 +123,8 @@ jobs:
         env:
           NODE_PATH: /tmp/demos-http-test/node_modules
         run: node api/tests/civicCatalogueRejectionHttp.synthetic.test.js
+      - name: Block unreviewed nested JSONB details in public directory responses
+        run: node --test api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js
       - name: Public directory privacy data-minimization contract
         run: node --test api/tests/subjectProposalPublicMinimization.contract.test.js
       - name: Anonymous public directory HTTP privacy (synthetic database)
