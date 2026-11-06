@@ -110,3 +110,17 @@ test('truncated or filtered Groq JSON never enters parliamentary analysis cache'
   assert.equal(insertCount, 3, 'Both failure modes attempt a single cache write');
   assert.equal(providerCalls, 7, 'Failed cache writes do not trigger provider retries');
 });
+
+
+test('Senate lookup and parliamentary cache diagnostics never log raw URIs or error details', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'services', 'leggeAnalysisService.js'), 'utf8'
+  );
+  const logLines = source.split('\n').filter(line => /console\.(?:log|warn|error)\(/.test(line));
+  assert.ok(logLines.length > 5, 'Check actual service logging, not an empty fixture');
+  const logs = logLines.join('\n');
+  assert.doesNotMatch(logs, /error\.(?:message|stack)|\berror\s*\)/);
+  assert.doesNotMatch(logs, /urlSenato|uriVotazione/);
+  assert.match(logs, /Consultazione fonte ufficiale Senato\.it non riuscita/);
+  assert.match(logs, /Analisi parlamentare recuperata dalla cache/);
+});
