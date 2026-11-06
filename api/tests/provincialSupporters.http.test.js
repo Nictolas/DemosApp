@@ -165,3 +165,30 @@ test('combined supporter API contains no debug logs of voter identifiers or exce
   assert.doesNotMatch(source, /console\.(?:log|warn|error)\s*\(/);
   assert.doesNotMatch(source, /details:\s*process\.env\.NODE_ENV/);
 });
+
+test('representative supporter API hides SQL failures in development mode', async () => {
+  const previousEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'development';
+  try {
+    await withIsolatedSupportersRoute(async (base, calls) => {
+      const response = await fetch(base + '/api/rappresentanti/sostenitori?sostenuto_id=subject');
+      assert.equal(response.status, 500);
+      const body = await response.json();
+      assert.equal(body.error, 'Errore interno del server');
+      assert.equal(Object.hasOwn(body, 'details'), false);
+      assert.doesNotMatch(JSON.stringify(body), /SYNTHETIC_PRIVATE_SQL_FAILURE/);
+      assert.equal(calls.length, 1);
+    }, { failQuery: true });
+  } finally {
+    if (previousEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousEnv;
+  }
+});
+
+test('representative supporter route never logs SQL exceptions or voter data', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'routes', 'rappresentanti-sostenitori.js'), 'utf8');
+  assert.doesNotMatch(source, /console\\.(?:log|warn|error)\\s*\\(/);
+  assert.doesNotMatch(source, /details:\\s*process\\.env\\.NODE_ENV/);
+});
