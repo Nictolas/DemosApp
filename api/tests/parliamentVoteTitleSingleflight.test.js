@@ -11,7 +11,7 @@ test('a vote retitled while Groq is running cannot reuse the previous explanatio
   const source = fs.readFileSync(path.join(__dirname, '../services/aiExplanationService.js'), 'utf8');
   const vote = {
     id: 523, titolo_votazione: 'Votazione finale A',
-    descrizione_votazione: 'Testo ufficiale fittizio lungo.', spiegazione: null
+    descrizione_votazione: 'Testo ufficiale fittizio lungo. '.repeat(6), spiegazione: null
   };
   let requests = 0;
   let releaseFirst;
@@ -54,7 +54,7 @@ test('a vote retitled while Groq is running cannot reuse the previous explanatio
       isGroqConfigured: () => true
     },
     './parliamentGroundedAnalysis': {
-      hasDocumentaryContext: () => true,
+      hasDocumentaryContext: value => typeof value === 'string' && value.trim().length >= 160,
       MAX_CONTEXT_CHARS: 9000
     },
     './parliamentFreeGroqBudget': {
@@ -94,7 +94,7 @@ test('a vote retitled while Groq is running cannot reuse the previous explanatio
   await firstStarted;
   // This ID now refers to a different, newly indexed vote.
   vote.titolo_votazione = 'Votazione finale B';
-  vote.descrizione_votazione = 'Nuovo testo ufficiale fittizio lungo.';
+  vote.descrizione_votazione = 'Nuovo testo ufficiale fittizio lungo. '.repeat(6);
   const current = service.generaSpiegazioneVotazione(
     vote.id, 'Votazione finale B', 'Nuovo testo ufficiale fittizio lungo.', 'Camera'
   );
