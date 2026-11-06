@@ -227,6 +227,9 @@ test('combined legacy supporter fallback also returns unique voter identities', 
       throw error;
     }
     assert.match(String(sql), /SELECT DISTINCT u\.id::text AS id/);
+    assert.match(String(sql), /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
+    assert.match(String(sql), /u\.political_opinions_consent IS TRUE/);
+    assert.match(String(sql), /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
     return { rows: [{ id: 'voter-a' }, { id: 'voter-a' }, { id: 'voter-b' }] };
   }};
   const result = await loadSupporterUserIds(db, {
