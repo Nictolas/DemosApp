@@ -381,8 +381,10 @@ async function loadSupporterUserIds(db, {
   const result = await db.query(
     `SELECT DISTINCT u.id::text AS id
      FROM users u
+     LEFT JOIN user_consents uc ON uc.user_id = u.id
      WHERE u.status = 'a'
        AND u.political_opinions_consent IS TRUE
+       AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
        AND (${predicate})
      ORDER BY u.id::text`,
     [selectedUserId],
