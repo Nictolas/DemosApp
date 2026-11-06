@@ -137,8 +137,14 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
 
   // Multiple active candidacy records for one person must not create
   // duplicate provincial choices. Preserve all non-provincial behaviour.
+  const seenCandidates = new Set();
   const subjects = office.eligibleProvinceCodes?.length
-    ? [...new Map(eligibleCandidates.map((row) => [String(row.id), row])).values()]
+    ? eligibleCandidates.filter((row) => {
+      const id = String(row.id);
+      if (seenCandidates.has(id)) return false;
+      seenCandidates.add(id);
+      return true;
+    })
     : eligibleCandidates;
 
   return {
@@ -213,8 +219,14 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
   // A provincial councillor can have multiple mandate records (including a
   // derived regional mandate). Show each person only once for the provincial
   // office; do not change the existing behaviour for other office types.
+  const seenRepresentatives = new Set();
   const subjects = office.eligibleProvinceCodes?.length
-    ? [...new Map(matched.map((row) => [String(row.id), row])).values()]
+    ? matched.filter((row) => {
+      const id = String(row.id);
+      if (seenRepresentatives.has(id)) return false;
+      seenRepresentatives.add(id);
+      return true;
+    })
     : matched;
   return {
     subjects,
