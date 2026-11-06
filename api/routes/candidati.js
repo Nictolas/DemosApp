@@ -214,7 +214,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const { grado_candidatura } = req.query;
     const userId = req.userId;
     
-    console.log('🔍 DEBUG /api/candidati/disponibili - Richiesta ricevuta:', { grado_candidatura, userId });
     
     if (!grado_candidatura) {
       return res.status(400).json({
@@ -233,10 +232,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const eligibility = await listEligibleCandidates(pool, userId, grado_candidatura);
     const candidati = eligibility.subjects;
     
-        console.log('🔍 DEBUG - Candidati trovati:', candidati.length);
-        candidati.forEach((candidato, index) => {
-          console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome} (${candidato.ruolo})`);
-        });
     
     const gradoDatabase = getMatchingOpinionGradeForOffice(grado_candidatura) || grado_candidatura;
 
@@ -248,12 +243,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     });
     const candidatiMappati = matching.matches.slice(0, 4);
 
-    console.log('🔍 DEBUG - Candidati finali matching:', candidatiMappati.map((candidato) => ({
-      id: candidato.id,
-      score: candidato.matching_score,
-      compatibilita: candidato.compatibilita_percentuale,
-      copertura: `${candidato.copertura_posizioni}/${candidato.copertura_totale}`
-    })));
 
     res.json({
       success: true,
@@ -264,7 +253,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare candidati:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
