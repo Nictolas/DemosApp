@@ -285,6 +285,7 @@ test('provincial councillor with overlapping mandate rows appears only once', as
   const result = await listEligibleRepresentatives(db, 'resident', 'it.provincial.trento');
   assert.equal(result.strict, true);
   assert.deepEqual(result.subjects.map((row) => row.id), ['councillor', 'another']);
+  assert.equal(result.subjects[0].mandate_id, 'provincial', 'retain the first eligible mandate, not the derived duplicate');
 });
 
 
@@ -306,4 +307,5 @@ test('provincial candidates with multiple active candidacies appear once per per
   const result = await listEligibleCandidates(db, 'resident', 'it.provincial.trento');
   assert.equal(result.strict, true);
   assert.deepEqual(result.subjects.map(row => row.id), ['candidate-a', 'candidate-b']);
+  assert.equal(result.subjects[0].candidacy_id, 'first', 'retain the first eligible candidacy, not the last duplicate');
 });
