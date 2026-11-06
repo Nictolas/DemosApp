@@ -15,6 +15,7 @@ const {
 } = require('../../services/politicalJurisdictionRegistryService');
 const {
   resolveSelectionContract,
+  isPoliticalSelectionWriteReleased,
   setPoliticalSelection,
 } = require('../../services/politicalSelectionService');
 
@@ -592,6 +593,9 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
     const contract = resolveSelectionContract({ kind, officeValue: officeId });
     if (!contract) {
       return res.status(400).json({ success: false, error: 'Selezione politica non valida' });
+    }
+    if (!isPoliticalSelectionWriteReleased(contract.office, selectedUserId)) {
+      return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
     }
 
     let selectedCandidacyId = null;
