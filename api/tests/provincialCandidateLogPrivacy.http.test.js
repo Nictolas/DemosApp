@@ -38,7 +38,7 @@ function isolate({ released = true, fail = false } = {}) {
     return { matches: [{ id: 'private-candidate', matching_score: 91, compatibilita_percentuale: 90 }] };
   };
   vm.runInNewContext(endpoint, {
-    router, verifyToken,
+    router, verifyToken, pool: {},
     resolvePoliticalOffice: () => ({ id: 'it.provincial.trento' }),
     isPoliticalOfficeVisible: () => released,
     listEligibleCandidates,
