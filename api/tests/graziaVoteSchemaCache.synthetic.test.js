@@ -221,3 +221,20 @@ test('deleted account cannot write a Grazia vote or cooldown from a stale authen
   assert.equal(state.writes.length,0);
   assert.ok(state.queries.some(x=>x.sql==='ROLLBACK'));
 });
+
+// DSAR privacy regression: an authenticated user's proposal-status endpoint
+// must not select nomination evidence, proposer identity or free-text notes.
+test('Grazia personal proposal status uses a narrow projection and private no-store response',()=>{
+  const match=source.match(/router\.get\('\/mia-proposta',\s*personalNoStore,\s*verifyToken,\s*async\s*\(req,\s*res\)\s*=>\s*\{([\s\S]*?)\n\}\);/);
+  assert.ok(match,'personal proposal status must remain authenticated and no-store');
+  const handler=match[1];
+  const query=handler.match(/SELECT\s+([\s\S]*?)\s+FROM\s+richieste_grazia\s+WHERE\s+utente_id\s*=\s*\$1/i);
+  assert.ok(query,'query must be scoped to authenticated proposer');
+  assert.match(handler,/\[req\.user\.id\]/,'proposer ID must come from authenticated request');
+  assert.match(query[1],/\bstatus\b/);
+  for(const privateField of ['nome','url_prova','utente_id','note','motivazione']){
+    assert.doesNotMatch(query[1],new RegExp('\\b'+privateField+'\\b','i'),
+      'personal status response must not include '+privateField);
+  }
+  assert.doesNotMatch(handler,/SELECT\s+\*/i,'no broad personal proposal SELECT');
+});
