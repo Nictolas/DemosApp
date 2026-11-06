@@ -38,8 +38,17 @@ function officeAllowedByProvince(office, context) {
   // A province code alone is not proof of Italian residence. Missing or
   // foreign country membership must never unlock an Italian provincial office.
   const countries = context?.[TERRITORY_SCOPES.COUNTRY] || [];
-  if (!countries.length || !territoryMatchesScope(context, TERRITORY_SCOPES.COUNTRY, ['IT', 'Italia', 'Italy'])) return false;
-  return territoryMatchesScope(context, TERRITORY_SCOPES.PROVINCE, office.eligibleProvinceCodes);
+  const provinces = context?.[TERRITORY_SCOPES.PROVINCE] || [];
+  const italianCountryCodes = new Set(['it', 'italia', 'italy']);
+  const eligibleProvinceCodes = new Set(
+    office.eligibleProvinceCodes.map((code) => String(code).trim().toLowerCase())
+  );
+  // Canonical and office-scoped memberships can coexist. A single matching
+  // IT/TN row must not override another active DE/BZ row for the same user.
+  // Accept equivalent aliases, but reject conflicting or missing residence.
+  return countries.length > 0 && provinces.length > 0 &&
+    countries.every((code) => italianCountryCodes.has(String(code).trim().toLowerCase())) &&
+    provinces.every((code) => eligibleProvinceCodes.has(String(code).trim().toLowerCase()));
 }
 
 function jurisdictionMatchesRepresentative(jurisdiction, grade, userOrContext) {
