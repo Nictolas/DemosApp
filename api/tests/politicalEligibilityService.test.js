@@ -166,13 +166,13 @@ test('eligibility queries do not require legacy users.avatar_config column', asy
 });
 
 test('directly elected provincial council selections are restricted to their province, not ordinary provinces', async () => {
-  assert.equal(jurisdictionMatchesRepresentative({province:'TN'}, 'it.provincial.trento', {provincia_residenza:'TN'}), true);
-  assert.equal(jurisdictionMatchesRepresentative({province:'Trento'}, 'it.provincial.trento', {provincia_residenza:'Trento'}), true);
-  assert.equal(jurisdictionMatchesRepresentative({province:'BZ'}, 'it.provincial.bolzano', {provincia_residenza:'BZ'}), true);
-  assert.equal(jurisdictionMatchesRepresentative({province:'TN'}, 'it.provincial.trento', {provincia_residenza:'PI'}), false);
-  assert.equal(jurisdictionMatchesRepresentative({province:'BZ'}, 'it.provincial.bolzano', {provincia_residenza:'TN'}), false);
-  assert.equal(jurisdictionMatchesRepresentative({province:'PI'}, 'it.provincial.trento', {provincia_residenza:'PI'}), false);
-  assert.equal(jurisdictionMatchesRepresentative({}, 'it.provincial.trento', {provincia_residenza:'TN'}), false);
+  assert.equal(jurisdictionMatchesRepresentative({province:'TN'}, 'it.provincial.trento', {paese_residenza:'IT',provincia_residenza:'TN'}), true);
+  assert.equal(jurisdictionMatchesRepresentative({province:'Trento'}, 'it.provincial.trento', {paese_residenza:'IT',provincia_residenza:'Trento'}), true);
+  assert.equal(jurisdictionMatchesRepresentative({province:'BZ'}, 'it.provincial.bolzano', {paese_residenza:'IT',provincia_residenza:'BZ'}), true);
+  assert.equal(jurisdictionMatchesRepresentative({province:'TN'}, 'it.provincial.trento', {paese_residenza:'IT',provincia_residenza:'PI'}), false);
+  assert.equal(jurisdictionMatchesRepresentative({province:'BZ'}, 'it.provincial.bolzano', {paese_residenza:'IT',provincia_residenza:'TN'}), false);
+  assert.equal(jurisdictionMatchesRepresentative({province:'PI'}, 'it.provincial.trento', {paese_residenza:'IT',provincia_residenza:'PI'}), false);
+  assert.equal(jurisdictionMatchesRepresentative({}, 'it.provincial.trento', {paese_residenza:'IT',provincia_residenza:'TN'}), false);
   assert.equal(jurisdictionMatchesRepresentative({province:'TN'}, 'it.provincial.trento', {}), false);
 
   const db = {async query(sql) {
@@ -308,4 +308,23 @@ test('provincial candidates with multiple active candidacies appear once per per
   assert.equal(result.strict, true);
   assert.deepEqual(result.subjects.map(row => row.id), ['candidate-a', 'candidate-b']);
   assert.equal(result.subjects[0].candidacy_id, 'first', 'retain the first eligible candidacy, not the last duplicate');
+});
+
+
+test('provincial offices fail closed when residence country is missing despite a matching province', async () => {
+  for (const [office, province] of [['it.provincial.trento', 'TN'], ['it.provincial.bolzano', 'BZ']]) {
+    assert.equal(jurisdictionMatchesRepresentative({ province }, office, { provincia_residenza: province }), false);
+    const db = { async query(sql) {
+      const q = String(sql);
+      if (q.includes('FROM user_political_territories')) throw missingTable();
+      if (q.includes('FROM users WHERE id = $1')) return { rows: [{ id: 'resident', provincia_residenza: province }] };
+      throw new Error('Missing country must not reach candidacy or mandate queries');
+    } };
+    for (const list of [listEligibleCandidates, listEligibleRepresentatives]) {
+      const result = await list(db, 'resident', office);
+      assert.equal(result.strict, true);
+      assert.equal(result.reason, 'OFFICE_OUTSIDE_USER_TERRITORY');
+      assert.deepEqual(result.subjects, []);
+    }
+  }
 });
