@@ -4,6 +4,7 @@ import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import "../SelectionGrid.css";
+import { ProvincialOfficeChoice } from "@/components/ProvincialOfficeChoice";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useRappresentantiData } from "./hooks/useRappresentantiData";
 import { useRappresentantiActions } from "./hooks/useRappresentantiActions";
@@ -61,6 +62,7 @@ export default function Rappresentanti() {
                 onOpenOpinioni={handleOpenOpinioniDialog}
               />
             ))}
+            <ProvincialOfficeChoice kind="representative" />
           </div>
         )}
       </div>
