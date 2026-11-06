@@ -52,6 +52,7 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
       "CREATE TABLE grazia_carcerati(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,nome text NOT NULL,attivo boolean NOT NULL DEFAULT true)",
       "CREATE UNIQUE INDEX grazia_carcerati_nome_key ON grazia_carcerati(lower(btrim(nome)))",
       "CREATE TABLE voti_grazia(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),userid uuid,nome text,timestamp timestamptz)",
+      "CREATE TABLE preference_change_cooldowns(user_id uuid NOT NULL,scope text NOT NULL,last_changed_at timestamptz NOT NULL,PRIMARY KEY(user_id,scope))",
       "CREATE TABLE notifiche_demos(id uuid PRIMARY KEY,id_utente uuid,titolo text,testo text,data_creazione timestamptz,data date)",
       "INSERT INTO users(id,is_admin,status) VALUES ('"+A+"',false,'a'),('"+B+"',false,'a'),('"+ADMIN+"',true,'a')",
       "INSERT INTO grazia_carcerati(nome,attivo) VALUES ('Persona sintetica già approvata',true)"
@@ -82,11 +83,21 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     require.cache[midPolitical]={id:midPolitical,filename:midPolitical,loaded:true,exports:{requirePoliticalConsent:pass}};
     require.cache[midCivic]={id:midCivic,filename:midCivic,loaded:true,exports:{requireVerifiedCivicIdentity:pass}};
     require.cache[midValidation]={id:midValidation,filename:midValidation,loaded:true,exports:{validateInput:()=>pass}};
+    // Most legacy scenarios use the existing synthetic stub. For account D,
+    // call the real cooldown service against disposable PG17 to verify that
+    // two concurrent POSTs cannot both pass a stale 24-hour check.
+    const genuineCooldown=require('../services/preferenceCooldownService');
     require.cache[midCooldown]={id:midCooldown,filename:midCooldown,loaded:true,exports:{
-      getPreferenceCooldown:async()=>({isBlocked:false,unlockDate:null}),
-      assertPreferenceChangeAllowed:async()=>{},
-      recordPreferenceChange:async()=>{},
-      sendCooldownError:()=>false
+      getPreferenceCooldown:(db,options)=>options?.userId===D
+        ? genuineCooldown.getPreferenceCooldown(db,options)
+        : Promise.resolve({isBlocked:false,unlockDate:null}),
+      assertPreferenceChangeAllowed:(db,options)=>options?.userId===D
+        ? genuineCooldown.assertPreferenceChangeAllowed(db,options)
+        : Promise.resolve(),
+      recordPreferenceChange:(db,options)=>options?.userId===D
+        ? genuineCooldown.recordPreferenceChange(db,options)
+        : Promise.resolve(),
+      sendCooldownError:genuineCooldown.sendCooldownError
     }};
     const app=express();app.use(express.json());app.use('/api/grazia',require('../routes/grazia'));
     server=http.createServer(app);
@@ -316,6 +327,37 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     // Two distinct accounts racing on the same canonical subject must
     // produce exactly one pending request, never two competing moderators.
     await pool.query('INSERT INTO users(id,is_admin,status) VALUES ($1,false,$3),($2,false,$3)',[C,D,'a']);
+
+    // Real disposable PG17 race: two different approved votes from one
+    // account must serialize. Exactly one commits; the loser receives the
+    // 24-hour cooldown rather than overwriting the winner. Use the genuine
+    // cooldown service only for synthetic account D in this integration test.
+    const raceCandidates=['Voto simultaneo sintetico A','Voto simultaneo sintetico B'];
+    for(const name of raceCandidates){
+      await pool.query('INSERT INTO grazia_carcerati(nome,attivo) VALUES($1,true)',[name]);
+    }
+    const simultaneousVotes=await Promise.all(raceCandidates.map(name=>
+      req('/api/grazia/vota','d','POST',{voti:[name]})
+    ));
+    assert.deepEqual(simultaneousVotes.map(x=>x.status).sort((x,y)=>x-y),[200,409],
+      'only one concurrent vote can pass the real 24-hour cooldown');
+    const voteWinner=await pool.query('SELECT nome FROM voti_grazia WHERE userid=$1',[D]);
+    assert.equal(voteWinner.rows.length,1,'one durable personal preference');
+    assert.ok(raceCandidates.includes(voteWinner.rows[0].nome),
+      'the winning preference matches one synthetic request');
+    const savedCooldown=await pool.query(
+      'SELECT last_changed_at FROM preference_change_cooldowns WHERE user_id=$1 AND scope=$2',
+      [D,'grazia:preferenza']
+    );
+    assert.equal(savedCooldown.rows.length,1,'cooldown recorded exactly once for account D');
+    assert.equal((await req('/api/grazia/vota','d','POST',{voti:[voteWinner.rows[0].nome]})).status,200,
+      'idempotent resubmission is permitted without modifying the vote');
+    assert.equal((await req('/api/grazia/vota','d','POST',{voti:[]})).status,409,
+      'the same account cannot clear its new vote during the cooldown');
+    const afterRace=await pool.query('SELECT nome FROM voti_grazia WHERE userid=$1',[D]);
+    assert.deepEqual(afterRace.rows.map(row=>row.nome),[voteWinner.rows[0].nome],
+      'failed parallel request and blocked clear leave the committed vote intact');
+
     const firstName='Persona sintetica con  doppio spazio';
     const sameName='  Persona sintetica con doppio spazio  ';
     const simultaneous=await Promise.all([
