@@ -93,3 +93,26 @@ test('only explicit GO can expose autonomous councils, not an ordinary province'
     else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prev;
   }
 });
+
+test('provincial release gate rejects ambiguous environment values while preserving erasure', () => {
+  const { isPoliticalSelectionWriteReleased } = require('../services/politicalSelectionService');
+  const prev = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  try {
+    for (const value of ['TRUE', '1', 'yes', ' true ', 'false', '']) {
+      process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = value;
+      for (const officeId of ['it.provincial.trento', 'it.provincial.bolzano']) {
+        const office = resolvePoliticalOffice(officeId);
+        assert.equal(isPoliticalOfficeVisible(office), false, value + ': ' + officeId);
+        assert.equal(isPoliticalSelectionWriteReleased(office, 'synthetic-choice'), false, value + ': ' + officeId);
+        assert.equal(isPoliticalSelectionWriteReleased(office, null), true, value + ': erasure ' + officeId);
+      }
+    }
+    process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+    for (const officeId of ['it.provincial.trento', 'it.provincial.bolzano']) {
+      assert.equal(isPoliticalSelectionWriteReleased(resolvePoliticalOffice(officeId), 'synthetic-choice'), true);
+    }
+  } finally {
+    if (prev === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prev;
+  }
+});
