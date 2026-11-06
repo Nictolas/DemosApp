@@ -44,9 +44,6 @@ if (isGroqConfigured()) {
 async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) {
   if (!aiClient) {
     console.error('❌ Nessuna API AI configurata, impossibile generare spiegazione');
-    console.error(`❌ GROQ_API_KEY presente: ${!!process.env.GROQ_API_KEY}`);
-    console.error(`❌ aiProvider: ${aiProvider}`);
-    console.error(`❌ aiClient: ${aiClient ? 'configurato' : 'null'}`);
     throw new Error('Spiegazione AI non disponibile: controlla GROQ_API_KEY, GROQ_MODEL e il piano Groq Free. Nessun fallback a pagamento.');
   }
 
@@ -324,7 +321,7 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
     );
 
     if (existingResult.rows.length === 0) {
-      console.warn(`⚠️ Votazione ${votazioneId} non trovata`);
+      console.warn('Votazione parlamentare non trovata');
       return null;
     }
 
@@ -337,7 +334,7 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
 
     // Se esiste già una spiegazione, non rigenerarla
     if (existingResult.rows[0].spiegazione && existingResult.rows[0].spiegazione.trim() !== '') {
-      console.log(`ℹ️ Spiegazione già esistente per votazione ${votazioneId}, skip generazione`);
+      console.log('Spiegazione parlamentare già esistente, generazione saltata');
       return existingResult.rows[0].spiegazione;
     }
 
@@ -365,7 +362,7 @@ async function generaSpiegazioneVotazioneUnaVolta(votazioneId, titoloVotazione, 
     return spiegazione;
   } catch (error) {
     console.error('Generazione spiegazione per votazione non riuscita:', classifyFreeGroqError(error));
-    // Rilancia l'errore per permettere all'endpoint di gestirlo e mostrare il messaggio dettagliato
+    // Rilancia l'errore: l'endpoint deve esporre soltanto messaggi generici
     throw error;
   }
 }
