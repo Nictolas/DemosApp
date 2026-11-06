@@ -18,7 +18,10 @@ function calendarMonthsClamped(isoDate, months) {
 
 function syntheticS4({received, extensionNotified, extensionReason, responseSent, delivered}) {
   const ordinary = calendarMonthsClamped(received, 1);
-  const extensionAccepted = Boolean(extensionReason && extensionNotified && extensionNotified <= ordinary);
+  // Reject impossible notification dates instead of silently accepting an ISO-like string.
+  if (extensionNotified != null) calendarMonthsClamped(extensionNotified, 0);
+  const hasReason = typeof extensionReason === 'string' && extensionReason.trim().length > 0;
+  const extensionAccepted = Boolean(hasReason && extensionNotified && extensionNotified >= received && extensionNotified <= ordinary);
   return {
     ordinary,
     deadline: extensionAccepted ? calendarMonthsClamped(received, 3) : ordinary,
@@ -40,10 +43,18 @@ test('S4 late or unreasoned extension is not treated as approved', () => {
   for (const invalid of [
     {extensionNotified:'2027-03-01',extensionReason:'synthetic complexity'},
     {extensionNotified:'2027-02-20',extensionReason:''},
+    {extensionNotified:'2027-02-20',extensionReason:'   '},
+    {extensionNotified:'2027-01-30',extensionReason:'synthetic complexity'},
   ]) {
     const result = syntheticS4({received:'2027-01-31',...invalid});
     assert.equal(result.extensionAccepted,false);
     assert.equal(result.deadline,'2027-02-28');
+  }
+});
+
+test('S4 malformed extension dates cannot silently approve a deadline extension', () => {
+  for (const extensionNotified of ['2027-02-00', '2027-02-30', '2027-2-1', 'not-a-date']) {
+    assert.throws(() => syntheticS4({received:'2027-01-31',extensionNotified,extensionReason:'synthetic complexity'}));
   }
 });
 
