@@ -110,6 +110,16 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
       const before=count;
       assert.equal((await fetch(origin+url+'?members_cursor=%2A')).status,400);
       assert.equal(count,before,'bad cursor rejected before SQL');
+      // Canonicalization must also be enforced by the actual HTTP routes,
+      // before a database read, not only by the isolated decoder unit test.
+      const canonicalCursor=a.members_next_cursor;
+      const malformedAliases=[canonicalCursor+'=',canonicalCursor+'*'];
+      for(const alias of malformedAliases){
+        const prior=count;
+        const rejected=await fetch(origin+url+'?members_paged=1&members_cursor='+encodeURIComponent(alias));
+        assert.equal(rejected.status,400,'noncanonical cursor must be rejected: '+url);
+        assert.equal(count,prior,'invalid cursor must not trigger SQL: '+url);
+      }
     }
     console.log('PG17_REGISTERED_DIRECTORY_KEYSET_PASS: categories 3 x 105 profiles; legacy 105 + modern 100/5');
   }finally{
