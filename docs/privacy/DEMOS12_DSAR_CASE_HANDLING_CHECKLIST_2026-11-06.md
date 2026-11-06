@@ -48,3 +48,9 @@ Questa mappa deriva da `api/routes/grazia.js` sul ramo Draft, non da una lettura
 - Il collaudo staging DEMOS10, Android fisico e l'autorizzazione al rilascio restano indipendenti e non vengono superati da questa procedura.
 
 **Gate:** NO-GO per DSAR-02..06 e rilascio. Questo file è una procedura proposta, non un registro contenente richieste reali, non una consulenza legale conclusiva e non una prova di esecuzione.
+
+## Evidenza tecnica S3 — cancellazione concorrente e limite della prova (06/11/2026)
+
+La PR Draft contiene una regressione sintetica PostgreSQL 17 con due account fittizi: la cancellazione dell'account A elimina preferenze Grazia, cooldown e notifiche personali, preservando i record dell'account B. Una seconda prova tiene una cancellazione aperta mentre arriva un POST di voto: il voto prende un lock sulla riga dell'account, attende la cancellazione e risponde 401 dopo il commit, senza ricreare voto o cooldown. Codice/test ai commit `8e811c8d76bbbbc36cf2e8fc1a1765cf670b9122`, `78a3bbdda9a8e2af1f7631e923df24bede3c335b`, `63cacdb3448aadc92d11fb95385a6d4cf0a9da46`. Sullo SHA finale sono passati 15/15 workflow pull_request, compreso PostgreSQL 17 temporaneo.
+
+**Interpretazione rigorosa:** il test S3 dimostra soltanto l'isolamento tecnico delle operazioni sintetiche esaminate. Non attesta un'istanza DSAR reale, la cancellazione di ogni possibile copia/backup/log, la retention lecita dello storico delle pubblicazioni, la verifica dell'identità o la comunicazione all'interessato. S3 procedurale e DSAR-02..06 restano NO-GO. Prima di chiudere una richiesta reale occorrono un inventario dei sistemi/backup interessati, una decisione DPO documentata sulla conservazione residua, la prova privata dell'azione autorizzata e una risposta inviata tramite canale verificato.
