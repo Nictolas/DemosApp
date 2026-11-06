@@ -10,7 +10,7 @@ const source=fs.readFileSync(path.join(__dirname,'../routes/grazia.js'),'utf8');
 
 function harness({idType='uuid',userColumn='userid',dateColumn='timestamp'}={}){
   const state={columns:{idType,userColumn,dateColumn},metadata:0,read:0,writes:[],connects:0,
-    privateInputs:[],cooldown:0,queries:[]};
+    privateInputs:[],cooldown:0,locks:0,queries:[]};
   const handlers=new Map();
   const user='11111111-1111-4111-8111-111111111111';
   const subject='Persona approvata sintetica';
@@ -19,9 +19,13 @@ function harness({idType='uuid',userColumn='userid',dateColumn='timestamp'}={}){
     {column_name:state.columns.userColumn,data_type:'uuid'},
     {column_name:state.columns.dateColumn,data_type:'timestamp with time zone'}
   ].filter(row=>row.data_type!=null);
-  async function query(statement,params=[]){
+  async function query(statement,params=[],source='pool'){
     const sql=String(statement);
-    state.queries.push({sql,params});
+    state.queries.push({sql,params,source});
+    if(sql.includes('pg_advisory_xact_lock')){
+      state.locks++;
+      return {rows:[{}]};
+    }
     if(sql.includes('FROM information_schema.columns')){
       state.metadata++;
       return {rows:tableRows()};
@@ -51,7 +55,10 @@ function harness({idType='uuid',userColumn='userid',dateColumn='timestamp'}={}){
     }
     throw new Error('Unexpected synthetic SQL: '+sql);
   }
-  const pool={query,async connect(){state.connects++;return {query,release(){}}}};
+  const pool={query:(sql,params)=>query(sql,params,'pool'),async connect(){
+    state.connects++;
+    return {query:(sql,params)=>query(sql,params,'transaction'),release(){}};
+  }};
   const pass=(_req,_res,next)=>next();
   const modules={
     express:{Router:()=>({
@@ -68,7 +75,8 @@ function harness({idType='uuid',userColumn='userid',dateColumn='timestamp'}={}){
     '../utils/thirdPartyNominationGate':{isNominationWriteEnabled:()=>false,isGraziaNominationWriteEnabled:()=>false,rejectUnavailableNomination:()=>{}},
     '../services/preferenceCooldownService':{
       getPreferenceCooldown:async()=>({isBlocked:false}),
-      assertPreferenceChangeAllowed:async(_db,ctx)=>{
+      assertPreferenceChangeAllowed:async(db,ctx)=>{
+        assert.notEqual(db,pool,'cooldown must be checked inside locked transaction');
         state.cooldown++;state.privateInputs.push(ctx);
       },
       recordPreferenceChange:async()=>{},
@@ -143,7 +151,7 @@ test('renamed schema clears stale cache after 42703 and re-probes next request',
   assert.equal((await vote()).statusCode,200);
   assert.equal(state.metadata,2,'stale columns are rechecked after 42703');
   assert.equal(state.writes.filter(x=>x.kind==='insert').length,2);
-  assert.equal(state.connects,2,'failed stale select never starts a write transaction');
+  assert.equal(state.connects,3,'stale SELECT fails inside its transaction before any write');
 });
 
 test('malformed Grazia voting payload cannot silently clear a personal choice or query SQL',async()=>{
@@ -170,4 +178,24 @@ test('malformed Grazia voting payload cannot silently clear a personal choice or
   assert.equal(valid.state.writes.length,0,'no deletion when no vote exists');
   assert.equal((await valid.vote(['Persona approvata sintetica'])).statusCode,200,
     'valid approved names remain accepted');
+});
+
+test('Grazia vote checks personal state and cooldown inside the same serialized transaction',async()=>{
+  const {vote,state}=harness();
+  const res=await vote();
+  assert.equal(res.statusCode,200);
+  const idx=needle=>state.queries.findIndex(q=>q.sql.includes(needle));
+  const begin=idx('BEGIN');
+  const lock=idx('pg_advisory_xact_lock');
+  const privateRead=idx('FROM voti_grazia');
+  const approved=idx('FOR SHARE');
+  const deletion=idx('DELETE FROM voti_grazia');
+  const commit=idx('COMMIT');
+  assert.ok(begin>=0 && lock>begin && privateRead>lock && approved>privateRead &&
+    deletion>approved && commit>deletion, 'no stale preflight outside the user lock');
+  assert.equal(state.locks,1);
+  assert.equal(state.queries.find(q=>q.sql.includes('FROM voti_grazia')).source,'transaction');
+  assert.equal(state.queries.find(q=>q.sql.includes('FOR SHARE')).source,'transaction');
+  assert.equal(state.cooldown,1);
+  assert.equal(state.writes.filter(x=>x.kind==='insert').length,1);
 });
