@@ -26,7 +26,8 @@ function syntheticS4({received, extensionNotified, extensionReason, responseSent
     ordinary,
     deadline: extensionAccepted ? calendarMonthsClamped(received, 3) : ordinary,
     extensionAccepted,
-    deliveryConfirmed: Boolean(responseSent && delivered),
+    // In this synthetic contract, untyped strings/numbers are not evidence of delivery.
+    deliveryConfirmed: responseSent === true && delivered === true,
   };
 }
 
@@ -67,4 +68,14 @@ test('S4 malformed dates are rejected before computing deadlines', () => {
   for (const received of ['2027/01/31', '2027-2-3', '2027-02-30', 'not-a-date']) {
     assert.throws(() => syntheticS4({received}), 'no deadline for malformed dates');
   }
+});
+
+
+test('S4 confirmation requires actual boolean sent and delivered flags', () => {
+  const sample = {received:'2027-01-31'};
+  assert.equal(syntheticS4({...sample,responseSent:false,delivered:true}).deliveryConfirmed,false);
+  assert.equal(syntheticS4({...sample,responseSent:'false',delivered:true}).deliveryConfirmed,false);
+  assert.equal(syntheticS4({...sample,responseSent:true,delivered:'false'}).deliveryConfirmed,false);
+  assert.equal(syntheticS4({...sample,responseSent:true,delivered:1}).deliveryConfirmed,false);
+  assert.equal(syntheticS4({...sample,responseSent:true,delivered:true}).deliveryConfirmed,true);
 });
