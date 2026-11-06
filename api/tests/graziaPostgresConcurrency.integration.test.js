@@ -575,6 +575,28 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
       [B]
     );
 
+    // S3 synthetic account erasure: verify every personal Grazia surface,
+    // not just proposer links. Account B is a negative control: deletion of
+    // account A must not remove B's vote, cooldown or private notification.
+    // This runs only against the strictly guarded, disposable PG17 CI DB.
+    const privateErasureName='Preferenza Grazia sintetica da cancellare';
+    const privateOtherName='Preferenza Grazia sintetica da conservare';
+    await pool.query(
+      'INSERT INTO voti_grazia(userid,nome,timestamp) VALUES($1,$2,NOW()),($3,$4,NOW())',
+      [A,privateErasureName,B,privateOtherName]
+    );
+    await pool.query(
+      "INSERT INTO preference_change_cooldowns(user_id,scope,last_changed_at) VALUES($1,'grazia:preferenza',NOW()),($2,'grazia:preferenza',NOW())",
+      [A,B]
+    );
+    await pool.query(
+      "INSERT INTO notifiche_demos(id,id_utente,titolo,testo,data_creazione,data) VALUES(gen_random_uuid(),$1,'Avviso sintetico privato','Senza dati reali',NOW(),CURRENT_DATE),(gen_random_uuid(),$2,'Avviso sintetico privato','Senza dati reali',NOW(),CURRENT_DATE)",
+      [A,B]
+    );
+    assert.equal((await pool.query('SELECT COUNT(*)::integer n FROM voti_grazia WHERE userid=$1 AND nome=$2',[A,privateErasureName])).rows[0].n,1);
+    assert.equal((await pool.query("SELECT COUNT(*)::integer n FROM preference_change_cooldowns WHERE user_id=$1 AND scope='grazia:preferenza'",[A])).rows[0].n,1);
+    assert.equal((await pool.query("SELECT COUNT(*)::integer n FROM notifiche_demos WHERE id_utente=$1 AND titolo='Avviso sintetico privato'",[A])).rows[0].n,1);
+
     // The same canonical service used by DELETE /api/user/delete-account.
     const deletionClient=await pool.connect();
     let deletedResult;
@@ -590,6 +612,21 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     }
     assert.equal(deletedResult.userDeleted,1);
     assert.equal((await pool.query('SELECT count(*)::integer n FROM users WHERE id=$1',[A])).rows[0].n,0);
+
+    // No personal Grazia vote, cooldown or inbox row must remain linked to
+    // account A. B's corresponding synthetic records must remain untouched.
+    assert.equal((await pool.query('SELECT COUNT(*)::integer n FROM voti_grazia WHERE userid=$1',[A])).rows[0].n,0,
+      'all personal Grazia votes removed with the deleted account');
+    assert.equal((await pool.query("SELECT COUNT(*)::integer n FROM preference_change_cooldowns WHERE user_id=$1 AND scope='grazia:preferenza'",[A])).rows[0].n,0,
+      'Grazia cooldown identifier removed with the deleted account');
+    assert.equal((await pool.query("SELECT COUNT(*)::integer n FROM notifiche_demos WHERE id_utente=$1 AND titolo='Avviso sintetico privato'",[A])).rows[0].n,0,
+      'private notification removed with the deleted account');
+    assert.equal((await pool.query('SELECT COUNT(*)::integer n FROM voti_grazia WHERE userid=$1 AND nome=$2',[B,privateOtherName])).rows[0].n,1,
+      'unrelated account B retains its private Grazia vote');
+    assert.equal((await pool.query("SELECT COUNT(*)::integer n FROM preference_change_cooldowns WHERE user_id=$1 AND scope='grazia:preferenza'",[B])).rows[0].n,1,
+      'unrelated account B retains its cooldown');
+    assert.equal((await pool.query("SELECT COUNT(*)::integer n FROM notifiche_demos WHERE id_utente=$1 AND titolo='Avviso sintetico privato'",[B])).rows[0].n,1,
+      'unrelated account B retains its notification');
     assert.equal((await pool.query('SELECT count(*)::integer n FROM subject_proposals WHERE proposer_user_id=$1',[A])).rows[0].n,0);
     for(const status of ['pending','rejected']){
       assert.equal((await pool.query('SELECT count(*)::integer n FROM subject_proposals WHERE id=$1',[saved[status]])).rows[0].n,0,
