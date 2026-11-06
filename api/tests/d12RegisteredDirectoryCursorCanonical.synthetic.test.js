@@ -11,7 +11,8 @@ test('registered directory cursor requires canonical base64url encoding',()=>{
     'noncanonical trailing bits must not alias the same cursor');
   assert.equal(decodeRegisteredCursor(canonical+'='),false);
   assert.equal(decodeRegisteredCursor(canonical.replace(/.$/,'*')),false);
-  assert.equal(decodeRegisteredCursor(''),null);
+  assert.equal(decodeRegisteredCursor(''),false);
+  assert.equal(decodeRegisteredCursor(undefined),null);
   assert.equal(decodeRegisteredCursor(null),null);
   // Valid base64url is not sufficient: malformed tuples must fail closed.
   for(const tuple of [[-1,id],[2147483648,id],[1,'not-a-uuid'],['1',id],
