@@ -206,7 +206,7 @@ test('provincial selection read only exposes the authenticated account and remai
 
       const current = await fetch(base + url);
       assert.equal(current.status, 200);
-      assert.equal(current.headers.get('cache-control'), 'no-store');
+      assert.equal(current.headers.get('cache-control'), 'private, no-store, max-age=0');
       assert.deepEqual((await current.json()).selection, {
         kind: 'representative', officeId: 'it.provincial.trento',
         selectedUserId: 'official-1',
