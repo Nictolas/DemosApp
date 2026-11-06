@@ -29,6 +29,8 @@ on:
       - 'api/tests/provincialOpinionMatching.contract.test.js'
       - 'api/tests/provincialReadRelease.http.test.js'
       - 'api/tests/provincialFrontendWiring.smoke.test.js'
+      - 'api/tests/provincialCandidateLogPrivacy.http.test.js'
+      - 'api/tests/provincialRepresentativeLogPrivacy.test.js'
       - 'client/src/lib/provincialSelection.ts'
       - 'client/src/components/ProvincialOfficeChoice.tsx'
       - 'client/src/components/ViewOpinioniDialog.tsx'
@@ -84,4 +86,6 @@ jobs:
             api/tests/provincialConsentOpinionRead.integration.test.js \
             api/tests/provincialOpinionMatching.contract.test.js \
             api/tests/provincialReadRelease.http.test.js \
-            api/tests/provincialFrontendWiring.smoke.test.js
+            api/tests/provincialFrontendWiring.smoke.test.js \
+            api/tests/provincialCandidateLogPrivacy.http.test.js \
+            api/tests/provincialRepresentativeLogPrivacy.test.js
