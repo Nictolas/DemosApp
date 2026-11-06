@@ -326,10 +326,11 @@ async function loadSupporterUserIds(db, {
   }
   try {
     const params = [selectedUserId];
+    // Consent may be stored in user_consents while the legacy users flag is
+    // false. The authoritative COALESCE must be the only consent predicate.
     const where = [
       'ps.selected_user_id = $1',
       "u.status = 'a'",
-      'u.political_opinions_consent IS TRUE',
       'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
     ];
     if (!provincialReleased) {
@@ -383,7 +384,6 @@ async function loadSupporterUserIds(db, {
      FROM users u
      LEFT JOIN user_consents uc ON uc.user_id = u.id
      WHERE u.status = 'a'
-       AND u.political_opinions_consent IS TRUE
        AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE
        AND (${predicate})
      ORDER BY u.id::text`,
