@@ -59,6 +59,28 @@ const POLITICAL_OFFICES = Object.freeze({
     opinionGrade: 'CO', podiumLevel: 'COMUNE',
   }),
 
+
+  // Directly elected provincial councils, distinct from ordinary Italian
+  // provinces (which elect their councils indirectly). These canonical offices
+  // have NO new users.* compatibility column and NO independent election
+  // contest / UI until jurisdiction and matching release gates are verified.
+  'it.provincial.trento': Object.freeze({
+    id: 'it.provincial.trento', jurisdictionId: 'it', adapterId: 'it',
+    officeKind: 'legislative', label: 'Consiglio della Provincia autonoma di Trento',
+    aliases: Object.freeze(['PROVINCIA_AUTONOMA_TRENTO', 'CONSIGLIO_PROVINCIALE_TRENTO']),
+    residenceScope: TERRITORY_SCOPES.PROVINCE,
+    eligibleProvinceCodes: Object.freeze(['TN', 'Trento']),
+    derivedRegionalOfficeId: 'it.regional',
+  }),
+  'it.provincial.bolzano': Object.freeze({
+    id: 'it.provincial.bolzano', jurisdictionId: 'it', adapterId: 'it',
+    officeKind: 'legislative', label: 'Consiglio della Provincia autonoma di Bolzano',
+    aliases: Object.freeze(['PROVINCIA_AUTONOMA_BOLZANO', 'CONSIGLIO_PROVINCIALE_BOLZANO']),
+    residenceScope: TERRITORY_SCOPES.PROVINCE,
+    eligibleProvinceCodes: Object.freeze(['BZ', 'Bolzano', 'Bozen']),
+    derivedRegionalOfficeId: 'it.regional',
+  }),
+
   'us.president': Object.freeze({
     id: 'us.president', jurisdictionId: 'us', adapterId: 'us', officeKind: 'executive', label: 'President of the United States',
     aliases: Object.freeze(['PRESIDENT', 'PRESIDENTIAL', 'USPRESIDENT']), residenceScope: TERRITORY_SCOPES.COUNTRY, opinionGrade: 'US_FED',
