@@ -171,3 +171,53 @@ test('provincial selection cannot bypass six-opinion completion by spoofing Podi
     else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
   }
 });
+
+test('provincial selection read only exposes the authenticated account and remains closed before GO', async () => {
+  const previous = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  const queries = [];
+  const pool = {
+    async query(sql, params) {
+      queries.push({ sql: String(sql), params });
+      if (!String(sql).includes('FROM political_selections ps')) throw new Error('Unexpected query');
+      return { rows: [{
+        user_id: 'u1', selection_kind: 'representative', jurisdiction_id: 'it',
+        political_office_id: 'it.provincial.trento', selected_user_id: 'official-1',
+        source: 'matching', context: {},
+      }] };
+    },
+  };
+  try {
+    delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    await withProfile(pool, async (base) => {
+      const url = '/api/users/u1/provincial-selection?kind=representative&officeId=it.provincial.trento';
+      const unreleased = await fetch(base + url);
+      assert.equal(unreleased.status, 409);
+      assert.equal((await unreleased.json()).error, 'PROVINCIAL_SELECTION_NOT_RELEASED');
+      assert.equal(queries.length, 0);
+
+      process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+      const other = await fetch(base + url.replace('/u1/', '/another-user/'));
+      assert.equal(other.status, 403);
+      assert.equal(queries.length, 0);
+
+      const invalidOffice = await fetch(base + url.replace('it.provincial.trento', 'it.camera'));
+      assert.equal(invalidOffice.status, 400);
+      assert.equal(queries.length, 0);
+
+      const current = await fetch(base + url);
+      assert.equal(current.status, 200);
+      assert.equal(current.headers.get('cache-control'), 'no-store');
+      assert.deepEqual((await current.json()).selection, {
+        kind: 'representative', officeId: 'it.provincial.trento',
+        selectedUserId: 'official-1',
+      });
+      assert.equal(queries.length, 1);
+      assert.equal(queries[0].params[0], 'u1');
+      assert.equal(queries[0].params[1], 'representative');
+      assert.ok(queries[0].sql.includes('ps.user_id = $1'));
+    });
+  } finally {
+    if (previous === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = previous;
+  }
+});
