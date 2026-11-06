@@ -95,6 +95,27 @@ test('no-evidence JSON sentinel is never accepted as a legislative explanation',
     payload.spiegazione_generale);
 });
 
+test('structured legislative impacts cannot contain the no-evidence sentinel', () => {
+  const payload = {
+    spiegazione_generale: 'Il documento disciplina la misura indicata.',
+    effetti_positivi: '',
+    effetti_negativi: ''
+  };
+  for (const key of ['effetti_positivi', 'effetti_negativi']) {
+    for (const sentinel of [
+      'INFORMAZIONI_INSUFFICIENTI',
+      ' informazioni insufficienti. ',
+      'Informazioni-insufficienti!'
+    ]) {
+      payload[key] = sentinel;
+      assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)), null);
+      payload[key] = '';
+    }
+  }
+  assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)).spiegazione_generale,
+    payload.spiegazione_generale);
+});
+
 test('full legislative analysis has exactly one gated provider call and no handwritten 1718 fallback', () => {
   assert.equal((lawSource.match(/requestFreeGroq\s*\(/g) || []).length, 1);
   assert.equal((lawSource.match(/chat\.completions\.create\s*\(/g) || []).length, 0);
