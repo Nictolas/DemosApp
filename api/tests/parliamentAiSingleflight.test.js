@@ -33,6 +33,30 @@ test('different votes are not incorrectly merged', async () => {
   assert.deepEqual(a, ['a', 'b']);
 });
 
+test('a reused vote id with a different title must not share a stale in-flight explanation', async () => {
+  const once = createSingleflight();
+  let releaseOld;
+  let oldCalls = 0;
+  const pendingOld = new Promise(resolve => { releaseOld = resolve; });
+  const oldKey = JSON.stringify([523, 'Votazione finale A']);
+  const newKey = JSON.stringify([523, 'Votazione finale B']);
+
+  const old = once(oldKey, async () => {
+    oldCalls++;
+    await pendingOld;
+    return 'Testo relativo alla vecchia votazione';
+  });
+  const sameOld = once(oldKey, async () => 'Non deve partire una seconda chiamata');
+  assert.strictEqual(old, sameOld, 'Identical vote id and title must share work');
+
+  const current = once(newKey, async () => 'Testo relativo alla nuova votazione');
+  assert.equal(await current, 'Testo relativo alla nuova votazione',
+    'A changed vote title must not reuse the previous pending explanation');
+  releaseOld();
+  assert.equal(await old, 'Testo relativo alla vecchia votazione');
+  assert.equal(oldCalls, 1);
+});
+
 test('failure does not permanently block a vote', async () => {
   const once = createSingleflight();
   let calls = 0;
@@ -51,7 +75,8 @@ test('both services deduplicate in-flight calls per voting identifier', () => {
   const law = fs.readFileSync(path.join(__dirname, '../services/leggeAnalysisService.js'), 'utf8');
   const summary = fs.readFileSync(path.join(__dirname, '../services/aiExplanationService.js'), 'utf8');
   assert.match(law, /singleflightAnalisi\(uriVotazione, \(\) => generaAnalisiLeggeUnaVolta\(/);
-  assert.match(summary, /singleflightSpiegazione\(votazioneId, \(\) =>/);
+  assert.match(summary, /const voteIdentity = JSON\.stringify\(\[votazioneId, titoloVotazione\]\)/);
+  assert.match(summary, /singleflightSpiegazione\(voteIdentity, \(\) =>/);
 });
 
 test('European Parliament analysis calls respect URI-first object-second signature', () => {
