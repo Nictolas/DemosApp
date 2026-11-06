@@ -172,3 +172,12 @@ test('insufficient-evidence sentinel is never published when punctuated or refor
   ), 'La proposta disciplina il procedimento descritto nel documento.');
   assert.equal(h.updates, 1, 'Valid text still saves normally');
 });
+
+test('explanation service logs do not disclose vote identifiers or Groq configuration diagnostics', () => {
+  assert.doesNotMatch(sourceForLogSafety(), /console\.(?:log|warn|error)\(\s*`[^`]*\$\{votazioneId\}/);
+  assert.doesNotMatch(sourceForLogSafety(), /console\.(?:log|warn|error)\(\s*`[^`]*\$\{(?:aiProvider|aiClient|!!process\.env\.GROQ_API_KEY)\}/);
+});
+
+function sourceForLogSafety() {
+  return fs.readFileSync(path.join(__dirname, '..', 'services', 'aiExplanationService.js'), 'utf8');
+}
