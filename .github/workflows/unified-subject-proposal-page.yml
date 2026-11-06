@@ -37,6 +37,8 @@ on:
       - 'scripts/test-registered-directory-pagination-browser.cjs'
       - 'api/services/registeredDirectoryPage.js'
       - 'api/tests/registeredDirectoryPagination.pg.integration.test.js'
+      - 'api/services/publicDirectoryMemberProjection.js'
+      - 'api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js'
       - 'client/src/pages/Organizzazioni/index.tsx'
       - 'api/tests/unifiedSubjectProposalNavigation.contract.test.js'
       - 'api/tests/subjectProposalSingleQueue.synthetic.test.js'
@@ -60,6 +62,8 @@ jobs:
         run: node --check api/routes/subject-proposals.js
       - name: Test five routes, active activist directory, no personal debug logs
         run: node --test api/tests/unifiedSubjectProposalNavigation.contract.test.js api/tests/subjectProposalSingleQueue.synthetic.test.js api/tests/mountedActivistsPublicDirectory.contract.test.js
+      - name: Block nested private profile fields in public directories
+        run: node --test api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js
       - name: Enforce one mounted Attivisti implementation
         run: node --test api/tests/singleMountedActivistsDirectory.contract.test.js
       - name: Preserve main application routes while integrating DEMOS12
