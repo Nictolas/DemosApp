@@ -36,3 +36,33 @@ test('provincial mandate list never substitutes a derived regional mandate', asy
   assert.deepEqual(result.subjects.map((row) => row.id), ['same-person']);
   assert.equal(result.subjects[0].mandate_id, 'direct-provincial');
 });
+
+test('provincial mandates remain unavailable for foreign residence even with matching TN/BZ province', async () => {
+  for (const [office, province] of [
+    ['it.provincial.trento', 'TN'],
+    ['it.provincial.bolzano', 'BZ'],
+  ]) {
+    let mandateQueries = 0;
+    const db = { async query(sql) {
+      const statement = String(sql);
+      if (statement.includes('FROM user_political_territories')) {
+        const error = new Error('synthetic absent territory table');
+        error.code = '42P01';
+        throw error;
+      }
+      if (statement.includes('FROM users WHERE id = $1')) {
+        return { rows: [{ id: 'foreign-resident', paese_residenza: 'DE', provincia_residenza: province }] };
+      }
+      if (statement.includes('FROM political_mandates')) {
+        mandateQueries += 1;
+        return { rows: [{ id: 'person', mandate_id: 'mandate', grado_elezione: office, jurisdiction: { province } }] };
+      }
+      throw new Error('Unexpected synthetic SQL');
+    } };
+    const result = await listEligibleRepresentatives(db, 'foreign-resident', office);
+    assert.equal(result.strict, true);
+    assert.equal(result.reason, 'OFFICE_OUTSIDE_USER_TERRITORY');
+    assert.deepEqual(result.subjects, []);
+    assert.equal(mandateQueries, 0, 'foreign residents must be rejected before mandate lookup');
+  }
+});
