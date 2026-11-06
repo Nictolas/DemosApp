@@ -57,6 +57,31 @@ test('empty, filtered and truncated outputs never report success', async () => {
   }
 });
 
+test('unrelated provider output cannot pass the Groq connectivity challenge', async () => {
+  for (const answer of ['I cannot help with that', 'quota exceeded', 'OK but I cannot respond', 'not OK']) {
+    const result = await checkGroqFreeConnectivity({
+      env: config, clientFactory: () => ({}),
+      request: async () => ({
+        choices: [{ finish_reason: 'stop', message: { content: answer } }]
+      })
+    });
+    assert.deepEqual(result, {
+      success: false, status: 'UNEXPECTED_RESPONSE', model: config.GROQ_MODEL
+    });
+    assert.doesNotMatch(JSON.stringify(result), /quota exceeded|cannot help|not OK/i);
+  }
+  for (const answer of ['OK', ' OK ', 'Ok.', 'ok!']) {
+    const result = await checkGroqFreeConnectivity({
+      env: config, clientFactory: () => ({}),
+      request: async () => ({
+        choices: [{ finish_reason: 'stop', message: { content: answer } }]
+      })
+    });
+    assert.equal(result.success, true);
+    assert.equal(result.status, 'OK');
+  }
+});
+
 test('quota denial and API errors return redacted status only', async () => {
   const limited = await checkGroqFreeConnectivity({
     env: config, clientFactory: () => ({}), request: async () => null
