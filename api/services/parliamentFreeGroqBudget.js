@@ -129,7 +129,7 @@ function getSharedFreeQuotaStatus() {
 async function requestFreeGroq(client, params, gate = sharedFreeGate) {
   // Fail closed even if a future caller skips resolveFreeGroqModel.
   // Never forward an explicitly non-allowlisted model to the provider.
-  if (params?.model !== undefined && !FREE_GROQ_MODELS.includes(params.model)) {
+  if (!FREE_GROQ_MODELS.includes(params?.model)) {
     return null;
   }
 

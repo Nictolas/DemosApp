@@ -126,7 +126,7 @@ test('wrapper blocks non-allowlisted and retired models before reserving quota',
   let reservations = 0;
   const client = { chat: { completions: { create: async () => { calls++; return { choices: [] }; } } } };
   const gate = { reserve: () => { reservations++; return { allowed: true }; }, coolDownFrom429() {} };
-  for (const model of ['paid/non-allowlisted', 'llama-3.3-70b-versatile', null]) {
+  for (const model of ['paid/non-allowlisted', 'llama-3.3-70b-versatile', null, undefined]) {
     assert.equal(await requestFreeGroq(client, { model, messages: [], max_completion_tokens: 450 }, gate), null);
   }
   assert.equal(calls, 0);
@@ -139,7 +139,7 @@ test('wrapper does not call a provider when local budget is exhausted', async ()
   let calls = 0;
   const client = { chat: { completions: { create: async () => { calls++; return { choices: [] }; } } } };
   const gate = { reserve: () => ({ allowed: false, reason: 'LOCAL_FREE_QUOTA_REACHED' }), coolDownFrom429() {} };
-  assert.equal(await requestFreeGroq(client, { messages: [], max_completion_tokens: 450 }, gate), null);
+  assert.equal(await requestFreeGroq(client, { model: 'openai/gpt-oss-120b', messages: [], max_completion_tokens: 450 }, gate), null);
   assert.equal(calls, 0);
 });
 
@@ -150,7 +150,7 @@ test('wrapper does not retry 429 and fails gracefully', async () => {
     throw { status: 429, headers: { 'retry-after': '20' } };
   } } } };
   const gate = { reserve: () => ({ allowed: true }), coolDownFrom429: () => { cooldowns++; } };
-  assert.equal(await requestFreeGroq(client, { messages: [], max_completion_tokens: 450 }, gate), null);
+  assert.equal(await requestFreeGroq(client, { model: 'openai/gpt-oss-120b', messages: [], max_completion_tokens: 450 }, gate), null);
   assert.equal(calls, 1);
   assert.equal(cooldowns, 1);
 });
@@ -158,7 +158,7 @@ test('wrapper does not retry 429 and fails gracefully', async () => {
 test('only 429s are swallowed; other provider faults still surface', async () => {
   const client = { chat: { completions: { create: async () => { throw new Error('server unavailable'); } } } };
   const gate = { reserve: () => ({ allowed: true }), coolDownFrom429() {} };
-  await assert.rejects(() => requestFreeGroq(client, { messages: [], max_completion_tokens: 450 }, gate), /server unavailable/);
+  await assert.rejects(() => requestFreeGroq(client, { model: 'openai/gpt-oss-120b', messages: [], max_completion_tokens: 450 }, gate), /server unavailable/);
 });
 
 test('both parliamentary services use quota wrapper without SDK auto-retry', () => {
