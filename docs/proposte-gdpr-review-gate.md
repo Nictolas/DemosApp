@@ -368,3 +368,14 @@ Prova prevista nella CI PostgreSQL 17 isolata: più di 100 ritiri non confermati
 **Prove introdotte:** due test sintetici nel contratto `api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js`: (1) serializzazione singola e doppia con proprietà private fittizie, inalterati 12 attributi e tipo stringa per client web/Android; (2) gestione fail-closed dei formati malformati. Le tre rotte esistenti applicano già la stessa proiezione sia a richieste legacy sia a richieste paginate. CI da verificare sull'HEAD finale; nessuna prova sui record effettivi.
 
 **Blocco rilascio invariato:** PR Draft, no merge/deploy/DB/staging DEMOS10/Android reale; GDPR basi giuridiche/DSAR/retention e compatibilità testata su device reale ancora aperti. Non equiparare una protezione preventiva a un incidente privacy verificato.
+
+
+## 07/11/2026 — DEMOS12: validazione UUID nella decisione Admin
+
+**Difetto verificato nel sorgente Draft:** il `POST /api/subject-proposals/admin/:id/decision` (approvazione/rifiuto moderato, già protetto da `verifyToken` e `requireAdmin`) accettava come `id` qualsiasi sequenza di 36 caratteri composti da `[0-9a-f-]`. Anche 36 trattini passavano la convalida, per poi essere inoltrati al parametro `id` UUID della query PostgreSQL. Un ID malformato poteva così diventare un errore DB / risposta 503 invece di essere rifiutato immediatamente con HTTP 400. Non è stato accertato accesso non autorizzato a dati personali: si tratta di validazione debole e query evitabile.
+
+**Correzione limitata:** il parser della decisione Admin usa ora lo stesso controllo UUID nella forma canonica `8-4-4-4-12` già impiegato nel ritiro Admin. Nessuna modifica a permessi, a SQL validi, a nomine approvate, al client o allo schema. Commit codice `8818740387c1f58071f66344e7dabbc90d6c393d`.
+
+**Regressione sintetica:** aggiunto a `api/tests/d12GenericNoStoreAllResponses.synthetic.test.js` un caso che carica il vero handler in una Router VM isolata e presenta ID malformati; atteso HTTP 400, header `private, no-store`, **zero connessioni/query**. Un UUID canonico resta ammesso alla fase successiva e, sul pool fittizio indisponibile, produce il 503 generico previsto. Commit test `231d83acd2d7fe3f73fd4270950ee60109466467`. Il file era già incluso nel workflow automatico Civic privacy/moderation e in Unified; verificare lo step specifico e l'esito CI sul **nuovo HEAD**, non sui commit precedenti. Non è stato usato un database o un account reale.
+
+**Gate non modificati:** la PR resta Draft e il rilascio NO-GO: DSAR-02..06, decisioni GDPR artt. 5/6/9/10/14, retention/DPIA se dovuta, staging DEMOS10 coordinato, dispositivo Android fisico e autorizzazione alla pubblicazione. Il test non prova un flusso GDPR reale; nessun merge/deploy/DDL/feature flag.
