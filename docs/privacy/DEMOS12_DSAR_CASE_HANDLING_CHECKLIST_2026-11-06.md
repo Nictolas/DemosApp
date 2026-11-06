@@ -1,0 +1,24 @@
+# DEMOS 12 — Registro operativo DSAR (bozza DPO, NON certificazione)
+
+Data: 06/11/2026. Ambito: richieste a `privacy@demos.community` relative a Grazia, Attivisti, Organizzazioni e Proponi soggetto. Nessuna richiesta reale viene registrata in questo file.
+
+## Stato delle prove
+
+- **DSAR-01 — ricezione tecnica: PASS limitato.** Un messaggio sintetico proveniente da Outlook è arrivato nella Gmail di destinazione passando per l'inoltro Porkbun. Evidenza: intestazioni RFC822 e `Delivered-To` conservate nella casella autorizzata; runbook `DEMOS12_GRAZIA_DSAR_RUNBOOK_2026-11-05.md`. Questo non dimostra una procedura di risposta, né una garanzia di consegna futura.
+- **DSAR-02..06: NON TESTATI / NO-GO.** Nessuna richiesta di un interessato reale, nessuna verifica identità, decisione giuridica, rettifica o cancellazione, né risposta finale è attestata.
+
+## Procedura minima da approvare ed eseguire su caso reale
+
+1. **Ricezione e protocollo (DSAR-02):** il DPO controlla la mailbox e registra *in archivio privato con accesso ristretto* ID caso pseudonimo, data/ora di ricezione, tipo richiesta, scadenza e stato. Non inserire email, nomi, dettagli giudiziari o documenti d'identità in GitHub, Google Sheet tecnici, log o issue pubbliche. Evitare inoltri a gruppi.
+2. **Qualificazione e identità (DSAR-03):** distinguere soggetto pubblicato, proponente, votante o terzo; verificare che la richiesta provenga dall'interessato o da rappresentante autorizzato con mezzi proporzionati al rischio. Non richiedere automaticamente un documento d'identità; non confermare dati privati a un indirizzo non verificato. Se la richiesta riguarda informazioni pubblicate da terzi, valutare le basi e l'eventuale necessità di sospensione cautelativa, senza automatismi irreversibili.
+3. **Valutazione e azione (DSAR-04):** individuare le sole tabelle/record pertinenti tramite operatore autorizzato, documentare finalità, base giuridica, limiti ed eccezioni applicabili; applicare rettifica, limitazione, ritiro o cancellazione solo dopo autorizzazione e test. Per i soggetti già approvati, valutare la funzione Admin di ritiro; verificare anche cache e directory. Nessun accesso o modifica a dati reali da questa checklist.
+4. **Risposta e termini (DSAR-05):** rispondere all'interessato con esito comprensibile e motivazione appropriata, senza divulgare informazioni di altri. Termine ordinario: **un mese dal ricevimento**; proroga fino a due mesi ulteriori solo nei casi consentiti, comunicandola entro il primo mese con motivi. Gestire separatamente eventuali obblighi di conservazione o contestazioni.
+5. **Chiusura e minimizzazione (DSAR-06):** registrare data/ora della risposta, tipo di decisione, operatore, eventuale revisione e prova privata di invio. Definire e applicare una durata di conservazione giustificata del registro e delle evidenze, con accesso ristretto e cancellazione a scadenza. La retention **non è approvata** da questo documento.
+
+## Prove di accettazione ancora necessarie
+
+- Simulare con dati fittizi un intero caso: ricezione → registrazione privata → verifica proporzionata → valutazione → eventuale ritiro/rettifica autorizzata → risposta → archiviazione minima. Testare separatamente richiesta incompleta, richiesta da terzo non autorizzato e impossibilità di consegna.
+- Documentare titolare e incaricati, accessi, policy di conservazione, informativa e basi giuridiche (artt. 5, 6, 9, 10, 14 GDPR secondo applicabilità), e valutare la necessità di DPIA. Richiedere la decisione DPO; l'approvazione generica non sostituisce la verifica specifica.
+- Il collaudo staging DEMOS10, Android fisico e l'autorizzazione al rilascio restano indipendenti e non vengono superati da questa procedura.
+
+**Gate:** NO-GO per DSAR-02..06 e rilascio. Questo file è una procedura proposta, non un registro contenente richieste reali, non una consulenza legale conclusiva e non una prova di esecuzione.
