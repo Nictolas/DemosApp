@@ -195,16 +195,19 @@ test('provincial selection read only exposes the authenticated account and remai
       const url = '/api/users/u1/provincial-selection?kind=representative&officeId=it.provincial.trento';
       const unreleased = await fetch(base + url);
       assert.equal(unreleased.status, 409);
+      assert.equal(unreleased.headers.get('cache-control'), 'private, no-store, max-age=0');
       assert.equal((await unreleased.json()).error, 'PROVINCIAL_SELECTION_NOT_RELEASED');
       assert.equal(queries.length, 0);
 
       process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
       const other = await fetch(base + url.replace('/u1/', '/another-user/'));
       assert.equal(other.status, 403);
+      assert.equal(other.headers.get('cache-control'), 'private, no-store, max-age=0');
       assert.equal(queries.length, 0);
 
       const invalidOffice = await fetch(base + url.replace('it.provincial.trento', 'it.camera'));
       assert.equal(invalidOffice.status, 400);
+      assert.equal(invalidOffice.headers.get('cache-control'), 'private, no-store, max-age=0');
       assert.equal(queries.length, 0);
 
       const current = await fetch(base + url);
@@ -253,6 +256,7 @@ test('revoked consent blocks provincial read and new write before any selection 
     await withProfile(pool, async (base) => {
       const read = await fetch(base + '/api/users/u1/provincial-selection?kind=candidate&officeId=it.provincial.trento');
       assert.equal(read.status, 403);
+      assert.equal(read.headers.get('cache-control'), 'private, no-store, max-age=0');
       assert.equal((await read.json()).code, 'POLITICAL_CONSENT_REQUIRED');
       const write = await fetch(base + '/api/users/u1/political-selection', {
         method: 'PUT', headers: { 'content-type': 'application/json' },
@@ -261,6 +265,7 @@ test('revoked consent blocks provincial read and new write before any selection 
         }),
       });
       assert.equal(write.status, 403);
+      assert.equal(write.headers.get('cache-control'), 'private, no-store, max-age=0');
       assert.equal((await write.json()).code, 'POLITICAL_CONSENT_REQUIRED');
     });
     assert.equal(calls.length, 2);
