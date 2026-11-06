@@ -21,6 +21,7 @@ on:
       - 'api/tests/provincialRegionalDedup.test.js'
       - 'api/tests/provincialSupporters.http.test.js'
       - 'api/tests/provincialConsentErasure.test.js'
+      - 'api/tests/provincialConsentWriteRace.http.test.js'
       - 'api/tests/provincialOpinionMatching.contract.test.js'
       - 'api/tests/provincialReadRelease.http.test.js'
       - 'api/tests/provincialFrontendWiring.smoke.test.js'
@@ -72,6 +73,7 @@ jobs:
             api/tests/provincialRegionalDedup.test.js \
             api/tests/provincialSupporters.http.test.js \
             api/tests/provincialConsentErasure.test.js \
+            api/tests/provincialConsentWriteRace.http.test.js \
             api/tests/provincialOpinionMatching.contract.test.js \
             api/tests/provincialReadRelease.http.test.js \
             api/tests/provincialFrontendWiring.smoke.test.js
