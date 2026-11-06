@@ -6,7 +6,7 @@ const { listEligibleCandidates } = require('../services/politicalEligibilityServ
 const { buildPoliticalMatches } = require('../services/politicalMatchingService');
 const {
   resolvePoliticalOffice,
-  getOpinionGradeForOffice,
+  getMatchingOpinionGradeForOffice,
   getLegacySelectionDescriptors,
 } = require('../services/politicalJurisdictionRegistryService');
 
@@ -66,7 +66,7 @@ router.get(['/disponibili', '/elezioni-utente/disponibili'], verifyToken, async 
     }
 
     const eligibility = await listEligibleCandidates(pool, req.userId, candidateGrade);
-    const opinionGrade = getOpinionGradeForOffice(candidateGrade) || candidateGrade;
+    const opinionGrade = getMatchingOpinionGradeForOffice(candidateGrade) || candidateGrade;
     const matching = await buildPoliticalMatches({
       pool,
       userId: req.userId,
