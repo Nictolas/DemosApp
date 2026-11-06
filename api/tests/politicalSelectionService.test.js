@@ -228,7 +228,7 @@ test('combined legacy supporter fallback also returns unique voter identities', 
     }
     assert.match(String(sql), /SELECT DISTINCT u\.id::text AS id/);
     assert.match(String(sql), /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
-    assert.match(String(sql), /u\.political_opinions_consent IS TRUE/);
+    assert.doesNotMatch(String(sql), /AND u\.political_opinions_consent IS TRUE/);
     assert.match(String(sql), /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
     return { rows: [{ id: 'voter-a' }, { id: 'voter-a' }, { id: 'voter-b' }] };
   }};
@@ -266,7 +266,7 @@ test('combined notifications exclude unreleased offices and revoked consents in 
     const db = { async query(sql, params) {
       queries += 1;
       assert.match(sql, /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
-      assert.match(sql, /u\.political_opinions_consent IS TRUE/);
+      assert.doesNotMatch(sql, /AND u\.political_opinions_consent IS TRUE/);
       assert.match(sql, /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
       assert.match(sql, /ps\.political_office_id NOT IN \('it\.provincial\.trento', 'it\.provincial\.bolzano'\)/);
       assert.deepEqual(params, ['councillor', 'representative']);
@@ -291,7 +291,7 @@ test('released provincial supporter lookup enforces consent without fallback to 
     const db = { async query(sql, params) {
       queries += 1;
       assert.match(sql, /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
-      assert.match(sql, /u\.political_opinions_consent IS TRUE/);
+      assert.doesNotMatch(sql, /AND u\.political_opinions_consent IS TRUE/);
       assert.match(sql, /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
       assert.match(sql, /ps\.political_office_id = \$3/);
       assert.doesNotMatch(sql, /ps\.political_office_id NOT IN/);
@@ -308,6 +308,41 @@ test('released provincial supporter lookup enforces consent without fallback to 
     assert.equal(queries, 1);
     assert.equal(result.strict, true);
     assert.deepEqual(result.userIds, []);
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
+
+test('supporter audience honors current consent even when legacy user flag is false', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  try {
+    process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+    for (const canonicalAvailable of [true, false]) {
+      const calls = [];
+      const db = { async query(sql) {
+        const statement = String(sql);
+        calls.push(statement);
+        if (!canonicalAvailable && statement.includes('FROM political_selections ps')) {
+          const error = new Error('Synthetic canonical table missing');
+          error.code = '42P01';
+          throw error;
+        }
+        assert.match(statement, /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
+        assert.match(statement, /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
+        assert.doesNotMatch(statement, /AND u\.political_opinions_consent IS TRUE/);
+        // Simulates current user_consents=true, users=false: a redundant
+        // legacy-only predicate would exclude this otherwise eligible voter.
+        return { rows: [{ id: 'consented-in-new-table' }] };
+      }};
+      const result = await loadSupporterUserIds(db, {
+        selectedUserId: 'councillor', kind: 'representative',
+        ...(canonicalAvailable ? { officeId: 'it.provincial.trento' } : {}),
+      });
+      assert.deepEqual(result.userIds, ['consented-in-new-table']);
+      assert.equal(result.source, canonicalAvailable ? 'CANONICAL' : 'LEGACY');
+      assert.equal(calls.length, canonicalAvailable ? 1 : 2);
+    }
   } finally {
     if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
     else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
