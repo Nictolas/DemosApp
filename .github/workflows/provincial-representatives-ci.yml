@@ -5,8 +5,10 @@ on:
       - 'api/config/politicalJurisdictions.js'
       - 'api/services/politicalEligibilityService.js'
       - 'api/services/politicalSelectionService.js'
+      - 'api/routes/users/profile.js'
       - 'api/tests/politicalJurisdictionRegistryService.test.js'
       - 'api/tests/politicalSelectionService.test.js'
+      - 'api/tests/politicalSelectionRoute.test.js'
       - 'api/tests/politicalEligibilityService.test.js'
       - 'api/tests/provincialMandateOfficeGuard.test.js'
       - '.github/workflows/provincial-representatives-ci.yml'
@@ -37,5 +39,6 @@ jobs:
           node --test \
             api/tests/politicalJurisdictionRegistryService.test.js \
             api/tests/politicalSelectionService.test.js \
+            api/tests/politicalSelectionRoute.test.js \
             api/tests/politicalEligibilityService.test.js \
             api/tests/provincialMandateOfficeGuard.test.js
