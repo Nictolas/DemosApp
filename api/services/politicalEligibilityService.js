@@ -7,6 +7,7 @@ const {
 const {
   TERRITORY_PRIORITY,
   jurisdictionMatchesScope,
+  territoryMatchesScope,
   mappingMatchesTerritory,
   chooseMostSpecificEligibleUnits,
 } = require('./politicalTerritoryService');
@@ -30,10 +31,17 @@ function asTerritoryContext(value) {
   return territoryAliases(value);
 }
 
+function officeAllowedByProvince(office, context) {
+  if (!office) return false;
+  if (!office.eligibleProvinceCodes?.length) return true;
+  return territoryMatchesScope(context, TERRITORY_SCOPES.PROVINCE, office.eligibleProvinceCodes);
+}
+
 function jurisdictionMatchesRepresentative(jurisdiction, grade, userOrContext) {
   const office = resolvePoliticalOffice(grade);
   if (!office) return false;
   const aliases = asTerritoryContext(userOrContext);
+  if (!officeAllowedByProvince(office, aliases)) return false;
   const allowUnspecified = office.residenceScope === TERRITORY_SCOPES.SUPRANATIONAL || office.residenceScope === TERRITORY_SCOPES.COUNTRY;
   return jurisdictionMatchesScope(jurisdiction || {}, office.residenceScope, aliases, { allowUnspecified });
 }
@@ -51,6 +59,9 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
   if (!office) return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'POLITICAL_OFFICE_UNKNOWN' };
 
   const territoryState = await loadUserPoliticalTerritoryState(pool, { userId, officeId: office.id });
+  if (!officeAllowedByProvince(office, territoryState.context)) {
+    return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'OFFICE_OUTSIDE_USER_TERRITORY' };
+  }
 
   const candidatesResult = await pool.query(
     `
@@ -127,6 +138,9 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
 
 async function listEligibleCandidatesLegacy(pool, grade) {
   const office = resolvePoliticalOffice(grade);
+  if (office?.eligibleProvinceCodes?.length) {
+    return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'PROVINCIAL_REQUIRES_CANONICAL_DATA' };
+  }
   const legacyGrade = office?.aliases?.[0] || grade;
   const result = await pool.query(
     `
@@ -154,6 +168,9 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
   const office = resolvePoliticalOffice(grade);
   if (!office) return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'POLITICAL_OFFICE_UNKNOWN' };
   const territoryState = await loadUserPoliticalTerritoryState(pool, { userId, officeId: office.id });
+  if (!officeAllowedByProvince(office, territoryState.context)) {
+    return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'OFFICE_OUTSIDE_USER_TERRITORY' };
+  }
 
   const result = await pool.query(
     `
@@ -189,6 +206,9 @@ async function listEligibleRepresentativesNewModel(pool, userId, grade) {
 
 async function listEligibleRepresentativesLegacy(pool, grade) {
   const office = resolvePoliticalOffice(grade);
+  if (office?.eligibleProvinceCodes?.length) {
+    return { subjects: [], source: 'CAPABILITY', strict: true, reason: 'PROVINCIAL_REQUIRES_CANONICAL_DATA' };
+  }
   const legacyGrade = office?.aliases?.[0] || grade;
   const result = await pool.query(
     `
