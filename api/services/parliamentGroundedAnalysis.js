@@ -63,6 +63,9 @@ function parseGroundedAnalysisResponse(response) {
   const { spiegazione_generale, effetti_positivi, effetti_negativi } = parsed;
   if (typeof spiegazione_generale !== 'string' || !spiegazione_generale.trim()) return null;
   if (spiegazione_generale.length > MAX_EXPLANATION_CHARS) return null;
+  // The prompt promises a concise, at-most-110-word explanation. A character
+  // bound alone could still accept hundreds of short words.
+  if (spiegazione_generale.trim().split(/\s+/u).length > 110) return null;
   if (typeof effetti_positivi !== 'string' || typeof effetti_negativi !== 'string') return null;
   if (effetti_positivi.length > MAX_IMPACT_CHARS || effetti_negativi.length > MAX_IMPACT_CHARS) return null;
   // A no-evidence sentinel in any field is not a documented explanation or
