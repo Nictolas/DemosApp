@@ -64,7 +64,7 @@ function parseGroundedAnalysisResponse(response) {
   if (typeof spiegazione_generale !== 'string' || !spiegazione_generale.trim()) return null;
   // Groq can express the no-evidence sentinel with punctuation or spaces.
   // Never persist that placeholder as an explanation of an official vote.
-  if (/^INFORMAZIONI[\\s_-]*INSUFFICIENTI[.!?]*$/iu.test(spiegazione_generale.trim())) return null;
+  if (/^INFORMAZIONI[\s_-]*INSUFFICIENTI[.!?]*$/iu.test(spiegazione_generale.trim())) return null;
   if (spiegazione_generale.length > MAX_EXPLANATION_CHARS) return null;
   if (typeof effetti_positivi !== 'string' || typeof effetti_negativi !== 'string') return null;
   if (effetti_positivi.length > MAX_IMPACT_CHARS || effetti_negativi.length > MAX_IMPACT_CHARS) return null;
