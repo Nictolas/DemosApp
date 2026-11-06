@@ -18,6 +18,7 @@ on:
       - 'api/tests/politicalSelectionRoute.test.js'
       - 'api/tests/politicalEligibilityService.test.js'
       - 'api/tests/provincialMandateOfficeGuard.test.js'
+      - 'api/tests/provincialCandidacyJurisdictionGuard.test.js'
       - 'api/tests/provincialRegionalDedup.test.js'
       - 'api/tests/provincialSupporters.http.test.js'
       - 'api/tests/provincialConsentErasure.test.js'
@@ -64,12 +65,13 @@ jobs:
           node --check api/routes/elezioni.js
       - name: Test territory, authority and canonical persistence (no database)
         run: |
-          node --test \
+          node --test --test-concurrency=1 \
             api/tests/politicalJurisdictionRegistryService.test.js \
             api/tests/politicalSelectionService.test.js \
             api/tests/politicalSelectionRoute.test.js \
             api/tests/politicalEligibilityService.test.js \
             api/tests/provincialMandateOfficeGuard.test.js \
+            api/tests/provincialCandidacyJurisdictionGuard.test.js \
             api/tests/provincialRegionalDedup.test.js \
             api/tests/provincialSupporters.http.test.js \
             api/tests/provincialConsentErasure.test.js \
