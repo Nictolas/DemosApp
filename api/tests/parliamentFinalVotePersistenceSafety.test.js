@@ -8,21 +8,28 @@ const vm = require('node:vm');
 
 function harness() {
   const source = fs.readFileSync(path.join(__dirname, '..', 'services', 'aiExplanationService.js'), 'utf8');
-  const row = { id: 93, titolo_votazione: 'Votazione finale DDL 123', spiegazione: null };
-  let providerCalls = 0, updateCalls = 0, selectCalls = 0, duringProvider = () => {};
+  const row = {
+    id: 93, titolo_votazione: 'Votazione finale DDL 123',
+    descrizione_votazione: 'Testo ufficiale persistito nel database.', spiegazione: null
+  };
+  let providerCalls = 0, updateCalls = 0, selectCalls = 0, duringProvider = () => {}, providerPrompt = '';
   const pool = {
     query: async (sql, params) => {
-      if (/^\s*SELECT titolo_votazione, spiegazione FROM votazioni_parlamento/i.test(sql)) {
+      if (/^\s*SELECT titolo_votazione, spiegazione, descrizione_votazione FROM votazioni_parlamento/i.test(sql)) {
         selectCalls++;
         assert.deepEqual(Array.from(params), [row.id]);
-        return { rows: [{ titolo_votazione: row.titolo_votazione, spiegazione: row.spiegazione }] };
+        return { rows: [{ titolo_votazione: row.titolo_votazione, spiegazione: row.spiegazione,
+          descrizione_votazione: row.descrizione_votazione }] };
       }
       if (/^\s*UPDATE votazioni_parlamento/i.test(sql)) {
         updateCalls++;
         assert.match(sql, /WHERE id = \$2 AND titolo_votazione = \$3/);
+        assert.match(sql, /descrizione_votazione IS NOT DISTINCT FROM \$4/);
+        assert.equal(params.length, 4);
         assert.match(sql, /\(spiegazione IS NULL OR spiegazione = ''\)/);
         assert.equal(params[1], row.id);
-        if (params[2] !== row.titolo_votazione || (row.spiegazione !== null && row.spiegazione !== '')) {
+        if (params[2] !== row.titolo_votazione || params[3] !== row.descrizione_votazione ||
+            (row.spiegazione !== null && row.spiegazione !== '')) {
           return { rowCount: 0 };
         }
         row.spiegazione = params[0];
@@ -43,8 +50,9 @@ function harness() {
       MAX_CONTEXT_CHARS: 9000
     },
     './parliamentFreeGroqBudget': {
-      requestFreeGroq: async () => {
+      requestFreeGroq: async (_client, params) => {
         providerCalls++;
+        providerPrompt = params.messages[1].content;
         duringProvider();
         return { choices: [{ finish_reason: 'stop', message: { content: 'Testo generato sul DDL 123' } }] };
       },
@@ -74,7 +82,8 @@ function harness() {
     row, generate, setDuringProvider: fn => { duringProvider = fn; },
     get providerCalls() { return providerCalls; },
     get updateCalls() { return updateCalls; },
-    get selectCalls() { return selectCalls; }
+    get selectCalls() { return selectCalls; },
+    get providerPrompt() { return providerPrompt; }
   };
 }
 
@@ -114,4 +123,20 @@ test('a manually written explanation during provider generation cannot be overwr
   assert.equal(h.providerCalls, 1);
   assert.equal(h.updateCalls, 1);
   assert.equal(h.row.spiegazione, 'Spiegazione ufficiale già presente');
+});
+
+test('an updated official document cannot receive an in-flight explanation from old evidence', async () => {
+  const h = harness();
+  h.setDuringProvider(() => { h.row.descrizione_votazione = 'Testo ufficiale aggiornato nel database.'; });
+  assert.equal(await h.generate(), null);
+  assert.equal(h.providerCalls, 1);
+  assert.equal(h.updateCalls, 1);
+  assert.equal(h.row.spiegazione, null);
+});
+
+test('the persisted official text takes precedence over a stale caller document', async () => {
+  const h = harness();
+  assert.equal(await h.generate(), 'Testo generato sul DDL 123');
+  assert.match(h.providerPrompt, /Testo ufficiale persistito nel database/);
+  assert.doesNotMatch(h.providerPrompt, /Documento ufficiale sintetico/);
 });
