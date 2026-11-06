@@ -31,7 +31,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const { grado_elezione } = req.query;
     const userId = req.userId;
 
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado_elezione, userId });
 
 
     if (!grado_elezione) {
@@ -50,13 +49,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     // Regione e Comune sono filtrati sulla giurisdizione dell'utente.
     const eligibility = await listEligibleRepresentatives(pool, userId, grado_elezione);
     const result = { rows: eligibility.subjects };
-    console.log('🔍 DEBUG - Fonte eleggibilità rappresentanti:', eligibility.source, 'strict:', eligibility.strict);
-    console.log('🔍 DEBUG - Parametri query:', [grado_elezione]);
-    console.log('🔍 DEBUG - Risultati trovati:', result.rows.length);
 
     const gradoDatabase = getMatchingOpinionGradeForOffice(grado_elezione) || grado_elezione;
 
-    console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}`);
 
     // Matching DEMOS: gate utente 100%, matrice +3/+1/0/-1, percentuale e copertura.
     const matching = await buildPoliticalMatches({
@@ -73,12 +68,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       .filter((candidato) => candidato.copertura_posizioni > 0)
       .slice(0, 4);
 
-    console.log('🔍 DEBUG - Rappresentanti finali matching:', candidati.map((candidato) => ({
-      id: candidato.id,
-      score: candidato.matching_score,
-      compatibilita: candidato.compatibilita_percentuale,
-      copertura: `${candidato.copertura_posizioni}/${candidato.copertura_totale}`
-    })));
 
     // Assicurati che ogni candidato abbia un avatar_config valido
     candidati = candidati.map(candidato => {
@@ -89,7 +78,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         try {
           avatarConfig = JSON.parse(avatarConfig);
         } catch (e) {
-          console.warn('⚠️ Errore nel parsing avatar_config doppio-encoded:', e);
           avatarConfig = null;
         }
       }
@@ -147,7 +135,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           };
           avatarConfig = JSON.stringify(completeConfig);
         } catch (error) {
-          console.warn('⚠️ Errore nel parsing avatar_config per utente:', candidato.id, error);
           // Se c'è un errore nel parsing, genera un config di default
           const defaultConfig = {
             skinColor: "#FDBCB4",
@@ -201,18 +188,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore nel recuperare rappresentanti disponibili:', error);
-    console.error('❌ Stack trace:', error.stack);
-    console.error('❌ Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      hint: error.hint
-    });
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare rappresentanti disponibili',
-      details: error.message
+      error: 'Errore nel recuperare rappresentanti disponibili'
     });
   }
 });
