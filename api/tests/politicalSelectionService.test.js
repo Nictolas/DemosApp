@@ -236,3 +236,77 @@ test('combined legacy supporter fallback also returns unique voter identities', 
   assert.deepEqual(result.userIds, ['voter-a', 'voter-b']);
   assert.equal(calls, 2);
 });
+
+test('provincial supporter notifications fail closed before GO without any SQL', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'false';
+  try {
+    const db = { async query() { throw new Error('unreleased office must not reach SQL'); } };
+    for (const officeId of ['it.provincial.trento', 'it.provincial.bolzano']) {
+      const result = await loadSupporterUserIds(db, {
+        selectedUserId: 'councillor', kind: 'representative', officeId
+      });
+      assert.equal(result.strict, true);
+      assert.deepEqual(result.userIds, []);
+    }
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
+
+test('combined notifications exclude unreleased offices and revoked consents in the same SELECT', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'false';
+  try {
+    let queries = 0;
+    const db = { async query(sql, params) {
+      queries += 1;
+      assert.match(sql, /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
+      assert.match(sql, /u\.political_opinions_consent IS TRUE/);
+      assert.match(sql, /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
+      assert.match(sql, /ps\.political_office_id NOT IN \('it\.provincial\.trento', 'it\.provincial\.bolzano'\)/);
+      assert.deepEqual(params, ['councillor', 'representative']);
+      return { rows: [{ id: 'active-consenting-voter' }] };
+    }};
+    const result = await loadSupporterUserIds(db, {
+      selectedUserId: 'councillor', kind: 'representative'
+    });
+    assert.equal(queries, 1);
+    assert.deepEqual(result.userIds, ['active-consenting-voter']);
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
+
+test('released provincial supporter lookup enforces consent without fallback to legacy tables', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+  try {
+    let queries = 0;
+    const db = { async query(sql, params) {
+      queries += 1;
+      assert.match(sql, /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
+      assert.match(sql, /u\.political_opinions_consent IS TRUE/);
+      assert.match(sql, /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
+      assert.match(sql, /ps\.political_office_id = \$3/);
+      assert.doesNotMatch(sql, /ps\.political_office_id NOT IN/);
+      assert.deepEqual(params, ['councillor', 'representative', 'it.provincial.trento']);
+      const error = new Error('synthetic political_selections schema absent');
+      error.code = '42P01';
+      throw error;
+    }};
+    const result = await loadSupporterUserIds(db, {
+      selectedUserId: 'councillor',
+      kind: 'representative',
+      officeId: 'it.provincial.trento'
+    });
+    assert.equal(queries, 1);
+    assert.equal(result.strict, true);
+    assert.deepEqual(result.userIds, []);
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
