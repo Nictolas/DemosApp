@@ -48,3 +48,20 @@ test('provincial chooser reads and writes canonical selections without legacy fi
   assert.match(dialog, /'provinciale-bolzano': 'C'/);
   assert.match(layout, /:has\(> \.provincial-office-choice\)/);
 });
+
+test('provincial selection can be cleared in chooser even if the old office has no eligible subjects', () => {
+  const page = read('client/src/pages/ScegliRappresentante/index.tsx');
+  const actions = read('client/src/pages/ScegliRappresentante/hooks/useRappresentantiActions.ts');
+  const types = read('client/src/pages/ScegliRappresentante/types/index.ts');
+  assert.match(page, /aria-label="Annulla scelta provinciale"/);
+  assert.match(page, /onClick=\{\(\) => annullaSelezioneProvinciale\(\(\) => setRappresentanteSelezionato\(null\)\)\}/);
+  assert.ok(page.indexOf('Annulla scelta provinciale') < page.indexOf('rappresentanti.length === 0'),
+    'removal remains visible when no councillor or candidate is currently selectable');
+  assert.match(page, /provincialOfficeFromCategory\(categoria \|\| ""\) && rappresentanteSelezionato/);
+  assert.match(actions, /const annullaSelezioneProvinciale = async/);
+  assert.match(actions, /selectedUserId: null/);
+  assert.match(actions, /kind: isCandidateRoute \? "candidate" : "representative"/);
+  assert.match(actions, /onSuccess\(\)/);
+  assert.match(actions, /queryClient.invalidateQueries/);
+  assert.doesNotMatch(types, /onDeseleziona/);
+});
