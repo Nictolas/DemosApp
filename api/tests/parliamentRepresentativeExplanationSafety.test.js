@@ -139,3 +139,36 @@ test('plain-text explanations reject all non-stop completions even when text is 
     'Sintesi completata.'
   );
 });
+
+
+test('insufficient-evidence sentinel is never published when punctuated or reformatted', async () => {
+  const h = createHarness();
+  const nonAnswers = [
+    'INFORMAZIONI_INSUFFICIENTI',
+    'INFORMAZIONI_INSUFFICIENTI.',
+    ' informazioni_insufficienti! ',
+    'Informazioni insufficienti.',
+    'INFORMAZIONI-INSUFFICIENTI?',
+    'INFORMAZIONI   INSUFFICIENTI'
+  ];
+  for (const content of nonAnswers) {
+    h.setCompletion({ choices: [{ finish_reason: 'stop', message: { content } }] });
+    const result = await h.service.generaESalvaSpiegazione(
+      'Rappresentante QA', 'Votazione finale A', 'Fonte fittizia', 'Camera', 'Favorevole', true
+    );
+    assert.equal(result, null, 'Must not publish a no-evidence placeholder: ' + content);
+    assert.equal(h.row.spiegazione, null);
+  }
+  assert.equal(h.updates, 0, 'No no-evidence sentinel may be saved in the database');
+  assert.equal(h.providerCalls, nonAnswers.length);
+
+  h.setCompletion({
+    choices: [{ finish_reason: 'stop', message: {
+      content: 'La proposta disciplina il procedimento descritto nel documento.'
+    } }]
+  });
+  assert.equal(await h.service.generaESalvaSpiegazione(
+    'Rappresentante QA', 'Votazione finale A', 'Fonte fittizia', 'Camera', 'Favorevole', true
+  ), 'La proposta disciplina il procedimento descritto nel documento.');
+  assert.equal(h.updates, 1, 'Valid text still saves normally');
+});
