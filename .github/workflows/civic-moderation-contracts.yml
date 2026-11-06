@@ -26,6 +26,7 @@ on:
       - 'api/tests/graziaModerationContract.test.js'
       - 'api/tests/graziaVoteReadEfficiency.synthetic.test.js'
       - 'api/tests/graziaVoteSchemaCache.synthetic.test.js'
+      - 'api/tests/demos12DsarS4.synthetic.test.js'
       - 'api/tests/graziaModerationHttp.synthetic.test.js'
       - 'api/tests/graziaPostgresConcurrency.integration.test.js'
       - 'api/tests/capoApprovedCatalogue.pg.integration.test.js'
@@ -112,6 +113,8 @@ jobs:
           if test -f api/tests/graziaModerationContract.test.js; then node --test api/tests/graziaModerationContract.test.js; fi
       - name: Grazia shared vote schema cache and private-write safety
         run: node --test api/tests/graziaVoteReadEfficiency.synthetic.test.js api/tests/graziaVoteSchemaCache.synthetic.test.js
+      - name: DEMOS12 DSAR S4 synthetic deadline and delivery contract (no live data)
+        run: node --test api/tests/demos12DsarS4.synthetic.test.js
       - name: Synthetic Grazia moderation HTTP checks
         env:
           NODE_PATH: /tmp/demos-http-test/node_modules
