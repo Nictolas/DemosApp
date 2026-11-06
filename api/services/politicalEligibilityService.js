@@ -48,6 +48,9 @@ function jurisdictionMatchesRepresentative(jurisdiction, grade, userOrContext) {
   const aliases = asTerritoryContext(userOrContext);
   if (!officeAllowedByProvince(office, aliases)) return false;
   if (office.eligibleProvinceCodes?.length) {
+    // A candidacy or mandate cannot claim a provincial office while its
+    // jurisdiction explicitly identifies a different institutional level.
+    if (jurisdiction?.level && resolvePoliticalOffice(jurisdiction.level)?.id !== office.id) return false;
     // A matching province code is insufficient when the mandate or candidacy
     // explicitly belongs to another country. Keep historical Italian rows
     // without a country field eligible; reject conflicting explicit countries.
