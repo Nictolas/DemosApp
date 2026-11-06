@@ -127,7 +127,12 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
     electoralMembershipState.memberships,
   );
   const subjects = candidatesResult.rows.filter((row) =>
-    eligibleKeys.has(`${String(row.election_event_id)}:${String(row.electoral_unit_id)}`)
+    eligibleKeys.has(`${String(row.election_event_id)}:${String(row.electoral_unit_id)}`) &&
+    // For province-restricted offices the candidacy itself must carry the
+    // matching province. Electoral-unit membership alone is insufficient:
+    // a stale or misassigned unit must not expose a different province.
+    (!office.eligibleProvinceCodes?.length ||
+      jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context))
   );
 
   return {
