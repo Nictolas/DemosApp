@@ -186,3 +186,34 @@ test('directly elected provincial council selections are restricted to their pro
   assert.equal(denied.reason,'OFFICE_OUTSIDE_USER_TERRITORY');
   assert.deepEqual(denied.subjects,[]);
 });
+
+test('provincial candidate eligibility fails closed before querying candidacies outside the province', async () => {
+  const db = { async query(sql) {
+    const q = String(sql);
+    if (q.includes('FROM user_political_territories')) throw missingTable();
+    if (q.includes('FROM users WHERE id = $1')) return { rows: [{ id: 'u', provincia_residenza: 'PI' }] };
+    throw new Error('Out-of-province user must not reach candidacy or legacy queries');
+  } };
+  const denied = await listEligibleCandidates(db, 'u', 'it.provincial.bolzano');
+  assert.equal(denied.strict, true);
+  assert.equal(denied.reason, 'OFFICE_OUTSIDE_USER_TERRITORY');
+  assert.deepEqual(denied.subjects, []);
+});
+
+test('provincial selections never fall back to unscoped legacy candidates or representatives', async () => {
+  const db = { async query(sql) {
+    const q = String(sql);
+    if (q.includes('FROM user_political_territories')) throw missingTable();
+    if (q.includes('FROM users WHERE id = $1')) return { rows: [{ id: 'u', provincia_residenza: 'TN' }] };
+    if (q.includes('FROM political_candidacies') || q.includes('FROM political_mandates')) throw missingTable();
+    throw new Error('Provincial fallback must not query legacy users candidates/representatives');
+  } };
+  const candidates = await listEligibleCandidates(db, 'u', 'it.provincial.trento');
+  const representatives = await listEligibleRepresentatives(db, 'u', 'it.provincial.trento');
+  for (const result of [candidates, representatives]) {
+    assert.equal(result.strict, true);
+    assert.equal(result.source, 'CAPABILITY');
+    assert.equal(result.reason, 'PROVINCIAL_REQUIRES_CANONICAL_DATA');
+    assert.deepEqual(result.subjects, []);
+  }
+});
