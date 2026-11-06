@@ -138,13 +138,37 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
     territoryState.context,
     electoralMembershipState.memberships,
   );
+  // For directly elected provincial offices, a broad REGION mapping must
+  // never substitute for evidence that the actual electoral unit belongs to
+  // the autonomous province. Even an exact unit membership and a province
+  // claim on the candidacy are insufficient without an explicit province
+  // mapping. Reject contradictory TN/BZ mappings for the same unit.
+  const provincialUnitCodes = new Map();
+  const allowedProvinceCodes = new Set(
+    (office.eligibleProvinceCodes || []).map((code) => String(code).trim().toLocaleLowerCase('en-US'))
+  );
+  if (allowedProvinceCodes.size) {
+    for (const mapping of mappingsResult.rows) {
+      const type = String(mapping.territory_type || '').trim().toUpperCase();
+      if (type !== TERRITORY_SCOPES.PROVINCE && type !== TERRITORY_SCOPES.ADMIN_LEVEL_2) continue;
+      const key = `${String(mapping.election_event_id)}:${String(mapping.electoral_unit_id)}`;
+      const codes = provincialUnitCodes.get(key) || new Set();
+      codes.add(String(mapping.territory_code || '').trim().toLocaleLowerCase('en-US'));
+      provincialUnitCodes.set(key, codes);
+    }
+  }
+  const hasUnambiguousProvincialUnit = (row) => {
+    const key = `${String(row.election_event_id)}:${String(row.electoral_unit_id)}`;
+    const codes = provincialUnitCodes.get(key);
+    return Boolean(codes?.size && [...codes].every((code) => allowedProvinceCodes.has(code)));
+  };
   const eligibleCandidates = candidatesResult.rows.filter((row) =>
     eligibleKeys.has(`${String(row.election_event_id)}:${String(row.electoral_unit_id)}`) &&
-    // For province-restricted offices the candidacy itself must carry the
-    // matching province. Electoral-unit membership alone is insufficient:
-    // a stale or misassigned unit must not expose a different province.
+    // A matching province on the candidacy alone cannot repair an electoral
+    // unit that is regional-only or explicitly mapped to another province.
     (!office.eligibleProvinceCodes?.length ||
-      jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context))
+      (hasUnambiguousProvincialUnit(row) &&
+       jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context)))
   );
 
   // Multiple active candidacy records for one person must not create
