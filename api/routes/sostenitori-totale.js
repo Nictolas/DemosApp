@@ -17,7 +17,6 @@ router.get('/totale', verifyToken, async (req, res) => {
   try {
     const { sostenuto_id } = req.query;
     
-    console.log('🔍 DEBUG: sostenitori-totale chiamato con sostenuto_id:', sostenuto_id);
     
     if (!sostenuto_id) {
       return res.status(400).json({
@@ -100,7 +99,6 @@ router.get('/totale', verifyToken, async (req, res) => {
       ORDER BY u.created_at DESC
     `, [sostenuto_id]);
 
-    console.log('🔍 DEBUG: Trovati sostenitori totali:', result.rows.length);
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
     const supportersMap = new Map();
@@ -194,12 +192,9 @@ router.get('/totale', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero sostenitori totali:', error);
-    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: 'Errore interno del server'
     });
   }
 });
