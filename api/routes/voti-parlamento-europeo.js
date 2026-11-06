@@ -15,7 +15,10 @@ router.get('/ultime', verifyToken, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 1, 100); // Default 1 (ultima votazione), max 100
     const forceRefresh = req.query.refresh === 'true'; // Refresh da API solo per Admin
-    
+    if (forceRefresh && !req.user?.isAdmin) {
+      return res.status(403).json({ success: false, message: 'Operazione riservata all’amministratore' });
+    }
+
     console.log(`🔍 GET /api/voti-parlamento-europeo/ultime - Richiesta ultime ${limit} votazioni (refresh: ${forceRefresh})`);
     
     // Recupera dal database
@@ -34,9 +37,6 @@ router.get('/ultime', verifyToken, async (req, res) => {
     // La sincronizzazione automatica è disabilitata perché può richiedere molto tempo
     // e bloccare la risposta HTTP. Usa l'endpoint POST /sincronizza per sincronizzazioni manuali.
     if (forceRefresh) {
-      if (!req.user?.isAdmin) {
-        return res.status(403).json({ success: false, message: 'Operazione riservata all’amministratore' });
-      }
       try {
         console.log('🔄 Refresh richiesto, sincronizzazione in corso...');
         // Usa Promise.race per aggiungere un timeout di 30 secondi
@@ -109,7 +109,7 @@ router.get('/dettagli/:uri', verifyToken, async (req, res) => {
     const { uri } = req.params;
     const decodedUri = decodeURIComponent(uri);
     
-    console.log(`🔍 GET /api/voti-parlamento-europeo/dettagli - Richiesta dettagli per: ${decodedUri}`);
+    console.log('Richiesta dettagli votazione PE');
     
     // Recupera la votazione dal database
     const votazione = await getDettagliVotazione(decodedUri);
@@ -248,7 +248,7 @@ router.post('/rigenera-analisi/:uri', verifyToken, requireAdmin, async (req, res
     const { uri } = req.params;
     const decodedUri = decodeURIComponent(uri);
     
-    console.log(`🔄 POST /api/voti-parlamento-europeo/rigenera-analisi - Rigenerazione analisi per: ${decodedUri}`);
+    console.log('Richiesta rigenerazione analisi PE');
     
     // Recupera la votazione
     const votazione = await getDettagliVotazione(decodedUri);
@@ -358,7 +358,7 @@ router.post('/aggiorna-titoli', verifyToken, requireAdmin, async (req, res) => {
               WHERE uri = $2
             `, [nuovoTitolo, votazione.uri]);
             aggiornate++;
-            console.log(`✅ Aggiornato titolo per ${votazione.uri}: "${nuovoTitolo}"`);
+            console.log('Titolo votazione PE aggiornato');
           }
         }
       } catch (error) {
