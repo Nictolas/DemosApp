@@ -19,6 +19,14 @@ type GraziaRequest = {
   createdAt: string;
 };
 
+// API/transport errors can include nomination names and raw database diagnostics.
+// Display only fixed messages even in the authenticated moderation panel.
+const GRAZIA_ADMIN_QUEUE_ERROR = "Coda richieste non disponibile. Riprova più tardi.";
+const GRAZIA_ADMIN_PUBLISHED_ERROR = "Pubblicazioni temporaneamente non disponibili.";
+const GRAZIA_ADMIN_AUDIT_ERROR = "Verifica avvisi non disponibile.";
+const GRAZIA_ADMIN_WITHDRAW_ERROR = "Ritiro non riuscito. Riprova più tardi.";
+const GRAZIA_ADMIN_DECISION_ERROR = "Decisione non applicata. Riprova più tardi.";
+
 export default function GestisciGrazia() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
@@ -30,7 +38,7 @@ export default function GestisciGrazia() {
   const [withdrawNotes, setWithdrawNotes] = React.useState<Record<string,string>>({});
 
   const {
-    data: requestPages, isLoading, isError, error,
+    data: requestPages, isLoading, isError,
     hasNextPage: hasMoreRequests, fetchNextPage: fetchMoreRequests,
     isFetchingNextPage: loadingMoreRequests, isFetchNextPageError: requestsPageError,
   } = useInfiniteQuery({
@@ -39,13 +47,17 @@ export default function GestisciGrazia() {
     queryFn: async ({ pageParam }): Promise<{ richieste: GraziaRequest[]; next_cursor: string | null }> => {
       const path = "/api/grazia/richieste?paged=1" +
         (pageParam ? "&cursor=" + encodeURIComponent(pageParam) : "");
-      const r = await apiRequest("GET", path);
-      if (!r?.ok || !r.data?.success || !Array.isArray(r.data.richieste))
-        throw new Error("Coda richieste non disponibile");
-      return {
-        richieste: r.data.richieste,
-        next_cursor: typeof r.data.next_cursor === "string" ? r.data.next_cursor : null,
-      };
+      try {
+        const r = await apiRequest("GET", path);
+        if (!r?.ok || !r.data?.success || !Array.isArray(r.data.richieste))
+          throw new Error(GRAZIA_ADMIN_QUEUE_ERROR);
+        return {
+          richieste: r.data.richieste,
+          next_cursor: typeof r.data.next_cursor === "string" ? r.data.next_cursor : null,
+        };
+      } catch {
+        throw new Error(GRAZIA_ADMIN_QUEUE_ERROR);
+      }
     },
     getNextPageParam: page => page.next_cursor || undefined,
     enabled: !!user && isAdmin,
@@ -64,13 +76,17 @@ export default function GestisciGrazia() {
     queryFn: async ({ pageParam }): Promise<{ richieste: PublishedGrazia[]; next_cursor: string | null }> => {
       const path = "/api/grazia/approvate" +
         (pageParam ? "?cursor=" + encodeURIComponent(pageParam) : "");
-      const r = await apiRequest("GET", path);
-      if (!r?.ok || !r.data?.success || !Array.isArray(r.data.richieste))
-        throw new Error("Pubblicazioni non disponibili");
-      return {
-        richieste: r.data.richieste,
-        next_cursor: typeof r.data.next_cursor === "string" ? r.data.next_cursor : null,
-      };
+      try {
+        const r = await apiRequest("GET", path);
+        if (!r?.ok || !r.data?.success || !Array.isArray(r.data.richieste))
+          throw new Error(GRAZIA_ADMIN_PUBLISHED_ERROR);
+        return {
+          richieste: r.data.richieste,
+          next_cursor: typeof r.data.next_cursor === "string" ? r.data.next_cursor : null,
+        };
+      } catch {
+        throw new Error(GRAZIA_ADMIN_PUBLISHED_ERROR);
+      }
     },
     getNextPageParam: page => page.next_cursor || undefined,
     enabled: !!user && isAdmin && showPublished,
@@ -86,13 +102,17 @@ export default function GestisciGrazia() {
     queryFn: async ({ pageParam }): Promise<{ ritiri: GraziaUnconfirmedWithdrawal[]; next_cursor: string | null }> => {
       const path = "/api/grazia/ritiri-avvisi" +
         (pageParam ? "?cursor=" + encodeURIComponent(pageParam) : "");
-      const r = await apiRequest("GET", path);
-      if (!r?.ok || !r.data?.success || !Array.isArray(r.data.ritiri))
-        throw new Error("Verifica avvisi non disponibile");
-      return {
-        ritiri: r.data.ritiri,
-        next_cursor: typeof r.data.next_cursor === "string" ? r.data.next_cursor : null,
-      };
+      try {
+        const r = await apiRequest("GET", path);
+        if (!r?.ok || !r.data?.success || !Array.isArray(r.data.ritiri))
+          throw new Error(GRAZIA_ADMIN_AUDIT_ERROR);
+        return {
+          ritiri: r.data.ritiri,
+          next_cursor: typeof r.data.next_cursor === "string" ? r.data.next_cursor : null,
+        };
+      } catch {
+        throw new Error(GRAZIA_ADMIN_AUDIT_ERROR);
+      }
     },
     getNextPageParam: page => page.next_cursor || undefined,
     enabled: !!user && isAdmin && showUnconfirmed,
@@ -100,9 +120,13 @@ export default function GestisciGrazia() {
   const undelivered = auditPages?.pages.flatMap(page => page.ritiri) || [];
   const withdrawMutation=useMutation({
     mutationFn:async({id,note}:{id:string;note:string})=>{
-      const r=await apiRequest("POST",`/api/grazia/richiesta/${encodeURIComponent(id)}/ritira`,{note});
-      if(!r?.ok || !r.data?.success)throw new Error(r?.data?.error||"Ritiro non riuscito");
-      return r.data;
+      try {
+        const r=await apiRequest("POST",`/api/grazia/richiesta/${encodeURIComponent(id)}/ritira`,{note});
+        if(!r?.ok || !r.data?.success)throw new Error(GRAZIA_ADMIN_WITHDRAW_ERROR);
+        return r.data;
+      } catch {
+        throw new Error(GRAZIA_ADMIN_WITHDRAW_ERROR);
+      }
     },
     onSuccess:(result)=>{
       // Reset all loaded pages to page one. An invalidation of an infinite
@@ -115,14 +139,18 @@ export default function GestisciGrazia() {
           ? "I voti storici restano conservati."
           : "Notifica non confermata: verificare gli avvisi con il DPO. Voti storici conservati."});
     },
-    onError:(err:Error)=>toast({title:"Ritiro non registrato",description:err.message,variant:"destructive"}),
+    onError:()=>toast({title:"Ritiro non registrato",description:GRAZIA_ADMIN_WITHDRAW_ERROR,variant:"destructive"}),
   });
 
   const actionMutation = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: "accetta" | "rifiuta" }) => {
-      const result = await apiRequest("POST", `/api/grazia/richiesta/${encodeURIComponent(id)}/${action}`);
-      if (!result?.ok || !result.data?.success) throw new Error(result?.data?.error || "Decisione non applicata");
-      return result.data;
+      try {
+        const result = await apiRequest("POST", `/api/grazia/richiesta/${encodeURIComponent(id)}/${action}`);
+        if (!result?.ok || !result.data?.success) throw new Error(GRAZIA_ADMIN_DECISION_ERROR);
+        return result.data;
+      } catch {
+        throw new Error(GRAZIA_ADMIN_DECISION_ERROR);
+      }
     },
     onSuccess: (_data, { action }) => {
       toast({ title: action === "accetta" ? "Proposta approvata" : "Proposta rifiutata" });
@@ -132,7 +160,7 @@ export default function GestisciGrazia() {
       void queryClient.resetQueries({ queryKey: ["graziaApproved"] });
       queryClient.invalidateQueries({ queryKey: ["graziaData"] });
     },
-    onError: (err: Error) => toast({ title: "Errore", description: err.message, variant: "destructive" }),
+    onError: () => toast({ title: "Errore", description: GRAZIA_ADMIN_DECISION_ERROR, variant: "destructive" }),
   });
 
   if (isAuthLoading) {
@@ -156,7 +184,7 @@ export default function GestisciGrazia() {
           </CardHeader>
           <CardContent>
             {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> :
-             (isError && requests.length === 0) ? <p className="text-red-600">{(error as Error).message}</p> :
+             (isError && requests.length === 0) ? <p role="alert" className="text-red-600">{GRAZIA_ADMIN_QUEUE_ERROR}</p> :
              requests.length === 0 ? <p className="text-muted-foreground">Nessuna proposta in attesa.</p> :
              <div className="space-y-3">
                {requests.map((item) => (
