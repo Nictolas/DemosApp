@@ -155,8 +155,11 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     // unchanged, but two authenticated GETs should share the same metadata
     // probe and return the cooldown fallback in the vote query itself.
     const voteFixture='Voto personale sintetico non pubblicato';
+    const otherAccountVote='Voto privato sintetico account B';
     await pool.query('INSERT INTO voti_grazia(userid,nome,timestamp) VALUES($1,$2,$3)',
       [A,voteFixture,'2026-11-05T12:34:56Z']);
+    await pool.query('INSERT INTO voti_grazia(userid,nome,timestamp) VALUES($1,$2,$3)',
+      [B,otherAccountVote,'2026-11-05T12:34:56Z']);
     const seenSQL=[];
     const trackedQuery=pool.query.bind(pool);
     pool.query=async function(sql,params,...rest){
@@ -171,18 +174,41 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
       assert.deepEqual(first.json.mieiVoti,[voteFixture]);
       assert.deepEqual(second.json.mieiVoti,[voteFixture]);
       assert.equal(first.json.richieste.length,0);
+      // S2 technical access-control regression: distinct accounts must never
+      // receive one another's private voting selections, even though public
+      // catalogue and aggregate counts are accessible to everyone.
+      const otherUser=await req('/api/grazia','b');
+      assert.equal(otherUser.status,200);
+      assert.deepEqual(otherUser.json.mieiVoti,[otherAccountVote]);
+      assert.equal(otherUser.json.mieiVoti.includes(voteFixture),false);
+      assert.equal(first.json.mieiVoti.includes(otherAccountVote),false);
       const anonymous=await req('/api/grazia');
+      const invalidToken=await req('/api/grazia','not-a-valid-jwt');
       assert.deepEqual(anonymous.json.mieiVoti,[]);
+      assert.deepEqual(invalidToken.json.mieiVoti,[]);
+      assert.deepEqual(anonymous.json.richieste,[]);
+      assert.deepEqual(invalidToken.json.richieste,[]);
+      for(const feed of [anonymous,invalidToken]){
+        assert.equal(feed.json.classifica.some(x=>
+          x.nome===voteFixture || x.nome===otherAccountVote),false,
+          'an unapproved personal vote must not publish its subject in the catalogue');
+        assert.equal(JSON.stringify(feed.json).includes(A),false);
+        assert.equal(JSON.stringify(feed.json).includes(B),false);
+      }
+      assert.equal((await req('/api/grazia/mia-proposta','b')).json.richiesta,null,
+        'a separate account cannot retrieve the original proposer\'s request');
+      assert.equal((await req('/api/grazia/mia-proposta')).status,401);
       assert.equal(seenSQL.filter(sql=>sql.includes('FROM information_schema.columns')).length,1,
         'one column lookup per worker, not per authenticated GET');
       assert.equal(seenSQL.filter(sql=>sql.includes('FROM voti_grazia') &&
-        sql.includes('MAX(timestamp) OVER ()')).length,2,
-        'one personal vote query per authenticated GET with cooldown fallback');
+        sql.includes('MAX(timestamp) OVER ()')).length,3,
+        'one private vote query per authenticated GET, not per anonymous request');
       assert.equal(seenSQL.filter(sql=>sql.includes('SELECT MAX(timestamp)')).length,0,
         'no second timestamp aggregate query');
     }finally{
       pool.query=trackedQuery;
       await pool.query('DELETE FROM voti_grazia WHERE userid=$1 AND nome=$2',[A,voteFixture]);
+      await pool.query('DELETE FROM voti_grazia WHERE userid=$1 AND nome=$2',[B,otherAccountVote]);
     }
 
     // The vote checks an approved catalogue row inside its transaction.
