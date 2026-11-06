@@ -16,6 +16,7 @@ on:
       - 'api/tests/politicalEligibilityService.test.js'
       - 'api/tests/provincialMandateOfficeGuard.test.js'
       - 'api/tests/provincialOpinionMatching.contract.test.js'
+      - 'api/tests/provincialReadRelease.http.test.js'
       - '.github/workflows/provincial-representatives-ci.yml'
 permissions:
   contents: read
@@ -52,4 +53,5 @@ jobs:
             api/tests/politicalSelectionRoute.test.js \
             api/tests/politicalEligibilityService.test.js \
             api/tests/provincialMandateOfficeGuard.test.js \
-            api/tests/provincialOpinionMatching.contract.test.js
+            api/tests/provincialOpinionMatching.contract.test.js \
+            api/tests/provincialReadRelease.http.test.js
