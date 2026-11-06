@@ -659,10 +659,12 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
       'unrelated account Grazia history remains');
 
     // Concurrency: account deletion owns the users row until COMMIT.
-    // A late Grazia POST from that deleted account must not reappear as
-    // an orphan pending nomination after the cleanup has completed.
+    // Both a nomination and a personal vote arriving with a still-valid
+    // token must fail after the account is deleted, not recreate private
+    // data after the erasure transaction has completed.
     const raceClient=await pool.connect();
     let lateSubmission;
+    let lateVote;
     try {
       await raceClient.query('BEGIN');
       const raceDeletion=await Erasure.enforceAccountDeletion(raceClient,D);
@@ -671,13 +673,41 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
         nome:'Persona sintetica dopo cancellazione account',
         urlProva:'https://example.org/erasure/late'
       });
-      await new Promise(resolve=>setTimeout(resolve,80));
+      lateVote=req('/api/grazia/vota','d','POST',{
+        voti:['Persona sintetica già approvata']
+      });
+
+      // Prove the vote is actually waiting on the erasure's users-row lock:
+      // a request made only after COMMIT would miss the bug this test covers.
+      let voteWaitingForErasure=false;
+      for(let attempt=0;attempt<150;attempt++){
+        const wait=await pool.query(
+          `SELECT EXISTS (
+             SELECT 1 FROM pg_stat_activity
+             WHERE datname=current_database()
+               AND state='active'
+               AND wait_event_type='Lock'
+               AND query LIKE '%FROM users WHERE id::text=%'
+               AND query LIKE '%FOR KEY SHARE%'
+           ) AS blocked`
+        );
+        if(wait.rows[0].blocked){voteWaitingForErasure=true;break;}
+        await new Promise(resolve=>setTimeout(resolve,30));
+      }
+      assert.equal(voteWaitingForErasure,true,
+        'the in-flight Grazia vote must wait on the deleting account row');
       await raceClient.query('COMMIT');
-      const response=await lateSubmission;
+      const [response,lateVoteResponse]=await Promise.all([lateSubmission,lateVote]);
       assert.notEqual(response.status,202,'late account submission must not be accepted');
+      assert.equal(lateVoteResponse.status,401,
+        'stale authenticated vote is rejected after concurrent account erasure');
       const orphan=await pool.query('SELECT count(*)::integer n FROM richieste_grazia WHERE nome=$1',
         ['Persona sintetica dopo cancellazione account']);
       assert.equal(orphan.rows[0].n,0,'no orphan nomination after committed deletion');
+      assert.equal((await pool.query('SELECT COUNT(*)::integer n FROM voti_grazia WHERE userid=$1',[D])).rows[0].n,0,
+        'late personal vote cannot recreate a deleted account preference');
+      assert.equal((await pool.query("SELECT COUNT(*)::integer n FROM preference_change_cooldowns WHERE user_id=$1 AND scope='grazia:preferenza'",[D])).rows[0].n,0,
+        'late personal vote cannot recreate a deleted cooldown');
     }finally{
       await raceClient.query('ROLLBACK').catch(()=>{});
       raceClient.release();
