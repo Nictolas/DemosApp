@@ -204,7 +204,7 @@ test('provincial selections never fall back to unscoped legacy candidates or rep
   const db = { async query(sql) {
     const q = String(sql);
     if (q.includes('FROM user_political_territories')) throw missingTable();
-    if (q.includes('FROM users WHERE id = $1')) return { rows: [{ id: 'u', provincia_residenza: 'TN' }] };
+    if (q.includes('FROM users WHERE id = $1')) return { rows: [{ id: 'u', paese_residenza: 'IT', provincia_residenza: 'TN' }] };
     if (q.includes('FROM political_candidacies') || q.includes('FROM political_mandates')) throw missingTable();
     throw new Error('Provincial fallback must not query legacy users candidates/representatives');
   } };
@@ -275,10 +275,10 @@ test('provincial councillor with overlapping mandate rows appears only once', as
     if (q.includes('FROM user_political_territories')) throw missingTable();
     if (q.includes('FROM users WHERE id = $1')) return { rows: [{ id: 'resident', paese_residenza: 'IT', provincia_residenza: 'TN' }] };
     if (q.includes('FROM political_mandates')) return { rows: [
-      { id: 'councillor', mandate_id: 'provincial', jurisdiction: { province: 'TN' } },
-      { id: 'councillor', mandate_id: 'derived-regional', jurisdiction: { province: 'TN' } },
-      { id: 'another', mandate_id: 'provincial-2', jurisdiction: { province: 'TN' } },
-      { id: 'outsider', mandate_id: 'other', jurisdiction: { province: 'BZ' } }
+      { id: 'councillor', mandate_id: 'provincial', grado_elezione: 'it.provincial.trento', jurisdiction: { province: 'TN' } },
+      { id: 'councillor', mandate_id: 'derived-regional', grado_elezione: 'CONSIGLIO_REGIONALE', jurisdiction: { province: 'TN' } },
+      { id: 'another', mandate_id: 'provincial-2', grado_elezione: 'it.provincial.trento', jurisdiction: { province: 'TN' } },
+      { id: 'outsider', mandate_id: 'other', grado_elezione: 'it.provincial.bolzano', jurisdiction: { province: 'BZ' } }
     ] };
     throw new Error('Unexpected query in provincial duplicate mandate test');
   } };
