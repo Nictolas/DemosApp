@@ -56,6 +56,27 @@ test('rejects oversize completion and excessive estimated prompt tokens without 
     { allowed: false, reason: 'LOCAL_FREE_QUOTA_REACHED' });
 });
 
+test('429 HTTP-date Retry-After is honored, bounded and fail-closed', () => {
+  let current = Date.UTC(2026, 10, 6, 6, 0, 0);
+  const gate = createFreeBudgetGate({ now: () => current });
+  const messages = [{ role: 'user', content: 'testo' }];
+  const retryDate = new Date(current + 180000).toUTCString();
+  gate.coolDownFrom429({ status: 429, headers: { 'retry-after': retryDate } });
+  current += 61000;
+  assert.deepEqual(gate.reserve(messages, 450), {
+    allowed: false, reason: 'PROVIDER_429_COOLDOWN'
+  }, 'An HTTP-date 180 seconds ahead must not be treated as 60 seconds');
+  current += 119001;
+  assert.equal(gate.reserve(messages, 450).allowed, true);
+
+  const future = new Date(current + 3 * 86400000).toUTCString();
+  gate.coolDownFrom429({ status: 429, headers: { 'retry-after': future } });
+  current += 86399999;
+  assert.equal(gate.reserve(messages, 450).allowed, false);
+  current += 2;
+  assert.equal(gate.reserve(messages, 450).allowed, true, 'Cooldown must be capped at 24h');
+});
+
 test('429 enforces provider cooldown instead of repeating calls', () => {
   let current = 1700000000000;
   const gate = createFreeBudgetGate({ now: () => current });
