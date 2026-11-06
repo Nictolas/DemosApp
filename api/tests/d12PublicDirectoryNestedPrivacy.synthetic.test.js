@@ -6,6 +6,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
 const {PUBLIC_DIRECTORY_MEMBER_FIELDS,PUBLIC_ACTIVISM_TYPE_FIELDS,
+  PUBLIC_AVATAR_FIELDS,projectPublicAvatarConfig,
   projectPublicDirectoryMembers}=require('../services/publicDirectoryMemberProjection');
 
 test('public member projection rejects extra top-level and nested JSONB fields',()=>{
@@ -69,4 +70,45 @@ test('both public directories apply the projector on initial, paged and legacy r
     assert.equal(PUBLIC_ACTIVISM_TYPE_FIELDS.includes(field),false);
   }
   assert.deepEqual(PUBLIC_ACTIVISM_TYPE_FIELDS,['tipo','emoji','nome','descrizione','colore']);
+});
+
+
+test('public avatar configuration removes injected extra fields without changing the twelve renderer attributes',()=>{
+  const avatar={
+    skinColor:'#FDBCB4',hairColor:'#8B4513',hairStyle:'short',
+    mustacheStyle:'none',mustacheColor:'#2C1810',
+    beardStyle:'none',beardColor:'#2C1810',noseStyle:'normal',
+    suitColor:'#2C3E50',tieColor:'#E74C3C',
+    glassesStyle:'none',glassesColor:'#333333',
+    privateEmail:'synthetic-avatar-secret@example.invalid',
+    reviewMetadata:{token:'private-avatar-token'},
+    personal_votes:['synthetic-private-selection']
+  };
+  const serialized=JSON.stringify(avatar);
+  const supported=Object.fromEntries(PUBLIC_AVATAR_FIELDS.map(k=>[k,avatar[k]]));
+  const [row]=projectPublicDirectoryMembers([{id:'synthetic',avatar_config:serialized}]);
+  assert.equal(typeof row.avatar_config,'string','keep the existing text/JSON API contract');
+  assert.deepEqual(JSON.parse(row.avatar_config),supported);
+  assert.doesNotMatch(row.avatar_config,/synthetic-avatar-secret|reviewMetadata|private-avatar-token|personal_votes/);
+  assert.equal(serialized,JSON.stringify(avatar),'do not mutate the source object');
+  assert.deepEqual(JSON.parse(projectPublicAvatarConfig(JSON.stringify(serialized))),supported,
+    'legacy double-serialized JSON must keep rendering');
+  assert.equal(projectPublicAvatarConfig(JSON.stringify(supported)),JSON.stringify(supported),
+    'already-minimal valid avatar stays unchanged');
+});
+
+test('public avatar configuration fails closed for malformed or nested non-visual payloads',()=>{
+  const inputs=[
+    'not json','',JSON.stringify(['private']),JSON.stringify(null),
+    JSON.stringify({skinColor:{private:'private-avatar-token'}}),
+    'x'.repeat(4097),42,null
+  ];
+  for(const value of inputs){
+    const [row]=projectPublicDirectoryMembers([{id:'synthetic',avatar_config:value}]);
+    if(value===JSON.stringify({skinColor:{private:'private-avatar-token'}})){
+      assert.deepEqual(JSON.parse(row.avatar_config),{});
+    } else {
+      assert.equal(row.avatar_config,null,'unexpected values must not be sent unchanged');
+    }
+  }
 });
