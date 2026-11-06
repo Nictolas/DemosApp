@@ -9,7 +9,10 @@ const { createSingleflight } = require('../services/parliamentAiSingleflight');
 
 test('a vote retitled while Groq is running cannot reuse the previous explanation', async () => {
   const source = fs.readFileSync(path.join(__dirname, '../services/aiExplanationService.js'), 'utf8');
-  const vote = { id: 523, titolo_votazione: 'Votazione finale A', spiegazione: null };
+  const vote = {
+    id: 523, titolo_votazione: 'Votazione finale A',
+    descrizione_votazione: 'Testo ufficiale fittizio lungo.', spiegazione: null
+  };
   let requests = 0;
   let releaseFirst;
   let signalFirst;
@@ -21,14 +24,18 @@ test('a vote retitled while Groq is running cannot reuse the previous explanatio
   });
   const pool = {
     query: async (sql, params) => {
-      if (/^\s*SELECT titolo_votazione, spiegazione FROM votazioni_parlamento/u.test(sql)) {
+      if (/^\s*SELECT titolo_votazione, spiegazione, descrizione_votazione FROM votazioni_parlamento/u.test(sql)) {
         assert.equal(params[0], vote.id);
-        return { rows: [{ titolo_votazione: vote.titolo_votazione, spiegazione: vote.spiegazione }] };
+        return { rows: [{ titolo_votazione: vote.titolo_votazione,
+          descrizione_votazione: vote.descrizione_votazione, spiegazione: vote.spiegazione }] };
       }
       if (/^\s*UPDATE votazioni_parlamento/u.test(sql)) {
         assert.match(sql, /WHERE id = \$2 AND titolo_votazione = \$3/u);
+        assert.match(sql, /descrizione_votazione IS NOT DISTINCT FROM \$4/u);
+        assert.equal(params.length, 4);
         assert.equal(params[1], vote.id);
-        if (params[2] !== vote.titolo_votazione || vote.spiegazione !== null) {
+        if (params[2] !== vote.titolo_votazione ||
+            params[3] !== vote.descrizione_votazione || vote.spiegazione !== null) {
           return { rowCount: 0 };
         }
         vote.spiegazione = params[0];
@@ -87,6 +94,7 @@ test('a vote retitled while Groq is running cannot reuse the previous explanatio
   await firstStarted;
   // This ID now refers to a different, newly indexed vote.
   vote.titolo_votazione = 'Votazione finale B';
+  vote.descrizione_votazione = 'Nuovo testo ufficiale fittizio lungo.';
   const current = service.generaSpiegazioneVotazione(
     vote.id, 'Votazione finale B', 'Nuovo testo ufficiale fittizio lungo.', 'Camera'
   );
