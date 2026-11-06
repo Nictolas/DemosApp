@@ -13,7 +13,7 @@ test('registered directory cursor requires canonical base64url encoding',()=>{
   assert.equal(decodeRegisteredCursor(canonical.replace(/.$/,'*')),false);
   assert.equal(decodeRegisteredCursor(''),null);
   assert.equal(decodeRegisteredCursor(null),null);
-  for(const tuple of [[-1,id],[2147483648,id],[1,'not-a-uuid'],['1',id]]){
+  // Valid base64url is not sufficient: malformed tuples must fail closed.\n  for(const tuple of [[-1,id],[2147483648,id],[1,'not-a-uuid'],['1',id],\n    [1,id,'extra'],[1],{},null,[1,null],[1,id.toUpperCase()+'suffix'],\n    [1.5,id],[null,id],[true,id]]){
     assert.equal(decodeRegisteredCursor(Buffer.from(JSON.stringify(tuple)).toString('base64url')),false);
   }
 });
