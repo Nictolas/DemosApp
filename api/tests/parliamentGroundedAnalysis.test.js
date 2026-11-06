@@ -79,6 +79,22 @@ test('structured result must contain all three bounded fields, not fabricated on
   assert.equal(parseGroundedAnalysisResponse('[' + JSON.stringify(valid) + ']'), null);
 });
 
+test('no-evidence JSON sentinel is never accepted as a legislative explanation', () => {
+  const payload = { spiegazione_generale: '', effetti_positivi: '', effetti_negativi: '' };
+  for (const answer of [
+    'INFORMAZIONI_INSUFFICIENTI',
+    'Informazioni insufficienti.',
+    ' informazioni-insufficienti! ',
+    'INFORMAZIONI  INSUFFICIENTI?'
+  ]) {
+    payload.spiegazione_generale = answer;
+    assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)), null);
+  }
+  payload.spiegazione_generale = 'Il documento disciplina una misura pubblica.';
+  assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)).spiegazione_generale,
+    payload.spiegazione_generale);
+});
+
 test('full legislative analysis has exactly one gated provider call and no handwritten 1718 fallback', () => {
   assert.equal((lawSource.match(/requestFreeGroq\s*\(/g) || []).length, 1);
   assert.equal((lawSource.match(/chat\.completions\.create\s*\(/g) || []).length, 0);
