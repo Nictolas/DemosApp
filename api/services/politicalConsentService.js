@@ -7,6 +7,9 @@ const USER_LINK_COLUMNS = Object.freeze(['user_id', 'userid', 'userId', 'utente_
 // istituzionali importati su Politici/Candidati da fonti pubbliche.
 const CONSENT_SCOPED_TABLES = Object.freeze([
   'opinioni_risposte',
+  // Canonical representative/candidate choices are user-generated political
+  // preferences too. Withdrawal must not leave them in a separate table.
+  'political_selections',
   'voti_elezioni',
   'voti_capo_stato',
   'voti_ice',
