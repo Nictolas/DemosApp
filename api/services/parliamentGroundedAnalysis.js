@@ -73,7 +73,12 @@ function parseGroundedAnalysisResponse(response) {
   // list of unsupported legislative effects.
   const itemCount = value => value.split(/\r?\n/u)
     .filter(line => /^\s*(?:[-*•]|\d+[.)])\s+\S/u.test(line)).length;
-  if (itemCount(effetti_positivi) > 3 || itemCount(effetti_negativi) > 3) return null;
+  // A model may also number four effects inline on one line rather than as bullets.
+  const countedEffects = value => Math.max(
+    itemCount(value),
+    (value.match(/(?:^|[\s;])\d+[.)]\s+\S/gu) || []).length
+  );
+  if (countedEffects(effetti_positivi) > 3 || countedEffects(effetti_negativi) > 3) return null;
   // A no-evidence sentinel in any field is not a documented explanation or
   // legislative effect. Fail closed rather than displaying it as real content.
   const noEvidence = /^INFORMAZIONI[\s_-]*INSUFFICIENTI[.!?]*$/iu;

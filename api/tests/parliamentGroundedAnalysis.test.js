@@ -143,6 +143,24 @@ test('effect lists reject more than three points', () => {
   }
 });
 
+test('inline numbered legislative effects enforce the three-point limit', () => {
+  const response = {
+    spiegazione_generale: 'Una misura documentata.',
+    effetti_positivi: '',
+    effetti_negativi: ''
+  };
+  for (const field of ['effetti_positivi', 'effetti_negativi']) {
+    response[field] = '1) Primo effetto; 2) Secondo effetto; 3) Terzo effetto';
+    assert.ok(parseGroundedAnalysisResponse(JSON.stringify(response)), 'Three inline numbered points are allowed');
+    response[field] += '; 4) Quarto effetto';
+    assert.equal(parseGroundedAnalysisResponse(JSON.stringify(response)), null,
+      'Four inline numbered points must not be published');
+    response[field] = '1. Primo effetto 2. Secondo effetto 3. Terzo effetto 4. Quarto effetto';
+    assert.equal(parseGroundedAnalysisResponse(JSON.stringify(response)), null,
+      'Dot-numbered inline points are also bounded');
+    response[field] = '';
+  }
+});
 test('full legislative analysis has exactly one gated provider call and no handwritten 1718 fallback', () => {
   assert.equal((lawSource.match(/requestFreeGroq\s*\(/g) || []).length, 1);
   assert.equal((lawSource.match(/chat\.completions\.create\s*\(/g) || []).length, 0);
