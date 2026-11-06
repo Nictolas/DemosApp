@@ -17,6 +17,25 @@ export default function Grazia() {
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
 
+  // Never mount private vote hooks while authentication is unresolved.
+  if (!authReady || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (!user) return <Redirect to="/auth" />;
+
+  // A new account must never inherit the prior account's local vote selection,
+  // pending removal dialog or search input (React Query cache keys alone are
+  // insufficient because this form also uses component-local state).
+  return <GraziaAuthenticated key={user.id} user={user} />;
+}
+
+function GraziaAuthenticated({ user }: {
+  user: NonNullable<ReturnType<typeof useAuth>["user"]>
+}) {
   const { data, isLoadingData, error, saveVotiMutation } = useGraziaData(user);
   const { 
     votingState, 
@@ -33,19 +52,6 @@ export default function Grazia() {
     confirmRemove,
     cancelRemove
   } = useGraziaVoting(data, saveVotiMutation);
-
-
-  if (!authReady || isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Redirect to="/auth" />;
-  }
 
 
   return (

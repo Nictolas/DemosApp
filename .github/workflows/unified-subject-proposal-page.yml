@@ -31,6 +31,7 @@ on:
       - 'client/src/pages/Grazia/hooks/useGraziaData.ts'
       - 'api/tests/d12GraziaPrivacyContact.contract.test.js'
       - 'api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js'
+      - 'api/tests/d12GraziaAccountSwitchIsolation.synthetic.test.js'
       - 'scripts/test-grazia-privacy-browser.cjs'
       - 'api/tests/graziaAdminPagination.synthetic.test.js'
       - 'scripts/test-grazia-admin-pagination-browser.cjs'
@@ -107,6 +108,8 @@ jobs:
         run: node --test api/tests/d12FrontendParsingPrivacy.contract.test.js
       - name: Keep personal Grazia vote cache isolated between accounts
         run: node --test api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js
+      - name: Keep Grazia local votes isolated across account changes and prevent deferred writes
+        run: node --test api/tests/d12GraziaAccountSwitchIsolation.synthetic.test.js
       - name: Redact private server details across Grazia admin and proposal error paths
         run: node --test api/tests/d12GraziaAdminErrorRedaction.synthetic.test.js
       - run: npm run build --prefix client

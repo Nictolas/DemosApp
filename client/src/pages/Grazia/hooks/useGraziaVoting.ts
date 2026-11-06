@@ -63,6 +63,7 @@ export const useGraziaVoting = (
 
   const addNomeLocal = (e: React.FormEvent) => {
     e.preventDefault();
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
     const input = votingState.nomeInput.trim();
     if (!input) return;
     const approved = data?.classifica?.find(item => item.nome.toLocaleLowerCase('it') === input.toLocaleLowerCase('it'));
@@ -91,9 +92,7 @@ export const useGraziaVoting = (
         nomeInput: ""
       }));
       // Salva automaticamente dopo aver aggiornato lo stato
-      setTimeout(() => {
-        saveVotiMutation.mutate(nuoviVoti);
-      }, 0);
+      saveVotiMutation.mutate(nuoviVoti);
       return;
     }
     
@@ -105,9 +104,7 @@ export const useGraziaVoting = (
       nomeInput: ""
     }));
     // Salva automaticamente dopo aver aggiornato lo stato
-    setTimeout(() => {
-      saveVotiMutation.mutate(nuoviVoti);
-    }, 0);
+    saveVotiMutation.mutate(nuoviVoti);
   };
 
   const removeLocal = (nome: string) => {
@@ -132,9 +129,7 @@ export const useGraziaVoting = (
     setShowRemoveDialog(false);
     setVotoToRemove(null);
     // Salva automaticamente dopo aver rimosso il voto
-    setTimeout(() => {
-      saveVotiMutation.mutate(nuoviVoti);
-    }, 0);
+    saveVotiMutation.mutate(nuoviVoti);
   };
 
   const cancelRemove = () => {
@@ -144,45 +139,18 @@ export const useGraziaVoting = (
   
   const toggleSelezioneClassifica = (nome: string) => {
     if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
-    
-    setVotingState(prev => {
-      if (prev.selectedVoti.includes(nome)) {
-        // Rimuovi il voto e salva automaticamente
-        const nuoviVoti = prev.selectedVoti.filter(n => n !== nome);
-        setTimeout(() => {
-          saveVotiMutation.mutate(nuoviVoti);
-        }, 0);
-        return {
-          ...prev,
-          selectedVoti: nuoviVoti
-        };
-      } else {
-        // Se l'utente ha già votato e prova a votare qualcun altro, sostituisci e salva
-        const limit = getVotingLimit('grazia');
-        
-        if (hasReachedVotingLimit('grazia', prev.selectedVoti.length)) {
-          // Sostituisci il voto esistente con il nuovo e salva automaticamente
-          const nuoviVoti = [nome];
-          setTimeout(() => {
-            saveVotiMutation.mutate(nuoviVoti);
-          }, 0);
-          return {
-            ...prev,
-            selectedVoti: nuoviVoti
-          };
-        } else {
-          // Primo voto o aggiunta normale, salva automaticamente
-          const nuoviVoti = [...prev.selectedVoti, nome];
-          setTimeout(() => {
-            saveVotiMutation.mutate(nuoviVoti);
-          }, 0);
-          return {
-            ...prev,
-            selectedVoti: nuoviVoti
-          };
-        }
-      }
-    });
+    // Never dispatch an API mutation from a React state updater: React can
+    // replay that updater, resulting in duplicate or delayed private writes.
+    // Capture and submit the vote during the initiating account's click.
+    if (!data?.classifica?.some(item => item.nome === nome)) return;
+    const previous = votingState.selectedVoti;
+    const nuoviVoti = previous.includes(nome)
+      ? previous.filter(n => n !== nome)
+      : hasReachedVotingLimit('grazia', previous.length)
+        ? [nome]
+        : [...previous, nome];
+    setVotingState(prev => ({ ...prev, selectedVoti: nuoviVoti }));
+    saveVotiMutation.mutate(nuoviVoti);
   };
 
   const handleCreateCarcerato = async (data: CarceratoFormData) => {
