@@ -307,48 +307,29 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
       throw new Error('GRAZIA_VOTE_SCHEMA_UNRECOGNIZED');
 
     const requestedVotes = voti.map((nome) => nome.trim());
-    const existingResult = await pool.query(
-      `SELECT nome, ${timestampColumn} AS changed_at
-       FROM voti_grazia
-       WHERE ${userIdColumn} = $1
-       ORDER BY ${timestampColumn} DESC`,
-      [userId]
-    );
-    const currentVotes = existingResult.rows.map((row) => String(row.nome || '').trim()).filter(Boolean).slice(0, 1);
     const requestedVote = requestedVotes[0] || null;
-    const currentVote = currentVotes[0] || null;
 
-    if (requestedVote) {
-      const allowed = await pool.query(
-        'SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome)) = LOWER($1) LIMIT 1',
-        [requestedVote]
-      );
-      if (!allowed.rows.length) {
-        return res.status(422).json({ success: false, error: 'Soggetto non approvato per la votazione' });
-      }
-    }
-
-    if (requestedVote === currentVote) {
-      return res.json({ success: true, message: 'Preferenza Grazia già aggiornata' });
-    }
-
-    await assertPreferenceChangeAllowed(pool, {
-      userId,
-      scope: 'grazia:preferenza',
-      fallbackChangedAt: existingResult.rows[0]?.changed_at || null,
-      isAdmin: Boolean(req.user?.isAdmin)
-    });
-
-    // Inizia una transazione
+    // Serialize each account's choice within a transaction so parallel POSTs
+    // cannot both pass a stale cooldown and write conflicting preferences.
     const client = await pool.connect();
-
     try {
       await client.query('BEGIN');
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1::text, 12005))',
+        [String(userId)]
+      );
 
-      // Serialize a new vote with any concurrent Admin withdrawal. The
-      // preliminary active check above can become stale before BEGIN.
-      // FOR SHARE blocks the withdrawal's UPDATE until this vote commits;
-      // if withdrawal committed first, the candidate is no longer allowed.
+      const existingResult = await client.query(
+        `SELECT nome, ${timestampColumn} AS changed_at
+         FROM voti_grazia
+         WHERE ${userIdColumn} = $1
+         ORDER BY ${timestampColumn} DESC`,
+        [userId]
+      );
+      const currentVote = existingResult.rows
+        .map((row) => String(row.nome || '').trim()).filter(Boolean)[0] || null;
+
+      // Keep a new vote serialized with a concurrent Admin withdrawal.
       if (requestedVote) {
         const stillActive = await client.query(
           'SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome)) = LOWER($1) FOR SHARE',
@@ -359,6 +340,20 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
           return res.status(422).json({ success: false, error: 'Soggetto non approvato per la votazione' });
         }
       }
+
+      if (requestedVote === currentVote) {
+        await client.query('ROLLBACK');
+        return res.json({ success: true, message: 'Preferenza Grazia già aggiornata' });
+      }
+
+      // Check the recorded cooldown after acquiring the lock, against
+      // the same transaction state that will receive the new vote.
+      await assertPreferenceChangeAllowed(client, {
+        userId,
+        scope: 'grazia:preferenza',
+        fallbackChangedAt: existingResult.rows[0]?.changed_at || null,
+        isAdmin: Boolean(req.user?.isAdmin)
+      });
 
       // Elimina i voti esistenti
       const deleteQuery = `DELETE FROM voti_grazia WHERE ${userIdColumn} = $1`;
