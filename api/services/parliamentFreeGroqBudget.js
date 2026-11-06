@@ -17,14 +17,24 @@ function estimateReservedTokens(messages, maxOutputTokens) {
   return Math.ceil(bytes / 2) + maxOutputTokens;
 }
 
-function getRetryAfterSeconds(error) {
+function getRetryAfterSeconds(error, at = Date.now()) {
   const raw = typeof error?.headers?.get === 'function'
     ? error.headers.get('retry-after')
     : error?.headers?.['retry-after'];
-  const seconds = Number(raw);
-  return Number.isFinite(seconds) && seconds > 0
-    ? Math.min(Math.ceil(seconds), 86400)
-    : 60;
+  // Retry-After supports delta-seconds OR an HTTP-date (RFC 9110).
+  // An HTTP-date must not silently fall back to 60 seconds and hammer a
+  // Free-tier provider that requested a longer cooldown.
+  const seconds = typeof raw === 'string' && raw.trim()
+    ? Number(raw.trim())
+    : NaN;
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.min(Math.ceil(seconds), 86400);
+  }
+  const deadline = typeof raw === 'string' ? Date.parse(raw) : NaN;
+  if (Number.isFinite(deadline) && deadline > at) {
+    return Math.min(Math.ceil((deadline - at) / 1000), 86400);
+  }
+  return 60;
 }
 
 function isProviderRateLimited(error) {
@@ -79,7 +89,7 @@ function createFreeBudgetGate({ now = Date.now, limits = LIMIT } = {}) {
   }
 
   function coolDownFrom429(error) {
-    blockedUntil = Math.max(blockedUntil, now() + getRetryAfterSeconds(error) * 1000);
+    blockedUntil = Math.max(blockedUntil, now() + getRetryAfterSeconds(error, now()) * 1000);
   }
 
   function status() {
