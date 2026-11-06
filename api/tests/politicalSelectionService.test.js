@@ -155,6 +155,6 @@ test('provincial representative is persisted canonically without a users column'
   }
   const canonicalWrites = queries.filter(({sql}) => /INSERT INTO political_selections/.test(sql));
   assert.equal(canonicalWrites.length, 2);
-  assert.deepEqual(canonicalWrites.map(({params}) => params[2]), ['it.provincial.trento', 'it.provincial.bolzano']);
+  assert.deepEqual(canonicalWrites.map(({params}) => params[3]), ['it.provincial.trento', 'it.provincial.bolzano']);
   assert.equal(queries.some(({sql}) => /UPDATE users|user_representatives/.test(sql)), false);
 });
