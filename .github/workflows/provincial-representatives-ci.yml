@@ -5,12 +5,17 @@ on:
       - 'api/config/politicalJurisdictions.js'
       - 'api/services/politicalEligibilityService.js'
       - 'api/services/politicalSelectionService.js'
+      - 'api/services/politicalJurisdictionRegistryService.js'
+      - 'api/routes/rappresentanti.js'
+      - 'api/routes/candidati.js'
+      - 'api/routes/elezioni.js'
       - 'api/routes/users/profile.js'
       - 'api/tests/politicalJurisdictionRegistryService.test.js'
       - 'api/tests/politicalSelectionService.test.js'
       - 'api/tests/politicalSelectionRoute.test.js'
       - 'api/tests/politicalEligibilityService.test.js'
       - 'api/tests/provincialMandateOfficeGuard.test.js'
+      - 'api/tests/provincialOpinionMatching.contract.test.js'
       - '.github/workflows/provincial-representatives-ci.yml'
 permissions:
   contents: read
@@ -34,6 +39,11 @@ jobs:
           node --check api/config/politicalJurisdictions.js
           node --check api/services/politicalEligibilityService.js
           node --check api/services/politicalSelectionService.js
+          node --check api/services/politicalJurisdictionRegistryService.js
+          node --check api/routes/users/profile.js
+          node --check api/routes/rappresentanti.js
+          node --check api/routes/candidati.js
+          node --check api/routes/elezioni.js
       - name: Test territory, authority and canonical persistence (no database)
         run: |
           node --test \
@@ -41,4 +51,5 @@ jobs:
             api/tests/politicalSelectionService.test.js \
             api/tests/politicalSelectionRoute.test.js \
             api/tests/politicalEligibilityService.test.js \
-            api/tests/provincialMandateOfficeGuard.test.js
+            api/tests/provincialMandateOfficeGuard.test.js \
+            api/tests/provincialOpinionMatching.contract.test.js
