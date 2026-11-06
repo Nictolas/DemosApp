@@ -13,6 +13,7 @@ import { RappresentanteCard } from "./components/RappresentanteCard";
 import { LoadingStates } from "./components/LoadingStates";
 import { OpinioniIncompleteAlert } from "./components/OpinioniIncompleteAlert";
 import { getTitolo } from "./utils/rappresentanteUtils";
+import { provincialOfficeFromCategory, PROVINCIAL_UI_RELEASED } from "@/lib/provincialSelection";
 
 export default function ScegliRappresentante() {
   const { categoria } = useParams<{ categoria: string }>();
@@ -54,6 +55,10 @@ export default function ScegliRappresentante() {
 
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
+  }
+  // The direct URL must not bypass the unapproved release gate.
+  if (provincialOfficeFromCategory(categoria || "") && !PROVINCIAL_UI_RELEASED) {
+    return <Redirect to={location.startsWith("/candidati") ? "/candidati" : "/rappresentanti"} />;
   }
 
   // Mostra il loader se auth non è pronto o se sta caricando
