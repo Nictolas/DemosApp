@@ -91,3 +91,22 @@ test('Grazia voting form explicitly imports all components it renders',()=>{
       component+' must remain imported because missing JSX identifiers crash Grazia at runtime');
   }
 });
+
+
+test('Grazia public catalogue and nomination payload remain minimal: no offence narratives',()=>{
+  const route=read('api/routes/grazia.js');
+  const form=read('client/src/pages/ProponiSoggetto.tsx');
+  const card=read('client/src/pages/Grazia/components/CarceratoItem.tsx');
+  const listing=route.split('// GET /api/grazia -')[1].split('// GET /api/grazia/richieste')[0];
+  const nomination=route.split('// POST /api/grazia -')[1].split('// GET /api/grazia -')[0];
+  assert.match(listing,/SELECT c\\.nome, COUNT\\(v\\.id\\)::integer AS richieste FROM grazia_carcerati c/);
+  assert.match(listing,/classifica: classificaResult\\.rows/);
+  assert.match(nomination,/INSERT INTO richieste_grazia \\(id, utente_id, nome, url_prova, status, data_creazione\\)/);
+  assert.match(form,/category !== "grazia" && \\(/,'Grazia must not expose free-form details input');
+  assert.match(form,/nome: title\\.trim\\(\\),\\s*urlProva: sourceUrl\\.trim\\(\\)/);
+  assert.match(card,/\\{item\\.nome\\}/);
+  assert.match(card,/\\{item\\.richieste\\} richieste/);
+  for(const source of [listing,card]){
+    assert.doesNotMatch(source,/\\b(?:reato|reati|sentenza|condanna|imputazione|casellario)\\b/i);
+  }
+});
