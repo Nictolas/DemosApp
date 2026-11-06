@@ -17,6 +17,14 @@ on:
       - 'api/tests/provincialMandateOfficeGuard.test.js'
       - 'api/tests/provincialOpinionMatching.contract.test.js'
       - 'api/tests/provincialReadRelease.http.test.js'
+      - 'api/tests/provincialFrontendWiring.smoke.test.js'
+      - 'client/src/lib/provincialSelection.ts'
+      - 'client/src/components/ProvincialOfficeChoice.tsx'
+      - 'client/src/components/ViewOpinioniDialog.tsx'
+      - 'client/src/pages/SelectionGrid.css'
+      - 'client/src/pages/Rappresentanti/index.tsx'
+      - 'client/src/pages/Candidati/index.tsx'
+      - 'client/src/pages/ScegliRappresentante/**'
       - '.github/workflows/provincial-representatives-ci.yml'
 permissions:
   contents: read
@@ -54,4 +62,5 @@ jobs:
             api/tests/politicalEligibilityService.test.js \
             api/tests/provincialMandateOfficeGuard.test.js \
             api/tests/provincialOpinionMatching.contract.test.js \
-            api/tests/provincialReadRelease.http.test.js
+            api/tests/provincialReadRelease.http.test.js \
+            api/tests/provincialFrontendWiring.smoke.test.js
