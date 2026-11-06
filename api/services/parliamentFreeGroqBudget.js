@@ -18,9 +18,12 @@ function estimateReservedTokens(messages, maxOutputTokens) {
 }
 
 function getRetryAfterSeconds(error, at = Date.now()) {
-  const raw = typeof error?.headers?.get === 'function'
-    ? error.headers.get('retry-after')
-    : error?.headers?.['retry-after'];
+  const headers = error?.headers;
+  const raw = typeof headers?.get === 'function'
+    ? headers.get('retry-after')
+    : headers && typeof headers === 'object'
+      ? Object.entries(headers).find(([name]) => name.toLowerCase() === 'retry-after')?.[1]
+      : undefined;
   // Retry-After supports delta-seconds OR an HTTP-date (RFC 9110).
   // An HTTP-date must not silently fall back to 60 seconds and hammer a
   // Free-tier provider that requested a longer cooldown.
