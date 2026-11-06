@@ -173,6 +173,22 @@ test('insufficient-evidence sentinel is never published when punctuated or refor
   assert.equal(h.updates, 1, 'Valid text still saves normally');
 });
 
+test('plain-text explanation enforces the promised 100-word maximum before publishing or saving', async () => {
+  const h = createHarness();
+  const words = Array(100).fill('misura').join(' ');
+  h.setCompletion({ choices: [{ finish_reason: 'stop', message: { content: words } }] });
+  assert.equal(await h.service.generaSpiegazione(
+    'Votazione finale A', 'Fonte fittizia', 'Camera', 'Favorevole'
+  ), words, '100 words should remain acceptable');
+
+  h.setCompletion({ choices: [{ finish_reason: 'stop', message: { content: words + ' eccedente' } }] });
+  assert.equal(await h.service.generaESalvaSpiegazione(
+    'Rappresentante QA', 'Votazione finale A', 'Fonte fittizia', 'Camera', 'Favorevole', true
+  ), null, '101 words should not be saved as a short explanation');
+  assert.equal(h.updates, 0, 'Too-long summaries must never be written to the database');
+  assert.equal(h.row.spiegazione, null);
+});
+
 test('explanation service logs do not disclose vote identifiers or Groq configuration diagnostics', () => {
   assert.doesNotMatch(sourceForLogSafety(), /console\.(?:log|warn|error)\(\s*`[^`]*\$\{votazioneId\}/);
   assert.doesNotMatch(sourceForLogSafety(), /console\.(?:log|warn|error)\(\s*`[^`]*\$\{(?:aiProvider|aiClient|!!process\.env\.GROQ_API_KEY)\}/);

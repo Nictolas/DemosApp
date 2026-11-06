@@ -116,7 +116,8 @@ async function generaSpiegazione(votazione, descrizioneVotazione, camera, voto) 
       console.warn('Spiegazione AI non pubblicata: evidenza documentale insufficiente');
       return null;
     }
-    if (spiegazione.length <= 2000) {
+    // Enforce the 100-word limit promised in the prompt, not only 2000 characters.
+    if (spiegazione.length <= 2000 && spiegazione.split(/\s+/u).length <= 100) {
       console.log('Spiegazione AI parlamentare generata (solo testo documentato)');
       return spiegazione;
     }
