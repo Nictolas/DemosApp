@@ -22,16 +22,47 @@ const PUBLIC_DIRECTORY_MEMBER_FIELDS = Object.freeze([
   'supporters_count'
 ]);
 
+// Public activism categories are JSONB documents. Never pass through arbitrary
+// nested attributes (such as private notes, contact details or moderation data).
+// Preserve the five documented client-facing attributes for legacy clients.
+const PUBLIC_ACTIVISM_TYPE_FIELDS = Object.freeze([
+  'tipo',
+  'emoji',
+  'nome',
+  'descrizione',
+  'colore'
+]);
+
 const own = (row, key) => Object.prototype.hasOwnProperty.call(row, key);
+
+function projectPublicActivismTypes(types) {
+  if (!Array.isArray(types)) return null;
+  return types.filter(type => type !== null &&
+      typeof type === 'object' && !Array.isArray(type))
+    .map(type => {
+      const publicType = {};
+      for (const field of PUBLIC_ACTIVISM_TYPE_FIELDS) {
+        if (own(type, field) && typeof type[field] === 'string') {
+          publicType[field] = type[field];
+        }
+      }
+      return publicType;
+    });
+}
 
 function projectPublicDirectoryMembers(rows) {
   return rows.map(row => {
     const publicRow = {};
     for (const field of PUBLIC_DIRECTORY_MEMBER_FIELDS) {
-      if (own(row, field)) publicRow[field] = row[field];
+      if (own(row, field)) {
+        publicRow[field] = field === 'tipologie_attivismo'
+          ? projectPublicActivismTypes(row[field])
+          : row[field];
+      }
     }
     return publicRow;
   });
 }
 
-module.exports = { PUBLIC_DIRECTORY_MEMBER_FIELDS, projectPublicDirectoryMembers };
+module.exports = { PUBLIC_DIRECTORY_MEMBER_FIELDS, PUBLIC_ACTIVISM_TYPE_FIELDS,
+  projectPublicActivismTypes, projectPublicDirectoryMembers };
