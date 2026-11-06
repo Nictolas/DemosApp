@@ -286,3 +286,24 @@ test('provincial councillor with overlapping mandate rows appears only once', as
   assert.equal(result.strict, true);
   assert.deepEqual(result.subjects.map((row) => row.id), ['councillor', 'another']);
 });
+
+
+test('provincial candidates with multiple active candidacies appear once per person', async () => {
+  const db = { async query(sql) {
+    const q = String(sql);
+    if (q.includes('FROM user_political_territories')) throw missingTable();
+    if (q.includes('FROM users WHERE id = $1')) return { rows: [{ id: 'resident', paese_residenza: 'IT', provincia_residenza: 'TN' }] };
+    if (q.includes('FROM political_candidacies')) return { rows: [
+      { id: 'candidate-a', candidacy_id: 'first', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'TN' } },
+      { id: 'candidate-a', candidacy_id: 'second', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'TN' } },
+      { id: 'candidate-b', candidacy_id: 'third', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'TN' } },
+      { id: 'candidate-outside', candidacy_id: 'fourth', election_event_id: 'e', electoral_unit_id: 'tn', jurisdiction: { level: 'it.provincial.trento', province: 'BZ' } }
+    ] };
+    if (q.includes('FROM unita_elettorale ue')) return { rows: [{ election_event_id: 'e', electoral_unit_id: 'tn', territory_type: 'PROVINCE', territory_code: 'TN' }] };
+    if (q.includes('FROM user_electoral_unit_memberships')) throw missingTable();
+    throw new Error('Unexpected query in duplicate provincial candidacy test');
+  } };
+  const result = await listEligibleCandidates(db, 'resident', 'it.provincial.trento');
+  assert.equal(result.strict, true);
+  assert.deepEqual(result.subjects.map(row => row.id), ['candidate-a', 'candidate-b']);
+});
