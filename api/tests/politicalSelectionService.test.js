@@ -139,7 +139,41 @@ test('adapter-scoped canonical reads use the full adapter office set, including 
   assert.equal(officeIds.some((id) => id.startsWith('it.')), false);
   assert.match(calls[0].sql, /ps\.political_office_id = ANY\(\$2::text\[\]\)/);
 });
+test('provincial write is denied without release GO, but removal works canonically', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  const calls = [];
+  const db = { async query(sql) { calls.push(String(sql)); return { rowCount: 1, rows: [] }; } };
+  try {
+    for (const officeId of ['it.provincial.trento', 'it.provincial.bolzano']) {
+      await assert.rejects(
+        () => setPoliticalSelection(db, {
+          userId: 'resident', kind: 'representative', officeValue: officeId,
+          selectedUserId: 'subject',
+        }),
+        { code: 'PROVINCIAL_SELECTION_NOT_RELEASED' },
+      );
+    }
+    assert.deepEqual(calls, [], 'denied writes never access storage');
+    const removed = await setPoliticalSelection(db, {
+      userId: 'resident', kind: 'representative',
+      officeValue: 'it.provincial.trento', selectedUserId: null,
+    });
+    assert.equal(removed.canonical.removed, true);
+    assert.equal(removed.legacy.available, false);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0], /^DELETE FROM political_selections/);
+    assert.doesNotMatch(calls.join('\\n'), /UPDATE users|user_representatives/);
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
+
 test('provincial representative is persisted canonically without a users column', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+  try {
   const queries = [];
   const db = { async query(sql, params) { queries.push({sql: String(sql), params}); return {rowCount: 1, rows: []}; } };
   for (const officeId of ['it.provincial.trento', 'it.provincial.bolzano']) {
@@ -157,4 +191,8 @@ test('provincial representative is persisted canonically without a users column'
   assert.equal(canonicalWrites.length, 2);
   assert.deepEqual(canonicalWrites.map(({params}) => params[3]), ['it.provincial.trento', 'it.provincial.bolzano']);
   assert.equal(queries.some(({sql}) => /UPDATE users|user_representatives/.test(sql)), false);
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
 });
