@@ -5,6 +5,7 @@ on:
       - 'api/config/politicalJurisdictions.js'
       - 'api/services/politicalEligibilityService.js'
       - 'api/services/politicalSelectionService.js'
+      - 'api/services/politicalConsentService.js'
       - 'api/services/politicalJurisdictionRegistryService.js'
       - 'api/routes/rappresentanti.js'
       - 'api/routes/rappresentanti-sostenitori.js'
@@ -19,6 +20,7 @@ on:
       - 'api/tests/provincialMandateOfficeGuard.test.js'
       - 'api/tests/provincialRegionalDedup.test.js'
       - 'api/tests/provincialSupporters.http.test.js'
+      - 'api/tests/provincialConsentErasure.test.js'
       - 'api/tests/provincialOpinionMatching.contract.test.js'
       - 'api/tests/provincialReadRelease.http.test.js'
       - 'api/tests/provincialFrontendWiring.smoke.test.js'
@@ -69,6 +71,7 @@ jobs:
             api/tests/provincialMandateOfficeGuard.test.js \
             api/tests/provincialRegionalDedup.test.js \
             api/tests/provincialSupporters.http.test.js \
+            api/tests/provincialConsentErasure.test.js \
             api/tests/provincialOpinionMatching.contract.test.js \
             api/tests/provincialReadRelease.http.test.js \
             api/tests/provincialFrontendWiring.smoke.test.js
