@@ -143,11 +143,17 @@ test('provincial selection cannot bypass six-opinion completion by spoofing Podi
     connect: async () => { throw new Error('Incomplete provincial opinions must not reach storage'); },
     async query(sql) {
       calls.push(String(sql));
+      // The consent precheck and grade-only answers query both join consents.
+      // Do not mistake a consent-filtered answers SELECT for the precheck.
+      if (String(sql).includes('FROM opinioni_risposte r')) {
+        assert.match(String(sql), /LEFT JOIN user_consents uc ON uc\.user_id = u\.id/);
+        assert.match(String(sql), /COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/);
+        return { rows: [] };
+      }
       if (String(sql).includes('LEFT JOIN user_consents')) {
         assert.match(String(sql), /u\.political_opinions_consent IS TRUE/);
         return { rows: [{ id: 'u1', granted: true }] };
       }
-      if (String(sql).includes('FROM opinioni_risposte')) return { rows: [] };
       throw new Error('Unexpected SQL in provincial completion test');
     },
   };
