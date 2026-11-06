@@ -145,3 +145,47 @@ test('Grazia legacy duplicate requests cannot approve or revive a catalogue entr
   assert.doesNotMatch(review,/UPDATE grazia_carcerati SET attivo = true/i,
     'approval must not reactivate an existing catalogue entry');
 });
+
+
+// Isolated execution of the real production parsers: no DB, network or PII.
+test('all Admin cursor decoders use a single canonical Base64URL representation', () => {
+  const vm = require('node:vm');
+  const cases = [
+    ['api/routes/grazia.js','parseGraziaAdminCursor','function graziaAdminPage',
+      'legacy-grazia-001'],
+    ['api/routes/subject-proposals.js','parseAdminPageCursor',
+      "router.get('/admin/approved'",'00000000-0000-4000-8000-000000000001']
+  ];
+  for (const [filename, name, next, id] of cases) {
+    const source = read(filename);
+    const start = source.indexOf('function '+name+'(raw) {');
+    const end = source.indexOf(next, start);
+    assert.ok(start >= 0 && end > start, 'locate real cursor parser in '+filename);
+    const parse = vm.runInNewContext(
+      source.slice(start,end)+'\n'+name, {Buffer}, {filename});
+    assert.equal(parse(undefined),null);
+    assert.equal(parse(null),null);
+    assert.equal(parse(''),false);
+    assert.equal(parse([]),false);
+    // Choose a valid tuple whose encoded last character has unused bits,
+    // permitting a noncanonical alias in Node's tolerant Base64URL decoder.
+    const epochs = ['1793970000.123456','1793970000.12345','1793970000.1234'];
+    const epoch = epochs.find(e => Buffer.byteLength(JSON.stringify([e,id]))%3 !== 0);
+    assert.ok(epoch,'test must have noncanonical alternate encodings');
+    const bytes = Buffer.from(JSON.stringify([epoch,id]));
+    const canonical = bytes.toString('base64url');
+    assert.deepEqual(Array.from(parse(canonical)),[epoch,id],
+      'valid generated cursor must remain compatible: '+filename);
+    const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const alias = Array.from(chars)
+      .map(c=>canonical.slice(0,-1)+c)
+      .find(candidate=>candidate!==canonical &&
+        Buffer.from(candidate,'base64url').equals(bytes));
+    assert.ok(alias && alias!==canonical,'tolerant decoder alias exists: '+filename);
+    assert.equal(parse(alias),false,'alternate spelling rejected: '+filename);
+    assert.equal(parse(canonical+'='),false,'padding rejected: '+filename);
+    assert.equal(parse(canonical+'*'),false,'invalid alphabet rejected: '+filename);
+    assert.equal(parse(Buffer.from(JSON.stringify([epoch,id,'extra'])).toString('base64url')),false);
+    assert.equal(parse(Buffer.from(JSON.stringify({epoch,id})).toString('base64url')),false);
+  }
+});
