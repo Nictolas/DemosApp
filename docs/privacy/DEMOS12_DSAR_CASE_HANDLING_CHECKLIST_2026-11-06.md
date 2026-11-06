@@ -15,6 +15,32 @@ Data: 06/11/2026. Ambito: richieste a `privacy@demos.community` relative a Grazi
 4. **Risposta e termini (DSAR-05):** rispondere all'interessato con esito comprensibile e motivazione appropriata, senza divulgare informazioni di altri. Termine ordinario: **un mese dal ricevimento**; proroga fino a due mesi ulteriori solo nei casi consentiti, comunicandola entro il primo mese con motivi. Gestire separatamente eventuali obblighi di conservazione o contestazioni.
 5. **Chiusura e minimizzazione (DSAR-06):** registrare data/ora della risposta, tipo di decisione, operatore, eventuale revisione e prova privata di invio. Definire e applicare una durata di conservazione giustificata del registro e delle evidenze, con accesso ristretto e cancellazione a scadenza. La retention **non è approvata** da questo documento.
 
+## Mappa minima Grazia verificata nel codice (per DSAR-03/04)
+
+Questa mappa deriva da `api/routes/grazia.js` sul ramo Draft, non da una lettura del database reale. Non implica che tutte le informazioni qui elencate siano automaticamente oggetto di cancellazione, né che siano stati trattati dati giudiziari.
+
+| Superficie | Dati effettivamente usati dal codice | Accesso / intervento da verificare |
+| --- | --- | --- |
+| `richieste_grazia` | `id`, `utente_id`, `nome`, `url_prova`, `status`, `data_creazione`, `withdrawn_at`, `withdraw_notification_sent` | Proposte private, storico approvazioni e ritiri; `GET /api/grazia/mia-proposta` restituisce soltanto stato e data all'utente autenticato; gli elenchi Admin sono separati. L'eventuale ritiro va valutato senza cancellare indiscriminatamente l'audit. |
+| `grazia_carcerati` | `id`, `nome`, `attivo` | Catalogo dei soggetti approvati: il feed pubblico legge soltanto i nomi attivi e conteggi aggregati. Il ritiro Admin richiede verifica anche del feed/cache. |
+| `voti_grazia` | identificativo del voto, identificativo utente (`userid` o `user_id`), `nome`, timestamp (varianti ammesse dal codice) | Preferenza personale: `GET /api/grazia` restituisce `mieiVoti` soltanto con token valido; scrittura autenticata con consenso e identità civica verificata. Nessun nominativo del votante deve comparire nel feed pubblico. |
+| `preference_change_cooldowns` | `user_id`, `scope='grazia:preferenza'`, `last_changed_at` | Stato tecnico del limite 24 ore, distinto dal voto. Una richiesta di rettifica/cancellazione deve valutarlo separatamente, con base e conservazione documentate. |
+| `notifiche_demos` | Notifica generica agli amministratori dopo proposta accettata | Il testo non include il nominativo proposto; verificare soltanto l'eventuale esistenza di record riferibili all'utente in un processo DSAR autorizzato. |
+
+**Verifica giuridica specifica ancora aperta:** `nome` e URL di fonte pubblica non equivalgono automaticamente a dati su condanne o reati. Esaminare il contenuto realmente pubblicato e l'eventuale informazione indirettamente rivelata, poi motivare l'applicabilità o meno dell'art. 10 GDPR; analogamente per art. 9. Evitare di presupporre categorie particolari senza evidenza. Per le nomine di terzi valutare anche art. 14 e relative eccezioni caso per caso.
+
+## Esercitazione sintetica DSAR-02..06 — matrice da eseguire, non eseguita
+
+| Caso fittizio | Azione consentita senza dati reali | Criterio di accettazione e prova da custodire privatamente |
+| --- | --- | --- |
+| S1: interessato identificato chiede rettifica di nome pubblicato | Simulare presa in carico, verifica proporzionata, decisione Admin e controllo del feed in ambiente autorizzato | ID caso fittizio, data di ingresso, decisione motivata, risposta simulata; nessun nome reale nei tracker |
+| S2: mittente non verificato chiede dati dei voti di un altro utente | Simulare classificazione e richiesta di informazioni aggiuntive proporzionate | Nessuna conferma dell'esistenza di preferenze private e nessuna divulgazione |
+| S3: richiesta di cancellazione della proposta e dell'audit | Simulare analisi separata di catalogo, richiesta, voti, cooldown e log/retention | Motivazione per ciascuna superficie: cancellazione, limitazione o conservazione lecita; nessuna operazione reale |
+| S4: messaggio incompleto, risposta non consegnabile o termine prossimo | Simulare gestione scadenza e canale di risposta | Scadenza calcolata dal ricevimento, motivazione di eventuale proroga entro un mese, esito e conservazione minima |
+| S5: richiesta di persona pubblicata da un terzo | Simulare valutazione dei dati effettivamente esposti e delle basi giuridiche | Decisione DPO motivata su artt. 5, 6, 9, 10, 14 (secondo applicabilità), ritiro cautelativo solo se autorizzato |
+
+**Regola di prova:** una checklist compilata non dimostra l'esecuzione. Segnare PASS soltanto dopo esercitazione realmente eseguita con esiti, data, operatore e traccia privata; finché non avviene, DSAR-02..06 restano NO-GO.
+
 ## Prove di accettazione ancora necessarie
 
 - Simulare con dati fittizi un intero caso: ricezione → registrazione privata → verifica proporzionata → valutazione → eventuale ritiro/rettifica autorizzata → risposta → archiviazione minima. Testare separatamente richiesta incompleta, richiesta da terzo non autorizzato e impossibilità di consegna.
