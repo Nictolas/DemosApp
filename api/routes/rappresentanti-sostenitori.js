@@ -177,12 +177,10 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel recupero sostenitori rappresentanti:', error);
-    console.error('❌ Stack trace:', error.stack);
+    // Never log political supporter identifiers or raw SQL exceptions.
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: 'Errore interno del server'
     });
   }
 });
