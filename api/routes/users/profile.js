@@ -16,6 +16,8 @@ const {
 const {
   resolveSelectionContract,
   isPoliticalSelectionWriteReleased,
+  isPoliticalOfficeVisible,
+  loadPoliticalSelections,
   setPoliticalSelection,
 } = require('../../services/politicalSelectionService');
 
@@ -577,6 +579,42 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, requireVerifiedCivi
   }
 });
 
+
+// Read the account owner's selected provincial office only. This is not an
+// unrestricted profile endpoint and never publishes other users' preferences.
+router.get('/:userId/provincial-selection', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (String(req.userId) !== String(userId)) {
+      return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    }
+    const { kind, officeId } = req.query || {};
+    const contract = resolveSelectionContract({ kind, officeValue: officeId });
+    if (!contract?.office?.eligibleProvinceCodes?.length) {
+      return res.status(400).json({ success: false, error: 'Selezione provinciale non valida' });
+    }
+    if (!isPoliticalOfficeVisible(contract.office)) {
+      return res.status(409).json({ success: false, error: 'PROVINCIAL_SELECTION_NOT_RELEASED' });
+    }
+    const state = await loadPoliticalSelections(pool, {
+      userId, kind: contract.kind, adapterId: contract.adapterId,
+    });
+    const selected = state.selections.find((item) =>
+      item.kind === contract.kind && item.officeId === contract.officeId
+    );
+    res.set('Cache-Control', 'no-store');
+    return res.json({
+      success: true,
+      selection: {
+        kind: contract.kind,
+        officeId: contract.officeId,
+        selectedUserId: selected?.selectedUserId || null,
+      }
+    });
+  } catch {
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
 
 // PUT /api/users/:userId/political-selection - Canonical jurisdiction-aware political selection
 router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIdentity, async (req, res) => {
