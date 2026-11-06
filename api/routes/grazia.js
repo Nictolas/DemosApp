@@ -562,6 +562,12 @@ router.post('/richiesta/:id/ritira', personalNoStore, verifyToken, requireAdmin,
 
 // POST /api/grazia/richiesta/:id/:action - Decisione moderazione solo Admin
 router.post('/richiesta/:id/:action', personalNoStore, verifyToken, requireAdmin, async (req, res) => {
+  const id = String(req.params.id || '');
+  // Preserve legacy non-UUID Grazia IDs while rejecting malformed/unbounded inputs
+  // before acquiring a private SQL connection. Match the existing withdrawal gate.
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,254}$/.test(id)) {
+    return res.status(400).json({ success: false, error: 'Riferimento Grazia non valido' });
+  }
   const action = req.params.action;
   const approved = action === 'accetta' || action === 'approve';
   if (!approved && action !== 'rifiuta' && action !== 'reject') {
@@ -574,7 +580,7 @@ router.post('/richiesta/:id/:action', personalNoStore, verifyToken, requireAdmin
     await client.query('BEGIN');
     const result = await client.query(
       "SELECT id, nome, utente_id FROM richieste_grazia WHERE id = $1 AND status = 'pending' FOR UPDATE",
-      [req.params.id]
+      [id]
     );
     if (!result.rows.length) {
       await client.query('ROLLBACK');
