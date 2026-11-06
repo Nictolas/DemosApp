@@ -3,6 +3,8 @@ const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
 const { decompressProvince } = require('../utils/provinceUtils');
+const { resolvePoliticalOffice } = require('../services/politicalJurisdictionRegistryService');
+const { isPoliticalOfficeVisible } = require('../services/politicalSelectionService');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -29,36 +31,54 @@ router.get('/sostenitori', verifyToken, async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come rappresentante
+    // Provincial selections are canonical-only. Before explicit release GO the
+    // existing legacy query remains unchanged in scope; no provincial choices
+    // or counts are exposed. DISTINCT prevents a voter with overlapping office
+    // records from appearing twice in this combined representative total.
+    const provincialEnabled = isPoliticalOfficeVisible(resolvePoliticalOffice('it.provincial.trento'));
+    const provincialCTE = provincialEnabled ? `
+      WITH provincial_supporters AS (
+        SELECT DISTINCT ps.user_id
+        FROM political_selections ps
+        WHERE ps.selected_user_id = $1
+          AND ps.selection_kind = 'representative'
+          AND ps.political_office_id IN ('it.provincial.trento', 'it.provincial.bolzano')
+      )` : '';
+    const provincialJoin = provincialEnabled
+      ? 'LEFT JOIN provincial_supporters provincial ON provincial.user_id = u.id'
+      : '';
+    const provincialRole = provincialEnabled
+      ? "WHEN provincial.user_id IS NOT NULL THEN 'Rappresentante Provinciale'"
+      : '';
+    const provincialCondition = provincialEnabled
+      ? 'OR provincial.user_id IS NOT NULL'
+      : '';
+
     const result = await pool.query(`
-      SELECT 
-        id,
-        nome,
-        cognome,
-        email,
-        ruolo,
-        data_nascita,
-        genere,
-        regione_residenza,
-        provincia_residenza,
-        comune_residenza,
-        created_at,
-        CASE 
-          WHEN rappresentante_europeo = $1 THEN 'Rappresentante Europeo'
-          WHEN rappresentante_camera = $1 THEN 'Rappresentante Camera'
-          WHEN rappresentante_senato = $1 THEN 'Rappresentante Senato'
-          WHEN rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
-          WHEN rappresentante_comune = $1 THEN 'Rappresentante Comunale'
-        END as supporter_role
-      FROM users
+      ${provincialCTE}
+      SELECT
+        u.id, u.nome, u.cognome, u.email, u.ruolo,
+        u.data_nascita, u.genere, u.regione_residenza,
+        u.provincia_residenza, u.comune_residenza, u.created_at,
+        CASE
+          WHEN u.rappresentante_europeo = $1 THEN 'Rappresentante Europeo'
+          WHEN u.rappresentante_camera = $1 THEN 'Rappresentante Camera'
+          WHEN u.rappresentante_senato = $1 THEN 'Rappresentante Senato'
+          WHEN u.rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
+          WHEN u.rappresentante_comune = $1 THEN 'Rappresentante Comunale'
+          ${provincialRole}
+        END AS supporter_role
+      FROM users u
+      ${provincialJoin}
       WHERE (
-        rappresentante_europeo = $1 OR
-        rappresentante_camera = $1 OR
-        rappresentante_senato = $1 OR
-        rappresentante_regionale = $1 OR
-        rappresentante_comune = $1
+        u.rappresentante_europeo = $1 OR
+        u.rappresentante_camera = $1 OR
+        u.rappresentante_senato = $1 OR
+        u.rappresentante_regionale = $1 OR
+        u.rappresentante_comune = $1
+        ${provincialCondition}
       )
-      ORDER BY created_at DESC
+      ORDER BY u.created_at DESC
     `, [sostenuto_id]);
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
