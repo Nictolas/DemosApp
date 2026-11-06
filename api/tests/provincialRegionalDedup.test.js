@@ -72,6 +72,26 @@ test('provincial matching retains only direct provincial mandate, not the region
   assert.equal(result.subjects[0].mandate_id, 'direct-provincial');
 });
 
+
+test('Bolzano councillor is not counted twice across regional and provincial mandate views', async () => {
+  const region = 'Trentino-Alto Adige';
+  const residence = { id: 'bolzano-resident', paese_residenza: 'IT', regione_residenza: region, provincia_residenza: 'BZ' };
+  const rows = [
+    { id: 'councillor-bz', mandate_id: 'provincial-bz', grado_elezione: 'it.provincial.bolzano',
+      jurisdiction: { level: 'it.provincial.bolzano', region, province: 'BZ' } },
+    { id: 'councillor-bz', mandate_id: 'regional-bz', grado_elezione: 'R',
+      jurisdiction: { level: 'R', region, province: 'BZ' } },
+    { id: 'councillor-tn', mandate_id: 'provincial-tn', grado_elezione: 'it.provincial.trento',
+      jurisdiction: { level: 'it.provincial.trento', region, province: 'TN' } },
+  ];
+  const provincial = await listEligibleRepresentatives(isolatedMandates(rows, residence), residence.id, 'it.provincial.bolzano');
+  assert.deepEqual(provincial.subjects.map((row) => row.mandate_id), ['provincial-bz']);
+
+  const regional = await listEligibleRepresentatives(isolatedMandates(rows, residence), residence.id, 'R');
+  assert.deepEqual(regional.subjects.map((row) => row.mandate_id), ['regional-bz', 'provincial-tn']);
+  assert.equal(regional.subjects.filter((row) => row.id === 'councillor-bz').length, 1);
+});
+
 test('regional/provincial dedup leaves unrelated national and European mandate lists untouched', async () => {
   const db = isolatedMandates([
     { id: 'same', mandate_id: 'one', grado_elezione: 'E', jurisdiction: {} },
