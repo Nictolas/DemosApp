@@ -3,6 +3,8 @@ const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
 const { decompressProvince } = require('../utils/provinceUtils');
+const { resolvePoliticalOffice } = require('../services/politicalJurisdictionRegistryService');
+const { isPoliticalOfficeVisible } = require('../services/politicalSelectionService');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -31,52 +33,69 @@ router.get('/totale', verifyToken, async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come candidato, rappresentante, attivista o organizzazione
+    // Canonical provincial representative preferences are included in the
+    // combined total only after explicit release GO. DISTINCT guarantees one
+    // supporter even if the same voter also chose a regional representative.
+    const provincialEnabled = isPoliticalOfficeVisible(resolvePoliticalOffice('it.provincial.trento'));
+    const provincialCTE = provincialEnabled ? `
+      WITH provincial_supporters AS (
+        SELECT DISTINCT ps.user_id
+        FROM political_selections ps
+        WHERE ps.selected_user_id = $1
+          AND ps.selection_kind = 'representative'
+          AND ps.political_office_id IN ('it.provincial.trento', 'it.provincial.bolzano')
+      )` : '';
+    const provincialJoin = provincialEnabled
+      ? 'LEFT JOIN provincial_supporters provincial ON provincial.user_id = u.id'
+      : '';
+    const provincialRole = provincialEnabled
+      ? "WHEN provincial.user_id IS NOT NULL THEN 'Rappresentante Provinciale'"
+      : '';
+    const provincialCondition = provincialEnabled
+      ? 'OR provincial.user_id IS NOT NULL'
+      : '';
+
     const result = await pool.query(`
-      SELECT 
-        id,
-        nome,
-        cognome,
-        email,
-        ruolo,
-        data_nascita,
-        genere,
-        regione_residenza,
-        provincia_residenza,
-        comune_residenza,
-        created_at,
-        CASE 
-          WHEN candidato_europeo = $1 THEN 'Candidato Europeo'
-          WHEN candidato_camera = $1 THEN 'Candidato Camera'
-          WHEN candidato_senato = $1 THEN 'Candidato Senato'
-          WHEN candidato_regionale = $1 THEN 'Candidato Regionale'
-          WHEN candidato_comune = $1 THEN 'Candidato Comunale'
-          WHEN rappresentante_europeo = $1 THEN 'Rappresentante Europeo'
-          WHEN rappresentante_camera = $1 THEN 'Rappresentante Camera'
-          WHEN rappresentante_senato = $1 THEN 'Rappresentante Senato'
-          WHEN rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
-          WHEN rappresentante_comune = $1 THEN 'Rappresentante Comunale'
-          WHEN attivisti = $1 THEN 'Attivista'
-          WHEN organizzazioni = $1 THEN 'Organizzazione'
-        END as supporter_role
-      FROM users
+      ${provincialCTE}
+      SELECT
+        u.id, u.nome, u.cognome, u.email, u.ruolo,
+        u.data_nascita, u.genere, u.regione_residenza,
+        u.provincia_residenza, u.comune_residenza, u.created_at,
+        CASE
+          WHEN u.candidato_europeo = $1 THEN 'Candidato Europeo'
+          WHEN u.candidato_camera = $1 THEN 'Candidato Camera'
+          WHEN u.candidato_senato = $1 THEN 'Candidato Senato'
+          WHEN u.candidato_regionale = $1 THEN 'Candidato Regionale'
+          WHEN u.candidato_comune = $1 THEN 'Candidato Comunale'
+          WHEN u.rappresentante_europeo = $1 THEN 'Rappresentante Europeo'
+          WHEN u.rappresentante_camera = $1 THEN 'Rappresentante Camera'
+          WHEN u.rappresentante_senato = $1 THEN 'Rappresentante Senato'
+          WHEN u.rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
+          WHEN u.rappresentante_comune = $1 THEN 'Rappresentante Comunale'
+          WHEN u.attivisti = $1 THEN 'Attivista'
+          WHEN u.organizzazioni = $1 THEN 'Organizzazione'
+          ${provincialRole}
+        END AS supporter_role
+      FROM users u
+      ${provincialJoin}
       WHERE (
-        candidato_europeo = $1 OR
-        candidato_camera = $1 OR
-        candidato_senato = $1 OR
-        candidato_regionale = $1 OR
-        candidato_comune = $1 OR
-        rappresentante_europeo = $1 OR
-        rappresentante_camera = $1 OR
-        rappresentante_senato = $1 OR
-        rappresentante_regionale = $1 OR
-        rappresentante_comune = $1 OR
-        attivisti = $1 OR
-        organizzazioni = $1
+        u.candidato_europeo = $1 OR
+        u.candidato_camera = $1 OR
+        u.candidato_senato = $1 OR
+        u.candidato_regionale = $1 OR
+        u.candidato_comune = $1 OR
+        u.rappresentante_europeo = $1 OR
+        u.rappresentante_camera = $1 OR
+        u.rappresentante_senato = $1 OR
+        u.rappresentante_regionale = $1 OR
+        u.rappresentante_comune = $1 OR
+        u.attivisti = $1 OR
+        u.organizzazioni = $1
+        ${provincialCondition}
       )
-      ORDER BY created_at DESC
+      ORDER BY u.created_at DESC
     `, [sostenuto_id]);
-    
+
     console.log('🔍 DEBUG: Trovati sostenitori totali:', result.rows.length);
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
