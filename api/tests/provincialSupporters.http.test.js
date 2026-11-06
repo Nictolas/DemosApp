@@ -189,6 +189,6 @@ test('representative supporter route never logs SQL exceptions or voter data', (
   const fs = require('node:fs');
   const path = require('node:path');
   const source = fs.readFileSync(path.join(__dirname, '..', 'routes', 'rappresentanti-sostenitori.js'), 'utf8');
-  assert.doesNotMatch(source, /console\\.(?:log|warn|error)\\s*\\(/);
-  assert.doesNotMatch(source, /details:\\s*process\\.env\\.NODE_ENV/);
+  assert.doesNotMatch(source, /console\.(?:log|warn|error)\s*\(/);
+  assert.doesNotMatch(source, /details:\s*process\.env\.NODE_ENV/);
 });
