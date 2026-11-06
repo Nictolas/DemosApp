@@ -126,7 +126,7 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
     territoryState.context,
     electoralMembershipState.memberships,
   );
-  const subjects = candidatesResult.rows.filter((row) =>
+  const eligibleCandidates = candidatesResult.rows.filter((row) =>
     eligibleKeys.has(`${String(row.election_event_id)}:${String(row.electoral_unit_id)}`) &&
     // For province-restricted offices the candidacy itself must carry the
     // matching province. Electoral-unit membership alone is insufficient:
@@ -134,6 +134,12 @@ async function listEligibleCandidatesNewModel(pool, userId, grade) {
     (!office.eligibleProvinceCodes?.length ||
       jurisdictionMatchesRepresentative(row.jurisdiction, grade, territoryState.context))
   );
+
+  // Multiple active candidacy records for one person must not create
+  // duplicate provincial choices. Preserve all non-provincial behaviour.
+  const subjects = office.eligibleProvinceCodes?.length
+    ? [...new Map(eligibleCandidates.map((row) => [String(row.id), row])).values()]
+    : eligibleCandidates;
 
   return {
     subjects,
