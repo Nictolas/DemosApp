@@ -13,6 +13,14 @@ const {
 const SCHEMA_COMPAT_ERROR_CODES = new Set(['42P01', '42703']);
 const SELECTION_KINDS = new Set(['candidate', 'representative']);
 
+// Explicit release GO is required before a provincial choice can be written.
+// Removals remain permitted to support correction and erasure requests.
+function isPoliticalSelectionWriteReleased(office, selectedUserId) {
+  if (selectedUserId === null || selectedUserId === undefined || selectedUserId === '') return true;
+  if (!office?.eligibleProvinceCodes?.length) return true;
+  return process.env.DEMOS_PROVINCIAL_SELECTIONS_GO === 'true';
+}
+
 function isPoliticalSelectionSchemaError(error) {
   return SCHEMA_COMPAT_ERROR_CODES.has(error?.code);
 }
@@ -147,6 +155,11 @@ async function setPoliticalSelection(db, {
   if (!contract) {
     const error = new Error('Invalid political selection contract');
     error.code = 'POLITICAL_SELECTION_CONTRACT_INVALID';
+    throw error;
+  }
+  if (!isPoliticalSelectionWriteReleased(contract.office, selectedUserId)) {
+    const error = new Error('Provincial political selections are not released');
+    error.code = 'PROVINCIAL_SELECTION_NOT_RELEASED';
     throw error;
   }
 
@@ -350,6 +363,7 @@ module.exports = {
   isPoliticalSelectionSchemaError,
   normalizeSelectionKind,
   resolveSelectionContract,
+  isPoliticalSelectionWriteReleased,
   setPoliticalSelection,
   loadPoliticalSelections,
   selectionsByOffice,
