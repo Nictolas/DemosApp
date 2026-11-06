@@ -46,6 +46,20 @@ test('status reports local Free quota and clears after 24 hours', () => {
   assert.equal(gate.status().rispettato, true);
 });
 
+test('status reports exhausted minute quota and recovers after its window', () => {
+  let current = 1700000000000;
+  const gate = createFreeBudgetGate({
+    now: () => current,
+    limits: { requestsPerMinute: 1, requestsPerDay: 20, estimatedTokensPerMinute: 5000, estimatedTokensPerDay: 50000 }
+  });
+  assert.equal(gate.status().rispettato, true);
+  assert.equal(gate.reserve([{ role: 'user', content: 'test' }], 450).allowed, true);
+  assert.equal(gate.status().rispettato, false, 'The daily quota is available but the minute quota is exhausted');
+  current += 60001;
+  assert.equal(gate.status().rispettato, true);
+  assert.equal(gate.status().count, 1, 'The daily reservation is retained');
+});
+
 test('rejects oversize completion and excessive estimated prompt tokens without an API call', () => {
   const gate = createFreeBudgetGate({
     now: () => 1700000000000,
