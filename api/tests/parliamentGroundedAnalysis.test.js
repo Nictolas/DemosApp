@@ -161,6 +161,29 @@ test('inline numbered legislative effects enforce the three-point limit', () => 
     response[field] = '';
   }
 });
+
+test('inline dash and mixed legislative effects enforce the three-point limit', () => {
+  const payload = {
+    spiegazione_generale: 'Una misura documentata.',
+    effetti_positivi: '',
+    effetti_negativi: ''
+  };
+  for (const field of ['effetti_positivi', 'effetti_negativi']) {
+    payload[field] = '- Primo; - Secondo; - Terzo';
+    assert.ok(parseGroundedAnalysisResponse(JSON.stringify(payload)));
+    payload[field] += '; - Quarto';
+    assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)), null,
+      'Four inline dash bullets must be rejected');
+    payload[field] = 'Effetti: 1) Primo; - Secondo; 3) Terzo; * Quarto';
+    assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)), null,
+      'Four mixed numbered and dash bullets must be rejected');
+    payload[field] = 'Migliore accesso - in alcune circostanze - al servizio';
+    assert.ok(parseGroundedAnalysisResponse(JSON.stringify(payload)),
+      'Ordinary hyphens within prose must not be treated as list markers');
+    payload[field] = '';
+  }
+});
+
 test('full legislative analysis has exactly one gated provider call and no handwritten 1718 fallback', () => {
   assert.equal((lawSource.match(/requestFreeGroq\s*\(/g) || []).length, 1);
   assert.equal((lawSource.match(/chat\.completions\.create\s*\(/g) || []).length, 0);
