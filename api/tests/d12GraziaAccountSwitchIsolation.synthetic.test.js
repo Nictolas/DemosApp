@@ -90,7 +90,7 @@ test('Grazia clicks mutate immediately, never after a deferred callback or from 
   hook.confirmRemove();
   assert.equal(actualMutations.length,3,'no concurrent vote removal');
   hook=render();
-  assert.equal(hook.votingState.showRemoveDialog,true,'keep confirmation open until save settles');
+  assert.equal(hook.showRemoveDialog,true,'keep confirmation open until save settles');
   mutation.isPending=false;
   hook.confirmRemove();
   assert.deepEqual(actualMutations.at(-1),[]);
