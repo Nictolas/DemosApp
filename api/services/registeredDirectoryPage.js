@@ -14,7 +14,11 @@ function decodeRegisteredCursor(raw) {
   if (raw == null || raw === '') return null;
   if (typeof raw !== 'string' || raw.length > 220 || !/^[A-Za-z0-9_-]+$/.test(raw))return false;
   try {
-    const decoded=JSON.parse(Buffer.from(raw,'base64url').toString('utf8'));
+    const bytes=Buffer.from(raw,'base64url');
+    // Node's base64url decoder accepts non-canonical trailing bits. Reject
+    // alternate spellings of the same cursor before reading its contents.
+    if (bytes.toString('base64url') !== raw) return false;
+    const decoded=JSON.parse(bytes.toString('utf8'));
     if (!Array.isArray(decoded)||decoded.length!==2)return false;
     const [count,id]=decoded;
     if (!Number.isSafeInteger(count)||count<0||count>2147483647||
