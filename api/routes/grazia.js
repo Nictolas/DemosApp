@@ -151,8 +151,8 @@ router.get('/', personalNoStore, async (req, res) => {
     // Recupera userId se autenticato (opzionale)
     let userId = null;
     // Public ranking stays anonymous. Only a validated access token may
-    // unlock private votes: refresh and OAuth-pending JWTs share a signing
-    // secret, but must never be accepted as a logged-in session here.
+    // unlock private votes. OAuth-pending tokens share the access secret,
+    // whereas refresh tokens have a separate secret; neither is a session.
     const authHeader = req.headers.authorization;
     if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
       try {
