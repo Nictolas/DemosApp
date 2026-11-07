@@ -37,6 +37,8 @@ on:
       - 'api/tests/provincialConsentOpinionRead.integration.test.js'
       - 'api/tests/provincialOpinionMatching.contract.test.js'
       - 'api/tests/provincialReadRelease.http.test.js'
+      - 'api/qa/provincial_staging_prerequisites_readonly.sql'
+      - 'api/tests/provincialStagingSchemaGate.contract.test.js'
       - 'api/tests/provincialFrontendWiring.smoke.test.js'
       - 'api/tests/provincialCandidateLogPrivacy.http.test.js'
       - 'api/tests/provincialRepresentativeLogPrivacy.test.js'
@@ -116,6 +118,7 @@ jobs:
             api/tests/provincialConsentOpinionRead.integration.test.js \
             api/tests/provincialOpinionMatching.contract.test.js \
             api/tests/provincialReadRelease.http.test.js \
+            api/tests/provincialStagingSchemaGate.contract.test.js \
             api/tests/provincialFrontendWiring.smoke.test.js \
             api/tests/provincialCandidateLogPrivacy.http.test.js \
             api/tests/provincialRepresentativeLogPrivacy.test.js
