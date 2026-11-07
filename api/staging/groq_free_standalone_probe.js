@@ -67,6 +67,16 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
       success: value?.success === true,
       verifiedFields: Number.isInteger(value?.verifiedFields) ? value.verifiedFields : 0,
       failedFields: Array.isArray(value?.failedFields) ? value.failedFields : [],
+      ...(caseId === 'T025' ? {
+        safeRinvioFlags: {
+          postponementFound: value?.explanationDiagnostics?.postponementFound === true,
+          topicFound: value?.explanationDiagnostics?.topicFound === true,
+          approvedFound: value?.explanationDiagnostics?.approvedFound === true,
+          noNameRecordFound: value?.explanationDiagnostics?.noNameRecordFound === true,
+          falselyMotionApproved: value?.explanationDiagnostics?.falselyMotionApproved === true,
+          inventedCountsFound: value?.explanationDiagnostics?.inventedCountsFound === true
+        }
+      } : {}),
       ...(caseId === 'T024' ? {
         safeCoordinationFlags: {
           coordinationFound: value?.explanationDiagnostics?.coordinationFound === true,
@@ -119,6 +129,14 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
     samplesRequested,
     samplesCompleted: results.length,
     samplesPassed,
+    ...(caseId === 'T025' ? {
+      t025SampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
+      t025SampleScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
+      t025FlagTallies: Object.fromEntries(
+        ['postponementFound','topicFound','approvedFound','noNameRecordFound','falselyMotionApproved','inventedCountsFound']
+          .map(flag => [flag, results.filter(r => r.safeRinvioFlags?.[flag] === true).length])
+      )
+    } : {}),
     ...(caseId === 'T024' ? {
       t024SampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
       t024SampleScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
@@ -173,6 +191,17 @@ function sanitizeCaseResult(result) {
             Number.isInteger(result.t023FlagTallies?.[flag]) &&
               result.t023FlagTallies[flag] >= 0 && result.t023FlagTallies[flag] <= 3
               ? result.t023FlagTallies[flag] : 0])
+      )
+    } : {}),
+    ...(result?.caseId === 'T025' && Array.isArray(result?.t025SampleCategories) ? {
+      t025SampleCategories: result.t025SampleCategories.slice(0,3).map(status => safe.has(status) ? status : 'NETWORK_OR_UNKNOWN'),
+      t025SampleScores: (Array.isArray(result.t025SampleScores) ? result.t025SampleScores : [])
+        .slice(0,3).map(v => Number.isInteger(v) && v >= 0 && v <= 10 ? v : 0),
+      t025FlagTallies: Object.fromEntries(
+        ['postponementFound','topicFound','approvedFound','noNameRecordFound','falselyMotionApproved','inventedCountsFound']
+          .map(flag => [flag, Number.isInteger(result.t025FlagTallies?.[flag]) &&
+            result.t025FlagTallies[flag] >= 0 && result.t025FlagTallies[flag] <= 3
+            ? result.t025FlagTallies[flag] : 0])
       )
     } : {}),
     ...(result?.caseId === 'T024' && Array.isArray(result?.t024SampleCategories) ? {
