@@ -407,7 +407,13 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
         requestedVotes[0] = stillActive.rows[0].nome;
       }
 
-      if (requestedVote === currentVote) {
+      // Equivalent case variants name the same approved subject. Re-sending the
+      // same preference must not consume cooldown or delete/re-insert a vote.
+      // Input and saved value are already NFC and whitespace-normalized.
+      const sameVote = requestedVote === currentVote ||
+        (requestedVote !== null && currentVote !== null &&
+         requestedVote.toLowerCase() === currentVote.toLowerCase());
+      if (sameVote) {
         await client.query('ROLLBACK');
         return res.json({ success: true, message: 'Preferenza Grazia già aggiornata' });
       }
