@@ -32,6 +32,15 @@ test('provincial staging preflight is read-only, metadata-only, and scoped to kn
   assert.match(sql, /BLOCKED_MISSING_COLUMNS/);
   assert.match(sql, /pg_catalog\.pg_index/);
   assert.match(sql, /BLOCKED_CANONICAL_CONFLICT_KEY_MISSING/);
+  assert.match(sql, /BLOCKED_SELECTION_WRITE_GRANTS/);
+  assert.match(sql, /BLOCKED_SELECTION_WRITE_POLICIES/);
+  for (const operation of ['insert', 'update', 'delete']) {
+    assert.match(sql, new RegExp('selection_' + operation + '_policy_declared'));
+    assert.match(sql, new RegExp('runtime_can_' + operation));
+  }
+  assert.match(sql, /p\.polcmd IN \('a', '\*'\)/);
+  assert.match(sql, /p\.polcmd IN \('w', '\*'\)/);
+  assert.match(sql, /p\.polcmd IN \('d', '\*'\)/);
   assert.match(sql, /canonical_selection_unique_key_ready/);
   assert.match(sql, /i\.indisunique AND i\.indisvalid/);
   assert.match(sql, /i\.indpred IS NULL AND i\.indexprs IS NULL/);
