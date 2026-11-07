@@ -33,6 +33,16 @@ The exact 10-relation audit, run read-only in Demos-Staging, reports:
 
 Relevant repository DDL was located on `main`: `20261009_political_selections.sql`, `api/database/create-account-capabilities-model.sql`, and `20261009_political_territory_memberships.sql`. **Do not apply these scripts as-is to the shared staging:** `political_selections` already exists with three columns, so `CREATE TABLE IF NOT EXISTS` does not upgrade it, and the scripts also include backfills/DDL and other changes requiring separate review. Prepare a narrowly scoped, idempotent schema-difference plan and synthetic fixture-specific RLS/ACL review first. The missing legacy residence fields in `users` should not be silently populated with production personal data.
 
+## Canonical uniqueness and migration collision — 07/11/2026
+
+A read-only PostgreSQL catalog audit of `public.political_selections` confirmed an existing **legacy primary key on `(user_id, selected_user_id, selection_kind)`**. Its only unique index has those same three columns. In contrast, the currently proposed `writeCanonicalSelection` API requires `ON CONFLICT (user_id, selection_kind, political_office_id)`; the latter column does not even exist in this staging table.
+
+The versioned metadata preflight now reports `canonical_selection_unique_key_ready=false` (and will return `BLOCKED_CANONICAL_CONFLICT_KEY_MISSING` if the columns are later added without a suitable *valid, unconditional, unique* index). The SQL was executed read-only on Demos-Staging, and the new contract checks this condition without querying application rows.
+
+**Do not run `20261009_political_selections.sql` on the current staging unchanged**. Its `CREATE TABLE IF NOT EXISTS` does not convert an existing legacy relation; it can leave a mismatched primary key, missing columns and incompatible `ON CONFLICT` resolution. Furthermore, it includes an initial backfill whose source columns/fixture identities have not been reviewed for this schema. A safe future migration needs its own reviewed, transactional and idempotent conversion plan, with an explicit collision-resolution/rollback strategy before defining a canonical unique key. No production accounts, votes or other personal data should be copied into staging.
+
+Proposed **review sequence**, not executed: snapshot staging schema metadata and rollback artifacts; inspect foreign-key dependencies and key collisions on authorized **synthetic fixture data only**; review additive columns and their constraints; review necessary unique/index conversion without dropping existing rows or silently choosing between duplicates; apply only a separately approved minimal RLS/ACL proposal; rerun this SQL gate under the actual runtime identity; then proceed to the expressly authorized application E2E. The deployment and any database writes remain separately gated.
+
 ## Required sequence (none automatically approved)
 
 1. Keep `demos-staging` in bootstrap/NO-GO while the OPS-STG-001 team reviews the narrow route-to-table mapping, synthetic-only fixture design and rollback. Coordinate against PR #565, not a new Render instance.
