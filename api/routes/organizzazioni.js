@@ -118,7 +118,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN LATERAL (
         SELECT COUNT(*) AS cnt
         FROM users s
-        WHERE s.organizzazioni = u.id
+        WHERE s.organizzazioni = u.id AND s.status = 'a'
       ) us ON TRUE
       WHERE __ACCOUNT_FILTER__ AND ${whereClause}
       ORDER BY supporters_count DESC, u.created_at DESC, u.id::text DESC ${membersPaged ? 'LIMIT 101' : ''}
