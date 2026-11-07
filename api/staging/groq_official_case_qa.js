@@ -31,6 +31,16 @@ const ELECTORAL_SENATE_FINAL_EVIDENCE = [
   'Questo voto non promulga una legge: nessun numero di legge o data di pubblicazione/efficacia appartiene al voto del 15/09.'
 ].join(' ');
 
+// T001 uses a short source-grounded instruction set so three genuine Free
+// generations fit the *existing* conservative process-local token gate.
+// All ten source checks remain unchanged, including false-finality rejection.
+const T001_QA_PROMPT = [
+  'FONTE UFFICIALE: ' + ELECTORAL_SENATE_FINAL_EVIDENCE,
+  'Rispondi SOLO in JSON con chiavi atto, data_voto, favorevoli, contrari, astenuti, esito, numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Date GG/MM/AAAA, voti interi.',
+  'Usa solo la fonte, senza deduzioni su voti individuali. Se non e una legge promulgata usa null nei tre campi sulla legge. Esito ESATTAMENTE uno di: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE.',
+  'Per S.1971 descrivi in massimo tre frasi il voto elettorale di Camera e Senato, le modificazioni, S.61 assorbito e il ritorno alla Camera. Non dire che il voto del Senato ha approvato definitivamente una legge, ne che ha promulgato, pubblicato o reso efficace una legge.'
+].join('\\n');
+
 const SENATE_EVIDENCE = [
   'Senato della Repubblica, XIX legislatura, seduta 463 del 07/10/2026.',
   'Votazione finale S.2023: 73 favorevoli, 49 contrari, 3 astenuti, 125 votanti, 126 presenti.',
@@ -576,7 +586,7 @@ async function runOfficialCaseQA({
       model,
       messages: [
         { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
-        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T001' ? ELECTORAL_SENATE_FINAL_EVIDENCE : CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : CASE_ID === 'T018' ? CONFIDENCE_PA_EVIDENCE : CASE_ID === 'T013' ? CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE : CASE_ID === 'T023' ? ARTICLE_9_EVIDENCE : CASE_ID === 'T024' ? COORDINATION_EVIDENCE : CASE_ID === 'T025' ? RENVIO_CPI_EVIDENCE : EVIDENCE) +
+        { role: 'user', content: CASE_ID === 'T001' ? T001_QA_PROMPT : 'FONTE UFFICIALE: ' + (CASE_ID === 'T001' ? ELECTORAL_SENATE_FINAL_EVIDENCE : CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : CASE_ID === 'T018' ? CONFIDENCE_PA_EVIDENCE : CASE_ID === 'T013' ? CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE : CASE_ID === 'T023' ? ARTICLE_9_EVIDENCE : CASE_ID === 'T024' ? COORDINATION_EVIDENCE : CASE_ID === 'T025' ? RENVIO_CPI_EVIDENCE : EVIDENCE) +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
           'atto (formato ' + (CASE_ID === 'T001' ? 'S.1971' : CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : CASE_ID === 'T011' ? 'Em. 1.0.6' : CASE_ID === 'T018' ? 'S.2047' : CASE_ID === 'T013' ? 'Em. 9.0.1' : CASE_ID === 'T023' ? 'Art. 9' : CASE_ID === 'T024' ? 'Coord. 1' : CASE_ID === 'T025' ? 'Rinvio 1-00599' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
@@ -624,4 +634,4 @@ async function runOfficialCaseQA({
   }
 }
 
-module.exports = { CASE_ID, EVIDENCE, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, diagnoseIlvaAmendmentExplanation, diagnoseLiabilityAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation, diagnoseRinvioCpiExplanation, assessOfficialAnswer, runOfficialCaseQA };
+module.exports = { CASE_ID, EVIDENCE, T001_QA_PROMPT, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, diagnoseIlvaAmendmentExplanation, diagnoseLiabilityAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation, diagnoseRinvioCpiExplanation, assessOfficialAnswer, runOfficialCaseQA };
