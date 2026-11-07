@@ -267,6 +267,36 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
       await pool.query('DELETE FROM voti_grazia WHERE userid=$1 AND nome=$2',[B,otherAccountVote]);
     }
 
+
+    // Legacy catalogue display names can contain repeated whitespace. The
+    // vote input is canonicalized, but its persisted spelling must match the
+    // approved catalogue row; existing votes with canonical spelling must
+    // still contribute to the public aggregate. All data is disposable PG17.
+    const legacyDisplayName='Persona  legacy   sintetica';
+    const legacyCanonicalName='Persona legacy sintetica';
+    await pool.query('INSERT INTO grazia_carcerati(nome,attivo) VALUES($1,true)',[legacyDisplayName]);
+    await pool.query('INSERT INTO voti_grazia(userid,nome) VALUES($1,$2)',[A,legacyCanonicalName]);
+    const beforeLegacyVote=await req('/api/grazia');
+    assert.equal(beforeLegacyVote.json.classifica.find(x=>x.nome===legacyDisplayName)?.richieste,1,
+      'historic canonical vote must count for a legacy whitespace catalogue name');
+    const acceptedLegacyVote=await req('/api/grazia/vota','b','POST',{voti:[legacyCanonicalName]});
+    assert.equal(acceptedLegacyVote.status,200,
+      'an equivalent legacy approved catalogue name remains votable');
+    const storedLegacyVote=await pool.query('SELECT nome FROM voti_grazia WHERE userid=$1',[B]);
+    assert.deepEqual(storedLegacyVote.rows.map(x=>x.nome),[legacyDisplayName],
+      'persist the approved catalogue display spelling rather than the submitted variant');
+    const afterLegacyVote=await req('/api/grazia');
+    assert.equal(afterLegacyVote.json.classifica.find(x=>x.nome===legacyDisplayName)?.richieste,2,
+      'both historic and new votes contribute to the same public aggregate');
+    const badLegacyVote=await req('/api/grazia/vota','b','POST',{voti:['Persona\u202e spoofed']});
+    assert.equal(badLegacyVote.status,400,'hidden directional controls fail before writes');
+    const afterBadVote=await pool.query('SELECT nome FROM voti_grazia WHERE userid=$1',[B]);
+    assert.deepEqual(afterBadVote.rows.map(x=>x.nome),[legacyDisplayName],
+      'rejected input cannot erase or replace the previously saved private vote');
+    await pool.query('DELETE FROM voti_grazia WHERE userid=$1 AND nome=$2',[A,legacyCanonicalName]);
+    await pool.query('DELETE FROM voti_grazia WHERE userid=$1 AND nome=$2',[B,legacyDisplayName]);
+    await pool.query('DELETE FROM grazia_carcerati WHERE nome=$1',[legacyDisplayName]);
+
     // The vote checks an approved catalogue row inside its transaction.
     // Hold the Admin withdrawal row lock, then prove its FOR SHARE check is
     // genuinely waiting in disposable PostgreSQL before deactivating the row.
