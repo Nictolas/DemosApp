@@ -195,6 +195,12 @@ test('T013 Giorgis conditional electoral application is neither T010 nor T009', 
     spiegazione: 'Il Senato ha respinto il rinvio di 18 mesi della nuova legge elettorale.' }, 'T013');
   assert.deepEqual(confused.failedFields, ['spiegazione']);
   assert.equal(confused.explanationDiagnostics.confusedWith18Months, true);
+  const equivalent = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il Senato ha respinto l’emendamento: con la maggioranza dei due terzi l’applicazione sarebbe stata dalla prossima legislatura, altrimenti dalla seconda legislatura successiva.' }, 'T013');
+  assert.equal(equivalent.success, true);
+  assert.equal(equivalent.explanationDiagnostics.immediateLegislatureFound, true);
+  assert.equal(diagnoseConditionalElectoralAmendment(
+    'L’emendamento respinto prevedeva solo la seconda legislatura successiva, con due terzi.').immediateLegislatureFound, false);
   const unconditional = assessOfficialAnswer({ ...correct,
     spiegazione: 'Il Senato ha respinto la proposta di applicarla dalla seconda legislatura.' }, 'T013');
   assert.deepEqual(unconditional.failedFields, ['spiegazione']);
