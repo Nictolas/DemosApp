@@ -3,7 +3,68 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { runOneProbe, createHandler, sanitizeResult, sanitizeCaseResult } = require('../staging/groq_free_standalone_probe');
+const { runOneProbe, createHandler, sanitizeResult, sanitizeCaseResult, requestedCaseSamples, runCaseSamples } = require('../staging/groq_free_standalone_probe');
+
+test('stability QA defaults to one request and caps opt-in to three', async () => {
+  assert.equal(requestedCaseSamples({}), 1);
+  assert.equal(requestedCaseSamples({ GROQ_QA_REPEATS: '999' }), 1);
+  assert.equal(requestedCaseSamples({ GROQ_QA_REPEATS: '3' }), 3);
+  let calls = 0;
+  const result = await runCaseSamples({
+    env: { GROQ_QA_CASE_ID: 'T006', GROQ_QA_REPEATS: '3' },
+    runCase: async () => {
+      calls++;
+      return {
+        caseId: 'T006', status: 'OK', success: true, verifiedFields: 10,
+        failedFields: [], rawProviderText: 'NEVER_LEAK'
+      };
+    }
+  });
+  assert.equal(calls, 3);
+  assert.deepEqual(result, {
+    caseId: 'T006', status: 'OK', success: true, verifiedFields: 10,
+    failedFields: [], samplesRequested: 3, samplesCompleted: 3, samplesPassed: 3
+  });
+  assert.deepEqual(sanitizeCaseResult(result).samplesPassed, 3);
+  assert.doesNotMatch(JSON.stringify(result), /NEVER_LEAK/);
+});
+
+test('stability QA rejects variable 9/10 even if two other independent samples pass', async () => {
+  let calls = 0;
+  const result = await runCaseSamples({
+    env: { GROQ_QA_CASE_ID: 'T006', GROQ_QA_REPEATS: '3' },
+    runCase: async () => {
+      calls++;
+      return calls === 2
+        ? { caseId: 'T006', status: 'SOURCE_MISMATCH', success: false, verifiedFields: 9, failedFields: ['spiegazione', 'PRIVATE'] }
+        : { caseId: 'T006', status: 'OK', success: true, verifiedFields: 10, failedFields: [] };
+    }
+  });
+  assert.equal(calls, 3);
+  assert.equal(result.success, false);
+  assert.equal(result.status, 'SOURCE_MISMATCH');
+  assert.equal(result.verifiedFields, 9);
+  assert.equal(result.samplesPassed, 2);
+  assert.equal(result.samplesCompleted, 3);
+  assert.deepEqual(sanitizeCaseResult(result).failedFields, ['spiegazione']);
+  assert.doesNotMatch(JSON.stringify(sanitizeCaseResult(result)), /PRIVATE/);
+});
+
+test('stability QA stops after Free provider rate limit, not an automatic retry', async () => {
+  let calls = 0;
+  const result = await runCaseSamples({
+    env: { GROQ_QA_CASE_ID: 'T006', GROQ_QA_REPEATS: '3' },
+    runCase: async () => {
+      calls++;
+      return { caseId: 'T006', status: 'RATE_LIMIT', success: false, verifiedFields: 0 };
+    }
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.status, 'RATE_LIMIT');
+  assert.equal(result.success, false);
+  assert.equal(result.samplesCompleted, 1);
+  assert.equal(result.samplesPassed, 0);
+});
 
 test('T002 explanation diagnostics expose only validated booleans, not output', () => {
   const result = sanitizeCaseResult({
