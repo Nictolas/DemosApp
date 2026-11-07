@@ -178,6 +178,35 @@ test('preflight start via unchanged Render command never launches bootstrap', as
   assert.equal(preflightCalls,1);
 });
 
+test('source-only canary dispatches through unchanged Render command', async () => {
+  const {startConfiguredStaging}=require('../staging/unified_staging_bootstrap');
+  const env={NODE_ENV:'staging',DEMOS_UNIFIED_STAGING_MODE:'app_canary'};
+  const marker={mode:'source_only',app_ready:false};
+  let called=0;
+  const result=await startConfiguredStaging(env,{
+    bootstrap:()=>{throw new Error('must not fall through to bootstrap');},
+    preflight:()=>{throw new Error('must not launch preflight');},
+    canary:async actual=>{called++;assert.equal(actual,env);return marker;},
+  });
+  assert.equal(result,marker);
+  assert.equal(called,1);
+});
+
+test('source-only canary without explicit GO fails before any DB or listener', async () => {
+  const {startConfiguredStaging}=require('../staging/unified_staging_bootstrap');
+  let bootstrapCalls=0,preflightCalls=0;
+  await assert.rejects(
+    startConfiguredStaging({
+      NODE_ENV:'staging',DEMOS_UNIFIED_STAGING_MODE:'app_canary'
+    },{
+      bootstrap:()=>{bootstrapCalls++;throw new Error('unsafe fallback');},
+      preflight:()=>{preflightCalls++;throw new Error('unsafe preflight');},
+    }),/STAGING_APP_CANARY_GO_REQUIRED/
+  );
+  assert.equal(bootstrapCalls,0);
+  assert.equal(preflightCalls,0);
+});
+
 test('default bootstrap and invalid mode cannot silently import or use preflight', async () => {
   const {startConfiguredStaging}=require('../staging/unified_staging_bootstrap');
   for(const mode of ['application',undefined]) {
