@@ -276,7 +276,10 @@ router.get('/richieste', personalNoStore, verifyToken, requireAdmin, async (req,
 router.get('/mia-proposta', personalNoStore, verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, CASE WHEN withdrawn_at IS NOT NULL THEN 'withdrawn' ELSE status END AS status, data_creazione FROM richieste_grazia WHERE utente_id = $1 ORDER BY data_creazione DESC LIMIT 1",
+      // A cached authenticated session can outlive account suspension. Keep
+      // the current DB-account check in this very same private SELECT (no extra
+      // query), and return the existing neutral null shape for inactive owners.
+      "SELECT id, CASE WHEN withdrawn_at IS NOT NULL THEN 'withdrawn' ELSE status END AS status, data_creazione FROM richieste_grazia WHERE utente_id = $1 AND EXISTS (SELECT 1 FROM users WHERE id::text = $1::text AND status = 'a') ORDER BY data_creazione DESC, id DESC LIMIT 1",
       [req.user.id]
     );
     return res.json({ success: true, richiesta: result.rows[0] || null });
