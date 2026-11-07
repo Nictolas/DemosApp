@@ -1,0 +1,31 @@
+name: Parliament final source feed — safety and frontend build
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/src/components/VotazioniFinaliOpenpolis.tsx'
+      - 'client/src/pages/VotiParlamento.tsx'
+      - 'client/tests/parliamentFinalSourceFeed.test.mjs'
+      - '.github/workflows/parliament-final-source-feed.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  final-source-feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+      - name: Source mapping invariants
+        run: node --test client/tests/parliamentFinalSourceFeed.test.mjs
+      - name: Install frontend dependencies
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Build frontend
+        run: npm --prefix client run build
