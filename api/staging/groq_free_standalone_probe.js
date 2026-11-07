@@ -47,6 +47,7 @@ function sanitizeCaseResult(result) {
     status,
     success: status === 'OK' && result?.success === true,
     verifiedFields: Number.isInteger(count) ? Math.max(0, Math.min(10, count)) : 0,
+    failedFields: Array.isArray(result?.failedFields) ? result.failedFields.filter(field => ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'].includes(field)).slice(0, 10) : [],
     ...(Number.isFinite(latency) && latency >= 0 ? { latencyMs: Math.min(120000, Math.round(latency)) } : {})
   };
 }
