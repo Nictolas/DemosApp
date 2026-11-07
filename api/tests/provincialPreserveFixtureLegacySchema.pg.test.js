@@ -6,6 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { loadPoliticalSelections } = require('../services/politicalSelectionService');
 
 test('preserve fixture-only legacy choices without inventing an office', async () => {
   assert.equal(process.env.GITHUB_ACTIONS, 'true');
@@ -98,6 +99,13 @@ test('preserve fixture-only legacy choices without inventing an office', async (
     );
     const all = await db.query('SELECT count(*)::int AS n FROM public.political_selections');
     assert.equal(all.rows[0].n, 4);
+    const aliceState = await loadPoliticalSelections(db, { userId: alice, kind: 'representative' });
+    assert.equal(aliceState.source, 'CANONICAL');
+    assert.deepEqual(aliceState.selections.map(row => row.officeId).sort(),
+      ['it.provincial.trento', 'it.regional']);
+    const bobState = await loadPoliticalSelections(db, { userId: bob, kind: 'representative' });
+    assert.equal(bobState.strict, true);
+    assert.deepEqual(bobState.selections, [], 'unmapped historical fixture is not a political office');
   } finally {
     await db.end();
   }
