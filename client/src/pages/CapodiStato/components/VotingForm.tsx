@@ -31,13 +31,23 @@ export const VotingForm: React.FC<VotingFormProps> = ({
 }) => {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const nomePulito = nomeInput.trim();
     if (!nomePulito) return;
     
-    onAddNome(nomePulito);
+    // Selecting a name in the form must never create a new candidate.
+    const candidate = classifica.find(item =>
+      item.nome.toLocaleLowerCase('it') === nomePulito.toLocaleLowerCase('it')
+    );
+    if (!candidate) {
+      setSearchError("Puoi votare soltanto candidati già presenti nella classifica.");
+      return;
+    }
+    setSearchError("");
+    onAddNome(candidate.nome);
     setNomeInput("");
   };
 
@@ -106,6 +116,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
               <Plus className="h-5 w-5" aria-hidden="true" />
             </Button>
           </div>
+          {searchError && <p role="alert" className="text-xs text-red-700">{searchError}</p>}
         </form>
 
         {selectedVoti.length > 0 ? (
