@@ -62,6 +62,19 @@ test('Grazia personal votes and third-party proposals never reach HTTP cache or 
   assert.match(source, /await client\.query\('COMMIT'\);[\s\S]{0,260}?client\.release\(\);\s*client = null;\s*let notificationSent = false;/);
 });
 
+test('Grazia inbox recipients stay locked against a concurrent suspension (synthetic SQL contract)', () => {
+  const source=read('api/routes/grazia.js');
+  const statements=source.split('\n')
+    .map(line=>line.trim())
+    .filter(line=>line.startsWith('"INSERT INTO notifiche_demos '))
+    .map(line=>JSON.parse(line.replace(/,$/,'')));
+  assert.equal(statements.length,3,'new proposal, withdrawal and decision each create a private notice');
+  for (const sql of statements) {
+    assert.match(sql,/FROM users WHERE .*status\s*=\s*'a' FOR SHARE$/,
+      'a status UPDATE must conflict with the recipient lock');
+  }
+});
+
 test('Grazia withdrawal remains on its own queue, keeps votes and has private audit', () => {
   const route=read('api/routes/grazia.js');
   const migration=read('api/migrations/20261104_grazia_withdrawal_audit.sql');
