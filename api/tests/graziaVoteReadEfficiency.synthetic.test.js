@@ -7,7 +7,7 @@ const vm=require('node:vm');
 
 const source=fs.readFileSync(path.join(__dirname,'../routes/grazia.js'),'utf8');
 
-function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=false,accountActive=true}={}) {
+function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=false,accountActive=true,consentGranted=true}={}) {
   let columns=initialColumns;
   const queries=[];
   const cooldown=[];
@@ -33,11 +33,15 @@ function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=fa
            !sql.includes('MAX(vote.'+expectedDate+') OVER ()')){
           throw Object.assign(new Error('SYNTHETIC_UNDEFINED_COLUMN'),{code:'42703'});
         }
-        assert.match(sql,/FROM users WHERE id::text = \$2 AND status = 'a'/,
-          'personal choices must be gated by active account state in the same query');
+        assert.match(sql,/FROM users u\s+LEFT JOIN user_consents uc ON uc.user_id = u.id/,
+          'personal data must depend on the current consent row in the same query');
+        assert.match(sql,/WHERE u.id::text = \$2 AND u.status = 'a'/,
+          'the account must remain active');
+        assert.match(sql,/COALESCE\(uc.political_opinions_consent,\s*u.political_opinions_consent, false\) = TRUE/,
+          'revoked consent must hide stale vote and cooldown data');
         assert.equal(params[1],String(params[0]));
         const id=params[0];
-        if(!accountActive)return {rows:[{active:false,nome:null,last_changed_at:null}]};
+        if(!accountActive || !consentGranted)return {rows:[{active:false,nome:null,last_changed_at:null}]};
         if(id==='no-votes')return {rows:[{active:true,nome:null,last_changed_at:null}]};
         return {rows:[
           {active:true,nome:'Risposta '+id+' B',last_changed_at:'2026-11-05T11:59:01.000Z'},
@@ -172,6 +176,19 @@ test('empty votes pass null fallback, without a separate MAX query',async()=>{
   assert.deepEqual(Array.from(response.mieiVoti),[]);
   assert.equal(x.cooldown[0].fallbackChangedAt,null);
   assert.deepEqual(x.counts(),{metadata:1,votes:1,total:3});
+});
+
+test('revoked political consent hides historic Grazia votes and cooldown without additional SQL',async()=>{
+  const x=makeHarness({consentGranted:false});
+  const response=await x.get('a');
+  assert.equal(response.success,true,'public catalogue remains available');
+  assert.deepEqual(Array.from(response.mieiVoti),[],
+    'historic private preference remains hidden after consent revocation');
+  assert.equal(response.blocco.isBlocked,false);
+  assert.equal(response.blocco.unlockDate,null);
+  assert.deepEqual(x.counts(),{metadata:1,votes:1,total:3},
+    'same personal vote query checks consent, no extra SQL round trip');
+  assert.equal(x.cooldown.length,0,'private cooldown must not be disclosed');
 });
 
 test('inactive account cannot receive prior votes or cooldown after valid signed access token',async()=>{
