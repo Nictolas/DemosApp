@@ -91,7 +91,7 @@ function parseGroundedAnalysisResponse(response) {
     const item = part.trim().replace(/^(?:[-*•]|\d+[.)])\s+/u, '').trim();
     return noEvidence.test(item);
   });
-  if (noEvidence.test(spiegazione_generale.trim()) ||
+  if (hasPlaceholderItem(spiegazione_generale) ||
       hasPlaceholderItem(effetti_positivi) ||
       hasPlaceholderItem(effetti_negativi)) return null;
   return {
