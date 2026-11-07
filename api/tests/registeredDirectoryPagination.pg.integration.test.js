@@ -41,14 +41,16 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
     // Neither legacy full-list clients nor new pages may disclose these members.
     await db.query(`
       INSERT INTO users(id,nome,cognome,ruolo,account_type,is_activist,status,
-                        avatar_config,regione_residenza,tipologie_attivismo,created_at)
+                        avatar_config,regione_residenza,tipologie_attivismo,created_at,attivisti,organizzazioni)
       VALUES
         ('00000000-0000-4000-8000-000000000211','Suspended activist','Fixture',
          'A','PERSON',TRUE,'x','{}','TO','[{"tipo":"ambiente"}]'::jsonb,
-         '2026-11-06 13:14:15+00'::timestamptz),
+         '2026-11-06 13:14:15+00'::timestamptz,
+         '00000000-0000-4000-8000-000000000105',NULL),
         ('00000000-0000-4000-8000-000000000212','Suspended organization','Fixture',
          'O','ORGANIZATION',FALSE,'x','{}','TO','[{"tipo":"ambiente"}]'::jsonb,
-         '2026-11-06 13:14:15+00'::timestamptz)
+         '2026-11-06 13:14:15+00'::timestamptz,
+         NULL,'00000000-0000-4000-8000-000000000210')
     `);
     const pool={query:(sql,args)=>{
       count++;
@@ -112,6 +114,8 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
 
       assert.equal(typeof a.members_next_cursor,'string');
       assert.equal(a.data[0].id,id(start));
+      assert.equal(a.data[0].supporters_count,0,
+        'suspended supporter links must not count toward public activist/organization totals');
       assert.equal(a.data.some(row=>[id(211),id(212)].includes(row.id)),false,
         'inactive member must not appear on paged public first page');
       assert.equal('cursor_epoch' in a.data[0],false);
