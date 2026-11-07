@@ -46,9 +46,11 @@ Questa mappa deriva da `api/routes/grazia.js` sul ramo Draft, non da una lettura
 
 Nel registro privato separare data di ricezione, scadenza ordinaria in mesi di calendario, eventuale proroga motivata comunicata entro il primo mese, nuova scadenza, data di risposta e prova di consegna. La proroga non è automatica: motivare complessità o numero delle richieste e verificare l'art. 12(3) GDPR. Non presumere che richieste di chiarimento sospendano automaticamente i termini.
 
-Casi sintetici ancora DA ESEGUIRE: ricezione 31 gennaio con mese successivo più corto; febbraio bisestile; proroga motivata notificata in tempo; proroga tardiva da rifiutare; risposta non recapitata che non può essere segnata come consegnata. Nessuna email di test senza autorizzazione; risultati e ricevute solo in archivio privato. Validazione DPO richiesta per il computo concreto dei termini.
+**Evidenza sintetica S4 aggiornata al 07/11/2026 (non prova operativa):** `api/tests/demos12DsarS4.synthetic.test.js` è eseguito nel job `security-contracts` di `.github/workflows/civic-moderation-contracts.yml`. Sul commit `d6ec8ed463023a19ea0d8d0911a1a1c8e682e12a`, GitHub Actions ha completato **15/15 workflow SUCCESS**. Il test include mesi corti/bisestili, date invalide, proroghe tardive o senza motivazione, conferme separate di invio/consegna e distinzione fra risposta consegnata e risposta entro il termine. Le date e i booleani sono **fixture artificiali**, non ricevute o eventi di una casella. Il calcolo di mesi è un'ipotesi implementativa di test, non un parere sulla computazione giuridica dei termini.
 
-**Stato: specifica di accettazione aggiunta, nessun test S4 eseguito, DSAR-05 NO-GO.**
+**Esercitazione DSAR-02..06 ancora DA ESEGUIRE:** simulazione completa della ricezione, protocollazione privata, verifica dell'identità, decisione, rettifica/ritiro autorizzato, invio, conferma della consegna e conservazione minima; includere caso non recapitabile e contestazione da terzo. Nessuna email di prova senza autorizzazione. Risultati operativi e ricevute solo in archivio privato. Validazione del titolare/DPO necessaria per termini e basi giuridiche.
+
+**Stato: test S4 sintetici PASS in CI, ma DSAR-05 e DSAR-02..06 procedurali NO-GO.**
 
 ## Prove di accettazione ancora necessarie
 
