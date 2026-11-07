@@ -68,6 +68,28 @@ function canSearchActTitle(numeroLegge, titolo, camera) {
 }
 
 /**
+ * A generic DDL document is NOT evidence for a particular amendment, confidence
+ * motion, motion, article vote or procedural vote on that DDL. Only a
+ * document explicitly matched to the voted sub-act may justify such an AI
+ * explanation; the generic bill lookup must fail closed.
+ */
+function canUseBillTextAsVoteEvidence(titolo) {
+  if (typeof titolo !== 'string' || !titolo.trim()) return false;
+  const subAct = [
+    /\bemendament[oi]\b/iu,
+    /\bEM\.?\s*\d+(?:\.\d+)+\b/iu,
+    /\bmozion[ei]\b/iu,
+    /\b(?:odg|ordine\s+del\s+giorno)\b/iu,
+    /\bfiducia\b/iu,
+    /\bquestione\s+(?:pregiudiziale|sospensiva)\b/iu,
+    /\b(?:votazione|voto)\s+(?:dell['’]\s*)?articol[oi]\b/iu,
+    /(?:^|[—–\-:])\s*articol[oi]\s+\d+\b/iu,
+    /\b(?:coord\.?|coordinamento)\s+(?:formale\s+)?(?:n\.?\s*)?\d+\b/iu
+  ];
+  return !subAct.some(pattern => pattern.test(titolo));
+}
+
+/**
  * Classify parliamentary acts by whole terms only. In particular "EM" must
  * never match the middle of ordinary words such as "sistema" or "tema".
  * Full names take precedence over short parliamentary abbreviations.
@@ -90,4 +112,4 @@ function estraiTipoAtto(titolo) {
   return null;
 }
 
-module.exports = { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle, estraiTipoAtto };
+module.exports = { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle, canUseBillTextAsVoteEvidence, estraiTipoAtto };
