@@ -114,7 +114,7 @@ async function checkPublicDirectory(path, expectApproved) {
   assert.equal(user.nome, privatePerson.nome);
   assert.equal(user.id, privatePerson.id);
   assert.equal(user.regione_residenza, 'TO');
-  assert.equal(user.avatar_config, '{}');
+  assert.equal(user.avatar_config, null, 'empty avatar uses the safe default rather than an arbitrary JSON object');
   assert.deepEqual(user.tipologie_attivismo, [{ tipo: 'ambiente' }]);
   for (const field of [
     'email', 'genere', 'data_nascita', 'cittadinanza',
@@ -235,6 +235,30 @@ test('registered profiles paginate at 100 for every public directory, without ex
       }
     }
   }finally{largeDirectory=false;}
+});
+
+test('malformed public directory filters return uncached 400 without a SQL read', async () => {
+  const invalidQueries = [
+    'search=alpha&search=beta',
+    'search[]=alpha',
+    'regione[hidden]=TO',
+    'tipologia[]=ambiente',
+    'exclude_user_id=not-a-uuid',
+    'exclude_user_id[]=11111111-1111-4111-8111-111111111111',
+    'search='+'x'.repeat(257)
+  ];
+  for (const directory of ['/api/attivisti','/api/organizzazioni']) {
+    for (const query of invalidQueries) {
+      const countBefore = queries.length;
+      const response = await request(directory+'?'+query);
+      assert.equal(response.status, 400, directory+'?'+query);
+      assert.match(response.headers.get('cache-control') || '', /no-store/);
+      assert.equal((await response.json()).success, false);
+      assert.equal(queries.length,countBefore,'malformed query must not touch SQL');
+    }
+    const valid = await request(directory+'?search=Persona&regione=Toscana&tipologia=ambiente');
+    assert.equal(valid.status,200,'legitimate searches remain available');
+  }
 });
 
 test('all database calls from public directory HTTP fixtures are reads', () => {
