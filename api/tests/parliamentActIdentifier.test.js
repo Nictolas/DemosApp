@@ -90,3 +90,19 @@ test('mixed chamber references must match the requested chamber and act number',
   assert.equal(canSearchActTitle('123', 'S. 123 e S. 999', 'Senato'), false);
   assert.equal(canSearchActTitle('123', 'DDL 123', 'Senato'), true);
 });
+
+test('spelled-out Atto Senato and Atto Camera references enforce chamber and number', () => {
+  assert.equal(estraiNumeroLegge('Atto Senato n. 501 - votazione finale'), '501');
+  assert.equal(estraiNumeroLegge('Atto Camera n. 501 - votazione finale'), '501');
+  assert.equal(canSearchActTitle('501', 'Atto Senato n. 501', 'Senato'), true);
+  assert.equal(canSearchActTitle('501', 'Atto Senato n. 501', 'Camera'), false);
+  assert.equal(canSearchActTitle('501', 'Atto Camera n. 501', 'Camera'), true);
+  assert.equal(canSearchActTitle('501', 'Atto Camera n. 501', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 - Atto Senato n. 999', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 - Atto Senato n. 999', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123 - Atto Camera n. 123', 'Camera'), true);
+  assert.equal(canSearchActTitle('123', 'S. 123 - Atto Senato n. 999', 'Senato'), false);
+  assert.equal(canSearchActTitle('123', 'S. 123 - Atto Camera n. 456', 'Senato'), true);
+  assert.equal(canSearchActTitle('123', 'Atto Camera n. 123 - Atto Camera n. 999', 'Camera'), false);
+  assert.equal(canSearchActTitle('123', 'DDL 123', 'Senato'), true);
+});
