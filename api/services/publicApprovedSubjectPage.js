@@ -8,7 +8,11 @@ function parseCursor(raw) {
   if (raw == null) return null;
   if (typeof raw !== 'string' || raw.length > 240 || !/^[A-Za-z0-9_-]+$/.test(raw)) return false;
   try {
-    const value = JSON.parse(Buffer.from(raw,'base64url').toString('utf8'));
+    const bytes = Buffer.from(raw, 'base64url');
+    // Node accepts alternate base64url spellings with non-zero unused bits.
+    // Require the exact canonical cursor before parsing or querying the DB.
+    if (bytes.toString('base64url') !== raw) return false;
+    const value = JSON.parse(bytes.toString('utf8'));
     if (!Array.isArray(value) || value.length !== 2) return false;
     const [epoch,id] = value;
     if (typeof epoch !== 'string' || !/^\d{1,11}(?:\.\d{1,6})?$/.test(epoch) ||
