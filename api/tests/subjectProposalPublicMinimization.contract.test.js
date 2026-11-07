@@ -430,14 +430,17 @@ test('public directory invalid query filters fail closed before SQL', () => {
     {search:'Persona',regione:'Toscana',tipologia:'animalismo'},
     {exclude_user_id:uuid},
     {exclude_user_id:''},
-    {search:'',members_paged:'1'}
+    {search:'',members_paged:'1'},
+    {members_paged:'0'}
   ]) assert.equal(valid(query),true,'legitimate filter request must remain supported');
   for (const query of [
     null, [],
     {search:['a','b']}, {regione:{nested:'value'}},
     {tipologia:['animali']}, {exclude_user_id:['a','b']},
     {search:12}, {search:null}, {search:'a'.repeat(257)},
-    {exclude_user_id:'not-a-uuid'}, {exclude_user_id:uuid+'extra'}
+    {exclude_user_id:'not-a-uuid'}, {exclude_user_id:uuid+'extra'},
+    {members_paged:['1','0']}, {members_paged:{nested:'1'}},
+    {members_paged:'true'}, {members_paged:''}
   ]) assert.equal(valid(query),false,'unsafe filter must be rejected: '+JSON.stringify(query));
 
   for (const filePath of ['api/routes/attivisti.js','api/routes/organizzazioni.js']) {
