@@ -321,6 +321,39 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # Real-age QA differs from the forced-adult .qaopen smoke above.
+      # On a fresh, OFFLINE device without an authenticated user, not even the
+      # UMP request or the test ad SDK may start. No user account is used.
+      - name: Offline anonymous emulator smoke for real-age QA (no ad requests)
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            adb shell svc wifi disable
+            adb shell svc data disable
+            adb logcat -c
+            apk=client/android/app/build/outputs/apk/debug/real-age-qa/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
+            test -s "$apk"
+            adb install "$apk"
+            adb shell am start -W -n community.demos.qaage/community.demos.MainActivity
+            sleep 5
+            test -n "$(adb shell pidof community.demos.qaage | tr -d '\r')"
+            adb shell input keyevent KEYCODE_HOME
+            adb shell am start -W -n community.demos.qaage/community.demos.MainActivity
+            sleep 4
+            test -n "$(adb shell pidof community.demos.qaage | tr -d '\r')"
+            adb logcat -d -s DemosAdsQA:I > /tmp/demos-qaage-anonymous-logcat.txt
+            if grep -Eq 'sdk-initialize-approved|app-open-test-request-started|app-open-test-loaded|form-complete' /tmp/demos-qaage-anonymous-logcat.txt; then
+              echo 'ERROR: advertising or consent started for an unauthenticated QA user'
+              exit 1
+            fi
+            echo 'Anonymous real-age QA: installed, cold start and foreground return OK, no ad/consent start log'
+
       - name: Confirm release runtime does not include AdMob or UMP
         working-directory: client/android
         shell: bash
