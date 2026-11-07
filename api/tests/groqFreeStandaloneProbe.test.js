@@ -386,6 +386,53 @@ test('T024 per-sample coordination diagnostics are bounded and never include tex
   assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_GENERATION|raw/);
 });
 
+test('T001 individual source flags stay bounded and never expose generated text', () => {
+  const safe = sanitizeCaseResult({
+    caseId: 'T001', status: 'SOURCE_MISMATCH', success: false,
+    verifiedFields: 9, failedFields: ['spiegazione'],
+    explanationDiagnostics: {
+      electoralTopicFound: true, notFinalLawFound: true,
+      absorbedBillFound: false, falseFinalityFound: false,
+      generatedText: 'PRIVATE_GROQ_RESPONSE'
+    }
+  });
+  assert.deepEqual(safe.explanationDiagnostics, {
+    electoralTopicFound: true, notFinalLawFound: true,
+    absorbedBillFound: false, falseFinalityFound: false
+  });
+  assert.deepEqual(safe.failedFields, ['spiegazione']);
+  assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_GROQ_RESPONSE|generatedText/);
+});
+
+test('T001 three-sample diagnostics identify missing S.61 absorption without leaking text', async () => {
+  let n = 0;
+  const result = await runCaseSamples({
+    env: { GROQ_QA_REPEATS: '3', GROQ_QA_CASE_ID: 'T001' },
+    runCase: async () => {
+      n++;
+      return {
+        caseId: 'T001', status: 'SOURCE_MISMATCH', success: false,
+        verifiedFields: 9, failedFields: ['spiegazione'],
+        explanationDiagnostics: {
+          electoralTopicFound: true, notFinalLawFound: n !== 2,
+          absorbedBillFound: n === 3, falseFinalityFound: false,
+          content: 'PRIVATE_MODEL_PROSE'
+        }
+      };
+    }
+  });
+  const safe = sanitizeCaseResult(result);
+  assert.deepEqual(safe.t001SampleCategories,
+    ['SOURCE_MISMATCH','SOURCE_MISMATCH','SOURCE_MISMATCH']);
+  assert.deepEqual(safe.t001SampleScores, [9, 9, 9]);
+  assert.deepEqual(safe.t001FlagTallies, {
+    electoralTopicFound: 3, notFinalLawFound: 2,
+    absorbedBillFound: 1, falseFinalityFound: 0
+  });
+  assert.equal(result.samplesPassed, 0);
+  assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_MODEL_PROSE|content/);
+});
+
 test('T025 missing numeric totals and non-nominal vote expose only safe booleans', () => {
   const sanitized = sanitizeCaseResult({
     caseId: 'T025', status: 'SOURCE_MISMATCH', success: false,
