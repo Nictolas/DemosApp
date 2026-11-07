@@ -113,8 +113,15 @@ jobs:
           safe_missing = [item for item in missing if isinstance(item, str) and item in allowed_fields] if isinstance(missing, list) else []
           print('T006 missing field names (allowlist):', ', '.join(safe_missing) if safe_missing else 'none')
           print('T006 HTTP:', code)
+          requested = result.get('samplesRequested')
+          completed = result.get('samplesCompleted')
+          passed = result.get('samplesPassed')
+          print('T006 independent samples requested:', requested)
+          print('T006 independent samples completed:', completed)
+          print('T006 independent samples passing all 10 fields:', passed)
           if (code != 200 or category != 'OK' or verified != 10 or
-              result.get('caseId') != 'T006' or result.get('success') is not True):
+              result.get('caseId') != 'T006' or result.get('success') is not True or
+              requested != 3 or completed != 3 or passed != 3):
               sys.exit(1)
-          print('T006 source-grounded Groq Free generation PASS')
+          print('T006 three independent source-grounded Groq Free generations PASS')
           PY
