@@ -17,10 +17,10 @@ test('modern and legacy public directory filters require active registered accou
     assert.equal(definitions.length,2,
       'both capability-model and legacy role filters must exist: '+route);
     for (const def of definitions) {
-      assert.match(def[1],/u\\.status\\s*=\\s*'a'/,
+      assert.match(def[1],/u\.status\s*=\s*'a'/,
         'inactive/deleted/suspended account must not appear in public directory: '+route);
     }
-    assert.match(src,/sqlTemplate\\.replace\\('__ACCOUNT_FILTER__'/,
+    assert.match(src,/sqlTemplate\.replace\('__ACCOUNT_FILTER__'/,
       'public listing and statistics must apply the active-account predicate');
   }
 });
