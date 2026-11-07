@@ -25,6 +25,9 @@ on:
       - 'client/src/pages/GestisciOpinioni/**'
       - 'client/src/pages/VotiPolitici.tsx' # required catalog-contract for UI-only fix
       - 'client/src/pages/VotiPoliticiFinali.tsx'
+      - 'client/src/pages/VotiParlamento.tsx' # required catalog-contract on parliament feed UI
+      - 'client/src/components/VotazioniFinaliOpenpolis.tsx'
+      - 'client/tests/parliamentFinalSourceFeed.test.mjs'
       - 'client/src/pages/Profilo/components/PoliticalCompassPreview.tsx' # required catalog-contract for compass UI changes
       - 'client/src/App.tsx' # required contract for front routing change
       - 'client/public/app-ads.txt'
