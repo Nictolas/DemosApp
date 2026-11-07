@@ -210,6 +210,17 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
         const blockedWrite=await req('/api/grazia/vota','b','POST',{voti:[fixture.nome]});
         assert.equal(blockedWrite.status,401,
           'suspended account must not write votes despite a valid JWT');
+        const blockedNomination=await req('/api/grazia','b','POST',{
+          nome:'Persona sintetica proposta con account sospeso',
+          urlProva:'https://example.org/fonte/sospesa'
+        });
+        assert.equal(blockedNomination.status,401,
+          'suspended account must not submit a new third-party nomination');
+        const noNomination=await pool.query(
+          'SELECT COUNT(*)::integer AS n FROM richieste_grazia WHERE nome=$1',
+          ['Persona sintetica proposta con account sospeso']);
+        assert.equal(noNomination.rows[0].n,0,
+          'rejected suspended account must not persist a private nomination');
         const preserved=await pool.query(
           'SELECT nome FROM voti_grazia WHERE userid=$1',[B]);
         assert.deepEqual(preserved.rows.map(row=>row.nome),[otherAccountVote],
