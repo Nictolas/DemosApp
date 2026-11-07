@@ -64,3 +64,47 @@ jobs:
               sys.exit(1)
           print("Groq Free live authenticated check passed.")
           PY
+      - name: Check one real documented parliamentary analysis T008
+        env:
+          CASE_URL: https://demos-groq-free-linked-qa-hd3y.onrender.com/health/case
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          request = urllib.request.Request(os.environ['CASE_URL'], headers={'Accept':'application/json'})
+          try:
+              with urllib.request.urlopen(request, timeout=65) as response:
+                  code = response.status
+                  payload = response.read(1024)
+          except urllib.error.HTTPError as exc:
+              code = exc.code
+              payload = exc.read(1024)
+          except Exception:
+              print('T008 documented QA: NETWORK_UNAVAILABLE')
+              sys.exit(1)
+
+          try:
+              result = json.loads(payload)
+          except Exception:
+              print('T008 documented QA: INVALID_RESPONSE')
+              sys.exit(1)
+          safe_statuses = {'OK','PENDING','NOT_RUN','NOT_CONFIGURED','MODEL_NOT_ALLOWED',
+                           'FREE_QUOTA_UNAVAILABLE','EMPTY_OR_TRUNCATED','INVALID_JSON',
+                           'SOURCE_MISMATCH','AUTH','MODEL_NOT_FOUND','INVALID_REQUEST',
+                           'RATE_LIMIT','PROVIDER_UNAVAILABLE','NETWORK_OR_UNKNOWN'}
+          status = result.get('status')
+          category = status if status in safe_statuses else 'UNKNOWN'
+          verified = result.get('verifiedFields')
+          verified = verified if isinstance(verified, int) and 0 <= verified <= 10 else 0
+          print('T008 real QA status:', category)
+          print('T008 fields matching official sources:', verified, 'of 10')
+          print('T008 HTTP:', code)
+          if (code != 200 or category != 'OK' or verified != 10 or
+              result.get('caseId') != 'T008' or result.get('success') is not True):
+              sys.exit(1)
+          print('T008 source-grounded Groq Free generation PASS')
+          PY
