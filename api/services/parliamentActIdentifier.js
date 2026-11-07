@@ -39,4 +39,27 @@ function canSearchActTitle(numeroLegge, titolo, camera) {
   return true;
 }
 
-module.exports = { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle };
+/**
+ * Classify parliamentary acts by whole terms only. In particular "EM" must
+ * never match the middle of ordinary words such as "sistema" or "tema".
+ * Full names take precedence over short parliamentary abbreviations.
+ */
+function estraiTipoAtto(titolo) {
+  if (typeof titolo !== 'string') return null;
+  const labels = [
+    ['Emendamento', /\bemendament[oi]\b/iu],
+    ['Disegno di legge', /\bdisegno\s+di\s+legge\b/iu],
+    ['Proposta di legge', /\bproposta\s+di\s+legge\b/iu],
+    ['Mozione', /\bmozion[ei]\b/iu],
+    ['Decreto', /\bdecreto\b/iu],
+    ['ODG', /\b(?:odg|ordine\s+del\s+giorno)\b/iu],
+    ['DDL', /\bddl\b/iu],
+    ['EM', /\bem\b/iu],
+  ];
+  for (const [label, pattern] of labels) {
+    if (pattern.test(titolo)) return label;
+  }
+  return null;
+}
+
+module.exports = { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle, estraiTipoAtto };
