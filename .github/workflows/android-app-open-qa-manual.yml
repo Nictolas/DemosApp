@@ -1,0 +1,110 @@
+name: DEMOS Android - App Open QA with UMP
+
+# A PC-free manual test build: Google TEST ad unit only. No Play uploads.
+on:
+  workflow_dispatch:
+    inputs:
+      demos_admob_app_id:
+        description: "Only the DEMOS AdMob App ID (ca-app-pub-...~...), NOT the ad unit"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demos-android-app-open-qa
+  cancel-in-progress: false
+
+jobs:
+  qa-debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DEMOS_QA_ADMOB_APP_ID: ${{ inputs.demos_admob_app_id || secrets.DEMOS_QA_ADMOB_APP_ID }}
+    steps:
+      - name: Validate App ID and mask it in build logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "${DEMOS_QA_ADMOB_APP_ID:-}" =~ ^ca-app-pub-[0-9]{16}~[0-9]{10}$ ]]; then
+            echo "::error::Missing/invalid DEMOS AdMob App ID. Enter the App ID with ~ in Run workflow, or set the existing Actions secret DEMOS_QA_ADMOB_APP_ID."
+            exit 1
+          fi
+          echo "::add-mask::$DEMOS_QA_ADMOB_APP_ID"
+          echo "::notice::Using DEMOS UMP App ID with Google's official TEST ad unit only."
+
+      - name: Checkout isolated advertising QA branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/advertising-privacy-first-20261102
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install frontend and sync Android
+        working-directory: client
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run android:sync
+
+      - name: Build test-only Android APK
+        working-directory: client/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug \
+            -PdemosDebugAppOpenAds=true \
+            -PdemosDebugUmpEea=true \
+            -PdemosDebugQaForceAdult=true \
+            "-PdemosDebugAdMobAppId=$DEMOS_QA_ADMOB_APP_ID" \
+            --no-daemon --console=plain
+
+      - name: Verify isolated package and official test unit
+        working-directory: client
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          "$aapt" dump badging "$apk" | grep -Fq "package: name='community.demos.qaopen'"
+          grep -Fq "ca-app-pub-3940256099942544/9257395921" android/app/build.gradle
+          sha256sum "$apk"
+          cat > android/app/build/outputs/apk/debug/LEGGIMI-QA.txt <<EOF
+          DEMOS Android - App Open QA
+          ===========================
+          Installare app-debug.apk solo su un telefono Android di test.
+          Il pacchetto community.demos.qaopen non sostituisce DEMOS.
+          App ID: DEMOS, annunci: SOLO unita TEST ufficiale Google.
+          Utente adulto simulato in DEBUG; non testare sui minori.
+          Testare consenso accetta/nega/revoca e avvio naturale.
+          Controllare limite 6 ore, prime due aperture, schermate voto.
+          Nessun annuncio reale, nessun caricamento su Google Play.
+          EOF
+
+      - name: Publish test-only APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEMOS-APP-OPEN-UMP-TEST-ONLY-APK
+          path: |
+            client/android/app/build/outputs/apk/debug/app-debug.apk
+            client/android/app/build/outputs/apk/debug/LEGGIMI-QA.txt
+          if-no-files-found: error
+          retention-days: 7
