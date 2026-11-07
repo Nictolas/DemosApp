@@ -338,13 +338,15 @@ test('T024 formal-coordination explanation diagnostics expose no generated text'
     verifiedFields: 9, failedFields: ['spiegazione'],
     explanationDiagnostics: {
       coordinationFound: true, referencesFound: false,
-      approvedFound: true, falseFinalityFound: false,
+      approvedFound: true, finalityPhraseFound: false, negatedFinalityFound: false,
+      lawStateFound: false, falseFinalityFound: false,
       rawText: 'PRIVATE_MODEL_OUTPUT'
     }
   });
   assert.deepEqual(safe.explanationDiagnostics, {
     coordinationFound: true, referencesFound: false,
-    approvedFound: true, falseFinalityFound: false
+    approvedFound: true, finalityPhraseFound: false, negatedFinalityFound: false,
+    lawStateFound: false, falseFinalityFound: false
   });
   assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_MODEL_OUTPUT|rawText/);
 });
@@ -360,7 +362,8 @@ test('T024 per-sample coordination diagnostics are bounded and never include tex
         verifiedFields: 9, failedFields: ['spiegazione'],
         explanationDiagnostics: {
           coordinationFound: true, referencesFound: n === 3,
-          approvedFound: true, falseFinalityFound: false,
+          approvedFound: true, finalityPhraseFound: false, negatedFinalityFound: false,
+          lawStateFound: false, falseFinalityFound: false,
           raw: 'PRIVATE_GENERATION'
         },
         actDiagnostics: {
@@ -376,6 +379,7 @@ test('T024 per-sample coordination diagnostics are bounded and never include tex
   assert.deepEqual(safe.t024SampleScores, [9,9,9]);
   assert.deepEqual(safe.t024FlagTallies, {
     coordinationFound: 3, referencesFound: 1, approvedFound: 3,
+    finalityPhraseFound: 0, negatedFinalityFound: 0, lawStateFound: 0,
     falseFinalityFound: 0, coordinationMarkerFound: 2,
     correctItemNumberFound: 3, genericBillOnly: 1
   });
