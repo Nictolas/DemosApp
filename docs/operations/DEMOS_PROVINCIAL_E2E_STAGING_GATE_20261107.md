@@ -43,6 +43,10 @@ The versioned metadata preflight now reports `canonical_selection_unique_key_rea
 
 Proposed **review sequence**, not executed: snapshot staging schema metadata and rollback artifacts; inspect foreign-key dependencies and key collisions on authorized **synthetic fixture data only**; review additive columns and their constraints; review necessary unique/index conversion without dropping existing rows or silently choosing between duplicates; apply only a separately approved minimal RLS/ACL proposal; rerun this SQL gate under the actual runtime identity; then proceed to the expressly authorized application E2E. The deployment and any database writes remain separately gated.
 
+## Selection write-path authorization gate — 07/11/2026
+
+The original metadata audit checked runtime SELECT permission and a declared read policy but did not require **write-path** permissions. This could incorrectly report `METADATA_PASS_NOT_E2E_GO` even though provincial selection creation, replacement or removal would fail. The audit now separately checks INSERT, UPDATE and DELETE privileges plus declared RLS policies for those commands **only for `political_selections`**, with explicit `BLOCKED_SELECTION_WRITE_GRANTS` and `BLOCKED_SELECTION_WRITE_POLICIES` statuses. The test contract asserts each check. These are PostgreSQL catalog/privilege checks only; they do not authorize grants, prove that policy predicates allow synthetic identities, or write application rows. This additional audit version has **not** been run against the shared staging pending explicit GO.
+
 ## Required sequence (none automatically approved)
 
 1. Keep `demos-staging` in bootstrap/NO-GO while the OPS-STG-001 team reviews the narrow route-to-table mapping, synthetic-only fixture design and rollback. Coordinate against PR #565, not a new Render instance.
