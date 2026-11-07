@@ -66,6 +66,7 @@ const verifyToken = async (req, res, next) => {
           : null;
 
       let user;
+      let authSubjectFromCache = false;
       if (authCacheKey) {
         const cached = await redisCache.getJson(authCacheKey);
         if (
@@ -76,6 +77,7 @@ const verifyToken = async (req, res, next) => {
           cached.capabilities != null
         ) {
           user = cached;
+          authSubjectFromCache = true;
           log('🔐 DEBUG verifyToken - Cache auth hit');
         }
       }
@@ -123,6 +125,9 @@ const verifyToken = async (req, res, next) => {
         capabilities: user.capabilities,
         jti: decoded.jti
       };
+      // Admin authorization must never trust a cached capability snapshot.
+      // Only cached subjects need a second, fresh DB check at requireAdmin.
+      req.authSubjectFromCache = authSubjectFromCache;
       req.userId = user.id;
       req.userRole = user.legacyRole;
       req.userEmail = null;
@@ -188,7 +193,22 @@ const requireAdmin = async (req, res, next) => {
         message: 'Richiesto ruolo amministratore'
       });
     }
-    
+
+    // A Redis auth snapshot may outlive account suspension, deletion or Admin
+    // role revocation. Revalidate cached Admin authorization from PostgreSQL.
+    // Cache misses already came from getAccountSubject in this very request:
+    // avoid an additional SQL read for those requests.
+    if (req.authSubjectFromCache === true) {
+      const current = await getAccountSubject(pool, req.user.id);
+      if (current?.status !== 'a' || current.capabilities?.isAdmin !== true) {
+        return res.status(403).json({
+          success: false,
+          error: 'Accesso negato',
+          message: 'Richiesto ruolo amministratore'
+        });
+      }
+    }
+
     if (!isProduction) console.log('👑 DEBUG - Accesso admin verificato');
     next();
   } catch (error) {
