@@ -24,6 +24,7 @@ const injectedProfile={
   updated_at:'2026-02-01',status:'a',private_note:marker
 };
 let fail=false;
+let simulateMissingModernAccountColumns=false;
 const queries=[];
 const forbidden=/(?:^|[^\w])(?:u\.)?(?:email|genere|data_nascita|cittadinanza|paese_residenza|provincia_residenza|comune_residenza|status|created_at|updated_at)(?:[^\w]|$)/i;
 
@@ -32,6 +33,11 @@ const fakePool={
     const sql=String(statement);queries.push({sql,values});
     assert.match(sql,/^\s*SELECT\b/i,'no writes');
     if(fail) throw new Error('private-sql-error '+marker);
+    if(simulateMissingModernAccountColumns && /\bu\.(?:is_activist|account_type)\b/.test(sql)) {
+      const error=new Error('synthetic missing account-capability column');
+      error.code='42703';
+      throw error;
+    }
     if(sql.includes('FROM users u')){
       const projection=sql.match(/^\s*SELECT\s+([\s\S]*?)\s+FROM users u\b/i)?.[1];
       assert.ok(projection,'user profile list must use an explicit SELECT');
@@ -46,6 +52,7 @@ const fakePool={
 };
 const db=require.resolve('../config/database');
 const capabilities=require.resolve('../services/accountCapabilitiesService');
+const {queryWithAccountModelFallback:realAccountFallback}=require('../services/accountCapabilitiesService');
 require.cache[db]={id:db,filename:db,loaded:true,exports:{getPool:()=>fakePool}};
 require.cache[capabilities]={
   id:capabilities,filename:capabilities,loaded:true,
@@ -53,7 +60,7 @@ require.cache[capabilities]={
     queryWithAccountModelFallback:(_pool,modernSql,legacySql,values)=>{
       assert.match(legacySql,/u\.status\s*=\s*'a'/,
         'legacy account schema must also hide suspended accounts');
-      return fakePool.query(modernSql,values);
+      return realAccountFallback(fakePool,modernSql,legacySql,values);
     }
   }
 };
@@ -103,6 +110,29 @@ for(const route of routes){
     assert.equal(queries.length,before+1,'one database read per directory in this fixture');
   });
 }
+test('HTTP legacy schema fallback still selects and returns only public fields',async()=>{
+  simulateMissingModernAccountColumns=true;
+  try{
+    for(const route of routes){
+      const before=queries.length;
+      const res=await call(route);
+      assert.equal(res.status,200,route);
+      const obj=await res.json();
+      assert.equal(obj.success,true,route);
+      assert.equal(obj.data.length,1,route);
+      assert.doesNotMatch(JSON.stringify(obj),/private-synthetic|moderation_note|private_note|reviewMetadata/);
+      const attempted=queries.slice(before);
+      assert.equal(attempted.length,2,route+' must try modern SELECT then fallback to legacy');
+      assert.match(attempted[0].sql,/u\.(?:is_activist|account_type)/,
+        route+' must exercise modern account schema first');
+      assert.match(attempted[1].sql,/\bu\.ruolo\b/,
+        route+' must use legacy account role in fallback');
+      assert.match(attempted[1].sql,/u\.status\s*=\s*'a'/,
+        route+' legacy fallback must exclude suspended accounts');
+      assert.match(attempted[1].sql,/^\s*SELECT\b/i);
+    }
+  }finally{simulateMissingModernAccountColumns=false;}
+});
 test('database failure never reflects private SQL errors to HTTP clients',async()=>{
   fail=true;
   try{
