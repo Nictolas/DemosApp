@@ -14,9 +14,7 @@ export default function ReferendumAbrogativi() {
   const deepLinkHandled = useRef(false);
 
   const { 
-    listaReferendum,
-    referendumUfficiali,
-    mieiVoti, 
+    referendumUfficiali, 
     isLoading, 
     isError
   } = useReferendumData(user);
@@ -62,7 +60,6 @@ export default function ReferendumAbrogativi() {
           {/* Referendum Ufficiali */}
           <ReferendumTable
             listaReferendum={referendumUfficiali}
-            mieiVoti={mieiVoti}
             isLoading={isLoading}
             isError={isError}
             onView={startEditView}

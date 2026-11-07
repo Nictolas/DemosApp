@@ -276,11 +276,20 @@ router.post(
       await client.query('BEGIN');
       transactionStarted = true;
 
+      // Serialize choices for the SAME voter and referendum, including the
+      // first-ever vote when SELECT ... FOR UPDATE finds no existing row.
+      // Without this lock, two concurrent first votes could both pass the
+      // 24-hour preference cooldown before either INSERT becomes visible.
+      // Transaction-level advisory locks are released by COMMIT/ROLLBACK.
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtext($1::text), hashtext($2::text))',
+        [String(req.userId), ballotId],
+      );
+
       const ballotResult = await client.query(
         `SELECT id, status, opens_at, closes_at
          FROM civic_ballots
-         WHERE id::text = $1
-         FOR UPDATE`,
+         WHERE id::text = $1`,
         [ballotId],
       );
       const ballot = ballotResult.rows[0];
@@ -324,13 +333,28 @@ router.post(
         isAdmin: Boolean(req.user?.isAdmin),
       });
 
-      await client.query(
+      // The ballot is read without a row lock: the runtime role has no
+      // UPDATE privilege on civic_ballots. The write rechecks the official
+      // opening deadline atomically and refuses a ballot that just closed.
+      const saved = await client.query(
         `INSERT INTO civic_ballot_positions (civic_ballot_id, user_id, choice, created_at, updated_at)
-         VALUES ($1::uuid, $2::uuid, $3, NOW(), NOW())
+         SELECT cb.id, $2::uuid, $3, NOW(), NOW()
+         FROM civic_ballots cb
+         WHERE cb.id = $1::uuid AND cb.status = 'scheduled'
+           AND cb.opens_at > clock_timestamp()
          ON CONFLICT (civic_ballot_id, user_id)
-         DO UPDATE SET choice = EXCLUDED.choice, updated_at = NOW()`,
+         DO UPDATE SET choice = EXCLUDED.choice, updated_at = NOW()
+         RETURNING civic_ballot_id`,
         [ballotId, String(req.userId), choice],
       );
+      if (saved.rowCount !== 1) {
+        await client.query('ROLLBACK');
+        transactionStarted = false;
+        return res.status(409).json({
+          success: false, error: 'REFERENDUM_VOTE_FROZEN',
+          message: 'La previsione DEMOS è stata congelata all’apertura dei seggi.',
+        });
+      }
       await recordPreferenceChange(client, {
         userId: req.userId,
         scope: `referendum-vote:${ballotId}`,

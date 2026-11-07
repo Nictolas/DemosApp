@@ -12,6 +12,7 @@ async function fetchOfficialOngoing() {
   const result = await pool.query(
     `SELECT id, title, signature_count, slug, end_date, obiettivi, url, status
      FROM eci
+     WHERE status = 'ONGOING'
      ORDER BY end_date ASC NULLS LAST, title ASC, id ASC`
   );
 
