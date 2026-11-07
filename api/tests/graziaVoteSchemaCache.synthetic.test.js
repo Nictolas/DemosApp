@@ -206,7 +206,7 @@ test('Grazia vote checks personal state and cooldown inside the same serialized 
   assert.equal(state.queries.find(q=>q.sql.includes('SELECT id, nome FROM grazia_carcerati WHERE attivo = true')).source,'transaction');
   assert.equal(state.cooldown,1);
   assert.equal(state.writes.filter(x=>x.kind==='insert').length,1);
-  assert.equal(state.writes.find(x=>x.kind==='insert').params[2],subject,
+  assert.equal(state.writes.find(x=>x.kind==='insert').params[2],'Persona approvata sintetica',
     'the vote must persist the approved catalogue name returned by SQL');
 });
 
