@@ -154,7 +154,8 @@ function diagnoseCoordinationExplanation(value) {
     falseFinalityFound: (() => {
       const withoutNegatedClaims = explanation
         .replace(/\b(?:non|senza)\s+(?:(?:ha|hanno|è|stato|stata|essere|ancora|già)\s+){0,3}approvat[oa]\s+definitivament\w*/gi, '')
-        .replace(/\blegge\s+(?:non\s+|mai\s+|non\s+(?:ancora\s+)?)(?:(?:è\s+stata|risulta|è)\s+)?(?:in\s+vigore|promulgat\w*|pubblicat\w*)/gi, '');
+        .replace(/\blegge\s+(?:non\s+|mai\s+|non\s+(?:ancora\s+)?)(?:(?:è\s+stata|risulta|è)\s+)?(?:in\s+vigore|promulgat\w*|pubblicat\w*)/gi, '')
+        .replace(/\bnon\s+(?:(?:è|era|risulta)\s+)?(?:una?\s+)?legge\s+(?:(?:è\s+)?già\s+|è\s+)?(?:in\s+vigore|promulgat\w*|pubblicat\w*)/gi, '');
       return /approvat[oa]\s+definitivament|legge\s+(?:(?:è\s+)?già\s+|è\s+)?(?:in\s+vigore|promulgat|pubblicat)/i.test(withoutNegatedClaims);
     })()
   };
