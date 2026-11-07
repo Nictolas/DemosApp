@@ -14,6 +14,25 @@
 - Audit SQL: `api/qa/provincial_staging_prerequisites_readonly.sql`. It inspects only PostgreSQL catalogs/privileges/policy *presence*, not user rows, policy predicates or credentials. The matching Node CI contract prevents accidental widening into application-row reads or DDL.
 - The broader OPS-STG-001 audit also found 21 of 35 application tables without the necessary runtime SELECT+RLS-policy pair. Provincial checks are a subset, **not** authorization to grant access to all 21.
 
+## Column-level verification — 07/11/2026
+
+A second metadata-only `information_schema.columns` query revealed that table presence plus privilege/policy presence alone was **too optimistic**. The versioned SQL audit now checks **44 core column contracts** through `pg_catalog.pg_attribute` and returns `BLOCKED_MISSING_COLUMNS` before permitting a metadata pass.
+
+The exact 10-relation audit, run read-only in Demos-Staging, reports:
+
+| Core E2E relation | Final metadata result | Confirmed missing columns |
+| --- | --- | --- |
+| `user_consents` | `METADATA_PASS_NOT_E2E_GO` | none of the checked columns |
+| `users` | `BLOCKED_MISSING_COLUMNS` | `cognome`, `paese_residenza`, `provincia_residenza` |
+| `political_selections` | `BLOCKED_MISSING_COLUMNS` | `context`, `jurisdiction_id`, `political_office_id`, `selected_candidacy_id`, `selected_mandate_id`, `source`, `updated_at` |
+| `political_candidacies`, `political_mandates`, `eventi`, `unita_elettorale` | `BLOCKED_NO_SELECT_GRANT` | none of the checked columns, but runtime read grants/policies absent |
+| `unita_elettorale_territorio` | `BLOCKED_MISSING_RELATION` | relation absent |
+| `user_political_territories`, `user_electoral_unit_memberships` | `OPTIONAL_SCHEMA_ABSENT` | optional canonical residence/membership fallback path absent |
+
+**Only 1 of 8 mandatory relations meets the narrow combined structural + declared read-policy metadata test; 7/8 block E2E.** This does **not** authorize migration, ACL changes or a deploy.
+
+Relevant repository DDL was located on `main`: `20261009_political_selections.sql`, `api/database/create-account-capabilities-model.sql`, and `20261009_political_territory_memberships.sql`. **Do not apply these scripts as-is to the shared staging:** `political_selections` already exists with three columns, so `CREATE TABLE IF NOT EXISTS` does not upgrade it, and the scripts also include backfills/DDL and other changes requiring separate review. Prepare a narrowly scoped, idempotent schema-difference plan and synthetic fixture-specific RLS/ACL review first. The missing legacy residence fields in `users` should not be silently populated with production personal data.
+
 ## Required sequence (none automatically approved)
 
 1. Keep `demos-staging` in bootstrap/NO-GO while the OPS-STG-001 team reviews the narrow route-to-table mapping, synthetic-only fixture design and rollback. Coordinate against PR #565, not a new Render instance.
