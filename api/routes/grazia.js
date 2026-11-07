@@ -187,7 +187,8 @@ router.get('/', personalNoStore, async (req, res) => {
     // restano conservati per riconciliazione, ma non pubblicano nuove persone.
     const classificaQuery =
       'SELECT c.nome, COUNT(v.id)::integer AS richieste FROM grazia_carcerati c ' +
-      'LEFT JOIN voti_grazia v ON LOWER(BTRIM(v.nome)) = LOWER(BTRIM(c.nome)) ' +
+      "LEFT JOIN voti_grazia v ON lower(btrim(regexp_replace(normalize(v.nome, NFC), '[[:space:]]+', ' ', 'g'))) = " +
+      "lower(btrim(regexp_replace(normalize(c.nome, NFC), '[[:space:]]+', ' ', 'g'))) " +
       'WHERE c.attivo = true GROUP BY c.id, c.nome ORDER BY richieste DESC, c.nome ASC';
     const classificaResult = await pool.query(classificaQuery);
 
@@ -385,18 +386,21 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
         [userId]
       );
       const currentVote = existingResult.rows
-        .map((row) => String(row.nome || '').trim()).filter(Boolean)[0] || null;
+        .map((row) => String(row.nome || '').normalize('NFC').trim().replace(/\s+/gu, ' ')).filter(Boolean)[0] || null;
 
       // Keep a new vote serialized with a concurrent Admin withdrawal.
       if (requestedVote) {
         const stillActive = await client.query(
-          'SELECT id FROM grazia_carcerati WHERE attivo = true AND LOWER(BTRIM(nome)) = LOWER($1) FOR SHARE',
+          "SELECT id, nome FROM grazia_carcerati WHERE attivo = true AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) FOR SHARE",
           [requestedVote]
         );
         if (!stillActive.rows.length) {
           await client.query('ROLLBACK');
           return res.status(422).json({ success: false, error: 'Soggetto non approvato per la votazione' });
         }
+        // Use the catalogue's exact stored display name for new votes.
+        // Legacy catalogues may contain repeated spaces or decomposed Unicode.
+        requestedVotes[0] = stillActive.rows[0].nome;
       }
 
       if (requestedVote === currentVote) {
