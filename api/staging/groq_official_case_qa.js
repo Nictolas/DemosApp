@@ -7,7 +7,7 @@
 const { resolveFreeGroqModel, isGroqConfigured } = require('../services/parliamentFreeAiPolicy');
 const { requestFreeGroq, classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
 
-const CASE_ID = ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018', 'T023', 'T024'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
+const CASE_ID = ['T001', 'T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018', 'T023', 'T024'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
 const EVIDENCE = [
   'Camera dei deputati, XIX legislatura, seduta 729 del 20/10/2026.',
   'Votazione finale A.C. 3131: 125 favorevoli, 43 contrari, 52 astenuti, 168 votanti, 220 presenti.',
@@ -15,6 +15,20 @@ const EVIDENCE = [
   'Oggetto: conversione in legge, con modificazioni, del decreto-legge 28 agosto 2026 n. 154,',
   'misure urgenti per assicurare la continuità operativa di impianti di interesse strategico nazionale.',
   'Gazzetta Ufficiale: legge n. 196 del 23/10/2026, pubblicata il 26/10/2026, in vigore dal 27/10/2026.'
+].join(' ');
+
+// Official Senate source: https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=60317&tab=votazioni
+// Senate report: https://www.senato.it/lavori/assemblea/comunicato-di-seduta?num=454
+// The separate S.61 and S.1822 were ABSORBED; this is the final Senate vote on S.1971,
+// not the final enactment of the law, which required a subsequent Camera reading.
+const ELECTORAL_SENATE_FINAL_EVIDENCE = [
+  'Senato della Repubblica, XIX legislatura, seduta 454 del 15/09/2026.',
+  'Votazione finale del disegno di legge S.1971 sulle elezioni di Camera e Senato:',
+  '187 presenti, 186 votanti, 113 favorevoli, 71 contrari e 2 astenuti.',
+  'Esito: APPROVATO CON MODIFICAZIONI, ma NON definitivamente: il testo torna alla Camera.',
+  'Oggetto: disciplina elettorale di Camera e Senato, superamento dei collegi uninominali e sistema proporzionale.',
+  'I disegni di legge S.61 e S.1822 sono ASSORBITI, non votati come autonome leggi.',
+  'Questo voto non promulga una legge: nessun numero di legge o data di pubblicazione/efficacia appartiene al voto del 15/09.'
 ].join(' ');
 
 const SENATE_EVIDENCE = [
@@ -237,9 +251,38 @@ function diagnoseSenateExplanation(value) {
   };
 }
 
+function diagnoseElectoralSenateFinalExplanation(value) {
+  const explanation = String(value || '');
+  return {
+    electoralTopicFound: /elezion|elettoral|colleg[io]|proporzional/i.test(explanation),
+    notFinalLawFound: /modificat|torn|ritorn|trasmess|nuov[ao] lettura|non\s+(?:ancora\s+)?definitiv/i.test(explanation),
+    absorbedBillFound: /assorbit/i.test(explanation) && /\bS\.?\s*61\b/i.test(explanation),
+    falseFinalityFound: diagnoseCoordinationExplanation(explanation).falseFinalityFound
+  };
+}
+
 function assessOfficialAnswer(answer, caseId = CASE_ID) {
   if (!answer || typeof answer !== 'object' || Array.isArray(answer)) {
     return { success: false, verifiedFields: 0 };
+  }
+  if (caseId === 'T001') {
+    const flags = diagnoseElectoralSenateFinalExplanation(answer.spiegazione);
+    const checks = [
+      /^S\.?\s*1971$/i.test(String(answer.atto || '').trim()),
+      String(answer.data_voto || '') === '15/09/2026',
+      Number(answer.favorevoli) === 113,
+      Number(answer.contrari) === 71,
+      Number(answer.astenuti) === 2,
+      String(answer.esito || '').trim().toUpperCase() === 'APPROVATO NON DEFINITIVAMENTE',
+      answer.numero_legge == null,
+      answer.data_pubblicazione == null,
+      answer.data_entrata_in_vigore == null,
+      flags.electoralTopicFound && flags.notFinalLawFound && flags.absorbedBillFound && !flags.falseFinalityFound
+    ];
+    const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito',
+      'numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
+    return {success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length,
+      failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags};
   }
   if (caseId === 'T002') {
     const checks = [
@@ -488,14 +531,14 @@ async function runOfficialCaseQA({
       model,
       messages: [
         { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
-        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : CASE_ID === 'T018' ? CONFIDENCE_PA_EVIDENCE : CASE_ID === 'T013' ? CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE : CASE_ID === 'T023' ? ARTICLE_9_EVIDENCE : CASE_ID === 'T024' ? COORDINATION_EVIDENCE : EVIDENCE) +
+        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T001' ? ELECTORAL_SENATE_FINAL_EVIDENCE : CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : CASE_ID === 'T018' ? CONFIDENCE_PA_EVIDENCE : CASE_ID === 'T013' ? CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE : CASE_ID === 'T023' ? ARTICLE_9_EVIDENCE : CASE_ID === 'T024' ? COORDINATION_EVIDENCE : EVIDENCE) +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
-          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : CASE_ID === 'T011' ? 'Em. 1.0.6' : CASE_ID === 'T018' ? 'S.2047' : CASE_ID === 'T013' ? 'Em. 9.0.1' : CASE_ID === 'T023' ? 'Art. 9' : CASE_ID === 'T024' ? 'Coord. 1' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
+          'atto (formato ' + (CASE_ID === 'T001' ? 'S.1971' : CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : CASE_ID === 'T011' ? 'Em. 1.0.6' : CASE_ID === 'T018' ? 'S.2047' : CASE_ID === 'T013' ? 'Em. 9.0.1' : CASE_ID === 'T023' ? 'Art. 9' : CASE_ID === 'T024' ? 'Coord. 1' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
           'Per esito, usa esclusivamente una delle quattro stringhe ammesse in base alla fonte, senza presumere la definitività. ' +
-          'Spiegazione: massimo tre frasi, concise; esplicita se il singolo atto, articolo o coordinamento è stato approvato o respinto, poi descrivi l\'oggetto specifico con termini della fonte. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Se la votazione è sulla fiducia, distingui la fiducia dall\'approvazione dell\'atto e indica la materia specifica. Se è una proposta di coordinamento formale, descrivi quali riferimenti del testo corregge, senza confonderla con il successivo voto finale sul disegno di legge. Non limitarti a riportare il numero del provvedimento; ' +
+          'Spiegazione: massimo tre frasi, concise; esplicita se il singolo atto, articolo o coordinamento è stato approvato o respinto, poi descrivi l\'oggetto specifico con termini della fonte. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Se la votazione è sulla fiducia, distingui la fiducia dall\'approvazione dell\'atto e indica la materia specifica. Se è una proposta di coordinamento formale, descrivi quali riferimenti del testo corregge, senza confonderla con il successivo voto finale sul disegno di legge. Se il voto riguarda S.1971 del 15/09, specifica che S.61 è stato assorbito, il testo è tornato alla Camera e questo voto non era approvazione definitiva della legge. Non limitarti a riportare il numero del provvedimento; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
       ],
       response_format: { type: 'json_object' },
@@ -536,4 +579,4 @@ async function runOfficialCaseQA({
   }
 }
 
-module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, diagnoseIlvaAmendmentExplanation, diagnoseLiabilityAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation, assessOfficialAnswer, runOfficialCaseQA };
+module.exports = { CASE_ID, EVIDENCE, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, diagnoseIlvaAmendmentExplanation, diagnoseLiabilityAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation, assessOfficialAnswer, runOfficialCaseQA };
