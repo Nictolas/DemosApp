@@ -275,9 +275,9 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
   if (caseId === 'T018') {
     const explanation = String(answer.spiegazione || '');
     const confidenceTopic = /fiduci/i.test(explanation) &&
-      /(pubblic[a-z]*\\s+amministrazion|protezion[a-z]*\\s+civil|enti\\s+territorial)/i.test(explanation);
+      /(pubblic[a-z]*\s+amministrazion|protezion[a-z]*\s+civil|enti\s+territorial)/i.test(explanation);
     const checks = [
-      /^S\\.?\\s*2047$/i.test(String(answer.atto || '')),
+      /^S\.?\s*2047$/i.test(String(answer.atto || '')),
       String(answer.data_voto || '') === '30/09/2026',
       Number(answer.favorevoli) === 95,
       Number(answer.contrari) === 53,
@@ -286,7 +286,7 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
       Number(answer.numero_legge) === 174,
       String(answer.data_pubblicazione || '') === '06/10/2026',
       String(answer.data_entrata_in_vigore || '') === '07/10/2026',
-      confidenceTopic && !/respint|bocciat|non\\s+definitiv/i.test(explanation)
+      confidenceTopic && !/respint|bocciat|non\s+definitiv/i.test(explanation)
     ];
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito',
       'numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
