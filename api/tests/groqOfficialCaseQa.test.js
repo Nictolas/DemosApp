@@ -78,6 +78,27 @@ test('T009 rejected electoral amendment is distinct from approval of the parent 
     { success: false, verifiedFields: 9, failedFields: ['spiegazione'], explanationDiagnostics: { timingFound: false, rejectedFound: true } });
 });
 
+test('T010 Pirondini rejected amendment is second legislature, not T009 18 months', () => {
+  const correct = {
+    atto: 'Em. 9.0.2', data_voto: '14/09/2026',
+    favorevoli: 48, contrari: 91, astenuti: 2,
+    esito: 'RESPINTO', numero_legge: null,
+    data_pubblicazione: null, data_entrata_in_vigore: null,
+    spiegazione: 'La proposta di applicare la legge dalla seconda legislatura successiva è stata respinta dal Senato.'
+  };
+  const expected = { secondLegislatureFound: true, rejectedFound: true, wrong18MonthFound: false };
+  assert.deepEqual(assessOfficialAnswer(correct, 'T010'),
+    { success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: expected });
+  assert.deepEqual(assessOfficialAnswer({ ...correct, contrari: 89 }, 'T010'),
+    { success: false, verifiedFields: 9, failedFields: ['contrari'], explanationDiagnostics: expected });
+  const confused = assessOfficialAnswer({ ...correct, spiegazione: 'La proposta di un rinvio di 18 mesi è stata respinta.' }, 'T010');
+  assert.equal(confused.success, false);
+  assert.deepEqual(confused.failedFields, ['spiegazione']);
+  assert.deepEqual(confused.explanationDiagnostics,
+    { secondLegislatureFound: false, rejectedFound: true, wrong18MonthFound: true });
+  assert.equal(assessOfficialAnswer({ ...correct, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T010').success, false);
+});
+
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
   let calls = 0;
   const r = await runOfficialCaseQA({
