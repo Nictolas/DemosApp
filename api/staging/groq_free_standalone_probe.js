@@ -67,6 +67,17 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
       success: value?.success === true,
       verifiedFields: Number.isInteger(value?.verifiedFields) ? value.verifiedFields : 0,
       failedFields: Array.isArray(value?.failedFields) ? value.failedFields : [],
+      ...(caseId === 'T024' ? {
+        safeCoordinationFlags: {
+          coordinationFound: value?.explanationDiagnostics?.coordinationFound === true,
+          referencesFound: value?.explanationDiagnostics?.referencesFound === true,
+          approvedFound: value?.explanationDiagnostics?.approvedFound === true,
+          falseFinalityFound: value?.explanationDiagnostics?.falseFinalityFound === true,
+          coordinationMarkerFound: value?.actDiagnostics?.coordinationMarkerFound === true,
+          correctItemNumberFound: value?.actDiagnostics?.correctItemNumberFound === true,
+          genericBillOnly: value?.actDiagnostics?.genericBillOnly === true
+        }
+      } : {}),
       ...(caseId === 'T023' ? {
         safeArticleFlags: {
           noNewCostsFound: value?.explanationDiagnostics?.noNewCostsFound === true,
@@ -105,6 +116,15 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
     samplesRequested,
     samplesCompleted: results.length,
     samplesPassed,
+    ...(caseId === 'T024' ? {
+      t024SampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
+      t024SampleScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
+      t024FlagTallies: Object.fromEntries(
+        ['coordinationFound','referencesFound','approvedFound','falseFinalityFound',
+         'coordinationMarkerFound','correctItemNumberFound','genericBillOnly']
+          .map(flag => [flag, results.filter(r => r.safeCoordinationFlags?.[flag] === true).length])
+      )
+    } : {}),
     ...(caseId === 'T023' ? {
       t023SampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
       t023SampleScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
@@ -150,6 +170,18 @@ function sanitizeCaseResult(result) {
             Number.isInteger(result.t023FlagTallies?.[flag]) &&
               result.t023FlagTallies[flag] >= 0 && result.t023FlagTallies[flag] <= 3
               ? result.t023FlagTallies[flag] : 0])
+      )
+    } : {}),
+    ...(result?.caseId === 'T024' && Array.isArray(result?.t024SampleCategories) ? {
+      t024SampleCategories: result.t024SampleCategories.slice(0,3).map(status => safe.has(status) ? status : 'NETWORK_OR_UNKNOWN'),
+      t024SampleScores: (Array.isArray(result.t024SampleScores) ? result.t024SampleScores : [])
+        .slice(0,3).map(v => Number.isInteger(v) && v >= 0 && v <= 10 ? v : 0),
+      t024FlagTallies: Object.fromEntries(
+        ['coordinationFound','referencesFound','approvedFound','falseFinalityFound',
+         'coordinationMarkerFound','correctItemNumberFound','genericBillOnly']
+          .map(flag => [flag, Number.isInteger(result.t024FlagTallies?.[flag]) &&
+            result.t024FlagTallies[flag] >= 0 && result.t024FlagTallies[flag] <= 3
+            ? result.t024FlagTallies[flag] : 0])
       )
     } : {}),
     ...(result?.caseId === 'T024' && result?.explanationDiagnostics ? {
