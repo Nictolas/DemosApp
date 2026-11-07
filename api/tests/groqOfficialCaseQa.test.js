@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assessOfficialAnswer, runOfficialCaseQA, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation } = require('../staging/groq_official_case_qa');
+const { assessOfficialAnswer, runOfficialCaseQA, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation, diagnoseRinvioCpiExplanation } = require('../staging/groq_official_case_qa');
 
 test('amendment explanation diagnosis requires both the proposed duration and its rejection', () => {
   assert.deepEqual(diagnoseAmendmentExplanation('L’emendamento di 18 mesi è stato respinto.'), { timingFound: true, rejectedFound: true });
@@ -320,6 +320,33 @@ test('T024 coordination De Priamo has distinct tally and formal references, not 
   assert.deepEqual(assessOfficialAnswer({ ...correct, numero_legge: 180 }, 'T024').failedFields, ['numero_legge']);
   assert.deepEqual(assessOfficialAnswer({ ...correct,
     spiegazione: 'Il Senato ha approvato definitivamente il disegno di legge elettorale.' }, 'T024').failedFields, ['spiegazione']);
+});
+
+test('T025 procedural non-nominal postponement cannot fabricate totals, personal votes or enactment', () => {
+  const sourceBound = {
+    atto: 'Rinvio mozione 1-00599', data_voto: '27/10/2026',
+    favorevoli: null, contrari: null, astenuti: null,
+    esito: 'APPROVATO NON DEFINITIVAMENTE',
+    numero_legge: null, data_pubblicazione: null, data_entrata_in_vigore: null,
+    spiegazione: 'La Camera ha approvato il rinvio ad altro calendario della discussione sulla Corte penale internazionale. Voto senza registrazione dei nomi.'
+  };
+  const flags = {
+    postponementFound: true, topicFound: true, approvedFound: true,
+    noNameRecordFound: true, falselyMotionApproved: false, inventedCountsFound: false
+  };
+  assert.deepEqual(assessOfficialAnswer(sourceBound, 'T025'), {
+    success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: flags
+  });
+  assert.deepEqual(diagnoseRinvioCpiExplanation(sourceBound.spiegazione), flags);
+  assert.deepEqual(assessOfficialAnswer({ ...sourceBound, favorevoli: 40 }, 'T025').failedFields, ['favorevoli']);
+  assert.deepEqual(assessOfficialAnswer({ ...sourceBound, contrari: 0 }, 'T025').failedFields, ['contrari']);
+  assert.deepEqual(assessOfficialAnswer({ ...sourceBound, astenuti: '0' }, 'T025').failedFields, ['astenuti']);
+  assert.deepEqual(assessOfficialAnswer({ ...sourceBound, numero_legge: 1 }, 'T025').failedFields, ['numero_legge']);
+  assert.deepEqual(assessOfficialAnswer({ ...sourceBound, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T025').failedFields, ['esito']);
+  assert.deepEqual(assessOfficialAnswer({ ...sourceBound,
+    spiegazione: 'La mozione sulla Corte penale internazionale è stata approvata senza registrazione dei nomi.' }, 'T025').failedFields, ['spiegazione']);
+  assert.deepEqual(assessOfficialAnswer({ ...sourceBound,
+    spiegazione: 'La Camera ha approvato il rinvio sulla Corte penale internazionale.' }, 'T025').failedFields, ['spiegazione']);
 });
 
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
