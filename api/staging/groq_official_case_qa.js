@@ -148,7 +148,7 @@ const CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE = [
   'Proposta legge elettorale: se approvata nell’ultimo anno della legislatura, applicarla dalla legislatura subito successiva soltanto con almeno due terzi in entrambe le Camere;',
   'altrimenti dalla seconda legislatura successiva. Questa proposta respinta non è legge.',
   'Non confondere con Em. 9.0.2 o 9.0.3; niente numero di legge o date di pubblicazione/efficacia per l’emendamento.'
-].join(' ');;
+].join(' ');
 
 function diagnoseConditionalElectoralAmendment(value) {
   const explanation = String(value || '');
