@@ -428,6 +428,6 @@ test('T001 compact prompt preserves evidence and fits three requests under the u
   assert.match(T001_QA_PROMPT, /113 favorevoli, 71 contrari e 2 astenuti/);
   assert.match(T001_QA_PROMPT, /NON definitivamente/);
   assert.match(T001_QA_PROMPT, /null/);
-  assert.match(T001_QA_PROMPT, /Non dire che il voto del Senato ha approvato definitivamente/);
+  assert.match(T001_QA_PROMPT, /Il voto del Senato non era approvazione definitiva della legge/);
 });
 
