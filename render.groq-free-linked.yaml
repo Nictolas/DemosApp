@@ -1,0 +1,25 @@
+# GROQ-02: separate, ephemeral Free-only provider smoke.
+# Auth secret is referenced securely inside Render, never stored in Git.
+# No DB, push, email, cron, user data or production deployment.
+services:
+  - type: web
+    name: demos-groq-free-linked-qa
+    runtime: node
+    plan: free
+    region: frankfurt
+    repo: https://github.com/Nictolas/DemosApp
+    branch: fix/parliament-free-groq-models-20261103
+    autoDeployTrigger: off
+    healthCheckPath: /health
+    buildCommand: cd api && npm ci --ignore-scripts --no-audit --no-fund
+    startCommand: cd api && node staging/groq_free_standalone_probe.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROQ_API_KEY
+        fromService:
+          type: web
+          name: demos-backend
+          envVarKey: GROQ_API_KEY
