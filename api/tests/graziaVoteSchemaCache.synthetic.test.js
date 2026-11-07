@@ -249,6 +249,8 @@ test('Grazia personal proposal status uses a narrow projection and private no-st
   const query=handler.match(/SELECT\s+([\s\S]*?)\s+FROM\s+richieste_grazia\s+WHERE\s+utente_id\s*=\s*\$1/i);
   assert.ok(query,'query must be scoped to authenticated proposer');
   assert.match(handler,/\[req\.user\.id\]/,'proposer ID must come from authenticated request');
+  assert.ok(handler.includes("AND EXISTS (SELECT 1 FROM users WHERE id::text = $1::text AND status = 'a')"),
+    'the private query must check the current active owner despite cached auth/JWT');
   assert.match(query[1],/\bstatus\b/);
   for(const privateField of ['nome','url_prova','utente_id','note','motivazione']){
     assert.doesNotMatch(query[1],new RegExp('\\b'+privateField+'\\b','i'),
