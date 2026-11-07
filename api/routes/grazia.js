@@ -64,7 +64,11 @@ router.post('/', personalNoStore, verifyToken, async (req, res) => {
     client = await pool.connect();
     await client.query('BEGIN');
     // Serializza gli invii concorrenti dello stesso account: max una pendente.
-    const owner = await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    // The JWT/auth cache may outlive account suspension. Re-check active
+    // status under the existing user-row lock before persisting a nomination.
+    const owner = await client.query(
+      "SELECT id FROM users WHERE id = $1 AND status = 'a' FOR UPDATE", [userId]
+    );
     if (!owner.rows.length) {
       await client.query('ROLLBACK');
       return res.status(401).json({ success: false, error: 'Utente non trovato' });
