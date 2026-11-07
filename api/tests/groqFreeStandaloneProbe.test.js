@@ -54,6 +54,21 @@ test('quota refusals in stability mode do not report healthy provider without a 
   assert.deepEqual(result.probe, { status: 'FREE_QUOTA_UNAVAILABLE', success: false });
 });
 
+test('three source mismatches are reported as SOURCE_MISMATCH, not a transport failure', async () => {
+  const qa = {
+    caseId: 'T013', status: 'SOURCE_MISMATCH', success: false,
+    verifiedFields: 9, failedFields: ['spiegazione'],
+    samplesRequested: 3, samplesCompleted: 3, samplesPassed: 0
+  };
+  const startup = await runStartupQA({
+    env: { GROQ_QA_REPEATS: '3', GROQ_QA_CASE_ID: 'T013' },
+    runProbe: async () => { throw Error('should skip extra Free smoke'); },
+    runCases: async () => qa
+  });
+  assert.deepEqual(startup.probe, { status: 'SOURCE_MISMATCH', success: false });
+  assert.equal(sanitizeCaseResult(startup.officialCase).samplesPassed, 0);
+});
+
 test('stability QA defaults to one request and caps opt-in to three', async () => {
   assert.equal(requestedCaseSamples({}), 1);
   assert.equal(requestedCaseSamples({ GROQ_QA_REPEATS: '999' }), 1);
