@@ -347,7 +347,7 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       {id:thirdId,title:'Persona fittizia segnalata da terzi'});
     const namedPersonMine=await req('/api/subject-proposals/mine?category=attivisti','a');
     assert.equal(namedPersonMine.status,200);
-    assert.match(namedPersonMine.cacheControl,/private,\\s*no-store/);
+    assert.match(namedPersonMine.cacheControl,/private,\s*no-store/);
     assert.deepEqual(namedPersonMine.body,{success:true,pending:null,latest:null},
       'being named by a proposer grants no private record access');
     assert.equal((await req('/api/subject-proposals/admin/'+thirdId+
