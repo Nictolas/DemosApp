@@ -23,7 +23,7 @@ function mockResponse() {
   };
 }
 
-function harness({legacyGraziaReview = false} = {}) {
+function harness({legacyGraziaReview = false, inactiveOwner = false} = {}) {
   const methods = {get: new Map(), post: new Map()};
   const queries = [];
   let connects = 0;
@@ -36,6 +36,10 @@ function harness({legacyGraziaReview = false} = {}) {
   async function query(statement, args = []) {
     const sql = String(statement);
     queries.push({sql, args});
+    if (sql.startsWith("SELECT id FROM users WHERE id=$1 AND status='a' FOR SHARE")) {
+      const active = !inactiveOwner && args[0] === TEST_USER;
+      return {rows: active ? [{id:TEST_USER}] : [],rowCount:active ? 1 : 0};
+    }
     if (sql.startsWith('SELECT * FROM subject_proposals')) {
       return {rows: legacyGraziaReview ? [{id: TEST_PROPOSAL, category: 'grazia', title: 'Persona sintetica', proposer_user_id: TEST_USER}] : []};
     }
@@ -152,6 +156,18 @@ test('generic nominations reject hidden or directional control characters withou
     assert.equal(app.connects,0,'reject before private connection');
     assert.equal(app.queries.length,0,'do not query or store deceptive title');
   }
+});
+
+test('inactive proposer cannot submit a generic nomination with a cached session', async () => {
+  const app = harness({inactiveOwner:true});
+  const res = mockResponse();
+  await app.methods.post.get('/')({user:{id:TEST_USER},body:{
+    category:'organizzazioni',title:'Associazione sintetica',
+    source_url:'https://example.org/fonte'
+  }},res);
+  assert.equal(res.statusCode,401);
+  assert.equal(app.queries.some(x=>x.sql.startsWith('INSERT INTO subject_proposals')),false);
+  assert.equal(app.activeConnections,0);
 });
 
 test('Other four category submissions still write only subject_proposals', async () => {
