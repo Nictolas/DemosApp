@@ -9,6 +9,7 @@ const A='11111111-1111-4111-8111-111111111111';
 const B='22222222-2222-4222-8222-222222222222';
 const ADMIN='33333333-3333-4333-8333-333333333333';
 const users=new Set([A,B,ADMIN]);
+const suspendedUsers=new Set();
 const catalog=[{id:1,nome:'Persona già verificata',attivo:true}];
 const requests=[];
 const notices=[];
@@ -29,8 +30,8 @@ const pool={
 function respond(statement,values){
   const sql=String(statement).trim();
   if(['BEGIN','COMMIT','ROLLBACK'].includes(sql))return {rows:[]};
-  if(sql.startsWith('SELECT id FROM users WHERE id = $1 FOR UPDATE'))
-    return {rows:users.has(values[0])?[{id:values[0]}]:[]};
+  if(sql.startsWith("SELECT id FROM users WHERE id = $1 AND status = 'a' FOR UPDATE"))
+    return {rows:users.has(values[0])&&!suspendedUsers.has(values[0])?[{id:values[0]}]:[]};
   if(sql.includes("FROM richieste_grazia WHERE utente_id = $1 AND status = 'pending'"))
     return {rows:requests.filter(r=>r.utente_id===values[0]&&r.status==='pending').map(r=>({id:r.id}))};
   if(sql.includes("FROM richieste_grazia WHERE status IN ('pending','approved')")){
@@ -125,6 +126,24 @@ test('Grazia rejects local and private HTTPS sources before writing a request',a
     const result=await request('/api/grazia','a','POST',{nome:'Persona sintetica',urlProva:source});
     assert.equal(result.status,400,source);
     assert.equal(requests.length,count,source);
+  }
+});
+
+test('suspended account with stale cached JWT cannot submit a private Grazia nomination',async()=>{
+  const before=requests.length;
+  const beforeNotices=notices.length;
+  suspendedUsers.add(B);
+  try{
+    const res=await request('/api/grazia','b','POST',{
+      nome:'Persona di test nominata da account sospeso',
+      urlProva:'https://example.org/fonte/isolata'
+    });
+    assert.equal(res.status,401,'active account row is mandatory');
+    assert.match(res.headers.get('cache-control')||'',/no-store/);
+    assert.equal(requests.length,before,'no nomination persisted');
+    assert.equal(notices.length,beforeNotices,'no notification for a rejected request');
+  }finally{
+    suspendedUsers.delete(B);
   }
 });
 
