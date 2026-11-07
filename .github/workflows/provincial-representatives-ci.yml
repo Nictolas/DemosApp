@@ -45,6 +45,7 @@ on:
       - 'api/tests/provincialPreserveFixtureLegacySchema.pg.test.js'
       - 'api/tests/provincialStagingSchemaGate.contract.test.js'
       - 'api/tests/provincialFrontendWiring.smoke.test.js'
+      - 'api/tests/provincialBrowser.e2e.test.js'
       - 'api/tests/provincialCandidateLogPrivacy.http.test.js'
       - 'api/tests/provincialRepresentativeLogPrivacy.test.js'
       - 'api/tests/provincialCrossPrCompatibility.integration.test.js'
@@ -59,6 +60,36 @@ on:
 permissions:
   contents: read
 jobs:
+  provincial-chrome-ui:
+    name: Provincial browser TN/BZ choice — real Chrome, synthetic local API
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout isolated provincial proposal
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install frontend without lifecycle scripts
+        run: npm ci --prefix client --ignore-scripts --no-audit --no-fund
+      - name: Install isolated Playwright using preinstalled Google Chrome
+        run: |
+          command -v google-chrome
+          mkdir -p /tmp/demos-provincial-browser
+          npm install --prefix /tmp/demos-provincial-browser --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+      - name: Real Chrome provincial React UI, selection, undo and consent
+        env:
+          DEMOS_PLAYWRIGHT_MODULE: /tmp/demos-provincial-browser/node_modules/playwright
+          CI: 'true'
+        run: node --test api/tests/provincialBrowser.e2e.test.js
+
   provincial-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 10
