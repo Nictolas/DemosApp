@@ -8,6 +8,19 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..', '..');
 const file = p => fs.readFileSync(path.join(root,p),'utf8');
 
+test('public supporter counts exclude suspended supporters without extra database reads', () => {
+  for (const [route, association] of [
+    ['api/routes/attivisti.js','attivisti'],
+    ['api/routes/organizzazioni.js','organizzazioni']
+  ]) {
+    const src=file(route);
+    assert.ok(src.includes("WHERE s."+association+" = u.id AND s.status = 'a'"),
+      'inactive supporter links must not affect the public count: '+route);
+    assert.match(src,/LEFT JOIN LATERAL/,
+      'the active-only count remains in the existing list SELECT: '+route);
+  }
+});
+
 test('modern and legacy public directory filters require active registered accounts', () => {
   for (const route of ['api/routes/attivisti.js','api/routes/organizzazioni.js']) {
     const src=file(route);
