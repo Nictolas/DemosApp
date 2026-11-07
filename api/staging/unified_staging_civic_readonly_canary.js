@@ -73,15 +73,23 @@ function createCivicReadOnlyServer({sourceProbe, now=Date.now}={}) {
   // Coalesce simultaneous probes and cache only successful checks for 15s,
   // preventing repeated unauthenticated callers from saturating PG Free.
   let inFlight = null;
-  let healthyUntil = 0;
+  let nextCheckAt = 0;
+  let lastHealthy = false;
   const probe = async () => {
-    if (now() < healthyUntil) return true;
+    // Cache both successes and failures for a bounded interval. Without
+    // negative caching a public health endpoint can hammer PG Free during
+    // network/role outages, even though concurrent requests are coalesced.
+    if (now() < nextCheckAt) return lastHealthy;
     if (!inFlight) {
       inFlight = Promise.resolve().then(sourceProbe).then(result => {
-        if (result !== true) return false;
-        healthyUntil = now() + 15000;
-        return true;
-      }).catch(() => false).finally(() => { inFlight = null; });
+        lastHealthy = result === true;
+        nextCheckAt = now() + 15000;
+        return lastHealthy;
+      }).catch(() => {
+        lastHealthy = false;
+        nextCheckAt = now() + 15000;
+        return false;
+      }).finally(() => { inFlight = null; });
     }
     return inFlight;
   };
@@ -119,6 +127,7 @@ async function startCivicReadOnlyCanary(env=process.env, {
   createPool,
   verifyIdentity=verifyCivicStagingRuntimeIdentity,
   sourceProbe=probeCivicSourceSchema,
+  now=Date.now,
 }={}) {
   // Fail closed BEFORE importing pg, opening sockets, or loading provider CA.
   const {connectionString,active} = assertStagingAppCanary(env);
@@ -142,7 +151,15 @@ async function startCivicReadOnlyCanary(env=process.env, {
         typeof pool.end!=='function') throw new Error('pool_invalid');
     if (await verifyIdentity(pool) !== true) throw new Error('identity_failed');
     if (await sourceProbe(pool) !== true) throw new Error('schema_failed');
-    server=createCivicReadOnlyServer({sourceProbe:()=>sourceProbe(pool)});
+    // Identity and the delivery block must remain valid after startup.
+    // A one-time check is not enough if an operator changes the guard.
+    server=createCivicReadOnlyServer({
+      now,
+      sourceProbe:async()=>{
+        if (await verifyIdentity(pool) !== true) return false;
+        return sourceProbe(pool);
+      },
+    });
     await new Promise((resolve,reject)=>{
       server.once('error',reject);
       server.listen(port,'0.0.0.0',resolve);
