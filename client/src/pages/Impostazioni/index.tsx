@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2 } from "lucide-react";
 import { useLogout } from "./hooks/useLogout";
 import { LinksSection } from "./components/LinksSection";
+import { AppOpenPrivacyOptions } from "./components/AppOpenPrivacyOptions";
 import { IdentityVerificationSection } from "./components/IdentityVerificationSection";
 import { LogoutDialog } from "./components/LogoutDialog";
 import { PageContainer } from "@/components/PageContainer";
@@ -95,6 +96,7 @@ export default function Impostazioni() {
         <div className="w-full max-w-2xl mx-auto py-2 sm:px-1 space-y-4">
           <IdentityVerificationSection />
           <LinksSection onLogout={logout.showLogoutDialog} />
+          <AppOpenPrivacyOptions />
         </div>
       </div>
 

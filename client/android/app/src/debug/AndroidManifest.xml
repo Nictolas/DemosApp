@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug only: Gradle defaults to Google's sample App ID; for UMP QA an explicit
+     Gradle property may inject the DEMOS App ID. Release has no AdMob App ID. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${demosAdMobAppId}"/>
+    </application>
+</manifest>

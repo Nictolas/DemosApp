@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { AuthCard } from "@/components/AuthCard";
+import { AppOpenPrivacyOptions } from "./Impostazioni/components/AppOpenPrivacyOptions";
 import { useMobile } from "@/hooks/use-mobile";
 import LandingPage from "./LandingPage";
 import "./auth-page.css";
@@ -28,7 +29,10 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
-      <AuthCard />
+      <div className="flex w-full max-w-lg flex-col items-center gap-3">
+        <AuthCard />
+        <AppOpenPrivacyOptions compact />
+      </div>
     </div>
   );
 }
