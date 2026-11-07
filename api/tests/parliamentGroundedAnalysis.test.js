@@ -175,6 +175,24 @@ test('a separately listed no-evidence item in the general explanation is rejecte
     'Meaningful prose must remain acceptable');
 });
 
+test('inline numbered lists cannot hide an insufficient-evidence placeholder', () => {
+  const payload = {
+    spiegazione_generale: 'L\'atto disciplina la procedura descritta.',
+    effetti_positivi: '',
+    effetti_negativi: ''
+  };
+  for (const field of ['spiegazione_generale', 'effetti_positivi', 'effetti_negativi']) {
+    const previous = payload[field];
+    payload[field] = '1) Primo effetto documentato 2) INFORMAZIONI_INSUFFICIENTI';
+    assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)), null,
+      'An inline numbered no-evidence item must never be published in ' + field);
+    payload[field] = previous;
+  }
+  payload.effetti_positivi = '1) Accesso al servizio 2) Verifiche periodiche';
+  assert.ok(parseGroundedAnalysisResponse(JSON.stringify(payload)),
+    'Two documented inline effects must remain acceptable');
+});
+
 test('effect lists reject more than three points', () => {
   const response = { spiegazione_generale: 'Una misura documentata.', effetti_positivi: '', effetti_negativi: '' };
   for (const field of ['effetti_positivi', 'effetti_negativi']) {
