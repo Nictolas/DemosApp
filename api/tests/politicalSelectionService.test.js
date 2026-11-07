@@ -97,6 +97,48 @@ test('missing canonical table falls back to legacy projection on writes', async 
   assert.equal(result.legacy.field, 'candidato_camera');
 });
 
+test('missing canonical ON CONFLICT index rejects provincial writes without touching users', async () => {
+  const prior = process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+  process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = 'true';
+  const calls = [];
+  const db = { async query(sql) {
+    calls.push(String(sql));
+    const error = new Error('no unique or exclusion constraint matching ON CONFLICT');
+    error.code = '42P10';
+    throw error;
+  }};
+  try {
+    await assert.rejects(
+      () => setPoliticalSelection(db, {
+        userId: 'synthetic-voter', kind: 'representative',
+        officeValue: 'it.provincial.trento', selectedUserId: 'synthetic-councillor',
+      }),
+      { code: 'POLITICAL_SELECTION_STORAGE_UNAVAILABLE' },
+    );
+    assert.equal(calls.length, 1);
+    assert.match(calls[0], /INSERT INTO political_selections/);
+    assert.equal(calls.some((sql) => /UPDATE users|user_representatives/.test(sql)), false);
+  } finally {
+    if (prior === undefined) delete process.env.DEMOS_PROVINCIAL_SELECTIONS_GO;
+    else process.env.DEMOS_PROVINCIAL_SELECTIONS_GO = prior;
+  }
+});
+
+test('canonical unique violations are not hidden as a schema compatibility fallback', async () => {
+  const db = { async query() {
+    const error = new Error('duplicate key violates unique constraint');
+    error.code = '23505';
+    throw error;
+  }};
+  await assert.rejects(
+    () => setPoliticalSelection(db, {
+      userId: 'voter', kind: 'representative', officeValue: 'it.camera',
+      selectedUserId: 'politician',
+    }),
+    { code: '23505' },
+  );
+});
+
 test('canonical reads are authoritative and do not fall back merely because they are empty', async () => {
   const db = { async query() { return { rows: [] }; } };
   const state = await loadPoliticalSelections(db, { userId: 'u1', kind: 'candidate', adapterId: 'it' });
