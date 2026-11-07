@@ -101,3 +101,39 @@ Aggiunto `api/tests/demos12DsarS4.synthetic.test.js` (commit `81de11633a7ba4f7ae
 - Verificato sul commit `e355e3003adaa5facf0f3a890cca0a2145b90488` l'esito GitHub Actions: **15/15 workflow pull_request completati SUCCESS**, incluso `Civic privacy and moderation contracts`. La verifica vale per quello SHA, non per commit successivi.
 - Nuovo caso sintetico nel commit `a8945851deb443b1dce386d931b98ff755826d73`: ricezione 31/12/2026, scadenza ordinaria 31/01/2027, notifica di proroga il giorno di scadenza vs. il giorno dopo, scadenza illustrativa prorogata 31/03/2027; nessuna consegna dichiarata se i flag sono false. Non eseguito localmente in questa esecuzione: attendere la CI sul nuovo HEAD. Il computo dei termini rimane illustrativo e soggetto a validazione legale.
 - DSAR-02..06 e prova di ricezione della casella privacy, verifica identità, rettifica, consegna effettiva, retention, artt. 5/6/9/10/14, eventuale DPIA, staging coordinato DEMOS10 e Android fisico restano **NO-GO**. Nessuna operazione su caselle email, dati reali, database o release.
+
+
+## 07/11/2026 — Mandato operativo DPO: decisioni procedurali e gate giuridici separati
+
+**Perimetro dell'autorizzazione ricevuta in chat:** il DPO/Admin di DEMOS ha autorizzato a procedere con *tutto il lavoro DPO* relativo a DEMOS 12. Questa è autorizzazione a predisporre e migliorare istruzioni, controlli tecnici isolati e documentazione; **non** è una firma attestante la liceità di ogni trattamento, una DPIA approvata, una prova di funzionamento su casi reali o un permesso implicito per invii di email, staging condiviso, migrazioni, dati reali, merge o deploy. La PR resta Draft.
+
+### Regole operative approvate come impostazione prudenziale per il lavoro tecnico
+
+1. **Registro DSAR-02:** ogni richiesta va protocollata in un archivio *privato con accessi limitati*, usando un identificatore pseudonimo e le sole date, categoria, assegnatario, stato, termine e riferimento alla prova privata. Non archiviare in GitHub o Google Sheet tecnici nomi, indirizzi, contenuti giudiziari, preferenze di voto, URL riferibili a persone o documenti di identità.
+2. **Identità DSAR-03:** preferire verifica tramite account già autenticato o canale già associato. Richiedere elementi ulteriori soltanto quando vi siano ragionevoli dubbi, in modo proporzionato; non raccogliere automaticamente fotografie di documenti. Un terzo non verificato non deve ottenere conferma dell'esistenza di voti, candidature o richieste riferite ad altri.
+3. **Decisione DSAR-04:** distinguere i dati del proponente (`richieste_grazia`), la pubblicazione nel catalogo (`grazia_carcerati`), i voti privati (`voti_grazia`), i cooldown e le notifiche. La rettifica di un nome pubblico e la cancellazione di un voto personale non sono lo stesso procedimento; lo storico/audit non va conservato indiscriminatamente né eliminato senza decisione motivata per finalità e base giuridica. Eventuali interventi reali sono esclusi da questo mandato tecnico e richiedono autorizzazione esecutiva specifica.
+4. **Termini DSAR-05:** registrare il termine ordinario di un mese dalla ricezione; una proroga fino a due ulteriori mesi richiede le condizioni dell'art. 12(3) e comunicazione motivata entro il primo mese. Distinguere risposta predisposta, inviata e ricevuta/consegna verificabile; non segnare `delivered` senza prova, né presumere sospensioni automatiche.
+5. **Chiusura DSAR-06:** registrare decisione, operatore, data, prova di invio/consegna disponibile, motivazioni delle eventuali esclusioni e piano di cancellazione del fascicolo. La durata del fascicolo DSAR e delle copie di backup resta da motivare in una politica di retention dedicata; niente valore numerico scelto arbitrariamente.
+
+### Esame di liceità per superfici distinte — NON un'assoluzione generale
+
+| Trattamento | Valutazione conservativa | Decisione / condizione per il GO |
+| --- | --- | --- |
+| Proposte pubbliche Attivisti/Organizzazioni | Dati di terzi e possibili indizi di opinioni/associazioni politiche (artt. 5, 6, 9); art. 14 se dati non raccolti dall'interessato. | Documentare titolare, finalità, base per ciascuna categoria, provenienza, necessità, informativa o eccezione concreta e gestione opposizione/rettifica; non derivare una base valida dalla sola fonte online. |
+| Proposte Grazia (`nome`, `url_prova`) e catalogo visibile in pagina Grazia | Non è dimostrato che *ogni* nominativo sia dato giudiziario; tuttavia il contesto può rivelare condanne o reati anche senza descriverli. Quando si applica art. 10, art. 6 o consenso non lo sostituiscono: occorre una specifica autorizzazione normativa e garanzie appropriate ai sensi dell'art. 10 GDPR e 2-octies del Codice. | **NO-GO giuridico mirato per pubblicazione di nuovi nominativi** finché non si documentano il contenuto concreto, la norma autorizzativa quando applicabile e le garanzie. Non inferire che il mero link a notizia pubblica autorizzi il trattamento. Mantenere i gate tecnici fail-closed. |
+| Preferenza personale di voto Grazia | Voto/adesione attribuibile all'utente; possibile inferenza su orientamenti personali. Art. 9 va valutato sul contenuto concreto e sul contesto; consenso politico già previsto nel codice non costituisce prova generale di validità. | Conservare isolamento tra account e minimizzazione; verificare informativa specifica, prova e revoca del consenso ove necessaria, accesso e cancellazione secondo finalità. |
+| Avvisi amministrativi e log | Metadati o contenuti possono ricollegare utenti e proposte. | Testi generici senza nomi, ridurre identificatori e controllare anche retention/copie; verificare su sistema autorizzato prima del GO. |
+
+### DPIA e responsabilità della decisione
+
+La combinazione di dati politici, nominativi di terzi e possibile rivelazione di informazioni giudiziarie impone **screening DPIA documentato** ai sensi dell'art. 35 prima dell'eventuale nuova pubblicazione/rilascio. Per prudenza progettuale preparare una DPIA completa; l'eventuale decisione di non eseguirla richiede motivazione del titolare dopo screening. Non è sufficiente un flag CI. Separare in modo esplicito il parere DPO dalla decisione e responsabilità del titolare (artt. 5(2), 24, 35, 39). Nessun parere individualizzato sulla norma che autorizza un eventuale trattamento ex art. 10 è attestato qui.
+
+### Gate e prossima evidenza richiesta
+
+- **Procedura tecnica / istruzioni:** DEFINITE PER LA PREPARAZIONE, da esercitare su casi fittizi S1–S5 e verificare con evidenze private; non etichettare DSAR-02..06 come PASS.
+- **DSAR-01:** prova limitata di recapito tecnico già documentata; non effettuare nuovi invii senza autorizzazione espressa.
+- **Giuridico:** RICHIEDE valutazione specifica delle basi e dell'art. 10, informativa art. 14 quando applicabile, retention e screening/DPIA con approvazione finale motivata.
+- **Staging e Android fisico:** NON AUTORIZZATI da questo mandato DPO; coordinare con DEMOS 10 e operatore dispositivo.
+- **Release:** NO-GO. Baseline 98% tecnica / 82% preparazione rilascio invariata sino a prove ulteriori.
+
+**Fonti normative da consultare per ogni decisione specifica:** Reg. (UE) 2016/679 https://eur-lex.europa.eu/legal-content/IT/TXT/?uri=CELEX:32016R0679 (artt. 5, 6, 9, 10, 12–14, 17, 25, 35, 39); Codice privacy, art. 2-octies https://www.normattiva.it/atto/caricaDettaglioAtto?atto.articolo.numero=2&atto.articolo.sottoArticolo=1&atto.articolo.tipoArticolo=0&atto.codiceRedazionale=18G00129&atto.dataPubblicazioneGazzetta=2018-09-04 .
