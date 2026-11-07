@@ -7,7 +7,7 @@
 const { resolveFreeGroqModel, isGroqConfigured } = require('../services/parliamentFreeAiPolicy');
 const { requestFreeGroq, classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
 
-const CASE_ID = ['T002', 'T003', 'T009', 'T010'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
+const CASE_ID = ['T002', 'T003', 'T006', 'T009', 'T010'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
 const EVIDENCE = [
   'Camera dei deputati, XIX legislatura, seduta 729 del 20/10/2026.',
   'Votazione finale A.C. 3131: 125 favorevoli, 43 contrari, 52 astenuti, 168 votanti, 220 presenti.',
@@ -63,6 +63,20 @@ const SECOND_LEGISLATURE_AMENDMENT_EVIDENCE = [
   'La proposta stabiliva che la legge elettorale si applicasse a decorrere dalla seconda legislatura successiva alla sua approvazione.',
   'Non proponeva un termine fisso di 18 mesi: quello era l’emendamento distinto 9.0.3.',
   'L’emendamento 9.0.2 è stato respinto e non è diventato legge; non attribuire numero di legge, data di pubblicazione o entrata in vigore.'
+].join(' ');
+
+// Official Senate: https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl?did=59909&tab=trattazioni_aula
+// Text approved: https://www.senato.it/show-doc?id=1526543&idoggetto=0&leg=19&part=doc_dc-allegatoa_aa-ddltit_ddl1804&tipodoc=Resaula
+// Parliamentary bills awaiting promulgation/publication: https://www.parlamento.it/leg/ldl_new/v3/sldlelencoddlappnonpub.htm
+const ARCHIVE_EVIDENCE = [
+  'Senato della Repubblica, XIX legislatura, seduta 469 del 28/10/2026.',
+  'Votazione finale sul disegno di legge S.1804 (precedente C.2159), già approvato dalla Camera.',
+  'Voto finale: 75 favorevoli, 52 contrari, 0 astenuti, 127 votanti, 128 presenti. Esito: APPROVATO DEFINITIVAMENTE.',
+  'Oggetto: cambiare la denominazione dell’Archivio centrale dello Stato in Archivio nazionale;',
+  'nel testo del provvedimento il soprintendente è ridenominato direttore dell’Archivio nazionale.',
+  'Il testo è stato approvato definitivamente dal Parlamento il 28/10/2026 ma non risulta ancora pubblicato;',
+  'non è indicato un numero di legge promulgata, né una data di pubblicazione o di entrata in vigore.',
+  'Non presentare il cambio di denominazione come una norma già entrata in vigore.'
 ].join(' ');
 
 function diagnoseSecondLegislatureExplanation(value) {
@@ -147,6 +161,23 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
     return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags };
   }
+  if (caseId === 'T006') {
+    const explanation = String(answer.spiegazione || '');
+    const checks = [
+      /^S\\.?\\s*1804$/i.test(String(answer.atto || '')),
+      String(answer.data_voto || '') === '28/10/2026',
+      Number(answer.favorevoli) === 75,
+      Number(answer.contrari) === 52,
+      Number(answer.astenuti) === 0,
+      String(answer.esito || '').trim().toUpperCase() === 'APPROVATO DEFINITIVAMENTE',
+      answer.numero_legge == null,
+      answer.data_pubblicazione == null,
+      answer.data_entrata_in_vigore == null,
+      /archiv/i.test(explanation) && /nazional/i.test(explanation)
+    ];
+    const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
+    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]) };
+  }
   if (caseId === 'T003') {
     const checks = [
       /^C\.?\s*2822\s*[-‑]\s*B$/i.test(String(answer.atto || '')),
@@ -207,9 +238,9 @@ async function runOfficialCaseQA({
       model,
       messages: [
         { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
-        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : EVIDENCE) +
+        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : EVIDENCE) +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
-          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
+          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
