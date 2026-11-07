@@ -3,7 +3,56 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { runOneProbe, createHandler, sanitizeResult, sanitizeCaseResult, requestedCaseSamples, runCaseSamples } = require('../staging/groq_free_standalone_probe');
+const { runOneProbe, createHandler, sanitizeResult, sanitizeCaseResult, requestedCaseSamples, runCaseSamples, runStartupQA } = require('../staging/groq_free_standalone_probe');
+
+test('three-sample startup never performs the redundant connectivity request', async () => {
+  let smokeCalls = 0;
+  let caseCalls = 0;
+  const result = await runStartupQA({
+    env: { GROQ_QA_CASE_ID: 'T006', GROQ_QA_REPEATS: '3' },
+    runProbe: async () => { smokeCalls++; throw new Error('redundant smoke'); },
+    runCases: async () => {
+      caseCalls++;
+      return {
+        caseId: 'T006', status: 'OK', success: true, verifiedFields: 10,
+        failedFields: [], samplesRequested: 3, samplesCompleted: 3, samplesPassed: 3
+      };
+    }
+  });
+  assert.equal(smokeCalls, 0);
+  assert.equal(caseCalls, 1);
+  assert.deepEqual(result.probe, { status: 'OK', success: true });
+  assert.equal(result.officialCase.samplesPassed, 3);
+});
+
+test('single-sample startup retains the independent provider connectivity smoke', async () => {
+  let smokeCalls = 0;
+  let caseCalls = 0;
+  const result = await runStartupQA({
+    env: { GROQ_QA_CASE_ID: 'T006' },
+    runProbe: async () => { smokeCalls++; return { status: 'OK', success: true }; },
+    runCases: async () => {
+      caseCalls++;
+      return { caseId: 'T006', status: 'OK', success: true, verifiedFields: 10 };
+    }
+  });
+  assert.equal(smokeCalls, 1);
+  assert.equal(caseCalls, 1);
+  assert.equal(result.officialCase.caseId, 'T006');
+});
+
+test('quota refusals in stability mode do not report healthy provider without a passing sample', async () => {
+  const result = await runStartupQA({
+    env: { GROQ_QA_CASE_ID: 'T006', GROQ_QA_REPEATS: '3' },
+    runProbe: async () => { throw new Error('must not smoke'); },
+    runCases: async () => ({
+      caseId: 'T006', status: 'FREE_QUOTA_UNAVAILABLE', success: false,
+      verifiedFields: 0, failedFields: [],
+      samplesRequested: 3, samplesCompleted: 1, samplesPassed: 0
+    })
+  });
+  assert.deepEqual(result.probe, { status: 'FREE_QUOTA_UNAVAILABLE', success: false });
+});
 
 test('stability QA defaults to one request and caps opt-in to three', async () => {
   assert.equal(requestedCaseSamples({}), 1);
