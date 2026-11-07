@@ -4,9 +4,28 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle } = require('../services/parliamentActIdentifier');
+const { estraiNumeroLegge, canSearchItalianBills, canSearchActTitle, estraiTipoAtto } = require('../services/parliamentActIdentifier');
 
 const file = fs.readFileSync(path.join(__dirname, '..', 'services', 'leggeAnalysisService.js'), 'utf8');
+
+test('act classification uses whole terms, not EM buried inside ordinary Italian words', () => {
+  for (const name of [
+    'Sistema nazionale dei servizi',
+    'Il tema delle infrastrutture',
+    'La tutela dei sistemi pubblici',
+    'S. 61 – voto finale'
+  ]) assert.equal(estraiTipoAtto(name), null, name);
+  assert.equal(estraiTipoAtto('Emendamento 1.0.6 (Turco e altri)'), 'Emendamento');
+  assert.equal(estraiTipoAtto('Emendamenti congiunti 2.213 e 2.214'), 'Emendamento');
+  assert.equal(estraiTipoAtto('EM 9.0.3 (Cataldi e altri)'), 'EM');
+  assert.equal(estraiTipoAtto('DDL 123 – voto finale'), 'DDL');
+  assert.equal(estraiTipoAtto('Disegno di legge n. 61'), 'Disegno di legge');
+  assert.equal(estraiTipoAtto('Proposta di legge C. 2822-B'), 'Proposta di legge');
+  assert.equal(estraiTipoAtto('Decreto-legge 154/2026'), 'Decreto');
+  assert.equal(estraiTipoAtto('Mozione n. 567'), 'Mozione');
+  assert.equal(estraiTipoAtto('Ordine del giorno n. 11'), 'ODG');
+  assert.equal(estraiTipoAtto(123), null);
+});
 
 test('explicitly numbered bills may be looked up by matching parliamentary identifier', () => {
   assert.equal(estraiNumeroLegge('Disegno di legge n. 1718. Votazione questione fiducia'), '1718');
