@@ -150,13 +150,17 @@ router.get('/', personalNoStore, async (req, res) => {
 
     // Recupera userId se autenticato (opzionale)
     let userId = null;
-    if (req.headers.authorization) {
+    // Public ranking stays anonymous. Only a validated access token may
+    // unlock private votes: refresh and OAuth-pending JWTs share a signing
+    // secret, but must never be accepted as a logged-in session here.
+    const authHeader = req.headers.authorization;
+    if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
       try {
-        const jwt = require('jsonwebtoken');
-        const token = req.headers.authorization.replace('Bearer ', '');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        userId = decoded.userId;
-      } catch (authError) {
+        const { verifyAccessToken } = require('../utils/jwt');
+        const decoded = verifyAccessToken(authHeader.slice(7));
+        userId = decoded.userId || decoded.sub || decoded.id || null;
+      } catch {
+        // Invalid/non-access token: retain only the anonymous public feed.
       }
     }
 
