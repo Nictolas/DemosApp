@@ -1,5 +1,14 @@
 name: Provincial representative canonical model — isolated tests
 on:
+  # The PR can be unmergeable after main moves; push CI still exercises the
+  # disposable integrated copy without attempting a merge or deployment.
+  push:
+    branches:
+      - feat/provincial-representatives-canonical-20261106
+    paths:
+      - '.github/workflows/provincial-representatives-ci.yml'
+      - 'api/**'
+      - 'client/**'
   pull_request:
     paths:
       - 'api/config/politicalJurisdictions.js'
