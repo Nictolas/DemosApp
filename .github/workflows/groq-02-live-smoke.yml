@@ -66,6 +66,7 @@ jobs:
           print("Groq Free live authenticated check passed.")
           PY
       - name: Check three independent source-grounded analyses for the selected official case
+        if: always()
         env:
           CASE_URL: https://demos-groq-free-linked-qa-hd3y.onrender.com/health/case
         run: |
