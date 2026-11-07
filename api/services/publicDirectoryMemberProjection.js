@@ -33,6 +33,30 @@ const PUBLIC_ACTIVISM_TYPE_FIELDS = Object.freeze([
   'colore'
 ]);
 
+// Public avatar attributes are rendering instructions, not free text fields.
+// Whitelisting JSON keys alone still allows private notes or URLs to be sent
+// to everyone in the value of a whitelisted attribute.
+const PUBLIC_AVATAR_COLOR_KEYS = new Set([
+  'skinColor','hairColor','mustacheColor','beardColor',
+  'suitColor','tieColor','glassesColor'
+]);
+const PUBLIC_AVATAR_STYLE_VALUES = Object.freeze({
+  hairStyle: new Set(['bald','classic','short','long','curly','messy','wavy','buzz','pelo']),
+  mustacheStyle: new Set(['none','classic','thick','handlebar']),
+  beardStyle: new Set(['none','goatee','full','stubble']),
+  noseStyle: new Set(['normal','small','large','pointed','button','arrow','broad','curved']),
+  glassesStyle: new Set(['none','round','square','aviator'])
+});
+function isPublicAvatarVisualValue(key, value) {
+  if (typeof value !== 'string') return false;
+  if (PUBLIC_AVATAR_COLOR_KEYS.has(key)) {
+    // Current colour picker emits six-digit hex; preserve legacy 3/8-digit
+    // CSS hex without accepting url(), var(), text notes or external sources.
+    return /^#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3})?(?:[0-9A-Fa-f]{2})?$/.test(value);
+  }
+  return PUBLIC_AVATAR_STYLE_VALUES[key]?.has(value) === true;
+}
+
 const own = (row, key) => Object.prototype.hasOwnProperty.call(row, key);
 
 const PUBLIC_AVATAR_FIELDS = Object.freeze([
@@ -56,11 +80,11 @@ function projectPublicAvatarConfig(raw) {
     if (!avatar || typeof avatar !== 'object' || Array.isArray(avatar)) return null;
     const publicAvatar = {};
     for (const key of PUBLIC_AVATAR_FIELDS) {
-      if (own(avatar, key) && typeof avatar[key] === 'string') {
+      if (own(avatar, key) && isPublicAvatarVisualValue(key, avatar[key])) {
         publicAvatar[key] = avatar[key];
       }
     }
-    return JSON.stringify(publicAvatar);
+    return Object.keys(publicAvatar).length ? JSON.stringify(publicAvatar) : null;
   } catch (_) {
     return null;
   }
