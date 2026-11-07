@@ -32,16 +32,26 @@ function canSearchActTitle(numeroLegge, titolo, camera) {
   // A generic DDL number cannot override an explicit chamber reference.
   // Inspect *all* S./C. identifiers, not just the first one: otherwise
   // "DDL 123, S. 999" could silently fetch the unrelated Senate DDL 123.
-  const chamberReferences = [...titolo.matchAll(/(?:^|[\s(])([SC])\.\s*(\d{1,5})\b/gi)];
+  // Both abbreviated references (S. 123 / C. 123) and spelled-out
+  // identifiers (Atto Senato n. 123 / Atto Camera n. 123) identify a chamber.
+  // Check every reference; a generic DDL number must not override a mismatch.
+  const chamberReferences = [...titolo.matchAll(
+    /(?:^|[\s(])(?:(S|C)\.\s*|atto\s+(senato|camera)\s*(?:n(?:umero)?\.?\s*)?)(\d{1,5})\b/gi
+  )].map(match => ({
+    chamber: match[1]
+      ? match[1].toUpperCase()
+      : match[2].toLowerCase() === 'senato' ? 'S' : 'C',
+    number: match[3]
+  }));
   if (chamberReferences.length > 0) {
     const expectedChamber = camera === 'Senato' ? 'S' : 'C';
     const inRequestedChamber = chamberReferences.filter(
-      match => match[1].toUpperCase() === expectedChamber
+      reference => reference.chamber === expectedChamber
     );
-    // A source lookup is safe only if the correct chamber explicitly
-    // identifies the same numbered act, with no conflicting reference.
+    // Matching references to another chamber never authorize a lookup;
+    // multiple contradictory identifiers in the requested chamber fail closed.
     return inRequestedChamber.length > 0 &&
-      inRequestedChamber.every(match => match[2] === numeroLegge);
+      inRequestedChamber.every(reference => reference.number === numeroLegge);
   }
   return true;
 }
