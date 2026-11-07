@@ -29,12 +29,19 @@ function canSearchActTitle(numeroLegge, titolo, camera) {
   if (!canSearchItalianBills(numeroLegge, camera) || typeof titolo !== 'string') {
     return false;
   }
-  // "S." and "C." identify different Italian parliamentary chambers;
-  // a matching number is not proof that these two acts are the same.
-  const chamber = titolo.match(/(?:^|[\s(])([SC])\.\s*(\d{1,5})\b/i);
-  if (chamber && chamber[2] === numeroLegge) {
-    if (chamber[1].toUpperCase() === 'S' && camera !== 'Senato') return false;
-    if (chamber[1].toUpperCase() === 'C' && camera !== 'Camera') return false;
+  // A generic DDL number cannot override an explicit chamber reference.
+  // Inspect *all* S./C. identifiers, not just the first one: otherwise
+  // "DDL 123, S. 999" could silently fetch the unrelated Senate DDL 123.
+  const chamberReferences = [...titolo.matchAll(/(?:^|[\s(])([SC])\.\s*(\d{1,5})\b/gi)];
+  if (chamberReferences.length > 0) {
+    const expectedChamber = camera === 'Senato' ? 'S' : 'C';
+    const inRequestedChamber = chamberReferences.filter(
+      match => match[1].toUpperCase() === expectedChamber
+    );
+    // A source lookup is safe only if the correct chamber explicitly
+    // identifies the same numbered act, with no conflicting reference.
+    return inRequestedChamber.length > 0 &&
+      inRequestedChamber.every(match => match[2] === numeroLegge);
   }
   return true;
 }
