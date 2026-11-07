@@ -72,6 +72,9 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
           coordinationFound: value?.explanationDiagnostics?.coordinationFound === true,
           referencesFound: value?.explanationDiagnostics?.referencesFound === true,
           approvedFound: value?.explanationDiagnostics?.approvedFound === true,
+          finalityPhraseFound: value?.explanationDiagnostics?.finalityPhraseFound === true,
+          negatedFinalityFound: value?.explanationDiagnostics?.negatedFinalityFound === true,
+          lawStateFound: value?.explanationDiagnostics?.lawStateFound === true,
           falseFinalityFound: value?.explanationDiagnostics?.falseFinalityFound === true,
           coordinationMarkerFound: value?.actDiagnostics?.coordinationMarkerFound === true,
           correctItemNumberFound: value?.actDiagnostics?.correctItemNumberFound === true,
@@ -120,7 +123,7 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
       t024SampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
       t024SampleScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
       t024FlagTallies: Object.fromEntries(
-        ['coordinationFound','referencesFound','approvedFound','falseFinalityFound',
+        ['coordinationFound','referencesFound','approvedFound','finalityPhraseFound','negatedFinalityFound','lawStateFound','falseFinalityFound',
          'coordinationMarkerFound','correctItemNumberFound','genericBillOnly']
           .map(flag => [flag, results.filter(r => r.safeCoordinationFlags?.[flag] === true).length])
       )
@@ -177,7 +180,7 @@ function sanitizeCaseResult(result) {
       t024SampleScores: (Array.isArray(result.t024SampleScores) ? result.t024SampleScores : [])
         .slice(0,3).map(v => Number.isInteger(v) && v >= 0 && v <= 10 ? v : 0),
       t024FlagTallies: Object.fromEntries(
-        ['coordinationFound','referencesFound','approvedFound','falseFinalityFound',
+        ['coordinationFound','referencesFound','approvedFound','finalityPhraseFound','negatedFinalityFound','lawStateFound','falseFinalityFound',
          'coordinationMarkerFound','correctItemNumberFound','genericBillOnly']
           .map(flag => [flag, Number.isInteger(result.t024FlagTallies?.[flag]) &&
             result.t024FlagTallies[flag] >= 0 && result.t024FlagTallies[flag] <= 3
@@ -189,6 +192,9 @@ function sanitizeCaseResult(result) {
         coordinationFound: result.explanationDiagnostics.coordinationFound === true,
         referencesFound: result.explanationDiagnostics.referencesFound === true,
         approvedFound: result.explanationDiagnostics.approvedFound === true,
+        finalityPhraseFound: result.explanationDiagnostics.finalityPhraseFound === true,
+        negatedFinalityFound: result.explanationDiagnostics.negatedFinalityFound === true,
+        lawStateFound: result.explanationDiagnostics.lawStateFound === true,
         falseFinalityFound: result.explanationDiagnostics.falseFinalityFound === true
       }
     } : {}),
