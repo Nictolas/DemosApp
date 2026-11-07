@@ -67,6 +67,13 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
       success: value?.success === true,
       verifiedFields: Number.isInteger(value?.verifiedFields) ? value.verifiedFields : 0,
       failedFields: Array.isArray(value?.failedFields) ? value.failedFields : [],
+      ...(caseId === 'T023' ? {
+        safeArticleFlags: {
+          noNewCostsFound: value?.explanationDiagnostics?.noNewCostsFound === true,
+          approvedFound: value?.explanationDiagnostics?.approvedFound === true,
+          falselyFinalFound: value?.explanationDiagnostics?.falselyFinalFound === true
+        }
+      } : {}),
       ...(caseId === 'T013' ? {
         safeFlags: {
           thresholdFound: value?.explanationDiagnostics?.thresholdFound === true,
@@ -98,6 +105,14 @@ async function runCaseSamples({ env = process.env, runCase = runOfficialCaseQA }
     samplesRequested,
     samplesCompleted: results.length,
     samplesPassed,
+    ...(caseId === 'T023' ? {
+      t023SampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
+      t023SampleScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
+      t023FlagTallies: Object.fromEntries(
+        ['noNewCostsFound','approvedFound','falselyFinalFound']
+          .map(flag => [flag, results.filter(r => r.safeArticleFlags?.[flag] === true).length])
+      )
+    } : {}),
     ...(caseId === 'T013' ? {
       sampleCategories: results.map(r => SAFE_STATUSES.has(r.status) ? r.status : 'NETWORK_OR_UNKNOWN'),
       sampleFieldScores: results.map(r => Math.max(0, Math.min(10, r.verifiedFields))),
@@ -124,6 +139,18 @@ function sanitizeCaseResult(result) {
       samplesRequested: result.samplesRequested,
       samplesCompleted: Number.isInteger(result.samplesCompleted) && result.samplesCompleted >= 0 && result.samplesCompleted <= 3 ? result.samplesCompleted : 0,
       samplesPassed: Number.isInteger(result.samplesPassed) && result.samplesPassed >= 0 && result.samplesPassed <= 3 ? result.samplesPassed : 0
+    } : {}),
+    ...(result?.caseId === 'T023' && Array.isArray(result?.t023SampleCategories) ? {
+      t023SampleCategories: result.t023SampleCategories.slice(0,3).map(status => safe.has(status) ? status : 'NETWORK_OR_UNKNOWN'),
+      t023SampleScores: (Array.isArray(result.t023SampleScores) ? result.t023SampleScores : [])
+        .slice(0,3).map(v => Number.isInteger(v) && v >= 0 && v <= 10 ? v : 0),
+      t023FlagTallies: Object.fromEntries(
+        ['noNewCostsFound','approvedFound','falselyFinalFound']
+          .map(flag => [flag,
+            Number.isInteger(result.t023FlagTallies?.[flag]) &&
+              result.t023FlagTallies[flag] >= 0 && result.t023FlagTallies[flag] <= 3
+              ? result.t023FlagTallies[flag] : 0])
+      )
     } : {}),
     ...(result?.caseId === 'T023' && result?.explanationDiagnostics ? {
       explanationDiagnostics: {
