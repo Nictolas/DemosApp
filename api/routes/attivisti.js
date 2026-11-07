@@ -2,12 +2,13 @@ const express = require('express');
 const { compressRegione, decompressRegione } = require('../utils/locationUtils');
 const { getPool } = require('../config/database');
 const { queryWithAccountModelFallback } = require('../services/accountCapabilitiesService');
+const { projectPublicDirectoryMembers } = require('../services/publicDirectoryMemberProjection');
 const router = express.Router();
 require('dotenv').config();
 
 const pool = getPool();
-const MODERN_ACTIVIST_FILTER = 'COALESCE(u.is_activist, FALSE) = TRUE';
-const LEGACY_ACTIVIST_FILTER = "(u.ruolo = 'A' OR u.ruolo = 'AD')";
+const MODERN_ACTIVIST_FILTER = "COALESCE(u.is_activist, FALSE) = TRUE AND u.status = 'a'";
+const LEGACY_ACTIVIST_FILTER = "(u.ruolo = 'A' OR u.ruolo = 'AD') AND u.status = 'a'";
 
 function queryActivists(sqlTemplate, values = []) {
   return queryWithAccountModelFallback(
@@ -101,19 +102,9 @@ router.get('/', async (req, res) => {
         u.id,
         u.nome,
         u.cognome,
-        u.email,
         u.ruolo,
-        u.status,
-        u.created_at,
-        u.updated_at,
         u.avatar_config,
-        u.genere,
-        u.data_nascita,
-        u.cittadinanza,
-        u.paese_residenza,
         u.regione_residenza,
-        u.provincia_residenza,
-        u.comune_residenza,
         u.facebook_url,
         u.twitter_url,
         u.instagram_url,
@@ -140,7 +131,7 @@ router.get('/', async (req, res) => {
     
     res.json({
       success: true,
-      data: attivisti,
+      data: projectPublicDirectoryMembers(attivisti),
       count: attivisti.length,
       message: attivisti.length === 0 ? 'Al momento non ci sono attivisti registrati' : `${attivisti.length} attivisti trovati`
     });
@@ -208,7 +199,7 @@ router.get('/tipologia/:tipo', async (req, res) => {
     
     res.json({
       success: true,
-      data: attivisti,
+      data: projectPublicDirectoryMembers(attivisti),
       count: attivisti.length,
       tipologia: tipo,
       message: attivisti.length === 0 ? `Nessun attivista trovato per la tipologia "${tipo}"` : `${attivisti.length} attivisti trovati per la tipologia "${tipo}"`
