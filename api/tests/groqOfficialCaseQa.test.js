@@ -142,6 +142,17 @@ test('real case QA is one bounded provider request with no user data or paid mod
   });
   assert.doesNotMatch(JSON.stringify(r), /mock-key|spiegazione|1234/);
 });
+test('local Free quota rejection is not classified as a truncated generation', async () => {
+  const result = await runOfficialCaseQA({
+    env: { GROQ_API_KEY: 'mock-key', GROQ_MODEL: 'openai/gpt-oss-120b' },
+    clientFactory: () => ({}),
+    request: async () => null
+  });
+  assert.equal(result.status, 'FREE_QUOTA_UNAVAILABLE');
+  assert.equal(result.success, false);
+  assert.equal(result.verifiedFields, 0);
+});
+
 test('empty and partial generations are not accepted as real analysis', async () => {
   for (const [finish_reason,content] of [
     ['length', JSON.stringify(CORRECT)],
