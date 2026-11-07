@@ -212,6 +212,21 @@ test('T012 explanation diagnostics contain only boolean checks and no source/out
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE|text/);
 });
 
+test('T011 cross-DDL warning reports boolean flags, never explanation text', () => {
+  const safe = sanitizeCaseResult({
+    caseId: 'T011', status: 'SOURCE_MISMATCH', success: false,
+    verifiedFields: 9, failedFields: ['spiegazione'],
+    explanationDiagnostics: {
+      liabilitySubjectFound: false, rejectedFound: true,
+      wrongFuelSubjectFound: true, original: 'PRIVATE_SOURCE_TEXT'
+    }
+  });
+  assert.deepEqual(safe.explanationDiagnostics, {
+    liabilitySubjectFound: false, rejectedFound: true, wrongFuelSubjectFound: true
+  });
+  assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_SOURCE_TEXT|original/);
+});
+
 test('standalone smoke has no database, Firebase, cron or secret output handlers', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'staging', 'groq_free_standalone_probe.js'), 'utf8');
   assert.doesNotMatch(src, /require\(['"]\.\.\/config\/database['"]\)|getPool\(|firebase-admin|sendEachForMulticast|cron\.schedule|setInterval\(/);
