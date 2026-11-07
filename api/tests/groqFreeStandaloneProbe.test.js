@@ -54,6 +54,36 @@ test('quota refusals in stability mode do not report healthy provider without a 
   assert.deepEqual(result.probe, { status: 'FREE_QUOTA_UNAVAILABLE', success: false });
 });
 
+test('T013 diagnostic tallies expose only safe categories and bounded counts', async () => {
+  let calls = 0;
+  const result = await runCaseSamples({
+    env: { GROQ_QA_REPEATS: '3', GROQ_QA_CASE_ID: 'T013' },
+    runCase: async () => {
+      calls++;
+      return {
+        caseId: 'T013', status: 'SOURCE_MISMATCH', success: false,
+        verifiedFields: calls === 3 ? 0 : 9,
+        failedFields: ['spiegazione'],
+        explanationDiagnostics: {
+          thresholdFound: true, immediateLegislatureFound: calls !== 1,
+          laterLegislatureFound: calls !== 3, rejectedFound: true,
+          confusedWith18Months: false, rawGeneratedText: 'SECRET_GENERATION'
+        }
+      };
+    }
+  });
+  assert.equal(calls, 3);
+  const safe = sanitizeCaseResult(result);
+  assert.deepEqual(safe.sampleCategories,
+    ['SOURCE_MISMATCH','SOURCE_MISMATCH','SOURCE_MISMATCH']);
+  assert.deepEqual(safe.sampleFieldScores, [9,9,0]);
+  assert.deepEqual(safe.t013FlagTallies, {
+    thresholdFound: 3, immediateLegislatureFound: 2,
+    laterLegislatureFound: 2, rejectedFound: 3, confusedWith18Months: 0
+  });
+  assert.doesNotMatch(JSON.stringify(safe), /SECRET_GENERATION|rawGeneratedText/);
+});
+
 test('three source mismatches are reported as SOURCE_MISMATCH, not a transport failure', async () => {
   const qa = {
     caseId: 'T013', status: 'SOURCE_MISMATCH', success: false,
