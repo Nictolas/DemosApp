@@ -27,7 +27,7 @@ function assessOfficialAnswer(answer) {
     Number(answer.favorevoli) === 125,
     Number(answer.contrari) === 43,
     Number(answer.astenuti) === 52,
-    /approvat[oa]\s+definitivamente/i.test(String(answer.esito || '')),
+    /\bapprova(?:t[oa]|zione)\b.{0,100}\bdefinitiv|\bdefinitiv.{0,100}\bapprova(?:t[oa]|zione)\b/i.test(String(answer.esito || '')),
     Number(answer.numero_legge) === 196,
     String(answer.data_pubblicazione || '') === '26/10/2026',
     String(answer.data_entrata_in_vigore || '') === '27/10/2026',
