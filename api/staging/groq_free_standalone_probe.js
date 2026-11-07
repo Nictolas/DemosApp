@@ -60,6 +60,13 @@ function sanitizeCaseResult(result) {
         rejectedFound: result.explanationDiagnostics.rejectedFound === true
       }
     } : {}),
+    ...(result?.caseId === 'T010' && result?.explanationDiagnostics ? {
+      explanationDiagnostics: {
+        secondLegislatureFound: result.explanationDiagnostics.secondLegislatureFound === true,
+        rejectedFound: result.explanationDiagnostics.rejectedFound === true,
+        wrong18MonthFound: result.explanationDiagnostics.wrong18MonthFound === true
+      }
+    } : {}),
     ...(Number.isFinite(latency) && latency >= 0 ? { latencyMs: Math.min(120000, Math.round(latency)) } : {})
   };
 }
