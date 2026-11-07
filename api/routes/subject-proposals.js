@@ -134,8 +134,10 @@ router.post('/', verifyToken, async (req, res) => {
     try {
       noticeClient = await pool.connect();
       await noticeClient.query('BEGIN');
+      // FOR SHARE protects the Admin recipient list from concurrent suspension.
+      // The nomination stays committed even if the private notice cannot be sent.
       const notice = await noticeClient.query(
-        "INSERT INTO notifiche_demos(id_utente,titolo,testo) SELECT id, 'DEMOS — Nuova proposta', $1 FROM users WHERE (is_admin = TRUE OR ruolo IN ('AD','Admin')) AND lower(status) = 'a'",
+        "INSERT INTO notifiche_demos(id_utente,titolo,testo) SELECT id, 'DEMOS — Nuova proposta', $1 FROM users WHERE (is_admin = TRUE OR ruolo IN ('AD','Admin')) AND lower(status) = 'a' FOR SHARE",
         ['Nuova proposta ricevuta in una categoria da moderare.']
       );
       // An absent active Admin is not a confirmed notification.
