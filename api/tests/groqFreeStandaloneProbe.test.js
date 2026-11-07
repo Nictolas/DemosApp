@@ -305,6 +305,33 @@ test('T023 official article diagnostics never reveal generated text', () => {
   assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_MODEL_OUTPUT|rawText/);
 });
 
+test('T023 aggregates only approved/invarianza boolean counts across real sample outcomes', async () => {
+  let i = 0;
+  const result = await runCaseSamples({
+    env: { GROQ_QA_REPEATS: '3', GROQ_QA_CASE_ID: 'T023' },
+    runCase: async () => {
+      i += 1;
+      return {
+        caseId: 'T023', status: i === 1 ? 'OK' : 'SOURCE_MISMATCH',
+        success: i === 1, verifiedFields: i === 1 ? 10 : 9,
+        failedFields: i === 1 ? [] : ['spiegazione'],
+        explanationDiagnostics: {
+          noNewCostsFound: i !== 2, approvedFound: true, falselyFinalFound: false,
+          output: 'SECRET_PROVIDER_PROSE'
+        }
+      };
+    }
+  });
+  const safe = sanitizeCaseResult(result);
+  assert.deepEqual(safe.t023SampleCategories, ['OK', 'SOURCE_MISMATCH', 'SOURCE_MISMATCH']);
+  assert.deepEqual(safe.t023SampleScores, [10, 9, 9]);
+  assert.deepEqual(safe.t023FlagTallies, {
+    noNewCostsFound: 2, approvedFound: 3, falselyFinalFound: 0
+  });
+  assert.equal(result.samplesPassed, 1);
+  assert.doesNotMatch(JSON.stringify(safe), /SECRET_PROVIDER_PROSE|output/);
+});
+
 test('standalone smoke has no database, Firebase, cron or secret output handlers', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'staging', 'groq_free_standalone_probe.js'), 'utf8');
   assert.doesNotMatch(src, /require\(['"]\.\.\/config\/database['"]\)|getPool\(|firebase-admin|sendEachForMulticast|cron\.schedule|setInterval\(/);
