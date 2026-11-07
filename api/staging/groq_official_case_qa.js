@@ -7,7 +7,7 @@
 const { resolveFreeGroqModel, isGroqConfigured } = require('../services/parliamentFreeAiPolicy');
 const { requestFreeGroq, classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
 
-const CASE_ID = ['T001', 'T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018', 'T023', 'T024'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
+const CASE_ID = ['T001', 'T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018', 'T023', 'T024', 'T025'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
 const EVIDENCE = [
   'Camera dei deputati, XIX legislatura, seduta 729 del 20/10/2026.',
   'Votazione finale A.C. 3131: 125 favorevoli, 43 contrari, 52 astenuti, 168 votanti, 220 presenti.',
@@ -151,6 +151,30 @@ const COORDINATION_EVIDENCE = [
   'Voto finale sul ddl distinto: 113 favorevoli, 71 contrari, 2 astenuti.',
   'Coord. 1 non è legge promulgata: nessun numero legge o data pubblicazione/efficacia propri.'
 ].join(' ');
+
+// Camera, 27/10/2026, 734th sitting: official summary and verbatim records.
+// https://documenti.camera.it/leg19/resoconti/assemblea/html/sed0734/sommario.htm
+// https://documenti.camera.it/leg19/resoconti/assemblea/html/sed0734/stenografico.htm
+// Only the 40-vote MARGIN is known; the 3 vote totals and names are not recorded.
+const RENVIO_CPI_EVIDENCE = [
+  'Camera XIX, seduta 734 del 27/10/2026: proposta Calovini di rinviare ad altro calendario la mozione 1-00599 Boldrini e altri.',
+  'La mozione riguarda la Corte penale internazionale e i crimini internazionali.',
+  'Votazione elettronica SENZA registrazione dei nomi: la Camera APPROVA il RINVIO per 40 voti di differenza.',
+  'La fonte NON riporta i totali di favorevoli, contrari e astenuti: questi 3 conteggi sono sconosciuti, non zero.',
+  'Il rinvio approvato NON equivale ad approvazione della mozione né a una legge promulgata.'
+].join(' ');
+
+function diagnoseRinvioCpiExplanation(value) {
+  const s = String(value || '');
+  return {
+    postponementFound: /rinvi|rinvio|rinviat|altro\s+calendari/i.test(s),
+    topicFound: /corte\s+penal|criminal[ie]\s+internazional/i.test(s),
+    approvedFound: /approvat|accolt|via\s+libera|voto\s+favorevole/i.test(s),
+    noNameRecordFound: /senza\s+(?:registrazion|indica(?:zion)?|elenco)\s+(?:dei\s+)?nom|voto\s+non\s+nominal|nomi\s+non\s+registrat/i.test(s),
+    falselyMotionApproved: /(?:mozion[ei]).{0,35}(?:approvat[ae]|accolt[ae])|(?:approvat[ae]).{0,35}(?:mozion[ei])/i.test(s),
+    inventedCountsFound: /\b(?:favorevol[ie]|contrar[ie]|astenut[ie])\s*[:=]?\s*\d+/i.test(s)
+  };
+}
 
 function diagnoseCoordinationExplanation(value) {
   const explanation = String(value || '');
@@ -406,6 +430,27 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
     return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags };
   }
+  if (caseId === 'T025') {
+    const flags = diagnoseRinvioCpiExplanation(answer.spiegazione);
+    const checks = [
+      /rinvi|rinvio|rinviat/i.test(String(answer.atto || '')) &&
+        /1\s*[-–]?\s*00599/.test(String(answer.atto || '')),
+      String(answer.data_voto || '') === '27/10/2026',
+      answer.favorevoli === null,
+      answer.contrari === null,
+      answer.astenuti === null,
+      String(answer.esito || '').trim().toUpperCase() === 'APPROVATO NON DEFINITIVAMENTE',
+      answer.numero_legge === null,
+      answer.data_pubblicazione === null,
+      answer.data_entrata_in_vigore === null,
+      flags.postponementFound && flags.topicFound && flags.approvedFound &&
+        flags.noNameRecordFound && !flags.falselyMotionApproved && !flags.inventedCountsFound
+    ];
+    const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito',
+      'numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
+    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length,
+      failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags };
+  }
   if (caseId === 'T024') {
     const flags = diagnoseCoordinationExplanation(answer.spiegazione);
     const actText = String(answer.atto || '').trim();
@@ -531,12 +576,12 @@ async function runOfficialCaseQA({
       model,
       messages: [
         { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
-        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T001' ? ELECTORAL_SENATE_FINAL_EVIDENCE : CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : CASE_ID === 'T018' ? CONFIDENCE_PA_EVIDENCE : CASE_ID === 'T013' ? CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE : CASE_ID === 'T023' ? ARTICLE_9_EVIDENCE : CASE_ID === 'T024' ? COORDINATION_EVIDENCE : EVIDENCE) +
+        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T001' ? ELECTORAL_SENATE_FINAL_EVIDENCE : CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : CASE_ID === 'T018' ? CONFIDENCE_PA_EVIDENCE : CASE_ID === 'T013' ? CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE : CASE_ID === 'T023' ? ARTICLE_9_EVIDENCE : CASE_ID === 'T024' ? COORDINATION_EVIDENCE : CASE_ID === 'T025' ? RENVIO_CPI_EVIDENCE : EVIDENCE) +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
-          'atto (formato ' + (CASE_ID === 'T001' ? 'S.1971' : CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : CASE_ID === 'T011' ? 'Em. 1.0.6' : CASE_ID === 'T018' ? 'S.2047' : CASE_ID === 'T013' ? 'Em. 9.0.1' : CASE_ID === 'T023' ? 'Art. 9' : CASE_ID === 'T024' ? 'Coord. 1' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
+          'atto (formato ' + (CASE_ID === 'T001' ? 'S.1971' : CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : CASE_ID === 'T011' ? 'Em. 1.0.6' : CASE_ID === 'T018' ? 'S.2047' : CASE_ID === 'T013' ? 'Em. 9.0.1' : CASE_ID === 'T023' ? 'Art. 9' : CASE_ID === 'T024' ? 'Coord. 1' : CASE_ID === 'T025' ? 'Rinvio 1-00599' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
-          'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
+          'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non fornisce i conteggi separati di favorevoli, contrari e astenuti, restituisci null per i conteggi mancanti: una differenza tra voti NON permette di ricostruirli. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
           'Per esito, usa esclusivamente una delle quattro stringhe ammesse in base alla fonte, senza presumere la definitività. ' +
           'Spiegazione: massimo tre frasi, concise; esplicita se il singolo atto, articolo o coordinamento è stato approvato o respinto, poi descrivi l\'oggetto specifico con termini della fonte. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Se la votazione è sulla fiducia, distingui la fiducia dall\'approvazione dell\'atto e indica la materia specifica. Se è una proposta di coordinamento formale, descrivi quali riferimenti del testo corregge, senza confonderla con il successivo voto finale sul disegno di legge. Se il voto riguarda S.1971 del 15/09, specifica che S.61 è stato assorbito, il testo è tornato alla Camera e questo voto non era approvazione definitiva della legge. Non limitarti a riportare il numero del provvedimento; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
@@ -579,4 +624,4 @@ async function runOfficialCaseQA({
   }
 }
 
-module.exports = { CASE_ID, EVIDENCE, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, diagnoseIlvaAmendmentExplanation, diagnoseLiabilityAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation, assessOfficialAnswer, runOfficialCaseQA };
+module.exports = { CASE_ID, EVIDENCE, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, diagnoseIlvaAmendmentExplanation, diagnoseLiabilityAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation, diagnoseRinvioCpiExplanation, assessOfficialAnswer, runOfficialCaseQA };
