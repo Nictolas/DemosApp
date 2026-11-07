@@ -131,6 +131,25 @@ function sanitizeCaseResult(result) {
   };
 }
 
+async function runStartupQA({ env = process.env, runProbe = runOneProbe, runCases = runCaseSamples } = {}) {
+  if (requestedCaseSamples(env) === 3) {
+    // In stability mode, the authentic source-QA requests already verify
+    // provider connectivity. Do not consume a fourth Free request on startup.
+    const officialCase = await runCases({ env });
+    const healthy = Number(officialCase?.samplesPassed) > 0;
+    const probe = sanitizeResult({
+      status: healthy ? 'OK' : officialCase?.status,
+      success: healthy
+    });
+    return { probe, officialCase };
+  }
+  const probe = await runProbe({ env });
+  const officialCase = probe.success ? await runCases({ env }) : {
+    caseId: selectedCaseId(env), status: 'NOT_RUN', success: false, verifiedFields: 0
+  };
+  return { probe, officialCase };
+}
+
 function createHandler(getProbe, getCase = () => ({ status: 'NOT_RUN' })) {
   return (req, res) => {
     const path = String(req.url || '').split('?')[0];
@@ -165,14 +184,15 @@ if (require.main === module) {
   server.listen(Number(process.env.PORT) || 10000, '0.0.0.0', () => {
     console.log('Standalone Groq Free probe listening; no DB or push initialized');
   });
-  // One connectivity check and either one or three fixed official-case samples.
-  // No timer, scheduler, retry loop, or client-supplied prompt.
-  void runOneProbe().then(async result => {
-    probe = result;
-    officialCase = result.success ? await runCaseSamples() : {
-      caseId: ['T002', 'T003', 'T006', 'T009', 'T010'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008', status: 'NOT_RUN', success: false, verifiedFields: 0
-    };
+  // Single-case mode retains the historical smoke, stability mode uses
+  // only its three authenticated case requests. All endpoints remain read-only.
+  void runStartupQA().then(result => {
+    probe = result.probe;
+    officialCase = result.officialCase;
+  }).catch(() => {
+    probe = { status: 'NETWORK_OR_UNKNOWN', success: false };
+    officialCase = { caseId: selectedCaseId(), status: 'NETWORK_OR_UNKNOWN', success: false, verifiedFields: 0 };
   });
 }
 
-module.exports = { sanitizeResult, sanitizeCaseResult, runOneProbe, requestedCaseSamples, runCaseSamples, createHandler };
+module.exports = { sanitizeResult, sanitizeCaseResult, runOneProbe, requestedCaseSamples, runCaseSamples, runStartupQA, createHandler };
