@@ -9,6 +9,7 @@ on:
       - 'api/routes/organizzazioni.js'
       - 'api/services/publicDirectoryMemberProjection.js'
       - 'api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js'
+      - 'api/tests/publicDirectoryPrivacyHttp.synthetic.test.js'
       - '.github/workflows/public-directory-privacy-hotfix.yml'
 
 permissions:
@@ -31,5 +32,12 @@ jobs:
           node --check api/routes/attivisti.js
           node --check api/routes/organizzazioni.js
           node --check api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js
+          node --check api/tests/publicDirectoryPrivacyHttp.synthetic.test.js
       - name: Synthetic non-PII public directory contract
         run: node --test api/tests/publicDirectoryPrivacyHotfix.synthetic.test.js
+      - name: Install only synthetic HTTP runtime dependencies (no database)
+        run: npm install --prefix /tmp/demos-directory-http --no-save --ignore-scripts --no-audit --no-fund express@4.22.3 dotenv@16.3.1
+      - name: Real Express routers with fake PostgreSQL via loopback HTTP
+        env:
+          NODE_PATH: /tmp/demos-directory-http/node_modules
+        run: node --test api/tests/publicDirectoryPrivacyHttp.synthetic.test.js
