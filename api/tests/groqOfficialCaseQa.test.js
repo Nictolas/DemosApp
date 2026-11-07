@@ -155,6 +155,26 @@ test('T011 amendment to S.2023 cannot be confused with identically numbered fuel
   assert.deepEqual(assessOfficialAnswer({ ...t011, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T011').failedFields, ['esito']);
 });
 
+test('T018 Senate confidence vote and conversion law preserve distinct voting, publication and effective dates', () => {
+  const correct = {
+    atto: 'S.2047', data_voto: '30/09/2026',
+    favorevoli: 95, contrari: 53, astenuti: 2,
+    esito: 'APPROVATO DEFINITIVAMENTE',
+    numero_legge: 174, data_pubblicazione: '06/10/2026',
+    data_entrata_in_vigore: '07/10/2026',
+    spiegazione: 'Il Senato ha approvato la fiducia sul decreto in materia di pubblica amministrazione e protezione civile, convertendolo definitivamente.'
+  };
+  assert.deepEqual(assessOfficialAnswer(correct, 'T018'),
+    { success: true, verifiedFields: 10, failedFields: [] });
+  assert.deepEqual(assessOfficialAnswer({ ...correct, favorevoli: 53 }, 'T018').failedFields, ['favorevoli']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, data_voto: '05/10/2026' }, 'T018').failedFields, ['data_voto']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, data_pubblicazione: '30/09/2026' }, 'T018').failedFields, ['data_pubblicazione']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, data_entrata_in_vigore: '06/10/2026' }, 'T018').failedFields, ['data_entrata_in_vigore']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, esito: 'APPROVATO NON DEFINITIVAMENTE' }, 'T018').failedFields, ['esito']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, spiegazione: 'Il Senato ha respinto la fiducia sulla pubblica amministrazione.' }, 'T018').failedFields, ['spiegazione']);
+  assert.deepEqual(assessOfficialAnswer({ ...correct, spiegazione: 'Il Senato ha approvato il testo.' }, 'T018').failedFields, ['spiegazione']);
+});
+
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
   let calls = 0;
   const r = await runOfficialCaseQA({
