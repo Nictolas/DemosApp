@@ -47,7 +47,8 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
   let server;
   try {
     const setup=[
-      "CREATE TABLE users(id uuid PRIMARY KEY,is_admin boolean NOT NULL DEFAULT false,status varchar(1) NOT NULL DEFAULT 'a')",
+      "CREATE TABLE users(id uuid PRIMARY KEY,is_admin boolean NOT NULL DEFAULT false,status varchar(1) NOT NULL DEFAULT 'a',political_opinions_consent boolean NOT NULL DEFAULT true)",
+      "CREATE TABLE user_consents(user_id uuid PRIMARY KEY,political_opinions_consent boolean)",
       "CREATE TABLE richieste_grazia(id varchar(255) PRIMARY KEY,utente_id varchar(255) NOT NULL,nome text NOT NULL,url_prova text,status varchar(50),data_creazione timestamptz NOT NULL DEFAULT now(),note text)",
       "CREATE TABLE grazia_carcerati(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,nome text NOT NULL,attivo boolean NOT NULL DEFAULT true)",
       "CREATE UNIQUE INDEX grazia_carcerati_nome_key ON grazia_carcerati(lower(btrim(nome)))",
@@ -520,6 +521,49 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     // Two distinct accounts racing on the same canonical subject must
     // produce exactly one pending request, never two competing moderators.
     await pool.query('INSERT INTO users(id,is_admin,status) VALUES ($1,false,$3),($2,false,$3)',[C,D,'a']);
+
+    // A stale consent middleware decision must NOT resurrect a personal
+    // Grazia vote after the canonical revocation transaction commits.
+    // This fixture updates only disposable PG17 users and user_consents.
+    const revokedName='Preferenza sintetica bloccata dopo revoca';
+    await pool.query('INSERT INTO grazia_carcerati(nome,attivo) VALUES($1,true)',[revokedName]);
+    const revocationClient=await pool.connect();
+    try {
+      await revocationClient.query('BEGIN');
+      await revocationClient.query(
+        'UPDATE users SET political_opinions_consent=false WHERE id=$1',[C]);
+      await revocationClient.query(
+        'INSERT INTO user_consents(user_id,political_opinions_consent) VALUES($1,false) ON CONFLICT (user_id) DO UPDATE SET political_opinions_consent=false',[C]);
+      // Middleware is intentionally a stale pass in this fixture. The route
+      // itself must re-check after the revocation's users-row lock clears.
+      const voteAfterRevocation=req('/api/grazia/vota','c','POST',{voti:[revokedName]});
+      let consentWaitObserved=false;
+      for(let attempt=0;attempt<150;attempt++){
+        const waiting=await pool.query(
+          `SELECT EXISTS (SELECT 1 FROM pg_stat_activity
+            WHERE datname=current_database() AND state='active'
+              AND wait_event_type='Lock'
+              AND query LIKE '%FROM users WHERE id::text=%'
+              AND query LIKE '%FOR SHARE%') AS blocked`);
+        if(waiting.rows[0].blocked){consentWaitObserved=true;break;}
+        await new Promise(resolve=>setTimeout(resolve,30));
+      }
+      assert.equal(consentWaitObserved,true,
+        'the personal vote must wait on the consent revocation users-row lock');
+      await revocationClient.query('COMMIT');
+      const deniedVote=await voteAfterRevocation;
+      assert.equal(deniedVote.status,403,
+        'stale request must fail once consent revocation completes');
+      assert.equal(deniedVote.json.code,'POLITICAL_CONSENT_REQUIRED');
+      assert.equal((await pool.query('SELECT count(*)::integer n FROM voti_grazia WHERE userid=$1',[C])).rows[0].n,0);
+      assert.equal((await pool.query("SELECT count(*)::integer n FROM preference_change_cooldowns WHERE user_id=$1 AND scope='grazia:preferenza'",[C])).rows[0].n,0);
+    } finally {
+      await revocationClient.query('ROLLBACK').catch(()=>{});
+      revocationClient.release();
+      // Restore only the isolated fixture for the following synthetic cases.
+      await pool.query('UPDATE users SET political_opinions_consent=true WHERE id=$1',[C]);
+      await pool.query('DELETE FROM user_consents WHERE user_id=$1',[C]);
+    }
 
     // Real disposable PG17 race: two different approved votes from one
     // account must serialize. Exactly one commits; the loser receives the
