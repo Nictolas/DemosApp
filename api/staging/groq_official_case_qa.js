@@ -143,20 +143,18 @@ function diagnoseIlvaAmendmentExplanation(value) {
 // Original amendment: https://www.senato.it/show-doc?id=0&idoggetto=0&leg=19&part=doc_dc-allegatoa_aa-ddltit_ddldasda44c3dr1971-oggetto_a9ntadcdd&tipodoc=hotresaula
 // S.61 was examined alongside and absorbed by S.1971, not itself the voted amendment's parent.
 const CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE = [
-  'Senato, XIX legislatura, seduta 453 del 14/09/2026. Emendamento 9.0.1 di Giorgis e altri al ddl S.1971, discusso insieme a S.61.',
-  'Voto elettronico: presenti 151, votanti 140, 48 favorevoli, 90 contrari, 2 astenuti. Esito: RESPINTO.',
-  'La proposta riguardava quando applicare la nuova legge elettorale: in caso di approvazione nell’ultimo anno della legislatura,',
-  'la legislatura immediatamente successiva solo con voto qualificato dei due terzi in entrambe le Camere;',
-  'in mancanza di tale condizione, applicazione dalla seconda legislatura successiva.',
-  'Non confondere questa condizione con emendamento 9.0.2 (solo seconda legislatura) né 9.0.3 (18 mesi dalla Gazzetta).',
-  'Emendamento respinto: nessun numero di legge né data di pubblicazione o entrata in vigore si applica a questa proposta.'
-].join(' ');
+  'Senato, seduta 453 del 14/09/2026: emendamento 9.0.1 Giorgis al DDL S.1971, abbinato a S.61.',
+  'Voto: presenti 151, votanti 140, favorevoli 48, contrari 90, astenuti 2. RESPINTO.',
+  'Proposta legge elettorale: se approvata nell’ultimo anno della legislatura, applicarla dalla legislatura subito successiva soltanto con almeno due terzi in entrambe le Camere;',
+  'altrimenti dalla seconda legislatura successiva. Questa proposta respinta non è legge.',
+  'Non confondere con Em. 9.0.2 o 9.0.3; niente numero di legge o date di pubblicazione/efficacia per l’emendamento.'
+].join(' ');;
 
 function diagnoseConditionalElectoralAmendment(value) {
   const explanation = String(value || '');
   return {
     thresholdFound: /(?:due\s+terzi|2\s*\/\s*3)/i.test(explanation),
-    immediateLegislatureFound: /(?:immediatamente\s+successiv|prima\s+legislatura\s+successiv)/i.test(explanation),
+    immediateLegislatureFound: /(?:immediatamente\s+successiv|(?:prima|prossima)\s+legislatur|(?:la|alla|nella|dalla)\s+legislatur[ae]\s+successiv|legislatur[ae]\s+(?:subito|immediatamente)\s+successiv)/i.test(explanation),
     laterLegislatureFound: /seconda\s+legislatur/i.test(explanation),
     rejectedFound: /respint|bocciat|non\s+approvat/i.test(explanation),
     confusedWith18Months: /(?:18|diciotto)\s+mes/i.test(explanation)
@@ -404,7 +402,7 @@ async function runOfficialCaseQA({
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
           'Per esito, usa esclusivamente una delle quattro stringhe ammesse in base alla fonte, senza presumere la definitività. ' +
-          'Spiegazione: massimo due frasi; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta ha condizioni e due alternative temporali, spiega entrambe con la soglia indicata; non sostituirle con la condizione di altri emendamenti. Non limitarti a riportare il numero del provvedimento; ' +
+          'Spiegazione: massimo tre frasi, concise; indica l\'ambito materiale specifico dell\'atto con un termine distintivo presente nella fonte e l\'esito del voto del ramo indicato. Se si tratta di un emendamento, descrivi la condizione concreta, la soglia o il termine temporale proposto, se documentato, e l\'esito di quel singolo emendamento (non della legge). Se la proposta prevede condizioni e due alternative temporali, indica quando si applica la prima e quando la seconda, riportando eventuali soglie e senza sostituire la proposta con altri emendamenti. Non limitarti a riportare il numero del provvedimento; ' +
           'non chiamare il voto del 20/10 data di promulgazione e non inventare voti individuali.' }
       ],
       response_format: { type: 'json_object' },
