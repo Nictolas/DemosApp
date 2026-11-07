@@ -139,6 +139,27 @@ test('simultaneous checks coalesce; successful probes cache for 15 seconds',asyn
   assert.equal(called,2);
 });
 
+test('failed public source health checks have a bounded negative cache',async(t)=>{
+  let now=1000,checks=0;
+  const server=createCivicReadOnlyServer({
+    now:()=>now,
+    sourceProbe:async()=>{checks++;throw new Error('SENSITIVE_PROVIDER_FAILURE');}
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const url='http://127.0.0.1:'+server.address().port+'/health/civic-sources';
+  const first=await Promise.all(Array.from({length:10},()=>fetch(url)));
+  assert.equal(first.every(r=>r.status===503),true);
+  assert.equal(checks,1,'concurrent failures must be coalesced');
+  for(let i=0;i<4;i++) assert.equal((await fetch(url)).status,503);
+  assert.equal(checks,1,'repeated failed probes must not hammer the DB');
+  now+=15001;
+  const retry=await fetch(url);
+  assert.equal(retry.status,503);
+  assert.equal(checks,2,'probe must retry after the short backoff');
+  assert.equal(JSON.stringify(await retry.json()).includes('SENSITIVE_PROVIDER'),false);
+});
+
 test('staging-only startup rejects unauthorized environments before pool creation',async()=>{
   let connections=0;
   const make=()=>{connections++;throw new Error('SHOULD_NOT_OPEN');};
@@ -175,12 +196,14 @@ test('authorized standalone canary starts with bounded read-only TLS pool',async
   const port=probe.address().port;
   await new Promise(resolve=>probe.close(resolve));
   let options,ended=0,identityCalls=0,sourceCalls=0;
+  let now=1000,identityHealthy=true;
   const fakePool={connect:async()=>({query:async()=>({rows:[]}),
     release:()=>{}}),end:async()=>{ended++;}};
   const started=await startCivicReadOnlyCanary({...safe,PORT:String(port)},{
     createPool:o=>{options=o;return fakePool;},
-    verifyIdentity:async p=>{identityCalls++;assert.equal(p,fakePool);return true;},
+    verifyIdentity:async p=>{identityCalls++;assert.equal(p,fakePool);return identityHealthy;},
     sourceProbe:async p=>{sourceCalls++;assert.equal(p,fakePool);return true;},
+    now:()=>now,
   });
   t.after(async()=>{
     await new Promise(resolve=>started.server.close(resolve));
@@ -199,6 +222,22 @@ test('authorized standalone canary starts with bounded read-only TLS pool',async
   assert.equal(live.status,200);
   assert.equal((await fetch(root+'/health/ready')).status,503);
   assert.equal((await fetch(root+'/health/civic-sources')).status,200);
+  assert.equal(identityCalls,2);
+  assert.equal(sourceCalls,2);
+  // Guard/identity revocation fails closed at the next uncached check,
+  // without running schema queries or exposing a DB/provider exception.
+  identityHealthy=false;
+  now+=15001;
+  assert.equal((await fetch(root+'/health/civic-sources')).status,503);
+  assert.equal(identityCalls,3);
+  assert.equal(sourceCalls,2);
+  assert.equal((await fetch(root+'/health/civic-sources')).status,503);
+  assert.equal(identityCalls,3); // negative result is throttled, too
+  identityHealthy=true;
+  now+=15001;
+  assert.equal((await fetch(root+'/health/civic-sources')).status,200);
+  assert.equal(identityCalls,4);
+  assert.equal(sourceCalls,3);
   assert.equal((await fetch(root+'/api/eci')).status,404);
   assert.equal(ended,0);
 });
