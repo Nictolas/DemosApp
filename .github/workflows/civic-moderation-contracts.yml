@@ -35,6 +35,7 @@ on:
       - 'api/scripts/check-proposals-schema-readiness.js'
       - 'api/migrations/20261031_subject_proposals_review_gate.sql'
       - 'api/routes/subject-proposals.js'
+      - 'api/tests/subjectProposalSingleQueue.synthetic.test.js'
       - 'api/middleware/auth.js'
       - 'api/tests/d12AuthMiddlewarePrivacy.synthetic.test.js'
       - 'api/tests/d12GenericNoStoreAllResponses.synthetic.test.js'
@@ -120,6 +121,8 @@ jobs:
         run: node --test api/tests/d12AuthMiddlewarePrivacy.synthetic.test.js
       - name: DEMOS12 DSAR S4 synthetic deadline and delivery contract (no live data)
         run: node --test api/tests/demos12DsarS4.synthetic.test.js
+      - name: Generic nomination queue and hidden-title regressions (synthetic)
+        run: node --test api/tests/subjectProposalSingleQueue.synthetic.test.js
       - name: Synthetic Grazia moderation HTTP checks
         env:
           NODE_PATH: /tmp/demos-http-test/node_modules
