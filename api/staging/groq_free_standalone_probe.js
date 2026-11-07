@@ -43,7 +43,7 @@ function sanitizeCaseResult(result) {
   const count = Number(result?.verifiedFields);
   const latency = Number(result?.latencyMs);
   return {
-    caseId: ['T002', 'T003'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008',
+    caseId: ['T002', 'T003', 'T009'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008',
     status,
     success: status === 'OK' && result?.success === true,
     verifiedFields: Number.isInteger(count) ? Math.max(0, Math.min(10, count)) : 0,
@@ -87,7 +87,7 @@ function createHandler(getProbe, getCase = () => ({ status: 'NOT_RUN' })) {
 
 if (require.main === module) {
   let probe = { status: 'PENDING', success: false };
-  let officialCase = { caseId: ['T002', 'T003'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008', status: 'PENDING', success: false, verifiedFields: 0 };
+  let officialCase = { caseId: ['T002', 'T003', 'T009'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008', status: 'PENDING', success: false, verifiedFields: 0 };
   const server = http.createServer(createHandler(() => probe, () => officialCase));
   server.listen(Number(process.env.PORT) || 10000, '0.0.0.0', () => {
     console.log('Standalone Groq Free probe listening; no DB or push initialized');
@@ -97,7 +97,7 @@ if (require.main === module) {
   void runOneProbe().then(async result => {
     probe = result;
     officialCase = result.success ? await runOfficialCaseQA() : {
-      caseId: ['T002', 'T003'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008', status: 'NOT_RUN', success: false, verifiedFields: 0
+      caseId: ['T002', 'T003', 'T009'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008', status: 'NOT_RUN', success: false, verifiedFields: 0
     };
   });
 }
