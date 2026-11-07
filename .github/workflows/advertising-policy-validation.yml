@@ -337,9 +337,8 @@ jobs:
             adb shell svc wifi disable
             adb shell svc data disable
             adb logcat -c
-            apk=client/android/app/build/outputs/apk/debug/real-age-qa/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
-            test -s "$apk"
-            adb install "$apk"
+            test -s client/android/app/build/outputs/apk/debug/real-age-qa/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
+            adb install client/android/app/build/outputs/apk/debug/real-age-qa/DEMOS-REAL-AGE-QA-TEST-ONLY.apk
             adb shell am start -W -n community.demos.qaage/community.demos.MainActivity
             sleep 5
             test -n "$(adb shell pidof community.demos.qaage | tr -d '\r')"
@@ -348,10 +347,7 @@ jobs:
             sleep 4
             test -n "$(adb shell pidof community.demos.qaage | tr -d '\r')"
             adb logcat -d -s DemosAdsQA:I > /tmp/demos-qaage-anonymous-logcat.txt
-            if grep -Eq 'sdk-initialize-approved|app-open-test-request-started|app-open-test-loaded|form-complete' /tmp/demos-qaage-anonymous-logcat.txt; then
-              echo 'ERROR: advertising or consent started for an unauthenticated QA user'
-              exit 1
-            fi
+            if grep -Eq 'sdk-initialize-approved|app-open-test-request-started|app-open-test-loaded|form-complete' /tmp/demos-qaage-anonymous-logcat.txt; then echo 'ERROR: advertising or consent started for an unauthenticated QA user'; exit 1; fi
             echo 'Anonymous real-age QA: installed, cold start and foreground return OK, no ad/consent start log'
 
       - name: Confirm release runtime does not include AdMob or UMP
