@@ -51,7 +51,9 @@ async function notify(client, userId, message) {
 
 // Fetch only on click (no new personal GET while browsing a voting page).
 router.get('/mine', verifyToken, async (req, res) => {
-  const category = String(req.query.category || '');
+  const category = typeof req.query.category === 'string' ? req.query.category : '';
+  // Never coerce one-element arrays/objects (e.g. category[]=attivisti)
+  // into a valid category: malformed shapes must fail before private SQL.
   if (category === 'grazia') return res.status(409).json({ success: false, error: 'GRAZIA_CODA_UNICA' });
   if (!CATEGORIES.has(category)) return res.status(400).json({ success: false, error: 'Categoria non valida' });
   try {
@@ -74,7 +76,9 @@ router.get('/mine', verifyToken, async (req, res) => {
 // narrative or source links. Admin moderation still retains the original evidence.
 // Never impersonate an actual DEMOS account.
 router.get('/approved', async (req, res) => {
-  const category = String(req.query.category || '');
+  const category = typeof req.query.category === 'string' ? req.query.category : '';
+  // Never coerce one-element arrays/objects (e.g. category[]=attivisti)
+  // into a valid category: malformed shapes must fail before private SQL.
   if (category !== 'attivisti' && category !== 'organizzazioni') {
     return res.status(400).json({ success: false, error: 'Categoria non valida' });
   }
