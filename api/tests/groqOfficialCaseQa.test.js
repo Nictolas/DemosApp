@@ -54,6 +54,24 @@ test('T003 electoral-law official evidence rejects wrong vote totals and law eff
     { success: false, verifiedFields: 9, failedFields: ['esito'] });
 });
 
+test('T009 rejected electoral amendment is distinct from approval of the parent bill', () => {
+  const t009 = {
+    atto: 'Em. 9.0.3', data_voto: '14/09/2026',
+    favorevoli: 47, contrari: 89, astenuti: 2,
+    esito: 'RESPINTO', numero_legge: null,
+    data_pubblicazione: null, data_entrata_in_vigore: null,
+    spiegazione: 'L’emendamento proponeva 18 mesi di rinvio dell’entrata in vigore della legge elettorale, ma il Senato lo ha respinto.'
+  };
+  assert.deepEqual(assessOfficialAnswer(t009, 'T009'),
+    { success: true, verifiedFields: 10, failedFields: [] });
+  assert.deepEqual(assessOfficialAnswer({ ...t009, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T009'),
+    { success: false, verifiedFields: 9, failedFields: ['esito'] });
+  assert.deepEqual(assessOfficialAnswer({ ...t009, numero_legge: 180 }, 'T009'),
+    { success: false, verifiedFields: 9, failedFields: ['numero_legge'] });
+  assert.deepEqual(assessOfficialAnswer({ ...t009, spiegazione: 'Il Senato ha respinto un emendamento sulla legge elettorale.' }, 'T009'),
+    { success: false, verifiedFields: 9, failedFields: ['spiegazione'] });
+});
+
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
   let calls = 0;
   const r = await runOfficialCaseQA({
