@@ -161,9 +161,9 @@ test('a separately listed no-evidence item in the general explanation is rejecte
     effetti_negativi: ''
   };
   const invalid = [
-    'Il documento descrive una misura pubblica.\\nINFORMAZIONI_INSUFFICIENTI',
+    'Il documento descrive una misura pubblica.\nINFORMAZIONI_INSUFFICIENTI',
     'Il documento descrive una misura pubblica.; 2) Informazioni insufficienti.',
-    'Il documento descrive una misura pubblica.\\n- Informazioni-insufficienti!'
+    'Il documento descrive una misura pubblica.\n- Informazioni-insufficienti!'
   ];
   for (const explanation of invalid) {
     payload.spiegazione_generale = explanation;
