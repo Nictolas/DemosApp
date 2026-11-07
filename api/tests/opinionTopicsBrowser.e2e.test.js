@@ -76,6 +76,9 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     });
     await page.goto(origin + '/opinioni', { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Per argomento' }).waitFor({ timeout: 25000 });
+    assert.equal(await page.locator('[aria-label="Categorie tematiche"] button').count(), 11,
+      'The 11 topic choices must be the default entry view');
+    await page.getByRole('button', { name: 'Per territorio' }).click();
     assert.equal(await page.locator('.opinioni-button').count(), 4, 'Four geographic cards must remain');
     await page.getByRole('button', { name: 'Per argomento' }).click();
     assert.equal(await page.locator('[aria-label="Categorie tematiche"] button').count(), 11);
