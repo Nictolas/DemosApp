@@ -265,6 +265,18 @@ test('T024 coordination De Priamo has distinct tally and formal references, not 
     spiegazione: 'Il Senato ha approvato il coordinamento dei riferimenti all’articolo 1, ma non ha approvato definitivamente la legge.' }, 'T024');
   assert.equal(negatedFinal.success, true);
   assert.equal(negatedFinal.explanationDiagnostics.falseFinalityFound, false);
+  // A coordination measure explicitly described as NOT an enacted law must not
+  // be misclassified as an affirmative promulgation claim.
+  const noPromulgation = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Il Senato ha approvato il coordinamento dei rinvii agli articoli 1, 2 e 8: non è legge promulgata.' }, 'T024');
+  assert.equal(noPromulgation.success, true);
+  assert.equal(noPromulgation.explanationDiagnostics.falseFinalityFound, false);
+  const noPromulgationArticle = assessOfficialAnswer({ ...correct,
+    spiegazione: 'È stato approvato il coordinamento dei riferimenti all’articolo 1, ma non è una legge promulgata.' }, 'T024');
+  assert.equal(noPromulgationArticle.success, true);
+  const negationThenFalseClaim = assessOfficialAnswer({ ...correct,
+    spiegazione: 'Approvato coordinamento dei rinvii all’articolo 1; non è legge promulgata, ma la legge è già in vigore.' }, 'T024');
+  assert.deepEqual(negationThenFalseClaim.failedFields, ['spiegazione']);
   const mixed = assessOfficialAnswer({ ...correct,
     spiegazione: 'Il Senato ha approvato il coordinamento dei rinvii all’articolo 1; non ha approvato definitivamente il DDL, ma la legge è già in vigore.' }, 'T024');
   assert.deepEqual(mixed.failedFields, ['spiegazione']);
