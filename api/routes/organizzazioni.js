@@ -31,7 +31,10 @@ router.get('/', async (req, res) => {
     }
     const { search, regione, tipologia, exclude_user_id } = req.query;
     const membersCursor = decodeRegisteredCursor(req.query.members_cursor);
-    if (membersCursor === false) return res.status(400).json({success:false,error:'Cursore non valido'});
+    if (membersCursor === false) {
+      res.set('Cache-Control','no-store');
+      return res.status(400).json({success:false,error:'Cursore non valido'});
+    }
     const membersPaged = isPagedRegisteredRequest(req.query);
     
     // Disabilita il caching per questo endpoint
