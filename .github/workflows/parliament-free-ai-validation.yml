@@ -24,6 +24,7 @@ on:
       - 'api/tests/parliamentLeggeCompletionSafety.test.js'
       - 'api/tests/parliamentRepresentativeExplanationSafety.test.js'
       - 'api/tests/parliamentAiRouteLogPrivacy.test.js'
+      - 'api/tests/parliamentCachedEvidenceRoute.test.js'
       - 'api/tests/parliamentFinalVotePersistenceSafety.test.js'
       - 'api/tests/parliamentOpenpolisSyncLifecycle.test.js'
       - 'api/tests/parliamentAiSingleflight.test.js'
@@ -58,4 +59,4 @@ jobs:
           node --check api/sync-voti-openpolis.js
           node --check api/routes/voti-parlamento-europeo.js
       - name: Free-only provider regression
-        run: node --test api/tests/parliamentFreeAiPolicy.test.js api/tests/parliamentGroundedAnalysis.test.js api/tests/parliamentFreeGroqBudget.test.js api/tests/groqFreeSmokeService.test.js api/tests/parliamentEuropeanAiAuthorization.test.js api/tests/parliamentLeggeCompletionSafety.test.js api/tests/parliamentRepresentativeExplanationSafety.test.js api/tests/parliamentAiRouteLogPrivacy.test.js api/tests/parliamentFinalVotePersistenceSafety.test.js api/tests/parliamentOpenpolisSyncLifecycle.test.js api/tests/parliamentAiSingleflight.test.js api/tests/parliamentVoteTitleSingleflight.test.js api/tests/parliamentActIdentifier.test.js
+        run: node --test api/tests/parliamentFreeAiPolicy.test.js api/tests/parliamentGroundedAnalysis.test.js api/tests/parliamentFreeGroqBudget.test.js api/tests/groqFreeSmokeService.test.js api/tests/parliamentEuropeanAiAuthorization.test.js api/tests/parliamentLeggeCompletionSafety.test.js api/tests/parliamentRepresentativeExplanationSafety.test.js api/tests/parliamentAiRouteLogPrivacy.test.js api/tests/parliamentCachedEvidenceRoute.test.js api/tests/parliamentFinalVotePersistenceSafety.test.js api/tests/parliamentOpenpolisSyncLifecycle.test.js api/tests/parliamentAiSingleflight.test.js api/tests/parliamentVoteTitleSingleflight.test.js api/tests/parliamentActIdentifier.test.js
