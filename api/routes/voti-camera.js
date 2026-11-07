@@ -556,10 +556,10 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
   
   try {
     const votazioneId = parseInt(req.params.votazione_id);
-    console.log(`[DEBUG] Step 2: Votazione richiesta: ID=${votazioneId}`);
+    console.log('[DEBUG] Step 2: Identificativo votazione ricevuto');
     
     if (isNaN(votazioneId)) {
-      console.error(`[DEBUG] ID votazione non valido: ${req.params.votazione_id}`);
+      console.warn('Identificativo votazione non valido');
       return res.status(400).json({
         success: false,
         error: 'ID votazione non valido',
@@ -579,7 +579,7 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
     console.log(`[DEBUG] Risultati query: ${votazioneResult.rows.length} righe trovate`);
 
     if (votazioneResult.rows.length === 0) {
-      console.error(`[DEBUG] Votazione non trovata: ID=${votazioneId}`);
+      console.warn('Votazione richiesta non trovata');
       return res.status(404).json({
         success: false,
         error: 'Votazione non trovata',
@@ -599,7 +599,7 @@ router.post('/votazione/:votazione_id/spiegazione', verifyToken, requireAdmin, a
     console.log('[DEBUG] Votazione finale caricata per generazione spiegazione');
     
     if (!row.titolo_votazione || row.titolo_votazione.trim() === '') {
-      console.error(`[DEBUG] Votazione senza titolo: ID=${votazioneId}`);
+      console.warn('Votazione richiesta senza titolo');
       return res.status(400).json({
         success: false,
         error: 'Votazione non valida',
@@ -824,7 +824,7 @@ router.post('/:politico/spiegazione', verifyToken, requireAdmin, async (req, res
     }
 
     if (!spiegazione) {
-      console.error(`[DEBUG] Spiegazione non generata (null o vuota) per votazione_id=${votazione_id}`);
+      console.warn('Spiegazione per rappresentante non generata: nessun testo disponibile');
       const elapsed = Date.now() - startTime;
       console.log(`[DEBUG] ========== FINE GENERAZIONE SPIEGAZIONE (FALLITA) ========== Tempo: ${elapsed}ms`);
       return res.status(503).json({
@@ -885,8 +885,9 @@ router.post('/genera-spiegazioni', verifyToken, requireAdmin, async (req, res) =
       if (result.limiteRaggiunto) {
         console.warn(`⚠️ Limite giornaliero raggiunto durante la generazione`);
       }
-    }).catch(error => {
-      console.error('❌ Errore nella generazione spiegazioni:', error);
+    }).catch(() => {
+      // Never log raw provider exceptions, payloads, or identifiers.
+      console.error('Generazione batch spiegazioni parlamentari non riuscita');
     });
 
     return res.json({
@@ -895,12 +896,12 @@ router.post('/genera-spiegazioni', verifyToken, requireAdmin, async (req, res) =
       limite: limiteCheck
     });
 
-  } catch (error) {
-    console.error('❌ Errore nell\'avvio generazione spiegazioni:', error);
+  } catch (_error) {
+    console.error('Avvio batch spiegazioni parlamentari non riuscito');
     return res.status(500).json({
       success: false,
       error: 'Errore nell\'avvio della generazione',
-      message: error.message
+      message: 'Generazione temporaneamente non disponibile. I dati ufficiali restano consultabili.'
     });
   }
 });
