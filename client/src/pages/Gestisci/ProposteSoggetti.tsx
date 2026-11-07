@@ -144,7 +144,7 @@ export default function ProposteSoggetti() {
       setUndeliveredNotification((withdrawal.withdrawals || []).length > 0 || (proposals.proposals || []).length > 0);
     } catch (_) {
       // Do not display a stale "all sent" confirmation if the audit is unavailable.
-      setError("Impossibile verificare le notifiche dei ritiri.");
+      setError("Impossibile verificare gli avvisi delle proposte e dei ritiri.");
     } finally {
       setLoadingUndelivered(false);
     }
@@ -295,7 +295,7 @@ export default function ProposteSoggetti() {
             Avvisi da verificare
           </Button>
         </div>
-        <div className="app-page-scroll min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-6" role="region" aria-label={showUndelivered ? "Notifiche di ritiro da verificare" : showApproved ? "Pubblicazioni da gestire" : "Coda proposte"} tabIndex={0}>
+        <div className="app-page-scroll min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-6" role="region" aria-label={showUndelivered ? "Avvisi delle proposte e dei ritiri da verificare" : showApproved ? "Pubblicazioni da gestire" : "Coda proposte"} tabIndex={0}>
           {!showApproved && !showUndelivered && loading && <p className="text-sm">Aggiornamento...</p>}
           {showApproved && loadingApproved && <p className="text-sm">Aggiornamento pubblicazioni...</p>}
           {showUndelivered && loadingUndelivered && <p className="text-sm">Verifica notifiche in corso...</p>}
@@ -329,7 +329,7 @@ export default function ProposteSoggetti() {
             </Button>
           )}
           {showUndelivered && !loadingUndelivered && !error && undelivered.length === 0 && unconfirmedProposals.length === 0 && (
-            <p className="text-sm text-slate-600">Nessuna notifica di ritiro da verificare.</p>
+            <p className="text-sm text-slate-600">Nessun avviso di proposta o ritiro da verificare.</p>
           )}
           {showUndelivered && !loadingUndelivered && !error && (
             <p className="text-sm text-slate-600">
