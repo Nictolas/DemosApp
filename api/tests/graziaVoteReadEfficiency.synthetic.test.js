@@ -7,7 +7,7 @@ const vm=require('node:vm');
 
 const source=fs.readFileSync(path.join(__dirname,'../routes/grazia.js'),'utf8');
 
-function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=false}={}) {
+function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=false,accountActive=true}={}) {
   let columns=initialColumns;
   const queries=[];
   const cooldown=[];
@@ -30,14 +30,18 @@ function makeHarness({initialColumns=['userid','timestamp'],failFirstMetadata=fa
         const expectedDate=columns.includes('timestamp')?'timestamp':
           columns.includes('data_voto')?'data_voto':'created_at';
         if(!sql.includes('WHERE '+expected+' = $1') ||
-           !sql.includes('MAX('+expectedDate+') OVER ()')){
+           !sql.includes('MAX(vote.'+expectedDate+') OVER ()')){
           throw Object.assign(new Error('SYNTHETIC_UNDEFINED_COLUMN'),{code:'42703'});
         }
+        assert.match(sql,/FROM users WHERE id::text = \$2 AND status = 'a'/,
+          'personal choices must be gated by active account state in the same query');
+        assert.equal(params[1],String(params[0]));
         const id=params[0];
-        if(id==='no-votes')return {rows:[]};
+        if(!accountActive)return {rows:[{active:false,nome:null,last_changed_at:null}]};
+        if(id==='no-votes')return {rows:[{active:true,nome:null,last_changed_at:null}]};
         return {rows:[
-          {nome:'Risposta '+id+' B',last_changed_at:'2026-11-05T11:59:01.000Z'},
-          {nome:'Risposta '+id+' A',last_changed_at:'2026-11-05T11:59:01.000Z'},
+          {active:true,nome:'Risposta '+id+' B',last_changed_at:'2026-11-05T11:59:01.000Z'},
+          {active:true,nome:'Risposta '+id+' A',last_changed_at:'2026-11-05T11:59:01.000Z'},
         ]};
       }
       throw new Error('Unexpected SQL: '+sql);
@@ -167,6 +171,17 @@ test('empty votes pass null fallback, without a separate MAX query',async()=>{
   assert.deepEqual(Array.from(response.mieiVoti),[]);
   assert.equal(x.cooldown[0].fallbackChangedAt,null);
   assert.deepEqual(x.counts(),{metadata:1,votes:1,total:3});
+});
+
+test('inactive account cannot receive prior votes or cooldown after valid signed access token',async()=>{
+  const x=makeHarness({accountActive:false});
+  const response=await x.get('a');
+  assert.equal(response.success,true,'public ranking remains readable');
+  assert.deepEqual(Array.from(response.mieiVoti),[]);
+  assert.equal(response.blocco.isBlocked,false);
+  assert.equal(response.blocco.unlockDate,null);
+  assert.deepEqual(x.counts(),{metadata:1,votes:1,total:3},'no extra SQL request');
+  assert.equal(x.cooldown.length,0,'inactive account must not read private cooldown');
 });
 
 test('column drift drops cached schema and re-probes after failed personal query',async()=>{
