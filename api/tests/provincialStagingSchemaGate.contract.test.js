@@ -32,6 +32,8 @@ test('provincial staging preflight is read-only, metadata-only, and scoped to kn
   assert.match(sql, /BLOCKED_NO_SELECT_GRANT/);
   assert.match(sql, /BLOCKED_MISSING_RELATION/);
   assert.match(sql, /METADATA_PASS_NOT_E2E_GO/);
-  assert.doesNotMatch(sql, /\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|COPY|DO|CALL|CREATE)\b/i);
+  // Privilege names appear as SQL string literals; they are not statements.
+  const withoutStringLiterals = sql.replace(/'(?:''|[^'])*'/g, "''");
+  assert.doesNotMatch(withoutStringLiterals, /\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|COPY|DO|CALL|CREATE)\b/i);
   assert.doesNotMatch(sql, /\b(?:FROM|JOIN)\s+(?:public\.)?(?:users|user_consents|political_selections|political_candidacies|political_mandates)\b/i);
 });
