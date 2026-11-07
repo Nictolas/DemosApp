@@ -749,7 +749,6 @@ router.put('/:userId/political-selection', (_req, res, next) => {
 
 // GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
 router.get('/:userId/opinioni', (_req, res, next) => {
-  // Protect personal political answers and provenance even for denied requests.
   res.set('Cache-Control', 'private, no-store, max-age=0');
   next();
 }, verifyToken, userDataAuditMiddleware, async (req, res) => {
@@ -789,8 +788,8 @@ router.get('/:userId/opinioni', (_req, res, next) => {
     // and personal answer retrieval below remain intact.
     const opinioni = sortOpinionsByText(grado ? getOpinionsForGrade(grado) : getAllOpinions());
 
-    // The same current-consent snapshot as PR #557 guards residual political
-    // answers and source JSONB, rather than trusting a prior consent precheck.
+    // Load answers and source JSONB only with the CURRENT subject consent.
+    // The predicate is inside the same SELECT to avoid a stale precheck.
     const userAnswersResult = await pool.query(
       `SELECT r.*
        FROM opinioni_risposte r
