@@ -25,7 +25,7 @@ function cleanProposal(body) {
   // Reject hidden Unicode controls in proposed public labels to prevent
   // an apparently identical subject from having a misleading stored title.
   // Keep ordinary accented and RTL script letters intact.
-  const unsafeTitleControls = /[\u0000-\u001f\u007f-\u009f\u061c\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
+  const unsafeTitleControls = /[\u0000-\u001f\u007f-\u009f\u00ad\u034f\u061c\u180e\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
   if (!CATEGORIES.has(category) || title.length < 3 || title.length > 150 ||
       unsafeTitleControls.test(title) || details.length > 1000 || sourceUrl.length > 2048) {
     return { error: 'Campi della proposta non validi' };
