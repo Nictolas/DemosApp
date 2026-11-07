@@ -9,14 +9,18 @@ function estraiNumeroLegge(titolo) {
   if (typeof titolo !== 'string') return null;
 
   const patterns = [
-    /\b(?:disegno\s+di\s+legge|proposta\s+di\s+legge|ddl|atto\s+senato|atto\s+camera)\s*(?:n(?:umero)?\.?\s*)?(\d{1,5})\b/i,
-    /(?:^|[\s(])(?:S|C)\.\s*(\d{1,5})\b/i
+    /\b(?:disegno\s+di\s+legge|proposta\s+di\s+legge|ddl|atto\s+senato|atto\s+camera)\s*(?:n(?:umero)?\.?\s*)?(\d{1,5})\b/gi,
+    /(?:^|[\s(])(?:S|C)\.\s*(\d{1,5})\b/gi
   ];
+  // Titles can mention multiple unrelated numbered acts, for example
+  // "DDL 123 e DDL 456". Picking the first match would associate the
+  // parliamentary explanation with an arbitrary official document.
+  // Multiple references to the *same* number remain unambiguous.
+  const ids = new Set();
   for (const pattern of patterns) {
-    const match = titolo.match(pattern);
-    if (match) return match[1];
+    for (const match of titolo.matchAll(pattern)) ids.add(match[1]);
   }
-  return null;
+  return ids.size === 1 ? [...ids][0] : null;
 }
 
 function canSearchItalianBills(numeroLegge, camera) {
