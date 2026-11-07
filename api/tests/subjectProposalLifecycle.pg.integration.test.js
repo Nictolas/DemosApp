@@ -508,6 +508,24 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const inactiveId=freshOrg.body.proposal.id;
     await pool.query("UPDATE users SET status='x' WHERE id=$1",[B]);
     try {
+      // A synthetic JWT remains valid, but a suspended account must not
+      // create a new proposal while its account is inactive in PostgreSQL.
+      const titleSuspended='Attivista sintetica inviata da account sospeso';
+      const noticesBefore=Number((await pool.query(
+        'SELECT count(*)::integer AS n FROM notifiche_demos')).rows[0].n);
+      const denied=await req('/api/subject-proposals','b','POST',
+        proposal('attivisti',titleSuspended));
+      assert.equal(denied.status,401);
+      assert.match(denied.cacheControl||'',/private,\\s*no-store/);
+      const created=await pool.query(
+        'SELECT count(*)::integer AS n FROM subject_proposals WHERE title=$1',
+        [titleSuspended]);
+      assert.equal(created.rows[0].n,0,
+        'suspended account must not create any third-party proposal');
+      const noticesAfter=Number((await pool.query(
+        'SELECT count(*)::integer AS n FROM notifiche_demos')).rows[0].n);
+      assert.equal(noticesAfter,noticesBefore,
+        'denied proposal must not generate an Admin notification');
       const inactiveReview=await req('/api/subject-proposals/admin/'+inactiveId+
         '/decision','admin','POST',{decision:'reject'});
       assert.equal(inactiveReview.status,200);
