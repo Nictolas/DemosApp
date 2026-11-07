@@ -170,7 +170,7 @@ function diagnoseRinvioCpiExplanation(value) {
     postponementFound: /rinvi|rinvio|rinviat|altro\s+calendari/i.test(s),
     topicFound: /corte\s+penal|criminal[ie]\s+internazional/i.test(s),
     approvedFound: /approvat|accolt|via\s+libera|voto\s+favorevole/i.test(s),
-    noNameRecordFound: /senza\s+(?:registrazion|indica(?:zion)?|elenco)\s+(?:dei\s+)?nom|voto\s+non\s+nominal|nomi\s+non\s+registrat/i.test(s),
+    noNameRecordFound: /senza\s+(?:registrazion\w*|indicazion\w*|elenco)\s+(?:dei\s+)?nom|voto\s+non\s+nominal|nomi\s+non\s+registrat/i.test(s),
     falselyMotionApproved: /(?:mozion[ei]).{0,35}(?:approvat[ae]|accolt[ae])|(?:approvat[ae]).{0,35}(?:mozion[ei])/i.test(s),
     inventedCountsFound: /\b(?:favorevol[ie]|contrar[ie]|astenut[ie])\s*[:=]?\s*\d+/i.test(s)
   };
