@@ -22,7 +22,7 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
     await db.query('SET search_path TO '+schema+',public');
     await db.query([
       'CREATE TABLE users(id uuid primary key,nome text,cognome text,ruolo text,',
-      'account_type text,is_activist boolean,avatar_config text,regione_residenza text,',
+      'account_type text,is_activist boolean,status text NOT NULL DEFAULT \'a\',avatar_config text,regione_residenza text,',
       'facebook_url text,twitter_url text,instagram_url text,linkedin_url text,',
       'telegram_url text,website_url text,twitch_url text,youtube_url text,',
       'tipologie_attivismo jsonb,created_at timestamptz,attivisti uuid,organizzazioni uuid)'
@@ -37,6 +37,19 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
       "n<=105,'{}','TO','[{\"tipo\":\"ambiente\",\"emoji\":\"A\",\"nome\":\"Ambiente\",\"private_email\":\"synthetic-secret@example.invalid\",\"review_metadata\":{\"token\":\"private\"}}]'::jsonb,",
       "'2026-11-05 13:14:15.123456+00'::timestamptz FROM generate_series(1,210) n"
     ].join(' '));
+    // Two synthetic suspended profiles rank ahead of active members by recency.
+    // Neither legacy full-list clients nor new pages may disclose these members.
+    await db.query(`
+      INSERT INTO users(id,nome,cognome,ruolo,account_type,is_activist,status,
+                        avatar_config,regione_residenza,tipologie_attivismo,created_at)
+      VALUES
+        ('00000000-0000-4000-8000-000000000211','Suspended activist','Fixture',
+         'A','PERSON',TRUE,'x','{}','TO','[{"tipo":"ambiente"}]'::jsonb,
+         '2026-11-06 13:14:15+00'::timestamptz),
+        ('00000000-0000-4000-8000-000000000212','Suspended organization','Fixture',
+         'O','ORGANIZATION',FALSE,'x','{}','TO','[{"tipo":"ambiente"}]'::jsonb,
+         '2026-11-06 13:14:15+00'::timestamptz)
+    `);
     const pool={query:(sql,args)=>{
       count++;
       if(!String(sql).trim().toUpperCase().startsWith('SELECT'))
@@ -87,6 +100,8 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
       assert.doesNotMatch(JSON.stringify(legacyJson.data),/synthetic-secret|private_email|review_metadata/);
 
       assert.equal(new Set(legacyJson.data.map(row=>row.id)).size,105);
+      assert.equal(legacyJson.data.some(row=>[id(211),id(212)].includes(row.id)),false,
+        'inactive registered accounts must not remain publicly discoverable');
       const firstResponse=await fetch(origin+url+'?members_paged=1');
       assert.equal(firstResponse.status,200,url);
       const a=await firstResponse.json();
@@ -97,6 +112,8 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
 
       assert.equal(typeof a.members_next_cursor,'string');
       assert.equal(a.data[0].id,id(start));
+      assert.equal(a.data.some(row=>[id(211),id(212)].includes(row.id)),false,
+        'inactive member must not appear on paged public first page');
       assert.equal('cursor_epoch' in a.data[0],false);
       const next=await fetch(origin+url+'?members_paged=1&members_cursor='+encodeURIComponent(a.members_next_cursor));
       assert.equal(next.status,200,url);
@@ -107,6 +124,8 @@ test('PG17 registered directories paginate 105 equal-timestamp profiles',async(t
       assert.equal(b.data.at(-1).id,id(end));
       assert.equal(b.members_next_cursor,null);
       assert.equal(new Set([...a.data,...b.data].map(x=>x.id)).size,105);
+      assert.equal([...a.data,...b.data].some(row=>[id(211),id(212)].includes(row.id)),false,
+        'inactive members must never appear on either public page');
       const before=count;
       assert.equal((await fetch(origin+url+'?members_cursor=%2A')).status,400);
       assert.equal(count,before,'bad cursor rejected before SQL');
