@@ -28,18 +28,18 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
   const ADMIN='33333333-3333-4333-8333-333333333333';
   const C='44444444-4444-4444-8444-444444444444';
   const D='55555555-5555-4555-8555-555555555555';
-  // The public GET decodes an optional JWT. The isolated PG17 CI job
-  // intentionally does not install jsonwebtoken, so intercept only that
-  // require from this router with a synthetic verifier (never real secrets).
+  // The public GET now calls the shared access-token verifier. This
+  // disposable PG17 test has no real JWT secrets: intercept only the router's
+  // require and return synthetic access subjects, never signing credentials.
   const Module=require('node:module');
   const originalModuleLoad=Module._load;
   const graziaFilename=require.resolve('../routes/grazia');
   Module._load=function(request,parent,isMain){
-    if(request==='jsonwebtoken' && parent?.filename===graziaFilename){
-      return {verify:token=>{
+    if(request==='../utils/jwt' && parent?.filename===graziaFilename){
+      return {verifyAccessToken:token=>{
         if(token==='a')return {userId:A};
         if(token==='b')return {userId:B};
-        throw Error('SYNTHETIC_INVALID_TOKEN');
+        throw Error('SYNTHETIC_NON_ACCESS_OR_INVALID_TOKEN');
       }};
     }
     return originalModuleLoad.call(this,request,parent,isMain);
