@@ -144,13 +144,13 @@ test('Grazia rejects non-rendering name controls before touching PostgreSQL',asy
   // These inputs can spoof an otherwise ordinary visible name in moderation.
   // Legitimate accents and multiline whitespace are tested separately.
   for(const nome of [
-    'Persona\\u202e nome',
-    'Persona\\u2066 nome',
-    'Persona\\u200b nome',
-    'Persona\\u061c nome',
-    'Persona\\u0000 nome',
-    'Persona\\u007f nome'
-  ].map(s=>s.replace(/\\\\u([0-9a-f]{4})/gi,(_,hex)=>String.fromCharCode(parseInt(hex,16)))) {
+    'Persona\u202e nome',
+    'Persona\u2066 nome',
+    'Persona\u200b nome',
+    'Persona\u061c nome',
+    'Persona\u0000 nome',
+    'Persona\u007f nome'
+  ]) {
     const response=await request('/api/grazia','a','POST',{
       nome,urlProva:'https://example.org/fonte-sintetica'
     });
