@@ -111,14 +111,45 @@ test('in-flight SDK ad requests are invalidated when consent changes or Activity
   const privacyStart = manager.indexOf('void showPrivacyOptions(');
   const privacyEnd = manager.indexOf('void onDestroy()', privacyStart);
   const privacyMethod = manager.slice(privacyStart, privacyEnd);
-  assert.match(privacyMethod, /privacyFormOpen = true;\s*consentVerifiedForAdultSession = false;\s*final long optionsGeneration = \+\+consentGeneration/);
+  assert.match(privacyMethod, /privacyFormOpen = true;\s*consentVerifiedForAdultSession = false;\s*final long optionsGeneration = invalidateConsentGeneration\(\)/);
   const destroyMethod = manager.slice(manager.indexOf('void onDestroy()'), manager.indexOf('private int readLaunchCount()'));
-  assert.match(destroyMethod, /consentGeneration\+\+/);
+  assert.match(destroyMethod, /invalidateConsentGeneration\(\)/);
   const loadMethod = manager.slice(manager.indexOf('private void loadOnlyTestAppOpenAd()'), manager.indexOf('private void maybeShowOnlyWhileReallyLoading()'));
   assert.match(loadMethod, /final long requestConsentGeneration = consentGeneration/);
   assert.match(loadMethod, /requestConsentGeneration != consentGeneration/);
   assert.match(loadMethod, /\|\| privacyFormOpen\s*\|\| activity\.isDestroyed\(\)/);
   assert.match(loadMethod, /ad\.destroy\(\)/);
+});
+
+test('queued GMA initialization is invalidated across logout and consent changes', () => {
+  const invalidate = manager.slice(
+    manager.indexOf('private long invalidateConsentGeneration()'),
+    manager.indexOf('DemosAppOpenAdsManager(MainActivity')
+  );
+  assert.match(manager, /private final AtomicLong workerConsentEpoch = new AtomicLong\(\)/);
+  assert.match(invalidate, /workerConsentEpoch\.incrementAndGet\(\)/);
+  assert.match(invalidate, /return \+\+consentGeneration/);
+  assert.match(manager, /adultEligible = confirmedAdult;\s*invalidateConsentGeneration\(\)/);
+  assert.match(manager, /final long optionsGeneration = invalidateConsentGeneration\(\)/);
+  assert.match(manager, /void onDestroy\(\) \{[\s\S]*?invalidateConsentGeneration\(\)/);
+
+  const initialize = manager.slice(
+    manager.indexOf('private void initializeSdk()'),
+    manager.indexOf('// A single Google TEST ad may be preloaded')
+  );
+  assert.match(initialize, /if \(initialized \|\| initializing \|\|/);
+  assert.match(initialize, /final long authorizedEpoch = workerConsentEpoch\.get\(\)/);
+  assert.ok(
+    initialize.indexOf('authorizedEpoch != workerConsentEpoch.get()') <
+      initialize.indexOf('MobileAds.initialize('),
+    'worker authorization must be checked BEFORE MobileAds initializes',
+  );
+  assert.match(initialize, /if \(authorizedEpoch != workerConsentEpoch\.get\(\)\) \{/);
+  assert.match(initialize, /initializing = false;\s*\/\/ Consent may have been re-granted/);
+  assert.match(initialize, /initializeSdk\(\);\s*\}\);\s*return;/);
+  assert.match(initialize, /catch \(RuntimeException initializationFailure\)/);
+  assert.doesNotMatch(initialize, /initializationFailure\.getMessage\(\)/);
+  assert.match(initialize, /loadOnlyTestAppOpenAd\(\)/);
 });
 
 test('debug-only EEA UMP test mode cannot leak a production ad ID or enable release SDK', () => {
