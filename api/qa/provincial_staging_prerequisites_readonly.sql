@@ -85,9 +85,10 @@ inventory AS (
              AND i.indnkeyatts = 3
              AND (
                SELECT array_agg(a.attname ORDER BY a.attname)
-               FROM unnest(i.indkey) AS k(attnum)
+               FROM unnest(i.indkey) WITH ORDINALITY AS k(attnum, key_position)
                JOIN pg_catalog.pg_attribute a
                  ON a.attrelid = i.indrelid AND a.attnum = k.attnum
+               WHERE k.key_position <= i.indnkeyatts
              ) = ARRAY['political_office_id', 'selection_kind', 'user_id']::name[]
          ) ELSE NULL END AS canonical_selection_unique_key_ready,
          COALESCE(c.relrowsecurity, false) AS rls_enabled,
