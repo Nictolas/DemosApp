@@ -160,7 +160,8 @@ router.get('/tipologia/:tipo', async (req, res) => {
         website_url,
         twitch_url,
         youtube_url,
-        tipologie_attivismo
+        tipologie_attivismo,
+        0::int AS supporters_count
       FROM users u
       WHERE __ACCOUNT_FILTER__
       AND tipologie_attivismo @> $1
