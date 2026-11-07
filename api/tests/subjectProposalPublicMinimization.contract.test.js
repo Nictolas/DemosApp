@@ -372,3 +372,50 @@ test('public directories display controlled errors and never expose API diagnost
     assert.doesNotMatch(source,/console\.(?:error|warn|log)\([^\n]*,\s*error\s*\)/);
   }
 });
+
+
+test('public avatar visual projection discards private or URL-bearing values', () => {
+  const { projectPublicAvatarConfig, projectPublicDirectoryMembers } =
+    require('../services/publicDirectoryMemberProjection');
+  const valid = {
+    skinColor:'#FDBCB4',hairColor:'#8B4513',hairStyle:'short',
+    mustacheStyle:'none',mustacheColor:'#2C1810',beardStyle:'none',
+    beardColor:'#2C1810',noseStyle:'normal',suitColor:'#2C3E50',
+    tieColor:'#E74C3C',glassesStyle:'none',glassesColor:'#333333'
+  };
+  assert.deepEqual(JSON.parse(projectPublicAvatarConfig(JSON.stringify(valid))),valid,
+    'the current twelve displayed avatar properties must remain compatible');
+  const polluted={
+    ...valid,
+    skinColor:'url(https://example.invalid/private)',
+    hairColor:'#ABCDE', // not a valid CSS hexadecimal colour
+    noseStyle:'private contact details',
+    glassesStyle:'about:blank',
+    privateNotes:'synthetic private notes',
+    email:'synthetic@example.invalid'
+  };
+  const output=JSON.parse(projectPublicAvatarConfig(JSON.stringify(polluted)));
+  for(const key of ['skinColor','hairColor','noseStyle','glassesStyle','privateNotes','email']){
+    assert.equal(Object.hasOwn(output,key),false,'must not disclose invalid/private '+key);
+  }
+  assert.equal(output.hairStyle,'short');
+  assert.equal(output.suitColor,'#2C3E50');
+  const rows=projectPublicDirectoryMembers([{
+    id:'public-fixture',nome:'Soggetto',cognome:'Sintetico',ruolo:'A',
+    avatar_config:JSON.stringify(JSON.stringify(polluted)),
+    email:'synthetic-private@example.invalid',birthDate:'1970-01-01'
+  }]);
+  assert.equal(rows.length,1);
+  assert.equal(Object.hasOwn(rows[0],'email'),false);
+  assert.equal(Object.hasOwn(rows[0],'birthDate'),false);
+  assert.equal(JSON.stringify(rows).includes('synthetic-private'),false);
+  assert.equal(JSON.stringify(rows).includes('private contact'),false);
+  assert.equal(JSON.stringify(rows).includes('example.invalid/private'),false);
+  assert.equal(projectPublicAvatarConfig(JSON.stringify({
+    skinColor:'not a valid color',hairStyle:'unrecognized-private-string'
+  })),null,'no accepted visual fields should trigger the client default avatar');
+  for(const color of ['#abc','#abcd','#abcdef','#abcdef12']){
+    assert.equal(JSON.parse(projectPublicAvatarConfig(JSON.stringify({skinColor:color}))).skinColor,
+      color,'valid CSS hex visual colour should survive: '+color);
+  }
+});
