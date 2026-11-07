@@ -78,6 +78,15 @@ test('health endpoints never accept generation requests, only return minimal sta
   assert.equal(serve('GET', '/health/groq').headers['cache-control'], 'no-store');
 });
 
+test('T009 diagnostics exclude model response text, expose only two flags', () => {
+  const result = sanitizeCaseResult({
+    caseId: 'T009', status: 'SOURCE_MISMATCH', success: false, verifiedFields: 9,
+    failedFields: ['spiegazione'], explanationDiagnostics: { timingFound: true, rejectedFound: false, text: 'PRIVATE_OUTPUT' }
+  });
+  assert.deepEqual(result.explanationDiagnostics, { timingFound: true, rejectedFound: false });
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE_OUTPUT|text/);
+});
+
 test('standalone smoke has no database, Firebase, cron or secret output handlers', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'staging', 'groq_free_standalone_probe.js'), 'utf8');
   assert.doesNotMatch(src, /require\(['"]\.\.\/config\/database['"]\)|getPool\(|firebase-admin|sendEachForMulticast|cron\.schedule|setInterval\(/);
