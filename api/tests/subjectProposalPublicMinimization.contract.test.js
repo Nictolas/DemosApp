@@ -259,8 +259,8 @@ test('notifications for reviewed nominations require a still-active proposer', (
   assert.match(notify,/if \(!userId\) throw new Error\('NO_ACTIVE_RECIPIENT'\)/,
     'account-deleted nominations must not create an orphan notification');
   assert.match(notify,/INSERT INTO notifiche_demos \(id_utente, titolo, testo\)\s+SELECT id, \$2, \$3 FROM users/);
-  assert.match(notify,/lower\(status\)='a' FOR KEY SHARE/,
-    'only active recipients, locked against concurrent erasure, can be notified');
+  assert.match(notify,/lower\(status\)='a' FOR SHARE/,
+    'lock active recipients against concurrent suspension as well as deletion');
   assert.match(notify,/inserted\.rowCount !== 1/,
     'a zero-row insertion must not report success');
   const review = api.split("router.post('/admin/:id/decision'")[1];
