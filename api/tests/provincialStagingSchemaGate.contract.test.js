@@ -28,6 +28,20 @@ test('provincial staging preflight is read-only, metadata-only, and scoped to kn
   assert.match(sql, /pg_catalog\.pg_namespace/);
   assert.match(sql, /pg_catalog\.pg_class/);
   assert.match(sql, /pg_catalog\.pg_policy/);
+  assert.match(sql, /pg_catalog\.pg_attribute/);
+  assert.match(sql, /BLOCKED_MISSING_COLUMNS/);
+  assert.match(sql, /cardinality\(missing_columns\) > 0/);
+  const requiredColumns = [...sql.matchAll(/\('([a-z_]+)',\s*'([a-z_]+)'\)/g)]
+    .map((match) => match[1] + '.' + match[2]);
+  for (const key of [
+    'users.cognome', 'users.paese_residenza', 'users.provincia_residenza',
+    'political_selections.jurisdiction_id', 'political_selections.political_office_id',
+    'political_selections.selected_mandate_id', 'political_selections.context',
+    'unita_elettorale_territorio.territory_code',
+  ]) {
+    assert.ok(requiredColumns.includes(key), 'missing staging column gate: ' + key);
+  }
+  assert.equal(new Set(requiredColumns).size, requiredColumns.length);
   assert.match(sql, /has_table_privilege\('demos_staging_runtime'/);
   assert.match(sql, /BLOCKED_NO_SELECT_GRANT/);
   assert.match(sql, /BLOCKED_MISSING_RELATION/);
