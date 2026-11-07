@@ -54,6 +54,7 @@ test('truncated or filtered Groq JSON never enters parliamentary analysis cache'
     },
     './parliamentActIdentifier': {
       estraiNumeroLegge: () => null,
+      estraiTipoAtto: () => 'DDL',
       canSearchActTitle: () => false
     },
     '../config/database': { getPool: () => pool }
