@@ -102,6 +102,12 @@ jobs:
           verified = verified if isinstance(verified, int) and 0 <= verified <= 10 else 0
           print('T008 real QA status:', category)
           print('T008 fields matching official sources:', verified, 'of 10')
+          allowed_fields = {'atto','data_voto','favorevoli','contrari','astenuti','esito',
+                            'numero_legge','data_pubblicazione',
+                            'data_entrata_in_vigore','spiegazione'}
+          missing = result.get('failedFields', [])
+          safe_missing = [item for item in missing if isinstance(item, str) and item in allowed_fields] if isinstance(missing, list) else []
+          print('T008 missing field names (allowlist):', ', '.join(safe_missing) if safe_missing else 'none')
           print('T008 HTTP:', code)
           if (code != 200 or category != 'OK' or verified != 10 or
               result.get('caseId') != 'T008' or result.get('success') is not True):
