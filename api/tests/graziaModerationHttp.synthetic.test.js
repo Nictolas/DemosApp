@@ -149,7 +149,10 @@ test('Grazia rejects non-rendering name controls before touching PostgreSQL',asy
     'Persona\u200b nome',
     'Persona\u061c nome',
     'Persona\u0000 nome',
-    'Persona\u007f nome'
+    'Persona\u007f nome',
+    'Persona\u00ad nome',
+    'Persona\u034f nome',
+    'Persona\u180e nome'
   ]) {
     const response=await request('/api/grazia','a','POST',{
       nome,urlProva:'https://example.org/fonte-sintetica'
