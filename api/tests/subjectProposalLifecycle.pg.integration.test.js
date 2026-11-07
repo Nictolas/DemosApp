@@ -635,6 +635,40 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.equal((await pool.query('SELECT status FROM subject_proposals WHERE id=$1',
       [oldPublication.id])).rows[0].status,'withdrawn');
 
+    // DSAR-like urgent withdrawal through the REAL Admin Express endpoint,
+    // after both Admin and public lists have handed out pagination cursors.
+    // Reusing stale cursors must not reveal a withdrawn third-party name.
+    const adminAfterWithdrawal=await req('/api/subject-proposals/admin/approved?cursor='+
+      encodeURIComponent(firstPage.body.next_cursor),'admin');
+    assert.equal(adminAfterWithdrawal.status,200);
+    assert.match(adminAfterWithdrawal.cacheControl,/no-store/);
+    assert.equal(adminAfterWithdrawal.body.proposals.length,totalApproved-101);
+    assert.ok(adminAfterWithdrawal.body.proposals.every(p=>p.id!==oldPublication.id),
+      'a stored Admin keyset cursor must not return withdrawn records');
+    assert.deepEqual(Object.keys(adminAfterWithdrawal.body.proposals[0]).sort(),
+      ['category','id','reviewed_at','title'],
+      'Admin pagination still excludes source, owner and moderation notes');
+
+    const publicAfterWithdrawal=await req('/api/subject-proposals/approved?category=attivisti');
+    assert.equal(publicAfterWithdrawal.status,200);
+    assert.match(publicAfterWithdrawal.cacheControl,/no-store/);
+    const publicAfterCursor=publicAfterWithdrawal.body.next_cursor
+      ?await req('/api/subject-proposals/approved?category=attivisti&cursor='+
+        encodeURIComponent(publicAfterWithdrawal.body.next_cursor))
+      :null;
+    const publicRows=[...publicAfterWithdrawal.body.data,...(publicAfterCursor?.body.data||[])];
+    if(publicAfterCursor){
+      assert.equal(publicAfterCursor.status,200);
+      assert.match(publicAfterCursor.cacheControl,/no-store/);
+      assert.equal(publicAfterCursor.body.next_cursor,null,
+        'two public pages cover the isolated synthetic directory after withdrawal');
+    }
+    assert.ok(publicRows.every(p=>p.id!==oldPublication.id),
+      'Admin withdrawal must also exclude the record from public API pages');
+    assert.ok(publicRows.every(p=>Object.keys(p).sort().join(',')==='id,title'),
+      'no third-party evidence or owner metadata may escape via the public pages');
+    assert.equal(new Set(publicRows.map(p=>p.id)).size,publicRows.length);
+
     // 105 synthetic accounts each contribute one pending nomination. Keep
     // their timestamps only 1µs apart to detect cursor precision loss.
     await pool.query(
