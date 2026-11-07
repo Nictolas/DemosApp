@@ -20,6 +20,8 @@ test('QA rejects incorrect vote counts and mistaken enactment dates', () => {
   assert.deepEqual(assessOfficialAnswer({ ...CORRECT, favorevoli: 43 }), { success: false, verifiedFields: 9, failedFields: ['favorevoli'] });
   assert.deepEqual(assessOfficialAnswer({ ...CORRECT, data_pubblicazione: '20/10/2026' }), { success: false, verifiedFields: 9, failedFields: ['data_pubblicazione'] });
   assert.deepEqual(assessOfficialAnswer({ ...CORRECT, esito: 'approvato in prima lettura' }), { success: false, verifiedFields: 9, failedFields: ['esito'] });
+  assert.deepEqual(assessOfficialAnswer({ ...CORRECT, esito: 'La Camera ha approvato il testo in via definitiva' }), { success: true, verifiedFields: 10, failedFields: [] });
+  assert.deepEqual(assessOfficialAnswer({ ...CORRECT, esito: 'approvazione definitiva' }), { success: true, verifiedFields: 10, failedFields: [] });
 });
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
   let calls = 0;
