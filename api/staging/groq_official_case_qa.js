@@ -34,7 +34,8 @@ function assessOfficialAnswer(answer) {
     /continu[it][aà]|impiant/i.test(String(answer.spiegazione || ''))
   ];
   const verifiedFields = checks.filter(Boolean).length;
-  return { success: verifiedFields === checks.length, verifiedFields };
+  const names = ['atto', 'data_voto', 'favorevoli', 'contrari', 'astenuti', 'esito', 'numero_legge', 'data_pubblicazione', 'data_entrata_in_vigore', 'spiegazione'];
+  return { success: verifiedFields === checks.length, verifiedFields, failedFields: names.filter((_, index) => !checks[index]) };
 }
 
 async function runOfficialCaseQA({
