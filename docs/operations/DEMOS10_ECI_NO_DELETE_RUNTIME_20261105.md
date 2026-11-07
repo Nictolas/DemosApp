@@ -41,6 +41,35 @@ staging credentials, it would fail before updating any record.
   and is triggered by ECI/ICE route changes. Intended PG16/17 schema
   jobs remain unchanged.
 
+## Page-to-page source snapshot integrity (05/11/2026)
+
+Additional guarded staging-only change: every official ECI search page must
+report the same positive `recordsFound` value. A changed total, repeated
+source ID across pages, missing/invalid ID, or too many returned items now
+aborts the entire public-source fetch **before** any database connection or
+cache/outbox update. This prevents a mixed pagination snapshot from wrongly
+marking a genuinely ongoing ECI as `NOT_ONGOING` or affecting notifications.
+Synthetic offline Python regressions cover mid-read total changes, overlapping
+pages and invalid source metadata. A stable but internally incorrect official
+total remains a provider-level limitation; no E2E is claimed.
+
+## EU signature data and official signing links (05/11/2026)
+
+The ECI cache normalizer now refuses fractional/boolean signature counts
+instead of silently coercing them through Python `int()`. It accepts only
+nonnegative integer values (or digit strings). If a detail response exposes
+a `pubRegNum`, it must match the official search entry's ECI ID.
+The search entry itself is checked the same way: its `year` and `number`
+must agree with its `pubRegNum` whenever both forms are present; a malformed
+or contradictory official ID is rejected before any database operation.
+
+Direct signing URLs are allowed only on the European Commission's HTTPS
+hosts `eci.ec.europa.eu` and `citizens-initiative.europa.eu`.
+Untrusted or malformed URLs fall back to the canonical EU initiative detail
+page. Offline regression cases cover deceptive subdomains, HTTPS userinfo,
+nondefault ports, non-EU hosts and invalid numeric values. No users, devices,
+credentials, or live endpoints are touched.
+
 ## Baseline and rollout limits
 
 Readback of Demos-Staging before this change: ECI=12,

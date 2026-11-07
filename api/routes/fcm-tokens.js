@@ -12,6 +12,7 @@ const {
   blockCivicDeliveryOnRevocationFailure,
   withCivicPushDeliveryLock,
 } = require('../services/civicPushDeliveryGuard');
+const { onlyTokensNotOwnedByOthers } = require('../services/civicFcmTokenOwnership');
 require('dotenv').config();
 
 // Usa il pool centralizzato ottimizzato
@@ -112,9 +113,15 @@ async function revokeSupersededCivicTokens(userId, tokenToKeep, legacyTokens, db
          OR (user_id <> $1 AND fcm_token = $2))`,
     [userId, tokenToKeep]
   );
+  // Legacy users.fcm_tokens may still contain an FCM token reassigned to
+  // a different user_devices owner. Never unsubscribe that new user's topic.
+  // The tokenToKeep transfer is intentional: its previous owner must be
+  // unsubscribed before this user claims it.
+  const staleSafeLegacy = await onlyTokensNotOwnedByOthers(
+    db, userId, legacyTokens.filter((value) => value !== tokenToKeep));
   const replaced = new Set([
     ...result.rows.map((row) => row.fcm_token),
-    ...legacyTokens.filter((token) => token !== tokenToKeep),
+    ...staleSafeLegacy,
   ]);
   for (const token of replaced) {
     if (isValidFcmToken(token)) await unsubscribeCivicTokenOrBlock(token, db);
@@ -286,7 +293,8 @@ router.post('/cleanup', verifyToken, async (req, res) => {
         ...validTokens.slice(0, -1),
         ...oldDevices.rows.map(row => row.fcm_token).filter(t => !cleanedTokens.includes(t))
       ]);
-      for (const previous of removed) {
+      const revocable = await onlyTokensNotOwnedByOthers(db, userId, [...removed]);
+      for (const previous of revocable) {
         if (isValidFcmToken(previous)) await unsubscribeCivicTokenOrBlock(previous, db);
       }
     }
@@ -341,7 +349,9 @@ router.delete('/session', verifyToken, async (req, res) => {
     if (legacy === null) return res.status(404).json({ success: false, error: 'Utente non trovato' });
 
     if (isCivicPushEnabled()) {
-      for (const token of new Set([...registered.rows.map(r => r.fcm_token), ...legacy])) {
+      const revocable = await onlyTokensNotOwnedByOthers(
+        db, userId, [...registered.rows.map(r => r.fcm_token), ...legacy]);
+      for (const token of revocable) {
         if (isValidFcmToken(token)) await unsubscribeCivicTokenOrBlock(token, db);
       }
     }
@@ -385,7 +395,10 @@ router.delete('/:token', verifyToken, async (req, res) => {
       [userId, token]
     );
     const isOwned = existingTokens.includes(token) || device.rows.length > 0;
-    if (isOwned && isValidFcmToken(token)) await unsubscribeCivicTokenOrBlock(token, db);
+    if (isCivicPushEnabled() && isOwned && isValidFcmToken(token)) {
+      const revocable = await onlyTokensNotOwnedByOthers(db, userId, [token]);
+      if (revocable.includes(token)) await unsubscribeCivicTokenOrBlock(token, db);
+    }
 
     // Rimuovi il token
     const updatedTokens = existingTokens.filter(t => t !== token);
