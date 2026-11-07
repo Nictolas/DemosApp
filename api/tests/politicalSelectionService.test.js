@@ -140,7 +140,10 @@ test('canonical unique violations are not hidden as a schema compatibility fallb
 });
 
 test('canonical reads are authoritative and do not fall back merely because they are empty', async () => {
-  const db = { async query() { return { rows: [] }; } };
+  const db = { async query(sql) {
+    assert.match(String(sql), /ps\.political_office_id IS NOT NULL/);
+    return { rows: [] };
+  } };
   const state = await loadPoliticalSelections(db, { userId: 'u1', kind: 'candidate', adapterId: 'it' });
   assert.equal(state.source, 'CANONICAL');
   assert.equal(state.strict, true);
@@ -151,6 +154,7 @@ test('supporter lookup uses canonical selection relation when available', async 
   const db = {
     async query(sql) {
       assert.match(sql, /FROM political_selections ps/);
+      assert.match(sql, /ps\.political_office_id IS NOT NULL/);
       return { rows: [{ id: 'u1' }, { id: 'u2' }] };
     },
   };
