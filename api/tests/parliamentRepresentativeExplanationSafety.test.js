@@ -16,7 +16,8 @@ function createHarness() {
     descrizione_votazione: 'Testo ufficiale fittizio sufficientemente lungo. '.repeat(6),
     spiegazione: null
   };
-  let providerCalls = 0, updates = 0;
+  let providerCalls = 0, updates = 0, providerPrompt = '';
+  let duringProvider = () => {};
   let completion = {
     choices: [{ finish_reason: 'stop', message: { content: 'Sintesi della votazione A.' } }]
   };
@@ -30,7 +31,14 @@ function createHarness() {
       if (/^\s*UPDATE voti_camera/i.test(sql)) {
         updates++;
         assert.match(sql, /WHERE\s+politico_nome\s*=\s*\$2\s+AND\s+votazione\s*=\s*\$3/i);
-        assert.equal(params.length, 3);
+        assert.ok(params.length === 3 || params.length === 5);
+        if (params.length === 5) {
+          assert.ok(sql.includes('descrizione_votazione IS NOT DISTINCT FROM $4'));
+          assert.ok(sql.includes('spiegazione IS NOT DISTINCT FROM $5'));
+          if (row.descrizione_votazione !== params[3] || row.spiegazione !== params[4]) {
+            return { rowCount: 0 };
+          }
+        }
         if (row.politico_nome === params[1] && row.votazione === params[2]) {
           row.spiegazione = params[0];
           return { rowCount: 1 };
@@ -48,11 +56,16 @@ function createHarness() {
       isGroqConfigured: () => true
     },
     './parliamentGroundedAnalysis': {
-      hasDocumentaryContext: () => true,
+      hasDocumentaryContext: value => typeof value === 'string' && value.trim().length >= 160,
       MAX_CONTEXT_CHARS: 9000
     },
     './parliamentFreeGroqBudget': {
-      requestFreeGroq: async () => { providerCalls++; return completion; },
+      requestFreeGroq: async (_client, params) => {
+        providerCalls++;
+        providerPrompt = params.messages[1].content;
+        duringProvider();
+        return completion;
+      },
       getSharedFreeQuotaStatus: () => ({ count: 0, limite: 120, rispettato: true }),
       classifyFreeGroqError: () => 'NETWORK_OR_UNKNOWN'
     },
@@ -78,6 +91,8 @@ function createHarness() {
     get providerCalls() { return providerCalls; },
     get updates() { return updates; },
     setCompletion: val => { completion = val; },
+    setDuringProvider: fn => { duringProvider = fn; },
+    get providerPrompt() { return providerPrompt; },
     changeVote: title => { row.votazione = title; }
   };
 }
@@ -127,7 +142,7 @@ test('plain-text explanations reject all non-stop completions even when text is 
       choices: [{ finish_reason: reason, message: { content: 'Sintesi incompleta.' } }]
     });
     const result = await h.service.generaSpiegazione(
-      'Votazione finale A', 'Fonte fittizia', 'Camera', 'Favorevole'
+      'Votazione finale A', h.row.descrizione_votazione, 'Camera', 'Favorevole'
     );
     assert.equal(result, null, 'Must reject finish_reason=' + reason);
   }
@@ -135,7 +150,7 @@ test('plain-text explanations reject all non-stop completions even when text is 
     choices: [{ finish_reason: 'stop', message: { content: 'Sintesi completata.' } }]
   });
   assert.equal(
-    await h.service.generaSpiegazione('Votazione finale A', 'Fonte fittizia', 'Camera', 'Favorevole'),
+    await h.service.generaSpiegazione('Votazione finale A', h.row.descrizione_votazione, 'Camera', 'Favorevole'),
     'Sintesi completata.'
   );
 });
@@ -178,7 +193,7 @@ test('plain-text explanation enforces the promised 100-word maximum before publi
   const words = Array(100).fill('misura').join(' ');
   h.setCompletion({ choices: [{ finish_reason: 'stop', message: { content: words } }] });
   assert.equal(await h.service.generaSpiegazione(
-    'Votazione finale A', 'Fonte fittizia', 'Camera', 'Favorevole'
+    'Votazione finale A', h.row.descrizione_votazione, 'Camera', 'Favorevole'
   ), words, '100 words should remain acceptable');
 
   h.setCompletion({ choices: [{ finish_reason: 'stop', message: { content: words + ' eccedente' } }] });
@@ -187,6 +202,65 @@ test('plain-text explanation enforces the promised 100-word maximum before publi
   ), null, '101 words should not be saved as a short explanation');
   assert.equal(h.updates, 0, 'Too-long summaries must never be written to the database');
   assert.equal(h.row.spiegazione, null);
+});
+
+
+test('representative generation uses the persisted document, never caller-supplied text', async () => {
+  const h = createHarness();
+  const text = await h.service.generaESalvaSpiegazione(
+    'Rappresentante QA', 'Votazione finale A', 'Documento del chiamante '.repeat(20),
+    'Camera', 'Favorevole', true
+  );
+  assert.equal(text, 'Sintesi della votazione A.');
+  assert.match(h.providerPrompt, /Testo ufficiale fittizio sufficientemente lungo/);
+  assert.doesNotMatch(h.providerPrompt, /Documento del chiamante/);
+});
+
+test('missing or short persisted document rejects representative generation before Groq', async () => {
+  for (const stored of [null, '', 'Solo un titolo']) {
+    const h = createHarness();
+    h.row.descrizione_votazione = stored;
+    assert.equal(await h.service.generaESalvaSpiegazione(
+      'Rappresentante QA', 'Votazione finale A', 'Documento del chiamante '.repeat(20),
+      'Camera', 'Favorevole', true
+    ), null);
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.updates, 0);
+    assert.equal(h.row.spiegazione, null);
+  }
+});
+
+test('representative document changed during provider call never receives stale explanation', async () => {
+  const h = createHarness();
+  h.setDuringProvider(() => {
+    h.row.descrizione_votazione = 'Nuovo testo ufficiale persistito. '.repeat(7);
+  });
+  assert.equal(await h.service.generaESalvaSpiegazione(
+    'Rappresentante QA', 'Votazione finale A', null, 'Camera', 'Favorevole', true
+  ), null);
+  assert.equal(h.providerCalls, 1);
+  assert.equal(h.updates, 1);
+  assert.equal(h.row.spiegazione, null);
+});
+
+test('representative explanation written during provider call is not overwritten', async () => {
+  const h = createHarness();
+  h.setDuringProvider(() => { h.row.spiegazione = 'Revisione manuale esistente'; });
+  assert.equal(await h.service.generaESalvaSpiegazione(
+    'Rappresentante QA', 'Votazione finale A', null, 'Camera', 'Favorevole', true
+  ), null);
+  assert.equal(h.providerCalls, 1);
+  assert.equal(h.row.spiegazione, 'Revisione manuale esistente');
+});
+
+test('forced representative regeneration still updates unchanged prior explanation', async () => {
+  const h = createHarness();
+  h.row.spiegazione = 'Vecchia spiegazione';
+  assert.equal(await h.service.generaESalvaSpiegazione(
+    'Rappresentante QA', 'Votazione finale A', null, 'Camera', 'Favorevole', true
+  ), 'Sintesi della votazione A.');
+  assert.equal(h.row.spiegazione, 'Sintesi della votazione A.');
+  assert.equal(h.updates, 1);
 });
 
 test('explanation service logs do not disclose vote identifiers or Groq configuration diagnostics', () => {
