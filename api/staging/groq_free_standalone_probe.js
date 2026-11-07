@@ -54,6 +54,12 @@ function sanitizeCaseResult(result) {
         definitivePhraseFound: result.explanationDiagnostics.definitivePhraseFound === true
       }
     } : {}),
+    ...(result?.caseId === 'T009' && result?.explanationDiagnostics ? {
+      explanationDiagnostics: {
+        timingFound: result.explanationDiagnostics.timingFound === true,
+        rejectedFound: result.explanationDiagnostics.rejectedFound === true
+      }
+    } : {}),
     ...(Number.isFinite(latency) && latency >= 0 ? { latencyMs: Math.min(120000, Math.round(latency)) } : {})
   };
 }
