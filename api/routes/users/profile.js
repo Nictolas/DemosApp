@@ -650,7 +650,10 @@ router.put('/:userId/political-selection', verifyToken, requireVerifiedCivicIden
 
 
 // GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
-router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
+router.get('/:userId/opinioni', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  next();
+}, verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
     console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
     
@@ -687,8 +690,15 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     // and personal answer retrieval below remain intact.
     const opinioni = sortOpinionsByText(grado ? getOpinionsForGrade(grado) : getAllOpinions());
 
+    // Load answers and source JSONB only with the CURRENT subject consent.
+    // The predicate is inside the same SELECT to avoid a stale precheck.
     const userAnswersResult = await pool.query(
-      'SELECT * FROM opinioni_risposte WHERE user_id = $1',
+      `SELECT r.*
+       FROM opinioni_risposte r
+       JOIN users u ON u.id = r.user_id
+       LEFT JOIN user_consents uc ON uc.user_id = u.id
+       WHERE r.user_id = $1
+         AND COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE`,
       [userId]
     );
     const userAnswers = userAnswersResult.rows[0] || {};
