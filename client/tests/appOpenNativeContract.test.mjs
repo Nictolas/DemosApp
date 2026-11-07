@@ -158,7 +158,10 @@ test('debug-only EEA UMP test mode cannot leak a production ad ID or enable rele
   // Play Internal App Sharing is the only opt-in where the DEBUG APK may use
   // the existing DEMOS package; normal EEA QA stays separately installable.
   assert.match(gradle, /demosDebugQaPlayInternalSharing = demosDebugUmpEea && demosDebugQaForceAdult &&/);
-  assert.match(gradle, /if \(demosDebugUmpEea && !demosDebugQaPlayInternalSharing\) \{\s*applicationIdSuffix '\.qaopen'/);
+  assert.match(gradle, /demosDebugQaRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&/);
+  assert.match(gradle, /if \(demosDebugQaRealAge\) \{\s*applicationIdSuffix '\.qaage'/);
+  assert.match(gradle, /else if \(demosDebugUmpEea && !demosDebugQaPlayInternalSharing\) \{\s*applicationIdSuffix '\.qaopen'/);
+  assert.match(gradle, /demosDebugQaPlayInternalSharing = demosDebugUmpEea && demosDebugQaForceAdult &&/);
   assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_QA_FORCE_ADULT', 'false'/);
   assert.match(gradle, /release\s*\{[\s\S]*?DEMOS_UMP_DEBUG_EEA', 'false'/);
   assert.match(manager, /if \(BuildConfig\.DEMOS_UMP_DEBUG_EEA\)/);
