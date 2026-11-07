@@ -244,7 +244,9 @@ async function loadPoliticalSelections(db, {
   if (kind != null && !normalizedKind) return { source: 'CANONICAL', strict: true, selections: [] };
 
   const params = [userId];
-  const where = ['ps.user_id = $1'];
+  // Records imported from the three-column legacy schema have no verified office.
+  // Retain them for audited remediation, but never present them as a choice.
+  const where = ['ps.user_id = $1', 'ps.political_office_id IS NOT NULL'];
   if (normalizedKind) {
     params.push(normalizedKind);
     where.push(`ps.selection_kind = $${params.length}`);
@@ -333,6 +335,8 @@ async function loadSupporterUserIds(db, {
     // false. The authoritative COALESCE must be the only consent predicate.
     const where = [
       'ps.selected_user_id = $1',
+      // Never notify people based on historic rows without a verified office.
+      'ps.political_office_id IS NOT NULL',
       "u.status = 'a'",
       'COALESCE(uc.political_opinions_consent, u.political_opinions_consent, false) IS TRUE',
     ];
