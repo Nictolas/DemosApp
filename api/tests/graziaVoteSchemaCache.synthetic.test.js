@@ -8,7 +8,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../routes/grazia.js'),'utf8');
 
-function harness({idType='uuid',userColumn='userid',dateColumn='timestamp',userExists=true,accountActive=true}={}){
+function harness({idType='uuid',userColumn='userid',dateColumn='timestamp',userExists=true,accountActive=true,consentGranted=true}={}){
   const state={columns:{idType,userColumn,dateColumn},metadata:0,read:0,writes:[],connects:0,
     privateInputs:[],cooldown:0,locks:0,accountChecks:0,queries:[]};
   const handlers=new Map();
@@ -79,6 +79,13 @@ function harness({idType='uuid',userColumn='userid',dateColumn='timestamp',userE
     '../middleware/validation':{validateInput:()=>pass},
     '../utils/recognitionEvidence':{validateEvidenceUrl:()=>null},
     '../utils/thirdPartyNominationGate':{isNominationWriteEnabled:()=>false,isGraziaNominationWriteEnabled:()=>false,rejectUnavailableNomination:()=>{}},
+    '../services/politicalConsentService':{
+      getPoliticalConsentState:async (db,person)=>{
+        assert.notEqual(db,pool,'consent must be rechecked within the vote transaction');
+        assert.equal(person,user);
+        return {exists:userExists,granted:consentGranted};
+      }
+    },
     '../services/preferenceCooldownService':{
       getPreferenceCooldown:async()=>({isBlocked:false}),
       assertPreferenceChangeAllowed:async(db,ctx)=>{
@@ -111,6 +118,16 @@ function harness({idType='uuid',userColumn='userid',dateColumn='timestamp',userE
   }
   return {vote,state};
 }
+
+test('stale preflight consent cannot write a personal Grazia vote after revocation',async()=>{
+  const x=harness({consentGranted:false});
+  const response=await x.vote();
+  assert.equal(response.statusCode,403);
+  assert.equal(response.body.code,'POLITICAL_CONSENT_REQUIRED');
+  assert.equal(x.state.writes.length,0,'no vote insert/delete after revoked consent');
+  assert.equal(x.state.cooldown,0,'do not recreate a personal cooldown');
+  assert.equal(x.state.accountChecks,1,'account locked before consent recheck');
+});
 
 test('two personal vote saves share one column lookup, not one per user action',async()=>{
   const {vote,state}=harness();
