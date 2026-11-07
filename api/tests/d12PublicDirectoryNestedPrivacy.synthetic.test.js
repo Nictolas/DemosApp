@@ -105,10 +105,9 @@ test('public avatar configuration fails closed for malformed or nested non-visua
   ];
   for(const value of inputs){
     const [row]=projectPublicDirectoryMembers([{id:'synthetic',avatar_config:value}]);
-    if(value===JSON.stringify({skinColor:{private:'private-avatar-token'}})){
-      assert.deepEqual(JSON.parse(row.avatar_config),{});
-    } else {
-      assert.equal(row.avatar_config,null,'unexpected values must not be sent unchanged');
-    }
+    // A JSON object with no valid visual values must return null rather
+    // than {}, because CustomAvatar uses null to select safe defaults.
+    assert.equal(row.avatar_config,null,
+      'malformed or non-visual payload must use the default avatar');
   }
 });
