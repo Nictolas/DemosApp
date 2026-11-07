@@ -43,6 +43,7 @@ on:
       - 'api/tests/d12GraziaPersonalCacheIsolation.synthetic.test.js'
       - 'api/services/publicApprovedSubjectPage.js'
       - 'api/tests/publicApprovedSubjectPagination.pg.integration.test.js'
+      - 'api/tests/publicApprovedSubjectGate.synthetic.test.js'
       - 'api/routes/attivisti.js'
       - 'api/routes/organizzazioni.js'
       - 'api/services/publicDirectoryMemberProjection.js'
@@ -136,6 +137,8 @@ jobs:
         run: node api/tests/civicCatalogueRejectionHttp.synthetic.test.js
       - name: Block unreviewed nested JSONB details in public directory responses
         run: node --test api/tests/d12PublicDirectoryNestedPrivacy.synthetic.test.js
+      - name: Approved nominations stay unpublished while the legal gate is off (synthetic)
+        run: node --test api/tests/publicApprovedSubjectGate.synthetic.test.js
       - name: Public directory privacy data-minimization contract
         run: node --test api/tests/subjectProposalPublicMinimization.contract.test.js
       - name: Anonymous public directory HTTP privacy (synthetic database)
