@@ -78,6 +78,34 @@ test('Chrome: topic menu, 94-ID partition, draft, ACK, consent and mobile layout
     await page.getByRole('button', { name: 'Per argomento' }).waitFor({ timeout: 25000 });
     assert.equal(await page.locator('[aria-label="Categorie tematiche"] button').count(), 11,
       'The 11 topic choices must be the default entry view');
+    const topicColors = await page.locator('[aria-label="Categorie tematiche"] button').evaluateAll(buttons =>
+      buttons.map(button => {
+        const icon = button.querySelector('svg');
+        const progress = button.querySelector('[role="progressbar"]');
+        const fill = progress?.firstElementChild;
+        return {
+          id: button.getAttribute('data-topic-id'),
+          background: getComputedStyle(button).backgroundColor,
+          border: getComputedStyle(button).borderTopColor,
+          primary: icon ? getComputedStyle(icon).color : null,
+          progressFill: fill ? getComputedStyle(fill).backgroundColor : null,
+          track: progress ? getComputedStyle(progress).backgroundColor : null
+        };
+      }));
+    assert.equal(new Set(topicColors.map(theme => theme.id)).size, 11,
+      'Each published topic must have its own themed card');
+    assert.equal(new Set(topicColors.map(theme => theme.primary)).size, 11,
+      'Every topic must use a distinct primary color');
+    for (const theme of topicColors) {
+      assert.ok(theme.primary && theme.background && theme.border && theme.track,
+        'Every topic must have a complete color palette');
+      assert.equal(theme.primary, theme.progressFill,
+        'Icon and progress fill must use the same topic-specific color');
+      assert.notEqual(theme.background, 'rgb(255, 255, 255)',
+        'Theme cards must have a visibly tinted background');
+      assert.notEqual(theme.border, theme.background,
+        'Theme border must remain distinct from the card background');
+    }
     await page.getByRole('button', { name: 'Per territorio' }).click();
     assert.equal(await page.locator('.opinioni-button').count(), 4, 'Four geographic cards must remain');
     await page.getByRole('button', { name: 'Per argomento' }).click();
