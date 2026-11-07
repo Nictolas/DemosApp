@@ -205,6 +205,19 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
           'inactive account must not receive prior private votes');
         assert.equal(inactive.json.blocco.isBlocked,false,
           'inactive account must not receive private cooldown');
+        // The GET already refuses personal data. A still-signed access token
+        // must also be unable to submit a personal vote while suspended.
+        const blockedWrite=await req('/api/grazia/vota','b','POST',{voti:[fixture.nome]});
+        assert.equal(blockedWrite.status,401,
+          'suspended account must not write votes despite a valid JWT');
+        const preserved=await pool.query(
+          'SELECT nome FROM voti_grazia WHERE userid=$1',[B]);
+        assert.deepEqual(preserved.rows.map(row=>row.nome),[otherAccountVote],
+          'suspension must not change previously stored preferences');
+        const noNewCooldown=await pool.query(
+          "SELECT COUNT(*)::integer AS n FROM preference_change_cooldowns WHERE user_id=$1 AND scope='grazia:preferenza'",[B]);
+        assert.equal(noNewCooldown.rows[0].n,0,
+          'a denied write must not register a new cooldown');
       }finally{
         await pool.query("UPDATE users SET status='a' WHERE id=$1",[B]);
       }
@@ -701,14 +714,14 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
                AND state='active'
                AND wait_event_type='Lock'
                AND query LIKE '%FROM users WHERE id::text=%'
-               AND query LIKE '%FOR KEY SHARE%'
+               AND query LIKE '%FOR SHARE%'
            ) AS blocked`
         );
         if(wait.rows[0].blocked){voteWaitingForErasure=true;break;}
         await new Promise(resolve=>setTimeout(resolve,30));
       }
       assert.equal(voteWaitingForErasure,true,
-        'the in-flight Grazia vote must wait on the deleting account row');
+        'the in-flight Grazia vote must wait on the deleting account row under FOR SHARE');
       await raceClient.query('COMMIT');
       const [response,lateVoteResponse]=await Promise.all([lateSubmission,lateVote]);
       assert.notEqual(response.status,202,'late account submission must not be accepted');
