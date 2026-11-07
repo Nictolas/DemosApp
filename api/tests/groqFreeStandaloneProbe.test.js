@@ -197,6 +197,21 @@ test('T009 diagnostics exclude model response text, expose only two flags', () =
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE_OUTPUT|text/);
 });
 
+test('T012 explanation diagnostics contain only boolean checks and no source/output', () => {
+  const result = sanitizeCaseResult({
+    caseId: 'T012', status: 'SOURCE_MISMATCH', success: false,
+    verifiedFields: 9, failedFields: ['spiegazione', 'PRIVATE'],
+    explanationDiagnostics: {
+      hotAreaFound: true, ilvaOrProgrammeFound: true, rejectedFound: false,
+      text: 'PRIVATE_PROVIDER_RESPONSE'
+    }
+  });
+  assert.deepEqual(result.failedFields, ['spiegazione']);
+  assert.deepEqual(result.explanationDiagnostics,
+    { hotAreaFound: true, ilvaOrProgrammeFound: true, rejectedFound: false });
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE|text/);
+});
+
 test('standalone smoke has no database, Firebase, cron or secret output handlers', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'staging', 'groq_free_standalone_probe.js'), 'utf8');
   assert.doesNotMatch(src, /require\(['"]\.\.\/config\/database['"]\)|getPool\(|firebase-admin|sendEachForMulticast|cron\.schedule|setInterval\(/);
