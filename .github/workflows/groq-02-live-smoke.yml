@@ -1,0 +1,150 @@
+name: GROQ-02 live Free smoke on isolated Render
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/groq-02-live-smoke.yml'
+      - 'render.groq-free-linked.yaml'
+      - 'api/staging/groq_free_standalone_probe.js'
+      - 'api/staging/groq_official_case_qa.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-real-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check sanitized result from deployed Groq Free probe
+        env:
+          GROQ_PROBE_URL: https://demos-groq-free-linked-qa-hd3y.onrender.com/health/groq
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          request = urllib.request.Request(
+              os.environ["GROQ_PROBE_URL"],
+              headers={"Accept": "application/json"}
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=65) as response:
+                  http_status = response.status
+                  payload = response.read(1024)
+          except urllib.error.HTTPError as exc:
+              http_status = exc.code
+              payload = exc.read(1024)
+          except Exception:
+              print("Groq Free live probe: NETWORK_UNAVAILABLE")
+              sys.exit(1)
+
+          try:
+              obj = json.loads(payload)
+          except Exception:
+              print("Groq Free live probe: UNRECOGNIZED_RESPONSE")
+              sys.exit(1)
+
+          allowed = {
+              "OK", "NOT_CONFIGURED", "MODEL_NOT_ALLOWED",
+              "FREE_QUOTA_UNAVAILABLE", "EMPTY_OR_TRUNCATED",
+              "UNEXPECTED_RESPONSE", "AUTH", "MODEL_NOT_FOUND",
+              "INVALID_REQUEST", "RATE_LIMIT", "PROVIDER_UNAVAILABLE",
+              "NETWORK_OR_UNKNOWN"
+          }
+          status = obj.get("status")
+          category = status if status in allowed else "UNKNOWN"
+          print("Groq Free isolated provider result:", category)
+          print("Provider smoke HTTP status:", http_status)
+          if http_status != 200 or category != "OK" or obj.get("success") is not True:
+              sys.exit(1)
+          print("Groq Free live authenticated check passed.")
+          PY
+      - name: Check three independent source-grounded analyses for the selected official case
+        if: always()
+        env:
+          CASE_URL: https://demos-groq-free-linked-qa-hd3y.onrender.com/health/case
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          request = urllib.request.Request(os.environ['CASE_URL'], headers={'Accept':'application/json'})
+          try:
+              with urllib.request.urlopen(request, timeout=65) as response:
+                  code = response.status
+                  payload = response.read(1024)
+          except urllib.error.HTTPError as exc:
+              code = exc.code
+              payload = exc.read(1024)
+          except Exception:
+              print('Official-case QA: NETWORK_UNAVAILABLE')
+              sys.exit(1)
+
+          try:
+              result = json.loads(payload)
+          except Exception:
+              print('Official-case QA: INVALID_RESPONSE')
+              sys.exit(1)
+          safe_statuses = {'OK','PENDING','NOT_RUN','NOT_CONFIGURED','MODEL_NOT_ALLOWED',
+                           'FREE_QUOTA_UNAVAILABLE','EMPTY_OR_TRUNCATED','INVALID_JSON',
+                           'SOURCE_MISMATCH','AUTH','MODEL_NOT_FOUND','INVALID_REQUEST',
+                           'RATE_LIMIT','PROVIDER_UNAVAILABLE','NETWORK_OR_UNKNOWN'}
+          case_id = result.get('caseId')
+          official_cases = {'T002','T003','T006','T008','T009','T010','T011','T012','T013','T018'}
+          if case_id not in official_cases:
+              print('Official-case QA: UNRECOGNIZED_CASE')
+              sys.exit(1)
+          print('Official-case identifier:', case_id)
+          status = result.get('status')
+          category = status if status in safe_statuses else 'UNKNOWN'
+          verified = result.get('verifiedFields')
+          verified = verified if isinstance(verified, int) and 0 <= verified <= 10 else 0
+          print('Official-case QA status:', category)
+          print('Official-case fields matching sources:', verified, 'of 10')
+          allowed_fields = {'atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'}
+          failed_fields = result.get('failedFields', [])
+          print('Official-case mismatched public field names:', ','.join(x for x in failed_fields if x in allowed_fields) if isinstance(failed_fields, list) else 'UNAVAILABLE')
+          allowed_fields = {'atto','data_voto','favorevoli','contrari','astenuti','esito',
+                            'numero_legge','data_pubblicazione',
+                            'data_entrata_in_vigore','spiegazione'}
+          missing = result.get('failedFields', [])
+          safe_missing = [item for item in missing if isinstance(item, str) and item in allowed_fields] if isinstance(missing, list) else []
+          print('Official-case missing field names (allowlist):', ', '.join(safe_missing) if safe_missing else 'none')
+          print('Official-case HTTP:', code)
+          requested = result.get('samplesRequested')
+          completed = result.get('samplesCompleted')
+          passed = result.get('samplesPassed')
+          print('Official-case independent samples requested:', requested)
+          print('Official-case independent samples completed:', completed)
+          print('Official-case independent samples passing all 10 fields:', passed)
+          if case_id == 'T013':
+              allowed_flags = {'thresholdFound','immediateLegislatureFound','laterLegislatureFound',
+                               'rejectedFound','confusedWith18Months'}
+              raw_categories = result.get('sampleCategories', [])
+              raw_scores = result.get('sampleFieldScores', [])
+              raw_flags = result.get('t013FlagTallies', {})
+              if isinstance(raw_categories, list):
+                  print('T013 sample status categories:', ','.join(
+                      c if c in safe_statuses else 'UNKNOWN' for c in raw_categories[:3]))
+              if isinstance(raw_scores, list):
+                  print('T013 per-sample fields verified:', ','.join(
+                      str(v) for v in raw_scores[:3] if type(v) is int and 0 <= v <= 10))
+              if isinstance(raw_flags, dict):
+                  for flag in sorted(allowed_flags):
+                      count = raw_flags.get(flag)
+                      print('T013', flag, 'count:', count if type(count) is int and 0 <= count <= 3 else 'UNKNOWN')
+          if (code != 200 or category != 'OK' or verified != 10 or
+              case_id not in official_cases or result.get('success') is not True or
+              requested != 3 or completed != 3 or passed != 3):
+              sys.exit(1)
+          print('Three independent source-grounded Groq Free generations PASS')
+          PY
