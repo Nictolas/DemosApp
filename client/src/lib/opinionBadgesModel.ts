@@ -1,0 +1,161 @@
+/**
+ * DEMOS — PROTOTIPO ISOLATO, NON COLLEGATO ALL'APP.
+ *
+ * Nessuna regola e approvata: questa mappa non puo produrre targhette in produzione.
+ * L'attivazione richiede revisione DPO, trattamento specifico/consenso verificato,
+ * gating del proprietario e una release separatamente autorizzata.
+ * Nessuna rete, database, memorizzazione, analytics o side effect.
+ */
+export const BADGE_RULES_VERSION = "2026-11-02-draft-3";
+export type BadgeId = "B01" | "B02" | "B03" | "B04" | "B05";
+export type Answer = "f" | "c" | "i";
+
+export interface BadgeQuestion {
+  readonly opinionId: string;
+  readonly supportsBadge: "f" | "c";
+  readonly topic: string;
+}
+export interface BadgeRule {
+  readonly id: BadgeId;
+  readonly label: string;
+  /** Resta false fino alla convalida semantica/privacy e al gate release. */
+  readonly approved: boolean;
+  readonly questions: readonly BadgeQuestion[];
+}
+type Mapping = readonly [opinionId: string, expected: "f" | "c", topic: string];
+const defineRule = (id: BadgeId, label: string, entries: readonly Mapping[]): BadgeRule => ({
+  id,
+  label,
+  approved: false,
+  questions: entries.map(([opinionId, supportsBadge, topic]) => ({ opinionId, supportsBadge, topic })),
+});
+
+/** Bozza identitaria richiesta dal prodotto: 27 associazioni e 24 ID distinti.\n * I nomi sono ipotesi descrittive, non certificano l'identita politica dell'utente. */
+export const BADGE_RULES: readonly BadgeRule[] = [
+  defineRule("B01", "Animalista", [
+    ["caccia", "c", "caccia"],
+    ["abbattimento_cinghiali", "c", "controllo-fauna"],
+    ["allevamenti_intensivi", "c", "allevamento"],
+    ["sperimentazione_animale", "c", "ricerca"],
+    ["corrida", "c", "spettacoli"],
+  ]),
+  defineRule("B02", "Ambientalista", [
+    ["nuove_aree_naturali_protette", "f", "biodiversita"],
+    ["potenziare_rinnovabili", "f", "transizione-energetica"],
+    ["nuovi_parchi_eolici", "f", "transizione-energetica"],
+    ["verde_pubblico_e_giardini", "f", "verde-urbano"],
+  ]),
+  defineRule("B03", "Conservatore", [
+    ["matrimonio_gay", "c", "famiglia"],
+    ["adozioni_omogenitoriali", "c", "famiglia"],
+    ["eutanasia", "c", "bioetica"],
+    ["legalizzazione_canapa", "c", "droghe"],
+    ["ius_soli", "c", "cittadinanza"],
+    ["ius_scholae", "c", "cittadinanza"],
+    ["educazione_sessuale", "c", "scuola"],
+  ]),
+  defineRule("B04", "Progressista", [
+    ["matrimonio_gay", "f", "matrimonio"],
+    ["adozioni_omogenitoriali", "f", "adozioni"],
+    ["omobitransfobia", "f", "antidiscriminazione"],
+    ["educazione_sessuale", "f", "educazione"],
+    ["aborto_farmacologico_consultori", "f", "diritti-riproduttivi"],
+  ]),
+  defineRule("B05", "Socialdemocratico", [
+    ["salario_minimo", "f", "lavoro"],
+    ["reddito_di_cittadinanza", "f", "sostegno-reddito"],
+    ["reddito_minimo_regionale", "f", "sostegno-reddito"],
+    ["nuove_case_popolari", "f", "abitazione"],
+    ["asili_nido_gratuiti", "f", "servizi-infanzia"],
+    ["nuovi_asili_nido_comunali", "f", "servizi-infanzia"],
+  ]),
+];
+
+/** Le risposte f/c esprimono accordo/disaccordo con una proposta, non identita. */
+export function normalizeBadgeAnswer(raw: unknown): Answer | null {
+  if (typeof raw !== "string") return null;
+  switch (raw.trim().toLocaleLowerCase("it")) {
+    case "f": case "favorevole": return "f";
+    case "c": case "contrario": return "c";
+    case "i": case "indeciso": case "non lo so":
+    case "non_lo_so": case "non-lo-so": return "i";
+    default: return null;
+  }
+}
+export interface BadgeAccess {
+  readonly isOwner: boolean;
+  readonly politicalConsentVerified: boolean;
+  readonly badgeConsentVerified: boolean;
+  readonly releaseGateApproved: boolean;
+}
+export interface BadgeEvidence {
+  readonly opinionId: string;
+  readonly answer: "f" | "c";
+  readonly supportsBadge: boolean;
+  readonly topic: string;
+}
+export interface BadgeResult {
+  readonly badgeId: BadgeId;
+  readonly version: string;
+  readonly eligible: boolean;
+  readonly decisive: number;
+  readonly coherent: number;
+  readonly contradictory: number;
+  readonly undecided: number;
+  readonly missing: number;
+  readonly coverage: number;
+  readonly coherence: number | null;
+  readonly distinctTopics: number;
+  readonly evidence: readonly BadgeEvidence[];
+}
+
+/**
+ * Returns null (without inspecting answers) unless every access gate is true.
+ * Even an explicitly permitted preview cannot emit labels while rule.approved=false.
+ * Values are derived only in memory and must never be persisted or logged.
+ */
+export function evaluateOpinionBadge(
+  rule: BadgeRule,
+  answers: Readonly<Record<string, unknown>>,
+  access: BadgeAccess,
+): BadgeResult | null {
+  if (access.isOwner !== true ||
+      access.politicalConsentVerified !== true ||
+      access.badgeConsentVerified !== true ||
+      access.releaseGateApproved !== true ||
+      rule.approved !== true) {
+    return null;
+  }
+
+  const evidence: BadgeEvidence[] = [];
+  const groups = new Set<string>();
+  let decisive = 0;
+  let coherent = 0;
+  let undecided = 0;
+  let missing = 0;
+  for (const question of rule.questions) {
+    const answer = normalizeBadgeAnswer(answers[question.opinionId]);
+    if (answer === null) { missing++; continue; }
+    if (answer === "i") { undecided++; continue; }
+    decisive++;
+    groups.add(question.topic);
+    const supportsBadge = answer === question.supportsBadge;
+    if (supportsBadge) coherent++;
+    evidence.push({ opinionId: question.opinionId, answer, supportsBadge, topic: question.topic });
+  }
+
+  const coverage = rule.questions.length === 0 ? 0 : decisive / rule.questions.length;
+  const coherence = decisive === 0 ? null : coherent / decisive;
+  // Unanimita richiesta: ogni Opinione associata deve essere stata votata
+  // nella direzione prevista. Indecisi, mancanti e risposte discordanti
+  // impediscono l'assegnazione. Gruppi distinti evitano un tema ripetuto.
+  const eligible = rule.questions.length >= 3 &&
+    decisive === rule.questions.length &&
+    coherent === rule.questions.length &&
+    groups.size >= 2;
+  return {
+    badgeId: rule.id, version: BADGE_RULES_VERSION, eligible,
+    decisive, coherent, contradictory: decisive - coherent, undecided, missing,
+    coverage, coherence, distinctTopics: groups.size, evidence,
+  };
+}
