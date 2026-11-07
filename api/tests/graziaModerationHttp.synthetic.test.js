@@ -163,6 +163,25 @@ test('Grazia rejects non-rendering name controls before touching PostgreSQL',asy
   assert.equal(notices.length,beforeNotices,'no Admin notification was created');
 });
 
+test('Grazia vote input rejects hidden and directional control characters before SQL',async()=>{
+  const before=queryCalls;
+  const invalid=[
+    'Persona\u0000 nascosta',
+    'Persona\u202e invertita',
+    'Persona\u2066 isolata',
+    'Persona\u200b invisibile',
+    'Persona\u007f controllo',
+    'Persona\u061c direzionale'
+  ];
+  for(const nome of invalid){
+    const response=await request('/api/grazia/vota','a','POST',{voti:[nome]});
+    assert.equal(response.status,400,'malformed private vote name must fail safely');
+    assert.match(response.headers.get('cache-control')||'',/private.*no-store/);
+    assert.equal((await response.json()).error,'Preferenza Grazia non valida');
+  }
+  assert.equal(queryCalls,before,'invalid votes cannot trigger vote metadata or persistence SQL');
+});
+
 test('suspended account with stale cached JWT cannot submit a private Grazia nomination',async()=>{
   const before=requests.length;
   const beforeNotices=notices.length;
