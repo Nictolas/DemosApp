@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       demos_admob_app_id:
-        description: "Only the DEMOS AdMob App ID (ca-app-pub-...~...), NOT the ad unit"
+        description: "Optional override: DEMOS App ID (ca-app-pub-...~...). Usually leave blank"
         type: string
         required: false
 
@@ -21,14 +21,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      DEMOS_QA_ADMOB_APP_ID: ${{ inputs.demos_admob_app_id || secrets.DEMOS_QA_ADMOB_APP_ID }}
+      DEMOS_QA_ADMOB_APP_ID: ${{ inputs.demos_admob_app_id || secrets.DEMOS_QA_ADMOB_APP_ID || 'ca-app-pub-7488681940015678~2926952834' }}
     steps:
       - name: Validate App ID and mask it in build logs
         shell: bash
         run: |
           set -euo pipefail
           if [[ ! "${DEMOS_QA_ADMOB_APP_ID:-}" =~ ^ca-app-pub-[0-9]{16}~[0-9]{10}$ ]]; then
-            echo "::error::Missing/invalid DEMOS AdMob App ID. Enter the App ID with ~ in Run workflow, or set the existing Actions secret DEMOS_QA_ADMOB_APP_ID."
+            echo "::error::Invalid DEMOS AdMob App ID. Use app ID with ~, not a slash ad unit."
             exit 1
           fi
           echo "::add-mask::$DEMOS_QA_ADMOB_APP_ID"
