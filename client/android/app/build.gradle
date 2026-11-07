@@ -19,6 +19,10 @@ def demosDebugQaForceAdult = demosDebugUmpEea &&
 // Google Play re-signs for testing; this APK must NEVER be a release.
 def demosDebugQaPlayInternalSharing = demosDebugUmpEea && demosDebugQaForceAdult &&
     (project.findProperty('demosDebugQaPlayInternalSharing') ?: 'false').toString() == 'true'
+// Separate opt-in QA package for REAL signed-in adult/minor/anonymous checks.
+// Unlike the synthetic UMP tester, it never bypasses authenticated age gates.
+def demosDebugQaRealAge = demosDebugUmpEea && !demosDebugQaForceAdult &&
+    (project.findProperty('demosDebugQaRealAge') ?: 'false').toString() == 'true'
 
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -61,7 +65,9 @@ android {
             // Default QA stays isolated from installed DEMOS.
             // Explicit Play Internal App Sharing build uses matching app package
             // but is still a signed DEBUG APK with SAMPLE ads; NEVER publish it.
-            if (demosDebugUmpEea && !demosDebugQaPlayInternalSharing) {
+            if (demosDebugQaRealAge) {
+                applicationIdSuffix '.qaage'
+            } else if (demosDebugUmpEea && !demosDebugQaPlayInternalSharing) {
                 applicationIdSuffix '.qaopen'
             }
             // Test IDs ufficiali Google: in debug soltanto, con opt-in esplicito.
