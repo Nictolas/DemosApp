@@ -87,10 +87,14 @@ function parseGroundedAnalysisResponse(response) {
   // Refuse an isolated no-evidence placeholder even when disguised as an
   // item inside an otherwise valid effects list. Do not discard meaningful
   // explanatory prose merely for mentioning insufficient information.
-  const hasPlaceholderItem = value => value.split(/[;\r\n]/u).some(part => {
-    const item = part.trim().replace(/^(?:[-*•]|\d+[.)])\s+/u, '').trim();
-    return noEvidence.test(item);
-  });
+  const hasPlaceholderItem = value => value
+    // GPT-OSS may enumerate several effects on a single line without semicolons.
+    // Treat a new numbered marker as a list boundary before checking sentinels.
+    .replace(/\s+(?=\d+[.)]\s+\S)/gu, '\n')
+    .split(/[;\r\n]/u).some(part => {
+      const item = part.trim().replace(/^(?:[-*•]|\d+[.)])\s+/u, '').trim();
+      return noEvidence.test(item);
+    });
   if (hasPlaceholderItem(spiegazione_generale) ||
       hasPlaceholderItem(effetti_positivi) ||
       hasPlaceholderItem(effetti_negativi)) return null;
