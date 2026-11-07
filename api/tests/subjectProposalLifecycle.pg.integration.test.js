@@ -143,6 +143,44 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     const base='http://127.0.0.1:'+server.address().port;
     const req=(uri,who,method,body)=>request(base,uri,who,method,body);
 
+    // The exact submission-Admin notification SQL must serialize with
+    // account suspension. No HTTP, real user, or production database is used.
+    const routeText=fs.readFileSync(path.join(__dirname,'../routes/subject-proposals.js'),'utf8');
+    const sqlLine=routeText.split('\n').map(x=>x.trim())
+      .find(x=>x.startsWith('"INSERT INTO notifiche_demos(id_utente,titolo,testo) SELECT id'));
+    assert.ok(sqlLine,'extract the real Admin notice SQL from the route');
+    const adminNoticeSql=JSON.parse(sqlLine.replace(/,$/,''));
+    assert.match(adminNoticeSql,/FOR SHARE$/,
+      'the actual SQL must wait for a concurrent account-status UPDATE');
+    const adminStatusClient=await pool.connect();
+    const adminNoticeClient=await pool.connect();
+    try {
+      const countBefore=await pool.query(
+        "SELECT count(*)::integer AS n FROM notifiche_demos WHERE id_utente=$1",[ADMIN]);
+      await adminStatusClient.query('BEGIN');
+      await adminStatusClient.query("UPDATE users SET status='x' WHERE id=$1",[ADMIN]);
+      await adminNoticeClient.query("SET lock_timeout='400ms'");
+      await assert.rejects(
+        adminNoticeClient.query(adminNoticeSql,['Nuova proposta sintetica']),
+        err=>err.code==='55P03',
+        'submission notice must wait for in-flight Admin suspension');
+      await adminStatusClient.query('COMMIT');
+      const suspendedNotice=await adminNoticeClient.query(
+        adminNoticeSql,['Nuova proposta sintetica']);
+      assert.equal(suspendedNotice.rowCount,0,
+        'an already suspended Admin must never receive the notice');
+      const countAfter=await pool.query(
+        "SELECT count(*)::integer AS n FROM notifiche_demos WHERE id_utente=$1",[ADMIN]);
+      assert.equal(countAfter.rows[0].n,countBefore.rows[0].n,
+        'no hidden inbox insert during the suspension race');
+    } finally {
+      await adminStatusClient.query('ROLLBACK').catch(()=>{});
+      await adminNoticeClient.query('RESET lock_timeout').catch(()=>{});
+      adminStatusClient.release();
+      adminNoticeClient.release();
+      await pool.query("UPDATE users SET status='a' WHERE id=$1",[ADMIN]);
+    }
+
     for(const [uri,who,method,body,status] of [
       ['/api/subject-proposals',null,'POST',proposal('attivisti','Attivista sintetica'),401],
       ['/api/subject-proposals','a','POST',proposal('grazia','Persona sintetica'),409],
