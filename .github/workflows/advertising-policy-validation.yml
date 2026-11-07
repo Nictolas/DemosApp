@@ -103,6 +103,7 @@ jobs:
       # Signing uses the runner-generated Android DEBUG key. This installs beside
       # production as community.demos.qaopen (never overwrites community.demos).
       - name: Package test-only Android APK for physical-device QA
+        id: package_qa
         working-directory: client/android
         shell: bash
         env:
@@ -113,7 +114,11 @@ jobs:
           # The official Google sample ID remains a safe fallback for compilation.
           app_id="${DEMOS_QA_ADMOB_APP_ID:-ca-app-pub-3940256099942544~3347511713}"
           if [ -z "${DEMOS_QA_ADMOB_APP_ID:-}" ]; then
+            echo "mode=SAMPLE_GOOGLE" >> "$GITHUB_OUTPUT"
             echo "::notice::Using Google sample App ID; DEMOS's actual consent message cannot be validated with this APK"
+          else
+            echo "mode=DEMOS_UMP" >> "$GITHUB_OUTPUT"
+            echo "::notice::Using configured DEMOS AdMob App ID; Google TEST ad unit only"
           fi
           ./gradlew :app:assembleDebug \
             -PdemosDebugAppOpenAds=true \
@@ -131,12 +136,40 @@ jobs:
           grep -Fq "package: name='community.demos.qaopen'" <<< "$badging"
           echo "Verified separate QA package (never overwrites installed DEMOS)"
           sha256sum "$apk"
+          qa_readme=app/build/outputs/apk/debug/QA-LEGGIMI.txt
+          cat > "$qa_readme" <<EOF
+          DEMOS ANDROID — APP OPEN / SOLO TEST (07-11-2026)
+          =================================================
+          Modalita CMP: ${DEMOS_QA_ADMOB_APP_ID:+DEMOS_UMP_CONFIGURATA}
+          $([ -n "${DEMOS_QA_ADMOB_APP_ID:-}" ] || printf 'Modalita CMP: SAMPLE_GOOGLE (messaggio DEMOS non verificabile)\\n')
+          Commit: ${GITHUB_SHA}
+          
+          Questo APK DEBUG si installa come community.demos.qaopen, separato da DEMOS.
+          Usa SOLO l'unita annunci di TEST ufficiale Google, non monetizza.
+          Usa una simulazione di utente adulto in QA, NON una verifica dell'eta:
+          installare solo sul telefono del tester maggiorenne.
+          
+          CHECKLIST TELEFONO:
+          1. Estrarre app-debug.apk dall'archivio e installarlo su Android.
+          2. Avviare l'app; verificare che DEMOS funzioni e non crashi.
+          3. Con App ID DEMOS configurato: accettare, negare e revocare il consenso.
+          4. Dopo il consenso, osservare avvio naturale senza forzare caricamenti.
+          5. Gli annunci possono NON comparire se il caricamento e' gia' concluso.
+          6. Verificare nessun annuncio durante voto, opinioni, firme, login.
+          7. Verificare limite di un annuncio ogni 6 ore e primi 2 avvii esclusi.
+          8. Segnalare esito senza inviare dati personali o ID del dispositivo.
+          
+          NON caricare questo APK su Google Play e NON usarlo per ricavi reali.
+          I gate DPO/Play/AdMob e il test Android fisico sono ancora aperti.
+          EOF
 
       - name: Archive installable TEST-ONLY Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: demos-qaopen-TEST-ONLY-synthetic-adult-debug-apk
-          path: client/android/app/build/outputs/apk/debug/app-debug.apk
+          name: demos-qaopen-${{ steps.package_qa.outputs.mode }}-TEST-ONLY-debug-apk
+          path: |
+            client/android/app/build/outputs/apk/debug/app-debug.apk
+            client/android/app/build/outputs/apk/debug/QA-LEGGIMI.txt
           if-no-files-found: error
           retention-days: 7
 
