@@ -132,6 +132,28 @@ test('structured legislative impacts cannot contain the no-evidence sentinel', (
     payload.spiegazione_generale);
 });
 
+test('embedded no-evidence placeholders in legislative effects must never be published', () => {
+  const payload = { spiegazione_generale: 'Il testo disciplina la misura.', effetti_positivi: '', effetti_negativi: '' };
+  const placeholders = [
+    '- INFORMAZIONI_INSUFFICIENTI',
+    '1) Informazioni insufficienti.',
+    '1. Effetto documentato; 2. INFORMAZIONI_INSUFFICIENTI',
+    '- Effetto documentato\n- Informazioni-insufficienti!',
+    'Effetto documentato; • informazioni insufficienti?'
+  ];
+  for (const field of ['effetti_positivi', 'effetti_negativi']) {
+    for (const value of placeholders) {
+      payload[field] = value;
+      assert.equal(parseGroundedAnalysisResponse(JSON.stringify(payload)), null,
+        'An unsupported list item cannot be published: ' + value);
+    }
+    payload[field] = 'Il testo disciplina le informazioni insufficienti per la procedura.';
+    assert.ok(parseGroundedAnalysisResponse(JSON.stringify(payload)),
+      'Ordinary documentary prose must remain valid');
+    payload[field] = '';
+  }
+});
+
 test('effect lists reject more than three points', () => {
   const response = { spiegazione_generale: 'Una misura documentata.', effetti_positivi: '', effetti_negativi: '' };
   for (const field of ['effetti_positivi', 'effetti_negativi']) {
