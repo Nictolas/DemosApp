@@ -3,6 +3,31 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { Client } = require('pg');
 const { readApprovedPage, parseCursor } = require('../services/publicApprovedSubjectPage');
+test('noncanonical public approved cursors are rejected before querying any database',async()=>{
+ const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+ const id='11111111-1111-4111-8111-111111111111';
+ // Select a legitimate 2- or 3-character final base64url quantum.
+ const canonical=['1','12','123','1234']
+  .map(epoch=>Buffer.from(JSON.stringify([epoch,id])).toString('base64url'))
+  .find(raw=>[2,3].includes(raw.length%4));
+ assert.ok(canonical,'fixture needs unused bits in final base64url character');
+ const tail=alphabet.indexOf(canonical.at(-1));
+ assert.notEqual(tail,-1);
+ assert.equal(tail&1,0,'canonical encoding must have zero unused low bit');
+ const alias=canonical.slice(0,-1)+alphabet[tail|1];
+ assert.notEqual(alias,canonical);
+ assert.equal(Buffer.from(alias,'base64url').toString('utf8'),
+  Buffer.from(canonical,'base64url').toString('utf8'),
+  'both spellings decode to identical JSON with permissive Node decoder');
+ assert.ok(Array.isArray(parseCursor(canonical)),'real generated cursor stays accepted');
+ assert.equal(parseCursor(alias),false,'alternate spelling of an identical cursor is forbidden');
+
+ let sqlReads=0;
+ const offlinePool={query:async()=>{sqlReads++;throw Error('SYNTHETIC_SQL_SHOULD_NOT_RUN')}};
+ assert.equal(await readApprovedPage(offlinePool,'attivisti',alias),null);
+ assert.equal(sqlReads,0,'invalid cursor must be rejected before SQL');
+});
+
 test('105 approved nominations/category: microsecond cursor, no duplicates, withdrawn excluded, minimal JSON', async()=>{
  const raw=process.env.CIVIC_TEST_DATABASE_URL;
  assert.equal(process.env.CIVIC_TEST_MODE,'isolated-synthetic');
