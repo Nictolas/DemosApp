@@ -3,7 +3,18 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { runOneProbe, createHandler, sanitizeResult } = require('../staging/groq_free_standalone_probe');
+const { runOneProbe, createHandler, sanitizeResult, sanitizeCaseResult } = require('../staging/groq_free_standalone_probe');
+
+test('T002 explanation diagnostics expose only validated booleans, not output', () => {
+  const result = sanitizeCaseResult({
+    caseId: 'T002', status: 'SOURCE_MISMATCH', success: false, verifiedFields: 9,
+    failedFields: ['spiegazione', 'PRIVATE'],
+    explanationDiagnostics: { topicFound: true, definitivePhraseFound: false, raw: 'PRIVATE' }
+  });
+  assert.deepEqual(result.failedFields, ['spiegazione']);
+  assert.deepEqual(result.explanationDiagnostics, { topicFound: true, definitivePhraseFound: false });
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE|raw/);
+});
 
 test('no Groq key never attempts a provider request', async () => {
   let calls = 0;
