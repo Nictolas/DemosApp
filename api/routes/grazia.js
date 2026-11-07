@@ -394,7 +394,11 @@ router.post('/vota', personalNoStore, verifyToken, requireVerifiedCivicIdentity,
           "SELECT id, nome FROM grazia_carcerati WHERE attivo = true AND lower(btrim(regexp_replace(normalize(nome, NFC), '[[:space:]]+', ' ', 'g'))) = lower(btrim(regexp_replace(normalize($1::text, NFC), '[[:space:]]+', ' ', 'g'))) FOR SHARE",
           [requestedVote]
         );
-        if (!stillActive.rows.length) {
+        // The historic catalogue can contain canonically equal names in
+        // distinct rows (its legacy unique index does not collapse inner
+        // whitespace or normalize Unicode). Fail closed rather than attach
+        // a personal vote to an arbitrary row; preserve the existing vote.
+        if (stillActive.rows.length !== 1) {
           await client.query('ROLLBACK');
           return res.status(422).json({ success: false, error: 'Soggetto non approvato per la votazione' });
         }
