@@ -105,13 +105,21 @@ jobs:
       - name: Package test-only Android APK for physical-device QA
         working-directory: client/android
         shell: bash
+        env:
+          DEMOS_QA_ADMOB_APP_ID: ${{ secrets.DEMOS_QA_ADMOB_APP_ID }}
         run: |
           set -euo pipefail
+          # For real DEMOS UMP QA, configure the repo secret with DEMOS's App ID.
+          # The official Google sample ID remains a safe fallback for compilation.
+          app_id="${DEMOS_QA_ADMOB_APP_ID:-ca-app-pub-3940256099942544~3347511713}"
+          if [ -z "${DEMOS_QA_ADMOB_APP_ID:-}" ]; then
+            echo "::notice::Using Google sample App ID; DEMOS's actual consent message cannot be validated with this APK"
+          fi
           ./gradlew :app:assembleDebug \
             -PdemosDebugAppOpenAds=true \
             -PdemosDebugUmpEea=true \
-            -PdemosDebugQaForceAdult=false \
-            -PdemosDebugAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            -PdemosDebugQaForceAdult=true \
+            "-PdemosDebugAdMobAppId=$app_id" \
             --no-daemon --console=plain
           apk=app/build/outputs/apk/debug/app-debug.apk
           test -s "$apk"
@@ -127,7 +135,7 @@ jobs:
       - name: Archive installable TEST-ONLY Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: demos-qaopen-TEST-ONLY-debug-apk
+          name: demos-qaopen-TEST-ONLY-synthetic-adult-debug-apk
           path: client/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
