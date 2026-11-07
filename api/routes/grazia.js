@@ -46,7 +46,11 @@ const personalNoStore = (_req, res, next) => {
 
 // POST /api/grazia - Registra una proposta privata, mai direttamente nel catalogo
 router.post('/', personalNoStore, verifyToken, async (req, res) => {
-  const nome = typeof req.body?.nome === 'string' ? req.body.nome.trim() : '';
+  // Store the same NFC / collapsed-whitespace identity that duplicate checks compare.
+  // This prevents distinct-looking Admin entries and multiline name artifacts.
+  const nome = typeof req.body?.nome === 'string'
+    ? req.body.nome.normalize('NFC').trim().replace(/\s+/gu, ' ')
+    : '';
   const urlProva = typeof req.body?.urlProva === 'string' ? req.body.urlProva.trim() : '';
   if (nome.length < 3 || nome.length > 160) {
     return res.status(400).json({ success: false, error: 'Nome non valido (3-160 caratteri)' });
