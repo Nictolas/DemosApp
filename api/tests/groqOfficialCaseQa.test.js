@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation } = require('../staging/groq_official_case_qa');
+const { assessOfficialAnswer, runOfficialCaseQA, diagnoseElectoralSenateFinalExplanation, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseIlvaAmendmentExplanation, diagnoseConditionalElectoralAmendment, diagnoseArticleNineExplanation, diagnoseCoordinationExplanation } = require('../staging/groq_official_case_qa');
 
 test('amendment explanation diagnosis requires both the proposed duration and its rejection', () => {
   assert.deepEqual(diagnoseAmendmentExplanation('L’emendamento di 18 mesi è stato respinto.'), { timingFound: true, rejectedFound: true });
@@ -41,6 +41,31 @@ test('QA rejects incorrect vote counts and mistaken enactment dates', () => {
   assert.deepEqual(assessOfficialAnswer({ ...CORRECT, esito: 'La Camera ha approvato il testo in via definitiva' }), { success: true, verifiedFields: 10, failedFields: [] });
   assert.deepEqual(assessOfficialAnswer({ ...CORRECT, esito: 'approvazione definitiva' }), { success: true, verifiedFields: 10, failedFields: [] });
 });
+test('T001 Senate S.1971 final vote does not treat absorbed S.61 as independently enacted', () => {
+  const t001 = {
+    atto: 'S.1971', data_voto: '15/09/2026',
+    favorevoli: 113, contrari: 71, astenuti: 2,
+    esito: 'APPROVATO NON DEFINITIVAMENTE',
+    numero_legge: null, data_pubblicazione: null,
+    data_entrata_in_vigore: null,
+    spiegazione: 'Il Senato ha approvato con modificazioni la riforma elettorale S.1971; il testo torna alla Camera. Il disegno S.61 è stato assorbito.'
+  };
+  const flags = { electoralTopicFound: true, notFinalLawFound: true,
+    absorbedBillFound: true, falseFinalityFound: false };
+  assert.deepEqual(diagnoseElectoralSenateFinalExplanation(t001.spiegazione), flags);
+  assert.deepEqual(assessOfficialAnswer(t001, 'T001'), {
+    success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: flags
+  });
+  assert.deepEqual(assessOfficialAnswer({ ...t001, atto: 'S.61' }, 'T001').failedFields, ['atto']);
+  assert.deepEqual(assessOfficialAnswer({ ...t001, favorevoli: 106 }, 'T001').failedFields, ['favorevoli']);
+  assert.deepEqual(assessOfficialAnswer({ ...t001, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T001').failedFields, ['esito']);
+  assert.deepEqual(assessOfficialAnswer({ ...t001, numero_legge: 180 }, 'T001').failedFields, ['numero_legge']);
+  assert.deepEqual(assessOfficialAnswer({ ...t001,
+    spiegazione: 'Il Senato ha approvato definitivamente il testo elettorale S.1971; S.61 assorbito e testo modificato.' }, 'T001').failedFields, ['spiegazione']);
+  assert.deepEqual(assessOfficialAnswer({ ...t001,
+    spiegazione: 'Il Senato approva la riforma elettorale S.1971 con modificazioni; il testo torna alla Camera.' }, 'T001').failedFields, ['spiegazione']);
+});
+
 test('T003 electoral-law official evidence rejects wrong vote totals and law effective date', () => {
   const t003 = {
     atto: 'C.2822-B', data_voto: '08/10/2026',
