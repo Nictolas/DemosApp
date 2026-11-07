@@ -227,6 +227,24 @@ test('T011 cross-DDL warning reports boolean flags, never explanation text', () 
   assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_SOURCE_TEXT|original/);
 });
 
+test('T013 official ballot explanation diagnostics cannot leak generated prose', () => {
+  const sanitized = sanitizeCaseResult({
+    caseId: 'T013', status: 'SOURCE_MISMATCH', success: false,
+    verifiedFields: 9, failedFields: ['spiegazione'],
+    explanationDiagnostics: {
+      thresholdFound: true, immediateLegislatureFound: false,
+      laterLegislatureFound: true, rejectedFound: true,
+      confusedWith18Months: false, text: 'PRIVATE_GENERATION'
+    }
+  });
+  assert.deepEqual(sanitized.explanationDiagnostics, {
+    thresholdFound: true, immediateLegislatureFound: false,
+    laterLegislatureFound: true, rejectedFound: true,
+    confusedWith18Months: false
+  });
+  assert.doesNotMatch(JSON.stringify(sanitized), /PRIVATE_GENERATION|text/);
+});
+
 test('standalone smoke has no database, Firebase, cron or secret output handlers', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'staging', 'groq_free_standalone_probe.js'), 'utf8');
   assert.doesNotMatch(src, /require\(['"]\.\.\/config\/database['"]\)|getPool\(|firebase-admin|sendEachForMulticast|cron\.schedule|setInterval\(/);
