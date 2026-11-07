@@ -18,17 +18,19 @@ async function withAndroid110Contract(callback) {
   const originals = new Map([authPath,jwtPath,compatibilityPath,managementPath,answersPath]
     .map(name => [name,require.cache[name]]));
   let server;
-  const state = {answer:null,hasRow:false,sql:[]};
+  const state = {answer:null,hasRow:false,sql:[],consent:true};
   const fixtureId = 'energia_nucleare';
   const query = async (statement,params=[]) => {
     const sql=String(statement).replace(/\s+/g,' ').trim();
     state.sql.push(sql);
     if(/\bopinioni_domande\b/i.test(sql)) throw Error('Legacy catalog table read/write is forbidden: '+sql);
-    if(sql.includes('FROM users u LEFT JOIN LATERAL') && sql.includes('FROM opinioni_risposte a WHERE a.user_id = u.id')) {
+    if(sql.includes('FROM users u LEFT JOIN user_consents uc') && sql.includes('FROM opinioni_risposte a WHERE a.user_id = u.id')) {
+      assert.match(sql,/COALESCE\(uc\.political_opinions_consent, u\.political_opinions_consent, false\) IS TRUE/,
+        'one SQL query must check active consent before returning Android opinion answers');
       assert.deepEqual(params,[emailFreeFakeUser]);
       assert.ok(!sql.includes('fonti_opinioni') && !sql.includes('SELECT *'));
       return {rows:[{id:emailFreeFakeUser,status:'a',ruolo:'E',
-        opinion_answers:state.hasRow?{[fixtureId]:state.answer}:null}]};
+        opinion_answers:(state.hasRow && state.consent)?{[fixtureId]:state.answer}:null}]};
     }
     if(sql==='SELECT id FROM users WHERE id = $1 FOR UPDATE'){
       assert.deepEqual(params,[emailFreeFakeUser]);
@@ -135,6 +137,13 @@ test('Android 1.0.10 national/territorial Opinions, save and fresh verification 
     const verified=await fetch(base+'/api/opinioni-list?grado=N',options);
     const actual=(await verified.json()).data;
     assert.equal(actual.find(op=>op.id===fixtureId).userAnswer,'f');
+
+    // Device with stale local data must not receive residual answers after revocation.
+    state.consent=false;
+    const revoked=await fetch(base+'/api/opinioni-list?grado=N',options);
+    assert.equal(revoked.status,200,'public questions remain readable without consent');
+    assert.equal((await revoked.json()).data.find(op=>op.id===fixtureId).userAnswer,null);
+    state.consent=true;
 
     const all=await fetch(base+'/api/opinioni',options);
     assert.equal(all.status,200);
