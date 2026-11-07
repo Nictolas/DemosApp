@@ -13,6 +13,7 @@ const suspendedUsers=new Set();
 const catalog=[{id:1,nome:'Persona già verificata',attivo:true}];
 const requests=[];
 const notices=[];
+let queryCalls=0;
 let nextId=2;
 let failNotifications=false;
 let failConnect=false;
@@ -28,6 +29,7 @@ const pool={
   }
 };
 function respond(statement,values){
+  queryCalls++;
   const sql=String(statement).trim();
   if(['BEGIN','COMMIT','ROLLBACK'].includes(sql))return {rows:[]};
   if(sql.startsWith("SELECT id FROM users WHERE id = $1 AND status = 'a' FOR UPDATE"))
@@ -349,4 +351,19 @@ test('Grazia review rejects malformed reference before acquiring SQL',async()=>{
     assert.equal(legacy.status,500,'legacy-compatible reference reaches the synthetic offline pool');
     assert.match(legacy.headers.get('cache-control')||'',/no-store/);
   }finally{failConnect=false;}
+});
+
+
+test('Grazia Admin rejects malformed paged mode before any SQL',async()=>{
+  const before=queryCalls;
+  for(const q of ['paged=2','paged=TRUE','paged=','paged=1&paged=0']){
+    const response=await request('/api/grazia/richieste?'+q,'admin');
+    assert.equal(response.status,400,'invalid mode '+q);
+    assert.match(response.headers.get('cache-control')||'',/private.*no-store/);
+    const body=await response.json();
+    assert.equal(body.success,false);
+  }
+  assert.equal(queryCalls,before,'invalid modes cannot load the legacy Admin list');
+  const legacy=await request('/api/grazia/richieste?paged=0','admin');
+  assert.equal(legacy.status,200,'explicit legacy mode remains compatible');
 });
