@@ -14,6 +14,7 @@ import {
 } from "@/lib/oauth";
 import { isNativeAndroid, loginWithNativeGoogle } from "@/lib/native-google-auth";
 import { isWebAuthnSupported, loginWithPasskey } from "@/lib/webauthn";
+import { consumePendingCivicNotificationTarget } from "@/lib/civic-notification-pending-link";
 
 const AUTH_ROUTES = ["/", "/auth"];
 
@@ -41,7 +42,7 @@ export function useAuthLogin() {
     if (result.isNew === false) {
       toast({ title: "Login effettuato", description: `Accesso con ${provider} completato.` });
       setTimeout(() => {
-        window.location.href = "/profilo";
+        window.location.href = consumePendingCivicNotificationTarget() || "/profilo";
       }, 200);
       return;
     }
@@ -136,7 +137,7 @@ export function useAuthLogin() {
       if (result.success) {
         toast({ title: "Login effettuato", description: "Accesso con passkey completato." });
         setTimeout(() => {
-          window.location.href = "/profilo";
+          window.location.href = consumePendingCivicNotificationTarget() || "/profilo";
         }, 200);
       } else if (result.code !== "CANCELLED") {
         toast({
