@@ -186,17 +186,34 @@ async function generaESalvaSpiegazione(politicoNome, votazione, descrizioneVotaz
     return existingResult.rows[0].spiegazione;
   }
 
-  // Usa la descrizione dal database se disponibile e non è stata passata
-  const descrizioneDaUsare = descrizioneVotazione || existingResult.rows[0].descrizione_votazione;
+  // Il documento del chiamante può essere obsoleto o non verificato.
+  // Usa solo lo snapshot persistito associato alla riga precisa.
+  const documentSnapshot = existingResult.rows[0].descrizione_votazione ?? null;
+  if (!hasDocumentaryContext(documentSnapshot)) {
+    console.warn('Spiegazione rappresentante non generata: documento persistito insufficiente');
+    return null;
+  }
 
-  // Genera nuova spiegazione con titolo + descrizione
-  const spiegazione = await generaSpiegazione(votazione, descrizioneDaUsare, camera, voto);
-  
+  const spiegazione = await generaSpiegazione(votazione, documentSnapshot, camera, voto);
   if (!spiegazione) return null;
-  // The current vote might have changed after SELECT while Groq generated text.
-  // Never claim saved success if the exact row was not updated.
-  const saved = await salvaSpiegazione(politicoNome, spiegazione, votazione);
-  return saved ? spiegazione : null;
+
+  try {
+    // Compare-and-swap: una spiegazione in volo non deve sovrascrivere
+    // né una fonte cambiata né una spiegazione salvata nel frattempo.
+    // Il confronto del vecchio valore preserva anche forceRegenerate.
+    const saved = await pool.query(
+      `UPDATE voti_camera
+       SET spiegazione = $1
+       WHERE politico_nome = $2 AND votazione = $3
+         AND descrizione_votazione IS NOT DISTINCT FROM $4
+         AND spiegazione IS NOT DISTINCT FROM $5`,
+      [spiegazione.trim(), politicoNome, votazione, documentSnapshot, existingResult.rows[0].spiegazione]
+    );
+    return saved.rowCount === 1 ? spiegazione : null;
+  } catch (_error) {
+    console.error('Salvataggio spiegazione rappresentante non riuscito');
+    return null;
+  }
 }
 
 /**
