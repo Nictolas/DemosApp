@@ -104,6 +104,18 @@ test('Grazia withdrawal remains on its own queue, keeps votes and has private au
   assert.match(ui,/api\/grazia\/richiesta\/\$\{encodeURIComponent\(id\)\}\/ritira/);
 });
 
+test('Grazia vote transaction rechecks political consent after locking account', () => {
+  const source=read('api/routes/grazia.js');
+  const voting=source.split("router.post('/vota'")[1].split('// Grazia keeps one canonical queue')[0];
+  const lock=voting.indexOf("SELECT id FROM users WHERE id::text=$1 AND status='a' FOR SHARE");
+  const consent=voting.indexOf('getPoliticalConsentState(client, userId)');
+  const write=voting.indexOf('DELETE FROM voti_grazia WHERE');
+  assert.ok(lock>=0 && consent>lock && write>consent,
+    'the same transaction checks consent after status lock but before modifying personal preferences');
+  assert.match(voting,/!currentConsent\.exists \|\| !currentConsent\.granted/);
+  assert.match(voting,/code: 'POLITICAL_CONSENT_REQUIRED'/);
+});
+
 test('Grazia voting locks the approved catalogue row inside its own transaction', () => {
   const route=read('api/routes/grazia.js');
   const voting=route.split("router.post('/vota'")[1].split('// Grazia keeps one canonical queue')[0];
