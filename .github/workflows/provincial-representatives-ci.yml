@@ -9,6 +9,7 @@ on:
       - '.github/workflows/provincial-representatives-ci.yml'
       - 'api/**'
       - 'client/**'
+      - 'docs/operations/DEMOS_PROVINCIAL_E2E_STAGING_GATE_20261107.md'
   pull_request:
     paths:
       - 'api/config/politicalJurisdictions.js'
