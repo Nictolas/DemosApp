@@ -290,6 +290,21 @@ test('T013 official ballot explanation diagnostics cannot leak generated prose',
   assert.doesNotMatch(JSON.stringify(sanitized), /PRIVATE_GENERATION|text/);
 });
 
+test('T023 official article diagnostics never reveal generated text', () => {
+  const safe = sanitizeCaseResult({
+    caseId: 'T023', status: 'SOURCE_MISMATCH', success: false,
+    verifiedFields: 9, failedFields: ['spiegazione'],
+    explanationDiagnostics: {
+      noNewCostsFound: true, approvedFound: false, falselyFinalFound: true,
+      rawText: 'PRIVATE_MODEL_OUTPUT'
+    }
+  });
+  assert.deepEqual(safe.explanationDiagnostics, {
+    noNewCostsFound: true, approvedFound: false, falselyFinalFound: true
+  });
+  assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_MODEL_OUTPUT|rawText/);
+});
+
 test('standalone smoke has no database, Firebase, cron or secret output handlers', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'staging', 'groq_free_standalone_probe.js'), 'utf8');
   assert.doesNotMatch(src, /require\(['"]\.\.\/config\/database['"]\)|getPool\(|firebase-admin|sendEachForMulticast|cron\.schedule|setInterval\(/);
