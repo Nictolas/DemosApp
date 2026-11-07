@@ -25,6 +25,15 @@ const SENATE_EVIDENCE = [
   'La Camera approverà definitivamente il successivo 20/10/2026: questa NON è la data del voto del Senato.'
 ].join(' ');
 
+function diagnoseSenateExplanation(value) {
+  // Diagnostic flags only: no model text is logged or returned by the public probe.
+  const explanation = String(value || '');
+  return {
+    topicFound: /impiant|continuit/i.test(explanation),
+    definitivePhraseFound: /approvat[oa] definitivamente/i.test(explanation)
+  };
+}
+
 function assessOfficialAnswer(answer) {
   if (!answer || typeof answer !== 'object' || Array.isArray(answer)) {
     return { success: false, verifiedFields: 0 };
@@ -40,10 +49,10 @@ function assessOfficialAnswer(answer) {
       answer.numero_legge == null,
       answer.data_pubblicazione == null,
       answer.data_entrata_in_vigore == null,
-      /impiant|continuit/i.test(String(answer.spiegazione || '')) && !/approvat[oa] definitivamente/i.test(String(answer.spiegazione || ''))
+      (() => { const flags = diagnoseSenateExplanation(answer.spiegazione); return flags.topicFound && !flags.definitivePhraseFound; })()
     ];
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
-    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]) };
+    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: diagnoseSenateExplanation(answer.spiegazione) };
   }
   const checks = [
     String(answer.atto || '').replace(/[^0-9]/g, '') === '3131',
@@ -132,4 +141,4 @@ async function runOfficialCaseQA({
   }
 }
 
-module.exports = { CASE_ID, EVIDENCE, assessOfficialAnswer, runOfficialCaseQA };
+module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, assessOfficialAnswer, runOfficialCaseQA };
