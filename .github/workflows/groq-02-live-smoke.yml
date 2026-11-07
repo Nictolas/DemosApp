@@ -114,8 +114,9 @@ jobs:
           print('T010 missing field names (allowlist):', ', '.join(safe_missing) if safe_missing else 'none')
           if isinstance(result.get('explanationDiagnostics'), dict):
               diagnostics = result['explanationDiagnostics']
-              print('T010 explanation proposal timing found:', diagnostics.get('timingFound') is True)
+              print('T010 second-legislature reference found:', diagnostics.get('secondLegislatureFound') is True)
               print('T010 explanation rejection found:', diagnostics.get('rejectedFound') is True)
+              print('T010 confused with 18 months:', diagnostics.get('wrong18MonthFound') is True)
           print('T010 HTTP:', code)
           if (code != 200 or category != 'OK' or verified != 10 or
               result.get('caseId') != 'T010' or result.get('success') is not True):
