@@ -7,7 +7,7 @@
 const { resolveFreeGroqModel, isGroqConfigured } = require('../services/parliamentFreeAiPolicy');
 const { requestFreeGroq, classifyFreeGroqError } = require('../services/parliamentFreeGroqBudget');
 
-const CASE_ID = ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T018'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
+const CASE_ID = ['T002', 'T003', 'T006', 'T009', 'T010', 'T011', 'T012', 'T013', 'T018'].includes(process.env.GROQ_QA_CASE_ID) ? process.env.GROQ_QA_CASE_ID : 'T008';
 const EVIDENCE = [
   'Camera dei deputati, XIX legislatura, seduta 729 del 20/10/2026.',
   'Votazione finale A.C. 3131: 125 favorevoli, 43 contrari, 52 astenuti, 168 votanti, 220 presenti.',
@@ -139,6 +139,30 @@ function diagnoseIlvaAmendmentExplanation(value) {
   };
 }
 
+// Official vote: https://www.senato.it/leggi-e-documenti/disegni-di-legge/scheda-ddl/votazione?did=60317&sessionId=453&voteId=120
+// Original amendment: https://www.senato.it/show-doc?id=0&idoggetto=0&leg=19&part=doc_dc-allegatoa_aa-ddltit_ddldasda44c3dr1971-oggetto_a9ntadcdd&tipodoc=hotresaula
+// S.61 was examined alongside and absorbed by S.1971, not itself the voted amendment's parent.
+const CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE = [
+  'Senato, XIX legislatura, seduta 453 del 14/09/2026. Emendamento 9.0.1 di Giorgis e altri al ddl S.1971, discusso insieme a S.61.',
+  'Voto elettronico: presenti 151, votanti 140, 48 favorevoli, 90 contrari, 2 astenuti. Esito: RESPINTO.',
+  'La proposta riguardava quando applicare la nuova legge elettorale: in caso di approvazione nell’ultimo anno della legislatura,',
+  'la legislatura immediatamente successiva solo con voto qualificato dei due terzi in entrambe le Camere;',
+  'in mancanza di tale condizione, applicazione dalla seconda legislatura successiva.',
+  'Non confondere questa condizione con emendamento 9.0.2 (solo seconda legislatura) né 9.0.3 (18 mesi dalla Gazzetta).',
+  'Emendamento respinto: nessun numero di legge né data di pubblicazione o entrata in vigore si applica a questa proposta.'
+].join(' ');
+
+function diagnoseConditionalElectoralAmendment(value) {
+  const explanation = String(value || '');
+  return {
+    thresholdFound: /(?:due\s+terzi|2\s*\/\s*3)/i.test(explanation),
+    immediateLegislatureFound: /(?:immediatamente\s+successiv|prima\s+legislatura\s+successiv)/i.test(explanation),
+    laterLegislatureFound: /seconda\s+legislatur/i.test(explanation),
+    rejectedFound: /respint|bocciat|non\s+approvat/i.test(explanation),
+    confusedWith18Months: /(?:18|diciotto)\s+mes/i.test(explanation)
+  };
+}
+
 function diagnoseSecondLegislatureExplanation(value) {
   const explanation = String(value || '');
   return {
@@ -202,6 +226,26 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
     ];
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
     return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: diagnoseAmendmentExplanation(explanation) };
+  }
+  if (caseId === 'T013') {
+    const flags = diagnoseConditionalElectoralAmendment(answer.spiegazione);
+    const checks = [
+      /^(?:EM(?:ENDAMENTO)?\.?\s*)?9\.0\.1$/i.test(String(answer.atto || '').trim()),
+      String(answer.data_voto || '') === '14/09/2026',
+      Number(answer.favorevoli) === 48,
+      Number(answer.contrari) === 90,
+      Number(answer.astenuti) === 2,
+      String(answer.esito || '').trim().toUpperCase() === 'RESPINTO',
+      answer.numero_legge == null,
+      answer.data_pubblicazione == null,
+      answer.data_entrata_in_vigore == null,
+      flags.thresholdFound && flags.immediateLegislatureFound &&
+        flags.laterLegislatureFound && flags.rejectedFound && !flags.confusedWith18Months
+    ];
+    const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito',
+      'numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
+    return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length,
+      failedFields: names.filter((_, i) => !checks[i]), explanationDiagnostics: flags };
   }
   if (caseId === 'T010') {
     const explanation = String(answer.spiegazione || '');
@@ -353,9 +397,9 @@ async function runOfficialCaseQA({
       model,
       messages: [
         { role: 'system', content: 'Sei un verificatore di dati parlamentari. Usa ESCLUSIVAMENTE la fonte fornita. Non inventare fatti. Rispondi solo con un oggetto JSON conforme alle chiavi richieste.' },
-        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : CASE_ID === 'T018' ? CONFIDENCE_PA_EVIDENCE : EVIDENCE) +
+        { role: 'user', content: 'FONTE UFFICIALE: ' + (CASE_ID === 'T002' ? SENATE_EVIDENCE : CASE_ID === 'T003' ? ELECTORAL_EVIDENCE : CASE_ID === 'T009' ? AMENDMENT_EVIDENCE : CASE_ID === 'T010' ? SECOND_LEGISLATURE_AMENDMENT_EVIDENCE : CASE_ID === 'T006' ? ARCHIVE_EVIDENCE : CASE_ID === 'T012' ? ILVA_AMENDMENT_EVIDENCE : CASE_ID === 'T011' ? LIABILITY_AMENDMENT_EVIDENCE : CASE_ID === 'T018' ? CONFIDENCE_PA_EVIDENCE : CASE_ID === 'T013' ? CONDITIONAL_ELECTORAL_AMENDMENT_EVIDENCE : EVIDENCE) +
           '\nEstrai i seguenti campi JSON, con numeri come interi e date GG/MM/AAAA: ' +
-          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : CASE_ID === 'T011' ? 'Em. 1.0.6' : CASE_ID === 'T018' ? 'S.2047' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
+          'atto (formato ' + (CASE_ID === 'T002' ? 'S.2023' : CASE_ID === 'T003' ? 'C.2822-B' : CASE_ID === 'T009' ? 'Em. 9.0.3' : CASE_ID === 'T010' ? 'Em. 9.0.2' : CASE_ID === 'T006' ? 'S.1804' : CASE_ID === 'T012' ? 'Em. 1.13' : CASE_ID === 'T011' ? 'Em. 1.0.6' : CASE_ID === 'T018' ? 'S.2047' : CASE_ID === 'T013' ? 'Em. 9.0.1' : 'C.3131') + '), data_voto, favorevoli, contrari, astenuti, esito, ' +
           'Il campo esito deve essere una delle seguenti stringhe esatte: APPROVATO DEFINITIVAMENTE, APPROVATO NON DEFINITIVAMENTE, RESPINTO, NON DETERMINABILE. ' +
           'Determina autonomamente quale esito è sostenuto dalla fonte, distinguendo il voto del ramo dalla conclusione dell’intero iter legislativo. ' +
           'numero_legge, data_pubblicazione, data_entrata_in_vigore, spiegazione. Se la fonte non collega al voto una legge già promulgata, restituisci null per i campi relativi alla legge; non attribuire al voto di un ramo dati di una legge successiva. ' +
@@ -401,4 +445,4 @@ async function runOfficialCaseQA({
   }
 }
 
-module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, diagnoseIlvaAmendmentExplanation, diagnoseLiabilityAmendmentExplanation, assessOfficialAnswer, runOfficialCaseQA };
+module.exports = { CASE_ID, EVIDENCE, diagnoseSenateExplanation, diagnoseAmendmentExplanation, diagnoseSecondLegislatureExplanation, diagnoseIlvaAmendmentExplanation, diagnoseLiabilityAmendmentExplanation, diagnoseConditionalElectoralAmendment, assessOfficialAnswer, runOfficialCaseQA };
