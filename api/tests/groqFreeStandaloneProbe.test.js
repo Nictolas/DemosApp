@@ -332,6 +332,23 @@ test('T023 aggregates only approved/invarianza boolean counts across real sample
   assert.doesNotMatch(JSON.stringify(safe), /SECRET_PROVIDER_PROSE|output/);
 });
 
+test('T024 formal-coordination explanation diagnostics expose no generated text', () => {
+  const safe = sanitizeCaseResult({
+    caseId: 'T024', status: 'SOURCE_MISMATCH', success: false,
+    verifiedFields: 9, failedFields: ['spiegazione'],
+    explanationDiagnostics: {
+      coordinationFound: true, referencesFound: false,
+      approvedFound: true, falseFinalityFound: false,
+      rawText: 'PRIVATE_MODEL_OUTPUT'
+    }
+  });
+  assert.deepEqual(safe.explanationDiagnostics, {
+    coordinationFound: true, referencesFound: false,
+    approvedFound: true, falseFinalityFound: false
+  });
+  assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_MODEL_OUTPUT|rawText/);
+});
+
 test('standalone smoke has no database, Firebase, cron or secret output handlers', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'staging', 'groq_free_standalone_probe.js'), 'utf8');
   assert.doesNotMatch(src, /require\(['"]\.\.\/config\/database['"]\)|getPool\(|firebase-admin|sendEachForMulticast|cron\.schedule|setInterval\(/);
