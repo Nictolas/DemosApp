@@ -98,7 +98,7 @@ jobs:
                            'SOURCE_MISMATCH','AUTH','MODEL_NOT_FOUND','INVALID_REQUEST',
                            'RATE_LIMIT','PROVIDER_UNAVAILABLE','NETWORK_OR_UNKNOWN'}
           case_id = result.get('caseId')
-          official_cases = {'T002','T003','T006','T008','T009','T010'}
+          official_cases = {'T002','T003','T006','T008','T009','T010','T012'}
           if case_id not in official_cases:
               print('Official-case QA: UNRECOGNIZED_CASE')
               sys.exit(1)
