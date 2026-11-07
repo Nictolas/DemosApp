@@ -57,7 +57,7 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
         region: region
       });
     } catch (sdkErr) {
-      console.error('⚠️ SDK Axiom non disponibile:', sdkErr.message);
+      console.error('⚠️ SDK Axiom non disponibile:');
     }
     
     for (const ds of datasets) {
@@ -93,7 +93,7 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
             console.log(`✅ ${ds.name}: ${eventCount.toLocaleString()} eventi (SDK), ${dataSizeMB.toFixed(2)} MB calcolati`);
             
           } catch (sdkQueryErr) {
-            console.error(`⚠️ Query SDK fallita per ${ds.name}:`, sdkQueryErr.message);
+            console.error(`⚠️ Query SDK fallita per ${ds.name}:`);
             // Fallback alle statistiche di migrazione
             throw sdkQueryErr;
           }
@@ -175,13 +175,13 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
         }
         
         // Se tutto fallisce, mostra errore
-        console.error(`❌ Impossibile ottenere statistiche per ${ds.name}:`, err.message);
+        console.error(`❌ Impossibile ottenere statistiche per ${ds.name}:`);
         results.push({
           name: ds.name,
           label: ds.label,
           count: null,
           dataSizeMB: null,
-          error: `Impossibile ottenere statistiche: ${err.message}`,
+          error: `Impossibile ottenere statistiche: errore del provider`,
           needsManualCheck: true
         });
       }
@@ -214,11 +214,11 @@ router.get('/axiom-analysis', requireAdmin, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Errore analisi Axiom:', error);
+    console.error('Errore analisi Axiom:');
     res.status(500).json({ 
       success: false,
       error: 'Errore ottenendo analisi Axiom',
-      message: error.message 
+      message: 'Dettaglio non disponibile' 
     });
   }
 });
@@ -284,7 +284,7 @@ router.post('/axiom-stats-manual', requireAdmin, async (req, res) => {
         results.push({
           name: ds.name,
           success: false,
-          error: err.message
+          error: 'Dettaglio non disponibile'
         });
       }
     }
@@ -298,11 +298,11 @@ router.post('/axiom-stats-manual', requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Errore salvataggio statistiche manuali:', error);
+    console.error('Errore salvataggio statistiche manuali:');
     res.status(500).json({
       success: false,
       error: 'Errore salvataggio statistiche manuali',
-      message: error.message
+      message: 'Dettaglio non disponibile'
     });
   }
 });
@@ -396,7 +396,7 @@ router.get('/tables', requireAdmin, async (req, res) => {
         });
 
       } catch (error) {
-        console.error(`Errore ottenendo info per ${tableName}:`, error);
+        console.error(`Errore ottenendo info per ${tableName}:`);
         tableInfo.push({
           name: tableName,
           enabled: false,
@@ -406,7 +406,7 @@ router.get('/tables', requireAdmin, async (req, res) => {
           sizeMB: 0,
           sizeKB: 0,
           sizeBytes: 0,
-          error: error.message
+          error: 'Dettaglio non disponibile'
         });
       }
     }
@@ -414,7 +414,7 @@ router.get('/tables', requireAdmin, async (req, res) => {
     res.json(tableInfo);
 
   } catch (error) {
-    console.error('Errore ottenendo info tabelle:', error);
+    console.error('Errore ottenendo info tabelle:');
     res.status(500).json({ error: 'Errore ottenendo informazioni tabelle' });
   }
 });
@@ -431,84 +431,14 @@ router.get('/status', requireAdmin, async (req, res) => {
  * POST /api/admin/data-export/start
  * Avvia l'export dei dati
  */
-router.post('/start', requireAdmin, async (req, res) => {
-  try {
-    if (exportStatus.isRunning) {
-      return res.status(400).json({ error: 'Export già in corso' });
-    }
-
-    const { tables, deleteAfterExport = false, dryRun = false } = req.body;
-
-    if (!tables || tables.length === 0) {
-      return res.status(400).json({ error: 'Nessuna tabella selezionata' });
-    }
-
-    // Reset stato
-    exportStatus = {
-      isRunning: true,
-      progress: 0,
-      currentTable: '',
-      totalTables: tables.length,
-      exportedRecords: 0,
-      totalRecords: 0,
-      error: null
-    };
-
-    // Avvia processo export
-    const scriptPath = path.join(__dirname, '../../scripts/hard-disk-export.js');
-    const args = ['export'];
-    
-    if (deleteAfterExport) args.push('--delete');
-    if (dryRun) args.push('--dry-run');
-
-    exportProcess = spawn('node', [scriptPath, ...args], {
-      env: { ...process.env, EXPORT_TABLES: tables.join(',') }
-    });
-
-    exportProcess.stdout.on('data', (data) => {
-      const output = data.toString();
-      console.log('Export output:', output);
-      
-      // Parsing output per aggiornare stato
-      if (output.includes('Esportazione')) {
-        const match = output.match(/Esportazione (\w+)/);
-        if (match) {
-          exportStatus.currentTable = match[1];
-        }
-      }
-      
-      if (output.includes('Record esportati:')) {
-        const match = output.match(/Record esportati: (\d+)/);
-        if (match) {
-          exportStatus.exportedRecords = parseInt(match[1]);
-        }
-      }
-    });
-
-    exportProcess.stderr.on('data', (data) => {
-      console.error('Export error:', data.toString());
-      exportStatus.error = data.toString();
-    });
-
-    exportProcess.on('close', (code) => {
-      exportStatus.isRunning = false;
-      exportStatus.progress = 100;
-      
-      if (code !== 0) {
-        exportStatus.error = `Processo terminato con codice ${code}`;
-      }
-      
-      exportProcess = null;
-    });
-
-    res.json({ message: 'Export avviato', status: exportStatus });
-
-  } catch (error) {
-    console.error('Errore avvio export:', error);
-    exportStatus.isRunning = false;
-    exportStatus.error = error.message;
-    res.status(500).json({ error: 'Errore avvio export' });
-  }
+// Legacy disk export is retired until retention, delivery and deletion policy are approved.
+// Never spawn the old script or accept its --delete option via HTTP.
+router.post('/start', requireAdmin, (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.status(410).json({
+    success: false,
+    error: 'Export legacy non disponibile: verifica GDPR e conservazione dati in corso'
+  });
 });
 
 /**
@@ -529,7 +459,7 @@ router.post('/stop', requireAdmin, async (req, res) => {
     res.json({ message: 'Export interrotto' });
 
   } catch (error) {
-    console.error('Errore stop export:', error);
+    console.error('Errore stop export:');
     res.status(500).json({ error: 'Errore interruzione export' });
   }
 });
@@ -564,7 +494,7 @@ router.get('/history', requireAdmin, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Errore ottenendo cronologia:', error);
+    console.error('Errore ottenendo cronologia:');
     res.status(500).json({ error: 'Errore ottenendo cronologia export' });
   }
 });
@@ -604,7 +534,7 @@ router.get('/download/:exportId', requireAdmin, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Errore download export:', error);
+    console.error('Errore download export:');
     res.status(500).json({ error: 'Errore download export' });
   }
 });
@@ -644,7 +574,7 @@ router.get('/security-events-stats', requireAdmin, async (req, res) => {
         totalCount = allRecords.filter(r => r.type && r.severity).length;
       }
     } catch (err) {
-      console.error('Errore conteggio security events:', err);
+      console.error('Errore conteggio security events:');
       // Fallback: conta manualmente
       const allRecords = await queryAxiom(`['${dataset}'] | limit 100000`, { startTime, endTime });
       totalCount = allRecords.filter(r => r.type && r.severity).length;
@@ -679,7 +609,7 @@ router.get('/security-events-stats', requireAdmin, async (req, res) => {
         });
       }
     } catch (err) {
-      console.error('Errore calcolo severity stats:', err);
+      console.error('Errore calcolo severity stats:');
     }
     
     // Calcola dimensione approssimativa (basata su ~335 bytes per evento)
@@ -702,10 +632,10 @@ router.get('/security-events-stats', requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Errore ottenendo statistiche security events:', error);
+    console.error('Errore ottenendo statistiche security events:');
     res.status(500).json({ 
       error: 'Errore ottenendo statistiche security events',
-      message: error.message
+      message: 'Dettaglio non disponibile'
     });
   }
 });
@@ -785,10 +715,10 @@ router.get('/centralized-logs', requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Errore ottenendo log centralizzati:', error);
+    console.error('Errore ottenendo log centralizzati:');
     res.status(500).json({ 
       error: 'Errore ottenendo log centralizzati',
-      message: error.message
+      message: 'Dettaglio non disponibile'
     });
   }
 });
@@ -973,7 +903,7 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
     res.json(analysis);
 
   } catch (error) {
-    console.error('Errore analisi database:', error);
+    console.error('Errore analisi database:');
     res.status(500).json({ error: 'Errore analisi database' });
   }
 });
@@ -1022,7 +952,7 @@ router.get('/stats', requireAdmin, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Errore ottenendo statistiche:', error);
+    console.error('Errore ottenendo statistiche:');
     res.status(500).json({ error: 'Errore ottenendo statistiche' });
   }
 });

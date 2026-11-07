@@ -1,3 +1,7 @@
+'use strict';
+// Deprecated migration entrypoint: refuse before loading credentials, SQL or HTTP.
+require('../api/services/legacyAxiomMigrationGate').exitRetiredLegacyAxiomMigration();
+
 // Script per migrare dati da Neon a Axiom - Eseguibile localmente
 // Non richiede accesso a Render Shell - si connette direttamente a Neon e Axiom
 // Uso: node scripts/migrate-local.js [dry-run|migrate] [--tables=centralized_logs,audit_logs]
