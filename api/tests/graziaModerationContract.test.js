@@ -6,6 +6,24 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..', '..');
 const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 
+test('political consent route logs no account identifiers or raw SQL errors', () => {
+  const source = read('api/routes/user/political-opinions-consent.js');
+  assert.ok(!source.includes('console.log('), 'no per-user success/count logs');
+  assert.ok(!source.includes(', error)'), 'no raw exception objects logged');
+  assert.ok(!source.includes('errorMessage: error.message'), 'audit failure must not store raw SQL exception text');
+  for (const code of ['READ','GRANT','REVOKE']) {
+    assert.ok(source.includes("console.error('POLITICAL_CONSENT_" + code + "_FAILED')"));
+  }
+  const grant = source.split("router.post('/'")[1].split("router.put('/revoke'")[0];
+  const revoke = source.split("router.put('/revoke'")[1];
+  assert.ok(grant.includes("errorMessage: 'POLITICAL_CONSENT_GRANT_FAILED'"));
+  assert.ok(revoke.includes("errorMessage: 'POLITICAL_CONSENT_REVOKE_FAILED'"));
+  for (const block of [grant,revoke]) {
+    assert.ok(block.includes('await AuditService.logAction({'), 'retain structured accountability audit');
+    assert.ok(block.includes('success: true'));
+  }
+});
+
 test('Grazia proposals are stored privately and one pending per owner via row lock', () => {
   const source = read('api/routes/grazia.js');
   assert.match(source, /router\.post\('\/', personalNoStore, verifyToken, async/);
