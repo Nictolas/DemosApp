@@ -66,6 +66,15 @@ function jurisdictionMatchesRepresentative(jurisdiction, grade, userOrContext) {
     const recordedCountries = territoryValueFromJurisdiction(jurisdiction, TERRITORY_SCOPES.COUNTRY);
     if (recordedCountries.length &&
         !recordedCountries.every((code) => ['it', 'ita', 'italia', 'italy'].includes(code))) return false;
+    // A single matching province must not override a second, conflicting
+    // province alias in the same mandate/candidacy jurisdiction. The generic
+    // territory matcher accepts ANY alias, so enforce ALL explicit values here.
+    const recordedProvinces = territoryValueFromJurisdiction(jurisdiction, TERRITORY_SCOPES.PROVINCE);
+    const allowedProvinceCodes = new Set(
+      office.eligibleProvinceCodes.map((code) => String(code).trim().toLowerCase())
+    );
+    if (!recordedProvinces.length ||
+        !recordedProvinces.every((code) => allowedProvinceCodes.has(code))) return false;
   }
   const allowUnspecified = office.residenceScope === TERRITORY_SCOPES.SUPRANATIONAL || office.residenceScope === TERRITORY_SCOPES.COUNTRY;
   return jurisdictionMatchesScope(jurisdiction || {}, office.residenceScope, aliases, { allowUnspecified });
