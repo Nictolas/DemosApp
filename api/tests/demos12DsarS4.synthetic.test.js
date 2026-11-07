@@ -16,13 +16,15 @@ function calendarMonthsClamped(isoDate, months) {
   return first.toISOString().slice(0, 10);
 }
 
-function syntheticS4({received, extensionNotified, extensionDeliveredAt, extensionReason, extensionSent, extensionDelivered, responseSent, delivered}) {
+function syntheticS4({received, extensionNotified, extensionDeliveredAt, extensionReason, extensionSent, extensionDelivered, responseSent, delivered, responseSentAt, responseDeliveredAt}) {
   const ordinary = calendarMonthsClamped(received, 1);
   // Reject impossible notification dates instead of silently accepting an ISO-like string.
   // A synthetic extension needs separate affirmative dispatch/delivery evidence and dates;
   // this still does NOT establish that a legal extension is justified.
   if (extensionNotified != null) calendarMonthsClamped(extensionNotified, 0);
   if (extensionDeliveredAt != null) calendarMonthsClamped(extensionDeliveredAt, 0);
+  if (responseSentAt != null) calendarMonthsClamped(responseSentAt, 0);
+  if (responseDeliveredAt != null) calendarMonthsClamped(responseDeliveredAt, 0);
   const hasReason = typeof extensionReason === 'string' && extensionReason.trim().length > 0;
   const extensionAccepted = Boolean(hasReason && extensionSent === true && extensionDelivered === true && extensionNotified && extensionDeliveredAt && extensionNotified >= received && extensionNotified <= extensionDeliveredAt && extensionDeliveredAt <= ordinary);
   return {
@@ -30,7 +32,7 @@ function syntheticS4({received, extensionNotified, extensionDeliveredAt, extensi
     deadline: extensionAccepted ? calendarMonthsClamped(received, 3) : ordinary,
     extensionAccepted,
     // In this synthetic contract, untyped strings/numbers are not evidence of delivery.
-    deliveryConfirmed: responseSent === true && delivered === true,
+    deliveryConfirmed: responseSent === true && delivered === true && Boolean(responseSentAt && responseDeliveredAt && responseSentAt >= received && responseDeliveredAt >= responseSentAt),
   };
 }
 
@@ -81,7 +83,7 @@ test('S4 dispatch and delivery dates must both precede the original deadline', (
 
 test('S4 sent but undelivered is never reported as delivered', () => {
   assert.equal(syntheticS4({received:'2027-01-31',responseSent:true,delivered:false}).deliveryConfirmed,false);
-  assert.equal(syntheticS4({received:'2027-01-31',responseSent:true,delivered:true}).deliveryConfirmed,true);
+  assert.equal(syntheticS4({received:'2027-01-31',responseSent:true,delivered:true,responseSentAt:'2027-02-10',responseDeliveredAt:'2027-02-11'}).deliveryConfirmed,true);
 });
 
 test('S4 malformed dates are rejected before computing deadlines', () => {
@@ -92,7 +94,7 @@ test('S4 malformed dates are rejected before computing deadlines', () => {
 
 
 test('S4 confirmation requires actual boolean sent and delivered flags', () => {
-  const sample = {received:'2027-01-31'};
+  const sample = {received:'2027-01-31',responseSentAt:'2027-02-10',responseDeliveredAt:'2027-02-11'};
   assert.equal(syntheticS4({...sample,responseSent:false,delivered:true}).deliveryConfirmed,false);
   assert.equal(syntheticS4({...sample,responseSent:'false',delivered:true}).deliveryConfirmed,false);
   assert.equal(syntheticS4({...sample,responseSent:true,delivered:'false'}).deliveryConfirmed,false);
@@ -100,6 +102,20 @@ test('S4 confirmation requires actual boolean sent and delivered flags', () => {
   assert.equal(syntheticS4({...sample,responseSent:true,delivered:true}).deliveryConfirmed,true);
 });
 
+
+test('S4 response delivery requires ordered and valid dispatch/delivery dates', () => {
+  const sample={received:'2027-01-31',responseSent:true,delivered:true};
+  for (const invalid of [
+    {}, {responseSentAt:'2027-02-10'}, {responseDeliveredAt:'2027-02-11'},
+    {responseSentAt:'2027-02-12',responseDeliveredAt:'2027-02-11'},
+    {responseSentAt:'2027-01-30',responseDeliveredAt:'2027-02-11'},
+  ]) assert.equal(syntheticS4({...sample,...invalid}).deliveryConfirmed,false);
+  for (const date of ['2027-02-30','2027-2-1','not-a-date']) {
+    assert.throws(()=>syntheticS4({...sample,responseSentAt:date,responseDeliveredAt:'2027-02-11'}));
+    assert.throws(()=>syntheticS4({...sample,responseSentAt:'2027-02-10',responseDeliveredAt:date}));
+  }
+  assert.equal(syntheticS4({...sample,responseSentAt:'2027-02-10',responseDeliveredAt:'2027-02-11'}).deliveryConfirmed,true);
+});
 
 test('S4 year-boundary calendar and last-day extension notification examples', () => {
   const ordinary = syntheticS4({received:'2026-12-31'});
