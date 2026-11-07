@@ -135,6 +135,25 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     const own=await req('/api/grazia/mia-proposta','a');
     assert.equal(own.json.richiesta.status,'pending');
 
+    // The shared JWT verifier is intentionally mocked to accept a stale
+    // access token. On real disposable PG17, an inactive owner must not
+    // receive the ID or status of their previously submitted proposal.
+    await pool.query("UPDATE users SET status='i' WHERE id=$1",[A]);
+    try {
+      const suspended=await req('/api/grazia/mia-proposta','a');
+      assert.equal(suspended.status,200);
+      assert.deepEqual(suspended.json,{success:true,richiesta:null},
+        'private proposal status must be neutral for a suspended owner');
+      const retained=await pool.query('SELECT id,status FROM richieste_grazia WHERE id=$1',[id]);
+      assert.equal(retained.rows.length,1,'privacy guard does not delete the request');
+      assert.equal(retained.rows[0].status,'pending');
+    } finally {
+      await pool.query("UPDATE users SET status='a' WHERE id=$1",[A]);
+    }
+    const restored=await req('/api/grazia/mia-proposta','a');
+    assert.equal(restored.json.richiesta.id,id,'active owner regains own proposal');
+    assert.equal(restored.json.richiesta.status,'pending');
+
     const noContent=await req('/api/grazia');
     assert.equal(noContent.status,200);
     assert.equal(noContent.json.classifica.some(x=>x.nome===fixture.nome),false,'pending not public');
