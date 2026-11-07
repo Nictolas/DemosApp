@@ -95,6 +95,17 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     client = await pool.connect();
     await client.query('BEGIN');
+    // A cached access session may survive account suspension. Check active
+    // status under a row lock inside this transaction, so concurrent account
+    // deactivation/deletion cannot race a new private nomination into storage.
+    // FOR SHARE conflicts with non-key status UPDATE and with DELETE.
+    const owner = await client.query(
+      "SELECT id FROM users WHERE id=$1 AND status='a' FOR SHARE", [userId]
+    );
+    if (!owner.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(401).json({success:false,error:'Account non attivo o non disponibile'});
+    }
     const r = await client.query(
       "INSERT INTO subject_proposals(proposer_user_id,category,title,details,source_url,status,submission_notification_sent) VALUES($1,$2,$3,$4,$5,'pending',FALSE) RETURNING id,category,title,created_at",
       [userId, proposal.category, proposal.title, proposal.details, proposal.sourceUrl]
