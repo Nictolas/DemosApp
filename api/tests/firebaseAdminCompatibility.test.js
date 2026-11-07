@@ -62,3 +62,49 @@ test('Firebase Admin service preserves admin.messaging() compatibility on v14', 
     await deleteApp(app);
   }
 });
+
+test('real Firebase Admin 14 cert() project identity without network', async () => {
+  // Ephemeral, fictitious local key: never sent to Google, persisted, logged
+  // or used to request Firebase access tokens. This tests SDK behavior, not
+  // Google Play attestation or any real DEMOS credential.
+  const { generateKeyPairSync } = require('node:crypto');
+  const { initializeApp, cert, deleteApp } = require('firebase-admin/app');
+  const { isApprovedFirebaseAdminApp } = require('../services/firebaseAppCheckObservation');
+  const { privateKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    privateKeyEncoding: { format: 'pem', type: 'pkcs8' },
+    publicKeyEncoding: { format: 'pem', type: 'spki' },
+  });
+
+  const apps = [];
+  const makeApp = (credentialProject, explicitProject) => {
+    const credential = cert({
+      projectId: credentialProject,
+      clientEmail: `offline-fixture@${credentialProject}.iam.gserviceaccount.com`,
+      privateKey,
+    });
+    const options = { credential };
+    if (explicitProject) options.projectId = explicitProject;
+    const app = initializeApp(options, `app-check-project-contract-${apps.length}`);
+    apps.push(app);
+    return app;
+  };
+
+  try {
+    const allowed = makeApp('demos-finale');
+    assert.equal(allowed.options.projectId, undefined);
+    assert.equal(allowed.options.credential.projectId, 'demos-finale');
+    assert.equal(isApprovedFirebaseAdminApp(allowed), true);
+
+    const denied = makeApp('other-firebase-project');
+    assert.equal(isApprovedFirebaseAdminApp(denied), false);
+
+    const conflicting = makeApp('other-firebase-project', 'demos-finale');
+    assert.equal(isApprovedFirebaseAdminApp(conflicting), false);
+
+    const explicit = makeApp('demos-finale', 'demos-finale');
+    assert.equal(isApprovedFirebaseAdminApp(explicit), true);
+  } finally {
+    for (const app of apps) await deleteApp(app);
+  }
+});

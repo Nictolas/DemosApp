@@ -1,0 +1,50 @@
+name: Play Integrity preflight (offline, zero cloud usage)
+
+on:
+  pull_request:
+    paths:
+      - 'api/services/playIntegrityPolicy.js'
+      - 'api/tests/playIntegrityPolicy.test.js'
+      - 'api/services/playIntegrityDecode.js'
+      - 'api/tests/playIntegrityDecode.test.js'
+      - 'api/services/playIntegrityQuotaPlanner.js'
+      - 'api/tests/playIntegrityQuotaPlanner.test.js'
+      - 'api/services/playIntegrityBudget.js'
+      - 'api/tests/playIntegrityBudget.test.js'
+      - 'api/services/playIntegrityAggregate.js'
+      - 'api/tests/playIntegrityAggregate.test.js'
+      - 'api/tests/playIntegrityWebHash.test.mjs'
+      - 'api/services/firebaseAppCheckObservation.js'
+      - 'api/scripts/comparePlayAppSigningFingerprint.cjs'
+      - 'api/tests/comparePlayAppSigningFingerprint.test.cjs'
+      - 'api/routes/admin/firebase-app-check-diagnostic.js'
+      - 'api/app.js'
+      - 'client/src/lib/nativeFirebaseAppCheckDiagnostic.ts'
+      - 'api/tests/firebaseAppCheckObservation.test.js'
+      - 'api/tests/securityAppCheckHeaderRedaction.test.js'
+      - 'api/middleware/security.js'
+      - 'api/utils/logPrivacy.js'
+      - 'client/src/lib/nativeFirebaseAppCheck.ts'
+      - 'client/android/app/src/main/java/community/demos/NativeFirebaseAppCheckPlugin.java'
+      - 'client/android/app/src/main/java/community/demos/MainActivity.java'
+      - 'client/src/lib/playIntegrityHash.ts'
+      - 'client/src/lib/nativePlayIntegrity.ts'
+      - 'client/android/app/src/main/java/community/demos/NativePlayIntegrityPlugin.java'
+      - 'client/android/app/build.gradle'
+      - '.github/workflows/play-integrity-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify zero-cost Play Integrity policy without Google credentials
+        run: node --experimental-strip-types --test api/tests/playIntegrityPolicy.test.js api/tests/playIntegrityDecode.test.js api/tests/playIntegrityQuotaPlanner.test.js api/tests/playIntegrityBudget.test.js api/tests/playIntegrityAggregate.test.js api/tests/playIntegrityWebHash.test.mjs api/tests/firebaseAppCheckObservation.test.js api/tests/securityAppCheckHeaderRedaction.test.js api/tests/comparePlayAppSigningFingerprint.test.cjs
