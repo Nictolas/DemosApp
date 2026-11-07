@@ -50,9 +50,9 @@ const PUBLIC_AVATAR_STYLE_VALUES = Object.freeze({
 function isPublicAvatarVisualValue(key, value) {
   if (typeof value !== 'string') return false;
   if (PUBLIC_AVATAR_COLOR_KEYS.has(key)) {
-    // Current colour picker emits six-digit hex; preserve legacy 3/8-digit
+    // Current colour picker emits six-digit hex; preserve legacy 3/4/8-digit
     // CSS hex without accepting url(), var(), text notes or external sources.
-    return /^#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3})?(?:[0-9A-Fa-f]{2})?$/.test(value);
+    return /^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(value);
   }
   return PUBLIC_AVATAR_STYLE_VALUES[key]?.has(value) === true;
 }
