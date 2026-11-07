@@ -50,6 +50,15 @@ test('staging-only candidate refuses unsafe legacy rows and supports independent
     assert.equal(unchanged.rows[0].upgraded, false);
     await db.query('DELETE FROM public.political_selections');
 
+    // Even with zero rows, incoming foreign keys must block PK replacement.
+    await db.query('CREATE TABLE public.provincial_fk_guard (user_id UUID NOT NULL, selected_user_id UUID NOT NULL, selection_kind TEXT NOT NULL, FOREIGN KEY (user_id, selected_user_id, selection_kind) REFERENCES public.political_selections(user_id, selected_user_id, selection_kind))');
+    await assert.rejects(
+      db.query(migration),
+      (error) => error.code === 'P0001' && /PROVINCIAL_LEGACY_PK_REFERENCED/.test(error.message),
+    );
+    await db.query('ROLLBACK');
+    await db.query('DROP TABLE public.provincial_fk_guard');
+
     // Approval remains scoped to this disposable CI database.
     await db.query(migration);
     const rls = await db.query("SELECT relrowsecurity FROM pg_catalog.pg_class WHERE oid='public.political_selections'::regclass");
