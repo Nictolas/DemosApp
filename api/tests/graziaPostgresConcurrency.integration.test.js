@@ -288,6 +288,20 @@ test('Grazia production router: real PostgreSQL transactions enforce one pending
     const afterLegacyVote=await req('/api/grazia');
     assert.equal(afterLegacyVote.json.classifica.find(x=>x.nome===legacyDisplayName)?.richieste,2,
       'both historic and new votes contribute to the same public aggregate');
+    // A case-only resend is the same person's existing vote, not a change:
+    // preserve row identity and avoid consuming cooldown or changing timestamps.
+    const beforeSameVote=await pool.query(
+      'SELECT id,nome,timestamp FROM voti_grazia WHERE userid=$1',[B]);
+    const sameVote=await req('/api/grazia/vota','b','POST',
+      {voti:[legacyCanonicalName.toUpperCase()]});
+    assert.equal(sameVote.status,200,'case-equivalent vote remains a valid no-op');
+    assert.equal(sameVote.json.message,'Preferenza Grazia già aggiornata',
+      'case-only re-submission must not consume a cooldown');
+    const afterSameVote=await pool.query(
+      'SELECT id,nome,timestamp FROM voti_grazia WHERE userid=$1',[B]);
+    assert.deepEqual(afterSameVote.rows,beforeSameVote.rows,
+      'identical canonical preference must preserve vote ID, spelling and timestamp');
+
     const badLegacyVote=await req('/api/grazia/vota','b','POST',{voti:['Persona\u202e spoofed']});
     assert.equal(badLegacyVote.status,400,'hidden directional controls fail before writes');
     const afterBadVote=await pool.query('SELECT nome FROM voti_grazia WHERE userid=$1',[B]);
