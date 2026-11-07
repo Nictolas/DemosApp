@@ -503,7 +503,58 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       "SELECT confdeltype FROM pg_constraint WHERE conrelid='subject_proposals'::regclass AND conname='subject_proposals_proposer_user_id_fkey'"
     );
     assert.equal(proposerFk.rows[0].confdeltype,'n','ON DELETE SET NULL is required for published audit');
-    await pool.query('DELETE FROM users WHERE id=$1',[A]);
+    // Exercise the actual canonical erasure service, not only a direct users DELETE.
+    // The service assumes schema public; this disposable test uses subject_it,
+    // so only metadata schema lookups and the FK regclass are redirected here.
+    assert.notEqual(process.env.CIVIC_NEW_INITIATIVE_PUSH_ENABLED,'true',
+      'never initiate push topic revocation during the synthetic deletion test');
+    const unpublishedBeforeErasure=await pool.query(
+      "SELECT id,status FROM subject_proposals WHERE proposer_user_id=$1 AND status IN ('pending','rejected')",[A]
+    );
+    assert.ok(unpublishedBeforeErasure.rows.some(r=>r.status==='pending'),
+      'synthetic owner needs a pending record to prove canonical erasure');
+    assert.ok(unpublishedBeforeErasure.rows.some(r=>r.status==='rejected'),
+      'synthetic owner needs a rejected record to prove canonical erasure');
+    const unaffectedOther=await pool.query(
+      'SELECT count(*)::integer n FROM subject_proposals WHERE proposer_user_id=$1',[B]
+    );
+    const PrivacyErasureLedgerService=require('../services/privacyErasureLedgerService');
+    const erasureConnection=await pool.connect();
+    let erasureSummary;
+    try {
+      await erasureConnection.query('BEGIN');
+      const scopedErasureClient={
+        query:(statement,params)=>{
+          assert.equal(typeof statement,'string');
+          // Never alter canonical service source or point to a real DB.
+          const sql=statement
+            .replaceAll("table_schema = 'public'","table_schema = '"+SCHEMA+"'")
+            .replaceAll("table_schema='public'","table_schema='"+SCHEMA+"'")
+            .replaceAll("'public.subject_proposals'::regclass","'"+SCHEMA+".subject_proposals'::regclass");
+          return erasureConnection.query(sql,params);
+        }
+      };
+      erasureSummary=await PrivacyErasureLedgerService.enforceAccountDeletion(scopedErasureClient,A);
+      await erasureConnection.query('COMMIT');
+    } catch(error) {
+      await erasureConnection.query('ROLLBACK');
+      throw error;
+    } finally {
+      erasureConnection.release();
+    }
+    assert.equal(erasureSummary.userDeleted,1,'canonical erasure removes the proposer account');
+    assert.ok(erasureSummary.dependentDeleted>=unpublishedBeforeErasure.rows.length);
+    const unpublishedAfterErasure=await pool.query(
+      'SELECT id FROM subject_proposals WHERE id=ANY($1::uuid[])',
+      [unpublishedBeforeErasure.rows.map(r=>r.id)]
+    );
+    assert.equal(unpublishedAfterErasure.rows.length,0,
+      'the canonical service removes both pending and rejected nominations');
+    const otherStillThere=await pool.query(
+      'SELECT count(*)::integer n FROM subject_proposals WHERE proposer_user_id=$1',[B]
+    );
+    assert.equal(otherStillThere.rows[0].n,unaffectedOther.rows[0].n,
+      'erasure of A must not remove B-owned nominations');
     const deleted=await pool.query('SELECT count(*)::integer n FROM subject_proposals WHERE proposer_user_id=$1',[A]);
     assert.equal(deleted.rows[0].n,0);
     const historic=await pool.query('SELECT status,proposer_user_id,published_ref FROM subject_proposals WHERE id=$1',[capoId]);
