@@ -120,6 +120,40 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
       assert.equal(response.status,status,uri);
       assert.match(response.cacheControl,/private,\s*no-store/,'real Express must protect early errors '+status);
     }
+    // Express query parsers can turn category[]=x into a one-element array.
+    // String([x]) used to silently turn that malformed shape back into a
+    // valid category and reach SQL. Both private and public GETs must reject.
+    const malformedCategories=[
+      ['/api/subject-proposals/mine?category%5B%5D=capo_stato','a'],
+      ['/api/subject-proposals/mine?category%5Bfoo%5D=capo_stato','a'],
+      ['/api/subject-proposals/approved?category%5B%5D=attivisti',null],
+      ['/api/subject-proposals/approved?category%5Bfoo%5D=organizzazioni',null],
+      ['/api/subject-proposals/approved?category=attivisti&category=attivisti',null]
+    ];
+    let malformedCategoryReads=0;
+    const normalQuery=pool.query;
+    pool.query=function(...args){
+      malformedCategoryReads++;
+      return normalQuery.apply(this,args);
+    };
+    try{
+      for(const [url,who] of malformedCategories){
+        const bad=await req(url,who);
+        assert.equal(bad.status,400,'malformed category must not become valid: '+url);
+        assert.match(bad.cacheControl||'',/private,\\s*no-store/,
+          'all malformed category responses must be uncacheable');
+        assert.equal(bad.body?.success,false);
+      }
+      assert.equal(malformedCategoryReads,0,
+        'malformed one-item array or object category must never query PostgreSQL');
+    }finally{
+      pool.query=normalQuery;
+    }
+    const validMine=await req('/api/subject-proposals/mine?category=capo_stato','a');
+    assert.equal(validMine.status,200,'ordinary client private category remains compatible');
+    const validApproved=await req('/api/subject-proposals/approved?category=attivisti',null);
+    assert.equal(validApproved.status,200,'ordinary public approved category remains compatible');
+
     const capo=proposal('capo_stato','Candidata sintetica approvabile');
     const concurrent=await Promise.all(Array.from({length:8},()=>req('/api/subject-proposals','a','POST',capo)));
     assert.equal(concurrent.filter(x=>x.status===201).length,1,'only one accepted concurrently');
