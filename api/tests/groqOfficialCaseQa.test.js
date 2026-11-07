@@ -1,7 +1,19 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assessOfficialAnswer, runOfficialCaseQA } = require('../staging/groq_official_case_qa');
+const { assessOfficialAnswer, runOfficialCaseQA, diagnoseSenateExplanation } = require('../staging/groq_official_case_qa');
+
+test('Senate explanation diagnostics only classify source topic and risky finality phrase', () => {
+  assert.deepEqual(diagnoseSenateExplanation('Continuità degli impianti strategici, voto non conclusivo.'), {
+    topicFound: true, definitivePhraseFound: false
+  });
+  assert.deepEqual(diagnoseSenateExplanation('Il Senato ha approvato definitivamente.'), {
+    topicFound: false, definitivePhraseFound: true
+  });
+  assert.deepEqual(diagnoseSenateExplanation('Testo generico senza oggetto.'), {
+    topicFound: false, definitivePhraseFound: false
+  });
+});
 
 const CORRECT = {
   atto: 'C.3131',
