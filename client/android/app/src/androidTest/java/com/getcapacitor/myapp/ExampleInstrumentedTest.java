@@ -9,6 +9,7 @@ import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
 import android.view.View;
+import android.view.WindowManager;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 
@@ -42,6 +43,30 @@ public class ExampleInstrumentedTest {
             }
         }
         return null;
+    }
+
+    @Test
+    public void nativeActivityRequestsResizeForSoftKeyboard() {
+        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+        Context context = instrumentation.getTargetContext();
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        Activity activity = instrumentation.startActivitySync(intent);
+        try {
+            instrumentation.waitForIdleSync();
+            instrumentation.runOnMainSync(() -> {
+                int mode = activity.getWindow().getAttributes().softInputMode;
+                assertEquals(
+                    "DEMOS activity must resize rather than pan when the keyboard is shown",
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+                    mode & WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST
+                );
+            });
+        } finally {
+            if (activity != null) {
+                activity.runOnUiThread(activity::finish);
+            }
+        }
     }
 
     @Test
