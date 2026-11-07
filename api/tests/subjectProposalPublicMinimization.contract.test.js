@@ -419,3 +419,38 @@ test('public avatar visual projection discards private or URL-bearing values', (
       color,'valid CSS hex visual colour should survive: '+color);
   }
 });
+
+
+test('public directory invalid query filters fail closed before SQL', () => {
+  const {isValidRegisteredDirectoryFilters: valid} =
+    require('../services/registeredDirectoryPage');
+  const uuid='11111111-1111-4111-8111-111111111111';
+  for (const query of [
+    {},
+    {search:'Persona',regione:'Toscana',tipologia:'animalismo'},
+    {exclude_user_id:uuid},
+    {exclude_user_id:''},
+    {search:'',members_paged:'1'}
+  ]) assert.equal(valid(query),true,'legitimate filter request must remain supported');
+  for (const query of [
+    null, [],
+    {search:['a','b']}, {regione:{nested:'value'}},
+    {tipologia:['animali']}, {exclude_user_id:['a','b']},
+    {search:12}, {search:null}, {search:'a'.repeat(257)},
+    {exclude_user_id:'not-a-uuid'}, {exclude_user_id:uuid+'extra'}
+  ]) assert.equal(valid(query),false,'unsafe filter must be rejected: '+JSON.stringify(query));
+
+  for (const filePath of ['api/routes/attivisti.js','api/routes/organizzazioni.js']) {
+    const source=file(filePath);
+    const validation=source.indexOf('if (!isValidRegisteredDirectoryFilters(req.query))');
+    const filters=source.indexOf('const { search, regione, tipologia, exclude_user_id } = req.query;');
+    const sql=source.indexOf('const result = await query');
+    assert.ok(validation>=0&&filters>validation&&sql>filters,
+      'filter types must be checked before search, SQL or user data: '+filePath);
+    const reject=source.slice(validation,filters);
+    assert.match(reject,/res\.status\(400\)/,
+      'malformed filters must yield an HTTP 400: '+filePath);
+    assert.match(reject,/no-store/,
+      'reject responses must not be cached: '+filePath);
+  }
+});
