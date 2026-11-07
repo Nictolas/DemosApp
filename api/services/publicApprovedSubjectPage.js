@@ -2,6 +2,7 @@
 
 // Public category-scoped keyset pagination. The internal microsecond cursor
 // never leaves the server except as an opaque token; JSON contains only id/title.
+const { isNominationWriteEnabled } = require('../utils/thirdPartyNominationGate');
 const PAGE_SIZE = 100;
 const CURSOR_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function parseCursor(raw) {
@@ -23,6 +24,11 @@ function parseCursor(raw) {
 async function readApprovedPage(pool,category,rawCursor=null) {
   const cursor=parseCursor(rawCursor);
   if (cursor===false) return null;
+  // The same explicit operator opt-in gates collection AND public exposure:
+  // disabling third-party nominations must not leave historic approvals
+  // discoverable through any of the shared public directory entrypoints.
+  // Return the normal minimal response without touching the personal DB.
+  if (!isNominationWriteEnabled()) return {data:[],next_cursor:null};
   const result=await pool.query(
     `SELECT id, title,
         EXTRACT(EPOCH FROM COALESCE(reviewed_at,created_at))::text AS cursor_epoch
