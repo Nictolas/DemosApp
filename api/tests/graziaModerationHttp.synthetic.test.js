@@ -63,8 +63,14 @@ function respond(statement,values){
   if(sql.includes('FROM richieste_grazia WHERE status =') && sql.includes('ORDER BY data_creazione')){
     return {rows:requests.filter(r=>r.status==='pending').map(r=>({id:r.id,nome:r.nome,urlProva:r.url_prova,createdAt:r.data_creazione}))};
   }
-  if(sql.includes('FROM richieste_grazia WHERE utente_id = $1 ORDER BY data_creazione')){
-    return {rows:requests.filter(r=>r.utente_id===values[0]).slice(-1).map(r=>({id:r.id,status:r.status,data_creazione:r.data_creazione}))};
+  if(sql.includes('FROM richieste_grazia WHERE utente_id = $1') && sql.includes('ORDER BY data_creazione')){
+    // The fake pool enforces the actual SQL active-owner predicate: removing
+    // it must fail this regression rather than silently passing in the stub.
+    if(!sql.includes("AND EXISTS (SELECT 1 FROM users WHERE id::text = $1::text AND status = 'a')"))
+      throw Error('SYNTHETIC_MISSING_ACTIVE_OWNER_CHECK');
+    return {rows:suspendedUsers.has(values[0])?[]:
+      requests.filter(r=>r.utente_id===values[0]).slice(-1)
+        .map(r=>({id:r.id,status:r.status,data_creazione:r.data_creazione}))};
   }
   if(sql.includes("FROM richieste_grazia WHERE id = $1 AND status = 'pending' FOR UPDATE")){
     return {rows:requests.filter(r=>r.id===values[0]&&r.status==='pending').map(r=>({id:r.id,nome:r.nome,utente_id:r.utente_id}))};
@@ -169,6 +175,30 @@ test('Grazia one pending proposal per user, real persistence before success',asy
   const other=await (await request('/api/grazia/mia-proposta','b')).json();
   assert.equal(self.richiesta.status,'pending');assert.equal(other.richiesta,null);
 });
+test('Grazia private proposal status is neutral while owner is suspended with a stale JWT',async()=>{
+  // The mock JWT remains valid, but the database account switches to inactive.
+  const activeBefore=await request('/api/grazia/mia-proposta','a');
+  assert.equal(activeBefore.status,200);
+  assert.equal((await activeBefore.json()).richiesta?.status,'pending');
+
+  suspendedUsers.add(A);
+  try{
+    const before=queryCalls;
+    const hidden=await request('/api/grazia/mia-proposta','a');
+    assert.equal(hidden.status,200);
+    assert.match(hidden.headers.get('cache-control')||'',/private.*no-store/);
+    assert.deepEqual(await hidden.json(),{success:true,richiesta:null},
+      'suspended owner must not read private proposal status or its ID');
+    assert.equal(queryCalls,before+1,'suspension guard does not add a second DB query');
+  }finally{
+    suspendedUsers.delete(A);
+  }
+  const restored=await request('/api/grazia/mia-proposta','a');
+  assert.equal(restored.status,200);
+  assert.equal((await restored.json()).richiesta?.status,'pending',
+    'reactivated user retains the same personal response shape');
+});
+
 test('Grazia moderation is Admin-only, atomic and does not publish rejected subjects',async()=>{
   assert.equal((await request('/api/grazia/richieste','a')).status,403);
   assert.equal((await request('/api/grazia/richieste',null)).status,401);
