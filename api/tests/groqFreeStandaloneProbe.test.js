@@ -404,6 +404,34 @@ test('T025 missing numeric totals and non-nominal vote expose only safe booleans
   assert.doesNotMatch(JSON.stringify(sanitized), /PRIVATE_GROQ_OUTPUT|generatedExplanation/);
 });
 
+test('T025 per-sample diagnostics distinguish unsupported totals and missing privacy disclosure', async () => {
+  let n = 0;
+  const result = await runCaseSamples({
+    env: { GROQ_QA_REPEATS: '3', GROQ_QA_CASE_ID: 'T025' },
+    runCase: async () => {
+      n++;
+      return {
+        caseId: 'T025', status: 'SOURCE_MISMATCH', success: false,
+        verifiedFields: 9, failedFields: ['spiegazione'],
+        explanationDiagnostics: {
+          postponementFound: true, topicFound: true, approvedFound: true,
+          noNameRecordFound: n === 3, falselyMotionApproved: false,
+          inventedCountsFound: n === 2, generatedText: 'PRIVATE_GENERATION'
+        }
+      };
+    }
+  });
+  const safe = sanitizeCaseResult(result);
+  assert.deepEqual(safe.t025SampleCategories,
+    ['SOURCE_MISMATCH','SOURCE_MISMATCH','SOURCE_MISMATCH']);
+  assert.deepEqual(safe.t025SampleScores, [9,9,9]);
+  assert.deepEqual(safe.t025FlagTallies, {
+    postponementFound: 3, topicFound: 3, approvedFound: 3,
+    noNameRecordFound: 1, falselyMotionApproved: 0, inventedCountsFound: 1
+  });
+  assert.doesNotMatch(JSON.stringify(safe), /PRIVATE_GENERATION|generatedText/);
+});
+
 test('standalone smoke has no database, Firebase, cron or secret output handlers', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'staging', 'groq_free_standalone_probe.js'), 'utf8');
   assert.doesNotMatch(src, /require\(['"]\.\.\/config\/database['"]\)|getPool\(|firebase-admin|sendEachForMulticast|cron\.schedule|setInterval\(/);
