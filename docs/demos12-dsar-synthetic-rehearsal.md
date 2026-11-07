@@ -36,3 +36,10 @@ Status: **DRAFT / NO-GO**. Scope: PR #502 only. This document is a test plan, no
 - Actual mailbox intake and Android/staging end-to-end testing are **separate release gates** and are not proven by this rehearsal.
 
 **Current result: NOT RUN.** This plan introduces no production/staging changes, migration, feature flag, or real DSAR.
+
+
+## 07/11/2026 — Regressione sintetica: ritiro dopo generazione cursore (prova parziale)
+- Nel ramo Draft, il test PostgreSQL 17 effimero `api/tests/publicApprovedSubjectPagination.pg.integration.test.js` aggiunge a entrambe le categorie **Attivisti** e **Organizzazioni** uno scenario distinto da quello preesistente dei ritiri antecedenti alla prima GET: dopo la prima pagina di 100 proposte su 105, un record nella seconda pagina viene marcato `withdrawn` **solo nella fixture sintetica**.
+- Il cursore precedente deve restituire 4 voci senza il nominativo ritirato; la nuova consultazione completa deve avere 104 identificativi unici e payload limitato a `id,title`. Questo dimostra una proprietà della query di paginazione al momento della lettura, non il funzionamento della procedura umana DSAR.
+- Commit del test: `a7f81d035b55f691ad0fe0638e0d3d9197dcef62`. Registrare separatamente il risultato del job GitHub `Civic privacy and moderation contracts` / PostgreSQL17 e l'HEAD definitivo; **non attribuire PASS prima della verifica**.
+- **Limiti:** non è stato invocato l'endpoint Admin di ritiro, né il percorso canonico di cancellazione account. Nessuna prova su notifiche, email `privacy@demos.community`, cache già presenti nei browser aperti, gestione di una richiesta di una persona reale, staging/produzione o Android fisico. Le altre attività degli scenari A/B e i gate legali restano aperti. Stato **DRAFT / NO-GO**.
