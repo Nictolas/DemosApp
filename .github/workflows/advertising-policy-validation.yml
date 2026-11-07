@@ -99,6 +99,39 @@ jobs:
             -PdemosDebugAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
             --no-daemon
 
+      # QA-only distribution artifact: not a Play release, production SDK or real ad traffic.
+      # Signing uses the runner-generated Android DEBUG key. This installs beside
+      # production as community.demos.qaopen (never overwrites community.demos).
+      - name: Package test-only Android APK for physical-device QA
+        working-directory: client/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:assembleDebug \
+            -PdemosDebugAppOpenAds=true \
+            -PdemosDebugUmpEea=true \
+            -PdemosDebugQaForceAdult=false \
+            -PdemosDebugAdMobAppId=ca-app-pub-3940256099942544~3347511713 \
+            --no-daemon --console=plain
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -d "$sdk/build-tools"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          badging="$("$aapt" dump badging "$apk")"
+          grep -Fq "package: name='community.demos.qaopen'" <<< "$badging"
+          echo "Verified separate QA package (never overwrites installed DEMOS)"
+          sha256sum "$apk"
+
+      - name: Archive installable TEST-ONLY Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: demos-qaopen-TEST-ONLY-debug-apk
+          path: client/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Confirm release runtime does not include AdMob or UMP
         working-directory: client/android
         shell: bash
