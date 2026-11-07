@@ -73,7 +73,7 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
       Number(answer.favorevoli) === 227,
       Number(answer.contrari) === 164,
       Number(answer.astenuti) === 0,
-      /\bapprova(?:t[oa]|zione)\b.{0,100}\bdefinitiv|\bdefinitiv.{0,100}\bapprova(?:t[oa]|zione)\b/i.test(String(answer.esito || '')),
+      String(answer.esito || '').trim().toUpperCase() === 'APPROVATO DEFINITIVAMENTE',
       Number(answer.numero_legge) === 180,
       String(answer.data_pubblicazione || '') === '09/10/2026',
       String(answer.data_entrata_in_vigore || '') === '24/10/2026',
