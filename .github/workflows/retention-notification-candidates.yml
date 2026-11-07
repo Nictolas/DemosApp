@@ -1,0 +1,22 @@
+name: Retention notification candidate-only audit
+on:
+  pull_request:
+    paths:
+      - 'api/jobs/dataRetentionJob.js'
+      - 'api/routes/admin/data-retention.js'
+      - 'api/tests/retentionNotificationCandidates.synthetic.test.js'
+      - '.github/workflows/retention-notification-candidates.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: api
+      - run: node --test tests/retentionNotificationCandidates.synthetic.test.js
+        working-directory: api

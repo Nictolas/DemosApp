@@ -30,7 +30,7 @@ router.get('/policies', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero policy retention:', error);
+    console.error('RETENTION_POLICIES_READ_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -55,7 +55,7 @@ router.get('/stats', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero statistiche retention:', error);
+    console.error('RETENTION_STATS_READ_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -83,7 +83,7 @@ router.get('/expired/:userId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'identificazione dati scaduti:', error);
+    console.error('RETENTION_EXPIRED_DATA_LOOKUP_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -114,7 +114,7 @@ router.delete('/cleanup/:userId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella pulizia dati utente:', error);
+    console.error('RETENTION_USER_CLEANUP_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -143,7 +143,7 @@ router.post('/cleanup-all', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella pulizia completa:', error);
+    console.error('RETENTION_ALL_CLEANUP_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -153,7 +153,7 @@ router.post('/cleanup-all', async (req, res) => {
 
 /**
  * GET /api/admin/data-retention/notifications
- * Ottiene notifiche di retention da inviare
+ * Ottiene solo i candidati a una futura notifica di retention (nessun invio)
  */
 router.get('/notifications', async (req, res) => {
   try {
@@ -164,14 +164,18 @@ router.get('/notifications', async (req, res) => {
     res.json({
       success: true,
       data: {
-        notifications,
-        count: notifications.length,
+        notifications, // Alias legacy: questi record sono candidati, non invii effettuati.
+        count: notifications.length, // Alias legacy del conteggio candidati.
+        candidate_count: notifications.length,
+        sent_count: 0,
+        delivery_performed: false,
+        delivery_status: 'not_sent',
         days_before: parseInt(daysBefore)
       }
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero notifiche retention:', error);
+    console.error('RETENTION_NOTIFICATION_CANDIDATES_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -196,7 +200,7 @@ router.post('/job/start', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'avvio job retention:', error);
+    console.error('RETENTION_JOB_START_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -221,7 +225,7 @@ router.post('/job/stop', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nell\'arresto job retention:', error);
+    console.error('RETENTION_JOB_STOP_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -246,7 +250,7 @@ router.get('/job/status', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recupero stato job:', error);
+    console.error('RETENTION_JOB_STATUS_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -273,7 +277,7 @@ router.post('/cleanup/immediate', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nella pulizia immediata:', error);
+    console.error('RETENTION_IMMEDIATE_API_FAILED');
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
