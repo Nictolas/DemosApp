@@ -69,13 +69,13 @@ test('T009 rejected electoral amendment is distinct from approval of the parent 
     spiegazione: 'L’emendamento proponeva 18 mesi di rinvio dell’entrata in vigore della legge elettorale, ma il Senato lo ha respinto.'
   };
   assert.deepEqual(assessOfficialAnswer(t009, 'T009'),
-    { success: true, verifiedFields: 10, failedFields: [] });
+    { success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: { timingFound: true, rejectedFound: true } });
   assert.deepEqual(assessOfficialAnswer({ ...t009, esito: 'APPROVATO DEFINITIVAMENTE' }, 'T009'),
-    { success: false, verifiedFields: 9, failedFields: ['esito'] });
+    { success: false, verifiedFields: 9, failedFields: ['esito'], explanationDiagnostics: { timingFound: true, rejectedFound: true } });
   assert.deepEqual(assessOfficialAnswer({ ...t009, numero_legge: 180 }, 'T009'),
-    { success: false, verifiedFields: 9, failedFields: ['numero_legge'] });
+    { success: false, verifiedFields: 9, failedFields: ['numero_legge'], explanationDiagnostics: { timingFound: true, rejectedFound: true } });
   assert.deepEqual(assessOfficialAnswer({ ...t009, spiegazione: 'Il Senato ha respinto un emendamento sulla legge elettorale.' }, 'T009'),
-    { success: false, verifiedFields: 9, failedFields: ['spiegazione'] });
+    { success: false, verifiedFields: 9, failedFields: ['spiegazione'], explanationDiagnostics: { timingFound: false, rejectedFound: true } });
 });
 
 test('real case QA is one bounded provider request with no user data or paid model', async () => {
