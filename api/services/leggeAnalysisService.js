@@ -6,7 +6,7 @@ const { resolveFreeGroqModel, isGroqConfigured } = require('./parliamentFreeAiPo
 const { buildGroundedAnalysisMessages, parseGroundedAnalysisResponse } = require('./parliamentGroundedAnalysis');
 const { requestFreeGroq, classifyFreeGroqError } = require('./parliamentFreeGroqBudget');
 const { createSingleflight } = require('./parliamentAiSingleflight');
-const { estraiNumeroLegge, canSearchActTitle, estraiTipoAtto } = require('./parliamentActIdentifier');
+const { estraiNumeroLegge, canSearchActTitle, canUseBillTextAsVoteEvidence, estraiTipoAtto } = require('./parliamentActIdentifier');
 const singleflightAnalisi = createSingleflight();
 const { getPool } = require('../config/database');
 
@@ -247,6 +247,12 @@ function estraiArticoliETesto($) {
  * Cerca su Openpolis, Senato.it, Normattiva.it
  */
 async function cercaInformazioniLeggeWeb(numeroLegge, tipoAtto, titolo, camera) {
+  if (!canUseBillTextAsVoteEvidence(titolo)) {
+    // A DDL's general text does not establish what a separately numbered
+    // amendment, confidence motion, article vote or procedural item proposed.
+    // Without exact voted-item evidence, show only the official vote result.
+    return null;
+  }
   if (!canSearchActTitle(numeroLegge, titolo, camera)) {
     // Anche il Parlamento europeo non deve essere ricercato per numero sul
     // catalogo dei DDL italiani: le due numerazioni sono indipendenti.
