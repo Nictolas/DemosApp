@@ -338,6 +338,9 @@ test('T025 procedural non-nominal postponement cannot fabricate totals, personal
     success: true, verifiedFields: 10, failedFields: [], explanationDiagnostics: flags
   });
   assert.deepEqual(diagnoseRinvioCpiExplanation(sourceBound.spiegazione), flags);
+  assert.equal(diagnoseRinvioCpiExplanation('Rinvio approvato dalla Camera sulla Corte penale internazionale, i nomi non sono disponibili.').noNameRecordFound, true);
+  assert.equal(diagnoseRinvioCpiExplanation('La Camera ha approvato il rinvio sulla Corte penale internazionale, non sono stati registrati i nomi.').noNameRecordFound, true);
+  assert.equal(diagnoseRinvioCpiExplanation('La Camera ha approvato il rinvio sulla Corte penale internazionale, si conosce solo il margine di 40 voti.').noNameRecordFound, false);
   assert.deepEqual(assessOfficialAnswer({ ...sourceBound, favorevoli: 40 }, 'T025').failedFields, ['favorevoli']);
   assert.deepEqual(assessOfficialAnswer({ ...sourceBound, contrari: 0 }, 'T025').failedFields, ['contrari']);
   assert.deepEqual(assessOfficialAnswer({ ...sourceBound, astenuti: '0' }, 'T025').failedFields, ['astenuti']);
