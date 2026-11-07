@@ -331,6 +331,54 @@ test('actual draft SQL and Express proposal API: unique pending, Admin review, p
     assert.deepEqual(emptyNoticeAudit.body.withdrawals,[],
       'delivered notifications must not be flagged for manual review');
 
+    // Synthetic complaint by someone NAMED in a third-party proposal: user A
+    // is the named subject but B is its actual proposer. There is no
+    // self-service DSAR authorization by matching names; only Admin can unpublish.
+    const thirdParty=await req('/api/subject-proposals','b','POST',
+      proposal('attivisti','Persona fittizia segnalata da terzi'));
+    assert.equal(thirdParty.status,201);
+    const thirdId=thirdParty.body.proposal.id;
+    assert.equal((await req('/api/subject-proposals/admin/'+thirdId+
+      '/decision','admin','POST',{decision:'approve'})).status,200);
+    const visibleThird=await req('/api/subject-proposals/approved?category=attivisti');
+    assert.equal(visibleThird.status,200);
+    assert.match(visibleThird.cacheControl,/no-store/);
+    assert.deepEqual(visibleThird.body.data.find(x=>x.id===thirdId),
+      {id:thirdId,title:'Persona fittizia segnalata da terzi'});
+    const namedPersonMine=await req('/api/subject-proposals/mine?category=attivisti','a');
+    assert.equal(namedPersonMine.status,200);
+    assert.match(namedPersonMine.cacheControl,/private,\\s*no-store/);
+    assert.deepEqual(namedPersonMine.body,{success:true,pending:null,latest:null},
+      'being named by a proposer grants no private record access');
+    assert.equal((await req('/api/subject-proposals/admin/'+thirdId+
+      '/withdraw','a','POST',{note:'Contestazione fittizia'})).status,403,
+      'named third party cannot elevate to Admin through the nominated title');
+    assert.equal((await req('/api/subject-proposals/admin/'+thirdId+
+      '/decision','a','POST',{decision:'reject'})).status,403);
+    assert.equal((await req('/api/subject-proposals/mine?category=attivisti','b')).body.latest?.id,thirdId,
+      'proposer can see own status, a third party cannot');
+    // Simulates only a subsequent authorized Admin action, NOT identity
+    // verification, legal entitlement, or a completed DSAR response.
+    const adminRemoval=await req('/api/subject-proposals/admin/'+thirdId+
+      '/withdraw','admin','POST',{note:'Contestazione fittizia da valutare'});
+    assert.equal(adminRemoval.status,200);
+    assert.equal(adminRemoval.body.status,'withdrawn');
+    const hiddenThird=await req('/api/subject-proposals/approved?category=attivisti');
+    assert.equal(hiddenThird.status,200);
+    assert.match(hiddenThird.cacheControl,/no-store/);
+    assert.ok(hiddenThird.body.data.every(x=>x.id!==thirdId));
+    const stillPrivate=await req('/api/subject-proposals/mine?category=attivisti','a');
+    assert.deepEqual(stillPrivate.body,{success:true,pending:null,latest:null});
+    const thirdAudit=await pool.query(
+      'SELECT proposer_user_id,status,withdrawn_by FROM subject_proposals WHERE id=$1',[thirdId]);
+    assert.equal(thirdAudit.rows[0].proposer_user_id,B);
+    assert.equal(thirdAudit.rows[0].status,'withdrawn');
+    assert.equal(thirdAudit.rows[0].withdrawn_by,ADMIN);
+    const noticeThird=await pool.query(
+      "SELECT testo FROM notifiche_demos WHERE id_utente=$1 AND testo LIKE 'La pubblicazione%'",[B]);
+    assert.ok(noticeThird.rows.every(x=>!x.testo.includes('Persona fittizia segnalata da terzi')),
+      'withdrawal notifications omit named-person data');
+
     // Privacy: withdrawing a person or organization must NOT allow a second
     // account to bring the same title straight back into the moderation queue.
     // A corrected nomination requires an explicit DPO/Admin process, not a new POST.
