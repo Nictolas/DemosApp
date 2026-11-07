@@ -22,8 +22,12 @@ function cleanProposal(body) {
   const details = typeof body?.details === 'string' ? body.details.trim() : '';
   const sourceUrl = typeof body?.source_url === 'string' ? body.source_url.trim() : '';
   if (category === 'grazia') return { error: 'Per Grazia utilizzare la coda dedicata', code: 'GRAZIA_CODA_UNICA' };
+  // Reject hidden Unicode controls in proposed public labels to prevent
+  // an apparently identical subject from having a misleading stored title.
+  // Keep ordinary accented and RTL script letters intact.
+  const unsafeTitleControls = /[\u0000-\u001f\u007f-\u009f\u061c\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
   if (!CATEGORIES.has(category) || title.length < 3 || title.length > 150 ||
-      details.length > 1000 || sourceUrl.length > 2048) {
+      unsafeTitleControls.test(title) || details.length > 1000 || sourceUrl.length > 2048) {
     return { error: 'Campi della proposta non validi' };
   }
   // Require a public source for third-party nominations. Never accept
