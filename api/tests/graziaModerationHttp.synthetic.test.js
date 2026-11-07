@@ -4,6 +4,7 @@ const {test, after}=require('node:test');
 const assert=require('node:assert/strict');
 const http=require('node:http');
 const express=require('express');
+const realNominationGate=require('../utils/thirdPartyNominationGate');
 const A='11111111-1111-4111-8111-111111111111';
 const B='22222222-2222-4222-8222-222222222222';
 const ADMIN='33333333-3333-4333-8333-333333333333';
@@ -16,6 +17,7 @@ let failNotifications=false;
 let failConnect=false;
 let adminAvailable=true;
 let recipientAvailable=true;
+let nominationEnabled=true;
 
 const pool={
   async query(sql,params=[]){return respond(sql,params);},
@@ -104,7 +106,7 @@ mock('../services/preferenceCooldownService',{getPreferenceCooldown:async()=>({i
 // so it explicitly enables synthetic requests without changing process env.
 mock('../utils/thirdPartyNominationGate',{
   isNominationWriteEnabled:()=>true,
-  isGraziaNominationWriteEnabled:()=>true,
+  isGraziaNominationWriteEnabled:()=>nominationEnabled,
   rejectUnavailableNomination:res=>res.status(503).json({success:false,error:'PROPOSTE_NON_DISPONIBILI'})
 });
 const app=express();
@@ -162,6 +164,69 @@ test('Grazia moderation is Admin-only, atomic and does not publish rejected subj
   const publicView=await (await request('/api/grazia',null)).json();
   assert.ok(publicView.classifica.some(x=>x.nome==='Persona da verificare'));
   assert.deepEqual(publicView.richieste,[]);
+});
+
+test('Grazia dual opt-in is exact and approval cannot bypass the disabled gate',async()=>{
+  // Pure production flag function: both exact opt-ins are mandatory.
+  const env=(general,grazia)=>({
+    DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED:general,
+    DEMOS_GRAZIA_NOMINATIONS_ENABLED:grazia
+  });
+  for(const [general,grazia] of [
+    [undefined,undefined],['true',undefined],[undefined,'true'],
+    ['false','true'],['true','false'],['TRUE','true'],['true','TRUE']
+  ]){
+    assert.equal(realNominationGate.isGraziaNominationWriteEnabled(env(general,grazia)),false);
+  }
+  assert.equal(realNominationGate.isGraziaNominationWriteEnabled(env('true','true')),true);
+
+  // Same Express router as production, with a synthetic pool and no user data.
+  const name='Persona sintetica doppio flag negato';
+  const body={nome:name,urlProva:'https://example.org/fonte-pubblica'};
+  const count=requests.length;
+  const priorCatalogue=catalog.length;
+  nominationEnabled=false;
+  failConnect=true; // If a disabled operation touches SQL, this test fails.
+  try{
+    const blocked=await request('/api/grazia','b','POST',body);
+    assert.equal(blocked.status,503);
+    assert.match(blocked.headers.get('cache-control')||'',/private.*no-store/);
+    assert.equal((await blocked.json()).error,'PROPOSTE_NON_DISPONIBILI');
+    assert.equal(requests.length,count,'no private nomination persisted while disabled');
+  }finally{
+    failConnect=false;
+    nominationEnabled=true;
+  }
+
+  // Create the only pending synthetic request while opt-in is permitted.
+  const accepted=await request('/api/grazia','b','POST',body);
+  assert.equal(accepted.status,202);
+  const id=(await accepted.json()).richiesta.id;
+  nominationEnabled=false;
+  failConnect=true;
+  try{
+    for(const action of ['accetta','approve']){
+      const blocked=await request('/api/grazia/richiesta/'+id+'/'+action,'admin','POST');
+      assert.equal(blocked.status,503,'admin '+action+' must remain fail-closed');
+      assert.match(blocked.headers.get('cache-control')||'',/private.*no-store/);
+      assert.equal((await blocked.json()).error,'PROPOSTE_NON_DISPONIBILI');
+    }
+    assert.equal(requests.find(r=>r.id===id).status,'pending');
+    assert.equal(catalog.length,priorCatalogue,'disabled approval must not publish names');
+  }finally{
+    failConnect=false;
+  }
+  try{
+    // A disabled publication gate must not prevent rejecting a pending request.
+    const rejected=await request('/api/grazia/richiesta/'+id+'/rifiuta','admin','POST');
+    assert.equal(rejected.status,200);
+    assert.equal((await rejected.json()).status,'rejected');
+    assert.equal(requests.find(r=>r.id===id).status,'rejected');
+    assert.equal(catalog.length,priorCatalogue);
+  }finally{
+    nominationEnabled=true;
+    failConnect=false;
+  }
 });
 
 test('Grazia proposal and Admin decision remain committed when notification fails',async()=>{
