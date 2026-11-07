@@ -205,6 +205,60 @@ jobs:
             test -n "$(adb shell pidof community.demos.qaopen | tr -d '\r')"
             echo "DEMOS isolated QA APK: install, cold start and foreground return survived offline"
 
+      # Google Play INTERNAL APP SHARING accepts debug APKs, but DEMOS's listing
+      # requires the matching package. This is NOT a Play testing-track release.
+      # Never upload it to production/closed testing or distribute to minors.
+      - name: Package test-only APK for Google Play Internal App Sharing
+        working-directory: client/android
+        shell: bash
+        env:
+          DEMOS_QA_ADMOB_APP_ID: ${{ secrets.DEMOS_QA_ADMOB_APP_ID }}
+        run: |
+          set -euo pipefail
+          app_id="${DEMOS_QA_ADMOB_APP_ID:-ca-app-pub-7488681940015678~2926952834}"
+          if [[ ! "$app_id" =~ ^ca-app-pub-[0-9]{16}~[0-9]{10}$ ]]; then
+            echo "::error::Invalid App ID for QA"
+            exit 1
+          fi
+          echo "::add-mask::$app_id"
+          ./gradlew :app:assembleDebug \
+            -PdemosDebugAppOpenAds=true \
+            -PdemosDebugUmpEea=true \
+            -PdemosDebugQaForceAdult=true \
+            -PdemosDebugQaPlayInternalSharing=true \
+            "-PdemosDebugAdMobAppId=$app_id" \
+            --no-daemon --console=plain
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt="$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$aapt"
+          "$aapt" dump badging "$apk" | grep -Fq "package: name='community.demos'"
+          out=app/build/outputs/apk/debug/play-internal-sharing
+          mkdir -p "$out"
+          cp "$apk" "$out/DEMOS-APP-OPEN-PLAY-INTERNAL-TEST-ONLY.apk"
+          sha256sum "$out/DEMOS-APP-OPEN-PLAY-INTERNAL-TEST-ONLY.apk"
+          cat > "$out/LEGGIMI-PLAY-INTERNO.txt" <<EOF
+          DEMOS - SOLO CONDIVISIONE INTERNA GOOGLE PLAY (non produzione)
+          =============================================================
+          Pacchetto: community.demos (nome corrispondente alla scheda Play)
+          APK di DEBUG con App ID UMP DEMOS e unita' App Open di TEST Google.
+          Il flag utente adulto e' simulato: accesso solo tester maggiorenni.
+          MAI caricare questo file in canali production, internal testing o closed testing.
+          Usare solo la voce 'Condivisione interna delle app' di Play Console.
+          Potrebbe essere necessario disinstallare la versione DEMOS esistente
+          prima del test a causa della firma diversa; salvare prima eventuali dati.
+          Non produce ricavi e non sostituisce i gate privacy e Play.
+          EOF
+
+      - name: Archive only-for-internal-sharing APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEMOS-PLAY-INTERNAL-SHARING-DEBUG-AD-TEST-ONLY
+          path: client/android/app/build/outputs/apk/debug/play-internal-sharing/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Confirm release runtime does not include AdMob or UMP
         working-directory: client/android
         shell: bash
