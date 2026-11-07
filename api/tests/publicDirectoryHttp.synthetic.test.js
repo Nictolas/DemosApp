@@ -6,6 +6,12 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const express = require('express');
 
+// The production reader is fail-closed. This separate synthetic HTTP suite
+// deliberately enables the explicit gate to exercise public minimization;
+// the dedicated gate test verifies that absent/disabled flags reveal nothing.
+const previousNominationFlag=process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
+process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED='true';
+
 const privatePerson = {
   id: '11111111-1111-4111-8111-111111111111',
   nome: 'Persona sintetica',
@@ -101,6 +107,8 @@ async function request(path) {
 }
 after(async () => {
   if (server.listening) await new Promise(resolve => server.close(resolve));
+  if (previousNominationFlag==null) delete process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED;
+  else process.env.DEMOS_THIRD_PARTY_NOMINATIONS_ENABLED=previousNominationFlag;
 });
 
 async function checkPublicDirectory(path, expectApproved) {
