@@ -84,7 +84,7 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
   if (caseId === 'T009') {
     const explanation = String(answer.spiegazione || '');
     const checks = [
-      /^(?:EM(?:ENDAMENTO)?\\.?\\s*)?9\\.0\\.3$/i.test(String(answer.atto || '').trim()),
+      /^(?:EM(?:ENDAMENTO)?\.?\s*)?9\.0\.3$/i.test(String(answer.atto || '').trim()),
       String(answer.data_voto || '') === '14/09/2026',
       Number(answer.favorevoli) === 47,
       Number(answer.contrari) === 89,
@@ -93,7 +93,7 @@ function assessOfficialAnswer(answer, caseId = CASE_ID) {
       answer.numero_legge == null,
       answer.data_pubblicazione == null,
       answer.data_entrata_in_vigore == null,
-      /(?:18|diciotto)\\s*mes/i.test(explanation) && /respint|bocciat|non approvat/i.test(explanation)
+      /(?:18|diciotto)\s*mes/i.test(explanation) && /respint|bocciat|non approvat/i.test(explanation)
     ];
     const names = ['atto','data_voto','favorevoli','contrari','astenuti','esito','numero_legge','data_pubblicazione','data_entrata_in_vigore','spiegazione'];
     return { success: checks.every(Boolean), verifiedFields: checks.filter(Boolean).length, failedFields: names.filter((_, i) => !checks[i]) };
